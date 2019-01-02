@@ -1,0 +1,10 @@
+- service: foo
+  default:
+    from: foo.{{cluster}}.{{root_domain}}
+    to: foo-internal.{{cluster}}.{{root_domain}}
+    options:
+      allowed_groups:
+        - dev
+  dev:
+    from: foo.{{root_domain}}
+

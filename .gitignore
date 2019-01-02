@@ -1,0 +1,96 @@
+
+pem
+env
+coverage.txt
+*.pem
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+
+# Folders
+_obj
+_test
+.cover
+
+# Architecture specific extensions/prefixes
+*.[568vq]
+[568vq].out
+
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+
+_testmain.go
+
+*.exe
+*.test
+*.prof
+
+# Other dirs
+/bin/
+/pkg/
+
+# Without this, the *.[568vq] above ignores this folder.
+!**/graphrbac/1.6
+
+# Ruby
+website/vendor
+website/.bundle
+website/build
+website/tmp
+
+# Vagrant
+.vagrant/
+Vagrantfile
+
+# Configs
+*.hcl
+!command/agent/config/test-fixtures/config.hcl
+!command/agent/config/test-fixtures/config-embedded-type.hcl
+
+.DS_Store
+.idea
+.vscode
+
+dist/*
+
+tags
+
+# Editor backups
+*~
+*.sw[a-z]
+
+# IntelliJ IDEA project files
+.idea
+*.ipr
+*.iml
+
+# compiled output
+ui/dist
+ui/tmp
+ui/root
+http/bindata_assetfs.go
+
+# dependencies
+ui/node_modules
+ui/bower_components
+
+# misc
+ui/.DS_Store
+ui/.sass-cache
+ui/connect.lock
+ui/coverage/*
+ui/libpeerconnection.log
+ui/npm-debug.log
+ui/testem.log
+
+# used for JS acceptance tests
+ui/tests/helpers/vault-keys.js
+ui/vault-ui-integration-server.pid
+
+# for building static assets
+node_modules
+package-lock.json

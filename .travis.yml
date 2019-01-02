@@ -1,0 +1,18 @@
+---
+  language: go
+  go:
+    - 1.x
+    - tip
+  matrix:
+    allow_failures:
+      - go: tip
+    fast_finish: true
+  install:
+    - go get github.com/golang/lint/golint
+    - go get honnef.co/go/tools/cmd/staticcheck
+  script:
+    - env GO111MODULE=on make all
+    - env GO111MODULE=on make cover
+    - env GO111MODULE=on make release
+  # after_success:
+  #   - bash <(curl -s https://codecov.io/bash)
