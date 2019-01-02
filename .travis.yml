@@ -14,5 +14,5 @@
     - env GO111MODULE=on make all
     - env GO111MODULE=on make cover
     - env GO111MODULE=on make release
-  # after_success:
-  #   - bash <(curl -s https://codecov.io/bash)
+  after_success:
+    - bash <(curl -s https://codecov.io/bash)
