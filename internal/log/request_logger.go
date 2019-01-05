@@ -106,7 +106,7 @@ func logRequest(proxyHost, username string, req *http.Request, url url.URL, requ
 		Str("request-method", req.Method).
 		Str("request-uri", uri).
 		Str("proxy-host", proxyHost).
-		Str("user-agent", req.Header.Get("User-Agent")).
+		// Str("user-agent", req.Header.Get("User-Agent")).
 		Str("remote-address", getRemoteAddr(req)).
 		Dur("duration", requestDuration).
 		Str("user", username).

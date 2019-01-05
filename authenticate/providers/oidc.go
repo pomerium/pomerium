@@ -2,6 +2,7 @@ package providers // import "github.com/pomerium/pomerium/internal/providers"
 
 import (
 	"context"
+	"errors"
 
 	oidc "github.com/pomerium/go-oidc"
 	"golang.org/x/oauth2"
@@ -16,7 +17,10 @@ type OIDCProvider struct {
 // NewOIDCProvider creates a new instance of an OpenID Connect provider.
 func NewOIDCProvider(p *ProviderData) (*OIDCProvider, error) {
 	ctx := context.Background()
-	provider, err := oidc.NewProvider(ctx, "https://accounts.google.com")
+	if p.ProviderURL == "" {
+		return nil, errors.New("missing required provider url")
+	}
+	provider, err := oidc.NewProvider(ctx, p.ProviderURL)
 	if err != nil {
 		return nil, err
 	}

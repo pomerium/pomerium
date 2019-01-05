@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"strings"
 
 	"github.com/pomerium/pomerium/internal/aead"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -90,15 +89,8 @@ func (p *Proxy) PingPage(rw http.ResponseWriter, _ *http.Request) {
 func (p *Proxy) SignOut(rw http.ResponseWriter, req *http.Request) {
 	p.sessionStore.ClearSession(rw, req)
 
-	var scheme string
-
-	// Build redirect URI from request host
-	if req.URL.Scheme == "" {
-		scheme = "https"
-	}
-
 	redirectURL := &url.URL{
-		Scheme: scheme,
+		Scheme: "https",
 		Host:   req.Host,
 		Path:   "/",
 	}
@@ -185,7 +177,7 @@ func (p *Proxy) OAuthStart(rw http.ResponseWriter, req *http.Request) {
 
 	// we encrypt this value to be opaque the browser cookie
 	// this value will be unique since we always use a randomized nonce as part of marshaling
-	encryptedCSRF, err := p.CookieCipher.Marshal(state)
+	encryptedCSRF, err := p.cipher.Marshal(state)
 	if err != nil {
 		requestLog.Error().Err(err).Msg("failed to marshal csrf")
 		p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", err.Error())
@@ -195,7 +187,7 @@ func (p *Proxy) OAuthStart(rw http.ResponseWriter, req *http.Request) {
 
 	// we encrypt this value to be opaque the uri query value
 	// this value will be unique since we always use a randomized nonce as part of marshaling
-	encryptedState, err := p.CookieCipher.Marshal(state)
+	encryptedState, err := p.cipher.Marshal(state)
 	if err != nil {
 		requestLog.Error().Err(err).Msg("failed to encrypt cookie")
 		p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", err.Error())
@@ -238,14 +230,14 @@ func (p *Proxy) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
 
 	encryptedState := req.Form.Get("state")
 	stateParameter := &StateParameter{}
-	err = p.CookieCipher.Unmarshal(encryptedState, stateParameter)
+	err = p.cipher.Unmarshal(encryptedState, stateParameter)
 	if err != nil {
 		requestLog.Error().Err(err).Msg("could not unmarshal state")
 		p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", "Internal Error")
 		return
 	}
 
-	c, err := req.Cookie(p.CSRFCookieName)
+	c, err := p.csrfStore.GetCSRF(req)
 	if err != nil {
 		requestLog.Error().Err(err).Msg("failed parsing csrf cookie")
 		p.ErrorPage(rw, req, http.StatusBadRequest, "Bad Request", err.Error())
@@ -255,7 +247,7 @@ func (p *Proxy) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
 
 	encryptedCSRF := c.Value
 	csrfParameter := &StateParameter{}
-	err = p.CookieCipher.Unmarshal(encryptedCSRF, csrfParameter)
+	err = p.cipher.Unmarshal(encryptedCSRF, csrfParameter)
 	if err != nil {
 		requestLog.Error().Err(err).Msg("couldn't unmarshal CSRF")
 		p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", "Internal Error")
@@ -271,16 +263,6 @@ func (p *Proxy) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
 	if !reflect.DeepEqual(stateParameter, csrfParameter) {
 		requestLog.Error().Msg("state and CSRF should be equal")
 		p.ErrorPage(rw, req, http.StatusBadRequest, "Bad Request", "Bad Request")
-		return
-	}
-
-	// We validate the user information, and check that this user has proper authorization
-	// for the resources requested. This can be set via the email address or any groups.
-	//
-	// set cookie, or deny
-	if !p.EmailValidator(session.Email) {
-		requestLog.Error().Str("user", session.Email).Msg("permission denied: unauthorized")
-		p.ErrorPage(rw, req, http.StatusForbidden, "Permission Denied", "Invalid Account")
 		return
 	}
 
@@ -351,7 +333,6 @@ func (p *Proxy) Proxy(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// overhead := time.Now().Sub(start)
 	route.ServeHTTP(rw, req)
 }
 
@@ -432,10 +413,12 @@ func (p *Proxy) Authenticate(rw http.ResponseWriter, req *http.Request) (err err
 		}
 	}
 
-	if !p.EmailValidator(session.Email) {
-		requestLog.Error().Str("user", session.Email).Msg("email failed to validate, unauthorized")
-		return ErrUserNotAuthorized
-	}
+	// if !p.EmailValidator(session.Email) {
+	// 	requestLog.Error().Str("user", session.Email).Msg("email failed to validate, unauthorized")
+	// 	return ErrUserNotAuthorized
+	// }
+	//
+	// todo(bdd) :  handled by authorize package
 
 	req.Header.Set("X-Forwarded-User", session.User)
 
@@ -444,7 +427,6 @@ func (p *Proxy) Authenticate(rw http.ResponseWriter, req *http.Request) (err err
 	}
 
 	req.Header.Set("X-Forwarded-Email", session.Email)
-	req.Header.Set("X-Forwarded-Groups", strings.Join(session.Groups, ","))
 
 	// stash authenticated user so that it can be logged later (see func logRequest)
 	rw.Header().Set(loggingUserHeader, session.Email)

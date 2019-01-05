@@ -97,16 +97,16 @@ footer {
 
 	t = template.Must(t.Parse(`
 {{define "sign_in_message.html"}}
-  {{if eq (len .EmailDomains) 1}}
-      {{if eq (index .EmailDomains 0) "@*"}}
+  {{if eq (len .AllowedDomains) 1}}
+      {{if eq (index .AllowedDomains 0) "@*"}}
           <p>You may sign in with any {{.ProviderName}} account.</p>
       {{else}}
-          <p>You may sign in with your <b>{{index .EmailDomains 0}}</b> {{.ProviderName}} account.</p>
+          <p>You may sign in with your <b>{{index .AllowedDomains 0}}</b> {{.ProviderName}} account.</p>
       {{end}}
-  {{else if gt (len .EmailDomains) 1}}
+  {{else if gt (len .AllowedDomains) 1}}
       <p>
           You may sign in with any of these {{.ProviderName}} accounts:<br>
-          {{range $i, $e := .EmailDomains}}{{if $i}}, {{end}}<b>{{$e}}</b>{{end}}
+          {{range $i, $e := .AllowedDomains}}{{if $i}}, {{end}}<b>{{$e}}</b>{{end}}
       </p>
   {{end}}
 {{end}}`))

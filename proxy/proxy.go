@@ -23,14 +23,10 @@ import (
 // Options represents the configuration options for the proxy service.
 type Options struct {
 	// AuthenticateServiceURL specifies the url to the pomerium authenticate http service.
-	AuthenticateServiceURL *url.URL `envconfig:"PROVIDER_URL"`
+	AuthenticateServiceURL *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
 
-	//	EmailDomains is a string slice of valid domains to proxy
-	EmailDomains []string `envconfig:"EMAIL_DOMAIN"`
-	// todo(bdd): ClientID and ClientSecret are used are a hacky pre shared key
-	// prefer certificates and mutual tls
-	ClientID     string `envconfig:"PROXY_CLIENT_ID"`
-	ClientSecret string `envconfig:"PROXY_CLIENT_SECRET"`
+	// todo(bdd) : replace with certificate based mTLS
+	SharedKey string `envconfig:"SHARED_SECRET"`
 
 	DefaultUpstreamTimeout time.Duration `envconfig:"DEFAULT_UPSTREAM_TIMEOUT"`
 
@@ -38,7 +34,6 @@ type Options struct {
 	CookieSecret   string        `envconfig:"COOKIE_SECRET"`
 	CookieDomain   string        `envconfig:"COOKIE_DOMAIN"`
 	CookieExpire   time.Duration `envconfig:"COOKIE_EXPIRE"`
-	CookieSecure   bool          `envconfig:"COOKIE_SECURE" `
 	CookieHTTPOnly bool          `envconfig:"COOKIE_HTTP_ONLY"`
 
 	PassAccessToken bool `envconfig:"PASS_ACCESS_TOKEN"`
@@ -54,12 +49,11 @@ type Options struct {
 // NewOptions returns a new options struct
 var defaultOptions = &Options{
 	CookieName:             "_pomerium_proxy",
-	CookieSecure:           true,
-	CookieHTTPOnly:         true,
+	CookieHTTPOnly:         false,
 	CookieExpire:           time.Duration(168) * time.Hour,
 	DefaultUpstreamTimeout: time.Duration(10) * time.Second,
 	SessionLifetimeTTL:     time.Duration(720) * time.Hour,
-	SessionValidTTL:        time.Duration(1) * time.Minute,
+	SessionValidTTL:        time.Duration(10) * time.Minute,
 	GracePeriodTTL:         time.Duration(3) * time.Hour,
 	PassAccessToken:        false,
 }
@@ -91,22 +85,20 @@ func (o *Options) Validate() error {
 	if o.AuthenticateServiceURL == nil {
 		return errors.New("missing setting: provider-url")
 	}
+	if o.AuthenticateServiceURL.Scheme != "https" {
+		return errors.New("provider-url must be a valid https url")
+	}
 	if o.CookieSecret == "" {
 		return errors.New("missing setting: cookie-secret")
 	}
-	if o.ClientID == "" {
-		return errors.New("missing setting: client-id")
-	}
-	if o.ClientSecret == "" {
+
+	if o.SharedKey == "" {
 		return errors.New("missing setting: client-secret")
-	}
-	if len(o.EmailDomains) == 0 {
-		return errors.New("missing setting: email-domain")
 	}
 
 	decodedCookieSecret, err := base64.StdEncoding.DecodeString(o.CookieSecret)
 	if err != nil {
-		return errors.New("cookie secret is invalid (e.g. `head -c33 /dev/urandom | base64`) ")
+		return errors.New("cookie secret is invalid (e.g. `head -c32 /dev/urandom | base64`) ")
 	}
 	validCookieSecretLength := false
 	for _, i := range []int{32, 64} {
@@ -122,24 +114,14 @@ func (o *Options) Validate() error {
 
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
-	CookieCipher   aead.Cipher
-	CookieDomain   string
-	CookieExpire   time.Duration
-	CookieHTTPOnly bool
-	CookieName     string
-	CookieSecure   bool
-	CookieSeed     string
-	CSRFCookieName string
-	EmailValidator func(string) bool
-
 	PassAccessToken bool
 
 	// services
 	authenticateClient *authenticator.AuthenticateClient
 	// session
+	cipher       aead.Cipher
 	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
-	cipher       aead.Cipher
 
 	redirectURL *url.URL // the url to receive requests at
 	templates   *template.Template
@@ -154,13 +136,14 @@ type StateParameter struct {
 
 // NewProxy takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
-func NewProxy(opts *Options, optFuncs ...func(*Proxy) error) (*Proxy, error) {
+func NewProxy(opts *Options) (*Proxy, error) {
 	if opts == nil {
 		return nil, errors.New("options cannot be nil")
 	}
 	if err := opts.Validate(); err != nil {
 		return nil, err
 	}
+
 	// error explicitly handled by validate
 	decodedSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
 	cipher, err := aead.NewMiscreantCipher(decodedSecret)
@@ -174,7 +157,6 @@ func NewProxy(opts *Options, optFuncs ...func(*Proxy) error) (*Proxy, error) {
 			c.CookieDomain = opts.CookieDomain
 			c.CookieHTTPOnly = opts.CookieHTTPOnly
 			c.CookieExpire = opts.CookieExpire
-			c.CookieSecure = opts.CookieSecure
 			return nil
 		})
 
@@ -184,9 +166,7 @@ func NewProxy(opts *Options, optFuncs ...func(*Proxy) error) (*Proxy, error) {
 
 	authClient := authenticator.NewAuthenticateClient(
 		opts.AuthenticateServiceURL,
-		// todo(bdd): fields below can be dropped as Client data provides redudent auth
-		opts.ClientID,
-		opts.ClientSecret,
+		opts.SharedKey,
 		// todo(bdd): fields below should be passed as function args
 		opts.SessionLifetimeTTL,
 		opts.SessionValidTTL,
@@ -194,33 +174,17 @@ func NewProxy(opts *Options, optFuncs ...func(*Proxy) error) (*Proxy, error) {
 	)
 
 	p := &Proxy{
-		CookieCipher:   cipher,
-		CookieDomain:   opts.CookieDomain,
-		CookieExpire:   opts.CookieExpire,
-		CookieHTTPOnly: opts.CookieHTTPOnly,
-		CookieName:     opts.CookieName,
-		CookieSecure:   opts.CookieSecure,
-		CookieSeed:     string(decodedSecret),
-		CSRFCookieName: fmt.Sprintf("%v_%v", opts.CookieName, "csrf"),
-
 		// these fields make up the routing mechanism
 		mux: make(map[string]*http.Handler),
 		// session state
+		cipher:       cipher,
 		csrfStore:    cookieStore,
 		sessionStore: cookieStore,
-		cipher:       cipher,
 
 		authenticateClient: authClient,
 		redirectURL:        &url.URL{Path: "/.pomerium/callback"},
 		templates:          templates.New(),
 		PassAccessToken:    opts.PassAccessToken,
-	}
-
-	for _, optFunc := range optFuncs {
-		err := optFunc(p)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	for from, to := range opts.Routes {
@@ -231,16 +195,6 @@ func NewProxy(opts *Options, optFuncs ...func(*Proxy) error) (*Proxy, error) {
 		p.Handle(fromURL.Host, handler)
 		log.Info().Str("from", fromURL.Host).Str("to", toURL.String()).Msg("proxy.NewProxy : route")
 	}
-
-	log.Info().
-		Str("CookieName", p.CookieName).
-		Str("redirectURL", p.redirectURL.String()).
-		Str("CSRFCookieName", p.CSRFCookieName).
-		Bool("CookieSecure", p.CookieSecure).
-		Str("CookieDomain", p.CookieDomain).
-		Bool("CookieHTTPOnly", p.CookieHTTPOnly).
-		Dur("CookieExpire", opts.CookieExpire).
-		Msg("proxy.NewProxy")
 
 	return p, nil
 }
@@ -261,7 +215,7 @@ var defaultUpstreamTransport = &http.Transport{
 	}).DialContext,
 	MaxIdleConns:          100,
 	IdleConnTimeout:       90 * time.Second,
-	TLSHandshakeTimeout:   10 * time.Second,
+	TLSHandshakeTimeout:   30 * time.Second,
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
@@ -279,13 +233,8 @@ func deleteSSOCookieHeader(req *http.Request, cookieName string) {
 // ServeHTTP signs the http request and deletes cookie headers
 // before calling the upstream's ServeHTTP function.
 func (u *UpstreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	requestLog := log.WithRequest(r, "proxy.ServeHTTP")
 	deleteSSOCookieHeader(r, u.cookieName)
-	start := time.Now()
 	u.handler.ServeHTTP(w, r)
-	duration := time.Since(start)
-
-	requestLog.Debug().Dur("duration", duration).Msg("proxy-request")
 }
 
 // NewReverseProxy creates a reverse proxy to a specified url.
@@ -295,17 +244,18 @@ func (u *UpstreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(to)
 	proxy.Transport = defaultUpstreamTransport
+
 	director := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		req.Header.Add("X-Forwarded-Host", req.Host)
+
 		director(req)
 		req.Host = to.Host
 	}
 	return proxy
 }
 
-// NewReverseProxyHandler applies handler specific options to a given
-// route.
+// NewReverseProxyHandler applies handler specific options to a given route.
 func NewReverseProxyHandler(opts *Options, reverseProxy *httputil.ReverseProxy, serviceName string) http.Handler {
 	upstreamProxy := &UpstreamProxy{
 		name:       serviceName,

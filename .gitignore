@@ -38,25 +38,16 @@ _testmain.go
 
 # Ruby
 website/vendor
-website/.bundle
 website/build
 website/tmp
 
-# Vagrant
-.vagrant/
-Vagrantfile
-
-# Configs
-*.hcl
-!command/agent/config/test-fixtures/config.hcl
-!command/agent/config/test-fixtures/config-embedded-type.hcl
 
 .DS_Store
 .idea
 .vscode
 
 dist/*
-
+bin/*
 tags
 
 # Editor backups
@@ -68,29 +59,22 @@ tags
 *.ipr
 *.iml
 
-# compiled output
-ui/dist
-ui/tmp
-ui/root
-http/bindata_assetfs.go
 
 # dependencies
 ui/node_modules
 ui/bower_components
 
-# misc
-ui/.DS_Store
-ui/.sass-cache
-ui/connect.lock
-ui/coverage/*
-ui/libpeerconnection.log
-ui/npm-debug.log
-ui/testem.log
-
-# used for JS acceptance tests
-ui/tests/helpers/vault-keys.js
-ui/vault-ui-integration-server.pid
-
 # for building static assets
 node_modules
 package-lock.json
+
+# docs
+
+lib/core/metadata.js
+lib/core/MetadataBlog.js
+
+translated_docs
+build/
+yarn.lock
+node_modules
+i18n/*

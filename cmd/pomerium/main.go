@@ -6,13 +6,12 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/rs/zerolog"
-
-	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/internal/https"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/options"
 	"github.com/pomerium/pomerium/internal/version"
+
+	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/proxy"
 )
 
@@ -24,7 +23,7 @@ var (
 func main() {
 	flag.Parse()
 	if *debugFlag {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+		log.SetDebugMode()
 	}
 	if *versionFlag {
 		fmt.Printf("%s", version.FullVersion())
@@ -36,7 +35,7 @@ func main() {
 		log.Fatal().Err(err).Msg("cmd/pomerium : failed to parse authenticator settings")
 	}
 	emailValidator := func(p *authenticate.Authenticator) error {
-		p.Validator = options.NewEmailValidator(authOpts.EmailDomains)
+		p.Validator = options.NewEmailValidator(authOpts.AllowedDomains)
 		return nil
 	}
 
@@ -50,21 +49,13 @@ func main() {
 		log.Fatal().Err(err).Msg("cmd/pomerium : failed to parse proxy settings")
 	}
 
-	validator := func(p *proxy.Proxy) error {
-		p.EmailValidator = options.NewEmailValidator(proxyOpts.EmailDomains)
-		return nil
-	}
-
-	p, err := proxy.NewProxy(proxyOpts, validator)
+	p, err := proxy.NewProxy(proxyOpts)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium : failed to create proxy")
 	}
 
-	// proxyHandler := log.NewLoggingHandler(p.Handler())
-	authHandler := http.TimeoutHandler(authenticator.Handler(), authOpts.RequestTimeout, "")
-
 	topMux := http.NewServeMux()
-	topMux.Handle(authOpts.Host+"/", authHandler)
+	topMux.Handle(authOpts.RedirectURL.Host+"/", authenticator.Handler())
 	topMux.Handle("/", p.Handler())
 	log.Fatal().Err(https.ListenAndServeTLS(nil, topMux))
 

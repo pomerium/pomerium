@@ -14,6 +14,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const defaultGoogleProviderURL = "https://accounts.google.com"
+
 // GoogleProvider is an implementation of the Provider interface.
 type GoogleProvider struct {
 	*ProviderData
@@ -25,7 +27,11 @@ type GoogleProvider struct {
 // NewGoogleProvider returns a new GoogleProvider and sets the provider url endpoints.
 func NewGoogleProvider(p *ProviderData) (*GoogleProvider, error) {
 	ctx := context.Background()
-	provider, err := oidc.NewProvider(ctx, "https://accounts.google.com")
+
+	if p.ProviderURL == "" {
+		p.ProviderURL = defaultGoogleProviderURL
+	}
+	provider, err := oidc.NewProvider(ctx, p.ProviderURL)
 	if err != nil {
 		return nil, err
 	}

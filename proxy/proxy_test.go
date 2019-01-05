@@ -20,7 +20,7 @@ func TestOptionsFromEnvConfig(t *testing.T) {
 		wantErr  bool
 	}{
 		{"good default, no env settings", defaultOptions, "", "", false},
-		{"bad url", nil, "PROVIDER_URL", "%.rjlw", true},
+		{"bad url", nil, "AUTHENTICATE_SERVICE_URL", "%.rjlw", true},
 		{"good duration", defaultOptions, "SESSION_VALID_TTL", "1m", false},
 		{"bad duration", nil, "SESSION_VALID_TTL", "1sm", true},
 	}
@@ -127,9 +127,7 @@ func testOptions() *Options {
 	return &Options{
 		Routes:                 map[string]string{"corp.example.com": "example.com"},
 		AuthenticateServiceURL: authurl,
-		ClientID:               "yksYDhIM7PZTvdFP3Mi3sYt2JXooTi7y0oIClBR46fs=",
-		ClientSecret:           "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
-		EmailDomains:           []string{"*"},
+		SharedKey:              "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
 		CookieSecret:           "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
 	}
 }
@@ -147,14 +145,10 @@ func TestOptions_Validate(t *testing.T) {
 	invalidCookieSecret := testOptions()
 	invalidCookieSecret.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
 	shortCookieLength := testOptions()
-	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg==" //head -c31 /dev/urandom | base64
+	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
 
-	badClientID := testOptions()
-	badClientID.ClientID = ""
-	badClientSecret := testOptions()
-	badClientSecret.ClientSecret = ""
-	badEmailDomain := testOptions()
-	badEmailDomain.EmailDomains = nil
+	badSharedKey := testOptions()
+	badSharedKey.SharedKey = ""
 
 	tests := []struct {
 		name    string
@@ -170,9 +164,7 @@ func TestOptions_Validate(t *testing.T) {
 		{"bad - no cookie secret", emptyCookieSecret, true},
 		{"bad - invalid cookie secret", invalidCookieSecret, true},
 		{"bad - short cookie secret", shortCookieLength, true},
-		{"bad - no client id", badClientID, true},
-		{"bad - no client secret", badClientSecret, true},
-		{"bad - no email domain", badEmailDomain, true},
+		{"bad - no shared secret", badSharedKey, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -187,7 +179,7 @@ func TestOptions_Validate(t *testing.T) {
 func TestNewProxy(t *testing.T) {
 	good := testOptions()
 	shortCookieLength := testOptions()
-	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg==" //head -c31 /dev/urandom | base64
+	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
 
 	tests := []struct {
 		name      string
@@ -204,7 +196,7 @@ func TestNewProxy(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewProxy(tt.opts, tt.optFuncs...)
+			got, err := NewProxy(tt.opts)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewProxy() error = %v, wantErr %v", err, tt.wantErr)
 				return

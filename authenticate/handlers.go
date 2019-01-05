@@ -40,7 +40,7 @@ func (p *Authenticator) Handler() http.Handler {
 	serviceMux.HandleFunc("/start", m.WithMethods(p.OAuthStart, "GET"))
 	serviceMux.HandleFunc("/oauth2/callback", m.WithMethods(p.OAuthCallback, "GET"))
 	// authenticator-server endpoints, todo(bdd): make gRPC
-	serviceMux.HandleFunc("/sign_in", m.WithMethods(m.ValidateClientID(p.validateSignature(p.SignIn), p.ProxyClientID), "GET"))
+	serviceMux.HandleFunc("/sign_in", m.WithMethods(p.validateSignature(p.SignIn), "GET"))
 	serviceMux.HandleFunc("/sign_out", m.WithMethods(p.validateSignature(p.SignOut), "GET", "POST"))
 	serviceMux.HandleFunc("/profile", m.WithMethods(p.validateExisting(p.GetProfile), "GET"))
 	serviceMux.HandleFunc("/validate", m.WithMethods(p.validateExisting(p.ValidateToken), "GET"))
@@ -48,7 +48,7 @@ func (p *Authenticator) Handler() http.Handler {
 	serviceMux.HandleFunc("/refresh", m.WithMethods(p.validateExisting(p.Refresh), "POST"))
 
 	// NOTE: we have to include trailing slash for the router to match the host header
-	host := p.Host
+	host := p.RedirectURL.Host
 	if !strings.HasSuffix(host, "/") {
 		host = fmt.Sprintf("%s/", host)
 	}
@@ -59,14 +59,14 @@ func (p *Authenticator) Handler() http.Handler {
 
 // validateSignature wraps a common collection of middlewares to validate signatures
 func (p *Authenticator) validateSignature(f http.HandlerFunc) http.HandlerFunc {
-	return validateRedirectURI(validateSignature(f, p.ProxyClientSecret), p.ProxyRootDomains)
+	return validateRedirectURI(validateSignature(f, p.SharedKey), p.ProxyRootDomains)
 
 }
 
 // validateSignature wraps a common collection of middlewares to validate
 // a (presumably) existing user session
 func (p *Authenticator) validateExisting(f http.HandlerFunc) http.HandlerFunc {
-	return m.ValidateClientID(m.ValidateClientSecret(f, p.ProxyClientSecret), p.ProxyClientID)
+	return m.ValidateClientSecret(f, p.SharedKey)
 }
 
 // RobotsTxt handles the /robots.txt route.
@@ -85,27 +85,27 @@ func (p *Authenticator) PingPage(rw http.ResponseWriter, req *http.Request) {
 func (p *Authenticator) SignInPage(rw http.ResponseWriter, req *http.Request, code int) {
 	requestLog := log.WithRequest(req, "authenticate.SignInPage")
 	rw.WriteHeader(code)
-	redirectURL := p.redirectURL.ResolveReference(req.URL)
+	redirectURL := p.RedirectURL.ResolveReference(req.URL)
 	// validateRedirectURI middleware already ensures that this is a valid URL
 	destinationURL, _ := url.Parse(redirectURL.Query().Get("redirect_uri"))
 	t := struct {
-		ProviderName string
-		EmailDomains []string
-		Redirect     string
-		Destination  string
-		Version      string
+		ProviderName   string
+		AllowedDomains []string
+		Redirect       string
+		Destination    string
+		Version        string
 	}{
-		ProviderName: p.provider.Data().ProviderName,
-		EmailDomains: p.EmailDomains,
-		Redirect:     redirectURL.String(),
-		Destination:  destinationURL.Host,
-		Version:      version.FullVersion(),
+		ProviderName:   p.provider.Data().ProviderName,
+		AllowedDomains: p.AllowedDomains,
+		Redirect:       redirectURL.String(),
+		Destination:    destinationURL.Host,
+		Version:        version.FullVersion(),
 	}
 	requestLog.Info().
 		Str("ProviderName", p.provider.Data().ProviderName).
 		Str("Redirect", redirectURL.String()).
 		Str("Destination", destinationURL.Host).
-		Str("EmailDomains", strings.Join(p.EmailDomains, ", ")).
+		Str("AllowedDomains", strings.Join(p.AllowedDomains, ", ")).
 		Msg("authenticate.SignInPage")
 	p.templates.ExecuteTemplate(rw, "sign_in.html", t)
 }
@@ -358,7 +358,7 @@ func (p *Authenticator) OAuthStart(rw http.ResponseWriter, req *http.Request) {
 
 	proxyRedirectSig := authRedirectURL.Query().Get("sig")
 	ts := authRedirectURL.Query().Get("ts")
-	if !validSignature(proxyRedirectURL.String(), proxyRedirectSig, ts, p.ProxyClientSecret) {
+	if !validSignature(proxyRedirectURL.String(), proxyRedirectSig, ts, p.SharedKey) {
 		httputil.ErrorResponse(rw, req, "Invalid redirect parameter", http.StatusBadRequest)
 		return
 	}

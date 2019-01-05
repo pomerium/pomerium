@@ -27,14 +27,15 @@ type TestProvider struct {
 
 // NewTestProvider creates a new mock test provider.
 func NewTestProvider(providerURL *url.URL) *TestProvider {
+	host := &url.URL{
+		Scheme: "http",
+		Host:   providerURL.Host,
+		Path:   "/authorize",
+	}
 	return &TestProvider{
 		ProviderData: &ProviderData{
 			ProviderName: "Test Provider",
-			ProviderURL: &url.URL{
-				Scheme: "http",
-				Host:   providerURL.Host,
-				Path:   "/authorize",
-			},
+			ProviderURL:  host.String(),
 		},
 	}
 }

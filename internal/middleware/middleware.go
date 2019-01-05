@@ -40,47 +40,26 @@ func WithMethods(f http.HandlerFunc, methods ...string) http.HandlerFunc {
 	}
 }
 
-// ValidateClientID checks the request body or url for the client id and returns an error
-// if it does not match the proxy client id
-func ValidateClientID(f http.HandlerFunc, proxyClientID string) http.HandlerFunc {
-	return func(rw http.ResponseWriter, req *http.Request) {
-		// try to get the client id from the request body
-		err := req.ParseForm()
-		if err != nil {
-			httputil.ErrorResponse(rw, req, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		clientID := req.FormValue("client_id")
-		if clientID == "" {
-			// try to get the clientID from the query parameters
-			clientID = req.URL.Query().Get("client_id")
-		}
-
-		if clientID != proxyClientID {
-			httputil.ErrorResponse(rw, req, "Invalid client_id parameter", http.StatusUnauthorized)
-			return
-		}
-		f(rw, req)
-	}
-}
-
 // ValidateClientSecret checks the request header for the client secret and returns
 // an error if it does not match the proxy client secret
-func ValidateClientSecret(f http.HandlerFunc, proxyClientSecret string) http.HandlerFunc {
+func ValidateClientSecret(f http.HandlerFunc, sharedSecret string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		err := req.ParseForm()
 		if err != nil {
 			httputil.ErrorResponse(rw, req, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		clientSecret := req.Form.Get("client_secret")
+		clientSecret := req.Form.Get("shared_secret")
 		// check the request header for the client secret
 		if clientSecret == "" {
 			clientSecret = req.Header.Get("X-Client-Secret")
 		}
-		if clientSecret != proxyClientSecret {
-			log.Error().Str("clientSecret", clientSecret).Str("proxyClientSecret", proxyClientSecret).Msg("oh")
+
+		if clientSecret != sharedSecret {
+			log.Error().
+				Str("clientSecret", clientSecret).
+				Str("sharedSecret", sharedSecret).
+				Msg("middleware.ValidateClientSecret")
 			httputil.ErrorResponse(rw, req, "Invalid client secret", http.StatusUnauthorized)
 			return
 		}
@@ -122,7 +101,7 @@ func validRedirectURI(uri string, rootDomains []string) bool {
 
 // ValidateSignature ensures the request is valid and has been signed with
 // the correspdoning client secret key
-func ValidateSignature(f http.HandlerFunc, proxyClientSecret string) http.HandlerFunc {
+func ValidateSignature(f http.HandlerFunc, sharedSecret string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		err := req.ParseForm()
 		if err != nil {
@@ -132,7 +111,7 @@ func ValidateSignature(f http.HandlerFunc, proxyClientSecret string) http.Handle
 		redirectURI := req.Form.Get("redirect_uri")
 		sigVal := req.Form.Get("sig")
 		timestamp := req.Form.Get("ts")
-		if !validSignature(redirectURI, sigVal, timestamp, proxyClientSecret) {
+		if !validSignature(redirectURI, sigVal, timestamp, sharedSecret) {
 			httputil.ErrorResponse(rw, req, "Invalid redirect parameter", http.StatusBadRequest)
 			return
 		}
@@ -154,6 +133,7 @@ func ValidateHost(h http.Handler, mux map[string]*http.Handler) http.Handler {
 
 // RequireHTTPS reroutes a HTTP request to HTTPS
 // todo(bdd) : this is unreliable unless behind another reverser proxy
+// todo(bdd) : header age seems extreme
 func RequireHTTPS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("Strict-Transport-Security", "max-age=31536000")

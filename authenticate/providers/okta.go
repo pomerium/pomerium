@@ -2,6 +2,7 @@ package providers // import "github.com/pomerium/pomerium/internal/providers"
 
 import (
 	"context"
+	"errors"
 	"net/url"
 
 	oidc "github.com/pomerium/go-oidc"
@@ -23,7 +24,10 @@ type OktaProvider struct {
 // NewOktaProvider creates a new instance of an OpenID Connect provider.
 func NewOktaProvider(p *ProviderData) (*OktaProvider, error) {
 	ctx := context.Background()
-	provider, err := oidc.NewProvider(ctx, "https://dev-108295.oktapreview.com/oauth2/default")
+	if p.ProviderURL == "" {
+		return nil, errors.New("missing required provider url")
+	}
+	provider, err := oidc.NewProvider(ctx, p.ProviderURL)
 	if err != nil {
 		return nil, err
 	}

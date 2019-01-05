@@ -45,7 +45,6 @@ func New(provider string, p *ProviderData) (Provider, error) {
 		}
 		return p, nil
 	case OktaProviderName:
-		log.Info().Msg("Okta!")
 		p, err := NewOktaProvider(p)
 		if err != nil {
 			return nil, err
@@ -67,9 +66,8 @@ type ProviderData struct {
 	ProviderName       string
 	ClientID           string
 	ClientSecret       string
-	ProviderURL        *url.URL
+	ProviderURL        string
 	Scopes             []string
-	ApprovalPrompt     string
 	SessionLifetimeTTL time.Duration
 
 	verifier *oidc.IDTokenVerifier
@@ -227,7 +225,7 @@ func (p *ProviderData) RefreshAccessToken(refreshToken string) (string, time.Dur
 	c := oauth2.Config{
 		ClientID:     p.ClientID,
 		ClientSecret: p.ClientSecret,
-		Endpoint:     oauth2.Endpoint{TokenURL: p.ProviderURL.String()},
+		Endpoint:     oauth2.Endpoint{TokenURL: p.ProviderURL},
 	}
 	t := oauth2.Token{RefreshToken: refreshToken}
 	ts := c.TokenSource(ctx, &t)

@@ -13,6 +13,11 @@ import (
 // Logger is the global logger.
 var Logger = zerolog.New(os.Stderr).With().Timestamp().Logger()
 
+// SetDebugMode tells the logger to use standard out and pretty print output.
+func SetDebugMode() {
+	Logger = Logger.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+}
+
 // Output duplicates the global logger and sets w as its output.
 func Output(w io.Writer) zerolog.Logger {
 	return Logger.Output(w)
@@ -32,7 +37,7 @@ func WithRequest(req *http.Request, function string) zerolog.Logger {
 		Str("req-http-method", req.Method).
 		Str("req-host", req.Host).
 		Str("req-url", req.URL.String()).
-		Str("req-user-agent", req.Header.Get("User-Agent")).
+		// Str("req-user-agent", req.Header.Get("User-Agent")).
 		Logger()
 }
 

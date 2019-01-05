@@ -17,57 +17,42 @@ import (
 	"github.com/pomerium/pomerium/internal/templates"
 )
 
+var defaultOptions = &Options{
+	CookieName:         "_pomerium_authenticate",
+	CookieHTTPOnly:     true,
+	CookieExpire:       time.Duration(168) * time.Hour,
+	CookieRefresh:      time.Duration(1) * time.Hour,
+	SessionLifetimeTTL: time.Duration(720) * time.Hour,
+	Scopes:             []string{"openid", "email", "profile"},
+}
+
 // Options permits the configuration of the authentication service
 type Options struct {
-	// e.g.
-	Host string `envconfig:"HOST"`
-	//
-	ProxyClientID     string `envconfig:"PROXY_CLIENT_ID"`
-	ProxyClientSecret string `envconfig:"PROXY_CLIENT_SECRET"`
+	RedirectURL *url.URL `envconfig:"REDIRECT_URL" ` // e.g. auth.example.com/oauth/callback
+
+	SharedKey string `envconfig:"SHARED_SECRET"`
 
 	// Coarse authorization based on user email domain
-	EmailDomains     []string `envconfig:"SSO_EMAIL_DOMAIN"`
+	AllowedDomains   []string `envconfig:"ALLOWED_DOMAINS"`
 	ProxyRootDomains []string `envconfig:"PROXY_ROOT_DOMAIN"`
 
 	// Session/Cookie management
 	CookieName     string
 	CookieSecret   string        `envconfig:"COOKIE_SECRET"`
 	CookieDomain   string        `envconfig:"COOKIE_DOMAIN"`
-	CookieExpire   time.Duration `envconfig:"COOKIE_EXPIRE" default:"168h"`
-	CookieRefresh  time.Duration `envconfig:"COOKIE_REFRESH" default:"1h"`
-	CookieSecure   bool          `envconfig:"COOKIE_SECURE" default:"true"`
-	CookieHTTPOnly bool          `envconfig:"COOKIE_HTTP_ONLY" default:"true"`
+	CookieExpire   time.Duration `envconfig:"COOKIE_EXPIRE"`
+	CookieRefresh  time.Duration `envconfig:"COOKIE_REFRESH"`
+	CookieSecure   bool          `envconfig:"COOKIE_SECURE"`
+	CookieHTTPOnly bool          `envconfig:"COOKIE_HTTP_ONLY"`
 
-	AuthCodeSecret string `envconfig:"AUTH_CODE_SECRET"`
-
-	SessionLifetimeTTL time.Duration `envconfig:"SESSION_LIFETIME_TTL" default:"720h"`
+	SessionLifetimeTTL time.Duration `envconfig:"SESSION_LIFETIME_TTL"`
 
 	// Authentication provider configuration vars
-	RedirectURL  *url.URL `envconfig:"IDP_REDIRECT_URL" ` // e.g. auth.example.com/oauth/callback
 	ClientID     string   `envconfig:"IDP_CLIENT_ID"`     // IdP ClientID
 	ClientSecret string   `envconfig:"IDP_CLIENT_SECRET"` // IdP Secret
 	Provider     string   `envconfig:"IDP_PROVIDER"`      //Provider name e.g. "oidc","okta","google",etc
-	ProviderURL  *url.URL `envconfig:"IDP_PROVIDER_URL"`
+	ProviderURL  string   `envconfig:"IDP_PROVIDER_URL"`
 	Scopes       []string `envconfig:"IDP_SCOPE" default:"openid,email,profile"`
-
-	// todo(bdd) : can delete?`
-	ApprovalPrompt string        `envconfig:"IDP_APPROVAL_PROMPT" default:"consent"`
-	RequestLogging bool          `envconfig:"REQUEST_LOGGING" default:"true"`
-	RequestTimeout time.Duration `envconfig:"REQUEST_TIMEOUT" default:"2s"`
-}
-
-var defaultOptions = &Options{
-	EmailDomains:       []string{"*"},
-	CookieName:         "_pomerium_authenticate",
-	CookieSecure:       true,
-	CookieHTTPOnly:     true,
-	CookieExpire:       time.Duration(168) * time.Hour,
-	CookieRefresh:      time.Duration(1) * time.Hour,
-	RequestTimeout:     time.Duration(2) * time.Second,
-	SessionLifetimeTTL: time.Duration(720) * time.Hour,
-
-	ApprovalPrompt: "consent",
-	Scopes:         []string{"openid", "email", "profile"},
 }
 
 // OptionsFromEnvConfig builds the authentication service's configuration
@@ -84,9 +69,7 @@ func OptionsFromEnvConfig() (*Options, error) {
 // The checks do not modify the internal state of the Option structure. Function returns
 // on first error found.
 func (o *Options) Validate() error {
-	if o.ProviderURL == nil {
-		return errors.New("missing setting: identity provider url")
-	}
+
 	if o.RedirectURL == nil {
 		return errors.New("missing setting: identity provider redirect url")
 	}
@@ -100,17 +83,14 @@ func (o *Options) Validate() error {
 	if o.ClientSecret == "" {
 		return errors.New("missing setting: client secret")
 	}
-	if len(o.EmailDomains) == 0 {
+	if len(o.AllowedDomains) == 0 {
 		return errors.New("missing setting email domain")
 	}
 	if len(o.ProxyRootDomains) == 0 {
 		return errors.New("missing setting: proxy root domain")
 	}
-	if o.ProxyClientID == "" {
-		return errors.New("missing setting: proxy client id")
-	}
-	if o.ProxyClientSecret == "" {
-		return errors.New("missing setting: proxy client secret")
+	if o.SharedKey == "" {
+		return errors.New("missing setting: shared secret")
 	}
 
 	decodedCookieSecret, err := base64.StdEncoding.DecodeString(o.CookieSecret)
@@ -140,15 +120,15 @@ func (o *Options) Validate() error {
 
 // Authenticator stores all the information associated with proxying the request.
 type Authenticator struct {
+	RedirectURL *url.URL
+
 	Validator func(string) bool
 
-	EmailDomains     []string
+	AllowedDomains   []string
 	ProxyRootDomains []string
-	Host             string
 	CookieSecure     bool
 
-	ProxyClientID     string
-	ProxyClientSecret string
+	SharedKey string
 
 	SessionLifetimeTTL time.Duration
 
@@ -159,8 +139,7 @@ type Authenticator struct {
 	sessionStore sessions.SessionStore
 	cipher       aead.Cipher
 
-	redirectURL *url.URL
-	provider    providers.Provider
+	provider providers.Provider
 }
 
 // NewAuthenticator creates a Authenticator struct and applies the optional functions slice to the struct.
@@ -171,7 +150,7 @@ func NewAuthenticator(opts *Options, optionFuncs ...func(*Authenticator) error) 
 	if err := opts.Validate(); err != nil {
 		return nil, err
 	}
-	decodedAuthCodeSecret, err := base64.StdEncoding.DecodeString(opts.AuthCodeSecret)
+	decodedAuthCodeSecret, err := base64.StdEncoding.DecodeString(opts.CookieSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -198,16 +177,15 @@ func NewAuthenticator(opts *Options, optionFuncs ...func(*Authenticator) error) 
 	}
 
 	p := &Authenticator{
-		ProxyClientID:     opts.ProxyClientID,
-		ProxyClientSecret: opts.ProxyClientSecret,
-		EmailDomains:      opts.EmailDomains,
-		ProxyRootDomains:  dotPrependDomains(opts.ProxyRootDomains),
-		CookieSecure:      opts.CookieSecure,
-		redirectURL:       opts.RedirectURL,
-		templates:         templates.New(),
-		csrfStore:         cookieStore,
-		sessionStore:      cookieStore,
-		cipher:            cipher,
+		SharedKey:        opts.SharedKey,
+		AllowedDomains:   opts.AllowedDomains,
+		ProxyRootDomains: dotPrependDomains(opts.ProxyRootDomains),
+		CookieSecure:     opts.CookieSecure,
+		RedirectURL:      opts.RedirectURL,
+		templates:        templates.New(),
+		csrfStore:        cookieStore,
+		sessionStore:     cookieStore,
+		cipher:           cipher,
 	}
 	// p.ServeMux = p.Handler()
 	p.provider, err = newProvider(opts)
@@ -229,11 +207,10 @@ func newProvider(opts *Options) (providers.Provider, error) {
 	pd := &providers.ProviderData{
 		RedirectURL:        opts.RedirectURL,
 		ProviderName:       opts.Provider,
+		ProviderURL:        opts.ProviderURL,
 		ClientID:           opts.ClientID,
 		ClientSecret:       opts.ClientSecret,
-		ApprovalPrompt:     opts.ApprovalPrompt,
 		SessionLifetimeTTL: opts.SessionLifetimeTTL,
-		ProviderURL:        opts.ProviderURL,
 		Scopes:             opts.Scopes,
 	}
 	np, err := providers.New(opts.Provider, pd)

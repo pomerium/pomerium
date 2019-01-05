@@ -46,7 +46,7 @@ func validRedirectURI(uri string, rootDomains []string) bool {
 	return false
 }
 
-func validateSignature(f http.HandlerFunc, proxyClientSecret string) http.HandlerFunc {
+func validateSignature(f http.HandlerFunc, sharedKey string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		err := req.ParseForm()
 		if err != nil {
@@ -56,7 +56,7 @@ func validateSignature(f http.HandlerFunc, proxyClientSecret string) http.Handle
 		redirectURI := req.Form.Get("redirect_uri")
 		sigVal := req.Form.Get("sig")
 		timestamp := req.Form.Get("ts")
-		if !validSignature(redirectURI, sigVal, timestamp, proxyClientSecret) {
+		if !validSignature(redirectURI, sigVal, timestamp, sharedKey) {
 			httputil.ErrorResponse(rw, req, "Invalid redirect parameter", http.StatusBadRequest)
 			return
 		}

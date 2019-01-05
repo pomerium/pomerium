@@ -42,15 +42,14 @@ var (
 type AuthenticateClient struct {
 	AuthenticateServiceURL *url.URL
 
-	//
-	ClientID     string
-	ClientSecret string
-	SignInURL    *url.URL
-	SignOutURL   *url.URL
-	RedeemURL    *url.URL
-	RefreshURL   *url.URL
-	ProfileURL   *url.URL
-	ValidateURL  *url.URL
+	SharedKey string
+
+	SignInURL   *url.URL
+	SignOutURL  *url.URL
+	RedeemURL   *url.URL
+	RefreshURL  *url.URL
+	ProfileURL  *url.URL
+	ValidateURL *url.URL
 
 	SessionValidTTL    time.Duration
 	SessionLifetimeTTL time.Duration
@@ -58,12 +57,12 @@ type AuthenticateClient struct {
 }
 
 // NewAuthenticateClient instantiates a new AuthenticateClient with provider data
-func NewAuthenticateClient(uri *url.URL, clientID, clientSecret string, sessionValid, sessionLifetime, gracePeriod time.Duration) *AuthenticateClient {
+func NewAuthenticateClient(uri *url.URL, sharedKey string, sessionValid, sessionLifetime, gracePeriod time.Duration) *AuthenticateClient {
 	return &AuthenticateClient{
 		AuthenticateServiceURL: uri,
 
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
+		// ClientID:  clientID,
+		SharedKey: sharedKey,
 
 		SignInURL:   uri.ResolveReference(&url.URL{Path: "/sign_in"}),
 		SignOutURL:  uri.ResolveReference(&url.URL{Path: "/sign_out"}),
@@ -112,9 +111,7 @@ func (p *AuthenticateClient) Redeem(redirectURL, code string) (*sessions.Session
 	}
 
 	params := url.Values{}
-	// params that are validates by the authenticate service middleware
-	params.Add("client_id", p.ClientID)
-	params.Add("client_secret", p.ClientSecret)
+	params.Add("shared_secret", p.SharedKey)
 	params.Add("code", code)
 
 	req, err := p.newRequest("POST", p.RedeemURL.String(), bytes.NewBufferString(params.Encode()))
@@ -195,8 +192,7 @@ func (p *AuthenticateClient) RefreshSession(s *sessions.SessionState) (bool, err
 
 func (p *AuthenticateClient) redeemRefreshToken(refreshToken string) (token string, expires time.Duration, err error) {
 	params := url.Values{}
-	params.Add("client_id", p.ClientID)
-	params.Add("client_secret", p.ClientSecret)
+	params.Add("shared_secret", p.SharedKey)
 	params.Add("refresh_token", refreshToken)
 	var req *http.Request
 	req, err = p.newRequest("POST", p.RefreshURL.String(), bytes.NewBufferString(params.Encode()))
@@ -241,13 +237,13 @@ func (p *AuthenticateClient) redeemRefreshToken(refreshToken string) (token stri
 func (p *AuthenticateClient) ValidateSessionState(s *sessions.SessionState) bool {
 	// we validate the user's access token is valid
 	params := url.Values{}
-	params.Add("client_id", p.ClientID)
+	params.Add("shared_secret", p.SharedKey)
 	req, err := p.newRequest("GET", fmt.Sprintf("%s?%s", p.ValidateURL.String(), params.Encode()), nil)
 	if err != nil {
 		log.Error().Err(err).Str("user", s.Email).Msg("proxy/authenticator.ValidateSessionState : error validating session state")
 		return false
 	}
-	req.Header.Set("X-Client-Secret", p.ClientSecret)
+	req.Header.Set("X-Client-Secret", p.SharedKey)
 	req.Header.Set("X-Access-Token", s.AccessToken)
 	req.Header.Set("X-Id-Token", s.IDToken)
 
@@ -281,7 +277,7 @@ func (p *AuthenticateClient) ValidateSessionState(s *sessions.SessionState) bool
 
 // signRedirectURL signs the redirect url string, given a timestamp, and returns it
 func (p *AuthenticateClient) signRedirectURL(rawRedirect string, timestamp time.Time) string {
-	h := hmac.New(sha256.New, []byte(p.ClientSecret))
+	h := hmac.New(sha256.New, []byte(p.SharedKey))
 	h.Write([]byte(rawRedirect))
 	h.Write([]byte(fmt.Sprint(timestamp.Unix())))
 	return base64.URLEncoding.EncodeToString(h.Sum(nil))
@@ -294,7 +290,7 @@ func (p *AuthenticateClient) GetSignInURL(redirectURL *url.URL, state string) *u
 	rawRedirect := redirectURL.String()
 	params, _ := url.ParseQuery(a.RawQuery)
 	params.Set("redirect_uri", rawRedirect)
-	params.Set("client_id", p.ClientID)
+	params.Set("shared_secret", p.SharedKey)
 	params.Set("response_type", "code")
 	params.Add("state", state)
 	params.Set("ts", fmt.Sprint(now.Unix()))

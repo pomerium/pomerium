@@ -1,25 +1,29 @@
-<img  height="200" src="./docs/logo.png" alt="logo" align="right" >
+<img  height="175" src="./docs/.vuepress/public/logo.svg" alt="logo" align="right" >
 
-# Pomerium : identity-aware access proxy
+# Pomerium
+
 [![Travis CI](https://travis-ci.org/pomerium/pomerium.svg?branch=master)](https://travis-ci.org/pomerium/pomerium)
 [![Go Report Card](https://goreportcard.com/badge/github.com/pomerium/pomerium)](https://goreportcard.com/report/github.com/pomerium/pomerium)
-[![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg?style=flat-square)](https://github.com/pomerium/pomerium/blob/master/LICENSE)
+[![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg)](https://github.com/pomerium/pomerium/blob/master/LICENSE)
 
-Pomerium is a tool for managing secure access to internal applications and resources. 
+Pomerium is a tool for managing secure access to internal applications and resources.
 
 Use Pomerium to:
 
-- provide a unified ingress gateway to internal corporate applications. 
-- enforce dynamic access policies based on context, identity, and device state. 
+- provide a unified gateway to internal corporate applications.
+- enforce dynamic access policies based on context, identity, and device state.
+- deploy mutually TLS (mTLS) encryption.
 - aggregate logging and telemetry data.
 
-To learn more about zero-trust / BeyondCorp, check out [awesome-zero-trust]. 
+To learn more about zero-trust / BeyondCorp, check out [awesome-zero-trust].
 
-## Getting started
+## Get started
 
 For instructions on getting started with Pomerium, see our getting started docs.
 
-## To start developing Pomerium
+<img src="./docs/.vuepress/public/getting-started.gif" alt="screen example" align="middle" >
+
+## Start developing
 
 Assuming you have a working [Go environment].
 
@@ -32,4 +36,4 @@ $ ./bin/pomerium -debug
 ```
 
 [awesome-zero-trust]: https://github.com/pomerium/awesome-zero-trust
-[Go environment]: https://golang.org/doc/install
+[go environment]: https://golang.org/doc/install
