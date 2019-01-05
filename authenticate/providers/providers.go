@@ -8,12 +8,15 @@ import (
 	"time"
 
 	oidc "github.com/pomerium/go-oidc"
+	"golang.org/x/oauth2"
+
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"golang.org/x/oauth2"
 )
 
 const (
+	// AzureProviderName identifies the Azure provider
+	AzureProviderName = "azure"
 	// GoogleProviderName identifies the Google provider
 	GoogleProviderName = "google"
 	// OIDCProviderName identifes a generic OpenID connect provider
@@ -40,6 +43,12 @@ func New(provider string, p *ProviderData) (Provider, error) {
 	switch provider {
 	case OIDCProviderName:
 		p, err := NewOIDCProvider(p)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
+	case AzureProviderName:
+		p, err := NewAzureProvider(p)
 		if err != nil {
 			return nil, err
 		}

@@ -15,23 +15,29 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 )
 
-const defaultGoogleProviderURL = "https://accounts.google.com"
+// defaultAzureProviderURL Users with both a personal Microsoft
+// account and a work or school account from Azure Active Directory (Azure AD)
+// an sign in to the application.
+const defaultAzureProviderURL = "https://login.microsoftonline.com/common"
 
-// GoogleProvider is an implementation of the Provider interface.
-type GoogleProvider struct {
+// AzureProvider is an implementation of the Provider interface
+type AzureProvider struct {
 	*ProviderData
 	cb *circuit.Breaker
 	// non-standard oidc fields
 	RevokeURL *url.URL
 }
 
-// NewGoogleProvider returns a new GoogleProvider and sets the provider url endpoints.
-func NewGoogleProvider(p *ProviderData) (*GoogleProvider, error) {
+// NewAzureProvider returns a new AzureProvider and sets the provider url endpoints.
+// If non-"common" tenant is desired, ProviderURL must be set.
+// https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-protocols-oidc
+func NewAzureProvider(p *ProviderData) (*AzureProvider, error) {
 	ctx := context.Background()
 
 	if p.ProviderURL == "" {
-		p.ProviderURL = defaultGoogleProviderURL
+		p.ProviderURL = defaultAzureProviderURL
 	}
+	log.Info().Msgf("provider url %s", p.ProviderURL)
 	provider, err := oidc.NewProvider(ctx, p.ProviderURL)
 	if err != nil {
 		return nil, err
@@ -46,27 +52,27 @@ func NewGoogleProvider(p *ProviderData) (*GoogleProvider, error) {
 		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 	}
 
-	googleProvider := &GoogleProvider{
+	azureProvider := &AzureProvider{
 		ProviderData: p,
 	}
-	// google supports a revokation endpoint
+	// azure has a "end session endpoint"
 	var claims struct {
-		RevokeURL string `json:"revocation_endpoint"`
+		RevokeURL string `json:"end_session_endpoint"`
 	}
 
 	if err := provider.Claims(&claims); err != nil {
 		return nil, err
 	}
 
-	googleProvider.RevokeURL, err = url.Parse(claims.RevokeURL)
+	azureProvider.RevokeURL, err = url.Parse(claims.RevokeURL)
 	if err != nil {
 		return nil, err
 	}
 
-	googleProvider.cb = circuit.NewBreaker(&circuit.Options{
+	azureProvider.cb = circuit.NewBreaker(&circuit.Options{
 		HalfOpenConcurrentRequests: 2,
-		OnStateChange:              googleProvider.cbStateChange,
-		OnBackoff:                  googleProvider.cbBackoff,
+		OnStateChange:              azureProvider.cbStateChange,
+		OnBackoff:                  azureProvider.cbBackoff,
 		ShouldTripFunc:             func(c circuit.Counts) bool { return c.ConsecutiveFailures >= 3 },
 		ShouldResetFunc:            func(c circuit.Counts) bool { return c.ConsecutiveSuccesses >= 6 },
 		BackoffDurationFunc: circuit.ExponentialBackoffDuration(
@@ -74,23 +80,21 @@ func NewGoogleProvider(p *ProviderData) (*GoogleProvider, error) {
 			time.Duration(500)*time.Millisecond),
 	})
 
-	return googleProvider, nil
+	return azureProvider, nil
 }
 
-func (p *GoogleProvider) cbBackoff(duration time.Duration, reset time.Time) {
-	log.Info().Dur("duration", duration).Msg("authenticate/providers/google.cbBackoff")
+func (p *AzureProvider) cbBackoff(duration time.Duration, reset time.Time) {
+	log.Info().Dur("duration", duration).Msg("authenticate/providers/azure.cbBackoff")
 
 }
 
-func (p *GoogleProvider) cbStateChange(from, to circuit.State) {
-	log.Info().Str("from", from.String()).Str("to", to.String()).Msg("authenticate/providers/google.cbStateChange")
+func (p *AzureProvider) cbStateChange(from, to circuit.State) {
+	log.Info().Str("from", from.String()).Str("to", to.String()).Msg("authenticate/providers/azure.cbStateChange")
 }
 
 // Revoke revokes the access token a given session state.
-//
-// https://developers.google.com/identity/protocols/OAuth2WebServer#tokenrevoke
-// https://github.com/googleapis/google-api-dotnet-client/issues/1285
-func (p *GoogleProvider) Revoke(s *sessions.SessionState) error {
+//https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-protocols-oidc#send-a-sign-out-request
+func (p *AzureProvider) Revoke(s *sessions.SessionState) error {
 	params := url.Values{}
 	params.Add("token", s.AccessToken)
 	err := httputil.Client("POST", p.RevokeURL.String(), version.UserAgent(), params, nil)
@@ -101,7 +105,6 @@ func (p *GoogleProvider) Revoke(s *sessions.SessionState) error {
 }
 
 // GetSignInURL returns the sign in url with typical oauth parameters
-// Google requires access type offline
-func (p *GoogleProvider) GetSignInURL(state string) string {
+func (p *AzureProvider) GetSignInURL(state string) string {
 	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 }

@@ -6,10 +6,11 @@ import (
 	"net/url"
 
 	oidc "github.com/pomerium/go-oidc"
+	"golang.org/x/oauth2"
+
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
-	"golang.org/x/oauth2"
 )
 
 // OktaProvider provides a standard, OpenID Connect implementation
