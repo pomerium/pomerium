@@ -53,7 +53,7 @@ var defaultOptions = &Options{
 	CookieExpire:           time.Duration(168) * time.Hour,
 	DefaultUpstreamTimeout: time.Duration(10) * time.Second,
 	SessionLifetimeTTL:     time.Duration(720) * time.Hour,
-	SessionValidTTL:        time.Duration(10) * time.Minute,
+	SessionValidTTL:        time.Duration(1) * time.Minute,
 	GracePeriodTTL:         time.Duration(3) * time.Hour,
 	PassAccessToken:        false,
 }
