@@ -31,10 +31,13 @@
 
 1.  For a first run, I suggest setting the debug flag which provides user friendly logging.
 
-    ```bash
-    source ./env
-    ./pomerium -debug
-    ```
+        ```bash
+        source ./env
+        ./pomerium -debug
+        ```
+
+1.  You should now get the following when you try to access one of your `corp` routes.
+    ![Getting started](./get-started.gif)
 
 [download]: https://github.com/pomerium/pomerium/releases
 [environmental variables]: https://12factor.net/config

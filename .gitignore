@@ -78,3 +78,5 @@ build/
 yarn.lock
 node_modules
 i18n/*
+docs/.vuepress/dist/
+.firebase/
