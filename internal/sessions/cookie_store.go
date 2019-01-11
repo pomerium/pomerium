@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/aead"
-	"github.com/pomerium/pomerium/internal/log"
 )
 
 // ErrInvalidSession is an error for invalid sessions.
@@ -85,9 +83,6 @@ func (s *CookieStore) makeCookie(req *http.Request, name string, value string, e
 		domain = h
 	}
 	if s.CookieDomain != "" {
-		if !strings.HasSuffix(domain, s.CookieDomain) {
-			log.Warn().Str("cookie-domain", s.CookieDomain).Msg("using configured cookie domain")
-		}
 		domain = s.CookieDomain
 	}
 
@@ -145,7 +140,6 @@ func (s *CookieStore) LoadSession(req *http.Request) (*SessionState, error) {
 	}
 	session, err := UnmarshalSession(c.Value, s.CookieCipher)
 	if err != nil {
-		log.Error().Err(err).Str("remote-host", req.Host).Msg("error unmarshaling session")
 		return nil, ErrInvalidSession
 	}
 	return session, nil

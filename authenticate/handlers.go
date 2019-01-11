@@ -81,10 +81,9 @@ func (p *Authenticator) PingPage(rw http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(rw, "OK")
 }
 
-// SignInPage directs the user to the sign in page
-func (p *Authenticator) SignInPage(rw http.ResponseWriter, req *http.Request, code int) {
+// SignInPage directs the user to the sign in page. Takes a `redirect_uri` param.
+func (p *Authenticator) SignInPage(rw http.ResponseWriter, req *http.Request) {
 	requestLog := log.WithRequest(req, "authenticate.SignInPage")
-	rw.WriteHeader(code)
 	redirectURL := p.RedirectURL.ResolveReference(req.URL)
 	// validateRedirectURI middleware already ensures that this is a valid URL
 	destinationURL, _ := url.Parse(redirectURL.Query().Get("redirect_uri"))
@@ -107,12 +106,12 @@ func (p *Authenticator) SignInPage(rw http.ResponseWriter, req *http.Request, co
 		Str("Destination", destinationURL.Host).
 		Str("AllowedDomains", strings.Join(p.AllowedDomains, ", ")).
 		Msg("authenticate.SignInPage")
+	rw.WriteHeader(http.StatusOK)
 	p.templates.ExecuteTemplate(rw, "sign_in.html", t)
 }
 
 func (p *Authenticator) authenticate(rw http.ResponseWriter, req *http.Request) (*sessions.SessionState, error) {
 	requestLog := log.WithRequest(req, "authenticate.authenticate")
-
 	session, err := p.sessionStore.LoadSession(req)
 	if err != nil {
 		log.Error().Err(err).Msg("authenticate.authenticate")
@@ -169,7 +168,6 @@ func (p *Authenticator) authenticate(rw http.ResponseWriter, req *http.Request) 
 		requestLog.Error().Msg("invalid email user")
 		return nil, httputil.ErrUserNotAuthorized
 	}
-
 	return session, nil
 }
 
@@ -193,11 +191,11 @@ func (p *Authenticator) SignIn(rw http.ResponseWriter, req *http.Request) {
 		p.ProxyOAuthRedirect(rw, req, session)
 	case http.ErrNoCookie:
 		log.Error().Err(err).Msg("authenticate.SignIn : err no cookie")
-		p.SignInPage(rw, req, http.StatusOK)
+		p.SignInPage(rw, req)
 	case sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
 		log.Error().Err(err).Msg("authenticate.SignIn : invalid cookie cookie")
 		p.sessionStore.ClearSession(rw, req)
-		p.SignInPage(rw, req, http.StatusOK)
+		p.SignInPage(rw, req)
 	default:
 		log.Error().Err(err).Msg("authenticate.SignIn : unknown error cookie")
 		httputil.ErrorResponse(rw, req, err.Error(), httputil.CodeForError(err))

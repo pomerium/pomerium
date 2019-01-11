@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/templates"
 	"github.com/pomerium/pomerium/internal/version"
 )
@@ -47,13 +46,6 @@ func ErrorResponse(rw http.ResponseWriter, req *http.Request, message string, co
 		writeJSONResponse(rw, code, response)
 	} else {
 		title := http.StatusText(code)
-
-		log.Error().
-			Int("http-status", code).
-			Str("page-title", title).
-			Str("page-message", message).
-			Msg("authenticate/errors.ErrorResponse")
-
 		rw.WriteHeader(code)
 		t := struct {
 			Code    int

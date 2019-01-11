@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/log"
 )
 
 // SetHeaders ensures that every response includes some basic security headers
@@ -56,10 +55,6 @@ func ValidateClientSecret(f http.HandlerFunc, sharedSecret string) http.HandlerF
 		}
 
 		if clientSecret != sharedSecret {
-			log.Error().
-				Str("clientSecret", clientSecret).
-				Str("sharedSecret", sharedSecret).
-				Msg("middleware.ValidateClientSecret")
 			httputil.ErrorResponse(rw, req, "Invalid client secret", http.StatusUnauthorized)
 			return
 		}

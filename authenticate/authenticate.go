@@ -92,14 +92,12 @@ func (o *Options) Validate() error {
 	if o.SharedKey == "" {
 		return errors.New("missing setting: shared secret")
 	}
-
 	decodedCookieSecret, err := base64.StdEncoding.DecodeString(o.CookieSecret)
 	if err != nil {
 		return fmt.Errorf("authenticate options: cookie secret invalid"+
 			"must be a base64-encoded, 256 bit key e.g. `head -c32 /dev/urandom | base64`"+
 			"got %q", err)
 	}
-
 	validCookieSecretLength := false
 	for _, i := range []int{32, 64} {
 		if len(decodedCookieSecret) == i {
@@ -108,11 +106,8 @@ func (o *Options) Validate() error {
 	}
 
 	if !validCookieSecretLength {
-		return fmt.Errorf("authenticate options: invalid cookie secret strength want 32 to 64 bytes, got %d bytes", len(decodedCookieSecret))
-	}
-
-	if o.CookieRefresh >= o.CookieExpire {
-		return fmt.Errorf("cookie_refresh (%s) must be less than cookie_expire (%s)", o.CookieRefresh.String(), o.CookieExpire.String())
+		return fmt.Errorf("authenticate options: invalid cookie secret strength want"+
+			" 32 to 64 bytes, got %d bytes", len(decodedCookieSecret))
 	}
 
 	return nil
