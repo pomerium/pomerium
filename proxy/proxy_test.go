@@ -140,6 +140,9 @@ func TestOptions_Validate(t *testing.T) {
 	badToRoute.Routes = map[string]string{"^": "example.com"}
 	badAuthURL := testOptions()
 	badAuthURL.AuthenticateServiceURL = nil
+	authurl, _ := url.Parse("http://sso-auth.corp.beyondperimeter.com")
+	httpAuthURL := testOptions()
+	httpAuthURL.AuthenticateServiceURL = authurl
 	emptyCookieSecret := testOptions()
 	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := testOptions()
@@ -157,14 +160,15 @@ func TestOptions_Validate(t *testing.T) {
 	}{
 		{"good - minimum options", good, false},
 
-		{"bad - nil options", &Options{}, true},
-		{"bad - from route", badFromRoute, true},
-		{"bad - to route", badToRoute, true},
-		{"bad - auth service url", badAuthURL, true},
-		{"bad - no cookie secret", emptyCookieSecret, true},
-		{"bad - invalid cookie secret", invalidCookieSecret, true},
-		{"bad - short cookie secret", shortCookieLength, true},
-		{"bad - no shared secret", badSharedKey, true},
+		{"nil options", &Options{}, true},
+		{"from route", badFromRoute, true},
+		{"to route", badToRoute, true},
+		{"auth service url", badAuthURL, true},
+		{"auth service url not https", httpAuthURL, true},
+		{"no cookie secret", emptyCookieSecret, true},
+		{"invalid cookie secret", invalidCookieSecret, true},
+		{"short cookie secret", shortCookieLength, true},
+		{"no shared secret", badSharedKey, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

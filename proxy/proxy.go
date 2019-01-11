@@ -91,11 +91,9 @@ func (o *Options) Validate() error {
 	if o.CookieSecret == "" {
 		return errors.New("missing setting: cookie-secret")
 	}
-
 	if o.SharedKey == "" {
 		return errors.New("missing setting: client-secret")
 	}
-
 	decodedCookieSecret, err := base64.StdEncoding.DecodeString(o.CookieSecret)
 	if err != nil {
 		return errors.New("cookie secret is invalid (e.g. `head -c32 /dev/urandom | base64`) ")

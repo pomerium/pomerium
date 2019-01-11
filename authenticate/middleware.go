@@ -14,6 +14,8 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 )
 
+var defaultSignatureValidityDuration = 5 * time.Minute
+
 // validateRedirectURI checks the redirect uri in the query parameters and ensures that
 // the url's domain is one in the list of proxy root domains.
 func validateRedirectURI(f http.HandlerFunc, proxyRootDomains []string) http.HandlerFunc {
@@ -34,11 +36,17 @@ func validateRedirectURI(f http.HandlerFunc, proxyRootDomains []string) http.Han
 }
 
 func validRedirectURI(uri string, rootDomains []string) bool {
+	if uri == "" || len(rootDomains) == 0 {
+		return false
+	}
 	redirectURL, err := url.Parse(uri)
-	if uri == "" || err != nil || redirectURL.Host == "" {
+	if err != nil || redirectURL.Host == "" {
 		return false
 	}
 	for _, domain := range rootDomains {
+		if domain == "" {
+			return false
+		}
 		if strings.HasSuffix(redirectURL.Hostname(), domain) {
 			return true
 		}
@@ -65,6 +73,8 @@ func validateSignature(f http.HandlerFunc, sharedKey string) http.HandlerFunc {
 	}
 }
 
+// validateSignature ensures the validity of the redirect url by comparing the hmac
+// digest, and ensuring that the included timestamp is fresh
 func validSignature(redirectURI, sigVal, timestamp, secret string) bool {
 	if redirectURI == "" || sigVal == "" || timestamp == "" || secret == "" {
 		return false
@@ -82,14 +92,15 @@ func validSignature(redirectURI, sigVal, timestamp, secret string) bool {
 		return false
 	}
 	tm := time.Unix(i, 0)
-	ttl := 5 * time.Minute
-	if time.Now().Sub(tm) > ttl {
+	if time.Now().Sub(tm) > defaultSignatureValidityDuration {
 		return false
 	}
 	localSig := redirectURLSignature(redirectURI, tm, secret)
 	return hmac.Equal(requestSig, localSig)
 }
 
+// redirectURLSignature generates a hmac digest from a
+// redirect url, a timestamp, and a secret.
 func redirectURLSignature(rawRedirect string, timestamp time.Time, secret string) []byte {
 	h := hmac.New(sha256.New, []byte(secret))
 	h.Write([]byte(rawRedirect))
