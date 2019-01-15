@@ -5,7 +5,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/miscreant/miscreant-go v0.0.0-20181010193435-325cbd69228b
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/pomerium/envconfig v1.3.1-0.20180517194557-dd1402a4d99d
+	github.com/pomerium/envconfig v1.3.1-0.20190112072701-14cbcf832d31
 	github.com/pomerium/go-oidc v2.0.0+incompatible
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/rs/zerolog v1.11.0

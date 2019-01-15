@@ -10,6 +10,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pomerium/envconfig v1.3.1-0.20180517194557-dd1402a4d99d h1:iAavGhspmmDa8LCcQLpHV/JBPWKL7EfvMN7YrGHBN3o=
 github.com/pomerium/envconfig v1.3.1-0.20180517194557-dd1402a4d99d/go.mod h1:1Kz8Ca8PhJDtLYqgvbDZGn6GsJCvrT52SxQ3sPNJkDc=
+github.com/pomerium/envconfig v1.3.1-0.20190112072701-14cbcf832d31 h1:bNqUesLWa+RUxQvSaV3//dEFviXdCSvMF9GKDOopFLU=
+github.com/pomerium/envconfig v1.3.1-0.20190112072701-14cbcf832d31/go.mod h1:1Kz8Ca8PhJDtLYqgvbDZGn6GsJCvrT52SxQ3sPNJkDc=
 github.com/pomerium/go-oidc v2.0.0+incompatible h1:gVvG/ExWsHQqatV+uceROnGmbVYF44mDNx5nayBhC0o=
 github.com/pomerium/go-oidc v2.0.0+incompatible/go.mod h1:DRsGVw6MOgxbfq4Y57jKOE8lbEfayxeiY0A8/4vxjBM=
 github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 h1:J9b7z+QKAmPf4YLrFg6oQUotqHQeUNWwkvo7jZp1GLU=
