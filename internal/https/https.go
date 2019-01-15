@@ -2,6 +2,7 @@ package https // import "github.com/pomerium/pomerium/internal/https"
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"net/http"
@@ -12,12 +13,15 @@ import (
 	"github.com/pomerium/pomerium/internal/fileutil"
 )
 
-// Options contains the configurations settings for a TLS http server
+// Options contains the configurations settings for a TLS http server.
 type Options struct {
 	// Addr specifies the host and port on which the server should serve
 	// HTTPS requests. If empty, ":https" is used.
 	Addr string
 
+	// Cert and Key specifies the base64 encoded TLS certificates to use.
+	Cert string
+	Key  string
 	// CertFile and KeyFile specifies the TLS certificates to use.
 	CertFile string
 	KeyFile  string
@@ -41,10 +45,10 @@ func (opt *Options) applyDefaults() {
 	if opt.Addr == "" {
 		opt.Addr = defaultOptions.Addr
 	}
-	if opt.CertFile == "" {
+	if opt.Cert == "" && opt.CertFile == "" {
 		opt.CertFile = defaultOptions.CertFile
 	}
-	if opt.KeyFile == "" {
+	if opt.Key == "" && opt.KeyFile == "" {
 		opt.KeyFile = defaultOptions.KeyFile
 	}
 }
@@ -57,12 +61,20 @@ func ListenAndServeTLS(opt *Options, handler http.Handler) error {
 	} else {
 		opt.applyDefaults()
 	}
-
-	config, err := newDefaultTLSConfig(opt.CertFile, opt.KeyFile)
+	var cert *tls.Certificate
+	var err error
+	if opt.Cert != "" && opt.Key != "" {
+		cert, err = decodeCertificate(opt.Cert, opt.Key)
+	} else {
+		cert, err = readCertificateFile(opt.CertFile, opt.KeyFile)
+	}
+	if err != nil {
+		return fmt.Errorf("https: failed loading x509 certificate: %v", err)
+	}
+	config, err := newDefaultTLSConfig(cert)
 	if err != nil {
 		return fmt.Errorf("https: setting up TLS config: %v", err)
 	}
-
 	ln, err := net.Listen("tcp", opt.Addr)
 	if err != nil {
 		return err
@@ -85,28 +97,40 @@ func ListenAndServeTLS(opt *Options, handler http.Handler) error {
 	return server.Serve(ln)
 }
 
-// newDefaultTLSConfig creates a new TLS config based on the certificate files given.
-func newDefaultTLSConfig(certFile string, certKeyFile string) (*tls.Config, error) {
+func decodeCertificate(cert, key string) (*tls.Certificate, error) {
+	decodedCert, err := base64.StdEncoding.DecodeString(cert)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode certificate cert %v: %v", decodedCert, err)
+	}
+	decodedKey, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode certificate key %v: %v", decodedKey, err)
+	}
+	x509, err := tls.X509KeyPair(decodedCert, decodedKey)
+	return &x509, err
+}
+
+func readCertificateFile(certFile, certKeyFile string) (*tls.Certificate, error) {
 	certReadable, err := fileutil.IsReadableFile(certFile)
 	if err != nil {
-		return nil, fmt.Errorf("TLS certificate in %q: %q", certFile, err)
+		return nil, fmt.Errorf("TLS certificate in %v: %v", certFile, err)
 	}
 	if !certReadable {
-		return nil, fmt.Errorf("certificate file %q not readable", certFile)
+		return nil, fmt.Errorf("certificate file %v not readable", certFile)
 	}
 	keyReadable, err := fileutil.IsReadableFile(certKeyFile)
 	if err != nil {
-		return nil, fmt.Errorf("TLS key in %q: %v", certKeyFile, err)
+		return nil, fmt.Errorf("TLS key in %v: %v", certKeyFile, err)
 	}
 	if !keyReadable {
-		return nil, fmt.Errorf("certificate key file %q not readable", certKeyFile)
+		return nil, fmt.Errorf("certificate key file %v not readable", certKeyFile)
 	}
-
 	cert, err := tls.LoadX509KeyPair(certFile, certKeyFile)
-	if err != nil {
-		return nil, err
-	}
+	return &cert, err
+}
 
+// newDefaultTLSConfig creates a new TLS config based on the certificate files given.
+func newDefaultTLSConfig(cert *tls.Certificate) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
 		CipherSuites: []uint16{
 			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -118,7 +142,7 @@ func newDefaultTLSConfig(certFile string, certKeyFile string) (*tls.Config, erro
 		},
 		MinVersion:               tls.VersionTLS12,
 		PreferServerCipherSuites: true,
-		Certificates:             []tls.Certificate{cert},
+		Certificates:             []tls.Certificate{*cert},
 	}
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig, nil

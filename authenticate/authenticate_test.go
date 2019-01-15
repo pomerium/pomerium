@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+func init() {
+	os.Clearenv()
+}
+
 func testOptions() *Options {
 	redirectURL, _ := url.Parse("https://example.com/oauth2/callback")
 	return &Options{
