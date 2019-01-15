@@ -24,7 +24,7 @@
     export IDP_CLIENT_ID="YOU_GOT_THIS_FROM_STEP-3.apps.googleusercontent.com"
     export IDP_CLIENT_SECRET="YOU_GOT_THIS_FROM_STEP-3"
     # key/value list of simple routes.
-    export ROUTES='http.corp.example.com':'httpbin.org'
+    export ROUTES='http.corp.example.com=httpbin.org'
     ```
 
     You can also view the [env.example] configuration file for a more comprehensive list of options.

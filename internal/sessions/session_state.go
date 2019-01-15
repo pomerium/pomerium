@@ -53,7 +53,7 @@ func MarshalSession(s *SessionState, c aead.Cipher) (string, error) {
 }
 
 // UnmarshalSession takes the marshaled string, base64-decodes into a byte slice, decrypts the
-// byte slice using the pased cipher, and unmarshals the resulting JSON into a session state struct
+// byte slice using the passed cipher, and unmarshals the resulting JSON into a session state struct
 func UnmarshalSession(value string, c aead.Cipher) (*SessionState, error) {
 	s := &SessionState{}
 	err := c.Unmarshal(value, s)

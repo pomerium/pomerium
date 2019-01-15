@@ -69,11 +69,6 @@ func NewCookieStore(cookieName string, optFuncs ...func(*CookieStore) error) (*C
 		}
 	}
 
-	domain := c.CookieDomain
-	if domain == "" {
-		domain = "<default>"
-	}
-
 	return c, nil
 }
 

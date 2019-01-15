@@ -32,10 +32,10 @@ func Test_validRedirectURI(t *testing.T) {
 }
 
 func Test_validSignature(t *testing.T) {
-	goodUrl := "https://example.com/redirect"
+	goodURL := "https://example.com/redirect"
 	secretA := "41aOD7VNtQ1/KZDCGrkYpaHwB50JC1y6BDs2KPRVd2A="
 	now := fmt.Sprint(time.Now().Unix())
-	rawSig := redirectURLSignature(goodUrl, time.Now(), secretA)
+	rawSig := redirectURLSignature(goodURL, time.Now(), secretA)
 	sig := base64.URLEncoding.EncodeToString(rawSig)
 	staleTime := fmt.Sprint(time.Now().Add(-6 * time.Minute).Unix())
 
@@ -47,12 +47,12 @@ func Test_validSignature(t *testing.T) {
 		secret      string
 		want        bool
 	}{
-		{"good signature", goodUrl, string(sig), now, secretA, true},
+		{"good signature", goodURL, string(sig), now, secretA, true},
 		{"empty redirect url", "", string(sig), now, secretA, false},
 		{"bad redirect url", "https://google.com^", string(sig), now, secretA, false},
-		{"malformed signature", goodUrl, string(sig + "^"), now, "&*&@**($&#(", false},
-		{"malformed timestamp", goodUrl, string(sig), now + "^", secretA, false},
-		{"stale timestamp", goodUrl, string(sig), staleTime, secretA, false},
+		{"malformed signature", goodURL, string(sig + "^"), now, "&*&@**($&#(", false},
+		{"malformed timestamp", goodURL, string(sig), now + "^", secretA, false},
+		{"stale timestamp", goodURL, string(sig), staleTime, secretA, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
