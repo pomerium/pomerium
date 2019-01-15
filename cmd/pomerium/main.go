@@ -19,7 +19,7 @@ import (
 var (
 	debugFlag    = flag.Bool("debug", false, "run server in debug mode, changes log output to STDOUT and level to info")
 	versionFlag  = flag.Bool("version", false, "prints the version")
-	validServics = []string{"all", "proxy", "authenticate"}
+	// validServics = []string{"all", "proxy", "authenticate"}
 )
 
 func main() {
