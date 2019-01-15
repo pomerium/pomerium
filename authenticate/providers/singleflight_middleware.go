@@ -19,7 +19,7 @@ var (
 )
 
 // SingleFlightProvider middleware provider that multiple requests for the same object
-// to be processed as a single request. This is often called request collpasing or coalesce.
+// to be processed as a single request. This is often called request collapsing or coalesce.
 // This middleware leverages the golang singlelflight provider, with modifications for metrics.
 //
 // It's common among HTTP reverse proxy cache servers such as nginx, Squid or Varnish - they all call it something else but works similarly.

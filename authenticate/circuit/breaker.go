@@ -157,7 +157,7 @@ type Breaker struct {
 	onStateChange StateChangeHook
 	onBackoff     BackoffHook
 
-	// used primarly for mocking tests
+	// used primarily for mocking tests
 	clock clock.Clock
 
 	mutex          sync.Mutex
