@@ -8,7 +8,7 @@
       - go: tip
     fast_finish: true
   install:
-    - go get github.com/golang/lint/golint
+    - go get -u golang.org/x/lint/golint
     - go get honnef.co/go/tools/cmd/staticcheck
   script:
     - env GO111MODULE=on make all

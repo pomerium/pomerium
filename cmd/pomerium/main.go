@@ -7,18 +7,17 @@ import (
 	"os"
 
 	"github.com/pomerium/envconfig"
+	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/internal/https"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/options"
 	"github.com/pomerium/pomerium/internal/version"
-
-	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/proxy"
 )
 
 var (
-	debugFlag    = flag.Bool("debug", false, "run server in debug mode, changes log output to STDOUT and level to info")
-	versionFlag  = flag.Bool("version", false, "prints the version")
+	debugFlag   = flag.Bool("debug", false, "run server in debug mode, changes log output to STDOUT and level to info")
+	versionFlag = flag.Bool("version", false, "prints the version")
 	// validServics = []string{"all", "proxy", "authenticate"}
 )
 
