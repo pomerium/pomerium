@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	debugFlag   = flag.Bool("debug", false, "run server in debug mode, changes log output to STDOUT and level to info")
-	versionFlag = flag.Bool("version", false, "prints the version")
+	debugFlag    = flag.Bool("debug", false, "run server in debug mode, changes log output to STDOUT and level to info")
+	versionFlag  = flag.Bool("version", false, "prints the version")
+	validServics = []string{"all", "proxy", "authenticate"}
 )
 
 func main() {
@@ -107,4 +108,16 @@ func optionsFromEnvConfig() (*Options, error) {
 		return nil, err
 	}
 	return o, nil
+}
+
+// isValidService checks to see if a service is a valid service mode
+func isValidService(service string) bool {
+	switch service {
+	case
+		"all",
+		"proxy",
+		"authenticate":
+		return true
+	}
+	return false
 }

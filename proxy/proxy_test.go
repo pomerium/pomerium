@@ -11,6 +11,9 @@ import (
 	"testing"
 )
 
+func init() {
+	os.Clearenv()
+}
 func TestOptionsFromEnvConfig(t *testing.T) {
 	tests := []struct {
 		name     string
