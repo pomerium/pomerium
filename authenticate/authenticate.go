@@ -48,11 +48,12 @@ type Options struct {
 	SessionLifetimeTTL time.Duration `envconfig:"SESSION_LIFETIME_TTL"`
 
 	// Authentication provider configuration vars
-	ClientID     string   `envconfig:"IDP_CLIENT_ID"`     // IdP ClientID
-	ClientSecret string   `envconfig:"IDP_CLIENT_SECRET"` // IdP Secret
-	Provider     string   `envconfig:"IDP_PROVIDER"`      //Provider name e.g. "oidc","okta","google",etc
-	ProviderURL  string   `envconfig:"IDP_PROVIDER_URL"`
-	Scopes       []string `envconfig:"IDP_SCOPE" default:"openid,email,profile"`
+	ClientID           string   `envconfig:"IDP_CLIENT_ID"`     // IdP ClientID
+	ClientSecret       string   `envconfig:"IDP_CLIENT_SECRET"` // IdP Secret
+	Provider           string   `envconfig:"IDP_PROVIDER"`      //Provider name e.g. "oidc","okta","google",etc
+	ProviderURL        string   `envconfig:"IDP_PROVIDER_URL"`
+	Scopes             []string `envconfig:"IDP_SCOPE" default:"openid,email,profile"`
+	SkipProviderButton bool     `envconfig:"SKIP_PROVIDER_BUTTON"`
 }
 
 // OptionsFromEnvConfig builds the authentication service's configuration
@@ -122,6 +123,8 @@ type Authenticate struct {
 	sessionStore sessions.SessionStore
 	cipher       cryptutil.Cipher
 
+	skipProviderButton bool
+
 	provider providers.Provider
 }
 
@@ -160,15 +163,16 @@ func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate
 	}
 
 	p := &Authenticate{
-		SharedKey:        opts.SharedKey,
-		AllowedDomains:   opts.AllowedDomains,
-		ProxyRootDomains: dotPrependDomains(opts.ProxyRootDomains),
-		CookieSecure:     opts.CookieSecure,
-		RedirectURL:      opts.RedirectURL,
-		templates:        templates.New(),
-		csrfStore:        cookieStore,
-		sessionStore:     cookieStore,
-		cipher:           cipher,
+		SharedKey:          opts.SharedKey,
+		AllowedDomains:     opts.AllowedDomains,
+		ProxyRootDomains:   dotPrependDomains(opts.ProxyRootDomains),
+		CookieSecure:       opts.CookieSecure,
+		RedirectURL:        opts.RedirectURL,
+		templates:          templates.New(),
+		csrfStore:          cookieStore,
+		sessionStore:       cookieStore,
+		cipher:             cipher,
+		skipProviderButton: opts.SkipProviderButton,
 	}
 	// p.ServeMux = p.Handler()
 	p.provider, err = newProvider(opts)
