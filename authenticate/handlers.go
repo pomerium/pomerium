@@ -191,11 +191,19 @@ func (p *Authenticate) SignIn(rw http.ResponseWriter, req *http.Request) {
 		p.ProxyOAuthRedirect(rw, req, session)
 	case http.ErrNoCookie:
 		log.Error().Err(err).Msg("authenticate.SignIn : err no cookie")
-		p.SignInPage(rw, req)
+		if p.skipProviderButton {
+			p.skipButtonOAuthStart(rw, req)
+		} else {
+			p.SignInPage(rw, req)
+		}
 	case sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
 		log.Error().Err(err).Msg("authenticate.SignIn : invalid cookie cookie")
 		p.sessionStore.ClearSession(rw, req)
-		p.SignInPage(rw, req)
+		if p.skipProviderButton {
+			p.skipButtonOAuthStart(rw, req)
+		} else {
+			p.SignInPage(rw, req)
+		}
 	default:
 		log.Error().Err(err).Msg("authenticate.SignIn : unknown error cookie")
 		httputil.ErrorResponse(rw, req, err.Error(), httputil.CodeForError(err))
@@ -338,12 +346,24 @@ func (p *Authenticate) SignOutPage(rw http.ResponseWriter, req *http.Request, me
 // OAuthStart starts the authentication process by redirecting to the provider. It provides a
 // `redirectURI`, allowing the provider to redirect back to the sso proxy after authentication.
 func (p *Authenticate) OAuthStart(rw http.ResponseWriter, req *http.Request) {
+	authRedirectURL, err := url.Parse(req.URL.Query().Get("redirect_uri"))
+	if err == nil {
+		httputil.ErrorResponse(rw, req, "Invalid redirect parameter", http.StatusBadRequest)
+		return
+	}
+	p.helperOAuthStart(rw, req, authRedirectURL)
+}
+
+func (p *Authenticate) skipButtonOAuthStart(rw http.ResponseWriter, req *http.Request) {
+	p.helperOAuthStart(rw, req, p.RedirectURL.ResolveReference(req.URL))
+}
+
+func (p *Authenticate) helperOAuthStart(rw http.ResponseWriter, req *http.Request, authRedirectURL *url.URL) {
 
 	nonce := fmt.Sprintf("%x", cryptutil.GenerateKey())
 	p.csrfStore.SetCSRF(rw, req, nonce)
 
-	authRedirectURL, err := url.Parse(req.URL.Query().Get("redirect_uri"))
-	if err != nil || !validRedirectURI(authRedirectURL.String(), p.ProxyRootDomains) {
+	if !validRedirectURI(authRedirectURL.String(), p.ProxyRootDomains) {
 		httputil.ErrorResponse(rw, req, "Invalid redirect parameter", http.StatusBadRequest)
 		return
 	}
