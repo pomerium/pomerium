@@ -62,7 +62,7 @@ func GenerateNonce() []byte {
 	return nonce
 }
 
-// Encrypt a value using AES-CMAC-SIV
+// Encrypt a value using XChaCha20-Poly1305
 func (c *XChaCha20Cipher) Encrypt(plaintext []byte) (joined []byte, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -81,7 +81,7 @@ func (c *XChaCha20Cipher) Encrypt(plaintext []byte) (joined []byte, err error) {
 	return joined, nil
 }
 
-// Decrypt a value using AES-CMAC-SIV
+// Decrypt a value using XChaCha20-Poly1305
 func (c *XChaCha20Cipher) Decrypt(joined []byte) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
