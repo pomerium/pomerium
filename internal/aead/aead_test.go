@@ -13,7 +13,7 @@ func TestEncodeAndDecodeAccessToken(t *testing.T) {
 	plaintext := []byte("my plain text value")
 
 	key := GenerateKey()
-	c, err := NewMiscreantCipher([]byte(key))
+	c, err := New([]byte(key))
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestEncodeAndDecodeAccessToken(t *testing.T) {
 func TestMarshalAndUnmarshalStruct(t *testing.T) {
 	key := GenerateKey()
 
-	c, err := NewMiscreantCipher([]byte(key))
+	c, err := New([]byte(key))
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -94,17 +94,8 @@ func TestMarshalAndUnmarshalStruct(t *testing.T) {
 	}
 }
 
-// TestCipherDataRace exercises a simple concurrency test for the MicscreantCipher.
-// In https://github.com/pomerium/pomerium/pull/75 we investigated why, on random occasion,
-// unmarshalling session states would fail, triggering users to get kicked out of
-// authenticated states. We narrowed our investigation to a data race we uncovered
-// from our misuse of the underlying miscreant library which makes no attempt
-// at thread-safety.
-//
-// In https://github.com/pomerium/pomerium/pull/77 we added this test to exercise the
-// data race condition and resolved said race by introducing a simple mutex.
 func TestCipherDataRace(t *testing.T) {
-	miscreantCipher, err := NewMiscreantCipher(GenerateKey())
+	miscreantCipher, err := New(GenerateKey())
 	if err != nil {
 		t.Fatalf("unexpected generating cipher err: %v", err)
 	}
@@ -116,7 +107,7 @@ func TestCipherDataRace(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
-		go func(c *MiscreantCipher, wg *sync.WaitGroup) {
+		go func(c *XChaCha20Cipher, wg *sync.WaitGroup) {
 			defer wg.Done()
 			b := make([]byte, 32)
 			_, err := rand.Read(b)

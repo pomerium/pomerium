@@ -4,18 +4,15 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/cipher"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"sync"
 
-	miscreant "github.com/miscreant/miscreant-go"
+	"golang.org/x/crypto/chacha20poly1305"
 )
-
-const miscreantNonceSize = 16
-
-var algorithmType = "AES-CMAC-SIV"
 
 // Cipher provides methods to encrypt and decrypt values.
 type Cipher interface {
@@ -25,42 +22,58 @@ type Cipher interface {
 	Unmarshal(string, interface{}) error
 }
 
-// MiscreantCipher provides methods to encrypt and decrypt values.
+// XChaCha20Cipher provides methods to encrypt and decrypt values.
 // Using an AEAD is a cipher providing authenticated encryption with associated data.
 // For a description of the methodology, see https://en.wikipedia.org/wiki/Authenticated_encryption
-type MiscreantCipher struct {
+type XChaCha20Cipher struct {
 	aead cipher.AEAD
 
-	mux sync.Mutex
+	mu sync.Mutex
 }
 
-// NewMiscreantCipher returns a new AES Cipher for encrypting values
-func NewMiscreantCipher(secret []byte) (*MiscreantCipher, error) {
-	aead, err := miscreant.NewAEAD(algorithmType, secret, miscreantNonceSize)
+// New returns a new AES Cipher for encrypting values
+func New(secret []byte) (*XChaCha20Cipher, error) {
+	aead, err := chacha20poly1305.NewX(secret)
 	if err != nil {
 		return nil, err
 	}
-	return &MiscreantCipher{
+	return &XChaCha20Cipher{
 		aead: aead,
 	}, nil
 }
 
-// GenerateKey wraps miscreant's GenerateKey function
+// GenerateKey generates a random 32-byte encryption key.
+// Panics if the key size is unsupported or source of randomness fails.
 func GenerateKey() []byte {
-	return miscreant.GenerateKey(32)
+	nonce := make([]byte, chacha20poly1305.KeySize)
+	if _, err := rand.Read(nonce); err != nil {
+		panic(err)
+	}
+	return nonce
+}
+
+// GenerateNonce generates a random 24-byte nonce for XChaCha20-Poly1305.
+// Panics if the key size is unsupported or source of randomness fails.
+func GenerateNonce() []byte {
+	nonce := make([]byte, chacha20poly1305.NonceSizeX)
+	if _, err := rand.Read(nonce); err != nil {
+		panic(err)
+	}
+	return nonce
 }
 
 // Encrypt a value using AES-CMAC-SIV
-func (c *MiscreantCipher) Encrypt(plaintext []byte) (joined []byte, err error) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+func (c *XChaCha20Cipher) Encrypt(plaintext []byte) (joined []byte, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("miscreant error encrypting bytes: %v", r)
+			err = fmt.Errorf("internal/aead: error encrypting bytes: %v", r)
 		}
 	}()
-	nonce := miscreant.GenerateNonce(c.aead)
+	nonce := GenerateNonce()
+
 	ciphertext := c.aead.Seal(nil, nonce, plaintext, nil)
 
 	// we return the nonce as part of the returned value
@@ -69,15 +82,15 @@ func (c *MiscreantCipher) Encrypt(plaintext []byte) (joined []byte, err error) {
 }
 
 // Decrypt a value using AES-CMAC-SIV
-func (c *MiscreantCipher) Decrypt(joined []byte) ([]byte, error) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+func (c *XChaCha20Cipher) Decrypt(joined []byte) ([]byte, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	if len(joined) <= miscreantNonceSize {
-		return nil, fmt.Errorf("invalid input size: %d", len(joined))
+	if len(joined) <= chacha20poly1305.NonceSizeX {
+		return nil, fmt.Errorf("internal/aead: invalid input size: %d", len(joined))
 	}
 	// grab out the nonce
-	pivot := len(joined) - miscreantNonceSize
+	pivot := len(joined) - chacha20poly1305.NonceSizeX
 	ciphertext := joined[:pivot]
 	nonce := joined[pivot:]
 
@@ -91,22 +104,22 @@ func (c *MiscreantCipher) Decrypt(joined []byte) ([]byte, error) {
 
 // Marshal marshals the interface state as JSON, encrypts the JSON using the cipher
 // and base64 encodes the binary value as a string and returns the result
-func (c *MiscreantCipher) Marshal(s interface{}) (string, error) {
+func (c *XChaCha20Cipher) Marshal(s interface{}) (string, error) {
 	// encode json value
 	plaintext, err := json.Marshal(s)
 	if err != nil {
 		return "", err
 	}
+	// compress the plaintext bytes
 	compressed, err := compress(plaintext)
 	if err != nil {
 		return "", err
 	}
-	// encrypt the JSON
+	// encrypt the compressed JSON bytes
 	ciphertext, err := c.Encrypt(compressed)
 	if err != nil {
 		return "", err
 	}
-
 	// base64-encode the result
 	encoded := base64.RawURLEncoding.EncodeToString(ciphertext)
 	return encoded, nil
@@ -114,24 +127,23 @@ func (c *MiscreantCipher) Marshal(s interface{}) (string, error) {
 
 // Unmarshal takes the marshaled string, base64-decodes into a byte slice, decrypts the
 // byte slice the passed cipher, and unmarshals the resulting JSON into the struct pointer passed
-func (c *MiscreantCipher) Unmarshal(value string, s interface{}) error {
+func (c *XChaCha20Cipher) Unmarshal(value string, s interface{}) error {
 	// convert base64 string value to bytes
 	ciphertext, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil {
 		return err
 	}
-
 	// decrypt the bytes
 	compressed, err := c.Decrypt(ciphertext)
 	if err != nil {
 		return err
 	}
-	// decompress
+	// decompress the unencrypted bytes
 	plaintext, err := decompress(compressed)
 	if err != nil {
 		return err
 	}
-	// unmarshal bytes
+	// unmarshal the unencrypted bytes
 	err = json.Unmarshal(plaintext, s)
 	if err != nil {
 		return err
@@ -144,13 +156,13 @@ func compress(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	writer, err := gzip.NewWriterLevel(&buf, gzip.DefaultCompression)
 	if err != nil {
-		return nil, fmt.Errorf("aead/compress: failed to create a gzip writer: %q", err)
+		return nil, fmt.Errorf("internal/aead: failed to create a gzip writer: %q", err)
 	}
 	if writer == nil {
-		return nil, fmt.Errorf("aead/compress: failed to create a gzip writer")
+		return nil, fmt.Errorf("internal/aead: failed to create a gzip writer")
 	}
 	if _, err = writer.Write(data); err != nil {
-		return nil, fmt.Errorf("aead/compress: failed to compress data with err: %q", err)
+		return nil, fmt.Errorf("internal/aead: failed to compress data with err: %q", err)
 	}
 	if err = writer.Close(); err != nil {
 		return nil, err
@@ -161,7 +173,7 @@ func compress(data []byte) ([]byte, error) {
 func decompress(data []byte) ([]byte, error) {
 	reader, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("aead/compress: failed to create a gzip reader: %q", err)
+		return nil, fmt.Errorf("internal/aead: failed to create a gzip reader: %q", err)
 	}
 	defer reader.Close()
 	var buf bytes.Buffer

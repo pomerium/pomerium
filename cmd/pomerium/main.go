@@ -71,11 +71,11 @@ func main() {
 	topMux := http.NewServeMux()
 	if authenticator != nil {
 		// Need to handle ping without host lookup for LB
-        topMux.HandleFunc("/ping", func(rw http.ResponseWriter, _ *http.Request) {
-                rw.WriteHeader(http.StatusOK)
-                fmt.Fprintf(rw, "OK")
-        })
-		topMux.Handle(authHost + "/", authenticator.Handler())
+		topMux.HandleFunc("/ping", func(rw http.ResponseWriter, _ *http.Request) {
+			rw.WriteHeader(http.StatusOK)
+			fmt.Fprintf(rw, "OK")
+		})
+		topMux.Handle(authHost+"/", authenticator.Handler())
 	}
 	if p != nil {
 		topMux.Handle("/", p.Handler())

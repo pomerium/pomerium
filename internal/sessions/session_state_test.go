@@ -10,7 +10,7 @@ import (
 
 func TestSessionStateSerialization(t *testing.T) {
 	secret := aead.GenerateKey()
-	c, err := aead.NewMiscreantCipher([]byte(secret))
+	c, err := aead.New([]byte(secret))
 	if err != nil {
 		t.Fatalf("expected to be able to create cipher: %v", err)
 	}

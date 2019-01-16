@@ -43,7 +43,7 @@ type CookieStore struct {
 // CreateMiscreantCookieCipher creates a new miscreant cipher with the cookie secret
 func CreateMiscreantCookieCipher(cookieSecret []byte) func(s *CookieStore) error {
 	return func(s *CookieStore) error {
-		cipher, err := aead.NewMiscreantCipher(cookieSecret)
+		cipher, err := aead.New(cookieSecret)
 		if err != nil {
 			return fmt.Errorf("miscreant cookie-secret error: %s", err.Error())
 		}

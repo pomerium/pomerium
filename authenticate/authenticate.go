@@ -149,7 +149,7 @@ func NewAuthenticator(opts *Options, optionFuncs ...func(*Authenticator) error) 
 	if err != nil {
 		return nil, err
 	}
-	cipher, err := aead.NewMiscreantCipher([]byte(decodedAuthCodeSecret))
+	cipher, err := aead.New([]byte(decodedAuthCodeSecret))
 	if err != nil {
 		return nil, err
 	}
