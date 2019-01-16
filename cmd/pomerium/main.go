@@ -35,33 +35,51 @@ func main() {
 		os.Exit(0)
 	}
 	log.Debug().Str("version", version.FullVersion()).Str("user-agent", version.UserAgent()).Msg("cmd/pomerium")
-	authOpts, err := authenticate.OptionsFromEnvConfig()
-	if err != nil {
-		log.Fatal().Err(err).Msg("cmd/pomerium : failed to parse authenticator settings")
-	}
-	emailValidator := func(p *authenticate.Authenticator) error {
-		p.Validator = options.NewEmailValidator(authOpts.AllowedDomains)
-		return nil
+
+	var authenticator *authenticate.Authenticator
+	var authHost string
+	if mainOpts.Services == "all" || mainOpts.Services == "authenticator" {
+		authOpts, err := authenticate.OptionsFromEnvConfig()
+		if err != nil {
+			log.Fatal().Err(err).Msg("cmd/pomerium : failed to parse authenticator settings")
+		}
+		emailValidator := func(p *authenticate.Authenticator) error {
+			p.Validator = options.NewEmailValidator(authOpts.AllowedDomains)
+			return nil
+		}
+
+		authenticator, err = authenticate.NewAuthenticator(authOpts, emailValidator)
+		if err != nil {
+			log.Fatal().Err(err).Msg("cmd/pomerium : failed to create authenticator")
+		}
+		authHost = authOpts.RedirectURL.Host
 	}
 
-	authenticator, err := authenticate.NewAuthenticator(authOpts, emailValidator)
-	if err != nil {
-		log.Fatal().Err(err).Msg("cmd/pomerium : failed to create authenticator")
-	}
+	var p *proxy.Proxy
+	if mainOpts.Services == "all" || mainOpts.Services == "proxy" {
+		proxyOpts, err := proxy.OptionsFromEnvConfig()
+		if err != nil {
+			log.Fatal().Err(err).Msg("cmd/pomerium : failed to parse proxy settings")
+		}
 
-	proxyOpts, err := proxy.OptionsFromEnvConfig()
-	if err != nil {
-		log.Fatal().Err(err).Msg("cmd/pomerium : failed to parse proxy settings")
-	}
-
-	p, err := proxy.NewProxy(proxyOpts)
-	if err != nil {
-		log.Fatal().Err(err).Msg("cmd/pomerium : failed to create proxy")
+		p, err = proxy.NewProxy(proxyOpts)
+		if err != nil {
+			log.Fatal().Err(err).Msg("cmd/pomerium : failed to create proxy")
+		}
 	}
 
 	topMux := http.NewServeMux()
-	topMux.Handle(authOpts.RedirectURL.Host+"/", authenticator.Handler())
-	topMux.Handle("/", p.Handler())
+	if authenticator != nil {
+		// Need to handle ping without host lookup for LB
+        topMux.HandleFunc("/ping", func(rw http.ResponseWriter, _ *http.Request) {
+                rw.WriteHeader(http.StatusOK)
+                fmt.Fprintf(rw, "OK")
+        })
+		topMux.Handle(authHost + "/", authenticator.Handler())
+	}
+	if p != nil {
+		topMux.Handle("/", p.Handler())
+	}
 	httpOpts := &https.Options{
 		Addr:     mainOpts.Addr,
 		Cert:     mainOpts.Cert,
