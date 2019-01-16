@@ -144,7 +144,7 @@ func NewProxy(opts *Options) (*Proxy, error) {
 
 	// error explicitly handled by validate
 	decodedSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
-	cipher, err := aead.NewMiscreantCipher(decodedSecret)
+	cipher, err := aead.New(decodedSecret)
 	if err != nil {
 		return nil, fmt.Errorf("cookie-secret error: %s", err.Error())
 	}
