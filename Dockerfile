@@ -11,4 +11,5 @@ RUN make
 FROM scratch
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 WORKDIR /pomerium
-COPY --from=build /bin/* /bin/
+COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
+CMD ["/bin/pomerium"]
