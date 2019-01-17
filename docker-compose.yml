@@ -1,0 +1,90 @@
+version: "3"
+
+services:
+  # NGINX routes to pomerium's services depending on the request.
+  nginx-proxy:
+    image: jwilder/nginx-proxy:latest
+    ports:
+      - "443:443"
+    volumes:
+      # NOTE!!! : nginx must be supplied with your wildcard certificates. And it expects
+      # it in the format of whatever your wildcard domain name is in.
+      # see : https://github.com/jwilder/nginx-proxy#wildcard-certificates
+      # So, if your subdomain is corp.beyondperimeter.com, you'd have the following :
+      - ./cert.pem:/etc/nginx/certs/corp.beyondperimeter.com.crt:ro
+      - ./privkey.pem:/etc/nginx/certs/corp.beyondperimeter.com.key:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+
+  pomerium-authenticate:
+    image: pomerium/pomerium:latest
+    environment:
+      - SERVICES=authenticator
+      # auth settings
+      - REDIRECT_URL=https://sso-auth.corp.beyondperimeter.com/oauth2/callback
+      - IDP_PROVIDER="google"
+      - IDP_PROVIDER_URL=https://accounts.google.com
+      - IDP_CLIENT_ID=851877082059-bfgkpj09noog7as3gpc3t7r6n9sjbgs6.apps.googleusercontent.com
+      - IDP_CLIENT_SECRET=P34wwijKRNP3skP5ag5I12kz
+      - SCOPE="openid email"
+      - PROXY_ROOT_DOMAIN=beyondperimeter.com
+      - ALLOWED_DOMAINS=*
+      # shared service settings
+      # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
+      - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
+      - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
+
+      # if passing certs as files
+      # - CERTIFICATE_KEY=corp.beyondperimeter.com.crt
+      # - CERTIFICATE_KEY_FILE=corp.beyondperimeter.com.key
+      # Or, you can pass certifcates as bas64 encoded values. e.g. `base64 -i cert.pem`
+      # - CERTIFICATE=
+      # - CERTIFICATE_KEY=
+
+      # nginx settings
+      - VIRTUAL_PROTO=https
+      - VIRTUAL_HOST=sso-auth.corp.beyondperimeter.com
+      - VIRTUAL_PORT=443
+    volumes: # volumes is optional; used if passing certificates as files
+      - ./cert.pem:/pomerium/cert.pem:ro
+      - ./privkey.pem:/pomerium/privkey.pem:ro
+    expose:
+      - 443
+
+  pomerium-proxy:
+    image: pomerium/pomerium:latest
+    environment:
+      - SERVICES=proxy
+      # proxy settings
+      - AUTHENTICATE_SERVICE_URL=https://sso-auth.corp.beyondperimeter.com
+      - ROUTES=https://httpbin.corp.beyondperimeter.com=http://httpbin,https://hello.corp.beyondperimeter.com=http://hello-world/
+      # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
+      - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
+      - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
+
+      # if passing certs as files
+      # - CERTIFICATE_KEY=corp.beyondperimeter.com.crt
+      # - CERTIFICATE_KEY_FILE=corp.beyondperimeter.com.key
+      # Or, you can pass certifcates as bas64 encoded values. e.g. `base64 -i cert.pem`
+      # - CERTIFICATE=
+      # - CERTIFICATE_KEY=
+
+      # nginx settings
+      - VIRTUAL_PROTO=https
+      - VIRTUAL_HOST=*.corp.beyondperimeter.com
+      - VIRTUAL_PORT=443
+    volumes: # volumes is optional; used if passing certificates as files
+      - ./cert.pem:/pomerium/cert.pem:ro
+      - ./privkey.pem:/pomerium/privkey.pem:ro
+    expose:
+      - 443
+
+  # https://httpbin.corp.beyondperimeter.com
+  httpbin:
+    image: kennethreitz/httpbin:latest
+    expose:
+      - 80
+  # https://hello.corp.beyondperimeter.com
+  hello-world:
+    image: tutum/hello-world:latest
+    expose:
+      - 80
