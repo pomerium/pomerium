@@ -15,7 +15,7 @@ Use Pomerium to:
 - deploy mutual authenticated encryption (mTLS).
 - aggregate logging and telemetry data.
 
-To learn more about the problems Pomerium attempts to address, check out this repository of [resources] covering zero-trust and BeyondCorp.
+To learn more about some problems Pomerium attempts to address, check out this repository of [resources] covering zero-trust and BeyondCorp.
 
 ## Get started
 
