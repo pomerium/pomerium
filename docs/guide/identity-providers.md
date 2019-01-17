@@ -41,11 +41,11 @@ Your `Client ID` and `Client Secret` will be displayed:
 Set `Client ID` and `Client Secret` in Pomerium's settings. Your [environmental variables] should look something like this.
 
 ```bash
-export REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
-export IDP_PROVIDER="google"
-export IDP_PROVIDER_URL="https://accounts.google.com"
-export IDP_CLIENT_ID="yyyy.apps.googleusercontent.com"
-export IDP_CLIENT_SECRET="xxxxxx"
+REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
+IDP_PROVIDER="google"
+IDP_PROVIDER_URL="https://accounts.google.com"
+IDP_CLIENT_ID="yyyy.apps.googleusercontent.com"
+IDP_CLIENT_SECRET="xxxxxx"
 ```
 
 ## Okta
@@ -78,11 +78,11 @@ Go to the **General** page of your app and scroll down to the **Client Credentia
 At this point, you will configure the integration from the Pomerium side. Your [environmental variables] should look something like this.
 
 ```bash
-export REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
-export IDP_PROVIDER="okta"
-export IDP_PROVIDER_URL="https://dev-108295-admin.oktapreview.com/"
-export IDP_CLIENT_ID="0oairksnr0C0fEJ7l0h7"
-export IDP_CLIENT_SECRET="xxxxxx"
+REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
+IDP_PROVIDER="okta"
+IDP_PROVIDER_URL="https://dev-108295-admin.oktapreview.com/"
+IDP_CLIENT_ID="0oairksnr0C0fEJ7l0h7"
+IDP_CLIENT_SECRET="xxxxxx"
 ```
 
 ## Azure
@@ -151,11 +151,11 @@ At this point, you will configure the integration from the Pomerium side. Your [
 
 ```bash
 # Azure
-export REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
-export IDP_PROVIDER="azure"
-export IDP_PROVIDER_URL="https://login.microsoftonline.com/{REPLACE-ME-SEE-ABOVE}/v2.0"
-export IDP_CLIENT_ID="REPLACE-ME"
-export IDP_CLIENT_SECRET="REPLACE-ME"
+REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
+IDP_PROVIDER="azure"
+IDP_PROVIDER_URL="https://login.microsoftonline.com/{REPLACE-ME-SEE-ABOVE}/v2.0"
+IDP_CLIENT_ID="REPLACE-ME"
+IDP_CLIENT_SECRET="REPLACE-ME"
 
 ```
 
