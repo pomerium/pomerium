@@ -1,5 +1,10 @@
+# Example Pomerium configuration.
+#
+# NOTE! Change IDP_* settings to match your identity provider settings!
+# NOTE! Generate new SHARED_SECRET and COOKIE_SECRET keys!
+# NOTE! Replace `corp.beyondperimeter.com` with whatever your domain is
+# NOTE! Make sure certificate files (cert.pem/privkey.pem) are in the same directory as this file
 version: "3"
-
 services:
   # NGINX routes to pomerium's services depending on the request.
   nginx-proxy:
@@ -21,6 +26,7 @@ services:
       - SERVICES=authenticator
       # auth settings
       - REDIRECT_URL=https://sso-auth.corp.beyondperimeter.com/oauth2/callback
+      # Identity Provider Settings (Must be changed!)
       - IDP_PROVIDER="google"
       - IDP_PROVIDER_URL=https://accounts.google.com
       - IDP_CLIENT_ID=851877082059-bfgkpj09noog7as3gpc3t7r6n9sjbgs6.apps.googleusercontent.com
@@ -83,6 +89,7 @@ services:
     image: kennethreitz/httpbin:latest
     expose:
       - 80
+  # Simple hello world
   # https://hello.corp.beyondperimeter.com
   hello-world:
     image: tutum/hello-world:latest
