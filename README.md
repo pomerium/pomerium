@@ -33,6 +33,6 @@ $ source ./env # see env.example
 $ ./bin/pomerium -debug
 ```
 
-[resources] : https://github.com/pomerium/awesome-zero-trust
+[resources]: https://github.com/pomerium/awesome-zero-trust
 [go environment]: https://golang.org/doc/install
 [quick start guide]: https://www.pomerium.io/guide/
