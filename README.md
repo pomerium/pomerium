@@ -15,11 +15,11 @@ Use Pomerium to:
 - deploy mutual authenticated encryption (mTLS).
 - aggregate logging and telemetry data.
 
+To learn more about the problems Pomerium attempts to address, check out this repository of [resources] covering zero-trust and BeyondCorp.
+
 ## Get started
 
-For instructions on getting started using Pomerium, see our [docs].
-
-To learn more about zero-trust and BeyondCorp, check out [awesome-zero-trust].
+For instructions on getting started using Pomerium, see our [quick start guide].
 
 ## Start developing
 
@@ -33,6 +33,6 @@ $ source ./env # see env.example
 $ ./bin/pomerium -debug
 ```
 
-[awesome-zero-trust]: https://github.com/pomerium/awesome-zero-trust
+[resources] : https://github.com/pomerium/awesome-zero-trust
 [go environment]: https://golang.org/doc/install
-[docs]: https://www.pomerium.io
+[quick start guide]: https://www.pomerium.io/guide/
