@@ -5,6 +5,7 @@
 [![Travis CI](https://travis-ci.org/pomerium/pomerium.svg?branch=master)](https://travis-ci.org/pomerium/pomerium)
 [![Go Report Card](https://goreportcard.com/badge/github.com/pomerium/pomerium)](https://goreportcard.com/report/github.com/pomerium/pomerium)
 [![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg)](https://github.com/pomerium/pomerium/blob/master/LICENSE)
+[![Docker Automated build](https://img.shields.io/docker/automated/pomerium/pomerium.svg)](https://hub.docker.com/r/pomerium/pomerium/)
 
 Pomerium is a tool for managing secure access to internal applications and resources.
 
