@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/pomerium/envconfig"
-	"github.com/pomerium/pomerium/internal/aead"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
@@ -117,7 +117,7 @@ type Proxy struct {
 	// services
 	authenticateClient *authenticator.AuthenticateClient
 	// session
-	cipher       aead.Cipher
+	cipher       cryptutil.Cipher
 	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
 
@@ -144,7 +144,7 @@ func NewProxy(opts *Options) (*Proxy, error) {
 
 	// error explicitly handled by validate
 	decodedSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
-	cipher, err := aead.New(decodedSecret)
+	cipher, err := cryptutil.NewCipher(decodedSecret)
 	if err != nil {
 		return nil, fmt.Errorf("cookie-secret error: %s", err.Error())
 	}

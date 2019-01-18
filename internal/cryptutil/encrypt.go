@@ -1,4 +1,4 @@
-package aead // import "github.com/pomerium/pomerium/internal/aead"
+package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
 
 import (
 	"bytes"
@@ -9,10 +9,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"sync"
 
 	"golang.org/x/crypto/chacha20poly1305"
 )
+
+// GenerateKey generates a random 32-byte key.
+// Panics if source of randomness fails.
+func GenerateKey() []byte {
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		panic(err)
+	}
+	return key
+}
 
 // Cipher provides methods to encrypt and decrypt values.
 type Cipher interface {
@@ -27,12 +36,10 @@ type Cipher interface {
 // For a description of the methodology, see https://en.wikipedia.org/wiki/Authenticated_encryption
 type XChaCha20Cipher struct {
 	aead cipher.AEAD
-
-	mu sync.Mutex
 }
 
-// New returns a new AES Cipher for encrypting values
-func New(secret []byte) (*XChaCha20Cipher, error) {
+// NewCipher returns a new XChacha20poly1305 cipher.
+func NewCipher(secret []byte) (*XChaCha20Cipher, error) {
 	aead, err := chacha20poly1305.NewX(secret)
 	if err != nil {
 		return nil, err
@@ -42,20 +49,10 @@ func New(secret []byte) (*XChaCha20Cipher, error) {
 	}, nil
 }
 
-// GenerateKey generates a random 32-byte encryption key.
-// Panics if the key size is unsupported or source of randomness fails.
-func GenerateKey() []byte {
-	nonce := make([]byte, chacha20poly1305.KeySize)
-	if _, err := rand.Read(nonce); err != nil {
-		panic(err)
-	}
-	return nonce
-}
-
-// GenerateNonce generates a random 24-byte nonce for XChaCha20-Poly1305.
-// Panics if the key size is unsupported or source of randomness fails.
-func GenerateNonce() []byte {
-	nonce := make([]byte, chacha20poly1305.NonceSizeX)
+// GenerateNonce generates a random nonce.
+// Panics if source of randomness fails.
+func (c *XChaCha20Cipher) GenerateNonce() []byte {
+	nonce := make([]byte, c.aead.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
 		panic(err)
 	}
@@ -64,15 +61,12 @@ func GenerateNonce() []byte {
 
 // Encrypt a value using XChaCha20-Poly1305
 func (c *XChaCha20Cipher) Encrypt(plaintext []byte) (joined []byte, err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("internal/aead: error encrypting bytes: %v", r)
 		}
 	}()
-	nonce := GenerateNonce()
+	nonce := c.GenerateNonce()
 
 	ciphertext := c.aead.Seal(nil, nonce, plaintext, nil)
 
@@ -83,14 +77,11 @@ func (c *XChaCha20Cipher) Encrypt(plaintext []byte) (joined []byte, err error) {
 
 // Decrypt a value using XChaCha20-Poly1305
 func (c *XChaCha20Cipher) Decrypt(joined []byte) ([]byte, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if len(joined) <= chacha20poly1305.NonceSizeX {
+	if len(joined) <= c.aead.NonceSize() {
 		return nil, fmt.Errorf("internal/aead: invalid input size: %d", len(joined))
 	}
 	// grab out the nonce
-	pivot := len(joined) - chacha20poly1305.NonceSizeX
+	pivot := len(joined) - c.aead.NonceSize()
 	ciphertext := joined[:pivot]
 	nonce := joined[pivot:]
 

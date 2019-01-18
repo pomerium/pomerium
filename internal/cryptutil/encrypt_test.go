@@ -1,4 +1,4 @@
-package aead // import "github.com/pomerium/pomerium/internal/aead"
+package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
 
 import (
 	"crypto/rand"
@@ -13,7 +13,7 @@ func TestEncodeAndDecodeAccessToken(t *testing.T) {
 	plaintext := []byte("my plain text value")
 
 	key := GenerateKey()
-	c, err := New([]byte(key))
+	c, err := NewCipher([]byte(key))
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestEncodeAndDecodeAccessToken(t *testing.T) {
 func TestMarshalAndUnmarshalStruct(t *testing.T) {
 	key := GenerateKey()
 
-	c, err := New([]byte(key))
+	c, err := NewCipher([]byte(key))
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestMarshalAndUnmarshalStruct(t *testing.T) {
 }
 
 func TestCipherDataRace(t *testing.T) {
-	miscreantCipher, err := New(GenerateKey())
+	cipher, err := NewCipher(GenerateKey())
 	if err != nil {
 		t.Fatalf("unexpected generating cipher err: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestCipherDataRace(t *testing.T) {
 				t.Fatalf("expected structs to be equal")
 			}
 
-		}(miscreantCipher, wg)
+		}(cipher, wg)
 	}
 	wg.Wait()
 }

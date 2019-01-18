@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"reflect"
 
-	"github.com/pomerium/pomerium/internal/aead"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -167,7 +167,7 @@ func (p *Proxy) OAuthStart(rw http.ResponseWriter, req *http.Request) {
 	callbackURL := p.GetRedirectURL(req.Host)
 
 	// generate nonce
-	key := aead.GenerateKey()
+	key := cryptutil.GenerateKey()
 
 	// state prevents cross site forgery and maintain state across the client and server
 	state := &StateParameter{

@@ -61,7 +61,6 @@ func NewAuthenticateClient(uri *url.URL, sharedKey string, sessionValid, session
 	return &AuthenticateClient{
 		AuthenticateServiceURL: uri,
 
-		// ClientID:  clientID,
 		SharedKey: sharedKey,
 
 		SignInURL:   uri.ResolveReference(&url.URL{Path: "/sign_in"}),
@@ -258,7 +257,6 @@ func (p *AuthenticateClient) ValidateSessionState(s *sessions.SessionState) bool
 		// authentication, and is merely unavailable, we validate and continue
 		// as normal during the "grace period"
 		if isProviderUnavailable(resp.StatusCode) && p.withinGracePeriod(s) {
-			//tags := []string{"action:validate_session", "error:validation_failed"}
 			s.ValidDeadline = extendDeadline(p.SessionValidTTL)
 			return true
 		}
