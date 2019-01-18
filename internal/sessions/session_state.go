@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/aead"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
 var (
@@ -48,13 +48,13 @@ func isExpired(t time.Time) bool {
 
 // MarshalSession marshals the session state as JSON, encrypts the JSON using the
 // given cipher, and base64-encodes the result
-func MarshalSession(s *SessionState, c aead.Cipher) (string, error) {
+func MarshalSession(s *SessionState, c cryptutil.Cipher) (string, error) {
 	return c.Marshal(s)
 }
 
 // UnmarshalSession takes the marshaled string, base64-decodes into a byte slice, decrypts the
 // byte slice using the passed cipher, and unmarshals the resulting JSON into a session state struct
-func UnmarshalSession(value string, c aead.Cipher) (*SessionState, error) {
+func UnmarshalSession(value string, c cryptutil.Cipher) (*SessionState, error) {
 	s := &SessionState{}
 	err := c.Unmarshal(value, s)
 	if err != nil {

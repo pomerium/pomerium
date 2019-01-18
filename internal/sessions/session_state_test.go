@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/aead"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
 func TestSessionStateSerialization(t *testing.T) {
-	secret := aead.GenerateKey()
-	c, err := aead.New([]byte(secret))
+	secret := cryptutil.GenerateKey()
+	c, err := cryptutil.NewCipher([]byte(secret))
 	if err != nil {
 		t.Fatalf("expected to be able to create cipher: %v", err)
 	}

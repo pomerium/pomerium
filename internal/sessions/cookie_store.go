@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/aead"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
 // ErrInvalidSession is an error for invalid sessions.
@@ -36,14 +36,14 @@ type CookieStore struct {
 	CookieSecure       bool
 	CookieHTTPOnly     bool
 	CookieDomain       string
-	CookieCipher       aead.Cipher
+	CookieCipher       cryptutil.Cipher
 	SessionLifetimeTTL time.Duration
 }
 
 // CreateMiscreantCookieCipher creates a new miscreant cipher with the cookie secret
 func CreateMiscreantCookieCipher(cookieSecret []byte) func(s *CookieStore) error {
 	return func(s *CookieStore) error {
-		cipher, err := aead.New(cookieSecret)
+		cipher, err := cryptutil.NewCipher(cookieSecret)
 		if err != nil {
 			return fmt.Errorf("miscreant cookie-secret error: %s", err.Error())
 		}

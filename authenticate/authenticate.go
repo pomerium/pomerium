@@ -12,7 +12,7 @@ import (
 	"github.com/pomerium/envconfig"
 
 	"github.com/pomerium/pomerium/authenticate/providers"
-	"github.com/pomerium/pomerium/internal/aead"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
 )
@@ -132,7 +132,7 @@ type Authenticator struct {
 	// sesion related
 	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
-	cipher       aead.Cipher
+	cipher       cryptutil.Cipher
 
 	provider providers.Provider
 }
@@ -149,7 +149,7 @@ func NewAuthenticator(opts *Options, optionFuncs ...func(*Authenticator) error) 
 	if err != nil {
 		return nil, err
 	}
-	cipher, err := aead.New([]byte(decodedAuthCodeSecret))
+	cipher, err := cryptutil.NewCipher([]byte(decodedAuthCodeSecret))
 	if err != nil {
 		return nil, err
 	}

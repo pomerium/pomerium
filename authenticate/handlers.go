@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/aead"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	m "github.com/pomerium/pomerium/internal/middleware"
@@ -339,7 +339,7 @@ func (p *Authenticator) SignOutPage(rw http.ResponseWriter, req *http.Request, m
 // `redirectURI`, allowing the provider to redirect back to the sso proxy after authentication.
 func (p *Authenticator) OAuthStart(rw http.ResponseWriter, req *http.Request) {
 
-	nonce := fmt.Sprintf("%x", aead.GenerateKey())
+	nonce := fmt.Sprintf("%x", cryptutil.GenerateKey())
 	p.csrfStore.SetCSRF(rw, req, nonce)
 
 	authRedirectURL, err := url.Parse(req.URL.Query().Get("redirect_uri"))
