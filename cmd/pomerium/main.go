@@ -1,4 +1,4 @@
-package main
+package main // import "github.com/pomerium/pomerium/cmd/pomerium"
 
 import (
 	"flag"
@@ -18,13 +18,12 @@ import (
 var (
 	debugFlag   = flag.Bool("debug", false, "run server in debug mode, changes log output to STDOUT and level to info")
 	versionFlag = flag.Bool("version", false, "prints the version")
-	// validServics = []string{"all", "proxy", "authenticate"}
 )
 
 func main() {
 	mainOpts, err := optionsFromEnvConfig()
 	if err != nil {
-		log.Fatal().Err(err).Msg("cmd/pomerium : failed to parse authenticator settings")
+		log.Fatal().Err(err).Msg("cmd/pomerium: failed to parse authenticator settings")
 	}
 	flag.Parse()
 	if *debugFlag || mainOpts.Debug {
@@ -41,7 +40,7 @@ func main() {
 	if mainOpts.Services == "all" || mainOpts.Services == "authenticator" {
 		authOpts, err := authenticate.OptionsFromEnvConfig()
 		if err != nil {
-			log.Fatal().Err(err).Msg("cmd/pomerium : failed to parse authenticator settings")
+			log.Fatal().Err(err).Msg("cmd/pomerium: failed to parse authenticator settings")
 		}
 		emailValidator := func(p *authenticate.Authenticator) error {
 			p.Validator = options.NewEmailValidator(authOpts.AllowedDomains)
@@ -50,7 +49,7 @@ func main() {
 
 		authenticator, err = authenticate.NewAuthenticator(authOpts, emailValidator)
 		if err != nil {
-			log.Fatal().Err(err).Msg("cmd/pomerium : failed to create authenticator")
+			log.Fatal().Err(err).Msg("cmd/pomerium: failed to create authenticator")
 		}
 		authHost = authOpts.RedirectURL.Host
 	}
@@ -59,12 +58,12 @@ func main() {
 	if mainOpts.Services == "all" || mainOpts.Services == "proxy" {
 		proxyOpts, err := proxy.OptionsFromEnvConfig()
 		if err != nil {
-			log.Fatal().Err(err).Msg("cmd/pomerium : failed to parse proxy settings")
+			log.Fatal().Err(err).Msg("cmd/pomerium: failed to parse proxy settings")
 		}
 
 		p, err = proxy.NewProxy(proxyOpts)
 		if err != nil {
-			log.Fatal().Err(err).Msg("cmd/pomerium : failed to create proxy")
+			log.Fatal().Err(err).Msg("cmd/pomerium: failed to create proxy")
 		}
 	}
 
@@ -87,7 +86,7 @@ func main() {
 		CertFile: mainOpts.CertFile,
 		KeyFile:  mainOpts.KeyFile,
 	}
-	log.Fatal().Err(https.ListenAndServeTLS(httpOpts, topMux)).Msg("cmd/pomerium : fatal")
+	log.Fatal().Err(https.ListenAndServeTLS(httpOpts, topMux)).Msg("cmd/pomerium: fatal")
 }
 
 // Options are the global environmental flags used to set up pomerium's services.
@@ -123,6 +122,9 @@ func optionsFromEnvConfig() (*Options, error) {
 	o := defaultOptions
 	if err := envconfig.Process("", o); err != nil {
 		return nil, err
+	}
+	if !isValidService(o.Services) {
+		return nil, fmt.Errorf("%s is an invalid service type",o.Services)
 	}
 	return o, nil
 }

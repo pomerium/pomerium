@@ -7,9 +7,8 @@
 * Grab Pomerium's included example [`docker-compose.yml`](https://raw.githubusercontent.com/pomerium/pomerium/master/docker-compose.yml) directly or by cloning the repository.
 * Update `docker-compose.yml` to match your [identity provider] settings. 
 * Copy your subdomain's wild-card TLS certificate next to the compose file. If you don't have one handy, the included [script] generates one from [LetsEncrypt].
-* Run docker compose by runnig the command `$ docker-compose up`. 
-* Included with Pomerium is two test apps [helloworld] and [httpbin]. Pomerium is configured to delegate access to both.
-* Navigate to `hello.corp.example.com` or `httpbin.corp.example.com`. You should see something like the following in your browser and in your terminal. 
+* Run docker-compose by runnig the command `$ docker-compose up`. 
+* Pomerium is configured to delegate access to two test apps [helloworld] and [httpbin]. Navigate to `hello.corp.example.com` or `httpbin.corp.example.com`. You should see something like the following in your browser and in your terminal. 
 
 ![Getting started](./get-started.gif)
 

@@ -94,20 +94,10 @@ func (o *Options) Validate() error {
 	}
 	decodedCookieSecret, err := base64.StdEncoding.DecodeString(o.CookieSecret)
 	if err != nil {
-		return fmt.Errorf("authenticate options: cookie secret invalid"+
-			"must be a base64-encoded, 256 bit key e.g. `head -c32 /dev/urandom | base64`"+
-			"got %q", err)
+		return fmt.Errorf("cookie secret is invalid base64: %v", err)
 	}
-	validCookieSecretLength := false
-	for _, i := range []int{32, 64} {
-		if len(decodedCookieSecret) == i {
-			validCookieSecretLength = true
-		}
-	}
-
-	if !validCookieSecretLength {
-		return fmt.Errorf("authenticate options: invalid cookie secret strength want"+
-			" 32 to 64 bytes, got %d bytes", len(decodedCookieSecret))
+	if len(decodedCookieSecret) != 32 {
+		return fmt.Errorf("cookie secret expects 32 bytes but got %d", len(decodedCookieSecret))
 	}
 
 	return nil
@@ -127,9 +117,7 @@ type Authenticator struct {
 
 	SessionLifetimeTTL time.Duration
 
-	decodedCookieSecret []byte
-	templates           *template.Template
-	// sesion related
+	templates    *template.Template
 	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
 	cipher       cryptutil.Cipher

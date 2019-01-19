@@ -1,4 +1,4 @@
-<img  height="175" src="./docs/.vuepress/public/logo.svg" alt="logo" align="right" >
+<img  height="100" src="./docs/.vuepress/public/logo.svg" alt="logo" align="right" >
 
 # Pomerium
 
@@ -11,8 +11,8 @@ Pomerium is a tool for managing secure access to internal applications and resou
 
 Use Pomerium to:
 
-- provide a unified gateway to internal corporate applications.
-- enforce dynamic access policies based on context, identity, and device state.
+- provide a unified gateway (reverse-proxy) to internal corporate applications.
+- enforce dynamic access policy based on context, identity, and device state.
 - deploy mutual authenticated encryption (mTLS).
 - aggregate logging and telemetry data.
 

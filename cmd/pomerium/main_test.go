@@ -1,4 +1,4 @@
-package main
+package main // import "github.com/pomerium/pomerium/cmd/pomerium"
 
 import (
 	"os"
@@ -19,6 +19,7 @@ func Test_optionsFromEnvConfig(t *testing.T) {
 	}{
 		{"good default with no env settings", defaultOptions, "", "", false},
 		{"good service", defaultOptions, "SERVICES", "all", false},
+		{"invalid service type", nil, "SERVICES", "invalid", true},
 		{"bad debug boolean", nil, "POMERIUM_DEBUG", "yes", true},
 	}
 	for _, tt := range tests {

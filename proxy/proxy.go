@@ -96,16 +96,10 @@ func (o *Options) Validate() error {
 	}
 	decodedCookieSecret, err := base64.StdEncoding.DecodeString(o.CookieSecret)
 	if err != nil {
-		return errors.New("cookie secret is invalid (e.g. `head -c32 /dev/urandom | base64`) ")
+		return fmt.Errorf("cookie secret is invalid base64: %v", err)
 	}
-	validCookieSecretLength := false
-	for _, i := range []int{32, 64} {
-		if len(decodedCookieSecret) == i {
-			validCookieSecretLength = true
-		}
-	}
-	if !validCookieSecretLength {
-		return fmt.Errorf("cookie secret is invalid, must be 32 or 64 bytes but got %d bytes (e.g. `head -c33 /dev/urandom | base64`) ", len(decodedCookieSecret))
+	if len(decodedCookieSecret) != 32 {
+		return fmt.Errorf("cookie secret expects 32 bytes but got %d", len(decodedCookieSecret))
 	}
 	return nil
 }
