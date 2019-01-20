@@ -183,7 +183,7 @@ func TestOptions_Validate(t *testing.T) {
 	}
 }
 
-func TestNewProxy(t *testing.T) {
+func TestNew(t *testing.T) {
 	good := testOptions()
 	shortCookieLength := testOptions()
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
@@ -203,16 +203,16 @@ func TestNewProxy(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewProxy(tt.opts)
+			got, err := New(tt.opts)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NewProxy() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got == nil && tt.wantProxy == true {
-				t.Errorf("NewProxy() expected valid proxy struct")
+				t.Errorf("New() expected valid proxy struct")
 			}
 			if got != nil && len(got.mux) != tt.numMuxes {
-				t.Errorf("NewProxy() = num muxes %v, want %v", got, tt.numMuxes)
+				t.Errorf("New() = num muxes %v, want %v", got, tt.numMuxes)
 			}
 		})
 	}

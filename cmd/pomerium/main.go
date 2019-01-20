@@ -35,21 +35,21 @@ func main() {
 	}
 	log.Debug().Str("version", version.FullVersion()).Str("user-agent", version.UserAgent()).Msg("cmd/pomerium")
 
-	var authenticator *authenticate.Authenticator
+	var auth *authenticate.Authenticate
 	var authHost string
-	if mainOpts.Services == "all" || mainOpts.Services == "authenticator" {
+	if mainOpts.Services == "all" || mainOpts.Services == "authenticate" {
 		authOpts, err := authenticate.OptionsFromEnvConfig()
 		if err != nil {
-			log.Fatal().Err(err).Msg("cmd/pomerium: failed to parse authenticator settings")
+			log.Fatal().Err(err).Msg("cmd/pomerium: failed to parse authenticate settings")
 		}
-		emailValidator := func(p *authenticate.Authenticator) error {
+		emailValidator := func(p *authenticate.Authenticate) error {
 			p.Validator = options.NewEmailValidator(authOpts.AllowedDomains)
 			return nil
 		}
 
-		authenticator, err = authenticate.NewAuthenticator(authOpts, emailValidator)
+		auth, err = authenticate.New(authOpts, emailValidator)
 		if err != nil {
-			log.Fatal().Err(err).Msg("cmd/pomerium: failed to create authenticator")
+			log.Fatal().Err(err).Msg("cmd/pomerium: failed to create authenticate")
 		}
 		authHost = authOpts.RedirectURL.Host
 	}
@@ -61,20 +61,20 @@ func main() {
 			log.Fatal().Err(err).Msg("cmd/pomerium: failed to parse proxy settings")
 		}
 
-		p, err = proxy.NewProxy(proxyOpts)
+		p, err = proxy.New(proxyOpts)
 		if err != nil {
 			log.Fatal().Err(err).Msg("cmd/pomerium: failed to create proxy")
 		}
 	}
 
 	topMux := http.NewServeMux()
-	if authenticator != nil {
+	if auth != nil {
 		// Need to handle ping without host lookup for LB
 		topMux.HandleFunc("/ping", func(rw http.ResponseWriter, _ *http.Request) {
 			rw.WriteHeader(http.StatusOK)
 			fmt.Fprintf(rw, "OK")
 		})
-		topMux.Handle(authHost+"/", authenticator.Handler())
+		topMux.Handle(authHost+"/", auth.Handler())
 	}
 	if p != nil {
 		topMux.Handle("/", p.Handler())
@@ -124,7 +124,7 @@ func optionsFromEnvConfig() (*Options, error) {
 		return nil, err
 	}
 	if !isValidService(o.Services) {
-		return nil, fmt.Errorf("%s is an invalid service type",o.Services)
+		return nil, fmt.Errorf("%s is an invalid service type", o.Services)
 	}
 	return o, nil
 }

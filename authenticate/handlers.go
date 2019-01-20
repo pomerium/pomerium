@@ -27,7 +27,7 @@ var securityHeaders = map[string]string{
 }
 
 // Handler returns the Http.Handlers for authentication, callback, and refresh
-func (p *Authenticator) Handler() http.Handler {
+func (p *Authenticate) Handler() http.Handler {
 	mux := http.NewServeMux()
 	// we setup global endpoints that should respond to any hostname
 	mux.HandleFunc("/ping", m.WithMethods(p.PingPage, "GET"))
@@ -58,31 +58,31 @@ func (p *Authenticator) Handler() http.Handler {
 }
 
 // validateSignature wraps a common collection of middlewares to validate signatures
-func (p *Authenticator) validateSignature(f http.HandlerFunc) http.HandlerFunc {
+func (p *Authenticate) validateSignature(f http.HandlerFunc) http.HandlerFunc {
 	return validateRedirectURI(validateSignature(f, p.SharedKey), p.ProxyRootDomains)
 
 }
 
 // validateSignature wraps a common collection of middlewares to validate
 // a (presumably) existing user session
-func (p *Authenticator) validateExisting(f http.HandlerFunc) http.HandlerFunc {
+func (p *Authenticate) validateExisting(f http.HandlerFunc) http.HandlerFunc {
 	return m.ValidateClientSecret(f, p.SharedKey)
 }
 
 // RobotsTxt handles the /robots.txt route.
-func (p *Authenticator) RobotsTxt(rw http.ResponseWriter, req *http.Request) {
+func (p *Authenticate) RobotsTxt(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 	fmt.Fprintf(rw, "User-agent: *\nDisallow: /")
 }
 
 // PingPage handles the /ping route
-func (p *Authenticator) PingPage(rw http.ResponseWriter, req *http.Request) {
+func (p *Authenticate) PingPage(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 	fmt.Fprintf(rw, "OK")
 }
 
 // SignInPage directs the user to the sign in page. Takes a `redirect_uri` param.
-func (p *Authenticator) SignInPage(rw http.ResponseWriter, req *http.Request) {
+func (p *Authenticate) SignInPage(rw http.ResponseWriter, req *http.Request) {
 	requestLog := log.WithRequest(req, "authenticate.SignInPage")
 	redirectURL := p.RedirectURL.ResolveReference(req.URL)
 	// validateRedirectURI middleware already ensures that this is a valid URL
@@ -110,7 +110,7 @@ func (p *Authenticator) SignInPage(rw http.ResponseWriter, req *http.Request) {
 	p.templates.ExecuteTemplate(rw, "sign_in.html", t)
 }
 
-func (p *Authenticator) authenticate(rw http.ResponseWriter, req *http.Request) (*sessions.SessionState, error) {
+func (p *Authenticate) authenticate(rw http.ResponseWriter, req *http.Request) (*sessions.SessionState, error) {
 	requestLog := log.WithRequest(req, "authenticate.authenticate")
 	session, err := p.sessionStore.LoadSession(req)
 	if err != nil {
@@ -173,7 +173,7 @@ func (p *Authenticator) authenticate(rw http.ResponseWriter, req *http.Request) 
 
 // SignIn handles the /sign_in endpoint. It attempts to authenticate the user,
 // and if the user is not authenticated, it renders a sign in page.
-func (p *Authenticator) SignIn(rw http.ResponseWriter, req *http.Request) {
+func (p *Authenticate) SignIn(rw http.ResponseWriter, req *http.Request) {
 	// We attempt to authenticate the user. If they cannot be authenticated, we render a sign-in
 	// page.
 	//
@@ -203,7 +203,7 @@ func (p *Authenticator) SignIn(rw http.ResponseWriter, req *http.Request) {
 }
 
 // ProxyOAuthRedirect redirects the user back to sso proxy's redirection endpoint.
-func (p *Authenticator) ProxyOAuthRedirect(rw http.ResponseWriter, req *http.Request, session *sessions.SessionState) {
+func (p *Authenticate) ProxyOAuthRedirect(rw http.ResponseWriter, req *http.Request, session *sessions.SessionState) {
 	// This workflow corresponds to Section 3.1.2 of the OAuth2 RFC.
 	// See https://tools.ietf.org/html/rfc6749#section-3.1.2 for more specific information.
 	//
@@ -263,7 +263,7 @@ func getAuthCodeRedirectURL(redirectURL *url.URL, state, authCode string) string
 }
 
 // SignOut signs the user out.
-func (p *Authenticator) SignOut(rw http.ResponseWriter, req *http.Request) {
+func (p *Authenticate) SignOut(rw http.ResponseWriter, req *http.Request) {
 	redirectURI := req.Form.Get("redirect_uri")
 	if req.Method == "GET" {
 		p.SignOutPage(rw, req, "")
@@ -296,7 +296,7 @@ func (p *Authenticator) SignOut(rw http.ResponseWriter, req *http.Request) {
 }
 
 // SignOutPage renders a sign out page with a message
-func (p *Authenticator) SignOutPage(rw http.ResponseWriter, req *http.Request, message string) {
+func (p *Authenticate) SignOutPage(rw http.ResponseWriter, req *http.Request, message string) {
 	// validateRedirectURI middleware already ensures that this is a valid URL
 	redirectURI := req.Form.Get("redirect_uri")
 	session, err := p.sessionStore.LoadSession(req)
@@ -337,7 +337,7 @@ func (p *Authenticator) SignOutPage(rw http.ResponseWriter, req *http.Request, m
 
 // OAuthStart starts the authentication process by redirecting to the provider. It provides a
 // `redirectURI`, allowing the provider to redirect back to the sso proxy after authentication.
-func (p *Authenticator) OAuthStart(rw http.ResponseWriter, req *http.Request) {
+func (p *Authenticate) OAuthStart(rw http.ResponseWriter, req *http.Request) {
 
 	nonce := fmt.Sprintf("%x", cryptutil.GenerateKey())
 	p.csrfStore.SetCSRF(rw, req, nonce)
@@ -368,7 +368,7 @@ func (p *Authenticator) OAuthStart(rw http.ResponseWriter, req *http.Request) {
 	http.Redirect(rw, req, signInURL, http.StatusFound)
 }
 
-func (p *Authenticator) redeemCode(host, code string) (*sessions.SessionState, error) {
+func (p *Authenticate) redeemCode(host, code string) (*sessions.SessionState, error) {
 	session, err := p.provider.Redeem(code)
 	if err != nil {
 		return nil, err
@@ -382,7 +382,7 @@ func (p *Authenticator) redeemCode(host, code string) (*sessions.SessionState, e
 }
 
 // getOAuthCallback completes the oauth cycle from an identity provider's callback
-func (p *Authenticator) getOAuthCallback(rw http.ResponseWriter, req *http.Request) (string, error) {
+func (p *Authenticate) getOAuthCallback(rw http.ResponseWriter, req *http.Request) (string, error) {
 	requestLog := log.WithRequest(req, "authenticate.getOAuthCallback")
 	// finish the oauth cycle
 	err := req.ParseForm()
@@ -428,7 +428,7 @@ func (p *Authenticator) getOAuthCallback(rw http.ResponseWriter, req *http.Reque
 		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "Invalid Redirect URI"}
 	}
 
-	// Set cookie, or deny: The authenticator validates the session email and group
+	// Set cookie, or deny: validates the session email and group
 	// - for p.Validator see validator.go#newValidatorImpl for more info
 	// - for p.provider.ValidateGroup see providers/google.go#ValidateGroup for more info
 	if !p.Validator(session.Email) {
@@ -446,7 +446,7 @@ func (p *Authenticator) getOAuthCallback(rw http.ResponseWriter, req *http.Reque
 
 // OAuthCallback handles the callback from the provider, and returns an error response if there is an error.
 // If there is no error it will redirect to the redirect url.
-func (p *Authenticator) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
+func (p *Authenticate) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
 	redirect, err := p.getOAuthCallback(rw, req)
 	switch h := err.(type) {
 	case nil:
@@ -462,7 +462,7 @@ func (p *Authenticator) OAuthCallback(rw http.ResponseWriter, req *http.Request)
 }
 
 // Redeem has a signed access token, and provides the user information associated with the access token.
-func (p *Authenticator) Redeem(rw http.ResponseWriter, req *http.Request) {
+func (p *Authenticate) Redeem(rw http.ResponseWriter, req *http.Request) {
 	// The auth code is redeemed by the sso proxy for an access token, refresh token,
 	// expiration, and email.
 	requestLog := log.WithRequest(req, "authenticate.Redeem")
@@ -518,7 +518,7 @@ func (p *Authenticator) Redeem(rw http.ResponseWriter, req *http.Request) {
 }
 
 // Refresh takes a refresh token and returns a new access token
-func (p *Authenticator) Refresh(rw http.ResponseWriter, req *http.Request) {
+func (p *Authenticate) Refresh(rw http.ResponseWriter, req *http.Request) {
 	err := req.ParseForm()
 	if err != nil {
 		http.Error(rw, fmt.Sprintf("Bad Request: %s", err.Error()), http.StatusBadRequest)
@@ -557,7 +557,7 @@ func (p *Authenticator) Refresh(rw http.ResponseWriter, req *http.Request) {
 }
 
 // GetProfile gets a list of groups of which a user is a member.
-func (p *Authenticator) GetProfile(rw http.ResponseWriter, req *http.Request) {
+func (p *Authenticate) GetProfile(rw http.ResponseWriter, req *http.Request) {
 	// The sso proxy sends the user's email to this endpoint to get a list of Google groups that
 	// the email is a member of. The proxy will compare these groups to the list of allowed
 	// groups for the upstream service the user is trying to access.
@@ -599,7 +599,7 @@ func (p *Authenticator) GetProfile(rw http.ResponseWriter, req *http.Request) {
 
 // ValidateToken validates the X-Access-Token from the header and returns an error response
 // if it's invalid
-func (p *Authenticator) ValidateToken(rw http.ResponseWriter, req *http.Request) {
+func (p *Authenticate) ValidateToken(rw http.ResponseWriter, req *http.Request) {
 	accessToken := req.Header.Get("X-Access-Token")
 	idToken := req.Header.Get("X-Id-Token")
 

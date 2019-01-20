@@ -103,8 +103,8 @@ func (o *Options) Validate() error {
 	return nil
 }
 
-// Authenticator stores all the information associated with proxying the request.
-type Authenticator struct {
+// Authenticate stores all the information associated with proxying the request.
+type Authenticate struct {
 	RedirectURL *url.URL
 
 	Validator func(string) bool
@@ -125,8 +125,8 @@ type Authenticator struct {
 	provider providers.Provider
 }
 
-// NewAuthenticator creates a Authenticator struct and applies the optional functions slice to the struct.
-func NewAuthenticator(opts *Options, optionFuncs ...func(*Authenticator) error) (*Authenticator, error) {
+// New creates a Authenticate struct and applies the optional functions slice to the struct.
+func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate, error) {
 	if opts == nil {
 		return nil, errors.New("options cannot be nil")
 	}
@@ -159,7 +159,7 @@ func NewAuthenticator(opts *Options, optionFuncs ...func(*Authenticator) error) 
 		return nil, err
 	}
 
-	p := &Authenticator{
+	p := &Authenticate{
 		SharedKey:        opts.SharedKey,
 		AllowedDomains:   opts.AllowedDomains,
 		ProxyRootDomains: dotPrependDomains(opts.ProxyRootDomains),

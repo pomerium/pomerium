@@ -23,7 +23,7 @@ services:
   pomerium-authenticate:
     image: pomerium/pomerium:latest
     environment:
-      - SERVICES=authenticator
+      - SERVICES=authenticate
       # auth settings
       - REDIRECT_URL=https://sso-auth.corp.beyondperimeter.com/oauth2/callback
       # Identity Provider Settings (Must be changed!)

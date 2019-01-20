@@ -126,9 +126,9 @@ type StateParameter struct {
 	RedirectURI string `json:"redirect_uri"`
 }
 
-// NewProxy takes a Proxy service from options and a validation function.
+// New takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
-func NewProxy(opts *Options) (*Proxy, error) {
+func New(opts *Options) (*Proxy, error) {
 	if opts == nil {
 		return nil, errors.New("options cannot be nil")
 	}
@@ -156,7 +156,7 @@ func NewProxy(opts *Options) (*Proxy, error) {
 		return nil, err
 	}
 
-	authClient := authenticator.NewAuthenticateClient(
+	authClient := authenticator.NewClient(
 		opts.AuthenticateServiceURL,
 		opts.SharedKey,
 		// todo(bdd): fields below should be passed as function args
@@ -185,7 +185,7 @@ func NewProxy(opts *Options) (*Proxy, error) {
 		reverseProxy := NewReverseProxy(toURL)
 		handler := NewReverseProxyHandler(opts, reverseProxy, toURL.String())
 		p.Handle(fromURL.Host, handler)
-		log.Info().Str("from", fromURL.Host).Str("to", toURL.String()).Msg("proxy.NewProxy : route")
+		log.Info().Str("from", fromURL.Host).Str("to", toURL.String()).Msg("proxy.New : route")
 	}
 
 	return p, nil
@@ -231,8 +231,6 @@ func (u *UpstreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // NewReverseProxy creates a reverse proxy to a specified url.
 // It adds an X-Forwarded-Host header that is the request's host.
-//
-// todo(bdd): when would we ever want to preserve host?
 func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(to)
 	proxy.Transport = defaultUpstreamTransport
@@ -240,7 +238,6 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 	director := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		req.Header.Add("X-Forwarded-Host", req.Host)
-
 		director(req)
 		req.Host = to.Host
 	}

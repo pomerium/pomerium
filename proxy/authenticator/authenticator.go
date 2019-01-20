@@ -56,8 +56,8 @@ type AuthenticateClient struct {
 	GracePeriodTTL     time.Duration
 }
 
-// NewAuthenticateClient instantiates a new AuthenticateClient with provider data
-func NewAuthenticateClient(uri *url.URL, sharedKey string, sessionValid, sessionLifetime, gracePeriod time.Duration) *AuthenticateClient {
+// NewClient instantiates a new AuthenticateClient with provider data
+func NewClient(uri *url.URL, sharedKey string, sessionValid, sessionLifetime, gracePeriod time.Duration) *AuthenticateClient {
 	return &AuthenticateClient{
 		AuthenticateServiceURL: uri,
 

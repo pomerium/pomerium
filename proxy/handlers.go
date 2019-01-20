@@ -435,25 +435,6 @@ func (p *Proxy) Authenticate(rw http.ResponseWriter, req *http.Request) (err err
 	return nil
 }
 
-// upstreamTransport is used to ensure that upstreams cannot override the
-// security headers applied by sso_proxy
-type upstreamTransport struct {
-	transport *http.Transport
-}
-
-// RoundTrip round trips the request and deletes security headers before returning the response.
-func (t *upstreamTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	resp, err := t.transport.RoundTrip(req)
-	if err != nil {
-		log.Error().Err(err).Msg("proxy.RoundTrip")
-		return nil, err
-	}
-	for key := range securityHeaders {
-		resp.Header.Del(key)
-	}
-	return resp, err
-}
-
 // Handle constructs a route from the given host string and matches it to the provided http.Handler and UpstreamConfig
 func (p *Proxy) Handle(host string, handler http.Handler) {
 	p.mux[host] = &handler

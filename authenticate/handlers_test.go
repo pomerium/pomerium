@@ -12,8 +12,8 @@ import (
 	"github.com/pomerium/pomerium/internal/templates"
 )
 
-func testAuthenticator() *Authenticator {
-	var auth Authenticator
+func testAuthenticate() *Authenticate {
+	var auth Authenticate
 	auth.RedirectURL, _ = url.Parse("https://auth.example.com/oauth/callback")
 	auth.SharedKey = "IzY7MOZwzfOkmELXgozHDKTxoT3nOYhwkcmUVINsRww="
 	auth.AllowedDomains = []string{"*"}
@@ -23,8 +23,8 @@ func testAuthenticator() *Authenticator {
 	return &auth
 }
 
-func TestAuthenticator_PingPage(t *testing.T) {
-	auth := testAuthenticator()
+func TestAuthenticate_PingPage(t *testing.T) {
+	auth := testAuthenticate()
 	req, err := http.NewRequest("GET", "/ping", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -41,8 +41,8 @@ func TestAuthenticator_PingPage(t *testing.T) {
 	}
 }
 
-func TestAuthenticator_RobotsTxt(t *testing.T) {
-	auth := testAuthenticator()
+func TestAuthenticate_RobotsTxt(t *testing.T) {
+	auth := testAuthenticate()
 	req, err := http.NewRequest("GET", "/robots.txt", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -60,8 +60,8 @@ func TestAuthenticator_RobotsTxt(t *testing.T) {
 	}
 }
 
-func TestAuthenticator_SignInPage(t *testing.T) {
-	auth := testAuthenticator()
+func TestAuthenticate_SignInPage(t *testing.T) {
+	auth := testAuthenticate()
 	v := url.Values{}
 	v.Set("request_uri", "this-is-a-test-uri")
 	url := fmt.Sprintf("/signin?%s", v.Encode())
