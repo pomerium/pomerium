@@ -1,3 +1,4 @@
+// Package middleware provides a standard set of middleware implementations for pomerium.
 package middleware // import "github.com/pomerium/pomerium/internal/middleware"
 
 import (
@@ -14,14 +15,26 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 )
 
-// SetHeaders ensures that every response includes some basic security headers
-func SetHeaders(h http.Handler, securityHeaders map[string]string) http.Handler {
+// SetHeadersOld ensures that every response includes some basic security headers
+func SetHeadersOld(h http.Handler, securityHeaders map[string]string) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		for key, val := range securityHeaders {
 			rw.Header().Set(key, val)
 		}
 		h.ServeHTTP(rw, req)
 	})
+}
+
+// SetHeaders ensures that every response includes some basic security headers
+func SetHeaders(securityHeaders map[string]string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			for key, val := range securityHeaders {
+				rw.Header().Set(key, val)
+			}
+			next.ServeHTTP(rw, req)
+		})
+	}
 }
 
 // WithMethods writes an error response if the method of the request is not included.
@@ -116,14 +129,17 @@ func ValidateSignature(f http.HandlerFunc, sharedSecret string) http.HandlerFunc
 }
 
 // ValidateHost ensures that each request's host is valid
-func ValidateHost(h http.Handler, mux map[string]*http.Handler) http.Handler {
-	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if _, ok := mux[req.Host]; !ok {
-			httputil.ErrorResponse(rw, req, "Unknown host to route", http.StatusNotFound)
-			return
-		}
-		h.ServeHTTP(rw, req)
-	})
+func ValidateHost(mux map[string]*http.Handler) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+
+		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if _, ok := mux[req.Host]; !ok {
+				httputil.ErrorResponse(rw, req, "Unknown host to route", http.StatusNotFound)
+				return
+			}
+			next.ServeHTTP(rw, req)
+		})
+	}
 }
 
 // RequireHTTPS reroutes a HTTP request to HTTPS

@@ -2,7 +2,7 @@
 package log // import "github.com/pomerium/pomerium/internal/log"
 
 import (
-	"net/http"
+	"context"
 	"os"
 
 	"github.com/rs/zerolog"
@@ -19,19 +19,6 @@ func SetDebugMode() {
 // With creates a child logger with the field added to its context.
 func With() zerolog.Context {
 	return Logger.With()
-}
-
-// WithRequest creates a child logger with the remote user added to its context.
-func WithRequest(req *http.Request, function string) zerolog.Logger {
-	remoteUser := getRemoteAddr(req)
-	return Logger.With().
-		Str("function", function).
-		Str("req-remote-user", remoteUser).
-		Str("req-http-method", req.Method).
-		Str("req-host", req.Host).
-		Str("req-url", req.URL.String()).
-		// Str("req-user-agent", req.Header.Get("User-Agent")).
-		Logger()
 }
 
 // Level creates a child logger with the minimum accepted level set to level.
@@ -108,4 +95,10 @@ func Print(v ...interface{}) {
 // Arguments are handled in the manner of fmt.Printf.
 func Printf(format string, v ...interface{}) {
 	Logger.Printf(format, v...)
+}
+
+// Ctx returns the Logger associated with the ctx. If no logger
+// is associated, a disabled logger is returned.
+func Ctx(ctx context.Context) *zerolog.Logger {
+	return zerolog.Ctx(ctx)
 }

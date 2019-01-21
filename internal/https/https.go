@@ -130,6 +130,8 @@ func readCertificateFile(certFile, certKeyFile string) (*tls.Certificate, error)
 }
 
 // newDefaultTLSConfig creates a new TLS config based on the certificate files given.
+// see also:
+// https://wiki.mozilla.org/Security/Server_Side_TLS#Recommended_configurations
 func newDefaultTLSConfig(cert *tls.Certificate) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
 		CipherSuites: []uint16{

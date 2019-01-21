@@ -20,12 +20,24 @@ import (
 	"github.com/pomerium/pomerium/proxy/authenticator"
 )
 
+const (
+	// HeaderJWT is the header key for pomerium proxy's JWT signature.
+	HeaderJWT = "x-pomerium-jwt-assertion"
+	// HeaderUserID represents the header key for the user that is passed to the client.
+	HeaderUserID = "x-pomerium-authenticated-user-id"
+	// HeaderEmail represents the header key for the email that is passed to the client.
+	HeaderEmail = "x-pomerium-authenticated-user-email"
+)
+
 // Options represents the configuration options for the proxy service.
 type Options struct {
 	// AuthenticateServiceURL specifies the url to the pomerium authenticate http service.
 	AuthenticateServiceURL *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
 
-	// todo(bdd) : replace with certificate based mTLS
+	// SigningKey is a base64 encoded private key used to add a JWT-signature to proxied requests.
+	// See : https://www.pomerium.io/guide/signed-headers.html
+	SigningKey string `envconfig:"SIGNING_KEY"`
+	// SharedKey is a 32 byte random key used to authenticate access between services.
 	SharedKey string `envconfig:"SHARED_SECRET"`
 
 	DefaultUpstreamTimeout time.Duration `envconfig:"DEFAULT_UPSTREAM_TIMEOUT"`
@@ -101,6 +113,12 @@ func (o *Options) Validate() error {
 	if len(decodedCookieSecret) != 32 {
 		return fmt.Errorf("cookie secret expects 32 bytes but got %d", len(decodedCookieSecret))
 	}
+	if len(o.SigningKey) != 0 {
+		_, err := base64.StdEncoding.DecodeString(o.SigningKey)
+		if err != nil {
+			return fmt.Errorf("signing key is invalid base64: %v", err)
+		}
+	}
 	return nil
 }
 
@@ -115,7 +133,7 @@ type Proxy struct {
 	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
 
-	redirectURL *url.URL // the url to receive requests at
+	redirectURL *url.URL
 	templates   *template.Template
 	mux         map[string]*http.Handler
 }
@@ -135,7 +153,6 @@ func New(opts *Options) (*Proxy, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, err
 	}
-
 	// error explicitly handled by validate
 	decodedSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
 	cipher, err := cryptutil.NewCipher(decodedSecret)
@@ -183,7 +200,10 @@ func New(opts *Options) (*Proxy, error) {
 		fromURL, _ := urlParse(from)
 		toURL, _ := urlParse(to)
 		reverseProxy := NewReverseProxy(toURL)
-		handler := NewReverseProxyHandler(opts, reverseProxy, toURL.String())
+		handler, err := NewReverseProxyHandler(opts, reverseProxy, fromURL.Host, toURL.Host)
+		if err != nil {
+			return nil, err
+		}
 		p.Handle(fromURL.Host, handler)
 		log.Info().Str("from", fromURL.Host).Str("to", toURL.String()).Msg("proxy.New : route")
 	}
@@ -196,6 +216,7 @@ type UpstreamProxy struct {
 	name       string
 	cookieName string
 	handler    http.Handler
+	signer     cryptutil.JWTSigner
 }
 
 var defaultUpstreamTransport = &http.Transport{
@@ -211,8 +232,8 @@ var defaultUpstreamTransport = &http.Transport{
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
-// deleteSSOCookieHeader deletes the session cookie from the request header string.
-func deleteSSOCookieHeader(req *http.Request, cookieName string) {
+// deleteUpstreamCookies deletes the session cookie from the request header string.
+func deleteUpstreamCookies(req *http.Request, cookieName string) {
 	headers := []string{}
 	for _, cookie := range req.Cookies() {
 		if cookie.Name != cookieName {
@@ -222,10 +243,23 @@ func deleteSSOCookieHeader(req *http.Request, cookieName string) {
 	req.Header.Set("Cookie", strings.Join(headers, ";"))
 }
 
+// signRequest signs a g
+func (u *UpstreamProxy) signRequest(req *http.Request) {
+	if u.signer != nil {
+		jwt, err := u.signer.SignJWT(req.Header.Get(HeaderUserID), req.Header.Get(HeaderEmail))
+		if err == nil {
+			req.Header.Set(HeaderJWT, jwt)
+		}
+	} else {
+
+	}
+}
+
 // ServeHTTP signs the http request and deletes cookie headers
 // before calling the upstream's ServeHTTP function.
 func (u *UpstreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	deleteSSOCookieHeader(r, u.cookieName)
+	deleteUpstreamCookies(r, u.cookieName)
+	u.signRequest(r)
 	u.handler.ServeHTTP(w, r)
 }
 
@@ -237,6 +271,8 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 
 	director := proxy.Director
 	proxy.Director = func(req *http.Request) {
+		// Identifies the originating IP addresses of a client connecting to
+		// a web server through an HTTP proxy or a load balancer.
 		req.Header.Add("X-Forwarded-Host", req.Host)
 		director(req)
 		req.Host = to.Host
@@ -245,16 +281,26 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 }
 
 // NewReverseProxyHandler applies handler specific options to a given route.
-func NewReverseProxyHandler(opts *Options, reverseProxy *httputil.ReverseProxy, serviceName string) http.Handler {
-	upstreamProxy := &UpstreamProxy{
-		name:       serviceName,
+func NewReverseProxyHandler(opts *Options, reverseProxy *httputil.ReverseProxy, from, to string) (http.Handler, error) {
+	up := &UpstreamProxy{
+		name:       to,
 		handler:    reverseProxy,
 		cookieName: opts.CookieName,
 	}
-
+	if len(opts.SigningKey) != 0 {
+		decodedSigningKey, err := base64.StdEncoding.DecodeString(opts.SigningKey)
+		if err != nil {
+			return nil, err
+		}
+		signer, err := cryptutil.NewES256Signer(decodedSigningKey, from)
+		if err != nil {
+			return nil, err
+		}
+		up.signer = signer
+	}
 	timeout := opts.DefaultUpstreamTimeout
-	timeoutMsg := fmt.Sprintf("%s failed to respond within the %s timeout period", serviceName, timeout)
-	return http.TimeoutHandler(upstreamProxy, timeout, timeoutMsg)
+	timeoutMsg := fmt.Sprintf("%s failed to respond within the %s timeout period", to, timeout)
+	return http.TimeoutHandler(up, timeout, timeoutMsg), nil
 }
 
 // urlParse adds a scheme if none-exists, addressesing a quirk in how

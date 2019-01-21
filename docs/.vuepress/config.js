@@ -9,7 +9,7 @@ module.exports = {
 		docsDir: "docs",
 		editLinkText: "Edit this page on GitHub",
 		lastUpdated: "Last Updated",
-		nav: [{text: "Guide", link: "/guide/"}],
+		nav: [{ text: "Guide", link: "/guide/" }],
 		sidebar: {
 			"/guide/": genSidebarConfig("Guide")
 		}
@@ -21,7 +21,7 @@ function genSidebarConfig(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["", "identity-providers"]
+			children: ["", "identity-providers", "signed-headers"]
 		}
 	];
 }
