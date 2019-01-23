@@ -1,12 +1,12 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -15,8 +15,6 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
 )
-
-const loggingUserHeader = "SSO-Authenticated-User"
 
 var (
 	//ErrUserNotAuthorized is set when user is not authorized to access a resource
@@ -45,92 +43,80 @@ func (p *Proxy) Handler() http.Handler {
 	var handler http.Handler = mux
 	// todo(bdd) : investigate if setting non-overridable headers makes sense
 	// handler = p.setResponseHeaderOverrides(handler)
-	handler = middleware.SetHeaders(handler, securityHeaders)
-	handler = middleware.ValidateHost(handler, p.mux)
-	handler = middleware.RequireHTTPS(handler)
-	handler = log.NewLoggingHandler(handler)
 
-	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	// Middleware chain
+	c := middleware.NewChain()
+	c = c.Append(log.NewHandler(log.Logger))
+	c = c.Append(log.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+		log.FromRequest(r).Info().
+			Str("method", r.Method).
+			Str("url", r.URL.String()).
+			Int("status", status).
+			Int("size", size).
+			Dur("duration", duration).
+			Str("pomerium-user", r.Header.Get(HeaderUserID)).
+			Str("pomerium-email", r.Header.Get(HeaderEmail)).
+			Msg("request")
+	}))
+	c = c.Append(middleware.SetHeaders(securityHeaders))
+	c = c.Append(middleware.RequireHTTPS)
+	c = c.Append(log.ForwardedAddrHandler("fwd_ip"))
+	c = c.Append(log.RemoteAddrHandler("ip"))
+	c = c.Append(log.UserAgentHandler("user_agent"))
+	c = c.Append(log.RefererHandler("referer"))
+	c = c.Append(log.RequestIDHandler("req_id", "Request-Id"))
+	c = c.Append(middleware.ValidateHost(p.mux))
+	h := c.Then(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Skip host validation for /ping requests because they hit the LB directly.
-		if req.URL.Path == "/ping" {
-			p.PingPage(rw, req)
+		if r.URL.Path == "/ping" {
+			p.PingPage(w, r)
 			return
 		}
-		handler.ServeHTTP(rw, req)
-	})
+		handler.ServeHTTP(w, r)
+	}))
+	return h
 }
 
 // RobotsTxt sets the User-Agent header in the response to be "Disallow"
-func (p *Proxy) RobotsTxt(rw http.ResponseWriter, _ *http.Request) {
-	rw.WriteHeader(http.StatusOK)
-	fmt.Fprintf(rw, "User-agent: *\nDisallow: /")
+func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
 // Favicon will proxy the request as usual if the user is already authenticated
 // but responds with a 404 otherwise, to avoid spurious and confusing
 // authentication attempts when a browser automatically requests the favicon on
 // an error page.
-func (p *Proxy) Favicon(rw http.ResponseWriter, req *http.Request) {
-	err := p.Authenticate(rw, req)
+func (p *Proxy) Favicon(w http.ResponseWriter, r *http.Request) {
+	err := p.Authenticate(w, r)
 	if err != nil {
-		rw.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	p.Proxy(rw, req)
+	p.Proxy(w, r)
 }
 
 // PingPage send back a 200 OK response.
-func (p *Proxy) PingPage(rw http.ResponseWriter, _ *http.Request) {
-	rw.WriteHeader(http.StatusOK)
-	fmt.Fprintf(rw, "OK")
+func (p *Proxy) PingPage(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "OK")
 }
 
 // SignOut redirects the request to the sign out url.
-func (p *Proxy) SignOut(rw http.ResponseWriter, req *http.Request) {
-	p.sessionStore.ClearSession(rw, req)
-
+func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
+	p.sessionStore.ClearSession(w, r)
 	redirectURL := &url.URL{
 		Scheme: "https",
-		Host:   req.Host,
+		Host:   r.Host,
 		Path:   "/",
 	}
 	fullURL := p.authenticateClient.GetSignOutURL(redirectURL)
-	http.Redirect(rw, req, fullURL.String(), http.StatusFound)
-}
-
-// XHRError returns a simple error response with an error message to the application if the request is an XML request
-func (p *Proxy) XHRError(rw http.ResponseWriter, req *http.Request, code int, err error) {
-	jsonError := struct {
-		Error error `json:"error"`
-	}{
-		Error: err,
-	}
-
-	jsonBytes, err := json.Marshal(jsonError)
-	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	requestLog := log.WithRequest(req, "proxy.ErrorPage")
-	requestLog.Error().Err(err).Int("http-status", code).Msg("proxy.XHRError")
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(code)
-	rw.Write(jsonBytes)
+	http.Redirect(w, r, fullURL.String(), http.StatusFound)
 }
 
 // ErrorPage renders an error page with a given status code, title, and message.
-func (p *Proxy) ErrorPage(rw http.ResponseWriter, req *http.Request, code int, title string, message string) {
-	if p.isXHR(req) {
-		p.XHRError(rw, req, code, errors.New(message))
-		return
-	}
-	requestLog := log.WithRequest(req, "proxy.ErrorPage")
-	requestLog.Info().
-		Str("page-title", title).
-		Str("page-message", message).
-		Msg("proxy.ErrorPage")
-
-	rw.WriteHeader(code)
+func (p *Proxy) ErrorPage(w http.ResponseWriter, r *http.Request, code int, title string, message string) {
+	w.WriteHeader(code)
 	t := struct {
 		Code    int
 		Title   string
@@ -142,223 +128,202 @@ func (p *Proxy) ErrorPage(rw http.ResponseWriter, req *http.Request, code int, t
 		Message: message,
 		Version: version.FullVersion(),
 	}
-	p.templates.ExecuteTemplate(rw, "error.html", t)
-}
-
-func (p *Proxy) isXHR(req *http.Request) bool {
-	return req.Header.Get("X-Requested-With") == "XMLHttpRequest"
+	p.templates.ExecuteTemplate(w, "error.html", t)
 }
 
 // OAuthStart begins the authentication flow, encrypting the redirect url
 // in a request to the provider's sign in endpoint.
-func (p *Proxy) OAuthStart(rw http.ResponseWriter, req *http.Request) {
+func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	// The proxy redirects to the authenticator, and provides it with redirectURI (which points
 	// back to the sso proxy).
-	requestLog := log.WithRequest(req, "proxy.OAuthStart")
-
-	if p.isXHR(req) {
-		e := errors.New("cannot continue oauth flow on xhr")
-		requestLog.Error().Err(e).Msg("isXHR")
-		p.XHRError(rw, req, http.StatusUnauthorized, e)
-		return
-	}
-
-	requestURI := req.URL.String()
-	callbackURL := p.GetRedirectURL(req.Host)
-
-	// generate nonce
-	key := cryptutil.GenerateKey()
+	requestURI := r.URL.String()
+	callbackURL := p.GetRedirectURL(r.Host)
 
 	// state prevents cross site forgery and maintain state across the client and server
 	state := &StateParameter{
-		SessionID:   fmt.Sprintf("%x", key), // nonce
-		RedirectURI: requestURI,             // where to redirect the user back to
+		SessionID:   fmt.Sprintf("%x", cryptutil.GenerateKey()), // nonce
+		RedirectURI: requestURI,                                 // where to redirect the user back to
 	}
 
 	// we encrypt this value to be opaque the browser cookie
 	// this value will be unique since we always use a randomized nonce as part of marshaling
 	encryptedCSRF, err := p.cipher.Marshal(state)
 	if err != nil {
-		requestLog.Error().Err(err).Msg("failed to marshal csrf")
-		p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", err.Error())
+		log.FromRequest(r).Error().Err(err).Msg("failed to marshal csrf")
+		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
-	p.csrfStore.SetCSRF(rw, req, encryptedCSRF)
+	p.csrfStore.SetCSRF(w, r, encryptedCSRF)
 
 	// we encrypt this value to be opaque the uri query value
 	// this value will be unique since we always use a randomized nonce as part of marshaling
 	encryptedState, err := p.cipher.Marshal(state)
 	if err != nil {
-		requestLog.Error().Err(err).Msg("failed to encrypt cookie")
-		p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", err.Error())
+		log.FromRequest(r).Error().Err(err).Msg("failed to encrypt cookie")
+		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
 
 	signinURL := p.authenticateClient.GetSignInURL(callbackURL, encryptedState)
-	requestLog.Info().Msg("redirecting to begin auth flow")
-	http.Redirect(rw, req, signinURL.String(), http.StatusFound)
+	log.FromRequest(r).Info().Msg("redirecting to begin auth flow")
+	http.Redirect(w, r, signinURL.String(), http.StatusFound)
 }
 
 // OAuthCallback validates the cookie sent back from the provider, then validates
 // the user information, and if authorized, redirects the user back to the original
 // application.
-func (p *Proxy) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
+func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	// We receive the callback from the SSO Authenticator. This request will either contain an
 	// error, or it will contain a `code`; the code can be used to fetch an access token, and
 	// other metadata, from the authenticator.
-	requestLog := log.WithRequest(req, "proxy.OAuthCallback")
 	// finish the oauth cycle
-	err := req.ParseForm()
+	err := r.ParseForm()
 	if err != nil {
-		requestLog.Error().Err(err).Msg("failed parsing request form")
-		p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", err.Error())
+		log.FromRequest(r).Error().Err(err).Msg("failed parsing request form")
+		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
-	errorString := req.Form.Get("error")
+	errorString := r.Form.Get("error")
 	if errorString != "" {
-		p.ErrorPage(rw, req, http.StatusForbidden, "Permission Denied", errorString)
+		p.ErrorPage(w, r, http.StatusForbidden, "Permission Denied", errorString)
 		return
 	}
 
 	// We begin the process of redeeming the code for an access token.
-	session, err := p.redeemCode(req.Host, req.Form.Get("code"))
+	session, err := p.redeemCode(r.Host, r.Form.Get("code"))
 	if err != nil {
-		requestLog.Error().Err(err).Msg("error redeeming authorization code")
-		p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", "Internal Error")
+		log.FromRequest(r).Error().Err(err).Msg("error redeeming authorization code")
+		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", "Internal Error")
 		return
 	}
 
-	encryptedState := req.Form.Get("state")
+	encryptedState := r.Form.Get("state")
 	stateParameter := &StateParameter{}
 	err = p.cipher.Unmarshal(encryptedState, stateParameter)
 	if err != nil {
-		requestLog.Error().Err(err).Msg("could not unmarshal state")
-		p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", "Internal Error")
+		log.FromRequest(r).Error().Err(err).Msg("could not unmarshal state")
+		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", "Internal Error")
 		return
 	}
 
-	c, err := p.csrfStore.GetCSRF(req)
+	c, err := p.csrfStore.GetCSRF(r)
 	if err != nil {
-		requestLog.Error().Err(err).Msg("failed parsing csrf cookie")
-		p.ErrorPage(rw, req, http.StatusBadRequest, "Bad Request", err.Error())
+		log.FromRequest(r).Error().Err(err).Msg("failed parsing csrf cookie")
+		p.ErrorPage(w, r, http.StatusBadRequest, "Bad Request", err.Error())
 		return
 	}
-	p.csrfStore.ClearCSRF(rw, req)
+	p.csrfStore.ClearCSRF(w, r)
 
 	encryptedCSRF := c.Value
 	csrfParameter := &StateParameter{}
 	err = p.cipher.Unmarshal(encryptedCSRF, csrfParameter)
 	if err != nil {
-		requestLog.Error().Err(err).Msg("couldn't unmarshal CSRF")
-		p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", "Internal Error")
+		log.FromRequest(r).Error().Err(err).Msg("couldn't unmarshal CSRF")
+		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", "Internal Error")
 		return
 	}
 
 	if encryptedState == encryptedCSRF {
-		requestLog.Error().Msg("encrypted state and CSRF should not be equal")
-		p.ErrorPage(rw, req, http.StatusBadRequest, "Bad Request", "Bad Request")
+		log.FromRequest(r).Error().Msg("encrypted state and CSRF should not be equal")
+		p.ErrorPage(w, r, http.StatusBadRequest, "Bad Request", "Bad Request")
 		return
 	}
 
 	if !reflect.DeepEqual(stateParameter, csrfParameter) {
-		requestLog.Error().Msg("state and CSRF should be equal")
-		p.ErrorPage(rw, req, http.StatusBadRequest, "Bad Request", "Bad Request")
+		log.FromRequest(r).Error().Msg("state and CSRF should be equal")
+		p.ErrorPage(w, r, http.StatusBadRequest, "Bad Request", "Bad Request")
 		return
 	}
 
 	// We store the session in a cookie and redirect the user back to the application
-	err = p.sessionStore.SaveSession(rw, req, session)
+	err = p.sessionStore.SaveSession(w, r, session)
 	if err != nil {
-		requestLog.Error().Msg("error saving session")
-		p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", "Internal Error")
+		log.FromRequest(r).Error().Msg("error saving session")
+		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", "Internal Error")
 		return
 	}
 
 	// This is the redirect back to the original requested application
-	http.Redirect(rw, req, stateParameter.RedirectURI, http.StatusFound)
+	http.Redirect(w, r, stateParameter.RedirectURI, http.StatusFound)
 }
 
 // AuthenticateOnly calls the Authenticate handler.
-func (p *Proxy) AuthenticateOnly(rw http.ResponseWriter, req *http.Request) {
-	err := p.Authenticate(rw, req)
+func (p *Proxy) AuthenticateOnly(w http.ResponseWriter, r *http.Request) {
+	err := p.Authenticate(w, r)
 	if err != nil {
-		http.Error(rw, "unauthorized request", http.StatusUnauthorized)
+		http.Error(w, "unauthorized request", http.StatusUnauthorized)
 	}
-	rw.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusAccepted)
 }
 
-// Proxy authenticates a request, either proxying the request if it is authenticated, or starting the authentication process if not.
-func (p *Proxy) Proxy(rw http.ResponseWriter, req *http.Request) {
+// Proxy authenticates a request, either proxying the request if it is authenticated,
+// or starting the authentication process if not.
+func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	// Attempts to validate the user and their cookie.
-	// start := time.Now()
 	var err error
-	err = p.Authenticate(rw, req)
+	err = p.Authenticate(w, r)
 	// If the authentication is not successful we proceed to start the OAuth Flow with
-	// OAuthStart. If authentication is successful, we proceed to proxy to the configured
-	// upstream.
-	requestLog := log.WithRequest(req, "proxy.Proxy")
+	// OAuthStart. If successful, we proceed to proxy to the configured upstream.
 	if err != nil {
 		switch err {
 		case http.ErrNoCookie:
 			// No cookie is set, start the oauth flow
-			p.OAuthStart(rw, req)
+			p.OAuthStart(w, r)
 			return
 		case ErrUserNotAuthorized:
 			// We know the user is not authorized for the request, we show them a forbidden page
-			p.ErrorPage(rw, req, http.StatusForbidden, "Forbidden", "You're not authorized to view this page")
+			p.ErrorPage(w, r, http.StatusForbidden, "Forbidden", "You're not authorized to view this page")
 			return
 		case sessions.ErrLifetimeExpired:
 			// User's lifetime expired, we trigger the start of the oauth flow
-			p.OAuthStart(rw, req)
+			p.OAuthStart(w, r)
 			return
 		case sessions.ErrInvalidSession:
 			// The user session is invalid and we can't decode it.
 			// This can happen for a variety of reasons but the most common non-malicious
 			// case occurs when the session encoding schema changes. We manage this ux
 			// by triggering the start of the oauth flow.
-			p.OAuthStart(rw, req)
+			p.OAuthStart(w, r)
 			return
 		default:
-			requestLog.Error().Err(err).Msg("unknown error")
+			log.FromRequest(r).Error().Err(err).Msg("unknown error")
 			// We don't know exactly what happened, but authenticating the user failed, show an error
-			p.ErrorPage(rw, req, http.StatusInternalServerError, "Internal Error", "An unexpected error occurred")
+			p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", "An unexpected error occurred")
 			return
 		}
 	}
 
 	// We have validated the users request and now proxy their request to the provided upstream.
-	route, ok := p.router(req)
+	route, ok := p.router(r)
 	if !ok {
-		httputil.ErrorResponse(rw, req, "Unknown host to route", http.StatusNotFound)
+		httputil.ErrorResponse(w, r, "unknown route to proxy", http.StatusNotFound)
 		return
 	}
 
-	route.ServeHTTP(rw, req)
+	route.ServeHTTP(w, r)
 }
 
 // Authenticate authenticates a request by checking for a session cookie, and validating its expiration,
 // clearing the session cookie if it's invalid and returning an error if necessary..
-func (p *Proxy) Authenticate(rw http.ResponseWriter, req *http.Request) (err error) {
-
+func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error) {
 	// Clear the session cookie if anything goes wrong.
 	defer func() {
 		if err != nil {
-			p.sessionStore.ClearSession(rw, req)
+			p.sessionStore.ClearSession(w, r)
 		}
 	}()
-	requestLog := log.WithRequest(req, "proxy.Authenticate")
 
-	session, err := p.sessionStore.LoadSession(req)
+	session, err := p.sessionStore.LoadSession(r)
 	if err != nil {
 		// We loaded a cookie but it wasn't valid, clear it, and reject the request
-		requestLog.Error().Err(err).Msg("error authenticating user")
+		log.FromRequest(r).Error().Err(err).Msg("error authenticating user")
 		return err
 	}
 
 	// Lifetime period is the entire duration in which the session is valid.
 	// This should be set to something like 14 to 30 days.
 	if session.LifetimePeriodExpired() {
-		requestLog.Warn().Str("user", session.Email).Msg("session lifetime has expired")
+		log.FromRequest(r).Warn().Str("user", session.Email).Msg("session lifetime has expired")
 		return sessions.ErrLifetimeExpired
 	} else if session.RefreshPeriodExpired() {
 		// Refresh period is the period in which the access token is valid. This is ultimately
@@ -368,24 +333,24 @@ func (p *Proxy) Authenticate(rw http.ResponseWriter, req *http.Request) (err err
 		// We failed to refresh the session successfully
 		// clear the cookie and reject the request
 		if err != nil {
-			requestLog.Error().Err(err).Str("user", session.Email).Msg("refreshing session failed")
+			log.FromRequest(r).Error().Err(err).Str("user", session.Email).Msg("refreshing session failed")
 			return err
 		}
 
 		if !ok {
 			// User is not authorized after refresh
 			// clear the cookie and reject the request
-			requestLog.Error().Str("user", session.Email).Msg("not authorized after refreshing session")
+			log.FromRequest(r).Error().Str("user", session.Email).Msg("not authorized after refreshing session")
 			return ErrUserNotAuthorized
 		}
 
-		err = p.sessionStore.SaveSession(rw, req, session)
+		err = p.sessionStore.SaveSession(w, r, session)
 		if err != nil {
 			// We refreshed the session successfully, but failed to save it.
 			//
 			// This could be from failing to encode the session properly.
 			// But, we clear the session cookie and reject the request!
-			requestLog.Error().Err(err).Str("user", session.Email).Msg("could not save refresh session")
+			log.FromRequest(r).Error().Err(err).Str("user", session.Email).Msg("could not save refresh session")
 			return err
 		}
 	} else if session.ValidationPeriodExpired() {
@@ -398,38 +363,23 @@ func (p *Proxy) Authenticate(rw http.ResponseWriter, req *http.Request) (err err
 			// This user is now no longer authorized, or we failed to
 			// validate the user.
 			// Clear the cookie and reject the request
-			requestLog.Error().Str("user", session.Email).Msg("no longer authorized after validation period")
+			log.FromRequest(r).Error().Str("user", session.Email).Msg("no longer authorized after validation period")
 			return ErrUserNotAuthorized
 		}
 
-		err = p.sessionStore.SaveSession(rw, req, session)
+		err = p.sessionStore.SaveSession(w, r, session)
 		if err != nil {
 			// We validated the session successfully, but failed to save it.
 
 			// This could be from failing to encode the session properly.
 			// But, we clear the session cookie and reject the request!
-			requestLog.Error().Err(err).Str("user", session.Email).Msg("could not save validated session")
+			log.FromRequest(r).Error().Err(err).Str("user", session.Email).Msg("could not save validated session")
 			return err
 		}
 	}
 
-	// if !p.EmailValidator(session.Email) {
-	// 	requestLog.Error().Str("user", session.Email).Msg("email failed to validate, unauthorized")
-	// 	return ErrUserNotAuthorized
-	// }
-	//
-	// todo(bdd) :  handled by authorize package
-
-	req.Header.Set("X-Forwarded-User", session.User)
-
-	if p.PassAccessToken && session.AccessToken != "" {
-		req.Header.Set("X-Forwarded-Access-Token", session.AccessToken)
-	}
-
-	req.Header.Set("X-Forwarded-Email", session.Email)
-
-	// stash authenticated user so that it can be logged later (see func logRequest)
-	rw.Header().Set(loggingUserHeader, session.Email)
+	r.Header.Set(HeaderUserID, session.User)
+	r.Header.Set(HeaderEmail, session.Email)
 
 	// This user has been OK'd. Allow the request!
 	return nil
@@ -442,13 +392,12 @@ func (p *Proxy) Handle(host string, handler http.Handler) {
 
 // router attempts to find a route for a request. If a route is successfully matched,
 // it returns the route information and a bool value of `true`. If a route can not be matched,
-//a nil value for the route and false bool value is returned.
-func (p *Proxy) router(req *http.Request) (http.Handler, bool) {
-	route, ok := p.mux[req.Host]
+// a nil value for the route and false bool value is returned.
+func (p *Proxy) router(r *http.Request) (http.Handler, bool) {
+	route, ok := p.mux[r.Host]
 	if ok {
 		return *route, true
 	}
-
 	return nil, false
 }
 

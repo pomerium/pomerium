@@ -110,7 +110,10 @@ func TestNewReverseProxyHandler(t *testing.T) {
 
 	proxyHandler := NewReverseProxy(proxyURL)
 	opts := defaultOptions
-	handle := NewReverseProxyHandler(opts, proxyHandler, "name")
+	handle, err := NewReverseProxyHandler(opts, proxyHandler, "from", "to")
+	if err != nil {
+		t.Errorf("got %q", err)
+	}
 
 	frontend := httptest.NewServer(handle)
 
@@ -152,7 +155,8 @@ func TestOptions_Validate(t *testing.T) {
 	invalidCookieSecret.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
 	shortCookieLength := testOptions()
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
-
+	invalidSignKey := testOptions()
+	invalidSignKey.SigningKey = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
 	badSharedKey := testOptions()
 	badSharedKey.SharedKey = ""
 
@@ -162,7 +166,6 @@ func TestOptions_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{"good - minimum options", good, false},
-
 		{"nil options", &Options{}, true},
 		{"from route", badFromRoute, true},
 		{"to route", badToRoute, true},
@@ -172,6 +175,7 @@ func TestOptions_Validate(t *testing.T) {
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},
+		{"invalid signing key", invalidSignKey, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -187,6 +191,8 @@ func TestNew(t *testing.T) {
 	good := testOptions()
 	shortCookieLength := testOptions()
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
+	badRoutedProxy := testOptions()
+	badRoutedProxy.SigningKey = "YmFkIGtleQo="
 
 	tests := []struct {
 		name      string
@@ -197,9 +203,10 @@ func TestNew(t *testing.T) {
 		wantErr   bool
 	}{
 		{"good - minimum options", good, nil, true, 1, false},
-		{"bad - empty options", &Options{}, nil, false, 0, true},
-		{"bad - nil options", nil, nil, false, 0, true},
-		{"bad - short secret/validate sanity check", shortCookieLength, nil, false, 0, true},
+		{"empty options", &Options{}, nil, false, 0, true},
+		{"nil options", nil, nil, false, 0, true},
+		{"short secret/validate sanity check", shortCookieLength, nil, false, 0, true},
+		{"invalid ec key, valid base64 though", badRoutedProxy, nil, false, 0, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
