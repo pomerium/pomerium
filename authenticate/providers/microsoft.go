@@ -38,16 +38,17 @@ func NewAzureProvider(p *ProviderData) (*AzureProvider, error) {
 		p.ProviderURL = defaultAzureProviderURL
 	}
 	log.Info().Msgf("provider url %s", p.ProviderURL)
-	provider, err := oidc.NewProvider(ctx, p.ProviderURL)
+	var err error
+	p.provider, err = oidc.NewProvider(ctx, p.ProviderURL)
 	if err != nil {
 		return nil, err
 	}
 
-	p.verifier = provider.Verifier(&oidc.Config{ClientID: p.ClientID})
+	p.verifier = p.provider.Verifier(&oidc.Config{ClientID: p.ClientID})
 	p.oauth = &oauth2.Config{
 		ClientID:     p.ClientID,
 		ClientSecret: p.ClientSecret,
-		Endpoint:     provider.Endpoint(),
+		Endpoint:     p.provider.Endpoint(),
 		RedirectURL:  p.RedirectURL.String(),
 		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 	}
@@ -60,7 +61,7 @@ func NewAzureProvider(p *ProviderData) (*AzureProvider, error) {
 		RevokeURL string `json:"end_session_endpoint"`
 	}
 
-	if err := provider.Claims(&claims); err != nil {
+	if err := p.provider.Claims(&claims); err != nil {
 		return nil, err
 	}
 

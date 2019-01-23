@@ -1,14 +1,8 @@
-# Example Pomerium configuration.
-#
-# NOTE! Change IDP_* settings to match your identity provider settings!
-# NOTE! Generate new SHARED_SECRET and COOKIE_SECRET keys!
-# NOTE! Replace `corp.beyondperimeter.com` with whatever your domain is
-# NOTE! Make sure certificate files (cert.pem/privkey.pem) are in the same directory as this file
-# NOTE! Wrap URLs in quotes to avoid parse errors
 version: "3"
+
 services:
   # NGINX routes to pomerium's services depending on the request.
-  nginx-proxy:
+  nginx:
     image: jwilder/nginx-proxy:latest
     ports:
       - "443:443"
@@ -22,32 +16,26 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
   pomerium-authenticate:
-    image: pomerium/pomerium:latest # or `build: .` to build from source
+    build: .
+    restart: always
+    depends_on:
+      - "gitlab"
     environment:
+      - POMERIUM_DEBUG=true
       - SERVICES=authenticate
       # auth settings
       - REDIRECT_URL=https://sso-auth.corp.beyondperimeter.com/oauth2/callback
-      # Identity Provider Settings (Must be changed!)
-      - IDP_PROVIDER="google"
-      - IDP_PROVIDER_URL="https://accounts.google.com"
-      - IDP_CLIENT_ID=851877082059-bfgkpj09noog7as3gpc3t7r6n9sjbgs6.apps.googleusercontent.com
-      - IDP_CLIENT_SECRET=P34wwijKRNP3skP5ag5I12kz
-      - SCOPE="openid email"
+      - IDP_PROVIDER="gitlab"
+      - IDP_PROVIDER_URL=https://gitlab.corp.beyondperimeter.com
+      - IDP_CLIENT_ID=022dbbd09402441dc7af1924b679bc5e6f5bf0d7a555e55b38c51e2e4e6cee76
+      - IDP_CLIENT_SECRET=fb7598c520c346915ee369eee57688938fe4f31329a308c4669074da562714b2
       - PROXY_ROOT_DOMAIN=beyondperimeter.com
       - ALLOWED_DOMAINS=*
+      - SKIP_PROVIDER_BUTTON=false
       # shared service settings
       # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
-
-      # if passing certs as files
-      # - CERTIFICATE_KEY=corp.beyondperimeter.com.crt
-      # - CERTIFICATE_KEY_FILE=corp.beyondperimeter.com.key
-      # Or, you can pass certifcates as bas64 encoded values. e.g. `base64 -i cert.pem`
-      # - CERTIFICATE=
-      # - CERTIFICATE_KEY=
-
-      # nginx settings
       - VIRTUAL_PROTO=https
       - VIRTUAL_HOST=sso-auth.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
@@ -58,8 +46,10 @@ services:
       - 443
 
   pomerium-proxy:
-    image: pomerium/pomerium:latest # or `build: .` to build from source
+    build: .
+    restart: always
     environment:
+      - POMERIUM_DEBUG=true
       - SERVICES=proxy
       # proxy settings
       - AUTHENTICATE_SERVICE_URL=https://sso-auth.corp.beyondperimeter.com
@@ -67,16 +57,7 @@ services:
       # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
-      # If set, a JWT based signature is appended to each request header `x-pomerium-jwt-assertion`
-      # - SIGNING_KEY=LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSU0zbXBaSVdYQ1g5eUVneFU2czU3Q2J0YlVOREJTQ0VBdFFGNWZVV0hwY1FvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFaFBRditMQUNQVk5tQlRLMHhTVHpicEVQa1JyazFlVXQxQk9hMzJTRWZVUHpOaTRJV2VaLwpLS0lUdDJxMUlxcFYyS01TYlZEeXI5aWp2L1hoOThpeUV3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
-
-      # if passing certs as files
-      # - CERTIFICATE_KEY=corp.beyondperimeter.com.crt
-      # - CERTIFICATE_KEY_FILE=corp.beyondperimeter.com.key
-      # Or, you can pass certifcates as bas64 encoded values. e.g. `base64 -i cert.pem`
-      # - CERTIFICATE=
-      # - CERTIFICATE_KEY=
-
+      - SIGNING_KEY=LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSU0zbXBaSVdYQ1g5eUVneFU2czU3Q2J0YlVOREJTQ0VBdFFGNWZVV0hwY1FvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFaFBRditMQUNQVk5tQlRLMHhTVHpicEVQa1JyazFlVXQxQk9hMzJTRWZVUHpOaTRJV2VaLwpLS0lUdDJxMUlxcFYyS01TYlZEeXI5aWp2L1hoOThpeUV3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
       # nginx settings
       - VIRTUAL_PROTO=https
       - VIRTUAL_HOST=*.corp.beyondperimeter.com
@@ -92,9 +73,30 @@ services:
     image: kennethreitz/httpbin:latest
     expose:
       - 80
-  # Simple hello world
   # https://hello.corp.beyondperimeter.com
   hello-world:
     image: tutum/hello-world:latest
     expose:
       - 80
+  gitlab:
+    hostname: gitlab.corp.beyondperimeter.com
+    image: gitlab/gitlab-ce:latest
+    restart: always
+    expose:
+      - 443
+      - 80
+      - 22
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://gitlab.corp.beyondperimeter.com'
+        nginx['ssl_certificate'] = '/etc/gitlab/trusted-certs/corp.beyondperimeter.com.crt'
+        nginx['ssl_certificate_key'] = '/etc/gitlab/trusted-certs/corp.beyondperimeter.com.key'
+      VIRTUAL_PROTO: https
+      VIRTUAL_HOST: gitlab.corp.beyondperimeter.com
+      VIRTUAL_PORT: 443
+    volumes:
+      - ./cert.pem:/etc/gitlab/trusted-certs/corp.beyondperimeter.com.crt
+      - ./privkey.pem:/etc/gitlab/trusted-certs/corp.beyondperimeter.com.key
+      - $HOME/gitlab/config:/etc/gitlab
+      - $HOME/gitlab/logs:/var/log/gitlab
+      - $HOME/gitlab/data:/var/opt/gitlab

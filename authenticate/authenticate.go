@@ -29,7 +29,7 @@ var defaultOptions = &Options{
 
 // Options permits the configuration of the authentication service
 type Options struct {
-	RedirectURL *url.URL `envconfig:"REDIRECT_URL" ` // e.g. auth.example.com/oauth/callback
+	RedirectURL *url.URL `envconfig:"REDIRECT_URL"`
 
 	SharedKey string `envconfig:"SHARED_SECRET"`
 
@@ -49,10 +49,14 @@ type Options struct {
 	SessionLifetimeTTL time.Duration `envconfig:"SESSION_LIFETIME_TTL"`
 
 	// Authentication provider configuration vars
-	ClientID           string   `envconfig:"IDP_CLIENT_ID"`     // IdP ClientID
-	ClientSecret       string   `envconfig:"IDP_CLIENT_SECRET"` // IdP Secret
-	Provider           string   `envconfig:"IDP_PROVIDER"`      //Provider name e.g. "oidc","okta","google",etc
-	ProviderURL        string   `envconfig:"IDP_PROVIDER_URL"`
+	// See: https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
+	ClientID     string `envconfig:"IDP_CLIENT_ID"`
+	ClientSecret string `envconfig:"IDP_CLIENT_SECRET"`
+	Provider     string `envconfig:"IDP_PROVIDER"`
+	ProviderURL  string `envconfig:"IDP_PROVIDER_URL"`
+	// Scopes is an optional setting corresponding to OAuth 2.0 specification's access scopes
+	// issuing an Access Token. Named providers are already set with good defaults.
+	// Most likely only overrides if using the generic OIDC provider.
 	Scopes             []string `envconfig:"IDP_SCOPE"`
 	SkipProviderButton bool     `envconfig:"SKIP_PROVIDER_BUTTON"`
 }
