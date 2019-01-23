@@ -17,6 +17,8 @@ import (
 const (
 	// AzureProviderName identifies the Azure provider
 	AzureProviderName = "azure"
+	// GitlabProviderName identifies the Gitlab provider
+	GitlabProviderName = "gitlab"
 	// GoogleProviderName identifies the Google provider
 	GoogleProviderName = "google"
 	// OIDCProviderName identifes a generic OpenID connect provider
@@ -55,6 +57,12 @@ func New(provider string, p *ProviderData) (Provider, error) {
 		return p, nil
 	case OktaProviderName:
 		p, err := NewOktaProvider(p)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
+	case GitlabProviderName:
+		p, err := NewGitlabProvider(p)
 		if err != nil {
 			return nil, err
 		}
