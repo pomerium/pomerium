@@ -20,6 +20,7 @@ import (
 var defaultOptions = &Options{
 	CookieName:         "_pomerium_authenticate",
 	CookieHTTPOnly:     true,
+	SkipProviderButton: true,
 	CookieExpire:       time.Duration(168) * time.Hour,
 	CookieRefresh:      time.Duration(1) * time.Hour,
 	SessionLifetimeTTL: time.Duration(720) * time.Hour,
@@ -52,7 +53,7 @@ type Options struct {
 	ClientSecret       string   `envconfig:"IDP_CLIENT_SECRET"` // IdP Secret
 	Provider           string   `envconfig:"IDP_PROVIDER"`      //Provider name e.g. "oidc","okta","google",etc
 	ProviderURL        string   `envconfig:"IDP_PROVIDER_URL"`
-	Scopes             []string `envconfig:"IDP_SCOPE" default:"openid,email,profile"`
+	Scopes             []string `envconfig:"IDP_SCOPE"`
 	SkipProviderButton bool     `envconfig:"SKIP_PROVIDER_BUTTON"`
 }
 

@@ -347,7 +347,7 @@ func (p *Authenticate) SignOutPage(rw http.ResponseWriter, req *http.Request, me
 // `redirectURI`, allowing the provider to redirect back to the sso proxy after authentication.
 func (p *Authenticate) OAuthStart(rw http.ResponseWriter, req *http.Request) {
 	authRedirectURL, err := url.Parse(req.URL.Query().Get("redirect_uri"))
-	if err == nil {
+	if err != nil {
 		httputil.ErrorResponse(rw, req, "Invalid redirect parameter", http.StatusBadRequest)
 		return
 	}
