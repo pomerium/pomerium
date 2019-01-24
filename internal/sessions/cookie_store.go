@@ -11,7 +11,7 @@ import (
 )
 
 // ErrInvalidSession is an error for invalid sessions.
-var ErrInvalidSession = errors.New("invalid session")
+var ErrInvalidSession = errors.New("internal/sessions: invalid session")
 
 // CSRFStore has the functions for setting, getting, and clearing the CSRF cookie
 type CSRFStore interface {

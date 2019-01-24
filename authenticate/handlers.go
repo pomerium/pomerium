@@ -197,7 +197,7 @@ func (p *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 			p.SignInPage(w, r)
 		}
 	case sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
-		log.Error().Err(err).Msg("authenticate.SignIn : invalid cookie cookie")
+		log.Error().Err(err).Msg("authenticate.SignIn")
 		p.sessionStore.ClearSession(w, r)
 		if p.skipProviderButton {
 			p.skipButtonOAuthStart(w, r)
@@ -394,9 +394,9 @@ func (p *Authenticate) redeemCode(host, code string) (*sessions.SessionState, er
 	if err != nil {
 		return nil, err
 	}
-	if session.Email == "" {
-		return nil, fmt.Errorf("no email included in session")
-	}
+	// if session.Email == "" {
+	// 	return nil, fmt.Errorf("no email included in session")
+	// }
 
 	return session, nil
 
@@ -459,7 +459,7 @@ func (p *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	log.Ctx(r.Context()).Info().Str("email", session.Email).Msg("authentication complete")
 	err = p.sessionStore.SaveSession(w, r, session)
 	if err != nil {
-		log.Ctx(r.Context()).Error().Err(err).Msg("internal error")
+		log.Error().Err(err).Msg("internal error")
 		return "", httputil.HTTPError{Code: http.StatusInternalServerError, Message: "Internal Error"}
 	}
 	return redirect, nil
@@ -476,6 +476,7 @@ func (p *Authenticate) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, h.Message, h.Code)
 		return
 	default:
+		log.Error().Err(err).Msg("authenticate.OAuthCallback")
 		httputil.ErrorResponse(w, r, "Internal Error", http.StatusInternalServerError)
 		return
 	}
