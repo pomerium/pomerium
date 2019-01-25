@@ -258,7 +258,7 @@ func (p *ProviderData) RefreshAccessToken(refreshToken string) (string, time.Dur
 		log.Error().Err(err).Msg("authenticate/providers.RefreshAccessToken")
 		return "", 0, err
 	}
-	return newToken.AccessToken, newToken.Expiry.Sub(time.Now()), nil
+	return newToken.AccessToken, time.Until(newToken.Expiry), nil
 }
 
 // Revoke enables a user to revoke her token. If the identity provider supports revocation

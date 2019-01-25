@@ -1,5 +1,4 @@
-// Package log provides a set of http.Handler helpers for zerolog.
-package log // import "github.com/pomerium/pomerium/internal/log"
+package middleware // import "github.com/pomerium/pomerium/internal/middleware"
 
 import (
 	"bytes"
@@ -257,4 +256,22 @@ func BenchmarkDataRace(b *testing.B) {
 			h.ServeHTTP(nil, &http.Request{})
 		}
 	})
+}
+
+func TestForwardedAddrHandler(t *testing.T) {
+	out := &bytes.Buffer{}
+	r := &http.Request{
+		Header: http.Header{
+			"X-Forwarded-For": []string{"client", "proxy1", "proxy2"},
+		},
+	}
+	h := ForwardedAddrHandler("fwd_ip")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		l := FromRequest(r)
+		l.Log().Msg("")
+	}))
+	h = NewHandler(zerolog.New(out))(h)
+	h.ServeHTTP(nil, r)
+	if want, got := `{"fwd_ip":"client"}`+"\n", decodeIfBinary(out); want != got {
+		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
+	}
 }

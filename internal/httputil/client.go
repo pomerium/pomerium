@@ -14,7 +14,7 @@ import (
 )
 
 // ErrTokenRevoked signifies a token revokation or expiration error
-var ErrTokenRevoked = errors.New("Token expired or revoked")
+var ErrTokenRevoked = errors.New("token expired or revoked")
 
 var httpClient = &http.Client{
 	Timeout: time.Second * 5,

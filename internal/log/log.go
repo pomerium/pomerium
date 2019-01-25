@@ -3,6 +3,7 @@ package log // import "github.com/pomerium/pomerium/internal/log"
 
 import (
 	"context"
+	"net/http"
 	"os"
 
 	"github.com/rs/zerolog"
@@ -101,4 +102,10 @@ func Printf(format string, v ...interface{}) {
 // is associated, a disabled logger is returned.
 func Ctx(ctx context.Context) *zerolog.Logger {
 	return zerolog.Ctx(ctx)
+}
+
+// FromRequest gets the logger in the request's context.
+// This is a shortcut for log.Ctx(r.Context())
+func FromRequest(r *http.Request) *zerolog.Logger {
+	return Ctx(r.Context())
 }

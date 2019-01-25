@@ -75,8 +75,3 @@ func (tp *TestProvider) Redeem(code string) (*sessions.SessionState, error) {
 	return tp.Session, tp.RedeemError
 
 }
-
-// Stop fulfills the Provider interface
-func (tp *TestProvider) Stop() {
-	return
-}
