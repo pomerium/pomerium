@@ -135,7 +135,7 @@ type Proxy struct {
 
 	redirectURL *url.URL
 	templates   *template.Template
-	mux         map[string]*http.Handler
+	mux         map[string]http.Handler
 }
 
 // StateParameter holds the redirect id along with the session id.
@@ -184,7 +184,7 @@ func New(opts *Options) (*Proxy, error) {
 
 	p := &Proxy{
 		// these fields make up the routing mechanism
-		mux: make(map[string]*http.Handler),
+		mux: make(map[string]http.Handler),
 		// session state
 		cipher:       cipher,
 		csrfStore:    cookieStore,
@@ -243,15 +243,12 @@ func deleteUpstreamCookies(req *http.Request, cookieName string) {
 	req.Header.Set("Cookie", strings.Join(headers, ";"))
 }
 
-// signRequest signs a g
 func (u *UpstreamProxy) signRequest(req *http.Request) {
 	if u.signer != nil {
 		jwt, err := u.signer.SignJWT(req.Header.Get(HeaderUserID), req.Header.Get(HeaderEmail))
 		if err == nil {
 			req.Header.Set(HeaderJWT, jwt)
 		}
-	} else {
-
 	}
 }
 

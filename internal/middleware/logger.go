@@ -1,5 +1,4 @@
-// Package log provides a set of http.Handler helpers for zerolog.
-package log // import "github.com/pomerium/pomerium/internal/log"
+package middleware // import "github.com/pomerium/pomerium/internal/middleware"
 
 import (
 	"context"
@@ -10,14 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/rs/zerolog"
-	"github.com/zenazn/goji/web/mutil"
 )
 
 // FromRequest gets the logger in the request's context.
 // This is a shortcut for log.Ctx(r.Context())
 func FromRequest(r *http.Request) *zerolog.Logger {
-	return Ctx(r.Context())
+	return log.Ctx(r.Context())
 }
 
 // NewHandler injects log into requests context.
@@ -172,7 +171,7 @@ func AccessHandler(f func(r *http.Request, status, size int, duration time.Durat
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
-			lw := mutil.WrapWriter(w)
+			lw := NewWrapResponseWriter(w, 2)
 			next.ServeHTTP(lw, r)
 			f(r, lw.Status(), lw.BytesWritten(), time.Since(start))
 		})

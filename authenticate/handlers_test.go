@@ -77,7 +77,7 @@ func TestAuthenticate_SignInPage(t *testing.T) {
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
-	body := []byte(rr.Body.String())
+	body := rr.Body.Bytes()
 
 	tests := []struct {
 		name  string

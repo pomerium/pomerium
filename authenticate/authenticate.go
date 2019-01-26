@@ -71,11 +71,10 @@ func OptionsFromEnvConfig() (*Options, error) {
 	return o, nil
 }
 
-// Validate checks to see if configuration values are valid for authentication service.
-// The checks do not modify the internal state of the Option structure. Function returns
+// Validate checks to see if configuration values are valid for the authentication service.
+// The checks do not modify the internal state of the Option structure. Returns
 // on first error found.
 func (o *Options) Validate() error {
-
 	if o.RedirectURL == nil {
 		return errors.New("missing setting: identity provider redirect url")
 	}
@@ -105,11 +104,11 @@ func (o *Options) Validate() error {
 	if len(decodedCookieSecret) != 32 {
 		return fmt.Errorf("cookie secret expects 32 bytes but got %d", len(decodedCookieSecret))
 	}
-
 	return nil
 }
 
-// Authenticate stores all the information associated with proxying the request.
+// Authenticate is service for validating user authentication for proxied-requests
+// against third-party identity provider (IdP) services.
 type Authenticate struct {
 	RedirectURL *url.URL
 
@@ -133,7 +132,7 @@ type Authenticate struct {
 	provider providers.Provider
 }
 
-// New creates a Authenticate struct and applies the optional functions slice to the struct.
+// New validates and creates a new authentication service from a configuration options.
 func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate, error) {
 	if opts == nil {
 		return nil, errors.New("options cannot be nil")
@@ -179,13 +178,13 @@ func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate
 		cipher:             cipher,
 		skipProviderButton: opts.SkipProviderButton,
 	}
-	// p.ServeMux = p.Handler()
+
 	p.provider, err = newProvider(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	// apply the option functions
+	// validation via dependency injected function
 	for _, optFunc := range optionFuncs {
 		err := optFunc(p)
 		if err != nil {

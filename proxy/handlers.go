@@ -46,9 +46,9 @@ func (p *Proxy) Handler() http.Handler {
 
 	// Middleware chain
 	c := middleware.NewChain()
-	c = c.Append(log.NewHandler(log.Logger))
-	c = c.Append(log.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
-		log.FromRequest(r).Info().
+	c = c.Append(middleware.NewHandler(log.Logger))
+	c = c.Append(middleware.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+		middleware.FromRequest(r).Info().
 			Str("method", r.Method).
 			Str("url", r.URL.String()).
 			Int("status", status).
@@ -60,11 +60,11 @@ func (p *Proxy) Handler() http.Handler {
 	}))
 	c = c.Append(middleware.SetHeaders(securityHeaders))
 	c = c.Append(middleware.RequireHTTPS)
-	c = c.Append(log.ForwardedAddrHandler("fwd_ip"))
-	c = c.Append(log.RemoteAddrHandler("ip"))
-	c = c.Append(log.UserAgentHandler("user_agent"))
-	c = c.Append(log.RefererHandler("referer"))
-	c = c.Append(log.RequestIDHandler("req_id", "Request-Id"))
+	c = c.Append(middleware.ForwardedAddrHandler("fwd_ip"))
+	c = c.Append(middleware.RemoteAddrHandler("ip"))
+	c = c.Append(middleware.UserAgentHandler("user_agent"))
+	c = c.Append(middleware.RefererHandler("referer"))
+	c = c.Append(middleware.RequestIDHandler("req_id", "Request-Id"))
 	c = c.Append(middleware.ValidateHost(p.mux))
 	h := c.Then(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Skip host validation for /ping requests because they hit the LB directly.
@@ -260,8 +260,7 @@ func (p *Proxy) AuthenticateOnly(w http.ResponseWriter, r *http.Request) {
 // or starting the authentication process if not.
 func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	// Attempts to validate the user and their cookie.
-	var err error
-	err = p.Authenticate(w, r)
+	err := p.Authenticate(w, r)
 	// If the authentication is not successful we proceed to start the OAuth Flow with
 	// OAuthStart. If successful, we proceed to proxy to the configured upstream.
 	if err != nil {
@@ -387,7 +386,7 @@ func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error)
 
 // Handle constructs a route from the given host string and matches it to the provided http.Handler and UpstreamConfig
 func (p *Proxy) Handle(host string, handler http.Handler) {
-	p.mux[host] = &handler
+	p.mux[host] = handler
 }
 
 // router attempts to find a route for a request. If a route is successfully matched,
@@ -396,7 +395,7 @@ func (p *Proxy) Handle(host string, handler http.Handler) {
 func (p *Proxy) router(r *http.Request) (http.Handler, bool) {
 	route, ok := p.mux[r.Host]
 	if ok {
-		return *route, true
+		return route, true
 	}
 	return nil, false
 }
