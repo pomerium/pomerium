@@ -1,11 +1,10 @@
-<img  height="100" src="./docs/.vuepress/public/logo.svg" alt="logo" align="right" >
+<span>
+  <img height="125" src="./docs/.vuepress/public/logo.svg" alt="logo" align="right">
+</span>
 
 # Pomerium
 
-[![Travis CI](https://travis-ci.org/pomerium/pomerium.svg?branch=master)](https://travis-ci.org/pomerium/pomerium)
-[![Go Report Card](https://goreportcard.com/badge/github.com/pomerium/pomerium)](https://goreportcard.com/report/github.com/pomerium/pomerium)
-[![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg)](https://github.com/pomerium/pomerium/blob/master/LICENSE)
-[![Docker Automated build](https://img.shields.io/docker/automated/pomerium/pomerium.svg)](https://hub.docker.com/r/pomerium/pomerium/)
+[![Travis CI](https://travis-ci.org/pomerium/pomerium.svg?branch=master)](https://travis-ci.org/pomerium/pomerium) [![Go Report Card](https://goreportcard.com/badge/github.com/pomerium/pomerium)](https://goreportcard.com/report/github.com/pomerium/pomerium) [![GoDoc](https://godoc.org/github.com/pomerium/pomerium?status.svg)][godocs] [![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg)](https://github.com/pomerium/pomerium/blob/master/LICENSE)
 
 Pomerium is a tool for managing secure access to internal applications and resources.
 
@@ -16,24 +15,16 @@ Use Pomerium to:
 - deploy mutual authenticated encryption (mTLS).
 - aggregate logging and telemetry data.
 
-To learn more about some problems Pomerium attempts to address, check out this repository of [resources] covering zero-trust and BeyondCorp.
+Check out [awesome-zero-trust] to learn more about some problems Pomerium attempts to address.
 
-## Get started
+## Docs
 
-For instructions on getting started using Pomerium, see our [quick start guide].
+To get started with pomerium, check out our [quick start guide].
 
-## Start developing
+For comprehensive docs see our [documentation] and the [godocs].
 
-Assuming you have a working [Go environment].
-
-```sh
-$ go get -d github.com/pomerium/pomerium
-$ cd $GOPATH/src/github.com/pomerium/pomerium
-$ make
-$ source ./env # see env.example
-$ ./bin/pomerium -debug
-```
-
-[resources]: https://github.com/pomerium/awesome-zero-trust
+[awesome-zero-trust]: https://github.com/pomerium/awesome-zero-trust
+[documentation]: https://www.pomerium.io/
 [go environment]: https://golang.org/doc/install
+[godocs]: https://godoc.org/github.com/pomerium/pomerium
 [quick start guide]: https://www.pomerium.io/guide/
