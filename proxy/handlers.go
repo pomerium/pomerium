@@ -58,6 +58,7 @@ func (p *Proxy) Handler() http.Handler {
 			Str("pomerium-email", r.Header.Get(HeaderEmail)).
 			Msg("request")
 	}))
+	c = c.Append(middleware.Healthcheck("/ping", version.UserAgent()))
 	c = c.Append(middleware.SetHeaders(securityHeaders))
 	c = c.Append(middleware.RequireHTTPS)
 	c = c.Append(middleware.ForwardedAddrHandler("fwd_ip"))
