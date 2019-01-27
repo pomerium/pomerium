@@ -1,0 +1,39 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: pomerium-ingress
+  namespace: pomerium
+  annotations:
+    kubernetes.io/ingress.allow-http: "false"
+    kubernetes.io/ingress.global-static-ip-name: pomerium
+
+spec:
+  tls:
+    - secretName: pomerium-tls
+      hosts:
+        - "*.corp.beyondperimeter.com"
+        - "sso-auth.corp.beyondperimeter.com"
+  rules:
+    - host: "*.corp.beyondperimeter.com"
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: pomerium-proxy-service
+              servicePort: 443
+          - path: /*
+            backend:
+              serviceName: pomerium-proxy-service
+              servicePort: 443
+
+    - host: "sso-auth.corp.beyondperimeter.com"
+      http:
+        paths:
+          - path: /*
+            backend:
+              serviceName: pomerium-authenticate-service
+              servicePort: 443
+          - path: /
+            backend:
+              serviceName: pomerium-authenticate-service
+              servicePort: 443

@@ -30,6 +30,7 @@ var securityHeaders = map[string]string{
 func (p *Authenticate) Handler() http.Handler {
 	// set up our standard middlewares
 	stdMiddleware := middleware.NewChain()
+	stdMiddleware = stdMiddleware.Append(middleware.Healthcheck("/ping", version.UserAgent()))
 	stdMiddleware = stdMiddleware.Append(middleware.NewHandler(log.Logger))
 	stdMiddleware = stdMiddleware.Append(middleware.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
 		// executed after handler route handler
@@ -47,7 +48,6 @@ func (p *Authenticate) Handler() http.Handler {
 	stdMiddleware = stdMiddleware.Append(middleware.UserAgentHandler("user_agent"))
 	stdMiddleware = stdMiddleware.Append(middleware.RefererHandler("referer"))
 	stdMiddleware = stdMiddleware.Append(middleware.RequestIDHandler("req_id", "Request-Id"))
-	stdMiddleware = stdMiddleware.Append(middleware.Healthcheck("/ping", version.UserAgent()))
 	validateSignatureMiddleware := stdMiddleware.Append(
 		middleware.ValidateSignature(p.SharedKey),
 		middleware.ValidateRedirectURI(p.ProxyRootDomains))

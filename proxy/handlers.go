@@ -46,6 +46,7 @@ func (p *Proxy) Handler() http.Handler {
 
 	// Middleware chain
 	c := middleware.NewChain()
+	c = c.Append(middleware.Healthcheck("/ping", version.UserAgent()))
 	c = c.Append(middleware.NewHandler(log.Logger))
 	c = c.Append(middleware.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
 		middleware.FromRequest(r).Info().
@@ -58,7 +59,6 @@ func (p *Proxy) Handler() http.Handler {
 			Str("pomerium-email", r.Header.Get(HeaderEmail)).
 			Msg("request")
 	}))
-	c = c.Append(middleware.Healthcheck("/ping", version.UserAgent()))
 	c = c.Append(middleware.SetHeaders(securityHeaders))
 	c = c.Append(middleware.RequireHTTPS)
 	c = c.Append(middleware.ForwardedAddrHandler("fwd_ip"))
