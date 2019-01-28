@@ -24,7 +24,7 @@ To get started with pomerium, check out our [quick start guide].
 For comprehensive docs see our [documentation] and the [godocs].
 
 [awesome-zero-trust]: https://github.com/pomerium/awesome-zero-trust
-[documentation]: https://www.pomerium.io/
+[documentation]: https://www.pomerium.io/docs/
 [go environment]: https://golang.org/doc/install
 [godocs]: https://godoc.org/github.com/pomerium/pomerium
 [quick start guide]: https://www.pomerium.io/guide/

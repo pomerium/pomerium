@@ -9,19 +9,32 @@ module.exports = {
 		docsDir: "docs",
 		editLinkText: "Edit this page on GitHub",
 		lastUpdated: "Last Updated",
-		nav: [{ text: "Guide", link: "/guide/" }],
+		nav: [{ text: "Quick Start", link: "/guide/" },
+		{ text: "Documentation", link: "/docs/" }],
 		sidebar: {
-			"/guide/": genSidebarConfig("Guide")
+			"/guide/": guideSidebar("Quick Start"),
+			"/docs/": docsSidebar("Documentation")
+
 		}
 	}
 };
 
-function genSidebarConfig(title) {
+function guideSidebar(title) {
 	return [
 		{
 			title,
 			collapsable: false,
-			children: ["", "identity-providers", "signed-headers"]
+			children: ["", "docker", "kubernetes", "from-source"]
+		}
+	];
+}
+
+function docsSidebar(title) {
+	return [
+		{
+			title,
+			collapsable: false,
+			children: ["", "identity-providers", "signed-headers", "examples"]
 		}
 	];
 }

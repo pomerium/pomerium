@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pomerium-authenticate
+  labels:
+    app: pomerium-authenticate
+  namespace: pomerium
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pomerium-authenticate
+  template:
+    metadata:
+      labels:
+        app: pomerium-authenticate
+    spec:
+      containers:
+        - image: pomerium/pomerium:latest
+          name: pomerium-authenticate
+          ports:
+            - containerPort: 443
+              name: https
+              protocol: TCP
+          env:
+            - name: SERVICES
+              value: authenticate
+            - name: REDIRECT_URL
+              value: https://sso-auth.corp.beyondperimeter.com/oauth2/callback
+            - name: IDP_PROVIDER
+              value: google
+            - name: IDP_PROVIDER_URL
+              value: https://accounts.google.com
+            - name: IDP_CLIENT_ID
+              value: 851877082059-bfgkpj09noog7as3gpc3t7r6n9sjbgs6.apps.googleusercontent.com
+            - name: PROXY_ROOT_DOMAIN
+              value: beyondperimeter.com
+            - name: ALLOWED_DOMAINS
+              value: "*"
+            - name: SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: shared-secret
+                  key: shared-secret
+            - name: COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cookie-secret
+                  key: cookie-secret
+            - name: IDP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: idp-client-secret
+                  key: idp-client-secret
+            - name: CERTIFICATE
+              valueFrom:
+                secretKeyRef:
+                  name: certificate
+                  key: certificate
+            - name: CERTIFICATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: certificate-key
+                  key: certificate-key
+            - name: VIRTUAL_PROTO
+              value: https
+            - name: VIRTUAL_HOST
+              value: sso-auth.corp.beyondperimeter.com
+            - name: VIRTUAL_PORT
+              value: "443"
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 443
+              scheme: HTTPS
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            timeoutSeconds: 1

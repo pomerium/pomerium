@@ -1,7 +1,6 @@
 version: "3"
 
 services:
-  # NGINX routes to pomerium's services depending on the request.
   nginx:
     image: jwilder/nginx-proxy:latest
     ports:
@@ -68,16 +67,6 @@ services:
     expose:
       - 443
 
-  # https://httpbin.corp.beyondperimeter.com
-  httpbin:
-    image: kennethreitz/httpbin:latest
-    expose:
-      - 80
-  # https://hello.corp.beyondperimeter.com
-  hello-world:
-    image: tutum/hello-world:latest
-    expose:
-      - 80
   gitlab:
     hostname: gitlab.corp.beyondperimeter.com
     image: gitlab/gitlab-ce:latest
