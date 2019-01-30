@@ -1,12 +1,15 @@
 package templates // import "github.com/pomerium/pomerium/internal/templates"
 
 import (
+	"fmt"
 	"html/template"
+
+	"github.com/pomerium/pomerium/internal/version"
 )
 
 // New loads html and style resources directly. Panics on failure.
 func New() *template.Template {
-	t := template.New("authenticate-templates")
+	t := template.New("pomerium-templates")
 	template.Must(t.Parse(`
 {{define "header.html"}}
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -92,8 +95,7 @@ footer {
 }
 </style>
 {{end}}`))
-
-	t = template.Must(t.Parse(`{{define "footer.html"}}Secured by <b>pomerium</b> {{end}}`))
+	t = template.Must(t.Parse(fmt.Sprintf(`{{define "footer.html"}}Secured by <b>pomerium</b> %s {{end}}`, version.FullVersion())))
 
 	t = template.Must(t.Parse(`
 {{define "sign_in_message.html"}}
@@ -134,7 +136,7 @@ footer {
             </form>
         </div>
 
-        <footer>{{template "footer.html"}} </br> {{.Version}} </footer>
+        <footer>{{template "footer.html"}} </footer>
     </div>
 </body>
 </html>
@@ -159,7 +161,7 @@ footer {
           <span class="details">HTTP {{.Code}}</span>
         </p>
     </div>
-        <footer>{{template "footer.html"}} </br> {{.Version}} </footer>
+        <footer>{{template "footer.html"}} </footer>
     </div>
 </body>
 </html>{{end}}`))
@@ -190,7 +192,7 @@ footer {
               <button type="submit">Sign out</button>
             </form>
     	</div>
-    	<footer>{{template "footer.html"}} </br> {{.Version}}</footer>
+    	<footer>{{template "footer.html"}}</footer>
     </div>
 </body>
 </html>
