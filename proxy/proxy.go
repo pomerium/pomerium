@@ -161,7 +161,7 @@ func New(opts *Options) (*Proxy, error) {
 	}
 
 	cookieStore, err := sessions.NewCookieStore(opts.CookieName,
-		sessions.CreateMiscreantCookieCipher(decodedSecret),
+		sessions.CreateCookieCipher(decodedSecret),
 		func(c *sessions.CookieStore) error {
 			c.CookieDomain = opts.CookieDomain
 			c.CookieHTTPOnly = opts.CookieHTTPOnly
@@ -177,8 +177,8 @@ func New(opts *Options) (*Proxy, error) {
 		opts.AuthenticateServiceURL,
 		opts.SharedKey,
 		// todo(bdd): fields below should be passed as function args
-		opts.SessionLifetimeTTL,
 		opts.SessionValidTTL,
+		opts.SessionLifetimeTTL,
 		opts.GracePeriodTTL,
 	)
 

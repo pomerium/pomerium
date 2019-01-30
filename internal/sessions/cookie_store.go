@@ -40,12 +40,12 @@ type CookieStore struct {
 	SessionLifetimeTTL time.Duration
 }
 
-// CreateMiscreantCookieCipher creates a new miscreant cipher with the cookie secret
-func CreateMiscreantCookieCipher(cookieSecret []byte) func(s *CookieStore) error {
+// CreateCookieCipher creates a new miscreant cipher with the cookie secret
+func CreateCookieCipher(cookieSecret []byte) func(s *CookieStore) error {
 	return func(s *CookieStore) error {
 		cipher, err := cryptutil.NewCipher(cookieSecret)
 		if err != nil {
-			return fmt.Errorf("miscreant cookie-secret error: %s", err.Error())
+			return fmt.Errorf("cookie-secret error: %s", err.Error())
 		}
 		s.CookieCipher = cipher
 		return nil

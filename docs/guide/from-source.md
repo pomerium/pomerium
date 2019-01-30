@@ -4,7 +4,7 @@
 
 - Install [git](https://git-scm.com/) version control system
 - Install the [go](https://golang.org/doc/install) programming language
-- A configured [identity provider].
+- A configured [identity provider]
 
 ## Download
 

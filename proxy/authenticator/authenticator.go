@@ -239,7 +239,7 @@ func (p *AuthenticateClient) ValidateSessionState(s *sessions.SessionState) bool
 	params.Add("shared_secret", p.SharedKey)
 	req, err := p.newRequest("GET", fmt.Sprintf("%s?%s", p.ValidateURL.String(), params.Encode()), nil)
 	if err != nil {
-		log.Error().Err(err).Str("user", s.Email).Msg("proxy/authenticator.ValidateSessionState : error validating session state")
+		log.Info().Err(err).Str("user", s.Email).Msg("proxy/authenticator: error validating session state")
 		return false
 	}
 	req.Header.Set("X-Client-Secret", p.SharedKey)
@@ -248,7 +248,7 @@ func (p *AuthenticateClient) ValidateSessionState(s *sessions.SessionState) bool
 
 	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
-		log.Error().Err(err).Str("user", s.Email).Msg("proxy/authenticator.ValidateSessionState : error making request to validate access token")
+		log.Info().Err(err).Str("user", s.Email).Msg("proxy/authenticator: error validating access token")
 		return false
 	}
 
@@ -260,16 +260,13 @@ func (p *AuthenticateClient) ValidateSessionState(s *sessions.SessionState) bool
 			s.ValidDeadline = extendDeadline(p.SessionValidTTL)
 			return true
 		}
-		log.Info().Str("user", s.Email).Int("status-code", resp.StatusCode).Msg("proxy/authenticator.ValidateSessionState : could not validate user access token")
+		log.Info().Str("user", s.Email).Int("status-code", resp.StatusCode).Msg("proxy/authenticator: bad status code")
 
 		return false
 	}
 
 	s.ValidDeadline = extendDeadline(p.SessionValidTTL)
 	s.GracePeriodStart = time.Time{}
-
-	log.Info().Str("user", s.Email).Msg("proxy/authenticator.ValidateSessionState : validated session")
-
 	return true
 }
 

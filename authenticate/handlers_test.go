@@ -23,24 +23,6 @@ func testAuthenticate() *Authenticate {
 	return &auth
 }
 
-func TestAuthenticate_PingPage(t *testing.T) {
-	auth := testAuthenticate()
-	req, err := http.NewRequest("GET", "/ping", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(auth.PingPage)
-	handler.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-	}
-	expected := "OK"
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned wrong body: got %v want %v", rr.Body.String(), expected)
-	}
-}
-
 func TestAuthenticate_RobotsTxt(t *testing.T) {
 	auth := testAuthenticate()
 	req, err := http.NewRequest("GET", "/robots.txt", nil)

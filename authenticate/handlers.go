@@ -32,16 +32,16 @@ func (p *Authenticate) Handler() http.Handler {
 	stdMiddleware := middleware.NewChain()
 	stdMiddleware = stdMiddleware.Append(middleware.Healthcheck("/ping", version.UserAgent()))
 	stdMiddleware = stdMiddleware.Append(middleware.NewHandler(log.Logger))
-	stdMiddleware = stdMiddleware.Append(middleware.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
-		// executed after handler route handler
-		middleware.FromRequest(r).Info().
-			Str("method", r.Method).
-			Str("url", r.URL.String()).
-			Int("status", status).
-			Int("size", size).
-			Dur("duration", duration).
-			Msg("request")
-	}))
+	stdMiddleware = stdMiddleware.Append(middleware.AccessHandler(
+		func(r *http.Request, status, size int, duration time.Duration) {
+			middleware.FromRequest(r).Debug().
+				Str("method", r.Method).
+				Str("url", r.URL.String()).
+				Int("status", status).
+				Int("size", size).
+				Dur("duration", duration).
+				Msg("authenticate: request")
+		}))
 	stdMiddleware = stdMiddleware.Append(middleware.SetHeaders(securityHeaders))
 	stdMiddleware = stdMiddleware.Append(middleware.ForwardedAddrHandler("fwd_ip"))
 	stdMiddleware = stdMiddleware.Append(middleware.RemoteAddrHandler("ip"))
@@ -55,29 +55,17 @@ func (p *Authenticate) Handler() http.Handler {
 	validateClientSecret := stdMiddleware.Append(middleware.ValidateClientSecret(p.SharedKey))
 
 	mux := http.NewServeMux()
-	// we setup global endpoints that should respond to any hostname
-	mux.Handle("/ping", stdMiddleware.ThenFunc(p.PingPage))
-	serviceMux := http.NewServeMux()
-	// standard rest and healthcheck endpoints
-	serviceMux.Handle("/ping", stdMiddleware.ThenFunc(p.PingPage))
-	serviceMux.Handle("/robots.txt", stdMiddleware.ThenFunc(p.RobotsTxt))
-	// Identity Provider (IdP) endpoints and callbacks
-	serviceMux.Handle("/start", stdMiddleware.ThenFunc(p.OAuthStart))
-	serviceMux.Handle("/oauth2/callback", stdMiddleware.ThenFunc(p.OAuthCallback))
-	// authenticator-server endpoints, todo(bdd): make gRPC
-	serviceMux.Handle("/sign_in", validateSignatureMiddleware.ThenFunc(p.SignIn))
-	serviceMux.Handle("/sign_out", validateSignatureMiddleware.ThenFunc(p.SignOut)) // "GET", "POST"
-	serviceMux.Handle("/profile", validateClientSecret.ThenFunc(p.GetProfile))      // GET
-	serviceMux.Handle("/validate", validateClientSecret.ThenFunc(p.ValidateToken))  // GET
-	serviceMux.Handle("/redeem", validateClientSecret.ThenFunc(p.Redeem))           // POST
-	serviceMux.Handle("/refresh", validateClientSecret.ThenFunc(p.Refresh))         //POST
-
-	// NOTE: we have to include trailing slash for the router to match the host header
-	host := p.RedirectURL.Host
-	if !strings.HasSuffix(host, "/") {
-		host = fmt.Sprintf("%s/", host)
-	}
-	mux.Handle(host, serviceMux)
+	mux.Handle("/robots.txt", stdMiddleware.ThenFunc(p.RobotsTxt))
+	// Identity Provider (IdP) callback endpoints and callbacks
+	mux.Handle("/start", stdMiddleware.ThenFunc(p.OAuthStart))
+	mux.Handle("/oauth2/callback", stdMiddleware.ThenFunc(p.OAuthCallback))
+	// authenticate-server endpoints
+	mux.Handle("/sign_in", validateSignatureMiddleware.ThenFunc(p.SignIn))
+	mux.Handle("/sign_out", validateSignatureMiddleware.ThenFunc(p.SignOut)) // "GET", "POST"
+	mux.Handle("/profile", validateClientSecret.ThenFunc(p.GetProfile))      // GET
+	mux.Handle("/validate", validateClientSecret.ThenFunc(p.ValidateToken))  // GET
+	mux.Handle("/redeem", validateClientSecret.ThenFunc(p.Redeem))           // POST
+	mux.Handle("/refresh", validateClientSecret.ThenFunc(p.Refresh))         //POST
 
 	return mux
 }
@@ -88,16 +76,11 @@ func (p *Authenticate) RobotsTxt(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
-// PingPage handles the /ping route
-func (p *Authenticate) PingPage(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "OK")
-}
-
 // SignInPage directs the user to the sign in page. Takes a `redirect_uri` param.
 func (p *Authenticate) SignInPage(w http.ResponseWriter, r *http.Request) {
 	redirectURL := p.RedirectURL.ResolveReference(r.URL)
-	destinationURL, _ := url.Parse(redirectURL.Query().Get("redirect_uri")) // checked by middleware
+
+	destinationURL, _ := url.Parse(redirectURL.Query().Get("redirect_uri"))
 	t := struct {
 		ProviderName   string
 		AllowedDomains []string
@@ -196,26 +179,17 @@ func (p *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 	session, err := p.authenticate(w, r)
 	switch err {
 	case nil:
-		// User is authenticated, redirect back to the proxy application
-		// with the necessary state
+		// User is authenticated, redirect back to proxy
 		p.ProxyOAuthRedirect(w, r, session)
-	case http.ErrNoCookie:
-		log.Error().Err(err).Msg("authenticate.SignIn : err no cookie")
-		if p.skipProviderButton {
-			p.skipButtonOAuthStart(w, r)
-		} else {
-			p.SignInPage(w, r)
+	case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
+		log.Debug().Err(err).Msg("authenticate.SignIn")
+		if err != http.ErrNoCookie {
+			p.sessionStore.ClearSession(w, r)
 		}
-	case sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
-		log.Error().Err(err).Msg("authenticate.SignIn")
-		p.sessionStore.ClearSession(w, r)
-		if p.skipProviderButton {
-			p.skipButtonOAuthStart(w, r)
-		} else {
-			p.SignInPage(w, r)
-		}
+		p.OAuthStart(w, r)
+
 	default:
-		log.Error().Err(err).Msg("authenticate.SignIn : unknown error cookie")
+		log.Error().Err(err).Msg("authenticate.SignIn")
 		httputil.ErrorResponse(w, r, err.Error(), httputil.CodeForError(err))
 	}
 }
@@ -315,7 +289,6 @@ func (p *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 
 // SignOutPage renders a sign out page with a message
 func (p *Authenticate) SignOutPage(w http.ResponseWriter, r *http.Request, message string) {
-	log.FromRequest(r).Debug().Msg("This is just a test to make sure signout works")
 	// validateRedirectURI middleware already ensures that this is a valid URL
 	redirectURI := r.Form.Get("redirect_uri")
 	session, err := p.sessionStore.LoadSession(r)
@@ -361,29 +334,24 @@ func (p *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
 		return
 	}
-	p.helperOAuthStart(w, r, authRedirectURL)
-}
-
-func (p *Authenticate) skipButtonOAuthStart(w http.ResponseWriter, r *http.Request) {
-	p.helperOAuthStart(w, r, p.RedirectURL.ResolveReference(r.URL))
-}
-
-func (p *Authenticate) helperOAuthStart(w http.ResponseWriter, r *http.Request, authRedirectURL *url.URL) {
+	authRedirectURL = p.RedirectURL.ResolveReference(r.URL)
 
 	nonce := fmt.Sprintf("%x", cryptutil.GenerateKey())
 	p.csrfStore.SetCSRF(w, r, nonce)
 
+	// confirm the redirect uri is from the root domain
 	if !middleware.ValidRedirectURI(authRedirectURL.String(), p.ProxyRootDomains) {
 		httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
 		return
 	}
-
+	// confirm proxy url is from the root domain
 	proxyRedirectURL, err := url.Parse(authRedirectURL.Query().Get("redirect_uri"))
 	if err != nil || !middleware.ValidRedirectURI(proxyRedirectURL.String(), p.ProxyRootDomains) {
 		httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
 		return
 	}
 
+	// get the signature and timestamp values then compare hmac
 	proxyRedirectSig := authRedirectURL.Query().Get("sig")
 	ts := authRedirectURL.Query().Get("ts")
 	if !middleware.ValidSignature(proxyRedirectURL.String(), proxyRedirectSig, ts, p.SharedKey) {
@@ -391,8 +359,8 @@ func (p *Authenticate) helperOAuthStart(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
+	// embed authenticate service's state as the base64'd nonce and authenticate callback url
 	state := base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("%v:%v", nonce, authRedirectURL.String())))
-
 	signInURL := p.provider.GetSignInURL(state)
 
 	http.Redirect(w, r, signInURL, http.StatusFound)

@@ -24,7 +24,7 @@ function guideSidebar(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["", "docker", "kubernetes", "from-source"]
+			children: ["", "kubernetes", "from-source"]
 		}
 	];
 }
