@@ -20,7 +20,6 @@ import (
 var defaultOptions = &Options{
 	CookieName:         "_pomerium_authenticate",
 	CookieHTTPOnly:     true,
-	SkipProviderButton: true,
 	CookieExpire:       time.Duration(168) * time.Hour,
 	CookieRefresh:      time.Duration(1) * time.Hour,
 	SessionLifetimeTTL: time.Duration(720) * time.Hour,
@@ -57,8 +56,7 @@ type Options struct {
 	// Scopes is an optional setting corresponding to OAuth 2.0 specification's access scopes
 	// issuing an Access Token. Named providers are already set with good defaults.
 	// Most likely only overrides if using the generic OIDC provider.
-	Scopes             []string `envconfig:"IDP_SCOPE"`
-	SkipProviderButton bool     `envconfig:"SKIP_PROVIDER_BUTTON"`
+	Scopes []string `envconfig:"IDP_SCOPE"`
 }
 
 // OptionsFromEnvConfig builds the authentication service's configuration
@@ -80,7 +78,7 @@ func (o *Options) Validate() error {
 	}
 	redirectPath := "/oauth2/callback"
 	if o.RedirectURL.Path != redirectPath {
-		return fmt.Errorf("setting redirect-url was %s path should be %s", o.RedirectURL.Path, redirectPath)
+		return fmt.Errorf("`setting` redirect-url was %s path should be %s", o.RedirectURL.Path, redirectPath)
 	}
 	if o.ClientID == "" {
 		return errors.New("missing setting: client id")
@@ -127,8 +125,6 @@ type Authenticate struct {
 	sessionStore sessions.SessionStore
 	cipher       cryptutil.Cipher
 
-	skipProviderButton bool
-
 	provider providers.Provider
 }
 
@@ -153,7 +149,7 @@ func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate
 		return nil, err
 	}
 	cookieStore, err := sessions.NewCookieStore(opts.CookieName,
-		sessions.CreateMiscreantCookieCipher(decodedCookieSecret),
+		sessions.CreateCookieCipher(decodedCookieSecret),
 		func(c *sessions.CookieStore) error {
 			c.CookieDomain = opts.CookieDomain
 			c.CookieHTTPOnly = opts.CookieHTTPOnly
@@ -167,16 +163,15 @@ func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate
 	}
 
 	p := &Authenticate{
-		SharedKey:          opts.SharedKey,
-		AllowedDomains:     opts.AllowedDomains,
-		ProxyRootDomains:   dotPrependDomains(opts.ProxyRootDomains),
-		CookieSecure:       opts.CookieSecure,
-		RedirectURL:        opts.RedirectURL,
-		templates:          templates.New(),
-		csrfStore:          cookieStore,
-		sessionStore:       cookieStore,
-		cipher:             cipher,
-		skipProviderButton: opts.SkipProviderButton,
+		SharedKey:        opts.SharedKey,
+		AllowedDomains:   opts.AllowedDomains,
+		ProxyRootDomains: dotPrependDomains(opts.ProxyRootDomains),
+		CookieSecure:     opts.CookieSecure,
+		RedirectURL:      opts.RedirectURL,
+		templates:        templates.New(),
+		csrfStore:        cookieStore,
+		sessionStore:     cookieStore,
+		cipher:           cipher,
 	}
 
 	p.provider, err = newProvider(opts)

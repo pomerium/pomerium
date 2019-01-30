@@ -13,7 +13,7 @@ import (
 
 var testEncodedCookieSecret, _ = base64.StdEncoding.DecodeString("qICChm3wdjbjcWymm7PefwtPP6/PZv+udkFEubTeE38=")
 
-func TestCreateMiscreantCookieCipher(t *testing.T) {
+func TestCreateCookieCipher(t *testing.T) {
 	testCases := []struct {
 		name          string
 		cookieSecret  []byte
@@ -32,7 +32,7 @@ func TestCreateMiscreantCookieCipher(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewCookieStore("cookieName", CreateMiscreantCookieCipher(tc.cookieSecret))
+			_, err := NewCookieStore("cookieName", CreateCookieCipher(tc.cookieSecret))
 			if !tc.expectedError {
 				testutil.Ok(t, err)
 			} else {
@@ -309,7 +309,7 @@ func TestLoadCookiedSession(t *testing.T) {
 		},
 		{
 			name:     "cookie set with cipher set",
-			optFuncs: []func(*CookieStore) error{CreateMiscreantCookieCipher(testEncodedCookieSecret)},
+			optFuncs: []func(*CookieStore) error{CreateCookieCipher(testEncodedCookieSecret)},
 			setupCookies: func(t *testing.T, req *http.Request, s *CookieStore, sessionState *SessionState) {
 				value, err := MarshalSession(sessionState, s.CookieCipher)
 				testutil.Ok(t, err)
@@ -323,7 +323,7 @@ func TestLoadCookiedSession(t *testing.T) {
 		},
 		{
 			name:     "cookie set with invalid value cipher set",
-			optFuncs: []func(*CookieStore) error{CreateMiscreantCookieCipher(testEncodedCookieSecret)},
+			optFuncs: []func(*CookieStore) error{CreateCookieCipher(testEncodedCookieSecret)},
 			setupCookies: func(t *testing.T, req *http.Request, s *CookieStore, sessionState *SessionState) {
 				value := "574b776a7c934d6b9fc42ec63a389f79"
 				req.AddCookie(s.makeSessionCookie(req, value, time.Hour, time.Now()))

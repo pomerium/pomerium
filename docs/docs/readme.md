@@ -13,7 +13,7 @@ Traditional [perimeter](https://www.redbooks.ibm.com/redpapers/pdfs/redp4397.pdf
 - Failure to encapsulate a heterogeneous mix of cloud, on-premise, cloud, and multi-cloud environments.
 - User's don't like VPNs.
 
-Pomerium attempts to mitigate these shortcomings by by adopting the following principles.
+Pomerium attempts to mitigate these shortcomings by adopting the following principles.
 
 - Trust flows from user, device, and context.
 - Network location _does not impart trust_. Treat both internal and external networks as completely untrusted.

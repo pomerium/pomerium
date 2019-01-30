@@ -23,7 +23,7 @@ kubectl create secret tls -n pomerium pomerium-tls --key privkey.pem --cert cert
 #                       !!! IMPORTANT !!!
 #          YOU MUST CHANGE THE Identity Provider Client Secret
 #                       !!! IMPORTANT !!!
-# kubectl create secret generic -n pomerium idp-client-secret --from-literal=REPLACE_ME
+# kubectl create secret generic -n pomerium idp-client-secret --from-literal=idp-client-secret=REPLACE_ME
 
 # Create the proxy & authenticate deployment
 kubectl create -f docs/docs/examples/kubernetes/authenticate.deploy.yml

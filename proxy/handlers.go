@@ -29,6 +29,7 @@ var securityHeaders = map[string]string{
 
 // Handler returns a http handler for an Proxy
 func (p *Proxy) Handler() http.Handler {
+	// routes
 	mux := http.NewServeMux()
 	mux.HandleFunc("/favicon.ico", p.Favicon)
 	mux.HandleFunc("/robots.txt", p.RobotsTxt)
@@ -37,19 +38,12 @@ func (p *Proxy) Handler() http.Handler {
 	mux.HandleFunc("/.pomerium/auth", p.AuthenticateOnly)
 	mux.HandleFunc("/", p.Proxy)
 
-	// Global middleware, which will be applied to each request in reverse
-	// order as applied here (i.e., we want to validate the host _first_ when
-	// processing a request)
-	var handler http.Handler = mux
-	// todo(bdd) : investigate if setting non-overridable headers makes sense
-	// handler = p.setResponseHeaderOverrides(handler)
-
-	// Middleware chain
+	// middleware chain
 	c := middleware.NewChain()
 	c = c.Append(middleware.Healthcheck("/ping", version.UserAgent()))
 	c = c.Append(middleware.NewHandler(log.Logger))
 	c = c.Append(middleware.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
-		middleware.FromRequest(r).Info().
+		middleware.FromRequest(r).Debug().
 			Str("method", r.Method).
 			Str("url", r.URL.String()).
 			Int("status", status).
@@ -57,7 +51,7 @@ func (p *Proxy) Handler() http.Handler {
 			Dur("duration", duration).
 			Str("pomerium-user", r.Header.Get(HeaderUserID)).
 			Str("pomerium-email", r.Header.Get(HeaderEmail)).
-			Msg("request")
+			Msg("proxy: request")
 	}))
 	c = c.Append(middleware.SetHeaders(securityHeaders))
 	c = c.Append(middleware.RequireHTTPS)
@@ -68,12 +62,7 @@ func (p *Proxy) Handler() http.Handler {
 	c = c.Append(middleware.RequestIDHandler("req_id", "Request-Id"))
 	c = c.Append(middleware.ValidateHost(p.mux))
 	h := c.Then(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip host validation for /ping requests because they hit the LB directly.
-		if r.URL.Path == "/ping" {
-			p.PingPage(w, r)
-			return
-		}
-		handler.ServeHTTP(w, r)
+		mux.ServeHTTP(w, r)
 	}))
 	return h
 }
@@ -95,12 +84,6 @@ func (p *Proxy) Favicon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.Proxy(w, r)
-}
-
-// PingPage send back a 200 OK response.
-func (p *Proxy) PingPage(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "OK")
 }
 
 // SignOut redirects the request to the sign out url.
@@ -266,28 +249,17 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	// OAuthStart. If successful, we proceed to proxy to the configured upstream.
 	if err != nil {
 		switch err {
-		case http.ErrNoCookie:
-			// No cookie is set, start the oauth flow
-			p.OAuthStart(w, r)
-			return
 		case ErrUserNotAuthorized:
-			// We know the user is not authorized for the request, we show them a forbidden page
-			p.ErrorPage(w, r, http.StatusForbidden, "Forbidden", "You're not authorized to view this page")
+			//todo(bdd) : custom forbidden page with details and troubleshooting info
+			log.FromRequest(r).Debug().Err(err).Msg("proxy: user access forbidden")
+			p.ErrorPage(w, r, http.StatusForbidden, "Forbidden", "You don't have access")
 			return
-		case sessions.ErrLifetimeExpired:
-			// User's lifetime expired, we trigger the start of the oauth flow
-			p.OAuthStart(w, r)
-			return
-		case sessions.ErrInvalidSession:
-			// The user session is invalid and we can't decode it.
-			// This can happen for a variety of reasons but the most common non-malicious
-			// case occurs when the session encoding schema changes. We manage this ux
-			// by triggering the start of the oauth flow.
+		case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
+			log.FromRequest(r).Debug().Err(err).Msg("proxy: starting auth flow")
 			p.OAuthStart(w, r)
 			return
 		default:
-			log.FromRequest(r).Error().Err(err).Msg("unknown error")
-			// We don't know exactly what happened, but authenticating the user failed, show an error
+			log.FromRequest(r).Error().Err(err).Msg("proxy: unexpected error")
 			p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", "An unexpected error occurred")
 			return
 		}
@@ -315,69 +287,28 @@ func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error)
 
 	session, err := p.sessionStore.LoadSession(r)
 	if err != nil {
-		// We loaded a cookie but it wasn't valid, clear it, and reject the request
-		log.FromRequest(r).Error().Err(err).Msg("error authenticating user")
 		return err
 	}
-
-	// Lifetime period is the entire duration in which the session is valid.
-	// This should be set to something like 14 to 30 days.
 	if session.LifetimePeriodExpired() {
-		log.FromRequest(r).Warn().Str("user", session.Email).Msg("session lifetime has expired")
 		return sessions.ErrLifetimeExpired
 	} else if session.RefreshPeriodExpired() {
-		// Refresh period is the period in which the access token is valid. This is ultimately
-		// controlled by the upstream provider and tends to be around 1 hour.
 		ok, err := p.authenticateClient.RefreshSession(session)
-
-		// We failed to refresh the session successfully
-		// clear the cookie and reject the request
 		if err != nil {
-			log.FromRequest(r).Error().Err(err).Str("user", session.Email).Msg("refreshing session failed")
 			return err
 		}
-
 		if !ok {
-			// User is not authorized after refresh
-			// clear the cookie and reject the request
-			log.FromRequest(r).Error().Str("user", session.Email).Msg("not authorized after refreshing session")
 			return ErrUserNotAuthorized
-		}
-
-		err = p.sessionStore.SaveSession(w, r, session)
-		if err != nil {
-			// We refreshed the session successfully, but failed to save it.
-			//
-			// This could be from failing to encode the session properly.
-			// But, we clear the session cookie and reject the request!
-			log.FromRequest(r).Error().Err(err).Str("user", session.Email).Msg("could not save refresh session")
-			return err
 		}
 	} else if session.ValidationPeriodExpired() {
-		// Validation period has expired, this is the shortest interval we use to
-		// check for valid requests. This should be set to something like a minute.
-		// This calls up the provider chain to validate this user is still active
-		// and hasn't been de-authorized.
 		ok := p.authenticateClient.ValidateSessionState(session)
 		if !ok {
-			// This user is now no longer authorized, or we failed to
-			// validate the user.
-			// Clear the cookie and reject the request
-			log.FromRequest(r).Error().Str("user", session.Email).Msg("no longer authorized after validation period")
 			return ErrUserNotAuthorized
 		}
-
-		err = p.sessionStore.SaveSession(w, r, session)
-		if err != nil {
-			// We validated the session successfully, but failed to save it.
-
-			// This could be from failing to encode the session properly.
-			// But, we clear the session cookie and reject the request!
-			log.FromRequest(r).Error().Err(err).Str("user", session.Email).Msg("could not save validated session")
-			return err
-		}
 	}
-
+	err = p.sessionStore.SaveSession(w, r, session)
+	if err != nil {
+		return err
+	}
 	r.Header.Set(HeaderUserID, session.User)
 	r.Header.Set(HeaderEmail, session.Email)
 
