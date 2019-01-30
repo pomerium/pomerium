@@ -73,10 +73,9 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
-// Favicon will proxy the request as usual if the user is already authenticated
-// but responds with a 404 otherwise, to avoid spurious and confusing
-// authentication attempts when a browser automatically requests the favicon on
-// an error page.
+// Favicon will proxy the request as usual if the user is already authenticated but responds
+// with a 404 otherwise, to avoid spurious and confusing authentication attempts when a browser
+// automatically requests the favicon on an error page.
 func (p *Proxy) Favicon(w http.ResponseWriter, r *http.Request) {
 	err := p.Authenticate(w, r)
 	if err != nil {
@@ -98,23 +97,6 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fullURL.String(), http.StatusFound)
 }
 
-// ErrorPage renders an error page with a given status code, title, and message.
-func (p *Proxy) ErrorPage(w http.ResponseWriter, r *http.Request, code int, title string, message string) {
-	w.WriteHeader(code)
-	t := struct {
-		Code    int
-		Title   string
-		Message string
-		Version string
-	}{
-		Code:    code,
-		Title:   title,
-		Message: message,
-		Version: version.FullVersion(),
-	}
-	p.templates.ExecuteTemplate(w, "error.html", t)
-}
-
 // OAuthStart begins the authentication flow, encrypting the redirect url
 // in a request to the provider's sign in endpoint.
 func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +116,7 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	encryptedCSRF, err := p.cipher.Marshal(state)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("failed to marshal csrf")
-		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", err.Error())
+		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	p.csrfStore.SetCSRF(w, r, encryptedCSRF)
@@ -144,7 +126,7 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	encryptedState, err := p.cipher.Marshal(state)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("failed to encrypt cookie")
-		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", err.Error())
+		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -153,9 +135,8 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, signinURL.String(), http.StatusFound)
 }
 
-// OAuthCallback validates the cookie sent back from the provider, then validates
-// the user information, and if authorized, redirects the user back to the original
-// application.
+// OAuthCallback validates the cookie sent back from the provider, then validates he user
+// information, and if authorized, redirects the user back to the original application.
 func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	// We receive the callback from the SSO Authenticator. This request will either contain an
 	// error, or it will contain a `code`; the code can be used to fetch an access token, and
@@ -164,12 +145,12 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("failed parsing request form")
-		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", err.Error())
+		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	errorString := r.Form.Get("error")
 	if errorString != "" {
-		p.ErrorPage(w, r, http.StatusForbidden, "Permission Denied", errorString)
+		httputil.ErrorResponse(w, r, errorString, http.StatusForbidden)
 		return
 	}
 
@@ -177,7 +158,7 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	session, err := p.redeemCode(r.Host, r.Form.Get("code"))
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("error redeeming authorization code")
-		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", "Internal Error")
+		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
@@ -186,14 +167,14 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	err = p.cipher.Unmarshal(encryptedState, stateParameter)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("could not unmarshal state")
-		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", "Internal Error")
+		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
 	c, err := p.csrfStore.GetCSRF(r)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("failed parsing csrf cookie")
-		p.ErrorPage(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		httputil.ErrorResponse(w, r, err.Error(), http.StatusBadRequest)
 		return
 	}
 	p.csrfStore.ClearCSRF(w, r)
@@ -203,19 +184,19 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	err = p.cipher.Unmarshal(encryptedCSRF, csrfParameter)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("couldn't unmarshal CSRF")
-		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", "Internal Error")
+		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
 	if encryptedState == encryptedCSRF {
 		log.FromRequest(r).Error().Msg("encrypted state and CSRF should not be equal")
-		p.ErrorPage(w, r, http.StatusBadRequest, "Bad Request", "Bad Request")
+		httputil.ErrorResponse(w, r, "Bad request", http.StatusBadRequest)
 		return
 	}
 
 	if !reflect.DeepEqual(stateParameter, csrfParameter) {
 		log.FromRequest(r).Error().Msg("state and CSRF should be equal")
-		p.ErrorPage(w, r, http.StatusBadRequest, "Bad Request", "Bad Request")
+		httputil.ErrorResponse(w, r, "Bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -223,7 +204,7 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	err = p.sessionStore.SaveSession(w, r, session)
 	if err != nil {
 		log.FromRequest(r).Error().Msg("error saving session")
-		p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", "Internal Error")
+		httputil.ErrorResponse(w, r, "Error saving session", http.StatusInternalServerError)
 		return
 	}
 
@@ -252,7 +233,7 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 		case ErrUserNotAuthorized:
 			//todo(bdd) : custom forbidden page with details and troubleshooting info
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: user access forbidden")
-			p.ErrorPage(w, r, http.StatusForbidden, "Forbidden", "You don't have access")
+			httputil.ErrorResponse(w, r, "You don't have access", http.StatusForbidden)
 			return
 		case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: starting auth flow")
@@ -260,7 +241,7 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 			return
 		default:
 			log.FromRequest(r).Error().Err(err).Msg("proxy: unexpected error")
-			p.ErrorPage(w, r, http.StatusInternalServerError, "Internal Error", "An unexpected error occurred")
+			httputil.ErrorResponse(w, r, "An unexpected error occurred", http.StatusInternalServerError)
 			return
 		}
 	}

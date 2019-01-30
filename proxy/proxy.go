@@ -301,7 +301,7 @@ func NewReverseProxyHandler(opts *Options, reverseProxy *httputil.ReverseProxy, 
 }
 
 // urlParse adds a scheme if none-exists, addressesing a quirk in how
-// one may expect url.Parse to function when a "naked" domain is sent.
+// one may expect url.Parse to function when given scheme-less domain is provided.
 //
 // see: https://github.com/golang/go/issues/12585
 // see: https://golang.org/pkg/net/url/#Parse

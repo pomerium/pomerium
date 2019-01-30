@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/pomerium/pomerium/internal/templates"
-	"github.com/pomerium/pomerium/internal/version"
 )
 
 var (
@@ -51,12 +50,10 @@ func ErrorResponse(rw http.ResponseWriter, req *http.Request, message string, co
 			Code    int
 			Title   string
 			Message string
-			Version string
 		}{
 			Code:    code,
 			Title:   title,
 			Message: message,
-			Version: version.FullVersion(),
 		}
 		templates.New().ExecuteTemplate(rw, "error.html", t)
 	}

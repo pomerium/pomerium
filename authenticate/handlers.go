@@ -52,7 +52,7 @@ func (p *Authenticate) Handler() http.Handler {
 		middleware.ValidateSignature(p.SharedKey),
 		middleware.ValidateRedirectURI(p.ProxyRootDomains))
 
-	validateClientSecret := stdMiddleware.Append(middleware.ValidateClientSecret(p.SharedKey))
+	validateClientSecretMiddleware := stdMiddleware.Append(middleware.ValidateClientSecret(p.SharedKey))
 
 	mux := http.NewServeMux()
 	mux.Handle("/robots.txt", stdMiddleware.ThenFunc(p.RobotsTxt))
@@ -61,11 +61,11 @@ func (p *Authenticate) Handler() http.Handler {
 	mux.Handle("/oauth2/callback", stdMiddleware.ThenFunc(p.OAuthCallback))
 	// authenticate-server endpoints
 	mux.Handle("/sign_in", validateSignatureMiddleware.ThenFunc(p.SignIn))
-	mux.Handle("/sign_out", validateSignatureMiddleware.ThenFunc(p.SignOut)) // "GET", "POST"
-	mux.Handle("/profile", validateClientSecret.ThenFunc(p.GetProfile))      // GET
-	mux.Handle("/validate", validateClientSecret.ThenFunc(p.ValidateToken))  // GET
-	mux.Handle("/redeem", validateClientSecret.ThenFunc(p.Redeem))           // POST
-	mux.Handle("/refresh", validateClientSecret.ThenFunc(p.Refresh))         //POST
+	mux.Handle("/sign_out", validateSignatureMiddleware.ThenFunc(p.SignOut))          // "GET", "POST"
+	mux.Handle("/profile", validateClientSecretMiddleware.ThenFunc(p.GetProfile))     // GET
+	mux.Handle("/validate", validateClientSecretMiddleware.ThenFunc(p.ValidateToken)) // GET
+	mux.Handle("/redeem", validateClientSecretMiddleware.ThenFunc(p.Redeem))          // POST
+	mux.Handle("/refresh", validateClientSecretMiddleware.ThenFunc(p.Refresh))        //POST
 
 	return mux
 }
@@ -431,7 +431,7 @@ func (p *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	// - for p.provider.ValidateGroup see providers/google.go#ValidateGroup for more info
 	if !p.Validator(session.Email) {
 		log.FromRequest(r).Error().Err(err).Str("email", session.Email).Msg("invalid email permissions denied")
-		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "Invalid Account"}
+		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "You don't have access"}
 	}
 	log.FromRequest(r).Info().Str("email", session.Email).Msg("authentication complete")
 	err = p.sessionStore.SaveSession(w, r, session)

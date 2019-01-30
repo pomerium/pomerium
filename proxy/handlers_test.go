@@ -8,13 +8,13 @@ import (
 )
 
 func TestProxy_RobotsTxt(t *testing.T) {
-	auth := Proxy{}
+	proxy := Proxy{}
 	req, err := http.NewRequest("GET", "/robots.txt", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(auth.RobotsTxt)
+	handler := http.HandlerFunc(proxy.RobotsTxt)
 	handler.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -22,6 +22,5 @@ func TestProxy_RobotsTxt(t *testing.T) {
 	expected := fmt.Sprintf("User-agent: *\nDisallow: /")
 	if rr.Body.String() != expected {
 		t.Errorf("handler returned wrong body: got %v want %v", rr.Body.String(), expected)
-
 	}
 }

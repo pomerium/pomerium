@@ -47,16 +47,13 @@ type Options struct {
 
 	SessionLifetimeTTL time.Duration `envconfig:"SESSION_LIFETIME_TTL"`
 
-	// Authentication provider configuration vars
+	// Authentication provider configuration variables as specified by RFC6749
 	// See: https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
-	ClientID     string `envconfig:"IDP_CLIENT_ID"`
-	ClientSecret string `envconfig:"IDP_CLIENT_SECRET"`
-	Provider     string `envconfig:"IDP_PROVIDER"`
-	ProviderURL  string `envconfig:"IDP_PROVIDER_URL"`
-	// Scopes is an optional setting corresponding to OAuth 2.0 specification's access scopes
-	// issuing an Access Token. Named providers are already set with good defaults.
-	// Most likely only overrides if using the generic OIDC provider.
-	Scopes []string `envconfig:"IDP_SCOPE"`
+	ClientID     string   `envconfig:"IDP_CLIENT_ID"`
+	ClientSecret string   `envconfig:"IDP_CLIENT_SECRET"`
+	Provider     string   `envconfig:"IDP_PROVIDER"`
+	ProviderURL  string   `envconfig:"IDP_PROVIDER_URL"`
+	Scopes       []string `envconfig:"IDP_SCOPE"`
 }
 
 // OptionsFromEnvConfig builds the authentication service's configuration
