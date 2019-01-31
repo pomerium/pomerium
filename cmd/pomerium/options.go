@@ -1,6 +1,7 @@
 package main // import "github.com/pomerium/pomerium/cmd/pomerium"
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/pomerium/envconfig"
@@ -14,6 +15,11 @@ type Options struct {
 	// Debug enables more verbose logging, and outputs human-readable logs to Stdout.
 	// Set with POMERIUM_DEBUG
 	Debug bool `envconfig:"POMERIUM_DEBUG"`
+
+	// SharedKey is the shared secret authorization key used to mutually authenticate
+	// requests between services.
+	SharedKey string `envconfig:"SHARED_SECRET"`
+
 	// Services is a list enabled service mode. If none are selected, "all" is used.
 	// Available options are : "all", "authenticate", "proxy".
 	Services string `envconfig:"SERVICES"`
@@ -33,7 +39,7 @@ var defaultOptions = &Options{
 	Services: "all",
 }
 
-// optionsFromEnvConfig builds the authentication service's configuration
+// optionsFromEnvConfig builds the IdentityProvider service's configuration
 // options from provided environmental variables
 func optionsFromEnvConfig() (*Options, error) {
 	o := defaultOptions
@@ -42,6 +48,9 @@ func optionsFromEnvConfig() (*Options, error) {
 	}
 	if !isValidService(o.Services) {
 		return nil, fmt.Errorf("%s is an invalid service type", o.Services)
+	}
+	if o.SharedKey == "" {
+		return nil, errors.New("shared-key cannot be empty")
 	}
 	return o, nil
 }

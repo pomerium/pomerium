@@ -16,15 +16,16 @@ var (
 type SessionState struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
-	IDToken      string `json:"id_token"` // https://openid.net/specs/openid-connect-core-1_0.html#TokenResponse
+	IDToken      string `json:"id_token"`
 
 	RefreshDeadline  time.Time `json:"refresh_deadline"`
 	LifetimeDeadline time.Time `json:"lifetime_deadline"`
 	ValidDeadline    time.Time `json:"valid_deadline"`
 	GracePeriodStart time.Time `json:"grace_period_start"`
 
-	Email string `json:"email"`
-	User  string `json:"user"`
+	Email  string   `json:"email"`
+	User   string   `json:"user"` // 'sub' in jwt parlance
+	Groups []string `json:"groups"`
 }
 
 // LifetimePeriodExpired returns true if the lifetime has expired

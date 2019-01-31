@@ -6,10 +6,9 @@ import (
 	"testing"
 )
 
-func init() {
-	os.Clearenv()
-}
 func Test_optionsFromEnvConfig(t *testing.T) {
+	good := defaultOptions
+	good.SharedKey = "test"
 	tests := []struct {
 		name     string
 		want     *Options
@@ -17,18 +16,25 @@ func Test_optionsFromEnvConfig(t *testing.T) {
 		envValue string
 		wantErr  bool
 	}{
-		{"good default with no env settings", defaultOptions, "", "", false},
-		{"good service", defaultOptions, "SERVICES", "all", false},
+		{"good default with no env settings", good, "", "", false},
 		{"invalid service type", nil, "SERVICES", "invalid", true},
+		{"good service", good, "SERVICES", "all", false},
+
 		{"bad debug boolean", nil, "POMERIUM_DEBUG", "yes", true},
+		{"missing shared secret", nil, "SHARED_SECRET", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			os.Clearenv()
 			if tt.envKey != "" {
 				os.Setenv(tt.envKey, tt.envValue)
-				defer os.Unsetenv(tt.envKey)
+			}
+			if tt.envKey != "SHARED_SECRET" {
+				os.Setenv("SHARED_SECRET", "test")
 			}
 			got, err := optionsFromEnvConfig()
+			os.Unsetenv(tt.envKey)
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("optionsFromEnvConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return

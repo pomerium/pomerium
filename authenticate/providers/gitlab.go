@@ -15,7 +15,7 @@ const defaultGitlabProviderURL = "https://gitlab.com"
 
 // GitlabProvider is an implementation of the Provider interface.
 type GitlabProvider struct {
-	*ProviderData
+	*IdentityProvider
 	cb *circuit.Breaker
 }
 
@@ -32,7 +32,7 @@ type GitlabProvider struct {
 // - https://docs.gitlab.com/ee/integration/oauth_provider.html
 // - https://docs.gitlab.com/ee/api/oauth2.html
 // - https://gitlab.com/.well-known/openid-configuration
-func NewGitlabProvider(p *ProviderData) (*GitlabProvider, error) {
+func NewGitlabProvider(p *IdentityProvider) (*GitlabProvider, error) {
 	ctx := context.Background()
 	if p.ProviderURL == "" {
 		p.ProviderURL = defaultGitlabProviderURL
@@ -42,8 +42,9 @@ func NewGitlabProvider(p *ProviderData) (*GitlabProvider, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.Scopes = []string{oidc.ScopeOpenID, "read_user"}
-
+	if len(p.Scopes) == 0 {
+		p.Scopes = []string{oidc.ScopeOpenID, "read_user"}
+	}
 	p.verifier = p.provider.Verifier(&oidc.Config{ClientID: p.ClientID})
 	p.oauth = &oauth2.Config{
 		ClientID:     p.ClientID,
@@ -53,7 +54,7 @@ func NewGitlabProvider(p *ProviderData) (*GitlabProvider, error) {
 		Scopes:       p.Scopes,
 	}
 	gitlabProvider := &GitlabProvider{
-		ProviderData: p,
+		IdentityProvider: p,
 	}
 	gitlabProvider.cb = circuit.NewBreaker(&circuit.Options{
 		HalfOpenConcurrentRequests: 2,

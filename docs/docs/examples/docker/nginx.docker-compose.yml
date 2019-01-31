@@ -1,0 +1,83 @@
+version: "3"
+
+services:
+  nginx:
+    image: pomerium/nginx-proxy:latest
+    ports:
+      - "443:443"
+    volumes:
+      # NOTE!!! : nginx must be supplied with your wildcard certificates. And it expects
+      # it in the format of whatever your wildcard domain name is in.
+      # see : https://github.com/jwilder/nginx-proxy#wildcard-certificates
+      # So, if your subdomain is corp.beyondperimeter.com, you'd have the following :
+      - ./cert.pem:/etc/nginx/certs/corp.beyondperimeter.com.crt:ro
+      - ./privkey.pem:/etc/nginx/certs/corp.beyondperimeter.com.key:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+
+  pomerium-authenticate:
+    build: .
+    restart: always
+    environment:
+      - POMERIUM_DEBUG=true
+      - SERVICES=authenticate
+      # auth settings
+      - REDIRECT_URL=https://auth.corp.beyondperimeter.com/oauth2/callback
+      # Identity Provider Settings (Must be changed!)
+      - IDP_PROVIDER=google
+      - IDP_PROVIDER_URL=https://accounts.google.com
+      - IDP_CLIENT_ID=REPLACEME
+      - IDP_CLIENT_SECRET=REPLACE_ME
+      - PROXY_ROOT_DOMAIN=corp.beyondperimeter.com
+      - ALLOWED_DOMAINS=*
+      - SKIP_PROVIDER_BUTTON=false
+      # shared service settings
+      # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
+      - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
+      - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
+      - VIRTUAL_PROTO=https
+      - VIRTUAL_HOST=auth.corp.beyondperimeter.com
+      - VIRTUAL_PORT=443
+    volumes: # volumes is optional; used if passing certificates as files
+      - ./cert.pem:/pomerium/cert.pem:ro
+      - ./privkey.pem:/pomerium/privkey.pem:ro
+    expose:
+      - 443
+  pomerium-proxy:
+    build: .
+    restart: always
+
+    environment:
+      - POMERIUM_DEBUG=true
+      - SERVICES=proxy
+      # proxy settings
+      - AUTHENTICATE_SERVICE_URL=https://auth.corp.beyondperimeter.com
+      # IMPORTANT! If you are running pomerium behind another ingress (loadbalancer/firewall/etc)
+      # you must tell pomerium proxy how to communicate using an internal hostname for RPC
+      - AUTHENTICATE_INTERNAL_URL=pomerium-authenticate:443
+      # When communicating internally, rPC is going to get a name conflict expecting an external
+      # facing certificate name (i.e. authenticate-service.local vs *.corp.example.com).
+      - OVERIDE_CERTIFICATE_NAME=*.corp.beyondperimeter.com
+      - ROUTES=https://httpbin.corp.beyondperimeter.com=http://httpbin,https://hello.corp.beyondperimeter.com=http://hello:8080/
+      # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
+      - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
+      - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
+      # nginx settings
+      - VIRTUAL_PROTO=https
+      - VIRTUAL_HOST=*.corp.beyondperimeter.com
+      - VIRTUAL_PORT=443
+    volumes: # volumes is optional; used if passing certificates as files
+      - ./cert.pem:/pomerium/cert.pem:ro
+      - ./privkey.pem:/pomerium/privkey.pem:ro
+    expose:
+      - 443
+
+  # https://httpbin.corp.beyondperimeter.com
+  httpbin:
+    image: kennethreitz/httpbin:latest
+    expose:
+      - 80
+  # https://hello.corp.beyondperimeter.com
+  hello:
+    image: gcr.io/google-samples/hello-app:1.0
+    expose:
+      - 8080

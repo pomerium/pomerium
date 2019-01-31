@@ -2,7 +2,6 @@ package authenticate // import "github.com/pomerium/pomerium/authenticate"
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -17,16 +16,19 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 )
 
+// securityHeaders corresponds to HTTP response headers related to security.
+// https://www.owasp.org/index.php/OWASP_Secure_Headers_Project#tab=Headers
 var securityHeaders = map[string]string{
 	"Strict-Transport-Security": "max-age=31536000",
 	"X-Frame-Options":           "DENY",
 	"X-Content-Type-Options":    "nosniff",
 	"X-XSS-Protection":          "1; mode=block",
-	"Content-Security-Policy":   "default-src 'none'; style-src 'self' 'sha256-pSTVzZsFAqd2U3QYu+BoBDtuJWaPM/+qMy/dBRrhb5Y='; img-src 'self';",
-	"Referrer-Policy":           "Same-origin",
+	"Content-Security-Policy": "default-src 'none'; style-src 'self' " +
+		"'sha256-pSTVzZsFAqd2U3QYu+BoBDtuJWaPM/+qMy/dBRrhb5Y='; img-src 'self';",
+	"Referrer-Policy": "Same-origin",
 }
 
-// Handler returns the Http.Handlers for authentication, callback, and refresh
+// Handler returns the Http.Handlers for authenticate, callback, and refresh
 func (p *Authenticate) Handler() http.Handler {
 	// set up our standard middlewares
 	stdMiddleware := middleware.NewChain()
@@ -52,8 +54,6 @@ func (p *Authenticate) Handler() http.Handler {
 		middleware.ValidateSignature(p.SharedKey),
 		middleware.ValidateRedirectURI(p.ProxyRootDomains))
 
-	validateClientSecretMiddleware := stdMiddleware.Append(middleware.ValidateClientSecret(p.SharedKey))
-
 	mux := http.NewServeMux()
 	mux.Handle("/robots.txt", stdMiddleware.ThenFunc(p.RobotsTxt))
 	// Identity Provider (IdP) callback endpoints and callbacks
@@ -61,11 +61,7 @@ func (p *Authenticate) Handler() http.Handler {
 	mux.Handle("/oauth2/callback", stdMiddleware.ThenFunc(p.OAuthCallback))
 	// authenticate-server endpoints
 	mux.Handle("/sign_in", validateSignatureMiddleware.ThenFunc(p.SignIn))
-	mux.Handle("/sign_out", validateSignatureMiddleware.ThenFunc(p.SignOut))          // "GET", "POST"
-	mux.Handle("/profile", validateClientSecretMiddleware.ThenFunc(p.GetProfile))     // GET
-	mux.Handle("/validate", validateClientSecretMiddleware.ThenFunc(p.ValidateToken)) // GET
-	mux.Handle("/redeem", validateClientSecretMiddleware.ThenFunc(p.Redeem))          // POST
-	mux.Handle("/refresh", validateClientSecretMiddleware.ThenFunc(p.Refresh))        //POST
+	mux.Handle("/sign_out", validateSignatureMiddleware.ThenFunc(p.SignOut)) // GET POST
 
 	return mux
 }
@@ -76,43 +72,15 @@ func (p *Authenticate) RobotsTxt(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
-// SignInPage directs the user to the sign in page. Takes a `redirect_uri` param.
-func (p *Authenticate) SignInPage(w http.ResponseWriter, r *http.Request) {
-	redirectURL := p.RedirectURL.ResolveReference(r.URL)
-
-	destinationURL, _ := url.Parse(redirectURL.Query().Get("redirect_uri"))
-	t := struct {
-		ProviderName   string
-		AllowedDomains []string
-		Redirect       string
-		Destination    string
-		Version        string
-	}{
-		ProviderName:   p.provider.Data().ProviderName,
-		AllowedDomains: p.AllowedDomains,
-		Redirect:       redirectURL.String(),
-		Destination:    destinationURL.Host,
-		Version:        version.FullVersion(),
-	}
-	log.FromRequest(r).Debug().
-		Str("ProviderName", p.provider.Data().ProviderName).
-		Str("Redirect", redirectURL.String()).
-		Str("Destination", destinationURL.Host).
-		Str("AllowedDomains", strings.Join(p.AllowedDomains, ", ")).
-		Msg("authenticate: SignInPage")
-	w.WriteHeader(http.StatusOK)
-	p.templates.ExecuteTemplate(w, "sign_in.html", t)
-}
-
 func (p *Authenticate) authenticate(w http.ResponseWriter, r *http.Request) (*sessions.SessionState, error) {
 	session, err := p.sessionStore.LoadSession(r)
 	if err != nil {
-		log.Error().Err(err).Msg("authenticate: failed to load session")
+		log.FromRequest(r).Error().Err(err).Msg("authenticate: failed to load session")
 		p.sessionStore.ClearSession(w, r)
 		return nil, err
 	}
 
-	// ensure sessions lifetime has not expired
+	// if long-lived lifetime has expired, clear session
 	if session.LifetimePeriodExpired() {
 		log.FromRequest(r).Warn().Msg("authenticate: lifetime expired")
 		p.sessionStore.ClearSession(w, r)
@@ -120,18 +88,14 @@ func (p *Authenticate) authenticate(w http.ResponseWriter, r *http.Request) (*se
 	}
 	// check if session refresh period is up
 	if session.RefreshPeriodExpired() {
-		ok, err := p.provider.RefreshSessionIfNeeded(session)
+		newToken, err := p.provider.Refresh(session.RefreshToken)
 		if err != nil {
 			log.FromRequest(r).Error().Err(err).Msg("authenticate: failed to refresh session")
 			p.sessionStore.ClearSession(w, r)
 			return nil, err
 		}
-		if !ok {
-			log.FromRequest(r).Error().Msg("user unauthorized after refresh")
-			p.sessionStore.ClearSession(w, r)
-			return nil, httputil.ErrUserNotAuthorized
-		}
-		// update refresh'd session in cookie
+		session.AccessToken = newToken.AccessToken
+		session.RefreshDeadline = newToken.Expiry
 		err = p.sessionStore.SaveSession(w, r, session)
 		if err != nil {
 			// We refreshed the session successfully, but failed to save it.
@@ -143,9 +107,9 @@ func (p *Authenticate) authenticate(w http.ResponseWriter, r *http.Request) (*se
 		}
 	} else {
 		// The session has not exceeded it's lifetime or requires refresh
-		ok := p.provider.ValidateSessionState(session)
-		if !ok {
-			log.FromRequest(r).Error().Msg("invalid session state")
+		ok, err := p.provider.Validate(session.IDToken)
+		if !ok || err != nil {
+			log.FromRequest(r).Error().Err(err).Msg("invalid session state")
 			p.sessionStore.ClearSession(w, r)
 			return nil, httputil.ErrUserNotAuthorized
 		}
@@ -157,68 +121,53 @@ func (p *Authenticate) authenticate(w http.ResponseWriter, r *http.Request) (*se
 		}
 	}
 
+	// authenticate really should not be in the business of authorization
+	// todo(bdd) : remove when authorization module added
 	if !p.Validator(session.Email) {
 		log.FromRequest(r).Error().Msg("invalid email user")
 		return nil, httputil.ErrUserNotAuthorized
 	}
+	log.Info().Msg("authenticate")
 	return session, nil
 }
 
 // SignIn handles the /sign_in endpoint. It attempts to authenticate the user,
 // and if the user is not authenticated, it renders a sign in page.
 func (p *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
-	// We attempt to authenticate the user. If they cannot be authenticated, we render a sign-in
-	// page.
-	//
-	// If the user is authenticated, we redirect back to the proxy application
-	// at the `redirect_uri`, with a temporary token.
-	//
-	// TODO: It is possible for a user to visit this page without a redirect destination.
-	// Should we allow the user to authenticate? If not, what should be the proposed workflow?
-
 	session, err := p.authenticate(w, r)
 	switch err {
 	case nil:
 		// User is authenticated, redirect back to proxy
 		p.ProxyOAuthRedirect(w, r, session)
 	case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
-		log.Debug().Err(err).Msg("authenticate.SignIn")
+		log.Info().Err(err).Msg("authenticate.SignIn : expected failure")
 		if err != http.ErrNoCookie {
 			p.sessionStore.ClearSession(w, r)
 		}
 		p.OAuthStart(w, r)
 
 	default:
-		log.Error().Err(err).Msg("authenticate.SignIn")
+		log.Error().Err(err).Msg("authenticate: unexpected sign in error")
 		httputil.ErrorResponse(w, r, err.Error(), httputil.CodeForError(err))
 	}
 }
 
-// ProxyOAuthRedirect redirects the user back to sso proxy's redirection endpoint.
+// ProxyOAuthRedirect redirects the user back to proxy's redirection endpoint.
+// This workflow corresponds to Section 3.1.2 of the OAuth2 RFC.
+// See https://tools.ietf.org/html/rfc6749#section-3.1.2 for more specific information.
 func (p *Authenticate) ProxyOAuthRedirect(w http.ResponseWriter, r *http.Request, session *sessions.SessionState) {
-	// This workflow corresponds to Section 3.1.2 of the OAuth2 RFC.
-	// See https://tools.ietf.org/html/rfc6749#section-3.1.2 for more specific information.
-	//
-	// We redirect the user back to the proxy application's redirection endpoint; in the
-	// sso proxy, this is the `/oauth/callback` endpoint.
-	//
-	// We must provide the proxy with a temporary authorization code via the `code` parameter,
-	// which they can use to redeem an access token for subsequent API calls.
-	//
-	// We must also include the original `state` parameter received from the proxy application.
-
 	err := r.ParseForm()
 	if err != nil {
 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
+	// original `state` parameter received from the proxy application.
 	state := r.Form.Get("state")
 	if state == "" {
 		httputil.ErrorResponse(w, r, "no state parameter supplied", http.StatusForbidden)
 		return
 	}
-
+	// redirect url of proxy-service
 	redirectURI := r.Form.Get("redirect_uri")
 	if redirectURI == "" {
 		httputil.ErrorResponse(w, r, "no redirect_uri parameter supplied", http.StatusForbidden)
@@ -230,7 +179,7 @@ func (p *Authenticate) ProxyOAuthRedirect(w http.ResponseWriter, r *http.Request
 		httputil.ErrorResponse(w, r, "malformed redirect_uri parameter passed", http.StatusBadRequest)
 		return
 	}
-
+	// encrypt session state as json blob
 	encrypted, err := sessions.MarshalSession(session, p.cipher)
 	if err != nil {
 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
@@ -267,6 +216,7 @@ func (p *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 	case nil:
 		break
 	case http.ErrNoCookie: // if there's no cookie in the session we can just redirect
+		log.Error().Err(err).Msg("authenticate.SignOut : no cookie")
 		http.Redirect(w, r, redirectURI, http.StatusFound)
 		return
 	default:
@@ -277,7 +227,7 @@ func (p *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = p.provider.Revoke(session)
+	err = p.provider.Revoke(session.AccessToken)
 	if err != nil {
 		log.Error().Err(err).Msg("authenticate.SignOut : error revoking session")
 		p.SignOutPage(w, r, "An error occurred during sign out. Please try again.")
@@ -299,10 +249,11 @@ func (p *Authenticate) SignOutPage(w http.ResponseWriter, r *http.Request, messa
 
 	signature := r.Form.Get("sig")
 	timestamp := r.Form.Get("ts")
-	destinationURL, _ := url.Parse(redirectURI) //checked by middleware
+	destinationURL, err := url.Parse(redirectURI)
 
 	// An error message indicates that an internal server error occurred
-	if message != "" {
+	if message != "" || err != nil {
+		log.Error().Err(err).Msg("authenticate.SignOutPage")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -326,8 +277,8 @@ func (p *Authenticate) SignOutPage(w http.ResponseWriter, r *http.Request, messa
 	p.templates.ExecuteTemplate(w, "sign_out.html", t)
 }
 
-// OAuthStart starts the authentication process by redirecting to the provider. It provides a
-// `redirectURI`, allowing the provider to redirect back to the sso proxy after authentication.
+// OAuthStart starts the authenticate process by redirecting to the provider. It provides a
+// `redirectURI`, allowing the provider to redirect back to the sso proxy after authenticate.
 func (p *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	authRedirectURL, err := url.Parse(r.URL.Query().Get("redirect_uri"))
 	if err != nil {
@@ -339,12 +290,12 @@ func (p *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	nonce := fmt.Sprintf("%x", cryptutil.GenerateKey())
 	p.csrfStore.SetCSRF(w, r, nonce)
 
-	// confirm the redirect uri is from the root domain
+	// verify redirect uri is from the root domain
 	if !middleware.ValidRedirectURI(authRedirectURL.String(), p.ProxyRootDomains) {
 		httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
 		return
 	}
-	// confirm proxy url is from the root domain
+	// verify proxy url is from the root domain
 	proxyRedirectURL, err := url.Parse(authRedirectURL.Query().Get("redirect_uri"))
 	if err != nil || !middleware.ValidRedirectURI(proxyRedirectURL.String(), p.ProxyRootDomains) {
 		httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
@@ -359,51 +310,41 @@ func (p *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// embed authenticate service's state as the base64'd nonce and authenticate callback url
+	// concat base64'd nonce and authenticate url to make state
 	state := base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("%v:%v", nonce, authRedirectURL.String())))
+	// build the provider sign in url
 	signInURL := p.provider.GetSignInURL(state)
 
 	http.Redirect(w, r, signInURL, http.StatusFound)
 }
 
-func (p *Authenticate) redeemCode(host, code string) (*sessions.SessionState, error) {
-	session, err := p.provider.Redeem(code)
-	if err != nil {
-		return nil, err
-	}
-	// if session.Email == "" {
-	// 	return nil, fmt.Errorf("no email included in session")
-	// }
-
-	return session, nil
-
-}
-
 // getOAuthCallback completes the oauth cycle from an identity provider's callback
 func (p *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) (string, error) {
-	// finish the oauth cycle
 	err := r.ParseForm()
 	if err != nil {
+		log.FromRequest(r).Error().Err(err).Msg("authenticate: bad form on oauth callback")
 		return "", httputil.HTTPError{Code: http.StatusInternalServerError, Message: err.Error()}
 	}
 	errorString := r.Form.Get("error")
 	if errorString != "" {
+		log.FromRequest(r).Error().Err(err).Msg("authenticate: provider returned error")
 		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: errorString}
 	}
 	code := r.Form.Get("code")
 	if code == "" {
+		log.FromRequest(r).Error().Err(err).Msg("authenticate: provider missing code")
 		return "", httputil.HTTPError{Code: http.StatusBadRequest, Message: "Missing Code"}
 	}
 
-	session, err := p.redeemCode(r.Host, code)
+	session, err := p.provider.Authenticate(code)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("error redeeming authentication code")
+		log.FromRequest(r).Error().Err(err).Msg("authenticate: error redeeming authenticate code")
 		return "", httputil.HTTPError{Code: http.StatusInternalServerError, Message: err.Error()}
 	}
 
 	bytes, err := base64.URLEncoding.DecodeString(r.Form.Get("state"))
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("failed decoding state")
+		log.FromRequest(r).Error().Err(err).Msg("authenticate: failed decoding state")
 		return "", httputil.HTTPError{Code: http.StatusBadRequest, Message: "Couldn't decode state"}
 	}
 	s := strings.SplitN(string(bytes), ":", 2)
@@ -414,11 +355,12 @@ func (p *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	redirect := s[1]
 	c, err := p.csrfStore.GetCSRF(r)
 	if err != nil {
+		log.FromRequest(r).Error().Err(err).Msg("authenticate: bad csrf")
 		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "Missing CSRF token"}
 	}
 	p.csrfStore.ClearCSRF(w, r)
 	if c.Value != nonce {
-		log.FromRequest(r).Error().Err(err).Msg("CSRF token mismatch")
+		log.FromRequest(r).Error().Err(err).Msg("authenticate: csrf mismatch")
 		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "CSRF failed"}
 	}
 
@@ -427,13 +369,10 @@ func (p *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Set cookie, or deny: validates the session email and group
-	// - for p.Validator see validator.go#newValidatorImpl for more info
-	// - for p.provider.ValidateGroup see providers/google.go#ValidateGroup for more info
 	if !p.Validator(session.Email) {
 		log.FromRequest(r).Error().Err(err).Str("email", session.Email).Msg("invalid email permissions denied")
 		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "You don't have access"}
 	}
-	log.FromRequest(r).Info().Str("email", session.Email).Msg("authentication complete")
 	err = p.sessionStore.SaveSession(w, r, session)
 	if err != nil {
 		log.Error().Err(err).Msg("internal error")
@@ -442,182 +381,22 @@ func (p *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	return redirect, nil
 }
 
-// OAuthCallback handles the callback from the provider, and returns an error response if there is an error.
-// If there is no error it will redirect to the redirect url.
+// OAuthCallback handles the callback from the identity provider. Displays an error page if there
+// was an error. If successful, redirects back to the proxy-service via the redirect-url.
 func (p *Authenticate) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	redirect, err := p.getOAuthCallback(w, r)
 	switch h := err.(type) {
 	case nil:
 		break
 	case httputil.HTTPError:
+		log.Error().Err(err).Msg("authenticate: oauth callback error")
 		httputil.ErrorResponse(w, r, h.Message, h.Code)
 		return
 	default:
-		log.Error().Err(err).Msg("authenticate.OAuthCallback")
+		log.Error().Err(err).Msg("authenticate: unexpected oauth callback error")
 		httputil.ErrorResponse(w, r, "Internal Error", http.StatusInternalServerError)
 		return
 	}
+	// redirect back to the proxy-service
 	http.Redirect(w, r, redirect, http.StatusFound)
-}
-
-// Redeem has a signed access token, and provides the user information associated with the access token.
-func (p *Authenticate) Redeem(w http.ResponseWriter, r *http.Request) {
-	// The auth code is redeemed by the sso proxy for an access token, refresh token,
-	// expiration, and email.
-	err := r.ParseForm()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Bad Request: %s", err.Error()), http.StatusBadRequest)
-		return
-	}
-
-	session, err := sessions.UnmarshalSession(r.Form.Get("code"), p.cipher)
-	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("authenticate: failed to unmarshal session")
-		http.Error(w, fmt.Sprintf("invalid auth code: %s", err.Error()), http.StatusUnauthorized)
-		return
-	}
-
-	if session == nil {
-		log.FromRequest(r).Error().Err(err).Msg("empty session")
-		http.Error(w, fmt.Sprintf("empty session: %s", err.Error()), http.StatusUnauthorized)
-		return
-	}
-
-	if session != nil && (session.RefreshPeriodExpired() || session.LifetimePeriodExpired()) {
-		log.FromRequest(r).Error().Msg("expired session")
-		p.sessionStore.ClearSession(w, r)
-		http.Error(w, fmt.Sprintf("expired session"), http.StatusUnauthorized)
-		return
-	}
-
-	response := struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-		IDToken      string `json:"id_token"`
-		ExpiresIn    int64  `json:"expires_in"`
-		Email        string `json:"email"`
-	}{
-		AccessToken:  session.AccessToken,
-		RefreshToken: session.RefreshToken,
-		IDToken:      session.IDToken,
-		ExpiresIn:    int64(time.Until(session.RefreshDeadline).Seconds()),
-		Email:        session.Email,
-	}
-
-	jsonBytes, err := json.Marshal(response)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("GAP-Auth", session.Email)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(jsonBytes)
-
-}
-
-// Refresh takes a refresh token and returns a new access token
-func (p *Authenticate) Refresh(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Bad Request: %s", err.Error()), http.StatusBadRequest)
-		return
-	}
-
-	refreshToken := r.Form.Get("refresh_token")
-	if refreshToken == "" {
-		http.Error(w, "Bad Request: No Refresh Token", http.StatusBadRequest)
-		return
-	}
-
-	accessToken, expiresIn, err := p.provider.RefreshAccessToken(refreshToken)
-	if err != nil {
-		httputil.ErrorResponse(w, r, err.Error(), httputil.CodeForError(err))
-		return
-	}
-
-	response := struct {
-		AccessToken string `json:"access_token"`
-		ExpiresIn   int64  `json:"expires_in"`
-	}{
-		AccessToken: accessToken,
-		ExpiresIn:   int64(expiresIn.Seconds()),
-	}
-
-	bytes, err := json.Marshal(response)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(bytes)
-}
-
-// GetProfile gets a list of groups of which a user is a member.
-func (p *Authenticate) GetProfile(w http.ResponseWriter, r *http.Request) {
-	// The sso proxy sends the user's email to this endpoint to get a list of Google groups that
-	// the email is a member of. The proxy will compare these groups to the list of allowed
-	// groups for the upstream service the user is trying to access.
-
-	email := r.FormValue("email")
-	if email == "" {
-		http.Error(w, "no email address included", http.StatusBadRequest)
-		return
-	}
-
-	// groupsFormValue := r.FormValue("groups")
-	// allowedGroups := []string{}
-	// if groupsFormValue != "" {
-	// 	allowedGroups = strings.Split(groupsFormValue, ",")
-	// }
-
-	// groups, err := p.provider.ValidateGroupMembership(email, allowedGroups)
-	// if err != nil {
-	// 	log.Error().Err(err).Msg("authenticate.GetProfile : error retrieving groups")
-	// 	httputil.ErrorResponse(w, r, err.Error(), httputil.CodeForError(err))
-	// 	return
-	// }
-
-	response := struct {
-		Email string `json:"email"`
-	}{
-		Email: email,
-	}
-
-	jsonBytes, err := json.Marshal(response)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error marshaling response: %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("GAP-Auth", email)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(jsonBytes)
-}
-
-// ValidateToken validates the X-Access-Token from the header and returns an error response
-// if it's invalid
-func (p *Authenticate) ValidateToken(w http.ResponseWriter, r *http.Request) {
-	accessToken := r.Header.Get("X-Access-Token")
-	idToken := r.Header.Get("X-Id-Token")
-
-	if accessToken == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	if idToken == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	ok := p.provider.ValidateSessionState(&sessions.SessionState{
-		AccessToken: accessToken,
-		IDToken:     idToken,
-	})
-
-	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
 }

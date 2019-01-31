@@ -38,7 +38,7 @@ type XChaCha20Cipher struct {
 	aead cipher.AEAD
 }
 
-// NewCipher returns a new XChacha20poly1305 cipher.
+// NewCipher takes secret key and returns a new XChacha20poly1305 cipher.
 func NewCipher(secret []byte) (*XChaCha20Cipher, error) {
 	aead, err := chacha20poly1305.NewX(secret)
 	if err != nil {

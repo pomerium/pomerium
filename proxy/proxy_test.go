@@ -11,10 +11,9 @@ import (
 	"testing"
 )
 
-func init() {
-	os.Clearenv()
-}
 func TestOptionsFromEnvConfig(t *testing.T) {
+	os.Clearenv()
+
 	tests := []struct {
 		name     string
 		want     *Options
@@ -23,9 +22,9 @@ func TestOptionsFromEnvConfig(t *testing.T) {
 		wantErr  bool
 	}{
 		{"good default, no env settings", defaultOptions, "", "", false},
-		{"bad url", nil, "AUTHENTICATE_SERVICE_URL", "%.rjlw", true},
-		{"good duration", defaultOptions, "SESSION_VALID_TTL", "1m", false},
-		{"bad duration", nil, "SESSION_VALID_TTL", "1sm", true},
+		{"bad url", nil, "AUTHENTICATE_SERVICE_URL", "%.ugly", true},
+		{"good duration", defaultOptions, "COOKIE_REFRESH", "1m", false},
+		{"bad duration", nil, "COOKIE_REFRESH", "1sm", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -46,6 +45,8 @@ func TestOptionsFromEnvConfig(t *testing.T) {
 }
 
 func Test_urlParse(t *testing.T) {
+	os.Clearenv()
+
 	tests := []struct {
 		name    string
 		uri     string
@@ -131,10 +132,10 @@ func TestNewReverseProxyHandler(t *testing.T) {
 func testOptions() *Options {
 	authurl, _ := url.Parse("https://sso-auth.corp.beyondperimeter.com")
 	return &Options{
-		Routes:                 map[string]string{"corp.example.com": "example.com"},
-		AuthenticateServiceURL: authurl,
-		SharedKey:              "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
-		CookieSecret:           "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
+		Routes:          map[string]string{"corp.example.com": "example.com"},
+		AuthenticateURL: authurl,
+		SharedKey:       "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
+		CookieSecret:    "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
 	}
 }
 
@@ -145,10 +146,10 @@ func TestOptions_Validate(t *testing.T) {
 	badToRoute := testOptions()
 	badToRoute.Routes = map[string]string{"^": "example.com"}
 	badAuthURL := testOptions()
-	badAuthURL.AuthenticateServiceURL = nil
+	badAuthURL.AuthenticateURL = nil
 	authurl, _ := url.Parse("http://sso-auth.corp.beyondperimeter.com")
 	httpAuthURL := testOptions()
-	httpAuthURL.AuthenticateServiceURL = authurl
+	httpAuthURL.AuthenticateURL = authurl
 	emptyCookieSecret := testOptions()
 	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := testOptions()

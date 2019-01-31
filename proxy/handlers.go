@@ -1,6 +1,9 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,7 +20,7 @@ import (
 )
 
 var (
-	//ErrUserNotAuthorized is set when user is not authorized to access a resource
+	// ErrUserNotAuthorized is set when user is not authorized to access a resource
 	ErrUserNotAuthorized = errors.New("user not authorized")
 )
 
@@ -25,6 +28,12 @@ var securityHeaders = map[string]string{
 	"X-Content-Type-Options": "nosniff",
 	"X-Frame-Options":        "SAMEORIGIN",
 	"X-XSS-Protection":       "1; mode=block",
+}
+
+// StateParameter holds the redirect id along with the session id.
+type StateParameter struct {
+	SessionID   string `json:"session_id"`
+	RedirectURI string `json:"redirect_uri"`
 }
 
 // Handler returns a http handler for an Proxy
@@ -61,6 +70,8 @@ func (p *Proxy) Handler() http.Handler {
 	c = c.Append(middleware.RefererHandler("referer"))
 	c = c.Append(middleware.RequestIDHandler("req_id", "Request-Id"))
 	c = c.Append(middleware.ValidateHost(p.mux))
+
+	// serve the middleware and mux
 	h := c.Then(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mux.ServeHTTP(w, r)
 	}))
@@ -74,7 +85,7 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 }
 
 // Favicon will proxy the request as usual if the user is already authenticated but responds
-// with a 404 otherwise, to avoid spurious and confusing authentication attempts when a browser
+// with a 404 otherwise, to avoid spurious and confusing IdentityProvider attempts when a browser
 // automatically requests the favicon on an error page.
 func (p *Proxy) Favicon(w http.ResponseWriter, r *http.Request) {
 	err := p.Authenticate(w, r)
@@ -93,15 +104,13 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 		Host:   r.Host,
 		Path:   "/",
 	}
-	fullURL := p.authenticateClient.GetSignOutURL(redirectURL)
+	fullURL := p.GetSignOutURL(p.AuthenticateURL, redirectURL)
 	http.Redirect(w, r, fullURL.String(), http.StatusFound)
 }
 
-// OAuthStart begins the authentication flow, encrypting the redirect url
+// OAuthStart begins the IdentityProvider flow, encrypting the redirect url
 // in a request to the provider's sign in endpoint.
 func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
-	// The proxy redirects to the authenticator, and provides it with redirectURI (which points
-	// back to the sso proxy).
 	requestURI := r.URL.String()
 	callbackURL := p.GetRedirectURL(r.Host)
 
@@ -129,19 +138,20 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	signinURL := p.authenticateClient.GetSignInURL(callbackURL, encryptedState)
-	log.FromRequest(r).Info().Msg("redirecting to begin auth flow")
+	signinURL := p.GetSignInURL(p.AuthenticateURL, callbackURL, encryptedState)
+	log.FromRequest(r).Info().
+		Str("SigninURL", signinURL.String()).
+		Msg("redirecting to begin auth flow")
+	// redirect the user to the IdentityProvider provider along with the encrypted state which
+	// contains a redirect uri pointing back to the proxy
 	http.Redirect(w, r, signinURL.String(), http.StatusFound)
 }
 
-// OAuthCallback validates the cookie sent back from the provider, then validates he user
-// information, and if authorized, redirects the user back to the original application.
+// OAuthCallback validates the cookie sent back from the authenticate service. This function will
+// contain an error, or it will contain a `code`; the code can be used to fetch an access token, and
+// other metadata, from the authenticator.
+// finish the oauth cycle
 func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
-	// We receive the callback from the SSO Authenticator. This request will either contain an
-	// error, or it will contain a `code`; the code can be used to fetch an access token, and
-	// other metadata, from the authenticator.
-	// finish the oauth cycle
 	err := r.ParseForm()
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("failed parsing request form")
@@ -153,9 +163,8 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, errorString, http.StatusForbidden)
 		return
 	}
-
 	// We begin the process of redeeming the code for an access token.
-	session, err := p.redeemCode(r.Host, r.Form.Get("code"))
+	session, err := p.AuthenticateRedeem(r.Form.Get("code"))
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("error redeeming authorization code")
 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
@@ -208,6 +217,14 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.FromRequest(r).Info().
+		Str("code", r.Form.Get("code")).
+		Str("state", r.Form.Get("state")).
+		Str("RefreshToken", session.RefreshToken).
+		Str("session", session.AccessToken).
+		Str("RedirectURI", stateParameter.RedirectURI).
+		Msg("session")
+
 	// This is the redirect back to the original requested application
 	http.Redirect(w, r, stateParameter.RedirectURI, http.StatusFound)
 }
@@ -222,16 +239,14 @@ func (p *Proxy) AuthenticateOnly(w http.ResponseWriter, r *http.Request) {
 }
 
 // Proxy authenticates a request, either proxying the request if it is authenticated,
-// or starting the authentication process if not.
+// or starting the IdentityProvider service for validation if not.
 func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
-	// Attempts to validate the user and their cookie.
 	err := p.Authenticate(w, r)
-	// If the authentication is not successful we proceed to start the OAuth Flow with
+	// If the IdentityProvider is not successful we proceed to start the OAuth Flow with
 	// OAuthStart. If successful, we proceed to proxy to the configured upstream.
 	if err != nil {
 		switch err {
 		case ErrUserNotAuthorized:
-			//todo(bdd) : custom forbidden page with details and troubleshooting info
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: user access forbidden")
 			httputil.ErrorResponse(w, r, "You don't have access", http.StatusForbidden)
 			return
@@ -245,6 +260,9 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// 				! 				!					!
+	// todo(bdd): 	! Authorization checks will go here !
+	//				! 				!					!
 
 	// We have validated the users request and now proxy their request to the provided upstream.
 	route, ok := p.router(r)
@@ -270,29 +288,38 @@ func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error)
 	if err != nil {
 		return err
 	}
+
 	if session.LifetimePeriodExpired() {
+		log.FromRequest(r).Info().Msg("proxy.Authenticate: lifetime expired, restarting")
 		return sessions.ErrLifetimeExpired
-	} else if session.RefreshPeriodExpired() {
-		ok, err := p.authenticateClient.RefreshSession(session)
+	}
+	if session.RefreshPeriodExpired() {
+		// AccessToken's usually expire after 60 or so minutes. If offline_access scope is set, a
+		// refresh token (which doesn't change) can be used to request a new access-token. If access
+		// is revoked by identity provider, or no refresh token is set request will return an error
+		accessToken, expiry, err := p.AuthenticateRefresh(session.RefreshToken)
 		if err != nil {
+			log.FromRequest(r).Warn().
+				Str("RefreshToken", session.RefreshToken).
+				Str("AccessToken", session.AccessToken).
+				Msg("proxy.Authenticate: refresh failure")
 			return err
 		}
-		if !ok {
-			return ErrUserNotAuthorized
-		}
-	} else if session.ValidationPeriodExpired() {
-		ok := p.authenticateClient.ValidateSessionState(session)
-		if !ok {
-			return ErrUserNotAuthorized
-		}
+		session.AccessToken = accessToken
+		session.RefreshDeadline = expiry
+		log.FromRequest(r).Info().
+			Str("RefreshToken", session.RefreshToken).
+			Str("AccessToken", session.AccessToken).
+			Msg("proxy.Authenticate:  refresh success")
 	}
+
 	err = p.sessionStore.SaveSession(w, r, session)
 	if err != nil {
 		return err
 	}
+	// pass user & user-email details to client applications
 	r.Header.Set(HeaderUserID, session.User)
 	r.Header.Set(HeaderEmail, session.Email)
-
 	// This user has been OK'd. Allow the request!
 	return nil
 }
@@ -316,7 +343,6 @@ func (p *Proxy) router(r *http.Request) (http.Handler, bool) {
 // GetRedirectURL returns the redirect url for a given Proxy,
 // setting the scheme to be https if CookieSecure is true.
 func (p *Proxy) GetRedirectURL(host string) *url.URL {
-	// TODO: Ensure that we only allow valid upstream hosts in redirect URIs
 	u := p.redirectURL
 	// Build redirect URI from request host
 	if u.Scheme == "" {
@@ -326,19 +352,39 @@ func (p *Proxy) GetRedirectURL(host string) *url.URL {
 	return u
 }
 
-func (p *Proxy) redeemCode(host, code string) (*sessions.SessionState, error) {
-	if code == "" {
-		return nil, errors.New("missing code")
-	}
-	redirectURL := p.GetRedirectURL(host)
-	s, err := p.authenticateClient.Redeem(redirectURL.String(), code)
-	if err != nil {
-		return s, err
-	}
+// signRedirectURL signs the redirect url string, given a timestamp, and returns it
+func (p *Proxy) signRedirectURL(rawRedirect string, timestamp time.Time) string {
+	h := hmac.New(sha256.New, []byte(p.SharedKey))
+	h.Write([]byte(rawRedirect))
+	h.Write([]byte(fmt.Sprint(timestamp.Unix())))
+	return base64.URLEncoding.EncodeToString(h.Sum(nil))
+}
 
-	if s.Email == "" {
-		return s, errors.New("invalid email address")
-	}
+// GetSignInURL with typical oauth parameters
+func (p *Proxy) GetSignInURL(authenticateURL, redirectURL *url.URL, state string) *url.URL {
+	a := authenticateURL.ResolveReference(&url.URL{Path: "/sign_in"})
+	now := time.Now()
+	rawRedirect := redirectURL.String()
+	params, _ := url.ParseQuery(a.RawQuery)
+	params.Set("redirect_uri", rawRedirect)
+	params.Set("shared_secret", p.SharedKey)
+	params.Set("response_type", "code")
+	params.Add("state", state)
+	params.Set("ts", fmt.Sprint(now.Unix()))
+	params.Set("sig", p.signRedirectURL(rawRedirect, now))
+	a.RawQuery = params.Encode()
+	return a
+}
 
-	return s, nil
+// GetSignOutURL creates and returns the sign out URL, given a redirectURL
+func (p *Proxy) GetSignOutURL(authenticateURL, redirectURL *url.URL) *url.URL {
+	a := authenticateURL.ResolveReference(&url.URL{Path: "/sign_out"})
+	now := time.Now()
+	rawRedirect := redirectURL.String()
+	params, _ := url.ParseQuery(a.RawQuery)
+	params.Add("redirect_uri", rawRedirect)
+	params.Set("ts", fmt.Sprint(now.Unix()))
+	params.Set("sig", p.signRedirectURL(rawRedirect, now))
+	a.RawQuery = params.Encode()
+	return a
 }

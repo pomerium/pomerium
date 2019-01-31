@@ -34,18 +34,29 @@ Uses the [latest pomerium build](https://hub.docker.com/r/pomerium/pomerium) fro
 
 - Minimal container-based configuration.
 - Docker and Docker-Compose based.
-- Uses pre-configured built-in nginx load balancer
-- Runs separate containers for each service
-- Comes with a pre-configured instance of on-prem Gitlab-CE
+- Runs a single container for all pomerium services
 - Routes default to on-prem [helloworld], [httpbin] containers.
 
 Customize for your identity provider run `docker-compose up -f basic.docker-compose.yml`
 
 #### basic.docker-compose.yml
 
-<<< @/docs/docs/examples/basic.docker-compose.yml
+<<< @/docs/docs/examples/docker/basic.docker-compose.yml
 
-### Gitlab On-premise
+### NGINX micro-services
+
+- Docker and Docker-Compose based.
+- Uses pre-configured built-in nginx load balancer
+- Runs separate containers for each service
+- Routes default to on-prem [helloworld], [httpbin], and [gitlab] containers.
+
+Customize for your identity provider run `docker-compose up -f gitlab.docker-compose.yml`
+
+#### nginx.docker-compose.yml
+
+<<< @/docs/docs/examples/docker/nginx.docker-compose.yml
+
+### Gitlab On-Prem
 
 - Docker and Docker-Compose based.
 - Uses pre-configured built-in nginx load balancer
@@ -57,7 +68,7 @@ Customize for your identity provider run `docker-compose up -f gitlab.docker-com
 
 #### gitlab.docker-compose.yml
 
-<<< @/docs/docs/examples/gitlab.docker-compose.yml
+<<< @/docs/docs/examples/docker/gitlab.docker-compose.yml
 
 ## Kubernetes
 

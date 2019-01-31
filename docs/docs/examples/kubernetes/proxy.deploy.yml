@@ -16,7 +16,7 @@ spec:
         app: pomerium-proxy
     spec:
       containers:
-        - image: pomerium/pomerium:latest
+        - image: pomerium/pomerium:grpctest
           name: pomerium-proxy
           ports:
             - containerPort: 443
@@ -24,11 +24,15 @@ spec:
               protocol: TCP
           env:
             - name: ROUTES
-              value: https://httpbin.corp.beyondperimeter.com=https://httpbin.org
+              value: https://httpbin.corp.beyondperimeter.com=https://httpbin.org,https://hi.corp.beyondperimeter.com=http://hello-app.pomerium.svc.cluster.local:8080
             - name: SERVICES
               value: proxy
             - name: AUTHENTICATE_SERVICE_URL
-              value: https://sso-auth.corp.beyondperimeter.com
+              value: https://auth.corp.beyondperimeter.com
+            - name: AUTHENTICATE_INTERNAL_URL
+              value: "pomerium-authenticate-service.pomerium.svc.cluster.local:443"
+            - name: OVERIDE_CERTIFICATE_NAME
+              value: "*.corp.beyondperimeter.com"
             - name: SHARED_SECRET
               valueFrom:
                 secretKeyRef:
@@ -54,12 +58,6 @@ spec:
                 secretKeyRef:
                   name: certificate-key
                   key: certificate-key
-            - name: VIRTUAL_PROTO
-              value: https
-            - name: VIRTUAL_HOST
-              value: "*.corp.beyondperimeter.com"
-            - name: VIRTUAL_PORT
-              value: "443"
           readinessProbe:
             httpGet:
               path: /ping

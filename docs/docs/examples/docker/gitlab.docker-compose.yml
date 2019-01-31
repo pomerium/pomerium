@@ -2,7 +2,7 @@ version: "3"
 
 services:
   nginx:
-    image: jwilder/nginx-proxy:latest
+    image: pomerium/nginx-proxy:latest
     ports:
       - "443:443"
     volumes:
@@ -17,18 +17,17 @@ services:
   pomerium-authenticate:
     build: .
     restart: always
-    depends_on:
-      - "gitlab"
     environment:
       - POMERIUM_DEBUG=true
       - SERVICES=authenticate
       # auth settings
-      - REDIRECT_URL=https://sso-auth.corp.beyondperimeter.com/oauth2/callback
-      - IDP_PROVIDER="gitlab"
-      - IDP_PROVIDER_URL=https://gitlab.corp.beyondperimeter.com
-      - IDP_CLIENT_ID=022dbbd09402441dc7af1924b679bc5e6f5bf0d7a555e55b38c51e2e4e6cee76
-      - IDP_CLIENT_SECRET=fb7598c520c346915ee369eee57688938fe4f31329a308c4669074da562714b2
-      - PROXY_ROOT_DOMAIN=beyondperimeter.com
+      - REDIRECT_URL=https://auth.corp.beyondperimeter.com/oauth2/callback
+      # Identity Provider Settings (Must be changed!)
+      - IDP_PROVIDER=google
+      - IDP_PROVIDER_URL=https://accounts.google.com
+      - IDP_CLIENT_ID=REPLACEME
+      - IDP_CLIENT_SECRET=REPLACE_ME
+      - PROXY_ROOT_DOMAIN=corp.beyondperimeter.com
       - ALLOWED_DOMAINS=*
       - SKIP_PROVIDER_BUTTON=false
       # shared service settings
@@ -36,14 +35,13 @@ services:
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
       - VIRTUAL_PROTO=https
-      - VIRTUAL_HOST=sso-auth.corp.beyondperimeter.com
+      - VIRTUAL_HOST=auth.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
     volumes: # volumes is optional; used if passing certificates as files
       - ./cert.pem:/pomerium/cert.pem:ro
       - ./privkey.pem:/pomerium/privkey.pem:ro
     expose:
       - 443
-
   pomerium-proxy:
     build: .
     restart: always
@@ -51,12 +49,17 @@ services:
       - POMERIUM_DEBUG=true
       - SERVICES=proxy
       # proxy settings
-      - AUTHENTICATE_SERVICE_URL=https://sso-auth.corp.beyondperimeter.com
-      - ROUTES=https://httpbin.corp.beyondperimeter.com=http://httpbin,https://hello.corp.beyondperimeter.com=http://hello-world/
+      - AUTHENTICATE_SERVICE_URL=https://auth.corp.beyondperimeter.com
+      # IMPORTANT! If you are running pomerium behind another ingress (loadbalancer/firewall/etc)
+      # you must tell pomerium proxy how to communicate using an internal hostname for RPC
+      - AUTHENTICATE_INTERNAL_URL=pomerium-authenticate:443
+      # When communicating internally, rPC is going to get a name conflict expecting an external
+      # facing certificate name (i.e. authenticate-service.local vs *.corp.example.com).
+      - OVERIDE_CERTIFICATE_NAME=*.corp.beyondperimeter.com
+      - ROUTES=https://gitlab.corp.beyondperimeter.com=https://gitlab
       # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
-      - SIGNING_KEY=LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSU0zbXBaSVdYQ1g5eUVneFU2czU3Q2J0YlVOREJTQ0VBdFFGNWZVV0hwY1FvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFaFBRditMQUNQVk5tQlRLMHhTVHpicEVQa1JyazFlVXQxQk9hMzJTRWZVUHpOaTRJV2VaLwpLS0lUdDJxMUlxcFYyS01TYlZEeXI5aWp2L1hoOThpeUV3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
       # nginx settings
       - VIRTUAL_PROTO=https
       - VIRTUAL_HOST=*.corp.beyondperimeter.com
