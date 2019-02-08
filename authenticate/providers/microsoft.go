@@ -11,7 +11,6 @@ import (
 	"github.com/pomerium/pomerium/authenticate/circuit"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
 )
 
@@ -22,7 +21,7 @@ const defaultAzureProviderURL = "https://login.microsoftonline.com/common"
 
 // AzureProvider is an implementation of the Provider interface
 type AzureProvider struct {
-	*ProviderData
+	*IdentityProvider
 	cb *circuit.Breaker
 	// non-standard oidc fields
 	RevokeURL *url.URL
@@ -31,7 +30,7 @@ type AzureProvider struct {
 // NewAzureProvider returns a new AzureProvider and sets the provider url endpoints.
 // If non-"common" tenant is desired, ProviderURL must be set.
 // https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-protocols-oidc
-func NewAzureProvider(p *ProviderData) (*AzureProvider, error) {
+func NewAzureProvider(p *IdentityProvider) (*AzureProvider, error) {
 	ctx := context.Background()
 
 	if p.ProviderURL == "" {
@@ -43,18 +42,20 @@ func NewAzureProvider(p *ProviderData) (*AzureProvider, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	if len(p.Scopes) == 0 {
+		p.Scopes = []string{oidc.ScopeOpenID, "profile", "email", "offline_access"}
+	}
 	p.verifier = p.provider.Verifier(&oidc.Config{ClientID: p.ClientID})
 	p.oauth = &oauth2.Config{
 		ClientID:     p.ClientID,
 		ClientSecret: p.ClientSecret,
 		Endpoint:     p.provider.Endpoint(),
 		RedirectURL:  p.RedirectURL.String(),
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+		Scopes:       p.Scopes,
 	}
 
 	azureProvider := &AzureProvider{
-		ProviderData: p,
+		IdentityProvider: p,
 	}
 	// azure has a "end session endpoint"
 	var claims struct {
@@ -95,9 +96,9 @@ func (p *AzureProvider) cbStateChange(from, to circuit.State) {
 
 // Revoke revokes the access token a given session state.
 //https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-protocols-oidc#send-a-sign-out-request
-func (p *AzureProvider) Revoke(s *sessions.SessionState) error {
+func (p *AzureProvider) Revoke(token string) error {
 	params := url.Values{}
-	params.Add("token", s.AccessToken)
+	params.Add("token", token)
 	err := httputil.Client("POST", p.RevokeURL.String(), version.UserAgent(), params, nil)
 	if err != nil && err != httputil.ErrTokenRevoked {
 		return err

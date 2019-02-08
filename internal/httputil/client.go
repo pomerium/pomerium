@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // ErrTokenRevoked signifies a token revokation or expiration error
@@ -59,6 +61,7 @@ func Client(method, endpoint, userAgent string, params url.Values, response inte
 	if err != nil {
 		return err
 	}
+	log.Info().Msgf("%s", respBody)
 
 	if resp.StatusCode != http.StatusOK {
 		switch resp.StatusCode {

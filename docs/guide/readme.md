@@ -20,7 +20,7 @@ Place your domain's wild-card TLS certificate next to the compose file. If you d
 
 ## Run
 
-Docker-compose will automatically download the latest pomerium release as well as two example containers and an nginx load balancer all in one step.
+Docker-compose will automatically download the latest pomerium release as well as two example containers.
 
 ```bash
 docker-compose up

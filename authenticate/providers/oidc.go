@@ -12,11 +12,11 @@ import (
 // of an authorization identity provider.
 // see : https://openid.net/specs/openid-connect-core-1_0.html
 type OIDCProvider struct {
-	*ProviderData
+	*IdentityProvider
 }
 
 // NewOIDCProvider creates a new instance of an OpenID Connect provider.
-func NewOIDCProvider(p *ProviderData) (*OIDCProvider, error) {
+func NewOIDCProvider(p *IdentityProvider) (*OIDCProvider, error) {
 	ctx := context.Background()
 	if p.ProviderURL == "" {
 		return nil, errors.New("missing required provider url")
@@ -26,13 +26,16 @@ func NewOIDCProvider(p *ProviderData) (*OIDCProvider, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(p.Scopes) == 0 {
+		p.Scopes = []string{oidc.ScopeOpenID, "profile", "email", "offline_access"}
+	}
 	p.verifier = p.provider.Verifier(&oidc.Config{ClientID: p.ClientID})
 	p.oauth = &oauth2.Config{
 		ClientID:     p.ClientID,
 		ClientSecret: p.ClientSecret,
 		Endpoint:     p.provider.Endpoint(),
 		RedirectURL:  p.RedirectURL.String(),
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+		Scopes:       p.Scopes,
 	}
-	return &OIDCProvider{ProviderData: p}, nil
+	return &OIDCProvider{IdentityProvider: p}, nil
 }

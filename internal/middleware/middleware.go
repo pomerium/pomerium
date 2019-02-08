@@ -119,7 +119,7 @@ func ValidateHost(mux map[string]http.Handler) func(next http.Handler) http.Hand
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if _, ok := mux[r.Host]; !ok {
-				httputil.ErrorResponse(w, r, "Unknown host to route", http.StatusNotFound)
+				httputil.ErrorResponse(w, r, "Unknown route", http.StatusNotFound)
 				return
 			}
 			next.ServeHTTP(w, r)

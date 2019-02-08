@@ -16,7 +16,7 @@ spec:
         app: pomerium-authenticate
     spec:
       containers:
-        - image: pomerium/pomerium:latest
+        - image: pomerium/pomerium:grpctest
           name: pomerium-authenticate
           ports:
             - containerPort: 443
@@ -26,7 +26,7 @@ spec:
             - name: SERVICES
               value: authenticate
             - name: REDIRECT_URL
-              value: https://sso-auth.corp.beyondperimeter.com/oauth2/callback
+              value: https://auth.corp.beyondperimeter.com/oauth2/callback
             - name: IDP_PROVIDER
               value: google
             - name: IDP_PROVIDER_URL
@@ -62,12 +62,6 @@ spec:
                 secretKeyRef:
                   name: certificate-key
                   key: certificate-key
-            - name: VIRTUAL_PROTO
-              value: https
-            - name: VIRTUAL_HOST
-              value: sso-auth.corp.beyondperimeter.com
-            - name: VIRTUAL_PORT
-              value: "443"
           readinessProbe:
             httpGet:
               path: /ping

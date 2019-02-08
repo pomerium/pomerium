@@ -1,6 +1,8 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -13,11 +15,15 @@ import (
 	"time"
 
 	"github.com/pomerium/envconfig"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
-	"github.com/pomerium/pomerium/proxy/authenticator"
+	pb "github.com/pomerium/pomerium/proto/authenticate"
 )
 
 const (
@@ -29,10 +35,13 @@ const (
 	HeaderEmail = "x-pomerium-authenticated-user-email"
 )
 
-// Options represents the configuration options for the proxy service.
+// Options represents the configurations available for the proxy service.
 type Options struct {
-	// AuthenticateServiceURL specifies the url to the pomerium authenticate http service.
-	AuthenticateServiceURL *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
+	// Authenticate service settings
+	AuthenticateURL         *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
+	AuthenticateInternalURL string   `envconfig:"AUTHENTICATE_INTERNAL_URL"`
+	//
+	OverideCertificateName string `envconfig:"OVERIDE_CERTIFICATE_NAME"`
 
 	// SigningKey is a base64 encoded private key used to add a JWT-signature to proxied requests.
 	// See : https://www.pomerium.io/guide/signed-headers.html
@@ -40,37 +49,33 @@ type Options struct {
 	// SharedKey is a 32 byte random key used to authenticate access between services.
 	SharedKey string `envconfig:"SHARED_SECRET"`
 
-	DefaultUpstreamTimeout time.Duration `envconfig:"DEFAULT_UPSTREAM_TIMEOUT"`
+	// Session/Cookie management
+	CookieName        string
+	CookieSecret      string        `envconfig:"COOKIE_SECRET"`
+	CookieDomain      string        `envconfig:"COOKIE_DOMAIN"`
+	CookieSecure      bool          `envconfig:"COOKIE_SECURE"`
+	CookieHTTPOnly    bool          `envconfig:"COOKIE_HTTP_ONLY"`
+	CookieExpire      time.Duration `envconfig:"COOKIE_EXPIRE"`
+	CookieRefresh     time.Duration `envconfig:"COOKIE_REFRESH"`
+	CookieLifetimeTTL time.Duration `envconfig:"COOKIE_LIFETIME"`
 
-	CookieName     string        `envconfig:"COOKIE_NAME"`
-	CookieSecret   string        `envconfig:"COOKIE_SECRET"`
-	CookieDomain   string        `envconfig:"COOKIE_DOMAIN"`
-	CookieExpire   time.Duration `envconfig:"COOKIE_EXPIRE"`
-	CookieHTTPOnly bool          `envconfig:"COOKIE_HTTP_ONLY"`
-
-	PassAccessToken bool `envconfig:"PASS_ACCESS_TOKEN"`
-
-	// session details
-	SessionValidTTL    time.Duration `envconfig:"SESSION_VALID_TTL"`
-	SessionLifetimeTTL time.Duration `envconfig:"SESSION_LIFETIME_TTL"`
-	GracePeriodTTL     time.Duration `envconfig:"GRACE_PERIOD_TTL"`
-
-	Routes map[string]string `envconfig:"ROUTES"`
+	// Sub-routes
+	Routes                 map[string]string `envconfig:"ROUTES"`
+	DefaultUpstreamTimeout time.Duration     `envconfig:"DEFAULT_UPSTREAM_TIMEOUT"`
 }
 
 // NewOptions returns a new options struct
 var defaultOptions = &Options{
 	CookieName:             "_pomerium_proxy",
-	CookieHTTPOnly:         false,
+	CookieHTTPOnly:         true,
+	CookieSecure:           true,
 	CookieExpire:           time.Duration(168) * time.Hour,
+	CookieRefresh:          time.Duration(30) * time.Minute,
+	CookieLifetimeTTL:      time.Duration(720) * time.Hour,
 	DefaultUpstreamTimeout: time.Duration(10) * time.Second,
-	SessionLifetimeTTL:     time.Duration(720) * time.Hour,
-	SessionValidTTL:        time.Duration(1) * time.Minute,
-	GracePeriodTTL:         time.Duration(3) * time.Hour,
-	PassAccessToken:        false,
 }
 
-// OptionsFromEnvConfig builds the authentication service's configuration
+// OptionsFromEnvConfig builds the IdentityProvider service's configuration
 // options from provided environmental variables
 func OptionsFromEnvConfig() (*Options, error) {
 	o := defaultOptions
@@ -94,11 +99,11 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("could not parse destination %s as url : %q", to, err)
 		}
 	}
-	if o.AuthenticateServiceURL == nil {
-		return errors.New("missing setting: provider-url")
+	if o.AuthenticateURL == nil {
+		return errors.New("missing setting: authenticate-service-url")
 	}
-	if o.AuthenticateServiceURL.Scheme != "https" {
-		return errors.New("provider-url must be a valid https url")
+	if o.AuthenticateURL.Scheme != "https" {
+		return errors.New("authenticate-service-url must be a valid https url")
 	}
 	if o.CookieSecret == "" {
 		return errors.New("missing setting: cookie-secret")
@@ -124,24 +129,27 @@ func (o *Options) Validate() error {
 
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
-	PassAccessToken bool
+	SharedKey string
 
-	// services
-	authenticateClient *authenticator.AuthenticateClient
+	// Authenticate Service Configuration
+	AuthenticateURL         *url.URL
+	AuthenticateInternalURL string
+	AuthenticatorClient     pb.AuthenticatorClient
+	// AuthenticateConn must be closed by Proxy's caller
+	AuthenticateConn *grpc.ClientConn
+
+	OverideCertificateName string
 	// session
-	cipher       cryptutil.Cipher
-	csrfStore    sessions.CSRFStore
-	sessionStore sessions.SessionStore
+	cipher            cryptutil.Cipher
+	csrfStore         sessions.CSRFStore
+	sessionStore      sessions.SessionStore
+	CookieExpire      time.Duration
+	CookieRefresh     time.Duration
+	CookieLifetimeTTL time.Duration
 
 	redirectURL *url.URL
 	templates   *template.Template
 	mux         map[string]http.Handler
-}
-
-// StateParameter holds the redirect id along with the session id.
-type StateParameter struct {
-	SessionID   string `json:"session_id"`
-	RedirectURI string `json:"redirect_uri"`
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -173,27 +181,21 @@ func New(opts *Options) (*Proxy, error) {
 		return nil, err
 	}
 
-	authClient := authenticator.NewClient(
-		opts.AuthenticateServiceURL,
-		opts.SharedKey,
-		// todo(bdd): fields below should be passed as function args
-		opts.SessionValidTTL,
-		opts.SessionLifetimeTTL,
-		opts.GracePeriodTTL,
-	)
-
 	p := &Proxy{
 		// these fields make up the routing mechanism
 		mux: make(map[string]http.Handler),
 		// session state
-		cipher:       cipher,
-		csrfStore:    cookieStore,
-		sessionStore: cookieStore,
-
-		authenticateClient: authClient,
-		redirectURL:        &url.URL{Path: "/.pomerium/callback"},
-		templates:          templates.New(),
-		PassAccessToken:    opts.PassAccessToken,
+		cipher:                  cipher,
+		csrfStore:               cookieStore,
+		sessionStore:            cookieStore,
+		AuthenticateURL:         opts.AuthenticateURL,
+		AuthenticateInternalURL: opts.AuthenticateInternalURL,
+		OverideCertificateName:  opts.OverideCertificateName,
+		SharedKey:               opts.SharedKey,
+		redirectURL:             &url.URL{Path: "/.pomerium/callback"},
+		templates:               templates.New(),
+		CookieExpire:            opts.CookieExpire,
+		CookieLifetimeTTL:       opts.CookieLifetimeTTL,
 	}
 
 	for from, to := range opts.Routes {
@@ -205,8 +207,42 @@ func New(opts *Options) (*Proxy, error) {
 			return nil, err
 		}
 		p.Handle(fromURL.Host, handler)
-		log.Info().Str("from", fromURL.Host).Str("to", toURL.String()).Msg("proxy.New : route")
+		log.Info().Str("from", fromURL.Host).Str("to", toURL.String()).Msg("proxy.New: new route")
 	}
+	// if no port given, assume https/443
+	port := p.AuthenticateURL.Port()
+	if port == "" {
+		port = "443"
+	}
+	authEndpoint := fmt.Sprintf("%s:%s", p.AuthenticateURL.Host, port)
+
+	cp, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.AuthenticateInternalURL != "" {
+		authEndpoint = p.AuthenticateInternalURL
+	}
+
+	log.Info().Str("authEndpoint", authEndpoint).Msgf("proxy.New: grpc authenticate connection")
+	cert := credentials.NewTLS(&tls.Config{RootCAs: cp})
+	if p.OverideCertificateName != "" {
+		err = cert.OverrideServerName(p.OverideCertificateName)
+		if err != nil {
+			return nil, err
+		}
+	}
+	grpcAuth := middleware.NewSharedSecretCred(p.SharedKey)
+	p.AuthenticateConn, err = grpc.Dial(
+		authEndpoint,
+		grpc.WithTransportCredentials(cert),
+		grpc.WithPerRPCCredentials(grpcAuth),
+	)
+	if err != nil {
+		return nil, err
+	}
+	p.AuthenticatorClient = pb.NewAuthenticatorClient(p.AuthenticateConn)
 
 	return p, nil
 }
@@ -260,8 +296,8 @@ func (u *UpstreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	u.handler.ServeHTTP(w, r)
 }
 
-// NewReverseProxy creates a reverse proxy to a specified url.
-// It adds an X-Forwarded-Host header that is the request's host.
+// NewReverseProxy returns a new ReverseProxy that routes URLs to the scheme, host, and
+// base path provided in target. NewReverseProxy rewrites the Host header.
 func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(to)
 	proxy.Transport = defaultUpstreamTransport

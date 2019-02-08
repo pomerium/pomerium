@@ -6,11 +6,15 @@ import (
 	"net/http"
 	"os"
 
+	"google.golang.org/grpc"
+
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/internal/https"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/options"
 	"github.com/pomerium/pomerium/internal/version"
+	pb "github.com/pomerium/pomerium/proto/authenticate"
 	"github.com/pomerium/pomerium/proxy"
 )
 
@@ -34,6 +38,10 @@ func main() {
 	}
 	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
 
+	grpcAuth := middleware.NewSharedSecretCred(mainOpts.SharedKey)
+	grpcOpts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcAuth.ValidateRequest)}
+	grpcServer := grpc.NewServer(grpcOpts...)
+
 	var authenticateService *authenticate.Authenticate
 	var authHost string
 	if mainOpts.Services == "all" || mainOpts.Services == "authenticate" {
@@ -51,6 +59,8 @@ func main() {
 			log.Fatal().Err(err).Msg("cmd/pomerium: new authenticate")
 		}
 		authHost = authOpts.RedirectURL.Host
+		pb.RegisterAuthenticatorServer(grpcServer, authenticateService)
+
 	}
 
 	var proxyService *proxy.Proxy
@@ -64,6 +74,7 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("cmd/pomerium: new proxy")
 		}
+		defer proxyService.AuthenticateConn.Close()
 	}
 
 	topMux := http.NewServeMux()
@@ -85,5 +96,7 @@ func main() {
 		CertFile: mainOpts.CertFile,
 		KeyFile:  mainOpts.KeyFile,
 	}
-	log.Fatal().Err(https.ListenAndServeTLS(httpOpts, topMux)).Msg("cmd/pomerium: https serve failure")
+
+	log.Fatal().Err(https.ListenAndServeTLS(httpOpts, topMux, grpcServer)).Msg("cmd/pomerium: https serve failure")
+
 }

@@ -52,7 +52,7 @@ Run [./scripts/kubernetes_gke.sh] which will:
 1. Provision a new cluster
 2. Create authenticate and proxy [deployments](https://cloud.google.com/kubernetes-engine/docs/concepts/deployment).
 3. Provision and apply authenticate and proxy [services](https://cloud.google.com/kubernetes-engine/docs/concepts/service).
-4. Configure an ingress to do serve TLS between client and load balancer
+4. Configure an ingress load balancer.
 
 ```bash
 sh ./scripts/kubernetes_gke.sh

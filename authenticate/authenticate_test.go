@@ -8,23 +8,19 @@ import (
 	"time"
 )
 
-func init() {
-	os.Clearenv()
-}
-
 func testOptions() *Options {
 	redirectURL, _ := url.Parse("https://example.com/oauth2/callback")
 	return &Options{
-		ProxyRootDomains:   []string{"example.com"},
-		AllowedDomains:     []string{"example.com"},
-		RedirectURL:        redirectURL,
-		SharedKey:          "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
-		ClientID:           "test-client-id",
-		ClientSecret:       "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
-		CookieSecret:       "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
-		CookieRefresh:      time.Duration(1) * time.Hour,
-		SessionLifetimeTTL: time.Duration(720) * time.Hour,
-		CookieExpire:       time.Duration(168) * time.Hour,
+		ProxyRootDomains:  []string{"example.com"},
+		AllowedDomains:    []string{"example.com"},
+		RedirectURL:       redirectURL,
+		SharedKey:         "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
+		ClientID:          "test-client-id",
+		ClientSecret:      "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
+		CookieSecret:      "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
+		CookieRefresh:     time.Duration(1) * time.Hour,
+		CookieLifetimeTTL: time.Duration(720) * time.Hour,
+		CookieExpire:      time.Duration(168) * time.Hour,
 	}
 }
 
@@ -81,6 +77,8 @@ func TestOptions_Validate(t *testing.T) {
 }
 
 func TestOptionsFromEnvConfig(t *testing.T) {
+	os.Clearenv()
+
 	tests := []struct {
 		name     string
 		want     *Options
@@ -91,7 +89,7 @@ func TestOptionsFromEnvConfig(t *testing.T) {
 		{"good default, no env settings", defaultOptions, "", "", false},
 		{"bad url", nil, "REDIRECT_URL", "%.rjlw", true},
 		{"good duration", defaultOptions, "COOKIE_EXPIRE", "1m", false},
-		{"bad duration", nil, "COOKIE_EXPIRE", "1sm", true},
+		{"bad duration", nil, "COOKIE_REFRESH", "1sm", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -128,6 +126,68 @@ func Test_dotPrependDomains(t *testing.T) {
 			if got := dotPrependDomains(tt.d); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("dotPrependDomains() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_newProvider(t *testing.T) {
+	redirectURL, _ := url.Parse("https://example.com/oauth3/callback")
+
+	goodOpts := &Options{
+		RedirectURL:  redirectURL,
+		Provider:     "google",
+		ProviderURL:  "",
+		ClientID:     "cllient-id",
+		ClientSecret: "client-secret",
+	}
+	tests := []struct {
+		name    string
+		opts    *Options
+		wantErr bool
+	}{
+		{"good", goodOpts, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := newProvider(tt.opts)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("newProvider() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			// if !reflect.DeepEqual(got, tt.want) {
+			// 	t.Errorf("newProvider() = %v, want %v", got, tt.want)
+			// }
+		})
+	}
+}
+
+func TestNew(t *testing.T) {
+	good := testOptions()
+	good.Provider = "google"
+
+	badRedirectURL := testOptions()
+	badRedirectURL.RedirectURL = nil
+
+	tests := []struct {
+		name string
+		opts *Options
+		// want    *Authenticate
+		wantErr bool
+	}{
+		{"good", good, false},
+		{"empty opts", nil, true},
+		{"fails to validate", badRedirectURL, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := New(tt.opts)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			// if !reflect.DeepEqual(got, tt.want) {
+			// 	t.Errorf("New() = %v, want %v", got, tt.want)
+			// }
 		})
 	}
 }

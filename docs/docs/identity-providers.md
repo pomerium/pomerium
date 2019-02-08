@@ -10,9 +10,9 @@ description: >-
 
 This article describes how to configure pomerium to use a third-party identity service for single-sign-on.
 
-There are a few configuration steps required for identity provider integration. Most providers support [OpenID Connect] which provides a standardized interface for authentication. In this guide we'll cover how to do the following for each identity provider:
+There are a few configuration steps required for identity provider integration. Most providers support [OpenID Connect] which provides a standardized interface for IdentityProvider. In this guide we'll cover how to do the following for each identity provider:
 
-1. Establish a **Redirect URL** with the identity provider which is called after authentication.
+1. Establish a **Redirect URL** with the identity provider which is called after IdentityProvider.
 2. Generate a **Client ID** and **Client Secret**.
 3. Configure pomerium to use the **Client ID** and **Client Secret** keys.
 

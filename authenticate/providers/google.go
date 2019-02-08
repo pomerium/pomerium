@@ -11,7 +11,6 @@ import (
 	"github.com/pomerium/pomerium/authenticate/circuit"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
 )
 
@@ -19,14 +18,14 @@ const defaultGoogleProviderURL = "https://accounts.google.com"
 
 // GoogleProvider is an implementation of the Provider interface.
 type GoogleProvider struct {
-	*ProviderData
+	*IdentityProvider
 	cb *circuit.Breaker
 	// non-standard oidc fields
 	RevokeURL *url.URL
 }
 
 // NewGoogleProvider returns a new GoogleProvider and sets the provider url endpoints.
-func NewGoogleProvider(p *ProviderData) (*GoogleProvider, error) {
+func NewGoogleProvider(p *IdentityProvider) (*GoogleProvider, error) {
 	ctx := context.Background()
 
 	if p.ProviderURL == "" {
@@ -37,18 +36,20 @@ func NewGoogleProvider(p *ProviderData) (*GoogleProvider, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	if len(p.Scopes) == 0 {
+		p.Scopes = []string{oidc.ScopeOpenID, "profile", "email"}
+	}
 	p.verifier = p.provider.Verifier(&oidc.Config{ClientID: p.ClientID})
 	p.oauth = &oauth2.Config{
 		ClientID:     p.ClientID,
 		ClientSecret: p.ClientSecret,
 		Endpoint:     p.provider.Endpoint(),
 		RedirectURL:  p.RedirectURL.String(),
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+		Scopes:       p.Scopes,
 	}
 
 	googleProvider := &GoogleProvider{
-		ProviderData: p,
+		IdentityProvider: p,
 	}
 	// google supports a revocation endpoint
 	var claims struct {
@@ -91,9 +92,9 @@ func (p *GoogleProvider) cbStateChange(from, to circuit.State) {
 //
 // https://developers.google.com/identity/protocols/OAuth2WebServer#tokenrevoke
 // https://github.com/googleapis/google-api-dotnet-client/issues/1285
-func (p *GoogleProvider) Revoke(s *sessions.SessionState) error {
+func (p *GoogleProvider) Revoke(accessToken string) error {
 	params := url.Values{}
-	params.Add("token", s.AccessToken)
+	params.Add("token", accessToken)
 	err := httputil.Client("POST", p.RevokeURL.String(), version.UserAgent(), params, nil)
 	if err != nil && err != httputil.ErrTokenRevoked {
 		return err
@@ -105,4 +106,5 @@ func (p *GoogleProvider) Revoke(s *sessions.SessionState) error {
 // Google requires access type offline
 func (p *GoogleProvider) GetSignInURL(state string) string {
 	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+
 }

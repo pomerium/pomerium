@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
+	"google.golang.org/grpc"
 )
 
 // Options contains the configurations settings for a TLS http server.
@@ -55,7 +57,7 @@ func (opt *Options) applyDefaults() {
 
 // ListenAndServeTLS serves the provided handlers by HTTPS
 // using the provided options.
-func ListenAndServeTLS(opt *Options, handler http.Handler) error {
+func ListenAndServeTLS(opt *Options, httpHandler http.Handler, grpcHandler *grpc.Server) error {
 	if opt == nil {
 		opt = defaultOptions
 	} else {
@@ -82,16 +84,21 @@ func ListenAndServeTLS(opt *Options, handler http.Handler) error {
 
 	ln = tls.NewListener(ln, config)
 
+	var h http.Handler
+	if grpcHandler == nil {
+		h = httpHandler
+	} else {
+		h = grpcHandlerFunc(grpcHandler, httpHandler)
+	}
 	// Set up the main server.
 	server := &http.Server{
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		// WriteTimeout is set to 0 because it also pertains to
-		// streaming replies, e.g., the DirServer.Watch interface.
+		ReadTimeout:       10 * time.Second,
+		// WriteTimeout is set to 0 for streaming replies
 		WriteTimeout: 0,
 		IdleTimeout:  60 * time.Second,
 		TLSConfig:    config,
-		Handler:      handler,
+		Handler:      h,
 	}
 
 	return server.Serve(ln)
@@ -130,10 +137,15 @@ func readCertificateFile(certFile, certKeyFile string) (*tls.Certificate, error)
 }
 
 // newDefaultTLSConfig creates a new TLS config based on the certificate files given.
-// see also:
+// See :
 // https://wiki.mozilla.org/Security/Server_Side_TLS#Recommended_configurations
+// https://blog.cloudflare.com/exposing-go-on-the-internet/
+// https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices
+// https://github.com/golang/go/blob/df91b8044dbe790c69c16058330f545be069cc1f/src/crypto/tls/common.go#L919
 func newDefaultTLSConfig(cert *tls.Certificate) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		// Prioritize cipher suites sped up by AES-NI (AES-GCM)
 		CipherSuites: []uint16{
 			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
@@ -142,10 +154,29 @@ func newDefaultTLSConfig(cert *tls.Certificate) (*tls.Config, error) {
 			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 		},
-		MinVersion:               tls.VersionTLS12,
 		PreferServerCipherSuites: true,
-		Certificates:             []tls.Certificate{*cert},
+		// Use curves which have assembly implementations
+		CurvePreferences: []tls.CurveID{
+			tls.CurveP256,
+			tls.X25519,
+		},
+		Certificates: []tls.Certificate{*cert},
+		// HTTP/2 must be enabled manually when using http.Serve
+		NextProtos: []string{"h2"},
 	}
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig, nil
+}
+
+// grpcHandlerFunc splits request serving between gRPC and HTTPS depending on the request type.
+// Requires HTTP/2.
+func grpcHandlerFunc(rpcServer *grpc.Server, other http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ct := r.Header.Get("Content-Type")
+		if r.ProtoMajor == 2 && strings.Contains(ct, "application/grpc") {
+			rpcServer.ServeHTTP(w, r)
+		} else {
+			other.ServeHTTP(w, r)
+		}
+	})
 }
