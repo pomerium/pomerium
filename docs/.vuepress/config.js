@@ -1,7 +1,7 @@
 // .vuepress/config.js
 module.exports = {
 	title: "Pomerium",
-	description: "Just playing around",
+	description: "An open source identity-aware access proxy.",
 
 	themeConfig: {
 		repo: "pomerium/pomerium",

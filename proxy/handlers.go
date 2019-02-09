@@ -1,8 +1,6 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -85,7 +83,7 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 }
 
 // Favicon will proxy the request as usual if the user is already authenticated but responds
-// with a 404 otherwise, to avoid spurious and confusing IdentityProvider attempts when a browser
+// with a 404 otherwise, to avoid spurious and confusing authenticate attempts when a browser
 // automatically requests the favicon on an error page.
 func (p *Proxy) Favicon(w http.ResponseWriter, r *http.Request) {
 	err := p.Authenticate(w, r)
@@ -108,7 +106,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fullURL.String(), http.StatusFound)
 }
 
-// OAuthStart begins the IdentityProvider flow, encrypting the redirect url
+// OAuthStart begins the authenticate flow, encrypting the redirect url
 // in a request to the provider's sign in endpoint.
 func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	requestURI := r.URL.String()
@@ -139,10 +137,8 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	signinURL := p.GetSignInURL(p.AuthenticateURL, callbackURL, encryptedState)
-	log.FromRequest(r).Info().
-		Str("SigninURL", signinURL.String()).
-		Msg("redirecting to begin auth flow")
-	// redirect the user to the IdentityProvider provider along with the encrypted state which
+	log.FromRequest(r).Info().Str("SigninURL", signinURL.String()).Msg("proxy: oauth start")
+	// redirect the user to the authenticate provider along with the encrypted state which
 	// contains a redirect uri pointing back to the proxy
 	http.Redirect(w, r, signinURL.String(), http.StatusFound)
 }
@@ -239,10 +235,10 @@ func (p *Proxy) AuthenticateOnly(w http.ResponseWriter, r *http.Request) {
 }
 
 // Proxy authenticates a request, either proxying the request if it is authenticated,
-// or starting the IdentityProvider service for validation if not.
+// or starting the authenticate service for validation if not.
 func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	err := p.Authenticate(w, r)
-	// If the IdentityProvider is not successful we proceed to start the OAuth Flow with
+	// If the authenticate is not successful we proceed to start the OAuth Flow with
 	// OAuthStart. If successful, we proceed to proxy to the configured upstream.
 	if err != nil {
 		switch err {
@@ -307,10 +303,7 @@ func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error)
 		}
 		session.AccessToken = accessToken
 		session.RefreshDeadline = expiry
-		log.FromRequest(r).Info().
-			Str("RefreshToken", session.RefreshToken).
-			Str("AccessToken", session.AccessToken).
-			Msg("proxy.Authenticate:  refresh success")
+		log.FromRequest(r).Info().Msg("proxy.Authenticate:  refresh success")
 	}
 
 	err = p.sessionStore.SaveSession(w, r, session)
@@ -340,24 +333,20 @@ func (p *Proxy) router(r *http.Request) (http.Handler, bool) {
 	return nil, false
 }
 
-// GetRedirectURL returns the redirect url for a given Proxy,
-// setting the scheme to be https if CookieSecure is true.
+// GetRedirectURL returns the redirect url for a single reverse proxy host. HTTPS is set explicitly.
 func (p *Proxy) GetRedirectURL(host string) *url.URL {
 	u := p.redirectURL
-	// Build redirect URI from request host
-	if u.Scheme == "" {
-		u.Scheme = "https"
-	}
+	u.Scheme = "https"
 	u.Host = host
 	return u
 }
 
-// signRedirectURL signs the redirect url string, given a timestamp, and returns it
+// signRedirectURL takes a redirect url string and timestamp and returns the base64
+// encoded HMAC result.
 func (p *Proxy) signRedirectURL(rawRedirect string, timestamp time.Time) string {
-	h := hmac.New(sha256.New, []byte(p.SharedKey))
-	h.Write([]byte(rawRedirect))
-	h.Write([]byte(fmt.Sprint(timestamp.Unix())))
-	return base64.URLEncoding.EncodeToString(h.Sum(nil))
+	data := []byte(fmt.Sprint(rawRedirect, timestamp.Unix()))
+	h := cryptutil.Hash(p.SharedKey, data)
+	return base64.URLEncoding.EncodeToString(h)
 }
 
 // GetSignInURL with typical oauth parameters
