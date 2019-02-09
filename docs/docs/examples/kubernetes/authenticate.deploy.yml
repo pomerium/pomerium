@@ -16,7 +16,7 @@ spec:
         app: pomerium-authenticate
     spec:
       containers:
-        - image: pomerium/pomerium:grpctest
+        - image: pomerium/pomerium:latest
           name: pomerium-authenticate
           ports:
             - containerPort: 443

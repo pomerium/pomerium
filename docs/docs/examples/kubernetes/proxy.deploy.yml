@@ -16,7 +16,7 @@ spec:
         app: pomerium-proxy
     spec:
       containers:
-        - image: pomerium/pomerium:grpctest
+        - image: pomerium/pomerium:latest
           name: pomerium-proxy
           ports:
             - containerPort: 443
