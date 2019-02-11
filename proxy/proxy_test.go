@@ -9,7 +9,10 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 )
+
+var fixedDate = time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 
 func TestOptionsFromEnvConfig(t *testing.T) {
 	os.Clearenv()

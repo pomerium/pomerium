@@ -1,12 +1,10 @@
-package proxy
+package authenticator // import "github.com/pomerium/pomerium/proxy/authenticator"
 
 import (
 	"fmt"
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/pomerium/pomerium/internal/sessions"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -34,7 +32,7 @@ func (r *rpcMsg) String() string {
 	return fmt.Sprintf("is %s", r.msg)
 }
 
-func TestProxy_AuthenticateRedeem(t *testing.T) {
+func TestProxy_Redeem(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockAuthenticateClient := mock.NewMockAuthenticatorClient(ctrl)
@@ -55,29 +53,26 @@ func TestProxy_AuthenticateRedeem(t *testing.T) {
 		Email:        "test@email.com",
 		Expiry:       mockExpire,
 	}, nil)
-	p := &Proxy{AuthenticatorClient: mockAuthenticateClient}
 	tests := []struct {
 		name    string
 		idToken string
-		want    *sessions.SessionState
+		want    *RedeemResponse
 		wantErr bool
 	}{
-		{"good", "unit_test", &sessions.SessionState{
-			AccessToken:      "mocked access token",
-			RefreshToken:     "mocked refresh token",
-			IDToken:          "mocked id token",
-			User:             "user1",
-			Email:            "test@email.com",
-			RefreshDeadline:  (fixedDate).Truncate(time.Second),
-			LifetimeDeadline: extendDeadline(p.CookieLifetimeTTL),
-			ValidDeadline:    extendDeadline(p.CookieExpire),
+		{"good", "unit_test", &RedeemResponse{
+			AccessToken:  "mocked access token",
+			RefreshToken: "mocked refresh token",
+			IDToken:      "mocked id token",
+			User:         "user1",
+			Email:        "test@email.com",
+			Expiry:       (fixedDate),
 		}, false},
 		{"empty code", "", nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			got, err := p.AuthenticateRedeem(tt.idToken)
+			a := AuthenticateGRPC{client: mockAuthenticateClient}
+			got, err := a.Redeem(tt.idToken)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Proxy.AuthenticateValidate() error = %v,\n wantErr %v", err, tt.wantErr)
 				return
@@ -113,7 +108,7 @@ func TestProxy_AuthenticateValidate(t *testing.T) {
 		&rpcMsg{msg: req},
 	).Return(&pb.ValidateReply{IsValid: false}, nil)
 
-	p := &Proxy{AuthenticatorClient: mockAuthenticateClient}
+	ac := mockAuthenticateClient
 	tests := []struct {
 		name    string
 		idToken string
@@ -125,8 +120,9 @@ func TestProxy_AuthenticateValidate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			a := AuthenticateGRPC{client: ac}
 
-			got, err := p.AuthenticateValidate(tt.idToken)
+			got, err := a.Validate(tt.idToken)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Proxy.AuthenticateValidate() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -167,9 +163,9 @@ func TestProxy_AuthenticateRefresh(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Proxy{AuthenticatorClient: mockRefreshClient}
+			a := AuthenticateGRPC{client: mockRefreshClient}
 
-			got, gotExp, err := p.AuthenticateRefresh(tt.refreshToken)
+			got, gotExp, err := a.Refresh(tt.refreshToken)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Proxy.AuthenticateRefresh() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -179,25 +175,6 @@ func TestProxy_AuthenticateRefresh(t *testing.T) {
 			}
 			if !reflect.DeepEqual(gotExp, tt.wantExp) {
 				t.Errorf("Proxy.AuthenticateRefresh() gotExp = %v, want %v", gotExp, tt.wantExp)
-			}
-		})
-	}
-}
-
-func Test_extendDeadline(t *testing.T) {
-
-	tests := []struct {
-		name string
-		ttl  time.Duration
-		want time.Time
-	}{
-		{"good", time.Second, time.Now().Add(time.Second).Truncate(time.Second)},
-		{"test nanoseconds truncated", 500 * time.Nanosecond, time.Now().Truncate(time.Second)},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := extendDeadline(tt.ttl); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("extendDeadline() = %v, want %v", got, tt.want)
 			}
 		})
 	}

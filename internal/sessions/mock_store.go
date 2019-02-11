@@ -12,17 +12,17 @@ type MockCSRFStore struct {
 }
 
 // SetCSRF sets the ResponseCSRF string to a val
-func (ms *MockCSRFStore) SetCSRF(rw http.ResponseWriter, req *http.Request, val string) {
+func (ms MockCSRFStore) SetCSRF(rw http.ResponseWriter, req *http.Request, val string) {
 	ms.ResponseCSRF = val
 }
 
 // ClearCSRF clears the ResponseCSRF string
-func (ms *MockCSRFStore) ClearCSRF(http.ResponseWriter, *http.Request) {
+func (ms MockCSRFStore) ClearCSRF(http.ResponseWriter, *http.Request) {
 	ms.ResponseCSRF = ""
 }
 
 // GetCSRF returns the cookie and error
-func (ms *MockCSRFStore) GetCSRF(*http.Request) (*http.Cookie, error) {
+func (ms MockCSRFStore) GetCSRF(*http.Request) (*http.Cookie, error) {
 	return ms.Cookie, ms.GetError
 }
 
@@ -35,16 +35,16 @@ type MockSessionStore struct {
 }
 
 // ClearSession clears the ResponseSession
-func (ms *MockSessionStore) ClearSession(http.ResponseWriter, *http.Request) {
+func (ms MockSessionStore) ClearSession(http.ResponseWriter, *http.Request) {
 	ms.ResponseSession = ""
 }
 
 // LoadSession returns the session and a error
-func (ms *MockSessionStore) LoadSession(*http.Request) (*SessionState, error) {
+func (ms MockSessionStore) LoadSession(*http.Request) (*SessionState, error) {
 	return ms.Session, ms.LoadError
 }
 
 // SaveSession returns a save error.
-func (ms *MockSessionStore) SaveSession(http.ResponseWriter, *http.Request, *SessionState) error {
+func (ms MockSessionStore) SaveSession(http.ResponseWriter, *http.Request, *SessionState) error {
 	return ms.SaveError
 }

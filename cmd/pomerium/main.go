@@ -74,7 +74,7 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("cmd/pomerium: new proxy")
 		}
-		defer proxyService.AuthenticateConn.Close()
+		defer proxyService.AuthenticateClient.Close()
 	}
 
 	topMux := http.NewServeMux()

@@ -1,8 +1,6 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -15,15 +13,12 @@ import (
 	"time"
 
 	"github.com/pomerium/envconfig"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
-	pb "github.com/pomerium/pomerium/proto/authenticate"
+	"github.com/pomerium/pomerium/proxy/authenticator"
 )
 
 const (
@@ -40,8 +35,7 @@ type Options struct {
 	// Authenticate service settings
 	AuthenticateURL         *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
 	AuthenticateInternalURL string   `envconfig:"AUTHENTICATE_INTERNAL_URL"`
-	//
-	OverideCertificateName string `envconfig:"OVERIDE_CERTIFICATE_NAME"`
+	OverideCertificateName  string   `envconfig:"OVERIDE_CERTIFICATE_NAME"`
 
 	// SigningKey is a base64 encoded private key used to add a JWT-signature to proxied requests.
 	// See : https://www.pomerium.io/guide/signed-headers.html
@@ -131,21 +125,17 @@ func (o *Options) Validate() error {
 type Proxy struct {
 	SharedKey string
 
-	// Authenticate Service Configuration
-	AuthenticateURL         *url.URL
-	AuthenticateInternalURL string
-	AuthenticatorClient     pb.AuthenticatorClient
-	// AuthenticateConn must be closed by Proxy's caller
-	AuthenticateConn *grpc.ClientConn
+	// services
+	AuthenticateURL    *url.URL
+	AuthenticateClient authenticator.Authenticator
 
-	OverideCertificateName string
 	// session
-	cipher            cryptutil.Cipher
-	csrfStore         sessions.CSRFStore
-	sessionStore      sessions.SessionStore
 	CookieExpire      time.Duration
 	CookieRefresh     time.Duration
 	CookieLifetimeTTL time.Duration
+	cipher            cryptutil.Cipher
+	csrfStore         sessions.CSRFStore
+	sessionStore      sessions.SessionStore
 
 	redirectURL *url.URL
 	templates   *template.Template
@@ -154,6 +144,8 @@ type Proxy struct {
 
 // New takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
+//
+// Caller responsible for closing AuthenticateConn.
 func New(opts *Options) (*Proxy, error) {
 	if opts == nil {
 		return nil, errors.New("options cannot be nil")
@@ -182,20 +174,18 @@ func New(opts *Options) (*Proxy, error) {
 	}
 
 	p := &Proxy{
-		// these fields make up the routing mechanism
 		mux: make(map[string]http.Handler),
+		// services
+		AuthenticateURL: opts.AuthenticateURL,
 		// session state
-		cipher:                  cipher,
-		csrfStore:               cookieStore,
-		sessionStore:            cookieStore,
-		AuthenticateURL:         opts.AuthenticateURL,
-		AuthenticateInternalURL: opts.AuthenticateInternalURL,
-		OverideCertificateName:  opts.OverideCertificateName,
-		SharedKey:               opts.SharedKey,
-		redirectURL:             &url.URL{Path: "/.pomerium/callback"},
-		templates:               templates.New(),
-		CookieExpire:            opts.CookieExpire,
-		CookieLifetimeTTL:       opts.CookieLifetimeTTL,
+		cipher:            cipher,
+		csrfStore:         cookieStore,
+		sessionStore:      cookieStore,
+		SharedKey:         opts.SharedKey,
+		redirectURL:       &url.URL{Path: "/.pomerium/callback"},
+		templates:         templates.New(),
+		CookieExpire:      opts.CookieExpire,
+		CookieLifetimeTTL: opts.CookieLifetimeTTL,
 	}
 
 	for from, to := range opts.Routes {
@@ -209,41 +199,11 @@ func New(opts *Options) (*Proxy, error) {
 		p.Handle(fromURL.Host, handler)
 		log.Info().Str("from", fromURL.Host).Str("to", toURL.String()).Msg("proxy.New: new route")
 	}
-	// if no port given, assume https/443
-	port := p.AuthenticateURL.Port()
-	if port == "" {
-		port = "443"
-	}
-	authEndpoint := fmt.Sprintf("%s:%s", p.AuthenticateURL.Host, port)
-
-	cp, err := x509.SystemCertPool()
-	if err != nil {
-		return nil, err
-	}
-
-	if p.AuthenticateInternalURL != "" {
-		authEndpoint = p.AuthenticateInternalURL
-	}
-
-	log.Info().Str("authEndpoint", authEndpoint).Msgf("proxy.New: grpc authenticate connection")
-	cert := credentials.NewTLS(&tls.Config{RootCAs: cp})
-	if p.OverideCertificateName != "" {
-		err = cert.OverrideServerName(p.OverideCertificateName)
-		if err != nil {
-			return nil, err
-		}
-	}
-	grpcAuth := middleware.NewSharedSecretCred(p.SharedKey)
-	p.AuthenticateConn, err = grpc.Dial(
-		authEndpoint,
-		grpc.WithTransportCredentials(cert),
-		grpc.WithPerRPCCredentials(grpcAuth),
-	)
-	if err != nil {
-		return nil, err
-	}
-	p.AuthenticatorClient = pb.NewAuthenticatorClient(p.AuthenticateConn)
-
+	p.AuthenticateClient, err = authenticator.New(
+		opts.AuthenticateURL,
+		opts.AuthenticateInternalURL,
+		opts.OverideCertificateName,
+		opts.SharedKey)
 	return p, nil
 }
 
