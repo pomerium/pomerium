@@ -160,7 +160,7 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// We begin the process of redeeming the code for an access token.
-	session, err := p.AuthenticateRedeem(r.Form.Get("code"))
+	rr, err := p.AuthenticateClient.Redeem(r.Form.Get("code"))
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("error redeeming authorization code")
 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
@@ -168,6 +168,10 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	encryptedState := r.Form.Get("state")
+	log.Warn().
+		Str("encryptedState", encryptedState).
+		Msg("OK")
+
 	stateParameter := &StateParameter{}
 	err = p.cipher.Unmarshal(encryptedState, stateParameter)
 	if err != nil {
@@ -192,13 +196,11 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
 		return
 	}
-
 	if encryptedState == encryptedCSRF {
 		log.FromRequest(r).Error().Msg("encrypted state and CSRF should not be equal")
 		httputil.ErrorResponse(w, r, "Bad request", http.StatusBadRequest)
 		return
 	}
-
 	if !reflect.DeepEqual(stateParameter, csrfParameter) {
 		log.FromRequest(r).Error().Msg("state and CSRF should be equal")
 		httputil.ErrorResponse(w, r, "Bad request", http.StatusBadRequest)
@@ -206,7 +208,16 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// We store the session in a cookie and redirect the user back to the application
-	err = p.sessionStore.SaveSession(w, r, session)
+	err = p.sessionStore.SaveSession(w, r, &sessions.SessionState{
+		AccessToken:      rr.AccessToken,
+		RefreshToken:     rr.RefreshToken,
+		IDToken:          rr.IDToken,
+		User:             rr.User,
+		Email:            rr.Email,
+		RefreshDeadline:  (rr.Expiry).Truncate(time.Second),
+		LifetimeDeadline: extendDeadline(p.CookieLifetimeTTL),
+		ValidDeadline:    extendDeadline(p.CookieExpire),
+	})
 	if err != nil {
 		log.FromRequest(r).Error().Msg("error saving session")
 		httputil.ErrorResponse(w, r, "Error saving session", http.StatusInternalServerError)
@@ -216,8 +227,8 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	log.FromRequest(r).Info().
 		Str("code", r.Form.Get("code")).
 		Str("state", r.Form.Get("state")).
-		Str("RefreshToken", session.RefreshToken).
-		Str("session", session.AccessToken).
+		Str("RefreshToken", rr.RefreshToken).
+		Str("session", rr.AccessToken).
 		Str("RedirectURI", stateParameter.RedirectURI).
 		Msg("session")
 
@@ -242,10 +253,6 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	// OAuthStart. If successful, we proceed to proxy to the configured upstream.
 	if err != nil {
 		switch err {
-		case ErrUserNotAuthorized:
-			log.FromRequest(r).Debug().Err(err).Msg("proxy: user access forbidden")
-			httputil.ErrorResponse(w, r, "You don't have access", http.StatusForbidden)
-			return
 		case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: starting auth flow")
 			p.OAuthStart(w, r)
@@ -256,8 +263,9 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
 	// 				! 				!					!
-	// todo(bdd): 	! Authorization checks will go here !
+	// todo(bdd): 	! Authorization service goes here   !
 	//				! 				!					!
 
 	// We have validated the users request and now proxy their request to the provided upstream.
@@ -293,7 +301,7 @@ func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error)
 		// AccessToken's usually expire after 60 or so minutes. If offline_access scope is set, a
 		// refresh token (which doesn't change) can be used to request a new access-token. If access
 		// is revoked by identity provider, or no refresh token is set request will return an error
-		accessToken, expiry, err := p.AuthenticateRefresh(session.RefreshToken)
+		accessToken, expiry, err := p.AuthenticateClient.Refresh(session.RefreshToken)
 		if err != nil {
 			log.FromRequest(r).Warn().
 				Str("RefreshToken", session.RefreshToken).
@@ -376,4 +384,8 @@ func (p *Proxy) GetSignOutURL(authenticateURL, redirectURL *url.URL) *url.URL {
 	params.Set("sig", p.signRedirectURL(rawRedirect, now))
 	a.RawQuery = params.Encode()
 	return a
+}
+
+func extendDeadline(ttl time.Duration) time.Time {
+	return time.Now().Add(ttl).Truncate(time.Second)
 }

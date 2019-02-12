@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,8 +11,33 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/proxy/authenticator"
 )
+
+type mockCipher struct{}
+
+func (a mockCipher) Encrypt(s []byte) ([]byte, error) {
+	if string(s) == "error" {
+		return []byte(""), errors.New("error encrypting")
+	}
+	return []byte("OK"), nil
+}
+
+func (a mockCipher) Decrypt(s []byte) ([]byte, error) {
+	if string(s) == "error" {
+		return []byte(""), errors.New("error encrypting")
+	}
+	return []byte("OK"), nil
+}
+func (a mockCipher) Marshal(s interface{}) (string, error) { return "ok", nil }
+func (a mockCipher) Unmarshal(s string, i interface{}) error {
+	if string(s) == "unmarshal error" || string(s) == "error" {
+		return errors.New("error")
+	}
+	return nil
+}
 
 func TestProxy_RobotsTxt(t *testing.T) {
 	proxy := Proxy{}
@@ -49,8 +75,6 @@ func TestProxy_GetRedirectURL(t *testing.T) {
 }
 
 func TestProxy_signRedirectURL(t *testing.T) {
-	fixedDate := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
-
 	tests := []struct {
 		name        string
 		rawRedirect string
@@ -194,139 +218,259 @@ func TestProxy_Handler(t *testing.T) {
 	}
 }
 
-// func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
-// 	err := r.ParseForm()
-// 	if err != nil {
-// 		log.FromRequest(r).Error().Err(err).Msg("failed parsing request form")
-// 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	errorString := r.Form.Get("error")
-// 	if errorString != "" {
-// 		httputil.ErrorResponse(w, r, errorString, http.StatusForbidden)
-// 		return
-// 	}
-// 	// We begin the process of redeeming the code for an access token.
-// 	session, err := p.AuthenticateRedeem(r.Form.Get("code"))
-// 	if err != nil {
-// 		log.FromRequest(r).Error().Err(err).Msg("error redeeming authorization code")
-// 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	encryptedState := r.Form.Get("state")
-// 	stateParameter := &StateParameter{}
-// 	err = p.cipher.Unmarshal(encryptedState, stateParameter)
-// 	if err != nil {
-// 		log.FromRequest(r).Error().Err(err).Msg("could not unmarshal state")
-// 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	c, err := p.csrfStore.GetCSRF(r)
-// 	if err != nil {
-// 		log.FromRequest(r).Error().Err(err).Msg("failed parsing csrf cookie")
-// 		httputil.ErrorResponse(w, r, err.Error(), http.StatusBadRequest)
-// 		return
-// 	}
-// 	p.csrfStore.ClearCSRF(w, r)
-
-// 	encryptedCSRF := c.Value
-// 	csrfParameter := &StateParameter{}
-// 	err = p.cipher.Unmarshal(encryptedCSRF, csrfParameter)
-// 	if err != nil {
-// 		log.FromRequest(r).Error().Err(err).Msg("couldn't unmarshal CSRF")
-// 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	if encryptedState == encryptedCSRF {
-// 		log.FromRequest(r).Error().Msg("encrypted state and CSRF should not be equal")
-// 		httputil.ErrorResponse(w, r, "Bad request", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	if !reflect.DeepEqual(stateParameter, csrfParameter) {
-// 		log.FromRequest(r).Error().Msg("state and CSRF should be equal")
-// 		httputil.ErrorResponse(w, r, "Bad request", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	// We store the session in a cookie and redirect the user back to the application
-// 	err = p.sessionStore.SaveSession(w, r, session)
-// 	if err != nil {
-// 		log.FromRequest(r).Error().Msg("error saving session")
-// 		httputil.ErrorResponse(w, r, "Error saving session", http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	log.FromRequest(r).Info().
-// 		Str("code", r.Form.Get("code")).
-// 		Str("state", r.Form.Get("state")).
-// 		Str("RefreshToken", session.RefreshToken).
-// 		Str("session", session.AccessToken).
-// 		Str("RedirectURI", stateParameter.RedirectURI).
-// 		Msg("session")
-
-// 	// This is the redirect back to the original requested application
-// 	http.Redirect(w, r, stateParameter.RedirectURI, http.StatusFound)
-// }
-
-// func TestProxy_OAuthCallback2(t *testing.T) {
-// 	proxy, err := New(testOptions())
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	testError := url.Values{"error": []string{"There was a bad error to handle"}}
-// 	req := httptest.NewRequest("GET", "/oauth-callback", strings.NewReader(testError.Encode()))
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	rr := httptest.NewRecorder()
-// 	proxy.OAuthCallback)
-// 	// expect oauth redirect
-// 	if status := rr.Code; status != http.StatusInternalServerError {
-// 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
-// 	}
-// 	// expected url
-// 	// expected := `<a href="https://sso-auth.corp.beyondperimeter.com/sign_in`
-// 	// body := rr.Body.String()
-// 	// if !strings.HasPrefix(body, expected) {
-// 	// 	t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
-// 	// }
-// }
-
 func TestProxy_OAuthCallback(t *testing.T) {
-	proxy, err := New(testOptions())
-	if err != nil {
-		t.Fatal(err)
+	//todo(bdd): test malformed requests
+	// https://github.com/golang/go/blob/master/src/net/http/request_test.go#L110
+	normalSession := sessions.MockSessionStore{
+		Session: &sessions.SessionState{
+			AccessToken:      "AccessToken",
+			RefreshToken:     "RefreshToken",
+			LifetimeDeadline: time.Now().Add(10 * time.Second),
+			RefreshDeadline:  time.Now().Add(-10 * time.Second),
+		},
 	}
+	normalAuth := authenticator.MockAuthenticate{
+		RedeemResponse: &authenticator.RedeemResponse{
+			AccessToken:  "AccessToken",
+			RefreshToken: "RefreshToken",
+			Expiry:       time.Now().Add(10 * time.Second),
+		},
+	}
+	normalCsrf := sessions.MockCSRFStore{
+		ResponseCSRF: "ok",
+		GetError:     nil,
+		Cookie: &http.Cookie{
+			Name:  "something_csrf",
+			Value: "csrf_state",
+		}}
 	tests := []struct {
-		name     string
-		method   string
-		params   map[string]string
-		wantCode int
+		name          string
+		csrf          sessions.MockCSRFStore
+		session       sessions.MockSessionStore
+		authenticator authenticator.MockAuthenticate
+		params        map[string]string
+		wantCode      int
 	}{
-		{"nil", http.MethodPost, nil, http.StatusInternalServerError},
-		{"error", http.MethodPost, map[string]string{"error": "some error"}, http.StatusForbidden},
-		{"state", http.MethodPost, map[string]string{"code": "code"}, http.StatusInternalServerError},
+		{"good", normalCsrf, normalSession, normalAuth, map[string]string{"code": "code", "state": "state"}, http.StatusFound},
+		{"error", normalCsrf, normalSession, normalAuth, map[string]string{"error": "some error"}, http.StatusForbidden},
+		{"code err", normalCsrf, normalSession, authenticator.MockAuthenticate{RedeemError: errors.New("error")}, map[string]string{"code": "error"}, http.StatusInternalServerError},
+		{"state err", normalCsrf, normalSession, normalAuth, map[string]string{"code": "code", "state": "error"}, http.StatusInternalServerError},
+		{"csrf err", sessions.MockCSRFStore{GetError: errors.New("error")}, normalSession, normalAuth, map[string]string{"code": "code", "state": "state"}, http.StatusBadRequest},
+		{"unmarshal err", sessions.MockCSRFStore{
+			Cookie: &http.Cookie{
+				Name:  "something_csrf",
+				Value: "unmarshal error",
+			},
+		}, normalSession, normalAuth, map[string]string{"code": "code", "state": "state"}, http.StatusInternalServerError},
+		{"encrypted state != CSRF", normalCsrf, normalSession, normalAuth, map[string]string{"code": "code", "state": "csrf_state"}, http.StatusBadRequest},
+		{"session save err", normalCsrf, sessions.MockSessionStore{SaveError: errors.New("error")}, normalAuth, map[string]string{"code": "code", "state": "state"}, http.StatusInternalServerError},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			req := httptest.NewRequest(tt.method, "/.pomerium/callback", nil)
+			proxy, err := New(testOptions())
+			if err != nil {
+				t.Fatal(err)
+			}
+			proxy.sessionStore = tt.session
+			proxy.csrfStore = tt.csrf
+			proxy.AuthenticateClient = tt.authenticator
+			proxy.cipher = mockCipher{}
+			// proxy.Csrf
+			req := httptest.NewRequest(http.MethodPost, "/.pomerium/callback", nil)
 			q := req.URL.Query()
 			for k, v := range tt.params {
 				q.Add(k, v)
 			}
 			req.URL.RawQuery = q.Encode()
-			fmt.Println("OK OK OK OK")
-
-			fmt.Println(req.URL.String())
 			w := httptest.NewRecorder()
 			proxy.OAuthCallback(w, req)
 			if status := w.Code; status != tt.wantCode {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
+			}
+		})
+	}
+
+}
+func Test_extendDeadline(t *testing.T) {
+	tests := []struct {
+		name string
+		ttl  time.Duration
+		want time.Time
+	}{
+		{"good", time.Second, time.Now().Add(time.Second).Truncate(time.Second)},
+		{"test nanoseconds truncated", 500 * time.Nanosecond, time.Now().Truncate(time.Second)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := extendDeadline(tt.ttl); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("extendDeadline() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestProxy_router(t *testing.T) {
+
+	tests := []struct {
+		name   string
+		host   string
+		mux    map[string]string
+		route  http.Handler
+		wantOk bool
+	}{
+		{"good corp", "https://corp.example.com", map[string]string{"corp.example.com": "example.com"}, nil, true},
+		{"good with slash", "https://corp.example.com/", map[string]string{"corp.example.com": "example.com"}, nil, true},
+		{"good with path", "https://corp.example.com/123", map[string]string{"corp.example.com": "example.com"}, nil, true},
+		{"multiple", "https://corp.example.com/", map[string]string{"corp.unrelated.com": "unrelated.com", "corp.example.com": "example.com"}, nil, true},
+		{"bad corp", "https://notcorp.example.com/123", map[string]string{"corp.example.com": "example.com"}, nil, false},
+		{"bad sub-sub", "https://notcorp.corp.example.com/123", map[string]string{"corp.example.com": "example.com"}, nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := testOptions()
+			opts.Routes = tt.mux
+			p, err := New(opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p.AuthenticateClient = authenticator.MockAuthenticate{}
+			p.cipher = mockCipher{}
+
+			req := httptest.NewRequest("GET", tt.host, nil)
+			_, ok := p.router(req)
+			if ok != tt.wantOk {
+				t.Errorf("Proxy.router() ok = %v, want %v", ok, tt.wantOk)
+			}
+		})
+	}
+}
+
+func TestProxy_Proxy(t *testing.T) {
+	goodSession := &sessions.SessionState{
+		AccessToken:      "AccessToken",
+		RefreshToken:     "RefreshToken",
+		LifetimeDeadline: time.Now().Add(10 * time.Second),
+		RefreshDeadline:  time.Now().Add(10 * time.Second),
+		ValidDeadline:    time.Now().Add(10 * time.Second),
+	}
+	expiredLifetime := &sessions.SessionState{
+		AccessToken:      "AccessToken",
+		RefreshToken:     "RefreshToken",
+		LifetimeDeadline: time.Now().Add(-10 * time.Second),
+	}
+	// expiredDeadline := &sessions.SessionState{
+	// 	AccessToken:      "AccessToken",
+	// 	RefreshToken:     "RefreshToken",
+	// 	LifetimeDeadline: time.Now().Add(10 * time.Second),
+	// 	RefreshDeadline:  time.Now().Add(-10 * time.Second),
+	// }
+
+	tests := []struct {
+		name          string
+		host          string
+		session       sessions.SessionStore
+		authenticator authenticator.Authenticator
+		wantStatus    int
+	}{
+		// weirdly, we want 503 here because that means proxy is trying to route a domain (example.com) that we dont control. Weird. I know.
+		{"good", "https://corp.example.com/test", sessions.MockSessionStore{Session: goodSession}, authenticator.MockAuthenticate{}, http.StatusServiceUnavailable},
+		{"unexpected error", "https://corp.example.com/test", sessions.MockSessionStore{LoadError: errors.New("ok")}, authenticator.MockAuthenticate{}, http.StatusInternalServerError},
+		// redirect to start auth process
+		{"expired lifetime", "https://corp.example.com/test", sessions.MockSessionStore{Session: expiredLifetime}, authenticator.MockAuthenticate{}, http.StatusFound},
+		{"unknown host", "https://notcorp.example.com/test", sessions.MockSessionStore{Session: goodSession}, authenticator.MockAuthenticate{}, http.StatusNotFound},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := testOptions()
+			p, err := New(opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p.cipher = mockCipher{}
+			p.sessionStore = tt.session
+			p.AuthenticateClient = tt.authenticator
+
+			r := httptest.NewRequest("GET", tt.host, nil)
+			w := httptest.NewRecorder()
+			p.Proxy(w, r)
+			if status := w.Code; status != tt.wantStatus {
+				t.Errorf("handler returned wrong status code: got %v want %v \n body %s", status, tt.wantStatus, w.Body.String())
+			}
+
+		})
+	}
+}
+
+func TestProxy_Authenticate(t *testing.T) {
+	goodSession := &sessions.SessionState{
+		AccessToken:      "AccessToken",
+		RefreshToken:     "RefreshToken",
+		LifetimeDeadline: time.Now().Add(10 * time.Second),
+		RefreshDeadline:  time.Now().Add(10 * time.Second),
+		ValidDeadline:    time.Now().Add(10 * time.Second),
+	}
+	expiredLifetime := &sessions.SessionState{
+		AccessToken:      "AccessToken",
+		RefreshToken:     "RefreshToken",
+		LifetimeDeadline: time.Now().Add(-10 * time.Second),
+	}
+	expiredDeadline := &sessions.SessionState{
+		AccessToken:      "AccessToken",
+		RefreshToken:     "RefreshToken",
+		LifetimeDeadline: time.Now().Add(10 * time.Second),
+		RefreshDeadline:  time.Now().Add(-10 * time.Second),
+	}
+	tests := []struct {
+		name          string
+		host          string
+		mux           map[string]string
+		session       sessions.SessionStore
+		authenticator authenticator.Authenticator
+		wantErr       bool
+	}{
+		{"cannot load session",
+			"https://corp.example.com/",
+			map[string]string{"corp.example.com": "example.com"},
+			sessions.MockSessionStore{LoadError: errors.New("error")}, authenticator.MockAuthenticate{}, true},
+		{"expired lifetime",
+			"https://corp.example.com/",
+			map[string]string{"corp.example.com": "example.com"},
+			sessions.MockSessionStore{Session: expiredLifetime}, authenticator.MockAuthenticate{}, true},
+		{"expired session",
+			"https://corp.example.com/",
+			map[string]string{"corp.example.com": "example.com"},
+			sessions.MockSessionStore{Session: expiredDeadline}, authenticator.MockAuthenticate{}, false},
+		{"bad refresh authenticator",
+			"https://corp.example.com/",
+			map[string]string{"corp.example.com": "example.com"},
+			sessions.MockSessionStore{
+				Session: expiredDeadline,
+			},
+			authenticator.MockAuthenticate{RefreshError: errors.New("error")},
+			true},
+
+		{"good",
+			"https://corp.example.com/",
+			map[string]string{"corp.example.com": "example.com"},
+			sessions.MockSessionStore{Session: goodSession}, authenticator.MockAuthenticate{}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := testOptions()
+			opts.Routes = tt.mux
+			p, err := New(opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p.sessionStore = tt.session
+			p.AuthenticateClient = tt.authenticator
+			p.cipher = mockCipher{}
+			r := httptest.NewRequest("GET", tt.host, nil)
+			w := httptest.NewRecorder()
+
+			if err := p.Authenticate(w, r); (err != nil) != tt.wantErr {
+				t.Errorf("Proxy.Authenticate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
