@@ -210,6 +210,7 @@ func New(opts *Options) (*Proxy, error) {
 			InternalAddr:           opts.AuthenticateInternalAddr,
 			OverideCertificateName: opts.OverideCertificateName,
 			SharedSecret:           opts.SharedKey,
+			Port:                   opts.AuthenticatePort,
 		})
 	return p, nil
 }
