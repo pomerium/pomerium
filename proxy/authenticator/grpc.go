@@ -1,14 +1,72 @@
 package authenticator // import "github.com/pomerium/pomerium/proxy/authenticator"
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/middleware"
 	pb "github.com/pomerium/pomerium/proto/authenticate"
 )
+
+// NewGRPC returns a new authenticate service client.
+func NewGRPC(opts *Options) (p Authenticator, err error) {
+	// gRPC uses a pre-shared secret middleware to establish authentication b/w server and client
+	if opts.SharedSecret == "" {
+		return nil, errors.New("proxy/authenticator: grpc client requires shared secret")
+	}
+	grpcAuth := middleware.NewSharedSecretCred(opts.SharedSecret)
+
+	var connAddr string
+	if opts.InternalAddr != "" {
+		connAddr = opts.InternalAddr
+	} else {
+		connAddr = opts.Addr
+	}
+	if connAddr == "" {
+		return nil, errors.New("proxy/authenticator: connection address required")
+	}
+	// no colon exists in the connection string, assume one must be added manually
+	if !strings.Contains(":", connAddr) {
+		connAddr = fmt.Sprintf("%s:%d", connAddr, opts.Port)
+	}
+
+	cp, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info().
+		Str("OverideCertificateName", opts.OverideCertificateName).
+		Str("addr", connAddr).Msgf("proxy/authenticator: grpc connection")
+	cert := credentials.NewTLS(&tls.Config{RootCAs: cp})
+
+	// overide allowed certificate name string, typically used when doing behind ingress connection
+	if opts.OverideCertificateName != "" {
+		err = cert.OverrideServerName(opts.OverideCertificateName)
+		if err != nil {
+			return nil, err
+		}
+	}
+	conn, err := grpc.Dial(
+		connAddr,
+		grpc.WithTransportCredentials(cert),
+		grpc.WithPerRPCCredentials(grpcAuth),
+	)
+	if err != nil {
+		return nil, err
+	}
+	authClient := pb.NewAuthenticatorClient(conn)
+	return &AuthenticateGRPC{conn: conn, client: authClient}, nil
+}
 
 // RedeemResponse contains data from a authenticator redeem request.
 type RedeemResponse struct {
@@ -49,9 +107,6 @@ func (a *AuthenticateGRPC) Redeem(code string) (*RedeemResponse, error) {
 		User:         r.User,
 		Email:        r.Email,
 		Expiry:       expiry,
-		// RefreshDeadline:  (expiry).Truncate(time.Second),
-		// LifetimeDeadline: extendDeadline(p.CookieLifetimeTTL),
-		// ValidDeadline:    extendDeadline(p.CookieExpire),
 	}, nil
 }
 

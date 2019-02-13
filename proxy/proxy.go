@@ -33,9 +33,10 @@ const (
 // Options represents the configurations available for the proxy service.
 type Options struct {
 	// Authenticate service settings
-	AuthenticateURL         *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
-	AuthenticateInternalURL string   `envconfig:"AUTHENTICATE_INTERNAL_URL"`
-	OverideCertificateName  string   `envconfig:"OVERIDE_CERTIFICATE_NAME"`
+	AuthenticateURL          *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
+	AuthenticateInternalAddr string   `envconfig:"AUTHENTICATE_INTERNAL_URL"`
+	OverideCertificateName   string   `envconfig:"OVERIDE_CERTIFICATE_NAME"`
+	AuthenticatePort         int      `envconfig:"AUTHENTICATE_SERVICE_PORT"`
 
 	// SigningKey is a base64 encoded private key used to add a JWT-signature to proxied requests.
 	// See : https://www.pomerium.io/guide/signed-headers.html
@@ -67,6 +68,8 @@ var defaultOptions = &Options{
 	CookieRefresh:          time.Duration(30) * time.Minute,
 	CookieLifetimeTTL:      time.Duration(720) * time.Hour,
 	DefaultUpstreamTimeout: time.Duration(10) * time.Second,
+	// services
+	AuthenticatePort: 443,
 }
 
 // OptionsFromEnvConfig builds the IdentityProvider service's configuration
@@ -199,11 +202,15 @@ func New(opts *Options) (*Proxy, error) {
 		p.Handle(fromURL.Host, handler)
 		log.Info().Str("from", fromURL.Host).Str("to", toURL.String()).Msg("proxy.New: new route")
 	}
+
 	p.AuthenticateClient, err = authenticator.New(
-		opts.AuthenticateURL,
-		opts.AuthenticateInternalURL,
-		opts.OverideCertificateName,
-		opts.SharedKey)
+		"grpc",
+		&authenticator.Options{
+			Addr:                   opts.AuthenticateURL.Host,
+			InternalAddr:           opts.AuthenticateInternalAddr,
+			OverideCertificateName: opts.OverideCertificateName,
+			SharedSecret:           opts.SharedKey,
+		})
 	return p, nil
 }
 
