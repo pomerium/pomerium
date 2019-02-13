@@ -56,3 +56,24 @@ func TestMockAuthenticate(t *testing.T) {
 	}
 
 }
+
+func TestNew(t *testing.T) {
+	tests := []struct {
+		name        string
+		serviceName string
+		opts        *Options
+		wantErr     bool
+	}{
+		{"grpc good", "grpc", &Options{Addr: "test", InternalAddr: "intranet.local", SharedSecret: "secret"}, false},
+		{"grpc missing shared secret", "grpc", &Options{Addr: "test", InternalAddr: "intranet.local", SharedSecret: ""}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := New(tt.serviceName, tt.opts)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
+}
