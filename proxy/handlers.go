@@ -42,7 +42,6 @@ func (p *Proxy) Handler() http.Handler {
 	mux.HandleFunc("/robots.txt", p.RobotsTxt)
 	mux.HandleFunc("/.pomerium/sign_out", p.SignOut)
 	mux.HandleFunc("/.pomerium/callback", p.OAuthCallback)
-	mux.HandleFunc("/.pomerium/auth", p.AuthenticateOnly)
 	mux.HandleFunc("/", p.Proxy)
 
 	// middleware chain
@@ -236,15 +235,6 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, stateParameter.RedirectURI, http.StatusFound)
 }
 
-// AuthenticateOnly calls the Authenticate handler.
-func (p *Proxy) AuthenticateOnly(w http.ResponseWriter, r *http.Request) {
-	err := p.Authenticate(w, r)
-	if err != nil {
-		http.Error(w, "unauthorized request", http.StatusUnauthorized)
-	}
-	w.WriteHeader(http.StatusAccepted)
-}
-
 // Proxy authenticates a request, either proxying the request if it is authenticated,
 // or starting the authenticate service for validation if not.
 func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
@@ -274,7 +264,6 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, "unknown route to proxy", http.StatusNotFound)
 		return
 	}
-
 	route.ServeHTTP(w, r)
 }
 

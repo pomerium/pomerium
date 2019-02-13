@@ -1,8 +1,9 @@
-package authenticator // import "github.com/pomerium/pomerium/proxy/authenticator"
+package authenticator
 
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -175,6 +176,38 @@ func TestProxy_AuthenticateRefresh(t *testing.T) {
 			}
 			if !reflect.DeepEqual(gotExp, tt.wantExp) {
 				t.Errorf("Proxy.AuthenticateRefresh() gotExp = %v, want %v", gotExp, tt.wantExp)
+			}
+		})
+	}
+}
+
+func TestNewGRPC(t *testing.T) {
+
+	tests := []struct {
+		name       string
+		opts       *Options
+		wantErr    bool
+		wantErrStr string
+	}{
+		{"no shared secret", &Options{}, true, "proxy/authenticator: grpc client requires shared secret"},
+		{"empty connection", &Options{Addr: "", SharedSecret: "shh"}, true, "proxy/authenticator: connection address required"},
+		{"empty connections", &Options{Addr: "", InternalAddr: "", SharedSecret: "shh"}, true, "proxy/authenticator: connection address required"},
+		{"internal addr", &Options{Addr: "", InternalAddr: "intranet.local", SharedSecret: "shh"}, false, "proxy/authenticator: connection address required"},
+		{"cert overide", &Options{Addr: "", InternalAddr: "intranet.local", OverideCertificateName: "*.local", SharedSecret: "shh"}, false, "proxy/authenticator: connection address required"},
+
+		// {"addr and internal ", &Options{Addr: "localhost", InternalAddr: "local.localhost", SharedSecret: "shh"}, nil, true, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewGRPC(tt.opts)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewGRPC() error = %v, wantErr %v", err, tt.wantErr)
+				if !strings.EqualFold(err.Error(), tt.wantErrStr) {
+					t.Errorf("NewGRPC() error = %v did not contain wantErr %v", err, tt.wantErrStr)
+				}
+
+				return
+
 			}
 		})
 	}

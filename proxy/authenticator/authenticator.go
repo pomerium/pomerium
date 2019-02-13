@@ -1,18 +1,7 @@
 package authenticator // import "github.com/pomerium/pomerium/proxy/authenticator"
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"fmt"
-	"net/url"
 	"time"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/middleware"
-	pb "github.com/pomerium/pomerium/proto/authenticate"
 )
 
 // Authenticator provides the authenticate service interface
@@ -28,42 +17,24 @@ type Authenticator interface {
 	Close() error
 }
 
-// New returns a new identity provider based given its name.
-// Returns an error if selected provided not found or if the identity provider is not known.
-func New(uri *url.URL, internalURL, OverideCertificateName, key string) (p Authenticator, err error) {
-	// if no port given, assume https/443
-	port := uri.Port()
-	if port == "" {
-		port = "443"
-	}
-	authEndpoint := fmt.Sprintf("%s:%s", uri.Host, port)
+// Options contains options for connecting to an authenticate service .
+type Options struct {
+	// Addr is the location of the authenticate service. Used if InternalAddr is not set.
+	Addr string
+	Port int
+	// InternalAddr is the internal (behind the ingress) address to use when making an
+	// authentication connection. If empty, Addr is used.
+	InternalAddr string
+	// OverrideServerName overrides the server name used to verify the hostname on the
+	// returned certificates from the server.  gRPC internals also use it to override the virtual
+	// hosting name if it is set.
+	OverideCertificateName string
+	// Shared secret is used to authenticate a authenticate-client with a authenticate-server.
+	SharedSecret string
+}
 
-	cp, err := x509.SystemCertPool()
-	if err != nil {
-		return nil, err
-	}
-
-	if internalURL != "" {
-		authEndpoint = internalURL
-	}
-
-	log.Info().Str("authEndpoint", authEndpoint).Msgf("proxy.New: grpc authenticate connection")
-	cert := credentials.NewTLS(&tls.Config{RootCAs: cp})
-	if OverideCertificateName != "" {
-		err = cert.OverrideServerName(OverideCertificateName)
-		if err != nil {
-			return nil, err
-		}
-	}
-	grpcAuth := middleware.NewSharedSecretCred(key)
-	conn, err := grpc.Dial(
-		authEndpoint,
-		grpc.WithTransportCredentials(cert),
-		grpc.WithPerRPCCredentials(grpcAuth),
-	)
-	if err != nil {
-		return nil, err
-	}
-	authClient := pb.NewAuthenticatorClient(conn)
-	return &AuthenticateGRPC{conn: conn, client: authClient}, nil
+// New returns a new authenticate service client. Takes a client implementation name as an argument.
+// Currently only gRPC is supported and is always returned.
+func New(name string, opts *Options) (a Authenticator, err error) {
+	return NewGRPC(opts)
 }

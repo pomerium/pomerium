@@ -429,6 +429,12 @@ func TestProxy_Authenticate(t *testing.T) {
 		authenticator authenticator.Authenticator
 		wantErr       bool
 	}{
+		{"cannot save session",
+			"https://corp.example.com/",
+			map[string]string{"corp.example.com": "example.com"},
+			sessions.MockSessionStore{Session: goodSession, SaveError: errors.New("error")},
+			authenticator.MockAuthenticate{}, true},
+
 		{"cannot load session",
 			"https://corp.example.com/",
 			map[string]string{"corp.example.com": "example.com"},
