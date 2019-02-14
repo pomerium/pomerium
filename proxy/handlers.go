@@ -121,7 +121,7 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	// this value will be unique since we always use a randomized nonce as part of marshaling
 	encryptedCSRF, err := p.cipher.Marshal(state)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("failed to marshal csrf")
+		log.FromRequest(r).Error().Err(err).Msg("proxy: failed to marshal csrf")
 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -131,7 +131,7 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	// this value will be unique since we always use a randomized nonce as part of marshaling
 	encryptedState, err := p.cipher.Marshal(state)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("failed to encrypt cookie")
+		log.FromRequest(r).Error().Err(err).Msg("proxy: failed to encrypt cookie")
 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -149,7 +149,7 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("failed parsing request form")
+		log.FromRequest(r).Error().Err(err).Msg("proxy: failed parsing request form")
 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -161,27 +161,23 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	// We begin the process of redeeming the code for an access token.
 	rr, err := p.AuthenticateClient.Redeem(r.Form.Get("code"))
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("error redeeming authorization code")
+		log.FromRequest(r).Error().Err(err).Msg("proxy: error redeeming authorization code")
 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
 	encryptedState := r.Form.Get("state")
-	log.Warn().
-		Str("encryptedState", encryptedState).
-		Msg("OK")
-
 	stateParameter := &StateParameter{}
 	err = p.cipher.Unmarshal(encryptedState, stateParameter)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("could not unmarshal state")
+		log.FromRequest(r).Error().Err(err).Msg("proxy: could not unmarshal state")
 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
 	c, err := p.csrfStore.GetCSRF(r)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("failed parsing csrf cookie")
+		log.FromRequest(r).Error().Err(err).Msg("proxy: failed parsing csrf cookie")
 		httputil.ErrorResponse(w, r, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -191,7 +187,7 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	csrfParameter := &StateParameter{}
 	err = p.cipher.Unmarshal(encryptedCSRF, csrfParameter)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("couldn't unmarshal CSRF")
+		log.FromRequest(r).Error().Err(err).Msg("proxy: couldn't unmarshal CSRF")
 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
 		return
 	}
@@ -283,7 +279,7 @@ func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error)
 	}
 
 	if session.LifetimePeriodExpired() {
-		log.FromRequest(r).Info().Msg("proxy.Authenticate: lifetime expired, restarting")
+		log.FromRequest(r).Info().Msg("proxy: lifetime expired")
 		return sessions.ErrLifetimeExpired
 	}
 	if session.RefreshPeriodExpired() {
@@ -295,12 +291,12 @@ func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error)
 			log.FromRequest(r).Warn().
 				Str("RefreshToken", session.RefreshToken).
 				Str("AccessToken", session.AccessToken).
-				Msg("proxy.Authenticate: refresh failure")
+				Msg("proxy: refresh failed")
 			return err
 		}
 		session.AccessToken = accessToken
 		session.RefreshDeadline = expiry
-		log.FromRequest(r).Info().Msg("proxy.Authenticate:  refresh success")
+		log.FromRequest(r).Info().Msg("proxy: refresh success")
 	}
 
 	err = p.sessionStore.SaveSession(w, r, session)

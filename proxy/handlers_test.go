@@ -359,12 +359,6 @@ func TestProxy_Proxy(t *testing.T) {
 		RefreshToken:     "RefreshToken",
 		LifetimeDeadline: time.Now().Add(-10 * time.Second),
 	}
-	// expiredDeadline := &sessions.SessionState{
-	// 	AccessToken:      "AccessToken",
-	// 	RefreshToken:     "RefreshToken",
-	// 	LifetimeDeadline: time.Now().Add(10 * time.Second),
-	// 	RefreshDeadline:  time.Now().Add(-10 * time.Second),
-	// }
 
 	tests := []struct {
 		name          string

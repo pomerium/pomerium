@@ -176,9 +176,6 @@ footer {
 </head>
 <body>
     <div class="container">
-    	{{ if .Message }}
-    	   <div class="message">{{.Message}}</div>
-    	{{ end}}
     	<div class="content">
             <header>
                 <h1>Sign out of <b>{{.Destination}}</b></h1>
