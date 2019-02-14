@@ -30,7 +30,7 @@ spec:
             - name: AUTHENTICATE_SERVICE_URL
               value: https://auth.corp.beyondperimeter.com
             - name: AUTHENTICATE_INTERNAL_URL
-              value: "pomerium-authenticate-service.pomerium.svc.cluster.local:443"
+              value: "pomerium-authenticate-service.pomerium.svc.cluster.local"
             - name: OVERIDE_CERTIFICATE_NAME
               value: "*.corp.beyondperimeter.com"
             - name: SHARED_SECRET
