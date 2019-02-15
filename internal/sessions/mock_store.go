@@ -35,7 +35,7 @@ type MockSessionStore struct {
 }
 
 // ClearSession clears the ResponseSession
-func (ms MockSessionStore) ClearSession(http.ResponseWriter, *http.Request) {
+func (ms *MockSessionStore) ClearSession(http.ResponseWriter, *http.Request) {
 	ms.ResponseSession = ""
 }
 

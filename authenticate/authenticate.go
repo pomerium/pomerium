@@ -18,37 +18,38 @@ import (
 )
 
 var defaultOptions = &Options{
-	CookieName:        "_pomerium_authenticate",
-	CookieHTTPOnly:    true,
-	CookieSecure:      true,
-	CookieExpire:      time.Duration(168) * time.Hour,
-	CookieRefresh:     time.Duration(30) * time.Minute,
-	CookieLifetimeTTL: time.Duration(720) * time.Hour,
+	CookieName:     "_pomerium_authenticate",
+	CookieHTTPOnly: true,
+	CookieSecure:   true,
+	CookieExpire:   time.Duration(168) * time.Hour,
+	CookieRefresh:  time.Duration(30) * time.Minute,
 }
 
 // Options details the available configuration settings for the authenticate service
 type Options struct {
-	RedirectURL *url.URL `envconfig:"REDIRECT_URL"`
-
 	// SharedKey is used to authenticate requests between services
 	SharedKey string `envconfig:"SHARED_SECRET"`
 
+	// RedirectURL specifies the callback url following third party authentication
+	RedirectURL *url.URL `envconfig:"REDIRECT_URL"`
+
 	// Coarse authorization based on user email domain
+	// todo(bdd) : to be replaced with authorization module
 	AllowedDomains   []string `envconfig:"ALLOWED_DOMAINS"`
 	ProxyRootDomains []string `envconfig:"PROXY_ROOT_DOMAIN"`
 
 	// Session/Cookie management
-	CookieName        string
-	CookieSecret      string        `envconfig:"COOKIE_SECRET"`
-	CookieDomain      string        `envconfig:"COOKIE_DOMAIN"`
-	CookieSecure      bool          `envconfig:"COOKIE_SECURE"`
-	CookieHTTPOnly    bool          `envconfig:"COOKIE_HTTP_ONLY"`
-	CookieExpire      time.Duration `envconfig:"COOKIE_EXPIRE"`
-	CookieRefresh     time.Duration `envconfig:"COOKIE_REFRESH"`
-	CookieLifetimeTTL time.Duration `envconfig:"COOKIE_LIFETIME"`
+	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
+	CookieName     string
+	CookieSecret   string        `envconfig:"COOKIE_SECRET"`
+	CookieDomain   string        `envconfig:"COOKIE_DOMAIN"`
+	CookieSecure   bool          `envconfig:"COOKIE_SECURE"`
+	CookieHTTPOnly bool          `envconfig:"COOKIE_HTTP_ONLY"`
+	CookieExpire   time.Duration `envconfig:"COOKIE_EXPIRE"`
+	CookieRefresh  time.Duration `envconfig:"COOKIE_REFRESH"`
 
 	// IdentityProvider provider configuration variables as specified by RFC6749
-	// See: https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
+	// https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
 	ClientID     string   `envconfig:"IDP_CLIENT_ID"`
 	ClientSecret string   `envconfig:"IDP_CLIENT_SECRET"`
 	Provider     string   `envconfig:"IDP_PROVIDER"`
@@ -103,17 +104,13 @@ func (o *Options) Validate() error {
 
 // Authenticate validates a user's identity
 type Authenticate struct {
-	RedirectURL *url.URL
-
-	Validator func(string) bool
-
-	AllowedDomains   []string
-	ProxyRootDomains []string
-	CookieSecure     bool
-
 	SharedKey string
 
-	CookieLifetimeTTL time.Duration
+	RedirectURL      *url.URL
+	AllowedDomains   []string
+	ProxyRootDomains []string
+
+	Validator func(string) bool
 
 	templates    *template.Template
 	csrfStore    sessions.CSRFStore
@@ -137,35 +134,45 @@ func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate
 	if err != nil {
 		return nil, err
 	}
-	cookieStore, err := sessions.NewCookieStore(opts.CookieName,
-		sessions.CreateCookieCipher(decodedCookieSecret),
-		func(c *sessions.CookieStore) error {
-			c.CookieDomain = opts.CookieDomain
-			c.CookieHTTPOnly = opts.CookieHTTPOnly
-			c.CookieExpire = opts.CookieExpire
-			c.CookieSecure = opts.CookieSecure
-			return nil
+	cookieStore, err := sessions.NewCookieStore(
+		&sessions.CookieStoreOptions{
+			Name:           opts.CookieName,
+			CookieSecure:   opts.CookieSecure,
+			CookieHTTPOnly: opts.CookieHTTPOnly,
+			CookieExpire:   opts.CookieExpire,
+			CookieCipher:   cipher,
 		})
 
 	if err != nil {
 		return nil, err
 	}
 
-	p := &Authenticate{
-		SharedKey:        opts.SharedKey,
-		AllowedDomains:   opts.AllowedDomains,
-		ProxyRootDomains: dotPrependDomains(opts.ProxyRootDomains),
-		CookieSecure:     opts.CookieSecure,
-		RedirectURL:      opts.RedirectURL,
-		templates:        templates.New(),
-		csrfStore:        cookieStore,
-		sessionStore:     cookieStore,
-		cipher:           cipher,
-	}
-
-	p.provider, err = newProvider(opts)
+	provider, err := providers.New(
+		opts.Provider,
+		&providers.IdentityProvider{
+			RedirectURL:  opts.RedirectURL,
+			ProviderName: opts.Provider,
+			ProviderURL:  opts.ProviderURL,
+			ClientID:     opts.ClientID,
+			ClientSecret: opts.ClientSecret,
+			// SessionLifetimeTTL: opts.CookieLifetimeTTL,
+			Scopes: opts.Scopes,
+		})
 	if err != nil {
 		return nil, err
+	}
+
+	p := &Authenticate{
+		SharedKey:        opts.SharedKey,
+		RedirectURL:      opts.RedirectURL,
+		AllowedDomains:   opts.AllowedDomains,
+		ProxyRootDomains: dotPrependDomains(opts.ProxyRootDomains),
+
+		templates:    templates.New(),
+		csrfStore:    cookieStore,
+		sessionStore: cookieStore,
+		cipher:       cipher,
+		provider:     provider,
 	}
 
 	// validation via dependency injected function
@@ -177,20 +184,6 @@ func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate
 	}
 
 	return p, nil
-}
-
-func newProvider(opts *Options) (providers.Provider, error) {
-	pd := &providers.IdentityProvider{
-		RedirectURL:        opts.RedirectURL,
-		ProviderName:       opts.Provider,
-		ProviderURL:        opts.ProviderURL,
-		ClientID:           opts.ClientID,
-		ClientSecret:       opts.ClientSecret,
-		SessionLifetimeTTL: opts.CookieLifetimeTTL,
-		Scopes:             opts.Scopes,
-	}
-	np, err := providers.New(opts.Provider, pd)
-	return np, err
 }
 
 func dotPrependDomains(d []string) []string {

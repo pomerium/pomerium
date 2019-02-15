@@ -203,16 +203,15 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// We store the session in a cookie and redirect the user back to the application
-	err = p.sessionStore.SaveSession(w, r, &sessions.SessionState{
-		AccessToken:      rr.AccessToken,
-		RefreshToken:     rr.RefreshToken,
-		IDToken:          rr.IDToken,
-		User:             rr.User,
-		Email:            rr.Email,
-		RefreshDeadline:  (rr.Expiry).Truncate(time.Second),
-		LifetimeDeadline: extendDeadline(p.CookieLifetimeTTL),
-		ValidDeadline:    extendDeadline(p.CookieExpire),
-	})
+	err = p.sessionStore.SaveSession(w, r,
+		&sessions.SessionState{
+			AccessToken:     rr.AccessToken,
+			RefreshToken:    rr.RefreshToken,
+			IDToken:         rr.IDToken,
+			User:            rr.User,
+			Email:           rr.Email,
+			RefreshDeadline: (rr.Expiry).Truncate(time.Second),
+		})
 	if err != nil {
 		log.FromRequest(r).Error().Msg("error saving session")
 		httputil.ErrorResponse(w, r, "Error saving session", http.StatusInternalServerError)
@@ -250,9 +249,7 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 				! 				!					!
-	// todo(bdd): 	! Authorization service goes here   !
-	//				! 				!					!
+	// todo(bdd): add authorization service validation
 
 	// We have validated the users request and now proxy their request to the provided upstream.
 	route, ok := p.router(r)
@@ -278,14 +275,10 @@ func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error)
 		return err
 	}
 
-	if session.LifetimePeriodExpired() {
-		log.FromRequest(r).Info().Msg("proxy: lifetime expired")
-		return sessions.ErrLifetimeExpired
-	}
 	if session.RefreshPeriodExpired() {
 		// AccessToken's usually expire after 60 or so minutes. If offline_access scope is set, a
 		// refresh token (which doesn't change) can be used to request a new access-token. If access
-		// is revoked by identity provider, or no refresh token is set request will return an error
+		// is revoked by identity provider, or no refresh token is set, request will return an error
 		accessToken, expiry, err := p.AuthenticateClient.Refresh(session.RefreshToken)
 		if err != nil {
 			log.FromRequest(r).Warn().

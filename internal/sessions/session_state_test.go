@@ -1,4 +1,4 @@
-package sessions // import "github.com/pomerium/pomerium/internal/sessions"
+package sessions
 
 import (
 	"reflect"
@@ -16,15 +16,12 @@ func TestSessionStateSerialization(t *testing.T) {
 	}
 
 	want := &SessionState{
-		AccessToken:  "token1234",
-		RefreshToken: "refresh4321",
-
+		AccessToken:      "token1234",
+		RefreshToken:     "refresh4321",
 		LifetimeDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
 		RefreshDeadline:  time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
-		ValidDeadline:    time.Now().Add(1 * time.Minute).Truncate(time.Second).UTC(),
-
-		Email: "user@domain.com",
-		User:  "user",
+		Email:            "user@domain.com",
+		User:             "user",
 	}
 
 	ciphertext, err := MarshalSession(want, c)
@@ -46,26 +43,40 @@ func TestSessionStateSerialization(t *testing.T) {
 
 func TestSessionStateExpirations(t *testing.T) {
 	session := &SessionState{
-		AccessToken:  "token1234",
-		RefreshToken: "refresh4321",
-
+		AccessToken:      "token1234",
+		RefreshToken:     "refresh4321",
 		LifetimeDeadline: time.Now().Add(-1 * time.Hour),
 		RefreshDeadline:  time.Now().Add(-1 * time.Hour),
-		ValidDeadline:    time.Now().Add(-1 * time.Minute),
-
-		Email: "user@domain.com",
-		User:  "user",
+		Email:            "user@domain.com",
+		User:             "user",
 	}
 
 	if !session.LifetimePeriodExpired() {
-		t.Errorf("expcted lifetime period to be expired")
+		t.Errorf("expected lifetime period to be expired")
 	}
 
 	if !session.RefreshPeriodExpired() {
-		t.Errorf("expcted lifetime period to be expired")
+		t.Errorf("expected lifetime period to be expired")
 	}
 
-	if !session.ValidationPeriodExpired() {
-		t.Errorf("expcted lifetime period to be expired")
+}
+
+func TestExtendDeadline(t *testing.T) {
+	// tons of wiggle room here
+	now := time.Now().Truncate(time.Second)
+	tests := []struct {
+		name string
+		ttl  time.Duration
+		want time.Time
+	}{
+		{"Add a few ms", time.Millisecond * 10, now.Truncate(time.Second)},
+		{"Add a few microsecs", time.Microsecond * 10, now.Truncate(time.Second)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ExtendDeadline(tt.ttl); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExtendDeadline() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
