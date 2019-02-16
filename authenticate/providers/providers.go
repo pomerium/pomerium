@@ -29,6 +29,11 @@ const (
 	OktaProviderName = "okta"
 )
 
+var (
+	// ErrMissingProviderURL is returned when the CB state is half open and the requests count is over the cb maxRequests
+	ErrMissingProviderURL = errors.New("proxy/providers: missing provider url")
+)
+
 // Provider is an interface exposing functions necessary to interact with a given provider.
 type Provider interface {
 	Authenticate(string) (*sessions.SessionState, error)

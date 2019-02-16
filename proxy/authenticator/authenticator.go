@@ -25,7 +25,7 @@ type Options struct {
 	// InternalAddr is the internal (behind the ingress) address to use when making an
 	// authentication connection. If empty, Addr is used.
 	InternalAddr string
-	// OverrideServerName overrides the server name used to verify the hostname on the
+	// OverideCertificateName overrides the server name used to verify the hostname on the
 	// returned certificates from the server.  gRPC internals also use it to override the virtual
 	// hosting name if it is set.
 	OverideCertificateName string

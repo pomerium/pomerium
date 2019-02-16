@@ -16,7 +16,8 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 )
 
-// securityHeaders corresponds to HTTP response headers related to security.
+// securityHeaders corresponds to HTTP response headers that help to protect against protocol
+// downgrade attacks and cookie hijacking.
 // https://www.owasp.org/index.php/OWASP_Secure_Headers_Project#tab=Headers
 var securityHeaders = map[string]string{
 	"Strict-Transport-Security": "max-age=31536000",
@@ -28,7 +29,7 @@ var securityHeaders = map[string]string{
 	"Referrer-Policy": "Same-origin",
 }
 
-// Handler returns the Http.Handlers for authenticate, callback, and refresh
+// Handler returns the authenticate service's HTTP request multiplexer, and routes.
 func (a *Authenticate) Handler() http.Handler {
 	// set up our standard middlewares
 	stdMiddleware := middleware.NewChain()
@@ -80,12 +81,6 @@ func (a *Authenticate) authenticate(w http.ResponseWriter, r *http.Request) (*se
 		return nil, err
 	}
 
-	// if long-lived lifetime has expired, clear session
-	if session.LifetimePeriodExpired() {
-		log.FromRequest(r).Warn().Msg("authenticate: lifetime expired")
-		a.sessionStore.ClearSession(w, r)
-		return nil, sessions.ErrLifetimeExpired
-	}
 	// check if session refresh period is up
 	if session.RefreshPeriodExpired() {
 		newToken, err := a.provider.Refresh(session.RefreshToken)
@@ -130,32 +125,23 @@ func (a *Authenticate) authenticate(w http.ResponseWriter, r *http.Request) (*se
 	return session, nil
 }
 
-// SignIn handles the /sign_in endpoint. It attempts to authenticate the user,
+// SignIn handles the sign_in endpoint. It attempts to authenticate the user,
 // and if the user is not authenticated, it renders a sign in page.
 func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 	session, err := a.authenticate(w, r)
-	switch err {
-	case nil:
-		// session good, redirect back to proxy
-		log.FromRequest(r).Info().Msg("authenticate.SignIn : authenticated")
-		a.ProxyCallback(w, r, session)
-	case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
-		// session invalid, authenticate
-		log.FromRequest(r).Info().Err(err).Msg("authenticate.SignIn : expected failure")
-		if err != http.ErrNoCookie {
-			a.sessionStore.ClearSession(w, r)
-		}
+	if err != nil {
+		log.FromRequest(r).Info().Err(err).Msg("authenticate: authenticate error")
+		a.sessionStore.ClearSession(w, r)
 		a.OAuthStart(w, r)
-
-	default:
-		log.Error().Err(err).Msg("authenticate: unexpected sign in error")
-		httputil.ErrorResponse(w, r, err.Error(), httputil.CodeForError(err))
 	}
+	log.FromRequest(r).Info().Msg("authenticate: user authenticated")
+	a.ProxyCallback(w, r, session)
+
 }
 
 // ProxyCallback redirects the user back to proxy service along with an encrypted payload, as
-// url params, of the user's session state.
-// See RFC6749 3.1.2 https://tools.ietf.org/html/rfc6749#section-3.1.2
+// url params, of the user's session state as specified in RFC6749 3.1.2.
+// https://tools.ietf.org/html/rfc6749#section-3.1.2
 func (a *Authenticate) ProxyCallback(w http.ResponseWriter, r *http.Request, session *sessions.SessionState) {
 	err := r.ParseForm()
 	if err != nil {
@@ -201,9 +187,8 @@ func getAuthCodeRedirectURL(redirectURL *url.URL, state, authCode string) string
 	return u.String()
 }
 
-// SignOut signs the user out by trying to revoke the users remote identity provider session
-// then removes the associated local session state.
-// Handles both GET and POST of form.
+// SignOut signs the user out by trying to revoke the user's remote identity session along with
+// the associated local session state. Handles both GET and POST.
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -256,8 +241,8 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectURI, http.StatusFound)
 }
 
-// OAuthStart starts the authenticate process by redirecting to the provider. It provides a
-// `redirectURI`, allowing the provider to redirect back to the sso proxy after authenticate.
+// OAuthStart starts the authenticate process by redirecting to the identity provider.
+// https://tools.ietf.org/html/rfc6749#section-4.2.1
 func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	authRedirectURL, err := url.Parse(r.URL.Query().Get("redirect_uri"))
 	if err != nil {
@@ -298,7 +283,7 @@ func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 }
 
 // OAuthCallback handles the callback from the identity provider. Displays an error page if there
-// was an error. If successful, redirects back to the proxy-service via the redirect-url.
+// was an error. If successful, the user is redirected back to the proxy-service.
 func (a *Authenticate) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	redirect, err := a.getOAuthCallback(w, r)
 	switch h := err.(type) {

@@ -20,11 +20,9 @@ type SessionState struct {
 
 	RefreshDeadline  time.Time `json:"refresh_deadline"`
 	LifetimeDeadline time.Time `json:"lifetime_deadline"`
-	ValidDeadline    time.Time `json:"valid_deadline"`
-	GracePeriodStart time.Time `json:"grace_period_start"`
 
 	Email  string   `json:"email"`
-	User   string   `json:"user"` // 'sub' in jwt parlance
+	User   string   `json:"user"` // 'sub' in jwt
 	Groups []string `json:"groups"`
 }
 
@@ -36,11 +34,6 @@ func (s *SessionState) LifetimePeriodExpired() bool {
 // RefreshPeriodExpired returns true if the refresh period has expired
 func (s *SessionState) RefreshPeriodExpired() bool {
 	return isExpired(s.RefreshDeadline)
-}
-
-// ValidationPeriodExpired returns true if the validation period has expired
-func (s *SessionState) ValidationPeriodExpired() bool {
-	return isExpired(s.ValidDeadline)
 }
 
 func isExpired(t time.Time) bool {
@@ -64,7 +57,7 @@ func UnmarshalSession(value string, c cryptutil.Cipher) (*SessionState, error) {
 	return s, nil
 }
 
-// ExtendDeadline returns the time extended by a given duration
+// ExtendDeadline returns the time extended by a given duration, truncated by second
 func ExtendDeadline(ttl time.Duration) time.Time {
 	return time.Now().Add(ttl).Truncate(time.Second)
 }

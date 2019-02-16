@@ -29,47 +29,43 @@ type SessionStore interface {
 
 // CookieStore represents all the cookie related configurations
 type CookieStore struct {
-	Name               string
-	CSRFCookieName     string
-	CookieExpire       time.Duration
-	CookieRefresh      time.Duration
-	CookieSecure       bool
-	CookieHTTPOnly     bool
-	CookieDomain       string
-	CookieCipher       cryptutil.Cipher
-	SessionLifetimeTTL time.Duration
+	Name           string
+	CSRFCookieName string
+	CookieCipher   cryptutil.Cipher
+	CookieExpire   time.Duration
+	CookieRefresh  time.Duration
+	CookieSecure   bool
+	CookieHTTPOnly bool
+	CookieDomain   string
 }
 
-// CreateCookieCipher creates a new miscreant cipher with the cookie secret
-func CreateCookieCipher(cookieSecret []byte) func(s *CookieStore) error {
-	return func(s *CookieStore) error {
-		cipher, err := cryptutil.NewCipher(cookieSecret)
-		if err != nil {
-			return fmt.Errorf("cookie-secret error: %s", err.Error())
-		}
-		s.CookieCipher = cipher
-		return nil
-	}
+// CookieStoreOptions holds options for CookieStore
+type CookieStoreOptions struct {
+	Name           string
+	CookieSecure   bool
+	CookieHTTPOnly bool
+	CookieDomain   string
+	CookieExpire   time.Duration
+	CookieCipher   cryptutil.Cipher
 }
 
 // NewCookieStore returns a new session with ciphers for each of the cookie secrets
-func NewCookieStore(cookieName string, optFuncs ...func(*CookieStore) error) (*CookieStore, error) {
-	c := &CookieStore{
-		Name:           cookieName,
-		CookieSecure:   true,
-		CookieHTTPOnly: true,
-		CookieExpire:   168 * time.Hour,
-		CSRFCookieName: fmt.Sprintf("%v_%v", cookieName, "csrf"),
+func NewCookieStore(opts *CookieStoreOptions) (*CookieStore, error) {
+	if opts.Name == "" {
+		return nil, fmt.Errorf("internal/sessions: cookie name cannot be empty")
 	}
-
-	for _, f := range optFuncs {
-		err := f(c)
-		if err != nil {
-			return nil, err
-		}
+	if opts.CookieCipher == nil {
+		return nil, fmt.Errorf("internal/sessions: cipher cannot be nil")
 	}
-
-	return c, nil
+	return &CookieStore{
+		Name:           opts.Name,
+		CSRFCookieName: fmt.Sprintf("%v_%v", opts.Name, "csrf"),
+		CookieSecure:   opts.CookieSecure,
+		CookieHTTPOnly: opts.CookieHTTPOnly,
+		CookieDomain:   opts.CookieDomain,
+		CookieExpire:   opts.CookieExpire,
+		CookieCipher:   opts.CookieCipher,
+	}, nil
 }
 
 func (s *CookieStore) makeCookie(req *http.Request, name string, value string, expiration time.Duration, now time.Time) *http.Cookie {
@@ -80,16 +76,19 @@ func (s *CookieStore) makeCookie(req *http.Request, name string, value string, e
 	if s.CookieDomain != "" {
 		domain = s.CookieDomain
 	}
-
-	return &http.Cookie{
+	c := &http.Cookie{
 		Name:     name,
 		Value:    value,
 		Path:     "/",
 		Domain:   domain,
 		HttpOnly: s.CookieHTTPOnly,
 		Secure:   s.CookieSecure,
-		Expires:  now.Add(expiration),
 	}
+	// only set an expiration if we want one, otherwise default to non perm session based
+	if expiration != 0 {
+		c.Expires = now.Add(expiration)
+	}
+	return c
 }
 
 // makeSessionCookie constructs a session cookie given the request, an expiration time and the current time.
@@ -103,13 +102,13 @@ func (s *CookieStore) makeCSRFCookie(req *http.Request, value string, expiration
 }
 
 // ClearCSRF clears the CSRF cookie from the request
-func (s *CookieStore) ClearCSRF(rw http.ResponseWriter, req *http.Request) {
-	http.SetCookie(rw, s.makeCSRFCookie(req, "", time.Hour*-1, time.Now()))
+func (s *CookieStore) ClearCSRF(w http.ResponseWriter, req *http.Request) {
+	http.SetCookie(w, s.makeCSRFCookie(req, "", time.Hour*-1, time.Now()))
 }
 
 // SetCSRF sets the CSRFCookie creates a CSRF cookie in a given request
-func (s *CookieStore) SetCSRF(rw http.ResponseWriter, req *http.Request, val string) {
-	http.SetCookie(rw, s.makeCSRFCookie(req, val, s.CookieExpire, time.Now()))
+func (s *CookieStore) SetCSRF(w http.ResponseWriter, req *http.Request, val string) {
+	http.SetCookie(w, s.makeCSRFCookie(req, val, s.CookieExpire, time.Now()))
 }
 
 // GetCSRF gets the CSRFCookie creates a CSRF cookie in a given request
@@ -118,20 +117,19 @@ func (s *CookieStore) GetCSRF(req *http.Request) (*http.Cookie, error) {
 }
 
 // ClearSession clears the session cookie from a request
-func (s *CookieStore) ClearSession(rw http.ResponseWriter, req *http.Request) {
-	http.SetCookie(rw, s.makeSessionCookie(req, "", time.Hour*-1, time.Now()))
+func (s *CookieStore) ClearSession(w http.ResponseWriter, req *http.Request) {
+	http.SetCookie(w, s.makeSessionCookie(req, "", time.Hour*-1, time.Now()))
 }
 
-func (s *CookieStore) setSessionCookie(rw http.ResponseWriter, req *http.Request, val string) {
-	http.SetCookie(rw, s.makeSessionCookie(req, val, s.CookieExpire, time.Now()))
+func (s *CookieStore) setSessionCookie(w http.ResponseWriter, req *http.Request, val string) {
+	http.SetCookie(w, s.makeSessionCookie(req, val, s.CookieExpire, time.Now()))
 }
 
 // LoadSession returns a SessionState from the cookie in the request.
 func (s *CookieStore) LoadSession(req *http.Request) (*SessionState, error) {
 	c, err := req.Cookie(s.Name)
 	if err != nil {
-		// always http.ErrNoCookie
-		return nil, err
+		return nil, err // http.ErrNoCookie
 	}
 	session, err := UnmarshalSession(c.Value, s.CookieCipher)
 	if err != nil {
@@ -141,12 +139,11 @@ func (s *CookieStore) LoadSession(req *http.Request) (*SessionState, error) {
 }
 
 // SaveSession saves a session state to a request sessions.
-func (s *CookieStore) SaveSession(rw http.ResponseWriter, req *http.Request, sessionState *SessionState) error {
+func (s *CookieStore) SaveSession(w http.ResponseWriter, req *http.Request, sessionState *SessionState) error {
 	value, err := MarshalSession(sessionState, s.CookieCipher)
 	if err != nil {
 		return err
 	}
-
-	s.setSessionCookie(rw, req, value)
+	s.setSessionCookie(w, req, value)
 	return nil
 }

@@ -139,6 +139,7 @@ func testOptions() *Options {
 		AuthenticateURL: authurl,
 		SharedKey:       "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
 		CookieSecret:    "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
+		CookieName:      "pomerium",
 	}
 }
 

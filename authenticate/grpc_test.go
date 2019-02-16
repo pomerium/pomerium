@@ -117,7 +117,6 @@ func TestAuthenticate_Authenticate(t *testing.T) {
 	}
 	lt := time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC()
 	rt := time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC()
-	vt := time.Now().Add(1 * time.Minute).Truncate(time.Second).UTC()
 	vtProto, err := ptypes.TimestampProto(rt)
 	if err != nil {
 		t.Fatal("failed to parse timestamp")
@@ -128,9 +127,9 @@ func TestAuthenticate_Authenticate(t *testing.T) {
 		RefreshToken:     "refresh4321",
 		LifetimeDeadline: lt,
 		RefreshDeadline:  rt,
-		ValidDeadline:    vt,
-		Email:            "user@domain.com",
-		User:             "user",
+
+		Email: "user@domain.com",
+		User:  "user",
 	}
 
 	goodReply := &pb.AuthenticateReply{

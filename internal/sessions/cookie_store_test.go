@@ -1,348 +1,348 @@
-package sessions // import "github.com/pomerium/pomerium/internal/sessions"
+package sessions
 
 import (
-	"encoding/base64"
-	"fmt"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
-var testEncodedCookieSecret, _ = base64.StdEncoding.DecodeString("qICChm3wdjbjcWymm7PefwtPP6/PZv+udkFEubTeE38=")
+type mockCipher struct{}
 
-func TestCreateCookieCipher(t *testing.T) {
-	testCases := []struct {
-		name          string
-		cookieSecret  []byte
-		expectedError bool
-	}{
-		{
-			name:         "normal case with base64 encoded secret",
-			cookieSecret: testEncodedCookieSecret,
-		},
-
-		{
-			name:          "error when not base64 encoded",
-			cookieSecret:  []byte("abcd"),
-			expectedError: true,
-		},
+func (a mockCipher) Encrypt(s []byte) ([]byte, error) {
+	if string(s) == "error" {
+		return []byte(""), errors.New("error encrypting")
 	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewCookieStore("cookieName", CreateCookieCipher(tc.cookieSecret))
-			if !tc.expectedError {
-				testutil.Ok(t, err)
-			} else {
-				testutil.NotEqual(t, err, nil)
-			}
-		})
-	}
+	return []byte("OK"), nil
 }
 
-func TestNewSession(t *testing.T) {
-	testCases := []struct {
-		name            string
-		optFuncs        []func(*CookieStore) error
-		expectedError   bool
-		expectedSession *CookieStore
+func (a mockCipher) Decrypt(s []byte) ([]byte, error) {
+	if string(s) == "error" {
+		return []byte(""), errors.New("error encrypting")
+	}
+	return []byte("OK"), nil
+}
+func (a mockCipher) Marshal(s interface{}) (string, error) { return "", errors.New("error") }
+func (a mockCipher) Unmarshal(s string, i interface{}) error {
+	if string(s) == "unmarshal error" || string(s) == "error" {
+		return errors.New("error")
+	}
+	return nil
+}
+func TestNewCookieStore(t *testing.T) {
+	cipher, err := cryptutil.NewCipher(cryptutil.GenerateKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name    string
+		opts    *CookieStoreOptions
+		want    *CookieStore
+		wantErr bool
 	}{
-		{
-			name: "default with no opt funcs set",
-			expectedSession: &CookieStore{
-				Name:           "cookieName",
+		{"good",
+			&CookieStoreOptions{
+				Name:           "_cookie",
 				CookieSecure:   true,
 				CookieHTTPOnly: true,
-				CookieExpire:   168 * time.Hour,
-				CSRFCookieName: "cookieName_csrf",
+				CookieDomain:   "pomerium.io",
+				CookieExpire:   10 * time.Second,
+				CookieCipher:   cipher,
 			},
-		},
-		{
-			name:          "opt func with an error returns an error",
-			optFuncs:      []func(*CookieStore) error{func(*CookieStore) error { return fmt.Errorf("error") }},
-			expectedError: true,
-		},
-		{
-			name: "opt func overrides default values",
-			optFuncs: []func(*CookieStore) error{func(s *CookieStore) error {
-				s.CookieExpire = time.Hour
-				return nil
-			}},
-			expectedSession: &CookieStore{
-				Name:           "cookieName",
+			&CookieStore{
+				Name:           "_cookie",
+				CSRFCookieName: "_cookie_csrf",
 				CookieSecure:   true,
 				CookieHTTPOnly: true,
-				CookieExpire:   time.Hour,
-				CSRFCookieName: "cookieName_csrf",
+				CookieDomain:   "pomerium.io",
+				CookieExpire:   10 * time.Second,
+				CookieCipher:   cipher,
 			},
-		},
+			false},
+		{"missing name",
+			&CookieStoreOptions{
+				Name:           "",
+				CookieSecure:   true,
+				CookieHTTPOnly: true,
+				CookieDomain:   "pomerium.io",
+				CookieExpire:   10 * time.Second,
+				CookieCipher:   cipher,
+			},
+			nil,
+			true},
+		{"missing cipher",
+			&CookieStoreOptions{
+				Name:           "_pomerium",
+				CookieSecure:   true,
+				CookieHTTPOnly: true,
+				CookieDomain:   "pomerium.io",
+				CookieExpire:   10 * time.Second,
+				CookieCipher:   nil,
+			},
+			nil,
+			true},
 	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			session, err := NewCookieStore("cookieName", tc.optFuncs...)
-			if tc.expectedError {
-				testutil.NotEqual(t, err, nil)
-			} else {
-				testutil.Ok(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NewCookieStore(tt.opts)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewCookieStore() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
-			testutil.Equal(t, tc.expectedSession, session)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewCookieStore() = %#v, want %#v", got, tt.want)
+			}
 		})
 	}
 }
 
-func TestMakeSessionCookie(t *testing.T) {
+func TestCookieStore_makeCookie(t *testing.T) {
+	cipher, err := cryptutil.NewCipher(cryptutil.GenerateKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type fields struct {
+		Name           string
+		CSRFCookieName string
+		CookieCipher   cryptutil.Cipher
+		CookieExpire   time.Duration
+		CookieRefresh  time.Duration
+		CookieSecure   bool
+		CookieHTTPOnly bool
+		CookieDomain   string
+	}
+
 	now := time.Now()
-	cookieValue := "cookieValue"
-	expiration := time.Hour
-	cookieName := "cookieName"
-	testCases := []struct {
-		name           string
-		optFuncs       []func(*CookieStore) error
-		expectedCookie *http.Cookie
-	}{
-		{
-			name: "default cookie domain",
-			expectedCookie: &http.Cookie{
-				Name:     cookieName,
-				Value:    cookieValue,
-				Path:     "/",
-				Domain:   "www.example.com",
-				HttpOnly: true,
-				Secure:   true,
-				Expires:  now.Add(expiration),
-			},
-		},
-		{
-			name: "custom cookie domain set",
-			optFuncs: []func(*CookieStore) error{
-				func(s *CookieStore) error {
-					s.CookieDomain = "buzzfeed.com"
-					return nil
-				},
-			},
-			expectedCookie: &http.Cookie{
-				Name:     cookieName,
-				Value:    cookieValue,
-				Path:     "/",
-				Domain:   "buzzfeed.com",
-				HttpOnly: true,
-				Secure:   true,
-				Expires:  now.Add(expiration),
-			},
-		},
-	}
+	tests := []struct {
+		name   string
+		domain string
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			session, err := NewCookieStore(cookieName, tc.optFuncs...)
-			testutil.Ok(t, err)
-			req := httptest.NewRequest("GET", "http://www.example.com", nil)
-			cookie := session.makeSessionCookie(req, cookieValue, expiration, now)
-			testutil.Equal(t, cookie, tc.expectedCookie)
+		cookieName string
+		value      string
+		expiration time.Duration
+		want       *http.Cookie
+	}{
+		{"good", "http://pomerium.io", "_pomerium", "value", 0, &http.Cookie{Name: "_pomerium", Value: "value", Path: "/", Domain: "pomerium.io", Secure: true, HttpOnly: true}},
+		{"domains with https", "https://pomerium.io", "_pomerium", "value", 0, &http.Cookie{Name: "_pomerium", Value: "value", Path: "/", Domain: "pomerium.io", Secure: true, HttpOnly: true}},
+		{"domain with port", "http://pomerium.io:443", "_pomerium", "value", 0, &http.Cookie{Name: "_pomerium", Value: "value", Path: "/", Domain: "pomerium.io", Secure: true, HttpOnly: true}},
+		{"expiration set", "http://pomerium.io:443", "_pomerium", "value", 10 * time.Second, &http.Cookie{Expires: now.Add(10 * time.Second), Name: "_pomerium", Value: "value", Path: "/", Domain: "pomerium.io", Secure: true, HttpOnly: true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest("GET", tt.domain, nil)
+
+			s := &CookieStore{
+				Name:           "_pomerium",
+				CSRFCookieName: "_pomerium_csrf",
+				CookieSecure:   true,
+				CookieHTTPOnly: true,
+				CookieDomain:   "pomerium.io",
+				CookieExpire:   10 * time.Second,
+				CookieCipher:   cipher}
+
+			if got := s.makeCookie(r, tt.cookieName, tt.value, tt.expiration, now); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CookieStore.makeCookie() = \n%#v, \nwant\n%#v", got, tt.want)
+			}
+			if got := s.makeSessionCookie(r, tt.value, tt.expiration, now); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CookieStore.makeCookie() = \n%#v, \nwant\n%#v", got, tt.want)
+			}
+			got := s.makeCSRFCookie(r, tt.value, tt.expiration, now)
+			tt.want.Name = "_pomerium_csrf"
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CookieStore.makeCookie() = \n%#v, \nwant\n%#v", got, tt.want)
+			}
+			w := httptest.NewRecorder()
+			want := "new-csrf"
+			s.SetCSRF(w, r, want)
+			found := false
+			for _, cookie := range w.Result().Cookies() {
+				if cookie.Name == s.CSRFCookieName && cookie.Value == want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Error("SetCSRF failed")
+			}
+
+			w = httptest.NewRecorder()
+			s.ClearCSRF(w, r)
+			for _, cookie := range w.Result().Cookies() {
+				if cookie.Name == s.CSRFCookieName && cookie.Value == want {
+					t.Error("clear csrf failed")
+					break
+
+				}
+			}
+			w = httptest.NewRecorder()
+			want = "new-session"
+			s.setSessionCookie(w, r, want)
+			found = false
+			for _, cookie := range w.Result().Cookies() {
+				if cookie.Name == s.Name && cookie.Value == want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Error("SetCSRF failed")
+			}
+			w = httptest.NewRecorder()
+			s.ClearSession(w, r)
+			for _, cookie := range w.Result().Cookies() {
+				if cookie.Name == s.Name && cookie.Value == want {
+					t.Error("clear csrf failed")
+					break
+				}
+			}
+
 		})
 	}
 }
 
-func TestMakeSessionCSRFCookie(t *testing.T) {
-	now := time.Now()
-	cookieValue := "cookieValue"
-	expiration := time.Hour
-	cookieName := "cookieName"
-	csrfName := "cookieName_csrf"
-
-	testCases := []struct {
-		name           string
-		optFuncs       []func(*CookieStore) error
-		expectedCookie *http.Cookie
-	}{
-		{
-			name: "default cookie domain",
-			expectedCookie: &http.Cookie{
-				Name:     csrfName,
-				Value:    cookieValue,
-				Path:     "/",
-				Domain:   "www.example.com",
-				HttpOnly: true,
-				Secure:   true,
-				Expires:  now.Add(expiration),
-			},
-		},
-		{
-			name: "custom cookie domain set",
-			optFuncs: []func(*CookieStore) error{
-				func(s *CookieStore) error {
-					s.CookieDomain = "buzzfeed.com"
-					return nil
-				},
-			},
-			expectedCookie: &http.Cookie{
-				Name:     csrfName,
-				Value:    cookieValue,
-				Path:     "/",
-				Domain:   "buzzfeed.com",
-				HttpOnly: true,
-				Secure:   true,
-				Expires:  now.Add(expiration),
-			},
-		},
+func TestCookieStore_SaveSession(t *testing.T) {
+	cipher, err := cryptutil.NewCipher(cryptutil.GenerateKey())
+	if err != nil {
+		t.Fatal(err)
 	}
+	tests := []struct {
+		name         string
+		sessionState *SessionState
+		cipher       cryptutil.Cipher
+		wantErr      bool
+		wantLoadErr  bool
+	}{
+		{"good",
+			&SessionState{
+				AccessToken:      "token1234",
+				RefreshToken:     "refresh4321",
+				LifetimeDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
+				RefreshDeadline:  time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
+				Email:            "user@domain.com",
+				User:             "user",
+			}, cipher, false, false},
+		{"bad cipher",
+			&SessionState{
+				AccessToken:      "token1234",
+				RefreshToken:     "refresh4321",
+				LifetimeDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
+				RefreshDeadline:  time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
+				Email:            "user@domain.com",
+				User:             "user",
+			}, mockCipher{}, true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &CookieStore{
+				Name:           "_pomerium",
+				CSRFCookieName: "_pomerium_csrf",
+				CookieSecure:   true,
+				CookieHTTPOnly: true,
+				CookieDomain:   "pomerium.io",
+				CookieExpire:   10 * time.Second,
+				CookieCipher:   tt.cipher}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			session, err := NewCookieStore(cookieName, tc.optFuncs...)
-			testutil.Ok(t, err)
-			req := httptest.NewRequest("GET", "http://www.example.com", nil)
-			cookie := session.makeCSRFCookie(req, cookieValue, expiration, now)
-			testutil.Equal(t, tc.expectedCookie, cookie)
+			r := httptest.NewRequest("GET", "/", nil)
+			w := httptest.NewRecorder()
+
+			if err := s.SaveSession(w, r, tt.sessionState); (err != nil) != tt.wantErr {
+				t.Errorf("CookieStore.SaveSession() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			r = httptest.NewRequest("GET", "/", nil)
+			for _, cookie := range w.Result().Cookies() {
+				t.Log(cookie)
+				r.AddCookie(cookie)
+			}
+
+			state, err := s.LoadSession(r)
+			if (err != nil) != tt.wantLoadErr {
+				t.Errorf("LoadSession() error = %v, wantErr %v", err, tt.wantLoadErr)
+				return
+			}
+			if err == nil && !reflect.DeepEqual(state, tt.sessionState) {
+				t.Errorf("CookieStore.LoadSession() got = \n%v, want \n%v", state, tt.sessionState)
+			}
 		})
 	}
 }
 
-func TestSetSessionCookie(t *testing.T) {
-	cookieValue := "cookieValue"
-	cookieName := "cookieName"
-
-	t.Run("set session cookie test", func(t *testing.T) {
-		session, err := NewCookieStore(cookieName)
-		testutil.Ok(t, err)
-		req := httptest.NewRequest("GET", "http://www.example.com", nil)
-		rw := httptest.NewRecorder()
-		session.setSessionCookie(rw, req, cookieValue)
-		var found bool
-		for _, cookie := range rw.Result().Cookies() {
-			if cookie.Name == cookieName {
-				found = true
-				testutil.Equal(t, cookieValue, cookie.Value)
-				testutil.Assert(t, cookie.Expires.After(time.Now()), "cookie expires after now")
-			}
-		}
-		testutil.Assert(t, found, "cookie in header")
-	})
-}
-func TestSetCSRFSessionCookie(t *testing.T) {
-	cookieValue := "cookieValue"
-	cookieName := "cookieName"
-
-	t.Run("set csrf cookie test", func(t *testing.T) {
-		session, err := NewCookieStore(cookieName)
-		testutil.Ok(t, err)
-		req := httptest.NewRequest("GET", "http://www.example.com", nil)
-		rw := httptest.NewRecorder()
-		session.SetCSRF(rw, req, cookieValue)
-		var found bool
-		for _, cookie := range rw.Result().Cookies() {
-			if cookie.Name == fmt.Sprintf("%s_csrf", cookieName) {
-				found = true
-				testutil.Equal(t, cookieValue, cookie.Value)
-				testutil.Assert(t, cookie.Expires.After(time.Now()), "cookie expires after now")
-			}
-		}
-		testutil.Assert(t, found, "cookie in header")
-	})
-}
-
-func TestClearSessionCookie(t *testing.T) {
-	cookieValue := "cookieValue"
-	cookieName := "cookieName"
-
-	t.Run("set session cookie test", func(t *testing.T) {
-		session, err := NewCookieStore(cookieName)
-		testutil.Ok(t, err)
-		req := httptest.NewRequest("GET", "http://www.example.com", nil)
-		req.AddCookie(session.makeSessionCookie(req, cookieValue, time.Hour, time.Now()))
-
-		rw := httptest.NewRecorder()
-		session.ClearSession(rw, req)
-		var found bool
-		for _, cookie := range rw.Result().Cookies() {
-			if cookie.Name == cookieName {
-				found = true
-				testutil.Equal(t, "", cookie.Value)
-				testutil.Assert(t, cookie.Expires.Before(time.Now()), "cookie expires before now")
-			}
-		}
-		testutil.Assert(t, found, "cookie in header")
-	})
-}
-
-func TestClearCSRFSessionCookie(t *testing.T) {
-	cookieValue := "cookieValue"
-	cookieName := "cookieName"
-
-	t.Run("clear csrf cookie test", func(t *testing.T) {
-		session, err := NewCookieStore(cookieName)
-		testutil.Ok(t, err)
-		req := httptest.NewRequest("GET", "http://www.example.com", nil)
-		req.AddCookie(session.makeCSRFCookie(req, cookieValue, time.Hour, time.Now()))
-
-		rw := httptest.NewRecorder()
-		session.ClearCSRF(rw, req)
-		var found bool
-		for _, cookie := range rw.Result().Cookies() {
-			if cookie.Name == fmt.Sprintf("%s_csrf", cookieName) {
-				found = true
-				testutil.Equal(t, "", cookie.Value)
-				testutil.Assert(t, cookie.Expires.Before(time.Now()), "cookie expires before now")
-			}
-		}
-		testutil.Assert(t, found, "cookie in header")
-	})
-}
-
-func TestLoadCookiedSession(t *testing.T) {
-	cookieName := "cookieName"
-
-	testCases := []struct {
-		name          string
-		optFuncs      []func(*CookieStore) error
-		setupCookies  func(*testing.T, *http.Request, *CookieStore, *SessionState)
-		expectedError error
-		sessionState  *SessionState
+func TestMockCSRFStore(t *testing.T) {
+	tests := []struct {
+		name         string
+		mockCSRF     *MockCSRFStore
+		newCSRFValue string
+		wantErr      bool
 	}{
-		{
-			name:          "no cookie set returns an error",
-			setupCookies:  func(*testing.T, *http.Request, *CookieStore, *SessionState) {},
-			expectedError: http.ErrNoCookie,
-		},
-		{
-			name:     "cookie set with cipher set",
-			optFuncs: []func(*CookieStore) error{CreateCookieCipher(testEncodedCookieSecret)},
-			setupCookies: func(t *testing.T, req *http.Request, s *CookieStore, sessionState *SessionState) {
-				value, err := MarshalSession(sessionState, s.CookieCipher)
-				testutil.Ok(t, err)
-				req.AddCookie(s.makeSessionCookie(req, value, time.Hour, time.Now()))
-			},
-			sessionState: &SessionState{
-				Email:        "example@email.com",
-				RefreshToken: "abccdddd",
-				AccessToken:  "access",
-			},
-		},
-		{
-			name:     "cookie set with invalid value cipher set",
-			optFuncs: []func(*CookieStore) error{CreateCookieCipher(testEncodedCookieSecret)},
-			setupCookies: func(t *testing.T, req *http.Request, s *CookieStore, sessionState *SessionState) {
-				value := "574b776a7c934d6b9fc42ec63a389f79"
-				req.AddCookie(s.makeSessionCookie(req, value, time.Hour, time.Now()))
-			},
-			expectedError: ErrInvalidSession,
-		},
+		{"basic",
+			&MockCSRFStore{
+				ResponseCSRF: "ok",
+				Cookie:       &http.Cookie{Name: "hi"}},
+			"newcsrf",
+			false},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ms := tt.mockCSRF
+			ms.SetCSRF(nil, nil, tt.newCSRFValue)
+			ms.ClearCSRF(nil, nil)
+			got, err := ms.GetCSRF(nil)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MockCSRFStore.GetCSRF() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.mockCSRF.Cookie) {
+				t.Errorf("MockCSRFStore.GetCSRF() = %v, want %v", got, tt.mockCSRF.Cookie)
+			}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			session, err := NewCookieStore(cookieName, tc.optFuncs...)
-			testutil.Ok(t, err)
-			req := httptest.NewRequest("GET", "https://www.example.com", nil)
-			tc.setupCookies(t, req, session, tc.sessionState)
-			s, err := session.LoadSession(req)
+		})
+	}
+}
 
-			testutil.Equal(t, tc.expectedError, err)
-			testutil.Equal(t, tc.sessionState, s)
+func TestMockSessionStore(t *testing.T) {
+	tests := []struct {
+		name        string
+		mockCSRF    *MockSessionStore
+		saveSession *SessionState
+		wantLoadErr bool
+		wantSaveErr bool
+	}{
+		{"basic",
+			&MockSessionStore{
+				ResponseSession: "test",
+				Session:         &SessionState{AccessToken: "AccessToken"},
+				SaveError:       nil,
+				LoadError:       nil,
+			},
+			&SessionState{AccessToken: "AccessToken"},
+			false,
+			false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ms := tt.mockCSRF
 
+			err := ms.SaveSession(nil, nil, tt.saveSession)
+			if (err != nil) != tt.wantSaveErr {
+				t.Errorf("MockCSRFStore.GetCSRF() error = %v, wantSaveErr %v", err, tt.wantSaveErr)
+				return
+			}
+			got, err := ms.LoadSession(nil)
+			if (err != nil) != tt.wantLoadErr {
+				t.Errorf("MockCSRFStore.GetCSRF() error = %v, wantLoadErr %v", err, tt.wantLoadErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.mockCSRF.Session) {
+				t.Errorf("MockCSRFStore.GetCSRF() = %v, want %v", got, tt.mockCSRF.Session)
+			}
+			ms.ClearSession(nil, nil)
+			if ms.ResponseSession != "" {
+				t.Errorf("ResponseSession not empty! %s", ms.ResponseSession)
+			}
 		})
 	}
 }

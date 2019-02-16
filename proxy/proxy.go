@@ -133,12 +133,9 @@ type Proxy struct {
 	AuthenticateClient authenticator.Authenticator
 
 	// session
-	CookieExpire      time.Duration
-	CookieRefresh     time.Duration
-	CookieLifetimeTTL time.Duration
-	cipher            cryptutil.Cipher
-	csrfStore         sessions.CSRFStore
-	sessionStore      sessions.SessionStore
+	cipher       cryptutil.Cipher
+	csrfStore    sessions.CSRFStore
+	sessionStore sessions.SessionStore
 
 	redirectURL *url.URL
 	templates   *template.Template
@@ -163,13 +160,14 @@ func New(opts *Options) (*Proxy, error) {
 		return nil, fmt.Errorf("cookie-secret error: %s", err.Error())
 	}
 
-	cookieStore, err := sessions.NewCookieStore(opts.CookieName,
-		sessions.CreateCookieCipher(decodedSecret),
-		func(c *sessions.CookieStore) error {
-			c.CookieDomain = opts.CookieDomain
-			c.CookieHTTPOnly = opts.CookieHTTPOnly
-			c.CookieExpire = opts.CookieExpire
-			return nil
+	cookieStore, err := sessions.NewCookieStore(
+		&sessions.CookieStoreOptions{
+			Name:           opts.CookieName,
+			CookieDomain:   opts.CookieDomain,
+			CookieSecure:   opts.CookieSecure,
+			CookieHTTPOnly: opts.CookieHTTPOnly,
+			CookieExpire:   opts.CookieExpire,
+			CookieCipher:   cipher,
 		})
 
 	if err != nil {
@@ -181,14 +179,12 @@ func New(opts *Options) (*Proxy, error) {
 		// services
 		AuthenticateURL: opts.AuthenticateURL,
 		// session state
-		cipher:            cipher,
-		csrfStore:         cookieStore,
-		sessionStore:      cookieStore,
-		SharedKey:         opts.SharedKey,
-		redirectURL:       &url.URL{Path: "/.pomerium/callback"},
-		templates:         templates.New(),
-		CookieExpire:      opts.CookieExpire,
-		CookieLifetimeTTL: opts.CookieLifetimeTTL,
+		cipher:       cipher,
+		csrfStore:    cookieStore,
+		sessionStore: cookieStore,
+		SharedKey:    opts.SharedKey,
+		redirectURL:  &url.URL{Path: "/.pomerium/callback"},
+		templates:    templates.New(),
 	}
 
 	for from, to := range opts.Routes {
@@ -200,7 +196,7 @@ func New(opts *Options) (*Proxy, error) {
 			return nil, err
 		}
 		p.Handle(fromURL.Host, handler)
-		log.Info().Str("from", fromURL.Host).Str("to", toURL.String()).Msg("proxy.New: new route")
+		log.Info().Str("from", fromURL.Host).Str("to", toURL.String()).Msg("proxy: new route")
 	}
 
 	p.AuthenticateClient, err = authenticator.New(

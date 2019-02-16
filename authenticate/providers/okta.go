@@ -2,7 +2,6 @@ package providers // import "github.com/pomerium/pomerium/internal/providers"
 
 import (
 	"context"
-	"errors"
 	"net/url"
 
 	oidc "github.com/pomerium/go-oidc"
@@ -25,7 +24,7 @@ type OktaProvider struct {
 func NewOktaProvider(p *IdentityProvider) (*OktaProvider, error) {
 	ctx := context.Background()
 	if p.ProviderURL == "" {
-		return nil, errors.New("missing required provider url")
+		return nil, ErrMissingProviderURL
 	}
 	var err error
 	p.provider, err = oidc.NewProvider(ctx, p.ProviderURL)
