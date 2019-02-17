@@ -56,7 +56,7 @@ services:
       - AUTHENTICATE_INTERNAL_URL=pomerium-authenticate:443
       # When communicating internally, rPC is going to get a name conflict expecting an external
       # facing certificate name (i.e. authenticate-service.local vs *.corp.example.com).
-      - OVERIDE_CERTIFICATE_NAME=*.corp.beyondperimeter.com
+      - OVERRIDE_CERTIFICATE_NAME=*.corp.beyondperimeter.com
       - ROUTES=https://httpbin.corp.beyondperimeter.com=http://httpbin,https://hello.corp.beyondperimeter.com=http://hello:8080/
       # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=

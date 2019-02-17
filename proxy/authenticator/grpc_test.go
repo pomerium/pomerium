@@ -193,7 +193,7 @@ func TestNewGRPC(t *testing.T) {
 		{"empty connection", &Options{Addr: "", SharedSecret: "shh"}, true, "proxy/authenticator: connection address required"},
 		{"empty connections", &Options{Addr: "", InternalAddr: "", SharedSecret: "shh"}, true, "proxy/authenticator: connection address required"},
 		{"internal addr", &Options{Addr: "", InternalAddr: "intranet.local", SharedSecret: "shh"}, false, ""},
-		{"cert overide", &Options{Addr: "", InternalAddr: "intranet.local", OverideCertificateName: "*.local", SharedSecret: "shh"}, false, ""},
+		{"cert override", &Options{Addr: "", InternalAddr: "intranet.local", OverrideCertificateName: "*.local", SharedSecret: "shh"}, false, ""},
 
 		// {"addr and internal ", &Options{Addr: "localhost", InternalAddr: "local.localhost", SharedSecret: "shh"}, nil, true, ""},
 	}
