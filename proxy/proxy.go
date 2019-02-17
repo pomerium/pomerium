@@ -35,7 +35,7 @@ type Options struct {
 	// Authenticate service settings
 	AuthenticateURL          *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
 	AuthenticateInternalAddr string   `envconfig:"AUTHENTICATE_INTERNAL_URL"`
-	OverideCertificateName   string   `envconfig:"OVERIDE_CERTIFICATE_NAME"`
+	OverrideCertificateName  string   `envconfig:"OVERRIDE_CERTIFICATE_NAME"`
 	AuthenticatePort         int      `envconfig:"AUTHENTICATE_SERVICE_PORT"`
 
 	// SigningKey is a base64 encoded private key used to add a JWT-signature to proxied requests.
@@ -202,11 +202,11 @@ func New(opts *Options) (*Proxy, error) {
 	p.AuthenticateClient, err = authenticator.New(
 		"grpc",
 		&authenticator.Options{
-			Addr:                   opts.AuthenticateURL.Host,
-			InternalAddr:           opts.AuthenticateInternalAddr,
-			OverideCertificateName: opts.OverideCertificateName,
-			SharedSecret:           opts.SharedKey,
-			Port:                   opts.AuthenticatePort,
+			Addr:                    opts.AuthenticateURL.Host,
+			InternalAddr:            opts.AuthenticateInternalAddr,
+			OverrideCertificateName: opts.OverrideCertificateName,
+			SharedSecret:            opts.SharedKey,
+			Port:                    opts.AuthenticatePort,
 		})
 	return p, nil
 }

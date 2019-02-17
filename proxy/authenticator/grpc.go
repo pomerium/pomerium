@@ -45,13 +45,13 @@ func NewGRPC(opts *Options) (p Authenticator, err error) {
 	}
 
 	log.Info().
-		Str("OverideCertificateName", opts.OverideCertificateName).
+		Str("OverrideCertificateName", opts.OverrideCertificateName).
 		Str("addr", connAddr).Msgf("proxy/authenticator: grpc connection")
 	cert := credentials.NewTLS(&tls.Config{RootCAs: cp})
 
-	// overide allowed certificate name string, typically used when doing behind ingress connection
-	if opts.OverideCertificateName != "" {
-		err = cert.OverrideServerName(opts.OverideCertificateName)
+	// override allowed certificate name string, typically used when doing behind ingress connection
+	if opts.OverrideCertificateName != "" {
+		err = cert.OverrideServerName(opts.OverrideCertificateName)
 		if err != nil {
 			return nil, err
 		}
