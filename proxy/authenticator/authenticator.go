@@ -31,6 +31,10 @@ type Options struct {
 	OverrideCertificateName string
 	// Shared secret is used to authenticate a authenticate-client with a authenticate-server.
 	SharedSecret string
+	// CA specifies the base64 encoded TLS certificate authority to use.
+	CA string
+	// CAFile specifies the TLS certificate authority file to use.
+	CAFile string
 }
 
 // New returns a new authenticate service client. Takes a client implementation name as an argument.

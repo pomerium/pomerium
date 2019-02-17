@@ -37,6 +37,8 @@ type Options struct {
 	AuthenticateInternalAddr string   `envconfig:"AUTHENTICATE_INTERNAL_URL"`
 	OverrideCertificateName  string   `envconfig:"OVERRIDE_CERTIFICATE_NAME"`
 	AuthenticatePort         int      `envconfig:"AUTHENTICATE_SERVICE_PORT"`
+	CA                       string   `envconfig:"CERTIFICATE_AUTHORITY"`
+	CAFile                   string   `envconfig:"CERTIFICATE_AUTHORITY_FILE"`
 
 	// SigningKey is a base64 encoded private key used to add a JWT-signature to proxied requests.
 	// See : https://www.pomerium.io/guide/signed-headers.html
@@ -207,6 +209,8 @@ func New(opts *Options) (*Proxy, error) {
 			OverrideCertificateName: opts.OverrideCertificateName,
 			SharedSecret:            opts.SharedKey,
 			Port:                    opts.AuthenticatePort,
+			CA:                      opts.CA,
+			CAFile:                  opts.CAFile,
 		})
 	return p, nil
 }

@@ -3,8 +3,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"time"
 
@@ -39,9 +41,31 @@ func NewGRPC(opts *Options) (p *AuthenticateGRPC, err error) {
 		connAddr = fmt.Sprintf("%s:%d", connAddr, opts.Port)
 	}
 
-	cp, err := x509.SystemCertPool()
-	if err != nil {
-		return nil, err
+	var cp *x509.CertPool
+	if opts.CA != "" || opts.CAFile != "" {
+		cp = x509.NewCertPool()
+		var ca []byte
+		var err error
+		if opts.CA != "" {
+			ca, err = base64.StdEncoding.DecodeString(opts.CA)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode certificate authority: %v", err)
+			}
+		} else {
+			ca, err = ioutil.ReadFile(opts.CAFile)
+			if err != nil {
+				return nil, fmt.Errorf("certificate authority file %v not readable: %v", opts.CAFile, err)
+			}
+		}
+		if ok := cp.AppendCertsFromPEM(ca); !ok {
+			return nil, fmt.Errorf("failed to append CA cert to certPool")
+		}
+	} else {
+		newCp, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, err
+		}
+		cp = newCp
 	}
 
 	log.Info().

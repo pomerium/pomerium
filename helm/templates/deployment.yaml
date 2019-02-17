@@ -74,6 +74,13 @@ spec:
               name: {{ template "pomerium.fullname" . }}
               key: certificate-key
 {{- end }}
+{{- if .Values.config.ca }}
+        - name: CERTIFICATE_AUTHORITY
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "pomerium.fullname" . }}
+              key: certificate-authority
+{{- end }}
 {{- if or (eq .Values.config.services "authenticate") (eq .Values.config.services "all") }}
         - name: REDIRECT_URL
           value: {{ .Values.authenticate.redirectUrl }}
