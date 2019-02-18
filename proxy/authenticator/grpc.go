@@ -18,7 +18,7 @@ import (
 )
 
 // NewGRPC returns a new authenticate service client.
-func NewGRPC(opts *Options) (p Authenticator, err error) {
+func NewGRPC(opts *Options) (p *AuthenticateGRPC, err error) {
 	// gRPC uses a pre-shared secret middleware to establish authentication b/w server and client
 	if opts.SharedSecret == "" {
 		return nil, errors.New("proxy/authenticator: grpc client requires shared secret")
@@ -35,7 +35,7 @@ func NewGRPC(opts *Options) (p Authenticator, err error) {
 		return nil, errors.New("proxy/authenticator: connection address required")
 	}
 	// no colon exists in the connection string, assume one must be added manually
-	if !strings.Contains(":", connAddr) {
+	if !strings.Contains(connAddr, ":") {
 		connAddr = fmt.Sprintf("%s:%d", connAddr, opts.Port)
 	}
 
@@ -65,7 +65,7 @@ func NewGRPC(opts *Options) (p Authenticator, err error) {
 		return nil, err
 	}
 	authClient := pb.NewAuthenticatorClient(conn)
-	return &AuthenticateGRPC{conn: conn, client: authClient}, nil
+	return &AuthenticateGRPC{Conn: conn, client: authClient}, nil
 }
 
 // RedeemResponse contains data from a authenticator redeem request.
@@ -80,7 +80,7 @@ type RedeemResponse struct {
 
 // AuthenticateGRPC is a gRPC implementation of an authenticator (authenticate client)
 type AuthenticateGRPC struct {
-	conn   *grpc.ClientConn
+	Conn   *grpc.ClientConn
 	client pb.AuthenticatorClient
 }
 
@@ -149,5 +149,5 @@ func (a *AuthenticateGRPC) Validate(idToken string) (bool, error) {
 
 // Close tears down the ClientConn and all underlying connections.
 func (a *AuthenticateGRPC) Close() error {
-	return a.conn.Close()
+	return a.Conn.Close()
 }

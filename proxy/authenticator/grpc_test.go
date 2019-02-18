@@ -182,31 +182,33 @@ func TestProxy_AuthenticateRefresh(t *testing.T) {
 }
 
 func TestNewGRPC(t *testing.T) {
-
 	tests := []struct {
 		name       string
 		opts       *Options
 		wantErr    bool
 		wantErrStr string
+		wantTarget string
 	}{
-		{"no shared secret", &Options{}, true, "proxy/authenticator: grpc client requires shared secret"},
-		{"empty connection", &Options{Addr: "", SharedSecret: "shh"}, true, "proxy/authenticator: connection address required"},
-		{"empty connections", &Options{Addr: "", InternalAddr: "", SharedSecret: "shh"}, true, "proxy/authenticator: connection address required"},
-		{"internal addr", &Options{Addr: "", InternalAddr: "intranet.local", SharedSecret: "shh"}, false, ""},
-		{"cert override", &Options{Addr: "", InternalAddr: "intranet.local", OverrideCertificateName: "*.local", SharedSecret: "shh"}, false, ""},
+		{"no shared secret", &Options{}, true, "proxy/authenticator: grpc client requires shared secret", ""},
+		{"empty connection", &Options{Addr: "", Port: 443, SharedSecret: "shh"}, true, "proxy/authenticator: connection address required", ""},
+		{"both internal and addr empty", &Options{Addr: "", Port: 443, InternalAddr: "", SharedSecret: "shh"}, true, "proxy/authenticator: connection address required", ""},
+		{"internal addr with port", &Options{Addr: "", Port: 443, InternalAddr: "intranet.local:8443", SharedSecret: "shh"}, false, "", "intranet.local:8443"},
+		{"internal addr without port", &Options{Addr: "", Port: 443, InternalAddr: "intranet.local", SharedSecret: "shh"}, false, "", "intranet.local:443"},
+		{"cert override", &Options{Addr: "", Port: 443, InternalAddr: "intranet.local", OverrideCertificateName: "*.local", SharedSecret: "shh"}, false, "", "intranet.local:443"},
 
 		// {"addr and internal ", &Options{Addr: "localhost", InternalAddr: "local.localhost", SharedSecret: "shh"}, nil, true, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewGRPC(tt.opts)
+			got, err := NewGRPC(tt.opts)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewGRPC() error = %v, wantErr %v", err, tt.wantErr)
 				if !strings.EqualFold(err.Error(), tt.wantErrStr) {
 					t.Errorf("NewGRPC() error = %v did not contain wantErr %v", err, tt.wantErrStr)
 				}
-
-				return
+			}
+			if got != nil && got.Conn.Target() != tt.wantTarget {
+				t.Errorf("NewGRPC() target = %v expected %v", got.Conn.Target(), tt.wantTarget)
 
 			}
 		})
