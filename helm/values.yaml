@@ -19,13 +19,14 @@ authenticate:
 # All below required if config.serviceModes is "proxy" or "all"
 proxy:
   authenticateServiceUrl: https://example.com/oauth2/callback
-  routes:
-    "http.corp.example.com": "httpbin.org"
+  routes: {}
+  # routes:
+  #   "http.corp.example.com": "httpbin.org"
 
 # For any other settings that are optional
-# ADDRESS, POMERIUM_DEBUG, CERTIFICATE_FILE, CERTIFICATE_KEY_FILE
+# ADDRESS, POMERIUM_DEBUG, CERTIFICATE_FILE, CERTIFICATE_KEY_FILE, CERTIFICATE_AUTHORITY_FILE,
 # PROXY_ROOT_DOMAIN, COOKIE_DOMAIN, COOKIE_EXPIRE, COOKIE_REFRESH, COOKIE_SECURE, COOKIE_HTTP_ONLY, IDP_SCOPES
-# DEFAULT_UPSTREAM_TIMEOUT, PASS_ACCESS_TOKEN, SESSION_VALID_TTL, SESSION_LIFETIME_TTL, GRACE_PERIOD_TTL
+# AUTHENTICATE_INTERNAL_URL, AUTHENTICATE_SERVICE_PORT, OVERRIDE_CERTIFICATE_NAME, DEFAULT_UPSTREAM_TIMEOUT, COOKIE_LIFETIME,
 extraEnv: {}
 
 extraArgs: {}
