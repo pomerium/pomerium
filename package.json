@@ -1,9 +1,0 @@
-{
-	"scripts": {
-		"docs:dev": "vuepress dev docs",
-		"docs:build": "vuepress build docs"
-	},
-	"dependencies": {
-		"firebase-tools": "^6.2.2"
-	}
-}

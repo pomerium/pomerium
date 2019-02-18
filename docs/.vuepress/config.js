@@ -14,7 +14,6 @@ module.exports = {
 		sidebar: {
 			"/guide/": guideSidebar("Quick Start"),
 			"/docs/": docsSidebar("Documentation")
-
 		}
 	}
 };
@@ -34,7 +33,7 @@ function docsSidebar(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["", "identity-providers", "signed-headers", "examples"]
+			children: ["", "identity-providers", "signed-headers", "examples","config-reference"]
 		}
 	];
 }

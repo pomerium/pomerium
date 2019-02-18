@@ -3,7 +3,7 @@ import (
 	"fmt"
 	"time"
 
-	"gopkg.in/square/go-jose.v2"
+	jose "gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
@@ -40,7 +40,7 @@ type ES256Signer struct {
 	signer jose.Signer
 }
 
-// NewES256Signer creates an Eliptic Curve, NIST P-256 (aka secp256r1 aka prime256v1) JWT signer.
+// NewES256Signer creates an Elliptic Curve, NIST P-256 (aka secp256r1 aka prime256v1) JWT signer.
 //
 // RSA is not supported due to performance considerations of needing to sign each request.
 // Go's P-256 is constant-time and SHA-256 is faster on 64-bit machines and immune
