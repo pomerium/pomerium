@@ -32,6 +32,10 @@ GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
 .PHONY: all
 all: clean build fmt lint vet test ## Runs a clean, build, fmt, lint, test, and vet.
 
+.PHONY: tag
+tag: ## Create a new git tag to prepare to build a release
+	git tag -sa $(VERSION) -m "$(VERSION)"
+	@echo "Run git push origin $(VERSION) to push your new tag to GitHub."
 
 .PHONY: build
 build: ## Builds dynamic executables and/or packages.
