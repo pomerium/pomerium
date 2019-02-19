@@ -4,7 +4,7 @@ sidebarDepth: 3
 
 # Example Configurations
 
-A collection of copy-and-pasteable example pomerium configurations for various types of clouds, use-cases, and deployments. All of these files can also be found in the git repository in the `docs/docs/examples/` directory.
+A collection of copy-and-paste-able configurations for various types of clouds, use-cases, and deployments. These files can also be found in the git repository in the `docs/docs/examples/` directory.
 
 :::tip
 
@@ -35,7 +35,7 @@ Uses the [latest pomerium build](https://hub.docker.com/r/pomerium/pomerium) fro
 - Minimal container-based configuration.
 - Docker and Docker-Compose based.
 - Runs a single container for all pomerium services
-- Routes default to on-prem [helloworld], [httpbin] containers.
+- Routes default to on-prem [helloworld], [httpbin].
 
 Customize for your identity provider run `docker-compose up -f basic.docker-compose.yml`
 
@@ -48,9 +48,9 @@ Customize for your identity provider run `docker-compose up -f basic.docker-comp
 - Docker and Docker-Compose based.
 - Uses pre-configured built-in nginx load balancer
 - Runs separate containers for each service
-- Routes default to on-prem [helloworld], [httpbin], and [gitlab] containers.
+- Routes default to on-prem [helloworld], and [httpbin].
 
-Customize for your identity provider run `docker-compose up -f gitlab.docker-compose.yml`
+Customize for your identity provider run `docker-compose up -f nginx.docker-compose.yml`
 
 #### nginx.docker-compose.yml
 
@@ -62,7 +62,7 @@ Customize for your identity provider run `docker-compose up -f gitlab.docker-com
 - Uses pre-configured built-in nginx load balancer
 - Runs separate containers for each service
 - Comes with a pre-configured instance of on-prem Gitlab-CE
-- Routes default to on-prem [helloworld], [httpbin], and [gitlab] containers.
+- Routes default to on-prem [helloworld], [httpbin], and [gitlab].
 
 Customize for your identity provider run `docker-compose up -f gitlab.docker-compose.yml`
 

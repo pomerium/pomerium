@@ -27,6 +27,8 @@ const (
 	OIDCProviderName = "oidc"
 	// OktaProviderName identifies the Okta identity provider
 	OktaProviderName = "okta"
+	// OneLoginProviderName identifies the OneLogin identity provider
+	OneLoginProviderName = "onelogin"
 )
 
 var (
@@ -57,6 +59,8 @@ func New(providerName string, pd *IdentityProvider) (p Provider, err error) {
 		p, err = NewOIDCProvider(pd)
 	case OktaProviderName:
 		p, err = NewOktaProvider(pd)
+	case OneLoginProviderName:
+		p, err = NewOneLoginProvider(pd)
 	default:
 		return nil, fmt.Errorf("authenticate: %q name not found", providerName)
 	}

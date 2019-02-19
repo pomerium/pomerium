@@ -1,22 +1,22 @@
 ---
 title: Identity Providers
 description: >-
-  This article describes how to connect pomerium to third-party identity
+  This article describes how to connect Pomerium to third-party identity
   providers / single-sign-on services. You will need to generate keys, copy
   these into your promerium settings, and enable the connection.
 ---
 
 # Identity Provider Configuration
 
-This article describes how to configure pomerium to use a third-party identity service for single-sign-on.
+This article describes how to configure Pomerium to use a third-party identity service for single-sign-on.
 
 There are a few configuration steps required for identity provider integration. Most providers support [OpenID Connect] which provides a standardized interface for IdentityProvider. In this guide we'll cover how to do the following for each identity provider:
 
 1. Establish a **Redirect URL** with the identity provider which is called after IdentityProvider.
-2. Generate a **Client ID** and **Client Secret**.
-3. Configure pomerium to use the **Client ID** and **Client Secret** keys.
+2. Generate a **[Client ID]** and **[Client Secret]**.
+3. Configure Pomerium to use the **[Client ID]** and **[Client Secret]** keys.
 
-## Azure
+## Azure Active Directory
 
 If you plan on allowing users to log in using a Microsoft Azure Active Directory account, either from your company or from external directories, you must register your application through the Microsoft Azure portal. If you don't have a Microsoft Azure account, you can [signup](https://azure.microsoft.com/en-us/free) for free.
 
@@ -53,7 +53,7 @@ Enter a name for the application, select **Web app/API** as the **Application Ty
 
 ![Create application form](./microsoft/azure-create-application.png)
 
-Next you will need to create a key which will be used as the **Client Secret** in Pomeriunm's configuration settings. Click on **Keys** from the **Settings** menu.
+Next you will need to create a key which will be used as the **[Client Secret]** in Pomerium's configuration settings. Click on **Keys** from the **Settings** menu.
 
 Enter a name for the key and choose the desired duration.
 
@@ -63,7 +63,7 @@ If you choose an expiring key, make sure to record the expiration date in your c
 
 :::
 
-Click on **Save** and the key will be displayed. **Make sure to copy the value of this key before leaving this screen**, otherwise you may need to create a new key. This value is used as the **Client Secret**.
+Click on **Save** and the key will be displayed. **Make sure to copy the value of this key before leaving this screen**, otherwise you may need to create a new key. This value is used as the **[Client Secret]**.
 
 ![Creating a Key](./microsoft/azure-create-key.png)
 
@@ -105,20 +105,20 @@ Navigate to **User Settings** then **Applications** using the left-hand menu.
 On the **Applications** page, add a new application by setting the following parameters:
 
 Field        | Description
------------- | --------------------------------------------
+------------ | --------------------------------------------------------------------
 Name         | The name of your web app
-Redirect URI | `https://${redirect-url}/oauth2/callback`
+Redirect URI | [Redirect URL] (e.g.`https://auth.corp.example.com/oauth2/callback`)
 Scopes       | **Must** select **read_user** and **openid**
 
 ![Create New Credentials](./gitlab/gitlab-create-application.png)
 
 1.Click **Save Application** to proceed.
 
-Your `Client ID` and `Client Secret` will be displayed:
+Your [Client ID] and [Client Secret] will be displayed:
 
 ![Gitlab OAuth Client ID and Secret](./gitlab/gitlab-credentials.png)
 
-Set `Client ID` and `Client Secret` in Pomerium's settings. Your [environmental variables] should look something like this.
+Set [Client ID] and [Client Secret] in Pomerium's settings. Your [environmental variables] should look something like this.
 
 ```bash
 REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
@@ -130,7 +130,7 @@ IDP_CLIENT_ID="yyyy"
 IDP_CLIENT_SECRET="xxxxxx"
 ```
 
-When a user first uses pomerium to login, they will be presented with an authorization screen similar to the following.
+When a user first uses Pomerium to login, they will be presented with an authorization screen similar to the following.
 
 ![gitlab access authorization screen](./gitlab/gitlab-verify-access.png)
 
@@ -140,26 +140,26 @@ Log in to your Google account and go to the [APIs & services](https://console.de
 
 ![API Manager Credentials](./google/google-credentials.png)
 
-On the **Credentials** page, click **Create credentials** and choose **OAuth Client ID**.
+On the **Credentials** page, click **Create credentials** and choose **OAuth [Client ID]**.
 
 ![Create New Credentials](./google/google-create-new-credentials.png)
 
-On the **Create Client ID** page, select **Web application**. In the new fields that display, set the following parameters:
+On the **Create [Client ID]** page, select **Web application**. In the new fields that display, set the following parameters:
 
 Field                    | Description
------------------------- | -----------------------------------------
+------------------------ | --------------------------------------------------------------------
 Name                     | The name of your web app
-Authorized redirect URIs | `https://${redirect-url}/oauth2/callback`
+Authorized redirect URIs | [Redirect URL] (e.g.`https://auth.corp.example.com/oauth2/callback`)
 
 ![Web App Credentials Configuration](./google/google-create-client-id-config.png)
 
 Click **Create** to proceed.
 
-Your `Client ID` and `Client Secret` will be displayed:
+Your [Client ID] and [Client Secret] will be displayed:
 
 ![OAuth Client ID and Secret](./google/google-oauth-client-info.png)
 
-Set `Client ID` and `Client Secret` in Pomerium's settings. Your [environmental variables] should look something like this.
+Set [Client ID] and [Client Secret] in Pomerium's settings. Your [environmental variables] should look something like this.
 
 ```bash
 REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
@@ -182,10 +182,10 @@ On the **Create New Application** page, select the **Web** for your application.
 Next, provide the following information for your application settings:
 
 Field                        | Description
----------------------------- | -----------------------------------------------------
+---------------------------- | ---------------------------------------------------------------------
 Name                         | The name of your application.
 Base URIs (optional)         | The domain(s) of your application.
-Login redirect URIs          | `https://${redirect-url}/oauth2/callback`.
+Login redirect URIs          | [Redirect URL] (e.g.`https://auth.corp.example.com/oauth2/callback`).
 Group assignments (optional) | The user groups that can sign in to this application.
 Grant type allowed           | **You must enable Refresh Token.**
 
@@ -193,7 +193,7 @@ Grant type allowed           | **You must enable Refresh Token.**
 
 Click **Done** to proceed. You'll be taken to the **General** page of your app.
 
-Go to the **General** page of your app and scroll down to the **Client Credentials** section. This section contains the **Client ID** and **Client Secret** to be used in the next step.
+Go to the **General** page of your app and scroll down to the **Client Credentials** section. This section contains the **[Client ID]** and **[Client Secret]** to be used in the next step.
 
 ![Okta Client ID and Secret](./okta/okta-client-id-and-secret.png)
 
@@ -207,6 +207,51 @@ IDP_CLIENT_ID="0oairksnr0C0fEJ7l0h7"
 IDP_CLIENT_SECRET="xxxxxx"
 ```
 
+## OneLogin
+
+Log in to your [OneLogin](https://www.onelogin.com/) account and head to the dashboard.
+
+Click **Apps** on the top menu. Select the **Add apps** menu item.
+
+![One Login Add a New App](./one-login/one-login-add-app.png)
+
+On the **Find Application** page, search for **openid**. Select **Openid Connect** by OneLogin, Inc.
+
+![One Login Add a New App](./one-login/one-login-add-open-id.png)
+
+On the App Configuration page, **name the app** and **select a logo**. Select **Save**.
+
+![One Login select logo](./one-login/one-login-select-logo.png)
+
+Next, set set the **Redirect URI's** setting to be Pomerium's [redirect url].
+
+![One Login set callback url](./one-login/one-login-callback-url.png)
+
+Go to the **SSO** page. This section contains the **[Client ID]** and **[Client Secret]** you'll use to configure Pomerium. 
+
+Also, be sure to also set the application type to **Web** and the token endpoint to be **POST**.
+
+
+![One Login SSO settings](./one-login/one-login-sso-settings.png)
+
+
+At this point, you will configure the integration from the Pomerium side. Your [environmental variables] should look something like this.
+
+```bash
+REDIRECT_URL="https://auth.corp.beyondperimeter.com/oauth2/callback"
+IDP_PROVIDER="onelogin"
+IDP_PROVIDER_URL="https://openid-connect.onelogin.com/oidc"
+IDP_CLIENT_ID="9e613ce0-1622-0137-452d-0a93c31f8392142934"
+IDP_CLIENT_SECRET="3e86ef0cc21b6dcf10c1d91e032568617d37e9fe1609ffd8042d3c25a560c36c"
+```
+
+After reloading Pomerium, you should be able to see any login events from your OneLogin events dashboard.
+
+![One Login Events Dashboard](./one-login/one-login-events.png)
+
+[client id]: ./config-reference.html#identity-provider-client-id
+[client secret]: ./config-reference.html#identity-provider-client-secret
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
 [openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect
+[redirect url]: ./config-reference.html#redirect-url

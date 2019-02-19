@@ -4,7 +4,7 @@ sidebar: auto
 
 # Configuration Variables
 
-Pomerium primarily uses [environmental variables] to set configuration settings. If you are coming from kubernetes or docker based deployment this should feel very familiar. If not, check out the following primers.
+Pomerium uses [environmental variables] to set configuration settings. If you are coming from a kubernetes or docker background this should feel familiar. If not, check out the following primers.
 
 - [Store config in the environment](https://12factor.net/config)
 - [Kubernetes: Environment variables](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)
@@ -21,7 +21,7 @@ Global settings are configuration variables that are shared by all services.
 - Default: `all`
 - Options: `all` `authenticate` or `proxy`
 
-Service mode sets the pomerium service(s) to run. For example, if you are just testing pomerium, you may want to use `all` and run in all-in-one mode. Alternatively, in production, you probably want to have several instances of each service running for scalability and high availability.
+Service mode sets the pomerium service(s) to run. If testing, you may want to set to `all` and run pomerium in "all-in-one mode." In production, you'll likely want to spin of several instances of each service mode for high availability.
 
 ### Address
 
@@ -37,7 +37,7 @@ Address specifies the host and port to serve HTTPS and gRPC requests from. If em
 - Type: [base64 encoded] `string`
 - Required
 
-Shared Secret is the base64 encoded random 256-bit key used to mutually authenticate requests between services. It's critical to store safely and recommended to use secure key-management system where available. Otherwise, `/dev/urandom` can be used to generate a the key. For example:
+Shared Secret is the base64 encoded 256-bit key used to mutually authenticate requests between services. It's critical that secret keys are random, and store safely. Use a key management system or `/dev/urandom/` to generate a key. For example:
 
 ```
 head -c32 /dev/urandom | base64
@@ -49,7 +49,7 @@ head -c32 /dev/urandom | base64
 - Type: `bool`
 - Default: `false`
 
-By default, JSON encoded logs are produced. Debug enables human-readable and more verbose logging to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)). For production, it's recommended to be set to `false`.
+By default, JSON encoded logs are produced. Debug enables colored, human-readable, and more verbose logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)). In production, it's recommended to be set to `false`.
 
 For example, if true.
 
@@ -94,39 +94,41 @@ Certificate key is the x509 _private-key_ used to establish secure HTTP and gRPC
 - Required
 - Example: `https://auth.corp.example.com/oauth2/callback`
 
-Redirect URL is the url the user will be redirected to following authentication with a third-party identity provider (IdP). Note the URL ends with `/oauth2/callback`. This setting will mirror the URL set when configuring your [identity provider]. Typically, on the provider side, this is called an _authorized callback url_.
+Redirect URL is the url the user will be redirected to following authentication with the third-party identity provider (IdP). Note the URL ends with `/oauth2/callback`. This setting will mirror the URL set when configuring your [identity provider]. Typically, on the provider side, this is called an _authorized callback url_.
 
 ### Allowed Email Domains
 
 ::: warning 
-This setting will be deprecated with the upcoming release of authorization service module.
+This setting will be deprecated with the upcoming release of the authorization service.
 :::
 
 - Environmental Variable: `ALLOWED_DOMAINS`
-- Type: `[]string` (e.g. comma separated list of string)
+- Type: `[]string` (e.g. comma separated list of strings)
 - Required
 - Example: `engineering.corp-b.com,devops.corp-a.com`
 
-The allowed email domains settings dictates which email domains are valid for access. If an authenticated user has a domain email ending in a non-whitelisted domain, an error will be returned.
+The allowed email domains settings dictates which email domains are valid for access. If an authenticated user has a email ending in a non-whitelisted domain, the request will be denied as unauthorized.
 
 
 
 ### Proxy Root Domains
 
 - Environmental Variable: `PROXY_ROOT_DOMAIN`
-- Type: `[]string` (e.g. comma separated list of string)
+- Type: `[]string` (e.g. comma separated list of strings)
 - Required
 
-Proxy Root Domains specifies the domains that are allowed to proxy access from. If a proxy service attempts to authenticate a user from a non-whitelisted domain, an error will be returned. For example, `httpbin.corp.example.com` would be a valid domain under the proxy root domain `corp.example.com`.
+Proxy Root Domains specifies the sub-domains that can proxy requests. For example, `httpbin.corp.example.com` would be a valid domain under the proxy root domain `corp.example.com`. If a proxy service attempts to authenticate a user from a non-whitelisted domain, an error will be returned.
 
 ### Identity Provider Name
 
 - Environmental Variable: `IDP_PROVIDER`
 - Type: `string`
 - Required
-- Options: `azure` `google` `okta` `gitlab` or `oidc`
+- Options: `azure` `google` `okta` `gitlab` `onelogin` or `oidc`
 
-Provider is short-hand-name of the built-in OpenID Connect (oidc) identity provider to use to authenticate user requests. To use a generic provider, set to `oidc`. See [identity provider] for details.
+Provider is the short-hand name of a built-in OpenID Connect (oidc) identity provider to be used for authentication. To use a generic provider,set to `oidc`. 
+
+See [identity provider] for details.
 
 ### Identity Provider Client ID
 
@@ -134,7 +136,7 @@ Provider is short-hand-name of the built-in OpenID Connect (oidc) identity provi
 - Type: `string`
 - Required
 
-Client ID is the OAuth 2.0 Client Identifier retrieved from your identity provider. For a detailed explanation of an OpenID Connect Request, see the [OIDC RFC] or your identity provider's documentation. See [identity provider] for details.
+Client ID is the OAuth 2.0 Client Identifier retrieved from your identity provider. See your identity provider's documentation, and our [identity provider] docs for details.
 
 ### Identity Provider Client Secret
 
@@ -142,15 +144,15 @@ Client ID is the OAuth 2.0 Client Identifier retrieved from your identity provid
 - Type: `string`
 - Required
 
-Client ID is the OAuth 2.0 Secret Identifier retrieved from your identity provider. For a detailed explanation of an OpenID Client Secret, see the [OIDC RFC Section 9](https://openid.net/specs/openid-connect-core-1_0.html#ClientAuthentication) or your identity provider's documentation. See [identity provider] for details.
+Client Secret is the OAuth 2.0 Secret Identifier retrieved from your identity provider. See your identity provider's documentation, and our [identity provider] docs for details.
 
 ### Identity Provider URL
 
 - Environmental Variable: `IDP_PROVIDER_URL`
 - Type: `string`
-- Optional if your identity provider is a built-in IDP and has a static URL.
+- Required, depending on provider
 
-Provider URL is the base path to an identity provider's [OpenID connect discovery document](https://openid.net/specs/openid-connect-discovery-1_0.html) For example, google's URL would be `https://accounts.google.com` for [their discover URL](https://accounts.google.com/.well-known/openid-configuration).
+Provider URL is the base path to an identity provider's [OpenID connect discovery document](https://openid.net/specs/openid-connect-discovery-1_0.html). For example, google's URL would be `https://accounts.google.com` for [their discover document](https://accounts.google.com/.well-known/openid-configuration).
 
 ### Identity Provider Scopes
 
@@ -159,18 +161,18 @@ Provider URL is the base path to an identity provider's [OpenID connect discover
 - Default: `oidc`,`profile`, `email`, `offline_access` (typically)
 - Optional for built-in identity providers.
 
-Identity provider scopes correspond to access privilege scopes as defined in Section 3.3 of OAuth 2.0 RFC6749\. The scopes associated with Access Tokens determine what resources will be available when they are used to access OAuth 2.0 protected endpoints. If you are using a built-in provider, you probably don't want to set customized scopes.
+Identity provider scopes correspond to access privilege scopes as defined in Section 3.3 of OAuth 2.0 RFC6749. The scopes associated with Access Tokens determine what resources will be available when they are used to access OAuth 2.0 protected endpoints. If you are using a built-in provider, you probably don't want to set customized scopes.
 
 ## Proxy Service
 
 ### Routes
 
 - Environmental Variable: `ROUTES`
-- Type: `map[string]string` comma separated mapping of gatewayed (reverse-proxied) entities.
+- Type: `map[string]string` comma separated mapping of managed entities.
 - Required
 - Example: `https://httpbin.corp.example.com=http://httpbin,https://hello.corp.example.com=http://hello:8080/`
 
-Routes contains a mapping of routes to be managed by pomerium.
+The routes setting contains a mapping of routes to be managed by pomerium.
 
 ### Signing Key
 
@@ -196,16 +198,7 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 - Optional
 - Example: `pomerium-authenticate-service.pomerium.svc.cluster.local`
 
-Authenticate Service URL is the internal hostname for the authenticate service. Used in place of the authenticate service url for "behind-the-ingress communication. Setting is required for ingresses and load balancers that do not support HTTPS/2 or gRPC termination.
-
-### Authenticate Internal Service Address
-
-- Environmental Variable: `AUTHENTICATE_INTERNAL_URL`
-- Type: `string`
-- Optional
-- Example: `pomerium-authenticate-service.pomerium.svc.cluster.local`
-
-Authenticate Internal Service Address is the target location of the authenticate service. Used for "behind-the-ingress communication. Setting is required for ingresses and load balancers that do not support HTTPS/2 or gRPC termination.
+Authenticate Internal Service URL is the internal location of the authenticate service. This setting is used to override the authenticate service url for when you need to do "behind-the-ingress" inter-service communication. This is typically required for ingresses and load balancers that do not support HTTP/2 or gRPC termination.
 
 ### Authenticate Service Port
 
@@ -224,7 +217,7 @@ Authenticate Service Port is used to set the port value for authenticate service
 - Optional (but typically required if Authenticate Internal Service Address is set)
 - Example: `*.corp.example.com` if wild card or `authenticate.corp.example.com`
 
-When Authenticate Internal Service Address is set, secure service communication can fail because the external certificate name will not match the internally provided URL. This setting allows you to override that check. Should be set to value of the external certificate name.
+When Authenticate Internal Service Address is set, secure service communication can fail because the external certificate name will not match the internally routed service url. This setting allows you to override that check. 
 
 ### Certificate Authority
 
