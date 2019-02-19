@@ -1,18 +1,34 @@
----
-  language: go
-  go:
-    - 1.x
-    - tip
-  matrix:
-    allow_failures:
-      - go: tip
-    fast_finish: true
-  install:
-    - go get -u golang.org/x/lint/golint
-    - go get honnef.co/go/tools/cmd/staticcheck
-  script:
-    - env GO111MODULE=on make all
-    - env GO111MODULE=on make cover
-    - env GO111MODULE=on make release
-  after_success:
-    - bash <(curl -s https://codecov.io/bash)
+language: go
+go:
+- 1.x
+- tip
+matrix:
+  allow_failures:
+  - go: tip
+  fast_finish: true
+install:
+- go get -u golang.org/x/lint/golint
+- go get honnef.co/go/tools/cmd/staticcheck
+script:
+- env GO111MODULE=on make all
+- env GO111MODULE=on make cover
+- env GO111MODULE=on make release
+after_success:
+- bash <(curl -s https://codecov.io/bash)
+deploy:
+  provider: releases
+  api_key:
+    secure: LhWnZHIilCFItgLJUfWUvbJSLFLpzlANj80Ji8y/MnzHGfnn5baYQpYA6eUnOkO6oXU1Uca+KLEQjDa4ySg6++B+5+jkmkWS4PWtj084dgXcKVIrBOt0CX46z8212Fii4WxGKY+Cukw3HejGq5XZmExxcAWbAGDklGedOvZWQImId62/nWjAJc5GLbXgz++i+67d7Uqfcd2wqZfWXsy8OIAG6VnjEP7spUALgaDt4HJaHZU4M9yDxkLX+3eKMuEl5DAJplmEsyDz1xYTcuYRQ7kFv3krXWyb5q9YQhGi8hwv7O93Q1iKMS2lk1rq9TTsr4AlW8lTrms7nvhKNWQWfdGmB2TEyBL/yZ3oaVO45oJoXhd0ff0ufa4VI05o+4WAEeYMkyFEnPxzbRZzPmz28zv9VLWuhS0qav9OnJgBVjFPhCrCYVyCZ6HP/alhrHjepr9hM5DLKwSzNkXWWMsJ4sraRFXQvAXTUbOE3qaeM3WYZ0TXwMNCfwGqE9tx6lXPZNirXZ6UH3qa5CGGyE3S73wUOo6Wo1yG7yBpuGHs485p+QJK+j3dhsJi+PAr4KShUhT7VvLNgidRkeaLGUCcrVf4J+UMCwWSoh5QGEy2lj1Ur4D8+dzXI9BOhL/EvtB3fozzycJ7ZJHLkPfFGnKfY83Q7A3oZ5MXDaWXBNSzTp4=
+  on:
+    tags: true
+  file:
+    - dist/pomerium-darwin-amd64
+    - dist/pomerium-darwin-amd64.md5
+    - dist/pomerium-darwin-amd64.sha256
+    - dist/pomerium-linux-amd64
+    - dist/pomerium-linux-amd64.md5
+    - dist/pomerium-linux-amd64.sha256
+    - dist/pomerium-windows-amd64
+    - dist/pomerium-windows-amd64.md5
+    - dist/pomerium-windows-amd64.sha256
+  skip_cleanup: true
