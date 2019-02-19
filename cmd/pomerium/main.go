@@ -36,7 +36,7 @@ func main() {
 		fmt.Printf("%s", version.FullVersion())
 		os.Exit(0)
 	}
-	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
+	log.Info().Str("version", version.FullVersion()).Str("service-mode", mainOpts.Services).Msg("cmd/pomerium")
 
 	grpcAuth := middleware.NewSharedSecretCred(mainOpts.SharedKey)
 	grpcOpts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcAuth.ValidateRequest)}

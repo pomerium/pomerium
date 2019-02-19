@@ -155,8 +155,7 @@ func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate
 			ProviderURL:  opts.ProviderURL,
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
-			// SessionLifetimeTTL: opts.CookieLifetimeTTL,
-			Scopes: opts.Scopes,
+			Scopes:       opts.Scopes,
 		})
 	if err != nil {
 		return nil, err

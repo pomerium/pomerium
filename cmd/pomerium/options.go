@@ -23,12 +23,15 @@ type Options struct {
 	// Services is a list enabled service mode. If none are selected, "all" is used.
 	// Available options are : "all", "authenticate", "proxy".
 	Services string `envconfig:"SERVICES"`
+
 	// Addr specifies the host and port on which the server should serve
 	// HTTPS requests. If empty, ":https" is used.
 	Addr string `envconfig:"ADDRESS"`
+
 	// Cert and Key specifies the base64 encoded TLS certificates to use.
 	Cert string `envconfig:"CERTIFICATE"`
 	Key  string `envconfig:"CERTIFICATE_KEY"`
+
 	// CertFile and KeyFile specifies the TLS certificates to use.
 	CertFile string `envconfig:"CERTIFICATE_FILE"`
 	KeyFile  string `envconfig:"CERTIFICATE_KEY_FILE"`

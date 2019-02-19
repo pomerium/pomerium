@@ -19,7 +19,6 @@ func Test_optionsFromEnvConfig(t *testing.T) {
 		{"good default with no env settings", good, "", "", false},
 		{"invalid service type", nil, "SERVICES", "invalid", true},
 		{"good service", good, "SERVICES", "all", false},
-
 		{"bad debug boolean", nil, "POMERIUM_DEBUG", "yes", true},
 		{"missing shared secret", nil, "SHARED_SECRET", "", true},
 	}
