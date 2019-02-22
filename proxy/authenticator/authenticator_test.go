@@ -1,49 +1,52 @@
 package authenticator
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/pomerium/pomerium/internal/sessions"
 )
 
 func TestMockAuthenticate(t *testing.T) {
 	// Absurd, but I caught a typo this way.
 	fixedDate := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
-	redeemResponse := &RedeemResponse{
-		AccessToken:  "AccessToken",
-		RefreshToken: "RefreshToken",
-		Expiry:       fixedDate,
+	redeemResponse := &sessions.SessionState{
+		AccessToken:      "AccessToken",
+		RefreshToken:     "RefreshToken",
+		LifetimeDeadline: fixedDate,
 	}
 	ma := &MockAuthenticate{
-		RedeemError:      errors.New("RedeemError"),
-		RedeemResponse:   redeemResponse,
-		RefreshResponse:  "RefreshResponse",
-		RefreshTime:      fixedDate,
+		RedeemError:    errors.New("RedeemError"),
+		RedeemResponse: redeemResponse,
+		RefreshResponse: &sessions.SessionState{
+			AccessToken:      "AccessToken",
+			RefreshToken:     "RefreshToken",
+			LifetimeDeadline: fixedDate,
+		},
 		RefreshError:     errors.New("RefreshError"),
 		ValidateResponse: true,
 		ValidateError:    errors.New("ValidateError"),
 		CloseError:       errors.New("CloseError"),
 	}
-	got, gotErr := ma.Redeem("a")
+	got, gotErr := ma.Redeem(context.Background(), "a")
 	if gotErr.Error() != "RedeemError" {
 		t.Errorf("unexpected value for gotErr %s", gotErr)
 	}
 	if !reflect.DeepEqual(redeemResponse, got) {
 		t.Errorf("unexpected value for redeemResponse %s", got)
 	}
-	gotToken, gotTime, gotErr := ma.Refresh("a")
+	newSession, gotErr := ma.Refresh(context.Background(), nil)
 	if gotErr.Error() != "RefreshError" {
 		t.Errorf("unexpected value for gotErr %s", gotErr)
 	}
-	if !reflect.DeepEqual(gotToken, "RefreshResponse") {
-		t.Errorf("unexpected value for gotToken %s", gotToken)
-	}
-	if !gotTime.Equal(fixedDate) {
-		t.Errorf("unexpected value for gotTime %s", gotTime)
+	if !reflect.DeepEqual(newSession, redeemResponse) {
+		t.Errorf("unexpected value for newSession %s", newSession)
 	}
 
-	ok, gotErr := ma.Validate("a")
+	ok, gotErr := ma.Validate(context.Background(), "a")
 	if !ok {
 		t.Errorf("unexpected value for ok : %t", ok)
 	}

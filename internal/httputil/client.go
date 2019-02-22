@@ -11,8 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-
-	"github.com/pomerium/pomerium/internal/log"
 )
 
 // ErrTokenRevoked signifies a token revokation or expiration error
@@ -29,12 +27,12 @@ var httpClient = &http.Client{
 }
 
 // Client provides a simple helper interface to make HTTP requests
-func Client(method, endpoint, userAgent string, params url.Values, response interface{}) error {
+func Client(method, endpoint, userAgent string, headers map[string]string, params url.Values, response interface{}) error {
 	var body io.Reader
 	switch method {
-	case "POST":
+	case http.MethodPost:
 		body = bytes.NewBufferString(params.Encode())
-	case "GET":
+	case http.MethodGet:
 		// error checking skipped because we are just parsing in
 		// order to make a copy of an existing URL
 		u, _ := url.Parse(endpoint)
@@ -49,6 +47,9 @@ func Client(method, endpoint, userAgent string, params url.Values, response inte
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("User-Agent", userAgent)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -57,12 +58,11 @@ func Client(method, endpoint, userAgent string, params url.Values, response inte
 
 	var respBody []byte
 	respBody, err = ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
-	log.Info().Msgf("%s", respBody)
-
+	// log.Info().Msgf("%s", respBody)
 	if resp.StatusCode != http.StatusOK {
 		switch resp.StatusCode {
 		case http.StatusBadRequest:

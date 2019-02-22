@@ -11,8 +11,8 @@ import (
 
 	"github.com/pomerium/envconfig"
 
-	"github.com/pomerium/pomerium/authenticate/providers"
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
 )
@@ -21,7 +21,7 @@ var defaultOptions = &Options{
 	CookieName:     "_pomerium_authenticate",
 	CookieHTTPOnly: true,
 	CookieSecure:   true,
-	CookieExpire:   time.Duration(168) * time.Hour,
+	CookieExpire:   time.Duration(14) * time.Hour,
 	CookieRefresh:  time.Duration(30) * time.Minute,
 }
 
@@ -50,11 +50,12 @@ type Options struct {
 
 	// IdentityProvider provider configuration variables as specified by RFC6749
 	// https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
-	ClientID     string   `envconfig:"IDP_CLIENT_ID"`
-	ClientSecret string   `envconfig:"IDP_CLIENT_SECRET"`
-	Provider     string   `envconfig:"IDP_PROVIDER"`
-	ProviderURL  string   `envconfig:"IDP_PROVIDER_URL"`
-	Scopes       []string `envconfig:"IDP_SCOPES"`
+	ClientID       string   `envconfig:"IDP_CLIENT_ID"`
+	ClientSecret   string   `envconfig:"IDP_CLIENT_SECRET"`
+	Provider       string   `envconfig:"IDP_PROVIDER"`
+	ProviderURL    string   `envconfig:"IDP_PROVIDER_URL"`
+	Scopes         []string `envconfig:"IDP_SCOPES"`
+	ServiceAccount string   `envconfig:"IDP_SERVICE_ACCOUNT"`
 }
 
 // OptionsFromEnvConfig builds the authenticate service's configuration environmental variables
@@ -117,7 +118,7 @@ type Authenticate struct {
 	sessionStore sessions.SessionStore
 	cipher       cryptutil.Cipher
 
-	provider providers.Provider
+	provider identity.Authenticator
 }
 
 // New validates and creates a new authenticate service from a set of Options
@@ -147,15 +148,16 @@ func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate
 		return nil, err
 	}
 
-	provider, err := providers.New(
+	provider, err := identity.New(
 		opts.Provider,
-		&providers.IdentityProvider{
-			RedirectURL:  opts.RedirectURL,
-			ProviderName: opts.Provider,
-			ProviderURL:  opts.ProviderURL,
-			ClientID:     opts.ClientID,
-			ClientSecret: opts.ClientSecret,
-			Scopes:       opts.Scopes,
+		&identity.Provider{
+			RedirectURL:    opts.RedirectURL,
+			ProviderName:   opts.Provider,
+			ProviderURL:    opts.ProviderURL,
+			ClientID:       opts.ClientID,
+			ClientSecret:   opts.ClientSecret,
+			Scopes:         opts.Scopes,
+			ServiceAccount: opts.ServiceAccount,
 		})
 	if err != nil {
 		return nil, err

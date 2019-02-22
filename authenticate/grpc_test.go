@@ -7,58 +7,32 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/identity"
+
 	"github.com/golang/protobuf/ptypes"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	pb "github.com/pomerium/pomerium/proto/authenticate"
-	"golang.org/x/oauth2"
 )
 
 var fixedDate = time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
-
-// TestProvider is a mock provider
-type testProvider struct{}
-
-func (tp *testProvider) Authenticate(s string) (*sessions.SessionState, error) {
-	return &sessions.SessionState{}, nil
-}
-
-func (tp *testProvider) Revoke(s string) error        { return nil }
-func (tp *testProvider) GetSignInURL(s string) string { return "/signin" }
-func (tp *testProvider) Refresh(s string) (*oauth2.Token, error) {
-	if s == "error" {
-		return nil, errors.New("failed refresh")
-	}
-	if s == "bad time" {
-		return &oauth2.Token{AccessToken: "updated", Expiry: time.Time{}}, nil
-	}
-	return &oauth2.Token{AccessToken: "updated", Expiry: fixedDate}, nil
-}
-func (tp *testProvider) Validate(token string) (bool, error) {
-	if token == "good" {
-		return true, nil
-	} else if token == "error" {
-		return false, errors.New("error validating id token")
-	}
-	return false, nil
-}
 
 func TestAuthenticate_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
 		idToken string
+		mp      *identity.MockProvider
 		want    bool
 		wantErr bool
 	}{
-		{"good", "example", false, false},
-		{"error", "error", false, true},
-		{"not error", "not error", false, false},
+		{"good", "example", &identity.MockProvider{}, false, false},
+		{"error", "error", &identity.MockProvider{ValidateError: errors.New("err")}, false, true},
+		{"not error", "not error", &identity.MockProvider{ValidateError: nil}, false, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tp := &testProvider{}
-			p := &Authenticate{provider: tp}
+			p := &Authenticate{provider: tt.mp}
 			got, err := p.Validate(context.Background(), &pb.ValidateRequest{IdToken: tt.idToken})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Authenticate.Validate() error = %v, wantErr %v", err, tt.wantErr)
@@ -78,24 +52,43 @@ func TestAuthenticate_Refresh(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		refreshToken string
-		want         *pb.RefreshReply
-		wantErr      bool
+		name            string
+		mock            *identity.MockProvider
+		originalSession *pb.Session
+		want            *pb.Session
+		wantErr         bool
 	}{
-		{"good", "refresh-token", &pb.RefreshReply{AccessToken: "updated", Expiry: fixedProtoTime}, false},
-		{"test error", "error", nil, true},
+		{"good",
+			&identity.MockProvider{
+				RefreshResponse: &sessions.SessionState{
+					AccessToken:      "updated",
+					LifetimeDeadline: fixedDate,
+					RefreshDeadline:  fixedDate,
+				}},
+			&pb.Session{
+				AccessToken:      "original",
+				LifetimeDeadline: fixedProtoTime,
+				RefreshDeadline:  fixedProtoTime,
+			},
+			&pb.Session{
+				AccessToken:      "updated",
+				LifetimeDeadline: fixedProtoTime,
+				RefreshDeadline:  fixedProtoTime,
+			},
+			false},
+		{"test error", &identity.MockProvider{RefreshError: errors.New("hi")}, &pb.Session{RefreshToken: "refresh token", RefreshDeadline: fixedProtoTime, LifetimeDeadline: fixedProtoTime}, nil, true},
+		{"test catch nil", nil, nil, nil, true},
+
+		// {"test error", "error", nil, true},
 		// {"test bad time", "bad time", nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tp := &testProvider{}
-			p := &Authenticate{provider: tp}
+			p := &Authenticate{provider: tt.mock}
 
-			got, err := p.Refresh(context.Background(), &pb.RefreshRequest{RefreshToken: tt.refreshToken})
+			got, err := p.Refresh(context.Background(), tt.originalSession)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Authenticate.Refresh() error = %v, wantErr %v", err, tt.wantErr)
-
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Authenticate.Refresh() = %v, want %v", got, tt.want)
@@ -132,12 +125,13 @@ func TestAuthenticate_Authenticate(t *testing.T) {
 		User:  "user",
 	}
 
-	goodReply := &pb.AuthenticateReply{
-		AccessToken:  "token1234",
-		RefreshToken: "refresh4321",
-		Expiry:       vtProto,
-		Email:        "user@domain.com",
-		User:         "user"}
+	goodReply := &pb.Session{
+		AccessToken:      "token1234",
+		RefreshToken:     "refresh4321",
+		LifetimeDeadline: vtProto,
+		RefreshDeadline:  vtProto,
+		Email:            "user@domain.com",
+		User:             "user"}
 	ciphertext, err := sessions.MarshalSession(want, c)
 	if err != nil {
 		t.Fatalf("expected to be encode session: %v", err)
@@ -147,7 +141,7 @@ func TestAuthenticate_Authenticate(t *testing.T) {
 		name    string
 		cipher  cryptutil.Cipher
 		code    string
-		want    *pb.AuthenticateReply
+		want    *pb.Session
 		wantErr bool
 	}{
 		{"good", c, ciphertext, goodReply, false},
@@ -162,7 +156,7 @@ func TestAuthenticate_Authenticate(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Authenticate.Authenticate() = %v, want %v", got, tt.want)
+				t.Errorf("Authenticate.Authenticate() = got: \n%vwant:\n%v", got, tt.want)
 			}
 		})
 	}

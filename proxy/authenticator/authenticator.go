@@ -1,18 +1,19 @@
 package authenticator // import "github.com/pomerium/pomerium/proxy/authenticator"
 
 import (
-	"time"
+	"context"
+
+	"github.com/pomerium/pomerium/internal/sessions"
 )
 
 // Authenticator provides the authenticate service interface
 type Authenticator interface {
 	// Redeem takes a code and returns a validated session or an error
-	Redeem(string) (*RedeemResponse, error)
-	// Refresh attempts to refresh a valid session with a refresh token. Returns a new access token
-	// and expiration, or an error.
-	Refresh(string) (string, time.Time, error)
+	Redeem(context.Context, string) (*sessions.SessionState, error)
+	// Refresh attempts to refresh a valid session with a refresh token. Returns a refreshed session.
+	Refresh(context.Context, *sessions.SessionState) (*sessions.SessionState, error)
 	// Validate evaluates a given oidc id_token for validity. Returns validity and any error.
-	Validate(string) (bool, error)
+	Validate(context.Context, string) (bool, error)
 	// Close closes the authenticator connection if any.
 	Close() error
 }

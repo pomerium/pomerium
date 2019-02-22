@@ -1,6 +1,7 @@
 package authenticator
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/pomerium/pomerium/internal/sessions"
 	pb "github.com/pomerium/pomerium/proto/authenticate"
 	mock "github.com/pomerium/pomerium/proto/authenticate/mock_authenticate"
 )
@@ -46,34 +48,36 @@ func TestProxy_Redeem(t *testing.T) {
 	mockAuthenticateClient.EXPECT().Authenticate(
 		gomock.Any(),
 		&rpcMsg{msg: req},
-	).Return(&pb.AuthenticateReply{
-		AccessToken:  "mocked access token",
-		RefreshToken: "mocked refresh token",
-		IdToken:      "mocked id token",
-		User:         "user1",
-		Email:        "test@email.com",
-		Expiry:       mockExpire,
+	).Return(&pb.Session{
+		AccessToken:      "mocked access token",
+		RefreshToken:     "mocked refresh token",
+		IdToken:          "mocked id token",
+		User:             "user1",
+		Email:            "test@email.com",
+		LifetimeDeadline: mockExpire,
+		RefreshDeadline:  mockExpire,
 	}, nil)
 	tests := []struct {
 		name    string
 		idToken string
-		want    *RedeemResponse
+		want    *sessions.SessionState
 		wantErr bool
 	}{
-		{"good", "unit_test", &RedeemResponse{
-			AccessToken:  "mocked access token",
-			RefreshToken: "mocked refresh token",
-			IDToken:      "mocked id token",
-			User:         "user1",
-			Email:        "test@email.com",
-			Expiry:       (fixedDate),
+		{"good", "unit_test", &sessions.SessionState{
+			AccessToken:      "mocked access token",
+			RefreshToken:     "mocked refresh token",
+			IDToken:          "mocked id token",
+			User:             "user1",
+			Email:            "test@email.com",
+			LifetimeDeadline: (fixedDate),
+			RefreshDeadline:  (fixedDate),
 		}, false},
 		{"empty code", "", nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := AuthenticateGRPC{client: mockAuthenticateClient}
-			got, err := a.Redeem(tt.idToken)
+			got, err := a.Redeem(context.Background(), tt.idToken)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Proxy.AuthenticateValidate() error = %v,\n wantErr %v", err, tt.wantErr)
 				return
@@ -123,7 +127,7 @@ func TestProxy_AuthenticateValidate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			a := AuthenticateGRPC{client: ac}
 
-			got, err := a.Validate(tt.idToken)
+			got, err := a.Validate(context.Background(), tt.idToken)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Proxy.AuthenticateValidate() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -139,43 +143,43 @@ func TestProxy_AuthenticateRefresh(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockRefreshClient := mock.NewMockAuthenticatorClient(ctrl)
-	req := &pb.RefreshRequest{RefreshToken: "unit_test"}
-	mockExpire, err := ptypes.TimestampProto(fixedDate)
-	if err != nil {
-		t.Fatalf("%v failed converting timestamp", err)
-	}
+	mockExpire, _ := ptypes.TimestampProto(fixedDate)
+
 	mockRefreshClient.EXPECT().Refresh(
 		gomock.Any(),
-		&rpcMsg{msg: req},
-	).Return(&pb.RefreshReply{
-		AccessToken: "mocked access token",
-		Expiry:      mockExpire,
+		gomock.Not(sessions.SessionState{RefreshToken: "fail"}),
+	).Return(&pb.Session{
+		AccessToken:      "new access token",
+		RefreshDeadline:  mockExpire,
+		LifetimeDeadline: mockExpire,
 	}, nil).AnyTimes()
 
 	tests := []struct {
-		name         string
-		refreshToken string
-		wantAT       string
-		wantExp      time.Time
-		wantErr      bool
+		name    string
+		session *sessions.SessionState
+		want    *sessions.SessionState
+		wantErr bool
 	}{
-		{"good", "unit_test", "mocked access token", fixedDate, false},
-		{"missing refresh", "", "", time.Time{}, true},
+		{"good",
+			&sessions.SessionState{RefreshToken: "unit_test"},
+			&sessions.SessionState{
+				AccessToken:      "new access token",
+				RefreshDeadline:  fixedDate,
+				LifetimeDeadline: fixedDate,
+			}, false},
+		{"empty refresh token", &sessions.SessionState{RefreshToken: ""}, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := AuthenticateGRPC{client: mockRefreshClient}
 
-			got, gotExp, err := a.Refresh(tt.refreshToken)
+			got, err := a.Refresh(context.Background(), tt.session)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Proxy.AuthenticateRefresh() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.wantAT {
-				t.Errorf("Proxy.AuthenticateRefresh() got = %v, want %v", got, tt.wantAT)
-			}
-			if !reflect.DeepEqual(gotExp, tt.wantExp) {
-				t.Errorf("Proxy.AuthenticateRefresh() gotExp = %v, want %v", gotExp, tt.wantExp)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Proxy.AuthenticateRefresh() got = \n%#v\nwant \n%#v", got, tt.want)
 			}
 		})
 	}
@@ -195,8 +199,10 @@ func TestNewGRPC(t *testing.T) {
 		{"internal addr with port", &Options{Addr: "", Port: 443, InternalAddr: "intranet.local:8443", SharedSecret: "shh"}, false, "", "intranet.local:8443"},
 		{"internal addr without port", &Options{Addr: "", Port: 443, InternalAddr: "intranet.local", SharedSecret: "shh"}, false, "", "intranet.local:443"},
 		{"cert override", &Options{Addr: "", Port: 443, InternalAddr: "intranet.local", OverrideCertificateName: "*.local", SharedSecret: "shh"}, false, "", "intranet.local:443"},
-
-		// {"addr and internal ", &Options{Addr: "localhost", InternalAddr: "local.localhost", SharedSecret: "shh"}, nil, true, ""},
+		{"custom ca", &Options{Addr: "", Port: 443, InternalAddr: "intranet.local", OverrideCertificateName: "*.local", SharedSecret: "shh", CA: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFVENDQWZrQ0ZBWHhneFg5K0hjWlBVVVBEK0laV0NGNUEvVTdNQTBHQ1NxR1NJYjNEUUVCQ3dVQU1FVXgKQ3pBSkJnTlZCQVlUQWtGVk1STXdFUVlEVlFRSURBcFRiMjFsTFZOMFlYUmxNU0V3SHdZRFZRUUtEQmhKYm5SbApjbTVsZENCWGFXUm5hWFJ6SUZCMGVTQk1kR1F3SGhjTk1Ua3dNakk0TVRnMU1EQTNXaGNOTWprd01qSTFNVGcxCk1EQTNXakJGTVFzd0NRWURWUVFHRXdKQlZURVRNQkVHQTFVRUNBd0tVMjl0WlMxVGRHRjBaVEVoTUI4R0ExVUUKQ2d3WVNXNTBaWEp1WlhRZ1YybGtaMmwwY3lCUWRIa2dUSFJrTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQwpBUThBTUlJQkNnS0NBUUVBOVRFMEFiaTdnMHhYeURkVUtEbDViNTBCT05ZVVVSc3F2THQrSWkwdlpjMzRRTHhOClJrT0hrOFZEVUgzcUt1N2UrNGVubUdLVVNUdzRPNFlkQktiSWRJTFpnb3o0YitNL3FVOG5adVpiN2pBVTdOYWkKajMzVDVrbXB3L2d4WHNNUzNzdUpXUE1EUDB3Z1BUZUVRK2J1bUxVWmpLdUVIaWNTL0l5dmtaVlBzRlE4NWlaUwpkNXE2a0ZGUUdjWnFXeFg0dlhDV25Sd3E3cHY3TThJd1RYc1pYSVRuNXB5Z3VTczNKb29GQkg5U3ZNTjRKU25GCmJMK0t6ekduMy9ScXFrTXpMN3FUdkMrNWxVT3UxUmNES21mZXBuVGVaN1IyVnJUQm42NndWMjVHRnBkSDIzN00KOXhJVkJrWEd1U2NvWHVPN1lDcWFrZkt6aXdoRTV4UmRaa3gweXdJREFRQUJNQTBHQ1NxR1NJYjNEUUVCQ3dVQQpBNElCQVFCaHRWUEI0OCs4eFZyVmRxM1BIY3k5QkxtVEtrRFl6N2Q0ODJzTG1HczBuVUdGSTFZUDdmaFJPV3ZxCktCTlpkNEI5MUpwU1NoRGUrMHpoNno4WG5Ha01mYnRSYWx0NHEwZ3lKdk9hUWhqQ3ZCcSswTFk5d2NLbXpFdnMKcTRiNUZ5NXNpRUZSekJLTmZtTGwxTTF2cW1hNmFCVnNYUUhPREdzYS83dE5MalZ2ay9PYm52cFg3UFhLa0E3cQpLMTQvV0tBRFBJWm9mb00xMzB4Q1RTYXVpeXROajlnWkx1WU9leEZhblVwNCt2MHBYWS81OFFSNTk2U0ROVTlKClJaeDhwTzBTaUYvZXkxVUZXbmpzdHBjbTQzTFVQKzFwU1hFeVhZOFJrRTI2QzNvdjNaTFNKc2pMbC90aXVqUlgKZUJPOWorWDdzS0R4amdtajBPbWdpVkpIM0YrUAotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=="}, false, "", "intranet.local:443"},
+		{"bad ca encoding", &Options{Addr: "", Port: 443, InternalAddr: "intranet.local", OverrideCertificateName: "*.local", SharedSecret: "shh", CA: "^"}, true, "", "intranet.local:443"},
+		{"custom ca file", &Options{Addr: "", Port: 443, InternalAddr: "intranet.local", OverrideCertificateName: "*.local", SharedSecret: "shh", CAFile: "testdata/example.crt"}, false, "", "intranet.local:443"},
+		{"bad custom ca file", &Options{Addr: "", Port: 443, InternalAddr: "intranet.local", OverrideCertificateName: "*.local", SharedSecret: "shh", CAFile: "testdata/example.crt2"}, true, "", "intranet.local:443"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

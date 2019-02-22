@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
@@ -42,6 +43,7 @@ func (p *Proxy) Handler() http.Handler {
 	mux.HandleFunc("/robots.txt", p.RobotsTxt)
 	mux.HandleFunc("/.pomerium/sign_out", p.SignOut)
 	mux.HandleFunc("/.pomerium/callback", p.OAuthCallback)
+	// mux.HandleFunc("/.pomerium/refresh", p.Refresh)  //todo(bdd): needs DoS protection before inclusion
 	mux.HandleFunc("/", p.Proxy)
 
 	// middleware chain
@@ -159,7 +161,7 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// We begin the process of redeeming the code for an access token.
-	rr, err := p.AuthenticateClient.Redeem(r.Form.Get("code"))
+	session, err := p.AuthenticateClient.Redeem(r.Context(), r.Form.Get("code"))
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("proxy: error redeeming authorization code")
 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
@@ -203,15 +205,7 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// We store the session in a cookie and redirect the user back to the application
-	err = p.sessionStore.SaveSession(w, r,
-		&sessions.SessionState{
-			AccessToken:     rr.AccessToken,
-			RefreshToken:    rr.RefreshToken,
-			IDToken:         rr.IDToken,
-			User:            rr.User,
-			Email:           rr.Email,
-			RefreshDeadline: (rr.Expiry).Truncate(time.Second),
-		})
+	err = p.sessionStore.SaveSession(w, r, session)
 	if err != nil {
 		log.FromRequest(r).Error().Msg("error saving session")
 		httputil.ErrorResponse(w, r, "Error saving session", http.StatusInternalServerError)
@@ -221,8 +215,8 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	log.FromRequest(r).Info().
 		Str("code", r.Form.Get("code")).
 		Str("state", r.Form.Get("state")).
-		Str("RefreshToken", rr.RefreshToken).
-		Str("session", rr.AccessToken).
+		Str("RefreshToken", session.RefreshToken).
+		Str("session", session.AccessToken).
 		Str("RedirectURI", stateParameter.RedirectURI).
 		Msg("session")
 
@@ -260,18 +254,40 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	route.ServeHTTP(w, r)
 }
 
+// Refresh refreshes a user session, validating group, extending timeout period, without requiring
+// a user to re-authenticate
+// func (p *Proxy) Refresh(w http.ResponseWriter, r *http.Request) {
+// 	session, err := p.sessionStore.LoadSession(r)
+// 	if err != nil {
+// 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	session, err = p.AuthenticateClient.Refresh(r.Context(), session)
+// 	if err != nil {
+// 		log.FromRequest(r).Warn().Err(err).Msg("proxy: refresh failed")
+// 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	err = p.sessionStore.SaveSession(w, r, session)
+// 	if err != nil {
+// 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	w.WriteHeader(http.StatusOK)
+// 	jsonSession, err := json.Marshal(session)
+// 	if err != nil {
+// 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	fmt.Fprintf(w, string(jsonSession))
+// }
+
 // Authenticate authenticates a request by checking for a session cookie, and validating its expiration,
 // clearing the session cookie if it's invalid and returning an error if necessary..
 func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error) {
-	// Clear the session cookie if anything goes wrong.
-	defer func() {
-		if err != nil {
-			p.sessionStore.ClearSession(w, r)
-		}
-	}()
-
 	session, err := p.sessionStore.LoadSession(r)
 	if err != nil {
+		p.sessionStore.ClearSession(w, r)
 		return err
 	}
 
@@ -279,26 +295,23 @@ func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error)
 		// AccessToken's usually expire after 60 or so minutes. If offline_access scope is set, a
 		// refresh token (which doesn't change) can be used to request a new access-token. If access
 		// is revoked by identity provider, or no refresh token is set, request will return an error
-		accessToken, expiry, err := p.AuthenticateClient.Refresh(session.RefreshToken)
+		session, err = p.AuthenticateClient.Refresh(r.Context(), session)
 		if err != nil {
-			log.FromRequest(r).Warn().
-				Str("RefreshToken", session.RefreshToken).
-				Str("AccessToken", session.AccessToken).
-				Msg("proxy: refresh failed")
+			p.sessionStore.ClearSession(w, r)
+			log.FromRequest(r).Warn().Err(err).Msg("proxy: refresh failed")
 			return err
 		}
-		session.AccessToken = accessToken
-		session.RefreshDeadline = expiry
-		log.FromRequest(r).Info().Msg("proxy: refresh success")
 	}
 
 	err = p.sessionStore.SaveSession(w, r, session)
 	if err != nil {
+		p.sessionStore.ClearSession(w, r)
 		return err
 	}
 	// pass user & user-email details to client applications
 	r.Header.Set(HeaderUserID, session.User)
 	r.Header.Set(HeaderEmail, session.Email)
+	r.Header.Set(HeaderGroups, strings.Join(session.Groups, ","))
 	// This user has been OK'd. Allow the request!
 	return nil
 }

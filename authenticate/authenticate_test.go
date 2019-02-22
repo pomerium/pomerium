@@ -19,9 +19,8 @@ func testOptions() *Options {
 		ClientSecret:     "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
 		CookieSecret:     "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
 		CookieRefresh:    time.Duration(1) * time.Hour,
-		// CookieLifetimeTTL: time.Duration(720) * time.Hour,
-		CookieExpire: time.Duration(168) * time.Hour,
-		CookieName:   "pomerium",
+		CookieExpire:     time.Duration(168) * time.Hour,
+		CookieName:       "pomerium",
 	}
 }
 
