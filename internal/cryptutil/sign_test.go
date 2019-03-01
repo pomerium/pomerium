@@ -12,7 +12,7 @@ func TestES256Signer(t *testing.T) {
 	if signer == nil {
 		t.Fatal("signer should not be nil")
 	}
-	rawJwt, err := signer.SignJWT("joe-user", "joe-user@example.com")
+	rawJwt, err := signer.SignJWT("joe-user", "joe-user@example.com", "group1,group2")
 	if err != nil {
 		t.Fatal(err)
 	}

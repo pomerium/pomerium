@@ -36,24 +36,25 @@ To properly secure your app, you must use signed headers for all app types.
 
 ## Verification
 
-To secure your app with JWT, cryptographically verify the header, payload, and signature of the JWT. The JWT is in the HTTP request header `x-pomerium-iap-jwt-assertion`. If an attacker bypasses pomerium, they can forge the unsigned identity headers, `x-pomerium-authenticated-user-{email,id}`. JWT provides a more secure alternative.
+To secure your app with JWT, cryptographically verify the header, payload, and signature of the JWT. The JWT is in the HTTP request header `x-pomerium-iap-jwt-assertion`. If an attacker bypasses pomerium, they can forge the unsigned identity headers, `x-pomerium-authenticated-user-{email,id,groups}`. JWT provides a more secure alternative.
 
 Note that pomerium it strips the `x-pomerium-*` headers provided by the client when the request goes through the serving infrastructure.
 
 Verify that the JWT's header conforms to the following constraints:
 
- [JWT]  | description
-:-----: | ---------------------------------------------------------------------------------------------------
- `exp`  | Expiration time in seconds since the UNIX epoch. Allow 1 minute for skew.
- `iat`  | Issued-at time in seconds since the UNIX epoch. Allow 1 minute for skew.
- `aud`  | The client's final domain e.g. `httpbin.corp.example.com`.
- `iss`  | Issuer must be `pomerium-proxy`.
- `sub`  | Subject is the user's id. Can be used instead of the `x-pomerium-authenticated-user-id` header.
-`email` | Email is the user's email. Can be used instead of the `x-pomerium-authenticated-user-email` header.
+ [JWT]   | description
+:------: | ------------------------------------------------------------------------------------------------------
+ `exp`   | Expiration time in seconds since the UNIX epoch. Allow 1 minute for skew.
+ `iat`   | Issued-at time in seconds since the UNIX epoch. Allow 1 minute for skew.
+ `aud`   | The client's final domain e.g. `httpbin.corp.example.com`.
+ `iss`   | Issuer must be `pomerium-proxy`.
+ `sub`   | Subject is the user's id. Can be used instead of the `x-pomerium-authenticated-user-id` header.
+`email`  | Email is the user's email. Can be used instead of the `x-pomerium-authenticated-user-email` header.
+`groups` | Groups is the user's groups. Can be used instead of the `x-pomerium-authenticated-user-groups` header.
 
 ### Manual verification
 
-Though you will very likely be verifying signed-headers programmatically in your application's middleware, and using a third-party JWT library, if you are new to JWT it may be helpful to show what manual verification looks like. The following guide assumes you are using the provided [docker-compose.yml] as a base and [httpbin]. Httpbin gives us a convienient way of inspecting client headers.
+Though you will very likely be verifying signed-headers programmatically in your application's middleware, and using a third-party JWT library, if you are new to JWT it may be helpful to show what manual verification looks like. The following guide assumes you are using the provided [docker-compose.yml] as a base and [httpbin]. Httpbin gives us a convenient way of inspecting client headers.
 
 1. Provide pomerium with a base64 encoded Elliptic Curve ([NIST P-256] aka [secp256r1] aka prime256v1) Private Key. In production, you'd likely want to get these from your KMS.
 

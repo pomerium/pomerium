@@ -10,9 +10,11 @@ description: >-
 
 This article describes how to configure Pomerium to use a third-party identity service for single-sign-on.
 
-There are a few configuration steps required for identity provider integration. Most providers support [OpenID Connect] which provides a standardized interface for IdentityProvider. In this guide we'll cover how to do the following for each identity provider:
+There are a few configuration steps required for identity provider integration. Most providers support [OpenID Connect] which provides a standardized identity and authentication interface.
 
-1. Establish a **Redirect URL** with the identity provider which is called after IdentityProvider.
+In this guide we'll cover how to do the following for each identity provider:
+
+1. Set a **[Redirect URL]** pointing back to Pomerium.
 2. Generate a **[Client ID]** and **[Client Secret]**.
 3. Configure Pomerium to use the **[Client ID]** and **[Client Secret]** keys.
 
@@ -71,15 +73,39 @@ Next you need to ensure that the Pomerium's Redirect URL is listed in allowed re
 
 ![Add Reply URL](./microsoft/azure-redirect-url.png)
 
-The final, and most unique step to Azure AD provider, is to take note of your specific endpoint. Navigate to **Azure Active Directory** -> **Apps registrations** and select your app. ![Application dashboard](./microsoft/azure-application-dashbaord.png) Click on **Endpoints**
+Next, in order to retrieve group information from Active Directory, we need to enable the necessary permissions for the [Microsoft Graph API](https://docs.microsoft.com/en-us/graph/auth-v2-service#azure-ad-endpoint-considerations).
+
+On the **App registrations** page, click **API permissions**. Click the **Add a permission** button and select **Microsoft Graph API**, select **Delegated permissions**. Under the **Directory** row, select the checkbox for **Directory.Read.All**.
+
+![Azure add group membership claims](./microsoft/azure-api-settings.png)
+
+You can also optionally select **grant admin consent for all users** which will suppress the permission screen on first login for users.
+
+The final, and most unique step to Azure AD provider, is to take note of your specific endpoint. Navigate to **Azure Active Directory** -> **Apps registrations** and select your app.
+
+![Application dashboard](./microsoft/azure-application-dashbaord.png)
+
+Click on **Endpoints**
 
 ![Endpoint details](./microsoft/azure-endpoints.png)
 
-The **OpenID Connect Metadata Document** value will form the basis for Pomerium's **Provider URL** setting. For example, if your **Azure OpenID Connect** is `https://login.microsoftonline.com/0303f438-3c5c-4190-9854-08d3eb31bd9f/v2.0/.well-known/openid-configuration` your **Pomerium Identity Provider URL** would be `https://login.microsoftonline.com/0303f438-3c5c-4190-9854-08d3eb31bd9f/v2.0`.
+The **OpenID Connect Metadata Document** value will form the basis for Pomerium's **Provider URL** setting.
+
+For example if the **Azure OpenID Connect** url is:
+
+```bash
+https://login.microsoftonline.com/0303f438-3c5c-4190-9854-08d3eb31bd9f/v2.0/.well-known/openid-configuration`
+```
+
+**Pomerium Identity Provider URL** would be
+
+```bash
+https://login.microsoftonline.com/0303f438-3c5c-4190-9854-08d3eb31bd9f/v2.0
+```
 
 ### Configure Pomerium
 
-At this point, you will configure the integration from the Pomerium side. Your [environmental variables] should look something like:
+Finally, configure Pomerium with the identity provider settings retrieved in the pervious steps. Your [environmental variables] should look something like:
 
 ```bash
 # Azure
@@ -94,7 +120,7 @@ IDP_CLIENT_SECRET="REPLACE-ME"
 
 :::warning
 
-Gitlab currently does not provide callers with a user email, under any scope, to a caller unless that user has selected her email to be public. Because Pomerium is by nature very centric, users are cautioned from using Pomerium until [this gitlab bug](https://gitlab.com/gitlab-org/gitlab-ce/issues/44435#note_88150387) is fixed.
+Support was removed in v0.0.3 because Gitlab does not provide callers with a user email, under any scope, to a caller unless that user has selected her email to be public. Pomerium until [this gitlab bug](https://gitlab.com/gitlab-org/gitlab-ce/issues/44435#note_88150387) is fixed.
 
 :::
 
@@ -153,13 +179,52 @@ Authorized redirect URIs | [Redirect URL] (e.g.`https://auth.corp.example.com/oa
 
 ![Web App Credentials Configuration](./google/google-create-client-id-config.png)
 
-Click **Create** to proceed.
-
-Your [Client ID] and [Client Secret] will be displayed:
+Click **Create** to proceed. The [Client ID] and [Client Secret] settings will be displayed for later configuration with Pomerium.
 
 ![OAuth Client ID and Secret](./google/google-oauth-client-info.png)
 
-Set [Client ID] and [Client Secret] in Pomerium's settings. Your [environmental variables] should look something like this.
+In order to have Pomerium validate group membership, we'll also need to configure a [service account](https://console.cloud.google.com/iam-admin/serviceaccounts) with [G-suite domain-wide delegation](https://developers.google.com/admin-sdk/directory/v1/guides/delegation) enabled.
+
+1. Open the [Service accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) page.
+2. If prompted, select a project.
+3. Click **Create service** account. In the Create service account window, type a name for the service account, and select Furnish a new private key and Enable Google Apps Domain-wide Delegation.
+4. Then click **Save**.
+
+![Google create service account](./google/google-create-sa.png)
+
+Then, you'll need to manually open an editor add an `impersonate_user` key to the downloaded public/private key file. In this case, we'd be impersonating the admin account `user@pomerium.io`.
+
+::: warning
+
+You MUST add the `impersonate_user` field to your json key file. [Google requires](https://stackoverflow.com/questions/48585700/is-it-possible-to-call-apis-from-service-account-without-acting-on-behalf-of-a-u/48601364#48601364) that service accounts act on behalf of another user.
+
+:::
+
+```json
+{
+  "type": "service_account",
+  "client_id": "109818058799274859509",
+  ...
+  "impersonate_user": "user@pomerium.io"
+  ...
+}
+```
+
+The base64 encoded contents of this public/private key pair json file will used for the value of the `IDP_SERVICE_ACCOUNT` configuration setting.
+
+Next we'll delegate G-suite group membership access to the service account we just created .
+
+1. Go to your G Suite domain's [Admin console](http://admin.google.com/).
+2. Select **Security** from the list of controls. If you don't see Security listed, select More controls 1\. from the gray bar at the bottom of the page, then select Security from the list of controls.
+3. Select **Advanced settings** from the list of options.
+4. Select **Manage API client** access in the Authentication section.
+5. In the **Client name** field enter the service account's **Client ID**.
+6. In the **One or More API Scopes** field enter the following list of scopes: `https://www.googleapis.com/auth/admin.directory.group.readonly` `https://www.googleapis.com/auth/admin.directory.user.readonly`
+7. Click the **Authorize** button.
+
+![Google create service account](./google/google-gsuite-add-scopes.png)
+
+Your [environmental variables] should look something like this.
 
 ```bash
 REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
@@ -167,6 +232,7 @@ IDP_PROVIDER="google"
 IDP_PROVIDER_URL="https://accounts.google.com"
 IDP_CLIENT_ID="yyyy.apps.googleusercontent.com"
 IDP_CLIENT_SECRET="xxxxxx"
+IDP_SERVICE_ACCOUNT="zzzz" # output of `cat service-account-key.json | base64`
 ```
 
 ## Okta
@@ -197,7 +263,35 @@ Go to the **General** page of your app and scroll down to the **Client Credentia
 
 ![Okta Client ID and Secret](./okta/okta-client-id-and-secret.png)
 
-At this point, you will configure the integration from the Pomerium side. Your [environmental variables] should look something like this.
+Next, we'll configure Okta to pass along a custom OpenID Connect claim to establish group membership. To do so, click the **API** menu item, and select **Authorization Servers**.
+
+![Okta authorization servers](./okta/okta-authorization-servers.png)
+
+Select your desired authorization server and navigate to the **claims tab**. Click **Add Claim** and configure the group claim for **ID Token** as follows.
+
+![Okta configure group claim](./okta/okta-configure-groups-claim.png)
+
+Field                 | Value
+--------------------- | ---------------------
+Name                  | groups
+Include in token type | **ID Token**, Always.
+Value Type            | Groups
+Filter                | Matches regex `.*`
+Include in            | Any scope
+
+Add an another, almost identical, claim but this time for **Access Token**.
+
+Field                 | Value
+--------------------- | -------------------------
+Name                  | groups
+Include in token type | **Access Token**, Always.
+Value Type            | Groups
+Filter                | Matches regex `.*`
+Include in            | Any scope
+
+![Okta list group claims](./okta/okta-list-groups-claim.png)
+
+Finally, configure Pomerium with the identity provider settings retrieved in the pervious steps. Your [environmental variables] should look something like this.
 
 ```bash
 REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
@@ -227,15 +321,26 @@ Next, set set the **Redirect URI's** setting to be Pomerium's [redirect url].
 
 ![One Login set callback url](./one-login/one-login-callback-url.png)
 
-Go to the **SSO** page. This section contains the **[Client ID]** and **[Client Secret]** you'll use to configure Pomerium. 
+Go to the **SSO** page. This section contains the **[Client ID]** and **[Client Secret]** you'll use to configure Pomerium.
 
-Also, be sure to also set the application type to **Web** and the token endpoint to be **POST**.
+Set the application type to **Web** and the token endpoint to be **POST**.
+
+Under **Token Timeout settings** set **Refresh Token** to 60 minutes (or whatever value makes sense for your organization). Note, however, if you don't enable refresh tokens the user will be prompted to authenticate whenever the access token expires which can result in a poor user experience. 
 
 
 ![One Login SSO settings](./one-login/one-login-sso-settings.png)
 
+[OneLogin's OIDC implementation](https://developers.onelogin.com/openid-connect/scopes) supports the `groups` which can return either the user's group or role which can be used within pomerium to enforced group-based ACL policy.
 
-At this point, you will configure the integration from the Pomerium side. Your [environmental variables] should look something like this.
+To return the user's Active Directory field, configure the group to return `member_of`. In the Default if no value field, select **User Roles** and Select **Semicolon Delimited** in the adjacent field. **Select Save**
+
+![OneLogin set role](./one-login/one-login-oidc-params.png)
+
+**Alternatively**, groups can return the _roles_ a user is assigned. In the Default if no value field, select **User Roles** and Select **Semicolon Delimited** in the adjacent field. **Select Save**
+
+![OneLogin set role](./one-login/one-login-oidc-groups-param.png)
+
+Finally, configure Pomerium with the identity provider settings retrieved in the pervious steps. Your [environmental variables] should look something like this.
 
 ```bash
 REDIRECT_URL="https://auth.corp.beyondperimeter.com/oauth2/callback"

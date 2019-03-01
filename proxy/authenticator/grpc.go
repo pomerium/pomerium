@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
+	"github.com/pomerium/pomerium/internal/sessions"
 	pb "github.com/pomerium/pomerium/proto/authenticate"
 )
 
@@ -92,16 +92,6 @@ func NewGRPC(opts *Options) (p *AuthenticateGRPC, err error) {
 	return &AuthenticateGRPC{Conn: conn, client: authClient}, nil
 }
 
-// RedeemResponse contains data from a authenticator redeem request.
-type RedeemResponse struct {
-	AccessToken  string
-	RefreshToken string
-	IDToken      string
-	User         string
-	Email        string
-	Expiry       time.Time
-}
-
 // AuthenticateGRPC is a gRPC implementation of an authenticator (authenticate client)
 type AuthenticateGRPC struct {
 	Conn   *grpc.ClientConn
@@ -110,60 +100,73 @@ type AuthenticateGRPC struct {
 
 // Redeem makes an RPC call to the authenticate service to creates a session state
 // from an encrypted code provided as a result of an oauth2 callback process.
-func (a *AuthenticateGRPC) Redeem(code string) (*RedeemResponse, error) {
+func (a *AuthenticateGRPC) Redeem(ctx context.Context, code string) (*sessions.SessionState, error) {
 	if code == "" {
 		return nil, errors.New("missing code")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	r, err := a.client.Authenticate(ctx, &pb.AuthenticateRequest{Code: code})
+	protoSession, err := a.client.Authenticate(ctx, &pb.AuthenticateRequest{Code: code})
 	if err != nil {
 		return nil, err
 	}
-	expiry, err := ptypes.Timestamp(r.Expiry)
+	session, err := pb.SessionFromProto(protoSession)
 	if err != nil {
 		return nil, err
 	}
-	return &RedeemResponse{
-		AccessToken:  r.AccessToken,
-		RefreshToken: r.RefreshToken,
-		IDToken:      r.IdToken,
-		User:         r.User,
-		Email:        r.Email,
-		Expiry:       expiry,
-	}, nil
+	return session, nil
 }
 
 // Refresh makes an RPC call to the authenticate service to attempt to refresh the
 // user's session. Requires a valid refresh token. Will return an error if the identity provider
 // has revoked the session or if the refresh token is no longer valid in this context.
-func (a *AuthenticateGRPC) Refresh(refreshToken string) (string, time.Time, error) {
-	if refreshToken == "" {
-		return "", time.Time{}, errors.New("missing refresh token")
+func (a *AuthenticateGRPC) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
+	if s.RefreshToken == "" {
+		return nil, errors.New("missing refresh token")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	req, err := pb.ProtoFromSession(s)
+	if err != nil {
+		return nil, err
+	}
+	// todo(bdd): handle request id in grpc receiver and add to ctx logger
+	// reqID, ok := middleware.IDFromCtx(ctx)
+	// if ok {
+	// 	md := metadata.Pairs("req_id", reqID)
+	// 	ctx = metadata.NewOutgoingContext(ctx, md)
+	// }
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	r, err := a.client.Refresh(ctx, &pb.RefreshRequest{RefreshToken: refreshToken})
+	// todo(bdd): add grpc specific timeouts to main options
+	// todo(bdd): handle request id (metadata!?) in grpc receiver and add to ctx logger
+	reply, err := a.client.Refresh(ctx, req)
 	if err != nil {
-		return "", time.Time{}, err
+		return nil, err
 	}
-
-	expiry, err := ptypes.Timestamp(r.Expiry)
+	newSession, err := pb.SessionFromProto(reply)
 	if err != nil {
-		return "", time.Time{}, err
+		return nil, err
 	}
-	return r.AccessToken, expiry, nil
+	return newSession, nil
 }
 
 // Validate makes an RPC call to the authenticate service to validate the JWT id token;
 // does NOT do nonce or revokation validation.
 // https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
-func (a *AuthenticateGRPC) Validate(idToken string) (bool, error) {
+func (a *AuthenticateGRPC) Validate(ctx context.Context, idToken string) (bool, error) {
 	if idToken == "" {
 		return false, errors.New("missing id token")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// todo(bdd): add grpc specific timeouts to main options
+	// todo(bdd): handle request id in grpc receiver and add to ctx logger
+	// reqID, ok := middleware.IDFromCtx(ctx)
+	// if ok {
+	// 	md := metadata.Pairs("req_id", reqID)
+	// 	ctx = metadata.NewOutgoingContext(ctx, md)
+	// }
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+	// todo(bdd): add grpc specific timeouts to main options
+	// todo(bdd): handle request id (metadata!?) in grpc receiver and add to ctx logger
 	r, err := a.client.Validate(ctx, &pb.ValidateRequest{IdToken: idToken})
 	if err != nil {
 		return false, err

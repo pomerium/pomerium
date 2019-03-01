@@ -60,19 +60,19 @@ func TestAuthenticate(t *testing.T) {
 	mockAuthenticateClient := mock.NewMockAuthenticatorClient(ctrl)
 	mockExpire, err := ptypes.TimestampProto(fixedDate)
 	if err != nil {
-		t.Fatalf("%v failed converting timestampe", err)
+		t.Fatalf("%v failed converting timestamp", err)
 	}
 	req := &pb.AuthenticateRequest{Code: "unit_test"}
 	mockAuthenticateClient.EXPECT().Authenticate(
 		gomock.Any(),
 		&rpcMsg{msg: req},
-	).Return(&pb.AuthenticateReply{
-		AccessToken:  "mocked access token",
-		RefreshToken: "mocked refresh token",
-		IdToken:      "mocked id token",
-		User:         "user1",
-		Email:        "test@email.com",
-		Expiry:       mockExpire,
+	).Return(&pb.Session{
+		AccessToken:      "mocked access token",
+		RefreshToken:     "mocked refresh token",
+		IdToken:          "mocked id token",
+		User:             "user1",
+		Email:            "test@email.com",
+		LifetimeDeadline: mockExpire,
 	}, nil)
 	testAuthenticate(t, mockAuthenticateClient)
 }
@@ -107,15 +107,15 @@ func TestRefresh(t *testing.T) {
 	mockRefreshClient := mock.NewMockAuthenticatorClient(ctrl)
 	mockExpire, err := ptypes.TimestampProto(fixedDate)
 	if err != nil {
-		t.Fatalf("%v failed converting timestampe", err)
+		t.Fatalf("%v failed converting timestamp", err)
 	}
-	req := &pb.RefreshRequest{RefreshToken: "unit_test"}
+	req := &pb.Session{RefreshToken: "unit_test"}
 	mockRefreshClient.EXPECT().Refresh(
 		gomock.Any(),
 		&rpcMsg{msg: req},
-	).Return(&pb.RefreshReply{
-		AccessToken: "mocked access token",
-		Expiry:      mockExpire,
+	).Return(&pb.Session{
+		AccessToken:      "mocked access token",
+		LifetimeDeadline: mockExpire,
 	}, nil)
 	testRefresh(t, mockRefreshClient)
 }
@@ -123,16 +123,16 @@ func TestRefresh(t *testing.T) {
 func testRefresh(t *testing.T, client pb.AuthenticatorClient) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := client.Refresh(ctx, &pb.RefreshRequest{RefreshToken: "unit_test"})
+	r, err := client.Refresh(ctx, &pb.Session{RefreshToken: "unit_test"})
 	if err != nil {
 		t.Errorf("mocking failed %v", err)
 	}
 	if r.AccessToken != "mocked access token" {
 		t.Errorf("Refresh: invalid access token")
 	}
-	respExpire, err := ptypes.Timestamp(r.Expiry)
+	respExpire, err := ptypes.Timestamp(r.LifetimeDeadline)
 	if err != nil {
-		t.Fatalf("%v failed converting timestampe", err)
+		t.Fatalf("%v failed converting timestamp", err)
 	}
 
 	if respExpire != fixedDate {

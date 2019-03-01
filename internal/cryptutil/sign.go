@@ -10,7 +10,7 @@ import (
 // JWTSigner implements JWT signing according to JSON Web Token (JWT) RFC7519
 // https://tools.ietf.org/html/rfc7519
 type JWTSigner interface {
-	SignJWT(string, string) (string, error)
+	SignJWT(string, string, string) (string, error)
 }
 
 // ES256Signer is struct containing the required fields to create a ES256 signed JSON Web Tokens
@@ -18,9 +18,15 @@ type ES256Signer struct {
 	// User (sub) is unique, stable identifier for the user.
 	// Use in place of the x-pomerium-authenticated-user-id header.
 	User string `json:"sub,omitempty"`
-	// Email (sub) is a **private** claim name identifier for the user email address.
+
+	// Email (email) is a **custom** claim name identifier for the user email address.
 	// Use in place of the x-pomerium-authenticated-user-email header.
 	Email string `json:"email,omitempty"`
+
+	// Groups (groups) is a **custom** claim name identifier for the user's groups.
+	// Use in place of the x-pomerium-authenticated-user-groups header.
+	Groups string `json:"groups,omitempty"`
+
 	// Audience (aud) must be the destination of the upstream proxy locations.
 	// e.g. `helloworld.corp.example.com`
 	Audience jwt.Audience `json:"aud,omitempty"`
@@ -68,14 +74,16 @@ func NewES256Signer(privKey []byte, audience string) (*ES256Signer, error) {
 	}, nil
 }
 
-// SignJWT creates a signed JWT containing claims for the logged in user id (`sub`) and email (`email`).
-func (s *ES256Signer) SignJWT(user, email string) (string, error) {
+// SignJWT creates a signed JWT containing claims for the logged in
+// user id (`sub`), email (`email`) and groups (`groups`).
+func (s *ES256Signer) SignJWT(user, email, groups string) (string, error) {
 	s.User = user
 	s.Email = email
+	s.Groups = groups
 	now := time.Now()
-	s.IssuedAt = jwt.NewNumericDate(now)
-	s.Expiry = jwt.NewNumericDate(now.Add(jwt.DefaultLeeway))
-	s.NotBefore = jwt.NewNumericDate(now.Add(-1 * jwt.DefaultLeeway))
+	s.IssuedAt = *jwt.NewNumericDate(now)
+	s.Expiry = *jwt.NewNumericDate(now.Add(jwt.DefaultLeeway))
+	s.NotBefore = *jwt.NewNumericDate(now.Add(-1 * jwt.DefaultLeeway))
 	rawJWT, err := jwt.Signed(s.signer).Claims(s).CompactSerialize()
 	if err != nil {
 		return "", err

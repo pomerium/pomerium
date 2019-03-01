@@ -4,29 +4,24 @@ import "google/protobuf/timestamp.proto";
 package authenticate;
 
 service Authenticator {
-  rpc Authenticate(AuthenticateRequest) returns (AuthenticateReply) {}
+  rpc Authenticate(AuthenticateRequest) returns (Session) {}
   rpc Validate(ValidateRequest) returns (ValidateReply) {}
-  rpc Refresh(RefreshRequest) returns (RefreshReply) {}
+  rpc Refresh(Session) returns (Session) {}
 }
 
 message AuthenticateRequest { string code = 1; }
-
-message AuthenticateReply {
-  string access_token = 1;
-  string refresh_token = 2;
-  string id_token = 3;
-  string user = 4;
-  string email = 5;
-  google.protobuf.Timestamp expiry = 6;
-}
 
 message ValidateRequest { string id_token = 1; }
 
 message ValidateReply { bool is_valid = 1; }
 
-message RefreshRequest { string refresh_token = 1; }
-
-message RefreshReply {
+message Session {
   string access_token = 1;
-  google.protobuf.Timestamp expiry = 2;
+  string refresh_token = 2;
+  string id_token = 3;
+  string user = 4;
+  string email = 5;
+  repeated string groups = 6;
+  google.protobuf.Timestamp refresh_deadline = 7;
+  google.protobuf.Timestamp lifetime_deadline = 8;
 }

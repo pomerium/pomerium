@@ -1,15 +1,16 @@
 package authenticator // import "github.com/pomerium/pomerium/proxy/authenticator"
 
 import (
-	"time"
+	"context"
+
+	"github.com/pomerium/pomerium/internal/sessions"
 )
 
 // MockAuthenticate provides a mocked implementation of the authenticator interface.
 type MockAuthenticate struct {
 	RedeemError      error
-	RedeemResponse   *RedeemResponse
-	RefreshResponse  string
-	RefreshTime      time.Time
+	RedeemResponse   *sessions.SessionState
+	RefreshResponse  *sessions.SessionState
 	RefreshError     error
 	ValidateResponse bool
 	ValidateError    error
@@ -17,17 +18,17 @@ type MockAuthenticate struct {
 }
 
 // Redeem is a mocked authenticator client function.
-func (a MockAuthenticate) Redeem(code string) (*RedeemResponse, error) {
+func (a MockAuthenticate) Redeem(ctx context.Context, code string) (*sessions.SessionState, error) {
 	return a.RedeemResponse, a.RedeemError
 }
 
 // Refresh is a mocked authenticator client function.
-func (a MockAuthenticate) Refresh(refreshToken string) (string, time.Time, error) {
-	return a.RefreshResponse, a.RefreshTime, a.RefreshError
+func (a MockAuthenticate) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
+	return a.RefreshResponse, a.RefreshError
 }
 
 // Validate is a mocked authenticator client function.
-func (a MockAuthenticate) Validate(idToken string) (bool, error) {
+func (a MockAuthenticate) Validate(ctx context.Context, idToken string) (bool, error) {
 	return a.ValidateResponse, a.ValidateError
 }
 

@@ -230,10 +230,10 @@ func TestProxy_OAuthCallback(t *testing.T) {
 		},
 	}
 	normalAuth := authenticator.MockAuthenticate{
-		RedeemResponse: &authenticator.RedeemResponse{
-			AccessToken:  "AccessToken",
-			RefreshToken: "RefreshToken",
-			Expiry:       time.Now().Add(10 * time.Second),
+		RedeemResponse: &sessions.SessionState{
+			AccessToken:      "AccessToken",
+			RefreshToken:     "RefreshToken",
+			LifetimeDeadline: time.Now().Add(10 * time.Second),
 		},
 	}
 	normalCsrf := sessions.MockCSRFStore{
@@ -390,19 +390,20 @@ func TestProxy_Proxy(t *testing.T) {
 }
 
 func TestProxy_Authenticate(t *testing.T) {
+
 	goodSession := &sessions.SessionState{
+		User:             "user",
+		Email:            "email@email.com",
+		Groups:           []string{"group1"},
 		AccessToken:      "AccessToken",
 		RefreshToken:     "RefreshToken",
 		LifetimeDeadline: time.Now().Add(10 * time.Second),
 		RefreshDeadline:  time.Now().Add(10 * time.Second),
 	}
-
-	expiredDeadline := &sessions.SessionState{
-		AccessToken:      "AccessToken",
-		RefreshToken:     "RefreshToken",
-		LifetimeDeadline: time.Now().Add(10 * time.Second),
-		RefreshDeadline:  time.Now().Add(-10 * time.Second),
+	testAuth := authenticator.MockAuthenticate{
+		RedeemResponse: goodSession,
 	}
+
 	tests := []struct {
 		name          string
 		host          string
@@ -414,30 +415,84 @@ func TestProxy_Authenticate(t *testing.T) {
 		{"cannot save session",
 			"https://corp.example.com/",
 			map[string]string{"corp.example.com": "example.com"},
-			&sessions.MockSessionStore{Session: goodSession, SaveError: errors.New("error")},
-			authenticator.MockAuthenticate{}, true},
+			&sessions.MockSessionStore{Session: &sessions.SessionState{
+				User:             "user",
+				Email:            "email@email.com",
+				Groups:           []string{"group1"},
+				AccessToken:      "AccessToken",
+				RefreshToken:     "RefreshToken",
+				LifetimeDeadline: time.Now().Add(10 * time.Second),
+				RefreshDeadline:  time.Now().Add(10 * time.Second),
+			}, SaveError: errors.New("error")},
+			testAuth, true},
 
 		{"cannot load session",
 			"https://corp.example.com/",
 			map[string]string{"corp.example.com": "example.com"},
-			&sessions.MockSessionStore{LoadError: errors.New("error")}, authenticator.MockAuthenticate{}, true},
+			&sessions.MockSessionStore{LoadError: errors.New("error")}, testAuth, true},
 		{"expired session",
 			"https://corp.example.com/",
 			map[string]string{"corp.example.com": "example.com"},
-			&sessions.MockSessionStore{Session: expiredDeadline}, authenticator.MockAuthenticate{}, false},
+			&sessions.MockSessionStore{
+				Session: &sessions.SessionState{
+					User:             "user",
+					Email:            "email@email.com",
+					Groups:           []string{"group1"},
+					AccessToken:      "AccessToken",
+					RefreshToken:     "RefreshToken",
+					LifetimeDeadline: time.Now().Add(10 * time.Second),
+					RefreshDeadline:  time.Now().Add(-10 * time.Second),
+				}},
+			authenticator.MockAuthenticate{
+				RefreshError: errors.New("error"),
+				RefreshResponse: &sessions.SessionState{
+					User:             "user",
+					Email:            "email@email.com",
+					Groups:           []string{"group1"},
+					AccessToken:      "AccessToken",
+					RefreshToken:     "RefreshToken",
+					LifetimeDeadline: time.Now().Add(10 * time.Second),
+					RefreshDeadline:  time.Now().Add(-10 * time.Second),
+				}}, true},
 		{"bad refresh authenticator",
 			"https://corp.example.com/",
 			map[string]string{"corp.example.com": "example.com"},
 			&sessions.MockSessionStore{
-				Session: expiredDeadline,
+				Session: &sessions.SessionState{
+					User:             "user",
+					Email:            "email@email.com",
+					Groups:           []string{"group1"},
+					AccessToken:      "AccessToken",
+					RefreshToken:     "RefreshToken",
+					LifetimeDeadline: time.Now().Add(10 * time.Second),
+					RefreshDeadline:  time.Now().Add(-10 * time.Second),
+				},
 			},
-			authenticator.MockAuthenticate{RefreshError: errors.New("error")},
+			authenticator.MockAuthenticate{
+				RefreshError: errors.New("error"),
+				RefreshResponse: &sessions.SessionState{
+					User:             "user",
+					Email:            "email@email.com",
+					Groups:           []string{"group1"},
+					AccessToken:      "AccessToken",
+					RefreshToken:     "RefreshToken",
+					LifetimeDeadline: time.Now().Add(10 * time.Second),
+					RefreshDeadline:  time.Now().Add(-10 * time.Second),
+				}},
 			true},
 
 		{"good",
 			"https://corp.example.com/",
 			map[string]string{"corp.example.com": "example.com"},
-			&sessions.MockSessionStore{Session: goodSession}, authenticator.MockAuthenticate{}, false},
+			&sessions.MockSessionStore{Session: &sessions.SessionState{
+				User:             "user",
+				Email:            "email@email.com",
+				Groups:           []string{"group1"},
+				AccessToken:      "AccessToken",
+				RefreshToken:     "RefreshToken",
+				LifetimeDeadline: time.Now().Add(10 * time.Second),
+				RefreshDeadline:  time.Now().Add(10 * time.Second),
+			}}, testAuth, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -452,6 +507,7 @@ func TestProxy_Authenticate(t *testing.T) {
 			p.cipher = mockCipher{}
 			r := httptest.NewRequest("GET", tt.host, nil)
 			w := httptest.NewRecorder()
+			fmt.Printf("%s", tt.name)
 
 			if err := p.Authenticate(w, r); (err != nil) != tt.wantErr {
 				t.Errorf("Proxy.Authenticate() error = %v, wantErr %v", err, tt.wantErr)

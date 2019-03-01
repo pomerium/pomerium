@@ -28,6 +28,8 @@ const (
 	HeaderUserID = "x-pomerium-authenticated-user-id"
 	// HeaderEmail represents the header key for the email that is passed to the client.
 	HeaderEmail = "x-pomerium-authenticated-user-email"
+	// HeaderGroups represents the header key for the groups that is passed to the client.
+	HeaderGroups = "x-pomerium-authenticated-user-groups"
 )
 
 // Options represents the configurations available for the proxy service.
@@ -47,14 +49,13 @@ type Options struct {
 	SharedKey string `envconfig:"SHARED_SECRET"`
 
 	// Session/Cookie management
-	CookieName        string
-	CookieSecret      string        `envconfig:"COOKIE_SECRET"`
-	CookieDomain      string        `envconfig:"COOKIE_DOMAIN"`
-	CookieSecure      bool          `envconfig:"COOKIE_SECURE"`
-	CookieHTTPOnly    bool          `envconfig:"COOKIE_HTTP_ONLY"`
-	CookieExpire      time.Duration `envconfig:"COOKIE_EXPIRE"`
-	CookieRefresh     time.Duration `envconfig:"COOKIE_REFRESH"`
-	CookieLifetimeTTL time.Duration `envconfig:"COOKIE_LIFETIME"`
+	CookieName     string
+	CookieSecret   string        `envconfig:"COOKIE_SECRET"`
+	CookieDomain   string        `envconfig:"COOKIE_DOMAIN"`
+	CookieSecure   bool          `envconfig:"COOKIE_SECURE"`
+	CookieHTTPOnly bool          `envconfig:"COOKIE_HTTP_ONLY"`
+	CookieExpire   time.Duration `envconfig:"COOKIE_EXPIRE"`
+	CookieRefresh  time.Duration `envconfig:"COOKIE_REFRESH"`
 
 	// Sub-routes
 	Routes                 map[string]string `envconfig:"ROUTES"`
@@ -66,9 +67,8 @@ var defaultOptions = &Options{
 	CookieName:             "_pomerium_proxy",
 	CookieHTTPOnly:         true,
 	CookieSecure:           true,
-	CookieExpire:           time.Duration(168) * time.Hour,
+	CookieExpire:           time.Duration(14) * time.Hour,
 	CookieRefresh:          time.Duration(30) * time.Minute,
-	CookieLifetimeTTL:      time.Duration(720) * time.Hour,
 	DefaultUpstreamTimeout: time.Duration(10) * time.Second,
 	// services
 	AuthenticatePort: 443,
@@ -247,11 +247,14 @@ func deleteUpstreamCookies(req *http.Request, cookieName string) {
 	req.Header.Set("Cookie", strings.Join(headers, ";"))
 }
 
-func (u *UpstreamProxy) signRequest(req *http.Request) {
+func (u *UpstreamProxy) signRequest(r *http.Request) {
 	if u.signer != nil {
-		jwt, err := u.signer.SignJWT(req.Header.Get(HeaderUserID), req.Header.Get(HeaderEmail))
+		jwt, err := u.signer.SignJWT(
+			r.Header.Get(HeaderUserID),
+			r.Header.Get(HeaderEmail),
+			r.Header.Get(HeaderGroups))
 		if err == nil {
-			req.Header.Set(HeaderJWT, jwt)
+			r.Header.Set(HeaderJWT, jwt)
 		}
 	}
 }

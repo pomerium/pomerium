@@ -100,7 +100,7 @@ cross: ## Builds the cross-compiled binaries, creating a clean directory structu
 	$(foreach GOOSARCH,$(GOOSARCHES), $(call buildpretty,$(subst /,,$(dir $(GOOSARCH))),$(notdir $(GOOSARCH))))
 
 define buildrelease
-GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 GO111MODULE=on go build \
+GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 GO111MODULE=on go build ${GO_LDFLAGS} \
 	 -o $(BUILDDIR)/$(NAME)-$(1)-$(2) \
 	 ${GO_LDFLAGS_STATIC} ./cmd/$(NAME);
 md5sum $(BUILDDIR)/$(NAME)-$(1)-$(2) > $(BUILDDIR)/$(NAME)-$(1)-$(2).md5;

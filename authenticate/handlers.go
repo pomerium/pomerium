@@ -83,34 +83,29 @@ func (a *Authenticate) authenticate(w http.ResponseWriter, r *http.Request) (*se
 
 	// check if session refresh period is up
 	if session.RefreshPeriodExpired() {
-		newToken, err := a.provider.Refresh(session.RefreshToken)
+		newSession, err := a.provider.Refresh(r.Context(), session)
 		if err != nil {
 			log.FromRequest(r).Error().Err(err).Msg("authenticate: failed to refresh session")
 			a.sessionStore.ClearSession(w, r)
 			return nil, err
 		}
-		session.AccessToken = newToken.AccessToken
-		session.RefreshDeadline = newToken.Expiry
-		err = a.sessionStore.SaveSession(w, r, session)
+		err = a.sessionStore.SaveSession(w, r, newSession)
 		if err != nil {
-			// We refreshed the session successfully, but failed to save it.
-			// This could be from failing to encode the session properly.
-			// But, we clear the session cookie and reject the request
-			log.FromRequest(r).Error().Err(err).Msg("could not save refreshed session")
+			log.FromRequest(r).Error().Err(err).Msg("authenticate: could not save refreshed session")
 			a.sessionStore.ClearSession(w, r)
 			return nil, err
 		}
 	} else {
 		// The session has not exceeded it's lifetime or requires refresh
-		ok, err := a.provider.Validate(session.IDToken)
+		ok, err := a.provider.Validate(r.Context(), session.IDToken)
 		if !ok || err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("invalid session state")
+			log.FromRequest(r).Error().Err(err).Msg("authenticate: invalid session state")
 			a.sessionStore.ClearSession(w, r)
 			return nil, httputil.ErrUserNotAuthorized
 		}
 		err = a.sessionStore.SaveSession(w, r, session)
 		if err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("failed to save valid session")
+			log.FromRequest(r).Error().Err(err).Msg("authenticate: failed to save valid session")
 			a.sessionStore.ClearSession(w, r)
 			return nil, err
 		}
@@ -136,7 +131,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 	}
 	log.FromRequest(r).Info().Msg("authenticate: user authenticated")
 	a.ProxyCallback(w, r, session)
-
 }
 
 // ProxyCallback redirects the user back to proxy service along with an encrypted payload, as
@@ -310,7 +304,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	errorString := r.Form.Get("error")
 	if errorString != "" {
-		log.FromRequest(r).Error().Err(err).Msg("authenticate: provider returned error")
+		log.FromRequest(r).Error().Str("Error", errorString).Msg("authenticate: provider returned error")
 		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: errorString}
 	}
 	code := r.Form.Get("code")
