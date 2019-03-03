@@ -35,6 +35,8 @@ git clone https://github.com/pomerium/pomerium.git $HOME/pomerium
 
 Edit the the [example kubernetes files][./scripts/kubernetes_gke.sh] to match your [identity provider] settings:
 
+- `./docs/docs/examples/authorize.deploy.yml`
+- `./docs/docs/examples/authorize.service.yml`
 - `./docs/docs/examples/authenticate.deploy.yml`
 - `./docs/docs/examples/authenticate.service.yml`
 - `./docs/docs/examples/proxy.deploy.yml`
@@ -50,8 +52,8 @@ Edit [./scripts/kubernetes_gke.sh] making sure to change the identity provider s
 Run [./scripts/kubernetes_gke.sh] which will:
 
 1. Provision a new cluster
-2. Create authenticate and proxy [deployments](https://cloud.google.com/kubernetes-engine/docs/concepts/deployment).
-3. Provision and apply authenticate and proxy [services](https://cloud.google.com/kubernetes-engine/docs/concepts/service).
+2. Create authenticate, authorize, and proxy [deployments](https://cloud.google.com/kubernetes-engine/docs/concepts/deployment).
+3. Provision and apply authenticate, authorize, and proxy [services](https://cloud.google.com/kubernetes-engine/docs/concepts/service).
 4. Configure an ingress load balancer.
 
 ```bash

@@ -64,6 +64,7 @@ func isValidService(service string) bool {
 	case
 		"all",
 		"proxy",
+		"authorize",
 		"authenticate":
 		return true
 	}

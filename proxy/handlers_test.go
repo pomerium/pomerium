@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,7 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
-	"github.com/pomerium/pomerium/proxy/authenticator"
+	"github.com/pomerium/pomerium/proxy/clients"
 )
 
 type mockCipher struct{}
@@ -152,13 +153,11 @@ func TestProxy_Favicon(t *testing.T) {
 		t.Fatal(err)
 	}
 	req := httptest.NewRequest("GET", "/favicon.ico", nil)
-
 	rr := httptest.NewRecorder()
 	proxy.Favicon(rr, req)
 	if status := rr.Code; status != http.StatusNotFound {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
 	}
-	// todo(bdd) : good way of mocking auth then serving a simple favicon?
 }
 
 func TestProxy_Signout(t *testing.T) {
@@ -190,7 +189,7 @@ func TestProxy_OAuthStart(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusFound)
 	}
 	// expected url
-	expected := `<a href="https://sso-auth.corp.beyondperimeter.com/sign_in`
+	expected := `<a href="https://authenticate.corp.beyondperimeter.com/sign_in`
 	body := rr.Body.String()
 	if !strings.HasPrefix(body, expected) {
 		t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
@@ -219,8 +218,6 @@ func TestProxy_Handler(t *testing.T) {
 }
 
 func TestProxy_OAuthCallback(t *testing.T) {
-	//todo(bdd): test malformed requests
-	// https://github.com/golang/go/blob/master/src/net/http/request_test.go#L110
 	normalSession := sessions.MockSessionStore{
 		Session: &sessions.SessionState{
 			AccessToken:      "AccessToken",
@@ -229,7 +226,7 @@ func TestProxy_OAuthCallback(t *testing.T) {
 			RefreshDeadline:  time.Now().Add(-10 * time.Second),
 		},
 	}
-	normalAuth := authenticator.MockAuthenticate{
+	normalAuth := clients.MockAuthenticate{
 		RedeemResponse: &sessions.SessionState{
 			AccessToken:      "AccessToken",
 			RefreshToken:     "RefreshToken",
@@ -247,13 +244,13 @@ func TestProxy_OAuthCallback(t *testing.T) {
 		name          string
 		csrf          sessions.MockCSRFStore
 		session       sessions.MockSessionStore
-		authenticator authenticator.MockAuthenticate
+		authenticator clients.MockAuthenticate
 		params        map[string]string
 		wantCode      int
 	}{
 		{"good", normalCsrf, normalSession, normalAuth, map[string]string{"code": "code", "state": "state"}, http.StatusFound},
 		{"error", normalCsrf, normalSession, normalAuth, map[string]string{"error": "some error"}, http.StatusForbidden},
-		{"code err", normalCsrf, normalSession, authenticator.MockAuthenticate{RedeemError: errors.New("error")}, map[string]string{"code": "error"}, http.StatusInternalServerError},
+		{"code err", normalCsrf, normalSession, clients.MockAuthenticate{RedeemError: errors.New("error")}, map[string]string{"code": "error"}, http.StatusInternalServerError},
 		{"state err", normalCsrf, normalSession, normalAuth, map[string]string{"code": "code", "state": "error"}, http.StatusInternalServerError},
 		{"csrf err", sessions.MockCSRFStore{GetError: errors.New("error")}, normalSession, normalAuth, map[string]string{"code": "code", "state": "state"}, http.StatusBadRequest},
 		{"unmarshal err", sessions.MockCSRFStore{
@@ -311,30 +308,31 @@ func Test_extendDeadline(t *testing.T) {
 }
 
 func TestProxy_router(t *testing.T) {
-
+	configBlob := `[{"from":"corp.example.com","to":"example.com"}]` //valid yaml
+	policy := base64.URLEncoding.EncodeToString([]byte(configBlob))
 	tests := []struct {
 		name   string
 		host   string
-		mux    map[string]string
+		mux    string
 		route  http.Handler
 		wantOk bool
 	}{
-		{"good corp", "https://corp.example.com", map[string]string{"corp.example.com": "example.com"}, nil, true},
-		{"good with slash", "https://corp.example.com/", map[string]string{"corp.example.com": "example.com"}, nil, true},
-		{"good with path", "https://corp.example.com/123", map[string]string{"corp.example.com": "example.com"}, nil, true},
-		{"multiple", "https://corp.example.com/", map[string]string{"corp.unrelated.com": "unrelated.com", "corp.example.com": "example.com"}, nil, true},
-		{"bad corp", "https://notcorp.example.com/123", map[string]string{"corp.example.com": "example.com"}, nil, false},
-		{"bad sub-sub", "https://notcorp.corp.example.com/123", map[string]string{"corp.example.com": "example.com"}, nil, false},
+		{"good corp", "https://corp.example.com", policy, nil, true},
+		{"good with slash", "https://corp.example.com/", policy, nil, true},
+		{"good with path", "https://corp.example.com/123", policy, nil, true},
+		// {"multiple", "https://corp.example.com/", map[string]string{"corp.unrelated.com": "unrelated.com", "corp.example.com": "example.com"}, nil, true},
+		{"bad corp", "https://notcorp.example.com/123", policy, nil, false},
+		{"bad sub-sub", "https://notcorp.corp.example.com/123", policy, nil, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := testOptions()
-			opts.Routes = tt.mux
+			opts.Policy = tt.mux
 			p, err := New(opts)
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.AuthenticateClient = authenticator.MockAuthenticate{}
+			p.AuthenticateClient = clients.MockAuthenticate{}
 			p.cipher = mockCipher{}
 
 			req := httptest.NewRequest("GET", tt.host, nil)
@@ -358,14 +356,16 @@ func TestProxy_Proxy(t *testing.T) {
 		name          string
 		host          string
 		session       sessions.SessionStore
-		authenticator authenticator.Authenticator
+		authenticator clients.Authenticator
+		authorizer    clients.Authorizer
 		wantStatus    int
 	}{
 		// weirdly, we want 503 here because that means proxy is trying to route a domain (example.com) that we dont control. Weird. I know.
-		{"good", "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, authenticator.MockAuthenticate{}, http.StatusServiceUnavailable},
-		{"unexpected error", "https://corp.example.com/test", &sessions.MockSessionStore{LoadError: errors.New("ok")}, authenticator.MockAuthenticate{}, http.StatusInternalServerError},
+		{"good", "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusServiceUnavailable},
+		{"unexpected error", "https://corp.example.com/test", &sessions.MockSessionStore{LoadError: errors.New("ok")}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusInternalServerError},
 		// redirect to start auth process
-		{"unknown host", "https://notcorp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, authenticator.MockAuthenticate{}, http.StatusNotFound},
+		{"unknown host", "https://notcorp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusNotFound},
+		{"user forbidden", "https://notcorp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -377,6 +377,7 @@ func TestProxy_Proxy(t *testing.T) {
 			p.cipher = mockCipher{}
 			p.sessionStore = tt.session
 			p.AuthenticateClient = tt.authenticator
+			p.AuthorizeClient = tt.authorizer
 
 			r := httptest.NewRequest("GET", tt.host, nil)
 			w := httptest.NewRecorder()
@@ -390,6 +391,8 @@ func TestProxy_Proxy(t *testing.T) {
 }
 
 func TestProxy_Authenticate(t *testing.T) {
+	configBlob := `[{"from":"corp.example.com","to":"example.com"}]` //valid yaml
+	policy := base64.URLEncoding.EncodeToString([]byte(configBlob))
 
 	goodSession := &sessions.SessionState{
 		User:             "user",
@@ -400,21 +403,21 @@ func TestProxy_Authenticate(t *testing.T) {
 		LifetimeDeadline: time.Now().Add(10 * time.Second),
 		RefreshDeadline:  time.Now().Add(10 * time.Second),
 	}
-	testAuth := authenticator.MockAuthenticate{
+	testAuth := clients.MockAuthenticate{
 		RedeemResponse: goodSession,
 	}
 
 	tests := []struct {
 		name          string
 		host          string
-		mux           map[string]string
+		mux           string
 		session       sessions.SessionStore
-		authenticator authenticator.Authenticator
+		authenticator clients.Authenticator
 		wantErr       bool
 	}{
 		{"cannot save session",
 			"https://corp.example.com/",
-			map[string]string{"corp.example.com": "example.com"},
+			policy,
 			&sessions.MockSessionStore{Session: &sessions.SessionState{
 				User:             "user",
 				Email:            "email@email.com",
@@ -428,11 +431,11 @@ func TestProxy_Authenticate(t *testing.T) {
 
 		{"cannot load session",
 			"https://corp.example.com/",
-			map[string]string{"corp.example.com": "example.com"},
+			policy,
 			&sessions.MockSessionStore{LoadError: errors.New("error")}, testAuth, true},
 		{"expired session",
 			"https://corp.example.com/",
-			map[string]string{"corp.example.com": "example.com"},
+			policy,
 			&sessions.MockSessionStore{
 				Session: &sessions.SessionState{
 					User:             "user",
@@ -443,7 +446,7 @@ func TestProxy_Authenticate(t *testing.T) {
 					LifetimeDeadline: time.Now().Add(10 * time.Second),
 					RefreshDeadline:  time.Now().Add(-10 * time.Second),
 				}},
-			authenticator.MockAuthenticate{
+			clients.MockAuthenticate{
 				RefreshError: errors.New("error"),
 				RefreshResponse: &sessions.SessionState{
 					User:             "user",
@@ -456,7 +459,7 @@ func TestProxy_Authenticate(t *testing.T) {
 				}}, true},
 		{"bad refresh authenticator",
 			"https://corp.example.com/",
-			map[string]string{"corp.example.com": "example.com"},
+			policy,
 			&sessions.MockSessionStore{
 				Session: &sessions.SessionState{
 					User:             "user",
@@ -468,7 +471,7 @@ func TestProxy_Authenticate(t *testing.T) {
 					RefreshDeadline:  time.Now().Add(-10 * time.Second),
 				},
 			},
-			authenticator.MockAuthenticate{
+			clients.MockAuthenticate{
 				RefreshError: errors.New("error"),
 				RefreshResponse: &sessions.SessionState{
 					User:             "user",
@@ -483,7 +486,7 @@ func TestProxy_Authenticate(t *testing.T) {
 
 		{"good",
 			"https://corp.example.com/",
-			map[string]string{"corp.example.com": "example.com"},
+			policy,
 			&sessions.MockSessionStore{Session: &sessions.SessionState{
 				User:             "user",
 				Email:            "email@email.com",
@@ -497,7 +500,7 @@ func TestProxy_Authenticate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := testOptions()
-			opts.Routes = tt.mux
+			opts.Policy = tt.mux
 			p, err := New(opts)
 			if err != nil {
 				t.Fatal(err)

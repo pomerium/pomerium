@@ -12,7 +12,6 @@ func testOptions() *Options {
 	redirectURL, _ := url.Parse("https://example.com/oauth2/callback")
 	return &Options{
 		ProxyRootDomains: []string{"example.com"},
-		AllowedDomains:   []string{"example.com"},
 		RedirectURL:      redirectURL,
 		SharedKey:        "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
 		ClientID:         "test-client-id",
@@ -35,8 +34,6 @@ func TestOptions_Validate(t *testing.T) {
 	emptyClientID.ClientID = ""
 	emptyClientSecret := testOptions()
 	emptyClientSecret.ClientSecret = ""
-	allowedDomains := testOptions()
-	allowedDomains.AllowedDomains = nil
 	proxyRootDomains := testOptions()
 	proxyRootDomains.ProxyRootDomains = nil
 	emptyCookieSecret := testOptions()
@@ -63,7 +60,6 @@ func TestOptions_Validate(t *testing.T) {
 		{"no shared secret", badSharedKey, true},
 		{"no client id", emptyClientID, true},
 		{"no client secret", emptyClientSecret, true},
-		{"empty allowed domains", allowedDomains, true},
 		{"empty root domains", proxyRootDomains, true},
 	}
 	for _, tt := range tests {

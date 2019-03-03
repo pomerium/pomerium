@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
+	stdlog "log"
 	"net"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
+	"github.com/pomerium/pomerium/internal/log"
 	"google.golang.org/grpc"
 )
 
@@ -90,15 +92,18 @@ func ListenAndServeTLS(opt *Options, httpHandler http.Handler, grpcHandler *grpc
 	} else {
 		h = grpcHandlerFunc(grpcHandler, httpHandler)
 	}
+	sublogger := log.With().Str("addr", opt.Addr).Logger()
+
 	// Set up the main server.
 	server := &http.Server{
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
 		// WriteTimeout is set to 0 for streaming replies
 		WriteTimeout: 0,
-		IdleTimeout:  60 * time.Second,
+		IdleTimeout:  5 * time.Minute,
 		TLSConfig:    config,
 		Handler:      h,
+		ErrorLog:     stdlog.New(&log.StdLogWrapper{Logger: &sublogger}, "", 0),
 	}
 
 	return server.Serve(ln)

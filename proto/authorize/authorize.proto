@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package authorize;
+
+service Authorizer {
+  rpc Authorize(AuthorizeRequest) returns (AuthorizeReply) {}
+}
+
+message AuthorizeRequest {
+  // request context
+  string route = 1;
+  // user context
+  string user = 2;
+  string email = 3;
+  repeated string groups = 4;
+}
+
+message AuthorizeReply { bool is_valid = 1; }

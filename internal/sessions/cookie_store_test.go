@@ -106,17 +106,6 @@ func TestCookieStore_makeCookie(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	type fields struct {
-		Name           string
-		CSRFCookieName string
-		CookieCipher   cryptutil.Cipher
-		CookieExpire   time.Duration
-		CookieRefresh  time.Duration
-		CookieSecure   bool
-		CookieHTTPOnly bool
-		CookieDomain   string
-	}
-
 	now := time.Now()
 	tests := []struct {
 		name   string

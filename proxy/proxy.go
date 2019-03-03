@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"net"
+	stdlog "log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -16,34 +16,41 @@ import (
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
-	"github.com/pomerium/pomerium/proxy/authenticator"
+	"github.com/pomerium/pomerium/proxy/clients"
 )
 
 const (
-	// HeaderJWT is the header key for pomerium proxy's JWT signature.
+	// HeaderJWT is the header key containing JWT signed user details.
 	HeaderJWT = "x-pomerium-jwt-assertion"
-	// HeaderUserID represents the header key for the user that is passed to the client.
+	// HeaderUserID is the header key containing the user's id.
 	HeaderUserID = "x-pomerium-authenticated-user-id"
-	// HeaderEmail represents the header key for the email that is passed to the client.
+	// HeaderEmail is the header key containing the user's email.
 	HeaderEmail = "x-pomerium-authenticated-user-email"
-	// HeaderGroups represents the header key for the groups that is passed to the client.
+	// HeaderGroups is the header key containing the user's groups.
 	HeaderGroups = "x-pomerium-authenticated-user-groups"
 )
 
 // Options represents the configurations available for the proxy service.
 type Options struct {
+	Policy     string `envconfig:"POLICY"`
+	PolicyFile string `envconfig:"POLICY_FILE"`
+
 	// Authenticate service settings
 	AuthenticateURL          *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
 	AuthenticateInternalAddr string   `envconfig:"AUTHENTICATE_INTERNAL_URL"`
-	OverrideCertificateName  string   `envconfig:"OVERRIDE_CERTIFICATE_NAME"`
-	AuthenticatePort         int      `envconfig:"AUTHENTICATE_SERVICE_PORT"`
-	CA                       string   `envconfig:"CERTIFICATE_AUTHORITY"`
-	CAFile                   string   `envconfig:"CERTIFICATE_AUTHORITY_FILE"`
+	// Authorize service settings
+	AuthorizeURL          *url.URL `envconfig:"AUTHORIZE_SERVICE_URL"`
+	AuthorizeInternalAddr string   `envconfig:"AUTHORIZE_INTERNAL_URL"`
+	// Settings to enable custom behind-the-ingress service communication
+	OverrideCertificateName string `envconfig:"OVERRIDE_CERTIFICATE_NAME"`
+	CA                      string `envconfig:"CERTIFICATE_AUTHORITY"`
+	CAFile                  string `envconfig:"CERTIFICATE_AUTHORITY_FILE"`
 
-	// SigningKey is a base64 encoded private key used to add a JWT-signature to proxied requests.
-	// See : https://www.pomerium.io/guide/signed-headers.html
+	// SigningKey is a base64 encoded private key used to add a JWT-signature.
+	// https://www.pomerium.io/docs/signed-headers.html
 	SigningKey string `envconfig:"SIGNING_KEY"`
 	// SharedKey is a 32 byte random key used to authenticate access between services.
 	SharedKey string `envconfig:"SHARED_SECRET"`
@@ -69,9 +76,7 @@ var defaultOptions = &Options{
 	CookieSecure:           true,
 	CookieExpire:           time.Duration(14) * time.Hour,
 	CookieRefresh:          time.Duration(30) * time.Minute,
-	DefaultUpstreamTimeout: time.Duration(10) * time.Second,
-	// services
-	AuthenticatePort: 443,
+	DefaultUpstreamTimeout: time.Duration(30) * time.Second,
 }
 
 // OptionsFromEnvConfig builds the IdentityProvider service's configuration
@@ -87,15 +92,36 @@ func OptionsFromEnvConfig() (*Options, error) {
 // Validate checks that proper configuration settings are set to create
 // a proper Proxy instance
 func (o *Options) Validate() error {
-	if len(o.Routes) == 0 {
-		return errors.New("missing setting: routes")
+	if len(o.Routes) != 0 {
+		return errors.New("routes setting is deprecated, use policy instead")
 	}
-	for to, from := range o.Routes {
-		if _, err := urlParse(to); err != nil {
-			return fmt.Errorf("could not parse origin %s as url : %q", to, err)
+	if o.Policy == "" && o.PolicyFile == "" {
+		return errors.New("proxy: either `POLICY` or `POLICY_FILE` must be non-nil")
+	}
+	var policies []policy.Policy
+	var err error
+	if o.Policy != "" {
+		confBytes, err := base64.StdEncoding.DecodeString(o.Policy)
+		if err != nil {
+			return fmt.Errorf("proxy: `POLICY` is invalid base64 %v", err)
 		}
-		if _, err := urlParse(from); err != nil {
-			return fmt.Errorf("could not parse destination %s as url : %q", to, err)
+		policies, err = policy.FromConfig(confBytes)
+		if err != nil {
+			return fmt.Errorf("proxy: `POLICY` %v", err)
+		}
+	}
+	if o.PolicyFile != "" {
+		policies, err = policy.FromConfigFile(o.PolicyFile)
+		if err != nil {
+			return fmt.Errorf("proxy: `POLICY_FILE` %v", err)
+		}
+	}
+	for _, p := range policies {
+		if _, err := urlParse(p.To); err != nil {
+			return fmt.Errorf("could not parse source %s url: %v", p.To, err)
+		}
+		if _, err := urlParse(p.From); err != nil {
+			return fmt.Errorf("could not parse destination %s url: %v", p.From, err)
 		}
 	}
 	if o.AuthenticateURL == nil {
@@ -103,6 +129,12 @@ func (o *Options) Validate() error {
 	}
 	if o.AuthenticateURL.Scheme != "https" {
 		return errors.New("authenticate-service-url must be a valid https url")
+	}
+	if o.AuthorizeURL == nil {
+		return errors.New("missing setting: authorize-service-url")
+	}
+	if o.AuthorizeURL.Scheme != "https" {
+		return errors.New("authorize-service-url must be a valid https url")
 	}
 	if o.CookieSecret == "" {
 		return errors.New("missing setting: cookie-secret")
@@ -130,9 +162,12 @@ func (o *Options) Validate() error {
 type Proxy struct {
 	SharedKey string
 
-	// services
+	// authenticate service
 	AuthenticateURL    *url.URL
-	AuthenticateClient authenticator.Authenticator
+	AuthenticateClient clients.Authenticator
+
+	// authorize service
+	AuthorizeClient clients.Authorizer
 
 	// session
 	cipher       cryptutil.Cipher
@@ -146,8 +181,6 @@ type Proxy struct {
 
 // New takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
-//
-// Caller responsible for closing AuthenticateConn.
 func New(opts *Options) (*Proxy, error) {
 	if opts == nil {
 		return nil, errors.New("options cannot be nil")
@@ -188,52 +221,53 @@ func New(opts *Options) (*Proxy, error) {
 		redirectURL:  &url.URL{Path: "/.pomerium/callback"},
 		templates:    templates.New(),
 	}
-
-	for from, to := range opts.Routes {
-		fromURL, _ := urlParse(from)
-		toURL, _ := urlParse(to)
-		reverseProxy := NewReverseProxy(toURL)
-		handler, err := NewReverseProxyHandler(opts, reverseProxy, fromURL.Host, toURL.Host)
+	var policies []policy.Policy
+	if opts.Policy != "" {
+		confBytes, _ := base64.StdEncoding.DecodeString(opts.Policy)
+		policies, _ = policy.FromConfig(confBytes)
+	} else {
+		policies, _ = policy.FromConfigFile(opts.PolicyFile)
+	}
+	for _, route := range policies {
+		proxy := NewReverseProxy(route.Destination)
+		handler, err := NewReverseProxyHandler(opts, proxy, &route)
 		if err != nil {
 			return nil, err
 		}
-		p.Handle(fromURL.Host, handler)
-		log.Info().Str("from", fromURL.Host).Str("to", toURL.String()).Msg("proxy: new route")
+		p.Handle(route.Source.Host, handler)
+		log.Info().Str("src", route.Source.Host).Str("dst", route.Destination.Host).Msg("proxy: new route")
 	}
 
-	p.AuthenticateClient, err = authenticator.New(
-		"grpc",
-		&authenticator.Options{
+	p.AuthenticateClient, err = clients.NewAuthenticateClient("grpc",
+		&clients.Options{
 			Addr:                    opts.AuthenticateURL.Host,
 			InternalAddr:            opts.AuthenticateInternalAddr,
 			OverrideCertificateName: opts.OverrideCertificateName,
 			SharedSecret:            opts.SharedKey,
-			Port:                    opts.AuthenticatePort,
 			CA:                      opts.CA,
 			CAFile:                  opts.CAFile,
 		})
-	return p, nil
+	if err != nil {
+		return nil, err
+	}
+	p.AuthorizeClient, err = clients.NewAuthorizeClient("grpc",
+		&clients.Options{
+			Addr:                    opts.AuthorizeURL.Host,
+			InternalAddr:            opts.AuthorizeInternalAddr,
+			OverrideCertificateName: opts.OverrideCertificateName,
+			SharedSecret:            opts.SharedKey,
+			CA:                      opts.CA,
+			CAFile:                  opts.CAFile,
+		})
+	return p, err
 }
 
-// UpstreamProxy stores information necessary for proxying the request back to the upstream.
+// UpstreamProxy stores information for proxying the request to the upstream.
 type UpstreamProxy struct {
 	name       string
 	cookieName string
 	handler    http.Handler
 	signer     cryptutil.JWTSigner
-}
-
-var defaultUpstreamTransport = &http.Transport{
-	Proxy: http.ProxyFromEnvironment,
-	DialContext: (&net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-		DualStack: true,
-	}).DialContext,
-	MaxIdleConns:          100,
-	IdleConnTimeout:       90 * time.Second,
-	TLSHandshakeTimeout:   30 * time.Second,
-	ExpectContinueTimeout: 1 * time.Second,
 }
 
 // deleteUpstreamCookies deletes the session cookie from the request header string.
@@ -271,8 +305,10 @@ func (u *UpstreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // base path provided in target. NewReverseProxy rewrites the Host header.
 func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(to)
-	proxy.Transport = defaultUpstreamTransport
-
+	sublogger := log.With().Str("proxy", to.Host).Logger()
+	proxy.ErrorLog = stdlog.New(&log.StdLogWrapper{Logger: &sublogger}, "", 0)
+	// todo(bdd): default is already http.DefaultTransport)
+	// proxy.Transport = defaultUpstreamTransport
 	director := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		// Identifies the originating IP addresses of a client connecting to
@@ -285,36 +321,36 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 }
 
 // NewReverseProxyHandler applies handler specific options to a given route.
-func NewReverseProxyHandler(opts *Options, reverseProxy *httputil.ReverseProxy, from, to string) (http.Handler, error) {
+func NewReverseProxyHandler(o *Options, proxy *httputil.ReverseProxy, route *policy.Policy) (http.Handler, error) {
 	up := &UpstreamProxy{
-		name:       to,
-		handler:    reverseProxy,
-		cookieName: opts.CookieName,
+		name:       route.Destination.Host,
+		handler:    proxy,
+		cookieName: o.CookieName,
 	}
-	if len(opts.SigningKey) != 0 {
-		decodedSigningKey, err := base64.StdEncoding.DecodeString(opts.SigningKey)
+	if len(o.SigningKey) != 0 {
+		decodedSigningKey, err := base64.StdEncoding.DecodeString(o.SigningKey)
 		if err != nil {
 			return nil, err
 		}
-		signer, err := cryptutil.NewES256Signer(decodedSigningKey, from)
+		signer, err := cryptutil.NewES256Signer(decodedSigningKey, route.Source.Host)
 		if err != nil {
 			return nil, err
 		}
 		up.signer = signer
 	}
-	timeout := opts.DefaultUpstreamTimeout
-	timeoutMsg := fmt.Sprintf("%s failed to respond within the %s timeout period", to, timeout)
+	timeout := o.DefaultUpstreamTimeout
+	if route.UpstreamTimeout != 0 {
+		timeout = route.UpstreamTimeout
+	}
+	timeoutMsg := fmt.Sprintf("%s failed to respond within the %s timeout period", route.Destination.Host, timeout)
 	return http.TimeoutHandler(up, timeout, timeoutMsg), nil
 }
 
-// urlParse adds a scheme if none-exists, addressesing a quirk in how
-// one may expect url.Parse to function when given scheme-less domain is provided.
-//
-// see: https://github.com/golang/go/issues/12585
-// see: https://golang.org/pkg/net/url/#Parse
+// urlParse wraps url.Parse to add a scheme if none-exists.
+// https://github.com/golang/go/issues/12585
 func urlParse(uri string) (*url.URL, error) {
 	if !strings.Contains(uri, "://") {
 		uri = fmt.Sprintf("https://%s", uri)
 	}
-	return url.Parse(uri)
+	return url.ParseRequestURI(uri)
 }

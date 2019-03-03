@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	// ErrUserNotAuthorized is set when user is not authorized to access a resource
+	// ErrUserNotAuthorized is set when user is not authorized to access a resource.
 	ErrUserNotAuthorized = errors.New("user not authorized")
 )
 
@@ -43,7 +43,7 @@ func (p *Proxy) Handler() http.Handler {
 	mux.HandleFunc("/robots.txt", p.RobotsTxt)
 	mux.HandleFunc("/.pomerium/sign_out", p.SignOut)
 	mux.HandleFunc("/.pomerium/callback", p.OAuthCallback)
-	// mux.HandleFunc("/.pomerium/refresh", p.Refresh)  //todo(bdd): needs DoS protection before inclusion
+	// mux.HandleFunc("/.pomerium/refresh", p.Refresh) //todo(bdd): needs DoS protection before inclusion
 	mux.HandleFunc("/", p.Proxy)
 
 	// middleware chain
@@ -242,9 +242,18 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	// todo(bdd): add authorization service validation
-
+	// remove dupe session call
+	session, err := p.sessionStore.LoadSession(r)
+	if err != nil {
+		p.sessionStore.ClearSession(w, r)
+		return
+	}
+	authorized, err := p.AuthorizeClient.Authorize(r.Context(), r.Host, session)
+	if !authorized || err != nil {
+		log.FromRequest(r).Warn().Err(err).Msg("proxy: user unauthorized")
+		httputil.ErrorResponse(w, r, "Access unauthorized", http.StatusForbidden)
+		return
+	}
 	// We have validated the users request and now proxy their request to the provided upstream.
 	route, ok := p.router(r)
 	if !ok {
@@ -279,7 +288,7 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 // 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
 // 		return
 // 	}
-// 	fmt.Fprintf(w, string(jsonSession))
+// 	fmt.Fprint(w, string(jsonSession))
 // }
 
 // Authenticate authenticates a request by checking for a session cookie, and validating its expiration,

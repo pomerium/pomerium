@@ -70,7 +70,7 @@ func TestThenFuncTreatsNilAsDefaultServeMux(t *testing.T) {
 
 func TestThenFuncConstructsHandlerFunc(t *testing.T) {
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 	})
 	chained := NewChain().ThenFunc(fn)
 	rec := httptest.NewRecorder()

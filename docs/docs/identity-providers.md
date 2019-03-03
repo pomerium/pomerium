@@ -120,7 +120,7 @@ IDP_CLIENT_SECRET="REPLACE-ME"
 
 :::warning
 
-Support was removed in v0.0.3 because Gitlab does not provide callers with a user email, under any scope, to a caller unless that user has selected her email to be public. Pomerium until [this gitlab bug](https://gitlab.com/gitlab-org/gitlab-ce/issues/44435#note_88150387) is fixed.
+Support was removed in v0.0.3 because Gitlab does not provide callers with a user email, under any scope, to a caller unless that user has selected her email to be public. Pomerium support is blocked until [this gitlab bug](https://gitlab.com/gitlab-org/gitlab-ce/issues/44435#note_88150387) is fixed.
 
 :::
 
@@ -192,13 +192,15 @@ In order to have Pomerium validate group membership, we'll also need to configur
 
 ![Google create service account](./google/google-create-sa.png)
 
-Then, you'll need to manually open an editor add an `impersonate_user` key to the downloaded public/private key file. In this case, we'd be impersonating the admin account `user@pomerium.io`.
+Then, you'll need to manually open an editor and add an `impersonate_user` field to the downloaded public/private key file. In this case, we'd be impersonating the admin account `user@pomerium.io`.
 
 ::: warning
 
-You MUST add the `impersonate_user` field to your json key file. [Google requires](https://stackoverflow.com/questions/48585700/is-it-possible-to-call-apis-from-service-account-without-acting-on-behalf-of-a-u/48601364#48601364) that service accounts act on behalf of another user.
+ [Google requires](https://stackoverflow.com/questions/48585700/is-it-possible-to-call-apis-from-service-account-without-acting-on-behalf-of-a-u/48601364#48601364) that service accounts act on behalf of another user. You MUST add the `impersonate_user` field to your json key file.
 
 :::
+
+
 
 ```json
 {
@@ -210,7 +212,7 @@ You MUST add the `impersonate_user` field to your json key file. [Google require
 }
 ```
 
-The base64 encoded contents of this public/private key pair json file will used for the value of the `IDP_SERVICE_ACCOUNT` configuration setting.
+The base64 encoded contents of this public/private key pair json file will used for the value of the `IDP_SERVICE_ACCOUNT` configuration setting. 
 
 Next we'll delegate G-suite group membership access to the service account we just created .
 

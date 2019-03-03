@@ -1,43 +1,35 @@
 # Example Pomerium configuration.
 #
 # NOTE! Change IDP_* settings to match your identity provider settings!
-# NOTE! Generate new SHARED_SECRET and COOKIE_SECRET keys!
+# NOTE! Generate new SHARED_SECRET and COOKIE_SECRET keys! e.g. `head -c32 /dev/urandom | base64`
 # NOTE! Replace `corp.beyondperimeter.com` with whatever your domain is
 # NOTE! Make sure certificate files (cert.pem/privkey.pem) are in the same directory as this file
-# NOTE! Wrap URLs in quotes to avoid parse errors
+# NOTE! Make sure your policy file (policy.example.yaml) is in the same directory as this file
+
 version: "3"
 services:
-  pomerium-all:
+  pomerium:
     image: pomerium/pomerium:latest # or `build: .` to build from source
     environment:
+      - POMERIUM_DEBUG=true
       - SERVICES=all
-      # auth settings
       - REDIRECT_URL=https://auth.corp.beyondperimeter.com/oauth2/callback
-      # Identity Provider Settings (Must be changed!)
       - IDP_PROVIDER=google
       - IDP_PROVIDER_URL=https://accounts.google.com
       - IDP_CLIENT_ID=REPLACE_ME.apps.googleusercontent.com
       - IDP_CLIENT_SECRET=REPLACE_ME
-      # - SCOPE="openid email"
       - PROXY_ROOT_DOMAIN=beyondperimeter.com
-      - ALLOWED_DOMAINS=*
-      # shared service settings
-      # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
-      # proxy settings
+      - CERTIFICATE_FILE=cert.pem
+      - CERTIFICATE_KEY_FILE=privkey.pem
       - AUTHENTICATE_SERVICE_URL=https://auth.corp.beyondperimeter.com
-      - ROUTES=https://httpbin.corp.beyondperimeter.com=http://httpbin,https://helloworld.corp.beyondperimeter.com=http://helloworld:8080/
-      # - SIGNING_KEY=LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSU0zbXBaSVdYQ1g5eUVneFU2czU3Q2J0YlVOREJTQ0VBdFFGNWZVV0hwY1FvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFaFBRditMQUNQVk5tQlRLMHhTVHpicEVQa1JyazFlVXQxQk9hMzJTRWZVUHpOaTRJV2VaLwpLS0lUdDJxMUlxcFYyS01TYlZEeXI5aWp2L1hoOThpeUV3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
-      # if passing certs as files
-      # - CERTIFICATE_KEY=corp.beyondperimeter.com.crt
-      # - CERTIFICATE_KEY_FILE=corp.beyondperimeter.com.key
-      # Or, you can pass certifcates as bas64 encoded values. e.g. `base64 -i cert.pem`
-      # - CERTIFICATE=
-      # - CERTIFICATE_KEY=
-    volumes: # volumes is optional; used if passing certificates as files
+      - AUTHORIZE_SERVICE_URL=https://access.corp.beyondperimeter.com
+      - POLICY_FILE=./policy.yaml
+    volumes:
       - ./cert.pem:/pomerium/cert.pem:ro
       - ./privkey.pem:/pomerium/privkey.pem:ro
+      - ./policy.example.yaml:/pomerium/policy.yaml:ro
     ports:
       - 443:443
 
@@ -46,9 +38,8 @@ services:
     image: kennethreitz/httpbin:latest
     expose:
       - 80
-
-  # https://helloworld.corp.beyondperimeter.com
-  helloworld:
+  # https://hello.corp.beyondperimeter.com
+  hello:
     image: gcr.io/google-samples/hello-app:1.0
     expose:
       - 8080

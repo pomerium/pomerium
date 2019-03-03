@@ -1,90 +1,37 @@
-package authenticator // import "github.com/pomerium/pomerium/proxy/authenticator"
+package clients // import "github.com/pomerium/pomerium/proxy/clients"
+
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/base64"
 	"errors"
-	"fmt"
-	"io/ioutil"
-	"strings"
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	pb "github.com/pomerium/pomerium/proto/authenticate"
 )
 
-// NewGRPC returns a new authenticate service client.
-func NewGRPC(opts *Options) (p *AuthenticateGRPC, err error) {
-	// gRPC uses a pre-shared secret middleware to establish authentication b/w server and client
-	if opts.SharedSecret == "" {
-		return nil, errors.New("proxy/authenticator: grpc client requires shared secret")
-	}
-	grpcAuth := middleware.NewSharedSecretCred(opts.SharedSecret)
+// Authenticator provides the authenticate service interface
+type Authenticator interface {
+	// Redeem takes a code and returns a validated session or an error
+	Redeem(context.Context, string) (*sessions.SessionState, error)
+	// Refresh attempts to refresh a valid session with a refresh token. Returns a refreshed session.
+	Refresh(context.Context, *sessions.SessionState) (*sessions.SessionState, error)
+	// Validate evaluates a given oidc id_token for validity. Returns validity and any error.
+	Validate(context.Context, string) (bool, error)
+	// Close closes the authenticator connection if any.
+	Close() error
+}
 
-	var connAddr string
-	if opts.InternalAddr != "" {
-		connAddr = opts.InternalAddr
-	} else {
-		connAddr = opts.Addr
-	}
-	if connAddr == "" {
-		return nil, errors.New("proxy/authenticator: connection address required")
-	}
-	// no colon exists in the connection string, assume one must be added manually
-	if !strings.Contains(connAddr, ":") {
-		connAddr = fmt.Sprintf("%s:%d", connAddr, opts.Port)
-	}
+// NewAuthenticateClient returns a new authenticate service client.
+func NewAuthenticateClient(name string, opts *Options) (a Authenticator, err error) {
+	// Only gRPC is supported and is always returned so name is ignored
+	return NewGRPCAuthenticateClient(opts)
+}
 
-	var cp *x509.CertPool
-	if opts.CA != "" || opts.CAFile != "" {
-		cp = x509.NewCertPool()
-		var ca []byte
-		var err error
-		if opts.CA != "" {
-			ca, err = base64.StdEncoding.DecodeString(opts.CA)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode certificate authority: %v", err)
-			}
-		} else {
-			ca, err = ioutil.ReadFile(opts.CAFile)
-			if err != nil {
-				return nil, fmt.Errorf("certificate authority file %v not readable: %v", opts.CAFile, err)
-			}
-		}
-		if ok := cp.AppendCertsFromPEM(ca); !ok {
-			return nil, fmt.Errorf("failed to append CA cert to certPool")
-		}
-	} else {
-		newCp, err := x509.SystemCertPool()
-		if err != nil {
-			return nil, err
-		}
-		cp = newCp
-	}
-
-	log.Info().
-		Str("OverrideCertificateName", opts.OverrideCertificateName).
-		Str("addr", connAddr).Msgf("proxy/authenticator: grpc connection")
-	cert := credentials.NewTLS(&tls.Config{RootCAs: cp})
-
-	// override allowed certificate name string, typically used when doing behind ingress connection
-	if opts.OverrideCertificateName != "" {
-		err = cert.OverrideServerName(opts.OverrideCertificateName)
-		if err != nil {
-			return nil, err
-		}
-	}
-	conn, err := grpc.Dial(
-		connAddr,
-		grpc.WithTransportCredentials(cert),
-		grpc.WithPerRPCCredentials(grpcAuth),
-	)
+// NewGRPCAuthenticateClient returns a new authenticate service client.
+func NewGRPCAuthenticateClient(opts *Options) (p *AuthenticateGRPC, err error) {
+	conn, err := NewGRPCClientConn(opts)
 	if err != nil {
 		return nil, err
 	}

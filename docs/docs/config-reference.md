@@ -19,7 +19,7 @@ Global settings are configuration variables that are shared by all services.
 - Environmental Variable: `SERVICES`
 - Type: `string`
 - Default: `all`
-- Options: `all` `authenticate` or `proxy`
+- Options: `all` `authenticate` `authorize` or `proxy`
 
 Service mode sets the pomerium service(s) to run. If testing, you may want to set to `all` and run pomerium in "all-in-one mode." In production, you'll likely want to spin of several instances of each service mode for high availability.
 
@@ -43,6 +43,17 @@ Shared Secret is the base64 encoded 256-bit key used to mutually authenticate re
 head -c32 /dev/urandom | base64
 ```
 
+### Policy
+
+- Environmental Variable: either `POLICY` or `POLICY_FILE`
+- Type: [base64 encoded] `string` or relative file location
+- Filetype: `json` or `yaml`
+- Required
+
+Policy contains the routes, and their access policies. For example,
+
+<<< @/policy.example.yaml
+
 ### Debug
 
 - Environmental Variable: `POMERIUM_DEBUG`
@@ -51,7 +62,7 @@ head -c32 /dev/urandom | base64
 
 By default, JSON encoded logs are produced. Debug enables colored, human-readable, and more verbose logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)). In production, it's recommended to be set to `false`.
 
-For example, if true.
+For example, if `true`.
 
 ```
 10:37AM INF cmd/pomerium version=v0.0.1-dirty+ede4124
@@ -60,7 +71,7 @@ For example, if true.
 10:37AM INF proxy/authenticator: grpc connection OverrideCertificateName= addr=auth.corp.beyondperimeter.com:443
 ```
 
-If false:
+If `false`:
 
 ```
 {"level":"info","version":"v0.0.1-dirty+ede4124","time":"2019-02-18T10:41:03-08:00","message":"cmd/pomerium"}
@@ -96,21 +107,6 @@ Certificate key is the x509 _private-key_ used to establish secure HTTP and gRPC
 
 Redirect URL is the url the user will be redirected to following authentication with the third-party identity provider (IdP). Note the URL ends with `/oauth2/callback`. This setting will mirror the URL set when configuring your [identity provider]. Typically, on the provider side, this is called an _authorized callback url_.
 
-### Allowed Email Domains
-
-::: warning 
-This setting will be deprecated with the upcoming release of the authorization service.
-:::
-
-- Environmental Variable: `ALLOWED_DOMAINS`
-- Type: `[]string` (e.g. comma separated list of strings)
-- Required
-- Example: `engineering.corp-b.com,devops.corp-a.com`
-
-The allowed email domains settings dictates which email domains are valid for access. If an authenticated user has a email ending in a non-whitelisted domain, the request will be denied as unauthorized.
-
-
-
 ### Proxy Root Domains
 
 - Environmental Variable: `PROXY_ROOT_DOMAIN`
@@ -126,7 +122,7 @@ Proxy Root Domains specifies the sub-domains that can proxy requests. For exampl
 - Required
 - Options: `azure` `google` `okta` `gitlab` `onelogin` or `oidc`
 
-Provider is the short-hand name of a built-in OpenID Connect (oidc) identity provider to be used for authentication. To use a generic provider,set to `oidc`. 
+Provider is the short-hand name of a built-in OpenID Connect (oidc) identity provider to be used for authentication. To use a generic provider,set to `oidc`.
 
 See [identity provider] for details.
 
@@ -161,18 +157,17 @@ Provider URL is the base path to an identity provider's [OpenID connect discover
 - Default: `oidc`,`profile`, `email`, `offline_access` (typically)
 - Optional for built-in identity providers.
 
-Identity provider scopes correspond to access privilege scopes as defined in Section 3.3 of OAuth 2.0 RFC6749. The scopes associated with Access Tokens determine what resources will be available when they are used to access OAuth 2.0 protected endpoints. If you are using a built-in provider, you probably don't want to set customized scopes.
+Identity provider scopes correspond to access privilege scopes as defined in Section 3.3 of OAuth 2.0 RFC6749\. The scopes associated with Access Tokens determine what resources will be available when they are used to access OAuth 2.0 protected endpoints. If you are using a built-in provider, you probably don't want to set customized scopes.
+
+### Identity Provider Service Account
+
+- Environmental Variable: `IDP_SERVICE_ACCOUNT`
+- Type: `string`
+- Required, depending on provider
+
+Identity Provider Service Account is field used to configure any additional user account or access-token that may be required for querying additional user information during authentication. For a concrete example, Google an additional service account and to make a follow-up request to query a user's group membership. For more information, refer to the [identity provider] docs to see if your provider requires this setting.
 
 ## Proxy Service
-
-### Routes
-
-- Environmental Variable: `ROUTES`
-- Type: `map[string]string` comma separated mapping of managed entities.
-- Required
-- Example: `https://httpbin.corp.example.com=http://httpbin,https://hello.corp.example.com=http://hello:8080/`
-
-The routes setting contains a mapping of routes to be managed by pomerium.
 
 ### Signing Key
 
@@ -198,17 +193,25 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 - Optional
 - Example: `pomerium-authenticate-service.pomerium.svc.cluster.local`
 
-Authenticate Internal Service URL is the internal location of the authenticate service. This setting is used to override the authenticate service url for when you need to do "behind-the-ingress" inter-service communication. This is typically required for ingresses and load balancers that do not support HTTP/2 or gRPC termination.
+Authenticate Internal Service URL is the internally routed dns name of the authenticate service. This setting is used to override the authenticate service url for when you need to do "behind-the-ingress" inter-service communication. This is typically required for ingresses and load balancers that do not support HTTP/2 or gRPC termination.
 
-### Authenticate Service Port
+### Authorize Service URL
 
-- Environmental Variable: `AUTHENTICATE_SERVICE_PORT`
-- Type: `int`
+- Environmental Variable: `AUTHORIZE_SERVICE_URL`
+- Type: `URL`
+- Required
+- Example: `https://access.corp.example.com`
+
+Authorize Service URL is the externally accessible URL for the authorize service.
+
+### Authorize Internal Service URL
+
+- Environmental Variable: `AUTHORIZE_INTERNAL_URL`
+- Type: `string`
 - Optional
-- Default: `443`
-- Example: `8443`
+- Example: `pomerium-authorize-service.pomerium.svc.cluster.local`
 
-Authenticate Service Port is used to set the port value for authenticate service communication.
+Authorize Internal Service URL is the internally routed dns name of the authorize service. This setting is used to override the authorize service url for when you need to do "behind-the-ingress" inter-service communication. This is typically required for ingresses and load balancers that do not support HTTP/2 or gRPC termination.
 
 ### Override Certificate Name
 
@@ -217,7 +220,7 @@ Authenticate Service Port is used to set the port value for authenticate service
 - Optional (but typically required if Authenticate Internal Service Address is set)
 - Example: `*.corp.example.com` if wild card or `authenticate.corp.example.com`
 
-When Authenticate Internal Service Address is set, secure service communication can fail because the external certificate name will not match the internally routed service url. This setting allows you to override that check. 
+When Authenticate Internal Service Address is set, secure service communication can fail because the external certificate name will not match the internally routed service url. This setting allows you to override that check.
 
 ### Certificate Authority
 

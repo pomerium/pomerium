@@ -78,9 +78,6 @@ func TestAuthenticate_Refresh(t *testing.T) {
 			false},
 		{"test error", &identity.MockProvider{RefreshError: errors.New("hi")}, &pb.Session{RefreshToken: "refresh token", RefreshDeadline: fixedProtoTime, LifetimeDeadline: fixedProtoTime}, nil, true},
 		{"test catch nil", nil, nil, nil, true},
-
-		// {"test error", "error", nil, true},
-		// {"test bad time", "bad time", nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

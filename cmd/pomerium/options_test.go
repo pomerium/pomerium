@@ -55,7 +55,7 @@ func Test_isValidService(t *testing.T) {
 		{"all", "all", true},
 		{"authenticate", "authenticate", true},
 		{"authenticate bad case", "AuThenticate", false},
-		{"authorize not yet implemented", "authorize", false},
+		{"authorize implemented", "authorize", true},
 		{"jiberish", "xd23", false},
 	}
 	for _, tt := range tests {

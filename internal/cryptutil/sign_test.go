@@ -22,7 +22,7 @@ func TestES256Signer(t *testing.T) {
 }
 
 func TestNewES256Signer(t *testing.T) {
-
+	t.Parallel()
 	tests := []struct {
 		name     string
 		privKey  []byte

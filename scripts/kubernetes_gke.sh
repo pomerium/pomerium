@@ -30,6 +30,9 @@ kubectl create ns pomerium
 # kubectl apply -f docs/docs/examples/kubernetes/issuer.le.stage.yml
 # kubectl get certificate
 
+# add our policy
+kubectl create configmap -n pomerium policy --from-literal=POLICY=$(cat policy.example.yaml | base64)
+
 # create our cryptographically random keys
 kubectl create secret generic -n pomerium shared-secret --from-literal=shared-secret=$(head -c32 /dev/urandom | base64)
 kubectl create secret generic -n pomerium cookie-secret --from-literal=cookie-secret=$(head -c32 /dev/urandom | base64)
@@ -47,11 +50,14 @@ kubectl create secret tls -n pomerium pomerium-tls --key privkey.pem --cert cert
 # kubectl create secret generic -n pomerium idp-client-secret --from-literal=REPLACE_ME
 
 # Create the proxy & authenticate deployment
+kubectl apply -f docs/docs/examples/kubernetes/authorize.deploy.yml
 kubectl apply -f docs/docs/examples/kubernetes/authenticate.deploy.yml
 kubectl apply -f docs/docs/examples/kubernetes/proxy.deploy.yml
 # Create the proxy & authenticate services
 kubectl apply -f docs/docs/examples/kubernetes/proxy.service.yml
 kubectl apply -f docs/docs/examples/kubernetes/authenticate.service.yml
+kubectl apply -f docs/docs/examples/kubernetes/authorize.service.yml
+
 # Create and apply the Ingress; this is GKE specific
 kubectl apply -f docs/docs/examples/kubernetes/ingress.yml
 

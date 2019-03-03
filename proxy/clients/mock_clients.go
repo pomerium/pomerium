@@ -1,4 +1,4 @@
-package authenticator // import "github.com/pomerium/pomerium/proxy/authenticator"
+package clients // import "github.com/pomerium/pomerium/proxy/clients"
 
 import (
 	"context"
@@ -34,3 +34,18 @@ func (a MockAuthenticate) Validate(ctx context.Context, idToken string) (bool, e
 
 // Close is a mocked authenticator client function.
 func (a MockAuthenticate) Close() error { return a.CloseError }
+
+// MockAuthorize provides a mocked implementation of the authorizer interface.
+type MockAuthorize struct {
+	AuthorizeResponse bool
+	AuthorizeError    error
+	CloseError        error
+}
+
+// Close is a mocked authorizer client function.
+func (a MockAuthorize) Close() error { return a.CloseError }
+
+// Authorize is a mocked authorizer client function.
+func (a MockAuthorize) Authorize(ctx context.Context, route string, s *sessions.SessionState) (bool, error) {
+	return a.AuthorizeResponse, a.AuthorizeError
+}

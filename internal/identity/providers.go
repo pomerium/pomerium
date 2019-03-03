@@ -1,5 +1,3 @@
-//go:generate protoc -I ../../proto/authenticate --go_out=plugins=grpc:../../proto/authenticate ../../proto/authenticate/authenticate.proto
-
 // Package identity provides support for making OpenID Connect and OAuth2 authorized and
 // authenticated HTTP requests with third party identity providers.
 package identity // import "github.com/pomerium/pomerium/internal/identity"

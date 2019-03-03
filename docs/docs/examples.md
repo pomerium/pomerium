@@ -56,20 +56,6 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 
 <<< @/docs/docs/examples/docker/nginx.docker-compose.yml
 
-### Gitlab On-Prem
-
-- Docker and Docker-Compose based.
-- Uses pre-configured built-in nginx load balancer
-- Runs separate containers for each service
-- Comes with a pre-configured instance of on-prem Gitlab-CE
-- Routes default to on-prem [helloworld], [httpbin], and [gitlab].
-
-Customize for your identity provider run `docker-compose up -f gitlab.docker-compose.yml`
-
-#### gitlab.docker-compose.yml
-
-<<< @/docs/docs/examples/docker/gitlab.docker-compose.yml
-
 ## Kubernetes
 
 ### Google Kubernetes Engine
@@ -103,7 +89,6 @@ Customize for your identity provider run `docker-compose up -f gitlab.docker-com
 
 <<< @/docs/docs/examples/kubernetes/ingress.yml
 
-[gitlab]: https://docs.gitlab.com/ee/user/project/container_registry.html
 [helloworld]: https://hub.docker.com/r/tutum/hello-world
 [httpbin]: https://httpbin.org/
 [https load balancing]: https://cloud.google.com/kubernetes-engine/docs/concepts/ingress

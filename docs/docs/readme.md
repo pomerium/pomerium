@@ -6,7 +6,7 @@ Pomerium is an open-source, identity-aware access proxy.
 
 ## Why
 
-Traditional [perimeter](https://www.redbooks.ibm.com/redpapers/pdfs/redp4397.pdf) [security](https://en.wikipedia.org/wiki/Perimeter_Security)has some shortcomings, namely:
+Traditional [perimeter](https://www.redbooks.ibm.com/redpapers/pdfs/redp4397.pdf) [security](https://en.wikipedia.org/wiki/Perimeter_Security) has some shortcomings, namely:
 
 - Insider threat is not well addressed and 28% of breaches are [by internal actors](http://www.documentwereld.nl/files/2018/Verizon-DBIR_2018-Main_report.pdf).
 - Impenetrable fortress in theory falls in practice; multiple entry points (like VPNs), lots of firewall rules, network segmentation creep.

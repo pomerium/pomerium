@@ -110,3 +110,19 @@ func Ctx(ctx context.Context) *zerolog.Logger {
 func FromRequest(r *http.Request) *zerolog.Logger {
 	return Ctx(r.Context())
 }
+
+// StdLogWrapper can be used to wrap logs originating from the from std
+// library's ErrorFunction argument in http.Serve and httputil.ReverseProxy.
+type StdLogWrapper struct {
+	*zerolog.Logger
+}
+
+func (l *StdLogWrapper) Write(p []byte) (n int, err error) {
+	n = len(p)
+	if n > 0 && p[n-1] == '\n' {
+		// Trim CR added by stdlog.
+		p = p[0 : n-1]
+	}
+	l.Error().Msg(string(p))
+	return len(p), nil
+}
