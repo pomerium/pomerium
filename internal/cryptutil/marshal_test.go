@@ -25,27 +25,6 @@ nFUSTwqQFo5gbfIlP+gvEYba+Rxj2hhqjfzqxIleRK40IRyEi3fJM/8Qhg==
 -----END PUBLIC KEY-----
 `
 
-// A keypair for NIST P-384 / secp384r1
-// Generated using:
-//   openssl ecparam -genkey -name secp384r1 -outform PEM
-var pemECPrivateKeyP384 = `-----BEGIN EC PARAMETERS-----
-BgUrgQQAIg==
------END EC PARAMETERS-----
------BEGIN EC PRIVATE KEY-----
-MIGkAgEBBDAhA0YPVL1kimIy+FAqzUAtmR3It2Yjv2I++YpcC4oX7wGuEWcWKBYE
-oOjj7wG/memgBwYFK4EEACKhZANiAAQub8xaaCTTW5rCHJCqUddIXpvq/TxdwViH
-+tPEQQlJAJciXStM/aNLYA7Q1K1zMjYyzKSWz5kAh/+x4rXQ9Hlm3VAwCQDVVSjP
-bfiNOXKOWfmyrGyQ7fQfs+ro1lmjLjs=
------END EC PRIVATE KEY-----
-`
-
-var pemECPublicKeyP384 = `-----BEGIN PUBLIC KEY-----
-MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAELm/MWmgk01uawhyQqlHXSF6b6v08XcFY
-h/rTxEEJSQCXIl0rTP2jS2AO0NStczI2Msykls+ZAIf/seK10PR5Zt1QMAkA1VUo
-z234jTlyjln5sqxskO30H7Pq6NZZoy47
------END PUBLIC KEY-----
-`
-
 var garbagePEM = `-----BEGIN GARBAGE-----
 TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ=
 -----END GARBAGE-----

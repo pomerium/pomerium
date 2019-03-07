@@ -1,0 +1,2 @@
+- from: pomerium.io
+  to: httpbin.org

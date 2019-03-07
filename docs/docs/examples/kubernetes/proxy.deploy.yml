@@ -23,10 +23,12 @@ spec:
               name: https
               protocol: TCP
           env:
-            - name: ROUTES
-              value: https://httpbin.corp.beyondperimeter.com=https://httpbin.org,https://hi.corp.beyondperimeter.com=http://hello-app.pomerium.svc.cluster.local:8080
             - name: SERVICES
               value: proxy
+            - name: AUTHORIZE_SERVICE_URL
+              value: https://access.corp.beyondperimeter.com
+            - name: AUTHORIZE_INTERNAL_URL
+              value: "pomerium-authorize-service.pomerium.svc.cluster.local"
             - name: AUTHENTICATE_SERVICE_URL
               value: https://auth.corp.beyondperimeter.com
             - name: AUTHENTICATE_INTERNAL_URL

@@ -13,6 +13,8 @@ spec:
       hosts:
         - "*.corp.beyondperimeter.com"
         - "auth.corp.beyondperimeter.com"
+        - "access.corp.beyondperimeter.com"
+
   rules:
     - host: "*.corp.beyondperimeter.com"
       http:
@@ -28,4 +30,11 @@ spec:
           - paths:
             backend:
               serviceName: pomerium-authenticate-service
+              servicePort: https
+    - host: "access.corp.beyondperimeter.com"
+      http:
+        paths:
+          - paths:
+            backend:
+              serviceName: pomerium-authorize-service
               servicePort: https

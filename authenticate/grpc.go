@@ -1,3 +1,5 @@
+//go:generate protoc -I ../proto/authenticate --go_out=plugins=grpc:../proto/authenticate ../proto/authenticate/authenticate.proto
+
 package authenticate // import "github.com/pomerium/pomerium/authenticate"
 import (
 	"context"
@@ -20,7 +22,7 @@ func (p *Authenticate) Authenticate(ctx context.Context, in *pb.AuthenticateRequ
 	return newSessionProto, nil
 }
 
-// Validate locally validates a JWT id token; does NOT do nonce or revokation validation.
+// Validate locally validates a JWT id_token; does NOT do nonce or revokation validation.
 // https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
 func (p *Authenticate) Validate(ctx context.Context, in *pb.ValidateRequest) (*pb.ValidateReply, error) {
 	isValid, err := p.provider.Validate(ctx, in.IdToken)

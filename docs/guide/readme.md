@@ -10,11 +10,23 @@ Docker and docker-compose are tools for defining and running multi-container Doc
 
 ## Download
 
-Copy and paste the contents of the provided example [basic.docker-compose.yml] and save it locally as `docker-compose.yml`.
+Copy and paste the contents of the provided example [basic.docker-compose.yml].
 
 ## Configure
 
-Edit the `docker-compose.yml` to match your [identity provider] settings.
+### Docker-compose
+
+Edit the `docker-compose.yml` to match your specific [identity provider]'s settings. For example, `basic.docker-compose.yml`:
+
+<<< @/docs/docs/examples/docker/basic.docker-compose.yml
+
+### Policy configuration
+
+Next, create a policy configuration file which will contain the routes you want to proxy, and their desired access-controls. For example, `policy.example.yaml`:
+
+<<< @/policy.example.yaml
+
+### Certificates
 
 Place your domain's wild-card TLS certificate next to the compose file. If you don't have one handy, the included [script] generates one from [LetsEncrypt].
 

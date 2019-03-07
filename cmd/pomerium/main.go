@@ -9,12 +9,13 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/authenticate"
+	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/internal/https"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
-	"github.com/pomerium/pomerium/internal/options"
 	"github.com/pomerium/pomerium/internal/version"
-	pb "github.com/pomerium/pomerium/proto/authenticate"
+	pbAuthenticate "github.com/pomerium/pomerium/proto/authenticate"
+	pbAuthorize "github.com/pomerium/pomerium/proto/authorize"
 	"github.com/pomerium/pomerium/proxy"
 )
 
@@ -36,7 +37,7 @@ func main() {
 		fmt.Printf("%s", version.FullVersion())
 		os.Exit(0)
 	}
-	log.Info().Str("version", version.FullVersion()).Str("service-mode", mainOpts.Services).Msg("cmd/pomerium")
+	log.Info().Str("version", version.FullVersion()).Str("service", mainOpts.Services).Msg("cmd/pomerium")
 
 	grpcAuth := middleware.NewSharedSecretCred(mainOpts.SharedKey)
 	grpcOpts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcAuth.ValidateRequest)}
@@ -45,22 +46,29 @@ func main() {
 	var authenticateService *authenticate.Authenticate
 	var authHost string
 	if mainOpts.Services == "all" || mainOpts.Services == "authenticate" {
-		authOpts, err := authenticate.OptionsFromEnvConfig()
+		opts, err := authenticate.OptionsFromEnvConfig()
 		if err != nil {
 			log.Fatal().Err(err).Msg("cmd/pomerium: authenticate settings")
 		}
-		emailValidator := func(p *authenticate.Authenticate) error {
-			p.Validator = options.NewEmailValidator(authOpts.AllowedDomains)
-			return nil
-		}
-
-		authenticateService, err = authenticate.New(authOpts, emailValidator)
+		authenticateService, err = authenticate.New(opts)
 		if err != nil {
 			log.Fatal().Err(err).Msg("cmd/pomerium: new authenticate")
 		}
-		authHost = authOpts.RedirectURL.Host
-		pb.RegisterAuthenticatorServer(grpcServer, authenticateService)
+		authHost = opts.RedirectURL.Host
+		pbAuthenticate.RegisterAuthenticatorServer(grpcServer, authenticateService)
+	}
 
+	var authorizeService *authorize.Authorize
+	if mainOpts.Services == "all" || mainOpts.Services == "authorize" {
+		opts, err := authorize.OptionsFromEnvConfig()
+		if err != nil {
+			log.Fatal().Err(err).Msg("cmd/pomerium: authorize settings")
+		}
+		authorizeService, err = authorize.New(opts)
+		if err != nil {
+			log.Fatal().Err(err).Msg("cmd/pomerium: new authorize")
+		}
+		pbAuthorize.RegisterAuthorizerServer(grpcServer, authorizeService)
 	}
 
 	var proxyService *proxy.Proxy
@@ -74,7 +82,10 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("cmd/pomerium: new proxy")
 		}
+		// cleanup our RPC services
 		defer proxyService.AuthenticateClient.Close()
+		defer proxyService.AuthorizeClient.Close()
+
 	}
 
 	topMux := http.NewServeMux()

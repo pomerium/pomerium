@@ -17,15 +17,10 @@ import (
 	"github.com/pomerium/pomerium/internal/templates"
 )
 
-// mocks for validator func
-func trueValidator(s string) bool  { return true }
-func falseValidator(s string) bool { return false }
-
 func testAuthenticate() *Authenticate {
 	var auth Authenticate
 	auth.RedirectURL, _ = url.Parse("https://auth.example.com/oauth/callback")
 	auth.SharedKey = "IzY7MOZwzfOkmELXgozHDKTxoT3nOYhwkcmUVINsRww="
-	auth.AllowedDomains = []string{"*"}
 	auth.ProxyRootDomains = []string{"example.com"}
 	auth.templates = templates.New()
 	return &auth
@@ -86,66 +81,25 @@ func TestAuthenticate_authenticate(t *testing.T) {
 		}}
 
 	tests := []struct {
-		name      string
-		session   sessions.SessionStore
-		provider  identity.MockProvider
-		validator func(string) bool
-		want      *sessions.SessionState
-		wantErr   bool
+		name     string
+		session  sessions.SessionStore
+		provider identity.MockProvider
+		want     *sessions.SessionState
+		wantErr  bool
 	}{
-		{"good", goodSession, identity.MockProvider{ValidateResponse: true}, trueValidator, nil, false},
-		{"good but fails validation", goodSession, identity.MockProvider{ValidateResponse: true}, falseValidator, nil, true},
-		{"can't load session", &sessions.MockSessionStore{LoadError: errors.New("error")}, identity.MockProvider{ValidateResponse: true}, trueValidator, nil, true},
-		{"validation fails", goodSession, identity.MockProvider{ValidateResponse: false}, trueValidator, nil, true},
-		{"session fails after good validation", &sessions.MockSessionStore{
-			SaveError: errors.New("error"),
-			Session: &sessions.SessionState{
-				AccessToken:     "AccessToken",
-				RefreshToken:    "RefreshToken",
-				RefreshDeadline: time.Now().Add(10 * time.Second),
-			}}, identity.MockProvider{ValidateResponse: true},
-			trueValidator, nil, true},
-		{"refresh expired",
-			expiredRefresPeriod,
-			identity.MockProvider{
-				ValidateResponse: true,
-				RefreshResponse: &sessions.SessionState{
-					AccessToken:      "new token",
-					LifetimeDeadline: time.Now(),
-				},
-			},
-			trueValidator, nil, false},
-		{"refresh expired refresh error",
-			expiredRefresPeriod,
-			identity.MockProvider{
-				ValidateResponse: true,
-				RefreshError:     errors.New("error"),
-			},
-			trueValidator, nil, true},
-		{"refresh expired failed save",
-			&sessions.MockSessionStore{
-				SaveError: errors.New("error"),
-				Session: &sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-
-					RefreshDeadline: time.Now().Add(10 * -time.Second),
-				}},
-			identity.MockProvider{
-				ValidateResponse: true,
-				RefreshResponse: &sessions.SessionState{
-					AccessToken:      "new token",
-					LifetimeDeadline: time.Now(),
-				},
-			},
-			trueValidator, nil, true},
+		{"good", goodSession, identity.MockProvider{ValidateResponse: true}, nil, false},
+		{"can't load session", &sessions.MockSessionStore{LoadError: errors.New("error")}, identity.MockProvider{ValidateResponse: true}, nil, true},
+		{"validation fails", goodSession, identity.MockProvider{ValidateResponse: false}, nil, true},
+		{"session fails after good validation", &sessions.MockSessionStore{SaveError: errors.New("error"), Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * time.Second)}}, identity.MockProvider{ValidateResponse: true}, nil, true},
+		{"refresh expired", expiredRefresPeriod, identity.MockProvider{ValidateResponse: true, RefreshResponse: &sessions.SessionState{AccessToken: "new token", LifetimeDeadline: time.Now()}}, nil, false},
+		{"refresh expired refresh error", expiredRefresPeriod, identity.MockProvider{ValidateResponse: true, RefreshError: errors.New("error")}, nil, true},
+		{"refresh expired failed save", &sessions.MockSessionStore{SaveError: errors.New("error"), Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * -time.Second)}}, identity.MockProvider{ValidateResponse: true, RefreshResponse: &sessions.SessionState{AccessToken: "new token", LifetimeDeadline: time.Now()}}, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Authenticate{
 				sessionStore: tt.session,
 				provider:     tt.provider,
-				Validator:    tt.validator,
 			}
 			r := httptest.NewRequest("GET", "/auth", nil)
 			w := httptest.NewRecorder()
@@ -161,11 +115,10 @@ func TestAuthenticate_authenticate(t *testing.T) {
 
 func TestAuthenticate_SignIn(t *testing.T) {
 	tests := []struct {
-		name      string
-		session   sessions.SessionStore
-		provider  identity.MockProvider
-		validator func(string) bool
-		wantCode  int
+		name     string
+		session  sessions.SessionStore
+		provider identity.MockProvider
+		wantCode int
 	}{
 		{"good",
 			&sessions.MockSessionStore{
@@ -175,7 +128,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 					RefreshDeadline: time.Now().Add(10 * time.Second),
 				}},
 			identity.MockProvider{ValidateResponse: true},
-			trueValidator,
+
 			http.StatusForbidden},
 		{"session fails after good validation", &sessions.MockSessionStore{
 			SaveError: errors.New("error"),
@@ -184,14 +137,13 @@ func TestAuthenticate_SignIn(t *testing.T) {
 				RefreshToken:    "RefreshToken",
 				RefreshDeadline: time.Now().Add(10 * time.Second),
 			}}, identity.MockProvider{ValidateResponse: true},
-			trueValidator, http.StatusBadRequest},
+			http.StatusBadRequest},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &Authenticate{
 				sessionStore: tt.session,
 				provider:     tt.provider,
-				Validator:    tt.validator,
 				RedirectURL:  uriParse("http://www.pomerium.io"),
 				csrfStore:    &sessions.MockCSRFStore{},
 				SharedKey:    "secret",
@@ -592,11 +544,9 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 		code         string
 		state        string
 		validDomains []string
-		validator    func(string) bool
-
-		session   sessions.SessionStore
-		provider  identity.MockProvider
-		csrfStore sessions.MockCSRFStore
+		session      sessions.SessionStore
+		provider     identity.MockProvider
+		csrfStore    sessions.MockCSRFStore
 
 		want    string
 		wantErr bool
@@ -607,7 +557,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
 			[]string{"pomerium.io"},
-			trueValidator,
+
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -629,7 +579,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
 			[]string{"pomerium.io"},
-			trueValidator,
+
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -652,7 +602,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
 			[]string{"pomerium.io"},
-			trueValidator,
+
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -674,7 +624,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
 			[]string{"pomerium.io"},
-			trueValidator,
+
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateError: errors.New("error"),
@@ -691,30 +641,8 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
 			[]string{"pomerium.io"},
-			trueValidator,
-			&sessions.MockSessionStore{SaveError: errors.New("error")},
-			identity.MockProvider{
-				AuthenticateResponse: sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
 
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			sessions.MockCSRFStore{
-				ResponseCSRF: "csrf",
-				Cookie:       &http.Cookie{Value: "nonce"}},
-			"",
-			true,
-		},
-		{"failed email validation",
-			http.MethodGet,
-			"",
-			"code",
-			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			[]string{"pomerium.io"},
-			falseValidator,
-			&sessions.MockSessionStore{},
+			&sessions.MockSessionStore{SaveError: errors.New("error")},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
 					AccessToken:  "AccessToken",
@@ -736,7 +664,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
 			[]string{"pomerium.io"},
-			trueValidator,
+
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -758,7 +686,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
 			[]string{"pomerium.io"},
-			trueValidator,
+
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -780,7 +708,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"code",
 			"nonce:https://corp.pomerium.io",
 			[]string{"pomerium.io"},
-			trueValidator,
+
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -802,7 +730,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce")),
 			[]string{"pomerium.io"},
-			trueValidator,
+
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -824,7 +752,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:corp.pomerium.io")),
 			[]string{"pomerium.io"},
-			trueValidator,
+
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -848,7 +776,6 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 				csrfStore:        tt.csrfStore,
 				provider:         tt.provider,
 				ProxyRootDomains: tt.validDomains,
-				Validator:        tt.validator,
 			}
 			u, _ := url.Parse("/oauthGet")
 			params, _ := url.ParseQuery(u.RawQuery)

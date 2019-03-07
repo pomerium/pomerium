@@ -11,6 +11,7 @@ import (
 )
 
 func TestPasswordHashing(t *testing.T) {
+	t.Parallel()
 	bcryptTests := []struct {
 		plaintext []byte
 		hash      []byte

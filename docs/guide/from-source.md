@@ -27,17 +27,19 @@ The command will run all the tests, some code linters, then build the binary. If
 
 ## Configure
 
-Make a copy of the [env.example] and name it something like `env`.
+### Environmental Configuration Variables 
 
-```bash
-cp env.example env
-```
+Create a environmental configuration file modify its configuration to to match your [identity provider] settings. For example, `env`: 
 
-Modify your `env` configuration to to match your [identity provider] settings.
+<<< @/env.example
 
-```bash
-vim env
-```
+
+### policy.yaml
+Next, create a policy configuration file which will contain the routes you want to proxy, and their desired access-controls. For example, `policy.example.yaml`:
+
+<<< @/policy.example.yaml
+
+### Certificates
 
 Place your domain's wild-card TLS certificate next to the compose file. If you don't have one handy, the included [script] generates one from [LetsEncrypt].
 

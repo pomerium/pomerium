@@ -81,7 +81,6 @@ func (a *Authenticate) authenticate(w http.ResponseWriter, r *http.Request) (*se
 		return nil, err
 	}
 
-	// check if session refresh period is up
 	if session.RefreshPeriodExpired() {
 		newSession, err := a.provider.Refresh(r.Context(), session)
 		if err != nil {
@@ -111,12 +110,6 @@ func (a *Authenticate) authenticate(w http.ResponseWriter, r *http.Request) (*se
 		}
 	}
 
-	// authenticate really should not be in the business of authorization
-	// todo(bdd) : remove when authorization module added
-	if !a.Validator(session.Email) {
-		log.FromRequest(r).Error().Msg("invalid email user")
-		return nil, httputil.ErrUserNotAuthorized
-	}
 	return session, nil
 }
 
@@ -238,12 +231,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 // OAuthStart starts the authenticate process by redirecting to the identity provider.
 // https://tools.ietf.org/html/rfc6749#section-4.2.1
 func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
-	authRedirectURL, err := url.Parse(r.URL.Query().Get("redirect_uri"))
-	if err != nil {
-		httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
-		return
-	}
-	authRedirectURL = a.RedirectURL.ResolveReference(r.URL)
+	authRedirectURL := a.RedirectURL.ResolveReference(r.URL)
 
 	nonce := fmt.Sprintf("%x", cryptutil.GenerateKey())
 	a.csrfStore.SetCSRF(w, r, nonce)
@@ -345,11 +333,6 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "Invalid Redirect URI"}
 	}
 
-	// Set cookie, or deny: validates the session email and group
-	if !a.Validator(session.Email) {
-		log.FromRequest(r).Error().Err(err).Str("email", session.Email).Msg("invalid email permissions denied")
-		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "You don't have access"}
-	}
 	err = a.sessionStore.SaveSession(w, r, session)
 	if err != nil {
 		log.Error().Err(err).Msg("internal error")

@@ -1,6 +1,7 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
+	"encoding/base64"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/pomerium/pomerium/internal/policy"
 )
 
 var fixedDate = time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
@@ -47,36 +50,9 @@ func TestOptionsFromEnvConfig(t *testing.T) {
 	}
 }
 
-func Test_urlParse(t *testing.T) {
-	os.Clearenv()
-
-	tests := []struct {
-		name    string
-		uri     string
-		want    *url.URL
-		wantErr bool
-	}{
-		{"good url without schema", "accounts.google.com", &url.URL{Scheme: "https", Host: "accounts.google.com"}, false},
-		{"good url with schema", "https://accounts.google.com", &url.URL{Scheme: "https", Host: "accounts.google.com"}, false},
-		{"bad url, malformed", "https://accounts.google.^", nil, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := urlParse(tt.uri)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("urlParse() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("urlParse() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestNewReverseProxy(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 		hostname, _, _ := net.SplitHostPort(r.Host)
 		w.Write([]byte(hostname))
 	}))
@@ -101,7 +77,7 @@ func TestNewReverseProxy(t *testing.T) {
 
 func TestNewReverseProxyHandler(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 		hostname, _, _ := net.SplitHostPort(r.Host)
 		w.Write([]byte(hostname))
 	}))
@@ -111,10 +87,14 @@ func TestNewReverseProxyHandler(t *testing.T) {
 	backendHostname, backendPort, _ := net.SplitHostPort(backendURL.Host)
 	backendHost := net.JoinHostPort(backendHostname, backendPort)
 	proxyURL, _ := url.Parse(backendURL.Scheme + "://" + backendHost + "/")
-
 	proxyHandler := NewReverseProxy(proxyURL)
 	opts := defaultOptions
-	handle, err := NewReverseProxyHandler(opts, proxyHandler, "from", "to")
+	opts.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSU0zbXBaSVdYQ1g5eUVneFU2czU3Q2J0YlVOREJTQ0VBdFFGNWZVV0hwY1FvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFaFBRditMQUNQVk5tQlRLMHhTVHpicEVQa1JyazFlVXQxQk9hMzJTRWZVUHpOaTRJV2VaLwpLS0lUdDJxMUlxcFYyS01TYlZEeXI5aWp2L1hoOThpeUV3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
+	route, err := policy.FromConfig([]byte(`[{"from":"corp.example.com","to":"example.com","timeout":"1s"}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	handle, err := NewReverseProxyHandler(opts, proxyHandler, &route[0])
 	if err != nil {
 		t.Errorf("got %q", err)
 	}
@@ -133,10 +113,14 @@ func TestNewReverseProxyHandler(t *testing.T) {
 }
 
 func testOptions() *Options {
-	authurl, _ := url.Parse("https://sso-auth.corp.beyondperimeter.com")
+	authenticateService, _ := url.Parse("https://authenticate.corp.beyondperimeter.com")
+	authorizeService, _ := url.Parse("https://authorize.corp.beyondperimeter.com")
+	configBlob := `[{"from":"corp.example.com","to":"example.com"}]` //valid yaml
+	policy := base64.URLEncoding.EncodeToString([]byte(configBlob))
 	return &Options{
-		Routes:          map[string]string{"corp.example.com": "example.com"},
-		AuthenticateURL: authurl,
+		Policy:          policy,
+		AuthenticateURL: authenticateService,
+		AuthorizeURL:    authorizeService,
 		SharedKey:       "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
 		CookieSecret:    "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
 		CookieName:      "pomerium",
@@ -151,7 +135,7 @@ func TestOptions_Validate(t *testing.T) {
 	badToRoute.Routes = map[string]string{"^": "example.com"}
 	badAuthURL := testOptions()
 	badAuthURL.AuthenticateURL = nil
-	authurl, _ := url.Parse("http://sso-auth.corp.beyondperimeter.com")
+	authurl, _ := url.Parse("http://authenticate.corp.beyondperimeter.com")
 	httpAuthURL := testOptions()
 	httpAuthURL.AuthenticateURL = authurl
 	emptyCookieSecret := testOptions()
@@ -193,6 +177,7 @@ func TestOptions_Validate(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
+
 	good := testOptions()
 	shortCookieLength := testOptions()
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
@@ -207,7 +192,7 @@ func TestNew(t *testing.T) {
 		numMuxes  int
 		wantErr   bool
 	}{
-		{"good - minimum options", good, nil, true, 1, false},
+		{"good", good, nil, true, 1, false},
 		{"empty options", &Options{}, nil, false, 0, true},
 		{"nil options", nil, nil, false, 0, true},
 		{"short secret/validate sanity check", shortCookieLength, nil, false, 0, true},
@@ -224,7 +209,7 @@ func TestNew(t *testing.T) {
 				t.Errorf("New() expected valid proxy struct")
 			}
 			if got != nil && len(got.mux) != tt.numMuxes {
-				t.Errorf("New() = num muxes %v, want %v", got, tt.numMuxes)
+				t.Errorf("New() = num muxes \n%+v, want \n%+v", got, tt.numMuxes)
 			}
 		})
 	}

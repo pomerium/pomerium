@@ -31,11 +31,7 @@ type Options struct {
 	SharedKey string `envconfig:"SHARED_SECRET"`
 
 	// RedirectURL specifies the callback url following third party authentication
-	RedirectURL *url.URL `envconfig:"REDIRECT_URL"`
-
-	// Coarse authorization based on user email domain
-	// todo(bdd) : to be replaced with authorization module
-	AllowedDomains   []string `envconfig:"ALLOWED_DOMAINS"`
+	RedirectURL      *url.URL `envconfig:"REDIRECT_URL"`
 	ProxyRootDomains []string `envconfig:"PROXY_ROOT_DOMAIN"`
 
 	// Session/Cookie management
@@ -84,9 +80,6 @@ func (o *Options) Validate() error {
 	if o.ClientSecret == "" {
 		return errors.New("missing setting: client secret")
 	}
-	if len(o.AllowedDomains) == 0 {
-		return errors.New("missing setting email domain")
-	}
 	if len(o.ProxyRootDomains) == 0 {
 		return errors.New("missing setting: proxy root domain")
 	}
@@ -105,13 +98,9 @@ func (o *Options) Validate() error {
 
 // Authenticate validates a user's identity
 type Authenticate struct {
-	SharedKey string
-
+	SharedKey        string
 	RedirectURL      *url.URL
-	AllowedDomains   []string
 	ProxyRootDomains []string
-
-	Validator func(string) bool
 
 	templates    *template.Template
 	csrfStore    sessions.CSRFStore
@@ -122,9 +111,9 @@ type Authenticate struct {
 }
 
 // New validates and creates a new authenticate service from a set of Options
-func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate, error) {
+func New(opts *Options) (*Authenticate, error) {
 	if opts == nil {
-		return nil, errors.New("options cannot be nil")
+		return nil, errors.New("authenticate: options cannot be nil")
 	}
 	if err := opts.Validate(); err != nil {
 		return nil, err
@@ -166,7 +155,6 @@ func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate
 	p := &Authenticate{
 		SharedKey:        opts.SharedKey,
 		RedirectURL:      opts.RedirectURL,
-		AllowedDomains:   opts.AllowedDomains,
 		ProxyRootDomains: dotPrependDomains(opts.ProxyRootDomains),
 
 		templates:    templates.New(),
@@ -174,14 +162,6 @@ func New(opts *Options, optionFuncs ...func(*Authenticate) error) (*Authenticate
 		sessionStore: cookieStore,
 		cipher:       cipher,
 		provider:     provider,
-	}
-
-	// validation via dependency injected function
-	for _, optFunc := range optionFuncs {
-		err := optFunc(p)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	return p, nil

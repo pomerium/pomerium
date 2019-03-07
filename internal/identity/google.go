@@ -44,8 +44,10 @@ func NewGoogleProvider(p *Provider) (*GoogleProvider, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Google rejects the offline scope favoring "access_type=offline"
+	// as part of the authorization request instead.
 	if len(p.Scopes) == 0 {
-		p.Scopes = []string{oidc.ScopeOpenID, "profile", "email", "offline_access"}
+		p.Scopes = []string{oidc.ScopeOpenID, "profile", "email"}
 	}
 	p.verifier = p.provider.Verifier(&oidc.Config{ClientID: p.ClientID})
 	p.oauth = &oauth2.Config{
@@ -86,7 +88,7 @@ func NewGoogleProvider(p *Provider) (*GoogleProvider, error) {
 			return nil, fmt.Errorf("identity/google: failed creating admin service %v", err)
 		}
 	} else {
-		log.Warn().Msg("identity/google: no service account found, cannot retrieve user groups")
+		log.Warn().Msg("identity/google: no service account, cannot retrieve groups")
 	}
 
 	gp.RevokeURL, err = url.Parse(claims.RevokeURL)
@@ -114,6 +116,11 @@ func (p *GoogleProvider) Revoke(accessToken string) error {
 // the required scopes explicitly.
 // Google requires an additional access scope for offline access which is a requirement for any
 // application that needs to access a Google API when the user is not present.
+// Support for this scope differs between OpenID Connect providers. For instance
+// Google rejects it, favoring appending "access_type=offline" as part of the
+// authorization request instead.
+//
+// https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess
 // https://developers.google.com/identity/protocols/OAuth2WebServer#offline
 func (p *GoogleProvider) GetSignInURL(state string) string {
 	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
@@ -167,7 +174,7 @@ func (p *GoogleProvider) Authenticate(code string) (*sessions.SessionState, erro
 	}, nil
 }
 
-// Refresh renews a user's session using an oid refresh token without reprompting the user.
+// Refresh renews a user's session using an oid refresh token withoutreprompting the user.
 // Group membership is also refreshed.
 // https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
 func (p *GoogleProvider) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
@@ -211,7 +218,6 @@ func (p *GoogleProvider) UserGroups(ctx context.Context, user string) ([]string,
 			return nil, fmt.Errorf("identity/google: group api request failed %v", err)
 		}
 		for _, group := range resp.Groups {
-			log.Info().Str("group.Name", group.Name).Msg("sanity check3")
 			groups = append(groups, group.Name)
 		}
 	}
