@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
-	pb "github.com/pomerium/pomerium/proto/authorize"
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/sessions"
+	pb "github.com/pomerium/pomerium/proto/authorize"
 )
 
 // Authorizer provides the authorize service interface

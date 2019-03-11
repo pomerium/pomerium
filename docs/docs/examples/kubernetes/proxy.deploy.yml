@@ -50,6 +50,12 @@ spec:
                 secretKeyRef:
                   name: idp-client-secret
                   key: idp-client-secret
+            # e.g. service account for group retrieval, e.g. gsuite
+            - name: IDP_SERVICE_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: idp-service-account
+                  key: idp-service-account
             - name: CERTIFICATE
               valueFrom:
                 secretKeyRef:
@@ -60,6 +66,11 @@ spec:
                 secretKeyRef:
                   name: certificate-key
                   key: certificate-key
+            - name: POLICY
+              valueFrom:
+                configMapKeyRef:
+                  name: policy
+                  key: policy
           readinessProbe:
             httpGet:
               path: /ping

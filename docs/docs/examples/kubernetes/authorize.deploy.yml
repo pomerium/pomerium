@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pomerium-authorize
+  labels:
+    app: pomerium-authorize
+  namespace: pomerium
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pomerium-authorize
+  template:
+    metadata:
+      labels:
+        app: pomerium-authorize
+    spec:
+      containers:
+        - image: pomerium/pomerium:latest
+          name: pomerium-authorize
+          ports:
+            - containerPort: 443
+              name: https
+              protocol: TCP
+          env:
+            - name: POLICY
+              valueFrom:
+                configMapKeyRef:
+                  name: policy
+                  key: policy
+            - name: SERVICES
+              value: authorize
+            - name: SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: shared-secret
+                  key: shared-secret
+            - name: CERTIFICATE
+              valueFrom:
+                secretKeyRef:
+                  name: certificate
+                  key: certificate 
+            - name: CERTIFICATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: certificate-key
+                  key: certificate-key
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 443
+              scheme: HTTPS
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            timeoutSeconds: 1

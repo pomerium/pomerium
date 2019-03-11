@@ -23,7 +23,6 @@ spec:
             backend:
               serviceName: pomerium-proxy-service
               servicePort: https
-
     - host: "auth.corp.beyondperimeter.com"
       http:
         paths:

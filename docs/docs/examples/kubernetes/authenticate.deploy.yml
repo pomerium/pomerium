@@ -35,8 +35,6 @@ spec:
               value: 851877082059-bfgkpj09noog7as3gpc3t7r6n9sjbgs6.apps.googleusercontent.com
             - name: PROXY_ROOT_DOMAIN
               value: beyondperimeter.com
-            - name: ALLOWED_DOMAINS
-              value: "*"
             - name: SHARED_SECRET
               valueFrom:
                 secretKeyRef:
@@ -52,6 +50,11 @@ spec:
                 secretKeyRef:
                   name: idp-client-secret
                   key: idp-client-secret
+            - name: IDP_SERVICE_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: idp-service-account
+                  key: idp-service-account
             - name: CERTIFICATE
               valueFrom:
                 secretKeyRef:
