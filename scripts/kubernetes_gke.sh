@@ -12,21 +12,21 @@ gcloud container clusters get-credentials pomerium
 echo "=> create pomerium namespace"
 kubectl create ns pomerium
 
-echo "=> create our cryptographically random keys for $(shared-secret) and $(cookie-secret) from urandom"
+echo "=> create our cryptographically random keys forshared-secret andcookie-secret from urandom"
 kubectl create secret generic -n pomerium shared-secret --from-literal=shared-secret=$(head -c32 /dev/urandom | base64)
 kubectl create secret generic -n pomerium cookie-secret --from-literal=cookie-secret=$(head -c32 /dev/urandom | base64)
 
-echo "=> initiliaze secrets for TLS wild card certificates $(certificate) and $(certificate-key)"
+echo "=> initiliaze secrets for TLS wild card certificatescertificate andcertificate-key"
 kubectl create secret generic -n pomerium certificate --from-literal=certificate=$(base64 -i cert.pem)
 kubectl create secret generic -n pomerium certificate-key --from-literal=certificate-key=$(base64 -i privkey.pem)
 
 echo "=> load TLS to ingress"
 kubectl create secret tls -n pomerium pomerium-tls --key privkey.pem --cert cert.pem
 
-echo "=> initiliaze a configmap setting for POLICY from $(policy.example.yaml)"
+echo "=> initiliaze a configmap setting for POLICY frompolicy.example.yaml"
 kubectl create configmap -n pomerium policy --from-literal=policy=$(cat policy.example.yaml | base64)
 
-echo "=> setting $(idp-client-secret), you changed this right? :)"
+echo "=> settingidp-client-secret, you changed this right? :)"
 exit 1 # comment out or delete this line once you change the following two settings
 # kubectl create secret generic -n pomerium idp-client-secret --from-literal=idp-client-secret=REPLACEME
 # kubectl create secret generic -n pomerium idp-service-account --from-literal=idp-service-account=$(base64 -i gsuite.service.account.json)
