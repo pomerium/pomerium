@@ -86,9 +86,7 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		cp = newCp
 	}
 
-	log.Info().
-		Str("OverrideCertificateName", opts.OverrideCertificateName).
-		Str("addr", connAddr).Msgf("proxy/clients: grpc connection")
+	log.Debug().Str("cert-override-name", opts.OverrideCertificateName).Str("addr", connAddr).Msgf("proxy/clients: grpc connection")
 	cert := credentials.NewTLS(&tls.Config{RootCAs: cp})
 
 	// override allowed certificate name string, typically used when doing behind ingress connection

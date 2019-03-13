@@ -5,24 +5,21 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
+  name: {{ template "pomerium.fullname" . }}
   labels:
     app: {{ template "pomerium.name" . }}
     chart: {{ template "pomerium.chart" . }}
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-{{- if .Values.ingress.labels }}
-{{ toYaml .Values.ingress.labels | indent 4 }}
-{{- end }}
-  name: {{ template "pomerium.fullname" . }}
+{{- if .Values.ingress.labels }} {{ toYaml .Values.ingress.labels | indent 4 }} {{- end }}
 {{- if .Values.ingress.annotations }}
   annotations:
 {{ toYaml .Values.ingress.annotations | indent 4 }}
 {{- end }}
+
 spec:
   rules:
-{{- if .Values.ingress.extraRules }}
-{{ toYaml .Values.ingress.extraRules | indent 4 }}
-{{- end }}
+{{- if .Values.ingress.extraRules }}{{ toYaml .Values.ingress.extraRules | indent 4 }}{{- end }}
 {{- if .Values.ingress.hosts }}
 {{- range $host := .Values.ingress.hosts }}
     - host: {{ $host }}

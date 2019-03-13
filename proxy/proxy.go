@@ -79,7 +79,7 @@ var defaultOptions = &Options{
 	DefaultUpstreamTimeout: time.Duration(30) * time.Second,
 }
 
-// OptionsFromEnvConfig builds the IdentityProvider service's configuration
+// OptionsFromEnvConfig builds the identity provider service's configuration
 // options from provided environmental variables
 func OptionsFromEnvConfig() (*Options, error) {
 	o := defaultOptions

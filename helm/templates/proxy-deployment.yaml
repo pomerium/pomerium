@@ -1,3 +1,4 @@
+{{- if not .Values.omnibusMode -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -6,7 +7,7 @@ metadata:
     chart: {{ template "pomerium.chart" . }}
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  name: {{ template "pomerium.fullname" . }}
+  name: {{ template "pomerium.fullname" . }}-proxy
 {{- if .Values.annotations }}
   annotations:
 {{ toYaml .Values.annotations | indent 4 }}
@@ -49,7 +50,7 @@ spec:
 {{- end }}
         env:
         - name: SERVICES
-          value: {{ .Values.config.services }}
+          value: authorize
         - name: COOKIE_SECRET
           valueFrom:
             secretKeyRef:
@@ -59,7 +60,19 @@ spec:
           valueFrom:
             secretKeyRef:
               name: {{ template "pomerium.fullname" . }}
-              key: shared-secret
+              key: shared-secret             
+        - name: AUTHENTICATE_SERVICE_URL
+          value: {{ .Values.proxy.authenticateServiceUrl }}
+        - name: AUTHORIZE_SERVICE_URL
+          value: {{ .Values.proxy.authorizeServiceUrl }}
+{{- if .Values.config.policyFile }}
+        - name: POLICY_FILE
+          value: /etc/pomerium/policy.yaml
+{{- end }}
+{{- if .Values.config.policy}}
+        - name: POLICY
+          value: {{ .Values.config.policy }}
+{{- end }}
 {{- if .Values.config.cert }}
         - name: CERTIFICATE
           valueFrom:
@@ -81,34 +94,6 @@ spec:
               name: {{ template "pomerium.fullname" . }}
               key: certificate-authority
 {{- end }}
-{{- if or (eq .Values.config.services "authenticate") (eq .Values.config.services "all") }}
-        - name: REDIRECT_URL
-          value: {{ .Values.authenticate.redirectUrl }}
-        - name: ALLOWED_DOMAINS
-          value: {{ .Values.authenticate.allowedDomains }}
-        - name: PROXY_ROOT_DOMAIN
-          value: {{ .Values.authenticate.proxyRootDomains }}
-        - name: IDP_PROVIDER
-          value: {{ .Values.authenticate.idp.provider }}
-        - name: IDP_PROVIDER_URL
-          value: {{ .Values.authenticate.idp.url }}
-        - name: IDP_CLIENT_ID
-          valueFrom:
-            secretKeyRef:
-              name:  {{ template "pomerium.fullname" . }}
-              key: idp-client-id
-        - name: IDP_CLIENT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name:  {{ template "pomerium.fullname" . }}
-              key: idp-client-secret
-{{- end }}
-{{- if or (eq .Values.config.services "proxy") (eq .Values.config.services "all") }}
-        - name: AUTHENTICATE_SERVICE_URL
-          value: {{ .Values.proxy.authenticateServiceUrl }}
-        - name: ROUTES
-          value: {{ template "pomerium.routestring" . }}
-{{- end }}
 {{- range $name, $value := .Values.extraEnv }}
         - name: {{ $name }}
           value: {{ quote $value }}
@@ -127,7 +112,18 @@ spec:
             path: /ping
             port: https
             scheme: HTTPS
-        resources:
+        
+        
+        volumeMounts:
+        - mountPath: /etc/pomerium/
+          name: {{ template "pomerium.fullname" . }}-policy
+     
+      volumes:
+      - name: {{ template "pomerium.fullname" . }}-policy
+        configMap:
+          name: {{ template "pomerium.fullname" . }}
+      
+      resources:
 {{ toYaml .Values.resources | indent 10 }}
 {{- if .Values.extraVolumes }}
       volumes:
@@ -148,4 +144,5 @@ spec:
 {{- if .Values.affinity }}
       affinity:
 {{ toYaml .Values.affinity | indent 8 }}
+{{- end }}
 {{- end }}

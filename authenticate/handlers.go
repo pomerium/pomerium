@@ -118,11 +118,11 @@ func (a *Authenticate) authenticate(w http.ResponseWriter, r *http.Request) (*se
 func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 	session, err := a.authenticate(w, r)
 	if err != nil {
-		log.FromRequest(r).Info().Err(err).Msg("authenticate: authenticate error")
+		log.FromRequest(r).Warn().Err(err).Msg("authenticate: authenticate error")
 		a.sessionStore.ClearSession(w, r)
 		a.OAuthStart(w, r)
 	}
-	log.FromRequest(r).Info().Msg("authenticate: user authenticated")
+	log.FromRequest(r).Debug().Msg("authenticate: user authenticated")
 	a.ProxyCallback(w, r, session)
 }
 

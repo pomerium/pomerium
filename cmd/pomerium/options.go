@@ -42,7 +42,7 @@ var defaultOptions = &Options{
 	Services: "all",
 }
 
-// optionsFromEnvConfig builds the IdentityProvider service's configuration
+// optionsFromEnvConfig builds the main binary's configuration
 // options from provided environmental variables
 func optionsFromEnvConfig() (*Options, error) {
 	o := defaultOptions

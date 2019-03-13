@@ -28,8 +28,8 @@ kubectl create configmap -n pomerium policy --from-literal=policy=$(cat policy.e
 
 echo "=> settingidp-client-secret, you changed this right? :)"
 exit 1 # comment out or delete this line once you change the following two settings
-# kubectl create secret generic -n pomerium idp-client-secret --from-literal=idp-client-secret=REPLACEME
-# kubectl create secret generic -n pomerium idp-service-account --from-literal=idp-service-account=$(base64 -i gsuite.service.account.json)
+kubectl create secret generic -n pomerium idp-client-secret --from-literal=idp-client-secret=REPLACE_ME
+kubectl create secret generic -n pomerium idp-service-account --from-literal=idp-service-account=$(base64 -i gsuite.service.account.json)
 
 echo "=> apply the proxy, authorize, and authenticate deployment configs"
 kubectl apply -f docs/docs/examples/kubernetes/authorize.deploy.yml

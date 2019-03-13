@@ -61,7 +61,7 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 ### Google Kubernetes Engine
 
 - Uses GKE's built-in ingress to do [HTTPS load balancing]
-- HTTPS (TLS) between client and load balancer
+- HTTPS (TLS) between client, load balancer, and services
 - Routes default to hosted version of httpbin.org
 - Includes all-in-one script
 
@@ -76,6 +76,14 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 #### authenticate.service.yml
 
 <<< @/docs/docs/examples/kubernetes/authenticate.service.yml
+
+#### authorize.deploy.yml
+
+<<< @/docs/docs/examples/kubernetes/authorize.deploy.yml
+
+#### authorize.service.yml
+
+<<< @/docs/docs/examples/kubernetes/authorize.service.yml
 
 #### proxy.deploy.yml
 

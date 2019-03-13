@@ -181,7 +181,7 @@ func (p *AzureProvider) UserGroups(ctx context.Context, accessToken string) ([]s
 	}
 	var groups []string
 	for _, group := range response.Groups {
-		log.Info().Str("DisplayName", group.DisplayName).Str("ID", group.ID).Msg("identity/microsoft: group")
+		log.Debug().Str("DisplayName", group.DisplayName).Str("ID", group.ID).Msg("identity/microsoft: group")
 		groups = append(groups, group.DisplayName)
 	}
 	return groups, nil
