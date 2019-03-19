@@ -1,5 +1,4 @@
 version: "3"
-
 services:
   nginx:
     image: pomerium/nginx-proxy:latest

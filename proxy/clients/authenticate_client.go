@@ -23,9 +23,9 @@ type Authenticator interface {
 	Close() error
 }
 
-// NewAuthenticateClient returns a new authenticate service client.
+// NewAuthenticateClient returns a new authenticate service client. Presently,
+// only gRPC is supported and is always returned so name is ignored.
 func NewAuthenticateClient(name string, opts *Options) (a Authenticator, err error) {
-	// Only gRPC is supported and is always returned so name is ignored
 	return NewGRPCAuthenticateClient(opts)
 }
 
@@ -112,8 +112,6 @@ func (a *AuthenticateGRPC) Validate(ctx context.Context, idToken string) (bool, 
 	// }
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	// todo(bdd): add grpc specific timeouts to main options
-	// todo(bdd): handle request id (metadata!?) in grpc receiver and add to ctx logger
 	r, err := a.client.Validate(ctx, &pb.ValidateRequest{IdToken: idToken})
 	if err != nil {
 		return false, err

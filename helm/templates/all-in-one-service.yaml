@@ -1,6 +1,8 @@
+{{- if .Values.omnibusMode -}}
 apiVersion: v1
 kind: Service
 metadata:
+  name: {{ template "pomerium.fullname" . }}
   labels:
     app: {{ template "pomerium.name" . }}
     chart: {{ template "pomerium.chart" . }}
@@ -9,7 +11,6 @@ metadata:
 {{- if .Values.service.labels }}
 {{ toYaml .Values.service.labels | indent 4 }}
 {{- end }}
-  name: {{ template "pomerium.fullname" . }}
 {{- if .Values.service.annotations }}
   annotations:
 {{ toYaml .Values.service.annotations | indent 4 }}
@@ -27,3 +28,4 @@ spec:
   selector:
     app: {{ template "pomerium.name" . }}
     release: {{ .Release.Name }}
+{{- end -}}

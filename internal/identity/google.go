@@ -194,14 +194,7 @@ func (p *GoogleProvider) Refresh(ctx context.Context, s *sessions.SessionState) 
 	if err != nil {
 		return nil, fmt.Errorf("identity/google: could not retrieve groups %v", err)
 	}
-
-	log.Info().
-		Str("refresh-token", s.RefreshToken).
-		Str("new-access-token", newToken.AccessToken).
-		Str("new-expiry", time.Until(newToken.Expiry).String()).
-		Strs("Groups", groups).
-		Msg("identity: refresh")
-
+	s.Groups = groups
 	return s, nil
 }
 

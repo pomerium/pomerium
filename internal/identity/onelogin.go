@@ -135,7 +135,7 @@ func (p *OneLoginProvider) UserGroups(ctx context.Context, accessToken string) (
 	}
 	var groups []string
 	for _, group := range response.Groups {
-		log.Info().Str("ID", group).Msg("identity/onelogin: group")
+		log.Debug().Str("ID", group).Msg("identity/onelogin: group")
 		groups = append(groups, group)
 	}
 	return groups, nil

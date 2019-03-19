@@ -1,40 +1,63 @@
-# All config settings are required. sharedSecret must match between the authenticate
-# and proxy deployments.
-config:
-  sharedSecret: "XXXXXXXX"
-  cookieSecret: "XXXXXXXX"
-  services: all
-  cert:
-  key:
-# All below required if config.services is "authenticate" or "all"
-authenticate:
-  redirectUrl: http://example.com/oauth2/callback
-  allowedDomains: example.com
-  proxyRootDomains: example.com
-  idp:
+# For detailed explanation of each of the configuration settings see
+# https://www.pomerium.io/docs/config-reference.htmls
+
+# run pomerium in "all-in-one" mode where all services are run from a single node
+omnibusMode: false 
+
+config: # settings that are shared by all services
+  sharedSecret: "LL3g/NoKkao7mTec2/wYSOZAki1VbR89q+kqbdFj0c4=" # head -c32 /dev/urandom | base64
+  cookieSecret: "tAhd5A5Y8R/H/msFhkNdt8dCym2SatVbh4UrcDk3+Ms=" # head -c32 /dev/urandom | base64
+  cert: # base64 -i cert.pem or using a volume
+  key:  # base64 -i privkey.pem or using a volume
+  policyFile: |-
+    - from: httpbin.corp.pomerium.io
+      to: http://httpbin
+      allowed_domains:
+      - pomerium.io
+    - from: external-httpbin.corp.pomerium.io
+      to: httpbin.org
+      allowed_domains:
+      - gmail.com
+    - from: weirdlyssl.corp.pomerium.io
+      to: http://neverssl.com
+      allowed_users:
+      - bdd@pomerium.io
+      allowed_groups:
+      - admins
+      - developers
+    - from: hello.corp.pomerium.io
+      to: http://hello:8080
+      allowed_groups:
+      - admins
+
+
+authenticate: # values specific to the authenticate service
+  name: authenticate # container name
+  redirectUrl: https://auth.corp.pomerium.io/oauth2/callback
+  proxyRootDomains: pomerium.io
+  idp: # see https://www.pomerium.io/docs/identity-providers.html 
     provider: okta
     url: https://example.oktapreview.com/oauth2/default
     clientID: "XXXXXXXX"
     clientSecret: "XXXXXXXX"
-# All below required if config.serviceModes is "proxy" or "all"
-proxy:
-  authenticateServiceUrl: https://example.com/oauth2/callback
-  routes: {}
-  # routes:
-  #   "http.corp.example.com": "httpbin.org"
 
-# For any other settings that are optional
-# ADDRESS, POMERIUM_DEBUG, CERTIFICATE_FILE, CERTIFICATE_KEY_FILE, CERTIFICATE_AUTHORITY_FILE,
-# PROXY_ROOT_DOMAIN, COOKIE_DOMAIN, COOKIE_EXPIRE, COOKIE_REFRESH, COOKIE_SECURE, COOKIE_HTTP_ONLY, IDP_SCOPES
-# AUTHENTICATE_INTERNAL_URL, AUTHENTICATE_SERVICE_PORT, OVERRIDE_CERTIFICATE_NAME, DEFAULT_UPSTREAM_TIMEOUT, COOKIE_LIFETIME,
+authorize: # values specific to the authorize service
+  name: authorize # container name
+
+proxy: # values specific to the proxy service
+  name: proxy # container name
+  authenticateServiceUrl: https://auth.corp.pomerium.io
+  authorizeServiceUrl: https://access.corp.pomerium.io
+
+# For any other settings that are optional. for a complete listing see:
+# https://www.pomerium.io/docs/config-reference.html
 extraEnv: {}
-
 extraArgs: {}
 extraVolumes: {}
 
 image:
   repository: "pomerium/pomerium"
-  tag: "0.0.1"
+  tag: "latest"
   pullPolicy: "IfNotPresent"
 
 service:
@@ -46,20 +69,32 @@ service:
 
 ingress:
   enabled: false
-  path: /
+  # path: /
   # Used to create an Ingress record.
   # hosts:
-    # - chart-example.local
+  #   - "*.corp.example.com"
+  #   - "auth.corp.example.com"
+  #   - "access.corp.example.com"
   # annotations:
   #   kubernetes.io/ingress.class: nginx
   #   kubernetes.io/tls-acme: "true"
+  
   # tls:
-    # Secrets must be manually created in the namespace.
-    # - secretName: chart-example-tls
-    #   hosts:
-    #     - chart-example.local
+  # Secrets must be manually created in the namespace.
+  # - secretName: pomerium-tls
+  #   hosts:
+  #     - chart-example.local
+  # secrets:
+  ## If you're providing your own certificates, please use this to add the certificates as secrets
+  ## key and certificate should start with -----BEGIN CERTIFICATE----- or
+  ## -----BEGIN RSA PRIVATE KEY-----
+  ## 
+  # - name: pomerium-tls
+  #   key:
+  #   certificate:
 
-resources: {}
+resources:
+  {}
   # limits:
   #   cpu: 100m
   #   memory: 300Mi

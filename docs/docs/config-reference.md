@@ -62,7 +62,7 @@ Policy contains the routes, and their access policies. For example,
 
 By default, JSON encoded logs are produced. Debug enables colored, human-readable, and more verbose logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)). In production, it's recommended to be set to `false`.
 
-For example, if `true`.
+For example, if `true`
 
 ```
 10:37AM INF cmd/pomerium version=v0.0.1-dirty+ede4124
@@ -71,7 +71,7 @@ For example, if `true`.
 10:37AM INF proxy/authenticator: grpc connection OverrideCertificateName= addr=auth.corp.beyondperimeter.com:443
 ```
 
-If `false`:
+If `false`
 
 ```
 {"level":"info","version":"v0.0.1-dirty+ede4124","time":"2019-02-18T10:41:03-08:00","message":"cmd/pomerium"}

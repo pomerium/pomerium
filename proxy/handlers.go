@@ -212,7 +212,7 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.FromRequest(r).Info().
+	log.FromRequest(r).Debug().
 		Str("code", r.Form.Get("code")).
 		Str("state", r.Form.Get("state")).
 		Str("RefreshToken", session.RefreshToken).

@@ -4,37 +4,35 @@ import (
 	"context"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/pomerium/pomerium/internal/sessions"
-	pb "github.com/pomerium/pomerium/proto/authorize"
-	"google.golang.org/grpc"
+	"github.com/pomerium/pomerium/proto/authorize"
+	mock "github.com/pomerium/pomerium/proto/authorize/mock_authorize"
 )
 
 func TestAuthorizeGRPC_Authorize(t *testing.T) {
-	type fields struct {
-		Conn   *grpc.ClientConn
-		client pb.AuthorizerClient
-	}
-	type args struct {
-		ctx   context.Context
-		route string
-		s     *sessions.SessionState
-	}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	client := mock.NewMockAuthorizerClient(ctrl)
+	client.EXPECT().Authorize(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&authorize.AuthorizeReply{IsValid: true}, nil).AnyTimes()
+
 	tests := []struct {
 		name    string
-		fields  fields
-		args    args
+		route   string
+		s       *sessions.SessionState
 		want    bool
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{"good", "hello.pomerium.io", &sessions.SessionState{User: "admin@pomerium.io", Email: "admin@pomerium.io"}, true, false},
+		{"session cannot be nil", "hello.pomerium.io", nil, false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &AuthorizeGRPC{
-				Conn:   tt.fields.Conn,
-				client: tt.fields.client,
-			}
-			got, err := a.Authorize(tt.args.ctx, tt.args.route, tt.args.s)
+			a := &AuthorizeGRPC{client: client}
+			got, err := a.Authorize(context.Background(), tt.route, tt.s)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AuthorizeGRPC.Authorize() error = %v, wantErr %v", err, tt.wantErr)
 				return

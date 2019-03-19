@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/log"
-
 	"github.com/pomerium/pomerium/internal/fileutil"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -55,7 +53,6 @@ func FromConfig(confBytes []byte) ([]Policy, error) {
 			return nil, err
 		}
 	}
-	log.Info().Msgf("from config %+v", f)
 	return f, nil
 }
 

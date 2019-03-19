@@ -1,17 +1,26 @@
-name: pomerium
-version: 0.0.1
 apiVersion: v1
-appVersion: 0.0.1
+name: pomerium
+version: 0.0.3
+appVersion: 0.0.3
 home: http://www.pomerium.io/
-description: A reverse proxy that provides IdentityProvider with Google, Okta, Azure or other providers
+icon: https://www.pomerium.io/logo.svg
+description: Pomerium is an identity-aware access proxy.
 keywords:
-- kubernetes
-- oauth
+- proxy
+- access-proxy
+- reverse-proxy
+- sso
+- openid connect
 - oauth2
-- IdentityProvider
+- authorization
+- authentication
 - google
 - okta
 - azure
 sources:
 - https://github.com/pomerium/pomerium
 engine: gotpl
+
+maintainers:
+- name: bobby desimone
+  email: bobby.desimone@gmail.com

@@ -44,7 +44,7 @@ type Options struct {
 	CookieExpire   time.Duration `envconfig:"COOKIE_EXPIRE"`
 	CookieRefresh  time.Duration `envconfig:"COOKIE_REFRESH"`
 
-	// IdentityProvider provider configuration variables as specified by RFC6749
+	// Identity provider configuration variables as specified by RFC6749
 	// https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
 	ClientID       string   `envconfig:"IDP_CLIENT_ID"`
 	ClientSecret   string   `envconfig:"IDP_CLIENT_SECRET"`

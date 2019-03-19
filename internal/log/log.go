@@ -15,7 +15,7 @@ var Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
 // SetDebugMode tells the logger to use standard out and pretty print output.
 func SetDebugMode() {
 	Logger = Logger.Output(zerolog.ConsoleWriter{Out: os.Stdout})
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	// zerolog.SetGlobalLevel(zerolog.InfoLevel)
 }
 
 // With creates a child logger with the field added to its context.
