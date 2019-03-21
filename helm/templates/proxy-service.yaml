@@ -1,4 +1,3 @@
-{{- if not .Values.omnibusMode }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -28,4 +27,3 @@ spec:
   selector:
     app: {{ template "pomerium.name" . }}
     release: {{ .Release.Name }}
-{{- end }}

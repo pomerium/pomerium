@@ -35,3 +35,24 @@ If release name contains chart name it will be used as a full name.
 {{- end -}}
 {{- join "," $routes.routes | default "none=none" | quote -}}
 {{- end -}}
+
+
+{{/*
+Check if a valid source control provider has been set
+Adapted from : https://github.com/helm/charts/blob/master/stable/drone/templates/_provider-envs.yaml
+*/}}
+{{- define "pomerium.providerOK" -}}
+{{- if .Values.authenticate.idp -}}
+  {{- if eq .Values.authenticate.idp.clientID "" -}}
+  false
+  {{- else if eq .Values.authenticate.idp.clientSecret "" -}}
+  false
+  {{- else if eq .Values.authenticate.idp.clientID "REPLACE_ME" -}}
+  false
+  {{- else if eq .Values.authenticate.idp.clientSecret "REPLACE_ME" -}}
+  false
+  {{- else -}}
+  true
+  {{- end -}}
+{{- end -}}
+{{- end -}}
