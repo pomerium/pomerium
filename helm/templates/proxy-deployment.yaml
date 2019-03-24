@@ -2,11 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: {{ template "pomerium.name" . }}
+    app: {{ template "pomerium.name" . }}-{{ .Values.proxy.name }}
     chart: {{ template "pomerium.chart" . }}
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  name: {{ template "pomerium.fullname" . }}-proxy
+  name: {{ template "pomerium.fullname" . }}-{{ .Values.proxy.name }}
 {{- if .Values.annotations }}
   annotations:
 {{ toYaml .Values.annotations | indent 4 }}
@@ -15,7 +15,7 @@ spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "pomerium.name" . }}
+      app: {{ template "pomerium.name" . }}-{{ .Values.proxy.name }}
       release: {{ .Release.Name }}
   template:
     metadata:
@@ -24,7 +24,7 @@ spec:
 {{ toYaml .Values.podAnnotations | indent 8 }}
 {{- end }}
       labels:
-        app: {{ template "pomerium.name" . }}
+        app: {{ template "pomerium.name" . }}-{{ .Values.proxy.name }}
         chart: {{ template "pomerium.chart" . }}
         heritage: {{ .Release.Service }}
         release: {{ .Release.Name }}
@@ -49,22 +49,30 @@ spec:
 {{- end }}
         env:
         - name: SERVICES
-          value: authorize
+          value: proxy
         - name: COOKIE_SECRET
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
+              name: {{ if not .Values.config.existingSecret }}{{ template "pomerium.fullname" . }}{{ else }}{{ .Values.config.existingSecret }}{{ end }}
               key: cookie-secret
         - name: SHARED_SECRET
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
-              key: shared-secret             
+              name: {{ if not .Values.config.existingSecret }}{{ template "pomerium.fullname" . }}{{ else }}{{ .Values.config.existingSecret }}{{ end }}
+              key: shared-secret
         - name: AUTHENTICATE_SERVICE_URL
           value: {{ .Values.proxy.authenticateServiceUrl }}
         - name: AUTHORIZE_SERVICE_URL
           value: {{ .Values.proxy.authorizeServiceUrl }}
-{{- if .Values.config.policyFile }}
+{{- if .Values.proxy.authenticateUseInternalUrl }}
+        - name: AUTHENTICATE_INTERNAL_URL
+          value: {{ template "pomerium.fullname" . }}-{{ .Values.authenticate.name }}
+{{- end }}
+{{- if .Values.proxy.authorizeUseInternalUrl }}
+        - name: AUTHORIZE_INTERNAL_URL
+          value: {{ template "pomerium.fullname" . }}-{{ .Values.authorize.name }}
+{{- end }}
+{{- if .Values.config.policyFile}}
         - name: POLICY_FILE
           value: /etc/pomerium/policy.yaml
 {{- end }}
@@ -72,26 +80,22 @@ spec:
         - name: POLICY
           value: {{ .Values.config.policy }}
 {{- end }}
-{{- if .Values.config.cert }}
         - name: CERTIFICATE
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
-              key: certificate
-{{- end }}
-{{- if .Values.config.key }}
+              name: {{ if not .Values.config.existingSecret }}{{ template "pomerium.fullname" . }}{{ else }}{{ .Values.config.existingSecret }}{{ end }}
+              key: proxy-cert
         - name: CERTIFICATE_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
-              key: certificate-key
-{{- end }}
+              name: {{ if not .Values.config.existingSecret }}{{ template "pomerium.fullname" . }}{{ else }}{{ .Values.config.existingSecret }}{{ end }}
+              key: proxy-key
 {{- if .Values.config.ca }}
         - name: CERTIFICATE_AUTHORITY
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
-              key: certificate-authority
+              name: {{ if not .Values.config.existingSecret }}{{ template "pomerium.fullname" . }}{{ else }}{{ .Values.config.existingSecret }}{{ end }}
+              key:  ca-cert
 {{- end }}
 {{- range $name, $value := .Values.extraEnv }}
         - name: {{ $name }}
@@ -111,17 +115,15 @@ spec:
             path: /ping
             port: https
             scheme: HTTPS
-        
-        
+{{- if .Values.config.policyFile}}
         volumeMounts:
         - mountPath: /etc/pomerium/
-          name: {{ template "pomerium.fullname" . }}-policy
-     
+          name: policy
       volumes:
-      - name: {{ template "pomerium.fullname" . }}-policy
+      - name: policy
         configMap:
-          name: {{ template "pomerium.fullname" . }}
-      
+          name: {{ if not .Values.config.existingConfig }}{{ include "pomerium.fullname" . }}{{ else }}{{ .Values.config.existingConfig }}{{ end }}
+{{- end }}
       resources:
 {{ toYaml .Values.resources | indent 10 }}
 {{- if .Values.extraVolumes }}

@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ template "pomerium.fullname" . }}-authorize
+  name: {{ template "pomerium.fullname" . }}-{{ .Values.authorize.name }}
   labels:
-    app: {{ template "pomerium.name" . }}
+    app: {{ template "pomerium.name" . }}-{{ .Values.authorize.name }}
     chart: {{ template "pomerium.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
@@ -20,10 +20,11 @@ spec:
     - port: {{ .Values.service.externalPort }}
       targetPort: https
       protocol: TCP
-      name: http
+      name: https
+
 {{- if hasKey .Values.service "nodePort" }}
     nodePort: {{ .Values.service.nodePort }}
 {{- end }}
   selector:
-    app: {{ template "pomerium.name" . }}
+    app: {{ template "pomerium.name" . }}-{{ .Values.authorize.name }}
     release: {{ .Release.Name }}

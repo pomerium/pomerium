@@ -62,4 +62,3 @@ helm install $HOME/charts/stable/pomerium/ \
 # When done, clean up by deleting the cluster!
 #
 # helm del $(helm ls --all --short) --purge #!!! DELETES ALL YOUR HELM INSTANCES!
-# gcloud container clusters delete pomerium
