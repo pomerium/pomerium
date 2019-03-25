@@ -78,12 +78,14 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		if ok := cp.AppendCertsFromPEM(ca); !ok {
 			return nil, fmt.Errorf("failed to append CA cert to certPool")
 		}
+		log.Debug().Msg("proxy/clients: using a custom certificate authority")
 	} else {
 		newCp, err := x509.SystemCertPool()
 		if err != nil {
 			return nil, err
 		}
 		cp = newCp
+		log.Debug().Msg("proxy/clients: using system certificate pool")
 	}
 
 	log.Debug().Str("cert-override-name", opts.OverrideCertificateName).Str("addr", connAddr).Msgf("proxy/clients: grpc connection")
