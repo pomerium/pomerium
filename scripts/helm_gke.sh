@@ -39,8 +39,8 @@ helm install $HOME/helm-charts/stable/pomerium/ \
 	--set config.policy="$(cat policy.example.yaml | base64)" \
 	--set authenticate.idp.provider="google" \
 	--set authenticate.redirectUrl="https://authenticate.corp.pomerium.io/oauth2/callback" \
-	--set authenticate.idp.clientID="851877082059-bfgkpj09noog7as3gpc3t7r6n9sjbgs6.apps.googleusercontent.com" \
-	--set authenticate.idp.clientSecret="Vf5w-TUUR-yPIY9RVTo_TnGQ"
+	--set authenticate.idp.clientID="REPLACE_ME.apps.googleusercontent.com" \
+	--set authenticate.idp.clientSecret="REPLACE_ME"
 
 # When done, clean up by deleting the cluster!
 #
