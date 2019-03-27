@@ -211,7 +211,7 @@ func (p *GoogleProvider) UserGroups(ctx context.Context, user string) ([]string,
 			return nil, fmt.Errorf("identity/google: group api request failed %v", err)
 		}
 		for _, group := range resp.Groups {
-			groups = append(groups, group.Name)
+			groups = append(groups, group.Email)
 		}
 	}
 	return groups, nil
