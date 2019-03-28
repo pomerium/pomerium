@@ -1,7 +1,9 @@
 #!/bin/bash
-# PRE-REQ:
-# 1) Install Helm : You should verify the content of this script before running.
+# PRE-REQ: Install Helm : You should verify the content of this script before running.
 # curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
+# NOTE! This will create real resources on Google's cloud. Make sure you clean up any unused
+# resources to avoid being billed. For reference, this tutorial cost me <10 cents for a couple of hours.
+# NOTE! You must change the identity provider client secret setting, and service account setting!
 
 echo "=> [GCE] creating cluster"
 gcloud container clusters create pomerium
@@ -26,22 +28,23 @@ echo "=> initialize Helm to install Tiller in your cluster"
 helm init --service-account=tiller
 helm repo update
 
-echo "=> install pomerium with helm substituting configuration values as required; be sure to change these"
-helm install helm/. \
-	--set config.sharedSecret=$(head -c32 /dev/urandom | base64) \
-	--set config.cookieSecret=$(head -c32 /dev/urandom | base64) \
-	--set config.cert=$(base64 -i cert.pem) \
-	--set config.key=$(base64 -i privkey.pem) \
-	--set config.policy=$(cat policy.example.yaml) \
-	--set authentiate.idp.provider="google" \
-	--set authentiate.proxyRootDomains="pomerium.io" \
-	--set authentiate.redirectUrl="https://auth.corp.pomerium.io/oauth2/callback" \
-	--set authentiate.idp.clientID="REPLACE_ME" \
-	--set authentiate.idp.clientSecret="REPLACE_ME" \
-	--set proxy.authenticateServiceUrl="https://auth.corp.pomerium.io" \
-	--set proxy.authorizeServiceUrl="https://access.corp.pomerium.io"
+echo "=> wait a minute for tiller to get setup"
+sleep 60
+
+echo "=> install pomerium with helm"
+echo " replace configuration settings to meet your specific needs and identity provider settings"
+
+helm install ./helm/ \
+	--set service.type="NodePort" \
+	--set config.rootDomain="corp.pomerium.io" \
+	--set ingress.secret.name="pomerium-tls" \
+	--set ingress.secret.cert=$(base64 -i "$HOME/.acme.sh/*.corp.pomerium.io_ecc/*.corp.pomerium.io.cer") \
+	--set ingress.secret.key=$(base64 -i "$HOME/.acme.sh/*.corp.pomerium.io_ecc/*.corp.pomerium.io.key") \
+	--set config.policy="$(cat policy.example.yaml | base64)" \
+	--set authenticate.idp.provider="google" \
+	--set authenticate.idp.clientID="REPLACE_ME.apps.googleusercontent.com" \
+	--set authenticate.idp.clientSecret="REPLACE_ME"
 
 # When done, clean up by deleting the cluster!
-#
-# helm del $(helm ls --all --short) --purge #!!! DELETES ALL YOUR HELM INSTANCES!
-# gcloud container clusters delete pomerium
+# helm del $(helm ls --all --short) --purge # deletes all your helm instances
+# gcloud container clusters delete pomerium # deletes your cluster

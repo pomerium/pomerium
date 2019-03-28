@@ -23,7 +23,7 @@ function guideSidebar(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["", "kubernetes", "from-source"]
+			children: ["", "helm", "kubernetes", "from-source"]
 		}
 	];
 }
@@ -33,7 +33,7 @@ function docsSidebar(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["", "identity-providers", "signed-headers", "examples","config-reference"]
+			children: ["", "identity-providers", "signed-headers", "examples", "config-reference"]
 		}
 	];
 }
