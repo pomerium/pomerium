@@ -1,13 +1,13 @@
-{{- if not .Values.omnibusMode -}}
+{{- $secretName := default (include "pomerium.fullname" .) .Values.config.existingSecret }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: {{ template "pomerium.name" . }}
+    app: {{ template "pomerium.name" . }}-{{ .Values.authenticate.name }}
     chart: {{ template "pomerium.chart" . }}
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  name: {{ template "pomerium.fullname" . }}-authenticate
+  name: {{ template "pomerium.fullname" . }}-{{ .Values.authenticate.name }}
 {{- if .Values.annotations }}
   annotations:
 {{ toYaml .Values.annotations | indent 4 }}
@@ -16,7 +16,7 @@ spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "pomerium.name" . }}
+      app: {{ template "pomerium.name" . }}-{{ .Values.authenticate.name }}
       release: {{ .Release.Name }}
   template:
     metadata:
@@ -25,7 +25,7 @@ spec:
 {{ toYaml .Values.podAnnotations | indent 8 }}
 {{- end }}
       labels:
-        app: {{ template "pomerium.name" . }}
+        app: {{ template "pomerium.name" . }}-{{ .Values.authenticate.name }}
         chart: {{ template "pomerium.chart" . }}
         heritage: {{ .Release.Service }}
         release: {{ .Release.Name }}
@@ -54,55 +54,51 @@ spec:
         - name: COOKIE_SECRET
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
+              name: {{ $secretName }}
               key: cookie-secret
         - name: SHARED_SECRET
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
+              name: {{ $secretName }}
               key: shared-secret
         - name: REDIRECT_URL
-          value: {{ .Values.authenticate.redirectUrl }}
+          value: {{ default (printf "https://%s.%s/oauth2/callback" .Values.authenticate.name  .Values.config.rootDomain ) .Values.authenticate.redirectUrl }}
         - name: PROXY_ROOT_DOMAIN
-          value: {{ .Values.authenticate.proxyRootDomains }}
+          value: {{ .Values.config.rootDomain }}
         - name: IDP_PROVIDER
           value: {{ .Values.authenticate.idp.provider }}
         - name: IDP_CLIENT_ID
           valueFrom:
             secretKeyRef:
-              name:  {{ template "pomerium.fullname" . }}
+              name:  {{ $secretName }}
               key: idp-client-id
         - name: IDP_CLIENT_SECRET
           valueFrom:
             secretKeyRef:
-              name:  {{ template "pomerium.fullname" . }}
+              name:  {{ $secretName }}
               key: idp-client-secret
-{{- if .Values.authenticate.idp.url }}
         - name: IDP_PROVIDER_URL
           value: {{ .Values.authenticate.idp.url }}
-{{- end }}
-
-{{- if .Values.config.cert }}
+        - name: IDP_SERVICE_ACCOUNT
+          valueFrom:
+            secretKeyRef:
+              name:  {{ $secretName }}
+              key: idp-service-account
         - name: CERTIFICATE
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
-              key: certificate
-{{- end }}
-{{- if .Values.config.key }}
+              name:  {{ $secretName }}
+              key:  authenticate-cert
         - name: CERTIFICATE_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
-              key: certificate-key
-{{- end }}
-{{- if .Values.config.ca }}
+              name:  {{ $secretName }}
+              key:  authenticate-key
         - name: CERTIFICATE_AUTHORITY
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
-              key: certificate-authority
-{{- end }}
+              name:  {{ $secretName }}
+              key:  ca-cert
 {{- range $name, $value := .Values.extraEnv }}
         - name: {{ $name }}
           value: {{ quote $value }}
@@ -121,17 +117,6 @@ spec:
             path: /ping
             port: https
             scheme: HTTPS
-        
-        
-        volumeMounts:
-        - mountPath: /etc/pomerium/
-          name: {{ template "pomerium.fullname" . }}-policy
-     
-      volumes:
-      - name: {{ template "pomerium.fullname" . }}-policy
-        configMap:
-          name: {{ template "pomerium.fullname" . }}
-      
       resources:
 {{ toYaml .Values.resources | indent 10 }}
 {{- if .Values.extraVolumes }}
@@ -154,4 +139,3 @@ spec:
       affinity:
 {{ toYaml .Values.affinity | indent 8 }}
 {{- end }}
-{{- end -}}

@@ -1,14 +1,14 @@
-{{- if not .Values.omnibusMode -}}
-
+{{- $configName := default (include "pomerium.fullname" .) .Values.config.existingConfig }}
+{{- $secretName := default (include "pomerium.fullname" .) .Values.config.existingSecret }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: {{ template "pomerium.name" . }}
+    app: {{ template "pomerium.name" . }}-{{ .Values.authorize.name }}
     chart: {{ template "pomerium.chart" . }}
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  name: {{ template "pomerium.fullname" . }}-authorize
+  name: {{ template "pomerium.fullname" . }}-{{ .Values.authorize.name }}
 {{- if .Values.annotations }}
   annotations:
 {{ toYaml .Values.annotations | indent 4 }}
@@ -17,7 +17,7 @@ spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "pomerium.name" . }}
+      app: {{ template "pomerium.name" . }}-{{ .Values.authorize.name }}
       release: {{ .Release.Name }}
   template:
     metadata:
@@ -26,7 +26,7 @@ spec:
 {{ toYaml .Values.podAnnotations | indent 8 }}
 {{- end }}
       labels:
-        app: {{ template "pomerium.name" . }}
+        app: {{ template "pomerium.name" . }}-{{ .Values.authorize.name }}
         chart: {{ template "pomerium.chart" . }}
         heritage: {{ .Release.Service }}
         release: {{ .Release.Name }}
@@ -55,9 +55,9 @@ spec:
         - name: SHARED_SECRET
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
+              name: {{ $secretName }}
               key: shared-secret
-{{- if .Values.config.policyFile }}
+{{- if or .Values.config.existingConfig .Values.config.policyFile}}
         - name: POLICY_FILE
           value: /etc/pomerium/policy.yaml
 {{- end }}
@@ -65,27 +65,21 @@ spec:
         - name: POLICY
           value: {{ .Values.config.policy }}
 {{- end }}
-{{- if .Values.config.cert }}
         - name: CERTIFICATE
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
-              key: certificate
-{{- end }}
-{{- if .Values.config.key }}
+              name: {{ $secretName }}
+              key: authorize-cert
         - name: CERTIFICATE_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
-              key: certificate-key
-{{- end }}
-{{- if .Values.config.ca }}
+              name: {{ $secretName }}
+              key: authorize-key
         - name: CERTIFICATE_AUTHORITY
           valueFrom:
             secretKeyRef:
-              name: {{ template "pomerium.fullname" . }}
-              key: certificate-authority
-{{- end }}
+              name: {{ $secretName }}
+              key: ca-cert
 {{- range $name, $value := .Values.extraEnv }}
         - name: {{ $name }}
           value: {{ quote $value }}
@@ -104,17 +98,15 @@ spec:
             path: /ping
             port: https
             scheme: HTTPS
-        
-        
+{{- if or .Values.config.existingConfig .Values.config.policyFile}}
         volumeMounts:
         - mountPath: /etc/pomerium/
-          name: {{ template "pomerium.fullname" . }}-policy
-     
+          name: policy
       volumes:
-      - name: {{ template "pomerium.fullname" . }}-policy
+      - name: policy
         configMap:
-          name: {{ template "pomerium.fullname" . }}
-      
+          name: {{ $configName }}
+{{- end }}
       resources:
 {{ toYaml .Values.resources | indent 10 }}
 {{- if .Values.extraVolumes }}
@@ -136,5 +128,4 @@ spec:
 {{- if .Values.affinity }}
       affinity:
 {{ toYaml .Values.affinity | indent 8 }}
-{{- end }}
 {{- end }}
