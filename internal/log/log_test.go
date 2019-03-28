@@ -131,3 +131,27 @@ func Example() {
 
 	// Output: {"level":"info","time":1199811905,"message":"This message appears when log level set to Debug or Info"}
 }
+
+func ExampleSetLevel() {
+	setup()
+	log.SetLevel("info")
+	log.Debug().Msg("Debug")
+	log.Info().Msg("Debug or Info")
+	log.SetLevel("warn")
+	log.Debug().Msg("Debug")
+	log.Info().Msg("Debug or Info")
+	log.Warn().Msg("Debug or Info or Warn")
+	log.SetLevel("error")
+	log.Debug().Msg("Debug")
+	log.Info().Msg("Debug or Info")
+	log.Warn().Msg("Debug or Info or Warn")
+	log.Error().Msg("Debug or Info or Warn or Error")
+	log.SetLevel("default-fall-through")
+	log.Debug().Msg("Debug")
+
+	// Output:
+	// {"level":"info","time":1199811905,"message":"Debug or Info"}
+	// {"level":"warn","time":1199811905,"message":"Debug or Info or Warn"}
+	// {"level":"error","time":1199811905,"message":"Debug or Info or Warn or Error"}
+	// {"level":"debug","time":1199811905,"message":"Debug"}
+}

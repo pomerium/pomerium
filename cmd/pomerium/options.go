@@ -12,9 +12,12 @@ import (
 // or if a file location is not provided, the server will attempt to find a matching keypair
 // in the local directory as `./cert.pem` and `./privkey.pem` respectively.
 type Options struct {
-	// Debug enables more verbose logging, and outputs human-readable logs to Stdout.
-	// Set with POMERIUM_DEBUG
+	// Debug outputs human-readable logs to Stdout.
 	Debug bool `envconfig:"POMERIUM_DEBUG"`
+
+	// LogLevel sets the global override for log level. All Loggers will use at least this value.
+	// Possible options are "info","warn", and "error". Defaults to "debug".
+	LogLevel string `envconfig:"LOG_LEVEL"`
 
 	// SharedKey is the shared secret authorization key used to mutually authenticate
 	// requests between services.
@@ -39,6 +42,7 @@ type Options struct {
 
 var defaultOptions = &Options{
 	Debug:    false,
+	LogLevel: "debug",
 	Services: "all",
 }
 

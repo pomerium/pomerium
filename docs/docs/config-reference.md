@@ -60,7 +60,7 @@ Policy contains the routes, and their access policies. For example,
 - Type: `bool`
 - Default: `false`
 
-By default, JSON encoded logs are produced. Debug enables colored, human-readable, and more verbose logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)). In production, it's recommended to be set to `false`.
+By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)). In production, it's recommended to be set to `false`.
 
 For example, if `true`
 
@@ -79,6 +79,15 @@ If `false`
 {"level":"info","from":"ssl.corp.beyondperimeter.com","to":"http://neverssl.com","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
 {"level":"info","OverrideCertificateName":"","addr":"auth.corp.beyondperimeter.com:443","time":"2019-02-18T10:41:03-08:00","message":"proxy/authenticator: grpc connection"}
 ```
+
+### Log Level
+
+- Environmental Variable: `LOG_LEVEL`
+- Type: `string`
+- Options: `debug` `info` `warn` `error`
+- Default: `debug`
+
+Log level sets the global logging level for pomerium. Only logs of the desired level and above will be logged. 
 
 ### Certificate
 
