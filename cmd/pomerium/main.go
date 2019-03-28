@@ -33,6 +33,9 @@ func main() {
 	if *debugFlag || mainOpts.Debug {
 		log.SetDebugMode()
 	}
+	if mainOpts.LogLevel != "" {
+		log.SetLevel(mainOpts.LogLevel)
+	}
 	if *versionFlag {
 		fmt.Printf("%s", version.FullVersion())
 		os.Exit(0)

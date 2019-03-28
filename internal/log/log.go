@@ -15,7 +15,21 @@ var Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
 // SetDebugMode tells the logger to use standard out and pretty print output.
 func SetDebugMode() {
 	Logger = Logger.Output(zerolog.ConsoleWriter{Out: os.Stdout})
-	// zerolog.SetGlobalLevel(zerolog.InfoLevel)
+}
+
+// SetLevel sets the minimum global log level. Options are 'debu' 'info' 'warn' and 'error'.
+// Defaults to 'debug'
+func SetLevel(level string) {
+	switch level {
+	case "info":
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	case "warn":
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	case "error":
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+	default:
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
 }
 
 // With creates a child logger with the field added to its context.
