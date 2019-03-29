@@ -4,7 +4,7 @@
 # NOTE! This will create real resources on Google's cloud. Make sure you clean up any unused
 # resources to avoid being billed. For reference, this tutorial cost me <10 cents for a couple of hours.
 # NOTE! You must change the identity provider client secret setting, and service account setting!
-# NOTE! If using gsuite, you should also set `authenticate.idp.serviceAccount`, see docs for more info !
+# NOTE! If you are using gsuite, you should also set `authenticate.idp.serviceAccount`, see docs !
 
 echo "=> [GCE] creating cluster"
 gcloud container clusters create pomerium
@@ -45,7 +45,6 @@ helm install ./helm/ \
 	--set authenticate.idp.provider="google" \
 	--set authenticate.idp.clientID="REPLACE_ME" \
 	--set authenticate.idp.clientSecret="REPLACE_ME" \
-	--set authenticate.idp.serviceAccount="REPLACE_ME" \
 	--set-string ingress.annotations."kubernetes\.io/ingress\.allow-http"=false \
 	--set ingress.annotations."cloud\.google\.com/app-protocols"=\"{\"https\":\"HTTPS\"}\"
 

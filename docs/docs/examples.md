@@ -30,7 +30,7 @@ Customize for your identity provider and run `source ./env && ./bin/pomerium`
 
 Uses the [latest pomerium build](https://hub.docker.com/r/pomerium/pomerium) from docker hub. Docker and docker-compose are great tools for standing up and testing multiple service, and containers without having to stand-up a full on cluster.
 
-### Basic
+#### Basic
 
 - Minimal container-based configuration.
 - Docker and Docker-Compose based.
@@ -43,7 +43,7 @@ Customize for your identity provider run `docker-compose up -f basic.docker-comp
 
 <<< @/docs/docs/examples/docker/basic.docker-compose.yml
 
-### NGINX micro-services
+#### NGINX micro-services
 
 - Docker and Docker-Compose based.
 - Uses pre-configured built-in nginx load balancer
@@ -56,20 +56,25 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 
 <<< @/docs/docs/examples/docker/nginx.docker-compose.yml
 
-## Kubernetes
+## Helm
 
-### Google Kubernetes Engine
-
-- Uses GKE's built-in ingress to do [HTTPS load balancing]
+- Uses Google Kubernetes Engine's built-in ingress to do [HTTPS load balancing]
 - HTTPS (TLS) between client, load balancer, and services
 - Routes default to hosted version of httpbin.org
 - Includes all-in-one script
 
-#### Auto-magically with helm
+#### helm_gke.sh
 
 <<< @/scripts/helm_gke.sh
 
-#### Manually with kubernetes
+## Kubernetes
+
+- Uses Google Kubernetes Engine's built-in ingress to do [HTTPS load balancing]
+- HTTPS (TLS) between client, load balancer, and services
+- Routes default to hosted version of httpbin.org
+- Includes all-in-one script
+
+#### kubernetes_gke
 
 <<< @/scripts/kubernetes_gke.sh
 
