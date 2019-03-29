@@ -1,6 +1,6 @@
 # Pomerium Changelog
 
-## vUNRELEASED
+## v0.0.3
 
 **FEATURES:**
 
@@ -15,8 +15,8 @@
 - **WebSocket Support** : With [Go 1.12](https://golang.org/doc/go1.12#net/http/httputil) pomerium automatically proxies WebSocket requests.
 
 **CHANGED**:
-- Add `LOG_LEVEL` config setting that allows for setting the desired minimum log level for an event to be logged. 
-- Changed `POMERIUM_DEBUG` config setting to just do console-pretty printing. No longer sets log level.
+- Add `LOG_LEVEL` config setting that allows for setting the desired minimum log level for an event to be logged. [GH-74] 
+- Changed `POMERIUM_DEBUG` config setting to just do console-pretty printing. No longer sets log level. [GH-74]
 - Updated `generate_wildcard_cert.sh` to generate a elliptic curve 256 cert by default.
 - Updated `env.example` to include a `POLICY` setting example.
 - Added `IDP_SERVICE_ACCOUNT` to `env.example` .

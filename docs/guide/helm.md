@@ -1,14 +1,6 @@
 # Helm
 
-This quickstart will show you how to deploy Pomerium with Helm. For the purpose of this guide, we will be using Google's Kubernetes Engine. However, there are many other ways to work with Kubernetes:
-
-- [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine/)
-- [Azure Kubernetes Service](https://azure.microsoft.com/en-us/services/kubernetes-service/)
-- [Amazon Elastic Kubernetes Service (Amazon EKS)](https://aws.amazon.com/eks/)
-- [OpenShift Kubernetes](https://www.openshift.com/learn/topics/kubernetes/)
-- Or locally, with [minikube](https://kubernetes.io/docs/setup/minikube/)
-
-Most of the following steps should be very similar using any other provider, but may require additional tweaks. 
+This quickstart will show you how to deploy Pomerium with Kubernetes. Though there are [countless ways](https://kubernetes.io/docs/setup/pick-right-solution/) to work with Kubernetes, for the purpose of this guide, we will be using Google's [Kubernetes Engine](https://cloud.google.com/kubernetes-engine/). That said, most of the following steps should be very similar using any other provider with the biggest difference being in the configuration of your ingress. 
 
 
 ## Prerequisites
@@ -29,7 +21,7 @@ git clone https://github.com/pomerium/pomerium.git $HOME/pomerium
 
 ## Configure
 
-Edit the the install command in the [helm_gke.sh script ][./scripts/helm_gke.sh] to match your [identity provider] settings.
+Edit the the install command in the [helm_gke.sh script ][./scripts/helm_gke.sh] to match your [identity provider] and access policy settings.
 
 
 Generate a wild-card TLS certificate. If you don't have one handy, the included [script] generates one from [LetsEncrypt].

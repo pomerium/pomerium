@@ -1,15 +1,6 @@
 # Kubernetes
 
-This quickstart will show you how to deploy Pomerium with Kubernetes. For the purpose of this guide, we will be using Google's Kubernetes Engine. However, there are countless ways to work with Kubernetes:
-
-- [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine/)
-- [Azure Kubernetes Service](https://azure.microsoft.com/en-us/services/kubernetes-service/)
-- [Amazon Elastic Kubernetes Service (Amazon EKS)](https://aws.amazon.com/eks/)
-- [OpenShift Kubernetes](https://www.openshift.com/learn/topics/kubernetes/)
-- Or locally, with [minikube](https://kubernetes.io/docs/setup/minikube/)
-
-Most of the following steps should be very similar using any other provider.
-
+This quickstart will show you how to deploy Pomerium with Kubernetes. Though there are [countless ways](https://kubernetes.io/docs/setup/pick-right-solution/) to work with Kubernetes, for the purpose of this guide, we will be using Google's [Kubernetes Engine](https://cloud.google.com/kubernetes-engine/). That said, most of the following steps should be very similar using any other provider.
 
 ## Prerequisites
 
@@ -28,19 +19,9 @@ git clone https://github.com/pomerium/pomerium.git $HOME/pomerium
 
 ## Configure
 
-Edit the the [example kubernetes files][./scripts/kubernetes_gke.sh] to match your [identity provider] settings:
-
-- `./docs/docs/examples/authorize.deploy.yml`
-- `./docs/docs/examples/authorize.service.yml`
-- `./docs/docs/examples/authenticate.deploy.yml`
-- `./docs/docs/examples/authenticate.service.yml`
-- `./docs/docs/examples/proxy.deploy.yml`
-- `./docs/docs/examples/proxy.service.yml`
-- `./docs/docs/examples/ingress.yml`
+Edit [./scripts/kubernetes_gke.sh] making sure to change the identity provider secret value to match your [identity provider] settings.
 
 Place your domain's wild-card TLS certificate (`privkey.pem` and `cert.pem`) in the root of the repository. If you don't have one handy, the included [script] generates one from [LetsEncrypt].
-
-Edit [./scripts/kubernetes_gke.sh] making sure to change the identity provider secret value to match your [identity provider] settings.
 
 ## Run
 
