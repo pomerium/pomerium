@@ -65,7 +65,11 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 - Routes default to hosted version of httpbin.org
 - Includes all-in-one script
 
-#### kubernetes_gke.sh
+#### Auto-magically with helm
+
+<<< @/scripts/helm_gke.sh
+
+#### Manually with kubernetes
 
 <<< @/scripts/kubernetes_gke.sh
 
