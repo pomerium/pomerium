@@ -30,7 +30,7 @@ function guideSidebar(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["", "kubernetes", "from-source"]
+			children: ["", "helm", "kubernetes", "from-source"]
 		}
 	];
 }
