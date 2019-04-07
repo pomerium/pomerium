@@ -16,8 +16,10 @@ module.exports = {
 		docsDir: "docs",
 		editLinkText: "Edit this page on GitHub",
 		lastUpdated: "Last Updated",
-		nav: [{ text: "Quick Start", link: "/guide/" },
-		{ text: "Documentation", link: "/docs/" }],
+		nav: [
+			{ text: "Quick Start", link: "/guide/" },
+			{ text: "Documentation", link: "/docs/" }
+		],
 		sidebar: {
 			"/guide/": guideSidebar("Quick Start"),
 			"/docs/": docsSidebar("Documentation")
@@ -30,7 +32,7 @@ function guideSidebar(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["", "helm", "kubernetes", "from-source"]
+			children: ["", "helm", "kubernetes", "synology", "from-source"]
 		}
 	];
 }
