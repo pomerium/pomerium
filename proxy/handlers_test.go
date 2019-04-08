@@ -352,8 +352,22 @@ func TestProxy_Proxy(t *testing.T) {
 		RefreshDeadline:  time.Now().Add(10 * time.Second),
 	}
 
+	opts := testOptions()
+	optsCORS := testOptionsWithCORS()
+
+	defaultHeaders, goodCORSHeaders, badCORSHeaders := http.Header{}, http.Header{}, http.Header{}
+
+	goodCORSHeaders.Set("origin", "anything")
+	goodCORSHeaders.Set("access-control-request-method", "anything")
+
+	// missing "Origin"
+	badCORSHeaders.Set("access-control-request-method", "anything")
+
 	tests := []struct {
 		name          string
+		options       *Options
+		method        string
+		header        http.Header
 		host          string
 		session       sessions.SessionStore
 		authenticator clients.Authenticator
@@ -361,16 +375,20 @@ func TestProxy_Proxy(t *testing.T) {
 		wantStatus    int
 	}{
 		// weirdly, we want 503 here because that means proxy is trying to route a domain (example.com) that we dont control. Weird. I know.
-		{"good", "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusServiceUnavailable},
-		{"unexpected error", "https://corp.example.com/test", &sessions.MockSessionStore{LoadError: errors.New("ok")}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusInternalServerError},
+		{"good", opts, http.MethodGet, defaultHeaders, "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusServiceUnavailable},
+		{"good cors preflight", optsCORS, http.MethodOptions, goodCORSHeaders, "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusServiceUnavailable},
+		// same request as above, but with cors_allow_preflight=false in the policy
+		{"valid cors, but not allowed", opts, http.MethodOptions, goodCORSHeaders, "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
+		// cors allowed, but the request is missing proper headers
+		{"invalid cors headers", optsCORS, http.MethodOptions, badCORSHeaders, "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
+		{"unexpected error", opts, http.MethodGet, defaultHeaders, "https://corp.example.com/test", &sessions.MockSessionStore{LoadError: errors.New("ok")}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusInternalServerError},
 		// redirect to start auth process
-		{"unknown host", "https://notcorp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusNotFound},
-		{"user forbidden", "https://notcorp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
+		{"unknown host", opts, http.MethodGet, defaultHeaders, "https://notcorp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusNotFound},
+		{"user forbidden", opts, http.MethodGet, defaultHeaders, "https://notcorp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := testOptions()
-			p, err := New(opts)
+			p, err := New(tt.options)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -379,7 +397,8 @@ func TestProxy_Proxy(t *testing.T) {
 			p.AuthenticateClient = tt.authenticator
 			p.AuthorizeClient = tt.authorizer
 
-			r := httptest.NewRequest("GET", tt.host, nil)
+			r := httptest.NewRequest(tt.method, tt.host, nil)
+			r.Header = tt.header
 			w := httptest.NewRecorder()
 			p.Proxy(w, r)
 			if status := w.Code; status != tt.wantStatus {

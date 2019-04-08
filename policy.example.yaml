@@ -17,3 +17,8 @@
   to: http://hello:8080
   allowed_groups:
     - admins
+- from: cross-origin.corp.beyondperimeter.com 
+  to: httpbin.org
+  allowed_domains:
+      - gmail.com
+  cors_allow_preflight: true

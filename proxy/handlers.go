@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
+	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
 )
@@ -68,7 +69,10 @@ func (p *Proxy) Handler() http.Handler {
 	c = c.Append(middleware.UserAgentHandler("user_agent"))
 	c = c.Append(middleware.RefererHandler("referer"))
 	c = c.Append(middleware.RequestIDHandler("req_id", "Request-Id"))
-	c = c.Append(middleware.ValidateHost(p.mux))
+	c = c.Append(middleware.ValidateHost(func(host string) bool {
+		_, ok := p.routeConfigs[host]
+		return ok
+	}))
 
 	// serve the middleware and mux
 	return c.Then(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -223,36 +227,62 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, stateParameter.RedirectURI, http.StatusFound)
 }
 
+// shouldSkipAuthentication contains conditions for skipping authentication.
+// Conditions should be few in number and have strong justifications.
+func (p *Proxy) shouldSkipAuthentication(r *http.Request) bool {
+	pol, foundPolicy := p.policy(r)
+
+	if isCORSPreflight(r) && foundPolicy && pol.CORSAllowPreflight {
+		log.FromRequest(r).Debug().Msg("proxy: skipping authentication for valid CORS preflight request")
+		return true
+	}
+
+	return false
+}
+
+// isCORSPreflight inspects the request to see if this is a valid CORS preflight request.
+// These checks are not exhaustive, because the proxied server should be verifying it as well.
+//
+// See https://www.html5rocks.com/static/images/cors_server_flowchart.png for more info.
+func isCORSPreflight(r *http.Request) bool {
+	return r.Method == http.MethodOptions &&
+		r.Header.Get("Access-Control-Request-Method") != "" &&
+		r.Header.Get("Origin") != ""
+}
+
 // Proxy authenticates a request, either proxying the request if it is authenticated,
 // or starting the authenticate service for validation if not.
 func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
-	err := p.Authenticate(w, r)
-	// If the authenticate is not successful we proceed to start the OAuth Flow with
-	// OAuthStart. If successful, we proceed to proxy to the configured upstream.
-	if err != nil {
-		switch err {
-		case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
-			log.FromRequest(r).Debug().Err(err).Msg("proxy: starting auth flow")
-			p.OAuthStart(w, r)
+	if !p.shouldSkipAuthentication(r) {
+		err := p.Authenticate(w, r)
+		// If the authenticate is not successful we proceed to start the OAuth Flow with
+		// OAuthStart. If successful, we proceed to proxy to the configured upstream.
+		if err != nil {
+			switch err {
+			case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
+				log.FromRequest(r).Debug().Err(err).Msg("proxy: starting auth flow")
+				p.OAuthStart(w, r)
+				return
+			default:
+				log.FromRequest(r).Error().Err(err).Msg("proxy: unexpected error")
+				httputil.ErrorResponse(w, r, "An unexpected error occurred", http.StatusInternalServerError)
+				return
+			}
+		}
+		// remove dupe session call
+		session, err := p.sessionStore.LoadSession(r)
+		if err != nil {
+			p.sessionStore.ClearSession(w, r)
 			return
-		default:
-			log.FromRequest(r).Error().Err(err).Msg("proxy: unexpected error")
-			httputil.ErrorResponse(w, r, "An unexpected error occurred", http.StatusInternalServerError)
+		}
+		authorized, err := p.AuthorizeClient.Authorize(r.Context(), r.Host, session)
+		if !authorized || err != nil {
+			log.FromRequest(r).Warn().Err(err).Msg("proxy: user unauthorized")
+			httputil.ErrorResponse(w, r, "Access unauthorized", http.StatusForbidden)
 			return
 		}
 	}
-	// remove dupe session call
-	session, err := p.sessionStore.LoadSession(r)
-	if err != nil {
-		p.sessionStore.ClearSession(w, r)
-		return
-	}
-	authorized, err := p.AuthorizeClient.Authorize(r.Context(), r.Host, session)
-	if !authorized || err != nil {
-		log.FromRequest(r).Warn().Err(err).Msg("proxy: user unauthorized")
-		httputil.ErrorResponse(w, r, "Access unauthorized", http.StatusForbidden)
-		return
-	}
+
 	// We have validated the users request and now proxy their request to the provided upstream.
 	route, ok := p.router(r)
 	if !ok {
@@ -325,17 +355,31 @@ func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error)
 }
 
 // Handle constructs a route from the given host string and matches it to the provided http.Handler and UpstreamConfig
-func (p *Proxy) Handle(host string, handler http.Handler) {
-	p.mux[host] = handler
+func (p *Proxy) Handle(host string, handler http.Handler, pol *policy.Policy) {
+	p.routeConfigs[host] = &routeConfig{
+		mux:    handler,
+		policy: pol,
+	}
 }
 
 // router attempts to find a route for a request. If a route is successfully matched,
 // it returns the route information and a bool value of `true`. If a route can not be matched,
 // a nil value for the route and false bool value is returned.
 func (p *Proxy) router(r *http.Request) (http.Handler, bool) {
-	route, ok := p.mux[r.Host]
+	config, ok := p.routeConfigs[r.Host]
 	if ok {
-		return route, true
+		return config.mux, true
+	}
+	return nil, false
+}
+
+// policy attempts to find a policy for a request. If a policy is successfully matched,
+// it returns the policy information and a bool value of `true`. If a policy can not be matched,
+// a nil value for the policy and false bool value is returned.
+func (p *Proxy) policy(r *http.Request) (*policy.Policy, bool) {
+	config, ok := p.routeConfigs[r.Host]
+	if ok {
+		return config.policy, true
 	}
 	return nil, false
 }
