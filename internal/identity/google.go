@@ -119,11 +119,14 @@ func (p *GoogleProvider) Revoke(accessToken string) error {
 // Support for this scope differs between OpenID Connect providers. For instance
 // Google rejects it, favoring appending "access_type=offline" as part of the
 // authorization request instead.
-//
+// Google only provide refresh_token on the first authorization from the user. If user clears 
+// cookies, re-authorization will not bring back refresh_token. A work around to this is to add
+// prompt=consent to the OAuth redirect URL and will always return a refresh_token.
 // https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess
 // https://developers.google.com/identity/protocols/OAuth2WebServer#offline
+// https://stackoverflow.com/a/10857806/10592439
 func (p *GoogleProvider) GetSignInURL(state string) string {
-	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce, oauth2.SetAuthURLParam("prompt", "consent"))
 }
 
 // Authenticate creates an identity session with google from a authorization code, and follows up
