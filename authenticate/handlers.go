@@ -53,7 +53,7 @@ func (a *Authenticate) Handler() http.Handler {
 	stdMiddleware = stdMiddleware.Append(middleware.RequestIDHandler("req_id", "Request-Id"))
 	validateSignatureMiddleware := stdMiddleware.Append(
 		middleware.ValidateSignature(a.SharedKey),
-		middleware.ValidateRedirectURI(a.ProxyRootDomains))
+		middleware.ValidateRedirectURI(a.RedirectURL))
 
 	mux := http.NewServeMux()
 	mux.Handle("/robots.txt", stdMiddleware.ThenFunc(a.RobotsTxt))
@@ -190,7 +190,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, "No session found to log out", http.StatusBadRequest)
 		return
 	}
-	if r.Method == "GET" {
+	if r.Method == http.MethodGet {
 		signature := r.Form.Get("sig")
 		timestamp := r.Form.Get("ts")
 		destinationURL, err := url.Parse(redirectURI)
@@ -237,13 +237,13 @@ func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	a.csrfStore.SetCSRF(w, r, nonce)
 
 	// verify redirect uri is from the root domain
-	if !middleware.ValidRedirectURI(authRedirectURL.String(), a.ProxyRootDomains) {
+	if !middleware.SameSubdomain(authRedirectURL, a.RedirectURL) {
 		httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
 		return
 	}
 	// verify proxy url is from the root domain
 	proxyRedirectURL, err := url.Parse(authRedirectURL.Query().Get("redirect_uri"))
-	if err != nil || !middleware.ValidRedirectURI(proxyRedirectURL.String(), a.ProxyRootDomains) {
+	if err != nil || !middleware.SameSubdomain(proxyRedirectURL, a.RedirectURL) {
 		httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
 		return
 	}
@@ -329,8 +329,14 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "CSRF failed"}
 	}
 
-	if !middleware.ValidRedirectURI(redirect, a.ProxyRootDomains) {
-		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "Invalid Redirect URI"}
+	redirectURL, err := url.Parse(redirect)
+	if err != nil {
+		log.FromRequest(r).Error().Err(err).Msg("authenticate: couldn't parse redirect url")
+		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "Couldn't parse redirect url"}
+	}
+
+	if !middleware.SameSubdomain(redirectURL, a.RedirectURL) {
+		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "Invalid Redirect URI domain"}
 	}
 
 	err = a.sessionStore.SaveSession(w, r, session)

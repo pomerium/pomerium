@@ -37,7 +37,6 @@ echo " replace configuration settings to meet your specific needs and identity p
 
 helm install ./helm/ \
 	--set service.type="NodePort" \
-	--set config.rootDomain="corp.pomerium.io" \
 	--set ingress.secret.name="pomerium-tls" \
 	--set ingress.secret.cert=$(base64 -i "$HOME/.acme.sh/*.corp.pomerium.io_ecc/*.corp.pomerium.io.cer") \
 	--set ingress.secret.key=$(base64 -i "$HOME/.acme.sh/*.corp.pomerium.io_ecc/*.corp.pomerium.io.key") \

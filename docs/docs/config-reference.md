@@ -87,7 +87,7 @@ If `false`
 - Options: `debug` `info` `warn` `error`
 - Default: `debug`
 
-Log level sets the global logging level for pomerium. Only logs of the desired level and above will be logged. 
+Log level sets the global logging level for pomerium. Only logs of the desired level and above will be logged.
 
 ### Certificate
 
@@ -107,22 +107,14 @@ Certificate key is the x509 _private-key_ used to establish secure HTTP and gRPC
 
 ## Authenticate Service
 
-### Redirect URL
+### Authenticate Service URL
 
-- Environmental Variable: `REDIRECT_URL`
+- Environmental Variable: `AUTHENTICATE_SERVICE_URL`
 - Type: `URL`
 - Required
-- Example: `https://auth.corp.example.com/oauth2/callback`
+- Example: `https://authenticate.corp.example.com`
 
-Redirect URL is the url the user will be redirected to following authentication with the third-party identity provider (IdP). Note the URL ends with `/oauth2/callback`. This setting will mirror the URL set when configuring your [identity provider]. Typically, on the provider side, this is called an _authorized callback url_.
-
-### Proxy Root Domains
-
-- Environmental Variable: `PROXY_ROOT_DOMAIN`
-- Type: `[]string` (e.g. comma separated list of strings)
-- Required
-
-Proxy Root Domains specifies the sub-domains that can proxy requests. For example, `httpbin.corp.example.com` would be a valid domain under the proxy root domain `corp.example.com`. If a proxy service attempts to authenticate a user from a non-whitelisted domain, an error will be returned.
+Authenticate Service URL is the externally accessible URL for the authenticate service.
 
 ### Identity Provider Name
 
@@ -191,7 +183,7 @@ Signing key is the base64 encoded key used to sign outbound requests. For more i
 - Environmental Variable: `AUTHENTICATE_SERVICE_URL`
 - Type: `URL`
 - Required
-- Example: `https://auth.corp.example.com`
+- Example: `https://authenticate.corp.example.com`
 
 Authenticate Service URL is the externally accessible URL for the authenticate service.
 
@@ -227,7 +219,7 @@ Authorize Internal Service URL is the internally routed dns name of the authoriz
 - Environmental Variable: `OVERRIDE_CERTIFICATE_NAME`
 - Type: `int`
 - Optional (but typically required if Authenticate Internal Service Address is set)
-- Example: `*.corp.example.com` if wild card or `authenticate.corp.example.com`
+- Example: `*.corp.example.com` if wild card or `authenticate.corp.example.com`/`authorize.corp.example.com`
 
 When Authenticate Internal Service Address is set, secure service communication can fail because the external certificate name will not match the internally routed service url. This setting allows you to override that check.
 

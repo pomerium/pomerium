@@ -1,6 +1,7 @@
-<!--  Thanks for sending a pull request!
-We generally follow Go coding and contributing conventions 
-which you can read about here https://golang.org/doc/contribute.html#commit_messages
+<!--  
+Thanks for sending a pull request!
+We generally follow Go coding and contributing conventions
+https://golang.org/doc/contribute.html#commit_messages
 
 Here's an example of a good PR/Commit:
 
@@ -16,9 +17,8 @@ Here's an example of a good PR/Commit:
 -->
 
 
-<!--  handy checklist ; not required--> 
 **Checklist**:
-- [ ] documentation updated
+- [ ] updated docs
 - [ ] unit tests added
 - [ ] related issues referenced
 - [ ] ready for review

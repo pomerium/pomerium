@@ -173,10 +173,8 @@ OVERRIDE_CERTIFICATE_NAME | `*.int.nas.example.com`
 IDP_CLIENT_SECRET         | Values from setting up your [identity provider]
 IDP_CLIENT_ID             | Values from setting up your [identity provider]
 IDP_PROVIDER              | Values from setting up your [identity provider] (e.g. `google`)
-REDIRECT_URL              | `https://authenticate.int.nas.example.com/oauth2/callback`
 COOKIE_SECRET             | output of `head -c32 /dev/urandom | base64`
 SHARED_SECRET             | output of `head -c32 /dev/urandom | base64`
-PROXY_ROOT_DOMAIN         | `int.nas.example.com`
 AUTHORIZE_SERVICE_URL     | `https://authorize.int.nas.example.com`
 AUTHENTICATE_SERVICE_URL  | `https://authenticate.int.nas.example.com`
 AUTHORIZE_INTERNAL_URL    | `localhost:443`

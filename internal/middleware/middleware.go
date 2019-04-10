@@ -53,7 +53,7 @@ func ValidateClientSecret(sharedSecret string) func(next http.Handler) http.Hand
 
 // ValidateRedirectURI checks the redirect uri in the query parameters and ensures that
 // the its domain is in the list of proxy root domains.
-func ValidateRedirectURI(proxyRootDomains []string) func(next http.Handler) http.Handler {
+func ValidateRedirectURI(rootDomain *url.URL) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			err := r.ParseForm()
@@ -61,8 +61,12 @@ func ValidateRedirectURI(proxyRootDomains []string) func(next http.Handler) http
 				httputil.ErrorResponse(w, r, err.Error(), http.StatusBadRequest)
 				return
 			}
-			redirectURI := r.Form.Get("redirect_uri")
-			if !ValidRedirectURI(redirectURI, proxyRootDomains) {
+			redirectURI, err := url.Parse(r.Form.Get("redirect_uri"))
+			if err != nil {
+				httputil.ErrorResponse(w, r, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if !SameSubdomain(redirectURI, rootDomain) {
 				httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
 				return
 			}
@@ -71,24 +75,22 @@ func ValidateRedirectURI(proxyRootDomains []string) func(next http.Handler) http
 	}
 }
 
-// ValidRedirectURI checks if a URL's domain is one in the list of proxy root domains.
-func ValidRedirectURI(uri string, rootDomains []string) bool {
-	if uri == "" || len(rootDomains) == 0 {
+// SameSubdomain checks to see if two URLs share the same root domain.
+func SameSubdomain(u, j *url.URL) bool {
+	if u.Hostname() == "" || j.Hostname() == "" {
 		return false
 	}
-	redirectURL, err := url.Parse(uri)
-	if err != nil || redirectURL.Host == "" {
+	uParts := strings.Split(u.Hostname(), ".")
+	jParts := strings.Split(j.Hostname(), ".")
+	if len(uParts) != len(jParts) {
 		return false
 	}
-	for _, domain := range rootDomains {
-		if domain == "" {
+	for i := 1; i < len(uParts); i++ {
+		if uParts[i] != jParts[i] {
 			return false
 		}
-		if strings.HasSuffix(redirectURL.Hostname(), domain) {
-			return true
-		}
 	}
-	return false
+	return true
 }
 
 // ValidateSignature ensures the request is valid and has been signed with

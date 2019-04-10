@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/pomerium/envconfig"
@@ -27,13 +26,10 @@ var defaultOptions = &Options{
 
 // Options details the available configuration settings for the authenticate service
 type Options struct {
+	AuthenticateURL *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
+
 	// SharedKey is used to authenticate requests between services
 	SharedKey string `envconfig:"SHARED_SECRET"`
-
-	// RedirectURL specifies the callback url following third party authentication
-	RedirectURL      *url.URL `envconfig:"REDIRECT_URL"`
-	ProxyRootDomains []string `envconfig:"PROXY_ROOT_DOMAIN"`
-
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
 	CookieName     string
@@ -67,47 +63,38 @@ func OptionsFromEnvConfig() (*Options, error) {
 // The checks do not modify the internal state of the Option structure. Returns
 // on first error found.
 func (o *Options) Validate() error {
-	if o.RedirectURL == nil {
-		return errors.New("missing setting: identity provider redirect url")
-	}
-	redirectPath := "/oauth2/callback"
-	if o.RedirectURL.Path != redirectPath {
-		return fmt.Errorf("`setting` redirect-url was %s path should be %s", o.RedirectURL.Path, redirectPath)
+	if o.AuthenticateURL == nil {
+		return errors.New("authenticate: 'AUTHENTICATE_SERVICE_URL' missing")
 	}
 	if o.ClientID == "" {
-		return errors.New("missing setting: client id")
+		return errors.New("authenticate: 'IDP_CLIENT_ID' missing")
 	}
 	if o.ClientSecret == "" {
-		return errors.New("missing setting: client secret")
-	}
-	if len(o.ProxyRootDomains) == 0 {
-		return errors.New("missing setting: proxy root domain")
+		return errors.New("authenticate: 'IDP_CLIENT_SECRET' missing")
 	}
 	if o.SharedKey == "" {
-		return errors.New("missing setting: shared secret")
+		return errors.New("authenticate: 'SHARED_SECRET' missing")
 	}
 	decodedCookieSecret, err := base64.StdEncoding.DecodeString(o.CookieSecret)
 	if err != nil {
-		return fmt.Errorf("cookie secret is invalid base64: %v", err)
+		return fmt.Errorf("authenticate: 'COOKIE_SECRET' must be base64 encoded: %v", err)
 	}
 	if len(decodedCookieSecret) != 32 {
-		return fmt.Errorf("cookie secret expects 32 bytes but got %d", len(decodedCookieSecret))
+		return fmt.Errorf("authenticate: 'COOKIE_SECRET' should be 32; got %d", len(decodedCookieSecret))
 	}
 	return nil
 }
 
 // Authenticate validates a user's identity
 type Authenticate struct {
-	SharedKey        string
-	RedirectURL      *url.URL
-	ProxyRootDomains []string
+	SharedKey   string
+	RedirectURL *url.URL
 
 	templates    *template.Template
 	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
 	cipher       cryptutil.Cipher
-
-	provider identity.Authenticator
+	provider     identity.Authenticator
 }
 
 // New validates and creates a new authenticate service from a set of Options
@@ -118,7 +105,6 @@ func New(opts *Options) (*Authenticate, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, err
 	}
-	// checked by validate
 	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
 	cipher, err := cryptutil.NewCipher([]byte(decodedCookieSecret))
 	if err != nil {
@@ -136,11 +122,12 @@ func New(opts *Options) (*Authenticate, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	redirectURL := opts.AuthenticateURL
+	redirectURL.Path = "/oauth2/callback"
 	provider, err := identity.New(
 		opts.Provider,
 		&identity.Provider{
-			RedirectURL:    opts.RedirectURL,
+			RedirectURL:    redirectURL,
 			ProviderName:   opts.Provider,
 			ProviderURL:    opts.ProviderURL,
 			ClientID:       opts.ClientID,
@@ -152,26 +139,13 @@ func New(opts *Options) (*Authenticate, error) {
 		return nil, err
 	}
 
-	p := &Authenticate{
-		SharedKey:        opts.SharedKey,
-		RedirectURL:      opts.RedirectURL,
-		ProxyRootDomains: dotPrependDomains(opts.ProxyRootDomains),
-
+	return &Authenticate{
+		SharedKey:    opts.SharedKey,
+		RedirectURL:  redirectURL,
 		templates:    templates.New(),
 		csrfStore:    cookieStore,
 		sessionStore: cookieStore,
 		cipher:       cipher,
 		provider:     provider,
-	}
-
-	return p, nil
-}
-
-func dotPrependDomains(d []string) []string {
-	for i := range d {
-		if d[i] != "" && !strings.HasPrefix(d[i], ".") {
-			d[i] = fmt.Sprintf(".%s", d[i])
-		}
-	}
-	return d
+	}, nil
 }

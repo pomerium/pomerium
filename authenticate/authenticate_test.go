@@ -11,31 +11,25 @@ import (
 func testOptions() *Options {
 	redirectURL, _ := url.Parse("https://example.com/oauth2/callback")
 	return &Options{
-		ProxyRootDomains: []string{"example.com"},
-		RedirectURL:      redirectURL,
-		SharedKey:        "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
-		ClientID:         "test-client-id",
-		ClientSecret:     "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
-		CookieSecret:     "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
-		CookieRefresh:    time.Duration(1) * time.Hour,
-		CookieExpire:     time.Duration(168) * time.Hour,
-		CookieName:       "pomerium",
+		AuthenticateURL: redirectURL,
+		SharedKey:       "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
+		ClientID:        "test-client-id",
+		ClientSecret:    "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
+		CookieSecret:    "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
+		CookieRefresh:   time.Duration(1) * time.Hour,
+		CookieExpire:    time.Duration(168) * time.Hour,
+		CookieName:      "pomerium",
 	}
 }
 
 func TestOptions_Validate(t *testing.T) {
 	good := testOptions()
 	badRedirectURL := testOptions()
-	badRedirectURL.RedirectURL = nil
-	malformedRedirectURL := testOptions()
-	redirectURL, _ := url.Parse("https://example.com/oauth3/callback")
-	malformedRedirectURL.RedirectURL = redirectURL
+	badRedirectURL.AuthenticateURL = nil
 	emptyClientID := testOptions()
 	emptyClientID.ClientID = ""
 	emptyClientSecret := testOptions()
 	emptyClientSecret.ClientSecret = ""
-	proxyRootDomains := testOptions()
-	proxyRootDomains.ProxyRootDomains = nil
 	emptyCookieSecret := testOptions()
 	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := testOptions()
@@ -53,14 +47,12 @@ func TestOptions_Validate(t *testing.T) {
 		{"minimum options", good, false},
 		{"nil options", &Options{}, true},
 		{"bad redirect  url", badRedirectURL, true},
-		{"malformed redirect url", malformedRedirectURL, true},
 		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},
 		{"no client id", emptyClientID, true},
 		{"no client secret", emptyClientSecret, true},
-		{"empty root domains", proxyRootDomains, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -83,7 +75,7 @@ func TestOptionsFromEnvConfig(t *testing.T) {
 		wantErr  bool
 	}{
 		{"good default, no env settings", defaultOptions, "", "", false},
-		{"bad url", nil, "REDIRECT_URL", "%.rjlw", true},
+		{"bad url", nil, "AUTHENTICATE_SERVICE_URL", "%.rjlw", true},
 		{"good duration", defaultOptions, "COOKIE_EXPIRE", "1m", false},
 		{"bad duration", nil, "COOKIE_REFRESH", "1sm", true},
 	}
@@ -105,33 +97,12 @@ func TestOptionsFromEnvConfig(t *testing.T) {
 	}
 }
 
-func Test_dotPrependDomains(t *testing.T) {
-
-	tests := []struct {
-		name string
-		d    []string
-		want []string
-	}{
-		{"single domain", []string{"google.com"}, []string{".google.com"}},
-		{"multiple domain", []string{"google.com", "bing.com"}, []string{".google.com", ".bing.com"}},
-		{"empty", []string{""}, []string{""}},
-		{"nested subdomain", []string{"some.really.long.domain.com"}, []string{".some.really.long.domain.com"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := dotPrependDomains(tt.d); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("dotPrependDomains() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestNew(t *testing.T) {
 	good := testOptions()
 	good.Provider = "google"
 
 	badRedirectURL := testOptions()
-	badRedirectURL.RedirectURL = nil
+	badRedirectURL.AuthenticateURL = nil
 
 	tests := []struct {
 		name string
