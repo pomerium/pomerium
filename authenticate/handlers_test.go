@@ -21,7 +21,6 @@ func testAuthenticate() *Authenticate {
 	var auth Authenticate
 	auth.RedirectURL, _ = url.Parse("https://auth.example.com/oauth/callback")
 	auth.SharedKey = "IzY7MOZwzfOkmELXgozHDKTxoT3nOYhwkcmUVINsRww="
-	auth.ProxyRootDomains = []string{"example.com"}
 	auth.templates = templates.New()
 	return &auth
 }
@@ -443,10 +442,9 @@ func TestAuthenticate_OAuthStart(t *testing.T) {
 		name   string
 		method string
 
-		redirectURL    string
-		sig            string
-		ts             string
-		allowedDomains []string
+		redirectURL string
+		sig         string
+		ts          string
 
 		provider  identity.Authenticator
 		csrfStore sessions.MockCSRFStore
@@ -458,7 +456,6 @@ func TestAuthenticate_OAuthStart(t *testing.T) {
 			"https://corp.pomerium.io/",
 			redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"),
 			fmt.Sprint(time.Now().Unix()),
-			[]string{".pomerium.io"},
 			identity.MockProvider{},
 			sessions.MockCSRFStore{},
 			http.StatusFound,
@@ -468,17 +465,6 @@ func TestAuthenticate_OAuthStart(t *testing.T) {
 			"https://corp.pomerium.io/",
 			redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"),
 			fmt.Sprint(time.Now().Add(10 * time.Hour).Unix()),
-			[]string{".pomerium.io"},
-			identity.MockProvider{},
-			sessions.MockCSRFStore{},
-			http.StatusBadRequest,
-		},
-		{"domain not in allowed domains",
-			http.MethodGet,
-			"https://corp.pomerium.io/",
-			redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"),
-			fmt.Sprint(time.Now().Unix()),
-			[]string{"not.pomerium.io"},
 			identity.MockProvider{},
 			sessions.MockCSRFStore{},
 			http.StatusBadRequest,
@@ -488,7 +474,6 @@ func TestAuthenticate_OAuthStart(t *testing.T) {
 			"",
 			redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"),
 			fmt.Sprint(time.Now().Unix()),
-			[]string{".pomerium.io"},
 			identity.MockProvider{},
 			sessions.MockCSRFStore{},
 			http.StatusBadRequest,
@@ -498,7 +483,6 @@ func TestAuthenticate_OAuthStart(t *testing.T) {
 			"https://pomerium.com%zzzzz",
 			redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"),
 			fmt.Sprint(time.Now().Unix()),
-			[]string{".pomerium.io"},
 			identity.MockProvider{},
 			sessions.MockCSRFStore{},
 			http.StatusBadRequest,
@@ -507,12 +491,11 @@ func TestAuthenticate_OAuthStart(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &Authenticate{
-				ProxyRootDomains: tt.allowedDomains,
-				RedirectURL:      uriParse("http://www.pomerium.io"),
-				csrfStore:        tt.csrfStore,
-				provider:         tt.provider,
-				SharedKey:        "secret",
-				cipher:           mockCipher{},
+				RedirectURL: uriParse("http://www.pomerium.io"),
+				csrfStore:   tt.csrfStore,
+				provider:    tt.provider,
+				SharedKey:   "secret",
+				cipher:      mockCipher{},
 			}
 			u, _ := url.Parse("/oauth_start")
 			params, _ := url.ParseQuery(u.RawQuery)
@@ -540,13 +523,13 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 		method string
 
 		// url params
-		paramErr     string
-		code         string
-		state        string
-		validDomains []string
-		session      sessions.SessionStore
-		provider     identity.MockProvider
-		csrfStore    sessions.MockCSRFStore
+		paramErr        string
+		code            string
+		state           string
+		authenticateURL string
+		session         sessions.SessionStore
+		provider        identity.MockProvider
+		csrfStore       sessions.MockCSRFStore
 
 		want    string
 		wantErr bool
@@ -556,8 +539,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"",
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			[]string{"pomerium.io"},
-
+			"https://authenticate.pomerium.io",
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -578,8 +560,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"",
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			[]string{"pomerium.io"},
-
+			"https://authenticate.pomerium.io",
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -601,8 +582,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"",
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			[]string{"pomerium.io"},
-
+			"https://authenticate.pomerium.io",
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -623,8 +603,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"",
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			[]string{"pomerium.io"},
-
+			"https://authenticate.pomerium.io",
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateError: errors.New("error"),
@@ -640,8 +619,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"",
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			[]string{"pomerium.io"},
-
+			"https://authenticate.pomerium.io",
 			&sessions.MockSessionStore{SaveError: errors.New("error")},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -663,8 +641,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"idp error",
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			[]string{"pomerium.io"},
-
+			"https://authenticate.pomerium.io",
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -685,8 +662,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"",
 			"",
 			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			[]string{"pomerium.io"},
-
+			"https://authenticate.pomerium.io",
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -707,8 +683,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"",
 			"code",
 			"nonce:https://corp.pomerium.io",
-			[]string{"pomerium.io"},
-
+			"https://authenticate.pomerium.io",
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -729,8 +704,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"",
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce")),
-			[]string{"pomerium.io"},
-
+			"https://authenticate.pomerium.io",
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -751,8 +725,7 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			"",
 			"code",
 			base64.URLEncoding.EncodeToString([]byte("nonce:corp.pomerium.io")),
-			[]string{"pomerium.io"},
-
+			"https://authenticate.pomerium.io",
 			&sessions.MockSessionStore{},
 			identity.MockProvider{
 				AuthenticateResponse: sessions.SessionState{
@@ -771,11 +744,12 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			authURL, _ := url.Parse(tt.authenticateURL)
 			a := &Authenticate{
-				sessionStore:     tt.session,
-				csrfStore:        tt.csrfStore,
-				provider:         tt.provider,
-				ProxyRootDomains: tt.validDomains,
+				RedirectURL:  authURL,
+				sessionStore: tt.session,
+				csrfStore:    tt.csrfStore,
+				provider:     tt.provider,
 			}
 			u, _ := url.Parse("/oauthGet")
 			params, _ := url.ParseQuery(u.RawQuery)

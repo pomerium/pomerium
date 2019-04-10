@@ -19,18 +19,16 @@ services:
     environment:
       - POMERIUM_DEBUG=true
       - SERVICES=authenticate
-      - REDIRECT_URL=https://auth.corp.beyondperimeter.com/oauth2/callback
       # Identity Provider Settings (Must be changed!)
       - IDP_PROVIDER=google
       - IDP_PROVIDER_URL=https://accounts.google.com
       - IDP_CLIENT_ID=REPLACE_ME.apps.googleusercontent.com
       - IDP_CLIENT_SECRET=REPLACE_ME
-      - PROXY_ROOT_DOMAIN=corp.beyondperimeter.com
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
       # nginx settings
       - VIRTUAL_PROTO=https
-      - VIRTUAL_HOST=auth.corp.beyondperimeter.com
+      - VIRTUAL_HOST=authenticate.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
     volumes:
       - ./cert.pem:/pomerium/cert.pem:ro
@@ -45,8 +43,8 @@ services:
       - POMERIUM_DEBUG=true
       - SERVICES=proxy
       - POLICY_FILE=policy.yaml
-      - AUTHENTICATE_SERVICE_URL=https://auth.corp.beyondperimeter.com
-      - AUTHORIZE_SERVICE_URL=https://access.corp.beyondperimeter.com
+      - AUTHENTICATE_SERVICE_URL=https://authenticate.corp.beyondperimeter.com
+      - AUTHORIZE_SERVICE_URL=https://authorize.corp.beyondperimeter.com
       # IMPORTANT! If you are running pomerium behind another ingress (loadbalancer/firewall/etc)
       # you must tell pomerium proxy how to communicate using an internal hostname for RPC
       - AUTHENTICATE_INTERNAL_URL=pomerium-authenticate:443
@@ -77,7 +75,7 @@ services:
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       # nginx settings
       - VIRTUAL_PROTO=https
-      - VIRTUAL_HOST=access.corp.beyondperimeter.com
+      - VIRTUAL_HOST=authorize.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
     volumes:
       - ./cert.pem:/pomerium/cert.pem:ro

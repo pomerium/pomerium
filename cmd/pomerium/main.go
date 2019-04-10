@@ -40,7 +40,7 @@ func main() {
 		fmt.Printf("%s", version.FullVersion())
 		os.Exit(0)
 	}
-	log.Info().Str("version", version.FullVersion()).Str("service", mainOpts.Services).Msg("cmd/pomerium")
+	log.Info().Str("version", version.FullVersion()).Str("user-agent", version.UserAgent()).Str("service", mainOpts.Services).Msg("cmd/pomerium")
 
 	grpcAuth := middleware.NewSharedSecretCred(mainOpts.SharedKey)
 	grpcOpts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcAuth.ValidateRequest)}
@@ -57,7 +57,7 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("cmd/pomerium: new authenticate")
 		}
-		authHost = opts.RedirectURL.Host
+		authHost = opts.AuthenticateURL.Host
 		pbAuthenticate.RegisterAuthenticatorServer(grpcServer, authenticateService)
 	}
 

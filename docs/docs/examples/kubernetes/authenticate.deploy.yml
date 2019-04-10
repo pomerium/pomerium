@@ -25,16 +25,12 @@ spec:
           env:
             - name: SERVICES
               value: authenticate
-            - name: REDIRECT_URL
-              value: https://auth.corp.beyondperimeter.com/oauth2/callback
             - name: IDP_PROVIDER
               value: google
             - name: IDP_PROVIDER_URL
               value: https://accounts.google.com
             - name: IDP_CLIENT_ID
               value: 851877082059-bfgkpj09noog7as3gpc3t7r6n9sjbgs6.apps.googleusercontent.com 
-            - name: PROXY_ROOT_DOMAIN
-              value: beyondperimeter.com
             - name: SHARED_SECRET
               valueFrom:
                 secretKeyRef:

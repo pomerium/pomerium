@@ -14,7 +14,7 @@ There are a few configuration steps required for identity provider integration. 
 
 In this guide we'll cover how to do the following for each identity provider:
 
-1. Set a **[Redirect URL]** pointing back to Pomerium.
+1. Set a **Redirect URL** pointing back to Pomerium. That is, `https://${AUTHENTICATE_SERVICE_URL}/oauth2/callback` 
 2. Generate a **[Client ID]** and **[Client Secret]**.
 3. Configure Pomerium to use the **[Client ID]** and **[Client Secret]** keys.
 
@@ -69,7 +69,7 @@ Click on **Save** and the key will be displayed. **Make sure to copy the value o
 
 ![Creating a Key](./microsoft/azure-create-key.png)
 
-Next you need to ensure that the Pomerium's Redirect URL is listed in allowed reply URLs for the created application. Navigate to **Azure Active Directory** -> **Apps registrations** and select your app. Then click **Settings** -> **Reply URLs** and add Pomerium's redirect URL. For example, `https://sso-auth.corp.beyondperimeter.com/oauth2/callback`.
+Next you need to ensure that the Pomerium's Redirect URL is listed in allowed reply URLs for the created application. Navigate to **Azure Active Directory** -> **Apps registrations** and select your app. Then click **Settings** -> **Reply URLs** and add Pomerium's redirect URL. For example, `https://authenticate.corp.beyondperimeter.com/oauth2/callback`.
 
 ![Add Reply URL](./microsoft/azure-redirect-url.png)
 
@@ -109,7 +109,6 @@ Finally, configure Pomerium with the identity provider settings retrieved in the
 
 ```bash
 # Azure
-REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
 IDP_PROVIDER="azure"
 IDP_PROVIDER_URL="https://login.microsoftonline.com/{REPLACE-ME-SEE-ABOVE}/v2.0"
 IDP_CLIENT_ID="REPLACE-ME"
@@ -133,7 +132,7 @@ On the **Applications** page, add a new application by setting the following par
 Field        | Description
 ------------ | --------------------------------------------------------------------
 Name         | The name of your web app
-Redirect URI | [Redirect URL] (e.g.`https://auth.corp.example.com/oauth2/callback`)
+Redirect URI | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`)
 Scopes       | **Must** select **read_user** and **openid**
 
 ![Create New Credentials](./gitlab/gitlab-create-application.png)
@@ -147,7 +146,6 @@ Your [Client ID] and [Client Secret] will be displayed:
 Set [Client ID] and [Client Secret] in Pomerium's settings. Your [environmental variables] should look something like this.
 
 ```bash
-REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
 IDP_PROVIDER="gitlab"
 # NOTE!!! Provider url is optional, but should be set if you are running an on-premise instance
 # defaults to : https://gitlab.com, a local copy would look something like `http://gitlab.corp.beyondperimeter.com`
@@ -175,7 +173,7 @@ On the **Create [Client ID]** page, select **Web application**. In the new field
 Field                    | Description
 ------------------------ | --------------------------------------------------------------------
 Name                     | The name of your web app
-Authorized redirect URIs | [Redirect URL] (e.g.`https://auth.corp.example.com/oauth2/callback`)
+Authorized redirect URIs | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`)
 
 ![Web App Credentials Configuration](./google/google-create-client-id-config.png)
 
@@ -229,7 +227,6 @@ Next we'll delegate G-suite group membership access to the service account we ju
 Your [environmental variables] should look something like this.
 
 ```bash
-REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
 IDP_PROVIDER="google"
 IDP_PROVIDER_URL="https://accounts.google.com"
 IDP_CLIENT_ID="yyyy.apps.googleusercontent.com"
@@ -253,7 +250,7 @@ Field                        | Description
 ---------------------------- | ---------------------------------------------------------------------
 Name                         | The name of your application.
 Base URIs (optional)         | The domain(s) of your application.
-Login redirect URIs          | [Redirect URL] (e.g.`https://auth.corp.example.com/oauth2/callback`).
+Login redirect URIs          | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`).
 Group assignments (optional) | The user groups that can sign in to this application.
 Grant type allowed           | **You must enable Refresh Token.**
 
@@ -296,7 +293,6 @@ Include in            | Any scope
 Finally, configure Pomerium with the identity provider settings retrieved in the pervious steps. Your [environmental variables] should look something like this.
 
 ```bash
-REDIRECT_URL="https://sso-auth.corp.beyondperimeter.com/oauth2/callback"
 IDP_PROVIDER="okta"
 IDP_PROVIDER_URL="https://dev-108295-admin.oktapreview.com/"
 IDP_CLIENT_ID="0oairksnr0C0fEJ7l0h7"
@@ -319,7 +315,7 @@ On the App Configuration page, **name the app** and **select a logo**. Select **
 
 ![One Login select logo](./one-login/one-login-select-logo.png)
 
-Next, set set the **Redirect URI's** setting to be Pomerium's [redirect url].
+Next, set set the **Redirect URI's** setting to be Pomerium's redirect url `https://${AUTHENTICATE_SERVICE_URL}/oauth2/callback`.
 
 ![One Login set callback url](./one-login/one-login-callback-url.png)
 
@@ -345,7 +341,6 @@ To return the user's Active Directory field, configure the group to return `memb
 Finally, configure Pomerium with the identity provider settings retrieved in the pervious steps. Your [environmental variables] should look something like this.
 
 ```bash
-REDIRECT_URL="https://auth.corp.beyondperimeter.com/oauth2/callback"
 IDP_PROVIDER="onelogin"
 IDP_PROVIDER_URL="https://openid-connect.onelogin.com/oidc"
 IDP_CLIENT_ID="9e613ce0-1622-0137-452d-0a93c31f8392142934"
@@ -361,4 +356,3 @@ After reloading Pomerium, you should be able to see any login events from your O
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
 [openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect
-[redirect url]: ./config-reference.html#redirect-url

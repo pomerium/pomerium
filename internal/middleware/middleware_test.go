@@ -10,25 +10,29 @@ import (
 	"time"
 )
 
-func Test_ValidRedirectURI(t *testing.T) {
+func Test_SameSubdomain(t *testing.T) {
 
 	tests := []struct {
 		name        string
 		uri         string
-		rootDomains []string
+		rootDomains string
 		want        bool
 	}{
-		{"good url redirect", "https://example.com/redirect", []string{"example.com"}, true},
-		{"bad domain", "https://example.com/redirect", []string{"notexample.com"}, false},
-		{"malformed url", "^example.com/redirect", []string{"notexample.com"}, false},
-		{"empty domain list", "https://example.com/redirect", []string{}, false},
-		{"empty domain", "https://example.com/redirect", []string{""}, false},
-		{"empty url", "", []string{"example.com"}, false},
+		{"good url redirect", "https://example.com/redirect", "https://example.com", true},
+		{"simple sub", "https://auth.example.com", "https://test.example.com", true},
+		{"mismatched lengths", "https://auth.auth.example.com", "https://test.example.com", false},
+		{"bad domain", "https://auth.example.com/redirect", "https://test.notexample.com", false},
+		{"malformed url", "^example.com/redirect", "https://notexample.com", false},
+		{"empty domain list", "https://example.com/redirect", ".com", false},
+		{"empty domain", "https://example.com/redirect", "", false},
+		{"empty url", "", "example.com", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ValidRedirectURI(tt.uri, tt.rootDomains); got != tt.want {
-				t.Errorf("ValidRedirectURI() = %v, want %v", got, tt.want)
+			u, _ := url.Parse(tt.uri)
+			j, _ := url.Parse(tt.rootDomains)
+			if got := SameSubdomain(u, j); got != tt.want {
+				t.Errorf("SameSubdomain() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -118,17 +122,22 @@ func TestSetHeaders(t *testing.T) {
 
 func TestValidateRedirectURI(t *testing.T) {
 	tests := []struct {
-		name             string
-		proxyRootDomains []string
-		redirectURI      string
-		status           int
+		name        string
+		rootDomain  string
+		redirectURI string
+		status      int
 	}{
-		{"simple", []string{"google.com"}, "https://google.com", http.StatusOK},
-		{"bad match", []string{"aol.com"}, "https://google.com", http.StatusBadRequest},
-		{"with cname", []string{"google.com"}, "https://www.google.com", http.StatusOK},
-		{"with path", []string{"google.com"}, "https://www.google.com/path", http.StatusOK},
-		{"http", []string{"google.com"}, "http://www.google.com/path", http.StatusOK},
-		{"malformed, invalid hex digits", []string{"google.com"}, "%zzzzz", http.StatusBadRequest},
+		{"simple", "https://auth.google.com", "https://b.google.com", http.StatusOK},
+		{"deep ok", "https://a.some.really.deep.sub.domain.google.com", "https://b.some.really.deep.sub.domain.google.com", http.StatusOK},
+		{"bad match", "https://auth.aol.com", "https://test.google.com", http.StatusBadRequest},
+		{"bad simple", "https://auth.corp.aol.com", "https://test.corp.google.com", http.StatusBadRequest},
+		{"deep bad", "https://a.some.really.deep.sub.domain.scroogle.com", "https://b.some.really.deep.sub.domain.google.com", http.StatusBadRequest},
+		{"with cname", "https://auth.google.com", "https://www.google.com", http.StatusOK},
+		{"with path", "https://auth.google.com", "https://www.google.com/path", http.StatusOK},
+		{"http mistmatch", "https://auth.google.com", "http://www.google.com/path", http.StatusOK},
+		{"http", "http://auth.google.com", "http://www.google.com/path", http.StatusOK},
+		{"ip", "http://1.1.1.1", "http://8.8.8.8", http.StatusBadRequest},
+		{"malformed, invalid hex digits", "https://auth.google.com", "%zzzzz", http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
@@ -141,7 +150,8 @@ func TestValidateRedirectURI(t *testing.T) {
 				w.Write([]byte("Hi"))
 			})
 			rr := httptest.NewRecorder()
-			handler := ValidateRedirectURI(tt.proxyRootDomains)(testHandler)
+			u, _ := url.Parse(tt.rootDomain)
+			handler := ValidateRedirectURI(u)(testHandler)
 			handler.ServeHTTP(rr, req)
 			if rr.Code != tt.status {
 				t.Errorf("Status code differs. got %d want %d", rr.Code, tt.status)

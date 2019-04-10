@@ -16,8 +16,8 @@ spec:
     - secretName: pomerium-tls
       hosts:
         - "*.corp.beyondperimeter.com"
-        - "auth.corp.beyondperimeter.com"
-        - "access.corp.beyondperimeter.com"
+        - "authenticate.corp.beyondperimeter.com"
+        - "authorize.corp.beyondperimeter.com"
 
   rules:
     - host: "*.corp.beyondperimeter.com"
@@ -28,14 +28,14 @@ spec:
               serviceName: pomerium-proxy-service
               servicePort: https
 
-    - host: "auth.corp.beyondperimeter.com"
+    - host: "authenticate.corp.beyondperimeter.com"
       http:
         paths:
           - paths:
             backend:
               serviceName: pomerium-authenticate-service
               servicePort: https
-    - host: "access.corp.beyondperimeter.com"
+    - host: "authorize.corp.beyondperimeter.com"
       http:
         paths:
           - paths:

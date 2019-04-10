@@ -1,8 +1,19 @@
 # Pomerium Changelog
 
+## vUNRELEASED
+
+### FEATURES
+
+### CHANGED
+
+- Removed `PROXY_ROOT_DOMAIN` config option which is now inferred from `AUTHENTICATE_SERVICE_URL`. Only callback requests originating from a URL on the same sub-domain are permitted. 
+- Removed `REDIRECT_URL` config option which is now inferred from `AUTHENTICATE_SERVICE_URL` (e.g. `https://$AUTHENTICATE_SERVICE_URL/oauth2/callback`).
+
+### FIXED
+
 ## v0.0.3
 
-**FEATURES:**
+### FEATURES
 
 - **Authorization** : The authorization module adds support for per-route access policy. In this release we support the most common forms of identity based access policy: `allowed_users`, `allowed_groups`, and `allowed_domains`. In future versions, the authorization module will also support context and device based authorization policy and decisions. See website documentation for more details.
 - **Group Support** : The authenticate service now retrieves a user's group membership information during authentication and refresh. This change may require additional identity provider configuration; all of which are described in the [updated docs](https://www.pomerium.io/docs/identity-providers.html). A brief summary of the requirements for each IdP are as follows:
@@ -14,13 +25,13 @@
 
 - **WebSocket Support** : With [Go 1.12](https://golang.org/doc/go1.12#net/http/httputil) pomerium automatically proxies WebSocket requests.
 
-**CHANGED**:
-- Add `LOG_LEVEL` config setting that allows for setting the desired minimum log level for an event to be logged. [GH-74] 
+### CHANGED
+
+- Add `LOG_LEVEL` config setting that allows for setting the desired minimum log level for an event to be logged. [GH-74]
 - Changed `POMERIUM_DEBUG` config setting to just do console-pretty printing. No longer sets log level. [GH-74]
 - Updated `generate_wildcard_cert.sh` to generate a elliptic curve 256 cert by default.
 - Updated `env.example` to include a `POLICY` setting example.
 - Added `IDP_SERVICE_ACCOUNT` to `env.example` .
-- Removed `PROXY_ROOT_DOMAIN` settings which has been replaced by `POLICY`.
 - Removed `ALLOWED_DOMAINS` settings which has been replaced by `POLICY`. Authorization is now handled by the authorization service and is defined in the policy configuration files.
 - Removed `ROUTES` settings which has been replaced by `POLICY`.
 - Add refresh endpoint `${url}/.pomerium/refresh` which forces a token refresh and responds with the json result.
@@ -32,6 +43,6 @@
 - **Removed gitlab provider**. We can't support groups until [this gitlab bug](https://gitlab.com/gitlab-org/gitlab-ce/issues/44435#note_88150387) is fixed.
 - Request context is now maintained throughout request-flow via the [context package](https://golang.org/pkg/context/) enabling timeouts, request tracing, and cancellation.
 
-**FIXED:**
+### FIXED
 
 - `http.Server` and `httputil.NewSingleHostReverseProxy` now uses pomerium's logging package instead of the standard library's built in one. [GH-58]
