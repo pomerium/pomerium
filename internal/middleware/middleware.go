@@ -19,7 +19,9 @@ func SetHeaders(securityHeaders map[string]string) func(next http.Handler) http.
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			for key, val := range securityHeaders {
-				w.Header().Set(key, val)
+				if w.Header().Get(key) == "" {
+					w.Header().Set(key, val)
+				}
 			}
 			next.ServeHTTP(w, r)
 		})
