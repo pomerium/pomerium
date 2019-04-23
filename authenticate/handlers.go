@@ -16,11 +16,13 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 )
 
-// securityHeaders corresponds to HTTP response headers that help to protect against protocol
-// downgrade attacks and cookie hijacking.
+// securityHeaders corresponds to HTTP response headers that help to protect
+// against protocol downgrade attacks and cookie hijacking.
+//
 // https://www.owasp.org/index.php/OWASP_Secure_Headers_Project#tab=Headers
+// https://https.cio.gov/hsts/
 var securityHeaders = map[string]string{
-	"Strict-Transport-Security": "max-age=31536000",
+	"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 	"X-Frame-Options":           "DENY",
 	"X-Content-Type-Options":    "nosniff",
 	"X-XSS-Protection":          "1; mode=block",

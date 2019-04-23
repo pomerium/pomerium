@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -102,6 +103,7 @@ func main() {
 	if proxyService != nil {
 		topMux.Handle("/", proxyService.Handler())
 	}
+
 	httpOpts := &https.Options{
 		Addr:     mainOpts.Addr,
 		Cert:     mainOpts.Cert,
@@ -110,6 +112,18 @@ func main() {
 		KeyFile:  mainOpts.KeyFile,
 	}
 
-	log.Fatal().Err(https.ListenAndServeTLS(httpOpts, topMux, grpcServer)).Msg("cmd/pomerium: https serve failure")
+	// redirect http to https
+	srv := &http.Server{
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Connection", "close")
+			url := fmt.Sprintf("https://%s%s", r.Host, r.URL.String())
+			http.Redirect(w, r, url, http.StatusMovedPermanently)
+		}),
+	}
+	go func() { log.Fatal().Err(srv.ListenAndServe()).Msg("cmd/pomerium: http server") }()
+
+	log.Fatal().Err(https.ListenAndServeTLS(httpOpts, topMux, grpcServer)).Msg("cmd/pomerium: https server")
 
 }
