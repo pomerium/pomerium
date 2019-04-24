@@ -26,9 +26,7 @@ spec:
             - name: SERVICES
               value: proxy
             - name: AUTHORIZE_SERVICE_URL
-              value: https://authorize.corp.beyondperimeter.com
-            - name: AUTHORIZE_INTERNAL_URL
-              value: "pomerium-authorize-service.pomerium.svc.cluster.local"
+              value: https://pomerium-authorize-service.pomerium.svc.cluster.local
             - name: AUTHENTICATE_SERVICE_URL
               value: https://authenticate.corp.beyondperimeter.com
             - name: AUTHENTICATE_INTERNAL_URL

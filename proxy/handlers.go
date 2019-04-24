@@ -35,7 +35,7 @@ type StateParameter struct {
 	RedirectURI string `json:"redirect_uri"`
 }
 
-// Handler returns a http handler for an Proxy
+// Handler returns a http handler for a Proxy
 func (p *Proxy) Handler() http.Handler {
 	// routes
 	mux := http.NewServeMux()
@@ -71,10 +71,9 @@ func (p *Proxy) Handler() http.Handler {
 	c = c.Append(middleware.ValidateHost(p.mux))
 
 	// serve the middleware and mux
-	h := c.Then(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return c.Then(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mux.ServeHTTP(w, r)
 	}))
-	return h
 }
 
 // RobotsTxt sets the User-Agent header in the response to be "Disallow"
