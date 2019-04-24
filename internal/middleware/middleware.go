@@ -129,27 +129,6 @@ func ValidateHost(mux map[string]http.Handler) func(next http.Handler) http.Hand
 	}
 }
 
-// RequireHTTPS reroutes a HTTP request to HTTPS
-// todo(bdd) : this is unreliable unless behind another reverser proxy
-// todo(bdd) : header age seems extreme
-func RequireHTTPS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
-		// todo(bdd) : scheme and x-forwarded-proto cannot be trusted if not behind another load balancer
-		if (r.URL.Scheme == "http" && r.Header.Get("X-Forwarded-Proto") == "http") || &r.TLS == nil {
-			dest := &url.URL{
-				Scheme:   "https",
-				Host:     r.Host,
-				Path:     r.URL.Path,
-				RawQuery: r.URL.RawQuery,
-			}
-			http.Redirect(w, r, dest.String(), http.StatusMovedPermanently)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 // Healthcheck endpoint middleware useful to setting up a path like
 // `/ping` that load balancers or uptime testing external services
 // can make a request before hitting any routes. It's also convenient

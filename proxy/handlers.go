@@ -24,9 +24,10 @@ var (
 )
 
 var securityHeaders = map[string]string{
-	"X-Content-Type-Options": "nosniff",
-	"X-Frame-Options":        "SAMEORIGIN",
-	"X-XSS-Protection":       "1; mode=block",
+	"X-Content-Type-Options":    "nosniff",
+	"X-Frame-Options":           "SAMEORIGIN",
+	"X-XSS-Protection":          "1; mode=block",
+	"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload", // 1 year
 }
 
 // StateParameter holds the redirect id along with the session id.
@@ -62,7 +63,6 @@ func (p *Proxy) Handler() http.Handler {
 			Msg("proxy: request")
 	}))
 	c = c.Append(middleware.SetHeaders(securityHeaders))
-	c = c.Append(middleware.RequireHTTPS)
 	c = c.Append(middleware.ForwardedAddrHandler("fwd_ip"))
 	c = c.Append(middleware.RemoteAddrHandler("ip"))
 	c = c.Append(middleware.UserAgentHandler("user_agent"))
