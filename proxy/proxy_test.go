@@ -136,8 +136,12 @@ func TestOptions_Validate(t *testing.T) {
 	badAuthURL := testOptions()
 	badAuthURL.AuthenticateURL = nil
 	authurl, _ := url.Parse("http://authenticate.corp.beyondperimeter.com")
-	httpAuthURL := testOptions()
-	httpAuthURL.AuthenticateURL = authurl
+	authenticateBadScheme := testOptions()
+	authenticateBadScheme.AuthenticateURL = authurl
+	authorizeBadSCheme := testOptions()
+	authorizeBadSCheme.AuthorizeURL = authurl
+	authorizeNil := testOptions()
+	authorizeNil.AuthorizeURL = nil
 	emptyCookieSecret := testOptions()
 	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := testOptions()
@@ -148,6 +152,12 @@ func TestOptions_Validate(t *testing.T) {
 	invalidSignKey.SigningKey = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
 	badSharedKey := testOptions()
 	badSharedKey.SharedKey = ""
+	policyBadBase64 := testOptions()
+	policyBadBase64.Policy = "^"
+	badPolicyToURL := testOptions()
+	badPolicyToURL.Policy = "LSBmcm9tOiBodHRwYmluLmNvcnAuYmV5b25kcGVyaW1ldGVyLmNvbQogIHRvOiBodHRwOi8vaHR0cGJpbl4KICBhbGxvd2VkX2RvbWFpbnM6CiAgICAtIHBvbWVyaXVtLmlv"
+	badPolicyFromURL := testOptions()
+	badPolicyFromURL.Policy = "LSBmcm9tOiBodHRwYmluLmNvcnAuYmV5b25kcGVyaW1ldGVyLmNvbQogIHRvOiBodHRwOi8vaHR0cGJpbl4KICBhbGxvd2VkX2RvbWFpbnM6CiAgICAtIHBvbWVyaXVtLmlv"
 
 	tests := []struct {
 		name    string
@@ -158,13 +168,18 @@ func TestOptions_Validate(t *testing.T) {
 		{"nil options", &Options{}, true},
 		{"from route", badFromRoute, true},
 		{"to route", badToRoute, true},
-		{"auth service url", badAuthURL, true},
-		{"auth service url not https", httpAuthURL, true},
+		{"authenticate service url", badAuthURL, true},
+		{"authenticate service url not https", authenticateBadScheme, true},
+		{"authorize service url not https", authorizeBadSCheme, true},
+		{"authorize service cannot be nil", authorizeNil, true},
 		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},
 		{"invalid signing key", invalidSignKey, true},
+		{"policy invalid base64", policyBadBase64, true},
+		{"policy bad to url", badPolicyFromURL, true},
+		{"policy bad from url", badPolicyFromURL, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

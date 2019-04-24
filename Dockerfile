@@ -4,6 +4,11 @@ ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 
 WORKDIR /go/src/github.com/pomerium/pomerium
+
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
 COPY . .
 
 RUN make

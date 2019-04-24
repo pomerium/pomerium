@@ -175,10 +175,9 @@ IDP_CLIENT_ID             | Values from setting up your [identity provider]
 IDP_PROVIDER              | Values from setting up your [identity provider] (e.g. `google`)
 COOKIE_SECRET             | output of `head -c32 /dev/urandom | base64`
 SHARED_SECRET             | output of `head -c32 /dev/urandom | base64`
-AUTHORIZE_SERVICE_URL     | `https://authorize.int.nas.example.com`
+AUTHORIZE_SERVICE_URL     | `https://localhost`
 AUTHENTICATE_SERVICE_URL  | `https://authenticate.int.nas.example.com`
-AUTHORIZE_INTERNAL_URL    | `localhost:443`
-AUTHENTICATE_INTERNAL_URL | `localhost:443`
+AUTHENTICATE_INTERNAL_URL | `localhost`
 
 For a detailed explanation, and additional options, please refer to the [configuration variable docs].
 

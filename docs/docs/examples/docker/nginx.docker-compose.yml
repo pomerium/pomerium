@@ -44,11 +44,10 @@ services:
       - SERVICES=proxy
       - POLICY_FILE=policy.yaml
       - AUTHENTICATE_SERVICE_URL=https://authenticate.corp.beyondperimeter.com
-      - AUTHORIZE_SERVICE_URL=https://authorize.corp.beyondperimeter.com
       # IMPORTANT! If you are running pomerium behind another ingress (loadbalancer/firewall/etc)
       # you must tell pomerium proxy how to communicate using an internal hostname for RPC
-      - AUTHENTICATE_INTERNAL_URL=pomerium-authenticate:443
-      - AUTHORIZE_INTERNAL_URL=pomerium-authorize:443
+      - AUTHENTICATE_INTERNAL_URL=pomerium-authenticate
+      - AUTHORIZE_SERVICE_URL=https://pomerium-authorize
       # When communicating internally, rPC is going to get a name conflict expecting an external
       # facing certificate name (i.e. authenticate-service.local vs *.corp.example.com).
       - OVERRIDE_CERTIFICATE_NAME=*.corp.beyondperimeter.com

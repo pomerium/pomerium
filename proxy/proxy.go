@@ -38,12 +38,18 @@ type Options struct {
 	Policy     string `envconfig:"POLICY"`
 	PolicyFile string `envconfig:"POLICY_FILE"`
 
-	// Authenticate service settings
-	AuthenticateURL          *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
-	AuthenticateInternalAddr string   `envconfig:"AUTHENTICATE_INTERNAL_URL"`
-	// Authorize service settings
-	AuthorizeURL          *url.URL `envconfig:"AUTHORIZE_SERVICE_URL"`
-	AuthorizeInternalAddr string   `envconfig:"AUTHORIZE_INTERNAL_URL"`
+	// AuthenticateURL represents the externally accessible http endpoints
+	// used for authentication requests and callbacks
+	AuthenticateURL *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
+	// AuthenticateInternalAddr is used as an override when using a load balancer
+	// or ingress that does not natively support routing gRPC.
+	AuthenticateInternalAddr string `envconfig:"AUTHENTICATE_INTERNAL_URL"`
+
+	// AuthorizeURL is the routable destination of the authorize service's
+	// gRPC endpoint. NOTE: As above, many load balancers do not support
+	// externally routed gRPC so this may be an internal location.
+	AuthorizeURL *url.URL `envconfig:"AUTHORIZE_SERVICE_URL"`
+
 	// Settings to enable custom behind-the-ingress service communication
 	OverrideCertificateName string `envconfig:"OVERRIDE_CERTIFICATE_NAME"`
 	CA                      string `envconfig:"CERTIFICATE_AUTHORITY"`
@@ -98,32 +104,24 @@ func (o *Options) Validate() error {
 	if o.Policy == "" && o.PolicyFile == "" {
 		return errors.New("proxy: either `POLICY` or `POLICY_FILE` must be non-nil")
 	}
-	var policies []policy.Policy
 	var err error
 	if o.Policy != "" {
 		confBytes, err := base64.StdEncoding.DecodeString(o.Policy)
 		if err != nil {
 			return fmt.Errorf("proxy: `POLICY` is invalid base64 %v", err)
 		}
-		policies, err = policy.FromConfig(confBytes)
+		_, err = policy.FromConfig(confBytes)
 		if err != nil {
 			return fmt.Errorf("proxy: `POLICY` %v", err)
 		}
 	}
 	if o.PolicyFile != "" {
-		policies, err = policy.FromConfigFile(o.PolicyFile)
+		_, err = policy.FromConfigFile(o.PolicyFile)
 		if err != nil {
 			return fmt.Errorf("proxy: `POLICY_FILE` %v", err)
 		}
 	}
-	for _, p := range policies {
-		if _, err := urlParse(p.To); err != nil {
-			return fmt.Errorf("could not parse source %s url: %v", p.To, err)
-		}
-		if _, err := urlParse(p.From); err != nil {
-			return fmt.Errorf("could not parse destination %s url: %v", p.From, err)
-		}
-	}
+
 	if o.AuthenticateURL == nil {
 		return errors.New("missing setting: authenticate-service-url")
 	}
@@ -253,7 +251,6 @@ func New(opts *Options) (*Proxy, error) {
 	p.AuthorizeClient, err = clients.NewAuthorizeClient("grpc",
 		&clients.Options{
 			Addr:                    opts.AuthorizeURL.Host,
-			InternalAddr:            opts.AuthorizeInternalAddr,
 			OverrideCertificateName: opts.OverrideCertificateName,
 			SharedSecret:            opts.SharedKey,
 			CA:                      opts.CA,
@@ -328,10 +325,7 @@ func NewReverseProxyHandler(o *Options, proxy *httputil.ReverseProxy, route *pol
 		cookieName: o.CookieName,
 	}
 	if len(o.SigningKey) != 0 {
-		decodedSigningKey, err := base64.StdEncoding.DecodeString(o.SigningKey)
-		if err != nil {
-			return nil, err
-		}
+		decodedSigningKey, _ := base64.StdEncoding.DecodeString(o.SigningKey)
 		signer, err := cryptutil.NewES256Signer(decodedSigningKey, route.Source.Host)
 		if err != nil {
 			return nil, err

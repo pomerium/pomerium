@@ -12,7 +12,7 @@ Pomerium uses [environmental variables] to set configuration settings. If you ar
 
 ## Global settings
 
-Global settings are configuration variables that are shared by all services.
+These are configuration variables shared by all services, in all service modes.
 
 ### Service Mode
 
@@ -21,7 +21,7 @@ Global settings are configuration variables that are shared by all services.
 - Default: `all`
 - Options: `all` `authenticate` `authorize` or `proxy`
 
-Service mode sets the pomerium service(s) to run. If testing, you may want to set to `all` and run pomerium in "all-in-one mode." In production, you'll likely want to spin of several instances of each service mode for high availability.
+Service mode sets the pomerium service(s) to run. If testing, you may want to set to `all` and run pomerium in "all-in-one mode." In production, you'll likely want to spin up several instances of each service mode for high availability.
 
 ### Address
 
@@ -29,7 +29,7 @@ Service mode sets the pomerium service(s) to run. If testing, you may want to se
 - Type: `string`
 - Default: `:https`
 
-Address specifies the host and port to serve HTTPS and gRPC requests from. If empty, `:https` is used.
+Address specifies the host and port to serve HTTPS and gRPC requests from. If empty, `:https`/`:443` is used.
 
 ### Shared Secret
 
@@ -194,25 +194,18 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 - Optional
 - Example: `pomerium-authenticate-service.pomerium.svc.cluster.local`
 
-Authenticate Internal Service URL is the internally routed dns name of the authenticate service. This setting is used to override the authenticate service url for when you need to do "behind-the-ingress" inter-service communication. This is typically required for ingresses and load balancers that do not support HTTP/2 or gRPC termination.
+Authenticate Internal Service URL is the internally routed dns name of the authenticate service. This setting is typically used with load balancers that do not gRPC, thus allowying you to specificy an internally routable name. 
 
 ### Authorize Service URL
 
 - Environmental Variable: `AUTHORIZE_SERVICE_URL`
 - Type: `URL`
 - Required
-- Example: `https://access.corp.example.com`
+- Example: `https://access.corp.example.com` or `pomerium-authorize-service.pomerium.svc.cluster.local`
 
-Authorize Service URL is the externally accessible URL for the authorize service.
+Authorize Service URL is the location of the internally routable authorize service. NOTE: Unlike authenticate, authorize has no publically acccessible http handlers so this setting is purely for gRPC communicaiton. 
 
-### Authorize Internal Service URL
-
-- Environmental Variable: `AUTHORIZE_INTERNAL_URL`
-- Type: `string`
-- Optional
-- Example: `pomerium-authorize-service.pomerium.svc.cluster.local`
-
-Authorize Internal Service URL is the internally routed dns name of the authorize service. This setting is used to override the authorize service url for when you need to do "behind-the-ingress" inter-service communication. This is typically required for ingresses and load balancers that do not support HTTP/2 or gRPC termination.
+If your load balancer does not support gRPC passthrough you'll need to set this value to an internally routable location (`pomerium-authorize-service.pomerium.svc.cluster.local`) instead of an externally routable one (`https://access.corp.example.com`).  
 
 ### Override Certificate Name
 
