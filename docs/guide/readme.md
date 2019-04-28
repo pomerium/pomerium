@@ -7,6 +7,7 @@ Docker and docker-compose are tools for defining and running multi-container Doc
 - A configured [identity provider]
 - Install [docker]
 - Install [docker-compose]
+- A [wild-card TLS certificate](../docs/certificates.md)
 
 ## Download
 

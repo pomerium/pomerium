@@ -16,7 +16,7 @@ Pomerium is lightweight, can easily handle hundreds of concurrent requests, and 
 - A [docker-capable] synology product
 - A [Google Cloud Account](https://console.cloud.google.com/)
 - A configured Google OAuth2 [identity provider]
-- A wild-card TLS certificate
+- A [wild-card TLS certificate][certificate documentation]
 
 Though any supported identity provider would work, this guide uses google.
 
@@ -28,7 +28,7 @@ This will vary depending on what type of router you have but the gist is you wan
 
 ## DSM
 
-[Diskstation manager] uses [nginx] under-the-hood to proxy incoming requests. In the following steps, we'll configure DSM to handle incoming requests and certificates. 
+[Diskstation manager] uses [nginx] under-the-hood to proxy incoming requests. In the following steps, we'll configure DSM to handle incoming requests and certificates.
 
 ### Configure DSM's Reverse Proxy
 
@@ -36,7 +36,7 @@ Go to **Control Panel** > **Application Portal** > **Reverse Proxy**.
 
 Click **Create**.
 
-Set the following **Reverse Proxy Rules**. 
+Set the following **Reverse Proxy Rules**.
 
 Field                | Description
 -------------------- | -----------
@@ -56,7 +56,7 @@ This will forward any incoming HTTPS traffic to the Pomerium service that is (no
 
 ### Certificates
 
-Though DSM does support getting [LetsEncrypt] certificates, they do not support wild-card subdomain certificates which require DNS validation. Hopefully you have one handy, or you used the included [script] to get one.
+Though DSM does support getting [LetsEncrypt] certificates, they do not support wild-card subdomain certificates which require DNS validation. If you do not already have a wildcard certificate the [certificate documentation] or included [script] can help you generate one.
 
 Go to **Control Panel** > **Security** > **Certificate**
 
@@ -71,7 +71,6 @@ Once the certificate is showing on the list of certificates screen we need to te
 Services | Certificate
 -------- | -----------------------
 *:8443   | `*.int.nas.example.com`
-
 
 ![Synology assign wildcard certificate](./synology/synology-certifciate-assignment.png)
 
@@ -173,8 +172,8 @@ OVERRIDE_CERTIFICATE_NAME | `*.int.nas.example.com`
 IDP_CLIENT_SECRET         | Values from setting up your [identity provider]
 IDP_CLIENT_ID             | Values from setting up your [identity provider]
 IDP_PROVIDER              | Values from setting up your [identity provider] (e.g. `google`)
-COOKIE_SECRET             | output of `head -c32 /dev/urandom | base64`
-SHARED_SECRET             | output of `head -c32 /dev/urandom | base64`
+COOKIE_SECRET             | output of `head -c32 /dev/urandom                               | base64`
+SHARED_SECRET             | output of `head -c32 /dev/urandom                               | base64`
 AUTHORIZE_SERVICE_URL     | `https://localhost`
 AUTHENTICATE_SERVICE_URL  | `https://authenticate.int.nas.example.com`
 AUTHENTICATE_INTERNAL_URL | `localhost`
@@ -187,30 +186,29 @@ If properly configured you should see something like the following when you see 
 
 ![Synology pomerium all setup](./synology/synology-docker-pomerium-done.png)
 
-If something goes wrong, click the **Logs** tab.  
-
+If something goes wrong, click the **Logs** tab.
 
 ## Try it out
 
-Navigate to your new service. `https://httpbin.int.nas.example.com` 
+Navigate to your new service. `https://httpbin.int.nas.example.com`
 
-You should be redirected to your identity provider. 
+You should be redirected to your identity provider.
 
 ![Synology redirected login](./synology/synology-step-1-redirect.png)
 
-If you've enabled multi-factor authentication you should see that too. 
+If you've enabled multi-factor authentication you should see that too.
 
-![Synology multifactor authentication](./synology/synology-step-2-mfa.png)
+![Synology multi-factor authentication](./synology/synology-step-2-mfa.png)
 
 If that user is authorized to see the httpbin service, you should be redirected back to httpbin!
 
 ![Synology done](./synology/synology-step-3-validate-header.png)
 
-And just to be safe, try logging in from another google account to see what happens. You should be greeted with a `403` unauthorized access page. 
+And just to be safe, try logging in from another google account to see what happens. You should be greeted with a `403` unauthorized access page.
 
 ![Synology done](./synology/synology-step-4-unauthorized.png)
 
-
+[certificate documentation]: ../docs/certificates.md
 [configuration variable docs]: ../docs/config-reference.html
 [diskstation manager]: https://www.synology.com/en-us/dsm
 [docker-capable]: https://www.synology.com/en-us/dsm/packages/Docker

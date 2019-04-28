@@ -2,26 +2,45 @@
 
 ## What
 
-Pomerium is an open-source, identity-aware access proxy.
+Pomerium is an identity-aware access proxy. Pomerium can be used to:
+
+- enable secure remote access to internal websites, without a VPN.
+- provide unified authentication ([SSO]) using the [identity provider] of your choice.
+- enforce dynamic access policy based on context, identity, and device state.
+- aggregate access logs and telemetry data.
 
 ## Why
 
-Traditional [perimeter](https://www.redbooks.ibm.com/redpapers/pdfs/redp4397.pdf) [security](https://en.wikipedia.org/wiki/Perimeter_Security) has some shortcomings, namely:
+### Perimeter security's shortcomings
 
-- Insider threat is not well addressed and 28% of breaches are [by internal actors](http://www.documentwereld.nl/files/2018/Verizon-DBIR_2018-Main_report.pdf).
-- Impenetrable fortress in theory falls in practice; multiple entry points (like VPNs), lots of firewall rules, network segmentation creep.
-- Failure to encapsulate a heterogeneous mix of cloud, on-premise, cloud, and multi-cloud environments.
-- User's don't like VPNs.
+For years, secure remote access meant firewalls, network segmentation, and VPNs. However, several [high-profile](https://en.wikipedia.org/wiki/Operation_Aurora) [security](https://krebsonsecurity.com/2014/02/target-hackers-broke-in-via-hvac-company/) breaches have shown the limitations of [perimeter](https://www.redbooks.ibm.com/redpapers/pdfs/redp4397.pdf) [security](https://en.wikipedia.org/wiki/Perimeter_Security), namely:
 
-Pomerium attempts to mitigate these shortcomings by adopting the following principles.
+- Perimeter security does a poor job of addressing the insider-threat and 28% percent of breaches are [by internal actors](http://www.documentwereld.nl/files/2018/Verizon-DBIR_2018-Main_report.pdf).
+- The _impenetrable fortress_ theory of perimeter security is anything but in practice; most corporate networks have multiple entry points, lots of firewall rules, and constant pressure to expand network segmentation boundaries.
+- Even defining "what" a perimeter is is difficult as corporate networks have come to consist of an increasingly [heterogeneous](https://youtu.be/bDJb8WOJYdA?t=532) mix of on-premise, public, and private clouds.
+- VPNs frustrate end-users, give a false sense of security, and often fail to provide defense-in-depth.
 
-- Trust flows from user, device, and context.
-- Network location _does not impart trust_. Treat both internal and external networks as completely untrusted.
-- Act like you are already breached, because your probably are.
+Or for the visually inclined.
+
+![NSA exploiting google's SSL termination](./google-cloud-exploitation620x466.jpg)
+
+> SSL added and removed here :^) - [NSA](https://www.zdnet.com/article/google-the-nsa-and-the-need-for-locking-down-datacenter-traffic/)
+
+### Zero-trust
+
+Pomerium -- and zero-trust more broadly -- attempts to mitigate these shortcomings by adopting principles like:
+
+- Trust flows from identity, device-state, and context; not network location.
+- Treat both internal and external networks as completely untrusted.
+- Act like you are already breached, because you probably are.
 - Every device, user, and application's communication should be authenticated, authorized, and encrypted.
-- Policy should be dynamic, and built from multiple sources.
+- Access policy should be dynamic, and built from multiple sources.
 
 ## Resources
+
+Pomerium was designed around the security model originally articulated by [John Kindervag](http://www.virtualstarmedia.com/downloads/Forrester_zero_trust_DNA.pdf) in 2010, and by Google in 2011 which as a result of the [Operation Aurora](https://en.wikipedia.org/wiki/Operation_Aurora) breach.
+
+Typically this approach to security is called either zero-trust or BeyondCorp-inspired. Here's a curated list of resources covering th
 
 ### Books
 
@@ -51,3 +70,6 @@ Pomerium attempts to mitigate these shortcomings by adopting the following princ
 - [What, Why, and How of Zero Trust Networking](https://youtu.be/eDVHIfVSdIo?list=PLKb9-P1fRHxhSmCy5OaYZ5spcY8v3Pbaf) by Armon Dadgar, Hashicorp
 - [O'Reilly Security 2017 NYC Beyondcorp: Beyond Fortress Security](https://youtu.be/oAvDASLehpY?list=PLKb9-P1fRHxhSmCy5OaYZ5spcY8v3Pbaf) by Neal Muller, Google
 - [Be Ready for BeyondCorp: enterprise identity, perimeters and your application](https://youtu.be/5UiWAlwok1s?list=PLKb9-P1fRHxhSmCy5OaYZ5spcY8v3Pbaf) by Jason Kent
+
+[identity provider]: ../docs/identity-providers.md
+[sso]: https://en.wikipedia.org/wiki/Single_sign-on

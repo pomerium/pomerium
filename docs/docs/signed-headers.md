@@ -8,13 +8,7 @@ description: >-
 
 # Securing your app with signed headers
 
-This page describes how to secure your app with signed headers. When configured, pomerium uses JSON Web Tokens (JWT) to make sure that a request to your app is authorized.
-
-::: warning
-
-Health checks don't include JWT headers and pomerium doesn't handle health checks. If your health check returns access errors, make sure that you have it configured correctly and that your JWT header validation whitelists the health check path.
-
-:::
+This page describes how to add an additional layer of security to your apps with signed headers. When configured, pomerium uses JSON Web Tokens (JWT) to make sure that a given request was handled by pomerium and the request to your app is authorized.
 
 ## Prerequisites
 
@@ -27,9 +21,9 @@ To secure your app with signed headers, you'll need the following:
 
 Signed headers provide **secondary** security in case someone bypasses mTLS and network segmentation. This protects your app from the following kind of risks:
 
-- Pomerium is accidentally disabled;
-- Misconfigured firewalls;
-- Mutually-authenticated TLS;
+- Pomerium is accidentally disabled
+- Misconfigured firewalls
+- Mutually-authenticated TLS
 - Access from within the project.
 
 To properly secure your app, you must use signed headers for all app types.

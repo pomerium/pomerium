@@ -2,7 +2,7 @@
 sidebarDepth: 3
 ---
 
-# Example Configurations
+# Example configs
 
 A collection of copy-and-paste-able configurations for various types of clouds, use-cases, and deployments. These files can also be found in the git repository in the `docs/docs/examples/` directory.
 
@@ -35,7 +35,7 @@ Uses the [latest pomerium build](https://hub.docker.com/r/pomerium/pomerium) fro
 - Minimal container-based configuration.
 - Docker and Docker-Compose based.
 - Runs a single container for all pomerium services
-- Routes default to on-prem [helloworld], [httpbin].
+- Routes default to on-premise [helloworld], [httpbin].
 
 Customize for your identity provider run `docker-compose up -f basic.docker-compose.yml`
 
@@ -48,7 +48,7 @@ Customize for your identity provider run `docker-compose up -f basic.docker-comp
 - Docker and Docker-Compose based.
 - Uses pre-configured built-in nginx load balancer
 - Runs separate containers for each service
-- Routes default to on-prem [helloworld], and [httpbin].
+- Routes default to on-premise [helloworld], and [httpbin].
 
 Customize for your identity provider run `docker-compose up -f nginx.docker-compose.yml`
 
