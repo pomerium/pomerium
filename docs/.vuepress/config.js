@@ -7,8 +7,8 @@ module.exports = {
 			hostname: 'https://www.pomerium.io'
 		},
 		'@vuepress/google-analytics': {
-            ga: 'UA-129872447-2'
-        }
+			ga: 'UA-129872447-2'
+		}
 	},
 	themeConfig: {
 		repo: "pomerium/pomerium",
@@ -17,12 +17,15 @@ module.exports = {
 		editLinkText: "Edit this page on GitHub",
 		lastUpdated: "Last Updated",
 		nav: [
+			{ text: "Documentation", link: "/docs/" },
 			{ text: "Quick Start", link: "/guide/" },
-			{ text: "Documentation", link: "/docs/" }
+			{ text: "Config Reference", link: "/reference/" }
+
 		],
 		sidebar: {
 			"/guide/": guideSidebar("Quick Start"),
 			"/docs/": docsSidebar("Documentation")
+
 		}
 	}
 };
@@ -42,7 +45,7 @@ function docsSidebar(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["", "identity-providers", "signed-headers", "examples", "config-reference"]
+			children: ["", "identity-providers", "signed-headers", "certificates", "examples"]
 		}
 	];
 }

@@ -8,6 +8,7 @@ This quickstart will show you how to deploy Pomerium with Kubernetes. Though the
 - A configured [identity provider]
 - Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - Install the [Google Cloud SDK](https://cloud.google.com/kubernetes-engine/docs/quickstart)
+- A [wild-card TLS certificate](../docs/certificates.md)
 
 ## Download
 
