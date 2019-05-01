@@ -26,20 +26,20 @@ var (
 )
 
 func main() {
+	flag.Parse()
+	if *versionFlag {
+		fmt.Printf("%s\n", version.FullVersion())
+		os.Exit(0)
+	}
 	mainOpts, err := optionsFromEnvConfig()
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: settings error")
 	}
-	flag.Parse()
 	if *debugFlag || mainOpts.Debug {
 		log.SetDebugMode()
 	}
 	if mainOpts.LogLevel != "" {
 		log.SetLevel(mainOpts.LogLevel)
-	}
-	if *versionFlag {
-		fmt.Printf("%s", version.FullVersion())
-		os.Exit(0)
 	}
 	log.Info().Str("version", version.FullVersion()).Str("user-agent", version.UserAgent()).Str("service", mainOpts.Services).Msg("cmd/pomerium")
 
