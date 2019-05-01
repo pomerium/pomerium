@@ -1,16 +1,23 @@
 # Pomerium Changelog
 
-## vUNRELEASED
-
-### FEATURES
+## v0.0.4
 
 ### CHANGED
 
+- HTTP [Strict Transport Security](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) is included by default and set to one year. [GH-92]
+- HTTP now redirects to HTTPS. [GH-92]
 - Removed extraneous `AUTHORIZE_INTERNAL_URL` config option since authorization has no publica http handlers, only a gRPC service endpoint. [GH-93]
 - Removed `PROXY_ROOT_DOMAIN` config option which is now inferred from `AUTHENTICATE_SERVICE_URL`. Only callback requests originating from a URL on the same sub-domain are permitted. [GH-83]
 - Removed `REDIRECT_URL` config option which is now inferred from `AUTHENTICATE_SERVICE_URL` (e.g. `https://$AUTHENTICATE_SERVICE_URL/oauth2/callback`). [GH-83]
 
 ### FIXED
+
+- Fixed a bug in the Google provider implementation where the `refresh_token`. Updated the google implementation to use the new `prompt=consent` oauth2 parameters. Reported and fixed by @chemhack [GH-81]
+
+### DOCUMENTATION
+
+- Added [synology tutorial](https://www.pomerium.io/guide/synology.html). [GH-96]
+- Added [certificates documentation](https://www.pomerium.io/docs/certificates.html). [GH-79]
 
 ## v0.0.3
 
@@ -28,7 +35,7 @@
 
 ### CHANGED
 
-- Add `LOG_LEVEL` config setting that allows for setting the desired minimum log level for an event to be logged. [GH-74]
+- Added `LOG_LEVEL` config setting that allows for setting the desired minimum log level for an event to be logged. [GH-74]
 - Changed `POMERIUM_DEBUG` config setting to just do console-pretty printing. No longer sets log level. [GH-74]
 - Updated `generate_wildcard_cert.sh` to generate a elliptic curve 256 cert by default.
 - Updated `env.example` to include a `POLICY` setting example.
