@@ -117,10 +117,10 @@ func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler
 }
 
 // ValidateHost ensures that each request's host is valid
-func ValidateHost(mux map[string]http.Handler) func(next http.Handler) http.Handler {
+func ValidateHost(validHost func(host string) bool) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if _, ok := mux[r.Host]; !ok {
+			if !validHost(r.Host) {
 				httputil.ErrorResponse(w, r, "Unknown route", http.StatusNotFound)
 				return
 			}

@@ -127,6 +127,13 @@ func testOptions() *Options {
 	}
 }
 
+func testOptionsWithCORS() *Options {
+	configBlob := `[{"from":"corp.example.com","to":"example.com","cors_allow_preflight":true}]` //valid yaml
+	opts := testOptions()
+	opts.Policy = base64.URLEncoding.EncodeToString([]byte(configBlob))
+	return opts
+}
+
 func TestOptions_Validate(t *testing.T) {
 	good := testOptions()
 	badFromRoute := testOptions()
@@ -204,7 +211,7 @@ func TestNew(t *testing.T) {
 		opts      *Options
 		optFuncs  []func(*Proxy) error
 		wantProxy bool
-		numMuxes  int
+		numRoutes int
 		wantErr   bool
 	}{
 		{"good", good, nil, true, 1, false},
@@ -223,8 +230,8 @@ func TestNew(t *testing.T) {
 			if got == nil && tt.wantProxy == true {
 				t.Errorf("New() expected valid proxy struct")
 			}
-			if got != nil && len(got.mux) != tt.numMuxes {
-				t.Errorf("New() = num muxes \n%+v, want \n%+v", got, tt.numMuxes)
+			if got != nil && len(got.routeConfigs) != tt.numRoutes {
+				t.Errorf("New() = num routeConfigs \n%+v, want \n%+v", got, tt.numRoutes)
 			}
 		})
 	}

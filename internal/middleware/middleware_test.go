@@ -292,18 +292,22 @@ func handlerHelp(msg string) http.Handler {
 	return &handlerHelper{msg}
 }
 func TestValidateHost(t *testing.T) {
-	m := make(map[string]http.Handler)
-	m["google.com"] = handlerHelp("google")
+	validHostFunc := func(host string) bool {
+		return host == "google.com"
+	}
+
+	validHostHandler := handlerHelp("google")
 
 	tests := []struct {
-		name       string
-		validHosts map[string]http.Handler
-		clientPath string
-		expected   []byte
-		status     int
+		name             string
+		isValidHost      func(string) bool
+		validHostHandler http.Handler
+		clientPath       string
+		expected         []byte
+		status           int
 	}{
-		{"good", m, "google.com", []byte("google"), 200},
-		{"no route", m, "googles.com", []byte("google"), 404},
+		{"good", validHostFunc, validHostHandler, "google.com", []byte("google"), 200},
+		{"no route", validHostFunc, validHostHandler, "googles.com", []byte("google"), 404},
 	}
 
 	for _, tt := range tests {
@@ -315,13 +319,13 @@ func TestValidateHost(t *testing.T) {
 			rr := httptest.NewRecorder()
 
 			var testHandler http.Handler
-			if tt.validHosts[tt.clientPath] != nil {
-				tt.validHosts[tt.clientPath].ServeHTTP(rr, req)
-				testHandler = tt.validHosts[tt.clientPath]
+			if tt.isValidHost(tt.clientPath) {
+				tt.validHostHandler.ServeHTTP(rr, req)
+				testHandler = tt.validHostHandler
 			} else {
 				testHandler = handlerHelp("ok")
 			}
-			handler := ValidateHost(tt.validHosts)(testHandler)
+			handler := ValidateHost(tt.isValidHost)(testHandler)
 			handler.ServeHTTP(rr, req)
 
 			if rr.Code != tt.status {

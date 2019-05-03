@@ -172,9 +172,14 @@ type Proxy struct {
 	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
 
-	redirectURL *url.URL
-	templates   *template.Template
-	mux         map[string]http.Handler
+	redirectURL  *url.URL
+	templates    *template.Template
+	routeConfigs map[string]*routeConfig
+}
+
+type routeConfig struct {
+	mux    http.Handler
+	policy *policy.Policy
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -208,7 +213,7 @@ func New(opts *Options) (*Proxy, error) {
 	}
 
 	p := &Proxy{
-		mux: make(map[string]http.Handler),
+		routeConfigs: make(map[string]*routeConfig),
 		// services
 		AuthenticateURL: opts.AuthenticateURL,
 		// session state
@@ -232,7 +237,7 @@ func New(opts *Options) (*Proxy, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.Handle(route.Source.Host, handler)
+		p.Handle(route.Source.Host, handler, &route)
 		log.Info().Str("src", route.Source.Host).Str("dst", route.Destination.Host).Msg("proxy: new route")
 	}
 

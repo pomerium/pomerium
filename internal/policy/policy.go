@@ -26,6 +26,10 @@ type Policy struct {
 
 	Source      *url.URL
 	Destination *url.URL
+
+	// Allow unauthenticated HTTP OPTIONS requests as per the CORS spec
+	// https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests
+	CORSAllowPreflight bool `yaml:"cors_allow_preflight"`
 }
 
 func (p *Policy) validate() (err error) {
