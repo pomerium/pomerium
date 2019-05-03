@@ -9,7 +9,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 # build 
-RUN make
+RUN make build
 
 FROM gcr.io/distroless/static
 WORKDIR /pomerium
