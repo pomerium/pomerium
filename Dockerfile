@@ -1,20 +1,15 @@
-FROM golang:alpine as build
-RUN apk --update --no-cache add ca-certificates git make
+FROM golang:latest as build
+WORKDIR /go/src/github.com/pomerium/pomerium
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
-
-WORKDIR /go/src/github.com/pomerium/pomerium
-
-COPY go.mod .
-COPY go.sum .
+# cache depedency downloads
+COPY go.mod go.sum ./
 RUN go mod download
-
 COPY . .
+# build 
+RUN make build
 
-RUN make
-
-FROM scratch
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+FROM gcr.io/distroless/static
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
 CMD ["/bin/pomerium"]

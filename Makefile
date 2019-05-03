@@ -25,7 +25,7 @@ CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.BuildMeta=$(BUILDMETA) \
 	-X $(PKG)/internal/version.ProjectName=$(NAME) \
 	-X $(PKG)/internal/version.ProjectURL=$(PKG)
-GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
+GO_LDFLAGS=-ldflags "-s -w $(CTIMEVAR)"
 GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
 
 
