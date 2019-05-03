@@ -113,17 +113,23 @@ func main() {
 		KeyFile:  mainOpts.KeyFile,
 	}
 
-	// redirect http to https
-	srv := &http.Server{
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Connection", "close")
-			url := fmt.Sprintf("https://%s%s", r.Host, r.URL.String())
-			http.Redirect(w, r, url, http.StatusMovedPermanently)
-		}),
+	if mainOpts.HTTPRedirectAddr != "" {
+		// stand up another http server that just redirect HTTP to HTTPS traffic
+		srv := &http.Server{
+			Addr:         mainOpts.HTTPRedirectAddr,
+			ReadTimeout:  5 * time.Second,
+			WriteTimeout: 5 * time.Second,
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Connection", "close")
+				url := fmt.Sprintf("https://%s%s", urlutil.StripPort(r.Host), r.URL.String())
+				http.Redirect(w, r, url, http.StatusMovedPermanently)
+			}),
+		}
+		log.Info().Str("Addr", mainOpts.HTTPRedirectAddr).Msg("cmd/pomerium: http redirect server started")
+		go func() { log.Fatal().Err(srv.ListenAndServe()).Msg("cmd/pomerium: http server") }()
+	} else {
+		log.Debug().Msg("cmd/pomerium: http redirect server not started")
 	}
-	go func() { log.Fatal().Err(srv.ListenAndServe()).Msg("cmd/pomerium: http server") }()
 
 	log.Fatal().Err(https.ListenAndServeTLS(httpOpts, topMux, grpcServer)).Msg("cmd/pomerium: https server")
 

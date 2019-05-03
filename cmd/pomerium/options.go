@@ -38,6 +38,11 @@ type Options struct {
 	// CertFile and KeyFile specifies the TLS certificates to use.
 	CertFile string `envconfig:"CERTIFICATE_FILE"`
 	KeyFile  string `envconfig:"CERTIFICATE_KEY_FILE"`
+
+	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
+	// to HTTPS redirect server on. For example, ":http" would start a server
+	// on port 80.  If empty, no redirect server is started.
+	HTTPRedirectAddr string `envconfig:"HTTP_REDIRECT_ADDR"`
 }
 
 var defaultOptions = &Options{

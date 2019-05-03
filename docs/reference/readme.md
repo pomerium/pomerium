@@ -31,6 +31,17 @@ Service mode sets the pomerium service(s) to run. If testing, you may want to se
 
 Address specifies the host and port to serve HTTPS and gRPC requests from. If empty, `:https`/`:443` is used.
 
+
+### HTTP Redirect Address
+
+- Environmental Variable: `HTTP_REDIRECT_ADDR`
+- Type: `string`
+- Default: `` (no serevr is started)
+- Example: `:80`
+- Optional
+
+If set, the HTTP Redirect Address specifies the host and port to redirect http to https traffic on. If not set, no redirect server is started. 
+
 ### Shared Secret
 
 - Environmental Variable: `SHARED_SECRET`
