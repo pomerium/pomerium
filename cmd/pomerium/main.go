@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/internal/https"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	pbAuthenticate "github.com/pomerium/pomerium/proto/authenticate"
 	pbAuthorize "github.com/pomerium/pomerium/proto/authorize"
@@ -58,7 +59,7 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("cmd/pomerium: new authenticate")
 		}
-		authHost = opts.AuthenticateURL.Host
+		authHost = urlutil.StripPort(opts.AuthenticateURL.Host)
 		pbAuthenticate.RegisterAuthenticatorServer(grpcServer, authenticateService)
 	}
 
