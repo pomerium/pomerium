@@ -124,6 +124,7 @@ func testOptions() *Options {
 		SharedKey:       "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
 		CookieSecret:    "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
 		CookieName:      "pomerium",
+		Headers:         defaultOptions.Headers,
 	}
 }
 
@@ -205,20 +206,23 @@ func TestNew(t *testing.T) {
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
 	badRoutedProxy := testOptions()
 	badRoutedProxy.SigningKey = "YmFkIGtleQo="
+	disableHeaders := testOptions()
+	disableHeaders.Headers = map[string]string{"disable": "true"}
 
 	tests := []struct {
-		name      string
-		opts      *Options
-		optFuncs  []func(*Proxy) error
-		wantProxy bool
-		numRoutes int
-		wantErr   bool
+		name       string
+		opts       *Options
+		wantProxy  bool
+		numRoutes  int
+		wantErr    bool
+		numHeaders int
 	}{
-		{"good", good, nil, true, 1, false},
-		{"empty options", &Options{}, nil, false, 0, true},
-		{"nil options", nil, nil, false, 0, true},
-		{"short secret/validate sanity check", shortCookieLength, nil, false, 0, true},
-		{"invalid ec key, valid base64 though", badRoutedProxy, nil, false, 0, true},
+		{"good", good, true, 1, false, len(defaultOptions.Headers)},
+		{"empty options", &Options{}, false, 0, true, 0},
+		{"nil options", nil, false, 0, true, 0},
+		{"short secret/validate sanity check", shortCookieLength, false, 0, true, 0},
+		{"invalid ec key, valid base64 though", badRoutedProxy, false, 0, true, 0},
+		{"test disabled headers", disableHeaders, false, 1, false, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -233,6 +237,10 @@ func TestNew(t *testing.T) {
 			if got != nil && len(got.routeConfigs) != tt.numRoutes {
 				t.Errorf("New() = num routeConfigs \n%+v, want \n%+v", got, tt.numRoutes)
 			}
+			if got != nil && len(got.headers) != tt.numHeaders {
+				t.Errorf("New() = num Headers \n%+v, want \n%+v", got.headers, tt.numHeaders)
+			}
+
 		})
 	}
 }

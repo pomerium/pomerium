@@ -33,7 +33,6 @@ Service mode sets the pomerium service(s) to run. If testing, you may want to se
 
 Address specifies the host and port to serve HTTPS and gRPC requests from. If empty, `:https`/`:443` is used.
 
-
 ### HTTP Redirect Address
 
 - Environmental Variable: `HTTP_REDIRECT_ADDR`
@@ -41,7 +40,7 @@ Address specifies the host and port to serve HTTPS and gRPC requests from. If em
 - Example: `:80`, `:http`, `:8080`
 - Optional
 
-If set, the HTTP Redirect Address specifies the host and port to redirect http to https traffic on. If unset, no redirect server is started. 
+If set, the HTTP Redirect Address specifies the host and port to redirect http to https traffic on. If unset, no redirect server is started.
 
 ### Shared Secret
 
@@ -206,7 +205,7 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 - Optional
 - Example: `pomerium-authenticate-service.pomerium.svc.cluster.local`
 
-Authenticate Internal Service URL is the internally routed dns name of the authenticate service. This setting is typically used with load balancers that do not gRPC, thus allowing you to specify an internally accessible name. 
+Authenticate Internal Service URL is the internally routed dns name of the authenticate service. This setting is typically used with load balancers that do not gRPC, thus allowing you to specify an internally accessible name.
 
 ### Authorize Service URL
 
@@ -215,9 +214,9 @@ Authenticate Internal Service URL is the internally routed dns name of the authe
 - Required
 - Example: `https://access.corp.example.com` or `pomerium-authorize-service.pomerium.svc.cluster.local`
 
-Authorize Service URL is the location of the internally accessible authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication. 
+Authorize Service URL is the location of the internally accessible authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
 
-If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`pomerium-authorize-service.pomerium.svc.cluster.local`) instead of an externally routable one (`https://access.corp.example.com`).  
+If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`pomerium-authorize-service.pomerium.svc.cluster.local`) instead of an externally routable one (`https://access.corp.example.com`).
 
 ### Override Certificate Name
 
@@ -235,6 +234,19 @@ When Authenticate Internal Service Address is set, secure service communication 
 - Optional
 
 Certificate Authority is set when behind-the-ingress service communication uses self-signed certificates. Be sure to include the intermediary certificate.
+
+### Headers
+
+- Environmental Variable: `HEADERS`
+- Type: map of `strings` key value pairs
+- Example: `X-Content-Type-Options:nosniff,X-Frame-Options:SAMEORIGIN`
+- To disable: `disable:true`
+
+Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added to proxied requests. *Nota bene* Downstream application headers will be overwritten by Pomerium's headers on conflict. 
+
+By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
+
+![pomerium security headers](./security-headers.png)
 
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
