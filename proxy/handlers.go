@@ -24,13 +24,6 @@ var (
 	ErrUserNotAuthorized = errors.New("user not authorized")
 )
 
-var securityHeaders = map[string]string{
-	"X-Content-Type-Options":    "nosniff",
-	"X-Frame-Options":           "SAMEORIGIN",
-	"X-XSS-Protection":          "1; mode=block",
-	"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload", // 1 year
-}
-
 // StateParameter holds the redirect id along with the session id.
 type StateParameter struct {
 	SessionID   string `json:"session_id"`
@@ -63,7 +56,7 @@ func (p *Proxy) Handler() http.Handler {
 			Str("pomerium-email", r.Header.Get(HeaderEmail)).
 			Msg("proxy: request")
 	}))
-	c = c.Append(middleware.SetHeaders(securityHeaders))
+	c = c.Append(middleware.SetHeaders(p.headers))
 	c = c.Append(middleware.ForwardedAddrHandler("fwd_ip"))
 	c = c.Append(middleware.RemoteAddrHandler("ip"))
 	c = c.Append(middleware.UserAgentHandler("user_agent"))

@@ -31,6 +31,8 @@ const (
 	HeaderEmail = "x-pomerium-authenticated-user-email"
 	// HeaderGroups is the header key containing the user's groups.
 	HeaderGroups = "x-pomerium-authenticated-user-groups"
+	// DisableHeaderKey is the key used to check whether to disable setting header
+	DisableHeaderKey = "disable"
 )
 
 // Options represents the configurations available for the proxy service.
@@ -70,6 +72,9 @@ type Options struct {
 	CookieExpire   time.Duration `envconfig:"COOKIE_EXPIRE"`
 	CookieRefresh  time.Duration `envconfig:"COOKIE_REFRESH"`
 
+	// Headers to set on all proxied requests. Add a 'disable' key map to turn off.
+	Headers map[string]string `envconfig:"HEADERS"`
+
 	// Sub-routes
 	Routes                 map[string]string `envconfig:"ROUTES"`
 	DefaultUpstreamTimeout time.Duration     `envconfig:"DEFAULT_UPSTREAM_TIMEOUT"`
@@ -83,6 +88,12 @@ var defaultOptions = &Options{
 	CookieExpire:           time.Duration(14) * time.Hour,
 	CookieRefresh:          time.Duration(30) * time.Minute,
 	DefaultUpstreamTimeout: time.Duration(30) * time.Second,
+	Headers: map[string]string{
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":           "SAMEORIGIN",
+		"X-XSS-Protection":          "1; mode=block",
+		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+	},
 }
 
 // OptionsFromEnvConfig builds the identity provider service's configuration
@@ -175,6 +186,7 @@ type Proxy struct {
 	redirectURL  *url.URL
 	templates    *template.Template
 	routeConfigs map[string]*routeConfig
+	headers      map[string]string
 }
 
 type routeConfig struct {
@@ -212,6 +224,12 @@ func New(opts *Options) (*Proxy, error) {
 		return nil, err
 	}
 
+	// if the disable key is found in the security header map, clear the map
+	if _, disable := opts.Headers[DisableHeaderKey]; disable {
+		opts.Headers = make(map[string]string)
+	}
+	log.Debug().Interface("headers", opts.Headers).Msg("proxy: security headers")
+
 	p := &Proxy{
 		routeConfigs: make(map[string]*routeConfig),
 		// services
@@ -223,6 +241,7 @@ func New(opts *Options) (*Proxy, error) {
 		SharedKey:    opts.SharedKey,
 		redirectURL:  &url.URL{Path: "/.pomerium/callback"},
 		templates:    templates.New(),
+		headers:      opts.Headers,
 	}
 	var policies []policy.Policy
 	if opts.Policy != "" {
