@@ -109,13 +109,19 @@ func OptionsFromEnvConfig() (*Options, error) {
 // Validate checks that proper configuration settings are set to create
 // a proper Proxy instance
 func (o *Options) Validate() error {
+	decoded, err := base64.StdEncoding.DecodeString(o.SharedKey)
+	if err != nil {
+		return fmt.Errorf("authorize: `SHARED_SECRET` setting is invalid base64: %v", err)
+	}
+	if len(decoded) != 32 {
+		return fmt.Errorf("authorize: `SHARED_SECRET` want 32 but got %d bytes", len(decoded))
+	}
 	if len(o.Routes) != 0 {
 		return errors.New("routes setting is deprecated, use policy instead")
 	}
 	if o.Policy == "" && o.PolicyFile == "" {
 		return errors.New("proxy: either `POLICY` or `POLICY_FILE` must be non-nil")
 	}
-	var err error
 	if o.Policy != "" {
 		confBytes, err := base64.StdEncoding.DecodeString(o.Policy)
 		if err != nil {
@@ -147,9 +153,6 @@ func (o *Options) Validate() error {
 	}
 	if o.CookieSecret == "" {
 		return errors.New("missing setting: cookie-secret")
-	}
-	if o.SharedKey == "" {
-		return errors.New("missing setting: client-secret")
 	}
 	decodedCookieSecret, err := base64.StdEncoding.DecodeString(o.CookieSecret)
 	if err != nil {

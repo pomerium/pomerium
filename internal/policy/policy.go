@@ -14,11 +14,9 @@ import (
 // Policy contains authorization policy information.
 // todo(bdd) : add upstream timeout and configuration settings
 type Policy struct {
-	// proxy related
+	//
 	From string `yaml:"from"`
 	To   string `yaml:"to"`
-	// upstream transport settings
-	UpstreamTimeout time.Duration `yaml:"timeout"`
 	// Identity related policy
 	AllowedEmails  []string `yaml:"allowed_users"`
 	AllowedGroups  []string `yaml:"allowed_groups"`
@@ -30,6 +28,10 @@ type Policy struct {
 	// Allow unauthenticated HTTP OPTIONS requests as per the CORS spec
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests
 	CORSAllowPreflight bool `yaml:"cors_allow_preflight"`
+
+	// UpstreamTimeout is the route specific timeout. Must be less than the global
+	// timeout. If unset,  route will fallback to the proxy's DefaultUpstreamTimeout.
+	UpstreamTimeout time.Duration `yaml:"timeout"`
 }
 
 func (p *Policy) validate() (err error) {

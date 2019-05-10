@@ -23,18 +23,27 @@ type Options struct {
 	// HTTPS requests. If empty, ":https" is used.
 	Addr string
 
-	// Cert and Key specifies the base64 encoded TLS certificates to use.
-	Cert string
-	Key  string
-	// CertFile and KeyFile specifies the TLS certificates to use.
+	// TLS certificates to use.
+	Cert     string
+	Key      string
 	CertFile string
 	KeyFile  string
+
+	// Timeouts
+	ReadHeaderTimeout time.Duration
+	ReadTimeout       time.Duration
+	WriteTimeout      time.Duration
+	IdleTimeout       time.Duration
 }
 
 var defaultOptions = &Options{
-	Addr:     ":https",
-	CertFile: filepath.Join(findKeyDir(), "cert.pem"),
-	KeyFile:  filepath.Join(findKeyDir(), "privkey.pem"),
+	Addr:              ":https",
+	CertFile:          filepath.Join(findKeyDir(), "cert.pem"),
+	KeyFile:           filepath.Join(findKeyDir(), "privkey.pem"),
+	ReadHeaderTimeout: 10 * time.Second,
+	ReadTimeout:       30 * time.Second,
+	WriteTimeout:      0, // support streaming by default
+	IdleTimeout:       5 * time.Minute,
 }
 
 func findKeyDir() string {
@@ -45,15 +54,27 @@ func findKeyDir() string {
 	return p
 }
 
-func (opt *Options) applyDefaults() {
-	if opt.Addr == "" {
-		opt.Addr = defaultOptions.Addr
+func (o *Options) applyDefaults() {
+	if o.Addr == "" {
+		o.Addr = defaultOptions.Addr
 	}
-	if opt.Cert == "" && opt.CertFile == "" {
-		opt.CertFile = defaultOptions.CertFile
+	if o.Cert == "" && o.CertFile == "" {
+		o.CertFile = defaultOptions.CertFile
 	}
-	if opt.Key == "" && opt.KeyFile == "" {
-		opt.KeyFile = defaultOptions.KeyFile
+	if o.Key == "" && o.KeyFile == "" {
+		o.KeyFile = defaultOptions.KeyFile
+	}
+	if o.ReadHeaderTimeout == 0 {
+		o.ReadHeaderTimeout = defaultOptions.ReadHeaderTimeout
+	}
+	if o.ReadTimeout == 0 {
+		o.ReadTimeout = defaultOptions.ReadTimeout
+	}
+	if o.WriteTimeout == 0 {
+		o.WriteTimeout = defaultOptions.WriteTimeout
+	}
+	if o.IdleTimeout == 0 {
+		o.IdleTimeout = defaultOptions.IdleTimeout
 	}
 }
 
@@ -96,14 +117,13 @@ func ListenAndServeTLS(opt *Options, httpHandler http.Handler, grpcHandler *grpc
 
 	// Set up the main server.
 	server := &http.Server{
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		// WriteTimeout is set to 0 for streaming replies
-		WriteTimeout: 0,
-		IdleTimeout:  5 * time.Minute,
-		TLSConfig:    config,
-		Handler:      h,
-		ErrorLog:     stdlog.New(&log.StdLogWrapper{Logger: &sublogger}, "", 0),
+		ReadHeaderTimeout: opt.ReadHeaderTimeout,
+		ReadTimeout:       opt.ReadTimeout,
+		WriteTimeout:      opt.WriteTimeout,
+		IdleTimeout:       opt.IdleTimeout,
+		TLSConfig:         config,
+		Handler:           h,
+		ErrorLog:          stdlog.New(&log.StdLogWrapper{Logger: &sublogger}, "", 0),
 	}
 
 	return server.Serve(ln)
