@@ -33,15 +33,6 @@ Service mode sets the pomerium service(s) to run. If testing, you may want to se
 
 Address specifies the host and port to serve HTTPS and gRPC requests from. If empty, `:https`/`:443` is used.
 
-### HTTP Redirect Address
-
-- Environmental Variable: `HTTP_REDIRECT_ADDR`
-- Type: `string`
-- Example: `:80`, `:http`, `:8080`
-- Optional
-
-If set, the HTTP Redirect Address specifies the host and port to redirect http to https traffic on. If unset, no redirect server is started.
-
 ### Shared Secret
 
 - Environmental Variable: `SHARED_SECRET`
@@ -53,6 +44,79 @@ Shared Secret is the base64 encoded 256-bit key used to mutually authenticate re
 ```
 head -c32 /dev/urandom | base64
 ```
+
+### Debug
+
+- Environmental Variable: `POMERIUM_DEBUG`
+- Type: `bool`
+- Default: `false`
+
+By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)). In production, it's recommended to be set to `false`.
+
+For example, if `true`
+
+```
+10:37AM INF cmd/pomerium version=v0.0.1-dirty+ede4124
+10:37AM INF proxy: new route from=httpbin.corp.beyondperimeter.com to=https://httpbin.org
+10:37AM INF proxy: new route from=ssl.corp.beyondperimeter.com to=http://neverssl.com
+10:37AM INF proxy/authenticator: grpc connection OverrideCertificateName= addr=auth.corp.beyondperimeter.com:443
+```
+
+If `false`
+
+```
+{"level":"info","version":"v0.0.1-dirty+ede4124","time":"2019-02-18T10:41:03-08:00","message":"cmd/pomerium"}
+{"level":"info","from":"httpbin.corp.beyondperimeter.com","to":"https://httpbin.org","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
+{"level":"info","from":"ssl.corp.beyondperimeter.com","to":"http://neverssl.com","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
+{"level":"info","OverrideCertificateName":"","addr":"auth.corp.beyondperimeter.com:443","time":"2019-02-18T10:41:03-08:00","message":"proxy/authenticator: grpc connection"}
+```
+
+### Log Level
+
+- Environmental Variable: `LOG_LEVEL`
+- Type: `string`
+- Options: `debug` `info` `warn` `error`
+- Default: `debug`
+
+Log level sets the global logging level for pomerium. Only logs of the desired level and above will be logged.
+
+### Certificate
+
+- Environmental Variable: either `CERTIFICATE` or `CERTIFICATE_FILE`
+- Type: [base64 encoded] `string` or relative file location
+- Required
+
+Certificate is the x509 _public-key_ used to establish secure HTTP and gRPC connections. If unset, pomerium will attempt to find and use `./cert.pem`.
+
+### Certificate Key
+
+- Environmental Variable: either `CERTIFICATE_KEY` or `CERTIFICATE_KEY_FILE`
+- Type: [base64 encoded] `string`
+- Required
+
+Certificate key is the x509 _private-key_ used to establish secure HTTP and gRPC connections. If unset, pomerium will attempt to find and use `./privkey.pem`.
+
+### Global Timeouts
+
+- Environmental Variables: `TIMEOUT_READ` `TIMEOUT_WRITE` `TIMEOUT_READ_HEADER` `TIMEOUT_IDLE`
+- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
+- Example: `TIMEOUT_READ=30s`
+- Defaults: `TIMEOUT_READ_HEADER=10s` `TIMEOUT_READ=30s` `TIMEOUT_WRITE=0` `TIMEOUT_IDLE=5m`
+
+Timeouts set the global server timeouts. For route-specific timeouts, see [policy](./#policy).
+
+![cloudflare blog on timeouts](https://blog.cloudflare.com/content/images/2016/06/Timeouts-001.png)
+
+> For a deep dive on timeout values see [these](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) [two](https://blog.cloudflare.com/exposing-go-on-the-internet/) excellent blog posts.
+
+### HTTP Redirect Address
+
+- Environmental Variable: `HTTP_REDIRECT_ADDR`
+- Type: `string`
+- Example: `:80`, `:http`, `:8080`
+- Optional
+
+If set, the HTTP Redirect Address specifies the host and port to redirect http to https traffic on. If unset, no redirect server is started.
 
 ### Policy
 
@@ -121,7 +185,7 @@ Allowed domains is a collection of whitelisted domains to authorize for a given 
 
 Allow unauthenticated HTTP OPTIONS requests as [per the CORS spec](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests).
 
-### Timeout
+#### Route Timeout
 
 - `yaml`/`json` setting: `timeout`
 - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
@@ -129,70 +193,6 @@ Allow unauthenticated HTTP OPTIONS requests as [per the CORS spec](https://devel
 - Default: `30s`
 
 Policy timeout establishes the per-route timeout value. Cannot exceed global timeout values.
-
-### Debug
-
-- Environmental Variable: `POMERIUM_DEBUG`
-- Type: `bool`
-- Default: `false`
-
-By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)). In production, it's recommended to be set to `false`.
-
-For example, if `true`
-
-```
-10:37AM INF cmd/pomerium version=v0.0.1-dirty+ede4124
-10:37AM INF proxy: new route from=httpbin.corp.beyondperimeter.com to=https://httpbin.org
-10:37AM INF proxy: new route from=ssl.corp.beyondperimeter.com to=http://neverssl.com
-10:37AM INF proxy/authenticator: grpc connection OverrideCertificateName= addr=auth.corp.beyondperimeter.com:443
-```
-
-If `false`
-
-```
-{"level":"info","version":"v0.0.1-dirty+ede4124","time":"2019-02-18T10:41:03-08:00","message":"cmd/pomerium"}
-{"level":"info","from":"httpbin.corp.beyondperimeter.com","to":"https://httpbin.org","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
-{"level":"info","from":"ssl.corp.beyondperimeter.com","to":"http://neverssl.com","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
-{"level":"info","OverrideCertificateName":"","addr":"auth.corp.beyondperimeter.com:443","time":"2019-02-18T10:41:03-08:00","message":"proxy/authenticator: grpc connection"}
-```
-
-### Log Level
-
-- Environmental Variable: `LOG_LEVEL`
-- Type: `string`
-- Options: `debug` `info` `warn` `error`
-- Default: `debug`
-
-Log level sets the global logging level for pomerium. Only logs of the desired level and above will be logged.
-
-### Certificate
-
-- Environmental Variable: either `CERTIFICATE` or `CERTIFICATE_FILE`
-- Type: [base64 encoded] `string` or relative file location
-- Required
-
-Certificate is the x509 _public-key_ used to establish secure HTTP and gRPC connections. If unset, pomerium will attempt to find and use `./cert.pem`.
-
-### Certificate Key
-
-- Environmental Variable: either `CERTIFICATE_KEY` or `CERTIFICATE_KEY_FILE`
-- Type: [base64 encoded] `string`
-- Required
-
-Certificate key is the x509 _private-key_ used to establish secure HTTP and gRPC connections. If unset, pomerium will attempt to find and use `./privkey.pem`.
-
-### Timeouts
-
-- Environmental Variables: `TIMEOUT_READ` `TIMEOUT_WRITE` `TIMEOUT_READ_HEADER` `TIMEOUT_IDLE`
-- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
-- Example: `TIMEOUT_READ=30s`
-- Defaults: `TIMEOUT_READ_HEADER=10s` `TIMEOUT_READ=30s` `TIMEOUT_WRITE=0` `TIMEOUT_IDLE=5m`
-
-Timeouts set the global server timeouts. For route-specific timeouts, see `Policy`.
-
-![cloudflare blog on timeouts](https://blog.cloudflare.com/content/images/2016/06/Timeouts-001.png)
-
-> For a deep dive on timeout values see [these](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) [two](https://blog.cloudflare.com/exposing-go-on-the-internet/) excellent blog posts.
 
 ## Authenticate Service
 
