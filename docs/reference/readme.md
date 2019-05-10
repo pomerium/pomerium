@@ -61,9 +61,74 @@ head -c32 /dev/urandom | base64
 - Filetype: `json` or `yaml`
 - Required
 
-Policy contains the routes, and their access policies. For example,
+Policy contains route specific settings, and access control details. For example,
 
 <<< @/policy.example.yaml
+
+A list of policy configuration variables follows.
+
+#### From
+
+- `yaml`/`json` setting: `from`
+- Type: `string` domain
+- Required
+- Example: `httpbin.corp.example.com`
+
+`From` is externally accessible source of the proxied request.
+
+#### To
+
+- `yaml`/`json` setting: `to`
+- Type: `string` domain
+- Required
+- Example: `httpbin` , `192.1.20.12:20`, `http://neverssl.com`
+
+`To` is the destination of a proxied request. It can be an internal resource, or an external resource.
+
+#### Allowed Users
+
+- `yaml`/`json` setting: `allowed_users`
+- Type: collection of `strings`
+- Required
+- Example: `alice@pomerium.io` , `bob@contractor.co`
+
+Allowed users is a collection of whitelisted users to authorize for a given route.
+
+#### Allowed Groups
+
+- `yaml`/`json` setting: `allowed_groups`
+- Type: collection of `strings`
+- Required
+- Example: `admins` , `support@company.com`
+
+Allowed groups is a collection of whitelisted groups to authorize for a given route.
+
+#### Allowed Domains
+
+- `yaml`/`json` setting: `allowed_domains`
+- Type: collection of `strings`
+- Required
+- Example: `pomerium.io` , `gmail.com`
+
+Allowed domains is a collection of whitelisted domains to authorize for a given route.
+
+#### CORS Preflight
+
+- `yaml`/`json` setting: `cors_allow_preflight`
+- Type: `bool`
+- Optional
+- Default: `false`
+
+Allow unauthenticated HTTP OPTIONS requests as [per the CORS spec](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests).
+
+### Timeout
+
+- `yaml`/`json` setting: `timeout`
+- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
+- Optional
+- Default: `30s`
+
+Policy timeout establishes the per-route timeout value. Cannot exceed global timeout values.
 
 ### Debug
 
@@ -115,6 +180,19 @@ Certificate is the x509 _public-key_ used to establish secure HTTP and gRPC conn
 - Required
 
 Certificate key is the x509 _private-key_ used to establish secure HTTP and gRPC connections. If unset, pomerium will attempt to find and use `./privkey.pem`.
+
+### Timeouts
+
+- Environmental Variables: `TIMEOUT_READ` `TIMEOUT_WRITE` `TIMEOUT_READ_HEADER` `TIMEOUT_IDLE`
+- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
+- Example: `TIMEOUT_READ=30s`
+- Defaults: `TIMEOUT_READ_HEADER=10s` `TIMEOUT_READ=30s` `TIMEOUT_WRITE=0` `TIMEOUT_IDLE=5m`
+
+Timeouts set the global server timeouts. For route-specific timeouts, see `Policy`.
+
+![cloudflare blog on timeouts](https://blog.cloudflare.com/content/images/2016/06/Timeouts-001.png)
+
+> For a deep dive on timeout values see [these](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) [two](https://blog.cloudflare.com/exposing-go-on-the-internet/) excellent blog posts.
 
 ## Authenticate Service
 
@@ -241,8 +319,16 @@ Certificate Authority is set when behind-the-ingress service communication uses 
 - Type: map of `strings` key value pairs
 - Example: `X-Content-Type-Options:nosniff,X-Frame-Options:SAMEORIGIN`
 - To disable: `disable:true`
+- Default :
 
-Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added to proxied requests. *Nota bene* Downstream application headers will be overwritten by Pomerium's headers on conflict. 
+  ```javascript
+  X-Content-Type-Options : nosniff,
+  X-Frame-Options:SAMEORIGIN,
+  X-XSS-Protection:1; mode=block,
+  Strict-Transport-Security:max-age=31536000; includeSubDomains; preload,
+  ```
+
+  Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added to proxied requests. _Nota bene_ Downstream application headers will be overwritten by Pomerium's headers on conflict.
 
 By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
 

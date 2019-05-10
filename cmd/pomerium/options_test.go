@@ -66,3 +66,26 @@ func Test_isValidService(t *testing.T) {
 		})
 	}
 }
+
+func Test_isAuthenticate(t *testing.T) {
+	tests := []struct {
+		name    string
+		service string
+		want    bool
+	}{
+		{"proxy", "proxy", false},
+		{"all", "all", true},
+		{"authenticate", "authenticate", true},
+		{"authenticate bad case", "AuThenticate", false},
+		{"authorize implemented", "authorize", false},
+		{"jiberish", "xd23", false},
+	}
+	for _, tt := range tests {
+
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isAuthenticate(tt.service); got != tt.want {
+				t.Errorf("isAuthenticate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -3,6 +3,7 @@ package main // import "github.com/pomerium/pomerium/cmd/pomerium"
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/pomerium/envconfig"
 )
@@ -43,6 +44,12 @@ type Options struct {
 	// to HTTPS redirect server on. For example, ":http" would start a server
 	// on port 80.  If empty, no redirect server is started.
 	HTTPRedirectAddr string `envconfig:"HTTP_REDIRECT_ADDR"`
+
+	// Timeout settings : https://github.com/pomerium/pomerium/issues/40
+	ReadTimeout       time.Duration `envconfig:"TIMEOUT_READ"`
+	WriteTimeout      time.Duration `envconfig:"TIMEOUT_WRITE"`
+	ReadHeaderTimeout time.Duration `envconfig:"TIMEOUT_READ_HEADER"`
+	IdleTimeout       time.Duration `envconfig:"TIMEOUT_IDLE"`
 }
 
 var defaultOptions = &Options{
@@ -68,13 +75,43 @@ func optionsFromEnvConfig() (*Options, error) {
 }
 
 // isValidService checks to see if a service is a valid service mode
-func isValidService(service string) bool {
-	switch service {
+func isValidService(s string) bool {
+	switch s {
 	case
 		"all",
 		"proxy",
 		"authorize",
 		"authenticate":
+		return true
+	}
+	return false
+}
+
+func isAuthenticate(s string) bool {
+	switch s {
+	case
+		"all",
+		"authenticate":
+		return true
+	}
+	return false
+}
+
+func isAuthorize(s string) bool {
+	switch s {
+	case
+		"all",
+		"authorize":
+		return true
+	}
+	return false
+}
+
+func isProxy(s string) bool {
+	switch s {
+	case
+		"all",
+		"proxy":
 		return true
 	}
 	return false
