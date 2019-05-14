@@ -1,10 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -166,34 +167,33 @@ func Test_newProxyeService(t *testing.T) {
 	}
 }
 
-func Test_parseOptions(t *testing.T) {
-	tests := []struct {
-		name     string
-		envKey   string
-		envValue string
+func Test_wrapMiddleware(t *testing.T) {
+	o := &Options{
+		Services: "all",
+		Headers: map[string]string{
+			"X-Content-Type-Options":    "nosniff",
+			"X-Frame-Options":           "SAMEORIGIN",
+			"X-XSS-Protection":          "1; mode=block",
+			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+			"Content-Security-Policy":   "default-src 'none'; style-src 'self' 'sha256-pSTVzZsFAqd2U3QYu+BoBDtuJWaPM/+qMy/dBRrhb5Y='; img-src 'self';",
+			"Referrer-Policy":           "Same-origin",
+		}}
+	mux := http.NewServeMux()
+	req := httptest.NewRequest(http.MethodGet, "/404", nil)
+	rr := httptest.NewRecorder()
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `OK`)
+	})
 
-		want    *Options
-		wantErr bool
-	}{
-		{"no shared secret", "", "", nil, true},
-		{"good", "SHARED_SECRET", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", &Options{Services: "all", SharedKey: "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", LogLevel: "debug"}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv(tt.envKey, tt.envValue)
-			defer os.Unsetenv(tt.envKey)
+	mux.Handle("/404", h)
+	out := wrapMiddleware(o, mux)
+	out.ServeHTTP(rr, req)
+	expected := fmt.Sprintf("OK")
+	body := rr.Body.String()
 
-			got, err := parseOptions()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseOptions() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseOptions()\n")
-				t.Errorf("got: %+v\n", got)
-				t.Errorf("want: %+v\n", tt.want)
-
-			}
-		})
+	if body != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
 	}
 }

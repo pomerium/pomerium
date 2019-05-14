@@ -16,7 +16,6 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/version"
 )
 
 var (
@@ -32,7 +31,12 @@ type StateParameter struct {
 
 // Handler returns a http handler for a Proxy
 func (p *Proxy) Handler() http.Handler {
-	// routes
+	// validation middleware chain
+	validate := middleware.NewChain()
+	validate = validate.Append(middleware.ValidateHost(func(host string) bool {
+		_, ok := p.routeConfigs[host]
+		return ok
+	}))
 	mux := http.NewServeMux()
 	mux.HandleFunc("/favicon.ico", p.Favicon)
 	mux.HandleFunc("/robots.txt", p.RobotsTxt)
@@ -40,37 +44,7 @@ func (p *Proxy) Handler() http.Handler {
 	mux.HandleFunc("/.pomerium/callback", p.OAuthCallback)
 	// mux.HandleFunc("/.pomerium/refresh", p.Refresh) //todo(bdd): needs DoS protection before inclusion
 	mux.HandleFunc("/", p.Proxy)
-
-	// middleware chain
-	c := middleware.NewChain()
-	c = c.Append(middleware.Healthcheck("/ping", version.UserAgent()))
-	c = c.Append(middleware.NewHandler(log.Logger))
-	c = c.Append(middleware.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
-		middleware.FromRequest(r).Debug().
-			Str("method", r.Method).
-			Str("url", r.URL.String()).
-			Int("status", status).
-			Int("size", size).
-			Dur("duration", duration).
-			Str("pomerium-user", r.Header.Get(HeaderUserID)).
-			Str("pomerium-email", r.Header.Get(HeaderEmail)).
-			Msg("proxy: request")
-	}))
-	c = c.Append(middleware.SetHeaders(p.headers))
-	c = c.Append(middleware.ForwardedAddrHandler("fwd_ip"))
-	c = c.Append(middleware.RemoteAddrHandler("ip"))
-	c = c.Append(middleware.UserAgentHandler("user_agent"))
-	c = c.Append(middleware.RefererHandler("referer"))
-	c = c.Append(middleware.RequestIDHandler("req_id", "Request-Id"))
-	c = c.Append(middleware.ValidateHost(func(host string) bool {
-		_, ok := p.routeConfigs[host]
-		return ok
-	}))
-
-	// serve the middleware and mux
-	return c.Then(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mux.ServeHTTP(w, r)
-	}))
+	return validate.Then(mux)
 }
 
 // RobotsTxt sets the User-Agent header in the response to be "Disallow"

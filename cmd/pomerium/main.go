@@ -30,7 +30,7 @@ func main() {
 		fmt.Println(version.FullVersion())
 		os.Exit(0)
 	}
-	opt, err := parseOptions()
+	opt, err := optionsFromEnvConfig()
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: options")
 	}
@@ -40,10 +40,6 @@ func main() {
 	grpcServer := grpc.NewServer(grpcOpts...)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ping", func(rw http.ResponseWriter, _ *http.Request) {
-		rw.WriteHeader(http.StatusOK)
-		fmt.Fprintf(rw, version.UserAgent())
-	})
 
 	_, err = newAuthenticateService(opt.Services, mux, grpcServer)
 	if err != nil {
@@ -80,7 +76,8 @@ func main() {
 	} else {
 		defer srv.Close()
 	}
-	if err := https.ListenAndServeTLS(httpOpts, mux, grpcServer); err != nil {
+
+	if err := https.ListenAndServeTLS(httpOpts, wrapMiddleware(opt, mux), grpcServer); err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: https server")
 	}
 }
@@ -154,16 +151,31 @@ func newProxyService(s string, mux *http.ServeMux) (*proxy.Proxy, error) {
 	return service, nil
 }
 
-func parseOptions() (*Options, error) {
-	o, err := optionsFromEnvConfig()
-	if err != nil {
-		return nil, err
+func wrapMiddleware(o *Options, mux *http.ServeMux) http.Handler {
+	c := middleware.NewChain()
+	c = c.Append(middleware.NewHandler(log.Logger))
+	c = c.Append(middleware.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+		middleware.FromRequest(r).Debug().
+			Str("service", o.Services).
+			Str("method", r.Method).
+			Str("url", r.URL.String()).
+			Int("status", status).
+			Int("size", size).
+			Dur("duration", duration).
+			Str("user", r.Header.Get(proxy.HeaderUserID)).
+			Str("email", r.Header.Get(proxy.HeaderEmail)).
+			Str("group", r.Header.Get(proxy.HeaderGroups)).
+			// Str("sig", r.Header.Get(proxy.HeaderJWT)).
+			Msg("http-request")
+	}))
+	if o != nil && len(o.Headers) != 0 {
+		c = c.Append(middleware.SetHeaders(o.Headers))
 	}
-	if o.Debug {
-		log.SetDebugMode()
-	}
-	if o.LogLevel != "" {
-		log.SetLevel(o.LogLevel)
-	}
-	return o, nil
+	c = c.Append(middleware.ForwardedAddrHandler("fwd_ip"))
+	c = c.Append(middleware.RemoteAddrHandler("ip"))
+	c = c.Append(middleware.UserAgentHandler("user_agent"))
+	c = c.Append(middleware.RefererHandler("referer"))
+	c = c.Append(middleware.RequestIDHandler("req_id", "Request-Id"))
+	c = c.Append(middleware.Healthcheck("/ping", version.UserAgent()))
+	return c.Then(mux)
 }

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -16,56 +15,20 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 )
 
-// securityHeaders corresponds to HTTP response headers that help to protect
-// against protocol downgrade attacks and cookie hijacking.
-//
-// https://www.owasp.org/index.php/OWASP_Secure_Headers_Project#tab=Headers
-// https://https.cio.gov/hsts/
-var securityHeaders = map[string]string{
-	"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-	"X-Frame-Options":           "DENY",
-	"X-Content-Type-Options":    "nosniff",
-	"X-XSS-Protection":          "1; mode=block",
-	"Content-Security-Policy": "default-src 'none'; style-src 'self' " +
-		"'sha256-pSTVzZsFAqd2U3QYu+BoBDtuJWaPM/+qMy/dBRrhb5Y='; img-src 'self';",
-	"Referrer-Policy": "Same-origin",
-}
-
 // Handler returns the authenticate service's HTTP request multiplexer, and routes.
 func (a *Authenticate) Handler() http.Handler {
-	// set up our standard middlewares
-	stdMiddleware := middleware.NewChain()
-	stdMiddleware = stdMiddleware.Append(middleware.Healthcheck("/ping", version.UserAgent()))
-	stdMiddleware = stdMiddleware.Append(middleware.NewHandler(log.Logger))
-	stdMiddleware = stdMiddleware.Append(middleware.AccessHandler(
-		func(r *http.Request, status, size int, duration time.Duration) {
-			middleware.FromRequest(r).Debug().
-				Str("method", r.Method).
-				Str("url", r.URL.String()).
-				Int("status", status).
-				Int("size", size).
-				Dur("duration", duration).
-				Msg("authenticate: request")
-		}))
-	stdMiddleware = stdMiddleware.Append(middleware.SetHeaders(securityHeaders))
-	stdMiddleware = stdMiddleware.Append(middleware.ForwardedAddrHandler("fwd_ip"))
-	stdMiddleware = stdMiddleware.Append(middleware.RemoteAddrHandler("ip"))
-	stdMiddleware = stdMiddleware.Append(middleware.UserAgentHandler("user_agent"))
-	stdMiddleware = stdMiddleware.Append(middleware.RefererHandler("referer"))
-	stdMiddleware = stdMiddleware.Append(middleware.RequestIDHandler("req_id", "Request-Id"))
-	validateSignatureMiddleware := stdMiddleware.Append(
-		middleware.ValidateSignature(a.SharedKey),
-		middleware.ValidateRedirectURI(a.RedirectURL))
-
+	// validation middleware chain
+	validate := middleware.NewChain()
+	validate = validate.Append(middleware.ValidateSignature(a.SharedKey))
+	validate = validate.Append(middleware.ValidateRedirectURI(a.RedirectURL))
 	mux := http.NewServeMux()
-	mux.Handle("/robots.txt", stdMiddleware.ThenFunc(a.RobotsTxt))
+	mux.HandleFunc("/robots.txt", a.RobotsTxt)
 	// Identity Provider (IdP) callback endpoints and callbacks
-	mux.Handle("/start", stdMiddleware.ThenFunc(a.OAuthStart))
-	mux.Handle("/oauth2/callback", stdMiddleware.ThenFunc(a.OAuthCallback))
+	mux.HandleFunc("/start", a.OAuthStart)
+	mux.HandleFunc("/oauth2/callback", a.OAuthCallback)
 	// authenticate-server endpoints
-	mux.Handle("/sign_in", validateSignatureMiddleware.ThenFunc(a.SignIn))
-	mux.Handle("/sign_out", validateSignatureMiddleware.ThenFunc(a.SignOut)) // GET POST
-
+	mux.Handle("/sign_in", validate.ThenFunc(a.SignIn))
+	mux.Handle("/sign_out", validate.ThenFunc(a.SignOut)) // GET POST
 	return mux
 }
 
