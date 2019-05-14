@@ -6,7 +6,11 @@ import (
 	"time"
 
 	"github.com/pomerium/envconfig"
+	"github.com/pomerium/pomerium/internal/log"
 )
+
+// DisableHeaderKey is the key used to check whether to disable setting header
+const DisableHeaderKey = "disable"
 
 // Options are the global environmental flags used to set up pomerium's services.
 // If a base64 encoded certificate and key are not provided as environmental variables,
@@ -45,6 +49,9 @@ type Options struct {
 	// on port 80.  If empty, no redirect server is started.
 	HTTPRedirectAddr string `envconfig:"HTTP_REDIRECT_ADDR"`
 
+	// Headers to set on all proxied requests. Add a 'disable' key map to turn off.
+	Headers map[string]string `envconfig:"HEADERS"`
+
 	// Timeout settings : https://github.com/pomerium/pomerium/issues/40
 	ReadTimeout       time.Duration `envconfig:"TIMEOUT_READ"`
 	WriteTimeout      time.Duration `envconfig:"TIMEOUT_WRITE"`
@@ -56,6 +63,14 @@ var defaultOptions = &Options{
 	Debug:    false,
 	LogLevel: "debug",
 	Services: "all",
+	Headers: map[string]string{
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":           "SAMEORIGIN",
+		"X-XSS-Protection":          "1; mode=block",
+		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+		"Content-Security-Policy":   "default-src 'none'; style-src 'self' 'sha256-pSTVzZsFAqd2U3QYu+BoBDtuJWaPM/+qMy/dBRrhb5Y='; img-src 'self';",
+		"Referrer-Policy":           "Same-origin",
+	},
 }
 
 // optionsFromEnvConfig builds the main binary's configuration
@@ -70,6 +85,15 @@ func optionsFromEnvConfig() (*Options, error) {
 	}
 	if o.SharedKey == "" {
 		return nil, errors.New("shared-key cannot be empty")
+	}
+	if o.Debug {
+		log.SetDebugMode()
+	}
+	if o.LogLevel != "" {
+		log.SetLevel(o.LogLevel)
+	}
+	if _, disable := o.Headers[DisableHeaderKey]; disable {
+		o.Headers = make(map[string]string)
 	}
 	return o, nil
 }

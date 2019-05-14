@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/proxy/clients"
 )
 
@@ -206,14 +205,11 @@ func TestProxy_Handler(t *testing.T) {
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/", h)
-	req := httptest.NewRequest("GET", "/ping", nil)
-
+	req := httptest.NewRequest("GET", "/", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
-	expected := version.UserAgent()
-	body := rr.Body.String()
-	if body != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404 route not found for empty route")
 	}
 }
 
