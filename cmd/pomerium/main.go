@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
+	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/https"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -30,7 +31,7 @@ func main() {
 		fmt.Println(version.FullVersion())
 		os.Exit(0)
 	}
-	opt, err := optionsFromEnvConfig()
+	opt, err := config.OptionsFromEnvConfig()
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: options")
 	}
@@ -41,17 +42,17 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	_, err = newAuthenticateService(opt.Services, mux, grpcServer)
+	_, err = newAuthenticateService(opt, mux, grpcServer)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: authenticate")
 	}
 
-	_, err = newAuthorizeService(opt.Services, grpcServer)
+	_, err = newAuthorizeService(opt, grpcServer)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: authorize")
 	}
 
-	_, err = newProxyService(opt.Services, mux)
+	_, err = newProxyService(opt, mux)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: proxy")
 	}
@@ -102,32 +103,24 @@ func startRedirectServer(addr string) (*http.Server, error) {
 	return srv, nil
 }
 
-func newAuthenticateService(s string, mux *http.ServeMux, rpc *grpc.Server) (*authenticate.Authenticate, error) {
-	if !isAuthenticate(s) {
+func newAuthenticateService(opt *config.Options, mux *http.ServeMux, rpc *grpc.Server) (*authenticate.Authenticate, error) {
+	if opt == nil || !config.IsAuthenticate(opt.Services) {
 		return nil, nil
 	}
-	opts, err := authenticate.OptionsFromEnvConfig()
-	if err != nil {
-		return nil, err
-	}
-	service, err := authenticate.New(opts)
+	service, err := authenticate.New(opt)
 	if err != nil {
 		return nil, err
 	}
 	pbAuthenticate.RegisterAuthenticatorServer(rpc, service)
-	mux.Handle(urlutil.StripPort(opts.AuthenticateURL.Host)+"/", service.Handler())
+	mux.Handle(urlutil.StripPort(opt.AuthenticateURL.Host)+"/", service.Handler())
 	return service, nil
 }
 
-func newAuthorizeService(s string, rpc *grpc.Server) (*authorize.Authorize, error) {
-	if !isAuthorize(s) {
+func newAuthorizeService(opt *config.Options, rpc *grpc.Server) (*authorize.Authorize, error) {
+	if opt == nil || !config.IsAuthorize(opt.Services) {
 		return nil, nil
 	}
-	opts, err := authorize.OptionsFromEnvConfig()
-	if err != nil {
-		return nil, err
-	}
-	service, err := authorize.New(opts)
+	service, err := authorize.New(opt)
 	if err != nil {
 		return nil, err
 	}
@@ -135,15 +128,11 @@ func newAuthorizeService(s string, rpc *grpc.Server) (*authorize.Authorize, erro
 	return service, nil
 }
 
-func newProxyService(s string, mux *http.ServeMux) (*proxy.Proxy, error) {
-	if !isProxy(s) {
+func newProxyService(opt *config.Options, mux *http.ServeMux) (*proxy.Proxy, error) {
+	if opt == nil || !config.IsProxy(opt.Services) {
 		return nil, nil
 	}
-	opts, err := proxy.OptionsFromEnvConfig()
-	if err != nil {
-		return nil, err
-	}
-	service, err := proxy.New(opts)
+	service, err := proxy.New(opt)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +140,7 @@ func newProxyService(s string, mux *http.ServeMux) (*proxy.Proxy, error) {
 	return service, nil
 }
 
-func wrapMiddleware(o *Options, mux *http.ServeMux) http.Handler {
+func wrapMiddleware(o *config.Options, mux *http.ServeMux) http.Handler {
 	c := middleware.NewChain()
 	c = c.Append(middleware.NewHandler(log.Logger))
 	c = c.Append(middleware.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
@@ -178,4 +167,18 @@ func wrapMiddleware(o *Options, mux *http.ServeMux) http.Handler {
 	c = c.Append(middleware.RequestIDHandler("req_id", "Request-Id"))
 	c = c.Append(middleware.Healthcheck("/ping", version.UserAgent()))
 	return c.Then(mux)
+}
+
+func parseOptions() (*config.Options, error) {
+	o, err := config.OptionsFromEnvConfig()
+	if err != nil {
+		return nil, err
+	}
+	if o.Debug {
+		log.SetDebugMode()
+	}
+	if o.LogLevel != "" {
+		log.SetLevel(o.LogLevel)
+	}
+	return o, nil
 }

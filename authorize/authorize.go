@@ -5,34 +5,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pomerium/envconfig"
+	"github.com/pomerium/pomerium/internal/config"
+
 	"github.com/pomerium/pomerium/internal/policy"
 )
 
-// Options contains configuration settings for the authorize service.
-type Options struct {
-	// SharedKey is used to validate requests between services
-	SharedKey string `envconfig:"SHARED_SECRET" required:"true"`
-
-	// Policy is a base64 encoded yaml blob which enumerates
-	// per-route access control policies.
-	Policy     string `envconfig:"POLICY"`
-	PolicyFile string `envconfig:"POLICY_FILE"`
-}
-
-// OptionsFromEnvConfig creates an authorize service options from environmental
-// variables.
-func OptionsFromEnvConfig() (*Options, error) {
-	o := new(Options)
-	if err := envconfig.Process("", o); err != nil {
-		return nil, err
-	}
-	return o, nil
-}
-
-// Validate checks to see if configuration values are valid for the
+// ValidateOptions checks to see if configuration values are valid for the
 // authorize service. Returns first error, if found.
-func (o *Options) Validate() error {
+func ValidateOptions(o *config.Options) error {
 	decoded, err := base64.StdEncoding.DecodeString(o.SharedKey)
 	if err != nil {
 		return fmt.Errorf("authorize: `SHARED_SECRET` setting is invalid base64: %v", err)
@@ -72,11 +52,11 @@ type Authorize struct {
 }
 
 // New validates and creates a new Authorize service from a set of Options
-func New(opts *Options) (*Authorize, error) {
+func New(opts *config.Options) (*Authorize, error) {
 	if opts == nil {
 		return nil, errors.New("authorize: options cannot be nil")
 	}
-	if err := opts.Validate(); err != nil {
+	if err := ValidateOptions(opts); err != nil {
 		return nil, err
 	}
 	// errors handled by validate

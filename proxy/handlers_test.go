@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/proxy/clients"
 )
@@ -361,7 +362,7 @@ func TestProxy_Proxy(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		options       *Options
+		options       *config.Options
 		method        string
 		header        http.Header
 		host          string
@@ -371,8 +372,8 @@ func TestProxy_Proxy(t *testing.T) {
 		wantStatus    int
 	}{
 		// weirdly, we want 503 here because that means proxy is trying to route a domain (example.com) that we dont control. Weird. I know.
-		{"good", opts, http.MethodGet, defaultHeaders, "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusServiceUnavailable},
-		{"good cors preflight", optsCORS, http.MethodOptions, goodCORSHeaders, "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusServiceUnavailable},
+		{"good", opts, http.MethodGet, defaultHeaders, "https://corp.example.notatld/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadGateway},
+		{"good cors preflight", optsCORS, http.MethodOptions, goodCORSHeaders, "https://corp.example.notatld/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
 		// same request as above, but with cors_allow_preflight=false in the policy
 		{"valid cors, but not allowed", opts, http.MethodOptions, goodCORSHeaders, "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
 		// cors allowed, but the request is missing proper headers
