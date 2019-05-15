@@ -8,6 +8,7 @@ ARG ARCH=amd64
 ARG ARM=7
 ENV GOARCH=${ARCH}
 ENV GOARM=${ARM}
+RUN go get golang.org/x/lint/golint
 # cache depedency downloads
 COPY go.mod go.sum ./
 RUN go mod download
