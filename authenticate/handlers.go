@@ -15,17 +15,24 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 )
 
+// CSPHeaders adds content security headers for authenticate's handlers
+var CSPHeaders = map[string]string{
+	"Content-Security-Policy": "default-src 'none'; style-src 'self' 'sha256-pSTVzZsFAqd2U3QYu+BoBDtuJWaPM/+qMy/dBRrhb5Y='; img-src 'self';",
+	"Referrer-Policy":         "Same-origin",
+}
+
 // Handler returns the authenticate service's HTTP request multiplexer, and routes.
 func (a *Authenticate) Handler() http.Handler {
 	// validation middleware chain
-	validate := middleware.NewChain()
-	validate = validate.Append(middleware.ValidateSignature(a.SharedKey))
+	c := middleware.NewChain()
+	c = c.Append(middleware.SetHeaders(CSPHeaders))
+	validate := c.Append(middleware.ValidateSignature(a.SharedKey))
 	validate = validate.Append(middleware.ValidateRedirectURI(a.RedirectURL))
 	mux := http.NewServeMux()
-	mux.HandleFunc("/robots.txt", a.RobotsTxt)
+	mux.Handle("/robots.txt", c.ThenFunc(a.RobotsTxt))
 	// Identity Provider (IdP) callback endpoints and callbacks
-	mux.HandleFunc("/start", a.OAuthStart)
-	mux.HandleFunc("/oauth2/callback", a.OAuthCallback)
+	mux.Handle("/start", c.ThenFunc(a.OAuthStart))
+	mux.Handle("/oauth2/callback", c.ThenFunc(a.OAuthCallback))
 	// authenticate-server endpoints
 	mux.Handle("/sign_in", validate.ThenFunc(a.SignIn))
 	mux.Handle("/sign_out", validate.ThenFunc(a.SignOut)) // GET POST
