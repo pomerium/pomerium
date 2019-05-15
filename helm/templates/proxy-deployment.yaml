@@ -23,6 +23,7 @@ spec:
     metadata:
 {{- if .Values.podAnnotations }}
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
 {{ toYaml .Values.podAnnotations | indent 8 }}
 {{- end }}
       labels:
@@ -64,12 +65,10 @@ spec:
               key: shared-secret
         - name: AUTHENTICATE_SERVICE_URL
           value: {{ default (printf "https://%s.%s" .Values.authenticate.name .Values.config.rootDomain ) .Values.proxy.authenticateServiceUrl }}
-        - name: AUTHORIZE_SERVICE_URL
-          value: {{ default (printf "https://%s.%s" .Values.authorize.name .Values.config.rootDomain ) .Values.proxy.authorizeServiceUrl }}
         - name: AUTHENTICATE_INTERNAL_URL
           value: {{ default (printf "%s-%s.%s.svc.cluster.local" (include "pomerium.fullname" .) .Values.authenticate.name .Release.Namespace ) .Values.proxy.authenticateInternalUrl}}
-        - name: AUTHORIZE_INTERNAL_URL
-          value: {{ default (printf "%s-%s.%s.svc.cluster.local" (include "pomerium.fullname" .) .Values.authorize.name .Release.Namespace ) .Values.proxy.authorizeInternalUrl}}
+        - name: AUTHORIZE_SERVICE_URL
+          value: {{ default (printf "https://%s-%s.%s.svc.cluster.local" (include "pomerium.fullname" .) .Values.authorize.name .Release.Namespace ) .Values.proxy.authorizeInternalUrl}}
 {{- if or .Values.config.existingConfig .Values.config.policyFile}}
         - name: POLICY_FILE
           value: /etc/pomerium/policy.yaml

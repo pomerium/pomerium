@@ -9,5 +9,6 @@ metadata:
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
 data:
-  policy.yaml: {{toYaml .Values.config.policyFile | indent 4}}
-{{- end }}
+  policy.yaml: |-
+{{toYaml .Values.config.policyFile | indent 4}}
+{{- end}}

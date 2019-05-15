@@ -10,11 +10,7 @@ config:
   sharedSecret: ""
   cookieSecret: ""
   generateTLS: true
-  policyFile: |-
-    - from: httpbin.corp.pomerium.io
-      to: http://httpbin
-      allowed_domains:
-      - pomerium.io
+  policyFile:
     - from: external-httpbin.corp.pomerium.io
       to: httpbin.org
       allowed_domains:
