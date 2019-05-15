@@ -68,8 +68,6 @@ var defaultOptions = &Options{
 		"X-Frame-Options":           "SAMEORIGIN",
 		"X-XSS-Protection":          "1; mode=block",
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-		"Content-Security-Policy":   "default-src 'none'; style-src 'self' 'sha256-pSTVzZsFAqd2U3QYu+BoBDtuJWaPM/+qMy/dBRrhb5Y='; img-src 'self';",
-		"Referrer-Policy":           "Same-origin",
 	},
 }
 

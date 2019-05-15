@@ -20,7 +20,7 @@ It should be noted that there are countless ways of building and managing [publi
 
 ::: warning
 
-LetsEncrypt certificates certificates must be renewed [every 90 days](https://letsencrypt.org/2015/11/09/why-90-days.html).
+LetsEncrypt certificates must be renewed [every 90 days](https://letsencrypt.org/2015/11/09/why-90-days.html).
 
 :::
 
