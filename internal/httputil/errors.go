@@ -30,7 +30,11 @@ func CodeForError(err error) int {
 }
 
 // ErrorResponse renders an error page for errors given a message and a status code.
+// If no message is passed, defaults to the text of the status code.
 func ErrorResponse(rw http.ResponseWriter, req *http.Request, message string, code int) {
+	if message == "" {
+		message = http.StatusText(code)
+	}
 	if req.Header.Get("Accept") == "application/json" {
 		var response struct {
 			Error string `json:"error"`

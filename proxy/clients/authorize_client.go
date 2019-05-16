@@ -13,8 +13,11 @@ import (
 
 // Authorizer provides the authorize service interface
 type Authorizer interface {
-	// Authorize takes a code and returns a validated session or an error
+	// Authorize takes a route and user session and returns whether the
+	// request is valid per access policy
 	Authorize(context.Context, string, *sessions.SessionState) (bool, error)
+	// IsAdmin takes a session and returns whether the user is an administrator
+	IsAdmin(context.Context, *sessions.SessionState) (bool, error)
 	// Close closes the auth connection if any.
 	Close() error
 }
@@ -35,27 +38,40 @@ func NewGRPCAuthorizeClient(opts *Options) (p *AuthorizeGRPC, err error) {
 	return &AuthorizeGRPC{Conn: conn, client: client}, nil
 }
 
-// AuthorizeGRPC is a gRPC implementation of an authenticator (authenticate client)
+// AuthorizeGRPC is a gRPC implementation of an authenticator (authorize client)
 type AuthorizeGRPC struct {
 	Conn   *grpc.ClientConn
 	client pb.AuthorizerClient
 }
 
-// Authorize makes an RPC call to the authorize service to creates a session state
-// from an encrypted code provided as a result of an oauth2 callback process.
+// Authorize takes a route and user session and returns whether the
+// request is valid per access policy
 func (a *AuthorizeGRPC) Authorize(ctx context.Context, route string, s *sessions.SessionState) (bool, error) {
 	if s == nil {
 		return false, errors.New("session cannot be nil")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	response, err := a.client.Authorize(ctx, &pb.AuthorizeRequest{
-		Route:  route,
-		User:   s.User,
-		Email:  s.Email,
-		Groups: s.Groups,
+	response, err := a.client.Authorize(ctx, &pb.Identity{
+		Route:             route,
+		User:              s.User,
+		Email:             s.Email,
+		Groups:            s.Groups,
+		ImpersonateEmail:  s.ImpersonateEmail,
+		ImpersonateGroups: s.ImpersonateGroups,
 	})
 	return response.GetIsValid(), err
+}
+
+// IsAdmin takes a session and returns whether the user is an administrator
+func (a *AuthorizeGRPC) IsAdmin(ctx context.Context, s *sessions.SessionState) (bool, error) {
+	if s == nil {
+		return false, errors.New("session cannot be nil")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	response, err := a.client.IsAdmin(ctx, &pb.Identity{Email: s.Email, Groups: s.Groups})
+	return response.GetIsAdmin(), err
 }
 
 // Close tears down the ClientConn and all underlying connections.

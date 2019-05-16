@@ -49,17 +49,17 @@ func New(opts *config.Options) (*Authorize, error) {
 
 	return &Authorize{
 		SharedKey:      string(sharedKey),
-		identityAccess: NewIdentityWhitelist(opts.Policies),
+		identityAccess: NewIdentityWhitelist(opts.Policies, opts.Administrators),
 	}, nil
+}
+
+// NewIdentityWhitelist returns an indentity validator.
+// todo(bdd) : a radix-tree implementation is probably more efficient
+func NewIdentityWhitelist(policies []policy.Policy, admins []string) IdentityValidator {
+	return newIdentityWhitelistMap(policies, admins)
 }
 
 // ValidIdentity returns if an identity is authorized to access a route resource.
 func (a *Authorize) ValidIdentity(route string, identity *Identity) bool {
 	return a.identityAccess.Valid(route, identity)
-}
-
-// NewIdentityWhitelist returns an indentity validator.
-// todo(bdd) : a radix-tree implementation is probably more efficient
-func NewIdentityWhitelist(policies []policy.Policy) IdentityValidator {
-	return newIdentityWhitelistMap(policies)
 }

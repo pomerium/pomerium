@@ -10,6 +10,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/config"
 
@@ -92,9 +93,10 @@ type Proxy struct {
 	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
 
-	redirectURL  *url.URL
-	templates    *template.Template
-	routeConfigs map[string]*routeConfig
+	redirectURL     *url.URL
+	templates       *template.Template
+	routeConfigs    map[string]*routeConfig
+	refreshCooldown time.Duration
 }
 
 type routeConfig struct {
@@ -137,12 +139,13 @@ func New(opts *config.Options) (*Proxy, error) {
 		// services
 		AuthenticateURL: opts.AuthenticateURL,
 		// session state
-		cipher:       cipher,
-		csrfStore:    cookieStore,
-		sessionStore: cookieStore,
-		SharedKey:    opts.SharedKey,
-		redirectURL:  &url.URL{Path: "/.pomerium/callback"},
-		templates:    templates.New(),
+		cipher:          cipher,
+		csrfStore:       cookieStore,
+		sessionStore:    cookieStore,
+		SharedKey:       opts.SharedKey,
+		redirectURL:     &url.URL{Path: "/.pomerium/callback"},
+		templates:       templates.New(),
+		refreshCooldown: opts.RefreshCooldown,
 	}
 
 	for _, route := range opts.Policies {

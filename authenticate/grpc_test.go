@@ -61,22 +61,19 @@ func TestAuthenticate_Refresh(t *testing.T) {
 		{"good",
 			&identity.MockProvider{
 				RefreshResponse: &sessions.SessionState{
-					AccessToken:      "updated",
-					LifetimeDeadline: fixedDate,
-					RefreshDeadline:  fixedDate,
+					AccessToken:     "updated",
+					RefreshDeadline: fixedDate,
 				}},
 			&pb.Session{
-				AccessToken:      "original",
-				LifetimeDeadline: fixedProtoTime,
-				RefreshDeadline:  fixedProtoTime,
+				AccessToken:     "original",
+				RefreshDeadline: fixedProtoTime,
 			},
 			&pb.Session{
-				AccessToken:      "updated",
-				LifetimeDeadline: fixedProtoTime,
-				RefreshDeadline:  fixedProtoTime,
+				AccessToken:     "updated",
+				RefreshDeadline: fixedProtoTime,
 			},
 			false},
-		{"test error", &identity.MockProvider{RefreshError: errors.New("hi")}, &pb.Session{RefreshToken: "refresh token", RefreshDeadline: fixedProtoTime, LifetimeDeadline: fixedProtoTime}, nil, true},
+		{"test error", &identity.MockProvider{RefreshError: errors.New("hi")}, &pb.Session{RefreshToken: "refresh token", RefreshDeadline: fixedProtoTime}, nil, true},
 		{"test catch nil", nil, nil, nil, true},
 	}
 	for _, tt := range tests {
@@ -105,7 +102,6 @@ func TestAuthenticate_Authenticate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected to be able to create cipher: %v", err)
 	}
-	lt := time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC()
 	rt := time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC()
 	vtProto, err := ptypes.TimestampProto(rt)
 	if err != nil {
@@ -113,22 +109,19 @@ func TestAuthenticate_Authenticate(t *testing.T) {
 	}
 
 	want := &sessions.SessionState{
-		AccessToken:      "token1234",
-		RefreshToken:     "refresh4321",
-		LifetimeDeadline: lt,
-		RefreshDeadline:  rt,
-
-		Email: "user@domain.com",
-		User:  "user",
+		AccessToken:     "token1234",
+		RefreshToken:    "refresh4321",
+		RefreshDeadline: rt,
+		Email:           "user@domain.com",
+		User:            "user",
 	}
 
 	goodReply := &pb.Session{
-		AccessToken:      "token1234",
-		RefreshToken:     "refresh4321",
-		LifetimeDeadline: vtProto,
-		RefreshDeadline:  vtProto,
-		Email:            "user@domain.com",
-		User:             "user"}
+		AccessToken:     "token1234",
+		RefreshToken:    "refresh4321",
+		RefreshDeadline: vtProto,
+		Email:           "user@domain.com",
+		User:            "user"}
 	ciphertext, err := sessions.MarshalSession(want, c)
 	if err != nil {
 		t.Fatalf("expected to be encode session: %v", err)

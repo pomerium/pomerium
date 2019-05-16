@@ -3,7 +3,7 @@
 # Proxied routes and per-route policies are defined in a policy block
 policy: # Omit the 'policy' key if you are encoding it into an environment variable
   - from: httpbin.corp.beyondperimeter.com
-    to: http://httpbin
+    to: http://localhost:8000
     allowed_domains:
       - pomerium.io
     cors_allow_preflight: true
@@ -20,6 +20,6 @@ policy: # Omit the 'policy' key if you are encoding it into an environment varia
       - admins
       - developers
   - from: hello.corp.beyondperimeter.com
-    to: http://hello:8080
+    to: http://localhost:8080
     allowed_groups:
-      - admins
+      - admins@pomerium.io

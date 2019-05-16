@@ -208,21 +208,19 @@ func TestCookieStore_SaveSession(t *testing.T) {
 	}{
 		{"good",
 			&SessionState{
-				AccessToken:      "token1234",
-				RefreshToken:     "refresh4321",
-				LifetimeDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
-				RefreshDeadline:  time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
-				Email:            "user@domain.com",
-				User:             "user",
+				AccessToken:     "token1234",
+				RefreshToken:    "refresh4321",
+				RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
+				Email:           "user@domain.com",
+				User:            "user",
 			}, cipher, false, false},
 		{"bad cipher",
 			&SessionState{
-				AccessToken:      "token1234",
-				RefreshToken:     "refresh4321",
-				LifetimeDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
-				RefreshDeadline:  time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
-				Email:            "user@domain.com",
-				User:             "user",
+				AccessToken:     "token1234",
+				RefreshToken:    "refresh4321",
+				RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
+				Email:           "user@domain.com",
+				User:            "user",
 			}, mockCipher{}, true, true},
 	}
 	for _, tt := range tests {

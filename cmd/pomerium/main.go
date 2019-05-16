@@ -146,16 +146,14 @@ func wrapMiddleware(o *config.Options, mux *http.ServeMux) http.Handler {
 	c = c.Append(middleware.NewHandler(log.Logger))
 	c = c.Append(middleware.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
 		middleware.FromRequest(r).Debug().
-			Str("service", o.Services).
-			Str("method", r.Method).
-			Str("url", r.URL.String()).
-			Int("status", status).
-			Int("size", size).
 			Dur("duration", duration).
-			Str("user", r.Header.Get(proxy.HeaderUserID)).
+			Int("size", size).
+			Int("status", status).
 			Str("email", r.Header.Get(proxy.HeaderEmail)).
 			Str("group", r.Header.Get(proxy.HeaderGroups)).
-			// Str("sig", r.Header.Get(proxy.HeaderJWT)).
+			Str("method", r.Method).
+			Str("service", o.Services).
+			Str("url", r.URL.String()).
 			Msg("http-request")
 	}))
 	if o != nil && len(o.Headers) != 0 {

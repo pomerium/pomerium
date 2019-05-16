@@ -82,12 +82,11 @@ func New(providerName string, p *Provider) (a Authenticator, err error) {
 type Provider struct {
 	ProviderName string
 
-	RedirectURL        *url.URL
-	ClientID           string
-	ClientSecret       string
-	ProviderURL        string
-	Scopes             []string
-	SessionLifetimeTTL time.Duration
+	RedirectURL  *url.URL
+	ClientID     string
+	ClientSecret string
+	ProviderURL  string
+	Scopes       []string
 
 	// Some providers, such as google, require additional remote api calls to retrieve
 	// user details like groups. Provider is responsible for parsing.
@@ -156,14 +155,13 @@ func (p *Provider) Authenticate(code string) (*sessions.SessionState, error) {
 	}
 
 	return &sessions.SessionState{
-		IDToken:          rawIDToken,
-		AccessToken:      oauth2Token.AccessToken,
-		RefreshToken:     oauth2Token.RefreshToken,
-		RefreshDeadline:  oauth2Token.Expiry.Truncate(time.Second),
-		LifetimeDeadline: sessions.ExtendDeadline(p.SessionLifetimeTTL),
-		Email:            claims.Email,
-		User:             idToken.Subject,
-		Groups:           claims.Groups,
+		IDToken:         rawIDToken,
+		AccessToken:     oauth2Token.AccessToken,
+		RefreshToken:    oauth2Token.RefreshToken,
+		RefreshDeadline: oauth2Token.Expiry.Truncate(time.Second),
+		Email:           claims.Email,
+		User:            idToken.Subject,
+		Groups:          claims.Groups,
 	}, nil
 }
 

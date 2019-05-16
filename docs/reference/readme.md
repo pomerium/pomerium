@@ -13,7 +13,7 @@ If you are coming from a kubernetes or docker background this should feel famili
 - [Kubernetes: Config Maps](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/)
 - [Docker: Environment variables](https://docs.docker.com/compose/environment-variables/)
 
-In general, any setting specified by environment variable can also be present in the optional config file as the same name but lower cased.  Environment variables take precedence.  
+In general, any setting specified by environment variable can also be present in the optional config file as the same name but lower cased. Environment variables take precedence.
 
 ## Global settings
 
@@ -39,6 +39,15 @@ Service mode sets the pomerium service(s) to run. If testing, you may want to se
 - Required
 
 Address specifies the host and port to serve HTTPS and gRPC requests from. If empty, `:https`/`:443` is used.
+
+### Administrators
+
+- Environmental Variable: `ADMINISTRATORS`
+- Config File Key: `administrators`
+- Type: slice of `string`
+- Example: `"admin@example.com,admin2@example.com"`
+
+Administrative users are [super user](https://en.wikipedia.org/wiki/Superuser) that can sign in as another user or group. User impersonation allows administrators to temporarily sign in as a different user.
 
 ### Shared Secret
 
@@ -139,7 +148,7 @@ If set, the HTTP Redirect Address specifies the host and port to redirect http t
 - Type: [base64 encoded] `string` or inline policy structure in config file
 - Required
 
-Policy contains route specific settings, and access control details. If you are configuring via POLICY environment variable, just the contents of the policy needs to be passed.  If you are configuring via file, the policy should be present under the policy key.  For example,
+Policy contains route specific settings, and access control details. If you are configuring via POLICY environment variable, just the contents of the policy needs to be passed. If you are configuring via file, the policy should be present under the policy key. For example,
 
 <<< @/config-policy-only.yaml
 
@@ -206,8 +215,7 @@ Allow unauthenticated HTTP OPTIONS requests as [per the CORS spec](https://devel
 - Optional
 - Default: `false`
 
-**Use with caution:** Allow all requests for a given route, bypassing authentication and authorization. 
-Suitable for publicly exposed web services.
+**Use with caution:** Allow all requests for a given route, bypassing authentication and authorization. Suitable for publicly exposed web services.
 
 If this setting is enabled, no whitelists (e.g. Allowed Users) should be provided in this route.
 
@@ -373,6 +381,16 @@ Certificate Authority is set when behind-the-ingress service communication uses 
 By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
 
 ![pomerium security headers](./security-headers.png)
+
+### Refresh Cooldown
+
+- Environmental Variable: `REFRESH_COOLDOWN`
+- Config File Key: `refresh_cooldown`
+- Type: [Duration](https://golang.org/pkg/time/#Duration) `string`
+- Example: `10m`, `1h45m`
+- Default: `5m`
+
+Refresh cooldown is the minimum amount of time between allowed manually refreshed sessions.
 
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable

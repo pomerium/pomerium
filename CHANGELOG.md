@@ -1,5 +1,36 @@
 # Pomerium Changelog
 
+## vUNRELEASED
+
+### NEW
+
+- Add user dashboard containing information about the current user's session. [GH-123]
+- Add functionality allowing users to initiate manual refresh of their session. This is helpful when a user's access control details are updated but their session hasn't updated yet. To prevent abuse, manual refresh is gated by a cooldown (`REFRESH_COOLDOWN`) which defaults to five minutes. [GH-73]
+- Add Administrator (super user) account support (`ADMINISTRATORS`). [GH-110]
+- Add feature that allows Administrators to impersonate / sign-in as another user from the user dashboard. [GH-110]
+- Add docker images and builds for ARM. [GH-95]
+- Add support for public, unauthenticated routes. [GH-129]
+
+### CHANGED
+
+- User state is now maintained and scoped at the domain level vs at the route level. [GH-128]
+- Error pages contain a link to sign out from the current user session. [GH-100]
+- Removed `LifetimeDeadline` from `sessions.SessionState`.
+- Removed favicon specific request handling. [GH-131]
+- Headers are now configurable via the `HEADERS` configuration variable. [GH-108]
+- Refactored proxy and authenticate services to share the same session state cookie. [GH-131]
+- Removed instances of extraneous session state saves. [GH-131]
+- Changed default behavior when no session is found. Users are now redirected to login instead of being shown an error page.[GH-131]
+- Updated routes such that all http handlers are now wrapped with a standard set of middleware. Headers, request id, loggers, and health checks middleware are now applied to all routes including 4xx and 5xx responses. [GH-116]
+- Changed docker images to be built from [distroless](https://github.com/GoogleContainerTools/distroless). This fixed an issue with `nsswitch` [GH-97], includes `ca-certificates` and limits the attack surface area of our images. [GH-101]
+- Changed HTTP to HTTPS redirect server to be user configurable via `HTTP_REDIRECT_ADDR`. [GH-103]
+- `Content-Security-Policy` hash updated to match new UI assets.
+
+### FIXED
+
+- Fixed an issue where policy and routes were being pre-processed incorrectly. [GH-132]
+- Fixed an issue where `golint` was not being found in our docker image. [GH-121]
+
 ## v0.0.4
 
 ### CHANGED
