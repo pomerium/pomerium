@@ -58,7 +58,6 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 
 ## Helm
 
-- Uses Google Kubernetes Engine's built-in ingress to do [HTTPS load balancing]
 - HTTPS (TLS) between client, load balancer, and services
 - gRPC requests are routed behind the load balancer
 - Routes default to hosted version of httpbin.org
@@ -66,7 +65,15 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 
 #### helm_gke.sh
 
+- Uses Google Kubernetes Engine's built-in ingress to do [HTTPS load balancing]
+
 <<< @/scripts/helm_gke.sh
+
+#### helm_aws.sh
+
+- Uses Amazon Elastic Container Service
+
+<<< @/scripts/helm_aws.sh
 
 ## Kubernetes
 
