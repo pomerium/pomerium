@@ -10,9 +10,8 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-	"time"
 
-	"github.com/pomerium/envconfig"
+	"github.com/pomerium/pomerium/internal/config"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -33,71 +32,9 @@ const (
 	HeaderGroups = "x-pomerium-authenticated-user-groups"
 )
 
-// Options represents the configurations available for the proxy service.
-type Options struct {
-	Policy     string `envconfig:"POLICY"`
-	PolicyFile string `envconfig:"POLICY_FILE"`
-
-	// AuthenticateURL represents the externally accessible http endpoints
-	// used for authentication requests and callbacks
-	AuthenticateURL *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
-	// AuthenticateInternalAddr is used as an override when using a load balancer
-	// or ingress that does not natively support routing gRPC.
-	AuthenticateInternalAddr string `envconfig:"AUTHENTICATE_INTERNAL_URL"`
-
-	// AuthorizeURL is the routable destination of the authorize service's
-	// gRPC endpoint. NOTE: As above, many load balancers do not support
-	// externally routed gRPC so this may be an internal location.
-	AuthorizeURL *url.URL `envconfig:"AUTHORIZE_SERVICE_URL"`
-
-	// Settings to enable custom behind-the-ingress service communication
-	OverrideCertificateName string `envconfig:"OVERRIDE_CERTIFICATE_NAME"`
-	CA                      string `envconfig:"CERTIFICATE_AUTHORITY"`
-	CAFile                  string `envconfig:"CERTIFICATE_AUTHORITY_FILE"`
-
-	// SigningKey is a base64 encoded private key used to add a JWT-signature.
-	// https://www.pomerium.io/docs/signed-headers.html
-	SigningKey string `envconfig:"SIGNING_KEY"`
-	// SharedKey is a 32 byte random key used to authenticate access between services.
-	SharedKey string `envconfig:"SHARED_SECRET"`
-
-	// Session/Cookie management
-	CookieName     string
-	CookieSecret   string        `envconfig:"COOKIE_SECRET"`
-	CookieDomain   string        `envconfig:"COOKIE_DOMAIN"`
-	CookieSecure   bool          `envconfig:"COOKIE_SECURE"`
-	CookieHTTPOnly bool          `envconfig:"COOKIE_HTTP_ONLY"`
-	CookieExpire   time.Duration `envconfig:"COOKIE_EXPIRE"`
-	CookieRefresh  time.Duration `envconfig:"COOKIE_REFRESH"`
-
-	// Sub-routes
-	Routes                 map[string]string `envconfig:"ROUTES"`
-	DefaultUpstreamTimeout time.Duration     `envconfig:"DEFAULT_UPSTREAM_TIMEOUT"`
-}
-
-// NewOptions returns a new options struct
-var defaultOptions = &Options{
-	CookieName:             "_pomerium_proxy",
-	CookieHTTPOnly:         true,
-	CookieSecure:           true,
-	CookieExpire:           time.Duration(14) * time.Hour,
-	CookieRefresh:          time.Duration(30) * time.Minute,
-	DefaultUpstreamTimeout: time.Duration(30) * time.Second,
-}
-
-// OptionsFromEnvConfig builds the identity provider service's configuration
-// options from provided environmental variables
-func OptionsFromEnvConfig() (*Options, error) {
-	o := defaultOptions
-	if err := envconfig.Process("", o); err != nil {
-		return nil, err
-	}
-	return o, nil
-}
-
-// Validate checks that proper configuration settings are set to create
+// ValidateOptions checks that proper configuration settings are set to create
 // a proper Proxy instance
-func (o *Options) Validate() error {
+func ValidateOptions(o *config.Options) error {
 	decoded, err := base64.StdEncoding.DecodeString(o.SharedKey)
 	if err != nil {
 		return fmt.Errorf("authorize: `SHARED_SECRET` setting is invalid base64: %v", err)
@@ -187,11 +124,11 @@ type routeConfig struct {
 
 // New takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
-func New(opts *Options) (*Proxy, error) {
+func New(opts *config.Options) (*Proxy, error) {
 	if opts == nil {
 		return nil, errors.New("options cannot be nil")
 	}
-	if err := opts.Validate(); err != nil {
+	if err := ValidateOptions(opts); err != nil {
 		return nil, err
 	}
 	// error explicitly handled by validate
@@ -203,7 +140,7 @@ func New(opts *Options) (*Proxy, error) {
 
 	cookieStore, err := sessions.NewCookieStore(
 		&sessions.CookieStoreOptions{
-			Name:           opts.CookieName,
+			Name:           opts.ProxyCookieName,
 			CookieDomain:   opts.CookieDomain,
 			CookieSecure:   opts.CookieSecure,
 			CookieHTTPOnly: opts.CookieHTTPOnly,
@@ -326,11 +263,11 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 }
 
 // NewReverseProxyHandler applies handler specific options to a given route.
-func NewReverseProxyHandler(o *Options, proxy *httputil.ReverseProxy, route *policy.Policy) (http.Handler, error) {
+func NewReverseProxyHandler(o *config.Options, proxy *httputil.ReverseProxy, route *policy.Policy) (http.Handler, error) {
 	up := &UpstreamProxy{
 		name:       route.Destination.Host,
 		handler:    proxy,
-		cookieName: o.CookieName,
+		cookieName: o.ProxyCookieName,
 	}
 	if len(o.SigningKey) != 0 {
 		decodedSigningKey, _ := base64.StdEncoding.DecodeString(o.SigningKey)

@@ -1,4 +1,4 @@
-package main // import "github.com/pomerium/pomerium/cmd/pomerium"
+package config
 
 import (
 	"os"
@@ -7,7 +7,7 @@ import (
 )
 
 func Test_optionsFromEnvConfig(t *testing.T) {
-	good := defaultOptions
+	good := NewOptions()
 	good.SharedKey = "test"
 	tests := []struct {
 		name     string
@@ -31,7 +31,7 @@ func Test_optionsFromEnvConfig(t *testing.T) {
 			if tt.envKey != "SHARED_SECRET" {
 				os.Setenv("SHARED_SECRET", "test")
 			}
-			got, err := optionsFromEnvConfig()
+			got, err := OptionsFromEnvConfig()
 			os.Unsetenv(tt.envKey)
 
 			if (err != nil) != tt.wantErr {
@@ -39,7 +39,7 @@ func Test_optionsFromEnvConfig(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("optionsFromEnvConfig() = got %v, want %v", got, tt.want)
+				t.Errorf("optionsFromEnvConfig() = got %#v,\n want %#v", got, tt.want)
 			}
 		})
 	}
@@ -60,7 +60,7 @@ func Test_isValidService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isValidService(tt.service); got != tt.want {
+			if got := IsValidService(tt.service); got != tt.want {
 				t.Errorf("isValidService() = %v, want %v", got, tt.want)
 			}
 		})
@@ -83,7 +83,7 @@ func Test_isAuthenticate(t *testing.T) {
 	for _, tt := range tests {
 
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isAuthenticate(tt.service); got != tt.want {
+			if got := IsAuthenticate(tt.service); got != tt.want {
 				t.Errorf("isAuthenticate() = %v, want %v", got, tt.want)
 			}
 		})

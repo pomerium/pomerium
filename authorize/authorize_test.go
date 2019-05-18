@@ -4,40 +4,10 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"reflect"
 	"testing"
-)
 
-func TestOptionsFromEnvConfig(t *testing.T) {
-	t.Parallel()
-	os.Clearenv()
-	tests := []struct {
-		name     string
-		want     *Options
-		envKey   string
-		envValue string
-		wantErr  bool
-	}{
-		{"shared secret missing", nil, "", "", true},
-		{"with secret", &Options{SharedKey: "aGkK"}, "SHARED_SECRET", "aGkK", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.envKey != "" {
-				os.Setenv(tt.envKey, tt.envValue)
-				defer os.Unsetenv(tt.envKey)
-			}
-			got, err := OptionsFromEnvConfig()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("OptionsFromEnvConfig() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("OptionsFromEnvConfig() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+	"github.com/pomerium/pomerium/internal/config"
+)
 
 func TestNew(t *testing.T) {
 	t.Parallel()
@@ -76,7 +46,7 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := &Options{SharedKey: tt.SharedKey, Policy: tt.Policy, PolicyFile: tt.PolicyFile}
+			o := &config.Options{SharedKey: tt.SharedKey, Policy: tt.Policy, PolicyFile: tt.PolicyFile}
 			if tt.name == "nil options" {
 				o = nil
 			}
