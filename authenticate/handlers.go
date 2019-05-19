@@ -210,13 +210,13 @@ func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 
 	// verify redirect uri is from the root domain
 	if !middleware.SameSubdomain(authRedirectURL, a.RedirectURL) {
-		httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
+		httputil.ErrorResponse(w, r, "Invalid redirect parameter: redirect uri not from the root domain", http.StatusBadRequest)
 		return
 	}
 	// verify proxy url is from the root domain
 	proxyRedirectURL, err := url.Parse(authRedirectURL.Query().Get("redirect_uri"))
 	if err != nil || !middleware.SameSubdomain(proxyRedirectURL, a.RedirectURL) {
-		httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
+		httputil.ErrorResponse(w, r, "Invalid redirect parameter: proxy url not from the root domain", http.StatusBadRequest)
 		return
 	}
 
@@ -224,7 +224,7 @@ func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	proxyRedirectSig := authRedirectURL.Query().Get("sig")
 	ts := authRedirectURL.Query().Get("ts")
 	if !middleware.ValidSignature(proxyRedirectURL.String(), proxyRedirectSig, ts, a.SharedKey) {
-		httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
+		httputil.ErrorResponse(w, r, "Invalid redirect parameter: invalid signature", http.StatusBadRequest)
 		return
 	}
 
