@@ -24,6 +24,7 @@ import (
 )
 
 var versionFlag = flag.Bool("version", false, "prints the version")
+var configFile = flag.String("config", "", "Specify configuration file location")
 
 func main() {
 	flag.Parse()
@@ -31,7 +32,7 @@ func main() {
 		fmt.Println(version.FullVersion())
 		os.Exit(0)
 	}
-	opt, err := config.OptionsFromEnvConfig()
+	opt, err := parseOptions(*configFile)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: options")
 	}
@@ -169,8 +170,8 @@ func wrapMiddleware(o *config.Options, mux *http.ServeMux) http.Handler {
 	return c.Then(mux)
 }
 
-func parseOptions() (*config.Options, error) {
-	o, err := config.OptionsFromEnvConfig()
+func parseOptions(configFile string) (*config.Options, error) {
+	o, err := config.OptionsFromViper(configFile)
 	if err != nil {
 		return nil, err
 	}

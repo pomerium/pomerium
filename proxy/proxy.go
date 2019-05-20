@@ -42,29 +42,9 @@ func ValidateOptions(o *config.Options) error {
 	if len(decoded) != 32 {
 		return fmt.Errorf("authorize: `SHARED_SECRET` want 32 but got %d bytes", len(decoded))
 	}
-	if len(o.Routes) != 0 {
-		return errors.New("routes setting is deprecated, use policy instead")
+	if len(o.Policies) == 0 {
+		return errors.New("missing setting: no policies defined")
 	}
-	if o.Policy == "" && o.PolicyFile == "" {
-		return errors.New("proxy: either `POLICY` or `POLICY_FILE` must be non-nil")
-	}
-	if o.Policy != "" {
-		confBytes, err := base64.StdEncoding.DecodeString(o.Policy)
-		if err != nil {
-			return fmt.Errorf("proxy: `POLICY` is invalid base64 %v", err)
-		}
-		_, err = policy.FromConfig(confBytes)
-		if err != nil {
-			return fmt.Errorf("proxy: `POLICY` %v", err)
-		}
-	}
-	if o.PolicyFile != "" {
-		_, err = policy.FromConfigFile(o.PolicyFile)
-		if err != nil {
-			return fmt.Errorf("proxy: `POLICY_FILE` %v", err)
-		}
-	}
-
 	if o.AuthenticateURL == nil {
 		return errors.New("missing setting: authenticate-service-url")
 	}
@@ -164,14 +144,8 @@ func New(opts *config.Options) (*Proxy, error) {
 		redirectURL:  &url.URL{Path: "/.pomerium/callback"},
 		templates:    templates.New(),
 	}
-	var policies []policy.Policy
-	if opts.Policy != "" {
-		confBytes, _ := base64.StdEncoding.DecodeString(opts.Policy)
-		policies, _ = policy.FromConfig(confBytes)
-	} else {
-		policies, _ = policy.FromConfigFile(opts.PolicyFile)
-	}
-	for _, route := range policies {
+
+	for _, route := range opts.Policies {
 		proxy := NewReverseProxy(route.Destination)
 		handler, err := NewReverseProxyHandler(opts, proxy, &route)
 		if err != nil {

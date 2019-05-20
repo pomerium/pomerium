@@ -1,0 +1,89 @@
+# Main configuration flags
+address: ":8443"     # optional, default is 443
+pomerium_debug: true # optional, default is false
+service: "all"       # optional, default is all
+# log_level: "info"                     # optional, default is debug
+
+authenticate_service_url: https://authenticate.corp.pomerium.io:8443
+authorize_service_url: https://authorize.corp.pomerium.io:8443
+
+# Certificates can be loaded as files or base64 encoded bytes. If neither is set, a
+# pomerium will attempt to locate a pair in the root directory
+certificate_file: "./cert.pem"        # optional, defaults to `./cert.pem`
+certificate_key_file: "./privkey.pem" # optional, defaults to `./certprivkey.pem`
+certificate_authority_file: "./cert.pem"
+# certificate: |
+#  "xxxxxx"                 # base64 encoded cert, eg. `base64 -i cert.pem`
+# certificate_key: |
+#  "xxxx"               # base64 encoded key, eg. `base64 -i privkey.pem`
+
+# Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
+shared_secret: hsJIQsx9KKx4qVlggg/T3AuLTmVu0uHhwTQgMPlVs7U=
+cookie_secret: WwMtDXWaRDMBQCylle8OJ+w4kLIDIGd8W3cB4/zFFtg=
+# If set, a JWT based signature is appended to each request header `x-pomerium-jwt-assertion`
+# signing_key: "Replace with base64'd private key from ./scripts/self-signed-sign-key.sh"
+
+# Identity Provider Settings
+
+# Azure
+# idp_provider: "azure"
+# idp_provider_url: "https://login.microsoftonline.com/REPLACEME/v2.0"
+# idp_client_id: "REPLACEME
+# idp_client_secret: "REPLACEME"
+
+# Gitlab
+# idp_provider: "gitlab"
+# idp_provider_url: "https://gitlab.onprem.example.com" # optional, defaults to `https://gitlab.com`
+# idp_client_id: "REPLACEME
+# idp_client_secret: "REPLACEME"
+
+## GOOGLE
+# idp_provider: "google"
+# idp_provider_url: "https://accounts.google.com" # optional for google
+# idp_client_id: "REPLACEME
+# idp_client_secret: "REPLACEME
+
+# IF GSUITE and you want to get user groups you will need to set a service account
+# see identity provider docs for gooogle for more info :
+# idp_service_account: $(echo '{"impersonate_user": "bdd@pomerium.io"}' | base64)
+
+# OKTA
+# idp_provider: "okta"
+# idp_client_id: "REPLACEME"
+# idp_client_secret: "replaceme"
+# idp_provider_url: "https://REPLACEME.oktapreview.com/oauth2/default"
+
+# OneLogin
+# idp_provider: "onelogin"
+# idp_client_id: "REPLACEME"
+# idp_client_secret: "REPLACEME"
+# idp_provider_url: "https://openid-connect.onelogin.com/oidc" #optional, defaults to `https://openid-connect.onelogin.com/oidc`
+
+# scope: "openid email" # generally, you want the default OIDC scopes
+
+# Proxied routes and per-route policies are defined in a policy block
+policy:
+  - from: httpbin.corp.beyondperimeter.com
+    to: http://httpbin
+    allowed_domains:
+      - pomerium.io
+    cors_allow_preflight: true
+    timeout: 30s
+  - from: external-httpbin.corp.beyondperimeter.com
+    to: httpbin.org
+    allowed_domains:
+      - gmail.com
+  - from: weirdlyssl.corp.beyondperimeter.com
+    to: http://neverssl.com
+    allowed_users:
+      - bdd@pomerium.io
+    allowed_groups:
+      - admins
+      - developers
+  - from: hello.corp.beyondperimeter.com
+    to: http://hello:8080
+    allowed_groups:
+      - admins
+  - from: external-search.corp.beyondperimeter.com
+    to: google.com
+    allow_public_unauthenticated_access: true
