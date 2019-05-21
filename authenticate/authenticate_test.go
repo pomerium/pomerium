@@ -11,14 +11,14 @@ import (
 func testOptions() *config.Options {
 	redirectURL, _ := url.Parse("https://example.com/oauth2/callback")
 	return &config.Options{
-		AuthenticateURL:        redirectURL,
-		SharedKey:              "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
-		ClientID:               "test-client-id",
-		ClientSecret:           "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
-		CookieSecret:           "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
-		CookieRefresh:          time.Duration(1) * time.Hour,
-		CookieExpire:           time.Duration(168) * time.Hour,
-		AuthenticateCookieName: "pomerium",
+		AuthenticateURL: redirectURL,
+		SharedKey:       "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
+		ClientID:        "test-client-id",
+		ClientSecret:    "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
+		CookieSecret:    "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
+		CookieRefresh:   time.Duration(1) * time.Hour,
+		CookieExpire:    time.Duration(168) * time.Hour,
+		CookieName:      "pomerium",
 	}
 }
 

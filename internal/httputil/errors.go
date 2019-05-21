@@ -2,17 +2,11 @@ package httputil // import "github.com/pomerium/pomerium/internal/httputil"
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/pomerium/pomerium/internal/templates"
-)
-
-var (
-	// ErrUserNotAuthorized is an error for unauthorized users.
-	ErrUserNotAuthorized = errors.New("user not authorized")
 )
 
 // HTTPError stores the status code and a message for a given HTTP error.

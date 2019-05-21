@@ -2,7 +2,6 @@ package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -16,11 +15,6 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/pomerium/pomerium/internal/sessions"
-)
-
-var (
-	// ErrUserNotAuthorized is set when user is not authorized to access a resource.
-	ErrUserNotAuthorized = errors.New("user not authorized")
 )
 
 // StateParameter holds the redirect id along with the session id.
@@ -38,7 +32,6 @@ func (p *Proxy) Handler() http.Handler {
 		return ok
 	}))
 	mux := http.NewServeMux()
-	mux.HandleFunc("/favicon.ico", p.Favicon)
 	mux.HandleFunc("/robots.txt", p.RobotsTxt)
 	mux.HandleFunc("/.pomerium/sign_out", p.SignOut)
 	mux.HandleFunc("/.pomerium/callback", p.OAuthCallback)
@@ -53,21 +46,10 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
-// Favicon will proxy the request as usual if the user is already authenticated but responds
-// with a 404 otherwise, to avoid spurious and confusing authenticate attempts when a browser
-// automatically requests the favicon on an error page.
-func (p *Proxy) Favicon(w http.ResponseWriter, r *http.Request) {
-	err := p.Authenticate(w, r)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	p.Proxy(w, r)
-}
-
-// SignOut redirects the request to the sign out url.
+// SignOut redirects the request to the sign out url. It's the responsibility
+// of the authenticate service to revoke the remote session and clear
+// the local session state.
 func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
-	p.sessionStore.ClearSession(w, r)
 	redirectURL := &url.URL{
 		Scheme: "https",
 		Host:   r.Host,
@@ -198,7 +180,6 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 // Conditions should be few in number and have strong justifications.
 func (p *Proxy) shouldSkipAuthentication(r *http.Request) bool {
 	pol, foundPolicy := p.policy(r)
-
 	if isCORSPreflight(r) && foundPolicy && pol.CORSAllowPreflight {
 		log.FromRequest(r).Debug().Msg("proxy: skipping authentication for valid CORS preflight request")
 		return true
@@ -221,13 +202,12 @@ func isCORSPreflight(r *http.Request) bool {
 // or starting the authenticate service for validation if not.
 func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	if !p.shouldSkipAuthentication(r) {
-		err := p.Authenticate(w, r)
-		// If the authenticate is not successful we proceed to start the OAuth Flow with
-		// OAuthStart. If successful, we proceed to proxy to the configured upstream.
+		session, err := p.sessionStore.LoadSession(r)
 		if err != nil {
 			switch err {
 			case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
-				log.FromRequest(r).Debug().Err(err).Msg("proxy: starting auth flow")
+				log.FromRequest(r).Debug().Err(err).Msg("proxy: invalid session")
+				p.sessionStore.ClearSession(w, r)
 				p.OAuthStart(w, r)
 				return
 			default:
@@ -236,18 +216,24 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		// remove dupe session call
-		session, err := p.sessionStore.LoadSession(r)
+
+		err = p.authenticate(w, r, session)
 		if err != nil {
 			p.sessionStore.ClearSession(w, r)
+			log.Debug().Err(err).Msg("proxy: user unauthenticated")
+			httputil.ErrorResponse(w, r, "User unauthenticated", http.StatusForbidden)
 			return
 		}
 		authorized, err := p.AuthorizeClient.Authorize(r.Context(), r.Host, session)
-		if !authorized || err != nil {
+		if err != nil || !authorized {
 			log.FromRequest(r).Warn().Err(err).Msg("proxy: user unauthorized")
 			httputil.ErrorResponse(w, r, "Access unauthorized", http.StatusForbidden)
 			return
 		}
+		// append
+		r.Header.Set(HeaderUserID, session.User)
+		r.Header.Set(HeaderEmail, session.Email)
+		r.Header.Set(HeaderGroups, strings.Join(session.Groups, ","))
 	}
 
 	// We have validated the users request and now proxy their request to the provided upstream.
@@ -289,35 +275,22 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 
 // Authenticate authenticates a request by checking for a session cookie, and validating its expiration,
 // clearing the session cookie if it's invalid and returning an error if necessary..
-func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error) {
-	session, err := p.sessionStore.LoadSession(r)
-	if err != nil {
-		p.sessionStore.ClearSession(w, r)
-		return err
-	}
-
+func (p *Proxy) authenticate(w http.ResponseWriter, r *http.Request, session *sessions.SessionState) error {
 	if session.RefreshPeriodExpired() {
-		// AccessToken's usually expire after 60 or so minutes. If offline_access scope is set, a
-		// refresh token (which doesn't change) can be used to request a new access-token. If access
-		// is revoked by identity provider, or no refresh token is set, request will return an error
-		session, err = p.AuthenticateClient.Refresh(r.Context(), session)
+		session, err := p.AuthenticateClient.Refresh(r.Context(), session)
 		if err != nil {
-			p.sessionStore.ClearSession(w, r)
-			log.FromRequest(r).Warn().Err(err).Msg("proxy: refresh failed")
-			return err
+			return fmt.Errorf("proxy: session refresh failed : %v", err)
+		}
+		err = p.sessionStore.SaveSession(w, r, session)
+		if err != nil {
+			return fmt.Errorf("proxy: refresh failed : %v", err)
+		}
+	} else {
+		valid, err := p.AuthenticateClient.Validate(r.Context(), session.IDToken)
+		if err != nil || !valid {
+			return fmt.Errorf("proxy: session valid: %v : %v", valid, err)
 		}
 	}
-
-	err = p.sessionStore.SaveSession(w, r, session)
-	if err != nil {
-		p.sessionStore.ClearSession(w, r)
-		return err
-	}
-	// pass user & user-email details to client applications
-	r.Header.Set(HeaderUserID, session.User)
-	r.Header.Set(HeaderEmail, session.Email)
-	r.Header.Set(HeaderGroups, strings.Join(session.Groups, ","))
-	// This user has been OK'd. Allow the request!
 	return nil
 }
 

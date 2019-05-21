@@ -70,14 +70,13 @@ type Options struct {
 
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
-	AuthenticateCookieName string
-	ProxyCookieName        string
-	CookieSecret           string        `envconfig:"COOKIE_SECRET"`
-	CookieDomain           string        `envconfig:"COOKIE_DOMAIN"`
-	CookieSecure           bool          `envconfig:"COOKIE_SECURE"`
-	CookieHTTPOnly         bool          `envconfig:"COOKIE_HTTP_ONLY"`
-	CookieExpire           time.Duration `envconfig:"COOKIE_EXPIRE"`
-	CookieRefresh          time.Duration `envconfig:"COOKIE_REFRESH"`
+	CookieName     string        `envconfig:"COOKIE_NAME"`
+	CookieSecret   string        `envconfig:"COOKIE_SECRET"`
+	CookieDomain   string        `envconfig:"COOKIE_DOMAIN"`
+	CookieSecure   bool          `envconfig:"COOKIE_SECURE"`
+	CookieHTTPOnly bool          `envconfig:"COOKIE_HTTP_ONLY"`
+	CookieExpire   time.Duration `envconfig:"COOKIE_EXPIRE"`
+	CookieRefresh  time.Duration `envconfig:"COOKIE_REFRESH"`
 
 	// Identity provider configuration variables as specified by RFC6749
 	// https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
@@ -122,12 +121,11 @@ func NewOptions() *Options {
 		Debug:                  false,
 		LogLevel:               "debug",
 		Services:               "all",
-		AuthenticateCookieName: "_pomerium_authenticate",
 		CookieHTTPOnly:         true,
 		CookieSecure:           true,
 		CookieExpire:           time.Duration(14) * time.Hour,
 		CookieRefresh:          time.Duration(30) * time.Minute,
-		ProxyCookieName:        "_pomerium_proxy",
+		CookieName:             "_pomerium",
 		DefaultUpstreamTimeout: time.Duration(30) * time.Second,
 		Headers: map[string]string{
 			"X-Content-Type-Options":    "nosniff",

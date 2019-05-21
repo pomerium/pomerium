@@ -147,19 +147,6 @@ func TestProxy_GetSignInURL(t *testing.T) {
 	}
 }
 
-func TestProxy_Favicon(t *testing.T) {
-	proxy, err := New(testOptions())
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := httptest.NewRequest("GET", "/favicon.ico", nil)
-	rr := httptest.NewRecorder()
-	proxy.Favicon(rr, req)
-	if status := rr.Code; status != http.StatusNotFound {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
-	}
-}
-
 func TestProxy_Signout(t *testing.T) {
 	proxy, err := New(testOptions())
 	if err != nil {
@@ -349,14 +336,16 @@ func TestProxy_Proxy(t *testing.T) {
 		RefreshDeadline:  time.Now().Add(10 * time.Second),
 	}
 
-	opts := testOptions()
-	optsCORS := testOptionsWithCORS()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "RVSI FILIVS CAISAR")
+	}))
+	defer ts.Close()
 
+	opts := testOptionsTestServer(ts.URL)
+	optsCORS := testOptionsWithCORS(ts.URL)
 	defaultHeaders, goodCORSHeaders, badCORSHeaders := http.Header{}, http.Header{}, http.Header{}
-
 	goodCORSHeaders.Set("origin", "anything")
 	goodCORSHeaders.Set("access-control-request-method", "anything")
-
 	// missing "Origin"
 	badCORSHeaders.Set("access-control-request-method", "anything")
 
@@ -372,16 +361,22 @@ func TestProxy_Proxy(t *testing.T) {
 		wantStatus    int
 	}{
 		// weirdly, we want 503 here because that means proxy is trying to route a domain (example.com) that we dont control. Weird. I know.
-		{"good", opts, http.MethodGet, defaultHeaders, "https://corp.example.notatld/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadGateway},
-		{"good cors preflight", optsCORS, http.MethodOptions, goodCORSHeaders, "https://corp.example.notatld/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
+		{"good", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
+		{"good cors preflight", optsCORS, http.MethodOptions, goodCORSHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusOK},
 		// same request as above, but with cors_allow_preflight=false in the policy
-		{"valid cors, but not allowed", opts, http.MethodOptions, goodCORSHeaders, "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
+		{"valid cors, but not allowed", opts, http.MethodOptions, goodCORSHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
 		// cors allowed, but the request is missing proper headers
-		{"invalid cors headers", optsCORS, http.MethodOptions, badCORSHeaders, "https://corp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
-		{"unexpected error", opts, http.MethodGet, defaultHeaders, "https://corp.example.com/test", &sessions.MockSessionStore{LoadError: errors.New("ok")}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusInternalServerError},
+		{"invalid cors headers", optsCORS, http.MethodOptions, badCORSHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
+		{"unexpected error", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{LoadError: errors.New("ok")}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusInternalServerError},
 		// redirect to start auth process
-		{"unknown host", opts, http.MethodGet, defaultHeaders, "https://notcorp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusNotFound},
-		{"user forbidden", opts, http.MethodGet, defaultHeaders, "https://notcorp.example.com/test", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
+		{"unknown host", opts, http.MethodGet, defaultHeaders, "https://nothttpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusNotFound},
+		{"user forbidden", opts, http.MethodGet, defaultHeaders, "https://nothttpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
+		// authenticate errors
+		{"no session error", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{LoadError: http.ErrNoCookie, Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusFound},
+		{"weird load session error", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{LoadError: errors.New("weird"), Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusInternalServerError},
+		{"failed refreshed session", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: &sessions.SessionState{RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthenticate{RefreshError: errors.New("refresh error")}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusForbidden},
+		{"cannot resave refreshed session", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{SaveError: errors.New("weird"), Session: &sessions.SessionState{RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusForbidden},
+		{"authenticate validation error", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: false}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusForbidden},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -399,138 +394,13 @@ func TestProxy_Proxy(t *testing.T) {
 			w := httptest.NewRecorder()
 			p.Proxy(w, r)
 			if status := w.Code; status != tt.wantStatus {
-				t.Errorf("handler returned wrong status code: got %v want %v \n body %s", status, tt.wantStatus, w.Body.String())
+				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantStatus)
+				t.Errorf("\n%+v", w.Body.String())
+				t.Errorf("\n%+v", opts)
+				t.Errorf("\n%+v", ts.URL)
+
 			}
 
-		})
-	}
-}
-
-func TestProxy_Authenticate(t *testing.T) {
-	configBlob := `[{"from":"corp.example.com","to":"example.com"}]` //valid yaml
-	policy := base64.URLEncoding.EncodeToString([]byte(configBlob))
-
-	goodSession := &sessions.SessionState{
-		User:             "user",
-		Email:            "email@email.com",
-		Groups:           []string{"group1"},
-		AccessToken:      "AccessToken",
-		RefreshToken:     "RefreshToken",
-		LifetimeDeadline: time.Now().Add(10 * time.Second),
-		RefreshDeadline:  time.Now().Add(10 * time.Second),
-	}
-	testAuth := clients.MockAuthenticate{
-		RedeemResponse: goodSession,
-	}
-
-	tests := []struct {
-		name          string
-		host          string
-		mux           string
-		session       sessions.SessionStore
-		authenticator clients.Authenticator
-		wantErr       bool
-	}{
-		{"cannot save session",
-			"https://corp.example.com/",
-			policy,
-			&sessions.MockSessionStore{Session: &sessions.SessionState{
-				User:             "user",
-				Email:            "email@email.com",
-				Groups:           []string{"group1"},
-				AccessToken:      "AccessToken",
-				RefreshToken:     "RefreshToken",
-				LifetimeDeadline: time.Now().Add(10 * time.Second),
-				RefreshDeadline:  time.Now().Add(10 * time.Second),
-			}, SaveError: errors.New("error")},
-			testAuth, true},
-
-		{"cannot load session",
-			"https://corp.example.com/",
-			policy,
-			&sessions.MockSessionStore{LoadError: errors.New("error")}, testAuth, true},
-		{"expired session",
-			"https://corp.example.com/",
-			policy,
-			&sessions.MockSessionStore{
-				Session: &sessions.SessionState{
-					User:             "user",
-					Email:            "email@email.com",
-					Groups:           []string{"group1"},
-					AccessToken:      "AccessToken",
-					RefreshToken:     "RefreshToken",
-					LifetimeDeadline: time.Now().Add(10 * time.Second),
-					RefreshDeadline:  time.Now().Add(-10 * time.Second),
-				}},
-			clients.MockAuthenticate{
-				RefreshError: errors.New("error"),
-				RefreshResponse: &sessions.SessionState{
-					User:             "user",
-					Email:            "email@email.com",
-					Groups:           []string{"group1"},
-					AccessToken:      "AccessToken",
-					RefreshToken:     "RefreshToken",
-					LifetimeDeadline: time.Now().Add(10 * time.Second),
-					RefreshDeadline:  time.Now().Add(-10 * time.Second),
-				}}, true},
-		{"bad refresh authenticator",
-			"https://corp.example.com/",
-			policy,
-			&sessions.MockSessionStore{
-				Session: &sessions.SessionState{
-					User:             "user",
-					Email:            "email@email.com",
-					Groups:           []string{"group1"},
-					AccessToken:      "AccessToken",
-					RefreshToken:     "RefreshToken",
-					LifetimeDeadline: time.Now().Add(10 * time.Second),
-					RefreshDeadline:  time.Now().Add(-10 * time.Second),
-				},
-			},
-			clients.MockAuthenticate{
-				RefreshError: errors.New("error"),
-				RefreshResponse: &sessions.SessionState{
-					User:             "user",
-					Email:            "email@email.com",
-					Groups:           []string{"group1"},
-					AccessToken:      "AccessToken",
-					RefreshToken:     "RefreshToken",
-					LifetimeDeadline: time.Now().Add(10 * time.Second),
-					RefreshDeadline:  time.Now().Add(-10 * time.Second),
-				}},
-			true},
-
-		{"good",
-			"https://corp.example.com/",
-			policy,
-			&sessions.MockSessionStore{Session: &sessions.SessionState{
-				User:             "user",
-				Email:            "email@email.com",
-				Groups:           []string{"group1"},
-				AccessToken:      "AccessToken",
-				RefreshToken:     "RefreshToken",
-				LifetimeDeadline: time.Now().Add(10 * time.Second),
-				RefreshDeadline:  time.Now().Add(10 * time.Second),
-			}}, testAuth, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			opts := testOptions()
-			opts.Policy = tt.mux
-			p, err := New(opts)
-			if err != nil {
-				t.Fatal(err)
-			}
-			p.sessionStore = tt.session
-			p.AuthenticateClient = tt.authenticator
-			p.cipher = mockCipher{}
-			r := httptest.NewRequest("GET", tt.host, nil)
-			w := httptest.NewRecorder()
-			fmt.Printf("%s", tt.name)
-
-			if err := p.Authenticate(w, r); (err != nil) != tt.wantErr {
-				t.Errorf("Proxy.Authenticate() error = %v, wantErr %v", err, tt.wantErr)
-			}
 		})
 	}
 }

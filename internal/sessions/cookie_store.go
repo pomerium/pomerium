@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
@@ -30,7 +31,6 @@ type SessionStore interface {
 // CookieStore represents all the cookie related configurations
 type CookieStore struct {
 	Name           string
-	CSRFCookieName string
 	CookieCipher   cryptutil.Cipher
 	CookieExpire   time.Duration
 	CookieRefresh  time.Duration
@@ -59,7 +59,6 @@ func NewCookieStore(opts *CookieStoreOptions) (*CookieStore, error) {
 	}
 	return &CookieStore{
 		Name:           opts.Name,
-		CSRFCookieName: fmt.Sprintf("%v_%v", opts.Name, "csrf"),
 		CookieSecure:   opts.CookieSecure,
 		CookieHTTPOnly: opts.CookieHTTPOnly,
 		CookieDomain:   opts.CookieDomain,
@@ -69,6 +68,7 @@ func NewCookieStore(opts *CookieStoreOptions) (*CookieStore, error) {
 }
 
 func (s *CookieStore) makeCookie(req *http.Request, name string, value string, expiration time.Duration, now time.Time) *http.Cookie {
+	// if csrf, scope cookie to the route or service specific domain
 	domain := req.Host
 	if h, _, err := net.SplitHostPort(domain); err == nil {
 		domain = h
@@ -76,6 +76,12 @@ func (s *CookieStore) makeCookie(req *http.Request, name string, value string, e
 	if s.CookieDomain != "" {
 		domain = s.CookieDomain
 	}
+
+	// Non-CSRF sessions can shared, and set domain-wide
+	if !strings.Contains(name, "csrf") {
+		domain = splitDomain(domain)
+	}
+
 	c := &http.Cookie{
 		Name:     name,
 		Value:    value,
@@ -91,14 +97,19 @@ func (s *CookieStore) makeCookie(req *http.Request, name string, value string, e
 	return c
 }
 
+func (s *CookieStore) csrfName() string {
+	return fmt.Sprintf("%s_csrf", s.Name)
+}
+
 // makeSessionCookie constructs a session cookie given the request, an expiration time and the current time.
 func (s *CookieStore) makeSessionCookie(req *http.Request, value string, expiration time.Duration, now time.Time) *http.Cookie {
 	return s.makeCookie(req, s.Name, value, expiration, now)
 }
 
 // makeCSRFCookie creates a CSRF cookie given the request, an expiration time, and the current time.
+// CSRF cookies should be scoped to the actual domain
 func (s *CookieStore) makeCSRFCookie(req *http.Request, value string, expiration time.Duration, now time.Time) *http.Cookie {
-	return s.makeCookie(req, s.CSRFCookieName, value, expiration, now)
+	return s.makeCookie(req, s.csrfName(), value, expiration, now)
 }
 
 // ClearCSRF clears the CSRF cookie from the request
@@ -113,7 +124,7 @@ func (s *CookieStore) SetCSRF(w http.ResponseWriter, req *http.Request, val stri
 
 // GetCSRF gets the CSRFCookie creates a CSRF cookie in a given request
 func (s *CookieStore) GetCSRF(req *http.Request) (*http.Cookie, error) {
-	return req.Cookie(s.CSRFCookieName)
+	return req.Cookie(s.csrfName())
 }
 
 // ClearSession clears the session cookie from a request
@@ -146,4 +157,12 @@ func (s *CookieStore) SaveSession(w http.ResponseWriter, req *http.Request, sess
 	}
 	s.setSessionCookie(w, req, value)
 	return nil
+}
+
+func splitDomain(s string) string {
+	if strings.Count(s, ".") < 2 {
+		return ""
+	}
+	split := strings.SplitN(s, ".", 2)
+	return split[1]
 }

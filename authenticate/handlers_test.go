@@ -62,56 +62,6 @@ func TestAuthenticate_Handler(t *testing.T) {
 	}
 }
 
-func TestAuthenticate_authenticate(t *testing.T) {
-	// sessions.MockSessionStore{Session: expiredLifetime}
-	goodSession := &sessions.MockSessionStore{
-		Session: &sessions.SessionState{
-			AccessToken:     "AccessToken",
-			RefreshToken:    "RefreshToken",
-			RefreshDeadline: time.Now().Add(10 * time.Second),
-		}}
-
-	expiredRefresPeriod := &sessions.MockSessionStore{
-		Session: &sessions.SessionState{
-			AccessToken:  "AccessToken",
-			RefreshToken: "RefreshToken",
-
-			RefreshDeadline: time.Now().Add(10 * -time.Second),
-		}}
-
-	tests := []struct {
-		name     string
-		session  sessions.SessionStore
-		provider identity.MockProvider
-		want     *sessions.SessionState
-		wantErr  bool
-	}{
-		{"good", goodSession, identity.MockProvider{ValidateResponse: true}, nil, false},
-		{"can't load session", &sessions.MockSessionStore{LoadError: errors.New("error")}, identity.MockProvider{ValidateResponse: true}, nil, true},
-		{"validation fails", goodSession, identity.MockProvider{ValidateResponse: false}, nil, true},
-		{"session fails after good validation", &sessions.MockSessionStore{SaveError: errors.New("error"), Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * time.Second)}}, identity.MockProvider{ValidateResponse: true}, nil, true},
-		{"refresh expired", expiredRefresPeriod, identity.MockProvider{ValidateResponse: true, RefreshResponse: &sessions.SessionState{AccessToken: "new token", LifetimeDeadline: time.Now()}}, nil, false},
-		{"refresh expired refresh error", expiredRefresPeriod, identity.MockProvider{ValidateResponse: true, RefreshError: errors.New("error")}, nil, true},
-		{"refresh expired failed save", &sessions.MockSessionStore{SaveError: errors.New("error"), Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * -time.Second)}}, identity.MockProvider{ValidateResponse: true, RefreshResponse: &sessions.SessionState{AccessToken: "new token", LifetimeDeadline: time.Now()}}, nil, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &Authenticate{
-				sessionStore: tt.session,
-				provider:     tt.provider,
-			}
-			r := httptest.NewRequest("GET", "/auth", nil)
-			w := httptest.NewRecorder()
-
-			_, err := p.authenticate(w, r)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Authenticate.authenticate() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-		})
-	}
-}
-
 func TestAuthenticate_SignIn(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -127,16 +77,67 @@ func TestAuthenticate_SignIn(t *testing.T) {
 					RefreshDeadline: time.Now().Add(10 * time.Second),
 				}},
 			identity.MockProvider{ValidateResponse: true},
-
 			http.StatusForbidden},
-		{"session fails after good validation", &sessions.MockSessionStore{
+		{"session not valid",
+			&sessions.MockSessionStore{
+				Session: &sessions.SessionState{
+					AccessToken:     "AccessToken",
+					RefreshToken:    "RefreshToken",
+					RefreshDeadline: time.Now().Add(10 * time.Second),
+				}},
+			identity.MockProvider{ValidateResponse: false},
+			http.StatusInternalServerError},
+		{"session fails fails to save", &sessions.MockSessionStore{
 			SaveError: errors.New("error"),
 			Session: &sessions.SessionState{
 				AccessToken:     "AccessToken",
 				RefreshToken:    "RefreshToken",
 				RefreshDeadline: time.Now().Add(10 * time.Second),
 			}}, identity.MockProvider{ValidateResponse: true},
+			http.StatusForbidden},
+		{"session refresh error",
+			&sessions.MockSessionStore{
+				Session: &sessions.SessionState{
+					AccessToken:     "AccessToken",
+					RefreshToken:    "RefreshToken",
+					RefreshDeadline: time.Now().Add(-10 * time.Second),
+				}},
+			identity.MockProvider{
+				ValidateResponse: true,
+				RefreshError:     errors.New("error")},
+			http.StatusInternalServerError},
+		{"session save after refresh error",
+			&sessions.MockSessionStore{
+				SaveError: errors.New("error"),
+				Session: &sessions.SessionState{
+					AccessToken:     "AccessToken",
+					RefreshToken:    "RefreshToken",
+					RefreshDeadline: time.Now().Add(-10 * time.Second),
+				}},
+			identity.MockProvider{
+				ValidateResponse: true,
+			},
+			http.StatusInternalServerError},
+		{"no cookie found trying to load",
+			&sessions.MockSessionStore{
+				LoadError: http.ErrNoCookie,
+				Session: &sessions.SessionState{
+					AccessToken:     "AccessToken",
+					RefreshToken:    "RefreshToken",
+					RefreshDeadline: time.Now().Add(10 * time.Second),
+				}},
+			identity.MockProvider{ValidateResponse: true},
 			http.StatusBadRequest},
+		{"unexpected error trying to load session",
+			&sessions.MockSessionStore{
+				LoadError: errors.New("unexpeted"),
+				Session: &sessions.SessionState{
+					AccessToken:     "AccessToken",
+					RefreshToken:    "RefreshToken",
+					RefreshDeadline: time.Now().Add(10 * time.Second),
+				}},
+			identity.MockProvider{ValidateResponse: true},
+			http.StatusInternalServerError},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -154,6 +155,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			a.SignIn(w, r)
 			if status := w.Code; status != tt.wantCode {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
+				t.Errorf("\n%+v", w.Body)
 			}
 		})
 	}
