@@ -2,6 +2,7 @@ package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -82,7 +83,7 @@ func TestNewReverseProxyHandler(t *testing.T) {
 func testOptions() *config.Options {
 	authenticateService, _ := url.Parse("https://authenticate.corp.beyondperimeter.com")
 	authorizeService, _ := url.Parse("https://authorize.corp.beyondperimeter.com")
-	configBlob := `[{"from":"corp.example.notatld","to":"example.notatld"}]` //valid yaml
+	configBlob := `[{"from":"corp.example.notatld","to":"example.notatld"}]`
 	policy := base64.URLEncoding.EncodeToString([]byte(configBlob))
 
 	opts := config.NewOptions()
@@ -91,13 +92,30 @@ func testOptions() *config.Options {
 	opts.AuthorizeURL = authorizeService
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
-	opts.ProxyCookieName = "pomerium"
+	opts.CookieName = "pomerium"
 	return opts
 }
 
-func testOptionsWithCORS() *config.Options {
-	configBlob := `[{"from":"corp.example.com","to":"example.com","cors_allow_preflight":true}]` //valid yaml
-	opts := testOptions()
+func testOptionsTestServer(uri string) *config.Options {
+	authenticateService, _ := url.Parse("https://authenticate.corp.beyondperimeter.com")
+	authorizeService, _ := url.Parse("https://authorize.corp.beyondperimeter.com")
+	// RFC 2606
+	configBlob := fmt.Sprintf(`[{"from":"httpbin.corp.example","to":"%s"}]`, uri)
+	policy := base64.URLEncoding.EncodeToString([]byte(configBlob))
+
+	opts := config.NewOptions()
+	opts.Policy = policy
+	opts.AuthenticateURL = authenticateService
+	opts.AuthorizeURL = authorizeService
+	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
+	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
+	opts.CookieName = "pomerium"
+	return opts
+}
+
+func testOptionsWithCORS(uri string) *config.Options {
+	configBlob := fmt.Sprintf(`[{"from":"httpbin.corp.example","to":"%s","cors_allow_preflight":true}]`, uri)
+	opts := testOptionsTestServer(uri)
 	opts.Policy = base64.URLEncoding.EncodeToString([]byte(configBlob))
 	return opts
 }

@@ -45,56 +45,47 @@ func (a *Authenticate) RobotsTxt(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
-func (a *Authenticate) authenticate(w http.ResponseWriter, r *http.Request) (*sessions.SessionState, error) {
-	session, err := a.sessionStore.LoadSession(r)
-	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("authenticate: failed to load session")
-		a.sessionStore.ClearSession(w, r)
-		return nil, err
-	}
-
+func (a *Authenticate) authenticate(w http.ResponseWriter, r *http.Request, session *sessions.SessionState) error {
 	if session.RefreshPeriodExpired() {
-		newSession, err := a.provider.Refresh(r.Context(), session)
+		session, err := a.provider.Refresh(r.Context(), session)
 		if err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("authenticate: failed to refresh session")
-			a.sessionStore.ClearSession(w, r)
-			return nil, err
-		}
-		err = a.sessionStore.SaveSession(w, r, newSession)
-		if err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("authenticate: could not save refreshed session")
-			a.sessionStore.ClearSession(w, r)
-			return nil, err
-		}
-	} else {
-		// The session has not exceeded it's lifetime or requires refresh
-		ok, err := a.provider.Validate(r.Context(), session.IDToken)
-		if !ok || err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("authenticate: invalid session state")
-			a.sessionStore.ClearSession(w, r)
-			return nil, httputil.ErrUserNotAuthorized
+			return fmt.Errorf("authenticate: session refresh failed : %v", err)
 		}
 		err = a.sessionStore.SaveSession(w, r, session)
 		if err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("authenticate: failed to save valid session")
-			a.sessionStore.ClearSession(w, r)
-			return nil, err
+			return fmt.Errorf("authenticate: refresh failed : %v", err)
+		}
+	} else {
+		valid, err := a.provider.Validate(r.Context(), session.IDToken)
+		if err != nil || !valid {
+			return fmt.Errorf("authenticate: session valid: %v : %v", valid, err)
 		}
 	}
-
-	return session, nil
+	return nil
 }
 
 // SignIn handles the sign_in endpoint. It attempts to authenticate the user,
 // and if the user is not authenticated, it renders a sign in page.
 func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
-	session, err := a.authenticate(w, r)
+	session, err := a.sessionStore.LoadSession(r)
 	if err != nil {
-		log.FromRequest(r).Warn().Err(err).Msg("authenticate: authenticate error")
-		a.sessionStore.ClearSession(w, r)
-		a.OAuthStart(w, r)
+		switch err {
+		case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
+			log.FromRequest(r).Debug().Err(err).Msg("proxy: invalid session")
+			a.sessionStore.ClearSession(w, r)
+			a.OAuthStart(w, r)
+			return
+		default:
+			log.FromRequest(r).Error().Err(err).Msg("proxy: unexpected error")
+			httputil.ErrorResponse(w, r, "An unexpected error occurred", http.StatusInternalServerError)
+			return
+		}
 	}
-	log.FromRequest(r).Debug().Msg("authenticate: user authenticated")
+	err = a.authenticate(w, r, session)
+	if err != nil {
+		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	a.ProxyCallback(w, r, session)
 }
 
@@ -232,7 +223,6 @@ func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	state := base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("%v:%v", nonce, authRedirectURL.String())))
 	// build the provider sign in url
 	signInURL := a.provider.GetSignInURL(state)
-
 	http.Redirect(w, r, signInURL, http.StatusFound)
 }
 
@@ -292,7 +282,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	redirect := s[1]
 	c, err := a.csrfStore.GetCSRF(r)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("authenticate: bad csrf")
+		log.FromRequest(r).Error().Err(err).Interface("s", s).Msg("authenticate: bad csrf")
 		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "Missing CSRF token"}
 	}
 	a.csrfStore.ClearCSRF(w, r)

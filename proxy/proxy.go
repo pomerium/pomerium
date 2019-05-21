@@ -140,7 +140,7 @@ func New(opts *config.Options) (*Proxy, error) {
 
 	cookieStore, err := sessions.NewCookieStore(
 		&sessions.CookieStoreOptions{
-			Name:           opts.ProxyCookieName,
+			Name:           opts.CookieName,
 			CookieDomain:   opts.CookieDomain,
 			CookieSecure:   opts.CookieSecure,
 			CookieHTTPOnly: opts.CookieHTTPOnly,
@@ -267,7 +267,7 @@ func NewReverseProxyHandler(o *config.Options, proxy *httputil.ReverseProxy, rou
 	up := &UpstreamProxy{
 		name:       route.Destination.Host,
 		handler:    proxy,
-		cookieName: o.ProxyCookieName,
+		cookieName: o.CookieName,
 	}
 	if len(o.SigningKey) != 0 {
 		decodedSigningKey, _ := base64.StdEncoding.DecodeString(o.SigningKey)

@@ -55,7 +55,6 @@ func TestNewCookieStore(t *testing.T) {
 			},
 			&CookieStore{
 				Name:           "_cookie",
-				CSRFCookieName: "_cookie_csrf",
 				CookieSecure:   true,
 				CookieHTTPOnly: true,
 				CookieDomain:   "pomerium.io",
@@ -115,25 +114,26 @@ func TestCookieStore_makeCookie(t *testing.T) {
 		value      string
 		expiration time.Duration
 		want       *http.Cookie
+		wantCSRF   *http.Cookie
 	}{
-		{"good", "http://pomerium.io", "_pomerium", "value", 0, &http.Cookie{Name: "_pomerium", Value: "value", Path: "/", Domain: "pomerium.io", Secure: true, HttpOnly: true}},
-		{"domains with https", "https://pomerium.io", "_pomerium", "value", 0, &http.Cookie{Name: "_pomerium", Value: "value", Path: "/", Domain: "pomerium.io", Secure: true, HttpOnly: true}},
-		{"domain with port", "http://pomerium.io:443", "_pomerium", "value", 0, &http.Cookie{Name: "_pomerium", Value: "value", Path: "/", Domain: "pomerium.io", Secure: true, HttpOnly: true}},
-		{"expiration set", "http://pomerium.io:443", "_pomerium", "value", 10 * time.Second, &http.Cookie{Expires: now.Add(10 * time.Second), Name: "_pomerium", Value: "value", Path: "/", Domain: "pomerium.io", Secure: true, HttpOnly: true}},
+		{"good", "http://httpbin.corp.pomerium.io", "_pomerium", "value", 0, &http.Cookie{Name: "_pomerium", Value: "value", Path: "/", Domain: "corp.pomerium.io", Secure: true, HttpOnly: true}, &http.Cookie{Name: "_pomerium_csrf", Value: "value", Path: "/", Domain: "httpbin.corp.pomerium.io", Secure: true, HttpOnly: true}},
+		{"domains with https", "https://httpbin.corp.pomerium.io", "_pomerium", "value", 0, &http.Cookie{Name: "_pomerium", Value: "value", Path: "/", Domain: "corp.pomerium.io", Secure: true, HttpOnly: true}, &http.Cookie{Name: "_pomerium_csrf", Value: "value", Path: "/", Domain: "httpbin.corp.pomerium.io", Secure: true, HttpOnly: true}},
+		{"domain with port", "http://httpbin.corp.pomerium.io:443", "_pomerium", "value", 0, &http.Cookie{Name: "_pomerium", Value: "value", Path: "/", Domain: "corp.pomerium.io", Secure: true, HttpOnly: true}, &http.Cookie{Name: "_pomerium_csrf", Value: "value", Path: "/", Domain: "httpbin.corp.pomerium.io", Secure: true, HttpOnly: true}},
+		{"expiration set", "http://httpbin.corp.pomerium.io:443", "_pomerium", "value", 10 * time.Second, &http.Cookie{Expires: now.Add(10 * time.Second), Name: "_pomerium", Value: "value", Path: "/", Domain: "corp.pomerium.io", Secure: true, HttpOnly: true}, &http.Cookie{Expires: now.Add(10 * time.Second), Name: "_pomerium_csrf", Value: "value", Path: "/", Domain: "httpbin.corp.pomerium.io", Secure: true, HttpOnly: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest("GET", tt.domain, nil)
 
-			s := &CookieStore{
+			o := &CookieStoreOptions{
 				Name:           "_pomerium",
-				CSRFCookieName: "_pomerium_csrf",
 				CookieSecure:   true,
 				CookieHTTPOnly: true,
-				CookieDomain:   "pomerium.io",
+				CookieDomain:   "httpbin.corp.pomerium.io",
 				CookieExpire:   10 * time.Second,
 				CookieCipher:   cipher}
 
+			s, _ := NewCookieStore(o)
 			if got := s.makeCookie(r, tt.cookieName, tt.value, tt.expiration, now); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("CookieStore.makeCookie() = \n%#v, \nwant\n%#v", got, tt.want)
 			}
@@ -141,16 +141,16 @@ func TestCookieStore_makeCookie(t *testing.T) {
 				t.Errorf("CookieStore.makeCookie() = \n%#v, \nwant\n%#v", got, tt.want)
 			}
 			got := s.makeCSRFCookie(r, tt.value, tt.expiration, now)
-			tt.want.Name = "_pomerium_csrf"
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CookieStore.makeCookie() = \n%#v, \nwant\n%#v", got, tt.want)
+			tt.wantCSRF.Name = "_pomerium_csrf"
+			if !reflect.DeepEqual(got, tt.wantCSRF) {
+				t.Errorf("CookieStore.makeCookie() = \n%#v, \nwant\n%#v", got, tt.wantCSRF)
 			}
 			w := httptest.NewRecorder()
 			want := "new-csrf"
 			s.SetCSRF(w, r, want)
 			found := false
 			for _, cookie := range w.Result().Cookies() {
-				if cookie.Name == s.CSRFCookieName && cookie.Value == want {
+				if cookie.Name == s.Name+"_csrf" && cookie.Value == want {
 					found = true
 					break
 				}
@@ -162,7 +162,7 @@ func TestCookieStore_makeCookie(t *testing.T) {
 			w = httptest.NewRecorder()
 			s.ClearCSRF(w, r)
 			for _, cookie := range w.Result().Cookies() {
-				if cookie.Name == s.CSRFCookieName && cookie.Value == want {
+				if cookie.Name == s.Name+"_csrf" && cookie.Value == want {
 					t.Error("clear csrf failed")
 					break
 
@@ -229,7 +229,6 @@ func TestCookieStore_SaveSession(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &CookieStore{
 				Name:           "_pomerium",
-				CSRFCookieName: "_pomerium_csrf",
 				CookieSecure:   true,
 				CookieHTTPOnly: true,
 				CookieDomain:   "pomerium.io",
@@ -331,6 +330,26 @@ func TestMockSessionStore(t *testing.T) {
 			ms.ClearSession(nil, nil)
 			if ms.ResponseSession != "" {
 				t.Errorf("ResponseSession not empty! %s", ms.ResponseSession)
+			}
+		})
+	}
+}
+
+func Test_splitDomain(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		s    string
+		want string
+	}{
+		{"httpbin.corp.example.com", "corp.example.com"},
+		{"some.httpbin.corp.example.com", "httpbin.corp.example.com"},
+		{"example.com", ""},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.s, func(t *testing.T) {
+			if got := splitDomain(tt.s); got != tt.want {
+				t.Errorf("splitDomain() = %v, want %v", got, tt.want)
 			}
 		})
 	}
