@@ -119,7 +119,7 @@ type Proxy struct {
 
 type routeConfig struct {
 	mux    http.Handler
-	policy *policy.Policy
+	policy policy.Policy
 }
 
 // New takes a Proxy service from options and a validation function.
