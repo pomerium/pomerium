@@ -19,3 +19,6 @@
   to: http://hello:8080
   allowed_groups:
     - admins
+- from: external-search.corp.beyondperimeter.com
+  to: google.com
+  allow_public_unauthenticated_access: true
