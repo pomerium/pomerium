@@ -325,7 +325,7 @@ func (p *Proxy) Authenticate(w http.ResponseWriter, r *http.Request) (err error)
 func (p *Proxy) Handle(host string, handler http.Handler, pol *policy.Policy) {
 	p.routeConfigs[host] = &routeConfig{
 		mux:    handler,
-		policy: pol,
+		policy: *pol,
 	}
 }
 
@@ -346,7 +346,7 @@ func (p *Proxy) router(r *http.Request) (http.Handler, bool) {
 func (p *Proxy) policy(r *http.Request) (*policy.Policy, bool) {
 	config, ok := p.routeConfigs[r.Host]
 	if ok {
-		return config.policy, true
+		return &config.policy, true
 	}
 	return nil, false
 }
