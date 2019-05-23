@@ -185,6 +185,18 @@ Allowed domains is a collection of whitelisted domains to authorize for a given 
 
 Allow unauthenticated HTTP OPTIONS requests as [per the CORS spec](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests).
 
+#### Public Access
+
+- `yaml`/`json` setting: `allow_public_unauthenticated_access`
+- Type: `bool`
+- Optional
+- Default: `false`
+
+**Use with caution:** Allow all requests for a given route, bypassing authentication and authorization. 
+Suitable for publicly exposed web services.
+
+If this setting is enabled, no whitelists (e.g. Allowed Users) should be provided in this route.
+
 #### Route Timeout
 
 - `yaml`/`json` setting: `timeout`

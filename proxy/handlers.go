@@ -180,8 +180,14 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 // Conditions should be few in number and have strong justifications.
 func (p *Proxy) shouldSkipAuthentication(r *http.Request) bool {
 	pol, foundPolicy := p.policy(r)
+
 	if isCORSPreflight(r) && foundPolicy && pol.CORSAllowPreflight {
 		log.FromRequest(r).Debug().Msg("proxy: skipping authentication for valid CORS preflight request")
+		return true
+	}
+
+	if foundPolicy && pol.AllowPublicUnauthenticatedAccess {
+		log.FromRequest(r).Debug().Msg("proxy: skipping authentication for public route")
 		return true
 	}
 

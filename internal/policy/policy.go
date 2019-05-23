@@ -1,6 +1,7 @@
 package policy // import "github.com/pomerium/pomerium/internal/policy"
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -29,6 +30,9 @@ type Policy struct {
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests
 	CORSAllowPreflight bool `yaml:"cors_allow_preflight"`
 
+	// Allow any public request to access this route. **Bypasses authentication**
+	AllowPublicUnauthenticatedAccess bool `yaml:"allow_public_unauthenticated_access"`
+
 	// UpstreamTimeout is the route specific timeout. Must be less than the global
 	// timeout. If unset,  route will fallback to the proxy's DefaultUpstreamTimeout.
 	UpstreamTimeout time.Duration `yaml:"timeout"`
@@ -39,10 +43,17 @@ func (p *Policy) validate() (err error) {
 	if err != nil {
 		return err
 	}
+
 	p.Destination, err = urlParse(p.To)
 	if err != nil {
 		return err
 	}
+
+	// Only allow public access if no other whitelists are in place
+	if p.AllowPublicUnauthenticatedAccess && (p.AllowedDomains != nil || p.AllowedGroups != nil || p.AllowedEmails != nil) {
+		return errors.New("route marked as public but contains whitelists")
+	}
+
 	return nil
 }
 
@@ -56,7 +67,7 @@ func FromConfig(confBytes []byte) ([]Policy, error) {
 	// build source and destination urls
 	for i := range f {
 		if err := (&f[i]).validate(); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("route at index %d: %v", i, err)
 		}
 	}
 	return f, nil

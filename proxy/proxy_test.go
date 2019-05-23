@@ -120,6 +120,21 @@ func testOptionsWithCORS(uri string) *config.Options {
 	return opts
 }
 
+
+func testOptionsWithPublicAccess(uri string) *config.Options {
+	configBlob := fmt.Sprintf(`[{"from":"httpbin.corp.example","to":"%s","allow_public_unauthenticated_access":true}]`, uri)
+	opts := testOptions()
+	opts.Policy = base64.URLEncoding.EncodeToString([]byte(configBlob))
+	return opts
+}
+
+func testOptionsWithPublicAccessAndWhitelist(uri string) *config.Options {
+	configBlob := fmt.Sprintf(`[{"from":"httpbin.corp.example","to":"%s","allow_public_unauthenticated_access":true,"allowed_users":["test@gmail.com"]}]`, uri)
+	opts := testOptions()
+	opts.Policy = base64.URLEncoding.EncodeToString([]byte(configBlob))
+	return opts
+}
+
 func TestOptions_Validate(t *testing.T) {
 	good := testOptions()
 	badFromRoute := testOptions()
@@ -151,6 +166,9 @@ func TestOptions_Validate(t *testing.T) {
 	badPolicyToURL.Policy = "LSBmcm9tOiBodHRwYmluLmNvcnAuYmV5b25kcGVyaW1ldGVyLmNvbQogIHRvOiBodHRwOi8vaHR0cGJpbl4KICBhbGxvd2VkX2RvbWFpbnM6CiAgICAtIHBvbWVyaXVtLmlv"
 	badPolicyFromURL := testOptions()
 	badPolicyFromURL.Policy = "LSBmcm9tOiBodHRwYmluLmNvcnAuYmV5b25kcGVyaW1ldGVyLmNvbQogIHRvOiBodHRwOi8vaHR0cGJpbl4KICBhbGxvd2VkX2RvbWFpbnM6CiAgICAtIHBvbWVyaXVtLmlv"
+	corsPolicy := testOptionsWithCORS("example.notatld")
+	publicPolicy := testOptionsWithPublicAccess("example.notatld")
+	publicWithWhitelistPolicy := testOptionsWithPublicAccessAndWhitelist("example.notatld")
 
 	tests := []struct {
 		name    string
@@ -173,6 +191,9 @@ func TestOptions_Validate(t *testing.T) {
 		{"policy invalid base64", policyBadBase64, true},
 		{"policy bad to url", badPolicyFromURL, true},
 		{"policy bad from url", badPolicyFromURL, true},
+		{"CORS policy good", corsPolicy, false},
+		{"policy public good", publicPolicy, false},
+		{"policy public and whitelist bad", publicWithWhitelistPolicy, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
