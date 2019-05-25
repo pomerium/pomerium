@@ -1,16 +1,20 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"time"
 
-	"github.com/pomerium/envconfig"
+	"gopkg.in/yaml.v2"
+
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/policy"
+	"github.com/spf13/viper"
 )
 
 // DisableHeaderKey is the key used to check whether to disable setting header
@@ -22,97 +26,99 @@ const DisableHeaderKey = "disable"
 // in the local directory as `./cert.pem` and `./privkey.pem` respectively.
 type Options struct {
 	// Debug outputs human-readable logs to Stdout.
-	Debug bool `envconfig:"POMERIUM_DEBUG"`
+	Debug bool `mapstructure:"pomerium_debug"`
 
 	// LogLevel sets the global override for log level. All Loggers will use at least this value.
 	// Possible options are "info","warn", and "error". Defaults to "debug".
-	LogLevel string `envconfig:"LOG_LEVEL"`
+	LogLevel string `mapstructure:"log_level"`
 
 	// SharedKey is the shared secret authorization key used to mutually authenticate
 	// requests between services.
-	SharedKey string `envconfig:"SHARED_SECRET"`
+	SharedKey string `mapstructure:"shared_secret"`
 
 	// Services is a list enabled service mode. If none are selected, "all" is used.
 	// Available options are : "all", "authenticate", "proxy".
-	Services string `envconfig:"SERVICES"`
+	Services string `mapstructure:"services"`
 
 	// Addr specifies the host and port on which the server should serve
 	// HTTPS requests. If empty, ":https" is used.
-	Addr string `envconfig:"ADDRESS"`
+	Addr string `mapstructure:"address"`
 
 	// Cert and Key specifies the base64 encoded TLS certificates to use.
-	Cert string `envconfig:"CERTIFICATE"`
-	Key  string `envconfig:"CERTIFICATE_KEY"`
+	Cert string `mapstructure:"certificate"`
+	Key  string `mapstructure:"certificate_key"`
 
 	// CertFile and KeyFile specifies the TLS certificates to use.
-	CertFile string `envconfig:"CERTIFICATE_FILE"`
-	KeyFile  string `envconfig:"CERTIFICATE_KEY_FILE"`
+	CertFile string `mapstructure:"certificate_file"`
+	KeyFile  string `mapstructure:"certificate_key_file"`
 
 	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
 	// to HTTPS redirect server on. For example, ":http" would start a server
 	// on port 80.  If empty, no redirect server is started.
-	HTTPRedirectAddr string `envconfig:"HTTP_REDIRECT_ADDR"`
+	HTTPRedirectAddr string `mapstructure:"http_redirect_addr"`
 
 	// Timeout settings : https://github.com/pomerium/pomerium/issues/40
-	ReadTimeout       time.Duration `envconfig:"TIMEOUT_READ"`
-	WriteTimeout      time.Duration `envconfig:"TIMEOUT_WRITE"`
-	ReadHeaderTimeout time.Duration `envconfig:"TIMEOUT_READ_HEADER"`
-	IdleTimeout       time.Duration `envconfig:"TIMEOUT_IDLE"`
+	ReadTimeout       time.Duration `mapstructure:"timeout_read"`
+	WriteTimeout      time.Duration `mapstructure:"timeout_write"`
+	ReadHeaderTimeout time.Duration `mapstructure:"timeout_read_header"`
+	IdleTimeout       time.Duration `mapstructure:"timeout_idle"`
 
 	// Policy is a base64 encoded yaml blob which enumerates
 	// per-route access control policies.
-	Policy     string `envconfig:"POLICY"`
-	PolicyFile string `envconfig:"POLICY_FILE"`
+	PolicyEnv  string
+	PolicyFile string `mapstructure:"policy_file"`
 
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
-	AuthenticateURL *url.URL `envconfig:"AUTHENTICATE_SERVICE_URL"`
+	AuthenticateURLString string `mapstructure:"authenticate_service_url"`
+	AuthenticateURL       *url.URL
 
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
-	CookieName     string        `envconfig:"COOKIE_NAME"`
-	CookieSecret   string        `envconfig:"COOKIE_SECRET"`
-	CookieDomain   string        `envconfig:"COOKIE_DOMAIN"`
-	CookieSecure   bool          `envconfig:"COOKIE_SECURE"`
-	CookieHTTPOnly bool          `envconfig:"COOKIE_HTTP_ONLY"`
-	CookieExpire   time.Duration `envconfig:"COOKIE_EXPIRE"`
-	CookieRefresh  time.Duration `envconfig:"COOKIE_REFRESH"`
+	CookieName     string        `mapstructure:"cookie_name"`
+	CookieSecret   string        `mapstructure:"cookie_secret"`
+	CookieDomain   string        `mapstructure:"cookie_domain"`
+	CookieSecure   bool          `mapstructure:"cookie_secure"`
+	CookieHTTPOnly bool          `mapstructure:"cookie_http_only"`
+	CookieExpire   time.Duration `mapstructure:"cookie_expire"`
+	CookieRefresh  time.Duration `mapstructure:"cookie_refresh"`
 
 	// Identity provider configuration variables as specified by RFC6749
 	// https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
-	ClientID       string   `envconfig:"IDP_CLIENT_ID"`
-	ClientSecret   string   `envconfig:"IDP_CLIENT_SECRET"`
-	Provider       string   `envconfig:"IDP_PROVIDER"`
-	ProviderURL    string   `envconfig:"IDP_PROVIDER_URL"`
-	Scopes         []string `envconfig:"IDP_SCOPES"`
-	ServiceAccount string   `envconfig:"IDP_SERVICE_ACCOUNT"`
+	ClientID       string   `mapstructure:"idp_client_id"`
+	ClientSecret   string   `mapstructure:"idp_client_secret"`
+	Provider       string   `mapstructure:"idp_provider"`
+	ProviderURL    string   `mapstructure:"idp_provider_url"`
+	Scopes         []string `mapstructure:"idp_scopes"`
+	ServiceAccount string   `mapstructure:"idp_service_account"`
 
-	Policies []policy.Policy `envconfig:"POLICY"`
+	Policies []policy.Policy
 
 	// AuthenticateInternalAddr is used as an override when using a load balancer
 	// or ingress that does not natively support routing gRPC.
-	AuthenticateInternalAddr string `envconfig:"AUTHENTICATE_INTERNAL_URL"`
+	AuthenticateInternalAddr string `mapstructure:"authenticate_internal_url"`
 
 	// AuthorizeURL is the routable destination of the authorize service's
 	// gRPC endpoint. NOTE: As above, many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
-	AuthorizeURL *url.URL `envconfig:"AUTHORIZE_SERVICE_URL"`
+	AuthorizeURLString string `mapstructure:"authorize_service_url"`
+	AuthorizeURL       *url.URL
 
 	// Settings to enable custom behind-the-ingress service communication
-	OverrideCertificateName string `envconfig:"OVERRIDE_CERTIFICATE_NAME"`
-	CA                      string `envconfig:"CERTIFICATE_AUTHORITY"`
-	CAFile                  string `envconfig:"CERTIFICATE_AUTHORITY_FILE"`
+	OverrideCertificateName string `mapstructure:"override_certificate_name"`
+	CA                      string `mapstructure:"certificate_authority"`
+	CAFile                  string `mapstructure:"certificate_authority_file"`
 
 	// SigningKey is a base64 encoded private key used to add a JWT-signature.
 	// https://www.pomerium.io/docs/signed-headers.html
-	SigningKey string `envconfig:"SIGNING_KEY"`
+	SigningKey string `mapstructure:"signing_key"`
 
 	// Headers to set on all proxied requests. Add a 'disable' key map to turn off.
-	Headers map[string]string `envconfig:"HEADERS"`
+	Headers map[string]string `mapstructure:"headers"`
 
 	// Sub-routes
-	Routes                 map[string]string `envconfig:"ROUTES"`
-	DefaultUpstreamTimeout time.Duration     `envconfig:"DEFAULT_UPSTREAM_TIMEOUT"`
+	Routes                 map[string]string `mapstructure:"routes"`
+	DefaultUpstreamTimeout time.Duration     `mapstructure:"default_upstream_timeout"`
 }
 
 // NewOptions returns a new options struct with default vaules
@@ -146,19 +152,39 @@ func NewOptions() *Options {
 	return o
 }
 
-// OptionsFromEnvConfig builds the main binary's configuration
-// options from provided environmental variables
-func OptionsFromEnvConfig() (*Options, error) {
+// OptionsFromViper builds the main binary's configuration
+// options by parsing environmental variables and config file
+func OptionsFromViper(configFile string) (*Options, error) {
 	o := NewOptions()
-	if err := envconfig.Process("", o); err != nil {
-		return nil, err
+
+	// Load up config
+	o.bindEnvs()
+	if configFile != "" {
+		log.Info().Msgf("Loading config from '%s'", configFile)
+		viper.SetConfigFile(configFile)
+		err := viper.ReadInConfig()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to read config: %s", err)
+		}
 	}
-	if !IsValidService(o.Services) {
-		return nil, fmt.Errorf("%s is an invalid service type", o.Services)
+
+	err := viper.Unmarshal(o)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load options from config: %s", err)
 	}
-	if o.SharedKey == "" {
-		return nil, errors.New("shared-key cannot be empty")
+
+	// Turn URL strings into url structs
+	err = o.parseURLs()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse URLs: %s", err)
 	}
+
+	// Load and initialize policy
+	err = o.parsePolicy()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse Policy: %s", err)
+	}
+
 	if o.Debug {
 		log.SetDebugMode()
 	}
@@ -168,7 +194,97 @@ func OptionsFromEnvConfig() (*Options, error) {
 	if _, disable := o.Headers[DisableHeaderKey]; disable {
 		o.Headers = make(map[string]string)
 	}
+
+	err = o.validate()
+	if err != nil {
+		return nil, err
+	}
+
 	return o, nil
+}
+
+// validate ensures the Options fields are properly formed and present
+func (o *Options) validate() error {
+
+	if !IsValidService(o.Services) {
+		return fmt.Errorf("%s is an invalid service type", o.Services)
+	}
+
+	if o.SharedKey == "" {
+		return errors.New("shared-key cannot be empty")
+	}
+
+	if len(o.Routes) != 0 {
+		return errors.New("routes setting is deprecated, use policy instead")
+	}
+
+	if o.PolicyFile != "" {
+		return errors.New("Setting POLICY_FILE is deprecated, use policy env var or config file instead")
+	}
+
+	return nil
+}
+
+// parsePolicy initializes policy
+func (o *Options) parsePolicy() error {
+	var policies []policy.Policy
+	// Parse from base64 env var
+	if o.PolicyEnv != "" {
+		policyBytes, err := base64.StdEncoding.DecodeString(o.PolicyEnv)
+		if err != nil {
+			return fmt.Errorf("Could not decode POLICY env var: %s", err)
+		}
+		if err := yaml.Unmarshal(policyBytes, &policies); err != nil {
+			return fmt.Errorf("Could not parse POLICY env var: %s", err)
+		}
+		// Parse from file
+	} else {
+		err := viper.UnmarshalKey("policy", &policies)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Finish initializing policies
+	for i := range policies {
+		err := (&policies[i]).Validate()
+		if err != nil {
+			return err
+		}
+	}
+	o.Policies = policies
+	return nil
+}
+
+// parseURLs parses URL strings into actual URL pointers
+func (o *Options) parseURLs() error {
+	AuthenticateURL, err := url.Parse(o.AuthenticateURLString)
+	if err != nil {
+		return err
+	}
+	AuthorizeURL, err := url.Parse(o.AuthorizeURLString)
+	if err != nil {
+		return err
+	}
+
+	o.AuthenticateURL = AuthenticateURL
+	o.AuthorizeURL = AuthorizeURL
+	return nil
+}
+
+// bindEnvs makes sure viper binds to each env var based on the mapstructure tag
+func (o *Options) bindEnvs() {
+	tagName := `mapstructure`
+	t := reflect.TypeOf(*o)
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		envName := field.Tag.Get(tagName)
+		viper.BindEnv(envName)
+	}
+
+	// Statically bind fields
+	viper.BindEnv("PolicyEnv", "POLICY")
 }
 
 // findPwd returns best guess at current working directory
@@ -180,7 +296,7 @@ func findPwd() string {
 	return p
 }
 
-// isValidService checks to see if a service is a valid service mode
+// IsValidService checks to see if a service is a valid service mode
 func IsValidService(s string) bool {
 	switch s {
 	case
@@ -193,6 +309,7 @@ func IsValidService(s string) bool {
 	return false
 }
 
+// IsAuthenticate checks to see if we should be running the authenticate service
 func IsAuthenticate(s string) bool {
 	switch s {
 	case
@@ -203,6 +320,7 @@ func IsAuthenticate(s string) bool {
 	return false
 }
 
+// IsAuthorize checks to see if we should be running the authorize service
 func IsAuthorize(s string) bool {
 	switch s {
 	case
@@ -213,6 +331,7 @@ func IsAuthorize(s string) bool {
 	return false
 }
 
+// IsProxy checks to see if we should be running the proxy service
 func IsProxy(s string) bool {
 	switch s {
 	case

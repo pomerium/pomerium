@@ -6,36 +6,6 @@ import (
 	"testing"
 )
 
-func TestFromConfig(t *testing.T) {
-	t.Parallel()
-	source, _ := urlParse("pomerium.io")
-	dest, _ := urlParse("httpbin.org")
-
-	tests := []struct {
-		name      string
-		yamlBytes []byte
-		want      []Policy
-		wantErr   bool
-	}{
-		{"simple json", []byte(`[{"from": "pomerium.io","to":"httpbin.org"}]`), []Policy{{From: "pomerium.io", To: "httpbin.org", Source: source, Destination: dest}}, false},
-		{"bad from", []byte(`[{"from": "%","to":"httpbin.org"}]`), nil, true},
-		{"bad to", []byte(`[{"from": "pomerium.io","to":"%"}]`), nil, true},
-		{"simple error", []byte(`{}`), nil, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := FromConfig(tt.yamlBytes)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FromConfig() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FromConfig() = \n%v, want \n%v", got, tt.want)
-			}
-		})
-	}
-}
-
 func Test_urlParse(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -62,30 +32,34 @@ func Test_urlParse(t *testing.T) {
 	}
 }
 
-func TestFromConfigFile(t *testing.T) {
+func Test_Validate(t *testing.T) {
 	t.Parallel()
-	source, _ := urlParse("pomerium.io")
-	dest, _ := urlParse("httpbin.org")
+	basePolicy := Policy{From: "httpbin.corp.example", To: "httpbin.corp.notatld"}
+
+	corsPolicy := basePolicy
+	corsPolicy.CORSAllowPreflight = true
+
+	publicPolicy := basePolicy
+	publicPolicy.AllowPublicUnauthenticatedAccess = true
+
+	publicAndWhitelistPolicy := publicPolicy
+	publicAndWhitelistPolicy.AllowedEmails = []string{"test@gmail.com"}
 
 	tests := []struct {
 		name    string
-		f       string
-		want    []Policy
+		policy  Policy
 		wantErr bool
 	}{
-		{"simple json", "./testdata/basic.json", []Policy{{From: "pomerium.io", To: "httpbin.org", Source: source, Destination: dest}}, false},
-		{"simple yaml", "./testdata/basic.yaml", []Policy{{From: "pomerium.io", To: "httpbin.org", Source: source, Destination: dest}}, false},
-		{"failed dir", "./testdata/", nil, true},
+		{"good", basePolicy, false},
+		{"cors policy", corsPolicy, false},
+		{"public policy", publicPolicy, false},
+		{"public and whitelist", publicAndWhitelistPolicy, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := FromConfigFile(tt.f)
+			err := tt.policy.Validate()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("FromConfigFile() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FromConfigFile() = %v, want %v", got, tt.want)
+				t.Errorf("Validate() error = %v, want %v", err, tt.wantErr)
 			}
 		})
 	}

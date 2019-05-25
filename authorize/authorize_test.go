@@ -1,52 +1,36 @@
 package authorize
 
 import (
-	"io/ioutil"
-	"log"
-	"os"
 	"testing"
 
 	"github.com/pomerium/pomerium/internal/config"
+	"github.com/pomerium/pomerium/internal/policy"
 )
 
 func TestNew(t *testing.T) {
 	t.Parallel()
-	content := []byte(`[{"from": "pomerium.io","to":"httpbin.org"}]`)
-	tmpfile, err := ioutil.TempFile("", "example")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpfile.Name()) // clean up
 
-	if _, err := tmpfile.Write(content); err != nil {
-		log.Fatal(err)
+	goodPolicy := policy.Policy{From: "pomerium.io", To: "httpbin.org"}
+	goodPolicy.Validate()
+	policies := []policy.Policy{
+		goodPolicy,
 	}
-	if err := tmpfile.Close(); err != nil {
-		log.Fatal(err)
-	}
+
 	tests := []struct {
-		name       string
-		SharedKey  string
-		Policy     string
-		PolicyFile string
-		wantErr    bool
+		name      string
+		SharedKey string
+		Policies  []policy.Policy
+		wantErr   bool
 	}{
-		{"good", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", "WwogIHsKICAgICJyb3V0ZXMiOiAiaHR0cDovL3BvbWVyaXVtLmlvIgogIH0KXQ==", "", false},
-		{"bad shared secret", "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==", "WwogIHsKICAgICJyb3V0ZXMiOiAiaHR0cDovL3BvbWVyaXVtLmlvIgogIH0KXQ==", "", true},
-		{"really bad shared secret", "sup", "WwogIHsKICAgICJyb3V0ZXMiOiAiaHR0cDovL3BvbWVyaXVtLmlvIgogIH0KXQ==", "", true},
-		{"bad base64 policy", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", "WwogIHsKICAgICJyb3V0ZXMiOiAiaHR0cDovL3BvbWVyaXVtLmlvIgogIH0KXQ^=", "", true},
-		{"bad json", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", "e30=", "", true},
-		{"no policies", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", "", "", true},
-		{"good policy file", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", "", "./testdata/basic.json", true},
-		{"bad policy file, directory", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", "", "./testdata/", true},
-		{"good policy", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", "WwogIHsKICAgICJyb3V0ZXMiOiAiaHR0cDovL3BvbWVyaXVtLmlvIgogIH0KXQ==", "", false},
-		{"good file", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", "", tmpfile.Name(), false},
-		{"validation error, short secret", "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==", "", "", true},
-		{"nil options", "", "", "", true}, // special case
+		{"good", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", policies, false},
+		{"bad shared secret", "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==", policies, true},
+		{"really bad shared secret", "sup", policies, true},
+		{"validation error, short secret", "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==", policies, true},
+		{"nil options", "", []policy.Policy{}, true}, // special case
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := &config.Options{SharedKey: tt.SharedKey, Policy: tt.Policy, PolicyFile: tt.PolicyFile}
+			o := &config.Options{SharedKey: tt.SharedKey, Policies: tt.Policies}
 			if tt.name == "nil options" {
 				o = nil
 			}

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pomerium/pomerium/internal/policy"
+
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"google.golang.org/grpc"
@@ -110,7 +112,6 @@ func Test_newAuthorizeService(t *testing.T) {
 	}{
 		{"wrong service", "proxy", "", "", false},
 		{"bad option parsing", "authorize", "SharedKey", "false", true},
-		{"bad env", "authorize", "Policy", "error!", true},
 		{"good", "authorize", "SharedKey", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", false},
 	}
 	for _, tt := range tests {
@@ -118,7 +119,11 @@ func Test_newAuthorizeService(t *testing.T) {
 			testOpts := config.NewOptions()
 			testOpts.Services = tt.s
 			testOpts.CookieSecret = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
-			testOpts.Policy = "LSBmcm9tOiBodHRwYmluLmNvcnAuYmV5b25kcGVyaW1ldGVyLmNvbQogIHRvOiBodHRwOi8vaHR0cGJpbgogIGFsbG93ZWRfZG9tYWluczoKICAgIC0gcG9tZXJpdW0uaW8KICBjb3JzX2FsbG93X3ByZWZsaWdodDogdHJ1ZQogIHRpbWVvdXQ6IDMwcwotIGZyb206IGV4dGVybmFsLWh0dHBiaW4uY29ycC5iZXlvbmRwZXJpbWV0ZXIuY29tCiAgdG86IGh0dHBiaW4ub3JnCiAgYWxsb3dlZF9kb21haW5zOgogICAgLSBnbWFpbC5jb20KLSBmcm9tOiB3ZWlyZGx5c3NsLmNvcnAuYmV5b25kcGVyaW1ldGVyLmNvbQogIHRvOiBodHRwOi8vbmV2ZXJzc2wuY29tCiAgYWxsb3dlZF91c2VyczoKICAgIC0gYmRkQHBvbWVyaXVtLmlvCiAgYWxsb3dlZF9ncm91cHM6CiAgICAtIGFkbWlucwogICAgLSBkZXZlbG9wZXJzCi0gZnJvbTogaGVsbG8uY29ycC5iZXlvbmRwZXJpbWV0ZXIuY29tCiAgdG86IGh0dHA6Ly9oZWxsbzo4MDgwCiAgYWxsb3dlZF9ncm91cHM6CiAgICAtIGFkbWlucw=="
+			testPolicy := policy.Policy{From: "pomerium.io", To: "httpbin.org"}
+			testPolicy.Validate()
+			testOpts.Policies = []policy.Policy{
+				testPolicy,
+			}
 
 			if tt.Field != "" {
 				testOptsField := reflect.ValueOf(testOpts).Elem().FieldByName(tt.Field)
@@ -146,16 +151,19 @@ func Test_newProxyeService(t *testing.T) {
 	}{
 		{"wrong service", "authenticate", "", "", false},
 		{"bad option parsing", "proxy", "SharedKey", "false", true},
-		{"bad env", "proxy", "Policy", "error!", true},
 		{"good", "proxy", "SharedKey", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mux := http.NewServeMux()
 			testOpts := config.NewOptions()
+			testPolicy := policy.Policy{From: "pomerium.io", To: "httpbin.org"}
+			testPolicy.Validate()
+			testOpts.Policies = []policy.Policy{
+				testPolicy,
+			}
 			testOpts.AuthenticateURL, _ = url.Parse("https://authenticate.example.com")
 			testOpts.AuthorizeURL, _ = url.Parse("https://authorize.example.com")
-			testOpts.Policy = "LSBmcm9tOiBodHRwYmluLmNvcnAuYmV5b25kcGVyaW1ldGVyLmNvbQogIHRvOiBodHRwOi8vaHR0cGJpbgogIGFsbG93ZWRfZG9tYWluczoKICAgIC0gcG9tZXJpdW0uaW8KICBjb3JzX2FsbG93X3ByZWZsaWdodDogdHJ1ZQogIHRpbWVvdXQ6IDMwcwotIGZyb206IGV4dGVybmFsLWh0dHBiaW4uY29ycC5iZXlvbmRwZXJpbWV0ZXIuY29tCiAgdG86IGh0dHBiaW4ub3JnCiAgYWxsb3dlZF9kb21haW5zOgogICAgLSBnbWFpbC5jb20KLSBmcm9tOiB3ZWlyZGx5c3NsLmNvcnAuYmV5b25kcGVyaW1ldGVyLmNvbQogIHRvOiBodHRwOi8vbmV2ZXJzc2wuY29tCiAgYWxsb3dlZF91c2VyczoKICAgIC0gYmRkQHBvbWVyaXVtLmlvCiAgYWxsb3dlZF9ncm91cHM6CiAgICAtIGFkbWlucwogICAgLSBkZXZlbG9wZXJzCi0gZnJvbTogaGVsbG8uY29ycC5iZXlvbmRwZXJpbWV0ZXIuY29tCiAgdG86IGh0dHA6Ly9oZWxsbzo4MDgwCiAgYWxsb3dlZF9ncm91cHM6CiAgICAtIGFkbWlucw=="
 			testOpts.CookieSecret = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
 			testOpts.Services = tt.s
 
@@ -219,7 +227,7 @@ func Test_parseOptions(t *testing.T) {
 			os.Setenv(tt.envKey, tt.envValue)
 			defer os.Unsetenv(tt.envKey)
 
-			got, err := parseOptions()
+			got, err := parseOptions("")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseOptions() error = %v, wantErr %v", err, tt.wantErr)
 				return

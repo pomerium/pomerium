@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/config"
+	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/proxy/clients"
 )
@@ -292,26 +292,27 @@ func Test_extendDeadline(t *testing.T) {
 }
 
 func TestProxy_router(t *testing.T) {
-	configBlob := `[{"from":"corp.example.com","to":"example.com"}]` //valid yaml
-	policy := base64.URLEncoding.EncodeToString([]byte(configBlob))
+	testPolicy := policy.Policy{From: "corp.example.com", To: "example.com"}
+	testPolicy.Validate()
+	policies := []policy.Policy{testPolicy}
 	tests := []struct {
 		name   string
 		host   string
-		mux    string
+		mux    []policy.Policy
 		route  http.Handler
 		wantOk bool
 	}{
-		{"good corp", "https://corp.example.com", policy, nil, true},
-		{"good with slash", "https://corp.example.com/", policy, nil, true},
-		{"good with path", "https://corp.example.com/123", policy, nil, true},
+		{"good corp", "https://corp.example.com", policies, nil, true},
+		{"good with slash", "https://corp.example.com/", policies, nil, true},
+		{"good with path", "https://corp.example.com/123", policies, nil, true},
 		// {"multiple", "https://corp.example.com/", map[string]string{"corp.unrelated.com": "unrelated.com", "corp.example.com": "example.com"}, nil, true},
-		{"bad corp", "https://notcorp.example.com/123", policy, nil, false},
-		{"bad sub-sub", "https://notcorp.corp.example.com/123", policy, nil, false},
+		{"bad corp", "https://notcorp.example.com/123", policies, nil, false},
+		{"bad sub-sub", "https://notcorp.corp.example.com/123", policies, nil, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := testOptions()
-			opts.Policy = tt.mux
+			opts.Policies = tt.mux
 			p, err := New(opts)
 			if err != nil {
 				t.Fatal(err)
@@ -403,6 +404,7 @@ func TestProxy_Proxy(t *testing.T) {
 				t.Errorf("\n%+v", opts)
 				t.Errorf("\n%+v", ts.URL)
 
+				t.Errorf("handler returned wrong status code: got %v want %v \n body %s", status, tt.wantStatus, w.Body.String())
 			}
 
 		})
