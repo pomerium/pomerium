@@ -22,9 +22,9 @@ Remember to set your identity provider settings and to generate new secret keys!
 - Great for testing Pomerium
 - Routes default to hosted version of httpbin.org
 
-Customize for your identity provider and run `source ./env && ./bin/pomerium`
+Customize for your identity provider and run `./bin/pomerium -config config.yaml`
 
-<<< @/env.example
+<<< @/config.example.yaml
 
 ## Docker
 

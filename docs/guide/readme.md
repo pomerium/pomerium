@@ -23,9 +23,9 @@ Edit the `docker-compose.yml` to match your specific [identity provider]'s setti
 
 ### Policy configuration
 
-Next, create a policy configuration file which will contain the routes you want to proxy, and their desired access-controls. For example, `policy.example.yaml`:
+Next, create a configuration file which will contain the routes you want to proxy, and their desired access-controls. For example, `config-policy-only.yaml`:
 
-<<< @/policy.example.yaml
+<<< @/config-policy-only.yaml
 
 ### Certificates
 
