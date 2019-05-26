@@ -70,13 +70,12 @@ func TestProxy_Redeem(t *testing.T) {
 		gomock.Any(),
 		&rpcMsg{msg: req},
 	).Return(&pb.Session{
-		AccessToken:      "mocked access token",
-		RefreshToken:     "mocked refresh token",
-		IdToken:          "mocked id token",
-		User:             "user1",
-		Email:            "test@email.com",
-		LifetimeDeadline: mockExpire,
-		RefreshDeadline:  mockExpire,
+		AccessToken:     "mocked access token",
+		RefreshToken:    "mocked refresh token",
+		IdToken:         "mocked id token",
+		User:            "user1",
+		Email:           "test@email.com",
+		RefreshDeadline: mockExpire,
 	}, nil)
 	tests := []struct {
 		name    string
@@ -85,13 +84,12 @@ func TestProxy_Redeem(t *testing.T) {
 		wantErr bool
 	}{
 		{"good", "unit_test", &sessions.SessionState{
-			AccessToken:      "mocked access token",
-			RefreshToken:     "mocked refresh token",
-			IDToken:          "mocked id token",
-			User:             "user1",
-			Email:            "test@email.com",
-			LifetimeDeadline: (fixedDate),
-			RefreshDeadline:  (fixedDate),
+			AccessToken:     "mocked access token",
+			RefreshToken:    "mocked refresh token",
+			IDToken:         "mocked id token",
+			User:            "user1",
+			Email:           "test@email.com",
+			RefreshDeadline: (fixedDate),
 		}, false},
 		{"empty code", "", nil, true},
 	}
@@ -170,9 +168,8 @@ func TestProxy_AuthenticateRefresh(t *testing.T) {
 		gomock.Any(),
 		gomock.Not(sessions.SessionState{RefreshToken: "fail"}),
 	).Return(&pb.Session{
-		AccessToken:      "new access token",
-		RefreshDeadline:  mockExpire,
-		LifetimeDeadline: mockExpire,
+		AccessToken:     "new access token",
+		RefreshDeadline: mockExpire,
 	}, nil).AnyTimes()
 
 	tests := []struct {
@@ -184,9 +181,8 @@ func TestProxy_AuthenticateRefresh(t *testing.T) {
 		{"good",
 			&sessions.SessionState{RefreshToken: "unit_test"},
 			&sessions.SessionState{
-				AccessToken:      "new access token",
-				RefreshDeadline:  fixedDate,
-				LifetimeDeadline: fixedDate,
+				AccessToken:     "new access token",
+				RefreshDeadline: fixedDate,
 			}, false},
 		{"empty refresh token", &sessions.SessionState{RefreshToken: ""}, nil, true},
 	}

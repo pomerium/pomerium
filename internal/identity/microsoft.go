@@ -109,14 +109,13 @@ func (p *AzureProvider) Authenticate(code string) (*sessions.SessionState, error
 	}
 
 	return &sessions.SessionState{
-		IDToken:          rawIDToken,
-		AccessToken:      oauth2Token.AccessToken,
-		RefreshToken:     oauth2Token.RefreshToken,
-		RefreshDeadline:  oauth2Token.Expiry.Truncate(time.Second),
-		LifetimeDeadline: sessions.ExtendDeadline(p.SessionLifetimeTTL),
-		Email:            claims.Email,
-		User:             idToken.Subject,
-		Groups:           groups,
+		IDToken:         rawIDToken,
+		AccessToken:     oauth2Token.AccessToken,
+		RefreshToken:    oauth2Token.RefreshToken,
+		RefreshDeadline: oauth2Token.Expiry.Truncate(time.Second),
+		Email:           claims.Email,
+		User:            idToken.Subject,
+		Groups:          groups,
 	}, nil
 }
 

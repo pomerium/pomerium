@@ -94,6 +94,10 @@ type Options struct {
 
 	Policies []policy.Policy
 
+	// Administrators contains a set of emails with users who have super user
+	// (sudo) access including the ability to impersonate other users' access
+	Administrators []string `mapstructure:"administrators"`
+
 	// AuthenticateInternalAddr is used as an override when using a load balancer
 	// or ingress that does not natively support routing gRPC.
 	AuthenticateInternalAddr string `mapstructure:"authenticate_internal_url"`
@@ -116,12 +120,15 @@ type Options struct {
 	// Headers to set on all proxied requests. Add a 'disable' key map to turn off.
 	Headers map[string]string `mapstructure:"headers"`
 
+	// RefreshCooldown limits the rate a user can refresh her session
+	RefreshCooldown time.Duration `mapstructure:"refresh_cooldown"`
+
 	// Sub-routes
 	Routes                 map[string]string `mapstructure:"routes"`
 	DefaultUpstreamTimeout time.Duration     `mapstructure:"default_upstream_timeout"`
 }
 
-// NewOptions returns a new options struct with default vaules
+// NewOptions returns a new options struct with default values
 func NewOptions() *Options {
 	o := &Options{
 		Debug:                  false,
@@ -148,6 +155,7 @@ func NewOptions() *Options {
 		IdleTimeout:       5 * time.Minute,
 		AuthenticateURL:   new(url.URL),
 		AuthorizeURL:      new(url.URL),
+		RefreshCooldown:   time.Duration(5 * time.Minute),
 	}
 	return o
 }

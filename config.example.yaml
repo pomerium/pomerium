@@ -1,21 +1,23 @@
 # Main configuration flags
-address: ":8443"     # optional, default is 443
+address: ":8443" # optional, default is 443
 pomerium_debug: true # optional, default is false
-service: "all"       # optional, default is all
-# log_level: "info"                     # optional, default is debug
+service: "all" # optional, default is all
+log_level: "info" # optional, default is debug
 
 authenticate_service_url: https://authenticate.corp.pomerium.io:8443
 authorize_service_url: https://authorize.corp.pomerium.io:8443
 
 # Certificates can be loaded as files or base64 encoded bytes. If neither is set, a
 # pomerium will attempt to locate a pair in the root directory
-certificate_file: "./cert.pem"        # optional, defaults to `./cert.pem`
+certificate_file: "./cert.pem" # optional, defaults to `./cert.pem`
 certificate_key_file: "./privkey.pem" # optional, defaults to `./certprivkey.pem`
 certificate_authority_file: "./cert.pem"
+
+# base64 encoded cert, eg. `base64 -i cert.pem` / `base64 -i privkey.pem`
 # certificate: |
-#  "xxxxxx"                 # base64 encoded cert, eg. `base64 -i cert.pem`
+#  "xxxxxx"
 # certificate_key: |
-#  "xxxx"               # base64 encoded key, eg. `base64 -i privkey.pem`
+#  "xxxx"
 
 # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
 shared_secret: hsJIQsx9KKx4qVlggg/T3AuLTmVu0uHhwTQgMPlVs7U=

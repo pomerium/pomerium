@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/config"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/proxy/clients"
@@ -32,7 +34,12 @@ func (a mockCipher) Decrypt(s []byte) ([]byte, error) {
 	}
 	return []byte("OK"), nil
 }
-func (a mockCipher) Marshal(s interface{}) (string, error) { return "ok", nil }
+func (a mockCipher) Marshal(s interface{}) (string, error) {
+	if s == "error" {
+		return "", errors.New("error")
+	}
+	return "ok", nil
+}
 func (a mockCipher) Unmarshal(s string, i interface{}) error {
 	if string(s) == "unmarshal error" || string(s) == "error" {
 		return errors.New("error")
@@ -153,9 +160,8 @@ func TestProxy_Signout(t *testing.T) {
 		t.Fatal(err)
 	}
 	req := httptest.NewRequest("GET", "/.pomerium/sign_out", nil)
-
 	rr := httptest.NewRecorder()
-	proxy.SignOut(rr, req)
+	proxy.SignOutCallback(rr, req)
 	if status := rr.Code; status != http.StatusFound {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusFound)
 	}
@@ -201,78 +207,6 @@ func TestProxy_Handler(t *testing.T) {
 	}
 }
 
-func TestProxy_OAuthCallback(t *testing.T) {
-	normalSession := sessions.MockSessionStore{
-		Session: &sessions.SessionState{
-			AccessToken:      "AccessToken",
-			RefreshToken:     "RefreshToken",
-			LifetimeDeadline: time.Now().Add(10 * time.Second),
-			RefreshDeadline:  time.Now().Add(-10 * time.Second),
-		},
-	}
-	normalAuth := clients.MockAuthenticate{
-		RedeemResponse: &sessions.SessionState{
-			AccessToken:      "AccessToken",
-			RefreshToken:     "RefreshToken",
-			LifetimeDeadline: time.Now().Add(10 * time.Second),
-		},
-	}
-	normalCsrf := sessions.MockCSRFStore{
-		ResponseCSRF: "ok",
-		GetError:     nil,
-		Cookie: &http.Cookie{
-			Name:  "something_csrf",
-			Value: "csrf_state",
-		}}
-	tests := []struct {
-		name          string
-		csrf          sessions.MockCSRFStore
-		session       sessions.MockSessionStore
-		authenticator clients.MockAuthenticate
-		params        map[string]string
-		wantCode      int
-	}{
-		{"good", normalCsrf, normalSession, normalAuth, map[string]string{"code": "code", "state": "state"}, http.StatusFound},
-		{"error", normalCsrf, normalSession, normalAuth, map[string]string{"error": "some error"}, http.StatusForbidden},
-		{"code err", normalCsrf, normalSession, clients.MockAuthenticate{RedeemError: errors.New("error")}, map[string]string{"code": "error"}, http.StatusInternalServerError},
-		{"state err", normalCsrf, normalSession, normalAuth, map[string]string{"code": "code", "state": "error"}, http.StatusInternalServerError},
-		{"csrf err", sessions.MockCSRFStore{GetError: errors.New("error")}, normalSession, normalAuth, map[string]string{"code": "code", "state": "state"}, http.StatusBadRequest},
-		{"unmarshal err", sessions.MockCSRFStore{
-			Cookie: &http.Cookie{
-				Name:  "something_csrf",
-				Value: "unmarshal error",
-			},
-		}, normalSession, normalAuth, map[string]string{"code": "code", "state": "state"}, http.StatusInternalServerError},
-		{"encrypted state != CSRF", normalCsrf, normalSession, normalAuth, map[string]string{"code": "code", "state": "csrf_state"}, http.StatusBadRequest},
-		{"session save err", normalCsrf, sessions.MockSessionStore{SaveError: errors.New("error")}, normalAuth, map[string]string{"code": "code", "state": "state"}, http.StatusInternalServerError},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			proxy, err := New(testOptions())
-			if err != nil {
-				t.Fatal(err)
-			}
-			proxy.sessionStore = &tt.session
-			proxy.csrfStore = tt.csrf
-			proxy.AuthenticateClient = tt.authenticator
-			proxy.cipher = mockCipher{}
-			// proxy.Csrf
-			req := httptest.NewRequest(http.MethodPost, "/.pomerium/callback", nil)
-			q := req.URL.Query()
-			for k, v := range tt.params {
-				q.Add(k, v)
-			}
-			req.URL.RawQuery = q.Encode()
-			w := httptest.NewRecorder()
-			proxy.OAuthCallback(w, req)
-			if status := w.Code; status != tt.wantCode {
-				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
-			}
-		})
-	}
-
-}
 func Test_extendDeadline(t *testing.T) {
 	tests := []struct {
 		name string
@@ -331,10 +265,9 @@ func TestProxy_router(t *testing.T) {
 
 func TestProxy_Proxy(t *testing.T) {
 	goodSession := &sessions.SessionState{
-		AccessToken:      "AccessToken",
-		RefreshToken:     "RefreshToken",
-		LifetimeDeadline: time.Now().Add(10 * time.Second),
-		RefreshDeadline:  time.Now().Add(10 * time.Second),
+		AccessToken:     "AccessToken",
+		RefreshToken:    "RefreshToken",
+		RefreshDeadline: time.Now().Add(10 * time.Second),
 	}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -374,13 +307,14 @@ func TestProxy_Proxy(t *testing.T) {
 		{"unknown host", opts, http.MethodGet, defaultHeaders, "https://nothttpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusNotFound},
 		{"user forbidden", opts, http.MethodGet, defaultHeaders, "https://nothttpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
 		// authenticate errors
-		{"no session error", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{LoadError: http.ErrNoCookie, Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusFound},
 		{"weird load session error", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{LoadError: errors.New("weird"), Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusInternalServerError},
 		{"failed refreshed session", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: &sessions.SessionState{RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthenticate{RefreshError: errors.New("refresh error")}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusForbidden},
 		{"cannot resave refreshed session", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{SaveError: errors.New("weird"), Session: &sessions.SessionState{RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusForbidden},
 		{"authenticate validation error", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: false}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusForbidden},
 		{"public access", optsPublic, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusOK},
 		{"public access, but unknown host", optsPublic, http.MethodGet, defaultHeaders, "https://nothttpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
+		// no session, redirect to login
+		{"no http found (no session)", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{LoadError: http.ErrNoCookie}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
@@ -407,6 +341,155 @@ func TestProxy_Proxy(t *testing.T) {
 				t.Errorf("handler returned wrong status code: got %v want %v \n body %s", status, tt.wantStatus, w.Body.String())
 			}
 
+		})
+	}
+}
+
+func TestProxy_UserDashboard(t *testing.T) {
+	opts := testOptions()
+	tests := []struct {
+		name          string
+		options       *config.Options
+		method        string
+		cipher        cryptutil.Cipher
+		session       sessions.SessionStore
+		authenticator clients.Authenticator
+		authorizer    clients.Authorizer
+
+		wantAdminForm bool
+		wantStatus    int
+	}{
+		{"good", opts, http.MethodGet, &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example"}}, clients.MockAuthenticate{}, clients.MockAuthorize{}, false, http.StatusOK},
+		{"cannot load session", opts, http.MethodGet, &cryptutil.MockCipher{}, &sessions.MockSessionStore{LoadError: errors.New("load error")}, clients.MockAuthenticate{}, clients.MockAuthorize{}, false, http.StatusBadRequest},
+		{"auth failure, validation error", opts, http.MethodGet, &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthenticate{ValidateError: errors.New("not valid anymore"), ValidateResponse: false}, clients.MockAuthorize{}, false, http.StatusUnauthorized},
+		{"can't save csrf", opts, http.MethodGet, &cryptutil.MockCipher{MarshalError: errors.New("err")}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example"}}, clients.MockAuthenticate{}, clients.MockAuthorize{}, false, http.StatusInternalServerError},
+		{"want admin form good admin authorization", opts, http.MethodGet, &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example"}}, clients.MockAuthenticate{}, clients.MockAuthorize{IsAdminResponse: true}, true, http.StatusOK},
+		{"is admin but authorization fails", opts, http.MethodGet, &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example"}}, clients.MockAuthenticate{}, clients.MockAuthorize{IsAdminError: errors.New("err")}, false, http.StatusInternalServerError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p, err := New(tt.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p.cipher = tt.cipher
+			p.sessionStore = tt.session
+			p.AuthenticateClient = tt.authenticator
+			p.AuthorizeClient = tt.authorizer
+
+			r := httptest.NewRequest(tt.method, "/", nil)
+			w := httptest.NewRecorder()
+			p.UserDashboard(w, r)
+			if status := w.Code; status != tt.wantStatus {
+				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
+				t.Errorf("\n%+v", opts)
+			}
+			if adminForm := strings.Contains(w.Body.String(), "impersonate"); adminForm != tt.wantAdminForm {
+				t.Errorf("wanted admin form  got %v want %v", adminForm, tt.wantAdminForm)
+				t.Errorf("\n%+v", w.Body.String())
+			}
+		})
+	}
+}
+
+func TestProxy_Refresh(t *testing.T) {
+	opts := testOptions()
+	opts.RefreshCooldown = 0
+	timeSinceError := testOptions()
+	timeSinceError.RefreshCooldown = time.Duration(int(^uint(0) >> 1))
+
+	tests := []struct {
+		name          string
+		options       *config.Options
+		method        string
+		cipher        cryptutil.Cipher
+		session       sessions.SessionStore
+		authenticator clients.Authenticator
+		authorizer    clients.Authorizer
+		wantStatus    int
+	}{
+		{"good", opts, http.MethodGet, &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example", IDToken: "eyJhbGciOiJSUzI1NiIsImtpZCI6IjA3YTA4MjgzOWYyZTcxYTliZjZjNTk2OTk2Yjk0NzM5Nzg1YWZkYzMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI4NTE4NzcwODIwNTktYmZna3BqMDlub29nN2FzM2dwYzN0N3I2bjlzamJnczYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI4NTE4NzcwODIwNTktYmZna3BqMDlub29nN2FzM2dwYzN0N3I2bjlzamJnczYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTE0MzI2NTU5NzcyNzMxNTAzMDgiLCJoZCI6InBvbWVyaXVtLmlvIiwiZW1haWwiOiJiZGRAcG9tZXJpdW0uaW8iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6IlppQ1g0WndDYl9tcUVxM2xnbmFZRHciLCJuYW1lIjoiQm9iYnkgRGVTaW1vbmUiLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tLy1PX1BzRTlILTgzRS9BQUFBQUFBQUFBSS9BQUFBQUFBQUFBQS9BQ0hpM3JjQ0U0SFRLVDBhQk1pUFVfOEZfVXFOQ3F6RTBRL3M5Ni1jL3Bob3RvLmpwZyIsImdpdmVuX25hbWUiOiJCb2JieSIsImZhbWlseV9uYW1lIjoiRGVTaW1vbmUiLCJsb2NhbGUiOiJlbiIsImlhdCI6MTU1ODY1NDEzNywiZXhwIjoxNTU4NjU3NzM3fQ.Flah31XfqmPhWYh2rJ-6rtowmSQFgp6HqDf1rpS38Wo0DXnIYmXxEQVLanDNV62Z0sLhUk1QO9NqoSgA3NscM-Ww-JsqU80oKnWcMYweUb_KU0kfHyTiUB0iEHMqu6tXn5dA_dIaPnL5oorXZ_gG4sooRxBZrDkaNAjRINLciKDQkUTVaNfnM6IBZ_pWDPd2lWGtj8h8sEIe2PIiH73Z2VLlXz8kw60VTPsi9U2zrF0ZJ9MfRGJhceQ58vW2ZlFfXJixgvbOZjKmcRv8NaJDIUss48l0Bsya6icZ0l1ZK-sAiFr0KVLTl2ywu8d5SQpTJ1X7vDW_u_04xaqDQUdYKA"}}, clients.MockAuthenticate{}, clients.MockAuthorize{}, http.StatusFound},
+		{"cannot load session", opts, http.MethodGet, &cryptutil.MockCipher{}, &sessions.MockSessionStore{LoadError: errors.New("load error")}, clients.MockAuthenticate{}, clients.MockAuthorize{}, http.StatusBadRequest},
+		{"bad id token", opts, http.MethodGet, &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example", IDToken: "bad"}}, clients.MockAuthenticate{}, clients.MockAuthorize{}, http.StatusInternalServerError},
+		{"issue date too soon", timeSinceError, http.MethodGet, &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example", IDToken: "eyJhbGciOiJSUzI1NiIsImtpZCI6IjA3YTA4MjgzOWYyZTcxYTliZjZjNTk2OTk2Yjk0NzM5Nzg1YWZkYzMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI4NTE4NzcwODIwNTktYmZna3BqMDlub29nN2FzM2dwYzN0N3I2bjlzamJnczYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI4NTE4NzcwODIwNTktYmZna3BqMDlub29nN2FzM2dwYzN0N3I2bjlzamJnczYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTE0MzI2NTU5NzcyNzMxNTAzMDgiLCJoZCI6InBvbWVyaXVtLmlvIiwiZW1haWwiOiJiZGRAcG9tZXJpdW0uaW8iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6IlppQ1g0WndDYl9tcUVxM2xnbmFZRHciLCJuYW1lIjoiQm9iYnkgRGVTaW1vbmUiLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tLy1PX1BzRTlILTgzRS9BQUFBQUFBQUFBSS9BQUFBQUFBQUFBQS9BQ0hpM3JjQ0U0SFRLVDBhQk1pUFVfOEZfVXFOQ3F6RTBRL3M5Ni1jL3Bob3RvLmpwZyIsImdpdmVuX25hbWUiOiJCb2JieSIsImZhbWlseV9uYW1lIjoiRGVTaW1vbmUiLCJsb2NhbGUiOiJlbiIsImlhdCI6MTU1ODY1NDEzNywiZXhwIjoxNTU4NjU3NzM3fQ.Flah31XfqmPhWYh2rJ-6rtowmSQFgp6HqDf1rpS38Wo0DXnIYmXxEQVLanDNV62Z0sLhUk1QO9NqoSgA3NscM-Ww-JsqU80oKnWcMYweUb_KU0kfHyTiUB0iEHMqu6tXn5dA_dIaPnL5oorXZ_gG4sooRxBZrDkaNAjRINLciKDQkUTVaNfnM6IBZ_pWDPd2lWGtj8h8sEIe2PIiH73Z2VLlXz8kw60VTPsi9U2zrF0ZJ9MfRGJhceQ58vW2ZlFfXJixgvbOZjKmcRv8NaJDIUss48l0Bsya6icZ0l1ZK-sAiFr0KVLTl2ywu8d5SQpTJ1X7vDW_u_04xaqDQUdYKA"}}, clients.MockAuthenticate{}, clients.MockAuthorize{}, http.StatusBadRequest},
+		{"refresh failure", opts, http.MethodGet, &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example", IDToken: "eyJhbGciOiJSUzI1NiIsImtpZCI6IjA3YTA4MjgzOWYyZTcxYTliZjZjNTk2OTk2Yjk0NzM5Nzg1YWZkYzMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI4NTE4NzcwODIwNTktYmZna3BqMDlub29nN2FzM2dwYzN0N3I2bjlzamJnczYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI4NTE4NzcwODIwNTktYmZna3BqMDlub29nN2FzM2dwYzN0N3I2bjlzamJnczYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTE0MzI2NTU5NzcyNzMxNTAzMDgiLCJoZCI6InBvbWVyaXVtLmlvIiwiZW1haWwiOiJiZGRAcG9tZXJpdW0uaW8iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6IlppQ1g0WndDYl9tcUVxM2xnbmFZRHciLCJuYW1lIjoiQm9iYnkgRGVTaW1vbmUiLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tLy1PX1BzRTlILTgzRS9BQUFBQUFBQUFBSS9BQUFBQUFBQUFBQS9BQ0hpM3JjQ0U0SFRLVDBhQk1pUFVfOEZfVXFOQ3F6RTBRL3M5Ni1jL3Bob3RvLmpwZyIsImdpdmVuX25hbWUiOiJCb2JieSIsImZhbWlseV9uYW1lIjoiRGVTaW1vbmUiLCJsb2NhbGUiOiJlbiIsImlhdCI6MTU1ODY1NDEzNywiZXhwIjoxNTU4NjU3NzM3fQ.Flah31XfqmPhWYh2rJ-6rtowmSQFgp6HqDf1rpS38Wo0DXnIYmXxEQVLanDNV62Z0sLhUk1QO9NqoSgA3NscM-Ww-JsqU80oKnWcMYweUb_KU0kfHyTiUB0iEHMqu6tXn5dA_dIaPnL5oorXZ_gG4sooRxBZrDkaNAjRINLciKDQkUTVaNfnM6IBZ_pWDPd2lWGtj8h8sEIe2PIiH73Z2VLlXz8kw60VTPsi9U2zrF0ZJ9MfRGJhceQ58vW2ZlFfXJixgvbOZjKmcRv8NaJDIUss48l0Bsya6icZ0l1ZK-sAiFr0KVLTl2ywu8d5SQpTJ1X7vDW_u_04xaqDQUdYKA"}}, clients.MockAuthenticate{RefreshError: errors.New("err")}, clients.MockAuthorize{}, http.StatusInternalServerError},
+		{"can't save refreshed session", opts, http.MethodGet, &cryptutil.MockCipher{}, &sessions.MockSessionStore{SaveError: errors.New("err"), Session: &sessions.SessionState{Email: "user@test.example", IDToken: "eyJhbGciOiJSUzI1NiIsImtpZCI6IjA3YTA4MjgzOWYyZTcxYTliZjZjNTk2OTk2Yjk0NzM5Nzg1YWZkYzMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI4NTE4NzcwODIwNTktYmZna3BqMDlub29nN2FzM2dwYzN0N3I2bjlzamJnczYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI4NTE4NzcwODIwNTktYmZna3BqMDlub29nN2FzM2dwYzN0N3I2bjlzamJnczYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTE0MzI2NTU5NzcyNzMxNTAzMDgiLCJoZCI6InBvbWVyaXVtLmlvIiwiZW1haWwiOiJiZGRAcG9tZXJpdW0uaW8iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6IlppQ1g0WndDYl9tcUVxM2xnbmFZRHciLCJuYW1lIjoiQm9iYnkgRGVTaW1vbmUiLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tLy1PX1BzRTlILTgzRS9BQUFBQUFBQUFBSS9BQUFBQUFBQUFBQS9BQ0hpM3JjQ0U0SFRLVDBhQk1pUFVfOEZfVXFOQ3F6RTBRL3M5Ni1jL3Bob3RvLmpwZyIsImdpdmVuX25hbWUiOiJCb2JieSIsImZhbWlseV9uYW1lIjoiRGVTaW1vbmUiLCJsb2NhbGUiOiJlbiIsImlhdCI6MTU1ODY1NDEzNywiZXhwIjoxNTU4NjU3NzM3fQ.Flah31XfqmPhWYh2rJ-6rtowmSQFgp6HqDf1rpS38Wo0DXnIYmXxEQVLanDNV62Z0sLhUk1QO9NqoSgA3NscM-Ww-JsqU80oKnWcMYweUb_KU0kfHyTiUB0iEHMqu6tXn5dA_dIaPnL5oorXZ_gG4sooRxBZrDkaNAjRINLciKDQkUTVaNfnM6IBZ_pWDPd2lWGtj8h8sEIe2PIiH73Z2VLlXz8kw60VTPsi9U2zrF0ZJ9MfRGJhceQ58vW2ZlFfXJixgvbOZjKmcRv8NaJDIUss48l0Bsya6icZ0l1ZK-sAiFr0KVLTl2ywu8d5SQpTJ1X7vDW_u_04xaqDQUdYKA"}}, clients.MockAuthenticate{}, clients.MockAuthorize{}, http.StatusInternalServerError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p, err := New(tt.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p.cipher = tt.cipher
+			p.sessionStore = tt.session
+			p.AuthenticateClient = tt.authenticator
+			p.AuthorizeClient = tt.authorizer
+
+			r := httptest.NewRequest(tt.method, "/", nil)
+			w := httptest.NewRecorder()
+			p.Refresh(w, r)
+			if status := w.Code; status != tt.wantStatus {
+				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
+				// t.Errorf("\n%+v", w.Body.String())
+				t.Errorf("\n%+v", opts)
+			}
+		})
+	}
+}
+
+func TestProxy_Impersonate(t *testing.T) {
+	opts := testOptions()
+
+	tests := []struct {
+		name          string
+		options       *config.Options
+		method        string
+		email         string
+		groups        string
+		csrf          string
+		cipher        cryptutil.Cipher
+		sessionStore  sessions.SessionStore
+		csrfStore     sessions.CSRFStore
+		authenticator clients.Authenticator
+		authorizer    clients.Authorizer
+		wantStatus    int
+	}{
+		{"good", opts, http.MethodPost, "user@blah.com", "", "", &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example", IDToken: ""}}, &sessions.MockCSRFStore{Cookie: &http.Cookie{Value: "csrf"}}, clients.MockAuthenticate{}, clients.MockAuthorize{IsAdminResponse: true}, http.StatusFound},
+		{"session load error", opts, http.MethodPost, "user@blah.com", "", "", &cryptutil.MockCipher{}, &sessions.MockSessionStore{LoadError: errors.New("err"), Session: &sessions.SessionState{Email: "user@test.example", IDToken: ""}}, &sessions.MockCSRFStore{Cookie: &http.Cookie{Value: "csrf"}}, clients.MockAuthenticate{}, clients.MockAuthorize{IsAdminResponse: true}, http.StatusInternalServerError},
+		{"non admin users rejected", opts, http.MethodPost, "user@blah.com", "", "", &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example", IDToken: ""}}, &sessions.MockCSRFStore{Cookie: &http.Cookie{Value: "csrf"}}, clients.MockAuthenticate{}, clients.MockAuthorize{IsAdminResponse: false}, http.StatusForbidden},
+		{"non admin users rejected on error", opts, http.MethodPost, "user@blah.com", "", "", &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example", IDToken: ""}}, &sessions.MockCSRFStore{Cookie: &http.Cookie{Value: "csrf"}}, clients.MockAuthenticate{}, clients.MockAuthorize{IsAdminResponse: true, IsAdminError: errors.New("err")}, http.StatusForbidden},
+		{"csrf from store retrieve failure", opts, http.MethodPost, "user@blah.com", "", "", &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example", IDToken: ""}}, &sessions.MockCSRFStore{Cookie: &http.Cookie{Value: "csrf"}, GetError: errors.New("err")}, clients.MockAuthenticate{}, clients.MockAuthorize{IsAdminResponse: true}, http.StatusBadRequest},
+		{"can't decrypt csrf value", opts, http.MethodPost, "user@blah.com", "", "", &cryptutil.MockCipher{UnmarshalError: errors.New("err")}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example", IDToken: ""}}, &sessions.MockCSRFStore{Cookie: &http.Cookie{Value: "csrf"}}, clients.MockAuthenticate{}, clients.MockAuthorize{IsAdminResponse: true}, http.StatusInternalServerError},
+		{"decrypted csrf mismatch", opts, http.MethodPost, "user@blah.com", "", "CSRF!", &cryptutil.MockCipher{}, &sessions.MockSessionStore{Session: &sessions.SessionState{Email: "user@test.example", IDToken: ""}}, &sessions.MockCSRFStore{Cookie: &http.Cookie{Value: "csrf"}}, clients.MockAuthenticate{}, clients.MockAuthorize{IsAdminResponse: true}, http.StatusForbidden},
+		{"save session failure", opts, http.MethodPost, "user@blah.com", "", "", &cryptutil.MockCipher{}, &sessions.MockSessionStore{SaveError: errors.New("err"), Session: &sessions.SessionState{Email: "user@test.example", IDToken: ""}}, &sessions.MockCSRFStore{Cookie: &http.Cookie{Value: "csrf"}}, clients.MockAuthenticate{}, clients.MockAuthorize{IsAdminResponse: true}, http.StatusInternalServerError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p, err := New(tt.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p.cipher = tt.cipher
+			p.sessionStore = tt.sessionStore
+			p.csrfStore = tt.csrfStore
+			p.AuthenticateClient = tt.authenticator
+			p.AuthorizeClient = tt.authorizer
+			postForm := url.Values{}
+			postForm.Add("email", tt.email)
+			postForm.Add("group", tt.groups)
+			postForm.Set("csrf", tt.csrf)
+
+			r := httptest.NewRequest(tt.method, "/", bytes.NewBufferString(postForm.Encode()))
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
+			w := httptest.NewRecorder()
+			p.Impersonate(w, r)
+			if status := w.Code; status != tt.wantStatus {
+				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
+				// t.Errorf("\n%+v", w.Body.String())
+				t.Errorf("\n%+v", opts)
+			}
 		})
 	}
 }

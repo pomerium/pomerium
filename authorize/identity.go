@@ -14,14 +14,26 @@ type Identity struct {
 	User   string
 	Email  string
 	Groups []string
+	// Impersonation
+	ImpersonateEmail  string
+	ImpersonateGroups []string
 }
 
-// EmailDomain returns the domain of the identity's email.
-func (i *Identity) EmailDomain() string {
-	if i.Email == "" {
+// IsImpersonating returns whether the user is trying to impersonate another
+// user email or group.
+func (i *Identity) IsImpersonating() bool {
+	if i.ImpersonateEmail != "" || len(i.ImpersonateGroups) != 0 {
+		return true
+	}
+	return false
+}
+
+// EmailDomain returns the domain portion of an email.
+func EmailDomain(email string) string {
+	if email == "" {
 		return ""
 	}
-	comp := strings.Split(i.Email, "@")
+	comp := strings.Split(email, "@")
 	if len(comp) != 2 || comp[0] == "" {
 		return ""
 	}
@@ -32,96 +44,141 @@ func (i *Identity) EmailDomain() string {
 // to a given route.
 type IdentityValidator interface {
 	Valid(string, *Identity) bool
+	IsAdmin(*Identity) bool
 }
 
-type identityWhitelist struct {
+type whitelist struct {
 	sync.RWMutex
-	m map[string]bool
+	access map[string]bool
+	admins map[string]bool
 }
 
 // newIdentityWhitelistMap takes a slice of policies and creates a hashmap of identity
 // authorizations per-route for each allowed group, domain, and email.
-func newIdentityWhitelistMap(policies []policy.Policy) *identityWhitelist {
-	var im identityWhitelist
-	im.m = make(map[string]bool, len(policies)*3)
+func newIdentityWhitelistMap(policies []policy.Policy, admins []string) *whitelist {
+	var wl whitelist
+	wl.access = make(map[string]bool, len(policies)*3)
 	for _, p := range policies {
 		for _, group := range p.AllowedGroups {
+			wl.PutGroup(p.From, group)
 			log.Debug().Str("route", p.From).Str("group", group).Msg("add group")
-			im.PutGroup(p.From, group)
 		}
 		for _, domain := range p.AllowedDomains {
-			im.PutDomain(p.From, domain)
-			log.Debug().Str("route", p.From).Str("group", domain).Msg("add domain")
-
+			wl.PutDomain(p.From, domain)
+			log.Debug().Str("route", p.From).Str("domain", domain).Msg("add domain")
 		}
 		for _, email := range p.AllowedEmails {
-			im.PutEmail(p.From, email)
-			log.Debug().Str("route", p.From).Str("group", email).Msg("add email")
+			wl.PutEmail(p.From, email)
+			log.Debug().Str("route", p.From).Str("email", email).Msg("add email")
 		}
 	}
-	return &im
+
+	wl.admins = make(map[string]bool, len(admins))
+	for _, admin := range admins {
+		wl.PutAdmin(admin)
+		log.Debug().Str("admin", admin).Msg("add administrator")
+	}
+	return &wl
 }
 
 // Valid reports whether an identity has valid access for a given route.
-func (m *identityWhitelist) Valid(route string, i *Identity) bool {
-	if ok := m.Domain(route, i.EmailDomain()); ok {
+func (wl *whitelist) Valid(route string, i *Identity) bool {
+	email := i.Email
+	domain := EmailDomain(email)
+	groups := i.Groups
+
+	// if user is admin, and wants to impersonate, override values
+	if wl.IsAdmin(i) && i.IsImpersonating() {
+		email = i.ImpersonateEmail
+		domain = EmailDomain(email)
+		groups = i.ImpersonateGroups
+	}
+
+	if ok := wl.Email(route, email); ok {
 		return ok
 	}
-	if ok := m.Email(route, i.Email); ok {
+	if ok := wl.Domain(route, domain); ok {
 		return ok
 	}
-	for _, group := range i.Groups {
-		if ok := m.Group(route, group); ok {
+	for _, group := range groups {
+		if ok := wl.Group(route, group); ok {
 			return ok
 		}
 	}
 	return false
 }
 
+func (wl *whitelist) IsAdmin(i *Identity) bool {
+	if ok := wl.Admin(i.Email); ok {
+		return ok
+	}
+	return false
+}
+
 // Group retrieves per-route access given a group name.
-func (m *identityWhitelist) Group(route, group string) bool {
-	m.RLock()
-	defer m.RUnlock()
-	return m.m[fmt.Sprintf("%s|group:%s", route, group)]
+func (wl *whitelist) Group(route, group string) bool {
+	wl.RLock()
+	defer wl.RUnlock()
+	return wl.access[fmt.Sprintf("%s|group:%s", route, group)]
 }
 
 // PutGroup adds an access entry for a route given a group name.
-func (m *identityWhitelist) PutGroup(route, group string) {
-	m.Lock()
-	m.m[fmt.Sprintf("%s|group:%s", route, group)] = true
-	m.Unlock()
+func (wl *whitelist) PutGroup(route, group string) {
+	wl.Lock()
+	wl.access[fmt.Sprintf("%s|group:%s", route, group)] = true
+	wl.Unlock()
 }
 
 // Domain retrieves per-route access given a domain name.
-func (m *identityWhitelist) Domain(route, domain string) bool {
-	m.RLock()
-	defer m.RUnlock()
-	return m.m[fmt.Sprintf("%s|domain:%s", route, domain)]
+func (wl *whitelist) Domain(route, domain string) bool {
+	wl.RLock()
+	defer wl.RUnlock()
+	return wl.access[fmt.Sprintf("%s|domain:%s", route, domain)]
 }
 
 // PutDomain adds an access entry for a route given a domain name.
-func (m *identityWhitelist) PutDomain(route, domain string) {
-	m.Lock()
-	m.m[fmt.Sprintf("%s|domain:%s", route, domain)] = true
-	m.Unlock()
+func (wl *whitelist) PutDomain(route, domain string) {
+	wl.Lock()
+	wl.access[fmt.Sprintf("%s|domain:%s", route, domain)] = true
+	wl.Unlock()
 }
 
 // Email retrieves per-route access given a user's email.
-func (m *identityWhitelist) Email(route, email string) bool {
-	m.RLock()
-	defer m.RUnlock()
-	return m.m[fmt.Sprintf("%s|email:%s", route, email)]
+func (wl *whitelist) Email(route, email string) bool {
+	wl.RLock()
+	defer wl.RUnlock()
+	return wl.access[fmt.Sprintf("%s|email:%s", route, email)]
 }
 
 // PutEmail adds an access entry for a route given a user's email.
-func (m *identityWhitelist) PutEmail(route, email string) {
-	m.Lock()
-	m.m[fmt.Sprintf("%s|email:%s", route, email)] = true
-	m.Unlock()
+func (wl *whitelist) PutEmail(route, email string) {
+	wl.Lock()
+	wl.access[fmt.Sprintf("%s|email:%s", route, email)] = true
+	wl.Unlock()
+}
+
+// PutEmail adds an admin entry
+func (wl *whitelist) PutAdmin(admin string) {
+	wl.Lock()
+	wl.admins[admin] = true
+	wl.Unlock()
+}
+
+// Admin checks if the email matches an admin
+func (wl *whitelist) Admin(admin string) bool {
+	wl.RLock()
+	defer wl.RUnlock()
+	return wl.admins[admin]
 }
 
 // MockIdentityValidator is a mock implementation of IdentityValidator
-type MockIdentityValidator struct{ ValidResponse bool }
+type MockIdentityValidator struct {
+	ValidResponse   bool
+	IsAdminResponse bool
+}
 
-// Valid  is a mock implementation IdentityValidator's Valid method
+// Valid is a mock implementation IdentityValidator's Valid method
 func (mv *MockIdentityValidator) Valid(u string, i *Identity) bool { return mv.ValidResponse }
+
+// IsAdmin is a mock implementation IdentityValidator's IsAdmin method
+func (mv *MockIdentityValidator) IsAdmin(i *Identity) bool { return mv.IsAdminResponse }

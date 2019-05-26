@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/templates"
 )
 
 // StateParameter holds the redirect id along with the session id.
@@ -33,11 +33,14 @@ func (p *Proxy) Handler() http.Handler {
 	}))
 	mux := http.NewServeMux()
 	mux.HandleFunc("/robots.txt", p.RobotsTxt)
-	mux.HandleFunc("/.pomerium/sign_out", p.SignOut)
-	mux.HandleFunc("/.pomerium/callback", p.OAuthCallback)
-	// mux.HandleFunc("/.pomerium/refresh", p.Refresh) //todo(bdd): needs DoS protection before inclusion
-	mux.HandleFunc("/", p.Proxy)
-	return validate.Then(mux)
+	mux.HandleFunc("/.pomerium", p.UserDashboard)
+	mux.HandleFunc("/.pomerium/impersonate", p.Impersonate) // POST
+	mux.HandleFunc("/.pomerium/sign_out", p.SignOutCallback)
+	// handlers handlers with validation
+	mux.Handle("/.pomerium/callback", validate.ThenFunc(p.OAuthCallback))
+	mux.Handle("/.pomerium/refresh", validate.ThenFunc(p.Refresh))
+	mux.Handle("/", validate.ThenFunc(p.Proxy))
+	return mux
 }
 
 // RobotsTxt sets the User-Agent header in the response to be "Disallow"
@@ -46,17 +49,12 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
-// SignOut redirects the request to the sign out url. It's the responsibility
+// SignOutCallback redirects the request to the sign out url. It's the responsibility
 // of the authenticate service to revoke the remote session and clear
 // the local session state.
-func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
-	redirectURL := &url.URL{
-		Scheme: "https",
-		Host:   r.Host,
-		Path:   "/",
-	}
-	fullURL := p.GetSignOutURL(p.AuthenticateURL, redirectURL)
-	http.Redirect(w, r, fullURL.String(), http.StatusFound)
+func (p *Proxy) SignOutCallback(w http.ResponseWriter, r *http.Request) {
+	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/"}
+	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
 // OAuthStart begins the authenticate flow, encrypting the redirect url
@@ -65,34 +63,47 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	requestURI := r.URL.String()
 	callbackURL := p.GetRedirectURL(r.Host)
 
-	// state prevents cross site forgery and maintain state across the client and server
+	// CSRF value used to mitigate replay attacks.
 	state := &StateParameter{
-		SessionID:   fmt.Sprintf("%x", cryptutil.GenerateKey()), // nonce
-		RedirectURI: requestURI,                                 // where to redirect the user back to
+		SessionID:   fmt.Sprintf("%x", cryptutil.GenerateKey()),
+		RedirectURI: requestURI,
 	}
 
-	// we encrypt this value to be opaque the browser cookie
-	// this value will be unique since we always use a randomized nonce as part of marshaling
-	encryptedCSRF, err := p.cipher.Marshal(state)
+	// Encrypt, and save CSRF state. Will be checked on callback.
+	localState, err := p.cipher.Marshal(state)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("proxy: failed to marshal csrf")
 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	p.csrfStore.SetCSRF(w, r, encryptedCSRF)
+	p.csrfStore.SetCSRF(w, r, localState)
 
-	// we encrypt this value to be opaque the uri query value
-	// this value will be unique since we always use a randomized nonce as part of marshaling
-	encryptedState, err := p.cipher.Marshal(state)
+	// Though the plaintext payload is identical, we re-encrypt which will
+	// create a different cipher text using another nonce
+	remoteState, err := p.cipher.Marshal(state)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("proxy: failed to encrypt cookie")
 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	signinURL := p.GetSignInURL(p.AuthenticateURL, callbackURL, encryptedState)
-	log.FromRequest(r).Info().Str("SigninURL", signinURL.String()).Msg("proxy: oauth start")
-	// redirect the user to the authenticate provider along with the encrypted state which
-	// contains a redirect uri pointing back to the proxy
+
+	// Sanity check. The encrypted payload of local and remote state should
+	// never match as each encryption round uses a cryptographic nonce.
+	//
+	// todo(bdd): since this should nearly (1/(2^32*2^32)) never happen should
+	// we panic as a failure most likely means the rands entropy source is failing?
+	if remoteState == localState {
+		p.sessionStore.ClearSession(w, r)
+		log.FromRequest(r).Error().Msg("proxy: encrypted state should not match")
+		httputil.ErrorResponse(w, r, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	signinURL := p.GetSignInURL(p.AuthenticateURL, callbackURL, remoteState)
+	log.FromRequest(r).Debug().Str("SigninURL", signinURL.String()).Msg("proxy: oauth start")
+
+	// Redirect the user to the authenticate service along with the encrypted
+	// state which contains a redirect uri back to the proxy and a nonce
 	http.Redirect(w, r, signinURL.String(), http.StatusFound)
 }
 
@@ -112,23 +123,18 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, errorString, http.StatusForbidden)
 		return
 	}
-	// We begin the process of redeeming the code for an access token.
-	session, err := p.AuthenticateClient.Redeem(r.Context(), r.Form.Get("code"))
-	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: error redeeming authorization code")
-		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
-		return
-	}
 
-	encryptedState := r.Form.Get("state")
-	stateParameter := &StateParameter{}
-	err = p.cipher.Unmarshal(encryptedState, stateParameter)
+	// Encrypted CSRF passed from authenticate service
+	remoteStateEncrypted := r.Form.Get("state")
+	remoteStatePlain := new(StateParameter)
+	err = p.cipher.Unmarshal(remoteStateEncrypted, remoteStatePlain)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("proxy: could not unmarshal state")
 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
+	// Encrypted CSRF from session storage
 	c, err := p.csrfStore.GetCSRF(r)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("proxy: failed parsing csrf cookie")
@@ -136,44 +142,34 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.csrfStore.ClearCSRF(w, r)
-
-	encryptedCSRF := c.Value
-	csrfParameter := &StateParameter{}
-	err = p.cipher.Unmarshal(encryptedCSRF, csrfParameter)
+	localStateEncrypted := c.Value
+	localStatePlain := new(StateParameter)
+	err = p.cipher.Unmarshal(localStateEncrypted, localStatePlain)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("proxy: couldn't unmarshal CSRF")
 		httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
 		return
 	}
-	if encryptedState == encryptedCSRF {
-		log.FromRequest(r).Error().Msg("encrypted state and CSRF should not be equal")
-		httputil.ErrorResponse(w, r, "Bad request", http.StatusBadRequest)
-		return
-	}
-	if !reflect.DeepEqual(stateParameter, csrfParameter) {
-		log.FromRequest(r).Error().Msg("state and CSRF should be equal")
-		httputil.ErrorResponse(w, r, "Bad request", http.StatusBadRequest)
+
+	// If the encrypted value of local and remote state match, reject.
+	// Likely a replay attack or nonce-reuse.
+	if remoteStateEncrypted == localStateEncrypted {
+		p.sessionStore.ClearSession(w, r)
+		log.FromRequest(r).Error().Msg("proxy: local and remote state should not match")
+		httputil.ErrorResponse(w, r, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
-	// We store the session in a cookie and redirect the user back to the application
-	err = p.sessionStore.SaveSession(w, r, session)
-	if err != nil {
-		log.FromRequest(r).Error().Msg("error saving session")
-		httputil.ErrorResponse(w, r, "Error saving session", http.StatusInternalServerError)
+	// Decrypted remote and local state struct (inc. nonce) must match
+	if remoteStatePlain.SessionID != localStatePlain.SessionID {
+		p.sessionStore.ClearSession(w, r)
+		log.FromRequest(r).Error().Msg("proxy: CSRF mismatch")
+		httputil.ErrorResponse(w, r, "CSRF mismatch", http.StatusBadRequest)
 		return
 	}
-
-	log.FromRequest(r).Debug().
-		Str("code", r.Form.Get("code")).
-		Str("state", r.Form.Get("state")).
-		Str("RefreshToken", session.RefreshToken).
-		Str("session", session.AccessToken).
-		Str("RedirectURI", stateParameter.RedirectURI).
-		Msg("session")
 
 	// This is the redirect back to the original requested application
-	http.Redirect(w, r, stateParameter.RedirectURI, http.StatusFound)
+	http.Redirect(w, r, remoteStatePlain.RedirectURI, http.StatusFound)
 }
 
 // shouldSkipAuthentication contains conditions for skipping authentication.
@@ -223,8 +219,7 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		err = p.authenticate(w, r, session)
-		if err != nil {
+		if err = p.authenticate(w, r, session); err != nil {
 			p.sessionStore.ClearSession(w, r)
 			log.Debug().Err(err).Msg("proxy: user unauthenticated")
 			httputil.ErrorResponse(w, r, "User unauthenticated", http.StatusForbidden)
@@ -236,10 +231,6 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 			httputil.ErrorResponse(w, r, "Access unauthorized", http.StatusForbidden)
 			return
 		}
-		// append
-		r.Header.Set(HeaderUserID, session.User)
-		r.Header.Set(HeaderEmail, session.Email)
-		r.Header.Set(HeaderGroups, strings.Join(session.Groups, ","))
 	}
 
 	// We have validated the users request and now proxy their request to the provided upstream.
@@ -251,33 +242,162 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	route.ServeHTTP(w, r)
 }
 
-// Refresh refreshes a user session, validating group, extending timeout period, without requiring
-// a user to re-authenticate
-// func (p *Proxy) Refresh(w http.ResponseWriter, r *http.Request) {
-// 	session, err := p.sessionStore.LoadSession(r)
-// 	if err != nil {
-// 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	session, err = p.AuthenticateClient.Refresh(r.Context(), session)
-// 	if err != nil {
-// 		log.FromRequest(r).Warn().Err(err).Msg("proxy: refresh failed")
-// 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	err = p.sessionStore.SaveSession(w, r, session)
-// 	if err != nil {
-// 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	w.WriteHeader(http.StatusOK)
-// 	jsonSession, err := json.Marshal(session)
-// 	if err != nil {
-// 		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	fmt.Fprint(w, string(jsonSession))
-// }
+// UserDashboard lets users investigate, and refresh their current session.
+// It also contains certain administrative actions like user impersonation.
+// Nota bene: This endpoint does authentication, not authorization.
+func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
+	session, err := p.sessionStore.LoadSession(r)
+	if err != nil {
+		log.FromRequest(r).Error().Err(err).Msg("proxy: load session failed")
+		httputil.ErrorResponse(w, r, "", http.StatusBadRequest)
+		return
+	}
+
+	if err := p.authenticate(w, r, session); err != nil {
+		log.FromRequest(r).Error().Err(err).Msg("proxy: authenticate failed")
+		httputil.ErrorResponse(w, r, "", http.StatusUnauthorized)
+		return
+	}
+
+	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/.pomerium/sign_out"}
+	isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), session)
+	if err != nil {
+		log.FromRequest(r).Error().Err(err).Msg("proxy: is admin client")
+		httputil.ErrorResponse(w, r, "", http.StatusInternalServerError)
+		return
+	}
+
+	// CSRF value used to mitigate replay attacks.
+	csrf := &StateParameter{SessionID: fmt.Sprintf("%x", cryptutil.GenerateKey())}
+	csrfCookie, err := p.cipher.Marshal(csrf)
+	if err != nil {
+		log.FromRequest(r).Error().Err(err).Msg("proxy: failed to marshal csrf")
+		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	p.csrfStore.SetCSRF(w, r, csrfCookie)
+
+	t := struct {
+		Email           string
+		User            string
+		Groups          []string
+		RefreshDeadline string
+		SignoutURL      string
+
+		IsAdmin          bool
+		ImpersonateEmail string
+		ImpersonateGroup string
+		CSRF             string
+	}{
+		Email:            session.Email,
+		User:             session.User,
+		Groups:           session.Groups,
+		RefreshDeadline:  time.Until(session.RefreshDeadline).Round(time.Second).String(),
+		SignoutURL:       p.GetSignOutURL(p.AuthenticateURL, redirectURL).String(),
+		IsAdmin:          isAdmin,
+		ImpersonateEmail: session.ImpersonateEmail,
+		ImpersonateGroup: strings.Join(session.ImpersonateGroups[:], ","),
+		CSRF:             csrf.SessionID,
+	}
+	templates.New().ExecuteTemplate(w, "dashboard.html", t)
+	return
+}
+
+// Refresh redeems and extends an existing authenticated oidc session with
+// the underlying idenity provider. All session details including groups,
+// timeouts, will be renewed.
+func (p *Proxy) Refresh(w http.ResponseWriter, r *http.Request) {
+	session, err := p.sessionStore.LoadSession(r)
+	if err != nil {
+		httputil.ErrorResponse(w, r, err.Error(), http.StatusBadRequest)
+		return
+	}
+	iss, err := session.IssuedAt()
+	if err != nil {
+		log.FromRequest(r).Error().Err(err).Msg("proxy: couldn't get token's create time")
+		httputil.ErrorResponse(w, r, "", http.StatusInternalServerError)
+		return
+	}
+
+	// reject a refresh if it's been less than 5 minutes to prevent a bad actor
+	// trying to DOS the identity provider.
+	if time.Since(iss) < p.refreshCooldown {
+		log.FromRequest(r).Error().Dur("cooldown", p.refreshCooldown).Err(err).Msg("proxy: refresh cooldown")
+		httputil.ErrorResponse(w, r,
+			fmt.Sprintf("Session must be %v old before refresh", p.refreshCooldown),
+			http.StatusBadRequest)
+		return
+	}
+
+	newSession, err := p.AuthenticateClient.Refresh(r.Context(), session)
+	if err != nil {
+		log.FromRequest(r).Warn().Err(err).Msg("proxy: refresh failed")
+		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err = p.sessionStore.SaveSession(w, r, newSession); err != nil {
+		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/.pomerium", http.StatusFound)
+}
+
+// Impersonate takes the result of a form and adds user impersonation details
+// to the user's current user sessions state if the user is currently an
+// administrative user. Requests are redirected back to the user dashboard.
+func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		if err := r.ParseForm(); err != nil {
+			log.FromRequest(r).Error().Err(err).Msg("proxy: impersonate form")
+			httputil.ErrorResponse(w, r, err.Error(), http.StatusBadRequest)
+			return
+		}
+		session, err := p.sessionStore.LoadSession(r)
+		if err != nil {
+			log.FromRequest(r).Error().Err(err).Msg("proxy: load session")
+			httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// authorization check -- is this user an admin?
+		isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), session)
+		if err != nil || !isAdmin {
+			log.FromRequest(r).Error().Err(err).Msg("proxy: user must be admin to impersonate")
+			httputil.ErrorResponse(w, r, "user must be admin to impersonate", http.StatusForbidden)
+			return
+		}
+		// CSRF check -- did this request originate from our form?
+		c, err := p.csrfStore.GetCSRF(r)
+		if err != nil {
+			log.FromRequest(r).Error().Err(err).Msg("proxy: failed parsing csrf cookie")
+			httputil.ErrorResponse(w, r, err.Error(), http.StatusBadRequest)
+			return
+		}
+		p.csrfStore.ClearCSRF(w, r)
+		encryptedCSRF := c.Value
+		decryptedCSRF := new(StateParameter)
+		if err = p.cipher.Unmarshal(encryptedCSRF, decryptedCSRF); err != nil {
+			log.FromRequest(r).Error().Err(err).Msg("proxy: couldn't unmarshal CSRF")
+			httputil.ErrorResponse(w, r, "Internal error", http.StatusInternalServerError)
+			return
+		}
+		if decryptedCSRF.SessionID != r.FormValue("csrf") {
+			log.FromRequest(r).Error().Err(err).Msg("proxy: impersonate CSRF mismatch")
+			httputil.ErrorResponse(w, r, "CSRF mismatch", http.StatusForbidden)
+			return
+		}
+
+		// OK to impersonation
+		session.ImpersonateEmail = r.FormValue("email")
+		session.ImpersonateGroups = strings.Split(r.FormValue("group"), ",")
+
+		if err := p.sessionStore.SaveSession(w, r, session); err != nil {
+			log.FromRequest(r).Error().Err(err).Msg("proxy: save session")
+			httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	http.Redirect(w, r, "/.pomerium", http.StatusFound)
+}
 
 // Authenticate authenticates a request by checking for a session cookie, and validating its expiration,
 // clearing the session cookie if it's invalid and returning an error if necessary..
@@ -297,6 +417,9 @@ func (p *Proxy) authenticate(w http.ResponseWriter, r *http.Request, session *se
 			return fmt.Errorf("proxy: session valid: %v : %v", valid, err)
 		}
 	}
+	r.Header.Set(HeaderUserID, session.User)
+	r.Header.Set(HeaderEmail, session.Email)
+	r.Header.Set(HeaderGroups, strings.Join(session.Groups, ","))
 	return nil
 }
 

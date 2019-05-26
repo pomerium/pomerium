@@ -5,26 +5,22 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/sessions"
 )
 
 func TestMockAuthenticate(t *testing.T) {
 	// Absurd, but I caught a typo this way.
-	fixedDate := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 	redeemResponse := &sessions.SessionState{
-		AccessToken:      "AccessToken",
-		RefreshToken:     "RefreshToken",
-		LifetimeDeadline: fixedDate,
+		AccessToken:  "AccessToken",
+		RefreshToken: "RefreshToken",
 	}
 	ma := &MockAuthenticate{
 		RedeemError:    errors.New("RedeemError"),
 		RedeemResponse: redeemResponse,
 		RefreshResponse: &sessions.SessionState{
-			AccessToken:      "AccessToken",
-			RefreshToken:     "RefreshToken",
-			LifetimeDeadline: fixedDate,
+			AccessToken:  "AccessToken",
+			RefreshToken: "RefreshToken",
 		},
 		RefreshError:     errors.New("RefreshError"),
 		ValidateResponse: true,
