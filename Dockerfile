@@ -15,8 +15,11 @@ RUN go mod download
 COPY . .
 # build 
 RUN make
+RUN touch /config.yaml
 
 FROM gcr.io/distroless/static
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
-CMD ["/bin/pomerium"]
+COPY --from=build /config.yaml /pomerium/config.yaml
+ENTRYPOINT [ "/bin/pomerium" ]
+CMD ["-config","/pomerium/config.yaml"]

@@ -26,7 +26,8 @@ func TestNew(t *testing.T) {
 		{"bad shared secret", "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==", policies, true},
 		{"really bad shared secret", "sup", policies, true},
 		{"validation error, short secret", "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==", policies, true},
-		{"nil options", "", []policy.Policy{}, true}, // special case
+		{"nil options", "", []policy.Policy{}, true},                                                  // special case
+		{"missing policies", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", []policy.Policy{}, true}, // special case
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

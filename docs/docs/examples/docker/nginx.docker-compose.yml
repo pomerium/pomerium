@@ -60,7 +60,7 @@ services:
     volumes:
       - ./cert.pem:/pomerium/cert.pem:ro
       - ./privkey.pem:/pomerium/privkey.pem:ro
-      - ./policy.example.yaml:/pomerium/policy.yaml:ro
+      - ./config-policy-only.yaml:/pomerium/config.yaml:ro
     expose:
       - 443
 
@@ -79,7 +79,7 @@ services:
     volumes:
       - ./cert.pem:/pomerium/cert.pem:ro
       - ./privkey.pem:/pomerium/privkey.pem:ro
-      - ./policy.example.yaml:/pomerium/policy.yaml:ro
+      - ./config-policy-only.yaml:/pomerium/config.yaml:ro
     expose:
       - 443
 

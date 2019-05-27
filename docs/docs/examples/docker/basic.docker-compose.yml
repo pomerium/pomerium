@@ -23,11 +23,10 @@ services:
       - CERTIFICATE_KEY_FILE=privkey.pem
       - AUTHENTICATE_SERVICE_URL=https://authenticate.corp.beyondperimeter.com
       - AUTHORIZE_SERVICE_URL=https://authorize.corp.beyondperimeter.com
-      - POLICY_FILE=./policy.yaml
     volumes:
       - ./cert.pem:/pomerium/cert.pem:ro
       - ./privkey.pem:/pomerium/privkey.pem:ro
-      - ./policy.example.yaml:/pomerium/policy.yaml:ro
+      - ./config-policy-only.yaml:/pomerium/config.yaml:ro
     ports:
       - 443:443
 
