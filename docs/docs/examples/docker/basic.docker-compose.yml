@@ -26,7 +26,7 @@ services:
     volumes:
       - ./cert.pem:/pomerium/cert.pem:ro
       - ./privkey.pem:/pomerium/privkey.pem:ro
-      - ./config-policy-only.yaml:/pomerium/config.yaml:ro
+      - ./config.example.policy.only.yaml:/pomerium/config.yaml:ro
     ports:
       - 443:443
 

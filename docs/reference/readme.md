@@ -150,7 +150,7 @@ If set, the HTTP Redirect Address specifies the host and port to redirect http t
 
 Policy contains route specific settings, and access control details. If you are configuring via POLICY environment variable, just the contents of the policy needs to be passed. If you are configuring via file, the policy should be present under the policy key. For example,
 
-<<< @/config-policy-only.yaml
+<<< @/config.example.policy.only.yaml
 
 A list of policy configuration variables follows.
 
