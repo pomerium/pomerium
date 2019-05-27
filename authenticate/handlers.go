@@ -97,7 +97,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 	// original `state` parameter received from the proxy application.
 	state := r.Form.Get("state")
 	if state == "" {
-		httputil.ErrorResponse(w, r, "no state parameter supplied", http.StatusForbidden)
+		httputil.ErrorResponse(w, r, "no state parameter supplied", http.StatusBadRequest)
 		return
 	}
 
@@ -227,6 +227,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	if code == "" {
 		log.FromRequest(r).Error().Err(err).Msg("authenticate: provider missing code")
 		return "", httputil.HTTPError{Code: http.StatusBadRequest, Message: "Missing Code"}
+
 	}
 
 	// validate the returned code with the identity provider
@@ -261,7 +262,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	// sanity check, we are redirecting back to the same subdomain right?
 	if !middleware.SameSubdomain(redirectURL, a.RedirectURL) {
-		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "Invalid Redirect URI domain"}
+		return "", httputil.HTTPError{Code: http.StatusBadRequest, Message: "Invalid Redirect URI domain"}
 	}
 
 	err = a.sessionStore.SaveSession(w, r, session)
