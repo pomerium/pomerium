@@ -10,6 +10,7 @@ module.exports = {
 			ga: 'UA-129872447-2'
 		}
 	},
+	extend: '@vuepress/theme-default',
 	themeConfig: {
 		repo: "pomerium/pomerium",
 		editLinks: true,
@@ -19,7 +20,13 @@ module.exports = {
 		nav: [
 			{ text: "Documentation", link: "/docs/" },
 			{ text: "Quick Start", link: "/guide/" },
-			{ text: "Config Reference", link: "/reference/" }
+			{ text: "Config Reference", link: "/reference/" },
+			{
+				text: 'Versions',
+				items: [
+					{ text: 'v0.0.4', link: 'https://v0-0-4.docs.pomerium.io/' },
+				]
+			},
 
 		],
 		sidebar: {
