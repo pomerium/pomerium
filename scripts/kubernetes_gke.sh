@@ -23,8 +23,8 @@ kubectl create secret generic -n pomerium certificate-key --from-literal=certifi
 echo "=> load TLS to ingress"
 kubectl create secret tls -n pomerium pomerium-tls --key privkey.pem --cert cert.pem
 
-echo "=> initiliaze a configmap setting for POLICY from config-policy-only.yaml"
-kubectl create configmap -n pomerium policy --from-literal=policy=$(cat config-policy-only.yaml | base64)
+echo "=> initiliaze a configmap setting for POLICY from config.example.policy.only.yaml"
+kubectl create configmap -n pomerium policy --from-literal=policy=$(cat config.example.policy.only.yaml | base64)
 
 echo "=> settingidp-client-secret, you changed this right? :)"
 exit 1 # comment out or delete this line once you change the following two settings
