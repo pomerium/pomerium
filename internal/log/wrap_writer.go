@@ -1,4 +1,4 @@
-package middleware // import "github.com/pomerium/pomerium/internal/middleware"
+package log // import "github.com/pomerium/pomerium/internal/log"
 
 // The original work was derived from Goji's middleware, source:
 // https://github.com/zenazn/goji/tree/master/web/middleware
@@ -175,7 +175,6 @@ type http2FancyWriter struct {
 
 func (f *http2FancyWriter) Flush() {
 	f.wroteHeader = true
-
 	fl := f.basicWriter.ResponseWriter.(http.Flusher)
 	fl.Flush()
 }
