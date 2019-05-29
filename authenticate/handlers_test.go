@@ -77,7 +77,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 					RefreshDeadline: time.Now().Add(10 * time.Second),
 				}},
 			identity.MockProvider{ValidateResponse: true},
-			http.StatusForbidden},
+			http.StatusBadRequest},
 		{"session not valid",
 			&sessions.MockSessionStore{
 				Session: &sessions.SessionState{
@@ -94,7 +94,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 				RefreshToken:    "RefreshToken",
 				RefreshDeadline: time.Now().Add(10 * time.Second),
 			}}, identity.MockProvider{ValidateResponse: true},
-			http.StatusForbidden},
+			http.StatusBadRequest},
 		{"session refresh error",
 			&sessions.MockSessionStore{
 				Session: &sessions.SessionState{

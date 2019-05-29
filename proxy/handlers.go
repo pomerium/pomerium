@@ -120,7 +120,7 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	errorString := r.Form.Get("error")
 	if errorString != "" {
-		httputil.ErrorResponse(w, r, errorString, http.StatusForbidden)
+		httputil.ErrorResponse(w, r, errorString, http.StatusBadRequest)
 		return
 	}
 
@@ -228,7 +228,7 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 		authorized, err := p.AuthorizeClient.Authorize(r.Context(), r.Host, session)
 		if err != nil || !authorized {
 			log.FromRequest(r).Warn().Err(err).Msg("proxy: user unauthorized")
-			httputil.ErrorResponse(w, r, "Access unauthorized", http.StatusForbidden)
+			httputil.ErrorResponse(w, r, "Access unauthorized", http.StatusUnauthorized)
 			return
 		}
 	}
