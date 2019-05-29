@@ -1,4 +1,4 @@
-package middleware
+package log // import "github.com/pomerium/pomerium/internal/log"
 
 import (
 	"net/http/httptest"

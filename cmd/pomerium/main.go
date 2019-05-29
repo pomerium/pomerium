@@ -143,9 +143,9 @@ func newProxyService(opt *config.Options, mux *http.ServeMux) (*proxy.Proxy, err
 
 func wrapMiddleware(o *config.Options, mux *http.ServeMux) http.Handler {
 	c := middleware.NewChain()
-	c = c.Append(middleware.NewHandler(log.Logger))
-	c = c.Append(middleware.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
-		middleware.FromRequest(r).Debug().
+	c = c.Append(log.NewHandler(log.Logger))
+	c = c.Append(log.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+		log.FromRequest(r).Debug().
 			Dur("duration", duration).
 			Int("size", size).
 			Int("status", status).
@@ -159,11 +159,11 @@ func wrapMiddleware(o *config.Options, mux *http.ServeMux) http.Handler {
 	if o != nil && len(o.Headers) != 0 {
 		c = c.Append(middleware.SetHeaders(o.Headers))
 	}
-	c = c.Append(middleware.ForwardedAddrHandler("fwd_ip"))
-	c = c.Append(middleware.RemoteAddrHandler("ip"))
-	c = c.Append(middleware.UserAgentHandler("user_agent"))
-	c = c.Append(middleware.RefererHandler("referer"))
-	c = c.Append(middleware.RequestIDHandler("req_id", "Request-Id"))
+	c = c.Append(log.ForwardedAddrHandler("fwd_ip"))
+	c = c.Append(log.RemoteAddrHandler("ip"))
+	c = c.Append(log.UserAgentHandler("user_agent"))
+	c = c.Append(log.RefererHandler("referer"))
+	c = c.Append(log.RequestIDHandler("req_id", "Request-Id"))
 	c = c.Append(middleware.Healthcheck("/ping", version.UserAgent()))
 	return c.Then(mux)
 }

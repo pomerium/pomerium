@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/templates"
 )
 
@@ -31,11 +32,16 @@ func CodeForError(err error) int {
 
 // ErrorResponse renders an error page for errors given a message and a status code.
 // If no message is passed, defaults to the text of the status code.
-func ErrorResponse(rw http.ResponseWriter, req *http.Request, message string, code int) {
+func ErrorResponse(rw http.ResponseWriter, r *http.Request, message string, code int) {
 	if message == "" {
 		message = http.StatusText(code)
 	}
-	if req.Header.Get("Accept") == "application/json" {
+	reqID := ""
+	id, ok := log.IDFromRequest(r)
+	if ok {
+		reqID = id
+	}
+	if r.Header.Get("Accept") == "application/json" {
 		var response struct {
 			Error string `json:"error"`
 		}
@@ -45,13 +51,15 @@ func ErrorResponse(rw http.ResponseWriter, req *http.Request, message string, co
 		title := http.StatusText(code)
 		rw.WriteHeader(code)
 		t := struct {
-			Code    int
-			Title   string
-			Message string
+			Code      int
+			Title     string
+			Message   string
+			RequestID string
 		}{
-			Code:    code,
-			Title:   title,
-			Message: message,
+			Code:      code,
+			Title:     title,
+			Message:   message,
+			RequestID: reqID,
 		}
 		templates.New().ExecuteTemplate(rw, "error.html", t)
 	}

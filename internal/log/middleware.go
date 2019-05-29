@@ -1,4 +1,4 @@
-package middleware // import "github.com/pomerium/pomerium/internal/middleware"
+package log // import "github.com/pomerium/pomerium/internal/log"
 
 import (
 	"context"
@@ -9,15 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/rs/zerolog"
 )
-
-// FromRequest gets the logger in the request's context.
-// This is a shortcut for log.Ctx(r.Context())
-func FromRequest(r *http.Request) *zerolog.Logger {
-	return log.Ctx(r.Context())
-}
 
 // NewHandler injects log into requests context.
 func NewHandler(log zerolog.Logger) func(http.Handler) http.Handler {
