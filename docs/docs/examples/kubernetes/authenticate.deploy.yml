@@ -25,6 +25,8 @@ spec:
           env:
             - name: SERVICES
               value: authenticate
+            - name: AUTHENTICATE_SERVICE_URL
+              value: https://authenticate.corp.beyondperimeter.com
             - name: IDP_PROVIDER
               value: google
             - name: IDP_PROVIDER_URL

@@ -1,7 +1,13 @@
-### Other keys configuration removed for clarity ###
+# This file contains only policy and route configuration details. Other
+# configuration settings required by pomerium are excluded for clarity.
+# See: https://www.pomerium.io/reference/
+#
+# For a complete self contained configuration see : config.example.yaml.
+# Or, mix and match a policy file (this) with env vars : config.example.env
 
 # Proxied routes and per-route policies are defined in a policy block
-policy: # Omit the 'policy' key if you are encoding it into an environment variable
+# NOTA BENE: You must uncomment the bellow 'policy' key if you are loading policy as a file.
+# policy: 
   - from: httpbin.corp.beyondperimeter.com
     to: http://localhost:8000
     allowed_domains:

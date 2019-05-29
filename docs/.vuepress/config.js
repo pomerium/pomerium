@@ -42,7 +42,7 @@ function guideSidebar(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["", "helm", "kubernetes", "synology", "from-source"]
+			children: ["",  "binary","from-source","helm", "kubernetes", "synology"]
 		}
 	];
 }

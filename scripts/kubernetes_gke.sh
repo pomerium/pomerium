@@ -17,14 +17,18 @@ kubectl create secret generic -n pomerium shared-secret --from-literal=shared-se
 kubectl create secret generic -n pomerium cookie-secret --from-literal=cookie-secret=$(head -c32 /dev/urandom | base64)
 
 echo "=> initiliaze secrets for TLS wild card certificatescertificate andcertificate-key"
-kubectl create secret generic -n pomerium certificate --from-literal=certificate=$(base64 -i cert.pem)
-kubectl create secret generic -n pomerium certificate-key --from-literal=certificate-key=$(base64 -i privkey.pem)
+kubectl create secret generic -n pomerium certificate \
+	--from-literal=certificate=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer")
+kubectl create secret generic -n pomerium certificate-key \
+	--from-literal=certificate-key=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key")
 
 echo "=> load TLS to ingress"
-kubectl create secret tls -n pomerium pomerium-tls --key privkey.pem --cert cert.pem
+kubectl create secret tls -n pomerium pomerium-tls \
+	--key "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key" \
+	--cert "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer"
 
-echo "=> initiliaze a configmap setting for POLICY from config.example.policy.only.yaml"
-kubectl create configmap -n pomerium policy --from-literal=policy=$(cat config.example.policy.only.yaml | base64)
+echo "=> initiliaze a configmap setting for POLICY from policy.example.yaml"
+kubectl create configmap -n pomerium policy --from-literal=policy=$(cat docs/docs/examples/config/policy.example.yaml | base64)
 
 echo "=> settingidp-client-secret, you changed this right? :)"
 exit 1 # comment out or delete this line once you change the following two settings

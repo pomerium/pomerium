@@ -4,7 +4,7 @@ sidebar: auto
 
 # Configuration
 
-Pomerium can use a combination of a YAML/JSON/TOML configuration file and [environmental variables] to set configuration settings.
+Pomerium can be configured using a either a configuration file ([YAML]/[JSON]/[TOML]) or [environmental variables]. In general, environmental variable keys are identical to config file keys but are in all uppercase.
 
 If you are coming from a kubernetes or docker background this should feel familiar. If not, check out the following primers.
 
@@ -13,7 +13,7 @@ If you are coming from a kubernetes or docker background this should feel famili
 - [Kubernetes: Config Maps](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/)
 - [Docker: Environment variables](https://docs.docker.com/compose/environment-variables/)
 
-In general, any setting specified by environment variable can also be present in the optional config file as the same name but lower cased. Environment variables take precedence.
+Using both [environmental variables] and config file keys is allowed and encouraged (for instance, secret keys are probably best set as environmental variables). However, if duplicate configuration keys are found, environment variables take precedence.
 
 Pomerium will automatically reload the configuration file if it is changed.  At this time, only policy is re-configured when this reload occurs, but additional options may be added in the future.  It is suggested that your policy is stored in a configuration file so that you can take advantage of this feature.
 
@@ -165,7 +165,7 @@ Allowing websocket connections to the proxy could result in abuse via DOS attack
 
 Policy contains route specific settings, and access control details. If you are configuring via POLICY environment variable, just the contents of the policy needs to be passed. If you are configuring via file, the policy should be present under the policy key. For example,
 
-<<< @/config.example.policy.only.yaml
+<<< @/docs/docs/examples/config/policy.example.yaml
 
 A list of policy configuration variables follows.
 
@@ -407,9 +407,23 @@ By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/O
 
 Refresh cooldown is the minimum amount of time between allowed manually refreshed sessions.
 
+### Default Upstream Timeout
+
+- Environmental Variable: `DEFAULT_UPSTREAM_TIMEOUT`
+- Config File Key: `default_upstream_timeout`
+- Type: [Duration](https://golang.org/pkg/time/#Duration) `string`
+- Example: `10m`, `1h45m`
+- Default: `30s`
+
+Default Upstream Timeout is the default timeout applied to a proxied route when no `timeout` key is specified by the policy.
+
+
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [identity provider]: ./identity-providers.md
+[json]: https://en.wikipedia.org/wiki/JSON
 [letsencrypt]: https://letsencrypt.org/
 [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
+[toml]: https://en.wikipedia.org/wiki/TOML
+[yaml]: https://en.wikipedia.org/wiki/YAML

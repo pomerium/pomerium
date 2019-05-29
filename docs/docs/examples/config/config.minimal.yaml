@@ -1,0 +1,17 @@
+# See detailed configuration settings : https://www.pomerium.io/reference/
+authenticate_service_url: https://authenticate.corp.beyondperimeter.com
+authorize_service_url: https://authorize.corp.beyondperimeter.com
+
+# identity provider settings : https://www.pomerium.io/docs/identity-providers.html
+idp_provider: google
+idp_client_id: REPLACE_ME
+idp_client_secret: REPLACE_ME
+
+policy:
+  - from: httpbin.corp.beyondperimeter.com
+    to: http://httpbin
+    allowed_domains:
+      - pomerium.io
+  - from: external-httpbin.corp.beyondperimeter.com
+    to: https://httpbin.org
+    allow_public_unauthenticated_access: true

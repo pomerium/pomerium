@@ -165,18 +165,18 @@ Go to **Environment** tab.
 Field                     | Value
 ------------------------- | ---------------------------------------------------------------
 POLICY                    | output of `base64 -i policy.yaml`
-CERTIFICATE               | output of `base64 -i *.int.nas.example.com.cer`
-CERTIFICATE_KEY           | output of `base64 -i *.int.nas.example.com.key`
-CERTIFICATE_AUTHORITY     | output of `base64 -i ca.cer`
+CERTIFICATE               | output of `base64 -i "$HOME/.acme.sh/*.int.nas.bdd.io_ecc/fullchain.cer"`
+CERTIFICATE_KEY           | output of `base64 -i "$HOME/.acme.sh/*.int.nas.bdd.io_ecc/*.int.nas.bdd.io.key"`
+CERTIFICATE_AUTHORITY     | output of `base64 -i "$HOME/.acme.sh/*.int.nas.bdd.io_ecc/ca.cer"`
 OVERRIDE_CERTIFICATE_NAME | `*.int.nas.example.com`
 IDP_CLIENT_SECRET         | Values from setting up your [identity provider]
 IDP_CLIENT_ID             | Values from setting up your [identity provider]
 IDP_PROVIDER              | Values from setting up your [identity provider] (e.g. `google`)
-COOKIE_SECRET             | output of `head -c32 /dev/urandom                               | base64`
-SHARED_SECRET             | output of `head -c32 /dev/urandom                               | base64`
+COOKIE_SECRET             | output of `head -c32 /dev/urandom | base64`
+SHARED_SECRET             | output of `head -c32 /dev/urandom | base64`
 AUTHORIZE_SERVICE_URL     | `https://localhost`
 AUTHENTICATE_SERVICE_URL  | `https://authenticate.int.nas.example.com`
-AUTHENTICATE_INTERNAL_URL | `localhost`
+AUTHENTICATE_INTERNAL_URL | `https://localhost`
 
 For a detailed explanation, and additional options, please refer to the [configuration variable docs].
 
@@ -216,5 +216,4 @@ And just to be safe, try logging in from another google account to see what happ
 [identity provider]: ../docs/identity-providers.md#google
 [letsencrypt]: https://letsencrypt.org/
 [nginx]: https://www.nginx.com
-[script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
 [self-hosted apps]: https://github.com/Kickball/awesome-selfhosted
