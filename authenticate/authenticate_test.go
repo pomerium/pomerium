@@ -38,6 +38,8 @@ func TestOptions_Validate(t *testing.T) {
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
 	badSharedKey := testOptions()
 	badSharedKey.SharedKey = ""
+	badAuthenticateURL := testOptions()
+	badAuthenticateURL.AuthenticateURL = new(url.URL)
 
 	tests := []struct {
 		name    string
@@ -53,6 +55,7 @@ func TestOptions_Validate(t *testing.T) {
 		{"no shared secret", badSharedKey, true},
 		{"no client id", emptyClientID, true},
 		{"no client secret", emptyClientSecret, true},
+		{"empty authenticate url", badAuthenticateURL, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
