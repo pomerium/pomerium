@@ -148,14 +148,9 @@ func New(opts *config.Options) (*Proxy, error) {
 		refreshCooldown: opts.RefreshCooldown,
 	}
 
-	for _, route := range opts.Policies {
-		proxy := NewReverseProxy(route.Destination)
-		handler, err := NewReverseProxyHandler(opts, proxy, &route)
-		if err != nil {
-			return nil, err
-		}
-		p.Handle(route.Source.Host, handler, &route)
-		log.Info().Str("src", route.Source.Host).Str("dst", route.Destination.Host).Msg("proxy: new route")
+	err = p.UpdatePolicies(opts)
+	if err != nil {
+		return nil, err
 	}
 
 	p.AuthenticateClient, err = clients.NewAuthenticateClient("grpc",
@@ -179,6 +174,25 @@ func New(opts *config.Options) (*Proxy, error) {
 			CAFile:                  opts.CAFile,
 		})
 	return p, err
+}
+
+// UpdatePolicies updates the handlers based on the configured policies
+func (p *Proxy) UpdatePolicies(opts *config.Options) error {
+	routeConfigs := make(map[string]*routeConfig)
+	for _, route := range opts.Policies {
+		proxy := NewReverseProxy(route.Destination)
+		handler, err := NewReverseProxyHandler(opts, proxy, &route)
+		if err != nil {
+			return err
+		}
+		routeConfigs[route.Source.Host] = &routeConfig{
+			mux:    handler,
+			policy: route,
+		}
+		log.Info().Str("src", route.Source.Host).Str("dst", route.Destination.Host).Msg("proxy: new route")
+	}
+	p.routeConfigs = routeConfigs
+	return nil
 }
 
 // UpstreamProxy stores information for proxying the request to the upstream.
@@ -269,4 +283,14 @@ func urlParse(uri string) (*url.URL, error) {
 		uri = fmt.Sprintf("https://%s", uri)
 	}
 	return url.ParseRequestURI(uri)
+}
+
+// UpdateOptions updates internal structres based on config.Options
+func (p *Proxy) UpdateOptions(o *config.Options) error {
+	log.Info().Msg("proxy: updating options")
+	err := p.UpdatePolicies(o)
+	if err != nil {
+		return fmt.Errorf("Could not update policies: %s", err)
+	}
+	return nil
 }

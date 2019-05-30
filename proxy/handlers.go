@@ -423,14 +423,6 @@ func (p *Proxy) authenticate(w http.ResponseWriter, r *http.Request, session *se
 	return nil
 }
 
-// Handle constructs a route from the given host string and matches it to the provided http.Handler and UpstreamConfig
-func (p *Proxy) Handle(host string, handler http.Handler, pol *policy.Policy) {
-	p.routeConfigs[host] = &routeConfig{
-		mux:    handler,
-		policy: *pol,
-	}
-}
-
 // router attempts to find a route for a request. If a route is successfully matched,
 // it returns the route information and a bool value of `true`. If a route can not be matched,
 // a nil value for the route and false bool value is returned.

@@ -355,3 +355,23 @@ func Test_parsePolicyFile(t *testing.T) {
 		})
 	}
 }
+
+func Test_Checksum(t *testing.T) {
+	o := NewOptions()
+
+	oldChecksum := o.Checksum()
+	o.SharedKey = "changemeplease"
+	newChecksum := o.Checksum()
+
+	if newChecksum == oldChecksum {
+		t.Errorf("Checksum() failed to update old = %s, new = %s", oldChecksum, newChecksum)
+	}
+
+	if newChecksum == "" || oldChecksum == "" {
+		t.Error("Checksum() not returning data")
+	}
+
+	if o.Checksum() != o.Checksum() {
+		t.Error("Checksum() inconsistent")
+	}
+}
