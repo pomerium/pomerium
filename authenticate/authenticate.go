@@ -19,7 +19,7 @@ import (
 // The checks do not modify the internal state of the Option structure. Returns
 // on first error found.
 func ValidateOptions(o *config.Options) error {
-	if o.AuthenticateURL == nil {
+	if o.AuthenticateURL == nil || o.AuthenticateURL.Hostname() == "" {
 		return errors.New("authenticate: 'AUTHENTICATE_SERVICE_URL' missing")
 	}
 	if o.ClientID == "" {
