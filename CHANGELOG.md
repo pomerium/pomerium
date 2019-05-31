@@ -12,7 +12,7 @@
 - Add support for public, unauthenticated routes. [GH-129]
 
 ### CHANGED
-
+- Changed config `AUTHENTICATE_INTERNAL_URL`  to be a URL containing both a valid hostname and schema. [GH-153]
 - User state is now maintained and scoped at the domain level vs at the route level. [GH-128]
 - Error pages contain a link to sign out from the current user session. [GH-100]
 - Removed `LifetimeDeadline` from `sessions.SessionState`.

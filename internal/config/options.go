@@ -98,12 +98,15 @@ type Options struct {
 	// (sudo) access including the ability to impersonate other users' access
 	Administrators []string `mapstructure:"administrators"`
 
-	// AuthenticateInternalAddr is used as an override when using a load balancer
-	// or ingress that does not natively support routing gRPC.
-	AuthenticateInternalAddr string `mapstructure:"authenticate_internal_url"`
+	// AuthenticateInternalAddr is used override the routable destination of
+	// authenticate service's GRPC endpoint.
+	// NOTE: As many load balancers do not support externally routed gRPC so
+	// this may be an internal location.
+	AuthenticateInternalAddrString string `mapstructure:"authenticate_internal_url"`
+	AuthenticateInternalAddr       *url.URL
 
 	// AuthorizeURL is the routable destination of the authorize service's
-	// gRPC endpoint. NOTE: As above, many load balancers do not support
+	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
 	AuthorizeURLString string `mapstructure:"authorize_service_url"`
 	AuthorizeURL       *url.URL
@@ -146,16 +149,17 @@ func NewOptions() *Options {
 			"X-XSS-Protection":          "1; mode=block",
 			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 		},
-		Addr:              ":https",
-		CertFile:          filepath.Join(findPwd(), "cert.pem"),
-		KeyFile:           filepath.Join(findPwd(), "privkey.pem"),
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      0, // support streaming by default
-		IdleTimeout:       5 * time.Minute,
-		AuthenticateURL:   new(url.URL),
-		AuthorizeURL:      new(url.URL),
-		RefreshCooldown:   time.Duration(5 * time.Minute),
+		Addr:                     ":https",
+		CertFile:                 filepath.Join(findPwd(), "cert.pem"),
+		KeyFile:                  filepath.Join(findPwd(), "privkey.pem"),
+		ReadHeaderTimeout:        10 * time.Second,
+		ReadTimeout:              30 * time.Second,
+		WriteTimeout:             0, // support streaming by default
+		IdleTimeout:              5 * time.Minute,
+		AuthenticateURL:          new(url.URL),
+		AuthenticateInternalAddr: new(url.URL),
+		AuthorizeURL:             new(url.URL),
+		RefreshCooldown:          time.Duration(5 * time.Minute),
 	}
 	return o
 }
@@ -264,19 +268,48 @@ func (o *Options) parsePolicy() error {
 	return nil
 }
 
+// parseAndValidateURL wraps standard library's default url.Parse because it's much more
+// lenient about what type of urls it accepts than pomerium can be.
+func parseAndValidateURL(rawurl string) (*url.URL, error) {
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		return nil, err
+	}
+	if u.Host == "" {
+		return nil, fmt.Errorf("%s does have a valid hostname", rawurl)
+	}
+	if u.Scheme == "" || u.Scheme != "https" {
+		return nil, fmt.Errorf("%s does have a valid https scheme", rawurl)
+	}
+	return u, nil
+}
+
 // parseURLs parses URL strings into actual URL pointers
 func (o *Options) parseURLs() error {
-	AuthenticateURL, err := url.Parse(o.AuthenticateURLString)
-	if err != nil {
-		return err
-	}
-	AuthorizeURL, err := url.Parse(o.AuthorizeURLString)
-	if err != nil {
-		return err
+	if o.AuthenticateURLString != "" {
+		AuthenticateURL, err := parseAndValidateURL(o.AuthenticateURLString)
+		if err != nil {
+			return fmt.Errorf("internal/config: bad authenticate-url %s : %v", o.AuthenticateURLString, err)
+		}
+		o.AuthenticateURL = AuthenticateURL
 	}
 
-	o.AuthenticateURL = AuthenticateURL
-	o.AuthorizeURL = AuthorizeURL
+	if o.AuthorizeURLString != "" {
+		AuthorizeURL, err := parseAndValidateURL(o.AuthorizeURLString)
+		if err != nil {
+			return fmt.Errorf("internal/config: bad authorize-url %s : %v", o.AuthorizeURLString, err)
+		}
+		o.AuthorizeURL = AuthorizeURL
+	}
+
+	if o.AuthenticateInternalAddrString != "" {
+		AuthenticateInternalAddr, err := parseAndValidateURL(o.AuthenticateInternalAddrString)
+		if err != nil {
+			return fmt.Errorf("internal/config: bad authenticate-internal-addr %s : %v", o.AuthenticateInternalAddrString, err)
+		}
+		o.AuthenticateInternalAddr = AuthenticateInternalAddr
+	}
+
 	return nil
 }
 

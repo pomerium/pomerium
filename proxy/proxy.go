@@ -161,7 +161,7 @@ func New(opts *config.Options) (*Proxy, error) {
 	p.AuthenticateClient, err = clients.NewAuthenticateClient("grpc",
 		&clients.Options{
 			Addr:                    opts.AuthenticateURL.Host,
-			InternalAddr:            opts.AuthenticateInternalAddr,
+			InternalAddr:            opts.AuthenticateInternalAddr.String(),
 			OverrideCertificateName: opts.OverrideCertificateName,
 			SharedSecret:            opts.SharedKey,
 			CA:                      opts.CA,

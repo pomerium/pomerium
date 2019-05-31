@@ -323,9 +323,9 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 
 - Environmental Variable: `AUTHENTICATE_INTERNAL_URL`
 - Config File Key: `authenticate_internal_url`
-- Type: `string`
+- Type: `URL`
 - Optional
-- Example: `pomerium-authenticate-service.pomerium.svc.cluster.local`
+- Example: `https://pomerium-authenticate-service.pomerium.svc.cluster.local`
 
 Authenticate Internal Service URL is the internally routed dns name of the authenticate service. This setting is typically used with load balancers that do not gRPC, thus allowing you to specify an internally accessible name.
 
@@ -335,11 +335,11 @@ Authenticate Internal Service URL is the internally routed dns name of the authe
 - Config File Key: `authorize_service_url`
 - Type: `URL`
 - Required
-- Example: `https://access.corp.example.com` or `pomerium-authorize-service.pomerium.svc.cluster.local`
+- Example: `https://access.corp.example.com` or `https://pomerium-authorize-service.pomerium.svc.cluster.local`
 
 Authorize Service URL is the location of the internally accessible authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
 
-If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`pomerium-authorize-service.pomerium.svc.cluster.local`) instead of an externally routable one (`https://access.corp.example.com`).
+If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`https://pomerium-authorize-service.pomerium.svc.cluster.local`) instead of an externally routable one (`https://access.corp.example.com`).
 
 ### Override Certificate Name
 

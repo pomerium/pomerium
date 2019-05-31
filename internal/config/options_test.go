@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/spf13/viper"
 )
@@ -120,6 +121,28 @@ func Test_isAuthorize(t *testing.T) {
 		})
 	}
 }
+func Test_IsProxy(t *testing.T) {
+	tests := []struct {
+		name    string
+		service string
+		want    bool
+	}{
+		{"proxy", "proxy", true},
+		{"all", "all", true},
+		{"authorize", "authorize", false},
+		{"proxy bad case", "PrOxY", false},
+		{"jiberish", "xd23", false},
+	}
+	for _, tt := range tests {
+
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsProxy(tt.service); got != tt.want {
+				t.Errorf("IsProxy() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func Test_bindEnvs(t *testing.T) {
 	o := &Options{}
 	os.Clearenv()
@@ -145,30 +168,36 @@ func Test_bindEnvs(t *testing.T) {
 
 func Test_parseURLs(t *testing.T) {
 	tests := []struct {
-		name            string
-		authorizeURL    string
-		authenticateURL string
-		wantErr         bool
+		name                    string
+		authorizeURL            string
+		authenticateURL         string
+		authenticateInternalURL string
+		wantErr                 bool
 	}{
-		{"good", "https://authz.mydomain.tld", "https://authn.mydomain.tld", false},
-		{"bad authorize", "notaurl", "https://authn.mydomain.tld", true},
-		{"bad authenticate", "https://authz.mydomain.tld", "notaurl", true},
-		{"only authn", "", "https://authn.mydomain.tld", false},
-		{"only authz", "https://authz.mydomain.tld", "", false},
+		{"good", "https://authz.mydomain.example", "https://authn.mydomain.example", "https://internal.svc.local", false},
+		{"bad not https scheme", "http://authz.mydomain.example", "http://authn.mydomain.example", "http://internal.svc.local", true},
+		{"missing scheme", "authz.mydomain.example", "authn.mydomain.example", "internal.svc.local", true},
+		{"bad authorize", "notaurl", "https://authn.mydomain.example", "", true},
+		{"bad authenticate", "https://authz.mydomain.example", "notaurl", "", true},
+		{"bad authenticate internal", "", "", "just.some.naked.domain.example", true},
+		{"only authn", "", "https://authn.mydomain.example", "", false},
+		{"only authz", "https://authz.mydomain.example", "", "", false},
+		{"malformed", "http://a b.com/", "", "", true},
 	}
 	for _, test := range tests {
 		o := &Options{
-			AuthenticateURLString: test.authenticateURL,
-			AuthorizeURLString:    test.authorizeURL,
+			AuthenticateURLString:          test.authenticateURL,
+			AuthorizeURLString:             test.authorizeURL,
+			AuthenticateInternalAddrString: test.authenticateInternalURL,
 		}
 		err := o.parseURLs()
-		if !test.wantErr && err != nil {
+		if (err != nil) != test.wantErr {
 			t.Errorf("Failed to parse URLs %v: %s", test, err)
 		}
-		if o.AuthenticateURL.String() != test.authenticateURL {
+		if o.AuthenticateURL != nil && o.AuthenticateURL.String() != test.authenticateURL {
 			t.Errorf("Failed to update AuthenticateURL: %v", test)
 		}
-		if o.AuthorizeURL.String() != test.authorizeURL {
+		if o.AuthorizeURL != nil && o.AuthorizeURL.String() != test.authorizeURL {
 			t.Errorf("Failed to update AuthorizeURL: %v", test)
 		}
 	}
@@ -185,12 +214,24 @@ func Test_OptionsFromViper(t *testing.T) {
 		testPolicy,
 	}
 
-	goodConfigBytes := []byte(`{"shared_secret":"Setec Astronomy","service":"all","policy":[{"from":"https://pomerium.io","to":"https://httpbin.org"}]}`)
+	goodConfigBytes := []byte(`{"authorize_service_url":"https://authorize.corp.example","authenticate_service_url":"https://authenticate.corp.example","shared_secret":"Setec Astronomy","service":"all","policy":[{"from":"https://pomerium.io","to":"https://httpbin.org"}]}`)
 	goodOptions := NewOptions()
 	goodOptions.SharedKey = "Setec Astronomy"
 	goodOptions.Services = "all"
 	goodOptions.Policies = testPolicies
 	goodOptions.CookieName = "oatmeal"
+	goodOptions.AuthorizeURLString = "https://authorize.corp.example"
+	goodOptions.AuthenticateURLString = "https://authenticate.corp.example"
+	authorize, err := url.Parse(goodOptions.AuthorizeURLString)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authenticate, err := url.Parse(goodOptions.AuthenticateURLString)
+	if err != nil {
+		t.Fatal(err)
+	}
+	goodOptions.AuthorizeURL = authorize
+	goodOptions.AuthenticateURL = authenticate
 
 	badConfigBytes := []byte("badjson!")
 	badUnmarshalConfigBytes := []byte(`"debug": "blue"`)
@@ -217,10 +258,10 @@ func Test_OptionsFromViper(t *testing.T) {
 			tempFile.Write(tt.configBytes)
 			got, err := OptionsFromViper(tempFile.Name())
 			if (err != nil) != tt.wantErr {
-				t.Errorf("OptionsFromViper() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("OptionsFromViper() error = \n%v, wantErr \n%v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("OptionsFromViper() = %v, want %v", got, tt.want)
+			if diff := cmp.Diff(got, tt.want); diff != "" {
+				t.Errorf("OptionsFromViper() = \n%s\n, \ngot\n%v\n, want \n%v", diff, got, tt.want)
 			}
 
 		})
