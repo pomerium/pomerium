@@ -275,15 +275,18 @@ func TestProxy_Proxy(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	opts := testOptionsTestServer(ts.URL)
+	opts, optsWs := testOptionsTestServer(ts.URL), testOptionsTestServer(ts.URL)
 	optsCORS := testOptionsWithCORS(ts.URL)
 	optsPublic := testOptionsWithPublicAccess(ts.URL)
+	optsWs.AllowWebsockets = true
 
-	defaultHeaders, goodCORSHeaders, badCORSHeaders := http.Header{}, http.Header{}, http.Header{}
+	defaultHeaders, goodCORSHeaders, badCORSHeaders, headersWs := http.Header{}, http.Header{}, http.Header{}, http.Header{}
 	goodCORSHeaders.Set("origin", "anything")
 	goodCORSHeaders.Set("access-control-request-method", "anything")
 	// missing "Origin"
 	badCORSHeaders.Set("access-control-request-method", "anything")
+	headersWs.Set("Connection", "Upgrade")
+	headersWs.Set("Upgrade", "websocket")
 
 	tests := []struct {
 		name          string
@@ -315,6 +318,10 @@ func TestProxy_Proxy(t *testing.T) {
 		{"public access, but unknown host", optsPublic, http.MethodGet, defaultHeaders, "https://nothttpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusUnauthorized},
 		// no session, redirect to login
 		{"no http found (no session)", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{LoadError: http.ErrNoCookie}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest},
+		// Should be expecting a 101 Switching Protocols, but expect a 200 OK because we don't have a websocket backend to respond
+		{"ws supported, ws connection", optsWs, http.MethodGet, headersWs, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
+		{"ws supported, http connection", optsWs, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
+		{"ws unsupported, ws connection", opts, http.MethodGet, headersWs, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {

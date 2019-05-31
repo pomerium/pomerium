@@ -129,6 +129,10 @@ type Options struct {
 	// Sub-routes
 	Routes                 map[string]string `mapstructure:"routes"`
 	DefaultUpstreamTimeout time.Duration     `mapstructure:"default_upstream_timeout"`
+
+	// Enable proxying of websocket connections. Defaults to "false".
+	// Caution: Enabling this feature could result in abuse via DOS attacks.
+	AllowWebsockets bool `mapstructure:"allow_websockets"`
 }
 
 // NewOptions returns a new options struct with default values
@@ -160,6 +164,7 @@ func NewOptions() *Options {
 		AuthenticateInternalAddr: new(url.URL),
 		AuthorizeURL:             new(url.URL),
 		RefreshCooldown:          time.Duration(5 * time.Minute),
+		AllowWebsockets:   		  false,
 	}
 	return o
 }

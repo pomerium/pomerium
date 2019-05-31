@@ -143,6 +143,19 @@ Timeouts set the global server timeouts. For route-specific timeouts, see [polic
 
 If set, the HTTP Redirect Address specifies the host and port to redirect http to https traffic on. If unset, no redirect server is started.
 
+### Websocket Connections
+
+- Environmental Variable: `ALLOW_WEBSOCKETS`
+- Config File Key: `allow_websockets`
+- Type: `bool`
+- Default: `false`
+
+If set, enables proxying of websocket connections. 
+Otherwise the proxy responds with `400 Bad Request` to all websocket connections.
+
+**Use with caution:** By definition, websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced.
+Allowing websocket connections to the proxy could result in abuse via DOS attacks. 
+
 ### Policy
 
 - Environmental Variable: `POLICY`
