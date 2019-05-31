@@ -52,7 +52,7 @@ function docsSidebar(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["", "identity-providers", "signed-headers", "certificates", "examples"]
+			children: ["", "identity-providers", "signed-headers", "certificates", "examples", "upgrading"]
 		}
 	];
 }
