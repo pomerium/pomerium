@@ -8,8 +8,7 @@ import (
 	"os"
 	"time"
 
-	"google.golang.org/grpc"
-
+	"github.com/fsnotify/fsnotify"
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/internal/config"
@@ -21,6 +20,8 @@ import (
 	pbAuthenticate "github.com/pomerium/pomerium/proto/authenticate"
 	pbAuthorize "github.com/pomerium/pomerium/proto/authorize"
 	"github.com/pomerium/pomerium/proxy"
+	"github.com/spf13/viper"
+	"google.golang.org/grpc"
 )
 
 var versionFlag = flag.Bool("version", false, "prints the version")
@@ -48,15 +49,24 @@ func main() {
 		log.Fatal().Err(err).Msg("cmd/pomerium: authenticate")
 	}
 
-	_, err = newAuthorizeService(opt, grpcServer)
+	authz, err := newAuthorizeService(opt, grpcServer)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: authorize")
 	}
 
-	_, err = newProxyService(opt, mux)
+	proxy, err := newProxyService(opt, mux)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: proxy")
 	}
+	go viper.WatchConfig()
+
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		log.Info().
+			Str("file", e.Name).
+			Msg("cmd/pomerium: configuration file changed")
+
+		opt = handleConfigUpdate(opt, []config.OptionsUpdater{authz, proxy})
+	})
 	// defer statements ignored anyway :  https://stackoverflow.com/a/17888654
 	// defer proxyService.AuthenticateClient.Close()
 	// defer proxyService.AuthorizeClient.Close()
@@ -180,4 +190,41 @@ func parseOptions(configFile string) (*config.Options, error) {
 		log.SetLevel(o.LogLevel)
 	}
 	return o, nil
+}
+
+func handleConfigUpdate(opt *config.Options, services []config.OptionsUpdater) *config.Options {
+	newOpt, err := parseOptions(*configFile)
+	optChecksum := opt.Checksum()
+	newOptChecksum := newOpt.Checksum()
+
+	log.Debug().
+		Str("old-checksum", optChecksum).
+		Str("new-checksum", newOptChecksum).
+		Msg("cmd/pomerium: configuration file changed")
+
+	if newOptChecksum == optChecksum {
+		log.Debug().Msg("cmd/pomerium: loaded configuration has not changed")
+		return opt
+	}
+
+	if err != nil {
+		log.Error().
+			Err(err).
+			Msg("cmd/pomerium: could not reload configuration")
+		return opt
+	}
+
+	log.Info().
+		Str("config-checksum", newOptChecksum).
+		Msg("cmd/pomerium: running configuration has changed")
+	for _, service := range services {
+		err := service.UpdateOptions(newOpt)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Msg("cmd/pomerium: could not update options")
+		}
+	}
+
+	return newOpt
 }

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/pomerium/pomerium/internal/log"
+
 	"github.com/pomerium/pomerium/internal/config"
 
 	"github.com/pomerium/pomerium/internal/policy"
@@ -62,4 +64,11 @@ func NewIdentityWhitelist(policies []policy.Policy, admins []string) IdentityVal
 // ValidIdentity returns if an identity is authorized to access a route resource.
 func (a *Authorize) ValidIdentity(route string, identity *Identity) bool {
 	return a.identityAccess.Valid(route, identity)
+}
+
+// UpdateOptions updates internal structres based on config.Options
+func (a *Authorize) UpdateOptions(o *config.Options) error {
+	log.Info().Msg("authorize: updating options")
+	a.identityAccess = NewIdentityWhitelist(o.Policies, o.Administrators)
+	return nil
 }

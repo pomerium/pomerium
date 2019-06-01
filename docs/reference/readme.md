@@ -15,6 +15,8 @@ If you are coming from a kubernetes or docker background this should feel famili
 
 In general, any setting specified by environment variable can also be present in the optional config file as the same name but lower cased. Environment variables take precedence.
 
+Pomerium will automatically reload the configuration file if it is changed.  At this time, only policy is re-configured when this reload occurs, but additional options may be added in the future.  It is suggested that your policy is stored in a configuration file so that you can take advantage of this feature.
+
 ## Global settings
 
 These are configuration variables shared by all services, in all service modes.

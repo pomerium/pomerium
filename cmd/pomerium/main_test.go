@@ -241,3 +241,45 @@ func Test_parseOptions(t *testing.T) {
 		})
 	}
 }
+
+type mockService struct {
+	fail    bool
+	Updated bool
+}
+
+func (m *mockService) UpdateOptions(o *config.Options) error {
+
+	m.Updated = true
+	if m.fail {
+		return fmt.Errorf("Failed")
+	}
+	return nil
+}
+
+func Test_handleConfigUpdate(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("SHARED_SECRET", "foo")
+	defer os.Unsetenv("SHARED_SECRET")
+
+	blankOpts := config.NewOptions()
+	goodOpts, _ := config.OptionsFromViper("")
+	tests := []struct {
+		name       string
+		service    *mockService
+		oldOpts    *config.Options
+		wantUpdate bool
+	}{
+		{"good", &mockService{fail: false}, blankOpts, true},
+		{"bad", &mockService{fail: true}, blankOpts, true},
+		{"no change", &mockService{fail: false}, goodOpts, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handleConfigUpdate(tt.oldOpts, []config.OptionsUpdater{tt.service})
+			if tt.service.Updated != tt.wantUpdate {
+				t.Errorf("Failed to update config on service")
+			}
+		})
+	}
+}

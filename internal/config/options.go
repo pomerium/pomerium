@@ -10,11 +10,11 @@ import (
 	"reflect"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
+	"github.com/mitchellh/hashstructure"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 )
 
 // DisableHeaderKey is the key used to check whether to disable setting header
@@ -70,8 +70,8 @@ type Options struct {
 
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
-	AuthenticateURLString string `mapstructure:"authenticate_service_url"`
-	AuthenticateURL       *url.URL
+	AuthenticateURLString string   `mapstructure:"authenticate_service_url"`
+	AuthenticateURL       *url.URL `hash:"ignore"`
 
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
@@ -172,29 +172,32 @@ func OptionsFromViper(configFile string) (*Options, error) {
 	// Load up config
 	o.bindEnvs()
 	if configFile != "" {
-		log.Info().Msgf("Loading config from '%s'", configFile)
+		log.Info().
+			Str("file", configFile).
+			Msg("loading config from file")
+
 		viper.SetConfigFile(configFile)
 		err := viper.ReadInConfig()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to read config: %s", err)
+			return nil, fmt.Errorf("failed to read config: %s", err)
 		}
 	}
 
 	err := viper.Unmarshal(o)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load options from config: %s", err)
+		return nil, fmt.Errorf("failed to load options from config: %s", err)
 	}
 
 	// Turn URL strings into url structs
 	err = o.parseURLs()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse URLs: %s", err)
+		return nil, fmt.Errorf("failed to parse URLs: %s", err)
 	}
 
 	// Load and initialize policy
 	err = o.parsePolicy()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse Policy: %s", err)
+		return nil, fmt.Errorf("failed to parse Policy: %s", err)
 	}
 
 	if o.Debug {
@@ -212,6 +215,9 @@ func OptionsFromViper(configFile string) (*Options, error) {
 		return nil, err
 	}
 
+	log.Debug().
+		Str("config-checksum", o.Checksum()).
+		Msg("read configuration with checksum")
 	return o, nil
 }
 
@@ -381,4 +387,20 @@ func IsProxy(s string) bool {
 		return true
 	}
 	return false
+}
+
+// OptionsUpdater updates local state based on an Options struct
+type OptionsUpdater interface {
+	UpdateOptions(*Options) error
+}
+
+// Checksum returns the checksum of the current options struct
+func (o *Options) Checksum() string {
+	hash, err := hashstructure.Hash(o, nil)
+
+	if err != nil {
+		log.Warn().Msg("could not calculate Option checksum")
+		return "no checksum availablle"
+	}
+	return fmt.Sprintf("%x", hash)
 }

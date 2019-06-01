@@ -283,3 +283,51 @@ func TestProxy_OAuthCallback(t *testing.T) {
 	}
 
 }
+
+func Test_UpdateOptions(t *testing.T) {
+
+	good := testOptions()
+	bad := testOptions()
+	bad.SigningKey = "f"
+	newPolicy := policy.Policy{To: "foo.notatld", From: "bar.notatld"}
+	newPolicy.Validate()
+	newPolicies := []policy.Policy{
+		newPolicy,
+	}
+	tests := []struct {
+		name      string
+		opts      *config.Options
+		newPolicy []policy.Policy
+		host      string
+		wantErr   bool
+		wantRoute bool
+	}{
+		{"good", good, good.Policies, "https://corp.example.notatld", false, true},
+		{"changed", good, newPolicies, "https://bar.notatld", false, true},
+		{"changed and missing", good, newPolicies, "https://corp.example.notatld", false, false},
+		{"bad options", bad, good.Policies, "https://corp.example.notatld", true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := tt.opts
+			p, _ := New(o)
+
+			o.Policies = tt.newPolicy
+			err := p.UpdateOptions(o)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UpdateOptions: err = %v, wantErr = %v", err, tt.wantErr)
+				return
+			}
+
+			// This is only safe if we actually can load policies
+			if err == nil {
+				req := httptest.NewRequest("GET", tt.host, nil)
+				_, ok := p.router(req)
+				if ok != tt.wantRoute {
+					t.Errorf("Failed to find route handler")
+					return
+				}
+			}
+		})
+	}
+}

@@ -10,11 +10,7 @@ import (
 func TestNew(t *testing.T) {
 	t.Parallel()
 
-	goodPolicy := policy.Policy{From: "pomerium.io", To: "httpbin.org"}
-	goodPolicy.Validate()
-	policies := []policy.Policy{
-		goodPolicy,
-	}
+	policies := testPolicies()
 
 	tests := []struct {
 		name      string
@@ -43,6 +39,53 @@ func TestNew(t *testing.T) {
 			// if !reflect.DeepEqual(got, tt.want) {
 			// 	t.Errorf("New() = %v, want %v", got, tt.want)
 			// }
+		})
+	}
+}
+
+func testPolicies() []policy.Policy {
+	testPolicy := policy.Policy{From: "pomerium.io", To: "httpbin.org", AllowedEmails: []string{"test@gmail.com"}}
+	testPolicy.Validate()
+	policies := []policy.Policy{
+		testPolicy,
+	}
+
+	return policies
+}
+
+func Test_UpdateOptions(t *testing.T) {
+	t.Parallel()
+	policies := testPolicies()
+	newPolicy := policy.Policy{From: "foo.notatld", To: "bar.notatld", AllowedEmails: []string{"test@gmail.com"}}
+	newPolicy.Validate()
+	newPolicies := []policy.Policy{
+		newPolicy,
+	}
+	identity := &Identity{Email: "test@gmail.com"}
+	tests := []struct {
+		name        string
+		SharedKey   string
+		Policies    []policy.Policy
+		newPolices  []policy.Policy
+		route       string
+		wantAllowed bool
+	}{
+		{"good", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", policies, policies, "pomerium.io", true},
+		{"changed", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", policies, newPolicies, "foo.notatld", true},
+		{"changed and missing", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", policies, newPolicies, "pomerium.io", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := &config.Options{SharedKey: tt.SharedKey, Policies: tt.Policies}
+			authorize, _ := New(o)
+			o.Policies = tt.newPolices
+			authorize.UpdateOptions(o)
+
+			allowed := authorize.ValidIdentity(tt.route, identity)
+			if allowed != tt.wantAllowed {
+				t.Errorf("New() allowed = %v, wantAllowed %v", allowed, tt.wantAllowed)
+				return
+			}
 		})
 	}
 }
