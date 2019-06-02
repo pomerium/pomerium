@@ -273,7 +273,8 @@ func NewReverseProxyHandler(o *config.Options, proxy *httputil.ReverseProxy, rou
 		timeout = route.UpstreamTimeout
 	}
 	timeoutMsg := fmt.Sprintf("%s failed to respond within the %s timeout period", route.Destination.Host, timeout)
-	return http.TimeoutHandler(up, timeout, timeoutMsg), nil
+	timeoutHandler := http.TimeoutHandler(up, timeout, timeoutMsg)
+	return websocketHandlerFunc(up, timeoutHandler, o), nil
 }
 
 // urlParse wraps url.Parse to add a scheme if none-exists.

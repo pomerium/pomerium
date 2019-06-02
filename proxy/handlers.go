@@ -3,6 +3,7 @@ package proxy // import "github.com/pomerium/pomerium/proxy"
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/pomerium/pomerium/internal/config"
 	"net/http"
 	"net/url"
 	"strings"
@@ -492,4 +493,28 @@ func (p *Proxy) GetSignOutURL(authenticateURL, redirectURL *url.URL) *url.URL {
 
 func extendDeadline(ttl time.Duration) time.Time {
 	return time.Now().Add(ttl).Truncate(time.Second)
+}
+
+// websocketHandlerFunc splits request serving with timeouts depending on the protocol
+func websocketHandlerFunc(baseHandler http.Handler, timeoutHandler http.Handler, o *config.Options) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// Do not use timeouts for websockets because they are long-lived connections.
+		if r.ProtoMajor == 1 &&
+			strings.EqualFold(r.Header.Get("Connection"), "upgrade") &&
+			strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+
+			if o.AllowWebsockets {
+				baseHandler.ServeHTTP(w, r)
+				return
+			}
+
+			log.FromRequest(r).Warn().Msg("proxy: attempt to proxy a websocket connection, but websocket support is disabled in the configuration")
+			httputil.ErrorResponse(w, r, "websockets not supported by proxy", http.StatusBadRequest)
+			return
+		}
+
+		// All other non-websocket requests are served with timeouts to prevent abuse
+		timeoutHandler.ServeHTTP(w, r)
+	})
 }
