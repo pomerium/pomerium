@@ -1,40 +1,23 @@
 ---
-title: From Source
+title: Binaries
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy oidc git reverse-proxy
+    content: pomerium identity-access-proxy oidc reverse-proxy
 ---
 
-# Building Pomerium From Source
+# Pomerium with Prebuilt Binaries
 
-The following quick-start guide covers how to retrieve and build Pomerium directly from it's source as well as how to run Pomerium using a minimal but complete configuration.
+The following quick-start guide covers how to configure and run Pomerium using prebuilt binaries.
 
 ## Prerequisites
 
-- Install [git](https://git-scm.com/) version control system
-- Install the [go](https://golang.org/doc/install) programming language
 - A configured [identity provider]
 - A [wild-card TLS certificate]
 
 ## Download
 
-Retrieve the latest copy of pomerium's source code by cloning the repository.
-
-```bash
-git clone https://github.com/pomerium/pomerium.git $HOME/pomerium
-```
-
-## Make
-
-Build pomerium from source in a single step using make.
-
-```bash
-cd $HOME/pomerium
-make
-```
-
-[Make] will run all the tests, some code linters, then build the binary. If all is good, you should now have a freshly built pomerium binary in the `pomerium/bin` directory.
+[Download] the latest release of Pomerium for your machine's operating system and architecture.
 
 ## Configure
 
@@ -63,7 +46,7 @@ source ./env
 
 ## Navigate
 
-Browse to `external-httpbin.your.domain.example`. Connections between you and [httpbin] will now be proxied and managed by Pomerium. 
+Browse to `external-httpbin.your.domain.example`. Connections between you and [httpbin] will now be proxied and managed by Pomerium.
 
 [configuration variables]: ../reference/readme.md
 [download]: https://github.com/pomerium/pomerium/releases

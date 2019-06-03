@@ -5,34 +5,39 @@ services:
     ports:
       - "443:443"
     volumes:
-      # NOTE!!! : nginx must be supplied with your wildcard certificates. And it expects
-      # it in the format of whatever your wildcard domain name is in.
+      # NOTE!!! : nginx must be supplied with your wildcard certificates.
       # see : https://github.com/jwilder/nginx-proxy#wildcard-certificates
-      # So, if your subdomain is corp.beyondperimeter.com, you'd have the following :
-      - ./cert.pem:/etc/nginx/certs/corp.beyondperimeter.com.crt:ro
-      - ./privkey.pem:/etc/nginx/certs/corp.beyondperimeter.com.key:ro
+      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/etc/nginx/certs/corp.beyondperimeter.com.crt:ro
+      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/etc/nginx/certs/corp.beyondperimeter.com.key:ro
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
   pomerium-authenticate:
     image: pomerium/pomerium:latest # or `build: .` to build from source
     restart: always
     environment:
-      - POMERIUM_DEBUG=true
       - SERVICES=authenticate
-      # Identity Provider Settings (Must be changed!)
+      # NOTE!: Replace with your identity provider settings https://www.pomerium.io/docs/identity-providers.html
       - IDP_PROVIDER=google
       - IDP_PROVIDER_URL=https://accounts.google.com
       - IDP_CLIENT_ID=REPLACE_ME.apps.googleusercontent.com
       - IDP_CLIENT_SECRET=REPLACE_ME
+      # - IDP_CLIENT_SECRET=REPLACE_ME
+      # NOTE! Generate new secret keys! e.g. `head -c32 /dev/urandom | base64`
+      # Generated secret keys must match between services
+
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
-      # nginx settings
+      # Tell nginx how to proxy pomerium's routes
       - VIRTUAL_PROTO=https
       - VIRTUAL_HOST=authenticate.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
     volumes:
-      - ./cert.pem:/pomerium/cert.pem:ro
-      - ./privkey.pem:/pomerium/privkey.pem:ro
+      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/pomerium/cert.pem:ro
+      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/pomerium/privkey.pem:ro
+      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/reference/
+      # See `config.example.yaml` and modify to fit your needs.
+      - ../config/config.example.yaml:/pomerium/config.yaml:ro
+
     expose:
       - 443
 
@@ -40,26 +45,26 @@ services:
     image: pomerium/pomerium:latest # or `build: .` to build from source
     restart: always
     environment:
-      - POMERIUM_DEBUG=true
       - SERVICES=proxy
-      - AUTHENTICATE_SERVICE_URL=https://authenticate.corp.beyondperimeter.com
       # IMPORTANT! If you are running pomerium behind another ingress (loadbalancer/firewall/etc)
       # you must tell pomerium proxy how to communicate using an internal hostname for RPC
-      - AUTHENTICATE_INTERNAL_URL=pomerium-authenticate
+      - AUTHENTICATE_INTERNAL_URL=https://pomerium-authenticate
       - AUTHORIZE_SERVICE_URL=https://pomerium-authorize
       # When communicating internally, rPC is going to get a name conflict expecting an external
       # facing certificate name (i.e. authenticate-service.local vs *.corp.example.com).
       - OVERRIDE_CERTIFICATE_NAME=*.corp.beyondperimeter.com
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
-      # nginx settings
+      # Tell nginx how to proxy pomerium's routes
       - VIRTUAL_PROTO=https
       - VIRTUAL_HOST=*.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
     volumes:
-      - ./cert.pem:/pomerium/cert.pem:ro
-      - ./privkey.pem:/pomerium/privkey.pem:ro
-      - ./config.example.policy.only.yaml:/pomerium/config.yaml:ro
+      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/pomerium/cert.pem:ro
+      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/pomerium/privkey.pem:ro
+      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/reference/
+      # See `config.example.yaml` and modify to fit your needs.
+      - ../config/config.example.yaml:/pomerium/config.yaml:ro
     expose:
       - 443
 
@@ -67,17 +72,18 @@ services:
     image: pomerium/pomerium:latest # or `build: .` to build from source
     restart: always
     environment:
-      - POMERIUM_DEBUG=true
       - SERVICES=authorize
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
-      # nginx settings
+      # Tell nginx how to proxy pomerium's routes
       - VIRTUAL_PROTO=https
       - VIRTUAL_HOST=authorize.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
     volumes:
-      - ./cert.pem:/pomerium/cert.pem:ro
-      - ./privkey.pem:/pomerium/privkey.pem:ro
-      - ./config.example.policy.only.yaml:/pomerium/config.yaml:ro
+      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/pomerium/cert.pem:ro
+      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/pomerium/privkey.pem:ro
+      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/reference/
+      # See `config.example.yaml` and modify to fit your needs.
+      - ../config/config.example.yaml:/pomerium/config.yaml:ro
     expose:
       - 443
 

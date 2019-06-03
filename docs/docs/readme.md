@@ -1,3 +1,11 @@
+---
+title: Overview
+lang: en-US
+meta:
+  - name: keywords
+    content: pomerium identity-access-proxy beyondcorp zero-trust reverse-proxy ztn
+---
+
 # Overview
 
 ## What
@@ -28,7 +36,7 @@ Or for the visually inclined.
 
 ### Zero-trust
 
-Pomerium -- and zero-trust more broadly -- attempts to mitigate these shortcomings by adopting principles like:
+Pomerium attempts to mitigate these shortcomings by adopting principles like:
 
 - Trust flows from identity, device-state, and context; not network location.
 - Treat both internal and external networks as completely untrusted.
@@ -36,11 +44,12 @@ Pomerium -- and zero-trust more broadly -- attempts to mitigate these shortcomin
 - Every device, user, and application's communication should be authenticated, authorized, and encrypted.
 - Access policy should be dynamic, and built from multiple sources.
 
+This security model has typically been referred to as zero-trust or BeyondCorp-inspired. 
+
 ## Resources
 
-Pomerium was designed around the security model originally articulated by [John Kindervag](http://www.virtualstarmedia.com/downloads/Forrester_zero_trust_DNA.pdf) in 2010, and by Google in 2011 which as a result of the [Operation Aurora](https://en.wikipedia.org/wiki/Operation_Aurora) breach.
+Pomerium was inspired by the security model originally articulated by [John Kindervag](http://www.virtualstarmedia.com/downloads/Forrester_zero_trust_DNA.pdf) in 2010, and by Google in 2011 as a result of the [Operation Aurora](https://en.wikipedia.org/wiki/Operation_Aurora) breach.
 
-Typically this approach to security is called either zero-trust or BeyondCorp-inspired. Here's a curated list of resources covering th
 
 ### Books
 

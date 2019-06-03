@@ -3,7 +3,7 @@ title: Identity Providers
 description: >-
   This article describes how to connect Pomerium to third-party identity
   providers / single-sign-on services. You will need to generate keys, copy
-  these into your promerium settings, and enable the connection.
+  these into your Pomerium settings, and enable the connection.
 ---
 
 # Identity Provider Configuration
@@ -129,11 +129,11 @@ Navigate to **User Settings** then **Applications** using the left-hand menu.
 
 On the **Applications** page, add a new application by setting the following parameters:
 
-Field        | Description
------------- | --------------------------------------------------------------------
-Name         | The name of your web app
-Redirect URI | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`)
-Scopes       | **Must** select **read_user** and **openid**
+| Field        | Description                                                                |
+| ------------ | -------------------------------------------------------------------------- |
+| Name         | The name of your web app                                                   |
+| Redirect URI | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`) |
+| Scopes       | **Must** select **read_user** and **openid**                               |
 
 ![Create New Credentials](./gitlab/gitlab-create-application.png)
 
@@ -170,10 +170,10 @@ On the **Credentials** page, click **Create credentials** and choose **OAuth [Cl
 
 On the **Create [Client ID]** page, select **Web application**. In the new fields that display, set the following parameters:
 
-Field                    | Description
------------------------- | --------------------------------------------------------------------
-Name                     | The name of your web app
-Authorized redirect URIs | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`)
+| Field                    | Description                                                                |
+| ------------------------ | -------------------------------------------------------------------------- |
+| Name                     | The name of your web app                                                   |
+| Authorized redirect URIs | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`) |
 
 ![Web App Credentials Configuration](./google/google-create-client-id-config.png)
 
@@ -246,13 +246,13 @@ On the **Create New Application** page, select the **Web** for your application.
 
 Next, provide the following information for your application settings:
 
-Field                        | Description
----------------------------- | ---------------------------------------------------------------------
-Name                         | The name of your application.
-Base URIs (optional)         | The domain(s) of your application.
-Login redirect URIs          | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`).
-Group assignments (optional) | The user groups that can sign in to this application.
-Grant type allowed           | **You must enable Refresh Token.**
+| Field                        | Description                                                                 |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| Name                         | The name of your application.                                               |
+| Base URIs (optional)         | The domain(s) of your application.                                          |
+| Login redirect URIs          | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`). |
+| Group assignments (optional) | The user groups that can sign in to this application.                       |
+| Grant type allowed           | **You must enable Refresh Token.**                                          |
 
 ![Okta Create Application Settings](./okta/okta-create-app-settings.png)
 
@@ -270,23 +270,23 @@ Select your desired authorization server and navigate to the **claims tab**. Cli
 
 ![Okta configure group claim](./okta/okta-configure-groups-claim.png)
 
-Field                 | Value
---------------------- | ---------------------
-Name                  | groups
-Include in token type | **ID Token**, Always.
-Value Type            | Groups
-Filter                | Matches regex `.*`
-Include in            | Any scope
+| Field                 | Value                 |
+| --------------------- | --------------------- |
+| Name                  | groups                |
+| Include in token type | **ID Token**, Always. |
+| Value Type            | Groups                |
+| Filter                | Matches regex `.*`    |
+| Include in            | Any scope             |
 
 Add an another, almost identical, claim but this time for **Access Token**.
 
-Field                 | Value
---------------------- | -------------------------
-Name                  | groups
-Include in token type | **Access Token**, Always.
-Value Type            | Groups
-Filter                | Matches regex `.*`
-Include in            | Any scope
+| Field                 | Value                     |
+| --------------------- | ------------------------- |
+| Name                  | groups                    |
+| Include in token type | **Access Token**, Always. |
+| Value Type            | Groups                    |
+| Filter                | Matches regex `.*`        |
+| Include in            | Any scope                 |
 
 ![Okta list group claims](./okta/okta-list-groups-claim.png)
 

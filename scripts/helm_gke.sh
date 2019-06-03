@@ -35,17 +35,25 @@ sleep 60
 echo "=> install pomerium with helm"
 echo " replace configuration settings to meet your specific needs and identity provider settings"
 
-helm install ./helm/ \
+echo "=> initiliaze a configmap setting from config.example.yaml"
+kubectl create configmap config --from-file="config.yaml"="docs/docs/examples/config/config.example.yaml"
+# git clone https://github.com/pomerium/pomerium-helm.git $HOME/pomerium-helm
+
+helm install $HOME/pomerium-helm \
 	--set service.type="NodePort" \
+	--set config.rootDomain="corp.beyondperimeter.com" \
+	--set config.existingConfig="config" \
+	--set config.sharedSecret=$(head -c32 /dev/urandom | base64) \
+	--set config.cookieSecret=$(head -c32 /dev/urandom | base64) \
 	--set ingress.secret.name="pomerium-tls" \
-	--set ingress.secret.cert=$(base64 -i "$HOME/.acme.sh/*.corp.pomerium.io_ecc/*.corp.pomerium.io.cer") \
-	--set ingress.secret.key=$(base64 -i "$HOME/.acme.sh/*.corp.pomerium.io_ecc/*.corp.pomerium.io.key") \
-	--set config.policy="$(cat policy.example.yaml | base64)" \
+	--set ingress.secret.cert=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer") \
+	--set ingress.secret.key=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key") \
+	--set config.policy="$(base64 -i docs/docs/examples/config/policy.example.yaml)" \
 	--set authenticate.idp.provider="google" \
 	--set authenticate.idp.clientID="REPLACE_ME" \
 	--set authenticate.idp.clientSecret="REPLACE_ME" \
 	--set-string ingress.annotations."kubernetes\.io/ingress\.allow-http"=false \
-	--set ingress.annotations."cloud\.google\.com/app-protocols"=\"{\"https\":\"HTTPS\"}\"
+	--set ingress.annotations."cloud\.google\.com/app-protocols"='\{"https":"HTTPS"\}
 
 # When done, clean up by deleting the cluster!
 # helm del $(helm ls --all --short) --purge # deletes all your helm instances

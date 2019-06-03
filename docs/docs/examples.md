@@ -1,5 +1,5 @@
 ---
-sidebarDepth: 3
+sidebarDepth: 2
 ---
 
 # Example configs
@@ -24,7 +24,14 @@ Remember to set your identity provider settings and to generate new secret keys!
 
 Customize for your identity provider and run `./bin/pomerium -config config.yaml`
 
-<<< @/config.example.yaml
+#### Config file example
+
+<<< @/docs/docs/examples/config/config.example.yaml
+
+#### Environmental variable example
+
+<<< @/docs/docs/examples/config/config.example.env
+
 
 ## Docker
 
@@ -35,7 +42,7 @@ Uses the [latest pomerium build](https://hub.docker.com/r/pomerium/pomerium) fro
 - Minimal container-based configuration.
 - Docker and Docker-Compose based.
 - Runs a single container for all pomerium services
-- Routes default to on-premise [helloworld], [httpbin].
+- Routes default to on-premise [httpbin].
 
 Customize for your identity provider run `docker-compose up -f basic.docker-compose.yml`
 

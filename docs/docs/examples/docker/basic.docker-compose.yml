@@ -1,42 +1,23 @@
-# Example Pomerium configuration.
-#
-# NOTE! Change IDP_* settings to match your identity provider settings!
-# NOTE! Generate new SHARED_SECRET and COOKIE_SECRET keys! e.g. `head -c32 /dev/urandom | base64`
-# NOTE! Replace `corp.beyondperimeter.com` with whatever your domain is
-# NOTE! Make sure certificate files (cert.pem/privkey.pem) are in the same directory as this file
-# NOTE! Make sure your policy file (policy.example.yaml) is in the same directory as this file
-
 version: "3"
 services:
   pomerium:
-    image: pomerium/pomerium:latest # or `build: .` to build from source
+    image: pomerium/pomerium:v0.0.5
     environment:
-      - POMERIUM_DEBUG=true
       - SERVICES=all
-      - IDP_PROVIDER=google
-      - IDP_PROVIDER_URL=https://accounts.google.com
-      - IDP_CLIENT_ID=REPLACE_ME.apps.googleusercontent.com
-      - IDP_CLIENT_SECRET=REPLACE_ME
+      # Generate new secret keys. e.g. `head -c32 /dev/urandom | base64`
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
-      - CERTIFICATE_FILE=cert.pem
-      - CERTIFICATE_KEY_FILE=privkey.pem
-      - AUTHENTICATE_SERVICE_URL=https://authenticate.corp.beyondperimeter.com
-      - AUTHORIZE_SERVICE_URL=https://authorize.corp.beyondperimeter.com
     volumes:
-      - ./cert.pem:/pomerium/cert.pem:ro
-      - ./privkey.pem:/pomerium/privkey.pem:ro
-      - ./config.example.policy.only.yaml:/pomerium/config.yaml:ro
+      # Mount your domain's certificates : https://www.pomerium.io/docs/certificates.html
+      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/pomerium/cert.pem:ro
+      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/pomerium/privkey.pem:ro
+      # Mount your config file : https://www.pomerium.io/reference/
+      - ../config/config.minimal.yaml:/pomerium/config.yaml:ro
     ports:
       - 443:443
 
-  # https://httpbin.corp.beyondperimeter.com
+  # https://httpbin.corp.beyondperimeter.com --> Pomerium --> http://httpbin
   httpbin:
     image: kennethreitz/httpbin:latest
     expose:
       - 80
-  # https://hello.corp.beyondperimeter.com
-  hello:
-    image: gcr.io/google-samples/hello-app:1.0
-    expose:
-      - 8080

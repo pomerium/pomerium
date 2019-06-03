@@ -1,17 +1,18 @@
-# Main configuration flags
-address: ":8443" # optional, default is 443
+# Main configuration flags : https://www.pomerium.io/reference/
+#
+# address: ":8443" # optional, default is 443
 pomerium_debug: true # optional, default is false
-service: "all" # optional, default is all
-log_level: "info" # optional, default is debug
+# service: "all" # optional, default is all
+log_level: info # optional, default is debug
 
-authenticate_service_url: https://authenticate.corp.pomerium.io:8443
-authorize_service_url: https://authorize.corp.pomerium.io:8443
+authenticate_service_url: https://authenticate.corp.beyondperimeter.com
+authorize_service_url: https://authorize.corp.beyondperimeter.com
 
 # Certificates can be loaded as files or base64 encoded bytes. If neither is set, a
 # pomerium will attempt to locate a pair in the root directory
-certificate_file: "./cert.pem" # optional, defaults to `./cert.pem`
-certificate_key_file: "./privkey.pem" # optional, defaults to `./certprivkey.pem`
-certificate_authority_file: "./cert.pem"
+# certificate_file: "./cert.pem" # optional, defaults to `./cert.pem`
+# certificate_key_file: "./privkey.pem" # optional, defaults to `./certprivkey.pem`
+# certificate_authority_file: "./cert.pem"
 
 # base64 encoded cert, eg. `base64 -i cert.pem` / `base64 -i privkey.pem`
 # certificate: |
@@ -20,8 +21,8 @@ certificate_authority_file: "./cert.pem"
 #  "xxxx"
 
 # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
-shared_secret: hsJIQsx9KKx4qVlggg/T3AuLTmVu0uHhwTQgMPlVs7U=
-cookie_secret: WwMtDXWaRDMBQCylle8OJ+w4kLIDIGd8W3cB4/zFFtg=
+# shared_secret: hsJIQsx9KKx4qVlggg/T3AuLTmVu0uHhwTQgMPlVs7U=
+# cookie_secret: WwMtDXWaRDMBQCylle8OJ+w4kLIDIGd8W3cB4/zFFtg=
 # If set, a JWT based signature is appended to each request header `x-pomerium-jwt-assertion`
 # signing_key: "Replace with base64'd private key from ./scripts/self-signed-sign-key.sh"
 
