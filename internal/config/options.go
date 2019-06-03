@@ -164,7 +164,7 @@ func NewOptions() *Options {
 		AuthenticateInternalAddr: new(url.URL),
 		AuthorizeURL:             new(url.URL),
 		RefreshCooldown:          time.Duration(5 * time.Minute),
-		AllowWebsockets:   		  false,
+		AllowWebsockets:          false,
 	}
 	return o
 }

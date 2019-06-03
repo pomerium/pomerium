@@ -175,8 +175,8 @@ func TestValidateClientSecret(t *testing.T) {
 	}{
 		{"simple", "secret", "secret", "secret", http.StatusOK},
 		{"missing get param, valid header", "secret", "", "secret", http.StatusOK},
-		{"missing both", "secret", "", "", http.StatusUnauthorized},
-		{"simple bad", "bad-secret", "secret", "", http.StatusUnauthorized},
+		{"missing both", "secret", "", "", http.StatusInternalServerError},
+		{"simple bad", "bad-secret", "secret", "", http.StatusInternalServerError},
 		{"malformed, invalid hex digits", "secret", "%zzzzz", "", http.StatusBadRequest},
 	}
 

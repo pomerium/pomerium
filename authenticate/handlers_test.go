@@ -64,12 +64,16 @@ func TestAuthenticate_Handler(t *testing.T) {
 
 func TestAuthenticate_SignIn(t *testing.T) {
 	tests := []struct {
-		name     string
-		session  sessions.SessionStore
-		provider identity.MockProvider
-		wantCode int
+		name        string
+		state       string
+		redirectURI string
+		session     sessions.SessionStore
+		provider    identity.MockProvider
+		wantCode    int
 	}{
 		{"good",
+			"state=example",
+			"redirect_uri=some.example",
 			&sessions.MockSessionStore{
 				Session: &sessions.SessionState{
 					AccessToken:     "AccessToken",
@@ -77,8 +81,10 @@ func TestAuthenticate_SignIn(t *testing.T) {
 					RefreshDeadline: time.Now().Add(10 * time.Second),
 				}},
 			identity.MockProvider{ValidateResponse: true},
-			http.StatusBadRequest},
+			http.StatusFound},
 		{"session not valid",
+			"state=example",
+			"redirect_uri=some.example",
 			&sessions.MockSessionStore{
 				Session: &sessions.SessionState{
 					AccessToken:     "AccessToken",
@@ -87,15 +93,9 @@ func TestAuthenticate_SignIn(t *testing.T) {
 				}},
 			identity.MockProvider{ValidateResponse: false},
 			http.StatusInternalServerError},
-		{"session fails fails to save", &sessions.MockSessionStore{
-			SaveError: errors.New("error"),
-			Session: &sessions.SessionState{
-				AccessToken:     "AccessToken",
-				RefreshToken:    "RefreshToken",
-				RefreshDeadline: time.Now().Add(10 * time.Second),
-			}}, identity.MockProvider{ValidateResponse: true},
-			http.StatusBadRequest},
 		{"session refresh error",
+			"state=example",
+			"redirect_uri=some.example",
 			&sessions.MockSessionStore{
 				Session: &sessions.SessionState{
 					AccessToken:     "AccessToken",
@@ -107,6 +107,8 @@ func TestAuthenticate_SignIn(t *testing.T) {
 				RefreshError:     errors.New("error")},
 			http.StatusInternalServerError},
 		{"session save after refresh error",
+			"state=example",
+			"redirect_uri=some.example",
 			&sessions.MockSessionStore{
 				SaveError: errors.New("error"),
 				Session: &sessions.SessionState{
@@ -119,6 +121,8 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			},
 			http.StatusInternalServerError},
 		{"no cookie found trying to load",
+			"state=example",
+			"redirect_uri=some.example",
 			&sessions.MockSessionStore{
 				LoadError: http.ErrNoCookie,
 				Session: &sessions.SessionState{
@@ -129,6 +133,8 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			identity.MockProvider{ValidateResponse: true},
 			http.StatusBadRequest},
 		{"unexpected error trying to load session",
+			"state=example",
+			"redirect_uri=some.example",
 			&sessions.MockSessionStore{
 				LoadError: errors.New("unexpeted"),
 				Session: &sessions.SessionState{
@@ -138,23 +144,63 @@ func TestAuthenticate_SignIn(t *testing.T) {
 				}},
 			identity.MockProvider{ValidateResponse: true},
 			http.StatusInternalServerError},
+		{"malformed form",
+			"state=example",
+			"redirect_uri=some.example",
+			&sessions.MockSessionStore{
+				Session: &sessions.SessionState{
+					AccessToken:     "AccessToken",
+					RefreshToken:    "RefreshToken",
+					RefreshDeadline: time.Now().Add(10 * time.Second),
+				}},
+			identity.MockProvider{ValidateResponse: true},
+			http.StatusInternalServerError},
+		{"empty state",
+			"state=",
+			"redirect_uri=some.example",
+			&sessions.MockSessionStore{
+				Session: &sessions.SessionState{
+					AccessToken:     "AccessToken",
+					RefreshToken:    "RefreshToken",
+					RefreshDeadline: time.Now().Add(10 * time.Second),
+				}},
+			identity.MockProvider{ValidateResponse: true},
+			http.StatusBadRequest},
+
+		{"malformed redirect uri",
+			"state=example",
+			"redirect_uri=https://accounts.google.^",
+			&sessions.MockSessionStore{
+				Session: &sessions.SessionState{
+					AccessToken:     "AccessToken",
+					RefreshToken:    "RefreshToken",
+					RefreshDeadline: time.Now().Add(10 * time.Second),
+				}},
+			identity.MockProvider{ValidateResponse: true},
+			http.StatusBadRequest},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &Authenticate{
 				sessionStore: tt.session,
 				provider:     tt.provider,
-				RedirectURL:  uriParse("http://www.pomerium.io"),
+				RedirectURL:  uriParse(tt.redirectURI),
 				csrfStore:    &sessions.MockCSRFStore{},
 				SharedKey:    "secret",
 				cipher:       mockCipher{},
 			}
-			r := httptest.NewRequest("GET", "/sign-in", nil)
+			uri := &url.URL{Path: "/"}
+			if tt.name == "malformed form" {
+				uri.RawQuery = "example=%zzzzz"
+			} else {
+				uri.RawQuery = fmt.Sprintf("%s&%s", tt.state, tt.redirectURI)
+			}
+			r := httptest.NewRequest(http.MethodGet, uri.String(), nil)
 			w := httptest.NewRecorder()
 
 			a.SignIn(w, r)
 			if status := w.Code; status != tt.wantCode {
-				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
+				t.Errorf("handler returned wrong status code: got %v want %v %s", status, tt.wantCode, uri)
 				t.Errorf("\n%+v", w.Body)
 			}
 		})
