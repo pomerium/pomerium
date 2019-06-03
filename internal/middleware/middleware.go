@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"golang.org/x/net/publicsuffix"
 )
 
 // SetHeaders ensures that every response includes some basic security headers
@@ -66,7 +67,7 @@ func ValidateRedirectURI(rootDomain *url.URL) func(next http.Handler) http.Handl
 				httputil.ErrorResponse(w, r, err.Error(), http.StatusBadRequest)
 				return
 			}
-			if !SameSubdomain(redirectURI, rootDomain) {
+			if !SameDomain(redirectURI, rootDomain) {
 				httputil.ErrorResponse(w, r, "Invalid redirect parameter", http.StatusBadRequest)
 				return
 			}
@@ -75,22 +76,17 @@ func ValidateRedirectURI(rootDomain *url.URL) func(next http.Handler) http.Handl
 	}
 }
 
-// SameSubdomain checks to see if two URLs share the same root domain.
-func SameSubdomain(u, j *url.URL) bool {
-	if u.Hostname() == "" || j.Hostname() == "" {
+// SameDomain checks to see if two URLs share the top level domain (TLD Plus One).
+func SameDomain(u, j *url.URL) bool {
+	a, err := publicsuffix.EffectiveTLDPlusOne(u.Hostname())
+	if err != nil {
 		return false
 	}
-	uParts := strings.Split(u.Hostname(), ".")
-	jParts := strings.Split(j.Hostname(), ".")
-	if len(uParts) != len(jParts) {
+	b, err := publicsuffix.EffectiveTLDPlusOne(j.Hostname())
+	if err != nil {
 		return false
 	}
-	for i := 1; i < len(uParts); i++ {
-		if uParts[i] != jParts[i] {
-			return false
-		}
-	}
-	return true
+	return a == b
 }
 
 // ValidateSignature ensures the request is valid and has been signed with
