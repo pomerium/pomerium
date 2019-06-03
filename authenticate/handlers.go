@@ -162,14 +162,14 @@ func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	a.csrfStore.SetCSRF(w, r, nonce)
 
 	// verify redirect uri is from the root domain
-	if !middleware.SameSubdomain(authRedirectURL, a.RedirectURL) {
+	if !middleware.SameDomain(authRedirectURL, a.RedirectURL) {
 		httputil.ErrorResponse(w, r, "Invalid redirect parameter: redirect uri not from the root domain", http.StatusBadRequest)
 		return
 	}
 
 	// verify proxy url is from the root domain
 	proxyRedirectURL, err := url.Parse(authRedirectURL.Query().Get("redirect_uri"))
-	if err != nil || !middleware.SameSubdomain(proxyRedirectURL, a.RedirectURL) {
+	if err != nil || !middleware.SameDomain(proxyRedirectURL, a.RedirectURL) {
 		httputil.ErrorResponse(w, r, "Invalid redirect parameter: proxy url not from the root domain", http.StatusBadRequest)
 		return
 	}
@@ -261,7 +261,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "Malformed redirect url"}
 	}
 	// sanity check, we are redirecting back to the same subdomain right?
-	if !middleware.SameSubdomain(redirectURL, a.RedirectURL) {
+	if !middleware.SameDomain(redirectURL, a.RedirectURL) {
 		return "", httputil.HTTPError{Code: http.StatusBadRequest, Message: "Invalid Redirect URI domain"}
 	}
 

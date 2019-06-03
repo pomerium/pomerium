@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func Test_SameSubdomain(t *testing.T) {
+func Test_SameDomain(t *testing.T) {
 
 	tests := []struct {
 		name        string
@@ -19,8 +19,10 @@ func Test_SameSubdomain(t *testing.T) {
 		want        bool
 	}{
 		{"good url redirect", "https://example.com/redirect", "https://example.com", true},
+		{"good multilevel", "https://httpbin.a.corp.example.com", "https://auth.b.corp.example.com", true},
+		{"good complex tld", "https://httpbin.a.corp.example.co.uk", "https://auth.b.corp.example.co.uk", true},
+		{"bad complex tld", "https://httpbin.a.corp.notexample.co.uk", "https://auth.b.corp.example.co.uk", false},
 		{"simple sub", "https://auth.example.com", "https://test.example.com", true},
-		{"mismatched lengths", "https://auth.auth.example.com", "https://test.example.com", false},
 		{"bad domain", "https://auth.example.com/redirect", "https://test.notexample.com", false},
 		{"malformed url", "^example.com/redirect", "https://notexample.com", false},
 		{"empty domain list", "https://example.com/redirect", ".com", false},
@@ -31,8 +33,8 @@ func Test_SameSubdomain(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			u, _ := url.Parse(tt.uri)
 			j, _ := url.Parse(tt.rootDomains)
-			if got := SameSubdomain(u, j); got != tt.want {
-				t.Errorf("SameSubdomain() = %v, want %v", got, tt.want)
+			if got := SameDomain(u, j); got != tt.want {
+				t.Errorf("SameDomain() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -127,24 +129,26 @@ func TestValidateRedirectURI(t *testing.T) {
 		redirectURI string
 		status      int
 	}{
-		{"simple", "https://auth.google.com", "https://b.google.com", http.StatusOK},
-		{"deep ok", "https://a.some.really.deep.sub.domain.google.com", "https://b.some.really.deep.sub.domain.google.com", http.StatusOK},
-		{"bad match", "https://auth.aol.com", "https://test.google.com", http.StatusBadRequest},
-		{"bad simple", "https://auth.corp.aol.com", "https://test.corp.google.com", http.StatusBadRequest},
-		{"deep bad", "https://a.some.really.deep.sub.domain.scroogle.com", "https://b.some.really.deep.sub.domain.google.com", http.StatusBadRequest},
-		{"with cname", "https://auth.google.com", "https://www.google.com", http.StatusOK},
-		{"with path", "https://auth.google.com", "https://www.google.com/path", http.StatusOK},
-		{"http mistmatch", "https://auth.google.com", "http://www.google.com/path", http.StatusOK},
-		{"http", "http://auth.google.com", "http://www.google.com/path", http.StatusOK},
-		{"ip", "http://1.1.1.1", "http://8.8.8.8", http.StatusBadRequest},
-		{"malformed, invalid hex digits", "https://auth.google.com", "%zzzzz", http.StatusBadRequest},
+		{"simple", "https://auth.google.com", "redirect_uri=https://b.google.com", http.StatusOK},
+		{"deep ok", "https://a.some.really.deep.sub.domain.google.com", "redirect_uri=https://b.some.really.deep.sub.domain.google.com", http.StatusOK},
+		{"bad match", "https://auth.aol.com", "redirect_uri=https://test.google.com", http.StatusBadRequest},
+		{"bad simple", "https://auth.corp.aol.com", "redirect_uri=https://test.corp.google.com", http.StatusBadRequest},
+		{"deep bad", "https://a.some.really.deep.sub.domain.scroogle.com", "redirect_uri=https://b.some.really.deep.sub.domain.google.com", http.StatusBadRequest},
+		{"with cname", "https://auth.google.com", "redirect_uri=https://www.google.com", http.StatusOK},
+		{"with path", "https://auth.google.com", "redirect_uri=https://www.google.com/path", http.StatusOK},
+		{"http mistmatch", "https://auth.google.com", "redirect_uri=http://www.google.com/path", http.StatusOK},
+		{"http", "http://auth.google.com", "redirect_uri=http://www.google.com/path", http.StatusOK},
+		{"ip", "http://1.1.1.1", "redirect_uri=http://8.8.8.8", http.StatusBadRequest},
+		{"redirect get param not set", "https://auth.google.com", "not_redirect_uri!=https://b.google.com", http.StatusBadRequest},
+		{"malformed, invalid get params", "https://auth.google.com", "redirect_uri=https://%zzzzz", http.StatusBadRequest},
+		{"malformed, invalid url", "https://auth.google.com", "redirect_uri=https://accounts.google.^", http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := &http.Request{
 				Method: http.MethodGet,
-				URL:    &url.URL{RawQuery: fmt.Sprintf("redirect_uri=%s", tt.redirectURI)},
+				URL:    &url.URL{RawQuery: tt.redirectURI},
 			}
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Write([]byte("Hi"))
