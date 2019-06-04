@@ -44,7 +44,7 @@ Pomerium attempts to mitigate these shortcomings by adopting principles like:
 - Every device, user, and application's communication should be authenticated, authorized, and encrypted.
 - Access policy should be dynamic, and built from multiple sources.
 
-This security model has typically been referred to as zero-trust or BeyondCorp-inspired. 
+This security model has typically been referred to as *zero-trust* or *BeyondCorp*-inspired. 
 
 ## Resources
 

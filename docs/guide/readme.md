@@ -3,12 +3,12 @@ title: Docker
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy oidc docker reverse-proxy
+    content: pomerium identity-access-proxy oidc docker reverse-proxy containers
 ---
 
 # Pomerium using Docker
 
-[Docker] is a simple and easy way to start using Pomerium. In the following quick-start, we'll create a minimal but complete environment for running Pomerium with containers.
+[Docker] is a straightforward way to start using Pomerium. In the following quick-start, we'll create a minimal but complete environment for running Pomerium with containers.
 
 ## Prerequisites
 
@@ -22,7 +22,7 @@ meta:
 
 Download the following `docker-compose.yml` file and modify it to:
 
-- use newly generated secrets
+- generate new secrets
 - mount your [wild-card TLS certificate]
 - mount Pomerium's `config.yaml` [configuration file]
 
