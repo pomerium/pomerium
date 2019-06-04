@@ -14,7 +14,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 )
 
-// CSPHeaders adds content security headers for authenticate's handlers
+// CSPHeaders are the content security headers added to the service's handlers
 var CSPHeaders = map[string]string{
 	"Content-Security-Policy": "default-src 'none'; style-src 'self'" +
 		" 'sha256-z9MsgkMbQjRSLxzAfN55jB3a9pP0PQ4OHFH8b4iDP6s=' " +
@@ -80,36 +80,41 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 			return
 		default:
 			log.FromRequest(r).Error().Err(err).Msg("proxy: unexpected error")
-			httputil.ErrorResponse(w, r, "An unexpected error occurred", http.StatusInternalServerError)
+			httpErr := &httputil.Error{Message: "An unexpected error occurred", Code: http.StatusInternalServerError}
+			httputil.ErrorResponse(w, r, httpErr)
 			return
 		}
 	}
 	err = a.authenticate(w, r, session)
 	if err != nil {
-		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+		httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusInternalServerError}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
-	err = r.ParseForm()
-	if err != nil {
-		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+	if err = r.ParseForm(); err != nil {
+		httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusInternalServerError}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
 	// original `state` parameter received from the proxy application.
 	state := r.Form.Get("state")
 	if state == "" {
-		httputil.ErrorResponse(w, r, "no state parameter supplied", http.StatusBadRequest)
+		httpErr := &httputil.Error{Message: "no state parameter supplied", Code: http.StatusBadRequest}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
 
 	redirectURL, err := url.Parse(r.Form.Get("redirect_uri"))
 	if err != nil {
-		httputil.ErrorResponse(w, r, "malformed redirect_uri parameter passed", http.StatusBadRequest)
+		httpErr := &httputil.Error{Message: "malformed redirect_uri parameter passed", Code: http.StatusBadRequest}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
 	// encrypt session state as json blob
 	encrypted, err := sessions.MarshalSession(session, a.cipher)
 	if err != nil {
-		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+		httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusInternalServerError}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
 	http.Redirect(w, r, getAuthCodeRedirectURL(redirectURL, state, string(encrypted)), http.StatusFound)
@@ -130,9 +135,10 @@ func getAuthCodeRedirectURL(redirectURL *url.URL, state, authCode string) string
 // SignOut signs the user out by trying to revoke the user's remote identity session along with
 // the associated local session state. Handles both GET and POST.
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
-		httputil.ErrorResponse(w, r, err.Error(), http.StatusInternalServerError)
+	if err := r.ParseForm(); err != nil {
+		log.Error().Err(err).Msg("authenticate: error SignOut form")
+		httpErr := &httputil.Error{Code: http.StatusInternalServerError}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
 	redirectURI := r.Form.Get("redirect_uri")
@@ -146,7 +152,8 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 	err = a.provider.Revoke(session.AccessToken)
 	if err != nil {
 		log.Error().Err(err).Msg("authenticate: failed to revoke user session")
-		httputil.ErrorResponse(w, r, fmt.Sprintf("could not revoke session: %s ", err.Error()), http.StatusBadRequest)
+		httpErr := &httputil.Error{Message: fmt.Sprintf("could not revoke session: %s ", err.Error()), Code: http.StatusBadRequest}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
 	http.Redirect(w, r, redirectURI, http.StatusFound)
@@ -163,14 +170,16 @@ func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 
 	// verify redirect uri is from the root domain
 	if !middleware.SameDomain(authRedirectURL, a.RedirectURL) {
-		httputil.ErrorResponse(w, r, "Invalid redirect parameter: redirect uri not from the root domain", http.StatusBadRequest)
+		httpErr := &httputil.Error{Message: "Invalid redirect parameter: redirect uri not from the root domain", Code: http.StatusBadRequest}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
 
 	// verify proxy url is from the root domain
 	proxyRedirectURL, err := url.Parse(authRedirectURL.Query().Get("redirect_uri"))
 	if err != nil || !middleware.SameDomain(proxyRedirectURL, a.RedirectURL) {
-		httputil.ErrorResponse(w, r, "Invalid redirect parameter: proxy url not from the root domain", http.StatusBadRequest)
+		httpErr := &httputil.Error{Message: "Invalid redirect parameter: proxy url not from the root domain", Code: http.StatusBadRequest}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
 
@@ -178,7 +187,8 @@ func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	proxyRedirectSig := authRedirectURL.Query().Get("sig")
 	ts := authRedirectURL.Query().Get("ts")
 	if !middleware.ValidSignature(proxyRedirectURL.String(), proxyRedirectSig, ts, a.SharedKey) {
-		httputil.ErrorResponse(w, r, "Invalid redirect parameter: invalid signature", http.StatusBadRequest)
+		httpErr := &httputil.Error{Message: "Invalid redirect parameter: invalid signature", Code: http.StatusBadRequest}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
 
@@ -197,36 +207,36 @@ func (a *Authenticate) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	switch h := err.(type) {
 	case nil:
 		break
-	case httputil.HTTPError:
+	case httputil.Error:
 		log.Error().Err(err).Msg("authenticate: oauth callback error")
-		httputil.ErrorResponse(w, r, h.Message, h.Code)
+		httpErr := &httputil.Error{Message: h.Message, Code: h.Code}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	default:
 		log.Error().Err(err).Msg("authenticate: unexpected oauth callback error")
-		httputil.ErrorResponse(w, r, "Internal Error", http.StatusInternalServerError)
+		httpErr := &httputil.Error{Message: "Internal Error", Code: http.StatusInternalServerError}
+		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
 	// redirect back to the proxy-service via sign_in
-	log.Info().Interface("redirect", redirect).Msg("proxy: OAuthCallback")
 	http.Redirect(w, r, redirect, http.StatusFound)
 }
 
 // getOAuthCallback completes the oauth cycle from an identity provider's callback
 func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) (string, error) {
 	// handle the callback response from the identity provider
-	err := r.ParseForm()
-	if err != nil {
-		return "", httputil.HTTPError{Code: http.StatusInternalServerError, Message: err.Error()}
+	if err := r.ParseForm(); err != nil {
+		return "", httputil.Error{Code: http.StatusInternalServerError, Message: err.Error()}
 	}
 	errorString := r.Form.Get("error")
 	if errorString != "" {
 		log.FromRequest(r).Error().Str("Error", errorString).Msg("authenticate: provider returned error")
-		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: errorString}
+		return "", httputil.Error{Code: http.StatusForbidden, Message: errorString}
 	}
 	code := r.Form.Get("code")
 	if code == "" {
-		log.FromRequest(r).Error().Err(err).Msg("authenticate: provider missing code")
-		return "", httputil.HTTPError{Code: http.StatusBadRequest, Message: "Missing Code"}
+		log.FromRequest(r).Error().Msg("authenticate: provider missing code")
+		return "", httputil.Error{Code: http.StatusBadRequest, Message: "Missing Code"}
 
 	}
 
@@ -234,18 +244,18 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	session, err := a.provider.Authenticate(code)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("authenticate: error redeeming authenticate code")
-		return "", httputil.HTTPError{Code: http.StatusInternalServerError, Message: err.Error()}
+		return "", httputil.Error{Code: http.StatusInternalServerError, Message: err.Error()}
 	}
 
 	// okay, time to go back to the proxy service.
 	bytes, err := base64.URLEncoding.DecodeString(r.Form.Get("state"))
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("authenticate: failed decoding state")
-		return "", httputil.HTTPError{Code: http.StatusBadRequest, Message: "Couldn't decode state"}
+		return "", httputil.Error{Code: http.StatusBadRequest, Message: "Couldn't decode state"}
 	}
 	s := strings.SplitN(string(bytes), ":", 2)
 	if len(s) != 2 {
-		return "", httputil.HTTPError{Code: http.StatusBadRequest, Message: "Invalid State"}
+		return "", httputil.Error{Code: http.StatusBadRequest, Message: "Invalid State"}
 	}
 	nonce := s[0]
 	redirect := s[1]
@@ -253,22 +263,22 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	defer a.csrfStore.ClearCSRF(w, r)
 	if err != nil || c.Value != nonce {
 		log.FromRequest(r).Error().Err(err).Msg("authenticate: csrf failure")
-		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "CSRF failed"}
+		return "", httputil.Error{Code: http.StatusForbidden, Message: "CSRF failed"}
 	}
 	redirectURL, err := url.Parse(redirect)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("authenticate: malformed redirect url")
-		return "", httputil.HTTPError{Code: http.StatusForbidden, Message: "Malformed redirect url"}
+		return "", httputil.Error{Code: http.StatusForbidden, Message: "Malformed redirect url"}
 	}
 	// sanity check, we are redirecting back to the same subdomain right?
 	if !middleware.SameDomain(redirectURL, a.RedirectURL) {
-		return "", httputil.HTTPError{Code: http.StatusBadRequest, Message: "Invalid Redirect URI domain"}
+		return "", httputil.Error{Code: http.StatusBadRequest, Message: "Invalid Redirect URI domain"}
 	}
 
 	err = a.sessionStore.SaveSession(w, r, session)
 	if err != nil {
 		log.Error().Err(err).Msg("authenticate: failed saving new session")
-		return "", httputil.HTTPError{Code: http.StatusInternalServerError, Message: "Internal Error"}
+		return "", httputil.Error{Code: http.StatusInternalServerError, Message: "Internal Error"}
 	}
 
 	return redirect, nil

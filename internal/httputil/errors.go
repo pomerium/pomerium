@@ -10,14 +10,16 @@ import (
 	"github.com/pomerium/pomerium/internal/templates"
 )
 
-// HTTPError stores the status code and a message for a given HTTP error.
-type HTTPError struct {
-	Code    int
-	Message string
+// Error reports an http error, its http status code, a custom message, and
+// whether it is CanDebug.
+type Error struct {
+	Message  string
+	Code     int
+	CanDebug bool
 }
 
 // Error fulfills the error interface, returning a string representation of the error.
-func (h HTTPError) Error() string {
+func (h Error) Error() string {
 	return fmt.Sprintf("%d %s: %s", h.Code, http.StatusText(h.Code), h.Message)
 }
 
@@ -32,34 +34,32 @@ func CodeForError(err error) int {
 
 // ErrorResponse renders an error page for errors given a message and a status code.
 // If no message is passed, defaults to the text of the status code.
-func ErrorResponse(rw http.ResponseWriter, r *http.Request, message string, code int) {
-	if message == "" {
-		message = http.StatusText(code)
-	}
-	reqID := ""
+func ErrorResponse(rw http.ResponseWriter, r *http.Request, e *Error) {
+	requestID := ""
 	id, ok := log.IDFromRequest(r)
 	if ok {
-		reqID = id
+		requestID = id
 	}
 	if r.Header.Get("Accept") == "application/json" {
 		var response struct {
 			Error string `json:"error"`
 		}
-		response.Error = message
-		writeJSONResponse(rw, code, response)
+		response.Error = e.Message
+		writeJSONResponse(rw, e.Code, response)
 	} else {
-		title := http.StatusText(code)
-		rw.WriteHeader(code)
+		rw.WriteHeader(e.Code)
 		t := struct {
 			Code      int
 			Title     string
 			Message   string
 			RequestID string
+			CanDebug  bool
 		}{
-			Code:      code,
-			Title:     title,
-			Message:   message,
-			RequestID: reqID,
+			Code:      e.Code,
+			Title:     http.StatusText(e.Code),
+			Message:   e.Message,
+			RequestID: requestID,
+			CanDebug:  e.CanDebug,
 		}
 		templates.New().ExecuteTemplate(rw, "error.html", t)
 	}
