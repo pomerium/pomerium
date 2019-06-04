@@ -8,10 +8,10 @@ import (
 	"github.com/pomerium/pomerium/internal/config"
 )
 
-func testOptions() *config.Options {
+func testOptions() config.Options {
 	redirectURL, _ := url.Parse("https://example.com/oauth2/callback")
-	return &config.Options{
-		AuthenticateURL: redirectURL,
+	return config.Options{
+		AuthenticateURL: *redirectURL,
 		SharedKey:       "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
 		ClientID:        "test-client-id",
 		ClientSecret:    "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
@@ -25,7 +25,7 @@ func testOptions() *config.Options {
 func TestOptions_Validate(t *testing.T) {
 	good := testOptions()
 	badRedirectURL := testOptions()
-	badRedirectURL.AuthenticateURL = nil
+	badRedirectURL.AuthenticateURL = url.URL{}
 	emptyClientID := testOptions()
 	emptyClientID.ClientID = ""
 	emptyClientSecret := testOptions()
@@ -39,15 +39,15 @@ func TestOptions_Validate(t *testing.T) {
 	badSharedKey := testOptions()
 	badSharedKey.SharedKey = ""
 	badAuthenticateURL := testOptions()
-	badAuthenticateURL.AuthenticateURL = new(url.URL)
+	badAuthenticateURL.AuthenticateURL = url.URL{}
 
 	tests := []struct {
 		name    string
-		o       *config.Options
+		o       config.Options
 		wantErr bool
 	}{
 		{"minimum options", good, false},
-		{"nil options", &config.Options{}, true},
+		{"nil options", config.Options{}, true},
 		{"bad redirect  url", badRedirectURL, true},
 		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
@@ -72,16 +72,16 @@ func TestNew(t *testing.T) {
 	good.Provider = "google"
 
 	badRedirectURL := testOptions()
-	badRedirectURL.AuthenticateURL = nil
+	badRedirectURL.AuthenticateURL = url.URL{}
 
 	tests := []struct {
 		name string
-		opts *config.Options
+		opts config.Options
 		// want    *Authenticate
 		wantErr bool
 	}{
 		{"good", good, false},
-		{"empty opts", nil, true},
+		{"empty opts", config.Options{}, true},
 		{"fails to validate", badRedirectURL, true},
 	}
 	for _, tt := range tests {

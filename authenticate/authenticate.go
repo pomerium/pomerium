@@ -18,8 +18,8 @@ import (
 // ValidateOptions checks to see if configuration values are valid for the authenticate service.
 // The checks do not modify the internal state of the Option structure. Returns
 // on first error found.
-func ValidateOptions(o *config.Options) error {
-	if o.AuthenticateURL == nil || o.AuthenticateURL.Hostname() == "" {
+func ValidateOptions(o config.Options) error {
+	if o.AuthenticateURL.Hostname() == "" {
 		return errors.New("authenticate: 'AUTHENTICATE_SERVICE_URL' missing")
 	}
 	if o.ClientID == "" {
@@ -54,10 +54,7 @@ type Authenticate struct {
 }
 
 // New validates and creates a new authenticate service from a set of Options
-func New(opts *config.Options) (*Authenticate, error) {
-	if opts == nil {
-		return nil, errors.New("authenticate: options cannot be nil")
-	}
+func New(opts config.Options) (*Authenticate, error) {
 	if err := ValidateOptions(opts); err != nil {
 		return nil, err
 	}
@@ -83,7 +80,7 @@ func New(opts *config.Options) (*Authenticate, error) {
 	provider, err := identity.New(
 		opts.Provider,
 		&identity.Provider{
-			RedirectURL:    redirectURL,
+			RedirectURL:    &redirectURL,
 			ProviderName:   opts.Provider,
 			ProviderURL:    opts.ProviderURL,
 			ClientID:       opts.ClientID,
@@ -97,7 +94,7 @@ func New(opts *config.Options) (*Authenticate, error) {
 
 	return &Authenticate{
 		SharedKey:    opts.SharedKey,
-		RedirectURL:  redirectURL,
+		RedirectURL:  &redirectURL,
 		templates:    templates.New(),
 		csrfStore:    cookieStore,
 		sessionStore: cookieStore,

@@ -80,7 +80,7 @@ func TestNewReverseProxyHandler(t *testing.T) {
 	}
 }
 
-func testOptions() *config.Options {
+func testOptions() config.Options {
 	authenticateService, _ := url.Parse("https://authenticate.corp.beyondperimeter.com")
 	authorizeService, _ := url.Parse("https://authorize.corp.beyondperimeter.com")
 
@@ -88,15 +88,15 @@ func testOptions() *config.Options {
 	testPolicy := policy.Policy{From: "corp.example.notatld", To: "example.notatld"}
 	testPolicy.Validate()
 	opts.Policies = []policy.Policy{testPolicy}
-	opts.AuthenticateURL = authenticateService
-	opts.AuthorizeURL = authorizeService
+	opts.AuthenticateURL = *authenticateService
+	opts.AuthorizeURL = *authorizeService
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
 	opts.CookieName = "pomerium"
 	return opts
 }
 
-func testOptionsTestServer(uri string) *config.Options {
+func testOptionsTestServer(uri string) config.Options {
 	authenticateService, _ := url.Parse("https://authenticate.corp.beyondperimeter.com")
 	authorizeService, _ := url.Parse("https://authorize.corp.beyondperimeter.com")
 	// RFC 2606
@@ -107,15 +107,15 @@ func testOptionsTestServer(uri string) *config.Options {
 	testPolicy.Validate()
 	opts := config.NewOptions()
 	opts.Policies = []policy.Policy{testPolicy}
-	opts.AuthenticateURL = authenticateService
-	opts.AuthorizeURL = authorizeService
+	opts.AuthenticateURL = *authenticateService
+	opts.AuthorizeURL = *authorizeService
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
 	opts.CookieName = "pomerium"
 	return opts
 }
 
-func testOptionsWithCORS(uri string) *config.Options {
+func testOptionsWithCORS(uri string) config.Options {
 	testPolicy := policy.Policy{
 		From:               "httpbin.corp.example",
 		To:                 uri,
@@ -127,7 +127,7 @@ func testOptionsWithCORS(uri string) *config.Options {
 	return opts
 }
 
-func testOptionsWithPublicAccess(uri string) *config.Options {
+func testOptionsWithPublicAccess(uri string) config.Options {
 	testPolicy := policy.Policy{
 		From:                             "httpbin.corp.example",
 		To:                               uri,
@@ -139,7 +139,7 @@ func testOptionsWithPublicAccess(uri string) *config.Options {
 	return opts
 }
 
-func testOptionsWithPublicAccessAndWhitelist(uri string) *config.Options {
+func testOptionsWithPublicAccessAndWhitelist(uri string) config.Options {
 	testPolicy := policy.Policy{
 		From:                             "httpbin.corp.example",
 		To:                               uri,
@@ -155,14 +155,14 @@ func testOptionsWithPublicAccessAndWhitelist(uri string) *config.Options {
 func TestOptions_Validate(t *testing.T) {
 	good := testOptions()
 	badAuthURL := testOptions()
-	badAuthURL.AuthenticateURL = nil
+	badAuthURL.AuthenticateURL = url.URL{}
 	authurl, _ := url.Parse("http://authenticate.corp.beyondperimeter.com")
 	authenticateBadScheme := testOptions()
-	authenticateBadScheme.AuthenticateURL = authurl
+	authenticateBadScheme.AuthenticateURL = *authurl
 	authorizeBadSCheme := testOptions()
-	authorizeBadSCheme.AuthorizeURL = authurl
+	authorizeBadSCheme.AuthorizeURL = *authurl
 	authorizeNil := testOptions()
-	authorizeNil.AuthorizeURL = nil
+	authorizeNil.AuthorizeURL = url.URL{}
 	emptyCookieSecret := testOptions()
 	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := testOptions()
@@ -178,11 +178,11 @@ func TestOptions_Validate(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		o       *config.Options
+		o       config.Options
 		wantErr bool
 	}{
 		{"good - minimum options", good, false},
-		{"nil options", &config.Options{}, true},
+		{"nil options", config.Options{}, true},
 		{"authenticate service url", badAuthURL, true},
 		{"authenticate service url not https", authenticateBadScheme, true},
 		{"authorize service url not https", authorizeBadSCheme, true},
@@ -213,14 +213,13 @@ func TestNew(t *testing.T) {
 	badRoutedProxy.SigningKey = "YmFkIGtleQo="
 	tests := []struct {
 		name      string
-		opts      *config.Options
+		opts      config.Options
 		wantProxy bool
 		numRoutes int
 		wantErr   bool
 	}{
 		{"good", good, true, 1, false},
-		{"empty options", &config.Options{}, false, 0, true},
-		{"nil options", nil, false, 0, true},
+		{"empty options", config.Options{}, false, 0, true},
 		{"short secret/validate sanity check", shortCookieLength, false, 0, true},
 		{"invalid ec key, valid base64 though", badRoutedProxy, false, 0, true},
 	}
@@ -296,7 +295,7 @@ func Test_UpdateOptions(t *testing.T) {
 	}
 	tests := []struct {
 		name      string
-		opts      *config.Options
+		opts      config.Options
 		newPolicy []policy.Policy
 		host      string
 		wantErr   bool
