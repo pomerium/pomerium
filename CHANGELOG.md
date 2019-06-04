@@ -4,6 +4,7 @@
 
 ### NEW
 
+- Add ability to detect changes and reload policy configuration files. [GH-150]
 - Add user dashboard containing information about the current user's session. [GH-123]
 - Add functionality allowing users to initiate manual refresh of their session. This is helpful when a user's access control details are updated but their session hasn't updated yet. To prevent abuse, manual refresh is gated by a cooldown (`REFRESH_COOLDOWN`) which defaults to five minutes. [GH-73]
 - Add Administrator (super user) account support (`ADMINISTRATORS`). [GH-110]
@@ -12,7 +13,10 @@
 - Add support for public, unauthenticated routes. [GH-129]
 
 ### CHANGED
-- Changed config `AUTHENTICATE_INTERNAL_URL`  to be a URL containing both a valid hostname and schema. [GH-153]
+
+- Add Request ID to error pages. [GH-144]
+- Refactor configuration handling to use spf13/viper bringing a variety of additional supported storage formats.[GH-115]
+- Changed config `AUTHENTICATE_INTERNAL_URL` to be a URL containing both a valid hostname and schema. [GH-153]
 - User state is now maintained and scoped at the domain level vs at the route level. [GH-128]
 - Error pages contain a link to sign out from the current user session. [GH-100]
 - Removed `LifetimeDeadline` from `sessions.SessionState`.
@@ -28,6 +32,7 @@
 
 ### FIXED
 
+- Fixed websocket support. [GH-151]
 - Fixed an issue where policy and routes were being pre-processed incorrectly. [GH-132]
 - Fixed an issue where `golint` was not being found in our docker image. [GH-121]
 
@@ -37,7 +42,7 @@
 
 - HTTP [Strict Transport Security](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) is included by default and set to one year. [GH-92]
 - HTTP now redirects to HTTPS. [GH-92]
-- Removed extraneous `AUTHORIZE_INTERNAL_URL` config option since authorization has no publica http handlers, only a gRPC service endpoint. [GH-93]
+- Removed extraneous `AUTHORIZE_INTERNAL_URL` config option since authorization has no public http handlers, only a gRPC service endpoint. [GH-93]
 - Removed `PROXY_ROOT_DOMAIN` config option which is now inferred from `AUTHENTICATE_SERVICE_URL`. Only callback requests originating from a URL on the same sub-domain are permitted. [GH-83]
 - Removed `REDIRECT_URL` config option which is now inferred from `AUTHENTICATE_SERVICE_URL` (e.g. `https://$AUTHENTICATE_SERVICE_URL/oauth2/callback`). [GH-83]
 
