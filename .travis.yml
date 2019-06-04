@@ -2,6 +2,10 @@ language: go
 go:
 - 1.x
 - tip
+cache:
+  directories:
+    - $HOME/.cache/go-build
+    - $HOME/gopath/pkg/mod
 matrix:
   allow_failures:
   - go: tip
