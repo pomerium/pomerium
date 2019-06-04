@@ -4,7 +4,7 @@ sidebar: auto
 
 # Configuration
 
-Pomerium can be configured using a either a configuration file ([YAML]/[JSON]/[TOML]) or [environmental variables]. In general, environmental variable keys are identical to config file keys but are in all uppercase.
+Pomerium can be configured using a configuration file ([YAML]/[JSON]/[TOML]) or [environmental variables]. In general, environmental variable keys are identical to config file keys but are in uppercase.
 
 If you are coming from a kubernetes or docker background this should feel familiar. If not, check out the following primers.
 
@@ -364,7 +364,7 @@ If your load balancer does not support gRPC pass-through you'll need to set this
 - Optional (but typically required if Authenticate Internal Service Address is set)
 - Example: `*.corp.example.com` if wild card or `authenticate.corp.example.com`/`authorize.corp.example.com`
 
-When Authenticate Internal Service Address is set, secure service communication can fail because the external certificate name will not match the internally routed service url. This setting allows you to override that check.
+When Authenticate Internal Service Address is set, secure service communication can fail because the external certificate name will not match the internally routed service hostname/[SNI](<https://en.wikipedia.org/wiki/Server_Name_Indication>). This setting allows you to override that check.
 
 ### Certificate Authority
 

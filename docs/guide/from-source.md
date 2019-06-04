@@ -8,12 +8,12 @@ meta:
 
 # Building Pomerium From Source
 
-The following quick-start guide covers how to retrieve and build Pomerium directly from it's source as well as how to run Pomerium using a minimal but complete configuration.
+The following quick-start guide covers how to retrieve and build Pomerium directly from it's source-code as well as how to run Pomerium using a minimal but complete configuration. One of the benefits of compiling from source is that Go supports building static binaries for a [wide array of architectures and operating systems](https://gist.github.com/asukakenji/f15ba7e588ac42795f421b48b8aede63) — some of which may not yet be supported by Pomerium's official images or binaries. 
 
 ## Prerequisites
 
-- Install [git](https://git-scm.com/) version control system
-- Install the [go](https://golang.org/doc/install) programming language
+-  [git](https://git-scm.com/) 
+-  [go](https://golang.org/doc/install) programming language
 - A configured [identity provider]
 - A [wild-card TLS certificate]
 
@@ -34,7 +34,7 @@ cd $HOME/pomerium
 make
 ```
 
-[Make] will run all the tests, some code linters, then build the binary. If all is good, you should now have a freshly built pomerium binary in the `pomerium/bin` directory.
+[Make] will run all the tests, some code linters, then build the binary. If all is good, you should now have a freshly built pomerium binary for your architecture and operating system in the `pomerium/bin` directory.
 
 ## Configure
 
@@ -42,7 +42,7 @@ Pomerium supports setting [configuration variables] using both environmental var
 
 ### Configuration file
 
-Create a config file (`config.yaml`). This configuration file will be use to determine Pomerium's configuration settings, routes, and access-policies. Consider the following example:
+Create a config file (`config.yaml`). This file will be use to determine Pomerium's configuration settings, routes, and access-policies. Consider the following example:
 
 <<< @/docs/docs/examples/config/config.minimal.yaml
 
@@ -54,7 +54,7 @@ As mentioned above, Pomerium supports mixing and matching where configuration de
 
 ## Run
 
-Finally, source the the configuration `env` file and run pomerium specifying the `config.yaml` you just created.
+Finally, source the the configuration `env` file and run pomerium specifying the configuration file `config.yaml`.
 
 ```bash
 source ./env

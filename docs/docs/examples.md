@@ -12,6 +12,16 @@ Remember to set your identity provider settings and to generate new secret keys!
 
 :::
 
+## Configurations
+
+#### Configuration File
+
+<<< @/docs/docs/examples/config/config.example.yaml
+
+#### Environmental Variables
+
+<<< @/docs/docs/examples/config/config.example.env
+
 ## Binary
 
 - Suitable for bare-metal and virtual-machines
@@ -23,14 +33,6 @@ Remember to set your identity provider settings and to generate new secret keys!
 - Routes default to hosted version of httpbin.org
 
 Customize for your identity provider and run `./bin/pomerium -config config.yaml`
-
-#### Config file example
-
-<<< @/docs/docs/examples/config/config.example.yaml
-
-#### Environmental variable example
-
-<<< @/docs/docs/examples/config/config.example.env
 
 
 ## Docker
