@@ -33,6 +33,10 @@ GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
 .PHONY: all
 all: clean build fmt lint vet test ## Runs a clean, build, fmt, lint, test, and vet.
 
+.PHONY: travis
+all: clean build fmt lint vet cover ## Runs a clean, build, fmt, lint, test, and vet.
+
+
 .PHONY: tag
 tag: ## Create a new git tag to prepare to build a release
 	git tag -sa $(VERSION) -m "$(VERSION)"
@@ -41,7 +45,7 @@ tag: ## Create a new git tag to prepare to build a release
 .PHONY: build
 build: ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
-	@CGO_ENABLED=0 GO111MODULE=on go build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+	@CGO_ENABLED=0 GO111MODULE=on GOPROXY=https://proxy.golang.org go build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 .PHONY: fmt
 fmt: ## Verifies all files have been `gofmt`ed.
@@ -88,7 +92,7 @@ clean: ## Cleanup any build binaries or packages.
 
 define buildpretty
 mkdir -p $(BUILDDIR)/$(1)/$(2);
-GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 GO111MODULE=on go build \
+GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 GO111MODULE=on GOPROXY=https://proxy.golang.org go build \
 	 -o $(BUILDDIR)/$(1)/$(2)/$(NAME) \
 	 ${GO_LDFLAGS_STATIC} ./cmd/$(NAME);
 md5sum $(BUILDDIR)/$(1)/$(2)/$(NAME) > $(BUILDDIR)/$(1)/$(2)/$(NAME).md5;
@@ -101,7 +105,7 @@ cross: ## Builds the cross-compiled binaries, creating a clean directory structu
 	$(foreach GOOSARCH,$(GOOSARCHES), $(call buildpretty,$(subst /,,$(dir $(GOOSARCH))),$(notdir $(GOOSARCH))))
 
 define buildrelease
-GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 GO111MODULE=on go build ${GO_LDFLAGS} \
+GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 GO111MODULE=on GOPROXY=https://proxy.golang.org go build ${GO_LDFLAGS} \
 	 -o $(BUILDDIR)/$(NAME)-$(1)-$(2) \
 	 ${GO_LDFLAGS_STATIC} ./cmd/$(NAME);
 md5sum $(BUILDDIR)/$(NAME)-$(1)-$(2) > $(BUILDDIR)/$(NAME)-$(1)-$(2).md5;
