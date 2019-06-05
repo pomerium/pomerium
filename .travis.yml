@@ -14,7 +14,7 @@ install:
 - go get -u golang.org/x/lint/golint
 - go get honnef.co/go/tools/cmd/staticcheck
 script:
-- env GO111MODULE=on make all
+- env GOPROXY=https://proxy.golang.org GO111MODULE=on make all
 - env GO111MODULE=on make cover
 - env GO111MODULE=on make release
 after_success:
