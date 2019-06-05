@@ -33,7 +33,7 @@ GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
 all: clean build fmt lint vet test ## Runs a clean, build, fmt, lint, test, and vet.
 
 .PHONY: travis
-all: clean build fmt lint vet cover ## Runs a clean, build, fmt, lint, test, and vet.
+travis: clean build fmt lint vet cover ## Runs a clean, build, fmt, lint, test, and vet.
 
 
 .PHONY: tag
