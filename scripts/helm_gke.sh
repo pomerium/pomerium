@@ -53,7 +53,7 @@ helm install $HOME/pomerium-helm \
 	--set authenticate.idp.clientID="REPLACE_ME" \
 	--set authenticate.idp.clientSecret="REPLACE_ME" \
 	--set-string ingress.annotations."kubernetes\.io/ingress\.allow-http"=false \
-	--set ingress.annotations."cloud\.google\.com/app-protocols"='\{"https":"HTTPS"\}
+	--set ingress.annotations."cloud\.google\.com/app-protocols"='\{"https":"HTTPS"\}'
 
 # When done, clean up by deleting the cluster!
 # helm del $(helm ls --all --short) --purge # deletes all your helm instances
