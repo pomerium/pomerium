@@ -37,7 +37,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: options")
 	}
-
+	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
 	grpcAuth := middleware.NewSharedSecretCred(opt.SharedKey)
 	grpcOpts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcAuth.ValidateRequest)}
 	grpcServer := grpc.NewServer(grpcOpts...)
@@ -185,6 +185,7 @@ func parseOptions(configFile string) (*config.Options, error) {
 	}
 	if o.Debug {
 		log.SetDebugMode()
+		// log.Debug().Interface("options", o).Msg("cmd/pomerium")
 	}
 	if o.LogLevel != "" {
 		log.SetLevel(o.LogLevel)

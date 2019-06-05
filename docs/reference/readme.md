@@ -71,6 +71,12 @@ head -c32 /dev/urandom | base64
 - Type: `bool`
 - Default: `false`
 
+::: danger
+
+Enabling the debug flag will result in sensitive information being logged!!! 
+
+:::
+
 By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)). In production, it's recommended to be set to `false`.
 
 For example, if `true`
