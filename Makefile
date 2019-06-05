@@ -19,7 +19,6 @@ GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 BUILDMETA:=
 ifneq ($(GITUNTRACKEDCHANGES),)
 	BUILDMETA := dirty
-	@echo "Untracked changes found $(GITUNTRACKEDCHANGES)"
 endif
 CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.Version=$(VERSION) \
@@ -45,6 +44,7 @@ tag: ## Create a new git tag to prepare to build a release
 .PHONY: build
 build: ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
+	@echo "Untracked changes found $(GITUNTRACKEDCHANGES)"
 	@CGO_ENABLED=0 GO111MODULE=on GOPROXY=https://proxy.golang.org go build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 .PHONY: fmt

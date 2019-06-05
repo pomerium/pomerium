@@ -1,23 +1,23 @@
 language: go
 go:
-- 1.x
-- tip
+  - 1.x
+  - tip
 cache:
   directories:
     - $HOME/.cache/go-build
     - $HOME/gopath/pkg/mod
 matrix:
   allow_failures:
-  - go: tip
+    - go: tip
   fast_finish: true
 install:
-- go get -u golang.org/x/lint/golint
-- go get honnef.co/go/tools/cmd/staticcheck
+  - go get -u golang.org/x/lint/golint
+  - go get honnef.co/go/tools/cmd/staticcheck
 script:
-- make travis
-- make release
+  - make travis
+  - make release
 after_success:
-- bash <(curl -s https://codecov.io/bash)
+  - bash <(curl -s https://codecov.io/bash)
 deploy:
   provider: releases
   api_key:
