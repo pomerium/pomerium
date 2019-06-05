@@ -19,6 +19,7 @@ GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 BUILDMETA:=
 ifneq ($(GITUNTRACKEDCHANGES),)
 	BUILDMETA := dirty
+	@echo "Untracked changes found $(GITUNTRACKEDCHANGES)"
 endif
 CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.Version=$(VERSION) \
