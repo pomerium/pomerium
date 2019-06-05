@@ -1,7 +1,7 @@
 ---
 home: true
 heroImage: logo.svg
-heroText:  "v0.0.5"
+heroText:  "latest"
 tagline: "Pomerium is a context and identity aware access proxy." 
 ---
 
