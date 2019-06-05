@@ -1,6 +1,6 @@
 # Pomerium Changelog
 
-## vUNRELEASED
+## v0.0.5
 
 ### NEW
 
