@@ -1,9 +1,9 @@
 # Main configuration flags : https://www.pomerium.io/reference/
 #
 # address: ":8443" # optional, default is 443
-pomerium_debug: true # optional, default is false
+# pomerium_debug: true # optional, default is false
 # service: "all" # optional, default is all
-log_level: info # optional, default is debug
+# log_level: info # optional, default is debug
 
 authenticate_service_url: https://authenticate.corp.beyondperimeter.com
 authorize_service_url: https://authorize.corp.beyondperimeter.com

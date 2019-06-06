@@ -48,12 +48,11 @@ helm install $HOME/pomerium-helm \
 	--set ingress.secret.name="pomerium-tls" \
 	--set ingress.secret.cert=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer") \
 	--set ingress.secret.key=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key") \
-	--set config.policy="$(base64 -i docs/docs/examples/config/policy.example.yaml)" \
 	--set authenticate.idp.provider="google" \
 	--set authenticate.idp.clientID="REPLACE_ME" \
 	--set authenticate.idp.clientSecret="REPLACE_ME" \
 	--set-string ingress.annotations."kubernetes\.io/ingress\.allow-http"=false \
-	--set ingress.annotations."cloud\.google\.com/app-protocols"='\{"https":"HTTPS"\}'
+	--set service.annotations."cloud\.google\.com/app-protocols"='\{"https":"HTTPS"\}'
 
 # When done, clean up by deleting the cluster!
 # helm del $(helm ls --all --short) --purge # deletes all your helm instances
