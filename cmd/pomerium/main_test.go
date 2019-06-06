@@ -78,11 +78,11 @@ func Test_newAuthenticateService(t *testing.T) {
 			testOpts.ClientSecret = "TEST"
 			testOpts.SharedKey = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
 			testOpts.CookieSecret = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
-			testOpts.AuthenticateURL = authURL
+			testOpts.AuthenticateURL = *authURL
 			testOpts.Services = tt.s
 
 			if tt.Field != "" {
-				testOptsField := reflect.ValueOf(testOpts).Elem().FieldByName(tt.Field)
+				testOptsField := reflect.ValueOf(&testOpts).Elem().FieldByName(tt.Field)
 				testOptsField.Set(reflect.ValueOf(tt).FieldByName("Value"))
 			}
 
@@ -126,7 +126,7 @@ func Test_newAuthorizeService(t *testing.T) {
 			}
 
 			if tt.Field != "" {
-				testOptsField := reflect.ValueOf(testOpts).Elem().FieldByName(tt.Field)
+				testOptsField := reflect.ValueOf(&testOpts).Elem().FieldByName(tt.Field)
 				testOptsField.Set(reflect.ValueOf(tt).FieldByName("Value"))
 			}
 
@@ -162,13 +162,17 @@ func Test_newProxyeService(t *testing.T) {
 			testOpts.Policies = []policy.Policy{
 				testPolicy,
 			}
-			testOpts.AuthenticateURL, _ = url.Parse("https://authenticate.example.com")
-			testOpts.AuthorizeURL, _ = url.Parse("https://authorize.example.com")
+
+			AuthenticateURL, _ := url.Parse("https://authenticate.example.com")
+			AuthorizeURL, _ := url.Parse("https://authorize.example.com")
+
+			testOpts.AuthenticateURL = *AuthenticateURL
+			testOpts.AuthorizeURL = *AuthorizeURL
 			testOpts.CookieSecret = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
 			testOpts.Services = tt.s
 
 			if tt.Field != "" {
-				testOptsField := reflect.ValueOf(testOpts).Elem().FieldByName(tt.Field)
+				testOptsField := reflect.ValueOf(&testOpts).Elem().FieldByName(tt.Field)
 				testOptsField.Set(reflect.ValueOf(tt).FieldByName("Value"))
 			}
 			_, err := newProxyService(testOpts, mux)
@@ -181,7 +185,7 @@ func Test_newProxyeService(t *testing.T) {
 }
 
 func Test_wrapMiddleware(t *testing.T) {
-	o := &config.Options{
+	o := config.Options{
 		Services: "all",
 		Headers: map[string]string{
 			"X-Content-Type-Options":    "nosniff",
@@ -232,7 +236,7 @@ func Test_parseOptions(t *testing.T) {
 				t.Errorf("parseOptions() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != nil && got.SharedKey != tt.wantSharedKey {
+			if got.SharedKey != tt.wantSharedKey {
 				t.Errorf("parseOptions()\n")
 				t.Errorf("got: %+v\n", got.SharedKey)
 				t.Errorf("want: %+v\n", tt.wantSharedKey)
@@ -247,7 +251,7 @@ type mockService struct {
 	Updated bool
 }
 
-func (m *mockService) UpdateOptions(o *config.Options) error {
+func (m *mockService) UpdateOptions(o config.Options) error {
 
 	m.Updated = true
 	if m.fail {
@@ -266,7 +270,7 @@ func Test_handleConfigUpdate(t *testing.T) {
 	tests := []struct {
 		name       string
 		service    *mockService
-		oldOpts    *config.Options
+		oldOpts    config.Options
 		wantUpdate bool
 	}{
 		{"good", &mockService{fail: false}, blankOpts, true},

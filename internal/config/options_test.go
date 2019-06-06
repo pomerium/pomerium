@@ -16,7 +16,7 @@ import (
 
 func Test_validate(t *testing.T) {
 
-	testOptions := func() *Options {
+	testOptions := func() Options {
 		o := NewOptions()
 		o.SharedKey = "test"
 		o.Services = "all"
@@ -34,7 +34,7 @@ func Test_validate(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		testOpts *Options
+		testOpts Options
 		wantErr  bool
 	}{
 		{"good default with no env settings", good, false},
@@ -194,10 +194,10 @@ func Test_parseURLs(t *testing.T) {
 		if (err != nil) != test.wantErr {
 			t.Errorf("Failed to parse URLs %v: %s", test, err)
 		}
-		if o.AuthenticateURL != nil && o.AuthenticateURL.String() != test.authenticateURL {
+		if err == nil && o.AuthenticateURL.String() != test.authenticateURL {
 			t.Errorf("Failed to update AuthenticateURL: %v", test)
 		}
-		if o.AuthorizeURL != nil && o.AuthorizeURL.String() != test.authorizeURL {
+		if err == nil && o.AuthorizeURL.String() != test.authorizeURL {
 			t.Errorf("Failed to update AuthorizeURL: %v", test)
 		}
 	}
@@ -230,8 +230,8 @@ func Test_OptionsFromViper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	goodOptions.AuthorizeURL = authorize
-	goodOptions.AuthenticateURL = authenticate
+	goodOptions.AuthorizeURL = *authorize
+	goodOptions.AuthenticateURL = *authenticate
 
 	badConfigBytes := []byte("badjson!")
 	badUnmarshalConfigBytes := []byte(`"debug": "blue"`)
@@ -239,12 +239,12 @@ func Test_OptionsFromViper(t *testing.T) {
 	tests := []struct {
 		name        string
 		configBytes []byte
-		want        *Options
+		want        Options
 		wantErr     bool
 	}{
 		{"good", goodConfigBytes, goodOptions, false},
-		{"bad json", badConfigBytes, nil, true},
-		{"bad unmarshal", badUnmarshalConfigBytes, nil, true},
+		{"bad json", badConfigBytes, NewOptions(), true},
+		{"bad unmarshal", badUnmarshalConfigBytes, NewOptions(), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -268,8 +268,8 @@ func Test_OptionsFromViper(t *testing.T) {
 	}
 
 	// Test for missing config file
-	o, err := OptionsFromViper("filedoesnotexist")
-	if o != nil || err == nil {
+	_, err = OptionsFromViper("filedoesnotexist")
+	if err == nil {
 		t.Errorf("OptionsFromViper(): Did when loading missing file")
 	}
 }

@@ -290,7 +290,7 @@ func TestProxy_Proxy(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		options       *config.Options
+		options       config.Options
 		method        string
 		header        http.Header
 		host          string
@@ -356,7 +356,7 @@ func TestProxy_UserDashboard(t *testing.T) {
 	opts := testOptions()
 	tests := []struct {
 		name          string
-		options       *config.Options
+		options       config.Options
 		method        string
 		cipher        cryptutil.Cipher
 		session       sessions.SessionStore
@@ -408,7 +408,7 @@ func TestProxy_Refresh(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		options       *config.Options
+		options       config.Options
 		method        string
 		cipher        cryptutil.Cipher
 		session       sessions.SessionStore
@@ -452,7 +452,7 @@ func TestProxy_Impersonate(t *testing.T) {
 	tests := []struct {
 		name          string
 		malformed     bool
-		options       *config.Options
+		options       config.Options
 		method        string
 		email         string
 		groups        string

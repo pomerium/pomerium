@@ -14,7 +14,7 @@ import (
 
 // ValidateOptions checks to see if configuration values are valid for the
 // authorize service. Returns first error, if found.
-func ValidateOptions(o *config.Options) error {
+func ValidateOptions(o config.Options) error {
 	decoded, err := base64.StdEncoding.DecodeString(o.SharedKey)
 	if err != nil {
 		return fmt.Errorf("authorize: `SHARED_SECRET` setting is invalid base64: %v", err)
@@ -39,10 +39,7 @@ type Authorize struct {
 }
 
 // New validates and creates a new Authorize service from a set of Options
-func New(opts *config.Options) (*Authorize, error) {
-	if opts == nil {
-		return nil, errors.New("authorize: options cannot be nil")
-	}
+func New(opts config.Options) (*Authorize, error) {
 	if err := ValidateOptions(opts); err != nil {
 		return nil, err
 	}
@@ -67,7 +64,7 @@ func (a *Authorize) ValidIdentity(route string, identity *Identity) bool {
 }
 
 // UpdateOptions updates internal structres based on config.Options
-func (a *Authorize) UpdateOptions(o *config.Options) error {
+func (a *Authorize) UpdateOptions(o config.Options) error {
 	log.Info().Msg("authorize: updating options")
 	a.identityAccess = NewIdentityWhitelist(o.Policies, o.Administrators)
 	return nil

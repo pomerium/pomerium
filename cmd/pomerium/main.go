@@ -114,8 +114,8 @@ func startRedirectServer(addr string) (*http.Server, error) {
 	return srv, nil
 }
 
-func newAuthenticateService(opt *config.Options, mux *http.ServeMux, rpc *grpc.Server) (*authenticate.Authenticate, error) {
-	if opt == nil || !config.IsAuthenticate(opt.Services) {
+func newAuthenticateService(opt config.Options, mux *http.ServeMux, rpc *grpc.Server) (*authenticate.Authenticate, error) {
+	if !config.IsAuthenticate(opt.Services) {
 		return nil, nil
 	}
 	service, err := authenticate.New(opt)
@@ -127,8 +127,8 @@ func newAuthenticateService(opt *config.Options, mux *http.ServeMux, rpc *grpc.S
 	return service, nil
 }
 
-func newAuthorizeService(opt *config.Options, rpc *grpc.Server) (*authorize.Authorize, error) {
-	if opt == nil || !config.IsAuthorize(opt.Services) {
+func newAuthorizeService(opt config.Options, rpc *grpc.Server) (*authorize.Authorize, error) {
+	if !config.IsAuthorize(opt.Services) {
 		return nil, nil
 	}
 	service, err := authorize.New(opt)
@@ -139,8 +139,8 @@ func newAuthorizeService(opt *config.Options, rpc *grpc.Server) (*authorize.Auth
 	return service, nil
 }
 
-func newProxyService(opt *config.Options, mux *http.ServeMux) (*proxy.Proxy, error) {
-	if opt == nil || !config.IsProxy(opt.Services) {
+func newProxyService(opt config.Options, mux *http.ServeMux) (*proxy.Proxy, error) {
+	if !config.IsProxy(opt.Services) {
 		return nil, nil
 	}
 	service, err := proxy.New(opt)
@@ -151,7 +151,7 @@ func newProxyService(opt *config.Options, mux *http.ServeMux) (*proxy.Proxy, err
 	return service, nil
 }
 
-func wrapMiddleware(o *config.Options, mux *http.ServeMux) http.Handler {
+func wrapMiddleware(o config.Options, mux *http.ServeMux) http.Handler {
 	c := middleware.NewChain()
 	c = c.Append(log.NewHandler(log.Logger))
 	c = c.Append(log.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
@@ -166,7 +166,7 @@ func wrapMiddleware(o *config.Options, mux *http.ServeMux) http.Handler {
 			Str("url", r.URL.String()).
 			Msg("http-request")
 	}))
-	if o != nil && len(o.Headers) != 0 {
+	if len(o.Headers) != 0 {
 		c = c.Append(middleware.SetHeaders(o.Headers))
 	}
 	c = c.Append(log.ForwardedAddrHandler("fwd_ip"))
@@ -178,10 +178,10 @@ func wrapMiddleware(o *config.Options, mux *http.ServeMux) http.Handler {
 	return c.Then(mux)
 }
 
-func parseOptions(configFile string) (*config.Options, error) {
+func parseOptions(configFile string) (config.Options, error) {
 	o, err := config.OptionsFromViper(configFile)
 	if err != nil {
-		return nil, err
+		return o, err
 	}
 	if o.Debug {
 		log.SetDebugMode()
@@ -193,7 +193,7 @@ func parseOptions(configFile string) (*config.Options, error) {
 	return o, nil
 }
 
-func handleConfigUpdate(opt *config.Options, services []config.OptionsUpdater) *config.Options {
+func handleConfigUpdate(opt config.Options, services []config.OptionsUpdater) config.Options {
 	newOpt, err := parseOptions(*configFile)
 	optChecksum := opt.Checksum()
 	newOptChecksum := newOpt.Checksum()

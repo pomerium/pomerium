@@ -35,7 +35,7 @@ const (
 
 // ValidateOptions checks that proper configuration settings are set to create
 // a proper Proxy instance
-func ValidateOptions(o *config.Options) error {
+func ValidateOptions(o config.Options) error {
 	decoded, err := base64.StdEncoding.DecodeString(o.SharedKey)
 	if err != nil {
 		return fmt.Errorf("authorize: `SHARED_SECRET` setting is invalid base64: %v", err)
@@ -46,13 +46,13 @@ func ValidateOptions(o *config.Options) error {
 	if len(o.Policies) == 0 {
 		return errors.New("missing setting: no policies defined")
 	}
-	if o.AuthenticateURL == nil {
+	if o.AuthenticateURL.String() == "" {
 		return errors.New("missing setting: authenticate-service-url")
 	}
 	if o.AuthenticateURL.Scheme != "https" {
 		return errors.New("authenticate-service-url must be a valid https url")
 	}
-	if o.AuthorizeURL == nil {
+	if o.AuthorizeURL.String() == "" {
 		return errors.New("missing setting: authorize-service-url")
 	}
 	if o.AuthorizeURL.Scheme != "https" {
@@ -106,10 +106,7 @@ type routeConfig struct {
 
 // New takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
-func New(opts *config.Options) (*Proxy, error) {
-	if opts == nil {
-		return nil, errors.New("options cannot be nil")
-	}
+func New(opts config.Options) (*Proxy, error) {
 	if err := ValidateOptions(opts); err != nil {
 		return nil, err
 	}
@@ -137,7 +134,7 @@ func New(opts *config.Options) (*Proxy, error) {
 	p := &Proxy{
 		routeConfigs: make(map[string]*routeConfig),
 		// services
-		AuthenticateURL: opts.AuthenticateURL,
+		AuthenticateURL: &opts.AuthenticateURL,
 		// session state
 		cipher:          cipher,
 		csrfStore:       cookieStore,
@@ -177,7 +174,7 @@ func New(opts *config.Options) (*Proxy, error) {
 }
 
 // UpdatePolicies updates the handlers based on the configured policies
-func (p *Proxy) UpdatePolicies(opts *config.Options) error {
+func (p *Proxy) UpdatePolicies(opts config.Options) error {
 	routeConfigs := make(map[string]*routeConfig)
 	for _, route := range opts.Policies {
 		proxy := NewReverseProxy(route.Destination)
@@ -254,7 +251,7 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 }
 
 // NewReverseProxyHandler applies handler specific options to a given route.
-func NewReverseProxyHandler(o *config.Options, proxy *httputil.ReverseProxy, route *policy.Policy) (http.Handler, error) {
+func NewReverseProxyHandler(o config.Options, proxy *httputil.ReverseProxy, route *policy.Policy) (http.Handler, error) {
 	up := &UpstreamProxy{
 		name:       route.Destination.Host,
 		handler:    proxy,
@@ -287,7 +284,7 @@ func urlParse(uri string) (*url.URL, error) {
 }
 
 // UpdateOptions updates internal structres based on config.Options
-func (p *Proxy) UpdateOptions(o *config.Options) error {
+func (p *Proxy) UpdateOptions(o config.Options) error {
 	log.Info().Msg("proxy: updating options")
 	err := p.UpdatePolicies(o)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/config"
+
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -529,7 +530,7 @@ func extendDeadline(ttl time.Duration) time.Time {
 }
 
 // websocketHandlerFunc splits request serving with timeouts depending on the protocol
-func websocketHandlerFunc(baseHandler http.Handler, timeoutHandler http.Handler, o *config.Options) http.Handler {
+func websocketHandlerFunc(baseHandler http.Handler, timeoutHandler http.Handler, o config.Options) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		// Do not use timeouts for websockets because they are long-lived connections.
