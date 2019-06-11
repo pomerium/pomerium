@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
 	"github.com/rs/zerolog"
 )
 
@@ -164,7 +165,7 @@ func AccessHandler(f func(r *http.Request, status, size int, duration time.Durat
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
-			lw := NewWrapResponseWriter(w, r.ProtoMajor)
+			lw := responsewriter.NewWrapResponseWriter(w, r.ProtoMajor)
 			next.ServeHTTP(lw, r)
 			f(r, lw.Status(), lw.BytesWritten(), time.Since(start))
 		})

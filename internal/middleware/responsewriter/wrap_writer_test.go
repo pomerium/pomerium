@@ -1,4 +1,4 @@
-package log // import "github.com/pomerium/pomerium/internal/log"
+package responsewriter
 
 import (
 	"net/http/httptest"
