@@ -27,6 +27,7 @@ func TestAuthorizeGRPC_Authorize(t *testing.T) {
 		wantErr bool
 	}{
 		{"good", "hello.pomerium.io", &sessions.SessionState{User: "admin@pomerium.io", Email: "admin@pomerium.io"}, true, false},
+		{"impersonate request", "hello.pomerium.io", &sessions.SessionState{User: "admin@pomerium.io", Email: "admin@pomerium.io", ImpersonateEmail: "other@other.example"}, true, false},
 		{"session cannot be nil", "hello.pomerium.io", nil, false, true},
 	}
 	for _, tt := range tests {

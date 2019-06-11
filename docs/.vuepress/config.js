@@ -24,6 +24,7 @@ module.exports = {
 			{
 				text: 'Versions',
 				items: [
+					{ text: 'v0.0.5', link: 'https://v0-0-5.docs.pomerium.io/' },
 					{ text: 'v0.0.4', link: 'https://v0-0-4.docs.pomerium.io/' },
 				]
 			},
@@ -42,7 +43,7 @@ function guideSidebar(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["",  "binary","from-source","helm", "kubernetes", "synology"]
+			children: ["", "binary", "from-source", "helm", "kubernetes", "synology"]
 		}
 	];
 }
@@ -52,7 +53,7 @@ function docsSidebar(title) {
 		{
 			title,
 			collapsable: false,
-			children: ["", "identity-providers", "signed-headers", "certificates", "examples", "upgrading"]
+			children: ["", "identity-providers", "signed-headers", "certificates", "examples", "impersonation", "upgrading"]
 		}
 	];
 }

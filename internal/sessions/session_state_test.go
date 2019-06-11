@@ -100,3 +100,41 @@ func TestSessionState_IssuedAt(t *testing.T) {
 		})
 	}
 }
+
+func TestSessionState_Impersonating(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name               string
+		Email              string
+		Groups             []string
+		ImpersonateEmail   string
+		ImpersonateGroups  []string
+		want               bool
+		wantResponseEmail  string
+		wantResponseGroups string
+	}{
+		{"impersonating", "actual@user.com", []string{"actual-group"}, "impersonating@user.com", []string{"impersonating-group"}, true, "impersonating@user.com", "impersonating-group"},
+		{"not impersonating", "actual@user.com", []string{"actual-group"}, "", []string{}, false, "actual@user.com", "actual-group"},
+		{"impersonating user only", "actual@user.com", []string{"actual-group"}, "impersonating@user.com", []string{}, true, "impersonating@user.com", "actual-group"},
+		{"impersonating group only", "actual@user.com", []string{"actual-group"}, "", []string{"impersonating-group"}, true, "actual@user.com", "impersonating-group"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &SessionState{
+				Email:             tt.Email,
+				Groups:            tt.Groups,
+				ImpersonateEmail:  tt.ImpersonateEmail,
+				ImpersonateGroups: tt.ImpersonateGroups,
+			}
+			if got := s.Impersonating(); got != tt.want {
+				t.Errorf("SessionState.Impersonating() = %v, want %v", got, tt.want)
+			}
+			if gotEmail := s.RequestEmail(); gotEmail != tt.wantResponseEmail {
+				t.Errorf("SessionState.RequestEmail() = %v, want %v", gotEmail, tt.wantResponseEmail)
+			}
+			if gotGroups := s.RequestGroups(); gotGroups != tt.wantResponseGroups {
+				t.Errorf("SessionState.v() = %v, want %v", gotGroups, tt.wantResponseGroups)
+			}
+		})
+	}
+}

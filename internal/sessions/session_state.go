@@ -36,6 +36,28 @@ func (s *SessionState) RefreshPeriodExpired() bool {
 	return isExpired(s.RefreshDeadline)
 }
 
+// Impersonating returns if the request is impersonating.
+func (s *SessionState) Impersonating() bool {
+	return s.ImpersonateEmail != "" || len(s.ImpersonateGroups) != 0
+}
+
+// RequestEmail is the email to make the request as.
+func (s *SessionState) RequestEmail() string {
+	if s.ImpersonateEmail != "" {
+		return s.ImpersonateEmail
+	}
+	return s.Email
+}
+
+// RequestGroups returns the groups of the Groups making the request; uses
+// impersonating user if set.
+func (s *SessionState) RequestGroups() string {
+	if len(s.ImpersonateGroups) != 0 {
+		return strings.Join(s.ImpersonateGroups, ",")
+	}
+	return strings.Join(s.Groups, ",")
+}
+
 type idToken struct {
 	Issuer   string   `json:"iss"`
 	Subject  string   `json:"sub"`
