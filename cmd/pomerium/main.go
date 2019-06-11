@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/metrics"
+
 	"github.com/fsnotify/fsnotify"
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
@@ -83,6 +85,10 @@ func main() {
 		IdleTimeout:       opt.IdleTimeout,
 	}
 
+	if opt.MetricsAddr != "" {
+		go newPromListener(opt.MetricsAddr)
+	}
+
 	if srv, err := startRedirectServer(opt.HTTPRedirectAddr); err != nil {
 		log.Debug().Err(err).Msg("cmd/pomerium: http redirect server not started")
 	} else {
@@ -151,8 +157,14 @@ func newProxyService(opt config.Options, mux *http.ServeMux) (*proxy.Proxy, erro
 	return service, nil
 }
 
+func newPromListener(addr string) {
+	log.Info().Str("MetricsAddr", addr).Msg("cmd/pomerium: starting prometheus endpoint")
+	log.Error().Err(metrics.NewPromHTTPListener(addr)).Str("MetricsAddr", addr).Msg("cmd/pomerium: could not start metrics exporter")
+}
+
 func wrapMiddleware(o config.Options, mux *http.ServeMux) http.Handler {
 	c := middleware.NewChain()
+	c = c.Append(metrics.HTTPMetricsHandler("proxy"))
 	c = c.Append(log.NewHandler(log.Logger))
 	c = c.Append(log.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
 		log.FromRequest(r).Debug().

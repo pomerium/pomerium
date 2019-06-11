@@ -133,6 +133,9 @@ type Options struct {
 	// Enable proxying of websocket connections. Defaults to "false".
 	// Caution: Enabling this feature could result in abuse via DOS attacks.
 	AllowWebsockets bool `mapstructure:"allow_websockets"`
+
+	// Address/Port to bind to for prometheus metrics
+	MetricsAddr string `mapstructure:"metrics_address"`
 }
 
 // NewOptions returns a new options struct with default values

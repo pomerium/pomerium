@@ -5,6 +5,7 @@
 ### NEW
 
 - Add programmatic authentication support. [GH-177]
+- Add Prometheus format metrics endpoint. [GH-35]
 
 ### CHANGED
 
