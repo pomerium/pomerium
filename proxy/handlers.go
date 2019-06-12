@@ -214,7 +214,7 @@ func isCORSPreflight(r *http.Request) bool {
 // or starting the authenticate service for validation if not.
 func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	if !p.shouldSkipAuthentication(r) {
-		session, err := p.sessionStore.LoadSession(r)
+		s, err := p.sessionStore.LoadSession(r)
 		if err != nil {
 			switch err {
 			case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
@@ -230,23 +230,30 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if err = p.authenticate(w, r, session); err != nil {
+		if err = p.authenticate(w, r, s); err != nil {
 			p.sessionStore.ClearSession(w, r)
-			log.Debug().Err(err).Msg("proxy: user unauthenticated")
-			httpErr := &httputil.Error{
-				Message:  "User unauthenticated",
-				Code:     http.StatusForbidden,
-				CanDebug: true}
+			log.FromRequest(r).Debug().Err(err).Msg("proxy: user unauthenticated")
+			httpErr := &httputil.Error{Message: "User unauthenticated", Code: http.StatusForbidden, CanDebug: true}
 			httputil.ErrorResponse(w, r, httpErr)
 			return
 		}
-		authorized, err := p.AuthorizeClient.Authorize(r.Context(), r.Host, session)
-		if err != nil || !authorized {
+		authorized, err := p.AuthorizeClient.Authorize(r.Context(), r.Host, s)
+		if err != nil {
+			log.FromRequest(r).Error().Err(err).Msg("proxy: failed authorization")
+			httpErr := &httputil.Error{Code: http.StatusInternalServerError}
+			httputil.ErrorResponse(w, r, httpErr)
+			return
+		}
+
+		if !authorized {
 			log.FromRequest(r).Warn().Err(err).Msg("proxy: user unauthorized")
 			httpErr := &httputil.Error{Code: http.StatusUnauthorized, CanDebug: true}
 			httputil.ErrorResponse(w, r, httpErr)
 			return
 		}
+		r.Header.Set(HeaderUserID, s.User)
+		r.Header.Set(HeaderEmail, s.RequestEmail())
+		r.Header.Set(HeaderGroups, s.RequestGroups())
 	}
 
 	// We have validated the users request and now proxy their request to the provided upstream.
@@ -324,7 +331,7 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 // Refresh redeems and extends an existing authenticated oidc session with
-// the underlying idenity provider. All session details including groups,
+// the underlying identity provider. All session details including groups,
 // timeouts, will be renewed.
 func (p *Proxy) Refresh(w http.ResponseWriter, r *http.Request) {
 	session, err := p.sessionStore.LoadSession(r)
@@ -436,25 +443,22 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 
 // Authenticate authenticates a request by checking for a session cookie, and validating its expiration,
 // clearing the session cookie if it's invalid and returning an error if necessary..
-func (p *Proxy) authenticate(w http.ResponseWriter, r *http.Request, session *sessions.SessionState) error {
-	if session.RefreshPeriodExpired() {
-		session, err := p.AuthenticateClient.Refresh(r.Context(), session)
+func (p *Proxy) authenticate(w http.ResponseWriter, r *http.Request, s *sessions.SessionState) error {
+	if s.RefreshPeriodExpired() {
+		s, err := p.AuthenticateClient.Refresh(r.Context(), s)
 		if err != nil {
 			return fmt.Errorf("proxy: session refresh failed : %v", err)
 		}
-		err = p.sessionStore.SaveSession(w, r, session)
+		err = p.sessionStore.SaveSession(w, r, s)
 		if err != nil {
 			return fmt.Errorf("proxy: refresh failed : %v", err)
 		}
 	} else {
-		valid, err := p.AuthenticateClient.Validate(r.Context(), session.IDToken)
+		valid, err := p.AuthenticateClient.Validate(r.Context(), s.IDToken)
 		if err != nil || !valid {
 			return fmt.Errorf("proxy: session valid: %v : %v", valid, err)
 		}
 	}
-	r.Header.Set(HeaderUserID, session.User)
-	r.Header.Set(HeaderEmail, session.Email)
-	r.Header.Set(HeaderGroups, strings.Join(session.Groups, ","))
 	return nil
 }
 
