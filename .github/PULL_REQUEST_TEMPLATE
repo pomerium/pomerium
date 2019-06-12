@@ -21,4 +21,5 @@ Here's an example of a good PR/Commit:
 - [ ] updated docs
 - [ ] unit tests added
 - [ ] related issues referenced
+- [ ] updated CHANGELOG.md
 - [ ] ready for review

@@ -25,14 +25,14 @@ A clear and concise description of what you expected to happen.
 Configuration file(s):
 
 ```text
-# Paste your confis here.
+# Paste your configs here
 # Be sure to scrub any sensitive values
 ```
 
 Logs(s):
 
 ```text
-# Paste your confis here.
+# Paste your configs here.
 # Be sure to scrub any sensitive values
 ```
 
