@@ -272,40 +272,10 @@ func TestAuthenticate_SignOut(t *testing.T) {
 		wantCode     int
 		wantBody     string
 	}{
-		{"good post",
-			http.MethodPost,
-			"https://corp.pomerium.io/",
-			"sig",
-			"ts",
-			identity.MockProvider{},
-			&sessions.MockSessionStore{
-				Session: &sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
-
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				},
-			},
-			http.StatusFound,
-			""},
-		{"failed revoke",
-			http.MethodPost,
-			"https://corp.pomerium.io/",
-			"sig",
-			"ts",
-			identity.MockProvider{RevokeError: errors.New("OH NO")},
-			&sessions.MockSessionStore{
-				Session: &sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
-
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				},
-			},
-			http.StatusBadRequest,
-			"could not revoke"},
+		{"good post", http.MethodPost, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, http.StatusFound, ""},
+		{"failed revoke", http.MethodPost, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, http.StatusBadRequest, "could not revoke"},
+		{"malformed form", http.MethodPost, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, http.StatusBadRequest, ""},
+		{"load session error", http.MethodPost, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &sessions.MockSessionStore{LoadError: errors.New("hi"), Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, http.StatusFound, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -321,7 +291,9 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			params.Add("ts", tt.ts)
 			params.Add("redirect_uri", tt.redirectURL)
 			u.RawQuery = params.Encode()
-
+			if tt.name == "malformed form" {
+				u.RawQuery = "example=%zzzzz"
+			}
 			r := httptest.NewRequest(tt.method, u.String(), nil)
 			w := httptest.NewRecorder()
 
@@ -674,6 +646,53 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("Authenticate.getOAuthCallback() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAuthenticate_ExchangeToken(t *testing.T) {
+	cipher := &cryptutil.MockCipher{}
+	tests := []struct {
+		name      string
+		method    string
+		idToken   string
+		restStore sessions.SessionStore
+		cipher    cryptutil.Cipher
+		provider  identity.MockProvider
+		want      string
+	}{
+		{"good", http.MethodPost, "token", &sessions.RestStore{Cipher: cipher}, cipher, identity.MockProvider{IDTokenToSessionResponse: sessions.SessionState{IDToken: "ok"}}, ""},
+		{"could not exchange identity for session", http.MethodPost, "token", &sessions.RestStore{Cipher: cipher}, cipher, identity.MockProvider{IDTokenToSessionError: errors.New("error")}, "could not exchange identity for session"},
+		{"missing token", http.MethodPost, "", &sessions.RestStore{Cipher: cipher}, cipher, identity.MockProvider{IDTokenToSessionResponse: sessions.SessionState{IDToken: "ok"}}, "missing id token"},
+		{"save error", http.MethodPost, "token", &sessions.MockSessionStore{SaveError: errors.New("error")}, cipher, identity.MockProvider{IDTokenToSessionResponse: sessions.SessionState{IDToken: "ok"}}, "failed returning new session"},
+		{"malformed form", http.MethodPost, "token", &sessions.RestStore{Cipher: cipher}, cipher, identity.MockProvider{IDTokenToSessionResponse: sessions.SessionState{IDToken: "ok"}}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &Authenticate{
+				restStore: tt.restStore,
+				cipher:    tt.cipher,
+				provider:  tt.provider,
+			}
+			form := url.Values{}
+			if tt.idToken != "" {
+				form.Add("id_token", tt.idToken)
+			}
+			rawForm := form.Encode()
+
+			if tt.name == "malformed form" {
+				rawForm = "example=%zzzzz"
+			}
+			r := httptest.NewRequest(tt.method, "/", strings.NewReader(rawForm))
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+			w := httptest.NewRecorder()
+
+			a.ExchangeToken(w, r)
+			got := w.Body.String()
+			if !strings.Contains(got, tt.want) {
+				t.Errorf("Authenticate.ExchangeToken() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -25,7 +25,7 @@ type StateParameter struct {
 	RedirectURI string `json:"redirect_uri"`
 }
 
-// Handler returns a http handler for a Proxy
+// Handler returns the proxy service's ServeMux
 func (p *Proxy) Handler() http.Handler {
 	// validation middleware chain
 	validate := middleware.NewChain()
@@ -62,13 +62,11 @@ func (p *Proxy) SignOutCallback(w http.ResponseWriter, r *http.Request) {
 // OAuthStart begins the authenticate flow, encrypting the redirect url
 // in a request to the provider's sign in endpoint.
 func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
-	requestURI := r.URL.String()
-	callbackURL := p.GetRedirectURL(r.Host)
 
-	// CSRF value used to mitigate replay attacks.
+	// create a CSRF value used to mitigate replay attacks.
 	state := &StateParameter{
 		SessionID:   fmt.Sprintf("%x", cryptutil.GenerateKey()),
-		RedirectURI: requestURI,
+		RedirectURI: r.URL.String(),
 	}
 
 	// Encrypt, and save CSRF state. Will be checked on callback.
@@ -104,7 +102,7 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signinURL := p.GetSignInURL(p.AuthenticateURL, callbackURL, remoteState)
+	signinURL := p.GetSignInURL(p.AuthenticateURL, p.GetRedirectURL(r.Host), remoteState)
 	log.FromRequest(r).Debug().Str("SigninURL", signinURL.String()).Msg("proxy: oauth start")
 
 	// Redirect the user to the authenticate service along with the encrypted
@@ -185,14 +183,14 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 // shouldSkipAuthentication contains conditions for skipping authentication.
 // Conditions should be few in number and have strong justifications.
 func (p *Proxy) shouldSkipAuthentication(r *http.Request) bool {
-	pol, foundPolicy := p.policy(r)
+	policy, policyExists := p.policy(r)
 
-	if isCORSPreflight(r) && foundPolicy && pol.CORSAllowPreflight {
+	if isCORSPreflight(r) && policyExists && policy.CORSAllowPreflight {
 		log.FromRequest(r).Debug().Msg("proxy: skipping authentication for valid CORS preflight request")
 		return true
 	}
 
-	if foundPolicy && pol.AllowPublicUnauthenticatedAccess {
+	if policyExists && policy.AllowPublicUnauthenticatedAccess {
 		log.FromRequest(r).Debug().Msg("proxy: skipping authentication for public route")
 		return true
 	}
@@ -214,19 +212,26 @@ func isCORSPreflight(r *http.Request) bool {
 // or starting the authenticate service for validation if not.
 func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	if !p.shouldSkipAuthentication(r) {
-		s, err := p.sessionStore.LoadSession(r)
+		s, err := p.restStore.LoadSession(r)
 		if err != nil {
-			switch err {
-			case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
-				log.FromRequest(r).Debug().Err(err).Msg("proxy: invalid session")
-				p.sessionStore.ClearSession(w, r)
-				p.OAuthStart(w, r)
-				return
-			default:
-				log.FromRequest(r).Error().Err(err).Msg("proxy: unexpected error")
-				httpErr := &httputil.Error{Message: "An unexpected error occurred", Code: http.StatusInternalServerError}
-				httputil.ErrorResponse(w, r, httpErr)
-				return
+			log.FromRequest(r).Debug().Err(err).Msg("proxy: no bearer auth token found")
+		}
+
+		if s == nil {
+			s, err = p.sessionStore.LoadSession(r)
+			if err != nil {
+				switch err {
+				case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
+					log.FromRequest(r).Debug().Err(err).Msg("proxy: invalid session")
+					p.sessionStore.ClearSession(w, r)
+					p.OAuthStart(w, r)
+					return
+				default:
+					log.FromRequest(r).Error().Err(err).Msg("proxy: unexpected error")
+					httpErr := &httputil.Error{Message: "An unexpected error occurred", Code: http.StatusInternalServerError}
+					httputil.ErrorResponse(w, r, httpErr)
+					return
+				}
 			}
 		}
 

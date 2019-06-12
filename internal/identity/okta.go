@@ -83,12 +83,6 @@ func (p *OktaProvider) Revoke(token string) error {
 	return nil
 }
 
-// GetSignInURL returns the sign in url with typical oauth parameters
-// Google requires access type offline
-func (p *OktaProvider) GetSignInURL(state string) string {
-	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline)
-}
-
 type accessToken struct {
 	Subject string   `json:"sub"`
 	Groups  []string `json:"groups"`

@@ -8,19 +8,26 @@ import (
 
 // MockProvider provides a mocked implementation of the providers interface.
 type MockProvider struct {
-	AuthenticateResponse sessions.SessionState
-	AuthenticateError    error
-	ValidateResponse     bool
-	ValidateError        error
-	RefreshResponse      *sessions.SessionState
-	RefreshError         error
-	RevokeError          error
-	GetSignInURLResponse string
+	AuthenticateResponse     sessions.SessionState
+	AuthenticateError        error
+	IDTokenToSessionResponse sessions.SessionState
+	IDTokenToSessionError    error
+	ValidateResponse         bool
+	ValidateError            error
+	RefreshResponse          *sessions.SessionState
+	RefreshError             error
+	RevokeError              error
+	GetSignInURLResponse     string
 }
 
 // Authenticate is a mocked providers function.
-func (mp MockProvider) Authenticate(code string) (*sessions.SessionState, error) {
+func (mp MockProvider) Authenticate(ctx context.Context, code string) (*sessions.SessionState, error) {
 	return &mp.AuthenticateResponse, mp.AuthenticateError
+}
+
+// IDTokenToSession is a mocked providers function.
+func (mp MockProvider) IDTokenToSession(ctx context.Context, code string) (*sessions.SessionState, error) {
+	return &mp.IDTokenToSessionResponse, mp.IDTokenToSessionError
 }
 
 // Validate is a mocked providers function.

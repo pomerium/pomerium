@@ -33,7 +33,7 @@ type GoogleProvider struct {
 	apiClient *admin.Service
 }
 
-// NewGoogleProvider returns a new GoogleProvider and sets the provider url endpoints.
+// NewGoogleProvider instantiates an OpenID Connect (OIDC) session with Google.
 func NewGoogleProvider(p *Provider) (*GoogleProvider, error) {
 	ctx := context.Background()
 	if p.ProviderURL == "" {
@@ -123,33 +123,68 @@ func (p *GoogleProvider) Revoke(accessToken string) error {
 // cookies, re-authorization will not bring back refresh_token. A work around to this is to add
 // prompt=consent to the OAuth redirect URL and will always return a refresh_token.
 // https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess
-// https://developers.google.com/identity/protocols/OAuth2WebServer#offline
-// https://stackoverflow.com/a/10857806/10592439
 func (p *GoogleProvider) GetSignInURL(state string) string {
-	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "consent"))
+	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 }
 
 // Authenticate creates an identity session with google from a authorization code, and follows up
 // call to the admin/group api to check what groups the user is in.
-func (p *GoogleProvider) Authenticate(code string) (*sessions.SessionState, error) {
-	ctx := context.Background()
+func (p *GoogleProvider) Authenticate(ctx context.Context, code string) (*sessions.SessionState, error) {
 	// convert authorization code into a token
 	oauth2Token, err := p.oauth.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("identity/google: token exchange failed %v", err)
 	}
 
-	// id_token contains claims about the authenticated user
+	// id_token is a JWT that contains identity information about the user
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 	if !ok {
 		return nil, fmt.Errorf("identity/google: response did not contain an id_token")
 	}
-	// Parse and verify ID Token payload.
+	session, err := p.IDTokenToSession(ctx, rawIDToken)
+	if err != nil {
+		return nil, err
+	}
+	session.AccessToken = oauth2Token.AccessToken
+	session.RefreshToken = oauth2Token.RefreshToken
+	return session, nil
+}
+
+// Refresh renews a user's session using an oidc refresh token withoutreprompting the user.
+// Group membership is also refreshed.
+// https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
+func (p *GoogleProvider) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
+	if s.RefreshToken == "" {
+		return nil, errors.New("identity: missing refresh token")
+	}
+	t := oauth2.Token{RefreshToken: s.RefreshToken}
+	newToken, err := p.oauth.TokenSource(ctx, &t).Token()
+	if err != nil {
+		log.Error().Err(err).Msg("identity: refresh failed")
+		return nil, err
+	}
+	// id_token contains claims about the authenticated user
+	rawIDToken, ok := newToken.Extra("id_token").(string)
+	if !ok {
+		return nil, fmt.Errorf("identity/google: response did not contain an id_token")
+	}
+	newSession, err := p.IDTokenToSession(ctx, rawIDToken)
+	if err != nil {
+		return nil, err
+	}
+	newSession.AccessToken = newToken.AccessToken
+	newSession.RefreshToken = s.RefreshToken
+	return newSession, nil
+}
+
+// IDTokenToSession takes an identity provider issued JWT as input ('id_token')
+// and returns a session state. The provided token's audience ('aud') must
+// match Pomerium's client_id.
+func (p *GoogleProvider) IDTokenToSession(ctx context.Context, rawIDToken string) (*sessions.SessionState, error) {
 	idToken, err := p.verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return nil, fmt.Errorf("identity/google: could not verify id_token %v", err)
 	}
-
 	var claims struct {
 		Email         string `json:"email"`
 		EmailVerified bool   `json:"email_verified"`
@@ -167,37 +202,11 @@ func (p *GoogleProvider) Authenticate(code string) (*sessions.SessionState, erro
 
 	return &sessions.SessionState{
 		IDToken:         rawIDToken,
-		AccessToken:     oauth2Token.AccessToken,
-		RefreshToken:    oauth2Token.RefreshToken,
-		RefreshDeadline: oauth2Token.Expiry.Truncate(time.Second),
+		RefreshDeadline: idToken.Expiry.Truncate(time.Second),
 		Email:           claims.Email,
 		User:            idToken.Subject,
 		Groups:          groups,
 	}, nil
-}
-
-// Refresh renews a user's session using an oid refresh token withoutreprompting the user.
-// Group membership is also refreshed.
-// https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
-func (p *GoogleProvider) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
-	if s.RefreshToken == "" {
-		return nil, errors.New("identity: missing refresh token")
-	}
-	t := oauth2.Token{RefreshToken: s.RefreshToken}
-	newToken, err := p.oauth.TokenSource(ctx, &t).Token()
-	if err != nil {
-		log.Error().Err(err).Msg("identity: refresh failed")
-		return nil, err
-	}
-	s.AccessToken = newToken.AccessToken
-	s.RefreshDeadline = newToken.Expiry.Truncate(time.Second)
-	// validate groups
-	groups, err := p.UserGroups(ctx, s.User)
-	if err != nil {
-		return nil, fmt.Errorf("identity/google: could not retrieve groups %v", err)
-	}
-	s.Groups = groups
-	return s, nil
 }
 
 // UserGroups returns a slice of group names a given user is in
