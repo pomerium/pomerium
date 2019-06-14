@@ -1,5 +1,5 @@
-// Package identity provides support for making OpenID Connect and OAuth2 authorized and
-// authenticated HTTP requests with third party identity providers.
+// Package identity provides support for making OpenID Connect (OIDC)
+// and OAuth2 authenticated HTTP requests with third party identity providers.
 package identity // import "github.com/pomerium/pomerium/internal/identity"
 
 import (
@@ -44,14 +44,15 @@ type UserGrouper interface {
 
 // Authenticator is an interface representing the ability to authenticate with an identity provider.
 type Authenticator interface {
-	Authenticate(string) (*sessions.SessionState, error)
+	Authenticate(context.Context, string) (*sessions.SessionState, error)
+	IDTokenToSession(context.Context, string) (*sessions.SessionState, error)
 	Validate(context.Context, string) (bool, error)
 	Refresh(context.Context, *sessions.SessionState) (*sessions.SessionState, error)
 	Revoke(string) error
 	GetSignInURL(state string) string
 }
 
-// New returns a new identity provider based given its name.
+// New returns a new identity provider based on its name.
 // Returns an error if selected provided not found or if the identity provider is not known.
 func New(providerName string, p *Provider) (a Authenticator, err error) {
 	switch providerName {
@@ -124,10 +125,37 @@ func (p *Provider) Validate(ctx context.Context, idToken string) (bool, error) {
 	return true, nil
 }
 
+// IDTokenToSession takes an identity provider issued JWT as input ('id_token')
+// and returns a session state. The provided token's audience ('aud') must
+// match Pomerium's client_id.
+func (p *Provider) IDTokenToSession(ctx context.Context, rawIDToken string) (*sessions.SessionState, error) {
+	idToken, err := p.verifier.Verify(ctx, rawIDToken)
+	if err != nil {
+		return nil, fmt.Errorf("identity: could not verify id_token: %v", err)
+	}
+	// extract additional, non-oidc standard claims
+	var claims struct {
+		Email         string   `json:"email"`
+		EmailVerified bool     `json:"email_verified"`
+		Groups        []string `json:"groups"`
+	}
+	if err := idToken.Claims(&claims); err != nil {
+		return nil, fmt.Errorf("identity: failed to parse id_token claims: %v", err)
+	}
+
+	return &sessions.SessionState{
+		IDToken:         rawIDToken,
+		User:            idToken.Subject,
+		RefreshDeadline: idToken.Expiry.Truncate(time.Second),
+		Email:           claims.Email,
+		Groups:          claims.Groups,
+	}, nil
+
+}
+
 // Authenticate creates a session with an identity provider from a authorization code
-func (p *Provider) Authenticate(code string) (*sessions.SessionState, error) {
-	ctx := context.Background()
-	// convert authorization code into a token
+func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.SessionState, error) {
+	// exchange authorization for a oidc token
 	oauth2Token, err := p.oauth.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("identity: failed token exchange: %v", err)
@@ -137,36 +165,18 @@ func (p *Provider) Authenticate(code string) (*sessions.SessionState, error) {
 	if !ok {
 		return nil, fmt.Errorf("token response did not contain an id_token")
 	}
-	// Parse and verify ID Token payload.
-	idToken, err := p.verifier.Verify(ctx, rawIDToken)
+	session, err := p.IDTokenToSession(ctx, rawIDToken)
 	if err != nil {
 		return nil, fmt.Errorf("identity: could not verify id_token: %v", err)
 	}
+	session.AccessToken = oauth2Token.AccessToken
+	session.RefreshToken = oauth2Token.RefreshToken
 
-	// Extract id_token which contains claims about the authenticated user
-	var claims struct {
-		Email         string   `json:"email"`
-		EmailVerified bool     `json:"email_verified"`
-		Groups        []string `json:"groups"`
-	}
-	// parse claims from the raw, encoded jwt token
-	if err := idToken.Claims(&claims); err != nil {
-		return nil, fmt.Errorf("identity: failed to parse id_token claims: %v", err)
-	}
-
-	return &sessions.SessionState{
-		IDToken:         rawIDToken,
-		AccessToken:     oauth2Token.AccessToken,
-		RefreshToken:    oauth2Token.RefreshToken,
-		RefreshDeadline: oauth2Token.Expiry.Truncate(time.Second),
-		Email:           claims.Email,
-		User:            idToken.Subject,
-		Groups:          claims.Groups,
-	}, nil
+	return session, nil
 }
 
-// Refresh renews a user's session using an oid refresh token without reprompting the user.
-// Group membership is also refreshed.
+// Refresh renews a user's session using therefresh_token without reprompting
+// the user. If supported, group membership is also refreshed.
 // https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
 func (p *Provider) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
 	if s.RefreshToken == "" {

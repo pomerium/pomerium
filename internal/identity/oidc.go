@@ -14,7 +14,7 @@ type OIDCProvider struct {
 	*Provider
 }
 
-// NewOIDCProvider creates a new instance of an OpenID Connect provider.
+// NewOIDCProvider creates a new instance of a generic OpenID Connect provider.
 func NewOIDCProvider(p *Provider) (*OIDCProvider, error) {
 	ctx := context.Background()
 	if p.ProviderURL == "" {

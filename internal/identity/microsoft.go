@@ -74,8 +74,7 @@ func NewAzureProvider(p *Provider) (*AzureProvider, error) {
 
 // Authenticate creates an identity session with azure from a authorization code, and follows up
 // call to the groups api to check what groups the user is in.
-func (p *AzureProvider) Authenticate(code string) (*sessions.SessionState, error) {
-	ctx := context.Background()
+func (p *AzureProvider) Authenticate(ctx context.Context, code string) (*sessions.SessionState, error) {
 	// convert authorization code into a token
 	oauth2Token, err := p.oauth.Exchange(ctx, code)
 	if err != nil {
@@ -88,11 +87,23 @@ func (p *AzureProvider) Authenticate(code string) (*sessions.SessionState, error
 		return nil, fmt.Errorf("identity/microsoft: response did not contain an id_token")
 	}
 	// Parse and verify ID Token payload.
+	session, err := p.IDTokenToSession(ctx, rawIDToken)
+	if err != nil {
+		return nil, fmt.Errorf("identity/microsoft: could not verify id_token %v", err)
+	}
+	session.AccessToken = oauth2Token.AccessToken
+	session.RefreshToken = oauth2Token.RefreshToken
+	return session, nil
+}
+
+// IDTokenToSession takes an identity provider issued JWT as input ('id_token')
+// and returns a session state. The provided token's audience ('aud') must
+// match Pomerium's client_id.
+func (p *AzureProvider) IDTokenToSession(ctx context.Context, rawIDToken string) (*sessions.SessionState, error) {
 	idToken, err := p.verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return nil, fmt.Errorf("identity/microsoft: could not verify id_token %v", err)
 	}
-
 	var claims struct {
 		Email         string `json:"email"`
 		EmailVerified bool   `json:"email_verified"`
@@ -101,8 +112,6 @@ func (p *AzureProvider) Authenticate(code string) (*sessions.SessionState, error
 	if err := idToken.Claims(&claims); err != nil {
 		return nil, fmt.Errorf("identity/microsoft: failed to parse id_token claims %v", err)
 	}
-
-	// google requires additional call to retrieve groups.
 	groups, err := p.UserGroups(ctx, claims.Email)
 	if err != nil {
 		return nil, fmt.Errorf("identity/microsoft: could not retrieve groups %v", err)
@@ -110,9 +119,7 @@ func (p *AzureProvider) Authenticate(code string) (*sessions.SessionState, error
 
 	return &sessions.SessionState{
 		IDToken:         rawIDToken,
-		AccessToken:     oauth2Token.AccessToken,
-		RefreshToken:    oauth2Token.RefreshToken,
-		RefreshDeadline: oauth2Token.Expiry.Truncate(time.Second),
+		RefreshDeadline: idToken.Expiry.Truncate(time.Second),
 		Email:           claims.Email,
 		User:            idToken.Subject,
 		Groups:          groups,

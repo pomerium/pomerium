@@ -1,5 +1,15 @@
 # Pomerium Changelog
 
+## vUNRELEASED
+
+### NEW
+
+- Add programmatic authentication support. [GH-177]
+
+### CHANGED
+
+### FIXED
+
 ## v0.0.5
 
 ### NEW

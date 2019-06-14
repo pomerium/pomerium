@@ -39,6 +39,8 @@ func (a *Authenticate) Handler() http.Handler {
 	// authenticate-server endpoints
 	mux.Handle("/sign_in", validate.ThenFunc(a.SignIn))
 	mux.Handle("/sign_out", validate.ThenFunc(a.SignOut)) // POST
+	// programmatic authentication endpoints
+	mux.Handle("/api/v1/token", c.ThenFunc(a.ExchangeToken))
 	return mux
 }
 
@@ -74,12 +76,12 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch err {
 		case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
-			log.FromRequest(r).Debug().Err(err).Msg("proxy: invalid session")
+			log.FromRequest(r).Debug().Err(err).Msg("authenticate: invalid session")
 			a.sessionStore.ClearSession(w, r)
 			a.OAuthStart(w, r)
 			return
 		default:
-			log.FromRequest(r).Error().Err(err).Msg("proxy: unexpected error")
+			log.FromRequest(r).Error().Err(err).Msg("authenticate: unexpected error")
 			httpErr := &httputil.Error{Message: "An unexpected error occurred", Code: http.StatusInternalServerError}
 			httputil.ErrorResponse(w, r, httpErr)
 			return
@@ -137,7 +139,7 @@ func getAuthCodeRedirectURL(redirectURL *url.URL, state, authCode string) string
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		log.Error().Err(err).Msg("authenticate: error SignOut form")
-		httpErr := &httputil.Error{Code: http.StatusInternalServerError}
+		httpErr := &httputil.Error{Code: http.StatusBadRequest}
 		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
@@ -237,11 +239,10 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	if code == "" {
 		log.FromRequest(r).Error().Msg("authenticate: provider missing code")
 		return "", httputil.Error{Code: http.StatusBadRequest, Message: "Missing Code"}
-
 	}
 
 	// validate the returned code with the identity provider
-	session, err := a.provider.Authenticate(code)
+	session, err := a.provider.Authenticate(r.Context(), code)
 	if err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("authenticate: error redeeming authenticate code")
 		return "", httputil.Error{Code: http.StatusInternalServerError, Message: err.Error()}
@@ -275,11 +276,39 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return "", httputil.Error{Code: http.StatusBadRequest, Message: "Invalid Redirect URI domain"}
 	}
 
-	err = a.sessionStore.SaveSession(w, r, session)
-	if err != nil {
+	if err := a.sessionStore.SaveSession(w, r, session); err != nil {
 		log.Error().Err(err).Msg("authenticate: failed saving new session")
 		return "", httputil.Error{Code: http.StatusInternalServerError, Message: "Internal Error"}
 	}
 
 	return redirect, nil
+}
+
+// ExchangeToken takes an identity provider issued JWT as input ('id_token)
+// and exchanges that token for a pomerium session. The provided token's
+// audience ('aud') attribute must match Pomerium's client_id.
+func (a *Authenticate) ExchangeToken(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusInternalServerError, Message: err.Error()})
+		return
+	}
+	code := r.Form.Get("id_token")
+	if code == "" {
+		log.FromRequest(r).Error().Msg("authenticate: provider missing id token")
+		httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusBadRequest, Message: "missing id token"})
+		return
+	}
+	session, err := a.provider.IDTokenToSession(r.Context(), code)
+	if err != nil {
+		log.FromRequest(r).Error().Err(err).Msg("authenticate: error exchanging identity provider code")
+		httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusInternalServerError, Message: "could not exchange identity for session"})
+		return
+	}
+	log.Info().Interface("session", session).Msg("Session")
+	if err := a.restStore.SaveSession(w, r, session); err != nil {
+		log.Error().Err(err).Msg("authenticate: failed returning new session")
+		httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusInternalServerError, Message: "authenticate: failed returning new session"})
+		return
+	}
+	return
 }

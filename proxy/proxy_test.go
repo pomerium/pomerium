@@ -1,7 +1,6 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
-	"errors"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -11,8 +10,6 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/config"
-	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/proxy/clients"
 
 	"github.com/pomerium/pomerium/internal/policy"
 )
@@ -173,6 +170,8 @@ func TestOptions_Validate(t *testing.T) {
 	invalidSignKey.SigningKey = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
 	badSharedKey := testOptions()
 	badSharedKey.SharedKey = ""
+	sharedKeyBadBas64 := testOptions()
+	sharedKeyBadBas64.SharedKey = "%(*@389"
 	missingPolicy := testOptions()
 	missingPolicy.Policies = []policy.Policy{}
 
@@ -193,6 +192,7 @@ func TestOptions_Validate(t *testing.T) {
 		{"no shared secret", badSharedKey, true},
 		{"invalid signing key", invalidSignKey, true},
 		{"missing policy", missingPolicy, true},
+		{"shared secret bad base64", sharedKeyBadBas64, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -238,49 +238,6 @@ func TestNew(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestProxy_OAuthCallback(t *testing.T) {
-	tests := []struct {
-		name          string
-		csrf          sessions.MockCSRFStore
-		session       sessions.MockSessionStore
-		authenticator clients.MockAuthenticate
-		params        map[string]string
-		wantCode      int
-	}{
-		{"good", sessions.MockCSRFStore{ResponseCSRF: "ok", GetError: nil, Cookie: &http.Cookie{Name: "something_csrf", Value: "csrf_state"}}, sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthenticate{RedeemResponse: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken"}}, map[string]string{"code": "code", "state": "state"}, http.StatusFound},
-		{"error", sessions.MockCSRFStore{ResponseCSRF: "ok", GetError: nil, Cookie: &http.Cookie{Name: "something_csrf", Value: "csrf_state"}}, sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthenticate{RedeemResponse: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken"}}, map[string]string{"error": "some error"}, http.StatusBadRequest},
-		{"state err", sessions.MockCSRFStore{ResponseCSRF: "ok", GetError: nil, Cookie: &http.Cookie{Name: "something_csrf", Value: "csrf_state"}}, sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthenticate{RedeemResponse: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken"}}, map[string]string{"code": "code", "state": "error"}, http.StatusInternalServerError},
-		{"csrf err", sessions.MockCSRFStore{GetError: errors.New("error")}, sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthenticate{RedeemResponse: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken"}}, map[string]string{"code": "code", "state": "state"}, http.StatusBadRequest},
-		{"unmarshal err", sessions.MockCSRFStore{Cookie: &http.Cookie{Name: "something_csrf", Value: "unmarshal error"}}, sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthenticate{RedeemResponse: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken"}}, map[string]string{"code": "code", "state": "state"}, http.StatusInternalServerError},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			proxy, err := New(testOptions())
-			if err != nil {
-				t.Fatal(err)
-			}
-			proxy.sessionStore = &tt.session
-			proxy.csrfStore = tt.csrf
-			proxy.AuthenticateClient = tt.authenticator
-			proxy.cipher = mockCipher{}
-			// proxy.Csrf
-			req := httptest.NewRequest(http.MethodPost, "/.pomerium/callback", nil)
-			q := req.URL.Query()
-			for k, v := range tt.params {
-				q.Add(k, v)
-			}
-			req.URL.RawQuery = q.Encode()
-			w := httptest.NewRecorder()
-			proxy.OAuthCallback(w, req)
-			if status := w.Code; status != tt.wantCode {
-				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
-			}
-		})
-	}
-
 }
 
 func Test_UpdateOptions(t *testing.T) {

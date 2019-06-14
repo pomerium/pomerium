@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/config"
-
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/policy"
@@ -38,10 +37,10 @@ const (
 func ValidateOptions(o config.Options) error {
 	decoded, err := base64.StdEncoding.DecodeString(o.SharedKey)
 	if err != nil {
-		return fmt.Errorf("authorize: `SHARED_SECRET` setting is invalid base64: %v", err)
+		return fmt.Errorf("`SHARED_SECRET` setting is invalid base64: %v", err)
 	}
 	if len(decoded) != 32 {
-		return fmt.Errorf("authorize: `SHARED_SECRET` want 32 but got %d bytes", len(decoded))
+		return fmt.Errorf("`SHARED_SECRET` want 32 but got %d bytes", len(decoded))
 	}
 	if len(o.Policies) == 0 {
 		return errors.New("missing setting: no policies defined")
@@ -92,6 +91,7 @@ type Proxy struct {
 	cipher       cryptutil.Cipher
 	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
+	restStore    sessions.SessionStore
 
 	redirectURL     *url.URL
 	templates       *template.Template
@@ -130,7 +130,10 @@ func New(opts config.Options) (*Proxy, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	restStore, err := sessions.NewRestStore(&sessions.RestStoreOptions{Cipher: cipher})
+	if err != nil {
+		return nil, err
+	}
 	p := &Proxy{
 		routeConfigs: make(map[string]*routeConfig),
 		// services
@@ -139,6 +142,7 @@ func New(opts config.Options) (*Proxy, error) {
 		cipher:          cipher,
 		csrfStore:       cookieStore,
 		sessionStore:    cookieStore,
+		restStore:       restStore,
 		SharedKey:       opts.SharedKey,
 		redirectURL:     &url.URL{Path: "/.pomerium/callback"},
 		templates:       templates.New(),
@@ -283,7 +287,7 @@ func urlParse(uri string) (*url.URL, error) {
 	return url.ParseRequestURI(uri)
 }
 
-// UpdateOptions updates internal structres based on config.Options
+// UpdateOptions updates internal structures based on config.Options
 func (p *Proxy) UpdateOptions(o config.Options) error {
 	log.Info().Msg("proxy: updating options")
 	err := p.UpdatePolicies(o)

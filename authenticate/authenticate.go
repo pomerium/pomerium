@@ -8,7 +8,6 @@ import (
 	"net/url"
 
 	"github.com/pomerium/pomerium/internal/config"
-
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -49,6 +48,7 @@ type Authenticate struct {
 	templates    *template.Template
 	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
+	restStore    sessions.SessionStore
 	cipher       cryptutil.Cipher
 	provider     identity.Authenticator
 }
@@ -71,7 +71,6 @@ func New(opts config.Options) (*Authenticate, error) {
 			CookieExpire:   opts.CookieExpire,
 			CookieCipher:   cipher,
 		})
-
 	if err != nil {
 		return nil, err
 	}
@@ -91,13 +90,17 @@ func New(opts config.Options) (*Authenticate, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	restStore, err := sessions.NewRestStore(&sessions.RestStoreOptions{Cipher: cipher})
+	if err != nil {
+		return nil, err
+	}
 	return &Authenticate{
 		SharedKey:    opts.SharedKey,
 		RedirectURL:  &redirectURL,
 		templates:    templates.New(),
 		csrfStore:    cookieStore,
 		sessionStore: cookieStore,
+		restStore:    restStore,
 		cipher:       cipher,
 		provider:     provider,
 	}, nil
