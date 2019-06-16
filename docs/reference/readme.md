@@ -162,6 +162,27 @@ Otherwise the proxy responds with `400 Bad Request` to all websocket connections
 **Use with caution:** By definition, websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced.
 Allowing websocket connections to the proxy could result in abuse via DOS attacks. 
 
+### Metrics Address
+
+- Environmental Variable: `METRICS_ADDRESS`
+- Config File Key: `metrics_address`
+- Type: `string`
+- Example: `:8080`, `127.0.0.1:9090`, ``
+- Default: `disabled`
+- Optional
+
+Expose a prometheus format HTTP endpoint on the specified port.  Disabled by default.
+
+**Use with caution:** the endpoint can expose frontend and backend server names or addresses.  Do not expose the metrics port publicly.  
+
+#### Metrics tracked
+
+| Name        | Type           | Description  |
+|:------------- |:-------------|:-----|
+|http_server_requests_total| Counter | Total HTTP server requests handled by service|
+|http_server_response_size_bytes| Histogram | HTTP server response size by service|
+|http_server_request_duration_ms| Histogram | HTTP server request duration by service\
+
 ### Policy
 
 - Environmental Variable: `POLICY`
