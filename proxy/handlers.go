@@ -37,7 +37,7 @@ func (p *Proxy) Handler() http.Handler {
 	mux.HandleFunc("/robots.txt", p.RobotsTxt)
 	mux.HandleFunc("/.pomerium", p.UserDashboard)
 	mux.HandleFunc("/.pomerium/impersonate", p.Impersonate) // POST
-	mux.HandleFunc("/.pomerium/sign_out", p.SignOutCallback)
+	mux.HandleFunc("/.pomerium/sign_out", p.SignOut)
 	// handlers handlers with validation
 	mux.Handle("/.pomerium/callback", validate.ThenFunc(p.OAuthCallback))
 	mux.Handle("/.pomerium/refresh", validate.ThenFunc(p.Refresh))
@@ -51,12 +51,28 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
-// SignOutCallback redirects the request to the sign out url. It's the responsibility
+// SignOut redirects the request to the sign out url. It's the responsibility
 // of the authenticate service to revoke the remote session and clear
 // the local session state.
-func (p *Proxy) SignOutCallback(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/"}
-	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	switch r.Method {
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusBadRequest})
+			return
+		}
+		uri, err := url.Parse(r.Form.Get("redirect_uri"))
+		if err == nil && uri.String() != "" {
+			redirectURL = uri
+		}
+	default:
+		uri, err := url.Parse(r.URL.Query().Get("redirect_uri"))
+		if err == nil && uri.String() != "" {
+			redirectURL = uri
+		}
+	}
+	http.Redirect(w, r, p.GetSignOutURL(p.AuthenticateURL, redirectURL).String(), http.StatusFound)
 }
 
 // OAuthStart begins the authenticate flow, encrypting the redirect url

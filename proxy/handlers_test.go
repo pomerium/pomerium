@@ -49,7 +49,7 @@ func (a mockCipher) Unmarshal(s string, i interface{}) error {
 
 func TestProxy_RobotsTxt(t *testing.T) {
 	proxy := Proxy{}
-	req := httptest.NewRequest("GET", "/robots.txt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 	rr := httptest.NewRecorder()
 	proxy.RobotsTxt(rr, req)
 	if status := rr.Code; status != http.StatusOK {
@@ -62,7 +62,6 @@ func TestProxy_RobotsTxt(t *testing.T) {
 }
 
 func TestProxy_GetRedirectURL(t *testing.T) {
-
 	tests := []struct {
 		name string
 		host string
@@ -103,7 +102,6 @@ func TestProxy_signRedirectURL(t *testing.T) {
 }
 
 func TestProxy_GetSignOutURL(t *testing.T) {
-
 	tests := []struct {
 		name         string
 		authenticate string
@@ -159,13 +157,17 @@ func TestProxy_Signout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := httptest.NewRequest("GET", "/.pomerium/sign_out", nil)
+	req := httptest.NewRequest(http.MethodGet, "/.pomerium/sign_out", nil)
 	rr := httptest.NewRecorder()
-	proxy.SignOutCallback(rr, req)
+	proxy.SignOut(rr, req)
 	if status := rr.Code; status != http.StatusFound {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusFound)
 	}
-	// todo(bdd) : good way of mocking auth then serving a simple favicon?
+	body := rr.Body.String()
+	want := (proxy.AuthenticateURL.String())
+	if !strings.Contains(body, want) {
+		t.Errorf("handler returned unexpected body: got %v want %s ", body, want)
+	}
 }
 
 func TestProxy_OAuthStart(t *testing.T) {
@@ -173,7 +175,7 @@ func TestProxy_OAuthStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := httptest.NewRequest("GET", "/oauth-start", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth-start", nil)
 
 	rr := httptest.NewRecorder()
 	proxy.OAuthStart(rr, req)
@@ -199,7 +201,7 @@ func TestProxy_Handler(t *testing.T) {
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/", h)
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	if rr.Code != http.StatusNotFound {
@@ -254,7 +256,7 @@ func TestProxy_router(t *testing.T) {
 			p.AuthenticateClient = clients.MockAuthenticate{}
 			p.cipher = mockCipher{}
 
-			req := httptest.NewRequest("GET", tt.host, nil)
+			req := httptest.NewRequest(http.MethodGet, tt.host, nil)
 			_, ok := p.router(req)
 			if ok != tt.wantOk {
 				t.Errorf("Proxy.router() ok = %v, want %v", ok, tt.wantOk)
@@ -555,5 +557,49 @@ func TestProxy_OAuthCallback(t *testing.T) {
 			}
 		})
 	}
+}
+func TestProxy_SignOut(t *testing.T) {
 
+	tests := []struct {
+		name        string
+		verb        string
+		redirectURL string
+		wantStatus  int
+	}{
+		{"good post", http.MethodPost, "https://test.example", http.StatusFound},
+		{"good get", http.MethodGet, "https://test.example", http.StatusFound},
+		{"good empty default", http.MethodGet, "", http.StatusFound},
+		{"malformed", http.MethodPost, "", http.StatusBadRequest},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := testOptions()
+			p, err := New(opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			postForm := url.Values{}
+			postForm.Add("redirect_uri", tt.redirectURL)
+			uri := &url.URL{Path: "/"}
+			if tt.name == "malformed" {
+				uri.RawQuery = "redirect_uri=%zzzzz"
+			}
+
+			query, _ := url.ParseQuery(uri.RawQuery)
+			if tt.verb == http.MethodGet {
+				query.Add("redirect_uri", tt.redirectURL)
+				uri.RawQuery = query.Encode()
+			}
+			r := httptest.NewRequest(tt.verb, uri.String(), bytes.NewBufferString(postForm.Encode()))
+			w := httptest.NewRecorder()
+			if tt.verb == http.MethodPost {
+				r.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
+			}
+			p.SignOut(w, r)
+			if status := w.Code; status != tt.wantStatus {
+				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
+			}
+
+		})
+	}
 }

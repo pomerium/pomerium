@@ -136,7 +136,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			"state=example",
 			"redirect_uri=some.example",
 			&sessions.MockSessionStore{
-				LoadError: errors.New("unexpeted"),
+				LoadError: errors.New("error"),
 				Session: &sessions.SessionState{
 					AccessToken:     "AccessToken",
 					RefreshToken:    "RefreshToken",
