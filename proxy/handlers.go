@@ -229,16 +229,13 @@ func isCORSPreflight(r *http.Request) bool {
 func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	if !p.shouldSkipAuthentication(r) {
 		s, err := p.restStore.LoadSession(r)
-		if err != nil {
-			log.FromRequest(r).Debug().Err(err).Msg("proxy: no bearer auth token found")
-		}
-
-		if s == nil {
+		// if authorization bearer token does not exist or fails, use cookie store
+		if err != nil || s == nil {
 			s, err = p.sessionStore.LoadSession(r)
 			if err != nil {
 				switch err {
 				case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
-					log.FromRequest(r).Debug().Err(err).Msg("proxy: invalid session")
+					log.FromRequest(r).Debug().Str("cause", err.Error()).Msg("proxy: invalid session, start auth process")
 					p.sessionStore.ClearSession(w, r)
 					p.OAuthStart(w, r)
 					return

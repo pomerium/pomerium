@@ -1,4 +1,4 @@
-package metrics
+package metrics // import "github.com/pomerium/pomerium/internal/metrics"
 
 import (
 	"context"
@@ -6,13 +6,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
-
+	"go.opencensus.io/stats"
+	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 
-	"go.opencensus.io/stats/view"
-
-	"go.opencensus.io/stats"
+	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
 )
 
 var (
@@ -26,14 +24,14 @@ var (
 	httpRequestDuration = stats.Int64("http_server_request_duration_ms", "HTTP Request duration in ms", "ms")
 
 	views = []*view.View{
-		&view.View{
+		{
 			Name:        httpRequestCount.Name(),
 			Measure:     httpRequestCount,
 			Description: httpRequestCount.Description(),
 			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
 			Aggregation: view.Count(),
 		},
-		&view.View{
+		{
 			Name:        httpRequestDuration.Name(),
 			Measure:     httpRequestDuration,
 			Description: httpRequestDuration.Description(),
@@ -46,7 +44,7 @@ var (
 				100000,
 			),
 		},
-		&view.View{
+		{
 			Name:        httpResponseSize.Name(),
 			Measure:     httpResponseSize,
 			Description: httpResponseSize.Description(),

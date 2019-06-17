@@ -8,22 +8,22 @@ import (
 	"os"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/metrics"
-
 	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
+	"google.golang.org/grpc"
+
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/https"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/metrics"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	pbAuthenticate "github.com/pomerium/pomerium/proto/authenticate"
 	pbAuthorize "github.com/pomerium/pomerium/proto/authorize"
 	"github.com/pomerium/pomerium/proxy"
-	"github.com/spf13/viper"
-	"google.golang.org/grpc"
 )
 
 var versionFlag = flag.Bool("version", false, "prints the version")
@@ -90,7 +90,7 @@ func main() {
 	}
 
 	if srv, err := startRedirectServer(opt.HTTPRedirectAddr); err != nil {
-		log.Debug().Err(err).Msg("cmd/pomerium: http redirect server not started")
+		log.Debug().Str("cause", err.Error()).Msg("cmd/pomerium: http redirect server not started")
 	} else {
 		defer srv.Close()
 	}
