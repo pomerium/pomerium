@@ -1,4 +1,4 @@
-package metrics
+package metrics // import "github.com/pomerium/pomerium/internal/metrics"
 
 import (
 	"net/http"
