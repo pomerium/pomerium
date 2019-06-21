@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/pomerium/pomerium/internal/metrics"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -102,5 +104,6 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		connAddr,
 		grpc.WithTransportCredentials(cert),
 		grpc.WithPerRPCCredentials(grpcAuth),
+		grpc.WithUnaryInterceptor(metrics.GRPCClientInterceptor("proxy")),
 	)
 }

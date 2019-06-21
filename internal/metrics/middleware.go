@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/log"
+
 	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"go.opencensus.io/stats"
@@ -14,11 +16,6 @@ import (
 )
 
 var (
-	keyMethod, _  = tag.NewKey("method")
-	keyStatus, _  = tag.NewKey("status")
-	keyService, _ = tag.NewKey("service")
-	keyHost, _    = tag.NewKey("host")
-
 	httpServerRequestCount    = stats.Int64("http_server_requests_total", "Total HTTP Requests", "1")
 	httpServerResponseSize    = stats.Int64("http_server_response_size_bytes", "HTTP Server Response Size in bytes", "bytes")
 	httpServerRequestDuration = stats.Int64("http_server_request_duration_ms", "HTTP Request duration in ms", "ms")
@@ -116,7 +113,9 @@ func HTTPMetricsHandler(service string) func(next http.Handler) http.Handler {
 				tag.Insert(keyStatus, strconv.Itoa(m.Status())),
 			)
 
-			if tagErr == nil {
+			if tagErr != nil {
+				log.Warn().Err(tagErr).Str("context", "HTTPMetricsHandler").Msg("Failed to create metrics context tag")
+			} else {
 				stats.Record(ctx,
 					httpServerRequestCount.M(1),
 					httpServerRequestDuration.M(time.Since(startTime).Nanoseconds()/int64(time.Millisecond)),
@@ -145,7 +144,9 @@ func HTTPMetricsRoundTripper(service string) func(next http.RoundTripper) http.R
 					tag.Insert(keyStatus, strconv.Itoa(resp.StatusCode)),
 				)
 
-				if tagErr == nil {
+				if tagErr != nil {
+					log.Warn().Err(tagErr).Str("context", "HTTPMetricsRoundTripper").Msg("Failed to create context tag")
+				} else {
 					stats.Record(ctx,
 						httpClientRequestCount.M(1),
 						httpClientRequestDuration.M(time.Since(startTime).Nanoseconds()/int64(time.Millisecond)),
