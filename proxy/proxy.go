@@ -15,9 +15,11 @@ import (
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/metrics"
 	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
+	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/proxy/clients"
 )
 
@@ -251,6 +253,9 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 		director(req)
 		req.Host = to.Host
 	}
+
+	chain := tripper.NewChain().Append(metrics.HTTPMetricsRoundTripper("proxy"))
+	proxy.Transport = chain.Then(nil)
 	return proxy
 }
 
