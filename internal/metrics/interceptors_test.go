@@ -85,8 +85,8 @@ func Test_GRPCClientInterceptor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			view.Unregister(grpcViews...)
-			view.Register(grpcViews...)
+			view.Unregister(GRPCClientRequestCountView, GRPCClientRequestDurationView, GRPCClientResponseSizeView)
+			view.Register(GRPCClientRequestCountView, GRPCClientRequestDurationView, GRPCClientResponseSizeView)
 
 			invoker := testInvoker{
 				invokeResult: tt.errorCode,

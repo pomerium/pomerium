@@ -23,76 +23,70 @@ var (
 	grpcClientResponseSize    = stats.Int64("grpc_client_response_size_bytes", "grpc Client Response Size in bytes", "bytes")
 	grpcClientRequestDuration = stats.Int64("grpc_client_request_duration_ms", "grpc Client Request duration in ms", "ms")
 
-	grpcViews = []*view.View{
-		//grpc Server
-		{
-			Name:        grpcServerRequestCount.Name(),
-			Measure:     grpcServerRequestCount,
-			Description: grpcServerRequestCount.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
-			Aggregation: view.Count(),
-		},
-		{
-			Name:        grpcServerRequestDuration.Name(),
-			Measure:     grpcServerRequestDuration,
-			Description: grpcServerRequestDuration.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
-			Aggregation: view.Distribution(
-				1, 2, 5, 7, 10, 25, 500, 750,
-				100, 250, 500, 750,
-				1000, 2500, 5000, 7500,
-				10000, 25000, 50000, 75000,
-				100000,
-			),
-		},
-		{
-			Name:        grpcServerResponseSize.Name(),
-			Measure:     grpcServerResponseSize,
-			Description: grpcServerResponseSize.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
-			Aggregation: view.Distribution(
-				1, 256, 512, 1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
-				1048576, 2097152, 4194304, 8388608,
-			),
-		},
+	GRPCServerRequestCountView = &view.View{
+		Name:        grpcServerRequestCount.Name(),
+		Measure:     grpcServerRequestCount,
+		Description: grpcServerRequestCount.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
+		Aggregation: view.Count(),
+	}
 
-		//grpc Client
-		{
-			Name:        grpcClientRequestCount.Name(),
-			Measure:     grpcClientRequestCount,
-			Description: grpcClientRequestCount.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
-			Aggregation: view.Count(),
-		},
-		{
-			Name:        grpcClientRequestDuration.Name(),
-			Measure:     grpcClientRequestDuration,
-			Description: grpcClientRequestDuration.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
-			Aggregation: view.Distribution(
-				1, 2, 5, 7, 10, 25, 500, 750,
-				100, 250, 500, 750,
-				1000, 2500, 5000, 7500,
-				10000, 25000, 50000, 75000,
-				100000,
-			),
-		},
-		{
-			Name:        grpcClientResponseSize.Name(),
-			Measure:     grpcClientResponseSize,
-			Description: grpcClientResponseSize.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
-			Aggregation: view.Distribution(
-				1, 256, 512, 1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
-				1048576, 2097152, 4194304, 8388608,
-			),
-		},
+	GRPCServerRequestDurationView = &view.View{
+		Name:        grpcServerRequestDuration.Name(),
+		Measure:     grpcServerRequestDuration,
+		Description: grpcServerRequestDuration.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
+		Aggregation: view.Distribution(
+			1, 2, 5, 7, 10, 25, 500, 750,
+			100, 250, 500, 750,
+			1000, 2500, 5000, 7500,
+			10000, 25000, 50000, 75000,
+			100000,
+		),
+	}
+
+	GRPCServerResponseSizeView = &view.View{
+		Name:        grpcServerResponseSize.Name(),
+		Measure:     grpcServerResponseSize,
+		Description: grpcServerResponseSize.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
+		Aggregation: view.Distribution(
+			1, 256, 512, 1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
+			1048576, 2097152, 4194304, 8388608,
+		),
+	}
+
+	GRPCClientRequestCountView = &view.View{
+		Name:        grpcClientRequestCount.Name(),
+		Measure:     grpcClientRequestCount,
+		Description: grpcClientRequestCount.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
+		Aggregation: view.Count(),
+	}
+	GRPCClientRequestDurationView = &view.View{
+		Name:        grpcClientRequestDuration.Name(),
+		Measure:     grpcClientRequestDuration,
+		Description: grpcClientRequestDuration.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
+		Aggregation: view.Distribution(
+			1, 2, 5, 7, 10, 25, 500, 750,
+			100, 250, 500, 750,
+			1000, 2500, 5000, 7500,
+			10000, 25000, 50000, 75000,
+			100000,
+		),
+	}
+	GRPCClientResponseSizeView = &view.View{
+		Name:        grpcClientResponseSize.Name(),
+		Measure:     grpcClientResponseSize,
+		Description: grpcClientResponseSize.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
+		Aggregation: view.Distribution(
+			1, 256, 512, 1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
+			1048576, 2097152, 4194304, 8388608,
+		),
 	}
 )
-
-func init() {
-	view.Register(grpcViews...)
-}
 
 // GRPCClientInterceptor creates a UnaryClientInterceptor which tracks metrics of grpc client requests
 func GRPCClientInterceptor(service string) grpc.UnaryClientInterceptor {

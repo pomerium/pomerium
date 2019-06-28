@@ -158,6 +158,10 @@ func newProxyService(opt config.Options, mux *http.ServeMux) (*proxy.Proxy, erro
 }
 
 func newPromListener(addr string) {
+	metrics.RegisterGRPCClientView()
+	metrics.RegisterHTTPClientView()
+	metrics.RegisterHTTPServerView()
+
 	log.Info().Str("MetricsAddr", addr).Msg("cmd/pomerium: starting prometheus endpoint")
 	log.Error().Err(metrics.NewPromHTTPListener(addr)).Str("MetricsAddr", addr).Msg("cmd/pomerium: could not start metrics exporter")
 }

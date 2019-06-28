@@ -24,76 +24,69 @@ var (
 	httpClientResponseSize    = stats.Int64("http_client_response_size_bytes", "HTTP Client Response Size in bytes", "bytes")
 	httpClientRequestDuration = stats.Int64("http_client_request_duration_ms", "HTTP Client Request duration in ms", "ms")
 
-	views = []*view.View{
-		//HTTP Server
-		{
-			Name:        httpServerRequestCount.Name(),
-			Measure:     httpServerRequestCount,
-			Description: httpServerRequestCount.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
-			Aggregation: view.Count(),
-		},
-		{
-			Name:        httpServerRequestDuration.Name(),
-			Measure:     httpServerRequestDuration,
-			Description: httpServerRequestDuration.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
-			Aggregation: view.Distribution(
-				1, 2, 5, 7, 10, 25, 500, 750,
-				100, 250, 500, 750,
-				1000, 2500, 5000, 7500,
-				10000, 25000, 50000, 75000,
-				100000,
-			),
-		},
-		{
-			Name:        httpServerResponseSize.Name(),
-			Measure:     httpServerResponseSize,
-			Description: httpServerResponseSize.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
-			Aggregation: view.Distribution(
-				1, 256, 512, 1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
-				1048576, 2097152, 4194304, 8388608,
-			),
-		},
+	HTTPServerRequestCountView = &view.View{
+		Name:        httpServerRequestCount.Name(),
+		Measure:     httpServerRequestCount,
+		Description: httpServerRequestCount.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
+		Aggregation: view.Count(),
+	}
 
-		//HTTP Client
-		{
-			Name:        httpClientRequestCount.Name(),
-			Measure:     httpClientRequestCount,
-			Description: httpClientRequestCount.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
-			Aggregation: view.Count(),
-		},
-		{
-			Name:        httpClientRequestDuration.Name(),
-			Measure:     httpClientRequestDuration,
-			Description: httpClientRequestDuration.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
-			Aggregation: view.Distribution(
-				1, 2, 5, 7, 10, 25, 500, 750,
-				100, 250, 500, 750,
-				1000, 2500, 5000, 7500,
-				10000, 25000, 50000, 75000,
-				100000,
-			),
-		},
-		{
-			Name:        httpClientResponseSize.Name(),
-			Measure:     httpClientResponseSize,
-			Description: httpClientResponseSize.Description(),
-			TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
-			Aggregation: view.Distribution(
-				1, 256, 512, 1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
-				1048576, 2097152, 4194304, 8388608,
-			),
-		},
+	HTTPServerRequestDurationView = &view.View{
+		Name:        httpServerRequestDuration.Name(),
+		Measure:     httpServerRequestDuration,
+		Description: httpServerRequestDuration.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
+		Aggregation: view.Distribution(
+			1, 2, 5, 7, 10, 25, 500, 750,
+			100, 250, 500, 750,
+			1000, 2500, 5000, 7500,
+			10000, 25000, 50000, 75000,
+			100000,
+		),
+	}
+	HTTPServerRequestSizeView = &view.View{
+		Name:        httpServerResponseSize.Name(),
+		Measure:     httpServerResponseSize,
+		Description: httpServerResponseSize.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
+		Aggregation: view.Distribution(
+			1, 256, 512, 1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
+			1048576, 2097152, 4194304, 8388608,
+		),
+	}
+
+	HTTPClientRequestCountView = &view.View{
+		Name:        httpClientRequestCount.Name(),
+		Measure:     httpClientRequestCount,
+		Description: httpClientRequestCount.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
+		Aggregation: view.Count(),
+	}
+	HTTPClientRequestDurationView = &view.View{
+		Name:        httpClientRequestDuration.Name(),
+		Measure:     httpClientRequestDuration,
+		Description: httpClientRequestDuration.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
+		Aggregation: view.Distribution(
+			1, 2, 5, 7, 10, 25, 500, 750,
+			100, 250, 500, 750,
+			1000, 2500, 5000, 7500,
+			10000, 25000, 50000, 75000,
+			100000,
+		),
+	}
+	HTTPClientRequestSizeView = &view.View{
+		Name:        httpClientResponseSize.Name(),
+		Measure:     httpClientResponseSize,
+		Description: httpClientResponseSize.Description(),
+		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
+		Aggregation: view.Distribution(
+			1, 256, 512, 1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
+			1048576, 2097152, 4194304, 8388608,
+		),
 	}
 )
-
-func init() {
-	view.Register(views...)
-}
 
 // HTTPMetricsHandler creates a metrics middleware for incoming HTTP requests
 func HTTPMetricsHandler(service string) func(next http.Handler) http.Handler {

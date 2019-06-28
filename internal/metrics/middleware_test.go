@@ -69,8 +69,8 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			view.Unregister(views...)
-			view.Register(views...)
+			view.Unregister(HTTPServerRequestCountView, HTTPServerRequestDurationView, HTTPServerRequestSizeView)
+			view.Register(HTTPServerRequestCountView, HTTPServerRequestDurationView, HTTPServerRequestSizeView)
 
 			req := httptest.NewRequest(tt.verb, tt.url, new(bytes.Buffer))
 			rec := httptest.NewRecorder()
@@ -143,8 +143,8 @@ func Test_HTTPMetricsRoundTripper(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			view.Unregister(views...)
-			view.Register(views...)
+			view.Unregister(HTTPClientRequestCountView, HTTPClientRequestDurationView, HTTPClientRequestSizeView)
+			view.Register(HTTPClientRequestCountView, HTTPClientRequestDurationView, HTTPClientRequestSizeView)
 
 			req, _ := http.NewRequest(tt.verb, tt.url, new(bytes.Buffer))
 			resp, err := client.Do(req)
