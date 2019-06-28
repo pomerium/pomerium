@@ -8,7 +8,7 @@ import (
 // RegisterHTTPClientView registers the standard HTTPClient view.
 // It must be called to see metrics in the configured exporters
 func RegisterHTTPClientView() {
-	if err := view.Register(HTTPClientRequestCountView, HTTPClientRequestDurationView, HTTPClientRequestSizeView); err != nil {
+	if err := view.Register(HTTPClientRequestCountView, HTTPClientRequestDurationView, HTTPClientResponseSizeView); err != nil {
 		log.Warn().Err(err).Msg("Could not register HTTPClientView")
 	}
 }

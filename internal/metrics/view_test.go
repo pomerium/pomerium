@@ -8,7 +8,7 @@ import (
 
 func Test_RegisterHTTPClientView(t *testing.T) {
 	RegisterHTTPClientView()
-	for _, v := range []*view.View{HTTPClientRequestCountView, HTTPClientRequestDurationView, HTTPClientRequestSizeView} {
+	for _, v := range []*view.View{HTTPClientRequestCountView, HTTPClientRequestDurationView, HTTPClientResponseSizeView} {
 		if view.Find(v.Name) != v {
 			t.Errorf("Failed to find registered view %s", v.Name)
 		}

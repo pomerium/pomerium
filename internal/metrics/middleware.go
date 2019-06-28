@@ -24,6 +24,7 @@ var (
 	httpClientResponseSize    = stats.Int64("http_client_response_size_bytes", "HTTP Client Response Size in bytes", "bytes")
 	httpClientRequestDuration = stats.Int64("http_client_request_duration_ms", "HTTP Client Request duration in ms", "ms")
 
+	// HTTPServerRequestCountView is an OpenCensus View that tracks HTTP server requests by pomerium service, host, method and status
 	HTTPServerRequestCountView = &view.View{
 		Name:        httpServerRequestCount.Name(),
 		Measure:     httpServerRequestCount,
@@ -32,6 +33,7 @@ var (
 		Aggregation: view.Count(),
 	}
 
+	// HTTPServerRequestDurationView is an OpenCensus view that tracks HTTP server request duration by pomerium service, host, method and status
 	HTTPServerRequestDurationView = &view.View{
 		Name:        httpServerRequestDuration.Name(),
 		Measure:     httpServerRequestDuration,
@@ -45,6 +47,8 @@ var (
 			100000,
 		),
 	}
+
+	// HTTPServerRequestSizeView is an OpenCensus view that tracks HTTP server request duration by pomerium service, host, method and status
 	HTTPServerRequestSizeView = &view.View{
 		Name:        httpServerResponseSize.Name(),
 		Measure:     httpServerResponseSize,
@@ -56,6 +60,7 @@ var (
 		),
 	}
 
+	// HTTPClientRequestCountView is an OpenCensus View that tracks HTTP client requests by pomerium service, host, method and status
 	HTTPClientRequestCountView = &view.View{
 		Name:        httpClientRequestCount.Name(),
 		Measure:     httpClientRequestCount,
@@ -63,6 +68,8 @@ var (
 		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
 		Aggregation: view.Count(),
 	}
+
+	// HTTPClientRequestDurationView is an OpenCensus view that tracks HTTP client request duration by pomerium service, host, method and status
 	HTTPClientRequestDurationView = &view.View{
 		Name:        httpClientRequestDuration.Name(),
 		Measure:     httpClientRequestDuration,
@@ -76,7 +83,9 @@ var (
 			100000,
 		),
 	}
-	HTTPClientRequestSizeView = &view.View{
+
+	// HTTPClientResponseSizeView is an OpenCensus view that tracks HTTP client response size by pomerium service, host, method and status
+	HTTPClientResponseSizeView = &view.View{
 		Name:        httpClientResponseSize.Name(),
 		Measure:     httpClientResponseSize,
 		Description: httpClientResponseSize.Description(),

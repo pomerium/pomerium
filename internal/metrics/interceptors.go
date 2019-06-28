@@ -23,6 +23,7 @@ var (
 	grpcClientResponseSize    = stats.Int64("grpc_client_response_size_bytes", "grpc Client Response Size in bytes", "bytes")
 	grpcClientRequestDuration = stats.Int64("grpc_client_request_duration_ms", "grpc Client Request duration in ms", "ms")
 
+	// GRPCServerRequestCountView is an OpenCensus view which tracks GRPC Server requests by pomerium service, host, grpc service, grpc method, and status
 	GRPCServerRequestCountView = &view.View{
 		Name:        grpcServerRequestCount.Name(),
 		Measure:     grpcServerRequestCount,
@@ -31,6 +32,7 @@ var (
 		Aggregation: view.Count(),
 	}
 
+	// GRPCServerRequestDurationView is an OpenCensus view which tracks GRPC Server request duration by pomerium service, host, grpc service, grpc method, and statu
 	GRPCServerRequestDurationView = &view.View{
 		Name:        grpcServerRequestDuration.Name(),
 		Measure:     grpcServerRequestDuration,
@@ -45,6 +47,7 @@ var (
 		),
 	}
 
+	// GRPCServerResponseSizeView is an OpenCensus view which tracks GRPC Server request duration by pomerium service, host, grpc service, grpc method, and statu
 	GRPCServerResponseSizeView = &view.View{
 		Name:        grpcServerResponseSize.Name(),
 		Measure:     grpcServerResponseSize,
@@ -56,6 +59,7 @@ var (
 		),
 	}
 
+	// GRPCClientRequestCountView is an OpenCensus view which tracks GRPC Client requests by pomerium service, target host, grpc service, grpc method, and statu
 	GRPCClientRequestCountView = &view.View{
 		Name:        grpcClientRequestCount.Name(),
 		Measure:     grpcClientRequestCount,
@@ -63,6 +67,8 @@ var (
 		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus, keyGRPCService},
 		Aggregation: view.Count(),
 	}
+
+	// GRPCClientRequestDurationView is an OpenCensus view which tracks GRPC Client request duration by pomerium service, target host, grpc service, grpc method, and statu
 	GRPCClientRequestDurationView = &view.View{
 		Name:        grpcClientRequestDuration.Name(),
 		Measure:     grpcClientRequestDuration,
@@ -76,6 +82,8 @@ var (
 			100000,
 		),
 	}
+
+	// GRPCClientResponseSizeView  is an OpenCensus view which tracks GRPC Client response size by pomerium service, target host, grpc service, grpc method, and statu
 	GRPCClientResponseSizeView = &view.View{
 		Name:        grpcClientResponseSize.Name(),
 		Measure:     grpcClientResponseSize,
