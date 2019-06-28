@@ -13,6 +13,8 @@
 
 ### FIXED
 
+- Fixed HEADERS environment variable parsing [GH-188]
+
 ## v0.0.5
 
 ### NEW

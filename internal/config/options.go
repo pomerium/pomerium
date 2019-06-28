@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/mitchellh/hashstructure"
@@ -121,7 +122,8 @@ type Options struct {
 	SigningKey string `mapstructure:"signing_key"`
 
 	// Headers to set on all proxied requests. Add a 'disable' key map to turn off.
-	Headers map[string]string `mapstructure:"headers"`
+	HeadersEnv string
+	Headers    map[string]string
 
 	// RefreshCooldown limits the rate a user can refresh her session
 	RefreshCooldown time.Duration `mapstructure:"refresh_cooldown"`
@@ -203,6 +205,12 @@ func OptionsFromViper(configFile string) (Options, error) {
 	err = o.parsePolicy()
 	if err != nil {
 		return o, fmt.Errorf("failed to parse Policy: %s", err)
+	}
+
+	// Parse Headers
+	err = o.parseHeaders()
+	if err != nil {
+		return o, fmt.Errorf("failed to parse Headers: %s", err)
 	}
 
 	if o.Debug {
@@ -324,6 +332,39 @@ func (o *Options) parseURLs() error {
 	return nil
 }
 
+// parseHeaders handles unmarshalling any custom headers correctly from the environment or
+// viper's parsed keys
+func (o *Options) parseHeaders() error {
+	var headers map[string]string
+	if o.HeadersEnv != "" {
+
+		// Handle JSON by default via viper
+		if headers = viper.GetStringMapString("HeadersEnv"); len(headers) == 0 {
+
+			// Try to parse "Key1:Value1,Key2:Value2" syntax
+			headerSlice := strings.Split(o.HeadersEnv, ",")
+			for n := range headerSlice {
+				headerFields := strings.SplitN(headerSlice[n], ":", 2)
+				if len(headerFields) == 2 {
+					headers[headerFields[0]] = headerFields[1]
+
+				} else {
+					// Something went wrong
+					return fmt.Errorf("Failed to decode headers environment variable from '%s'", o.HeadersEnv)
+				}
+			}
+
+		}
+		o.Headers = headers
+	} else if viper.IsSet("headers") {
+		if err := viper.UnmarshalKey("headers", &headers); err != nil {
+			return err
+		}
+		o.Headers = headers
+	}
+	return nil
+}
+
 // bindEnvs makes sure viper binds to each env var based on the mapstructure tag
 func (o *Options) bindEnvs() {
 	tagName := `mapstructure`
@@ -337,6 +378,7 @@ func (o *Options) bindEnvs() {
 
 	// Statically bind fields
 	viper.BindEnv("PolicyEnv", "POLICY")
+	viper.BindEnv("HeadersEnv", "HEADERS")
 }
 
 // findPwd returns best guess at current working directory

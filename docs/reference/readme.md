@@ -410,7 +410,16 @@ Certificate Authority is set when behind-the-ingress service communication uses 
 - Environmental Variable: `HEADERS`
 - Config File Key: `headers`
 - Type: map of `strings` key value pairs
-- Example: `X-Content-Type-Options:nosniff,X-Frame-Options:SAMEORIGIN`
+- Examples: 
+    - Comma Separated: 
+        `X-Content-Type-Options:nosniff,X-Frame-Options:SAMEORIGIN`
+    - JSON: `'{"X-Test": "X-Value"}'`
+    - YAML:
+        ```yaml
+        headers:
+            X-Test: X-Value
+        ```
+
 - To disable: `disable:true`
 - Default :
 
