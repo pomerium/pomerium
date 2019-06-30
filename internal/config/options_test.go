@@ -148,8 +148,10 @@ func Test_bindEnvs(t *testing.T) {
 	os.Clearenv()
 	defer os.Unsetenv("POMERIUM_DEBUG")
 	defer os.Unsetenv("POLICY")
+	defer os.Unsetenv("HEADERS")
 	os.Setenv("POMERIUM_DEBUG", "true")
 	os.Setenv("POLICY", "mypolicy")
+	os.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
 	o.bindEnvs()
 	err := viper.Unmarshal(o)
 	if err != nil {
@@ -163,6 +165,9 @@ func Test_bindEnvs(t *testing.T) {
 	}
 	if o.PolicyEnv != "mypolicy" {
 		t.Errorf("Failed to bind policy env var to PolicyEnv")
+	}
+	if o.HeadersEnv != `{"X-Custom-1":"foo", "X-Custom-2":"bar"}` {
+		t.Errorf("Failed to bind headers env var to HeadersEnv")
 	}
 }
 
@@ -202,6 +207,43 @@ func Test_parseURLs(t *testing.T) {
 		}
 	}
 
+}
+
+func Test_parseHeaders(t *testing.T) {
+	tests := []struct {
+		name         string
+		want         map[string]string
+		envHeaders   string
+		viperHeaders interface{}
+		wantErr      bool
+	}{
+		{"good env", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`, map[string]string{"X": "foo"}, false},
+		{"good env not_json", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, `X-Custom-1:foo,X-Custom-2:bar`, map[string]string{"X": "foo"}, false},
+		{"good viper", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, "", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, false},
+		{"bad env", map[string]string{}, "xyyyy", map[string]string{"X": "foo"}, true},
+		{"bad env not_json", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, `X-Custom-1:foo,X-Custom-2bar`, map[string]string{"X": "foo"}, true},
+		{"bad viper", map[string]string{}, "", "notaheaderstruct", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := NewOptions()
+			viper.Set("headers", tt.viperHeaders)
+			viper.Set("HeadersEnv", tt.envHeaders)
+			o.HeadersEnv = tt.envHeaders
+
+			err := o.parseHeaders()
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Error condition unexpected: err=%s", err)
+			}
+
+			if !tt.wantErr && !cmp.Equal(tt.want, o.Headers) {
+				t.Errorf("Did get expected headers: %s", cmp.Diff(tt.want, o.Headers))
+			}
+
+		})
+	}
 }
 
 func Test_OptionsFromViper(t *testing.T) {
