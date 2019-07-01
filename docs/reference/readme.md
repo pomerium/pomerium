@@ -185,6 +185,9 @@ Expose a prometheus format HTTP endpoint on the specified port.  Disabled by def
 |http_client_requests_total| Counter | Total HTTP client requests made by service|
 |http_client_response_size_bytes| Histogram | HTTP client response size by service|
 |http_client_request_duration_ms| Histogram | HTTP client request duration by service|
+|grpc_client_requests_total| Counter | Total GRPC client requests made by service|
+|grpc_client_response_size_bytes| Histogram | GRPC client response size by service|
+|grpc_client_request_duration_ms| Histogram | GRPC client request duration by service|
 
 ### Policy
 

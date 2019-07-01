@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -70,43 +69,16 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			view.Unregister(views...)
-			view.Register(views...)
+			view.Unregister(HTTPServerRequestCountView, HTTPServerRequestDurationView, HTTPServerRequestSizeView)
+			view.Register(HTTPServerRequestCountView, HTTPServerRequestDurationView, HTTPServerRequestSizeView)
 
 			req := httptest.NewRequest(tt.verb, tt.url, new(bytes.Buffer))
 			rec := httptest.NewRecorder()
 			chainHandler.ServeHTTP(rec, req)
 
-			// httpResponseSize
-			data, _ := view.RetrieveData(httpServerResponseSize.Name())
-			if len(data) != 1 {
-				t.Errorf("httpServerResponseSize: received wrong number of data rows: %d", len(data))
-				return
-			}
-
-			if !strings.HasPrefix(data[0].String(), tt.wanthttpServerResponseSize) {
-				t.Errorf("httpServerResponseSize: Found unexpected data row: \nwant: %s\ngot: %s\n", tt.wanthttpServerResponseSize, data[0].String())
-			}
-
-			// httpRequestDuration
-			data, _ = view.RetrieveData(httpServerRequestDuration.Name())
-			if len(data) != 1 {
-				t.Errorf("httpServerRequestDuration: received too many data rows: %d", len(data))
-			}
-
-			if !strings.HasPrefix(data[0].String(), tt.wanthttpServerRequestDuration) {
-				t.Errorf("httpServerRequestDuration: Found unexpected data row: \nwant: %s\ngot: %s\n", tt.wanthttpServerRequestDuration, data[0].String())
-			}
-
-			// httpRequestCount
-			data, _ = view.RetrieveData(httpServerRequestCount.Name())
-			if len(data) != 1 {
-				t.Errorf("httpServerRequestCount: received too many data rows: %d", len(data))
-			}
-
-			if !strings.HasPrefix(data[0].String(), tt.wanthttpServerRequestCount) {
-				t.Errorf("httpServerRequestCount: Found unexpected data row: \nwant: %s\ngot: %s\n", tt.wanthttpServerRequestCount, data[0].String())
-			}
+			testDataRetrieval(httpServerResponseSize, t, tt.wanthttpServerResponseSize)
+			testDataRetrieval(httpServerRequestDuration, t, tt.wanthttpServerRequestDuration)
+			testDataRetrieval(httpServerRequestCount, t, tt.wanthttpServerRequestCount)
 		})
 	}
 }
@@ -171,44 +143,16 @@ func Test_HTTPMetricsRoundTripper(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			view.Unregister(views...)
-			view.Register(views...)
+			view.Unregister(HTTPClientRequestCountView, HTTPClientRequestDurationView, HTTPClientResponseSizeView)
+			view.Register(HTTPClientRequestCountView, HTTPClientRequestDurationView, HTTPClientResponseSizeView)
 
 			req, _ := http.NewRequest(tt.verb, tt.url, new(bytes.Buffer))
 			resp, err := client.Do(req)
 
 			t.Logf("response: %#v, %#v", resp, err)
-
-			// httpClientResponseSize
-			data, _ := view.RetrieveData(httpClientResponseSize.Name())
-			if len(data) != 1 {
-				t.Errorf("httpClientResponseSize: received wrong number of data rows: %d", len(data))
-				return
-			}
-
-			if !strings.HasPrefix(data[0].String(), tt.wanthttpClientResponseSize) {
-				t.Errorf("httpResponseSize: Found unexpected data row: \nwant: %s\ngot: %s\n", tt.wanthttpClientResponseSize, data[0].String())
-			}
-
-			// httpClientRequestDuration
-			data, _ = view.RetrieveData(httpClientRequestDuration.Name())
-			if len(data) != 1 {
-				t.Errorf("httpClientRequestDuration: received too many data rows: %d", len(data))
-			}
-
-			if !strings.HasPrefix(data[0].String(), tt.wanthttpClientRequestDuration) {
-				t.Errorf("httpClientRequestDuration: Found unexpected data row: \nwant: %s\ngot: %s\n", tt.wanthttpClientRequestDuration, data[0].String())
-			}
-
-			// httpClientRequestCount
-			data, _ = view.RetrieveData(httpClientRequestCount.Name())
-			if len(data) != 1 {
-				t.Errorf("httpRequestCount: received too many data rows: %d", len(data))
-			}
-
-			if !strings.HasPrefix(data[0].String(), tt.wanthttpClientRequestCount) {
-				t.Errorf("httpRequestCount: Found unexpected data row: \nwant: %s\ngot: %s\n", tt.wanthttpClientRequestCount, data[0].String())
-			}
+			testDataRetrieval(httpClientResponseSize, t, tt.wanthttpClientResponseSize)
+			testDataRetrieval(httpClientRequestDuration, t, tt.wanthttpClientRequestDuration)
+			testDataRetrieval(httpClientRequestCount, t, tt.wanthttpClientRequestCount)
 		})
 	}
 
