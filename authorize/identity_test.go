@@ -50,6 +50,7 @@ func Test_IdentityWhitelistMap(t *testing.T) {
 		{"valid user email", []policy.Policy{{From: "example.com", AllowedEmails: []string{"user@example.com"}}}, "example.com", &Identity{Email: "user@example.com"}, nil, true},
 		{"invalid user email", []policy.Policy{{From: "example.com", AllowedEmails: []string{"user@example.com"}}}, "example.com", &Identity{Email: "user2@example.com"}, nil, false},
 		{"empty everything", []policy.Policy{{From: "example.com"}}, "example.com", &Identity{Email: "user2@example.com"}, nil, false},
+		{"empty policy", []policy.Policy{}, "example.com", &Identity{Email: "user@example.com"}, nil, false},
 		// impersonation related
 		{"admin not impersonating allowed", []policy.Policy{{From: "example.com", AllowedDomains: []string{"example.com"}}}, "example.com", &Identity{Email: "admin@example.com"}, []string{"admin@example.com"}, true},
 		{"admin not impersonating denied", []policy.Policy{{From: "example.com", AllowedDomains: []string{"example.com"}}}, "example.com", &Identity{Email: "admin@admin-domain.com"}, []string{"admin@admin-domain.com"}, false},

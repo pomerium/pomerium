@@ -242,6 +242,7 @@ func TestProxy_router(t *testing.T) {
 		{"good with slash", "https://corp.example.com/", policies, nil, true},
 		{"good with path", "https://corp.example.com/123", policies, nil, true},
 		// {"multiple", "https://corp.example.com/", map[string]string{"corp.unrelated.com": "unrelated.com", "corp.example.com": "example.com"}, nil, true},
+		{"no policies", "https://notcorp.example.com/123", []policy.Policy{}, nil, false},
 		{"bad corp", "https://notcorp.example.com/123", policies, nil, false},
 		{"bad sub-sub", "https://notcorp.corp.example.com/123", policies, nil, false},
 	}
@@ -280,6 +281,7 @@ func TestProxy_Proxy(t *testing.T) {
 	opts, optsWs := testOptionsTestServer(ts.URL), testOptionsTestServer(ts.URL)
 	optsCORS := testOptionsWithCORS(ts.URL)
 	optsPublic := testOptionsWithPublicAccess(ts.URL)
+	optsNoPolicies := testOptionsWithEmptyPolicies(ts.URL)
 	optsWs.AllowWebsockets = true
 
 	defaultHeaders, goodCORSHeaders, badCORSHeaders, headersWs := http.Header{}, http.Header{}, http.Header{}, http.Header{}
@@ -327,6 +329,7 @@ func TestProxy_Proxy(t *testing.T) {
 		{"ws supported, ws connection", optsWs, http.MethodGet, headersWs, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
 		{"ws supported, http connection", optsWs, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
 		{"ws unsupported, ws connection", opts, http.MethodGet, headersWs, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest},
+		{"No policies", optsNoPolicies, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusNotFound},
 	}
 
 	for _, tt := range tests {

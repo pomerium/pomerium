@@ -149,6 +149,12 @@ func testOptionsWithPublicAccessAndWhitelist(uri string) config.Options {
 	return opts
 }
 
+func testOptionsWithEmptyPolicies(uri string) config.Options {
+	opts := testOptionsTestServer(uri)
+	opts.Policies = []policy.Policy{}
+	return opts
+}
+
 func TestOptions_Validate(t *testing.T) {
 	good := testOptions()
 	badAuthURL := testOptions()
@@ -191,7 +197,7 @@ func TestOptions_Validate(t *testing.T) {
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},
 		{"invalid signing key", invalidSignKey, true},
-		{"missing policy", missingPolicy, true},
+		{"missing policy", missingPolicy, false},
 		{"shared secret bad base64", sharedKeyBadBas64, true},
 	}
 	for _, tt := range tests {
