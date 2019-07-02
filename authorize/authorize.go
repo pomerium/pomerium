@@ -2,7 +2,6 @@ package authorize // import "github.com/pomerium/pomerium/authorize"
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -21,9 +20,6 @@ func ValidateOptions(o config.Options) error {
 	}
 	if len(decoded) != 32 {
 		return fmt.Errorf("authorize: `SHARED_SECRET` want 32 but got %d bytes", len(decoded))
-	}
-	if len(o.Policies) == 0 {
-		return errors.New("missing setting: no policies defined")
 	}
 
 	return nil

@@ -10,6 +10,7 @@
 ### CHANGED
 
 - Proxy's sign out handler `{}/.pomerium/sign_out` now accepts an optional `redirect_uri` parameter which can be used to specify a custom redirect page, so long as it is under the same top-level domain. [GH-183]
+- Policy configuration can now be empty at startup [GH-190]
 
 ### FIXED
 

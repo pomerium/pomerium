@@ -44,9 +44,6 @@ func ValidateOptions(o config.Options) error {
 	if len(decoded) != 32 {
 		return fmt.Errorf("`SHARED_SECRET` want 32 but got %d bytes", len(decoded))
 	}
-	if len(o.Policies) == 0 {
-		return errors.New("missing setting: no policies defined")
-	}
 	if o.AuthenticateURL.String() == "" {
 		return errors.New("missing setting: authenticate-service-url")
 	}
@@ -182,6 +179,13 @@ func New(opts config.Options) (*Proxy, error) {
 // UpdatePolicies updates the handlers based on the configured policies
 func (p *Proxy) UpdatePolicies(opts config.Options) error {
 	routeConfigs := make(map[string]*routeConfig)
+
+	policyCount := len(opts.Policies)
+	if policyCount == 0 {
+		log.Warn().Msg("proxy: loaded configuration with no policies specified")
+	}
+	log.Info().Int("policy-count", policyCount).Msg("proxy: updated policies")
+
 	for _, route := range opts.Policies {
 		proxy := NewReverseProxy(route.Destination)
 		handler, err := NewReverseProxyHandler(opts, proxy, &route)

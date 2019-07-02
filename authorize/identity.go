@@ -56,6 +56,13 @@ type whitelist struct {
 // newIdentityWhitelistMap takes a slice of policies and creates a hashmap of identity
 // authorizations per-route for each allowed group, domain, and email.
 func newIdentityWhitelistMap(policies []policy.Policy, admins []string) *whitelist {
+
+	policyCount := len(policies)
+	if policyCount == 0 {
+		log.Warn().Msg("authorize: loaded configuration with no policies specified")
+	}
+	log.Info().Int("policy-count", policyCount).Msg("authorize: updated policies")
+
 	var wl whitelist
 	wl.access = make(map[string]bool, len(policies)*3)
 	for _, p := range policies {

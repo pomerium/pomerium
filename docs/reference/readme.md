@@ -194,7 +194,8 @@ Expose a prometheus format HTTP endpoint on the specified port.  Disabled by def
 - Environmental Variable: `POLICY`
 - Config File Key: `policy`
 - Type: [base64 encoded] `string` or inline policy structure in config file
-- Required
+- Required 
+    - Required to forward traffic.  Pomerium will safely start without a policy configured, but will be unable to authorize or proxy traffic until the configuration is updated to contain a policy.
 
 Policy contains route specific settings, and access control details. If you are configuring via POLICY environment variable, just the contents of the policy needs to be passed. If you are configuring via file, the policy should be present under the policy key. For example,
 
