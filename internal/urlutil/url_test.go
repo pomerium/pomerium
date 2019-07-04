@@ -1,6 +1,11 @@
-package urlutil // import "github.com/pomerium/pomerium/internal/urlutil"
+package urlutil
 
-import "testing"
+import (
+	"net/url"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+)
 
 func Test_StripPort(t *testing.T) {
 	t.Parallel()
@@ -23,6 +28,33 @@ func Test_StripPort(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := StripPort(tt.hostport); got != tt.want {
 				t.Errorf("StripPort() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseAndValidateURL(t *testing.T) {
+
+	tests := []struct {
+		name    string
+		rawurl  string
+		want    *url.URL
+		wantErr bool
+	}{
+		{"good", "https://some.example", &url.URL{Scheme: "https", Host: "some.example"}, false},
+		{"bad schema", "//some.example", nil, true},
+		{"bad hostname", "https://", nil, true},
+		{"bad parse", "https://^", nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseAndValidateURL(tt.rawurl)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseAndValidateURL() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if diff := cmp.Diff(got, tt.want); diff != "" {
+				t.Errorf("TestParseAndValidateURL() = %s", diff)
 			}
 		})
 	}

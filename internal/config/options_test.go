@@ -6,18 +6,16 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/pomerium/pomerium/internal/policy"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/viper"
 )
 
 func Test_validate(t *testing.T) {
-
 	testOptions := func() Options {
-		o := NewOptions()
+		o := defaultOptions
 		o.SharedKey = "test"
 		o.Services = "all"
 		return o
@@ -27,8 +25,10 @@ func Test_validate(t *testing.T) {
 	badServices.Services = "blue"
 	badSecret := testOptions()
 	badSecret.SharedKey = ""
-	badRoutes := testOptions()
-	badRoutes.Routes = map[string]string{"foo": "bar"}
+	badSecret.Services = "authenticate"
+	badSecretAllServices := testOptions()
+	badSecretAllServices.SharedKey = ""
+
 	badPolicyFile := testOptions()
 	badPolicyFile.PolicyFile = "file"
 
@@ -40,104 +40,15 @@ func Test_validate(t *testing.T) {
 		{"good default with no env settings", good, false},
 		{"invalid service type", badServices, true},
 		{"missing shared secret", badSecret, true},
-		{"routes present", badRoutes, true},
+		{"missing shared secret but all service", badSecretAllServices, false},
 		{"policy file specified", badPolicyFile, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.testOpts.validate()
+			err := tt.testOpts.Validate()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("optionsFromEnvConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
-			}
-		})
-	}
-}
-
-func Test_isValidService(t *testing.T) {
-	tests := []struct {
-		name    string
-		service string
-		want    bool
-	}{
-		{"proxy", "proxy", true},
-		{"all", "all", true},
-		{"authenticate", "authenticate", true},
-		{"authenticate bad case", "AuThenticate", false},
-		{"authorize implemented", "authorize", true},
-		{"jiberish", "xd23", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := IsValidService(tt.service); got != tt.want {
-				t.Errorf("isValidService() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_isAuthenticate(t *testing.T) {
-	tests := []struct {
-		name    string
-		service string
-		want    bool
-	}{
-		{"proxy", "proxy", false},
-		{"all", "all", true},
-		{"authenticate", "authenticate", true},
-		{"authenticate bad case", "AuThenticate", false},
-		{"authorize implemented", "authorize", false},
-		{"jiberish", "xd23", false},
-	}
-	for _, tt := range tests {
-
-		t.Run(tt.name, func(t *testing.T) {
-			if got := IsAuthenticate(tt.service); got != tt.want {
-				t.Errorf("isAuthenticate() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_isAuthorize(t *testing.T) {
-	tests := []struct {
-		name    string
-		service string
-		want    bool
-	}{
-		{"proxy", "proxy", false},
-		{"all", "all", true},
-		{"authorize", "authorize", true},
-		{"authorize bad case", "AuThorize", false},
-		{"authenticate implemented", "authenticate", false},
-		{"jiberish", "xd23", false},
-	}
-	for _, tt := range tests {
-
-		t.Run(tt.name, func(t *testing.T) {
-			if got := IsAuthorize(tt.service); got != tt.want {
-				t.Errorf("isAuthenticate() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-func Test_IsProxy(t *testing.T) {
-	tests := []struct {
-		name    string
-		service string
-		want    bool
-	}{
-		{"proxy", "proxy", true},
-		{"all", "all", true},
-		{"authorize", "authorize", false},
-		{"proxy bad case", "PrOxY", false},
-		{"jiberish", "xd23", false},
-	}
-	for _, tt := range tests {
-
-		t.Run(tt.name, func(t *testing.T) {
-			if got := IsProxy(tt.service); got != tt.want {
-				t.Errorf("IsProxy() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -171,44 +82,6 @@ func Test_bindEnvs(t *testing.T) {
 	}
 }
 
-func Test_parseURLs(t *testing.T) {
-	tests := []struct {
-		name                    string
-		authorizeURL            string
-		authenticateURL         string
-		authenticateInternalURL string
-		wantErr                 bool
-	}{
-		{"good", "https://authz.mydomain.example", "https://authn.mydomain.example", "https://internal.svc.local", false},
-		{"bad not https scheme", "http://authz.mydomain.example", "http://authn.mydomain.example", "http://internal.svc.local", true},
-		{"missing scheme", "authz.mydomain.example", "authn.mydomain.example", "internal.svc.local", true},
-		{"bad authorize", "notaurl", "https://authn.mydomain.example", "", true},
-		{"bad authenticate", "https://authz.mydomain.example", "notaurl", "", true},
-		{"bad authenticate internal", "", "", "just.some.naked.domain.example", true},
-		{"only authn", "", "https://authn.mydomain.example", "", false},
-		{"only authz", "https://authz.mydomain.example", "", "", false},
-		{"malformed", "http://a b.com/", "", "", true},
-	}
-	for _, test := range tests {
-		o := &Options{
-			AuthenticateURLString:          test.authenticateURL,
-			AuthorizeURLString:             test.authorizeURL,
-			AuthenticateInternalAddrString: test.authenticateInternalURL,
-		}
-		err := o.parseURLs()
-		if (err != nil) != test.wantErr {
-			t.Errorf("Failed to parse URLs %v: %s", test, err)
-		}
-		if err == nil && o.AuthenticateURL.String() != test.authenticateURL {
-			t.Errorf("Failed to update AuthenticateURL: %v", test)
-		}
-		if err == nil && o.AuthorizeURL.String() != test.authorizeURL {
-			t.Errorf("Failed to update AuthorizeURL: %v", test)
-		}
-	}
-
-}
-
 func Test_parseHeaders(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -219,15 +92,15 @@ func Test_parseHeaders(t *testing.T) {
 	}{
 		{"good env", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`, map[string]string{"X": "foo"}, false},
 		{"good env not_json", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, `X-Custom-1:foo,X-Custom-2:bar`, map[string]string{"X": "foo"}, false},
-		{"good viper", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, "", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, false},
 		{"bad env", map[string]string{}, "xyyyy", map[string]string{"X": "foo"}, true},
 		{"bad env not_json", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, `X-Custom-1:foo,X-Custom-2bar`, map[string]string{"X": "foo"}, true},
 		{"bad viper", map[string]string{}, "", "notaheaderstruct", true},
+		{"good viper", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, "", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := NewOptions()
+			o := defaultOptions
 			viper.Set("headers", tt.viperHeaders)
 			viper.Set("HeadersEnv", tt.envHeaders)
 			o.HeadersEnv = tt.envHeaders
@@ -241,23 +114,28 @@ func Test_parseHeaders(t *testing.T) {
 			if !tt.wantErr && !cmp.Equal(tt.want, o.Headers) {
 				t.Errorf("Did get expected headers: %s", cmp.Diff(tt.want, o.Headers))
 			}
-
+			viper.Reset()
 		})
 	}
+
 }
 
 func Test_OptionsFromViper(t *testing.T) {
-	testPolicy := policy.Policy{
+	viper.Reset()
+
+	testPolicy := Policy{
 		To:   "https://httpbin.org",
 		From: "https://pomerium.io",
 	}
-	testPolicy.Validate()
-	testPolicies := []policy.Policy{
+	if err := testPolicy.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	testPolicies := []Policy{
 		testPolicy,
 	}
 
 	goodConfigBytes := []byte(`{"authorize_service_url":"https://authorize.corp.example","authenticate_service_url":"https://authenticate.corp.example","shared_secret":"Setec Astronomy","service":"all","policy":[{"from":"https://pomerium.io","to":"https://httpbin.org"}]}`)
-	goodOptions := NewOptions()
+	goodOptions := defaultOptions
 	goodOptions.SharedKey = "Setec Astronomy"
 	goodOptions.Services = "all"
 	goodOptions.Policies = testPolicies
@@ -272,21 +150,23 @@ func Test_OptionsFromViper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	goodOptions.AuthorizeURL = *authorize
-	goodOptions.AuthenticateURL = *authenticate
-
+	goodOptions.AuthorizeURL = authorize
+	goodOptions.AuthenticateURL = authenticate
+	if err := goodOptions.Validate(); err != nil {
+		t.Fatal(err)
+	}
 	badConfigBytes := []byte("badjson!")
 	badUnmarshalConfigBytes := []byte(`"debug": "blue"`)
 
 	tests := []struct {
 		name        string
 		configBytes []byte
-		want        Options
+		want        *Options
 		wantErr     bool
 	}{
-		{"good", goodConfigBytes, goodOptions, false},
-		{"bad json", badConfigBytes, NewOptions(), true},
-		{"bad unmarshal", badUnmarshalConfigBytes, NewOptions(), true},
+		{"good", goodConfigBytes, &goodOptions, false},
+		{"bad json", badConfigBytes, nil, true},
+		{"bad unmarshal", badUnmarshalConfigBytes, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -302,8 +182,13 @@ func Test_OptionsFromViper(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("OptionsFromViper() error = \n%v, wantErr \n%v", err, tt.wantErr)
 			}
+			if tt.want != nil {
+				if err := tt.want.Validate(); err != nil {
+					t.Fatal(err)
+				}
+			}
 			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("OptionsFromViper() = \n%s\n, \ngot\n%v\n, want \n%v", diff, got, tt.want)
+				t.Errorf("OptionsFromViper() = \n%s\n, \ngot\n%+v\n, want \n%+v", diff, got, tt.want)
 			}
 
 		})
@@ -318,6 +203,8 @@ func Test_OptionsFromViper(t *testing.T) {
 
 func Test_parsePolicyEnv(t *testing.T) {
 	t.Parallel()
+	viper.Reset()
+
 	source := "https://pomerium.io"
 	sourceURL, _ := url.ParseRequestURI(source)
 	dest := "https://httpbin.org"
@@ -326,12 +213,12 @@ func Test_parsePolicyEnv(t *testing.T) {
 	tests := []struct {
 		name        string
 		policyBytes []byte
-		want        []policy.Policy
+		want        []Policy
 		wantErr     bool
 	}{
-		{"simple json", []byte(fmt.Sprintf(`[{"from": "%s","to":"%s"}]`, source, dest)), []policy.Policy{{From: source, To: dest, Source: sourceURL, Destination: destURL}}, false},
-		{"bad from", []byte(`[{"from": "%","to":"httpbin.org"}]`), nil, true},
-		{"bad to", []byte(`[{"from": "pomerium.io","to":"%"}]`), nil, true},
+		{"simple json", []byte(fmt.Sprintf(`[{"from": "%s","to":"%s"}]`, source, dest)), []Policy{{From: source, To: dest, Source: sourceURL, Destination: destURL}}, false},
+		{"bad from", []byte(`[{"from": "%","to":"httpbin.org"}]`), []Policy{{From: "%", To: "httpbin.org"}}, true},
+		{"bad to", []byte(`[{"from": "pomerium.io","to":"%"}]`), []Policy{{From: "pomerium.io", To: "%"}}, true},
 		{"simple error", []byte(`{}`), nil, true},
 	}
 	for _, tt := range tests {
@@ -341,11 +228,11 @@ func Test_parsePolicyEnv(t *testing.T) {
 			o.PolicyEnv = base64.StdEncoding.EncodeToString(tt.policyBytes)
 			err := o.parsePolicy()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parasePolicy() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("parsePolicyEnv() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(o.Policies, tt.want) {
-				t.Errorf("parasePolicy() = \n%v, want \n%v", o, tt.want)
+			if diff := cmp.Diff(o.Policies, tt.want); diff != "" {
+				t.Errorf("parsePolicyEnv() = %s", diff)
 			}
 		})
 	}
@@ -355,11 +242,12 @@ func Test_parsePolicyEnv(t *testing.T) {
 	o.PolicyEnv = "foo"
 	err := o.parsePolicy()
 	if err == nil {
-		t.Errorf("parasePolicy() did not catch bad base64 %v", o)
+		t.Errorf("parsePolicyEnv() did not catch bad base64 %v", o)
 	}
 }
 
 func Test_parsePolicyFile(t *testing.T) {
+	viper.Reset()
 	source := "https://pomerium.io"
 	sourceURL, _ := url.ParseRequestURI(source)
 	dest := "https://httpbin.org"
@@ -368,38 +256,41 @@ func Test_parsePolicyFile(t *testing.T) {
 	tests := []struct {
 		name        string
 		policyBytes []byte
-		want        []policy.Policy
+		want        []Policy
 		wantErr     bool
 	}{
-		{"simple json", []byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, dest)), []policy.Policy{{From: source, To: dest, Source: sourceURL, Destination: destURL}}, false},
+		{"simple json", []byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, dest)), []Policy{{From: source, To: dest, Source: sourceURL, Destination: destURL}}, false},
 		{"bad from", []byte(`{"policy":[{"from": "%","to":"httpbin.org"}]}`), nil, true},
 		{"bad to", []byte(`{"policy":[{"from": "pomerium.io","to":"%"}]}`), nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := new(Options)
-
 			tempFile, _ := ioutil.TempFile("", "*.json")
 			defer tempFile.Close()
 			defer os.Remove(tempFile.Name())
 			tempFile.Write(tt.policyBytes)
-			o = new(Options)
+			o := new(Options)
 			viper.SetConfigFile(tempFile.Name())
-			err := viper.ReadInConfig()
-			err = o.parsePolicy()
+			if err := viper.ReadInConfig(); err != nil {
+				t.Fatal(err)
+			}
+			err := o.parsePolicy()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parasePolicy() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("parsePolicyEnv() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(o.Policies, tt.want) {
-				t.Errorf("parasePolicy() = \n%v, want \n%v", o, tt.want)
+			if err == nil {
+				if diff := cmp.Diff(o.Policies, tt.want); diff != "" {
+					t.Errorf("parsePolicyEnv() = diff:%s", diff)
+				}
 			}
+
 		})
 	}
 }
 
 func Test_Checksum(t *testing.T) {
-	o := NewOptions()
+	o := defaultOptions
 
 	oldChecksum := o.Checksum()
 	o.SharedKey = "changemeplease"
@@ -415,5 +306,105 @@ func Test_Checksum(t *testing.T) {
 
 	if o.Checksum() != o.Checksum() {
 		t.Error("Checksum() inconsistent")
+	}
+}
+
+func TestNewOptions(t *testing.T) {
+	viper.Reset()
+	tests := []struct {
+		name            string
+		authenticateURL string
+		authorizeURL    string
+		want            *Options
+		wantErr         bool
+	}{
+		{"good", "https://authenticate.example", "https://authorize.example", nil, false},
+		{"bad authenticate url no scheme", "authenticate.example", "https://authorize.example", nil, true},
+		{"bad authenticate url no host", "https://", "https://authorize.example", nil, true},
+		{"bad authorize url no scheme", "https://authenticate.example", "authorize.example", nil, true},
+		{"bad authorize url no host", "https://authenticate.example", "https://", nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewOptions(tt.authenticateURL, tt.authorizeURL)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewOptions() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
+}
+
+func TestOptionsFromViper(t *testing.T) {
+	opts := []cmp.Option{
+		cmpopts.IgnoreFields(Options{}, "AuthenticateInternalAddr", "DefaultUpstreamTimeout", "CookieRefresh", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "ReadHeaderTimeout", "IdleTimeout"),
+		cmpopts.IgnoreFields(Policy{}, "Source", "Destination"),
+	}
+
+	tests := []struct {
+		name        string
+		configBytes []byte
+		want        *Options
+		wantErr     bool
+	}{
+		{"good",
+			[]byte(`{"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			&Options{
+				Policies:       []Policy{{From: "https://from.example", To: "https://to.example"}},
+				CookieName:     "_pomerium",
+				CookieSecure:   true,
+				CookieHTTPOnly: true,
+				Headers: map[string]string{
+					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+					"X-Content-Type-Options":    "nosniff",
+					"X-Frame-Options":           "SAMEORIGIN",
+					"X-XSS-Protection":          "1; mode=block",
+				}},
+			false},
+		{"good with authenticate internal url",
+			[]byte(`{"authenticate_internal_url": "https://internal.example","policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			&Options{
+				AuthenticateInternalAddrString: "https://internal.example",
+				Policies:                       []Policy{{From: "https://from.example", To: "https://to.example"}},
+				CookieName:                     "_pomerium",
+				CookieSecure:                   true,
+				CookieHTTPOnly:                 true,
+				Headers: map[string]string{
+					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+					"X-Content-Type-Options":    "nosniff",
+					"X-Frame-Options":           "SAMEORIGIN",
+					"X-XSS-Protection":          "1; mode=block",
+				}},
+			false},
+		{"good disable header",
+			[]byte(`{"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			&Options{
+				Policies:       []Policy{{From: "https://from.example", To: "https://to.example"}},
+				CookieName:     "_pomerium",
+				CookieSecure:   true,
+				CookieHTTPOnly: true,
+				Headers:        map[string]string{}},
+			false},
+		{"bad  authenticate internal url", []byte(`{"authenticate_internal_url": "internal.example","policy":[{"from": "https://from.example","to":"https://to.example"}]}`), nil, true},
+		{"bad url", []byte(`{"policy":[{"from": "https://","to":"https://to.example"}]}`), nil, true},
+		{"bad policy", []byte(`{"policy":[{"allow_public_unauthenticated_access": "dog","to":"https://to.example"}]}`), nil, true},
+
+		{"bad file", []byte(`{''''}`), nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempFile, _ := ioutil.TempFile("", "*.json")
+			defer tempFile.Close()
+			defer os.Remove(tempFile.Name())
+			tempFile.Write(tt.configBytes)
+			got, err := OptionsFromViper(tempFile.Name())
+			if (err != nil) != tt.wantErr {
+				t.Errorf("OptionsFromViper() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if diff := cmp.Diff(got, tt.want, opts...); diff != "" {
+				t.Errorf("NewOptions() = %s", diff)
+			}
+		})
 	}
 }

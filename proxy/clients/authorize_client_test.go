@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/proto/authorize"
 	mock "github.com/pomerium/pomerium/proto/authorize/mock_authorize"

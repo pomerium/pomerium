@@ -1,6 +1,8 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -9,14 +11,13 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/metrics"
-	"github.com/pomerium/pomerium/internal/policy"
+	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
 	"github.com/pomerium/pomerium/internal/tripper"
@@ -44,13 +45,13 @@ func ValidateOptions(o config.Options) error {
 	if len(decoded) != 32 {
 		return fmt.Errorf("`SHARED_SECRET` want 32 but got %d bytes", len(decoded))
 	}
-	if o.AuthenticateURL.String() == "" {
+	if o.AuthenticateURL == nil || o.AuthenticateURL.String() == "" {
 		return errors.New("missing setting: authenticate-service-url")
 	}
 	if o.AuthenticateURL.Scheme != "https" {
 		return errors.New("authenticate-service-url must be a valid https url")
 	}
-	if o.AuthorizeURL.String() == "" {
+	if o.AuthorizeURL == nil || o.AuthorizeURL.String() == "" {
 		return errors.New("missing setting: authorize-service-url")
 	}
 	if o.AuthorizeURL.Scheme != "https" {
@@ -67,9 +68,13 @@ func ValidateOptions(o config.Options) error {
 		return fmt.Errorf("cookie secret expects 32 bytes but got %d", len(decodedCookieSecret))
 	}
 	if len(o.SigningKey) != 0 {
-		_, err := base64.StdEncoding.DecodeString(o.SigningKey)
+		decodedSigningKey, err := base64.StdEncoding.DecodeString(o.SigningKey)
 		if err != nil {
 			return fmt.Errorf("signing key is invalid base64: %v", err)
+		}
+		_, err = cryptutil.NewES256Signer(decodedSigningKey, "localhost")
+		if err != nil {
+			return fmt.Errorf("invalid signing key is : %v", err)
 		}
 	}
 	return nil
@@ -77,30 +82,28 @@ func ValidateOptions(o config.Options) error {
 
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
-	SharedKey string
-
-	// authenticate service
+	// SharedKey used to mutually authenticate service communication
+	SharedKey          string
 	AuthenticateURL    *url.URL
 	AuthenticateClient clients.Authenticator
+	AuthorizeClient    clients.Authorizer
 
-	// authorize service
-	AuthorizeClient clients.Authorizer
-
-	// session
-	cipher       cryptutil.Cipher
-	csrfStore    sessions.CSRFStore
-	sessionStore sessions.SessionStore
-	restStore    sessions.SessionStore
-
-	redirectURL     *url.URL
-	templates       *template.Template
-	routeConfigs    map[string]*routeConfig
-	refreshCooldown time.Duration
+	cipher                 cryptutil.Cipher
+	cookieName             string
+	csrfStore              sessions.CSRFStore
+	defaultUpstreamTimeout time.Duration
+	redirectURL            *url.URL
+	refreshCooldown        time.Duration
+	restStore              sessions.SessionStore
+	routeConfigs           map[string]*routeConfig
+	sessionStore           sessions.SessionStore
+	signingKey             string
+	templates              *template.Template
 }
 
 type routeConfig struct {
 	mux    http.Handler
-	policy policy.Policy
+	policy config.Policy
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -134,29 +137,32 @@ func New(opts config.Options) (*Proxy, error) {
 		return nil, err
 	}
 	p := &Proxy{
+		SharedKey: opts.SharedKey,
+
 		routeConfigs: make(map[string]*routeConfig),
 		// services
-		AuthenticateURL: &opts.AuthenticateURL,
-		// session state
-		cipher:          cipher,
-		csrfStore:       cookieStore,
-		sessionStore:    cookieStore,
-		restStore:       restStore,
-		SharedKey:       opts.SharedKey,
-		redirectURL:     &url.URL{Path: "/.pomerium/callback"},
-		templates:       templates.New(),
-		refreshCooldown: opts.RefreshCooldown,
+		AuthenticateURL: opts.AuthenticateURL,
+
+		cipher:                 cipher,
+		cookieName:             opts.CookieName,
+		csrfStore:              cookieStore,
+		defaultUpstreamTimeout: opts.DefaultUpstreamTimeout,
+		redirectURL:            &url.URL{Path: "/.pomerium/callback"},
+		refreshCooldown:        opts.RefreshCooldown,
+		restStore:              restStore,
+		sessionStore:           cookieStore,
+		signingKey:             opts.SigningKey,
+		templates:              templates.New(),
 	}
 
-	err = p.UpdatePolicies(opts)
-	if err != nil {
+	if err := p.UpdatePolicies(&opts); err != nil {
 		return nil, err
 	}
 
 	p.AuthenticateClient, err = clients.NewAuthenticateClient("grpc",
 		&clients.Options{
-			Addr:                    opts.AuthenticateURL.Host,
-			InternalAddr:            opts.AuthenticateInternalAddr.Host,
+			Addr:                    opts.AuthenticateURL,
+			InternalAddr:            opts.AuthenticateInternalAddr,
 			OverrideCertificateName: opts.OverrideCertificateName,
 			SharedSecret:            opts.SharedKey,
 			CA:                      opts.CA,
@@ -167,7 +173,7 @@ func New(opts config.Options) (*Proxy, error) {
 	}
 	p.AuthorizeClient, err = clients.NewAuthorizeClient("grpc",
 		&clients.Options{
-			Addr:                    opts.AuthorizeURL.Host,
+			Addr:                    opts.AuthorizeURL,
 			OverrideCertificateName: opts.OverrideCertificateName,
 			SharedSecret:            opts.SharedKey,
 			CA:                      opts.CA,
@@ -177,26 +183,44 @@ func New(opts config.Options) (*Proxy, error) {
 }
 
 // UpdatePolicies updates the handlers based on the configured policies
-func (p *Proxy) UpdatePolicies(opts config.Options) error {
-	routeConfigs := make(map[string]*routeConfig)
-
-	policyCount := len(opts.Policies)
-	if policyCount == 0 {
-		log.Warn().Msg("proxy: loaded configuration with no policies specified")
+func (p *Proxy) UpdatePolicies(opts *config.Options) error {
+	routeConfigs := make(map[string]*routeConfig, len(opts.Policies))
+	if len(opts.Policies) == 0 {
+		log.Warn().Msg("proxy: configuration has no policies")
 	}
-	log.Info().Int("policy-count", policyCount).Msg("proxy: updated policies")
+	for _, policy := range opts.Policies {
+		if err := policy.Validate(); err != nil {
+			return fmt.Errorf("proxy: couldn't update policies %s", err)
+		}
+		proxy := NewReverseProxy(policy.Destination)
+		// build http transport (roundtripper) middleware chain
+		// todo(bdd): this will make vet complain, it is safe
+		// and can be replaced with transport.Clone() in go 1.13
+		// https://go-review.googlesource.com/c/go/+/174597/
+		// https://github.com/golang/go/issues/26013#issuecomment-399481302
+		transport := *(http.DefaultTransport.(*http.Transport))
+		c := tripper.NewChain()
+		c = c.Append(metrics.HTTPMetricsRoundTripper("proxy"))
+		if policy.TLSSkipVerify {
+			transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		}
+		if policy.TLSCustomCA != "" {
+			rootCA, err := p.customCAPool(policy.TLSCustomCA)
+			if err != nil {
+				return fmt.Errorf("proxy: couldn't add custom ca to policy %s", policy.From)
+			}
+			transport.TLSClientConfig = &tls.Config{RootCAs: rootCA}
+		}
+		proxy.Transport = c.Then(&transport)
 
-	for _, route := range opts.Policies {
-		proxy := NewReverseProxy(route.Destination)
-		handler, err := NewReverseProxyHandler(opts, proxy, &route)
+		handler, err := p.newReverseProxyHandler(proxy, &policy)
 		if err != nil {
 			return err
 		}
-		routeConfigs[route.Source.Host] = &routeConfig{
+		routeConfigs[policy.Source.Host] = &routeConfig{
 			mux:    handler,
-			policy: route,
+			policy: policy,
 		}
-		log.Info().Str("src", route.Source.Host).Str("dst", route.Destination.Host).Msg("proxy: new route")
 	}
 	p.routeConfigs = routeConfigs
 	return nil
@@ -204,40 +228,12 @@ func (p *Proxy) UpdatePolicies(opts config.Options) error {
 
 // UpstreamProxy stores information for proxying the request to the upstream.
 type UpstreamProxy struct {
-	name       string
-	cookieName string
-	handler    http.Handler
-	signer     cryptutil.JWTSigner
+	name    string
+	handler http.Handler
 }
 
-// deleteUpstreamCookies deletes the session cookie from the request header string.
-func deleteUpstreamCookies(req *http.Request, cookieName string) {
-	headers := []string{}
-	for _, cookie := range req.Cookies() {
-		if cookie.Name != cookieName {
-			headers = append(headers, cookie.String())
-		}
-	}
-	req.Header.Set("Cookie", strings.Join(headers, ";"))
-}
-
-func (u *UpstreamProxy) signRequest(r *http.Request) {
-	if u.signer != nil {
-		jwt, err := u.signer.SignJWT(
-			r.Header.Get(HeaderUserID),
-			r.Header.Get(HeaderEmail),
-			r.Header.Get(HeaderGroups))
-		if err == nil {
-			r.Header.Set(HeaderJWT, jwt)
-		}
-	}
-}
-
-// ServeHTTP signs the http request and deletes cookie headers
-// before calling the upstream's ServeHTTP function.
+// ServeHTTP handles the second (reverse-proxying) leg of pomerium's request flow
 func (u *UpstreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	deleteUpstreamCookies(r, u.cookieName)
-	u.signRequest(r)
 	u.handler.ServeHTTP(w, r)
 }
 
@@ -247,8 +243,6 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(to)
 	sublogger := log.With().Str("proxy", to.Host).Logger()
 	proxy.ErrorLog = stdlog.New(&log.StdLogWrapper{Logger: &sublogger}, "", 0)
-	// todo(bdd): default is already http.DefaultTransport)
-	// proxy.Transport = defaultUpstreamTransport
 	director := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		// Identifies the originating IP addresses of a client connecting to
@@ -257,51 +251,62 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 		director(req)
 		req.Host = to.Host
 	}
-
-	chain := tripper.NewChain().Append(metrics.HTTPMetricsRoundTripper("proxy"))
-	proxy.Transport = chain.Then(nil)
 	return proxy
 }
 
-// NewReverseProxyHandler applies handler specific options to a given route.
-func NewReverseProxyHandler(o config.Options, proxy *httputil.ReverseProxy, route *policy.Policy) (http.Handler, error) {
-	up := &UpstreamProxy{
-		name:       route.Destination.Host,
-		handler:    proxy,
-		cookieName: o.CookieName,
+// newRouteSigner creates a route specific signer.
+func (p *Proxy) newRouteSigner(audience string) (cryptutil.JWTSigner, error) {
+	decodedSigningKey, err := base64.StdEncoding.DecodeString(p.signingKey)
+	if err != nil {
+		return nil, err
 	}
-	if len(o.SigningKey) != 0 {
-		decodedSigningKey, _ := base64.StdEncoding.DecodeString(o.SigningKey)
-		signer, err := cryptutil.NewES256Signer(decodedSigningKey, route.Source.Host)
+	return cryptutil.NewES256Signer(decodedSigningKey, audience)
+}
+
+func (p *Proxy) customCAPool(cert string) (*x509.CertPool, error) {
+	certPool := x509.NewCertPool()
+	decodedCert, err := base64.StdEncoding.DecodeString(cert)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode cert: %s", err)
+	}
+	if ok := certPool.AppendCertsFromPEM(decodedCert); !ok {
+		return nil, fmt.Errorf("could not append cert: %s", decodedCert)
+	}
+	return certPool, nil
+}
+
+// newReverseProxyHandler applies handler specific options to a given route.
+func (p *Proxy) newReverseProxyHandler(rp *httputil.ReverseProxy, route *config.Policy) (http.Handler, error) {
+	var handler http.Handler
+	handler = &UpstreamProxy{
+		name:    route.Destination.Host,
+		handler: rp,
+	}
+	c := middleware.NewChain()
+	c = c.Append(middleware.StripPomeriumCookie(p.cookieName))
+
+	// if signing key is set, add signer to middleware
+	if len(p.signingKey) != 0 {
+		signer, err := p.newRouteSigner(route.Source.Host)
 		if err != nil {
 			return nil, err
 		}
-		up.signer = signer
+		c = c.Append(middleware.SignRequest(signer, HeaderUserID, HeaderEmail, HeaderGroups, HeaderJWT))
 	}
-	timeout := o.DefaultUpstreamTimeout
-	if route.UpstreamTimeout != 0 {
-		timeout = route.UpstreamTimeout
+	// websockets cannot use the non-hijackable timeout-handler
+	if !route.AllowWebsockets {
+		timeout := p.defaultUpstreamTimeout
+		if route.UpstreamTimeout != 0 {
+			timeout = route.UpstreamTimeout
+		}
+		timeoutMsg := fmt.Sprintf("%s failed to respond within the %s timeout period", route.Destination.Host, timeout)
+		handler = http.TimeoutHandler(handler, timeout, timeoutMsg)
 	}
-	timeoutMsg := fmt.Sprintf("%s failed to respond within the %s timeout period", route.Destination.Host, timeout)
-	timeoutHandler := http.TimeoutHandler(up, timeout, timeoutMsg)
-	return websocketHandlerFunc(up, timeoutHandler, o), nil
-}
 
-// urlParse wraps url.Parse to add a scheme if none-exists.
-// https://github.com/golang/go/issues/12585
-func urlParse(uri string) (*url.URL, error) {
-	if !strings.Contains(uri, "://") {
-		uri = fmt.Sprintf("https://%s", uri)
-	}
-	return url.ParseRequestURI(uri)
+	return c.Then(handler), nil
 }
 
 // UpdateOptions updates internal structures based on config.Options
 func (p *Proxy) UpdateOptions(o config.Options) error {
-	log.Info().Msg("proxy: updating options")
-	err := p.UpdatePolicies(o)
-	if err != nil {
-		return fmt.Errorf("Could not update policies: %s", err)
-	}
-	return nil
+	return p.UpdatePolicies(&o)
 }

@@ -7,15 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"strings"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/metrics"
+	"github.com/pomerium/pomerium/internal/middleware"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/middleware"
 )
 
 const defaultGRPCPort = 443
@@ -23,10 +23,10 @@ const defaultGRPCPort = 443
 // Options contains options for connecting to a pomerium rpc service.
 type Options struct {
 	// Addr is the location of the authenticate service.  e.g. "service.corp.example:8443"
-	Addr string
+	Addr *url.URL
 	// InternalAddr is the internal (behind the ingress) address to use when
 	// making a connection. If empty, Addr is used.
-	InternalAddr string
+	InternalAddr *url.URL
 	// OverrideCertificateName overrides the server name used to verify the hostname on the
 	// returned certificates from the server.  gRPC internals also use it to override the virtual
 	// hosting name if it is set.
@@ -45,16 +45,17 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 	if opts.SharedSecret == "" {
 		return nil, errors.New("proxy/clients: grpc client requires shared secret")
 	}
+	if opts.InternalAddr == nil && opts.Addr == nil {
+		return nil, errors.New("proxy/clients: connection address required")
+
+	}
 	grpcAuth := middleware.NewSharedSecretCred(opts.SharedSecret)
 
 	var connAddr string
-	if opts.InternalAddr != "" {
-		connAddr = opts.InternalAddr
+	if opts.InternalAddr != nil {
+		connAddr = opts.InternalAddr.Host
 	} else {
-		connAddr = opts.Addr
-	}
-	if connAddr == "" {
-		return nil, errors.New("proxy/clients: connection address required")
+		connAddr = opts.Addr.Host
 	}
 	// no colon exists in the connection string, assume one must be added manually
 	if !strings.Contains(connAddr, ":") {

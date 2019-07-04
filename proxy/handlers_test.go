@@ -14,7 +14,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
-	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/proxy/clients"
 )
@@ -108,13 +107,12 @@ func TestProxy_GetSignOutURL(t *testing.T) {
 		redirect     string
 		wantPrefix   string
 	}{
-		{"without scheme", "auth.corp.pomerium.io", "hello.corp.pomerium.io", "https://auth.corp.pomerium.io/sign_out?redirect_uri=https%3A%2F%2Fhello.corp.pomerium.io"},
-		{"with scheme", "https://auth.corp.pomerium.io", "https://hello.corp.pomerium.io", "https://auth.corp.pomerium.io/sign_out?redirect_uri=https%3A%2F%2Fhello.corp.pomerium.io"},
+		{"good", "https://auth.corp.pomerium.io", "https://hello.corp.pomerium.io", "https://auth.corp.pomerium.io/sign_out?redirect_uri=https%3A%2F%2Fhello.corp.pomerium.io"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			authenticateURL, _ := urlParse(tt.authenticate)
-			redirectURL, _ := urlParse(tt.redirect)
+			authenticateURL, _ := url.Parse(tt.authenticate)
+			redirectURL, _ := url.Parse(tt.redirect)
 
 			p := &Proxy{}
 			// signature is ignored as it is tested above. Avoids testing time.Now
@@ -135,14 +133,13 @@ func TestProxy_GetSignInURL(t *testing.T) {
 
 		wantPrefix string
 	}{
-		{"without scheme", "auth.corp.pomerium.io", "hello.corp.pomerium.io", "example_state", "https://auth.corp.pomerium.io/sign_in?redirect_uri=https%3A%2F%2Fhello.corp.pomerium.io&response_type=code&shared_secret=shared-secret"},
-		{"with scheme", "https://auth.corp.pomerium.io", "https://hello.corp.pomerium.io", "example_state", "https://auth.corp.pomerium.io/sign_in?redirect_uri=https%3A%2F%2Fhello.corp.pomerium.io&response_type=code&shared_secret=shared-secret"},
+		{"good", "https://auth.corp.pomerium.io", "https://hello.corp.pomerium.io", "example_state", "https://auth.corp.pomerium.io/sign_in?redirect_uri=https%3A%2F%2Fhello.corp.pomerium.io&response_type=code&shared_secret=shared-secret"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Proxy{SharedKey: "shared-secret"}
-			authenticateURL, _ := urlParse(tt.authenticate)
-			redirectURL, _ := urlParse(tt.redirect)
+			authenticateURL, _ := url.Parse(tt.authenticate)
+			redirectURL, _ := url.Parse(tt.redirect)
 
 			if got := p.GetSignInURL(authenticateURL, redirectURL, tt.state); !strings.HasPrefix(got.String(), tt.wantPrefix) {
 				t.Errorf("Proxy.GetSignOutURL() = %v, wantPrefix %v", got.String(), tt.wantPrefix)
@@ -153,7 +150,12 @@ func TestProxy_GetSignInURL(t *testing.T) {
 }
 
 func TestProxy_Signout(t *testing.T) {
-	proxy, err := New(testOptions())
+	opts := testOptions(t)
+	err := ValidateOptions(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxy, err := New(opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +173,7 @@ func TestProxy_Signout(t *testing.T) {
 }
 
 func TestProxy_OAuthStart(t *testing.T) {
-	proxy, err := New(testOptions())
+	proxy, err := New(testOptions(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,14 +186,14 @@ func TestProxy_OAuthStart(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusFound)
 	}
 	// expected url
-	expected := `<a href="https://authenticate.corp.beyondperimeter.com/sign_in`
+	expected := `<a href="https://authenticate.example/sign_in`
 	body := rr.Body.String()
 	if !strings.HasPrefix(body, expected) {
 		t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
 	}
 }
 func TestProxy_Handler(t *testing.T) {
-	proxy, err := New(testOptions())
+	proxy, err := New(testOptions(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,32 +211,16 @@ func TestProxy_Handler(t *testing.T) {
 	}
 }
 
-func Test_extendDeadline(t *testing.T) {
-	tests := []struct {
-		name string
-		ttl  time.Duration
-		want time.Time
-	}{
-		{"good", time.Second, time.Now().Add(time.Second).Truncate(time.Second)},
-		{"test nanoseconds truncated", 500 * time.Nanosecond, time.Now().Truncate(time.Second)},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := extendDeadline(tt.ttl); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("extendDeadline() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestProxy_router(t *testing.T) {
-	testPolicy := policy.Policy{From: "corp.example.com", To: "example.com"}
-	testPolicy.Validate()
-	policies := []policy.Policy{testPolicy}
+	testPolicy := config.Policy{From: "https://corp.example.com", To: "https://example.com"}
+	if err := testPolicy.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	policies := []config.Policy{testPolicy}
 	tests := []struct {
 		name   string
 		host   string
-		mux    []policy.Policy
+		mux    []config.Policy
 		route  http.Handler
 		wantOk bool
 	}{
@@ -242,13 +228,13 @@ func TestProxy_router(t *testing.T) {
 		{"good with slash", "https://corp.example.com/", policies, nil, true},
 		{"good with path", "https://corp.example.com/123", policies, nil, true},
 		// {"multiple", "https://corp.example.com/", map[string]string{"corp.unrelated.com": "unrelated.com", "corp.example.com": "example.com"}, nil, true},
-		{"no policies", "https://notcorp.example.com/123", []policy.Policy{}, nil, false},
+		{"no policies", "https://notcorp.example.com/123", []config.Policy{}, nil, false},
 		{"bad corp", "https://notcorp.example.com/123", policies, nil, false},
 		{"bad sub-sub", "https://notcorp.corp.example.com/123", policies, nil, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := testOptions()
+			opts := testOptions(t)
 			opts.Policies = tt.mux
 			p, err := New(opts)
 			if err != nil {
@@ -278,11 +264,10 @@ func TestProxy_Proxy(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	opts, optsWs := testOptionsTestServer(ts.URL), testOptionsTestServer(ts.URL)
-	optsCORS := testOptionsWithCORS(ts.URL)
-	optsPublic := testOptionsWithPublicAccess(ts.URL)
-	optsNoPolicies := testOptionsWithEmptyPolicies(ts.URL)
-	optsWs.AllowWebsockets = true
+	opts := testOptionsTestServer(t, ts.URL)
+	optsCORS := testOptionsWithCORS(t, ts.URL)
+	optsPublic := testOptionsWithPublicAccess(t, ts.URL)
+	optsNoPolicies := testOptionsWithEmptyPolicies(t, ts.URL)
 
 	defaultHeaders, goodCORSHeaders, badCORSHeaders, headersWs := http.Header{}, http.Header{}, http.Header{}, http.Header{}
 	goodCORSHeaders.Set("origin", "anything")
@@ -325,15 +310,15 @@ func TestProxy_Proxy(t *testing.T) {
 		{"public access, but unknown host", optsPublic, http.MethodGet, defaultHeaders, "https://nothttpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusUnauthorized},
 		// no session, redirect to login
 		{"no http found (no session)", opts, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{LoadError: http.ErrNoCookie}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest},
-		// Should be expecting a 101 Switching Protocols, but expect a 200 OK because we don't have a websocket backend to respond
-		{"ws supported, ws connection", optsWs, http.MethodGet, headersWs, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
-		{"ws supported, http connection", optsWs, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
-		{"ws unsupported, ws connection", opts, http.MethodGet, headersWs, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest},
 		{"No policies", optsNoPolicies, http.MethodGet, defaultHeaders, "https://httpbin.corp.example", &sessions.MockSessionStore{Session: goodSession}, clients.MockAuthenticate{ValidateResponse: true}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusNotFound},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateOptions(tt.options)
+			if err != nil {
+				t.Fatal(err)
+			}
 			p, err := New(tt.options)
 			if err != nil {
 				t.Fatal(err)
@@ -361,7 +346,7 @@ func TestProxy_Proxy(t *testing.T) {
 }
 
 func TestProxy_UserDashboard(t *testing.T) {
-	opts := testOptions()
+	opts := testOptions(t)
 	tests := []struct {
 		name          string
 		options       config.Options
@@ -409,9 +394,9 @@ func TestProxy_UserDashboard(t *testing.T) {
 }
 
 func TestProxy_Refresh(t *testing.T) {
-	opts := testOptions()
+	opts := testOptions(t)
 	opts.RefreshCooldown = 0
-	timeSinceError := testOptions()
+	timeSinceError := testOptions(t)
 	timeSinceError.RefreshCooldown = time.Duration(int(^uint(0) >> 1))
 
 	tests := []struct {
@@ -455,7 +440,7 @@ func TestProxy_Refresh(t *testing.T) {
 }
 
 func TestProxy_Impersonate(t *testing.T) {
-	opts := testOptions()
+	opts := testOptions(t)
 
 	tests := []struct {
 		name          string
@@ -535,7 +520,7 @@ func TestProxy_OAuthCallback(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			proxy, err := New(testOptions())
+			proxy, err := New(testOptions(t))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -576,7 +561,7 @@ func TestProxy_SignOut(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := testOptions()
+			opts := testOptions(t)
 			p, err := New(opts)
 			if err != nil {
 				t.Fatal(err)

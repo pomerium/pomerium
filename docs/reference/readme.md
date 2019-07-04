@@ -15,7 +15,7 @@ If you are coming from a kubernetes or docker background this should feel famili
 
 Using both [environmental variables] and config file keys is allowed and encouraged (for instance, secret keys are probably best set as environmental variables). However, if duplicate configuration keys are found, environment variables take precedence.
 
-Pomerium will automatically reload the configuration file if it is changed.  At this time, only policy is re-configured when this reload occurs, but additional options may be added in the future.  It is suggested that your policy is stored in a configuration file so that you can take advantage of this feature.
+Pomerium will automatically reload the configuration file if it is changed. At this time, only policy is re-configured when this reload occurs, but additional options may be added in the future. It is suggested that your policy is stored in a configuration file so that you can take advantage of this feature.
 
 ## Global settings
 
@@ -73,7 +73,7 @@ head -c32 /dev/urandom | base64
 
 ::: danger
 
-Enabling the debug flag will result in sensitive information being logged!!! 
+Enabling the debug flag will result in sensitive information being logged!!!
 
 :::
 
@@ -149,19 +149,6 @@ Timeouts set the global server timeouts. For route-specific timeouts, see [polic
 
 If set, the HTTP Redirect Address specifies the host and port to redirect http to https traffic on. If unset, no redirect server is started.
 
-### Websocket Connections
-
-- Environmental Variable: `ALLOW_WEBSOCKETS`
-- Config File Key: `allow_websockets`
-- Type: `bool`
-- Default: `false`
-
-If set, enables proxying of websocket connections. 
-Otherwise the proxy responds with `400 Bad Request` to all websocket connections.
-
-**Use with caution:** By definition, websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced.
-Allowing websocket connections to the proxy could result in abuse via DOS attacks. 
-
 ### Metrics Address
 
 - Environmental Variable: `METRICS_ADDRESS`
@@ -171,31 +158,32 @@ Allowing websocket connections to the proxy could result in abuse via DOS attack
 - Default: `disabled`
 - Optional
 
-Expose a prometheus format HTTP endpoint on the specified port.  Disabled by default.
+Expose a prometheus format HTTP endpoint on the specified port. Disabled by default.
 
-**Use with caution:** the endpoint can expose frontend and backend server names or addresses.  Do not expose the metrics port publicly.  
+**Use with caution:** the endpoint can expose frontend and backend server names or addresses. Do not expose the metrics port publicly.
 
 #### Metrics tracked
 
-| Name        | Type           | Description  |
-|:------------- |:-------------|:-----|
-|http_server_requests_total| Counter | Total HTTP server requests handled by service|
-|http_server_response_size_bytes| Histogram | HTTP server response size by service|
-|http_server_request_duration_ms| Histogram | HTTP server request duration by service|
-|http_client_requests_total| Counter | Total HTTP client requests made by service|
-|http_client_response_size_bytes| Histogram | HTTP client response size by service|
-|http_client_request_duration_ms| Histogram | HTTP client request duration by service|
-|grpc_client_requests_total| Counter | Total GRPC client requests made by service|
-|grpc_client_response_size_bytes| Histogram | GRPC client response size by service|
-|grpc_client_request_duration_ms| Histogram | GRPC client request duration by service|
+Name                            | Type      | Description
+:------------------------------ | :-------- | :--------------------------------------------
+http_server_requests_total      | Counter   | Total HTTP server requests handled by service
+http_server_response_size_bytes | Histogram | HTTP server response size by service
+http_server_request_duration_ms | Histogram | HTTP server request duration by service
+http_client_requests_total      | Counter   | Total HTTP client requests made by service
+http_client_response_size_bytes | Histogram | HTTP client response size by service
+http_client_request_duration_ms | Histogram | HTTP client request duration by service
+grpc_client_requests_total      | Counter   | Total GRPC client requests made by service
+grpc_client_response_size_bytes | Histogram | GRPC client response size by service
+grpc_client_request_duration_ms | Histogram | GRPC client request duration by service
 
 ### Policy
 
 - Environmental Variable: `POLICY`
 - Config File Key: `policy`
 - Type: [base64 encoded] `string` or inline policy structure in config file
-- Required 
-    - Required to forward traffic.  Pomerium will safely start without a policy configured, but will be unable to authorize or proxy traffic until the configuration is updated to contain a policy.
+- Required
+
+  - Required to forward traffic. Pomerium will safely start without a policy configured, but will be unable to authorize or proxy traffic until the configuration is updated to contain a policy.
 
 Policy contains route specific settings, and access control details. If you are configuring via POLICY environment variable, just the contents of the policy needs to be passed. If you are configuring via file, the policy should be present under the policy key. For example,
 
@@ -276,6 +264,34 @@ If this setting is enabled, no whitelists (e.g. Allowed Users) should be provide
 - Default: `30s`
 
 Policy timeout establishes the per-route timeout value. Cannot exceed global timeout values.
+
+#### Websocket Connections
+
+- Config File Key: `allow_websockets`
+- Type: `bool`
+- Default: `false`
+
+If set, enables proxying of websocket connections.
+
+**Use with caution:** By definition, websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced. Allowing websocket connections to the proxy could result in abuse via [DOS attacks](https://www.cloudflare.com/learning/ddos/ddos-attack-tools/slowloris/).
+
+#### TLS Skip Verification
+
+- Config File Key: `tls_skip_verify`
+- Type: `bool`
+- Default: `false`
+
+TLS Skip Verification controls whether a client verifies the server's certificate chain and host name. If enabled, TLS accepts any certificate presented by the server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing.
+
+#### TLS Custom Certificate Authority
+
+- Config File Key: `tls_custom_ca`
+- Type: [base64 encoded] `string`
+- Optional
+
+TLS Custom Certificate Authority defines the set of root certificate authorities that clients use when verifying server certificates.
+
+Note: This setting will replace (not append) the system's trust store for a given route.
 
 ## Authenticate Service
 
@@ -398,7 +414,7 @@ If your load balancer does not support gRPC pass-through you'll need to set this
 - Optional (but typically required if Authenticate Internal Service Address is set)
 - Example: `*.corp.example.com` if wild card or `authenticate.corp.example.com`/`authorize.corp.example.com`
 
-When Authenticate Internal Service Address is set, secure service communication can fail because the external certificate name will not match the internally routed service hostname/[SNI](<https://en.wikipedia.org/wiki/Server_Name_Indication>). This setting allows you to override that check.
+When Authenticate Internal Service Address is set, secure service communication can fail because the external certificate name will not match the internally routed service hostname/[SNI](https://en.wikipedia.org/wiki/Server_Name_Indication). This setting allows you to override that check.
 
 ### Certificate Authority
 
@@ -414,17 +430,19 @@ Certificate Authority is set when behind-the-ingress service communication uses 
 - Environmental Variable: `HEADERS`
 - Config File Key: `headers`
 - Type: map of `strings` key value pairs
-- Examples: 
-    - Comma Separated: 
-        `X-Content-Type-Options:nosniff,X-Frame-Options:SAMEORIGIN`
-    - JSON: `'{"X-Test": "X-Value"}'`
-    - YAML:
-        ```yaml
-        headers:
-            X-Test: X-Value
-        ```
+- Examples:
+
+  - Comma Separated: `X-Content-Type-Options:nosniff,X-Frame-Options:SAMEORIGIN`
+  - JSON: `'{"X-Test": "X-Value"}'`
+  - YAML:
+
+    ```yaml
+    headers:
+          X-Test: X-Value
+    ```
 
 - To disable: `disable:true`
+
 - Default :
 
   ```javascript
@@ -459,7 +477,6 @@ Refresh cooldown is the minimum amount of time between allowed manually refreshe
 - Default: `30s`
 
 Default Upstream Timeout is the default timeout applied to a proxied route when no `timeout` key is specified by the policy.
-
 
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable

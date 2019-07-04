@@ -13,14 +13,32 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
+const DefaultKeySize = 32
+
 // GenerateKey generates a random 32-byte key.
+//
 // Panics if source of randomness fails.
 func GenerateKey() []byte {
-	key := make([]byte, 32)
-	if _, err := rand.Read(key); err != nil {
+	return randomBytes(DefaultKeySize)
+}
+
+// GenerateRandomString returns base64 encoded securely generated random string
+// of a given set of bytes.
+//
+// Panics if source of randomness fails.
+func GenerateRandomString(c int) string {
+	return base64.StdEncoding.EncodeToString(randomBytes(c))
+}
+
+func randomBytes(c int) []byte {
+	if c < 0 {
+		c = DefaultKeySize
+	}
+	b := make([]byte, c)
+	if _, err := rand.Read(b); err != nil {
 		panic(err)
 	}
-	return key
+	return b
 }
 
 // Cipher provides methods to encrypt and decrypt values.

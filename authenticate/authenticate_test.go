@@ -1,53 +1,49 @@
 package authenticate
 
 import (
-	"net/url"
 	"testing"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/config"
 )
 
-func testOptions() config.Options {
-	redirectURL, _ := url.Parse("https://example.com/oauth2/callback")
-	return config.Options{
-		AuthenticateURL: *redirectURL,
-		SharedKey:       "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
-		ClientID:        "test-client-id",
-		ClientSecret:    "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
-		CookieSecret:    "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw=",
-		CookieRefresh:   time.Duration(1) * time.Hour,
-		CookieExpire:    time.Duration(168) * time.Hour,
-		CookieName:      "pomerium",
+func newTestOptions(t *testing.T) *config.Options {
+	opts, err := config.NewOptions("https://authenticate.example", "https://authorize.example")
+	if err != nil {
+		t.Fatal(err)
 	}
+	opts.ClientID = "client-id"
+	opts.Provider = "google"
+	opts.ClientSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
+	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
+	return opts
 }
 
 func TestOptions_Validate(t *testing.T) {
-	good := testOptions()
-	badRedirectURL := testOptions()
-	badRedirectURL.AuthenticateURL = url.URL{}
-	emptyClientID := testOptions()
+	good := newTestOptions(t)
+	badRedirectURL := newTestOptions(t)
+	badRedirectURL.AuthenticateURL = nil
+	emptyClientID := newTestOptions(t)
 	emptyClientID.ClientID = ""
-	emptyClientSecret := testOptions()
+	emptyClientSecret := newTestOptions(t)
 	emptyClientSecret.ClientSecret = ""
-	emptyCookieSecret := testOptions()
+	emptyCookieSecret := newTestOptions(t)
 	emptyCookieSecret.CookieSecret = ""
-	invalidCookieSecret := testOptions()
+	invalidCookieSecret := newTestOptions(t)
 	invalidCookieSecret.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
-	shortCookieLength := testOptions()
+	shortCookieLength := newTestOptions(t)
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
-	badSharedKey := testOptions()
+	badSharedKey := newTestOptions(t)
 	badSharedKey.SharedKey = ""
-	badAuthenticateURL := testOptions()
-	badAuthenticateURL.AuthenticateURL = url.URL{}
+	badAuthenticateURL := newTestOptions(t)
+	badAuthenticateURL.AuthenticateURL = nil
 
 	tests := []struct {
 		name    string
-		o       config.Options
+		o       *config.Options
 		wantErr bool
 	}{
 		{"minimum options", good, false},
-		{"nil options", config.Options{}, true},
+		{"nil options", &config.Options{}, true},
 		{"bad redirect  url", badRedirectURL, true},
 		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
@@ -59,8 +55,7 @@ func TestOptions_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := tt.o
-			if err := ValidateOptions(o); (err != nil) != tt.wantErr {
+			if err := ValidateOptions(*tt.o); (err != nil) != tt.wantErr {
 				t.Errorf("Options.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -68,25 +63,24 @@ func TestOptions_Validate(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	good := testOptions()
-	good.Provider = "google"
+	good := newTestOptions(t)
 
-	badRedirectURL := testOptions()
-	badRedirectURL.AuthenticateURL = url.URL{}
+	badRedirectURL := newTestOptions(t)
+	badRedirectURL.AuthenticateURL = nil
 
 	tests := []struct {
 		name string
-		opts config.Options
+		opts *config.Options
 		// want    *Authenticate
 		wantErr bool
 	}{
 		{"good", good, false},
-		{"empty opts", config.Options{}, true},
+		{"empty opts", &config.Options{}, true},
 		{"fails to validate", badRedirectURL, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(tt.opts)
+			_, err := New(*tt.opts)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return

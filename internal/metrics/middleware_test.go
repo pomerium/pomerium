@@ -13,12 +13,6 @@ import (
 	"go.opencensus.io/stats/view"
 )
 
-type measure struct {
-	Name    string
-	Tags    map[string]string
-	Measure int
-}
-
 func newTestMux() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/good", func(w http.ResponseWriter, r *http.Request) {

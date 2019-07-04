@@ -57,7 +57,6 @@ func (s *RestStore) ClearSession(w http.ResponseWriter, r *http.Request) {
 		"error_description": "The token has expired."
 	}`
 	w.Write([]byte(errMsg))
-	return
 }
 
 // LoadSession attempts to load a pomerium session from a Bearer Token set

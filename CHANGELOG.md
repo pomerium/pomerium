@@ -6,11 +6,15 @@
 
 - Add programmatic authentication support. [GH-177]
 - Add Prometheus format metrics endpoint. [GH-35]
+- Add policy setting to enable self-signed certificate support. [GH-179]
+- Add policy setting to skip tls certificate verification. [GH-179]
 
 ### CHANGED
 
+- Policy `to` and `from` settings must be set to valid HTTP URLs including [schemes](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier) and hostnames (e.g. `http.corp.domain.example` should now be `https://http.corp.domain.example`).
 - Proxy's sign out handler `{}/.pomerium/sign_out` now accepts an optional `redirect_uri` parameter which can be used to specify a custom redirect page, so long as it is under the same top-level domain. [GH-183]
-- Policy configuration can now be empty at startup [GH-190]
+- Policy configuration can now be empty at startup. [GH-190]
+- Websocket support is now set per-route instead of globally. [GH-204]
 
 ### FIXED
 
