@@ -289,9 +289,9 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 	session, err := p.sessionStore.LoadSession(r)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: load session failed")
-		httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusBadRequest}
-		httputil.ErrorResponse(w, r, httpErr)
+		log.FromRequest(r).Debug().Str("cause", err.Error()).Msg("proxy: no session, redirecting to auth")
+		p.sessionStore.ClearSession(w, r)
+		p.OAuthStart(w, r)
 		return
 	}
 
