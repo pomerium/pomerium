@@ -66,6 +66,7 @@ func New(opts config.Options) (*Authenticate, error) {
 	cookieStore, err := sessions.NewCookieStore(
 		&sessions.CookieStoreOptions{
 			Name:           opts.CookieName,
+			CookieDomain:   opts.CookieDomain,
 			CookieSecure:   opts.CookieSecure,
 			CookieHTTPOnly: opts.CookieHTTPOnly,
 			CookieExpire:   opts.CookieExpire,
