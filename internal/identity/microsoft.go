@@ -43,7 +43,7 @@ func NewAzureProvider(p *Provider) (*AzureProvider, error) {
 		return nil, err
 	}
 	if len(p.Scopes) == 0 {
-		p.Scopes = []string{oidc.ScopeOpenID, "profile", "email", "offline_access"}
+		p.Scopes = []string{oidc.ScopeOpenID, "profile", "email", "offline_access", "Group.Read.All"}
 	}
 	p.verifier = p.provider.Verifier(&oidc.Config{ClientID: p.ClientID})
 	p.oauth = &oauth2.Config{
@@ -91,8 +91,13 @@ func (p *AzureProvider) Authenticate(ctx context.Context, code string) (*session
 	if err != nil {
 		return nil, fmt.Errorf("identity/microsoft: could not verify id_token %v", err)
 	}
+
 	session.AccessToken = oauth2Token.AccessToken
 	session.RefreshToken = oauth2Token.RefreshToken
+	session.Groups, err = p.UserGroups(ctx, session.AccessToken)
+	if err != nil {
+		return nil, fmt.Errorf("identity/microsoft: could not retrieve groups %v", err)
+	}
 	return session, nil
 }
 
@@ -112,17 +117,12 @@ func (p *AzureProvider) IDTokenToSession(ctx context.Context, rawIDToken string)
 	if err := idToken.Claims(&claims); err != nil {
 		return nil, fmt.Errorf("identity/microsoft: failed to parse id_token claims %v", err)
 	}
-	groups, err := p.UserGroups(ctx, claims.Email)
-	if err != nil {
-		return nil, fmt.Errorf("identity/microsoft: could not retrieve groups %v", err)
-	}
 
 	return &sessions.SessionState{
 		IDToken:         rawIDToken,
 		RefreshDeadline: idToken.Expiry.Truncate(time.Second),
 		Email:           claims.Email,
 		User:            idToken.Subject,
-		Groups:          groups,
 	}, nil
 }
 

@@ -15,6 +15,7 @@
 ### FIXED
 
 - Fixed HEADERS environment variable parsing [GH-188]
+- Fixed Azure group lookups [GH-190]
 
 ## v0.0.5
 
