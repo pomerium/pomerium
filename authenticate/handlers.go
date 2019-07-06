@@ -278,7 +278,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 
 	if err := a.sessionStore.SaveSession(w, r, session); err != nil {
 		log.Error().Err(err).Msg("authenticate: failed saving new session")
-		return "", httputil.Error{Code: http.StatusInternalServerError, Message: "Internal Error"}
+		return "", httputil.Error{Code: http.StatusInternalServerError, Message: err.Error()}
 	}
 
 	return redirect, nil

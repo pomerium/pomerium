@@ -1,10 +1,12 @@
 package sessions
 
 import (
+	"crypto/rand"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
@@ -134,6 +136,44 @@ func TestSessionState_Impersonating(t *testing.T) {
 			}
 			if gotGroups := s.RequestGroups(); gotGroups != tt.wantResponseGroups {
 				t.Errorf("SessionState.v() = %v, want %v", gotGroups, tt.wantResponseGroups)
+			}
+		})
+	}
+}
+
+func TestMarshalSession(t *testing.T) {
+	secret := cryptutil.GenerateKey()
+	c, err := cryptutil.NewCipher([]byte(secret))
+	if err != nil {
+		t.Fatalf("expected to be able to create cipher: %v", err)
+	}
+	hugeString := make([]byte, 4097)
+	if _, err := rand.Read(hugeString); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name    string
+		s       *SessionState
+		wantErr bool
+	}{
+		{"simple", &SessionState{}, false},
+		{"too big", &SessionState{AccessToken: string(hugeString)}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in, err := MarshalSession(tt.s, c)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MarshalSession() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err == nil {
+				out, err := UnmarshalSession(in, c)
+				if err != nil {
+					t.Fatalf("expected to be decode session: %v", err)
+				}
+				if diff := cmp.Diff(tt.s, out); diff != "" {
+					t.Errorf("MarshalSession() = %s", diff)
+				}
 			}
 		})
 	}
