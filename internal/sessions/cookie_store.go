@@ -68,20 +68,19 @@ func NewCookieStore(opts *CookieStoreOptions) (*CookieStore, error) {
 }
 
 func (s *CookieStore) makeCookie(req *http.Request, name string, value string, expiration time.Duration, now time.Time) *http.Cookie {
-	// if csrf, scope cookie to the route or service specific domain
 	domain := req.Host
-	if h, _, err := net.SplitHostPort(domain); err == nil {
-		domain = h
-	}
-	if s.CookieDomain != "" {
-		domain = s.CookieDomain
-	}
 
-	// Non-CSRF sessions can shared, and set domain-wide
-	if !strings.Contains(name, "csrf") {
+	if name == s.csrfName() {
+		domain = req.Host
+	} else if s.CookieDomain != "" {
+		domain = s.CookieDomain
+	} else {
 		domain = splitDomain(domain)
 	}
 
+	if h, _, err := net.SplitHostPort(domain); err == nil {
+		domain = h
+	}
 	c := &http.Cookie{
 		Name:     name,
 		Value:    value,
