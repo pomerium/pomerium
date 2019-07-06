@@ -17,6 +17,7 @@
 - Fixed HEADERS environment variable parsing [GH-188]
 - Fixed Azure group lookups [GH-190]
 - If a session is too large (over 4096 bytes) Pomerium will no longer fail silently. [GH-211]
+- Internal URLs like dashboard now start auth process to login a user if no session is found [GH-205].
 
   ## v0.0.5
 
