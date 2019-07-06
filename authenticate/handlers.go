@@ -304,7 +304,6 @@ func (a *Authenticate) ExchangeToken(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusInternalServerError, Message: "could not exchange identity for session"})
 		return
 	}
-	log.Info().Interface("session", session).Msg("Session")
 	if err := a.restStore.SaveSession(w, r, session); err != nil {
 		log.Error().Err(err).Msg("authenticate: failed returning new session")
 		httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusInternalServerError, Message: "authenticate: failed returning new session"})
