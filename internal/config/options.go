@@ -1,19 +1,20 @@
-package config
+package config // import "github.com/pomerium/pomerium/internal/config"
 
 import (
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/mitchellh/hashstructure"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/policy"
+	"github.com/pomerium/pomerium/internal/urlutil"
+
+	"github.com/mitchellh/hashstructure"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 )
@@ -22,9 +23,6 @@ import (
 const DisableHeaderKey = "disable"
 
 // Options are the global environmental flags used to set up pomerium's services.
-// If a base64 encoded certificate and key are not provided as environmental variables,
-// or if a file location is not provided, the server will attempt to find a matching keypair
-// in the local directory as `./cert.pem` and `./privkey.pem` respectively.
 type Options struct {
 	// Debug outputs human-readable logs to Stdout.
 	Debug bool `mapstructure:"pomerium_debug"`
@@ -42,10 +40,10 @@ type Options struct {
 	Services string `mapstructure:"services"`
 
 	// Addr specifies the host and port on which the server should serve
-	// HTTPS requests. If empty, ":https" is used.
+	// HTTPS requests. If empty, ":https" (localhost:443) is used.
 	Addr string `mapstructure:"address"`
 
-	// Cert and Key specifies the base64 encoded TLS certificates to use.
+	// Cert and Key specifies the TLS certificates to use.
 	Cert string `mapstructure:"certificate"`
 	Key  string `mapstructure:"certificate_key"`
 
@@ -64,15 +62,15 @@ type Options struct {
 	ReadHeaderTimeout time.Duration `mapstructure:"timeout_read_header"`
 	IdleTimeout       time.Duration `mapstructure:"timeout_idle"`
 
-	// Policy is a base64 encoded yaml blob which enumerates
-	// per-route access control policies.
+	// Policies define per-route configuration and access control policies.
+	Policies   []Policy
 	PolicyEnv  string
 	PolicyFile string `mapstructure:"policy_file"`
 
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
 	AuthenticateURLString string `mapstructure:"authenticate_service_url"`
-	AuthenticateURL       url.URL
+	AuthenticateURL       *url.URL
 
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
@@ -93,8 +91,6 @@ type Options struct {
 	Scopes         []string `mapstructure:"idp_scopes"`
 	ServiceAccount string   `mapstructure:"idp_service_account"`
 
-	Policies []policy.Policy
-
 	// Administrators contains a set of emails with users who have super user
 	// (sudo) access including the ability to impersonate other users' access
 	Administrators []string `mapstructure:"administrators"`
@@ -104,20 +100,20 @@ type Options struct {
 	// NOTE: As many load balancers do not support externally routed gRPC so
 	// this may be an internal location.
 	AuthenticateInternalAddrString string `mapstructure:"authenticate_internal_url"`
-	AuthenticateInternalAddr       url.URL
+	AuthenticateInternalAddr       *url.URL
 
 	// AuthorizeURL is the routable destination of the authorize service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
 	AuthorizeURLString string `mapstructure:"authorize_service_url"`
-	AuthorizeURL       url.URL
+	AuthorizeURL       *url.URL
 
 	// Settings to enable custom behind-the-ingress service communication
 	OverrideCertificateName string `mapstructure:"override_certificate_name"`
 	CA                      string `mapstructure:"certificate_authority"`
 	CAFile                  string `mapstructure:"certificate_authority_file"`
 
-	// SigningKey is a base64 encoded private key used to add a JWT-signature.
+	// SigningKey is the private key used to add a JWT-signature.
 	// https://www.pomerium.io/docs/signed-headers.html
 	SigningKey string `mapstructure:"signing_key"`
 
@@ -128,219 +124,170 @@ type Options struct {
 	// RefreshCooldown limits the rate a user can refresh her session
 	RefreshCooldown time.Duration `mapstructure:"refresh_cooldown"`
 
-	// Sub-routes
-	Routes                 map[string]string `mapstructure:"routes"`
-	DefaultUpstreamTimeout time.Duration     `mapstructure:"default_upstream_timeout"`
-
-	// Enable proxying of websocket connections. Defaults to "false".
-	// Caution: Enabling this feature could result in abuse via DOS attacks.
-	AllowWebsockets bool `mapstructure:"allow_websockets"`
+	//Routes                 map[string]string `mapstructure:"routes"`
+	DefaultUpstreamTimeout time.Duration `mapstructure:"default_upstream_timeout"`
 
 	// Address/Port to bind to for prometheus metrics
 	MetricsAddr string `mapstructure:"metrics_address"`
 }
 
-// NewOptions returns a new options struct with default values
-func NewOptions() Options {
-	o := Options{
-		Debug:                  false,
-		LogLevel:               "debug",
-		Services:               "all",
-		CookieHTTPOnly:         true,
-		CookieSecure:           true,
-		CookieExpire:           time.Duration(14) * time.Hour,
-		CookieRefresh:          time.Duration(30) * time.Minute,
-		CookieName:             "_pomerium",
-		DefaultUpstreamTimeout: time.Duration(30) * time.Second,
-		Headers: map[string]string{
-			"X-Content-Type-Options":    "nosniff",
-			"X-Frame-Options":           "SAMEORIGIN",
-			"X-XSS-Protection":          "1; mode=block",
-			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-		},
-		Addr:              ":https",
-		CertFile:          filepath.Join(findPwd(), "cert.pem"),
-		KeyFile:           filepath.Join(findPwd(), "privkey.pem"),
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      0, // support streaming by default
-		IdleTimeout:       5 * time.Minute,
-		RefreshCooldown:   time.Duration(5 * time.Minute),
-		AllowWebsockets:   false,
+var defaultOptions = Options{
+	Debug:                  false,
+	LogLevel:               "debug",
+	Services:               "all",
+	CookieHTTPOnly:         true,
+	CookieSecure:           true,
+	CookieExpire:           time.Duration(14) * time.Hour,
+	CookieRefresh:          time.Duration(30) * time.Minute,
+	CookieName:             "_pomerium",
+	DefaultUpstreamTimeout: time.Duration(30) * time.Second,
+	Headers: map[string]string{
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":           "SAMEORIGIN",
+		"X-XSS-Protection":          "1; mode=block",
+		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+	},
+	Addr:              ":https",
+	CertFile:          filepath.Join(findPwd(), "cert.pem"),
+	KeyFile:           filepath.Join(findPwd(), "privkey.pem"),
+	ReadHeaderTimeout: 10 * time.Second,
+	ReadTimeout:       30 * time.Second,
+	WriteTimeout:      0, // support streaming by default
+	IdleTimeout:       5 * time.Minute,
+	RefreshCooldown:   time.Duration(5 * time.Minute),
+}
+
+// NewOptions returns a minimal options configuration built from default options.
+// Any modifications to the structure should be followed up by a subsequent
+// call to validate.
+func NewOptions(authenticateURL, authorizeURL string) (*Options, error) {
+	o := defaultOptions
+	o.AuthenticateURLString = authenticateURL
+	o.AuthorizeURLString = authorizeURL
+	if err := o.Validate(); err != nil {
+		return nil, fmt.Errorf("internal/config: validation error %s", err)
 	}
-	return o
+	return &o, nil
 }
 
 // OptionsFromViper builds the main binary's configuration
 // options by parsing environmental variables and config file
-func OptionsFromViper(configFile string) (Options, error) {
-	o := NewOptions()
-
+func OptionsFromViper(configFile string) (*Options, error) {
+	// start a copy of the default options
+	o := defaultOptions
 	// Load up config
 	o.bindEnvs()
 	if configFile != "" {
-		log.Info().
-			Str("file", configFile).
-			Msg("loading config from file")
-
 		viper.SetConfigFile(configFile)
-		err := viper.ReadInConfig()
-		if err != nil {
-			return o, fmt.Errorf("failed to read config: %s", err)
+		if err := viper.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("internal/config: failed to read config: %s", err)
 		}
 	}
 
-	err := viper.Unmarshal(&o)
-	if err != nil {
-		return o, fmt.Errorf("failed to load options from config: %s", err)
+	if err := viper.Unmarshal(&o); err != nil {
+		return nil, fmt.Errorf("internal/config: failed to unmarshal config: %s", err)
 	}
 
-	// Turn URL strings into url structs
-	err = o.parseURLs()
-	if err != nil {
-		return o, fmt.Errorf("failed to parse URLs: %s", err)
+	if err := o.Validate(); err != nil {
+		return nil, fmt.Errorf("internal/config: validation error %s", err)
 	}
-
-	// Load and initialize policy
-	err = o.parsePolicy()
-	if err != nil {
-		return o, fmt.Errorf("failed to parse Policy: %s", err)
-	}
-
-	// Parse Headers
-	err = o.parseHeaders()
-	if err != nil {
-		return o, fmt.Errorf("failed to parse Headers: %s", err)
-	}
-
-	if o.Debug {
-		log.SetDebugMode()
-	}
-	if o.LogLevel != "" {
-		log.SetLevel(o.LogLevel)
-	}
-	if _, disable := o.Headers[DisableHeaderKey]; disable {
-		o.Headers = make(map[string]string)
-	}
-
-	err = o.validate()
-	if err != nil {
-		return o, err
-	}
-
-	log.Debug().
-		Str("config-checksum", o.Checksum()).
-		Msg("read configuration with checksum")
-	return o, nil
+	return &o, nil
 }
 
-// validate ensures the Options fields are properly formed and present
-func (o *Options) validate() error {
-
+// Validate ensures the Options fields are properly formed, present, and hydrated.
+func (o *Options) Validate() error {
 	if !IsValidService(o.Services) {
 		return fmt.Errorf("%s is an invalid service type", o.Services)
 	}
 
+	// shared key must be set for all modes other than "all"
 	if o.SharedKey == "" {
-		return errors.New("shared-key cannot be empty")
+		if o.Services == "all" {
+			o.SharedKey = cryptutil.GenerateRandomString(32)
+		} else {
+			return errors.New("shared-key cannot be empty")
+		}
 	}
 
-	if len(o.Routes) != 0 {
-		return errors.New("routes setting is deprecated, use policy instead")
+	if o.AuthenticateURLString != "" {
+		u, err := urlutil.ParseAndValidateURL(o.AuthenticateURLString)
+		if err != nil {
+			return fmt.Errorf("bad authenticate-url %s : %v", o.AuthenticateURLString, err)
+		}
+		o.AuthenticateURL = u
 	}
 
+	if o.AuthorizeURLString != "" {
+		u, err := urlutil.ParseAndValidateURL(o.AuthorizeURLString)
+		if err != nil {
+			return fmt.Errorf("bad authorize-url %s : %v", o.AuthorizeURLString, err)
+		}
+		o.AuthorizeURL = u
+	}
+
+	if o.AuthenticateInternalAddrString != "" {
+		u, err := urlutil.ParseAndValidateURL(o.AuthenticateInternalAddrString)
+		if err != nil {
+			return fmt.Errorf("bad authenticate-internal-addr %s : %v", o.AuthenticateInternalAddrString, err)
+		}
+		o.AuthenticateInternalAddr = u
+	}
 	if o.PolicyFile != "" {
-		return errors.New("Setting POLICY_FILE is deprecated, use policy env var or config file instead")
+		return errors.New("policy file setting is deprecated")
+	}
+	if err := o.parsePolicy(); err != nil {
+		return fmt.Errorf("failed to parse policy: %s", err)
+	}
+
+	if err := o.parseHeaders(); err != nil {
+		return fmt.Errorf("failed to parse headers: %s", err)
+	}
+
+	if _, disable := o.Headers[DisableHeaderKey]; disable {
+		o.Headers = make(map[string]string)
 	}
 
 	return nil
 }
 
-// parsePolicy initializes policy
+// parsePolicy initializes policy to the options from either base64 environmental
+// variables or from a file
 func (o *Options) parsePolicy() error {
-	var policies []policy.Policy
+	var policies []Policy
 	// Parse from base64 env var
 	if o.PolicyEnv != "" {
 		policyBytes, err := base64.StdEncoding.DecodeString(o.PolicyEnv)
 		if err != nil {
-			return fmt.Errorf("Could not decode POLICY env var: %s", err)
+			return fmt.Errorf("could not decode POLICY env var: %s", err)
 		}
 		if err := yaml.Unmarshal(policyBytes, &policies); err != nil {
-			return fmt.Errorf("Could not parse POLICY env var: %s", err)
+			return fmt.Errorf("could not unmarshal policy yaml: %s", err)
 		}
-		// Parse from file
 	} else {
-		err := viper.UnmarshalKey("policy", &policies)
-		if err != nil {
+		// Parse from file
+		if err := viper.UnmarshalKey("policy", &policies); err != nil {
 			return err
 		}
 	}
-
+	if len(policies) != 0 {
+		o.Policies = policies
+	}
 	// Finish initializing policies
-	for i := range policies {
-		err := (&policies[i]).Validate()
-		if err != nil {
+	for i := range o.Policies {
+		if err := (&o.Policies[i]).Validate(); err != nil {
 			return err
 		}
 	}
-	o.Policies = policies
 	return nil
 }
 
-// parseAndValidateURL wraps standard library's default url.Parse because it's much more
-// lenient about what type of urls it accepts than pomerium can be.
-func parseAndValidateURL(rawurl string) (*url.URL, error) {
-	u, err := url.Parse(rawurl)
-	if err != nil {
-		return nil, err
-	}
-	if u.Host == "" {
-		return nil, fmt.Errorf("%s does have a valid hostname", rawurl)
-	}
-	if u.Scheme == "" || u.Scheme != "https" {
-		return nil, fmt.Errorf("%s does have a valid https scheme", rawurl)
-	}
-	return u, nil
-}
-
-// parseURLs parses URL strings into actual URL pointers
-func (o *Options) parseURLs() error {
-	if o.AuthenticateURLString != "" {
-		AuthenticateURL, err := parseAndValidateURL(o.AuthenticateURLString)
-		if err != nil {
-			return fmt.Errorf("internal/config: bad authenticate-url %s : %v", o.AuthenticateURLString, err)
-		}
-		o.AuthenticateURL = *AuthenticateURL
-	}
-
-	if o.AuthorizeURLString != "" {
-		AuthorizeURL, err := parseAndValidateURL(o.AuthorizeURLString)
-		if err != nil {
-			return fmt.Errorf("internal/config: bad authorize-url %s : %v", o.AuthorizeURLString, err)
-		}
-		o.AuthorizeURL = *AuthorizeURL
-	}
-
-	if o.AuthenticateInternalAddrString != "" {
-		AuthenticateInternalAddr, err := parseAndValidateURL(o.AuthenticateInternalAddrString)
-		if err != nil {
-			return fmt.Errorf("internal/config: bad authenticate-internal-addr %s : %v", o.AuthenticateInternalAddrString, err)
-		}
-		o.AuthenticateInternalAddr = *AuthenticateInternalAddr
-	}
-
-	return nil
-}
-
-// parseHeaders handles unmarshalling any custom headers correctly from the environment or
-// viper's parsed keys
+// parseHeaders handles unmarshalling any custom headers correctly from the
+// environment or viper's parsed keys
 func (o *Options) parseHeaders() error {
 	var headers map[string]string
 	if o.HeadersEnv != "" {
-
 		// Handle JSON by default via viper
 		if headers = viper.GetStringMapString("HeadersEnv"); len(headers) == 0 {
-
 			// Try to parse "Key1:Value1,Key2:Value2" syntax
 			headerSlice := strings.Split(o.HeadersEnv, ",")
 			for n := range headerSlice {
@@ -350,7 +297,7 @@ func (o *Options) parseHeaders() error {
 
 				} else {
 					// Something went wrong
-					return fmt.Errorf("Failed to decode headers environment variable from '%s'", o.HeadersEnv)
+					return fmt.Errorf("failed to decode headers from '%s'", o.HeadersEnv)
 				}
 			}
 
@@ -358,7 +305,7 @@ func (o *Options) parseHeaders() error {
 		o.Headers = headers
 	} else if viper.IsSet("headers") {
 		if err := viper.UnmarshalKey("headers", &headers); err != nil {
-			return err
+			return fmt.Errorf("header %s failed to parse: %s", viper.Get("headers"), err)
 		}
 		o.Headers = headers
 	}
@@ -381,61 +328,6 @@ func (o *Options) bindEnvs() {
 	viper.BindEnv("HeadersEnv", "HEADERS")
 }
 
-// findPwd returns best guess at current working directory
-func findPwd() string {
-	p, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-	return p
-}
-
-// IsValidService checks to see if a service is a valid service mode
-func IsValidService(s string) bool {
-	switch s {
-	case
-		"all",
-		"proxy",
-		"authorize",
-		"authenticate":
-		return true
-	}
-	return false
-}
-
-// IsAuthenticate checks to see if we should be running the authenticate service
-func IsAuthenticate(s string) bool {
-	switch s {
-	case
-		"all",
-		"authenticate":
-		return true
-	}
-	return false
-}
-
-// IsAuthorize checks to see if we should be running the authorize service
-func IsAuthorize(s string) bool {
-	switch s {
-	case
-		"all",
-		"authorize":
-		return true
-	}
-	return false
-}
-
-// IsProxy checks to see if we should be running the proxy service
-func IsProxy(s string) bool {
-	switch s {
-	case
-		"all",
-		"proxy":
-		return true
-	}
-	return false
-}
-
 // OptionsUpdater updates local state based on an Options struct
 type OptionsUpdater interface {
 	UpdateOptions(Options) error
@@ -444,10 +336,9 @@ type OptionsUpdater interface {
 // Checksum returns the checksum of the current options struct
 func (o *Options) Checksum() string {
 	hash, err := hashstructure.Hash(o, nil)
-
 	if err != nil {
-		log.Warn().Msg("could not calculate Option checksum")
-		return "no checksum availablle"
+		log.Warn().Err(err).Msg("internal/config: checksum failure")
+		return "no checksum available"
 	}
 	return fmt.Sprintf("%x", hash)
 }

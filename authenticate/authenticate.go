@@ -18,7 +18,7 @@ import (
 // The checks do not modify the internal state of the Option structure. Returns
 // on first error found.
 func ValidateOptions(o config.Options) error {
-	if o.AuthenticateURL.Hostname() == "" {
+	if o.AuthenticateURL == nil {
 		return errors.New("authenticate: 'AUTHENTICATE_SERVICE_URL' missing")
 	}
 	if o.ClientID == "" {
@@ -35,7 +35,7 @@ func ValidateOptions(o config.Options) error {
 		return fmt.Errorf("authenticate: 'COOKIE_SECRET' must be base64 encoded: %v", err)
 	}
 	if len(decodedCookieSecret) != 32 {
-		return fmt.Errorf("authenticate: 'COOKIE_SECRET' should be 32; got %d", len(decodedCookieSecret))
+		return fmt.Errorf("authenticate: 'COOKIE_SECRET' %s be 32; got %d", o.CookieSecret, len(decodedCookieSecret))
 	}
 	return nil
 }
@@ -80,7 +80,7 @@ func New(opts config.Options) (*Authenticate, error) {
 	provider, err := identity.New(
 		opts.Provider,
 		&identity.Provider{
-			RedirectURL:    &redirectURL,
+			RedirectURL:    redirectURL,
 			ProviderName:   opts.Provider,
 			ProviderURL:    opts.ProviderURL,
 			ClientID:       opts.ClientID,
@@ -97,7 +97,7 @@ func New(opts config.Options) (*Authenticate, error) {
 	}
 	return &Authenticate{
 		SharedKey:    opts.SharedKey,
-		RedirectURL:  &redirectURL,
+		RedirectURL:  redirectURL,
 		templates:    templates.New(),
 		csrfStore:    cookieStore,
 		sessionStore: cookieStore,

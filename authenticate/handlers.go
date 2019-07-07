@@ -309,5 +309,4 @@ func (a *Authenticate) ExchangeToken(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusInternalServerError, Message: "authenticate: failed returning new session"})
 		return
 	}
-	return
 }

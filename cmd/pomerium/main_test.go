@@ -11,8 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/policy"
-
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"google.golang.org/grpc"
@@ -72,21 +70,22 @@ func Test_newAuthenticateService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			authURL, _ := url.Parse("http://auth.server.com")
-			testOpts := config.NewOptions()
+			testOpts, err := config.NewOptions("https://authenticate.example", "https://authorize.example")
+			if err != nil {
+				t.Fatal(err)
+			}
 			testOpts.Provider = "google"
 			testOpts.ClientSecret = "TEST"
 			testOpts.SharedKey = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
 			testOpts.CookieSecret = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
-			testOpts.AuthenticateURL = *authURL
 			testOpts.Services = tt.s
 
 			if tt.Field != "" {
-				testOptsField := reflect.ValueOf(&testOpts).Elem().FieldByName(tt.Field)
+				testOptsField := reflect.ValueOf(testOpts).Elem().FieldByName(tt.Field)
 				testOptsField.Set(reflect.ValueOf(tt).FieldByName("Value"))
 			}
 
-			_, err := newAuthenticateService(testOpts, mux, grpcServer)
+			_, err = newAuthenticateService(*testOpts, mux, grpcServer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("newAuthenticateService() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -116,21 +115,26 @@ func Test_newAuthorizeService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testOpts := config.NewOptions()
+			testOpts, err := config.NewOptions("https://some.example", "https://some.example")
+			if err != nil {
+				t.Fatal(err)
+			}
 			testOpts.Services = tt.s
 			testOpts.CookieSecret = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
-			testPolicy := policy.Policy{From: "pomerium.io", To: "httpbin.org"}
-			testPolicy.Validate()
-			testOpts.Policies = []policy.Policy{
+			testPolicy := config.Policy{From: "http://some.example", To: "https://some.example"}
+			if err := testPolicy.Validate(); err != nil {
+				t.Fatal(err)
+			}
+			testOpts.Policies = []config.Policy{
 				testPolicy,
 			}
 
 			if tt.Field != "" {
-				testOptsField := reflect.ValueOf(&testOpts).Elem().FieldByName(tt.Field)
+				testOptsField := reflect.ValueOf(testOpts).Elem().FieldByName(tt.Field)
 				testOptsField.Set(reflect.ValueOf(tt).FieldByName("Value"))
 			}
 
-			_, err := newAuthorizeService(testOpts, grpcServer)
+			_, err = newAuthorizeService(*testOpts, grpcServer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("newAuthorizeService() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -156,26 +160,31 @@ func Test_newProxyeService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mux := http.NewServeMux()
-			testOpts := config.NewOptions()
-			testPolicy := policy.Policy{From: "pomerium.io", To: "httpbin.org"}
-			testPolicy.Validate()
-			testOpts.Policies = []policy.Policy{
+			testOpts, err := config.NewOptions("https://authenticate.example", "https://authorize.example")
+			if err != nil {
+				t.Fatal(err)
+			}
+			testPolicy := config.Policy{From: "http://some.example", To: "http://some.example"}
+			if err := testPolicy.Validate(); err != nil {
+				t.Fatal(err)
+			}
+			testOpts.Policies = []config.Policy{
 				testPolicy,
 			}
 
 			AuthenticateURL, _ := url.Parse("https://authenticate.example.com")
 			AuthorizeURL, _ := url.Parse("https://authorize.example.com")
 
-			testOpts.AuthenticateURL = *AuthenticateURL
-			testOpts.AuthorizeURL = *AuthorizeURL
+			testOpts.AuthenticateURL = AuthenticateURL
+			testOpts.AuthorizeURL = AuthorizeURL
 			testOpts.CookieSecret = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
 			testOpts.Services = tt.s
 
 			if tt.Field != "" {
-				testOptsField := reflect.ValueOf(&testOpts).Elem().FieldByName(tt.Field)
+				testOptsField := reflect.ValueOf(testOpts).Elem().FieldByName(tt.Field)
 				testOptsField.Set(reflect.ValueOf(tt).FieldByName("Value"))
 			}
-			_, err := newProxyService(testOpts, mux)
+			_, err = newProxyService(*testOpts, mux)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("newProxyService() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -205,7 +214,7 @@ func Test_wrapMiddleware(t *testing.T) {
 	})
 
 	mux.Handle("/404", h)
-	out := wrapMiddleware(o, mux)
+	out := wrapMiddleware(&o, mux)
 	out.ServeHTTP(rr, req)
 	expected := fmt.Sprintf("OK")
 	body := rr.Body.String()
@@ -216,27 +225,31 @@ func Test_wrapMiddleware(t *testing.T) {
 }
 func Test_parseOptions(t *testing.T) {
 	tests := []struct {
-		name     string
-		envKey   string
-		envValue string
-
-		wantSharedKey string
-		wantErr       bool
+		name             string
+		envKey           string
+		envValue         string
+		servicesEnvKey   string
+		servicesEnvValue string
+		wantSharedKey    string
+		wantErr          bool
 	}{
-		{"no shared secret", "", "", "", true},
-		{"good", "SHARED_SECRET", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", false},
+		{"no shared secret", "", "", "SERVICES", "authenticate", "skip", true},
+		{"no shared secret in all mode", "", "", "", "", "", false},
+		{"good", "SHARED_SECRET", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", "", "", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv(tt.servicesEnvKey, tt.servicesEnvValue)
 			os.Setenv(tt.envKey, tt.envValue)
 			defer os.Unsetenv(tt.envKey)
+			defer os.Unsetenv(tt.servicesEnvKey)
 
 			got, err := parseOptions("")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseOptions() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got.SharedKey != tt.wantSharedKey {
+			if got != nil && got.Services != "all" && got.SharedKey != tt.wantSharedKey {
 				t.Errorf("parseOptions()\n")
 				t.Errorf("got: %+v\n", got.SharedKey)
 				t.Errorf("want: %+v\n", tt.wantSharedKey)
@@ -265,22 +278,29 @@ func Test_handleConfigUpdate(t *testing.T) {
 	os.Setenv("SHARED_SECRET", "foo")
 	defer os.Unsetenv("SHARED_SECRET")
 
-	blankOpts := config.NewOptions()
-	goodOpts, _ := config.OptionsFromViper("")
+	blankOpts, err := config.NewOptions("https://authenticate.example", "https://authorize.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	goodOpts, err := config.OptionsFromViper("")
+	if err != nil {
+		t.Fatal(err)
+	}
 	tests := []struct {
 		name       string
 		service    *mockService
 		oldOpts    config.Options
 		wantUpdate bool
 	}{
-		{"good", &mockService{fail: false}, blankOpts, true},
-		{"bad", &mockService{fail: true}, blankOpts, true},
-		{"no change", &mockService{fail: false}, goodOpts, false},
+		{"good", &mockService{fail: false}, *blankOpts, true},
+		{"bad", &mockService{fail: true}, *blankOpts, true},
+		{"no change", &mockService{fail: false}, *goodOpts, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handleConfigUpdate(tt.oldOpts, []config.OptionsUpdater{tt.service})
+			handleConfigUpdate(&tt.oldOpts, []config.OptionsUpdater{tt.service})
 			if tt.service.Updated != tt.wantUpdate {
 				t.Errorf("Failed to update config on service")
 			}

@@ -4,11 +4,8 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/pomerium/pomerium/internal/log"
-
 	"github.com/pomerium/pomerium/internal/config"
-
-	"github.com/pomerium/pomerium/internal/policy"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // ValidateOptions checks to see if configuration values are valid for the
@@ -21,7 +18,6 @@ func ValidateOptions(o config.Options) error {
 	if len(decoded) != 32 {
 		return fmt.Errorf("authorize: `SHARED_SECRET` want 32 but got %d bytes", len(decoded))
 	}
-
 	return nil
 }
 
@@ -50,7 +46,7 @@ func New(opts config.Options) (*Authorize, error) {
 
 // NewIdentityWhitelist returns an indentity validator.
 // todo(bdd) : a radix-tree implementation is probably more efficient
-func NewIdentityWhitelist(policies []policy.Policy, admins []string) IdentityValidator {
+func NewIdentityWhitelist(policies []config.Policy, admins []string) IdentityValidator {
 	return newIdentityWhitelistMap(policies, admins)
 }
 
@@ -59,7 +55,7 @@ func (a *Authorize) ValidIdentity(route string, identity *Identity) bool {
 	return a.identityAccess.Valid(route, identity)
 }
 
-// UpdateOptions updates internal structres based on config.Options
+// UpdateOptions updates internal structures based on config.Options
 func (a *Authorize) UpdateOptions(o config.Options) error {
 	log.Info().Msg("authorize: updating options")
 	a.identityAccess = NewIdentityWhitelist(o.Policies, o.Administrators)

@@ -1,8 +1,9 @@
-package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
+package cryptutil
 
 import (
 	"crypto/rand"
 	"crypto/sha1"
+	"encoding/base64"
 	"fmt"
 	"reflect"
 	"sync"
@@ -161,4 +162,30 @@ func TestCipherDataRace(t *testing.T) {
 		}(cipher, wg)
 	}
 	wg.Wait()
+}
+
+func TestGenerateRandomString(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		c    int
+		want int
+	}{
+		{"simple", 32, 32},
+		{"zero", 0, 0},
+		{"negative", -1, 32},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := GenerateRandomString(tt.c)
+			b, err := base64.StdEncoding.DecodeString(o)
+			if err != nil {
+				t.Error(err)
+			}
+			got := len(b)
+			if got != tt.want {
+				t.Errorf("GenerateRandomString() = %d, want %d", got, tt.want)
+			}
+		})
+	}
 }

@@ -1,4 +1,4 @@
-package https // import "github.com/pomerium/pomerium/internal/https"
+package httputil // import "github.com/pomerium/pomerium/internal/httputil"
 
 import (
 	"crypto/tls"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
+
 	"google.golang.org/grpc"
 )
 

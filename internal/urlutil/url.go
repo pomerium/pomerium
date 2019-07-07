@@ -1,6 +1,10 @@
 package urlutil // import "github.com/pomerium/pomerium/internal/urlutil"
 
-import "strings"
+import (
+	"fmt"
+	"net/url"
+	"strings"
+)
 
 // StripPort returns a host, without any port number.
 //
@@ -16,4 +20,20 @@ func StripPort(hostport string) string {
 		return strings.TrimPrefix(hostport[:i], "[")
 	}
 	return hostport[:colon]
+}
+
+// ParseAndValidateURL wraps standard library's default url.Parse because
+// it's much more lenient about what type of urls it accepts than pomerium.
+func ParseAndValidateURL(rawurl string) (*url.URL, error) {
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		return nil, err
+	}
+	if u.Scheme == "" {
+		return nil, fmt.Errorf("%s url does contain a valid scheme. Did you mean https://%s?", rawurl, rawurl)
+	}
+	if u.Host == "" {
+		return nil, fmt.Errorf("%s url does contain a valid hostname", rawurl)
+	}
+	return u, nil
 }

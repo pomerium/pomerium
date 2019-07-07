@@ -10,11 +10,18 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/config"
-
-	"github.com/pomerium/pomerium/internal/policy"
 )
 
 var fixedDate = time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
+
+func newTestOptions(t *testing.T) *config.Options {
+	opts, err := config.NewOptions("https://authenticate.example", "https://authorize.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
+	return opts
+}
 
 func TestNewReverseProxy(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -54,14 +61,19 @@ func TestNewReverseProxyHandler(t *testing.T) {
 	backendHost := net.JoinHostPort(backendHostname, backendPort)
 	proxyURL, _ := url.Parse(backendURL.Scheme + "://" + backendHost + "/")
 	proxyHandler := NewReverseProxy(proxyURL)
-	opts := config.NewOptions()
+	opts := newTestOptions(t)
 	opts.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSU0zbXBaSVdYQ1g5eUVneFU2czU3Q2J0YlVOREJTQ0VBdFFGNWZVV0hwY1FvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFaFBRditMQUNQVk5tQlRLMHhTVHpicEVQa1JyazFlVXQxQk9hMzJTRWZVUHpOaTRJV2VaLwpLS0lUdDJxMUlxcFYyS01TYlZEeXI5aWp2L1hoOThpeUV3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
-	testPolicy := policy.Policy{From: "corp.example.com", To: "example.com", UpstreamTimeout: 1 * time.Second}
-	testPolicy.Validate()
-
-	handle, err := NewReverseProxyHandler(opts, proxyHandler, &testPolicy)
+	testPolicy := config.Policy{From: "https://corp.example.com", To: "https://example.com", UpstreamTimeout: 1 * time.Second}
+	if err := testPolicy.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	p, err := New(*opts)
 	if err != nil {
-		t.Errorf("got %q", err)
+		t.Fatal(err)
+	}
+	handle, err := p.newReverseProxyHandler(proxyHandler, &testPolicy)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	frontend := httptest.NewServer(handle)
@@ -77,109 +89,104 @@ func TestNewReverseProxyHandler(t *testing.T) {
 	}
 }
 
-func testOptions() config.Options {
+func testOptions(t *testing.T) config.Options {
 	authenticateService, _ := url.Parse("https://authenticate.corp.beyondperimeter.com")
 	authorizeService, _ := url.Parse("https://authorize.corp.beyondperimeter.com")
 
-	opts := config.NewOptions()
-	testPolicy := policy.Policy{From: "corp.example.notatld", To: "example.notatld"}
-	testPolicy.Validate()
-	opts.Policies = []policy.Policy{testPolicy}
-	opts.AuthenticateURL = *authenticateService
-	opts.AuthorizeURL = *authorizeService
+	opts := newTestOptions(t)
+	testPolicy := config.Policy{From: "https://corp.example.example", To: "https://example.example"}
+	opts.Policies = []config.Policy{testPolicy}
+	opts.AuthenticateURL = authenticateService
+	opts.AuthorizeURL = authorizeService
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
 	opts.CookieName = "pomerium"
-	return opts
+	err := opts.Validate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return *opts
 }
 
-func testOptionsTestServer(uri string) config.Options {
+func testOptionsTestServer(t *testing.T, uri string) config.Options {
 	authenticateService, _ := url.Parse("https://authenticate.corp.beyondperimeter.com")
 	authorizeService, _ := url.Parse("https://authorize.corp.beyondperimeter.com")
-	// RFC 2606
-	testPolicy := policy.Policy{
-		From: "httpbin.corp.example",
+	testPolicy := config.Policy{
+		From: "https://httpbin.corp.example",
 		To:   uri,
 	}
-	testPolicy.Validate()
-	opts := config.NewOptions()
-	opts.Policies = []policy.Policy{testPolicy}
-	opts.AuthenticateURL = *authenticateService
-	opts.AuthorizeURL = *authorizeService
+	if err := testPolicy.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	opts := newTestOptions(t)
+	opts.Policies = []config.Policy{testPolicy}
+	opts.AuthenticateURL = authenticateService
+	opts.AuthorizeURL = authorizeService
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
 	opts.CookieName = "pomerium"
-	return opts
+	return *opts
 }
 
-func testOptionsWithCORS(uri string) config.Options {
-	testPolicy := policy.Policy{
-		From:               "httpbin.corp.example",
+func testOptionsWithCORS(t *testing.T, uri string) config.Options {
+	testPolicy := config.Policy{
+		From:               "https://httpbin.corp.example",
 		To:                 uri,
 		CORSAllowPreflight: true,
 	}
-	testPolicy.Validate()
-	opts := testOptionsTestServer(uri)
-	opts.Policies = []policy.Policy{testPolicy}
+	if err := testPolicy.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	opts := testOptionsTestServer(t, uri)
+	opts.Policies = []config.Policy{testPolicy}
 	return opts
 }
 
-func testOptionsWithPublicAccess(uri string) config.Options {
-	testPolicy := policy.Policy{
-		From:                             "httpbin.corp.example",
+func testOptionsWithPublicAccess(t *testing.T, uri string) config.Options {
+	testPolicy := config.Policy{
+		From:                             "https://httpbin.corp.example",
 		To:                               uri,
 		AllowPublicUnauthenticatedAccess: true,
 	}
-	testPolicy.Validate()
-	opts := testOptions()
-	opts.Policies = []policy.Policy{testPolicy}
-	return opts
-}
-
-func testOptionsWithPublicAccessAndWhitelist(uri string) config.Options {
-	testPolicy := policy.Policy{
-		From:                             "httpbin.corp.example",
-		To:                               uri,
-		AllowPublicUnauthenticatedAccess: true,
-		AllowedEmails:                    []string{"test@gmail.com"},
+	if err := testPolicy.Validate(); err != nil {
+		t.Fatal(err)
 	}
-	testPolicy.Validate()
-	opts := testOptions()
-	opts.Policies = []policy.Policy{testPolicy}
+	opts := testOptions(t)
+	opts.Policies = []config.Policy{testPolicy}
 	return opts
 }
 
-func testOptionsWithEmptyPolicies(uri string) config.Options {
-	opts := testOptionsTestServer(uri)
-	opts.Policies = []policy.Policy{}
+func testOptionsWithEmptyPolicies(t *testing.T, uri string) config.Options {
+	opts := testOptionsTestServer(t, uri)
+	opts.Policies = []config.Policy{}
 	return opts
 }
 
 func TestOptions_Validate(t *testing.T) {
-	good := testOptions()
-	badAuthURL := testOptions()
-	badAuthURL.AuthenticateURL = url.URL{}
+	good := testOptions(t)
+	badAuthURL := testOptions(t)
+	badAuthURL.AuthenticateURL = nil
 	authurl, _ := url.Parse("http://authenticate.corp.beyondperimeter.com")
-	authenticateBadScheme := testOptions()
-	authenticateBadScheme.AuthenticateURL = *authurl
-	authorizeBadSCheme := testOptions()
-	authorizeBadSCheme.AuthorizeURL = *authurl
-	authorizeNil := testOptions()
-	authorizeNil.AuthorizeURL = url.URL{}
-	emptyCookieSecret := testOptions()
+	authenticateBadScheme := testOptions(t)
+	authenticateBadScheme.AuthenticateURL = authurl
+	authorizeBadSCheme := testOptions(t)
+	authorizeBadSCheme.AuthorizeURL = authurl
+	authorizeNil := testOptions(t)
+	authorizeNil.AuthorizeURL = nil
+	emptyCookieSecret := testOptions(t)
 	emptyCookieSecret.CookieSecret = ""
-	invalidCookieSecret := testOptions()
+	invalidCookieSecret := testOptions(t)
 	invalidCookieSecret.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
-	shortCookieLength := testOptions()
+	shortCookieLength := testOptions(t)
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
-	invalidSignKey := testOptions()
+	invalidSignKey := testOptions(t)
 	invalidSignKey.SigningKey = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
-	badSharedKey := testOptions()
+	badSharedKey := testOptions(t)
 	badSharedKey.SharedKey = ""
-	sharedKeyBadBas64 := testOptions()
+	sharedKeyBadBas64 := testOptions(t)
 	sharedKeyBadBas64.SharedKey = "%(*@389"
-	missingPolicy := testOptions()
-	missingPolicy.Policies = []policy.Policy{}
+	missingPolicy := testOptions(t)
+	missingPolicy.Policies = []config.Policy{}
 
 	tests := []struct {
 		name    string
@@ -197,7 +204,6 @@ func TestOptions_Validate(t *testing.T) {
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},
 		{"invalid signing key", invalidSignKey, true},
-		{"missing policy", missingPolicy, false},
 		{"shared secret bad base64", sharedKeyBadBas64, true},
 	}
 	for _, tt := range tests {
@@ -212,10 +218,10 @@ func TestOptions_Validate(t *testing.T) {
 
 func TestNew(t *testing.T) {
 
-	good := testOptions()
-	shortCookieLength := testOptions()
+	good := testOptions(t)
+	shortCookieLength := testOptions(t)
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
-	badRoutedProxy := testOptions()
+	badRoutedProxy := testOptions(t)
 	badRoutedProxy.SigningKey = "YmFkIGtleQo="
 	tests := []struct {
 		name      string
@@ -240,7 +246,7 @@ func TestNew(t *testing.T) {
 				t.Errorf("New() expected valid proxy struct")
 			}
 			if got != nil && len(got.routeConfigs) != tt.numRoutes {
-				t.Errorf("New() = num routeConfigs \n%+v, want \n%+v", got, tt.numRoutes)
+				t.Errorf("New() = num routeConfigs \n%+v, want \n%+v \nfrom %+v", got, tt.numRoutes, tt.opts)
 			}
 		})
 	}
@@ -248,34 +254,65 @@ func TestNew(t *testing.T) {
 
 func Test_UpdateOptions(t *testing.T) {
 
-	good := testOptions()
-	bad := testOptions()
-	bad.SigningKey = "f"
-	newPolicy := policy.Policy{To: "foo.notatld", From: "bar.notatld"}
-	newPolicy.Validate()
-	newPolicies := []policy.Policy{
+	good := testOptions(t)
+	newPolicy := config.Policy{To: "http://foo.example", From: "http://bar.example"}
+	newPolicies := testOptions(t)
+	newPolicies.Policies = []config.Policy{
 		newPolicy,
 	}
+	err := newPolicy.Validate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	badPolicyURL := config.Policy{To: "http://", From: "http://bar.example"}
+	badNewPolicy := testOptions(t)
+	badNewPolicy.Policies = []config.Policy{
+		badPolicyURL,
+	}
+	disableTLSPolicy := config.Policy{To: "http://foo.example", From: "http://bar.example", TLSSkipVerify: true}
+	disableTLSPolicies := testOptions(t)
+	disableTLSPolicies.Policies = []config.Policy{
+		disableTLSPolicy,
+	}
+	customCAPolicy := config.Policy{To: "http://foo.example", From: "http://bar.example", TLSCustomCA: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURlVENDQW1HZ0F3SUJBZ0lKQUszMmhoR0JIcmFtTUEwR0NTcUdTSWIzRFFFQkN3VUFNR0l4Q3pBSkJnTlYKQkFZVEFsVlRNUk13RVFZRFZRUUlEQXBEWVd4cFptOXlibWxoTVJZd0ZBWURWUVFIREExVFlXNGdSbkpoYm1OcApjMk52TVE4d0RRWURWUVFLREFaQ1lXUlRVMHd4RlRBVEJnTlZCQU1NRENvdVltRmtjM05zTG1OdmJUQWVGdzB4Ck9UQTJNVEl4TlRNeE5UbGFGdzB5TVRBMk1URXhOVE14TlRsYU1HSXhDekFKQmdOVkJBWVRBbFZUTVJNd0VRWUQKVlFRSURBcERZV3hwWm05eWJtbGhNUll3RkFZRFZRUUhEQTFUWVc0Z1JuSmhibU5wYzJOdk1ROHdEUVlEVlFRSwpEQVpDWVdSVFUwd3hGVEFUQmdOVkJBTU1EQ291WW1Ga2MzTnNMbU52YlRDQ0FTSXdEUVlKS29aSWh2Y05BUUVCCkJRQURnZ0VQQURDQ0FRb0NnZ0VCQU1JRTdQaU03Z1RDczloUTFYQll6Sk1ZNjF5b2FFbXdJclg1bFo2eEt5eDIKUG16QVMyQk1UT3F5dE1BUGdMYXcrWExKaGdMNVhFRmRFeXQvY2NSTHZPbVVMbEEzcG1jY1lZejJRVUxGUnRNVwpoeWVmZE9zS25SRlNKaUZ6YklSTWVWWGswV3ZvQmoxSUZWS3RzeWpicXY5dS8yQ1ZTbmRyT2ZFazBURzIzVTNBCnhQeFR1VzFDcmJWOC9xNzFGZEl6U09jaWNjZkNGSHBzS09vM1N0L3FiTFZ5dEg1YW9oYmNhYkZYUk5zS0VxdmUKd3c5SGRGeEJJdUdhK1J1VDVxMGlCaWt1c2JwSkhBd25ucVA3aS9kQWNnQ3NrZ2paakZlRVU0RUZ5K2IrYTFTWQpRQ2VGeHhDN2MzRHZhUmhCQjBWVmZQbGtQejBzdzZsODY1TWFUSWJSeW9VQ0F3RUFBYU15TURBd0NRWURWUjBUCkJBSXdBREFqQmdOVkhSRUVIREFhZ2d3cUxtSmhaSE56YkM1amIyMkNDbUpoWkhOemJDNWpiMjB3RFFZSktvWkkKaHZjTkFRRUxCUUFEZ2dFQkFJaTV1OXc4bWdUNnBwQ2M3eHNHK0E5ZkkzVzR6K3FTS2FwaHI1bHM3MEdCS2JpWQpZTEpVWVpoUGZXcGgxcXRra1UwTEhGUG04M1ZhNTJlSUhyalhUMFZlNEt0TzFuMElBZkl0RmFXNjJDSmdoR1luCmp6dzByeXpnQzRQeUZwTk1uTnRCcm9QdS9iUGdXaU1nTE9OcEVaaGlneDRROHdmMVkvVTlzK3pDQ3hvSmxhS1IKTVhidVE4N1g3bS85VlJueHhvNk56NVpmN09USFRwTk9JNlZqYTBCeGJtSUFVNnlyaXc5VXJnaWJYZk9qM2o2bgpNVExCdWdVVklCMGJCYWFzSnNBTUsrdzRMQU52YXBlWjBET1NuT1I0S0syNEowT3lvRjVmSG1wNTllTTE3SW9GClFxQmh6cG1RVWd1bmVjRVc4QlRxck5wRzc5UjF1K1YrNHd3Y2tQYz0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo="}
+	customCAPolicies := testOptions(t)
+	customCAPolicies.Policies = []config.Policy{
+		customCAPolicy,
+	}
+	badCustomCAPolicy := config.Policy{To: "http://foo.example", From: "http://bar.example", TLSCustomCA: "=@@"}
+	badCustomCAPolicies := testOptions(t)
+	badCustomCAPolicies.Policies = []config.Policy{
+		badCustomCAPolicy,
+	}
 	tests := []struct {
-		name      string
-		opts      config.Options
-		newPolicy []policy.Policy
-		host      string
-		wantErr   bool
-		wantRoute bool
+		name            string
+		originalOptions config.Options
+		updatedOptions  config.Options
+		signingKey      string
+		host            string
+		wantErr         bool
+		wantRoute       bool
 	}{
-		{"good", good, good.Policies, "https://corp.example.notatld", false, true},
-		{"changed", good, newPolicies, "https://bar.notatld", false, true},
-		{"changed and missing", good, newPolicies, "https://corp.example.notatld", false, false},
-		{"bad options", bad, good.Policies, "https://corp.example.notatld", true, false},
+		{"good no change", good, good, "", "https://corp.example.example", false, true},
+		{"changed", good, newPolicies, "", "https://bar.example", false, true},
+		{"changed and missing", good, newPolicies, "", "https://corp.example.example", false, false},
+		// todo(bdd): not sure what intent of this test is?
+		{"bad signing key", good, newPolicies, "^bad base 64", "https://corp.example.example", true, false},
+		{"bad change bad policy url", good, badNewPolicy, "", "https://bar.example", true, false},
+		// todo: stand up a test server using self signed certificates
+		{"disable tls verification", good, disableTLSPolicies, "", "https://bar.example", false, true},
+		{"custom root ca", good, customCAPolicies, "", "https://bar.example", false, true},
+		{"bad custom root ca base64", good, badCustomCAPolicies, "", "https://bar.example", true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := tt.opts
-			p, _ := New(o)
+			p, err := New(tt.originalOptions)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-			o.Policies = tt.newPolicy
-			err := p.UpdateOptions(o)
+			p.signingKey = tt.signingKey
+			err = p.UpdateOptions(tt.updatedOptions)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateOptions: err = %v, wantErr = %v", err, tt.wantErr)
 				return

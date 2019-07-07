@@ -18,8 +18,7 @@ func newPromHTTPHandler() http.Handler {
 	// TODO this is a cheap way to get thorough go process
 	// stats.  It will not work with additional exporters.
 	// It should turn into an FR to the OC framework
-	var reg *prom.Registry
-	reg = prom.DefaultRegisterer.(*prom.Registry)
+	reg := prom.DefaultRegisterer.(*prom.Registry)
 	pe, _ := ocProm.NewExporter(ocProm.Options{
 		Namespace: "pomerium",
 		Registry:  reg,

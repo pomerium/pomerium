@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/policy"
 )
 
 // Identity contains a user's identity information.
@@ -55,28 +55,24 @@ type whitelist struct {
 
 // newIdentityWhitelistMap takes a slice of policies and creates a hashmap of identity
 // authorizations per-route for each allowed group, domain, and email.
-func newIdentityWhitelistMap(policies []policy.Policy, admins []string) *whitelist {
-
-	policyCount := len(policies)
-	if policyCount == 0 {
-		log.Warn().Msg("authorize: loaded configuration with no policies specified")
+func newIdentityWhitelistMap(policies []config.Policy, admins []string) *whitelist {
+	if len(policies) == 0 {
+		log.Warn().Msg("authorize: loaded configuration with no policies")
 	}
-	log.Info().Int("policy-count", policyCount).Msg("authorize: updated policies")
-
 	var wl whitelist
 	wl.access = make(map[string]bool, len(policies)*3)
 	for _, p := range policies {
 		for _, group := range p.AllowedGroups {
-			wl.PutGroup(p.From, group)
-			log.Debug().Str("route", p.From).Str("group", group).Msg("add group")
+			wl.PutGroup(p.Source.Host, group)
+			log.Debug().Str("route", p.Source.Host).Str("group", group).Msg("add group")
 		}
 		for _, domain := range p.AllowedDomains {
-			wl.PutDomain(p.From, domain)
-			log.Debug().Str("route", p.From).Str("domain", domain).Msg("add domain")
+			wl.PutDomain(p.Source.Host, domain)
+			log.Debug().Str("route", p.Source.Host).Str("domain", domain).Msg("add domain")
 		}
 		for _, email := range p.AllowedEmails {
-			wl.PutEmail(p.From, email)
-			log.Debug().Str("route", p.From).Str("email", email).Msg("add email")
+			wl.PutEmail(p.Source.Host, email)
+			log.Debug().Str("route", p.Source.Host).Str("email", email).Msg("add email")
 		}
 	}
 

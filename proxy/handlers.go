@@ -9,12 +9,10 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/config"
-
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
-	"github.com/pomerium/pomerium/internal/policy"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
 )
@@ -345,7 +343,6 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 		CSRF:             csrf.SessionID,
 	}
 	templates.New().ExecuteTemplate(w, "dashboard.html", t)
-	return
 }
 
 // Refresh redeems and extends an existing authenticated oidc session with
@@ -366,8 +363,7 @@ func (p *Proxy) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// reject a refresh if it's been less than 5 minutes to prevent a bad actor
-	// trying to DOS the identity provider.
+	// reject a refresh if it's been less than the refresh cooldown to prevent abuse
 	if time.Since(iss) < p.refreshCooldown {
 		log.FromRequest(r).Error().Dur("cooldown", p.refreshCooldown).Err(err).Msg("proxy: refresh cooldown")
 		httpErr := &httputil.Error{
@@ -467,22 +463,21 @@ func (p *Proxy) authenticate(w http.ResponseWriter, r *http.Request, s *sessions
 		if err != nil {
 			return fmt.Errorf("proxy: session refresh failed : %v", err)
 		}
-		err = p.sessionStore.SaveSession(w, r, s)
-		if err != nil {
+		if err := p.sessionStore.SaveSession(w, r, s); err != nil {
 			return fmt.Errorf("proxy: refresh failed : %v", err)
 		}
 	} else {
 		valid, err := p.AuthenticateClient.Validate(r.Context(), s.IDToken)
 		if err != nil || !valid {
-			return fmt.Errorf("proxy: session valid: %v : %v", valid, err)
+			return fmt.Errorf("proxy: session validate failed: %v : %v", valid, err)
 		}
 	}
 	return nil
 }
 
 // router attempts to find a route for a request. If a route is successfully matched,
-// it returns the route information and a bool value of `true`. If a route can not be matched,
-// a nil value for the route and false bool value is returned.
+// it returns the route information and a bool value of `true`. If a route can
+// not be matched, a nil value for the route and false bool value is returned.
 func (p *Proxy) router(r *http.Request) (http.Handler, bool) {
 	config, ok := p.routeConfigs[r.Host]
 	if ok {
@@ -494,7 +489,7 @@ func (p *Proxy) router(r *http.Request) (http.Handler, bool) {
 // policy attempts to find a policy for a request. If a policy is successfully matched,
 // it returns the policy information and a bool value of `true`. If a policy can not be matched,
 // a nil value for the policy and false bool value is returned.
-func (p *Proxy) policy(r *http.Request) (*policy.Policy, bool) {
+func (p *Proxy) policy(r *http.Request) (*config.Policy, bool) {
 	config, ok := p.routeConfigs[r.Host]
 	if ok {
 		return &config.policy, true
@@ -545,33 +540,4 @@ func (p *Proxy) GetSignOutURL(authenticateURL, redirectURL *url.URL) *url.URL {
 	params.Set("sig", p.signRedirectURL(rawRedirect, now))
 	a.RawQuery = params.Encode()
 	return a
-}
-
-func extendDeadline(ttl time.Duration) time.Time {
-	return time.Now().Add(ttl).Truncate(time.Second)
-}
-
-// websocketHandlerFunc splits request serving with timeouts depending on the protocol
-func websocketHandlerFunc(baseHandler http.Handler, timeoutHandler http.Handler, o config.Options) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		// Do not use timeouts for websockets because they are long-lived connections.
-		if r.ProtoMajor == 1 &&
-			strings.EqualFold(r.Header.Get("Connection"), "upgrade") &&
-			strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
-
-			if o.AllowWebsockets {
-				baseHandler.ServeHTTP(w, r)
-				return
-			}
-
-			log.FromRequest(r).Warn().Msg("proxy: attempt to proxy a websocket connection, but websocket support is disabled in the configuration")
-			httpErr := &httputil.Error{Message: "websockets not supported by proxy", Code: http.StatusBadRequest}
-			httputil.ErrorResponse(w, r, httpErr)
-			return
-		}
-
-		// All other non-websocket requests are served with timeouts to prevent abuse
-		timeoutHandler.ServeHTTP(w, r)
-	})
 }

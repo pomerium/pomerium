@@ -15,7 +15,7 @@ import (
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/internal/config"
-	"github.com/pomerium/pomerium/internal/https"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/metrics"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -46,17 +46,17 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	_, err = newAuthenticateService(opt, mux, grpcServer)
+	_, err = newAuthenticateService(*opt, mux, grpcServer)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: authenticate")
 	}
 
-	authz, err := newAuthorizeService(opt, grpcServer)
+	authz, err := newAuthorizeService(*opt, grpcServer)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: authorize")
 	}
 
-	proxy, err := newProxyService(opt, mux)
+	proxy, err := newProxyService(*opt, mux)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: proxy")
 	}
@@ -73,7 +73,7 @@ func main() {
 	// defer proxyService.AuthenticateClient.Close()
 	// defer proxyService.AuthorizeClient.Close()
 
-	httpOpts := &https.Options{
+	httpOpts := &httputil.Options{
 		Addr:              opt.Addr,
 		Cert:              opt.Cert,
 		Key:               opt.Key,
@@ -95,7 +95,7 @@ func main() {
 		defer srv.Close()
 	}
 
-	if err := https.ListenAndServeTLS(httpOpts, wrapMiddleware(opt, mux), grpcServer); err != nil {
+	if err := httputil.ListenAndServeTLS(httpOpts, wrapMiddleware(opt, mux), grpcServer); err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: https server")
 	}
 }
@@ -166,7 +166,7 @@ func newPromListener(addr string) {
 	log.Error().Err(metrics.NewPromHTTPListener(addr)).Str("MetricsAddr", addr).Msg("cmd/pomerium: could not start metrics exporter")
 }
 
-func wrapMiddleware(o config.Options, mux *http.ServeMux) http.Handler {
+func wrapMiddleware(o *config.Options, mux *http.ServeMux) http.Handler {
 	c := middleware.NewChain()
 	c = c.Append(metrics.HTTPMetricsHandler("proxy"))
 	c = c.Append(log.NewHandler(log.Logger))
@@ -194,10 +194,10 @@ func wrapMiddleware(o config.Options, mux *http.ServeMux) http.Handler {
 	return c.Then(mux)
 }
 
-func parseOptions(configFile string) (config.Options, error) {
+func parseOptions(configFile string) (*config.Options, error) {
 	o, err := config.OptionsFromViper(configFile)
 	if err != nil {
-		return o, err
+		return nil, err
 	}
 	if o.Debug {
 		log.SetDebugMode()
@@ -209,8 +209,12 @@ func parseOptions(configFile string) (config.Options, error) {
 	return o, nil
 }
 
-func handleConfigUpdate(opt config.Options, services []config.OptionsUpdater) config.Options {
+func handleConfigUpdate(opt *config.Options, services []config.OptionsUpdater) *config.Options {
 	newOpt, err := parseOptions(*configFile)
+	if err != nil {
+		log.Error().Err(err).Msg("cmd/pomerium: could not reload configuration")
+		return opt
+	}
 	optChecksum := opt.Checksum()
 	newOptChecksum := newOpt.Checksum()
 
@@ -224,22 +228,10 @@ func handleConfigUpdate(opt config.Options, services []config.OptionsUpdater) co
 		return opt
 	}
 
-	if err != nil {
-		log.Error().
-			Err(err).
-			Msg("cmd/pomerium: could not reload configuration")
-		return opt
-	}
-
-	log.Info().
-		Str("config-checksum", newOptChecksum).
-		Msg("cmd/pomerium: running configuration has changed")
+	log.Info().Str("checksum", newOptChecksum).Msg("cmd/pomerium: checksum changed")
 	for _, service := range services {
-		err := service.UpdateOptions(newOpt)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Msg("cmd/pomerium: could not update options")
+		if err := service.UpdateOptions(*newOpt); err != nil {
+			log.Error().Err(err).Msg("cmd/pomerium: could not update options")
 		}
 	}
 
