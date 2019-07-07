@@ -50,6 +50,7 @@ fmt: ## Verifies all files have been `gofmt`ed.
 .PHONY: lint
 lint: ## Verifies `golint` passes.
 	@echo "==> $@"
+	@go get golang.org/x/lint/golint
 	@golint ./... | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
 
 .PHONY: staticcheck
