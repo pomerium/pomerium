@@ -19,9 +19,9 @@ services:
       # NOTE!: Replace with your identity provider settings https://www.pomerium.io/docs/identity-providers.html
       # - IDP_PROVIDER=google
       # - IDP_PROVIDER_URL=https://accounts.google.com
-      # - IDP_CLIENT_ID=REPLACE_ME.apps.googleusercontent.com
+      # - IDP_CLIENT_ID=REPLACE_ME
       # - IDP_CLIENT_SECRET=REPLACE_ME
-      # - IDP_CLIENT_SECRET=REPLACE_ME
+      # - IDP_SERVICE_ACCOUNT=REPLACE_ME
       # NOTE! Generate new secret keys! e.g. `head -c32 /dev/urandom | base64`
       # Generated secret keys must match between services
 

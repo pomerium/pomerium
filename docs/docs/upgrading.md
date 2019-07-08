@@ -7,9 +7,47 @@ description: >-
 
 # Overview
 
+## Since 0.0.5
+
+This page contains the list of deprecations and important or breaking changes for pomerium `v0.1.0` compared to `v0.0.5`. Please read it carefully.
+
+### Semantic versioning changes
+
+Starting with `v0.1.0` we've changed our [releases](https://semver.org/) are versioned (`MAJOR.MINOR.PATCH+GITHASH`). Planned, monthly releases will now bump `MINOR` and any security or stability releases required prior will bump `PATCH`.
+
+Please note however that we are still pre `1.0.0` so breaking changes can and will happen at any release though we will do our best to document them.
+
+### Breaking: Policy must be valid URLs
+
+Previously, it was allowable to define a policy without a schema (e.g. `http`/`https`). Starting with version `v0.1.0` all `to` and `from` [policy] URLS must contain valid schema and host-names. For example:
+
+```yaml
+policy:
+  - from: httpbin.corp.domain.example
+    to: http://httpbin
+    allowed_domains:
+      - pomerium.io
+  - from: external-httpbin.corp.domain.example
+    to: https://httpbin.org
+    allow_public_unauthenticated_access: true
+```
+
+Should now be:
+
+```yaml
+policy:
+  - from: https://httpbin.corp.domain.example
+    to: http://httpbin
+    allowed_domains:
+      - pomerium.io
+  - from: https://external-httpbin.corp.domain.example
+    to: https://httpbin.org
+    allow_public_unauthenticated_access: true
+```
+
 ## Since 0.0.4
 
-This page contains the list of deprecations and important or breaking changes for pomerium `v0.0.4` compared to `v0.0.5`. Please read it carefully.
+This page contains the list of deprecations and important or breaking changes for pomerium `v0.0.5` compared to `v0.0.4`. Please read it carefully.
 
 ### Breaking: POLICY_FILE removed
 
@@ -48,3 +86,5 @@ Usage of the POLICY_FILE envvar is no longer supported. Support for file based p
 ### Authenticate Internal Service Address
 
 The configuration variable [Authenticate Internal Service URL](https://www.pomerium.io/reference/#authenticate-internal-service-url) must now be a valid [URL](https://golang.org/pkg/net/url/#URL) type and contain both a hostname and valid `https` schema.
+
+[policy]: ../reference/readme.md#policy

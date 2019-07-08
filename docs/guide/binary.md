@@ -31,7 +31,7 @@ Create a config file (`config.yaml`). This file will be used to determine Pomeri
 
 ### Environmental Variables
 
-As mentioned above, Pomerium supports mixing and matching  configuration. For example, we can specify our secret values and domains certificates as [environmental configuration variables], and set the rest as part of the configuration file.
+As mentioned above, Pomerium supports mixing and matching configuration. For example, we can specify our secret values and domains certificates as [environmental configuration variables], and set the rest as part of the configuration file.
 
 <<< @/docs/docs/examples/config/config.minimal.env
 

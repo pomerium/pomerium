@@ -1,6 +1,6 @@
 # Pomerium Changelog
 
-## vUNRELEASED
+## v0.1.0
 
 ### NEW
 
@@ -15,17 +15,18 @@
 - Proxy's sign out handler `{}/.pomerium/sign_out` now accepts an optional `redirect_uri` parameter which can be used to specify a custom redirect page, so long as it is under the same top-level domain. [GH-183]
 - Policy configuration can now be empty at startup. [GH-190]
 - Websocket support is now set per-route instead of globally. [GH-204]
-- golint removed from amd64 container
+- Golint removed from amd64 container. [GH-215]
+- Pomerium will error if a session cookie is over 4096 bytes, instead of failing silently. [GH-212]
 
 ### FIXED
 
-- Fixed HEADERS environment variable parsing [GH-188]
-- Fixed Azure group lookups [GH-190]
+- Fixed HEADERS environment variable parsing. [GH-188]
+- Fixed Azure group lookups. [GH-190]
 - If a session is too large (over 4096 bytes) Pomerium will no longer fail silently. [GH-211]
-- Internal URLs like dashboard now start auth process to login a user if no session is found [GH-205].
+- Internal URLs like dashboard now start auth process to login a user if no session is found. [GH-205].
 - When set,`CookieDomain` lets a user set the scope of the user session. CSRF cookies will still always be scoped at the individual route level. [GH-181]
 
-  ## v0.0.5
+## v0.0.5
 
 ### NEW
 

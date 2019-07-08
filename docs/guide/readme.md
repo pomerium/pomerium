@@ -24,7 +24,7 @@ Download the following `docker-compose.yml` file and modify it to:
 
 - generate new secrets
 - mount your [wild-card TLS certificate]
-- mount Pomerium's `config.yaml` [configuration file]
+- mount your `config.yaml` [configuration file]
 
 <<< @/docs/docs/examples/docker/basic.docker-compose.yml
 

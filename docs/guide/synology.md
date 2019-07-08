@@ -6,7 +6,7 @@ Using Pomerium on your Synology DSM device enables:
 
 - Secure remote access to docker and synology web-applications without a VPN.
 - Unified, multi-factor authentication with your identity provider of choice.
-- Access to services by sub-domain (e.g. `plex.int.nas.example.com` or `wiki.int.nas.example.com`)
+- Access to services by sub-domain (e.g. `plex.int.nas.example` or `wiki.int.nas.example`)
 - TLS everywhere.
 
 Pomerium is lightweight, can easily handle hundreds of concurrent requests, and a single instance typically uses <20MB of memory and very little CPU.
@@ -52,7 +52,7 @@ Destination Port     | 32443
 
 ![Synology setup nginx reverse proxy](./synology/synology-reverse-proxy.png)
 
-This will forward any incoming HTTPS traffic to the Pomerium service that is (not yet) running on port **32433**.
+This will forward any incoming HTTPS traffic to the Pomerium service that is (not yet) running on port **32443**.
 
 ### Certificates
 
@@ -69,8 +69,8 @@ Once the certificate is showing on the list of certificates screen we need to te
 **Click configure**
 
 Services | Certificate
--------- | -----------------------
-*:8443   | `*.int.nas.example.com`
+-------- | -------------------
+*:8443   | `*.int.nas.example`
 
 ![Synology assign wildcard certificate](./synology/synology-certifciate-assignment.png)
 
@@ -98,11 +98,11 @@ We'll also need a test application to manage access to. For this guide we'll use
 
 ### Policy
 
-We will create an extremely basic policy where `httpbin.int.nas.example.com` is replaced with the subdomain you want to use for the httpbin service, and `your.email.address@gmail.com` is replaced with your email address. All other users will be denied, and all other routes will be `404`.
+We will create an extremely basic policy where `httpbin.int.nas.example` is replaced with the subdomain you want to use for the httpbin service, and `your.email.address@gmail.com` is replaced with your email address. All other users will be denied, and all other routes will be `404`.
 
 ```yaml
 # policy.yaml
-- from: httpbin.int.nas.example.com
+- from: https://httpbin.int.nas.example
   to: http://httpbin
   allowed_users:
   - your.email.address@gmail.com
@@ -142,7 +142,7 @@ Click **Advanced Settings**
 
 Go to **Port Settings** tab.
 
-Add an entry where the **Local Port** is **32433** and the container port is **443** and the type is **TCP**.
+Add an entry where the **Local Port** is **32443** and the container port is **443** and the type is **TCP**.
 
 ![Synology pomerium port settings docker](./synology/synology-docker-port-settings.png)
 
@@ -163,22 +163,22 @@ These are the minimum set of configuration settings to get Pomerium running in t
 Go to **Environment** tab.
 
 Field                     | Value
-------------------------- | ---------------------------------------------------------------
+------------------------- | ----------------------------------------------------------------------------------------
 POLICY                    | output of `base64 -i policy.yaml`
-CERTIFICATE               | output of `base64 -i "$HOME/.acme.sh/*.int.nas.bdd.io_ecc/fullchain.cer"`
-CERTIFICATE_KEY           | output of `base64 -i "$HOME/.acme.sh/*.int.nas.bdd.io_ecc/*.int.nas.bdd.io.key"`
-CERTIFICATE_AUTHORITY     | output of `base64 -i "$HOME/.acme.sh/*.int.nas.bdd.io_ecc/ca.cer"`
-OVERRIDE_CERTIFICATE_NAME | `*.int.nas.example.com`
+CERTIFICATE               | output of `base64 -i "$HOME/.acme.sh/*.int.nas.example.io_ecc/fullchain.cer"`
+CERTIFICATE_KEY           | output of `base64 -i "$HOME/.acme.sh/*.int.nas.example.io_ecc/*.int.nas.example.io.key"`
+CERTIFICATE_AUTHORITY     | output of `base64 -i "$HOME/.acme.sh/*.int.nas.example.io_ecc/ca.cer"`
+OVERRIDE_CERTIFICATE_NAME | `*.int.nas.example`
 IDP_CLIENT_SECRET         | Values from setting up your [identity provider]
 IDP_CLIENT_ID             | Values from setting up your [identity provider]
 IDP_PROVIDER              | Values from setting up your [identity provider] (e.g. `google`)
-COOKIE_SECRET             | output of `head -c32 /dev/urandom | base64`
-SHARED_SECRET             | output of `head -c32 /dev/urandom | base64`
+COOKIE_SECRET             | output of `head -c32 /dev/urandom                                                        | base64`
+SHARED_SECRET             | output of `head -c32 /dev/urandom                                                        | base64`
 AUTHORIZE_SERVICE_URL     | `https://localhost`
-AUTHENTICATE_SERVICE_URL  | `https://authenticate.int.nas.example.com`
+AUTHENTICATE_SERVICE_URL  | `https://authenticate.int.nas.example`
 AUTHENTICATE_INTERNAL_URL | `https://localhost`
 
-For a detailed explanation, and additional options, please refer to the [configuration variable docs].
+For a detailed explanation, and additional options, please refer to the [configuration variable docs]. Also note, though not covered in this guide, settings can be made via a mounted configuration file.
 
 Click **Launch**.
 
@@ -190,7 +190,7 @@ If something goes wrong, click the **Logs** tab.
 
 ## Try it out
 
-Navigate to your new service. `https://httpbin.int.nas.example.com`
+Navigate to your new service. `https://httpbin.int.nas.example`
 
 You should be redirected to your identity provider.
 
