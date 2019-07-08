@@ -1,11 +1,9 @@
 version: "3"
 services:
   pomerium:
-    image: pomerium/pomerium:v0.0.5
+    image: pomerium/pomerium:latest
     environment:
-      - SERVICES=all
       # Generate new secret keys. e.g. `head -c32 /dev/urandom | base64`
-      - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
     volumes:
       # Mount your domain's certificates : https://www.pomerium.io/docs/certificates.html

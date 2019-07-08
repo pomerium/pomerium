@@ -8,12 +8,12 @@ meta:
 
 # Building Pomerium From Source
 
-The following quick-start guide covers how to retrieve and build Pomerium directly from it's source-code as well as how to run Pomerium using a minimal but complete configuration. One of the benefits of compiling from source is that Go supports building static binaries for a [wide array of architectures and operating systems](https://gist.github.com/asukakenji/f15ba7e588ac42795f421b48b8aede63) — some of which may not yet be supported by Pomerium's official images or binaries. 
+The following quick-start guide covers how to retrieve and build Pomerium from its source-code as well as how to run Pomerium using a minimal but complete configuration. One of the benefits of compiling from source is that Go supports building static binaries for a [wide array of architectures and operating systems](https://gist.github.com/asukakenji/f15ba7e588ac42795f421b48b8aede63) -- some of which may not yet be supported by Pomerium's official images or binaries.
 
 ## Prerequisites
 
--  [git](https://git-scm.com/) 
--  [go](https://golang.org/doc/install) programming language
+- [git](https://git-scm.com/)
+- [go](https://golang.org/doc/install) programming language
 - A configured [identity provider]
 - A [wild-card TLS certificate]
 
@@ -63,7 +63,7 @@ source ./env
 
 ## Navigate
 
-Browse to `external-httpbin.your.domain.example`. Connections between you and [httpbin] will now be proxied and managed by Pomerium. 
+Browse to `external-httpbin.your.domain.example`. Connections between you and [httpbin] will now be proxied and managed by Pomerium.
 
 [configuration variables]: ../reference/readme.md
 [download]: https://github.com/pomerium/pomerium/releases

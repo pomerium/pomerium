@@ -8,10 +8,10 @@ idp_client_id: REPLACE_ME
 idp_client_secret: REPLACE_ME
 
 policy:
-  - from: httpbin.corp.beyondperimeter.com
+  - from: https://httpbin.corp.beyondperimeter.com
     to: http://httpbin
     allowed_domains:
       - pomerium.io
-  - from: external-httpbin.corp.beyondperimeter.com
+  - from: https://external-httpbin.corp.beyondperimeter.com
     to: https://httpbin.org
     allow_public_unauthenticated_access: true

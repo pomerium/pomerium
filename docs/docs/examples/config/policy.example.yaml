@@ -7,25 +7,25 @@
 
 # Proxied routes and per-route policies are defined in a policy block
 # NOTA BENE: You must uncomment the bellow 'policy' key if you are loading policy as a file.
-# policy: 
-  - from: httpbin.corp.beyondperimeter.com
-    to: http://localhost:8000
-    allowed_domains:
-      - pomerium.io
-    cors_allow_preflight: true
-    timeout: 30s
-  - from: external-httpbin.corp.beyondperimeter.com
-    to: httpbin.org
-    allowed_domains:
-      - gmail.com
-  - from: weirdlyssl.corp.beyondperimeter.com
-    to: http://neverssl.com
-    allowed_users:
-      - bdd@pomerium.io
-    allowed_groups:
-      - admins
-      - developers
-  - from: hello.corp.beyondperimeter.com
-    to: http://localhost:8080
-    allowed_groups:
-      - admins@pomerium.io
+# policy:
+- from: https://httpbin.corp.beyondperimeter.com
+  to: http://localhost:8000
+  allowed_domains:
+    - pomerium.io
+  cors_allow_preflight: true
+  timeout: 30s
+- from: https://external-httpbin.corp.beyondperimeter.com
+  to: https://httpbin.org
+  allowed_domains:
+    - gmail.com
+- from: https://weirdlyssl.corp.beyondperimeter.com
+  to: http://neverssl.com
+  allowed_users:
+    - bdd@pomerium.io
+  allowed_groups:
+    - admins
+    - developers
+- from: https://hello.corp.beyondperimeter.com
+  to: http://localhost:8080
+  allowed_groups:
+    - admins@pomerium.io

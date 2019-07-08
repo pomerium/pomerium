@@ -181,9 +181,7 @@ grpc_client_request_duration_ms | Histogram | GRPC client request duration by se
 - Environmental Variable: `POLICY`
 - Config File Key: `policy`
 - Type: [base64 encoded] `string` or inline policy structure in config file
-- Required
-
-  - Required to forward traffic. Pomerium will safely start without a policy configured, but will be unable to authorize or proxy traffic until the configuration is updated to contain a policy.
+- **Required** However, pomerium will safely start without a policy configured, but will be unable to authorize or proxy traffic until the configuration is updated to contain a policy.
 
 Policy contains route specific settings, and access control details. If you are configuring via POLICY environment variable, just the contents of the policy needs to be passed. If you are configuring via file, the policy should be present under the policy key. For example,
 
@@ -194,18 +192,18 @@ A list of policy configuration variables follows.
 #### From
 
 - `yaml`/`json` setting: `from`
-- Type: `string` domain
+- Type: `URL` (must contain a scheme and hostname)
 - Required
-- Example: `httpbin.corp.example.com`
+- Example: `https://httpbin.corp.example.com`
 
 `From` is externally accessible source of the proxied request.
 
 #### To
 
 - `yaml`/`json` setting: `to`
-- Type: `string` domain
+- Type: `URL` (must contain a scheme and hostname)
 - Required
-- Example: `httpbin` , `192.1.20.12:20`, `http://neverssl.com`
+- Example: `http://httpbin` , `https://192.1.20.12:8080`, `http://neverssl.com`
 
 `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
 
