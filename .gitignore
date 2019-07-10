@@ -1,4 +1,5 @@
 .*.yml
+.*.yaml
 pem
 env
 coverage.txt
