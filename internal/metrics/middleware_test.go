@@ -70,9 +70,9 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 			rec := httptest.NewRecorder()
 			chainHandler.ServeHTTP(rec, req)
 
-			testDataRetrieval(httpServerResponseSize, t, tt.wanthttpServerResponseSize)
-			testDataRetrieval(httpServerRequestDuration, t, tt.wanthttpServerRequestDuration)
-			testDataRetrieval(httpServerRequestCount, t, tt.wanthttpServerRequestCount)
+			testDataRetrieval(HTTPServerRequestSizeView, t, tt.wanthttpServerResponseSize)
+			testDataRetrieval(HTTPServerRequestDurationView, t, tt.wanthttpServerRequestDuration)
+			testDataRetrieval(HTTPServerRequestCountView, t, tt.wanthttpServerRequestCount)
 		})
 	}
 }
@@ -144,9 +144,9 @@ func Test_HTTPMetricsRoundTripper(t *testing.T) {
 			resp, err := client.Do(req)
 
 			t.Logf("response: %#v, %#v", resp, err)
-			testDataRetrieval(httpClientResponseSize, t, tt.wanthttpClientResponseSize)
-			testDataRetrieval(httpClientRequestDuration, t, tt.wanthttpClientRequestDuration)
-			testDataRetrieval(httpClientRequestCount, t, tt.wanthttpClientRequestCount)
+			testDataRetrieval(HTTPClientResponseSizeView, t, tt.wanthttpClientResponseSize)
+			testDataRetrieval(HTTPClientRequestDurationView, t, tt.wanthttpClientRequestDuration)
+			testDataRetrieval(HTTPClientRequestCountView, t, tt.wanthttpClientRequestCount)
 		})
 	}
 

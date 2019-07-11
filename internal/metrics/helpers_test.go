@@ -4,12 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 )
 
-func testDataRetrieval(measure stats.Measure, t *testing.T, want string) {
-	name := measure.Name()
+func testDataRetrieval(v *view.View, t *testing.T, want string) {
+	if v == nil {
+		t.Fatalf("%s: nil view passed", t.Name())
+	}
+	name := v.Name
 	data, err := view.RetrieveData(name)
 
 	if err != nil {
