@@ -5,26 +5,26 @@ import (
 	"go.opencensus.io/stats/view"
 )
 
-// RegisterHTTPClientView registers the standard HTTPClient view.
-// It must be called to see metrics in the configured exporters
-func RegisterHTTPClientView() {
-	if err := view.Register(HTTPClientRequestCountView, HTTPClientRequestDurationView, HTTPClientResponseSizeView); err != nil {
-		log.Warn().Err(err).Msg("Could not register HTTPClientView")
+var (
+	// HTTPClientViews contains opencensus views for HTTP Client metrics
+	HTTPClientViews = []*view.View{HTTPClientRequestCountView, HTTPClientRequestDurationView, HTTPClientResponseSizeView}
+	// HTTPServerViews contains opencensus views for HTTP Server metrics
+	HTTPServerViews = []*view.View{HTTPServerRequestCountView, HTTPServerRequestDurationView, HTTPServerRequestSizeView}
+	// GRPCClientViews contains opencensus views for GRPC Client metrics
+	GRPCClientViews = []*view.View{GRPCClientRequestCountView, GRPCClientRequestDurationView, GRPCClientResponseSizeView, GRPCClientRequestSizeView}
+	// GRPCServerViews contains opencensus views for GRPC Server metrics
+	GRPCServerViews = []*view.View{GRPCServerRequestCountView, GRPCServerRequestDurationView, GRPCServerResponseSizeView, GRPCServerRequestSizeView}
+)
+
+// RegisterView registers one of the defined metrics views.  It must be called for metrics to see metrics
+// in the configured exporters
+func RegisterView(v []*view.View) {
+	if err := view.Register(v...); err != nil {
+		log.Warn().Str("context", "RegisterView").Err(err).Msg("internal/metrics: Could not register view")
 	}
 }
 
-// RegisterHTTPServerView registers the standard HTTPServer view.
-// It must be called to see metrics in the configured exporters
-func RegisterHTTPServerView() {
-	if err := view.Register(HTTPServerRequestCountView, HTTPServerRequestDurationView, HTTPServerRequestSizeView); err != nil {
-		log.Warn().Err(err).Msg("Could not register HTTPServerView")
-	}
-}
-
-// RegisterGRPCClientView registers the standard GRPCClient view.
-// It must be called to see metrics in the configured exporters
-func RegisterGRPCClientView() {
-	if err := view.Register(GRPCClientRequestCountView, GRPCClientRequestDurationView, GRPCClientResponseSizeView); err != nil {
-		log.Warn().Err(err).Msg("Could not register GRPCClientView")
-	}
+// UnRegisterView unregisters one of the defined metrics views.
+func UnRegisterView(v []*view.View) {
+	view.Unregister(v...)
 }

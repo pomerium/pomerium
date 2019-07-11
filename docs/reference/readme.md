@@ -160,7 +160,7 @@ If set, the HTTP Redirect Address specifies the host and port to redirect http t
 
 Expose a prometheus format HTTP endpoint on the specified port. Disabled by default.
 
-**Use with caution:** the endpoint can expose frontend and backend server names or addresses. Do not expose the metrics port publicly.
+**Use with caution:** the endpoint can expose frontend and backend server names or addresses. Do not expose the metrics port if this is sensitive information.
 
 #### Metrics tracked
 
@@ -174,7 +174,12 @@ http_client_response_size_bytes | Histogram | HTTP client response size by servi
 http_client_request_duration_ms | Histogram | HTTP client request duration by service
 grpc_client_requests_total      | Counter   | Total GRPC client requests made by service
 grpc_client_response_size_bytes | Histogram | GRPC client response size by service
+grpc_client_request_size_bytes | Histogram | GRPC client request size by service
 grpc_client_request_duration_ms | Histogram | GRPC client request duration by service
+grpc_server_requests_total      | Counter   | Total GRPC server requests made by service
+grpc_server_response_size_bytes | Histogram | GRPC server response size by service
+grpc_server_request_size_bytes | Histogram | GRPC server request size by service
+grpc_server_request_duration_ms | Histogram | GRPC server request duration by service
 
 ### Policy
 

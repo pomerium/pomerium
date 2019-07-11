@@ -1,5 +1,18 @@
 # Pomerium Changelog
 
+## vUNRELEASED
+
+### New
+
+
+### Changed
+
+- GRPC Metrics Implementation [GH-218]
+  - Additional GRPC server metrics and request sizes
+  - Improved GRPC metrics implementation internals
+  - The GRPC method label is now 'grpc_method' and GRPC status is now `grpc_client_status` and `grpc_server_status`
+
+
 ## v0.1.0
 
 ### NEW

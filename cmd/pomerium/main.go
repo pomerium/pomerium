@@ -41,7 +41,7 @@ func main() {
 	}
 	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
 	grpcAuth := middleware.NewSharedSecretCred(opt.SharedKey)
-	grpcOpts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcAuth.ValidateRequest)}
+	grpcOpts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcAuth.ValidateRequest), grpc.StatsHandler(metrics.NewGRPCServerStatsHandler(opt.Services))}
 	grpcServer := grpc.NewServer(grpcOpts...)
 
 	mux := http.NewServeMux()
@@ -158,9 +158,10 @@ func newProxyService(opt config.Options, mux *http.ServeMux) (*proxy.Proxy, erro
 }
 
 func newPromListener(addr string) {
-	metrics.RegisterGRPCClientView()
-	metrics.RegisterHTTPClientView()
-	metrics.RegisterHTTPServerView()
+	metrics.RegisterView(metrics.HTTPClientViews)
+	metrics.RegisterView(metrics.HTTPServerViews)
+	metrics.RegisterView(metrics.GRPCClientViews)
+	metrics.RegisterView(metrics.GRPCServerViews)
 
 	log.Info().Str("MetricsAddr", addr).Msg("cmd/pomerium: starting prometheus endpoint")
 	log.Error().Err(metrics.NewPromHTTPListener(addr)).Str("MetricsAddr", addr).Msg("cmd/pomerium: could not start metrics exporter")
