@@ -1,7 +1,9 @@
 package sessions
 
 import (
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -204,6 +206,10 @@ func TestCookieStore_SaveSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	hugeString := make([]byte, 4097)
+	if _, err := rand.Read(hugeString); err != nil {
+		t.Fatal(err)
+	}
 	tests := []struct {
 		name         string
 		sessionState *SessionState
@@ -211,22 +217,9 @@ func TestCookieStore_SaveSession(t *testing.T) {
 		wantErr      bool
 		wantLoadErr  bool
 	}{
-		{"good",
-			&SessionState{
-				AccessToken:     "token1234",
-				RefreshToken:    "refresh4321",
-				RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
-				Email:           "user@domain.com",
-				User:            "user",
-			}, cipher, false, false},
-		{"bad cipher",
-			&SessionState{
-				AccessToken:     "token1234",
-				RefreshToken:    "refresh4321",
-				RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
-				Email:           "user@domain.com",
-				User:            "user",
-			}, mockCipher{}, true, true},
+		{"good", &SessionState{AccessToken: "token1234", RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, cipher, false, false},
+		{"bad cipher", &SessionState{AccessToken: "token1234", RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, mockCipher{}, true, true},
+		{"huge cookie", &SessionState{AccessToken: fmt.Sprintf("%x", hugeString), RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, cipher, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

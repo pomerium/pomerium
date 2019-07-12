@@ -130,22 +130,22 @@ func (s *CookieStore) makeCSRFCookie(req *http.Request, value string, expiration
 func (s *CookieStore) SetCookie(w http.ResponseWriter, cookie *http.Cookie) {
 	if len(cookie.String()) <= MaxChunkSize {
 		http.SetCookie(w, cookie)
-	} else {
-		chunks := chunk(cookie.Value, MaxChunkSize)
-		for i, c := range chunks {
-			// start with a copy of our original cookie
-			nc := *cookie
-			if i == 0 {
-				// if this is the first cookie, add our canary byte
-				nc.Value = fmt.Sprintf("%s%s", string(ChunkedCanaryByte), c)
-			} else {
-				// subsequent parts will be postfixed with their part number
-				nc.Name = fmt.Sprintf("%s_%d", cookie.Name, i)
-				nc.Value = fmt.Sprintf("%s", c)
-			}
-			log.Info().Interface("new cookie", nc).Msg("SetCookie: chunked")
-			http.SetCookie(w, &nc)
+		return
+	}
+	chunks := chunk(cookie.Value, MaxChunkSize)
+	for i, c := range chunks {
+		// start with a copy of our original cookie
+		nc := *cookie
+		if i == 0 {
+			// if this is the first cookie, add our canary byte
+			nc.Value = fmt.Sprintf("%s%s", string(ChunkedCanaryByte), c)
+		} else {
+			// subsequent parts will be postfixed with their part number
+			nc.Name = fmt.Sprintf("%s_%d", cookie.Name, i)
+			nc.Value = fmt.Sprintf("%s", c)
 		}
+		log.Info().Interface("new cookie", nc).Msg("SetCookie: chunked")
+		http.SetCookie(w, &nc)
 	}
 
 }
