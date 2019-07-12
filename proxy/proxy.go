@@ -200,7 +200,7 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		// https://github.com/golang/go/issues/26013#issuecomment-399481302
 		transport := *(http.DefaultTransport.(*http.Transport))
 		c := tripper.NewChain()
-		c = c.Append(metrics.HTTPMetricsRoundTripper("proxy"))
+		c = c.Append(metrics.HTTPMetricsRoundTripper("proxy", policy.Destination.Host))
 		if policy.TLSSkipVerify {
 			transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 		}

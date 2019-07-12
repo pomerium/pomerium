@@ -9,7 +9,7 @@ var (
 	// HTTPClientViews contains opencensus views for HTTP Client metrics
 	HTTPClientViews = []*view.View{HTTPClientRequestCountView, HTTPClientRequestDurationView, HTTPClientResponseSizeView}
 	// HTTPServerViews contains opencensus views for HTTP Server metrics
-	HTTPServerViews = []*view.View{HTTPServerRequestCountView, HTTPServerRequestDurationView, HTTPServerRequestSizeView}
+	HTTPServerViews = []*view.View{HTTPServerRequestCountView, HTTPServerRequestDurationView, HTTPServerRequestSizeView, HTTPServerResponseSizeView}
 	// GRPCClientViews contains opencensus views for GRPC Client metrics
 	GRPCClientViews = []*view.View{GRPCClientRequestCountView, GRPCClientRequestDurationView, GRPCClientResponseSizeView, GRPCClientRequestSizeView}
 	// GRPCServerViews contains opencensus views for GRPC Server metrics

@@ -1,99 +1,105 @@
 package metrics // import "github.com/pomerium/pomerium/internal/metrics"
 
 import (
-	"context"
 	"net/http"
-	"strconv"
-	"time"
+
+	"go.opencensus.io/plugin/ochttp"
 
 	"github.com/pomerium/pomerium/internal/log"
 
-	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
 	"github.com/pomerium/pomerium/internal/tripper"
-	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 )
 
 var (
-	httpServerRequestCount    = stats.Int64("http_server_requests_total", "Total HTTP Requests", "1")
-	httpServerResponseSize    = stats.Int64("http_server_response_size_bytes", "HTTP Server Response Size in bytes", "bytes")
-	httpServerRequestDuration = stats.Int64("http_server_request_duration_ms", "HTTP Request duration in ms", "ms")
+	httpSizeDistribution = view.Distribution(
+		1, 256, 512, 1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
+		1048576, 2097152, 4194304, 8388608,
+	)
 
-	httpClientRequestCount    = stats.Int64("http_client_requests_total", "Total HTTP Client Requests", "1")
-	httpClientResponseSize    = stats.Int64("http_client_response_size_bytes", "HTTP Client Response Size in bytes", "bytes")
-	httpClientRequestDuration = stats.Int64("http_client_request_duration_ms", "HTTP Client Request duration in ms", "ms")
+	httpLatencyDistrubtion = view.Distribution(
+		1, 2, 5, 7, 10, 25, 500, 750,
+		100, 250, 500, 750,
+		1000, 2500, 5000, 7500,
+		10000, 25000, 50000, 75000,
+		100000,
+	)
+
+	// httpClientRequestCount    = stats.Int64("http_client_requests_total", "Total HTTP Client Requests", "1")
+	// httpClientResponseSize    = stats.Int64("http_client_response_size_bytes", "HTTP Client Response Size in bytes", "bytes")
+	// httpClientRequestDuration = stats.Int64("http_client_request_duration_ms", "HTTP Client Request duration in ms", "ms")
 
 	// HTTPServerRequestCountView is an OpenCensus View that tracks HTTP server requests by pomerium service, host, method and status
 	HTTPServerRequestCountView = &view.View{
-		Name:        httpServerRequestCount.Name(),
-		Measure:     httpServerRequestCount,
-		Description: httpServerRequestCount.Description(),
-		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
+		Name:        "http_server_requests_total",
+		Measure:     ochttp.ServerLatency,
+		Description: "Total HTTP Requests",
+		TagKeys:     []tag.Key{keyService, keyHost, keyHTTPMethod, ochttp.StatusCode},
 		Aggregation: view.Count(),
 	}
 
 	// HTTPServerRequestDurationView is an OpenCensus view that tracks HTTP server request duration by pomerium service, host, method and status
 	HTTPServerRequestDurationView = &view.View{
-		Name:        httpServerRequestDuration.Name(),
-		Measure:     httpServerRequestDuration,
-		Description: httpServerRequestDuration.Description(),
-		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
-		Aggregation: view.Distribution(
-			1, 2, 5, 7, 10, 25, 500, 750,
-			100, 250, 500, 750,
-			1000, 2500, 5000, 7500,
-			10000, 25000, 50000, 75000,
-			100000,
-		),
+		Name:        "http_server_request_duration_ms",
+		Measure:     ochttp.ServerLatency,
+		Description: "HTTP Request duration in ms",
+		TagKeys:     []tag.Key{keyService, keyHost, keyHTTPMethod, ochttp.StatusCode},
+		Aggregation: httpLatencyDistrubtion,
 	}
 
-	// HTTPServerRequestSizeView is an OpenCensus view that tracks HTTP server request duration by pomerium service, host, method and status
+	// HTTPServerRequestSizeView is an OpenCensus view that tracks HTTP server request size by pomerium service, host and method
 	HTTPServerRequestSizeView = &view.View{
-		Name:        httpServerResponseSize.Name(),
-		Measure:     httpServerResponseSize,
-		Description: httpServerResponseSize.Description(),
-		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
-		Aggregation: view.Distribution(
-			1, 256, 512, 1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
-			1048576, 2097152, 4194304, 8388608,
-		),
+		Name:        "http_server_request_size_bytes",
+		Measure:     ochttp.ServerRequestBytes,
+		Description: "HTTP Server Request Size in bytes",
+		TagKeys:     []tag.Key{keyService, keyHost, keyHTTPMethod},
+		Aggregation: httpSizeDistribution,
 	}
 
-	// HTTPClientRequestCountView is an OpenCensus View that tracks HTTP client requests by pomerium service, host, method and status
+	// HTTPServerResponseSizeView is an OpenCensus view that tracks HTTP server response size by pomerium service, host, method and status
+	HTTPServerResponseSizeView = &view.View{
+		Name:        "http_server_response_size_bytes",
+		Measure:     ochttp.ServerResponseBytes,
+		Description: "HTTP Server Response Size in bytes",
+		TagKeys:     []tag.Key{keyService, keyHost, keyHTTPMethod, ochttp.StatusCode},
+		Aggregation: httpSizeDistribution,
+	}
+
+	// HTTPClientRequestCountView is an OpenCensus View that tracks HTTP client requests by pomerium service, destination, host, method and status
 	HTTPClientRequestCountView = &view.View{
-		Name:        httpClientRequestCount.Name(),
-		Measure:     httpClientRequestCount,
-		Description: httpClientRequestCount.Description(),
-		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
+		Name:        "http_client_requests_total",
+		Measure:     ochttp.ClientLatency,
+		Description: "Total HTTP Client Requests",
+		TagKeys:     []tag.Key{keyService, keyHost, keyHTTPMethod, ochttp.StatusCode, keyDestination},
 		Aggregation: view.Count(),
 	}
 
-	// HTTPClientRequestDurationView is an OpenCensus view that tracks HTTP client request duration by pomerium service, host, method and status
+	// HTTPClientRequestDurationView is an OpenCensus view that tracks HTTP client request duration by pomerium service, destination, host, method and status
 	HTTPClientRequestDurationView = &view.View{
-		Name:        httpClientRequestDuration.Name(),
-		Measure:     httpClientRequestDuration,
-		Description: httpClientRequestDuration.Description(),
-		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
-		Aggregation: view.Distribution(
-			1, 2, 5, 7, 10, 25, 500, 750,
-			100, 250, 500, 750,
-			1000, 2500, 5000, 7500,
-			10000, 25000, 50000, 75000,
-			100000,
-		),
+		Name:        "http_client_request_duration_ms",
+		Measure:     ochttp.ClientRoundtripLatency,
+		Description: "HTTP Client Request duration in ms",
+		TagKeys:     []tag.Key{keyService, keyHost, keyHTTPMethod, ochttp.StatusCode, keyDestination},
+		Aggregation: httpLatencyDistrubtion,
 	}
 
-	// HTTPClientResponseSizeView is an OpenCensus view that tracks HTTP client response size by pomerium service, host, method and status
+	// HTTPClientResponseSizeView is an OpenCensus view that tracks HTTP client response size by pomerium service, destination, host, method and status
 	HTTPClientResponseSizeView = &view.View{
-		Name:        httpClientResponseSize.Name(),
-		Measure:     httpClientResponseSize,
-		Description: httpClientResponseSize.Description(),
-		TagKeys:     []tag.Key{keyService, keyHost, keyMethod, keyStatus},
-		Aggregation: view.Distribution(
-			1, 256, 512, 1024, 2048, 8192, 16384, 32768, 65536, 131072, 262144, 524288,
-			1048576, 2097152, 4194304, 8388608,
-		),
+		Name:        "http_client_response_size_bytes",
+		Measure:     ochttp.ClientReceivedBytes,
+		Description: "HTTP Client Response Size in bytes",
+		TagKeys:     []tag.Key{keyService, keyHost, keyHTTPMethod, ochttp.StatusCode, keyDestination},
+		Aggregation: httpSizeDistribution,
+	}
+
+	// HTTPClientRequestSizeView is an OpenCensus view that tracks HTTP client request size by pomerium service, destination, host and method
+	HTTPClientRequestSizeView = &view.View{
+		Name:        "http_client_response_size_bytes",
+		Measure:     ochttp.ClientSentBytes,
+		Description: "HTTP Client Response Size in bytes",
+		TagKeys:     []tag.Key{keyService, keyHost, keyHTTPMethod, keyDestination},
+		Aggregation: httpSizeDistribution,
 	}
 )
 
@@ -102,61 +108,44 @@ func HTTPMetricsHandler(service string) func(next http.Handler) http.Handler {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			startTime := time.Now()
-			m := responsewriter.NewWrapResponseWriter(w, 1)
-
-			next.ServeHTTP(m, r)
-
 			ctx, tagErr := tag.New(
-				context.Background(),
+				r.Context(),
 				tag.Insert(keyService, service),
 				tag.Insert(keyHost, r.Host),
-				tag.Insert(keyMethod, r.Method),
-				tag.Insert(keyStatus, strconv.Itoa(m.Status())),
+				tag.Insert(keyHTTPMethod, r.Method),
 			)
-
 			if tagErr != nil {
-				log.Warn().Err(tagErr).Str("context", "HTTPMetricsHandler").Msg("Failed to create metrics context tag")
-			} else {
-				stats.Record(ctx,
-					httpServerRequestCount.M(1),
-					httpServerRequestDuration.M(time.Since(startTime).Nanoseconds()/int64(time.Millisecond)),
-					httpServerResponseSize.M(int64(m.BytesWritten())),
-				)
+				log.Warn().Err(tagErr).Str("context", "HTTPMetricsHandler").Msg("internal/metrics: Failed to create metrics context tag")
+				next.ServeHTTP(w, r)
+				return
 			}
+
+			ocHandler := ochttp.Handler{Handler: next}
+			ocHandler.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
 
 // HTTPMetricsRoundTripper creates a metrics tracking tripper for outbound HTTP Requests
-func HTTPMetricsRoundTripper(service string) func(next http.RoundTripper) http.RoundTripper {
-
+func HTTPMetricsRoundTripper(service string, destination string) func(next http.RoundTripper) http.RoundTripper {
 	return func(next http.RoundTripper) http.RoundTripper {
 		return tripper.RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
-			startTime := time.Now()
 
-			resp, err := next.RoundTrip(r)
+			ctx, tagErr := tag.New(
+				r.Context(),
+				tag.Insert(keyService, service),
+				tag.Insert(keyHost, r.Host),
+				tag.Insert(keyHTTPMethod, r.Method),
+				tag.Insert(keyDestination, destination),
+			)
 
-			if resp != nil && err == nil {
-				ctx, tagErr := tag.New(
-					context.Background(),
-					tag.Insert(keyService, service),
-					tag.Insert(keyHost, r.Host),
-					tag.Insert(keyMethod, r.Method),
-					tag.Insert(keyStatus, strconv.Itoa(resp.StatusCode)),
-				)
-
-				if tagErr != nil {
-					log.Warn().Err(tagErr).Str("context", "HTTPMetricsRoundTripper").Msg("Failed to create context tag")
-				} else {
-					stats.Record(ctx,
-						httpClientRequestCount.M(1),
-						httpClientRequestDuration.M(time.Since(startTime).Nanoseconds()/int64(time.Millisecond)),
-						httpClientResponseSize.M(resp.ContentLength),
-					)
-				}
+			if tagErr != nil {
+				log.Warn().Err(tagErr).Str("context", "HTTPMetricsRoundTripper").Msg("internal/metrics: Failed to create context tag")
+				return next.RoundTrip(r)
 			}
-			return resp, err
+
+			ocTransport := ochttp.Transport{Base: next}
+			return ocTransport.RoundTrip(r.WithContext(ctx))
 		})
 	}
 }

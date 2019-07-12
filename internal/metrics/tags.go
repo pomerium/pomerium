@@ -5,10 +5,11 @@ import (
 )
 
 var (
-	keyMethod      tag.Key = tag.MustNewKey("method")
+	keyHTTPMethod  tag.Key = tag.MustNewKey("http_method")
 	keyStatus      tag.Key = tag.MustNewKey("status")
 	keyService     tag.Key = tag.MustNewKey("service")
 	keyGRPCService tag.Key = tag.MustNewKey("grpc_service")
 	keyGRPCMethod  tag.Key = tag.MustNewKey("grpc_method")
 	keyHost        tag.Key = tag.MustNewKey("host")
+	keyDestination tag.Key = tag.MustNewKey("destination")
 )
