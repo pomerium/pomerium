@@ -9,10 +9,26 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // ErrInvalidSession is an error for invalid sessions.
 var ErrInvalidSession = errors.New("internal/sessions: invalid session")
+
+// ChunkedCanaryByte is the byte value used as a canary prefix to distinguish if
+// the cookie is multi-part or not. This constant *should not* be valid
+// base64. It's important this byte is ASCII to avoid UTF-8 variable sized runes.
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#Directives
+const ChunkedCanaryByte byte = '%'
+
+// MaxChunkSize sets the upper bound on a cookie chunks payload value.
+// Note, this should be lower than the actual cookie's max size (4096 bytes)
+// which includes metadata.
+const MaxChunkSize = 3800
+
+// MaxNumChunks limits the number of chunks to iterate through. Conservatively
+// set to prevent any abuse.
+const MaxNumChunks = 5
 
 // CSRFStore has the functions for setting, getting, and clearing the CSRF cookie
 type CSRFStore interface {
@@ -111,6 +127,40 @@ func (s *CookieStore) makeCSRFCookie(req *http.Request, value string, expiration
 	return s.makeCookie(req, s.csrfName(), value, expiration, now)
 }
 
+func (s *CookieStore) SetCookie(w http.ResponseWriter, cookie *http.Cookie) {
+	if len(cookie.String()) <= MaxChunkSize {
+		http.SetCookie(w, cookie)
+	} else {
+		chunks := chunk(cookie.Value, MaxChunkSize)
+		for i, c := range chunks {
+			// start with a copy of our original cookie
+			nc := *cookie
+			if i == 0 {
+				// if this is the first cookie, add our canary byte
+				nc.Value = fmt.Sprintf("%s%s", string(ChunkedCanaryByte), c)
+			} else {
+				// subsequent parts will be postfixed with their part number
+				nc.Name = fmt.Sprintf("%s_%d", cookie.Name, i)
+				nc.Value = fmt.Sprintf("%s", c)
+			}
+			log.Info().Interface("new cookie", nc).Msg("SetCookie: chunked")
+			http.SetCookie(w, &nc)
+		}
+	}
+
+}
+
+func chunk(s string, size int) []string {
+	ss := make([]string, 0, len(s)/size+1)
+	for len(s) > 0 {
+		if len(s) < size {
+			size = len(s)
+		}
+		ss, s = append(ss, s[:size]), s[size:]
+	}
+	return ss
+}
+
 // ClearCSRF clears the CSRF cookie from the request
 func (s *CookieStore) ClearCSRF(w http.ResponseWriter, req *http.Request) {
 	http.SetCookie(w, s.makeCSRFCookie(req, "", time.Hour*-1, time.Now()))
@@ -132,7 +182,7 @@ func (s *CookieStore) ClearSession(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *CookieStore) setSessionCookie(w http.ResponseWriter, req *http.Request, val string) {
-	http.SetCookie(w, s.makeSessionCookie(req, val, s.CookieExpire, time.Now()))
+	s.SetCookie(w, s.makeSessionCookie(req, val, s.CookieExpire, time.Now()))
 }
 
 // LoadSession returns a SessionState from the cookie in the request.
@@ -141,7 +191,22 @@ func (s *CookieStore) LoadSession(req *http.Request) (*SessionState, error) {
 	if err != nil {
 		return nil, err // http.ErrNoCookie
 	}
-	session, err := UnmarshalSession(c.Value, s.CookieCipher)
+	cipherText := c.Value
+
+	// if the first byte is our canary byte, we need to handle the multipart bit
+	if []byte(c.Value)[0] == ChunkedCanaryByte {
+		var b strings.Builder
+		fmt.Fprintf(&b, "%s", cipherText[1:])
+		for i := 1; i < MaxNumChunks; i++ {
+			next, err := req.Cookie(fmt.Sprintf("%s_%d", s.Name, i))
+			if err != nil {
+				break // break if we can't find the next cookie
+			}
+			fmt.Fprintf(&b, "%s", next.Value)
+		}
+		cipherText = b.String()
+	}
+	session, err := UnmarshalSession(cipherText, s.CookieCipher)
 	if err != nil {
 		return nil, ErrInvalidSession
 	}
