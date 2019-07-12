@@ -75,12 +75,12 @@ func New(opts config.Options) (*Authenticate, error) {
 	if err != nil {
 		return nil, err
 	}
-	redirectURL := opts.AuthenticateURL
+	redirectURL := *opts.AuthenticateURL
 	redirectURL.Path = "/oauth2/callback"
 	provider, err := identity.New(
 		opts.Provider,
 		&identity.Provider{
-			RedirectURL:    redirectURL,
+			RedirectURL:    &redirectURL,
 			ProviderName:   opts.Provider,
 			ProviderURL:    opts.ProviderURL,
 			ClientID:       opts.ClientID,
@@ -97,7 +97,7 @@ func New(opts config.Options) (*Authenticate, error) {
 	}
 	return &Authenticate{
 		SharedKey:    opts.SharedKey,
-		RedirectURL:  redirectURL,
+		RedirectURL:  &redirectURL,
 		templates:    templates.New(),
 		csrfStore:    cookieStore,
 		sessionStore: cookieStore,

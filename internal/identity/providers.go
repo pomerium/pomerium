@@ -19,6 +19,8 @@ import (
 const (
 	// AzureProviderName identifies the Azure identity provider
 	AzureProviderName = "azure"
+	// GithubProviderName identifies the Github identity provider
+	GithubProviderName = "github"
 	// GitlabProviderName identifies the GitLab identity provider
 	GitlabProviderName = "gitlab"
 	// GoogleProviderName identifies the Google identity provider
@@ -58,6 +60,8 @@ func New(providerName string, p *Provider) (a Authenticator, err error) {
 	switch providerName {
 	case AzureProviderName:
 		a, err = NewAzureProvider(p)
+	case GithubProviderName:
+		a, err = NewGithubProvider(p)
 	case GitlabProviderName:
 		return nil, fmt.Errorf("identity: %s currently not supported", providerName)
 	case GoogleProviderName:
