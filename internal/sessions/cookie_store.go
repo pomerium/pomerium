@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
-	"github.com/pomerium/pomerium/internal/log"
 )
 
 // ErrInvalidSession is an error for invalid sessions.
@@ -127,13 +126,12 @@ func (s *CookieStore) makeCSRFCookie(req *http.Request, value string, expiration
 	return s.makeCookie(req, s.csrfName(), value, expiration, now)
 }
 
-func (s *CookieStore) SetCookie(w http.ResponseWriter, cookie *http.Cookie) {
+func (s *CookieStore) setCookie(w http.ResponseWriter, cookie *http.Cookie) {
 	if len(cookie.String()) <= MaxChunkSize {
 		http.SetCookie(w, cookie)
 		return
 	}
-	chunks := chunk(cookie.Value, MaxChunkSize)
-	for i, c := range chunks {
+	for i, c := range chunk(cookie.Value, MaxChunkSize) {
 		// start with a copy of our original cookie
 		nc := *cookie
 		if i == 0 {
@@ -144,7 +142,6 @@ func (s *CookieStore) SetCookie(w http.ResponseWriter, cookie *http.Cookie) {
 			nc.Name = fmt.Sprintf("%s_%d", cookie.Name, i)
 			nc.Value = fmt.Sprintf("%s", c)
 		}
-		log.Info().Interface("new cookie", nc).Msg("SetCookie: chunked")
 		http.SetCookie(w, &nc)
 	}
 
@@ -182,7 +179,7 @@ func (s *CookieStore) ClearSession(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *CookieStore) setSessionCookie(w http.ResponseWriter, req *http.Request, val string) {
-	s.SetCookie(w, s.makeSessionCookie(req, val, s.CookieExpire, time.Now()))
+	s.setCookie(w, s.makeSessionCookie(req, val, s.CookieExpire, time.Now()))
 }
 
 // LoadSession returns a SessionState from the cookie in the request.
