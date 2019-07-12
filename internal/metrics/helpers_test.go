@@ -18,7 +18,7 @@ func testDataRetrieval(v *view.View, t *testing.T, want string) {
 		t.Fatalf("%s: failed to retrieve data line %s", name, err)
 	}
 	if len(data) != 1 {
-		t.Errorf("%s: received too many data rows: %d", name, len(data))
+		t.Fatalf("%s: received incorrect number of data rows: %d", name, len(data))
 	}
 
 	if !strings.HasPrefix(data[0].String(), want) {

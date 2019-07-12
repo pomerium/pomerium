@@ -14,6 +14,11 @@
 
 - GRPC version upgraded to v1.22 [GH-219]
 
+- HTTP Metrics Implementation [GH-220]
+  - Support HTTP request sizes on client and server side of proxy
+  - Improved HTTP metrics implementation internals
+  - The HTTP method label is now `http_method`, and HTTP status label is now `http_status`
+
 ## v0.1.0
 
 ### NEW
