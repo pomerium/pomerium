@@ -4,10 +4,10 @@
 
 ### New
 
-
 ### Changed
 
 - GRPC Metrics Implementation [GH-218]
+
   - Additional GRPC server metrics and request sizes
   - Improved GRPC metrics implementation internals
   - The GRPC method label is now 'grpc_method' and GRPC status is now `grpc_client_status` and `grpc_server_status`
@@ -15,9 +15,12 @@
 - GRPC version upgraded to v1.22 [GH-219]
 
 - HTTP Metrics Implementation [GH-220]
+
   - Support HTTP request sizes on client and server side of proxy
   - Improved HTTP metrics implementation internals
   - The HTTP method label is now `http_method`, and HTTP status label is now `http_status`
+
+- Add support for large cookie sessions by chunking. [GH-211]
 
 ## v0.1.0
 

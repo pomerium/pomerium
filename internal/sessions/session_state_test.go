@@ -2,6 +2,7 @@ package sessions
 
 import (
 	"crypto/rand"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -157,7 +158,7 @@ func TestMarshalSession(t *testing.T) {
 		wantErr bool
 	}{
 		{"simple", &SessionState{}, false},
-		{"too big", &SessionState{AccessToken: string(hugeString)}, true},
+		{"too big", &SessionState{AccessToken: fmt.Sprintf("%x", hugeString)}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

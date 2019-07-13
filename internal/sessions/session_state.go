@@ -11,8 +11,6 @@ import (
 	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
-const MaxCookieSize = 4096
-
 var (
 	// ErrLifetimeExpired is an error for the lifetime deadline expiring
 	ErrLifetimeExpired = errors.New("user lifetime expired")
@@ -92,9 +90,6 @@ func MarshalSession(s *SessionState, c cryptutil.Cipher) (string, error) {
 	v, err := c.Marshal(s)
 	if err != nil {
 		return "", err
-	}
-	if len(v) >= MaxCookieSize {
-		return "", fmt.Errorf("session too large, got %d bytes", len(v))
 	}
 	return v, nil
 }
