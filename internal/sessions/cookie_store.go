@@ -140,7 +140,7 @@ func (s *CookieStore) setCookie(w http.ResponseWriter, cookie *http.Cookie) {
 		} else {
 			// subsequent parts will be postfixed with their part number
 			nc.Name = fmt.Sprintf("%s_%d", cookie.Name, i)
-			nc.Value = fmt.Sprintf("%s", c)
+			nc.Value = c
 		}
 		http.SetCookie(w, &nc)
 	}

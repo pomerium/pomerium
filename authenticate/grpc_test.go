@@ -93,12 +93,12 @@ func TestAuthenticate_Refresh(t *testing.T) {
 
 func TestAuthenticate_Authenticate(t *testing.T) {
 	secret := cryptutil.GenerateKey()
-	c, err := cryptutil.NewCipher([]byte(secret))
+	c, err := cryptutil.NewCipher(secret)
 	if err != nil {
 		t.Fatalf("expected to be able to create cipher: %v", err)
 	}
 	newSecret := cryptutil.GenerateKey()
-	c2, err := cryptutil.NewCipher([]byte(newSecret))
+	c2, err := cryptutil.NewCipher(newSecret)
 	if err != nil {
 		t.Fatalf("expected to be able to create cipher: %v", err)
 	}

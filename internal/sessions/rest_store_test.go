@@ -14,7 +14,7 @@ import (
 )
 
 func TestRestStore_SaveSession(t *testing.T) {
-	now := time.Date(2008, 1, 8, 17, 5, 05, 0, time.UTC)
+	now := time.Date(2008, 1, 8, 17, 5, 5, 0, time.UTC)
 
 	tests := []struct {
 		name             string

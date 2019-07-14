@@ -24,19 +24,15 @@ func TestGenerateUUID(t *testing.T) {
 		if prev == id {
 			t.Fatalf("Should get a new ID!")
 		}
-		matched, err := regexp.MatchString("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}", id)
-		if !matched || err != nil {
-			t.Fatalf("expected match %s %v %s", id, matched, err)
+		matched := regexp.MustCompile("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}").MatchString(id)
+		if !matched {
+			t.Fatalf("expected match %s %v", id, matched)
 		}
 	}
 }
 
-func decodeIfBinary(out *bytes.Buffer) string {
-	// p := out.Bytes()
-	// if len(p) == 0 || p[0] < 0x7F {
-	// 	return out.String()
-	// }
-	return out.String() //cbor.DecodeObjectToStr(p) + "\n"
+func decodeIfBinary(out fmt.Stringer) string {
+	return out.String()
 }
 
 func TestNewHandler(t *testing.T) {
@@ -182,9 +178,6 @@ func TestRequestIDHandler(t *testing.T) {
 		if !ok {
 			t.Fatal("Missing id in request")
 		}
-		// if want, got := id.String(), w.Header().Get("Request-Id"); got != want {
-		// 	t.Errorf("Invalid Request-Id header, got: %s, want: %s", got, want)
-		// }
 		l := FromRequest(r)
 		l.Log().Msg("")
 		if want, got := fmt.Sprintf(`{"id":"%s"}`+"\n", id), decodeIfBinary(out); want != got {

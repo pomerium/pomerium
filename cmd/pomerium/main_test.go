@@ -268,7 +268,7 @@ func (m *mockService) UpdateOptions(o config.Options) error {
 
 	m.Updated = true
 	if m.fail {
-		return fmt.Errorf("Failed")
+		return fmt.Errorf("failed")
 	}
 	return nil
 }

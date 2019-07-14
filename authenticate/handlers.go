@@ -119,7 +119,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, httpErr)
 		return
 	}
-	http.Redirect(w, r, getAuthCodeRedirectURL(redirectURL, state, string(encrypted)), http.StatusFound)
+	http.Redirect(w, r, getAuthCodeRedirectURL(redirectURL, state, encrypted), http.StatusFound)
 }
 
 func getAuthCodeRedirectURL(redirectURL *url.URL, state, authCode string) string {

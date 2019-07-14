@@ -16,26 +16,26 @@ func TestMockAuthenticate(t *testing.T) {
 		RefreshToken: "RefreshToken",
 	}
 	ma := &MockAuthenticate{
-		RedeemError:    errors.New("RedeemError"),
+		RedeemError:    errors.New("redeem error"),
 		RedeemResponse: redeemResponse,
 		RefreshResponse: &sessions.SessionState{
 			AccessToken:  "AccessToken",
 			RefreshToken: "RefreshToken",
 		},
-		RefreshError:     errors.New("RefreshError"),
+		RefreshError:     errors.New("refresh error"),
 		ValidateResponse: true,
-		ValidateError:    errors.New("ValidateError"),
-		CloseError:       errors.New("CloseError"),
+		ValidateError:    errors.New("validate error"),
+		CloseError:       errors.New("close error"),
 	}
 	got, gotErr := ma.Redeem(context.Background(), "a")
-	if gotErr.Error() != "RedeemError" {
+	if gotErr.Error() != "redeem error" {
 		t.Errorf("unexpected value for gotErr %s", gotErr)
 	}
 	if !reflect.DeepEqual(redeemResponse, got) {
 		t.Errorf("unexpected value for redeemResponse %s", got)
 	}
 	newSession, gotErr := ma.Refresh(context.Background(), nil)
-	if gotErr.Error() != "RefreshError" {
+	if gotErr.Error() != "refresh error" {
 		t.Errorf("unexpected value for gotErr %s", gotErr)
 	}
 	if !reflect.DeepEqual(newSession, redeemResponse) {
@@ -46,11 +46,11 @@ func TestMockAuthenticate(t *testing.T) {
 	if !ok {
 		t.Errorf("unexpected value for ok : %t", ok)
 	}
-	if gotErr.Error() != "ValidateError" {
+	if gotErr.Error() != "validate error" {
 		t.Errorf("unexpected value for gotErr %s", gotErr)
 	}
 	gotErr = ma.Close()
-	if gotErr.Error() != "CloseError" {
+	if gotErr.Error() != "close error" {
 		t.Errorf("unexpected value for ma.CloseError %s", gotErr)
 	}
 
