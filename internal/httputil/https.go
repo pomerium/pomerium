@@ -14,8 +14,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
-
-	"google.golang.org/grpc"
 )
 
 // Options contains the configurations settings for a TLS http server.
@@ -81,7 +79,7 @@ func (o *Options) applyDefaults() {
 
 // ListenAndServeTLS serves the provided handlers by HTTPS
 // using the provided options.
-func ListenAndServeTLS(opt *Options, httpHandler http.Handler, grpcHandler *grpc.Server) error {
+func ListenAndServeTLS(opt *Options, httpHandler http.Handler, grpcHandler http.Handler) error {
 	if opt == nil {
 		opt = defaultOptions
 	} else {
@@ -97,10 +95,7 @@ func ListenAndServeTLS(opt *Options, httpHandler http.Handler, grpcHandler *grpc
 	if err != nil {
 		return fmt.Errorf("https: failed loading x509 certificate: %v", err)
 	}
-	config, err := newDefaultTLSConfig(cert)
-	if err != nil {
-		return fmt.Errorf("https: setting up TLS config: %v", err)
-	}
+	config := newDefaultTLSConfig(cert)
 	ln, err := net.Listen("tcp", opt.Addr)
 	if err != nil {
 		return err
@@ -168,7 +163,7 @@ func readCertificateFile(certFile, certKeyFile string) (*tls.Certificate, error)
 // https://blog.cloudflare.com/exposing-go-on-the-internet/
 // https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices
 // https://github.com/golang/go/blob/df91b8044dbe790c69c16058330f545be069cc1f/src/crypto/tls/common.go#L919
-func newDefaultTLSConfig(cert *tls.Certificate) (*tls.Config, error) {
+func newDefaultTLSConfig(cert *tls.Certificate) *tls.Config {
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 		// Prioritize cipher suites sped up by AES-NI (AES-GCM)
@@ -191,12 +186,12 @@ func newDefaultTLSConfig(cert *tls.Certificate) (*tls.Config, error) {
 		NextProtos: []string{"h2"},
 	}
 	tlsConfig.BuildNameToCertificate()
-	return tlsConfig, nil
+	return tlsConfig
 }
 
 // grpcHandlerFunc splits request serving between gRPC and HTTPS depending on the request type.
 // Requires HTTP/2.
-func grpcHandlerFunc(rpcServer *grpc.Server, other http.Handler) http.Handler {
+func grpcHandlerFunc(rpcServer http.Handler, other http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ct := r.Header.Get("Content-Type")
 		if r.ProtoMajor == 2 && strings.Contains(ct, "application/grpc") {

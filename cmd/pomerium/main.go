@@ -167,7 +167,7 @@ func newPromListener(addr string) {
 	log.Error().Err(metrics.NewPromHTTPListener(addr)).Str("MetricsAddr", addr).Msg("cmd/pomerium: could not start metrics exporter")
 }
 
-func wrapMiddleware(o *config.Options, mux *http.ServeMux) http.Handler {
+func wrapMiddleware(o *config.Options, mux http.Handler) http.Handler {
 	c := middleware.NewChain()
 	c = c.Append(metrics.HTTPMetricsHandler("proxy"))
 	c = c.Append(log.NewHandler(log.Logger))
@@ -202,7 +202,6 @@ func parseOptions(configFile string) (*config.Options, error) {
 	}
 	if o.Debug {
 		log.SetDebugMode()
-		// log.Debug().Interface("options", o).Msg("cmd/pomerium")
 	}
 	if o.LogLevel != "" {
 		log.SetLevel(o.LogLevel)

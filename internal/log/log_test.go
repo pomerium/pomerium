@@ -22,7 +22,7 @@ func setup() {
 	// examples to pass, we need to override zerolog.TimestampFunc
 	// and log.Logger globals -- you would not normally need to do this
 	zerolog.TimestampFunc = func() time.Time {
-		return time.Date(2008, 1, 8, 17, 5, 05, 0, time.UTC)
+		return time.Date(2008, 1, 8, 17, 5, 5, 0, time.UTC)
 	}
 	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
 }
@@ -95,7 +95,7 @@ func ExampleError() {
 // Example of a log at a particular "level" (in this case, "fatal")
 func ExampleFatal() {
 	setup()
-	err := errors.New("A repo man spends his life getting into tense situations")
+	err := errors.New("a repo man spends his life getting into tense situations")
 	service := "myservice"
 
 	log.Fatal().
@@ -103,7 +103,7 @@ func ExampleFatal() {
 		Str("service", service).
 		Msg("Cannot start")
 
-	// Outputs: {"level":"fatal","time":1199811905,"error":"A repo man spends his life getting into tense situations","service":"myservice","message":"Cannot start myservice"}
+	// Outputs: {"level":"fatal","time":1199811905,"error":"a repo man spends his life getting into tense situations","service":"myservice","message":"Cannot start myservice"}
 }
 
 // This example uses command-line flags to demonstrate various outputs

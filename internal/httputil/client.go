@@ -62,7 +62,6 @@ func Client(method, endpoint, userAgent string, headers map[string]string, param
 	if err != nil {
 		return err
 	}
-	// log.Info().Msgf("%s", respBody)
 	if resp.StatusCode != http.StatusOK {
 		switch resp.StatusCode {
 		case http.StatusBadRequest:

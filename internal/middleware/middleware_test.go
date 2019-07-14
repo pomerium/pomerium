@@ -56,12 +56,12 @@ func Test_ValidSignature(t *testing.T) {
 		secret      string
 		want        bool
 	}{
-		{"good signature", goodURL, string(sig), now, secretA, true},
-		{"empty redirect url", "", string(sig), now, secretA, false},
-		{"bad redirect url", "https://google.com^", string(sig), now, secretA, false},
-		{"malformed signature", goodURL, string(sig + "^"), now, "&*&@**($&#(", false},
-		{"malformed timestamp", goodURL, string(sig), now + "^", secretA, false},
-		{"stale timestamp", goodURL, string(sig), staleTime, secretA, false},
+		{"good signature", goodURL, sig, now, secretA, true},
+		{"empty redirect url", "", sig, now, secretA, false},
+		{"bad redirect url", "https://google.com^", sig, now, secretA, false},
+		{"malformed signature", goodURL, sig + "^", now, "&*&@**($&#(", false},
+		{"malformed timestamp", goodURL, sig, now + "^", secretA, false},
+		{"stale timestamp", goodURL, sig, staleTime, secretA, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -40,7 +40,7 @@ func (a mockCipher) Marshal(s interface{}) (string, error) {
 	return "ok", nil
 }
 func (a mockCipher) Unmarshal(s string, i interface{}) error {
-	if string(s) == "unmarshal error" || string(s) == "error" {
+	if s == "unmarshal error" || s == "error" {
 		return errors.New("error")
 	}
 	return nil
@@ -432,7 +432,6 @@ func TestProxy_Refresh(t *testing.T) {
 			p.Refresh(w, r)
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
-				// t.Errorf("\n%+v", w.Body.String())
 				t.Errorf("\n%+v", opts)
 			}
 		})
@@ -494,7 +493,6 @@ func TestProxy_Impersonate(t *testing.T) {
 			p.Impersonate(w, r)
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
-				// t.Errorf("\n%+v", w.Body.String())
 				t.Errorf("\n%+v", opts)
 			}
 		})

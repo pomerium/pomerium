@@ -59,7 +59,7 @@ func New(opts config.Options) (*Authenticate, error) {
 		return nil, err
 	}
 	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
-	cipher, err := cryptutil.NewCipher([]byte(decodedCookieSecret))
+	cipher, err := cryptutil.NewCipher(decodedCookieSecret)
 	if err != nil {
 		return nil, err
 	}

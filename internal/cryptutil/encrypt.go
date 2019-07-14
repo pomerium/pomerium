@@ -89,7 +89,7 @@ func (c *XChaCha20Cipher) Encrypt(plaintext []byte) (joined []byte, err error) {
 	ciphertext := c.aead.Seal(nil, nonce, plaintext, nil)
 
 	// we return the nonce as part of the returned value
-	joined = append(ciphertext[:], nonce[:]...)
+	joined = append(ciphertext, nonce...)
 	return joined, nil
 }
 

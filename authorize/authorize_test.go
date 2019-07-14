@@ -34,9 +34,6 @@ func TestNew(t *testing.T) {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			// if !reflect.DeepEqual(got, tt.want) {
-			// 	t.Errorf("New() = %v, want %v", got, tt.want)
-			// }
 		})
 	}
 }

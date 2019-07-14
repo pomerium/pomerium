@@ -304,7 +304,7 @@ func Test_Checksum(t *testing.T) {
 		t.Error("Checksum() not returning data")
 	}
 
-	if o.Checksum() != o.Checksum() {
+	if o.Checksum() != newChecksum {
 		t.Error("Checksum() inconsistent")
 	}
 }

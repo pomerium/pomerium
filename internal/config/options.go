@@ -137,10 +137,10 @@ var defaultOptions = Options{
 	Services:               "all",
 	CookieHTTPOnly:         true,
 	CookieSecure:           true,
-	CookieExpire:           time.Duration(14) * time.Hour,
-	CookieRefresh:          time.Duration(30) * time.Minute,
+	CookieExpire:           14 * time.Hour,
+	CookieRefresh:          30 * time.Minute,
 	CookieName:             "_pomerium",
-	DefaultUpstreamTimeout: time.Duration(30) * time.Second,
+	DefaultUpstreamTimeout: 30 * time.Second,
 	Headers: map[string]string{
 		"X-Content-Type-Options":    "nosniff",
 		"X-Frame-Options":           "SAMEORIGIN",
@@ -154,7 +154,7 @@ var defaultOptions = Options{
 	ReadTimeout:       30 * time.Second,
 	WriteTimeout:      0, // support streaming by default
 	IdleTimeout:       5 * time.Minute,
-	RefreshCooldown:   time.Duration(5 * time.Minute),
+	RefreshCooldown:   5 * time.Minute,
 }
 
 // NewOptions returns a minimal options configuration built from default options.
@@ -263,11 +263,8 @@ func (o *Options) parsePolicy() error {
 		if err := yaml.Unmarshal(policyBytes, &policies); err != nil {
 			return fmt.Errorf("could not unmarshal policy yaml: %s", err)
 		}
-	} else {
-		// Parse from file
-		if err := viper.UnmarshalKey("policy", &policies); err != nil {
-			return err
-		}
+	} else if err := viper.UnmarshalKey("policy", &policies); err != nil {
+		return err
 	}
 	if len(policies) != 0 {
 		o.Policies = policies

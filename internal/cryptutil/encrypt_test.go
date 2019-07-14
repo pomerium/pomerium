@@ -14,7 +14,7 @@ func TestEncodeAndDecodeAccessToken(t *testing.T) {
 	plaintext := []byte("my plain text value")
 
 	key := GenerateKey()
-	c, err := NewCipher([]byte(key))
+	c, err := NewCipher(key)
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestEncodeAndDecodeAccessToken(t *testing.T) {
 func TestMarshalAndUnmarshalStruct(t *testing.T) {
 	key := GenerateKey()
 
-	c, err := NewCipher([]byte(key))
+	c, err := NewCipher(key)
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}

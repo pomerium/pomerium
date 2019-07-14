@@ -9,8 +9,8 @@ import (
 )
 
 //NewPromHTTPListener creates a prometheus exporter on ListenAddr
-func NewPromHTTPListener(ListenAddr string) error {
-	return http.ListenAndServe(ListenAddr, newPromHTTPHandler())
+func NewPromHTTPListener(addr string) error {
+	return http.ListenAndServe(addr, newPromHTTPHandler())
 }
 
 // newPromHTTPHandler creates a new prometheus exporter handler for /metrics

@@ -339,7 +339,7 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 		SignoutURL:       p.GetSignOutURL(p.AuthenticateURL, redirectURL).String(),
 		IsAdmin:          isAdmin,
 		ImpersonateEmail: session.ImpersonateEmail,
-		ImpersonateGroup: strings.Join(session.ImpersonateGroups[:], ","),
+		ImpersonateGroup: strings.Join(session.ImpersonateGroups, ","),
 		CSRF:             csrf.SessionID,
 	}
 	templates.New().ExecuteTemplate(w, "dashboard.html", t)

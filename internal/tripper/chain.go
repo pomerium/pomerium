@@ -18,7 +18,7 @@ type Chain struct {
 // New serves no other function,
 // constructors are only called upon a call to Then().
 func NewChain(constructors ...Constructor) Chain {
-	return Chain{append(([]Constructor)(nil), constructors...)}
+	return Chain{append([]Constructor(nil), constructors...)}
 }
 
 // Then chains the trippers and returns the final http.RoundTripper.

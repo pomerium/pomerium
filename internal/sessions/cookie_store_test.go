@@ -31,7 +31,7 @@ func (a mockCipher) Decrypt(s []byte) ([]byte, error) {
 }
 func (a mockCipher) Marshal(s interface{}) (string, error) { return "", errors.New("error") }
 func (a mockCipher) Unmarshal(s string, i interface{}) error {
-	if string(s) == "unmarshal error" || string(s) == "error" {
+	if s == "unmarshal error" || s == "error" {
 		return errors.New("error")
 	}
 	return nil

@@ -276,8 +276,7 @@ func (p *Proxy) customCAPool(cert string) (*x509.CertPool, error) {
 }
 
 // newReverseProxyHandler applies handler specific options to a given route.
-func (p *Proxy) newReverseProxyHandler(rp *httputil.ReverseProxy, route *config.Policy) (http.Handler, error) {
-	var handler http.Handler
+func (p *Proxy) newReverseProxyHandler(rp *httputil.ReverseProxy, route *config.Policy) (handler http.Handler, err error) {
 	handler = &UpstreamProxy{
 		name:    route.Destination.Host,
 		handler: rp,

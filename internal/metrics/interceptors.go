@@ -22,7 +22,8 @@ var (
 		100, 250, 500, 750, 1000,
 	)
 
-	// GRPCServerRequestCountView is an OpenCensus view which counts GRPC Server requests by pomerium service, grpc service, grpc method, and status
+	// GRPCServerRequestCountView is an OpenCensus view which counts GRPC Server
+	// requests by pomerium service, grpc service, grpc method, and status
 	GRPCServerRequestCountView = &view.View{
 		Name:        "grpc_server_requests_total",
 		Measure:     ocgrpc.ServerLatency,
@@ -31,7 +32,8 @@ var (
 		Aggregation: view.Count(),
 	}
 
-	// GRPCServerRequestDurationView is an OpenCensus view which tracks GRPC Server request duration by pomerium service, grpc service, grpc method, and status
+	// GRPCServerRequestDurationView is an OpenCensus view which tracks GRPC Server
+	// request duration by pomerium service, grpc service, grpc method, and status
 	GRPCServerRequestDurationView = &view.View{
 		Name:        "grpc_server_request_duration_ms",
 		Measure:     ocgrpc.ServerLatency,
@@ -40,7 +42,8 @@ var (
 		Aggregation: grcpLatencyDistribution,
 	}
 
-	// GRPCServerResponseSizeView is an OpenCensus view which tracks GRPC Server response size by pomerium service, grpc service, grpc method, and status
+	// GRPCServerResponseSizeView is an OpenCensus view which tracks GRPC Server
+	// response size by pomerium service, grpc service, grpc method, and status
 	GRPCServerResponseSizeView = &view.View{
 		Name:        "grpc_server_response_size_bytes",
 		Measure:     ocgrpc.ServerSentBytesPerRPC,
@@ -49,7 +52,8 @@ var (
 		Aggregation: grpcSizeDistribution,
 	}
 
-	// GRPCServerRequestSizeView is an OpenCensus view which tracks GRPC Server request size by pomerium service, grpc service, grpc method, and status
+	// GRPCServerRequestSizeView is an OpenCensus view which tracks GRPC Server
+	// request size by pomerium service, grpc service, grpc method, and status
 	GRPCServerRequestSizeView = &view.View{
 		Name:        "grpc_server_request_size_bytes",
 		Measure:     ocgrpc.ServerReceivedBytesPerRPC,
@@ -58,7 +62,8 @@ var (
 		Aggregation: grpcSizeDistribution,
 	}
 
-	// GRPCClientRequestCountView is an OpenCensus view which tracks GRPC Client requests by pomerium service, target host, grpc service, grpc method, and status
+	// GRPCClientRequestCountView is an OpenCensus view which tracks GRPC Client
+	// requests by pomerium service, target host, grpc service, grpc method, and status
 	GRPCClientRequestCountView = &view.View{
 		Name:        "grpc_client_requests_total",
 		Measure:     ocgrpc.ClientRoundtripLatency,
@@ -67,7 +72,8 @@ var (
 		Aggregation: view.Count(),
 	}
 
-	// GRPCClientRequestDurationView is an OpenCensus view which tracks GRPC Client request duration by pomerium service, target host, grpc service, grpc method, and status
+	// GRPCClientRequestDurationView is an OpenCensus view which tracks GRPC Client
+	// request duration by pomerium service, target host, grpc service, grpc method, and status
 	GRPCClientRequestDurationView = &view.View{
 		Name:        "grpc_client_request_duration_ms",
 		Measure:     ocgrpc.ClientRoundtripLatency,
@@ -76,7 +82,8 @@ var (
 		Aggregation: grcpLatencyDistribution,
 	}
 
-	// GRPCClientResponseSizeView  is an OpenCensus view which tracks GRPC Client response size by pomerium service, target host, grpc service, grpc method, and status
+	// GRPCClientResponseSizeView  is an OpenCensus view which tracks GRPC Client
+	// response size by pomerium service, target host, grpc service, grpc method, and status
 	GRPCClientResponseSizeView = &view.View{
 		Name:        "grpc_client_response_size_bytes",
 		Measure:     ocgrpc.ClientReceivedBytesPerRPC,
@@ -85,7 +92,8 @@ var (
 		Aggregation: grpcSizeDistribution,
 	}
 
-	// GRPCClientRequestSizeView  is an OpenCensus view which tracks GRPC Client request size by pomerium service, target host, grpc service, grpc method, and status
+	// GRPCClientRequestSizeView  is an OpenCensus view which tracks GRPC Client
+	// request size by pomerium service, target host, grpc service, grpc method, and status
 	GRPCClientRequestSizeView = &view.View{
 		Name:        "grpc_client_request_size_bytes",
 		Measure:     ocgrpc.ClientSentBytesPerRPC,
@@ -95,8 +103,8 @@ var (
 	}
 )
 
-// GRPCClientInterceptor creates a UnaryClientInterceptor which updates the RPC context with metric tag
-// metadata
+// GRPCClientInterceptor creates a UnaryClientInterceptor which updates the RPC
+// context with metric tag metadata
 func GRPCClientInterceptor(service string) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,

@@ -84,7 +84,7 @@ func TestStripPomeriumCookie(t *testing.T) {
 				Name:  tt.pomeriumCookie,
 				Value: "pomerium cookie!",
 			})
-			req := &http.Request{Header: http.Header{"Cookie": rr.HeaderMap["Set-Cookie"]}}
+			req := &http.Request{Header: http.Header{"Cookie": rr.Header()["Set-Cookie"]}}
 
 			handler := StripPomeriumCookie(tt.pomeriumCookie)(testHandler)
 			handler.ServeHTTP(rr, req)

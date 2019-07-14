@@ -17,7 +17,7 @@ VERSION := $(shell cat VERSION)
 GITCOMMIT := $(shell git rev-parse --short HEAD)
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 BUILDMETA:=
-ifneq ($(GITUNTRACKEDCHANGES),)
+ifneq ($(GITUNTRACKEDCHANGES),"")
 	BUILDMETA := dirty
 endif
 CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
@@ -30,7 +30,7 @@ GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
 
 
 .PHONY: all
-all: clean build fmt lint vet test ## Runs a clean, build, fmt, lint, test, and vet.
+all: clean build lint test ## Runs a clean, build, fmt, lint, test, and vet.
 
 .PHONY: tag
 tag: ## Create a new git tag to prepare to build a release
@@ -42,26 +42,11 @@ build: ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
 	@CGO_ENABLED=0 GO111MODULE=on go build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
-.PHONY: fmt
-fmt: ## Verifies all files have been `gofmt`ed.
-	@echo "==> $@"
-	@gofmt -s -l . | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
-
 .PHONY: lint
 lint: ## Verifies `golint` passes.
 	@echo "==> $@"
-	@go get golang.org/x/lint/golint
-	@golint ./... | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
-
-.PHONY: staticcheck
-staticcheck: ## Verifies `staticcheck` passes
-	@echo "+ $@"
-	@staticcheck $(shell go list ./... | grep -v vendor) | grep -v '.pb.go:' | tee /dev/stderr
-
-.PHONY: vet
-vet: ## Verifies `go vet` passes.
-	@echo "==> $@"
-	@go vet $(shell go list ./... | grep -v vendor) | grep -v '.pb.go:' | tee /dev/stderr
+	@GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+	@golangci-lint run ./...
 
 .PHONY: test
 test: ## Runs the go tests.

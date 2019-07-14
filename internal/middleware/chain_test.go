@@ -77,7 +77,7 @@ func TestThenFuncConstructsHandlerFunc(t *testing.T) {
 
 	chained.ServeHTTP(rec, (*http.Request)(nil))
 
-	if reflect.TypeOf(chained) != reflect.TypeOf((http.HandlerFunc)(nil)) {
+	if reflect.TypeOf(chained) != reflect.TypeOf(http.HandlerFunc(nil)) {
 		t.Error("ThenFunc does not construct HandlerFunc")
 	}
 }

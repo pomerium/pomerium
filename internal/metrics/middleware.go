@@ -69,7 +69,7 @@ var (
 	// HTTPClientRequestCountView is an OpenCensus View that tracks HTTP client requests by pomerium service, destination, host, method and status
 	HTTPClientRequestCountView = &view.View{
 		Name:        "http_client_requests_total",
-		Measure:     ochttp.ClientLatency,
+		Measure:     ochttp.ClientRoundtripLatency,
 		Description: "Total HTTP Client Requests",
 		TagKeys:     []tag.Key{keyService, keyHost, keyHTTPMethod, ochttp.StatusCode, keyDestination},
 		Aggregation: view.Count(),
