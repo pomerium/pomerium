@@ -70,11 +70,7 @@ func NewCipher(secret []byte) (*XChaCha20Cipher, error) {
 // GenerateNonce generates a random nonce.
 // Panics if source of randomness fails.
 func (c *XChaCha20Cipher) GenerateNonce() []byte {
-	nonce := make([]byte, c.aead.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		panic(err)
-	}
-	return nonce
+	return randomBytes(c.aead.NonceSize())
 }
 
 // Encrypt a value using XChaCha20-Poly1305

@@ -1,5 +1,5 @@
 // Package cryptutil provides encoding and decoding routines for various cryptographic structures.
-package cryptutil
+package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
 
 import (
 	"crypto/ecdsa"
@@ -13,11 +13,9 @@ import (
 // DecodePublicKey decodes a PEM-encoded ECDSA public key.
 func DecodePublicKey(encodedKey []byte) (*ecdsa.PublicKey, error) {
 	block, _ := pem.Decode(encodedKey)
-	if block == nil || block.Type != "PUBLIC KEY" {
-		return nil, fmt.Errorf("marshal: could not decode PEM block type %s", block.Type)
-
+	if block == nil {
+		return nil, fmt.Errorf("marshal: decoded nil PEM block")
 	}
-
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return nil, err
