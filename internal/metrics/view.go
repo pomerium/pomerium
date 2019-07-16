@@ -14,6 +14,8 @@ var (
 	GRPCClientViews = []*view.View{GRPCClientRequestCountView, GRPCClientRequestDurationView, GRPCClientResponseSizeView, GRPCClientRequestSizeView}
 	// GRPCServerViews contains opencensus views for GRPC Server metrics
 	GRPCServerViews = []*view.View{GRPCServerRequestCountView, GRPCServerRequestDurationView, GRPCServerResponseSizeView, GRPCServerRequestSizeView}
+	// InfoViews contains opencensus views for Info metrics
+	InfoViews = []*view.View{ConfigLastReloadView, ConfigLastReloadSuccessView}
 )
 
 // RegisterView registers one of the defined metrics views.  It must be called for metrics to see metrics

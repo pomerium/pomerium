@@ -6,6 +6,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/metrics"
 )
 
 // ValidateOptions checks to see if configuration values are valid for the
@@ -37,7 +38,6 @@ func New(opts config.Options) (*Authorize, error) {
 	}
 	// errors handled by validate
 	sharedKey, _ := base64.StdEncoding.DecodeString(opts.SharedKey)
-
 	return &Authorize{
 		SharedKey:      string(sharedKey),
 		identityAccess: NewIdentityWhitelist(opts.Policies, opts.Administrators),
@@ -47,6 +47,9 @@ func New(opts config.Options) (*Authorize, error) {
 // NewIdentityWhitelist returns an indentity validator.
 // todo(bdd) : a radix-tree implementation is probably more efficient
 func NewIdentityWhitelist(policies []config.Policy, admins []string) IdentityValidator {
+	metrics.AddPolicyCountCallback("authorize", func() int64 {
+		return int64(len(policies))
+	})
 	return newIdentityWhitelistMap(policies, admins)
 }
 
