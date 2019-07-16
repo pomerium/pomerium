@@ -1,4 +1,4 @@
-package cryptutil
+package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
 
 import (
 	"testing"
