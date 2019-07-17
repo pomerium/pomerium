@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -47,6 +48,9 @@ type AuthorizeGRPC struct {
 // Authorize takes a route and user session and returns whether the
 // request is valid per access policy
 func (a *AuthorizeGRPC) Authorize(ctx context.Context, route string, s *sessions.SessionState) (bool, error) {
+	ctx, span := telemetry.StartSpan(ctx, "proxy.client.grpc.Authorize")
+	defer span.End()
+
 	if s == nil {
 		return false, errors.New("session cannot be nil")
 	}
@@ -65,6 +69,9 @@ func (a *AuthorizeGRPC) Authorize(ctx context.Context, route string, s *sessions
 
 // IsAdmin takes a session and returns whether the user is an administrator
 func (a *AuthorizeGRPC) IsAdmin(ctx context.Context, s *sessions.SessionState) (bool, error) {
+	ctx, span := telemetry.StartSpan(ctx, "proxy.client.grpc.Authorize")
+	defer span.End()
+
 	if s == nil {
 		return false, errors.New("session cannot be nil")
 	}

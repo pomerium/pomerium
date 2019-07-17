@@ -1,13 +1,13 @@
-package metrics // import "github.com/pomerium/pomerium/internal/metrics"
+package telemetry // import "github.com/pomerium/pomerium/internal/telemetry"
 
 import (
+	"fmt"
 	"net/http"
 
-	"go.opencensus.io/plugin/ochttp"
-
 	"github.com/pomerium/pomerium/internal/log"
-
 	"github.com/pomerium/pomerium/internal/tripper"
+
+	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 )
@@ -105,7 +105,6 @@ var (
 
 // HTTPMetricsHandler creates a metrics middleware for incoming HTTP requests
 func HTTPMetricsHandler(service string) func(next http.Handler) http.Handler {
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, tagErr := tag.New(
@@ -115,12 +114,17 @@ func HTTPMetricsHandler(service string) func(next http.Handler) http.Handler {
 				tag.Insert(keyHTTPMethod, r.Method),
 			)
 			if tagErr != nil {
-				log.Warn().Err(tagErr).Str("context", "HTTPMetricsHandler").Msg("internal/metrics: Failed to create metrics context tag")
+				log.Warn().Err(tagErr).Str("context", "HTTPMetricsHandler").Msg("internal/telemetry: failed to create metrics tag")
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			ocHandler := ochttp.Handler{Handler: next}
+			ocHandler := ochttp.Handler{
+				Handler: next,
+				FormatSpanName: func(r *http.Request) string {
+					return fmt.Sprintf("%s%s", r.Host, r.URL.Path)
+				},
+			}
 			ocHandler.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -140,7 +144,7 @@ func HTTPMetricsRoundTripper(service string, destination string) func(next http.
 			)
 
 			if tagErr != nil {
-				log.Warn().Err(tagErr).Str("context", "HTTPMetricsRoundTripper").Msg("internal/metrics: Failed to create context tag")
+				log.Warn().Err(tagErr).Str("context", "HTTPMetricsRoundTripper").Msg("internal/telemetry: failed to create metrics tag")
 				return next.RoundTrip(r)
 			}
 

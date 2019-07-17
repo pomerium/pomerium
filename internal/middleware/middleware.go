@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
+
 	"golang.org/x/net/publicsuffix"
 )
 

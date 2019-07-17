@@ -1,4 +1,4 @@
-package metrics // import "github.com/pomerium/pomerium/internal/metrics"
+package telemetry // import "github.com/pomerium/pomerium/internal/telemetry"
 
 import (
 	"context"
@@ -132,7 +132,7 @@ func GRPCClientInterceptor(service string) grpc.UnaryClientInterceptor {
 			tag.Insert(keyGRPCService, rpcService),
 		)
 		if tagErr != nil {
-			log.Warn().Err(tagErr).Str("context", "GRPCClientInterceptor").Msg("internal/metrics: Failed to create context")
+			log.Warn().Err(tagErr).Str("context", "GRPCClientInterceptor").Msg("internal/telemetry: Failed to create context")
 			return invoker(ctx, method, req, reply, cc, opts...)
 		}
 
@@ -170,7 +170,7 @@ func (h *GRPCServerStatsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.
 		tag.Insert(keyGRPCService, rpcService),
 	)
 	if tagErr != nil {
-		log.Warn().Err(tagErr).Str("context", "GRPCServerStatsHandler").Msg("internal/metrics: Failed to create context")
+		log.Warn().Err(tagErr).Str("context", "GRPCServerStatsHandler").Msg("internal/telemetry: Failed to create context")
 		return handledCtx
 
 	}
@@ -180,6 +180,5 @@ func (h *GRPCServerStatsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.
 
 // NewGRPCServerStatsHandler creates a new GRPCServerStatsHandler for a pomerium service
 func NewGRPCServerStatsHandler(service string) grpcstats.Handler {
-
 	return &GRPCServerStatsHandler{service: service, Handler: &ocgrpc.ServerHandler{}}
 }

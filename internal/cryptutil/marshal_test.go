@@ -1,4 +1,4 @@
-package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
+package cryptutil
 
 import (
 	"bytes"
@@ -34,10 +34,6 @@ func TestPublicKeyMarshaling(t *testing.T) {
 	ecKey, err := DecodePublicKey([]byte(pemECPublicKeyP256))
 	if err != nil {
 		t.Fatal(err)
-	}
-	_, err = DecodePublicKey(nil)
-	if err == nil {
-		t.Fatal("expected error")
 	}
 
 	pemBytes, _ := EncodePublicKey(ecKey)

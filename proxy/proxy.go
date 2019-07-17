@@ -16,9 +16,9 @@ import (
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/metrics"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/templates"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/proxy/clients"
@@ -200,7 +200,7 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		// https://github.com/golang/go/issues/26013#issuecomment-399481302
 		transport := *(http.DefaultTransport.(*http.Transport))
 		c := tripper.NewChain()
-		c = c.Append(metrics.HTTPMetricsRoundTripper("proxy", policy.Destination.Host))
+		c = c.Append(telemetry.HTTPMetricsRoundTripper("proxy", policy.Destination.Host))
 		if policy.TLSSkipVerify {
 			transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 		}
@@ -234,6 +234,8 @@ type UpstreamProxy struct {
 
 // ServeHTTP handles the second (reverse-proxying) leg of pomerium's request flow
 func (u *UpstreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	_, span := telemetry.StartSpan(r.Context(), fmt.Sprintf("proxy.%s%s", r.Host, r.URL.Path))
+	defer span.End()
 	u.handler.ServeHTTP(w, r)
 }
 

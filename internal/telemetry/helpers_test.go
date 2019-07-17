@@ -1,9 +1,10 @@
-package metrics
+package telemetry
 
 import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"go.opencensus.io/stats/view"
 )
 
@@ -22,6 +23,7 @@ func testDataRetrieval(v *view.View, t *testing.T, want string) {
 	}
 
 	if !strings.HasPrefix(data[0].String(), want) {
-		t.Errorf("%s: Found unexpected data row: \nwant: %s\ngot: %s\n", name, want, data[0].String())
+		diff := cmp.Diff(data[0].String(), want)
+		t.Errorf("%s: Found unexpected data row: \nwant: %s\ngot: %s\n diff:\n %s", name, want, data[0].String(), diff)
 	}
 }

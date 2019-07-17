@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -48,6 +49,9 @@ type AuthenticateGRPC struct {
 // Redeem makes an RPC call to the authenticate service to creates a session state
 // from an encrypted code provided as a result of an oauth2 callback process.
 func (a *AuthenticateGRPC) Redeem(ctx context.Context, code string) (*sessions.SessionState, error) {
+	ctx, span := telemetry.StartSpan(ctx, "proxy.client.grpc.Redeem")
+	defer span.End()
+
 	if code == "" {
 		return nil, errors.New("missing code")
 	}
@@ -68,6 +72,9 @@ func (a *AuthenticateGRPC) Redeem(ctx context.Context, code string) (*sessions.S
 // user's session. Requires a valid refresh token. Will return an error if the identity provider
 // has revoked the session or if the refresh token is no longer valid in this context.
 func (a *AuthenticateGRPC) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
+	ctx, span := telemetry.StartSpan(ctx, "proxy.client.grpc.Refresh")
+	defer span.End()
+
 	if s.RefreshToken == "" {
 		return nil, errors.New("missing refresh token")
 	}
@@ -100,6 +107,9 @@ func (a *AuthenticateGRPC) Refresh(ctx context.Context, s *sessions.SessionState
 // does NOT do nonce or revokation validation.
 // https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
 func (a *AuthenticateGRPC) Validate(ctx context.Context, idToken string) (bool, error) {
+	ctx, span := telemetry.StartSpan(ctx, "proxy.client.grpc.Validate")
+	defer span.End()
+
 	if idToken == "" {
 		return false, errors.New("missing id token")
 	}

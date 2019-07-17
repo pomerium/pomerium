@@ -1,4 +1,4 @@
-package metrics // import "github.com/pomerium/pomerium/internal/metrics"
+package telemetry // import "github.com/pomerium/pomerium/internal/telemetry"
 
 import (
 	"bytes"
@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"go.opencensus.io/stats/view"
 )
@@ -24,10 +23,6 @@ func newTestMux() http.Handler {
 }
 
 func Test_HTTPMetricsHandler(t *testing.T) {
-
-	chain := middleware.NewChain()
-	chain = chain.Append(HTTPMetricsHandler("test_service"))
-	chainHandler := chain.Then(newTestMux())
 
 	tests := []struct {
 		name                          string
@@ -73,7 +68,9 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 
 			req := httptest.NewRequest(tt.verb, tt.url, new(bytes.Buffer))
 			rec := httptest.NewRecorder()
-			chainHandler.ServeHTTP(rec, req)
+
+			h := HTTPMetricsHandler("test_service")(newTestMux())
+			h.ServeHTTP(rec, req)
 
 			testDataRetrieval(HTTPServerRequestSizeView, t, tt.wanthttpServerRequestSize)
 			testDataRetrieval(HTTPServerResponseSizeView, t, tt.wanthttpServerResponseSize)

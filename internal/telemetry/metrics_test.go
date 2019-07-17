@@ -1,4 +1,4 @@
-package metrics // import "github.com/pomerium/pomerium/internal/metrics"
+package telemetry
 
 import (
 	"bytes"
@@ -8,9 +8,11 @@ import (
 	"testing"
 )
 
-func Test_newPromHTTPHandler(t *testing.T) {
-	h := newPromHTTPHandler()
-
+func Test_PrometheusHandler(t *testing.T) {
+	h, err := PrometheusHandler()
+	if err != nil {
+		t.Fatal(err)
+	}
 	req := httptest.NewRequest("GET", "http://test.local/metrics", new(bytes.Buffer))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)

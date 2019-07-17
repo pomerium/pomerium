@@ -1,7 +1,6 @@
 package main // import "github.com/pomerium/pomerium/cmd/pomerium"
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -17,8 +16,8 @@ import (
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/metrics"
 	"github.com/pomerium/pomerium/internal/middleware"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	pbAuthenticate "github.com/pomerium/pomerium/proto/authenticate"
@@ -35,15 +34,16 @@ func main() {
 		fmt.Println(version.FullVersion())
 		os.Exit(0)
 	}
-	opt, err := parseOptions(*configFile)
+	opt, err := config.ParseOptions(*configFile)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: options")
 	}
 	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
 	grpcAuth := middleware.NewSharedSecretCred(opt.SharedKey)
-	grpcOpts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcAuth.ValidateRequest), grpc.StatsHandler(metrics.NewGRPCServerStatsHandler(opt.Services))}
+	grpcOpts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(grpcAuth.ValidateRequest),
+		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(opt.Services))}
 	grpcServer := grpc.NewServer(grpcOpts...)
-
 	mux := http.NewServeMux()
 
 	_, err = newAuthenticateService(*opt, mux, grpcServer)
@@ -60,20 +60,17 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: proxy")
 	}
+	defer proxy.AuthenticateClient.Close()
+	defer proxy.AuthorizeClient.Close()
+
 	go viper.WatchConfig()
 
 	viper.OnConfigChange(func(e fsnotify.Event) {
-		log.Info().
-			Str("file", e.Name).
-			Msg("cmd/pomerium: configuration file changed")
-
-		opt = handleConfigUpdate(opt, []config.OptionsUpdater{authz, proxy})
+		log.Info().Str("file", e.Name).Msg("cmd/pomerium: config file changed")
+		opt = config.HandleConfigUpdate(*configFile, opt, []config.OptionsUpdater{authz, proxy})
 	})
-	// defer statements ignored anyway :  https://stackoverflow.com/a/17888654
-	// defer proxyService.AuthenticateClient.Close()
-	// defer proxyService.AuthorizeClient.Close()
 
-	httpOpts := &httputil.Options{
+	httpOpts := &httputil.ServerOptions{
 		Addr:              opt.Addr,
 		Cert:              opt.Cert,
 		Key:               opt.Key,
@@ -86,38 +83,41 @@ func main() {
 	}
 
 	if opt.MetricsAddr != "" {
-		go newPromListener(opt.MetricsAddr)
+		if handler, err := telemetry.PrometheusHandler(); err != nil {
+			log.Error().Err(err).Msg("cmd/pomerium: couldn't start metrics server")
+		} else {
+			srv := httputil.NewHTTPServer(
+				&httputil.ServerOptions{Addr: opt.HTTPRedirectAddr},
+				handler)
+			go httputil.Shutdown(srv)
+		}
+	}
+	if opt.TracingProvider != "" {
+		if err := telemetry.RegisterTracing(&telemetry.TracingOptions{
+			Provider:                opt.TracingProvider,
+			Service:                 opt.Services,
+			Debug:                   opt.TracingDebug,
+			JaegerAgentEndpoint:     opt.TracingJaegerAgentEndpoint,
+			JaegerCollectorEndpoint: opt.TracingJaegerCollectorEndpoint,
+		}); err != nil {
+			log.Error().Err(err).Msg("cmd/pomerium: couldn't register tracing")
+		}
 	}
 
-	if srv, err := startRedirectServer(opt.HTTPRedirectAddr); err != nil {
-		log.Debug().Str("cause", err.Error()).Msg("cmd/pomerium: http redirect server not started")
-	} else {
-		defer srv.Close()
+	if opt.HTTPRedirectAddr != "" {
+		srv := httputil.NewHTTPServer(
+			&httputil.ServerOptions{Addr: opt.HTTPRedirectAddr},
+			httputil.RedirectHandler())
+		go httputil.Shutdown(srv)
 	}
 
-	if err := httputil.ListenAndServeTLS(httpOpts, wrapMiddleware(opt, mux), grpcServer); err != nil {
-		log.Fatal().Err(err).Msg("cmd/pomerium: https server")
+	srv, err := httputil.NewTLSServer(httpOpts, mainHandler(opt, mux), grpcServer)
+	if err != nil {
+		log.Fatal().Err(err).Msg("cmd/pomerium: couldn't start pomerium")
 	}
-}
+	httputil.Shutdown(srv)
 
-// startRedirectServer starts a http server that redirect HTTP to HTTPS traffic
-func startRedirectServer(addr string) (*http.Server, error) {
-	if addr == "" {
-		return nil, errors.New("no http redirect addr provided")
-	}
-	srv := &http.Server{
-		Addr:         addr,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Connection", "close")
-			url := fmt.Sprintf("https://%s%s", urlutil.StripPort(r.Host), r.URL.String())
-			http.Redirect(w, r, url, http.StatusMovedPermanently)
-		}),
-	}
-	log.Info().Str("Addr", addr).Msg("cmd/pomerium: http redirect server started")
-	go func() { log.Error().Err(srv.ListenAndServe()).Msg("cmd/pomerium: http server closed") }()
-	return srv, nil
+	os.Exit(0)
 }
 
 func newAuthenticateService(opt config.Options, mux *http.ServeMux, rpc *grpc.Server) (*authenticate.Authenticate, error) {
@@ -157,19 +157,9 @@ func newProxyService(opt config.Options, mux *http.ServeMux) (*proxy.Proxy, erro
 	return service, nil
 }
 
-func newPromListener(addr string) {
-	metrics.RegisterView(metrics.HTTPClientViews)
-	metrics.RegisterView(metrics.HTTPServerViews)
-	metrics.RegisterView(metrics.GRPCClientViews)
-	metrics.RegisterView(metrics.GRPCServerViews)
-
-	log.Info().Str("MetricsAddr", addr).Msg("cmd/pomerium: starting prometheus endpoint")
-	log.Error().Err(metrics.NewPromHTTPListener(addr)).Str("MetricsAddr", addr).Msg("cmd/pomerium: could not start metrics exporter")
-}
-
-func wrapMiddleware(o *config.Options, mux http.Handler) http.Handler {
+func mainHandler(o *config.Options, mux http.Handler) http.Handler {
 	c := middleware.NewChain()
-	c = c.Append(metrics.HTTPMetricsHandler("proxy"))
+	c = c.Append(telemetry.HTTPMetricsHandler(o.Services))
 	c = c.Append(log.NewHandler(log.Logger))
 	c = c.Append(log.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
 		log.FromRequest(r).Debug().
@@ -193,47 +183,4 @@ func wrapMiddleware(o *config.Options, mux http.Handler) http.Handler {
 	c = c.Append(log.RequestIDHandler("req_id", "Request-Id"))
 	c = c.Append(middleware.Healthcheck("/ping", version.UserAgent()))
 	return c.Then(mux)
-}
-
-func parseOptions(configFile string) (*config.Options, error) {
-	o, err := config.OptionsFromViper(configFile)
-	if err != nil {
-		return nil, err
-	}
-	if o.Debug {
-		log.SetDebugMode()
-	}
-	if o.LogLevel != "" {
-		log.SetLevel(o.LogLevel)
-	}
-	return o, nil
-}
-
-func handleConfigUpdate(opt *config.Options, services []config.OptionsUpdater) *config.Options {
-	newOpt, err := parseOptions(*configFile)
-	if err != nil {
-		log.Error().Err(err).Msg("cmd/pomerium: could not reload configuration")
-		return opt
-	}
-	optChecksum := opt.Checksum()
-	newOptChecksum := newOpt.Checksum()
-
-	log.Debug().
-		Str("old-checksum", optChecksum).
-		Str("new-checksum", newOptChecksum).
-		Msg("cmd/pomerium: configuration file changed")
-
-	if newOptChecksum == optChecksum {
-		log.Debug().Msg("cmd/pomerium: loaded configuration has not changed")
-		return opt
-	}
-
-	log.Info().Str("checksum", newOptChecksum).Msg("cmd/pomerium: checksum changed")
-	for _, service := range services {
-		if err := service.UpdateOptions(*newOpt); err != nil {
-			log.Error().Err(err).Msg("cmd/pomerium: could not update options")
-		}
-	}
-
-	return newOpt
 }

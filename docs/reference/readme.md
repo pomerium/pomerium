@@ -154,13 +154,17 @@ If set, the HTTP Redirect Address specifies the host and port to redirect http t
 - Environmental Variable: `METRICS_ADDRESS`
 - Config File Key: `metrics_address`
 - Type: `string`
-- Example: `:8080`, `127.0.0.1:9090`, ``
+- Example: `:9090`, `127.0.0.1:9090`
 - Default: `disabled`
 - Optional
 
 Expose a prometheus format HTTP endpoint on the specified port. Disabled by default.
 
-**Use with caution:** the endpoint can expose frontend and backend server names or addresses. Do not expose the metrics port if this is sensitive information.
+:::warning
+
+**Use with caution:** the endpoint can expose frontend and backend server names or addresses. Do not externally expose the metrics if this is sensitive information.
+
+:::
 
 #### Metrics tracked
 
@@ -168,19 +172,19 @@ Name                            | Type      | Description
 :------------------------------ | :-------- | :--------------------------------------------
 http_server_requests_total      | Counter   | Total HTTP server requests handled by service
 http_server_response_size_bytes | Histogram | HTTP server response size by service
-http_server_request_size_bytes | Histogram | HTTP server request size by service
+http_server_request_size_bytes  | Histogram | HTTP server request size by service
 http_server_request_duration_ms | Histogram | HTTP server request duration by service
 http_client_requests_total      | Counter   | Total HTTP client requests made by service
 http_client_response_size_bytes | Histogram | HTTP client response size by service
-http_client_request_size_bytes | Histogram | HTTP client request size by service
+http_client_request_size_bytes  | Histogram | HTTP client request size by service
 http_client_request_duration_ms | Histogram | HTTP client request duration by service
 grpc_client_requests_total      | Counter   | Total GRPC client requests made by service
 grpc_client_response_size_bytes | Histogram | GRPC client response size by service
-grpc_client_request_size_bytes | Histogram | GRPC client request size by service
+grpc_client_request_size_bytes  | Histogram | GRPC client request size by service
 grpc_client_request_duration_ms | Histogram | GRPC client request duration by service
 grpc_server_requests_total      | Counter   | Total GRPC server requests made by service
 grpc_server_response_size_bytes | Histogram | GRPC server response size by service
-grpc_server_request_size_bytes | Histogram | GRPC server request size by service
+grpc_server_request_size_bytes  | Histogram | GRPC server request size by service
 grpc_server_request_duration_ms | Histogram | GRPC server request duration by service
 
 ### Policy

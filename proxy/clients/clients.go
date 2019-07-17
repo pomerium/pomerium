@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/metrics"
 	"github.com/pomerium/pomerium/internal/middleware"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"go.opencensus.io/plugin/ocgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -105,7 +105,7 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		connAddr,
 		grpc.WithTransportCredentials(cert),
 		grpc.WithPerRPCCredentials(grpcAuth),
-		grpc.WithUnaryInterceptor(metrics.GRPCClientInterceptor("proxy")),
+		grpc.WithUnaryInterceptor(telemetry.GRPCClientInterceptor("proxy")),
 		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
 	)
 }

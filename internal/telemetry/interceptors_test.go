@@ -1,4 +1,4 @@
-package metrics
+package telemetry
 
 import (
 	"context"
@@ -97,8 +97,8 @@ func Test_GRPCClientInterceptor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			UnRegisterView(GRPCClientViews)
-			RegisterView(GRPCClientViews)
+			unRegisterView(GRPCClientViews...)
+			registerView(GRPCClientViews...)
 
 			invoker := testInvoker{
 				invokeResult: tt.errorCode,
@@ -167,8 +167,8 @@ func Test_GRPCServerStatsHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			UnRegisterView(GRPCServerViews)
-			RegisterView(GRPCServerViews)
+			unRegisterView(GRPCServerViews...)
+			registerView(GRPCServerViews...)
 
 			statsHandler := NewGRPCServerStatsHandler("test_service")
 			mockServerRPCHandle(statsHandler, tt.method, tt.errorCode)

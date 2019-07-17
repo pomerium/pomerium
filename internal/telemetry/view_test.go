@@ -1,4 +1,4 @@
-package metrics
+package telemetry
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func Test_RegisterView(t *testing.T) {
-	RegisterView(HTTPClientViews)
+	registerView(HTTPClientViews...)
 	for _, v := range HTTPClientViews {
 		if view.Find(v.Name) != v {
 			t.Errorf("Failed to find registered view %s", v.Name)
@@ -16,7 +16,7 @@ func Test_RegisterView(t *testing.T) {
 }
 
 func Test_UnregisterView(t *testing.T) {
-	UnRegisterView(HTTPClientViews)
+	unRegisterView(HTTPClientViews...)
 	for _, v := range HTTPClientViews {
 		if view.Find(v.Name) == v {
 			t.Errorf("Found unregistered view %s", v.Name)

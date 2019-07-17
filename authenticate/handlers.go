@@ -12,6 +12,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry"
 )
 
 // CSPHeaders are the content security headers added to the service's handlers
@@ -72,6 +73,9 @@ func (a *Authenticate) authenticate(w http.ResponseWriter, r *http.Request, sess
 // SignIn handles the sign_in endpoint. It attempts to authenticate the user,
 // and if the user is not authenticated, it renders a sign in page.
 func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
+	_, span := telemetry.StartSpan(r.Context(), "authenticate.SignIn")
+	defer span.End()
+
 	session, err := a.sessionStore.LoadSession(r)
 	if err != nil {
 		switch err {

@@ -3,12 +3,14 @@ codecov:
     require_ci_to_pass: yes
 
 coverage:
-  precision: 2
+  precision: 1
   round: down
   range: "70...100"
 
   status:
-    project: yes
+    project:
+      default:
+        threshold: 1
     patch: no
     changes: no
 
@@ -21,6 +23,6 @@ parsers:
       macro: no
 
 comment:
-  layout: "header, diff"
+  layout: "header, diff, files"
   behavior: default
   require_changes: no

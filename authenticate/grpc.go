@@ -6,11 +6,14 @@ import (
 	"fmt"
 
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	pb "github.com/pomerium/pomerium/proto/authenticate"
 )
 
 // Authenticate takes an encrypted code, and returns the authentication result.
 func (p *Authenticate) Authenticate(ctx context.Context, in *pb.AuthenticateRequest) (*pb.Session, error) {
+	_, span := telemetry.StartSpan(ctx, "authenticate.grpc.Authenticate")
+	defer span.End()
 	session, err := sessions.UnmarshalSession(in.Code, p.cipher)
 	if err != nil {
 		return nil, fmt.Errorf("authenticate/grpc: authenticate %v", err)
@@ -25,6 +28,9 @@ func (p *Authenticate) Authenticate(ctx context.Context, in *pb.AuthenticateRequ
 // Validate locally validates a JWT id_token; does NOT do nonce or revokation validation.
 // https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
 func (p *Authenticate) Validate(ctx context.Context, in *pb.ValidateRequest) (*pb.ValidateReply, error) {
+	ctx, span := telemetry.StartSpan(ctx, "authenticate.grpc.Validate")
+	defer span.End()
+
 	isValid, err := p.provider.Validate(ctx, in.IdToken)
 	if err != nil {
 		return &pb.ValidateReply{IsValid: false}, fmt.Errorf("authenticate/grpc: validate %v", err)
@@ -35,10 +41,8 @@ func (p *Authenticate) Validate(ctx context.Context, in *pb.ValidateRequest) (*p
 // Refresh renews a user's session checks if the session has been revoked using an access token
 // without reprompting the user.
 func (p *Authenticate) Refresh(ctx context.Context, in *pb.Session) (*pb.Session, error) {
-	// todo(bdd): add request id from incoming context
-	// md, _ := metadata.FromIncomingContext(ctx)
-	// sublogger := log.With().Str("req_id", md.Get("req_id")[0]).WithContext(ctx)
-	// sublogger.Info().Msg("tracing sucks!")
+	ctx, span := telemetry.StartSpan(ctx, "authenticate.grpc.Refresh")
+	defer span.End()
 	if in == nil {
 		return nil, fmt.Errorf("authenticate/grpc: session cannot be nil")
 	}

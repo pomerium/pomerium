@@ -7,83 +7,20 @@ import (
 	stdlog "log"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-// Options contains the configurations settings for a TLS http server.
-type Options struct {
-	// Addr specifies the host and port on which the server should serve
-	// HTTPS requests. If empty, ":https" is used.
-	Addr string
-
-	// TLS certificates to use.
-	Cert     string
-	Key      string
-	CertFile string
-	KeyFile  string
-
-	// Timeouts
-	ReadHeaderTimeout time.Duration
-	ReadTimeout       time.Duration
-	WriteTimeout      time.Duration
-	IdleTimeout       time.Duration
-}
-
-var defaultOptions = &Options{
-	Addr:              ":https",
-	CertFile:          filepath.Join(findKeyDir(), "cert.pem"),
-	KeyFile:           filepath.Join(findKeyDir(), "privkey.pem"),
-	ReadHeaderTimeout: 10 * time.Second,
-	ReadTimeout:       30 * time.Second,
-	WriteTimeout:      0, // support streaming by default
-	IdleTimeout:       5 * time.Minute,
-}
-
-func findKeyDir() string {
-	p, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-	return p
-}
-
-func (o *Options) applyDefaults() {
-	if o.Addr == "" {
-		o.Addr = defaultOptions.Addr
-	}
-	if o.Cert == "" && o.CertFile == "" {
-		o.CertFile = defaultOptions.CertFile
-	}
-	if o.Key == "" && o.KeyFile == "" {
-		o.KeyFile = defaultOptions.KeyFile
-	}
-	if o.ReadHeaderTimeout == 0 {
-		o.ReadHeaderTimeout = defaultOptions.ReadHeaderTimeout
-	}
-	if o.ReadTimeout == 0 {
-		o.ReadTimeout = defaultOptions.ReadTimeout
-	}
-	if o.WriteTimeout == 0 {
-		o.WriteTimeout = defaultOptions.WriteTimeout
-	}
-	if o.IdleTimeout == 0 {
-		o.IdleTimeout = defaultOptions.IdleTimeout
-	}
-}
-
-// ListenAndServeTLS serves the provided handlers by HTTPS
-// using the provided options.
-func ListenAndServeTLS(opt *Options, httpHandler http.Handler, grpcHandler http.Handler) error {
+// NewTLSServer creates a new TLS server given a set of options, handlers, and
+// optionally a set of gRPC endpoints as well.
+// It is the callers responsibility to close the resturned server.
+func NewTLSServer(opt *ServerOptions, httpHandler http.Handler, grpcHandler http.Handler) (*http.Server, error) {
 	if opt == nil {
-		opt = defaultOptions
+		opt = defaultTLSServerOptions
 	} else {
-		opt.applyDefaults()
+		opt.applyTLSDefaults()
 	}
 	var cert *tls.Certificate
 	var err error
@@ -93,12 +30,12 @@ func ListenAndServeTLS(opt *Options, httpHandler http.Handler, grpcHandler http.
 		cert, err = readCertificateFile(opt.CertFile, opt.KeyFile)
 	}
 	if err != nil {
-		return fmt.Errorf("https: failed loading x509 certificate: %v", err)
+		return nil, fmt.Errorf("internal/httputil: failed loading x509 certificate: %v", err)
 	}
 	config := newDefaultTLSConfig(cert)
 	ln, err := net.Listen("tcp", opt.Addr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ln = tls.NewListener(ln, config)
@@ -112,7 +49,7 @@ func ListenAndServeTLS(opt *Options, httpHandler http.Handler, grpcHandler http.
 	sublogger := log.With().Str("addr", opt.Addr).Logger()
 
 	// Set up the main server.
-	server := &http.Server{
+	srv := &http.Server{
 		ReadHeaderTimeout: opt.ReadHeaderTimeout,
 		ReadTimeout:       opt.ReadTimeout,
 		WriteTimeout:      opt.WriteTimeout,
@@ -121,8 +58,13 @@ func ListenAndServeTLS(opt *Options, httpHandler http.Handler, grpcHandler http.
 		Handler:           h,
 		ErrorLog:          stdlog.New(&log.StdLogWrapper{Logger: &sublogger}, "", 0),
 	}
+	go func() {
+		if err := srv.Serve(ln); err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("internal/httputil: tls server crashed")
+		}
+	}()
 
-	return server.Serve(ln)
+	return srv, nil
 }
 
 func decodeCertificate(cert, key string) (*tls.Certificate, error) {
@@ -178,8 +120,8 @@ func newDefaultTLSConfig(cert *tls.Certificate) *tls.Config {
 		PreferServerCipherSuites: true,
 		// Use curves which have assembly implementations
 		CurvePreferences: []tls.CurveID{
-			tls.CurveP256,
 			tls.X25519,
+			tls.CurveP256,
 		},
 		Certificates: []tls.Certificate{*cert},
 		// HTTP/2 must be enabled manually when using http.Serve
@@ -189,8 +131,8 @@ func newDefaultTLSConfig(cert *tls.Certificate) *tls.Config {
 	return tlsConfig
 }
 
-// grpcHandlerFunc splits request serving between gRPC and HTTPS depending on the request type.
-// Requires HTTP/2.
+// grpcHandlerFunc splits request serving between gRPC and HTTPS depending on
+// the request type. Requires HTTP/2 to be enabled.
 func grpcHandlerFunc(rpcServer http.Handler, other http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ct := r.Header.Get("Content-Type")
