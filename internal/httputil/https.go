@@ -178,8 +178,8 @@ func newDefaultTLSConfig(cert *tls.Certificate) *tls.Config {
 		PreferServerCipherSuites: true,
 		// Use curves which have assembly implementations
 		CurvePreferences: []tls.CurveID{
-			tls.CurveP256,
 			tls.X25519,
+			tls.CurveP256,
 		},
 		Certificates: []tls.Certificate{*cert},
 		// HTTP/2 must be enabled manually when using http.Serve
