@@ -24,6 +24,7 @@ module.exports = {
       {
         text: "Versions",
         items: [
+          { text: "v0.1.0", link: "https://v0-1-0.docs.pomerium.io/" },
           { text: "v0.0.5", link: "https://v0-0-5.docs.pomerium.io/" },
           { text: "v0.0.4", link: "https://v0-0-4.docs.pomerium.io/" }
         ]
