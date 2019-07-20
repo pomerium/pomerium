@@ -23,6 +23,7 @@
 - Add support for large cookie sessions by chunking. [GH-211]
 
 - Prefer [curve](https://wiki.mozilla.org/Security/Server_Side_TLS) X25519 to P256 for TLS connections. [GH-233]
+- Add informational metrics. [GH-227]
 
 ## v0.1.0
 
