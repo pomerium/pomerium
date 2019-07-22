@@ -23,7 +23,9 @@
 - Add support for large cookie sessions by chunking. [GH-211]
 
 - Prefer [curve](https://wiki.mozilla.org/Security/Server_Side_TLS) X25519 to P256 for TLS connections. [GH-233]
+
 - Add informational metrics. [GH-227]
+- [Google](https://developers.google.com/identity/protocols/OpenIDConnect) now prompts the user to select a user account (by adding `select_account` to the sign in url). This allows a user who has multiple accounts at the authorization server to select amongst the multiple accounts that they may have current sessions for.
 
 ## v0.1.0
 

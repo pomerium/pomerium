@@ -124,7 +124,7 @@ func (p *GoogleProvider) Revoke(accessToken string) error {
 // prompt=consent to the OAuth redirect URL and will always return a refresh_token.
 // https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess
 func (p *GoogleProvider) GetSignInURL(state string) string {
-	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account consent"))
 }
 
 // Authenticate creates an identity session with google from a authorization code, and follows up
