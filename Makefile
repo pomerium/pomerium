@@ -30,7 +30,7 @@ GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
 
 
 .PHONY: all
-all: clean build lint test ## Runs a clean, build, fmt, lint, test, and vet.
+all: clean build lint spellcheck test ## Runs a clean, build, fmt, lint, test, and vet.
 
 .PHONY: tag
 tag: ## Create a new git tag to prepare to build a release
@@ -52,6 +52,12 @@ lint: ## Verifies `golint` passes.
 test: ## Runs the go tests.
 	@echo "==> $@"
 	@go test -tags "$(BUILDTAGS)" $(shell go list ./... | grep -v vendor)
+
+.PHONY: spellcheck
+spellcheck: # Spellcheck docs
+	@echo "==> Spell checking docs..."
+	@GO111MODULE=off go get -u github.com/client9/misspell/cmd/misspell
+	@misspell -error -source=text docs/
 
 
 .PHONY: cover

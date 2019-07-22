@@ -14,7 +14,7 @@ There are a few configuration steps required for identity provider integration. 
 
 In this guide we'll cover how to do the following for each identity provider:
 
-1. Set a **Redirect URL** pointing back to Pomerium. That is, `https://${AUTHENTICATE_SERVICE_URL}/oauth2/callback` 
+1. Set a **Redirect URL** pointing back to Pomerium. That is, `https://${AUTHENTICATE_SERVICE_URL}/oauth2/callback`
 2. Generate a **[Client ID]** and **[Client Secret]**.
 3. Configure Pomerium to use the **[Client ID]** and **[Client Secret]** keys.
 
@@ -105,7 +105,7 @@ https://login.microsoftonline.com/0303f438-3c5c-4190-9854-08d3eb31bd9f/v2.0
 
 ### Configure Pomerium
 
-Finally, configure Pomerium with the identity provider settings retrieved in the pervious steps. Your [environmental variables] should look something like:
+Finally, configure Pomerium with the identity provider settings retrieved in the previous steps. Your [environmental variables] should look something like:
 
 ```bash
 # Azure
@@ -129,11 +129,11 @@ Navigate to **User Settings** then **Applications** using the left-hand menu.
 
 On the **Applications** page, add a new application by setting the following parameters:
 
-| Field        | Description                                                                |
-| ------------ | -------------------------------------------------------------------------- |
-| Name         | The name of your web app                                                   |
-| Redirect URI | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`) |
-| Scopes       | **Must** select **read_user** and **openid**                               |
+Field        | Description
+------------ | --------------------------------------------------------------------------
+Name         | The name of your web app
+Redirect URI | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`)
+Scopes       | **Must** select **read_user** and **openid**
 
 ![Create New Credentials](./gitlab/gitlab-create-application.png)
 
@@ -170,10 +170,10 @@ On the **Credentials** page, click **Create credentials** and choose **OAuth [Cl
 
 On the **Create [Client ID]** page, select **Web application**. In the new fields that display, set the following parameters:
 
-| Field                    | Description                                                                |
-| ------------------------ | -------------------------------------------------------------------------- |
-| Name                     | The name of your web app                                                   |
-| Authorized redirect URIs | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`) |
+Field                    | Description
+------------------------ | --------------------------------------------------------------------------
+Name                     | The name of your web app
+Authorized redirect URIs | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`)
 
 ![Web App Credentials Configuration](./google/google-create-client-id-config.png)
 
@@ -194,11 +194,9 @@ Then, you'll need to manually open an editor and add an `impersonate_user` field
 
 ::: warning
 
- [Google requires](https://stackoverflow.com/questions/48585700/is-it-possible-to-call-apis-from-service-account-without-acting-on-behalf-of-a-u/48601364#48601364) that service accounts act on behalf of another user. You MUST add the `impersonate_user` field to your json key file.
+[Google requires](https://stackoverflow.com/questions/48585700/is-it-possible-to-call-apis-from-service-account-without-acting-on-behalf-of-a-u/48601364#48601364) that service accounts act on behalf of another user. You MUST add the `impersonate_user` field to your json key file.
 
 :::
-
-
 
 ```json
 {
@@ -210,7 +208,7 @@ Then, you'll need to manually open an editor and add an `impersonate_user` field
 }
 ```
 
-The base64 encoded contents of this public/private key pair json file will used for the value of the `IDP_SERVICE_ACCOUNT` configuration setting. 
+The base64 encoded contents of this public/private key pair json file will used for the value of the `IDP_SERVICE_ACCOUNT` configuration setting.
 
 Next we'll delegate G-suite group membership access to the service account we just created .
 
@@ -246,13 +244,13 @@ On the **Create New Application** page, select the **Web** for your application.
 
 Next, provide the following information for your application settings:
 
-| Field                        | Description                                                                 |
-| ---------------------------- | --------------------------------------------------------------------------- |
-| Name                         | The name of your application.                                               |
-| Base URIs (optional)         | The domain(s) of your application.                                          |
-| Login redirect URIs          | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`). |
-| Group assignments (optional) | The user groups that can sign in to this application.                       |
-| Grant type allowed           | **You must enable Refresh Token.**                                          |
+Field                        | Description
+---------------------------- | ---------------------------------------------------------------------------
+Name                         | The name of your application.
+Base URIs (optional)         | The domain(s) of your application.
+Login redirect URIs          | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`).
+Group assignments (optional) | The user groups that can sign in to this application.
+Grant type allowed           | **You must enable Refresh Token.**
 
 ![Okta Create Application Settings](./okta/okta-create-app-settings.png)
 
@@ -270,27 +268,27 @@ Select your desired authorization server and navigate to the **claims tab**. Cli
 
 ![Okta configure group claim](./okta/okta-configure-groups-claim.png)
 
-| Field                 | Value                 |
-| --------------------- | --------------------- |
-| Name                  | groups                |
-| Include in token type | **ID Token**, Always. |
-| Value Type            | Groups                |
-| Filter                | Matches regex `.*`    |
-| Include in            | Any scope             |
+Field                 | Value
+--------------------- | ---------------------
+Name                  | groups
+Include in token type | **ID Token**, Always.
+Value Type            | Groups
+Filter                | Matches regex `.*`
+Include in            | Any scope
 
 Add an another, almost identical, claim but this time for **Access Token**.
 
-| Field                 | Value                     |
-| --------------------- | ------------------------- |
-| Name                  | groups                    |
-| Include in token type | **Access Token**, Always. |
-| Value Type            | Groups                    |
-| Filter                | Matches regex `.*`        |
-| Include in            | Any scope                 |
+Field                 | Value
+--------------------- | -------------------------
+Name                  | groups
+Include in token type | **Access Token**, Always.
+Value Type            | Groups
+Filter                | Matches regex `.*`
+Include in            | Any scope
 
 ![Okta list group claims](./okta/okta-list-groups-claim.png)
 
-Finally, configure Pomerium with the identity provider settings retrieved in the pervious steps. Your [environmental variables] should look something like this.
+Finally, configure Pomerium with the identity provider settings retrieved in the previous steps. Your [environmental variables] should look something like this.
 
 ```bash
 IDP_PROVIDER="okta"
@@ -323,8 +321,7 @@ Go to the **SSO** page. This section contains the **[Client ID]** and **[Client 
 
 Set the application type to **Web** and the token endpoint to be **POST**.
 
-Under **Token Timeout settings** set **Refresh Token** to 60 minutes (or whatever value makes sense for your organization). Note, however, if you don't enable refresh tokens the user will be prompted to authenticate whenever the access token expires which can result in a poor user experience. 
-
+Under **Token Timeout settings** set **Refresh Token** to 60 minutes (or whatever value makes sense for your organization). Note, however, if you don't enable refresh tokens the user will be prompted to authenticate whenever the access token expires which can result in a poor user experience.
 
 ![One Login SSO settings](./one-login/one-login-sso-settings.png)
 
@@ -338,7 +335,7 @@ To return the user's Active Directory field, configure the group to return `memb
 
 ![OneLogin set role](./one-login/one-login-oidc-groups-param.png)
 
-Finally, configure Pomerium with the identity provider settings retrieved in the pervious steps. Your [environmental variables] should look something like this.
+Finally, configure Pomerium with the identity provider settings retrieved in the previous steps. Your [environmental variables] should look something like this.
 
 ```bash
 IDP_PROVIDER="onelogin"
