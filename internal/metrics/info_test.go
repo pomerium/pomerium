@@ -49,7 +49,7 @@ func Test_SetBuildInfo(t *testing.T) {
 	}
 
 	SetBuildInfo("test_service")
-	testMetricRetrieval(registry.registry.Read(), t, wantLabels, 1, "build_info")
+	testMetricRetrieval(registry.registry.Read(), t, wantLabels, int64(1), "build_info")
 }
 
 func Test_AddPolicyCountCallback(t *testing.T) {
@@ -65,11 +65,11 @@ func Test_AddPolicyCountCallback(t *testing.T) {
 func Test_SetConfigChecksum(t *testing.T) {
 	registry = newMetricRegistry()
 
-	wantValue := int64(42)
+	wantValue := uint64(42)
 	wantLabels := []metricdata.LabelValue{{Value: "test_service", Present: true}}
 	SetConfigChecksum("test_service", wantValue)
 
-	testMetricRetrieval(registry.registry.Read(), t, wantLabels, wantValue, "config_checksum_int64")
+	testMetricRetrieval(registry.registry.Read(), t, wantLabels, float64(wantValue), "config_checksum_decimal")
 }
 
 func Test_RegisterInfoMetrics(t *testing.T) {
