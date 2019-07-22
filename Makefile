@@ -15,9 +15,9 @@ BUILDTAGS :=
 # Add to compile time flags
 VERSION := $(shell cat VERSION)
 GITCOMMIT := $(shell git rev-parse --short HEAD)
-GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 BUILDMETA:=
-ifneq ($(GITUNTRACKEDCHANGES),"")
+GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
+ifneq ($(GITUNTRACKEDCHANGES),)
 	BUILDMETA := dirty
 endif
 CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
@@ -40,6 +40,7 @@ tag: ## Create a new git tag to prepare to build a release
 .PHONY: build
 build: ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
+	@echo Untracked changes? dirty? $(BUILDMETA) files? $(GITUNTRACKEDCHANGES)
 	@CGO_ENABLED=0 GO111MODULE=on go build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 .PHONY: lint
