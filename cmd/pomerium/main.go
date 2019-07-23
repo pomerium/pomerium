@@ -213,11 +213,13 @@ func parseOptions(configFile string) (*config.Options, error) {
 	metrics.AddPolicyCountCallback(o.Services, func() int64 {
 		return int64(len(o.Policies))
 	})
-	checksumInt, err := strconv.ParseInt(fmt.Sprintf("0x%s", o.Checksum()), 0, 64)
+
+	checksumDec, err := strconv.ParseUint(o.Checksum(), 16, 64)
 	if err != nil {
-		log.Warn().Err(err).Msg("Could not parse config checksum into integer")
+		log.Warn().Err(err).Msg("Could not parse config checksum into decimal")
 	}
-	metrics.SetConfigChecksum(o.Services, checksumInt)
+	metrics.SetConfigChecksum(o.Services, checksumDec)
+
 	return o, nil
 }
 

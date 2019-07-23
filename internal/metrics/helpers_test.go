@@ -36,7 +36,15 @@ func testDataRetrieval(v *view.View, t *testing.T, want string) {
 	}
 }
 
-func testMetricRetrieval(metrics []*metricdata.Metric, t *testing.T, labels []metricdata.LabelValue, value int64, name string) {
+func testMetricRetrieval(metrics []*metricdata.Metric, t *testing.T, labels []metricdata.LabelValue, value interface{}, name string) {
+	switch value.(type) {
+	case int64:
+	case float64:
+	case uint64:
+	default:
+		t.Errorf("Got an unexpected type for value: %T", value)
+	}
+
 	found := false
 	for _, metric := range metrics {
 		if metric.Descriptor.Name != name {

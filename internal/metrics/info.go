@@ -76,7 +76,7 @@ type metricRegistry struct {
 	registry       *metric.Registry
 	buildInfo      *metric.Int64Gauge
 	policyCount    *metric.Int64DerivedGauge
-	configChecksum *metric.Int64Gauge
+	configChecksum *metric.Float64Gauge
 	sync.Once
 }
 
@@ -99,8 +99,8 @@ func (r *metricRegistry) init() {
 				log.Error().Err(err).Msg("internal/metrics: failed to register build info metric")
 			}
 
-			r.configChecksum, err = r.registry.AddInt64Gauge("config_checksum_int64",
-				metric.WithDescription("Config checksum represented in int64 notation"),
+			r.configChecksum, err = r.registry.AddFloat64Gauge("config_checksum_decimal",
+				metric.WithDescription("Config checksum represented in decimal notation"),
 				metric.WithLabelKeys("service"),
 			)
 			if err != nil {
@@ -149,7 +149,7 @@ func RegisterInfoMetrics() {
 	metricproducer.GlobalManager().AddProducer(registry.registry)
 }
 
-func (r *metricRegistry) setConfigChecksum(service string, checksum int64) {
+func (r *metricRegistry) setConfigChecksum(service string, checksum uint64) {
 	if r.configChecksum == nil {
 		return
 	}
@@ -157,12 +157,12 @@ func (r *metricRegistry) setConfigChecksum(service string, checksum int64) {
 	if err != nil {
 		log.Error().Err(err).Msg("internal/metrics: failed to get config checksum metric")
 	}
-	m.Set(checksum)
+	m.Set(float64(checksum))
 }
 
 // SetConfigChecksum creates the configuration checksum metric.  You must call RegisterInfoMetrics to
 // have this exported
-func SetConfigChecksum(service string, checksum int64) {
+func SetConfigChecksum(service string, checksum uint64) {
 	registry.setConfigChecksum(service, checksum)
 }
 
