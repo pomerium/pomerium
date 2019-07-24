@@ -33,6 +33,10 @@
 - Pomerium and its services will gracefully shutdown on [interrupt signal](http://man7.org/linux/man-pages/man7/signal.7.html). [GH-230]
 - [Google](https://developers.google.com/identity/protocols/OpenIDConnect) now prompts the user to select a user account (by adding `select_account` to the sign in url). This allows a user who has multiple accounts at the authorization server to select amongst the multiple accounts that they may have current sessions for.
 
+### FIXED
+
+- Fixed potential race condition when signing requests. [GH-240]
+
 ## v0.1.0
 
 ### NEW
