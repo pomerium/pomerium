@@ -150,8 +150,8 @@ func Test_OptionsFromViper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	goodOptions.AuthorizeURL = authorize
-	goodOptions.AuthenticateURL = authenticate
+	goodOptions.AuthorizeURL = *authorize
+	goodOptions.AuthenticateURL = *authenticate
 	if err := goodOptions.Validate(); err != nil {
 		t.Fatal(err)
 	}
