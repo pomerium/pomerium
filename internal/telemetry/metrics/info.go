@@ -64,7 +64,7 @@ func SetConfigInfo(service string, success bool, checksum string) {
 			[]tag.Mutator{serviceTag},
 			configLastReload.M(time.Now().Unix()),
 		); err != nil {
-			log.Error().Err(err).Msg("internal/telemetry: failed to record config checksum timestamp")
+			log.Error().Err(err).Msg("telemetry/metrics: failed to record config checksum timestamp")
 		}
 
 		if err := stats.RecordWithTags(
@@ -72,7 +72,7 @@ func SetConfigInfo(service string, success bool, checksum string) {
 			[]tag.Mutator{serviceTag},
 			configLastReloadSuccess.M(1),
 		); err != nil {
-			log.Error().Err(err).Msg("internal/telemetry: failed to record config reload")
+			log.Error().Err(err).Msg("telemetry/metrics: failed to record config reload")
 		}
 	} else {
 		stats.Record(context.Background(), configLastReloadSuccess.M(0))
@@ -106,7 +106,7 @@ func (r *metricRegistry) init() {
 				metric.WithLabelKeys("service", "version", "revision", "goversion"),
 			)
 			if err != nil {
-				log.Error().Err(err).Msg("internal/telemetry: failed to register build info metric")
+				log.Error().Err(err).Msg("telemetry/metrics: failed to register build info metric")
 			}
 
 			r.configChecksum, err = r.registry.AddFloat64Gauge("config_checksum_decimal",
@@ -114,7 +114,7 @@ func (r *metricRegistry) init() {
 				metric.WithLabelKeys("service"),
 			)
 			if err != nil {
-				log.Error().Err(err).Msg("internal/telemetry: failed to register config checksum metric")
+				log.Error().Err(err).Msg("telemetry/metrics: failed to register config checksum metric")
 			}
 
 			r.policyCount, err = r.registry.AddInt64DerivedGauge("policy_count_total",
@@ -122,7 +122,7 @@ func (r *metricRegistry) init() {
 				metric.WithLabelKeys("service"),
 			)
 			if err != nil {
-				log.Error().Err(err).Msg("internal/telemetry: failed to register policy count metric")
+				log.Error().Err(err).Msg("telemetry/metrics: failed to register policy count metric")
 			}
 		})
 }
@@ -140,7 +140,7 @@ func (r *metricRegistry) setBuildInfo(service string) {
 		metricdata.NewLabelValue((runtime.Version())),
 	)
 	if err != nil {
-		log.Error().Err(err).Msg("internal/telemetry: failed to get build info metric")
+		log.Error().Err(err).Msg("telemetry/metrics: failed to get build info metric")
 	}
 
 	// This sets our build_info metric to a constant 1 per
@@ -165,7 +165,7 @@ func (r *metricRegistry) setConfigChecksum(service string, checksum uint64) {
 	}
 	m, err := r.configChecksum.GetEntry(metricdata.NewLabelValue(service))
 	if err != nil {
-		log.Error().Err(err).Msg("internal/telemetry: failed to get config checksum metric")
+		log.Error().Err(err).Msg("telemetry/metrics: failed to get config checksum metric")
 	}
 	m.Set(float64(checksum))
 }
@@ -182,7 +182,7 @@ func (r *metricRegistry) addPolicyCountCallback(service string, f func() int64) 
 	}
 	err := r.policyCount.UpsertEntry(f, metricdata.NewLabelValue(service))
 	if err != nil {
-		log.Error().Err(err).Msg("internal/telemetry: failed to get policy count metric")
+		log.Error().Err(err).Msg("telemetry/metrics: failed to get policy count metric")
 	}
 }
 
