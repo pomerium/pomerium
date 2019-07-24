@@ -14,7 +14,7 @@ import (
 func DecodePublicKey(encodedKey []byte) (*ecdsa.PublicKey, error) {
 	block, _ := pem.Decode(encodedKey)
 	if block == nil {
-		return nil, fmt.Errorf("marshal: decoded nil PEM block")
+		return nil, fmt.Errorf("cryptutil: decoded nil PEM block")
 	}
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
@@ -23,7 +23,7 @@ func DecodePublicKey(encodedKey []byte) (*ecdsa.PublicKey, error) {
 
 	ecdsaPub, ok := pub.(*ecdsa.PublicKey)
 	if !ok {
-		return nil, errors.New("marshal: data was not an ECDSA public key")
+		return nil, errors.New("cryptutil: data was not an ECDSA public key")
 	}
 
 	return ecdsaPub, nil
@@ -53,7 +53,7 @@ func DecodePrivateKey(encodedKey []byte) (*ecdsa.PrivateKey, error) {
 		block, encodedKey = pem.Decode(encodedKey)
 
 		if block == nil {
-			return nil, fmt.Errorf("failed to find EC PRIVATE KEY in PEM data after skipping types %v", skippedTypes)
+			return nil, fmt.Errorf("cryptutil: failed to find EC PRIVATE KEY in PEM data after skipping types %v", skippedTypes)
 		}
 
 		if block.Type == "EC PRIVATE KEY" {

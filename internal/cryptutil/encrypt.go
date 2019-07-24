@@ -77,7 +77,7 @@ func (c *XChaCha20Cipher) GenerateNonce() []byte {
 func (c *XChaCha20Cipher) Encrypt(plaintext []byte) (joined []byte, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("internal/aead: error encrypting bytes: %v", r)
+			err = fmt.Errorf("cryptutil: error encrypting bytes: %v", r)
 		}
 	}()
 	nonce := c.GenerateNonce()
@@ -92,7 +92,7 @@ func (c *XChaCha20Cipher) Encrypt(plaintext []byte) (joined []byte, err error) {
 // Decrypt a value using XChaCha20-Poly1305
 func (c *XChaCha20Cipher) Decrypt(joined []byte) ([]byte, error) {
 	if len(joined) <= c.aead.NonceSize() {
-		return nil, fmt.Errorf("internal/aead: invalid input size: %d", len(joined))
+		return nil, fmt.Errorf("cryptutil: invalid input size: %d", len(joined))
 	}
 	// grab out the nonce
 	pivot := len(joined) - c.aead.NonceSize()
@@ -161,13 +161,13 @@ func compress(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	writer, err := gzip.NewWriterLevel(&buf, gzip.DefaultCompression)
 	if err != nil {
-		return nil, fmt.Errorf("internal/aead: failed to create a gzip writer: %q", err)
+		return nil, fmt.Errorf("cryptutil: failed to create a gzip writer: %q", err)
 	}
 	if writer == nil {
-		return nil, fmt.Errorf("internal/aead: failed to create a gzip writer")
+		return nil, fmt.Errorf("cryptutil: failed to create a gzip writer")
 	}
 	if _, err = writer.Write(data); err != nil {
-		return nil, fmt.Errorf("internal/aead: failed to compress data with err: %q", err)
+		return nil, fmt.Errorf("cryptutil: failed to compress data with err: %q", err)
 	}
 	if err = writer.Close(); err != nil {
 		return nil, err
@@ -178,7 +178,7 @@ func compress(data []byte) ([]byte, error) {
 func decompress(data []byte) ([]byte, error) {
 	reader, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("internal/aead: failed to create a gzip reader: %q", err)
+		return nil, fmt.Errorf("cryptutil: failed to create a gzip reader: %q", err)
 	}
 	defer reader.Close()
 	var buf bytes.Buffer
