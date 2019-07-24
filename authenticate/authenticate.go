@@ -80,7 +80,7 @@ func New(opts config.Options) (*Authenticate, error) {
 	provider, err := identity.New(
 		opts.Provider,
 		&identity.Provider{
-			RedirectURL:    &redirectURL,
+			RedirectURL:    redirectURL,
 			ProviderName:   opts.Provider,
 			ProviderURL:    opts.ProviderURL,
 			ClientID:       opts.ClientID,

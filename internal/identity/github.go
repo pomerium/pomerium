@@ -15,18 +15,24 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 )
 
-const defaultGithubProviderURL = "https://github.com"
-const authAPI = "login/oauth/authorize"
-const tokenAPI = "login/oauth/access_token"
-const emailAPI = "user/emails"
-const orgsAPI = "user/orgs"
-const teamAPI = "user/teams"
-const userAPI = "user"
+// Github constants
+const (
+	githubURL       = "https://github.com"
+	githubAuthPath  = "login/oauth/authorize"
+	githubTokenPath = "login/oauth/access_token"
+	githubEmailPath = "user/emails"
+	githubOrgsPath  = "user/orgs"
+	githubTeamPath  = "user/teams"
+	githubUserPath  = "user"
+)
 
-var defaultGithubScopes = []string{"user:email", "read:org"}
+var githubDefaultScopes = []string{"user:email", "read:org"}
+var githubDefaultDeadline = time.Minute * 60
 
 type GithubProvider struct {
 	*Provider
+
+	Deadline time.Duration
 
 	// baseURL would be different in the enterprise version
 	baseURL           *url.URL
@@ -43,23 +49,24 @@ type GithubProvider struct {
 // https://developer.github.com/v3/oauth_authorizations/#create-a-new-authorization
 func NewGithubProvider(p *Provider) (*GithubProvider, error) {
 	if p.ProviderURL == "" {
-		p.ProviderURL = defaultGithubProviderURL
+		p.ProviderURL = githubURL
 	}
 	if len(p.Scopes) == 0 {
-		p.Scopes = defaultGithubScopes
+		p.Scopes = githubDefaultScopes
 	}
+
 	var err error
 	var gp GithubProvider
 	gp.baseURL, err = urlutil.ParseAndValidateURL(p.ProviderURL)
 	if err != nil {
 		return nil, fmt.Errorf("identity/github: couldn't parse provider url %v", err)
 	}
-	gp.authURL = &url.URL{Path: authAPI, Scheme: gp.baseURL.Scheme, Host: gp.baseURL.Host}
-	gp.tokenURL = &url.URL{Path: tokenAPI, Scheme: gp.baseURL.Scheme, Host: gp.baseURL.Host}
-	gp.userEmailEndpoint = &url.URL{Path: emailAPI, Scheme: gp.baseURL.Scheme, Host: "api." + gp.baseURL.Host}
-	gp.userOrgsEndpoint = &url.URL{Path: orgsAPI, Scheme: gp.baseURL.Scheme, Host: "api." + gp.baseURL.Host}
-	gp.userTeamsEndpoint = &url.URL{Path: teamAPI, Scheme: gp.baseURL.Scheme, Host: "api." + gp.baseURL.Host}
-	gp.userEndpoint = &url.URL{Path: userAPI, Scheme: gp.baseURL.Scheme, Host: "api." + gp.baseURL.Host}
+	gp.authURL = &url.URL{Path: githubAuthPath, Scheme: gp.baseURL.Scheme, Host: gp.baseURL.Host}
+	gp.tokenURL = &url.URL{Path: githubTokenPath, Scheme: gp.baseURL.Scheme, Host: gp.baseURL.Host}
+	gp.userEmailEndpoint = &url.URL{Path: githubEmailPath, Scheme: gp.baseURL.Scheme, Host: "api." + gp.baseURL.Host}
+	gp.userOrgsEndpoint = &url.URL{Path: githubOrgsPath, Scheme: gp.baseURL.Scheme, Host: "api." + gp.baseURL.Host}
+	gp.userTeamsEndpoint = &url.URL{Path: githubTeamPath, Scheme: gp.baseURL.Scheme, Host: "api." + gp.baseURL.Host}
+	gp.userEndpoint = &url.URL{Path: githubUserPath, Scheme: gp.baseURL.Scheme, Host: "api." + gp.baseURL.Host}
 
 	p.oauth = &oauth2.Config{
 		ClientID:     p.ClientID,
@@ -72,6 +79,7 @@ func NewGithubProvider(p *Provider) (*GithubProvider, error) {
 		Scopes:      p.Scopes,
 	}
 	gp.Provider = p
+	gp.Deadline = githubDefaultDeadline
 	return &gp, nil
 }
 
@@ -90,12 +98,17 @@ func (p *GithubProvider) Authenticate(ctx context.Context, code string) (*sessio
 	session.RefreshToken = resp.AccessToken
 	session.IDToken = resp.AccessToken
 	session.RefreshDeadline = resp.Expiry
-	if (session.RefreshDeadline == time.Time{}) {
+	if session.RefreshDeadline.IsZero() {
 		session.RefreshDeadline = time.Now().Add(1 * time.Hour).Truncate(time.Second)
 	}
 	return p.fetchUserInfo(ctx, &session)
 }
 
+func (p *GithubProvider) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
+	return p.fetchUserInfo(ctx, s)
+}
+
+// Validate always returns true because there is no id token to verify.
 func (p *GithubProvider) Validate(ctx context.Context, idToken string) (bool, error) {
 	return true, nil
 }
@@ -123,10 +136,6 @@ func (p *GithubProvider) fetchUserInfo(ctx context.Context, s *sessions.SessionS
 	}
 	s.Groups = append(orgs, teams...)
 	return s, nil
-}
-func (p *GithubProvider) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
-
-	return p.fetchUserInfo(ctx, s)
 }
 
 // https://developer.github.com/v3/orgs/#list-your-organizations
@@ -215,4 +224,8 @@ func (p *GithubProvider) userName(ctx context.Context, accessToken string) (stri
 		return "", err
 	}
 	return response.Login, nil
+}
+
+func (p *GithubProvider) IDTokenToSession(ctx context.Context, rawIDToken string) (*sessions.SessionState, error) {
+	return nil, fmt.Errorf("identity/github: does not implement id_tokens")
 }
