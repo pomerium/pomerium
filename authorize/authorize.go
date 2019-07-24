@@ -6,7 +6,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/metrics"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 
 // ValidateOptions checks to see if configuration values are valid for the

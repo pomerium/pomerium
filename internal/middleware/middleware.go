@@ -12,6 +12,8 @@ import (
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
+
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -19,10 +21,12 @@ import (
 func SetHeaders(securityHeaders map[string]string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "middleware.SetHeaders")
+			defer span.End()
 			for key, val := range securityHeaders {
 				w.Header().Set(key, val)
 			}
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
@@ -32,6 +36,9 @@ func SetHeaders(securityHeaders map[string]string) func(next http.Handler) http.
 func ValidateClientSecret(sharedSecret string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateClientSecret")
+			defer span.End()
+
 			if err := r.ParseForm(); err != nil {
 				httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusBadRequest}
 				httputil.ErrorResponse(w, r, httpErr)
@@ -47,7 +54,7 @@ func ValidateClientSecret(sharedSecret string) func(next http.Handler) http.Hand
 				httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusInternalServerError})
 				return
 			}
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
@@ -57,6 +64,8 @@ func ValidateClientSecret(sharedSecret string) func(next http.Handler) http.Hand
 func ValidateRedirectURI(rootDomain *url.URL) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateRedirectURI")
+			defer span.End()
 			err := r.ParseForm()
 			if err != nil {
 				httpErr := &httputil.Error{
@@ -80,7 +89,7 @@ func ValidateRedirectURI(rootDomain *url.URL) func(next http.Handler) http.Handl
 				httputil.ErrorResponse(w, r, httpErr)
 				return
 			}
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
@@ -103,6 +112,9 @@ func SameDomain(u, j *url.URL) bool {
 func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateSignature")
+			defer span.End()
+
 			err := r.ParseForm()
 			if err != nil {
 				httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusBadRequest}
@@ -120,7 +132,7 @@ func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler
 				return
 			}
 
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
@@ -129,11 +141,14 @@ func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler
 func ValidateHost(validHost func(host string) bool) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateHost")
+			defer span.End()
+
 			if !validHost(r.Host) {
 				httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusNotFound})
 				return
 			}
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
@@ -145,13 +160,16 @@ func ValidateHost(validHost func(host string) bool) func(next http.Handler) http
 func Healthcheck(endpoint, msg string) func(http.Handler) http.Handler {
 	f := func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "middleware.Healthcheck")
+			defer span.End()
+
 			if r.Method == "GET" && strings.EqualFold(r.URL.Path, endpoint) {
 				w.Header().Set("Content-Type", "text/plain")
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(msg))
 				return
 			}
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 		return http.HandlerFunc(fn)
 	}

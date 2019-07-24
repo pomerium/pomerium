@@ -1,16 +1,5 @@
 package config // import "github.com/pomerium/pomerium/internal/config"
 
-import "os"
-
-// findPwd returns best guess at current working directory
-func findPwd() string {
-	p, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-	return p
-}
-
 // IsValidService checks to see if a service is a valid service mode
 func IsValidService(s string) bool {
 	switch s {

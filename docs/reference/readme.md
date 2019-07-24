@@ -154,13 +154,17 @@ If set, the HTTP Redirect Address specifies the host and port to redirect http t
 - Environmental Variable: `METRICS_ADDRESS`
 - Config File Key: `metrics_address`
 - Type: `string`
-- Example: `:8080`, `127.0.0.1:9090`, ``
+- Example: `:9090`, `127.0.0.1:9090`
 - Default: `disabled`
 - Optional
 
 Expose a prometheus format HTTP endpoint on the specified port. Disabled by default.
 
-**Use with caution:** the endpoint can expose frontend and backend server names or addresses. Do not expose the metrics port if this is sensitive information.
+:::warning
+
+**Use with caution:** the endpoint can expose frontend and backend server names or addresses. Do not externally expose the metrics if this is sensitive information.
+
+:::
 
 #### Metrics tracked
 
@@ -186,6 +190,38 @@ pomerium_config_checksum_int64                | Gauge     | Currently loaded con
 pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service
 pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service
 pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion
+
+### Tracing
+
+Tracing tracks the progression of a single user request as it is handled by Pomerium.
+
+Each unit work is called a Span in a trace. Spans include metadata about the work, including the time spent in the step (latency), status, time events, attributes, links. You can use tracing to debug errors and latency issues in your applications, including in downstream connections.
+
+#### Shared Tracing Settings
+
+Config Key       | Description                                                       | Required
+:--------------- | :---------------------------------------------------------------- | --------
+tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅
+tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌
+
+#### Jaeger
+
+[Jaeger](https://www.jaegertracing.io/) is a distributed tracing system released as open source by Uber Technologies. It is used for monitoring and troubleshooting microservices-based distributed systems, including:
+
+- Distributed context propagation
+- Distributed transaction monitoring
+- Root cause analysis
+- Service dependency analysis
+- Performance / latency optimization
+
+Config Key                        | Description                                 | Required
+:-------------------------------- | :------------------------------------------ | --------
+tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅
+tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅
+
+##### Example
+
+![jaeger example trace](./tracing/jaeger.png) pomerium_config_last_reload_success_timestamp | Gauge | The timestamp of the last successful configuration reload by service pomerium_build_info | Gauge | Pomerium build metadata by git revision, service, version and goversion
 
 ### Policy
 

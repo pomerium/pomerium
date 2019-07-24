@@ -23,21 +23,11 @@ func (h Error) Error() string {
 	return fmt.Sprintf("%d %s: %s", h.Code, http.StatusText(h.Code), h.Message)
 }
 
-// CodeForError maps an error type and returns a corresponding http.Status
-func CodeForError(err error) int {
-	switch err {
-	case ErrTokenRevoked:
-		return http.StatusUnauthorized
-	}
-	return http.StatusInternalServerError
-}
-
 // ErrorResponse renders an error page for errors given a message and a status code.
 // If no message is passed, defaults to the text of the status code.
 func ErrorResponse(rw http.ResponseWriter, r *http.Request, e *Error) {
-	requestID := ""
-	id, ok := log.IDFromRequest(r)
-	if ok {
+	var requestID string
+	if id, ok := log.IDFromRequest(r); ok {
 		requestID = id
 	}
 	if r.Header.Get("Accept") == "application/json" {

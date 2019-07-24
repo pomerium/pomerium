@@ -6,11 +6,14 @@ import (
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 func SignRequest(signer cryptutil.JWTSigner, id, email, groups, header string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "middleware.SignRequest")
+			defer span.End()
 			jwt, err := signer.SignJWT(
 				r.Header.Get(id),
 				r.Header.Get(email),
@@ -20,7 +23,7 @@ func SignRequest(signer cryptutil.JWTSigner, id, email, groups, header string) f
 			} else {
 				r.Header.Set(header, jwt)
 			}
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
@@ -29,6 +32,9 @@ func SignRequest(signer cryptutil.JWTSigner, id, email, groups, header string) f
 func StripPomeriumCookie(cookieName string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "middleware.SignRequest")
+			defer span.End()
+
 			headers := make([]string, len(r.Cookies()))
 			for _, cookie := range r.Cookies() {
 				if cookie.Name != cookieName {
@@ -36,7 +42,7 @@ func StripPomeriumCookie(cookieName string) func(next http.Handler) http.Handler
 				}
 			}
 			r.Header.Set("Cookie", strings.Join(headers, ";"))
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

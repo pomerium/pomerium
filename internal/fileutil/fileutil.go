@@ -30,3 +30,17 @@ func IsReadableFile(path string) (bool, error) {
 	fd.Close()
 	return true, nil // Item exists and is readable.
 }
+
+// Getwd returns a rooted path name corresponding to the
+// current directory. If the current directory can be
+// reached via multiple paths (due to symbolic links),
+// Getwd may return any one of them.
+//
+// On failure, will return "."
+func Getwd() string {
+	p, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	return p
+}

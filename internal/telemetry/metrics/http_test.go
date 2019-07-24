@@ -1,4 +1,4 @@
-package metrics // import "github.com/pomerium/pomerium/internal/metrics"
+package metrics // import "github.com/pomerium/pomerium/internal/telemetry/metrics"
 
 import (
 	"bytes"
@@ -7,12 +7,39 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"go.opencensus.io/stats/view"
 )
+
+func testDataRetrieval(v *view.View, t *testing.T, want string) {
+	if v == nil {
+		t.Fatalf("%s: nil view passed", t.Name())
+	}
+	name := v.Name
+	data, err := view.RetrieveData(name)
+
+	if err != nil {
+		t.Fatalf("%s: failed to retrieve data line %s", name, err)
+	}
+
+	if want != "" && len(data) != 1 {
+		t.Fatalf("%s: received incorrect number of data rows: %d", name, len(data))
+	}
+	if want == "" && len(data) > 0 {
+		t.Fatalf("%s: received incorrect number of data rows: %d", name, len(data))
+	} else if want == "" {
+		return
+	}
+
+	dataString := data[0].String()
+
+	if want != "" && !strings.HasPrefix(dataString, want) {
+		t.Errorf("%s: Found unexpected data row: \nwant: %s\ngot: %s\n", name, want, dataString)
+	}
+}
 
 func newTestMux() http.Handler {
 	mux := http.NewServeMux()
@@ -24,10 +51,6 @@ func newTestMux() http.Handler {
 }
 
 func Test_HTTPMetricsHandler(t *testing.T) {
-
-	chain := middleware.NewChain()
-	chain = chain.Append(HTTPMetricsHandler("test_service"))
-	chainHandler := chain.Then(newTestMux())
 
 	tests := []struct {
 		name                          string
@@ -73,7 +96,9 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 
 			req := httptest.NewRequest(tt.verb, tt.url, new(bytes.Buffer))
 			rec := httptest.NewRecorder()
-			chainHandler.ServeHTTP(rec, req)
+
+			h := HTTPMetricsHandler("test_service")(newTestMux())
+			h.ServeHTTP(rec, req)
 
 			testDataRetrieval(HTTPServerRequestSizeView, t, tt.wanthttpServerRequestSize)
 			testDataRetrieval(HTTPServerResponseSizeView, t, tt.wanthttpServerResponseSize)

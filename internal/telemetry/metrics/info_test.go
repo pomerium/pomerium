@@ -1,4 +1,4 @@
-package metrics // import "github.com/pomerium/pomerium/internal/metrics"
+package metrics // import "github.com/pomerium/pomerium/internal/telemetry/metrics"
 
 import (
 	"runtime"
@@ -8,6 +8,7 @@ import (
 
 	"go.opencensus.io/metric/metricdata"
 	"go.opencensus.io/metric/metricproducer"
+	"go.opencensus.io/stats/view"
 )
 
 func Test_SetConfigInfo(t *testing.T) {
@@ -24,9 +25,8 @@ func Test_SetConfigInfo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			UnRegisterView(InfoViews)
-			RegisterView(InfoViews)
-
+			view.Unregister(InfoViews...)
+			view.Register(InfoViews...)
 			SetConfigInfo("test_service", tt.success, tt.checksum)
 
 			testDataRetrieval(ConfigLastReloadView, t, tt.wantLastReload)

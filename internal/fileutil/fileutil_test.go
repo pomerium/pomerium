@@ -1,6 +1,9 @@
-package fileutil // import "github.com/pomerium/pomerium/internal/fileutil"
+package fileutil
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestIsReadableFile(t *testing.T) {
 
@@ -23,6 +26,22 @@ func TestIsReadableFile(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("IsReadableFile() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetwd(t *testing.T) {
+	tests := []struct {
+		name string
+		want string
+	}{
+		{"most basic example", "internal/fileutil"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Getwd(); strings.Contains(tt.want, got) {
+				t.Errorf("Getwd() = %v, want %v", got, tt.want)
 			}
 		})
 	}

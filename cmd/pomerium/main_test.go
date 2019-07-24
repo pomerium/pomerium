@@ -7,47 +7,18 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/signal"
 	"reflect"
-	"strings"
+	"syscall"
 	"testing"
+	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pomerium/pomerium/internal/config"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"google.golang.org/grpc"
 )
-
-func Test_startRedirectServer(t *testing.T) {
-
-	tests := []struct {
-		name    string
-		addr    string
-		want    string
-		wantErr bool
-	}{
-		{"empty", "", "", true},
-		{":http", ":http", ":http", false},
-		{"localhost:80", "localhost:80", "localhost:80", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := startRedirectServer(tt.addr)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("startRedirectServer() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != nil {
-				defer got.Close()
-				ts := httptest.NewServer(got.Handler)
-				defer ts.Close()
-				_, err := http.Get(ts.URL)
-				if !strings.Contains(err.Error(), "https") {
-					t.Errorf("startRedirectServer() = %v, want %v", err, tt.want)
-					return
-				}
-			}
-		})
-	}
-}
 
 func Test_newAuthenticateService(t *testing.T) {
 	grpcAuth := middleware.NewSharedSecretCred("test")
@@ -193,7 +164,7 @@ func Test_newProxyeService(t *testing.T) {
 	}
 }
 
-func Test_wrapMiddleware(t *testing.T) {
+func Test_mainHandler(t *testing.T) {
 	o := config.Options{
 		Services: "all",
 		Headers: map[string]string{
@@ -214,7 +185,7 @@ func Test_wrapMiddleware(t *testing.T) {
 	})
 
 	mux.Handle("/404", h)
-	out := wrapMiddleware(&o, mux)
+	out := mainHandler(&o, mux)
 	out.ServeHTTP(rr, req)
 	expected := fmt.Sprintf("OK")
 	body := rr.Body.String()
@@ -223,87 +194,106 @@ func Test_wrapMiddleware(t *testing.T) {
 		t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
 	}
 }
-func Test_parseOptions(t *testing.T) {
+
+func Test_configToServerOptions(t *testing.T) {
 	tests := []struct {
-		name             string
-		envKey           string
-		envValue         string
-		servicesEnvKey   string
-		servicesEnvValue string
-		wantSharedKey    string
-		wantErr          bool
+		name string
+		opt  *config.Options
+		want *httputil.ServerOptions
 	}{
-		{"no shared secret", "", "", "SERVICES", "authenticate", "skip", true},
-		{"no shared secret in all mode", "", "", "", "", "", false},
-		{"good", "SHARED_SECRET", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", "", "", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", false},
+		{"simple convert", &config.Options{Addr: ":http"}, &httputil.ServerOptions{Addr: ":http"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv(tt.servicesEnvKey, tt.servicesEnvValue)
-			os.Setenv(tt.envKey, tt.envValue)
-			defer os.Unsetenv(tt.envKey)
-			defer os.Unsetenv(tt.servicesEnvKey)
-
-			got, err := parseOptions("")
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseOptions() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != nil && got.Services != "all" && got.SharedKey != tt.wantSharedKey {
-				t.Errorf("parseOptions()\n")
-				t.Errorf("got: %+v\n", got.SharedKey)
-				t.Errorf("want: %+v\n", tt.wantSharedKey)
-
+			if diff := cmp.Diff(configToServerOptions(tt.opt), tt.want); diff != "" {
+				t.Errorf("configToServerOptions() = \n %s", diff)
 			}
 		})
 	}
 }
 
-type mockService struct {
-	fail    bool
-	Updated bool
-}
-
-func (m *mockService) UpdateOptions(o config.Options) error {
-
-	m.Updated = true
-	if m.fail {
-		return fmt.Errorf("failed")
-	}
-	return nil
-}
-
-func Test_handleConfigUpdate(t *testing.T) {
-	os.Clearenv()
-	os.Setenv("SHARED_SECRET", "foo")
-	defer os.Unsetenv("SHARED_SECRET")
-
-	blankOpts, err := config.NewOptions("https://authenticate.example", "https://authorize.example")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	goodOpts, err := config.OptionsFromViper("")
-	if err != nil {
-		t.Fatal(err)
-	}
+func Test_setupGRPCServer(t *testing.T) {
 	tests := []struct {
-		name       string
-		service    *mockService
-		oldOpts    config.Options
-		wantUpdate bool
+		name     string
+		opt      *config.Options
+		dontWant *grpc.Server
 	}{
-		{"good", &mockService{fail: false}, *blankOpts, true},
-		{"bad", &mockService{fail: true}, *blankOpts, true},
-		{"no change", &mockService{fail: false}, *goodOpts, false},
+		{"good", &config.Options{SharedKey: "test"}, nil},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handleConfigUpdate(&tt.oldOpts, []config.OptionsUpdater{tt.service})
-			if tt.service.Updated != tt.wantUpdate {
-				t.Errorf("Failed to update config on service")
+			if diff := cmp.Diff(setupGRPCServer(tt.opt), tt.dontWant); diff == "" {
+				t.Errorf("setupGRPCServer() = \n %s", diff)
 			}
 		})
+	}
+}
+
+func Test_setupTracing(t *testing.T) {
+	tests := []struct {
+		name string
+		opt  *config.Options
+	}{
+		{"good jaeger", &config.Options{TracingProvider: "jaeger", TracingJaegerAgentEndpoint: "localhost:0", TracingJaegerCollectorEndpoint: "localhost:0"}},
+		{"dont register aything", &config.Options{}},
+		{"bad provider", &config.Options{TracingProvider: "bad provider"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupTracing(tt.opt)
+		})
+	}
+}
+
+func Test_setupMetrics(t *testing.T) {
+	tests := []struct {
+		name string
+		opt  *config.Options
+	}{
+		{"dont register aything", &config.Options{}},
+		{"good metrics server", &config.Options{MetricsAddr: "localhost:0"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, syscall.SIGINT)
+			defer signal.Stop(c)
+			setupMetrics(tt.opt)
+			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+			waitSig(t, c, syscall.SIGINT)
+
+		})
+	}
+}
+
+func Test_setupHTTPRedirectServer(t *testing.T) {
+	tests := []struct {
+		name string
+		opt  *config.Options
+	}{
+		{"dont register aything", &config.Options{}},
+		{"good redirect server", &config.Options{HTTPRedirectAddr: "localhost:0"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, syscall.SIGINT)
+			defer signal.Stop(c)
+			setupHTTPRedirectServer(tt.opt)
+			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+			waitSig(t, c, syscall.SIGINT)
+
+		})
+	}
+}
+
+func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
+	select {
+	case s := <-c:
+		if s != sig {
+			t.Fatalf("signal was %v, want %v", s, sig)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatalf("timeout waiting for %v", sig)
 	}
 }
