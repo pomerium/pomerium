@@ -117,8 +117,7 @@ func HTTPMetricsHandler(service string) func(next http.Handler) http.Handler {
 				tag.Insert(TagKeyHTTPMethod, r.Method),
 			)
 			if tagErr != nil {
-				log.Warn().Err(tagErr).Str("context", "HTTPMetricsHandler").
-					Msg("telemetry/metrics: failed to create metrics tag")
+				log.Warn().Err(tagErr).Str("context", "HTTPMetricsHandler").Msg("telemetry/metrics: failed to create metrics tag")
 				next.ServeHTTP(w, r)
 				return
 			}
