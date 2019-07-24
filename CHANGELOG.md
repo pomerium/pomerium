@@ -4,27 +4,33 @@
 
 ### New
 
+#### Telemetry [GH-35]
+
+- **Tracing** [GH-230] aka distributed tracing, provides insight into the full lifecycles, aka traces, of requests to the system, allowing you to pinpoint failures and performance issues.
+
+  - Add [Jaeger](https://opencensus.io/exporters/supported-exporters/go/jaeger/) support. [GH-230]
+
+- **Metrics** provide quantitative information about processes running inside the system, including counters, gauges, and histograms.
+
+  - Add informational metrics. [GH-227]
+  - GRPC Metrics Implementation. [GH-218]
+
+    - Additional GRPC server metrics and request sizes
+    - Improved GRPC metrics implementation internals
+    - The GRPC method label is now 'grpc_method' and GRPC status is now `grpc_client_status` and `grpc_server_status`
+
+  - HTTP Metrics Implementation. [GH-220]
+
+    - Support HTTP request sizes on client and server side of proxy
+    - Improved HTTP metrics implementation internals
+    - The HTTP method label is now `http_method`, and HTTP status label is now `http_status`
+
 ### Changed
 
-- GRPC Metrics Implementation [GH-218]
-
-  - Additional GRPC server metrics and request sizes
-  - Improved GRPC metrics implementation internals
-  - The GRPC method label is now 'grpc_method' and GRPC status is now `grpc_client_status` and `grpc_server_status`
-
 - GRPC version upgraded to v1.22 [GH-219]
-
-- HTTP Metrics Implementation [GH-220]
-
-  - Support HTTP request sizes on client and server side of proxy
-  - Improved HTTP metrics implementation internals
-  - The HTTP method label is now `http_method`, and HTTP status label is now `http_status`
-
 - Add support for large cookie sessions by chunking. [GH-211]
-
 - Prefer [curve](https://wiki.mozilla.org/Security/Server_Side_TLS) X25519 to P256 for TLS connections. [GH-233]
-
-- Add informational metrics. [GH-227]
+- Pomerium and its services will gracefully shutdown on [interrupt signal](http://man7.org/linux/man-pages/man7/signal.7.html). [GH-230]
 - [Google](https://developers.google.com/identity/protocols/OpenIDConnect) now prompts the user to select a user account (by adding `select_account` to the sign in url). This allows a user who has multiple accounts at the authorization server to select amongst the multiple accounts that they may have current sessions for.
 
 ## v0.1.0

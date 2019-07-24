@@ -1,10 +1,11 @@
-package metrics
+package metrics // import "github.com/pomerium/pomerium/internal/telemetry/metrics"
 
 import (
 	"context"
 	"testing"
 
 	"go.opencensus.io/plugin/ocgrpc"
+	"go.opencensus.io/stats/view"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
@@ -97,8 +98,8 @@ func Test_GRPCClientInterceptor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			UnRegisterView(GRPCClientViews)
-			RegisterView(GRPCClientViews)
+			view.Unregister(GRPCClientViews...)
+			view.Register(GRPCClientViews...)
 
 			invoker := testInvoker{
 				invokeResult: tt.errorCode,
@@ -167,8 +168,8 @@ func Test_GRPCServerStatsHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			UnRegisterView(GRPCServerViews)
-			RegisterView(GRPCServerViews)
+			view.Unregister(GRPCServerViews...)
+			view.Register(GRPCServerViews...)
 
 			statsHandler := NewGRPCServerStatsHandler("test_service")
 			mockServerRPCHandle(statsHandler, tt.method, tt.errorCode)

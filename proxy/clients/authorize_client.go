@@ -3,12 +3,12 @@ package clients // import "github.com/pomerium/pomerium/proxy/clients"
 import (
 	"context"
 	"errors"
-	"time"
-
-	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	pb "github.com/pomerium/pomerium/proto/authorize"
+
+	"google.golang.org/grpc"
 )
 
 // Authorizer provides the authorize service interface
@@ -47,11 +47,12 @@ type AuthorizeGRPC struct {
 // Authorize takes a route and user session and returns whether the
 // request is valid per access policy
 func (a *AuthorizeGRPC) Authorize(ctx context.Context, route string, s *sessions.SessionState) (bool, error) {
+	ctx, span := trace.StartSpan(ctx, "proxy.client.grpc.Authorize")
+	defer span.End()
+
 	if s == nil {
 		return false, errors.New("session cannot be nil")
 	}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 	response, err := a.client.Authorize(ctx, &pb.Identity{
 		Route:             route,
 		User:              s.User,
@@ -65,11 +66,12 @@ func (a *AuthorizeGRPC) Authorize(ctx context.Context, route string, s *sessions
 
 // IsAdmin takes a session and returns whether the user is an administrator
 func (a *AuthorizeGRPC) IsAdmin(ctx context.Context, s *sessions.SessionState) (bool, error) {
+	ctx, span := trace.StartSpan(ctx, "proxy.client.grpc.IsAdmin")
+	defer span.End()
+
 	if s == nil {
 		return false, errors.New("session cannot be nil")
 	}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 	response, err := a.client.IsAdmin(ctx, &pb.Identity{Email: s.Email, Groups: s.Groups})
 	return response.GetIsAdmin(), err
 }

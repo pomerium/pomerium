@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	stdlog "log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -16,9 +17,10 @@ import (
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/metrics"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/templates"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/proxy/clients"
@@ -196,11 +198,19 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		}
 		proxy := NewReverseProxy(policy.Destination)
 		// build http transport (roundtripper) middleware chain
-		// todo(bdd): this will make vet complain, it is safe
-		// and can be replaced with transport.Clone() in go 1.13
-		// https://go-review.googlesource.com/c/go/+/174597/
-		// https://github.com/golang/go/issues/26013#issuecomment-399481302
-		transport := *(http.DefaultTransport.(*http.Transport))
+		// todo(bdd): replace with transport.Clone() in go 1.13
+		transport := http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		}
 		c := tripper.NewChain()
 		c = c.Append(metrics.HTTPMetricsRoundTripper("proxy", policy.Destination.Host))
 		if policy.TLSSkipVerify {
@@ -236,7 +246,9 @@ type UpstreamProxy struct {
 
 // ServeHTTP handles the second (reverse-proxying) leg of pomerium's request flow
 func (u *UpstreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	u.handler.ServeHTTP(w, r)
+	ctx, span := trace.StartSpan(r.Context(), fmt.Sprintf("%s%s", r.Host, r.URL.Path))
+	defer span.End()
+	u.handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // NewReverseProxy returns a new ReverseProxy that routes URLs to the scheme, host, and

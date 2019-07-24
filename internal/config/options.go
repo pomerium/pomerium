@@ -7,11 +7,14 @@ import (
 	"net/url"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 
 	"github.com/mitchellh/hashstructure"
@@ -129,6 +132,19 @@ type Options struct {
 
 	// Address/Port to bind to for prometheus metrics
 	MetricsAddr string `mapstructure:"metrics_address"`
+
+	// Tracing shared settings
+	TracingProvider string `mapstructure:"tracing_provider"`
+	TracingDebug    bool   `mapstructure:"tracing_debug"`
+
+	//  Jaeger
+
+	// CollectorEndpoint is the full url to the Jaeger HTTP Thrift collector.
+	// For example, http://localhost:14268/api/traces
+	TracingJaegerCollectorEndpoint string `mapstructure:"tracing_jaeger_collector_endpoint"`
+	// AgentEndpoint instructs exporter to send spans to jaeger-agent at this address.
+	// For example, localhost:6831.
+	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint"`
 }
 
 var defaultOptions = Options{
@@ -148,8 +164,8 @@ var defaultOptions = Options{
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 	},
 	Addr:              ":https",
-	CertFile:          filepath.Join(findPwd(), "cert.pem"),
-	KeyFile:           filepath.Join(findPwd(), "privkey.pem"),
+	CertFile:          filepath.Join(fileutil.Getwd(), "cert.pem"),
+	KeyFile:           filepath.Join(fileutil.Getwd(), "privkey.pem"),
 	ReadHeaderTimeout: 10 * time.Second,
 	ReadTimeout:       30 * time.Second,
 	WriteTimeout:      0, // support streaming by default
@@ -338,4 +354,57 @@ func (o *Options) Checksum() string {
 		return "no checksum available"
 	}
 	return fmt.Sprintf("%x", hash)
+}
+
+func ParseOptions(configFile string) (*Options, error) {
+	o, err := OptionsFromViper(configFile)
+	if err != nil {
+		return nil, err
+	}
+	if o.Debug {
+		log.SetDebugMode()
+	}
+	if o.LogLevel != "" {
+		log.SetLevel(o.LogLevel)
+	}
+	metrics.AddPolicyCountCallback(o.Services, func() int64 {
+		return int64(len(o.Policies))
+	})
+
+	checksumDec, err := strconv.ParseUint(o.Checksum(), 16, 64)
+	if err != nil {
+		log.Warn().Err(err).Msg("Could not parse config checksum into decimal")
+	}
+	metrics.SetConfigChecksum(o.Services, checksumDec)
+
+	return o, nil
+}
+
+func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdater) *Options {
+	newOpt, err := ParseOptions(configFile)
+	if err != nil {
+		log.Error().Err(err).Msg("cmd/pomerium: could not reload configuration")
+		return opt
+	}
+	optChecksum := opt.Checksum()
+	newOptChecksum := newOpt.Checksum()
+
+	log.Debug().
+		Str("old-checksum", optChecksum).
+		Str("new-checksum", newOptChecksum).
+		Msg("cmd/pomerium: configuration file changed")
+
+	if newOptChecksum == optChecksum {
+		log.Debug().Msg("cmd/pomerium: loaded configuration has not changed")
+		return opt
+	}
+
+	log.Info().Str("checksum", newOptChecksum).Msg("cmd/pomerium: checksum changed")
+	for _, service := range services {
+		if err := service.UpdateOptions(*newOpt); err != nil {
+			log.Error().Err(err).Msg("cmd/pomerium: could not update options")
+		}
+	}
+
+	return newOpt
 }

@@ -11,8 +11,9 @@ import (
 	"strings"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/metrics"
 	"github.com/pomerium/pomerium/internal/middleware"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+
 	"go.opencensus.io/plugin/ocgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

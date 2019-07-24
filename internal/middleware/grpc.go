@@ -3,6 +3,8 @@ package middleware // import "github.com/pomerium/pomerium/internal/middleware"
 import (
 	"context"
 
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -30,6 +32,9 @@ func (s SharedSecretCred) RequireTransportSecurity() bool { return false }
 // handler and returns an error. Otherwise, the interceptor invokes the unary
 // handler.
 func (s SharedSecretCred) ValidateRequest(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	ctx, span := trace.StartSpan(ctx, "middleware.grpc.ValidateRequest")
+	defer span.End()
+
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "missing metadata")

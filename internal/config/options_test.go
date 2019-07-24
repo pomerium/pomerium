@@ -408,3 +408,99 @@ func TestOptionsFromViper(t *testing.T) {
 		})
 	}
 }
+
+func Test_parseOptions(t *testing.T) {
+	viper.Reset()
+
+	tests := []struct {
+		name             string
+		envKey           string
+		envValue         string
+		servicesEnvKey   string
+		servicesEnvValue string
+		wantSharedKey    string
+		wantErr          bool
+	}{
+		{"no shared secret", "", "", "SERVICES", "authenticate", "skip", true},
+		{"no shared secret in all mode", "", "", "", "", "", false},
+		{"good", "SHARED_SECRET", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", "", "", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv(tt.servicesEnvKey, tt.servicesEnvValue)
+			os.Setenv(tt.envKey, tt.envValue)
+			defer os.Unsetenv(tt.envKey)
+			defer os.Unsetenv(tt.servicesEnvKey)
+
+			got, err := ParseOptions("")
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseOptions() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != nil && got.Services != "all" && got.SharedKey != tt.wantSharedKey {
+				t.Errorf("ParseOptions()\n")
+				t.Errorf("got: %+v\n", got.SharedKey)
+				t.Errorf("want: %+v\n", tt.wantSharedKey)
+
+			}
+		})
+	}
+}
+
+type mockService struct {
+	fail    bool
+	Updated bool
+}
+
+func (m *mockService) UpdateOptions(o Options) error {
+
+	m.Updated = true
+	if m.fail {
+		return fmt.Errorf("failed")
+	}
+	return nil
+}
+
+func Test_HandleConfigUpdate(t *testing.T) {
+	os.Clearenv()
+	os.Setenv("SHARED_SECRET", "foo")
+	defer os.Unsetenv("SHARED_SECRET")
+
+	blankOpts, err := NewOptions("https://authenticate.example", "https://authorize.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	goodOpts, err := OptionsFromViper("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name       string
+		envarKey   string
+		envarValue string
+		service    *mockService
+		oldOpts    Options
+		wantUpdate bool
+	}{
+		{"good", "", "", &mockService{fail: false}, *blankOpts, true},
+		{"good set debug", "POMERIUM_DEBUG", "true", &mockService{fail: false}, *blankOpts, true},
+		{"bad", "", "", &mockService{fail: true}, *blankOpts, true},
+		{"no change", "", "", &mockService{fail: false}, *goodOpts, false},
+		{"bad policy file unmarshal error", "POLICY", base64.StdEncoding.EncodeToString([]byte("{json:}")), &mockService{fail: false}, *blankOpts, false},
+		{"bad header key", "SERVICES", "error", &mockService{fail: false}, *blankOpts, false},
+		{"bad header header value", "HEADERS", "x;y;z", &mockService{fail: false}, *blankOpts, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv(tt.envarKey, tt.envarValue)
+			defer os.Unsetenv(tt.envarKey)
+
+			HandleConfigUpdate("", &tt.oldOpts, []OptionsUpdater{tt.service})
+			if tt.service.Updated != tt.wantUpdate {
+				t.Errorf("Failed to update config on service")
+			}
+		})
+	}
+}

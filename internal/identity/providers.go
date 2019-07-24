@@ -9,11 +9,12 @@ import (
 	"net/url"
 	"time"
 
-	oidc "github.com/pomerium/go-oidc"
-	"golang.org/x/oauth2"
-
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
+
+	oidc "github.com/pomerium/go-oidc"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -117,6 +118,8 @@ func (p *Provider) GetSignInURL(state string) string {
 // Validate does NOT check if revoked.
 // https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
 func (p *Provider) Validate(ctx context.Context, idToken string) (bool, error) {
+	ctx, span := trace.StartSpan(ctx, "identity.provider.Validate")
+	defer span.End()
 	_, err := p.verifier.Verify(ctx, idToken)
 	if err != nil {
 		log.Error().Err(err).Msg("identity: failed to verify session state")
