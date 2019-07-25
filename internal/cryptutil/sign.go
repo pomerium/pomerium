@@ -1,6 +1,7 @@
 package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	jose "gopkg.in/square/go-jose.v2"
@@ -15,6 +16,9 @@ type JWTSigner interface {
 
 // ES256Signer is struct containing the required fields to create a ES256 signed JSON Web Tokens
 type ES256Signer struct {
+	signer jose.Signer
+
+	mu sync.Mutex
 	// User (sub) is unique, stable identifier for the user.
 	// Use in place of the x-pomerium-authenticated-user-id header.
 	User string `json:"sub,omitempty"`
@@ -42,8 +46,6 @@ type ES256Signer struct {
 	// IssuedAt (nbf) is the time is measured in seconds since the UNIX epoch.
 	// Allow 1 minute for skew.
 	NotBefore jwt.NumericDate `json:"nbf,omitempty"`
-
-	signer jose.Signer
 }
 
 // NewES256Signer creates an Elliptic Curve, NIST P-256 (aka secp256r1 aka prime256v1) JWT signer.
@@ -56,7 +58,7 @@ type ES256Signer struct {
 func NewES256Signer(privKey []byte, audience string) (*ES256Signer, error) {
 	key, err := DecodePrivateKey(privKey)
 	if err != nil {
-		return nil, fmt.Errorf("internal/cryptutil parsing key failed %v", err)
+		return nil, fmt.Errorf("cryptutil: parsing key failed %v", err)
 	}
 	signer, err := jose.NewSigner(
 		jose.SigningKey{
@@ -65,7 +67,7 @@ func NewES256Signer(privKey []byte, audience string) (*ES256Signer, error) {
 		},
 		(&jose.SignerOptions{}).WithType("JWT"))
 	if err != nil {
-		return nil, fmt.Errorf("internal/cryptutil new signer failed %v", err)
+		return nil, fmt.Errorf("cryptutil: new signer failed %v", err)
 	}
 	return &ES256Signer{
 		Issuer:   "pomerium-proxy",
@@ -77,6 +79,8 @@ func NewES256Signer(privKey []byte, audience string) (*ES256Signer, error) {
 // SignJWT creates a signed JWT containing claims for the logged in
 // user id (`sub`), email (`email`) and groups (`groups`).
 func (s *ES256Signer) SignJWT(user, email, groups string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.User = user
 	s.Email = email
 	s.Groups = groups
@@ -86,7 +90,7 @@ func (s *ES256Signer) SignJWT(user, email, groups string) (string, error) {
 	s.NotBefore = *jwt.NewNumericDate(now.Add(-1 * jwt.DefaultLeeway))
 	rawJWT, err := jwt.Signed(s.signer).Claims(s).CompactSerialize()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("cryptutil: sign failed %v", err)
 	}
 	return rawJWT, nil
 }
