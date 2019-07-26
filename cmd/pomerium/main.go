@@ -61,8 +61,10 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: proxy")
 	}
-	defer proxy.AuthenticateClient.Close()
-	defer proxy.AuthorizeClient.Close()
+	if proxy != nil {
+		defer proxy.AuthenticateClient.Close()
+		defer proxy.AuthorizeClient.Close()
+	}
 
 	go viper.WatchConfig()
 
