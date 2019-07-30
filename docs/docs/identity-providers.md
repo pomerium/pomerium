@@ -168,6 +168,14 @@ On the **Credentials** page, click **Create credentials** and choose **OAuth [Cl
 
 ![Create New Credentials](./google/google-create-new-credentials.png)
 
+If you don't currently have an OAuth consent page configured, google will not allow you to create credentials until this is completed, and you will likely see **this** banner on the page.
+
+![OAuth Consent Banner](./google/google-consent-banner.png)
+
+Click the button on the banner to go to the consent screen configuration. If all you are configuring is pomerium, you only need to fill in "Application Name" with your desired moniker, and "Authorized Domains" with the domain that pomerium will be calling google from. Afterwards, return to the credential creation page.
+
+![OAuth Consent Configuration](./google/google-oauth-consent.png)
+
 On the **Create [Client ID]** page, select **Web application**. In the new fields that display, set the following parameters:
 
 Field                    | Description
@@ -217,6 +225,7 @@ Next we'll delegate G-suite group membership access to the service account we ju
 3. Select **Advanced settings** from the list of options.
 4. Select **Manage API client** access in the Authentication section.
 5. In the **Client name** field enter the service account's **Client ID**.
+  * (Be sure this is the client id of the service account, and not the oauth client id)
 6. In the **One or More API Scopes** field enter the following list of scopes: `https://www.googleapis.com/auth/admin.directory.group.readonly` `https://www.googleapis.com/auth/admin.directory.user.readonly`
 7. Click the **Authorize** button.
 
