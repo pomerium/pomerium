@@ -16,7 +16,7 @@ spec:
         app: pomerium-authenticate
     spec:
       containers:
-        - image: pomerium/pomerium:latest
+        - image: pomerium/pomerium:v0.2.0
           name: pomerium-authenticate
           ports:
             - containerPort: 443
@@ -32,7 +32,7 @@ spec:
             - name: IDP_PROVIDER_URL
               value: https://accounts.google.com
             - name: IDP_CLIENT_ID
-              value: 851877082059-bfgkpj09noog7as3gpc3t7r6n9sjbgs6.apps.googleusercontent.com 
+              value: 851877082059-bfgkpj09noog7as3gpc3t7r6n9sjbgs6.apps.googleusercontent.com
             - name: SHARED_SECRET
               valueFrom:
                 secretKeyRef:

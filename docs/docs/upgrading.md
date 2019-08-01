@@ -7,6 +7,10 @@ description: >-
 
 # Overview
 
+## Since 0.1.0
+
+Pomerium `v0.2.0` has no known breaking changes compared to `v0.1.0`.
+
 ## Since 0.0.5
 
 This page contains the list of deprecations and important or breaking changes for pomerium `v0.1.0` compared to `v0.0.5`. Please read it carefully.

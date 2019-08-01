@@ -16,7 +16,7 @@ spec:
         app: pomerium-authorize
     spec:
       containers:
-        - image: pomerium/pomerium:latest
+        - image: pomerium/pomerium:v0.2.0
           name: pomerium-authorize
           ports:
             - containerPort: 443
