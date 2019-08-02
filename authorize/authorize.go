@@ -61,6 +61,9 @@ func (a *Authorize) ValidIdentity(route string, identity *Identity) bool {
 // UpdateOptions updates internal structures based on config.Options
 func (a *Authorize) UpdateOptions(o config.Options) error {
 	log.Info().Msg("authorize: updating options")
+	if a == nil {
+		return nil
+	}
 	a.identityAccess = NewIdentityWhitelist(o.Policies, o.Administrators)
 	return nil
 }

@@ -94,4 +94,8 @@ func Test_UpdateOptions(t *testing.T) {
 			}
 		})
 	}
+
+	// Test nil
+	var a *Authorize
+	a.UpdateOptions(config.Options{})
 }

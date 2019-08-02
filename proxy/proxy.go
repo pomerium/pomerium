@@ -321,5 +321,8 @@ func (p *Proxy) newReverseProxyHandler(rp *httputil.ReverseProxy, route *config.
 
 // UpdateOptions updates internal structures based on config.Options
 func (p *Proxy) UpdateOptions(o config.Options) error {
+	if p == nil {
+		return nil
+	}
 	return p.UpdatePolicies(&o)
 }
