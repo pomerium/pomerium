@@ -47,13 +47,13 @@ func ValidateOptions(o config.Options) error {
 	if len(decoded) != 32 {
 		return fmt.Errorf("`SHARED_SECRET` want 32 but got %d bytes", len(decoded))
 	}
-	if o.AuthenticateURL == nil || o.AuthenticateURL.String() == "" {
+	if o.AuthenticateURL.String() == "" {
 		return errors.New("missing setting: authenticate-service-url")
 	}
 	if o.AuthenticateURL.Scheme != "https" {
 		return errors.New("authenticate-service-url must be a valid https url")
 	}
-	if o.AuthorizeURL == nil || o.AuthorizeURL.String() == "" {
+	if o.AuthorizeURL.String() == "" {
 		return errors.New("missing setting: authorize-service-url")
 	}
 	if o.AuthorizeURL.Scheme != "https" {
@@ -143,7 +143,7 @@ func New(opts config.Options) (*Proxy, error) {
 
 		routeConfigs: make(map[string]*routeConfig),
 		// services
-		AuthenticateURL: opts.AuthenticateURL,
+		AuthenticateURL: &opts.AuthenticateURL,
 
 		cipher:                 cipher,
 		cookieName:             opts.CookieName,
@@ -165,8 +165,8 @@ func New(opts config.Options) (*Proxy, error) {
 	})
 	p.AuthenticateClient, err = clients.NewAuthenticateClient("grpc",
 		&clients.Options{
-			Addr:                    opts.AuthenticateURL,
-			InternalAddr:            opts.AuthenticateInternalAddr,
+			Addr:                    &opts.AuthenticateURL,
+			InternalAddr:            &opts.AuthenticateInternalAddr,
 			OverrideCertificateName: opts.OverrideCertificateName,
 			SharedSecret:            opts.SharedKey,
 			CA:                      opts.CA,
@@ -177,7 +177,7 @@ func New(opts config.Options) (*Proxy, error) {
 	}
 	p.AuthorizeClient, err = clients.NewAuthorizeClient("grpc",
 		&clients.Options{
-			Addr:                    opts.AuthorizeURL,
+			Addr:                    &opts.AuthorizeURL,
 			OverrideCertificateName: opts.OverrideCertificateName,
 			SharedSecret:            opts.SharedKey,
 			CA:                      opts.CA,

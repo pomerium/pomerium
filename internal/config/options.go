@@ -73,7 +73,7 @@ type Options struct {
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
 	AuthenticateURLString string `mapstructure:"authenticate_service_url"`
-	AuthenticateURL       *url.URL
+	AuthenticateURL       url.URL
 
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
@@ -103,13 +103,13 @@ type Options struct {
 	// NOTE: As many load balancers do not support externally routed gRPC so
 	// this may be an internal location.
 	AuthenticateInternalAddrString string `mapstructure:"authenticate_internal_url"`
-	AuthenticateInternalAddr       *url.URL
+	AuthenticateInternalAddr       url.URL
 
 	// AuthorizeURL is the routable destination of the authorize service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
 	AuthorizeURLString string `mapstructure:"authorize_service_url"`
-	AuthorizeURL       *url.URL
+	AuthorizeURL       url.URL
 
 	// Settings to enable custom behind-the-ingress service communication
 	OverrideCertificateName string `mapstructure:"override_certificate_name"`
@@ -230,7 +230,7 @@ func (o *Options) Validate() error {
 		if err != nil {
 			return fmt.Errorf("bad authenticate-url %s : %v", o.AuthenticateURLString, err)
 		}
-		o.AuthenticateURL = u
+		o.AuthenticateURL = *u
 	}
 
 	if o.AuthorizeURLString != "" {
@@ -238,7 +238,7 @@ func (o *Options) Validate() error {
 		if err != nil {
 			return fmt.Errorf("bad authorize-url %s : %v", o.AuthorizeURLString, err)
 		}
-		o.AuthorizeURL = u
+		o.AuthorizeURL = *u
 	}
 
 	if o.AuthenticateInternalAddrString != "" {
@@ -246,7 +246,7 @@ func (o *Options) Validate() error {
 		if err != nil {
 			return fmt.Errorf("bad authenticate-internal-addr %s : %v", o.AuthenticateInternalAddrString, err)
 		}
-		o.AuthenticateInternalAddr = u
+		o.AuthenticateInternalAddr = *u
 	}
 	if o.PolicyFile != "" {
 		return errors.New("policy file setting is deprecated")
@@ -373,7 +373,7 @@ func ParseOptions(configFile string) (*Options, error) {
 
 	checksumDec, err := strconv.ParseUint(o.Checksum(), 16, 64)
 	if err != nil {
-		log.Warn().Err(err).Msg("Could not parse config checksum into decimal")
+		log.Warn().Err(err).Msg("internal/config: could not parse config checksum into decimal")
 	}
 	metrics.SetConfigChecksum(o.Services, checksumDec)
 
@@ -383,26 +383,22 @@ func ParseOptions(configFile string) (*Options, error) {
 func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdater) *Options {
 	newOpt, err := ParseOptions(configFile)
 	if err != nil {
-		log.Error().Err(err).Msg("cmd/pomerium: could not reload configuration")
+		log.Error().Err(err).Msg("config: could not reload configuration")
 		return opt
 	}
 	optChecksum := opt.Checksum()
 	newOptChecksum := newOpt.Checksum()
 
-	log.Debug().
-		Str("old-checksum", optChecksum).
-		Str("new-checksum", newOptChecksum).
-		Msg("cmd/pomerium: configuration file changed")
+	log.Debug().Str("old-checksum", optChecksum).Str("new-checksum", newOptChecksum).Msg("internal/config: checksum change")
 
 	if newOptChecksum == optChecksum {
-		log.Debug().Msg("cmd/pomerium: loaded configuration has not changed")
+		log.Debug().Msg("internal/config: loaded configuration has not changed")
 		return opt
 	}
 
-	log.Info().Str("checksum", newOptChecksum).Msg("cmd/pomerium: checksum changed")
 	for _, service := range services {
 		if err := service.UpdateOptions(*newOpt); err != nil {
-			log.Error().Err(err).Msg("cmd/pomerium: could not update options")
+			log.Error().Err(err).Msg("internal/config: could not update options")
 		}
 	}
 

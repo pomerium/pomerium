@@ -146,8 +146,8 @@ func Test_newProxyeService(t *testing.T) {
 			AuthenticateURL, _ := url.Parse("https://authenticate.example.com")
 			AuthorizeURL, _ := url.Parse("https://authorize.example.com")
 
-			testOpts.AuthenticateURL = AuthenticateURL
-			testOpts.AuthorizeURL = AuthorizeURL
+			testOpts.AuthenticateURL = *AuthenticateURL
+			testOpts.AuthorizeURL = *AuthorizeURL
 			testOpts.CookieSecret = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
 			testOpts.Services = tt.s
 

@@ -96,8 +96,8 @@ func testOptions(t *testing.T) config.Options {
 	opts := newTestOptions(t)
 	testPolicy := config.Policy{From: "https://corp.example.example", To: "https://example.example"}
 	opts.Policies = []config.Policy{testPolicy}
-	opts.AuthenticateURL = authenticateService
-	opts.AuthorizeURL = authorizeService
+	opts.AuthenticateURL = *authenticateService
+	opts.AuthorizeURL = *authorizeService
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
 	opts.CookieName = "pomerium"
@@ -120,8 +120,8 @@ func testOptionsTestServer(t *testing.T, uri string) config.Options {
 	}
 	opts := newTestOptions(t)
 	opts.Policies = []config.Policy{testPolicy}
-	opts.AuthenticateURL = authenticateService
-	opts.AuthorizeURL = authorizeService
+	opts.AuthenticateURL = *authenticateService
+	opts.AuthorizeURL = *authorizeService
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
 	opts.CookieName = "pomerium"
@@ -165,14 +165,14 @@ func testOptionsWithEmptyPolicies(t *testing.T, uri string) config.Options {
 func TestOptions_Validate(t *testing.T) {
 	good := testOptions(t)
 	badAuthURL := testOptions(t)
-	badAuthURL.AuthenticateURL = nil
+	badAuthURL.AuthenticateURL = url.URL{}
 	authurl, _ := url.Parse("http://authenticate.corp.beyondperimeter.com")
 	authenticateBadScheme := testOptions(t)
-	authenticateBadScheme.AuthenticateURL = authurl
+	authenticateBadScheme.AuthenticateURL = *authurl
 	authorizeBadSCheme := testOptions(t)
-	authorizeBadSCheme.AuthorizeURL = authurl
+	authorizeBadSCheme.AuthorizeURL = *authurl
 	authorizeNil := testOptions(t)
-	authorizeNil.AuthorizeURL = nil
+	authorizeNil.AuthorizeURL = url.URL{}
 	emptyCookieSecret := testOptions(t)
 	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := testOptions(t)
