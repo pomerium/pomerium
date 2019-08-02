@@ -36,6 +36,7 @@
 ### FIXED
 
 - Fixed potential race condition when signing requests. [GH-240]
+- Fixed panic when reloading configuration in single service mode [GH-247]
 
 ## v0.1.0
 

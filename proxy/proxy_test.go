@@ -329,4 +329,8 @@ func Test_UpdateOptions(t *testing.T) {
 			}
 		})
 	}
+
+	// Test nil
+	var p *Proxy
+	p.UpdateOptions(config.Options{})
 }
