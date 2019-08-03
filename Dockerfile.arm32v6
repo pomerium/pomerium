@@ -2,6 +2,7 @@ FROM golang:latest as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
+ENV GOPROXY=https://goproxy.io
 ENV GOARCH=arm
 ENV GOARM=6
 # cache depedency downloads
