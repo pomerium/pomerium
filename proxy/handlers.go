@@ -70,7 +70,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 			redirectURL = uri
 		}
 	}
-	http.Redirect(w, r, p.GetSignOutURL(p.AuthenticateURL, redirectURL).String(), http.StatusFound)
+	http.Redirect(w, r, p.GetSignOutURL(p.authenticateURL, redirectURL).String(), http.StatusFound)
 }
 
 // OAuthStart begins the authenticate flow, encrypting the redirect url
@@ -116,7 +116,7 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signinURL := p.GetSignInURL(p.AuthenticateURL, p.GetRedirectURL(r.Host), remoteState)
+	signinURL := p.GetSignInURL(p.authenticateURL, p.GetRedirectURL(r.Host), remoteState)
 	log.FromRequest(r).Debug().Str("SigninURL", signinURL.String()).Msg("proxy: oauth start")
 
 	// Redirect the user to the authenticate service along with the encrypted
@@ -336,7 +336,7 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 		User:             session.User,
 		Groups:           session.Groups,
 		RefreshDeadline:  time.Until(session.RefreshDeadline).Round(time.Second).String(),
-		SignoutURL:       p.GetSignOutURL(p.AuthenticateURL, redirectURL).String(),
+		SignoutURL:       p.GetSignOutURL(p.authenticateURL, redirectURL).String(),
 		IsAdmin:          isAdmin,
 		ImpersonateEmail: session.ImpersonateEmail,
 		ImpersonateGroup: strings.Join(session.ImpersonateGroups, ","),

@@ -166,7 +166,7 @@ func TestProxy_Signout(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusFound)
 	}
 	body := rr.Body.String()
-	want := (proxy.AuthenticateURL.String())
+	want := (proxy.authenticateURL.String())
 	if !strings.Contains(body, want) {
 		t.Errorf("handler returned unexpected body: got %v want %s ", body, want)
 	}

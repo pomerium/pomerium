@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"html/template"
 	stdlog "log"
@@ -23,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/templates"
 	"github.com/pomerium/pomerium/internal/tripper"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/proxy/clients"
 )
 
@@ -47,36 +47,44 @@ func ValidateOptions(o config.Options) error {
 	if len(decoded) != 32 {
 		return fmt.Errorf("`SHARED_SECRET` want 32 but got %d bytes", len(decoded))
 	}
-	if o.AuthenticateURL.String() == "" {
-		return errors.New("missing setting: authenticate-service-url")
+
+	if o.AuthenticateURL == nil {
+		return fmt.Errorf("proxy: missing setting: authenticate-service-url")
 	}
-	if o.AuthenticateURL.Scheme != "https" {
-		return errors.New("authenticate-service-url must be a valid https url")
+	if _, err := urlutil.ParseAndValidateURL(o.AuthenticateURL.String()); err != nil {
+		return fmt.Errorf("proxy: error parsing authenticate url: %v", err)
 	}
-	if o.AuthorizeURL.String() == "" {
-		return errors.New("missing setting: authorize-service-url")
+
+	if o.AuthorizeURL == nil {
+		return fmt.Errorf("proxy: missing setting: authenticate-service-url")
 	}
-	if o.AuthorizeURL.Scheme != "https" {
-		return errors.New("authorize-service-url must be a valid https url")
+	if _, err := urlutil.ParseAndValidateURL(o.AuthorizeURL.String()); err != nil {
+		return fmt.Errorf("proxy: error parsing authorize url: %v", err)
 	}
+	if o.AuthenticateInternalAddr != nil {
+		if _, err := urlutil.ParseAndValidateURL(o.AuthenticateInternalAddr.String()); err != nil {
+			return fmt.Errorf("proxy: error parsing authorize url: %v", err)
+		}
+	}
+
 	if o.CookieSecret == "" {
-		return errors.New("missing setting: cookie-secret")
+		return fmt.Errorf("proxy: missing setting: cookie-secret")
 	}
 	decodedCookieSecret, err := base64.StdEncoding.DecodeString(o.CookieSecret)
 	if err != nil {
-		return fmt.Errorf("cookie secret is invalid base64: %v", err)
+		return fmt.Errorf("proxy: cookie secret is invalid base64: %v", err)
 	}
 	if len(decodedCookieSecret) != 32 {
-		return fmt.Errorf("cookie secret expects 32 bytes but got %d", len(decodedCookieSecret))
+		return fmt.Errorf("proxy: cookie secret expects 32 bytes but got %d", len(decodedCookieSecret))
 	}
 	if len(o.SigningKey) != 0 {
 		decodedSigningKey, err := base64.StdEncoding.DecodeString(o.SigningKey)
 		if err != nil {
-			return fmt.Errorf("signing key is invalid base64: %v", err)
+			return fmt.Errorf("proxy: signing key is invalid base64: %v", err)
 		}
 		_, err = cryptutil.NewES256Signer(decodedSigningKey, "localhost")
 		if err != nil {
-			return fmt.Errorf("invalid signing key is : %v", err)
+			return fmt.Errorf("proxy: invalid signing key is : %v", err)
 		}
 	}
 	return nil
@@ -85,10 +93,12 @@ func ValidateOptions(o config.Options) error {
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
 	// SharedKey used to mutually authenticate service communication
-	SharedKey          string
-	AuthenticateURL    *url.URL
-	AuthenticateClient clients.Authenticator
-	AuthorizeClient    clients.Authorizer
+	SharedKey                string
+	authenticateURL          *url.URL
+	authenticateInternalAddr *url.URL
+	authorizeURL             *url.URL
+	AuthenticateClient       clients.Authenticator
+	AuthorizeClient          clients.Authorizer
 
 	cipher                 cryptutil.Cipher
 	cookieName             string
@@ -142,8 +152,6 @@ func New(opts config.Options) (*Proxy, error) {
 		SharedKey: opts.SharedKey,
 
 		routeConfigs: make(map[string]*routeConfig),
-		// services
-		AuthenticateURL: &opts.AuthenticateURL,
 
 		cipher:                 cipher,
 		cookieName:             opts.CookieName,
@@ -156,6 +164,10 @@ func New(opts config.Options) (*Proxy, error) {
 		signingKey:             opts.SigningKey,
 		templates:              templates.New(),
 	}
+	// DeepCopy urls to avoid accidental mutation, err checked in validate func
+	p.authenticateURL, _ = urlutil.DeepCopy(opts.AuthenticateURL)
+	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
+	p.authenticateInternalAddr, _ = urlutil.DeepCopy(opts.AuthenticateInternalAddr)
 
 	if err := p.UpdatePolicies(&opts); err != nil {
 		return nil, err
@@ -165,8 +177,8 @@ func New(opts config.Options) (*Proxy, error) {
 	})
 	p.AuthenticateClient, err = clients.NewAuthenticateClient("grpc",
 		&clients.Options{
-			Addr:                    &opts.AuthenticateURL,
-			InternalAddr:            &opts.AuthenticateInternalAddr,
+			Addr:                    p.authenticateURL,
+			InternalAddr:            p.authenticateInternalAddr,
 			OverrideCertificateName: opts.OverrideCertificateName,
 			SharedSecret:            opts.SharedKey,
 			CA:                      opts.CA,
@@ -177,7 +189,7 @@ func New(opts config.Options) (*Proxy, error) {
 	}
 	p.AuthorizeClient, err = clients.NewAuthorizeClient("grpc",
 		&clients.Options{
-			Addr:                    &opts.AuthorizeURL,
+			Addr:                    p.authorizeURL,
 			OverrideCertificateName: opts.OverrideCertificateName,
 			SharedSecret:            opts.SharedKey,
 			CA:                      opts.CA,

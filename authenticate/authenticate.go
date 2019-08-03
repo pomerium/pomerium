@@ -12,14 +12,18 @@ import (
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // ValidateOptions checks to see if configuration values are valid for the authenticate service.
 // The checks do not modify the internal state of the Option structure. Returns
 // on first error found.
 func ValidateOptions(o config.Options) error {
-	if o.AuthenticateURL.String() == "" {
-		return errors.New("authenticate: 'AUTHENTICATE_SERVICE_URL' missing")
+	if o.AuthenticateURL == nil {
+		return errors.New("authenticate: missing setting: authenticate-service-url")
+	}
+	if _, err := urlutil.ParseAndValidateURL(o.AuthenticateURL.String()); err != nil {
+		return fmt.Errorf("authenticate: error parsing authenticate url: %v", err)
 	}
 	if o.ClientID == "" {
 		return errors.New("authenticate: 'IDP_CLIENT_ID' missing")
@@ -75,7 +79,7 @@ func New(opts config.Options) (*Authenticate, error) {
 	if err != nil {
 		return nil, err
 	}
-	redirectURL := opts.AuthenticateURL
+	redirectURL, _ := urlutil.DeepCopy(opts.AuthenticateURL)
 	redirectURL.Path = "/oauth2/callback"
 	provider, err := identity.New(
 		opts.Provider,
@@ -97,7 +101,7 @@ func New(opts config.Options) (*Authenticate, error) {
 	}
 	return &Authenticate{
 		SharedKey:    opts.SharedKey,
-		RedirectURL:  &redirectURL,
+		RedirectURL:  redirectURL,
 		templates:    templates.New(),
 		csrfStore:    cookieStore,
 		sessionStore: cookieStore,

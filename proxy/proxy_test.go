@@ -96,8 +96,8 @@ func testOptions(t *testing.T) config.Options {
 	opts := newTestOptions(t)
 	testPolicy := config.Policy{From: "https://corp.example.example", To: "https://example.example"}
 	opts.Policies = []config.Policy{testPolicy}
-	opts.AuthenticateURL = *authenticateService
-	opts.AuthorizeURL = *authorizeService
+	opts.AuthenticateURL = authenticateService
+	opts.AuthorizeURL = authorizeService
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
 	opts.CookieName = "pomerium"
@@ -120,8 +120,8 @@ func testOptionsTestServer(t *testing.T, uri string) config.Options {
 	}
 	opts := newTestOptions(t)
 	opts.Policies = []config.Policy{testPolicy}
-	opts.AuthenticateURL = *authenticateService
-	opts.AuthorizeURL = *authorizeService
+	opts.AuthenticateURL = authenticateService
+	opts.AuthorizeURL = authorizeService
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
 	opts.CookieName = "pomerium"
@@ -165,14 +165,17 @@ func testOptionsWithEmptyPolicies(t *testing.T, uri string) config.Options {
 func TestOptions_Validate(t *testing.T) {
 	good := testOptions(t)
 	badAuthURL := testOptions(t)
-	badAuthURL.AuthenticateURL = url.URL{}
-	authurl, _ := url.Parse("http://authenticate.corp.beyondperimeter.com")
+	badAuthURL.AuthenticateURL = nil
+	authurl, _ := url.Parse("authenticate.corp.beyondperimeter.com")
 	authenticateBadScheme := testOptions(t)
-	authenticateBadScheme.AuthenticateURL = *authurl
+	authenticateBadScheme.AuthenticateURL = authurl
+	authenticateInternalBadScheme := testOptions(t)
+	authenticateInternalBadScheme.AuthenticateInternalAddr = authurl
+
 	authorizeBadSCheme := testOptions(t)
-	authorizeBadSCheme.AuthorizeURL = *authurl
+	authorizeBadSCheme.AuthorizeURL = authurl
 	authorizeNil := testOptions(t)
-	authorizeNil.AuthorizeURL = url.URL{}
+	authorizeNil.AuthorizeURL = nil
 	emptyCookieSecret := testOptions(t)
 	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := testOptions(t)
@@ -196,8 +199,9 @@ func TestOptions_Validate(t *testing.T) {
 		{"good - minimum options", good, false},
 		{"nil options", config.Options{}, true},
 		{"authenticate service url", badAuthURL, true},
-		{"authenticate service url not https", authenticateBadScheme, true},
-		{"authorize service url not https", authorizeBadSCheme, true},
+		{"authenticate service url no scheme", authenticateBadScheme, true},
+		{"internal authenticate service url no scheme", authenticateInternalBadScheme, true},
+		{"authorize service url no scheme", authorizeBadSCheme, true},
 		{"authorize service cannot be nil", authorizeNil, true},
 		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},

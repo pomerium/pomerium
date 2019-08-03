@@ -2,6 +2,7 @@ package urlutil
 
 import (
 	"net/url"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -45,6 +46,7 @@ func TestParseAndValidateURL(t *testing.T) {
 		{"bad schema", "//some.example", nil, true},
 		{"bad hostname", "https://", nil, true},
 		{"bad parse", "https://^", nil, true},
+		{"empty string error", "", nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -55,6 +57,32 @@ func TestParseAndValidateURL(t *testing.T) {
 			}
 			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("TestParseAndValidateURL() = %s", diff)
+			}
+		})
+	}
+}
+
+func TestDeepCopy(t *testing.T) {
+
+	tests := []struct {
+		name    string
+		u       *url.URL
+		want    *url.URL
+		wantErr bool
+	}{
+		{"nil", nil, nil, false},
+		{"good", &url.URL{Scheme: "https", Host: "some.example"}, &url.URL{Scheme: "https", Host: "some.example"}, false},
+		{"bad no scheme", &url.URL{Host: "some.example"}, nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := DeepCopy(tt.u)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DeepCopy() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("DeepCopy() = %v, want %v", got, tt.want)
 			}
 		})
 	}
