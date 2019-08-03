@@ -384,6 +384,7 @@ func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 	newOpt, err := ParseOptions(configFile)
 	if err != nil {
 		log.Error().Err(err).Msg("config: could not reload configuration")
+		metrics.SetConfigInfo(opt.Services, false, "")
 		return opt
 	}
 	optChecksum := opt.Checksum()
@@ -396,11 +397,17 @@ func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 		return opt
 	}
 
+	errored := false
 	for _, service := range services {
 		if err := service.UpdateOptions(*newOpt); err != nil {
 			log.Error().Err(err).Msg("internal/config: could not update options")
+			errored = true
+			metrics.SetConfigInfo(opt.Services, false, "")
 		}
 	}
 
+	if !errored {
+		metrics.SetConfigInfo(newOpt.Services, true, newOptChecksum)
+	}
 	return newOpt
 }

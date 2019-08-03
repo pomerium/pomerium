@@ -37,5 +37,7 @@ var (
 		GRPCServerViews,
 		HTTPServerViews,
 		GRPCClientViews,
-		GRPCServerViews}
+		GRPCServerViews,
+		InfoViews,
+	}
 )
