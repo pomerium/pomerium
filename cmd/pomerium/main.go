@@ -166,6 +166,8 @@ func setupMetrics(opt *config.Options) {
 		if handler, err := metrics.PrometheusHandler(); err != nil {
 			log.Error().Err(err).Msg("cmd/pomerium: couldn't start metrics server")
 		} else {
+			metrics.SetBuildInfo(opt.Services)
+			metrics.RegisterInfoMetrics()
 			serverOpts := &httputil.ServerOptions{Addr: opt.MetricsAddr}
 			srv := httputil.NewHTTPServer(serverOpts, handler)
 			go httputil.Shutdown(srv)
