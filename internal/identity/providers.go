@@ -84,7 +84,7 @@ func New(providerName string, p *Provider) (a Authenticator, err error) {
 type Provider struct {
 	ProviderName string
 
-	RedirectURL  url.URL
+	RedirectURL  *url.URL
 	ClientID     string
 	ClientSecret string
 	ProviderURL  string

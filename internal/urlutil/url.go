@@ -25,6 +25,9 @@ func StripPort(hostport string) string {
 // ParseAndValidateURL wraps standard library's default url.Parse because
 // it's much more lenient about what type of urls it accepts than pomerium.
 func ParseAndValidateURL(rawurl string) (*url.URL, error) {
+	if rawurl == "" {
+		return nil, fmt.Errorf("url cannot be empty")
+	}
 	u, err := url.Parse(rawurl)
 	if err != nil {
 		return nil, err
@@ -36,4 +39,11 @@ func ParseAndValidateURL(rawurl string) (*url.URL, error) {
 		return nil, fmt.Errorf("%s url does contain a valid hostname", rawurl)
 	}
 	return u, nil
+}
+
+func DeepCopy(u *url.URL) (*url.URL, error) {
+	if u == nil {
+		return nil, nil
+	}
+	return ParseAndValidateURL(u.String())
 }

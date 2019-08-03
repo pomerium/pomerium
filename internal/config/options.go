@@ -73,7 +73,7 @@ type Options struct {
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
 	AuthenticateURLString string `mapstructure:"authenticate_service_url"`
-	AuthenticateURL       url.URL
+	AuthenticateURL       *url.URL
 
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
@@ -103,13 +103,13 @@ type Options struct {
 	// NOTE: As many load balancers do not support externally routed gRPC so
 	// this may be an internal location.
 	AuthenticateInternalAddrString string `mapstructure:"authenticate_internal_url"`
-	AuthenticateInternalAddr       url.URL
+	AuthenticateInternalAddr       *url.URL
 
 	// AuthorizeURL is the routable destination of the authorize service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
 	AuthorizeURLString string `mapstructure:"authorize_service_url"`
-	AuthorizeURL       url.URL
+	AuthorizeURL       *url.URL
 
 	// Settings to enable custom behind-the-ingress service communication
 	OverrideCertificateName string `mapstructure:"override_certificate_name"`
@@ -230,7 +230,7 @@ func (o *Options) Validate() error {
 		if err != nil {
 			return fmt.Errorf("bad authenticate-url %s : %v", o.AuthenticateURLString, err)
 		}
-		o.AuthenticateURL = *u
+		o.AuthenticateURL = u
 	}
 
 	if o.AuthorizeURLString != "" {
@@ -238,7 +238,7 @@ func (o *Options) Validate() error {
 		if err != nil {
 			return fmt.Errorf("bad authorize-url %s : %v", o.AuthorizeURLString, err)
 		}
-		o.AuthorizeURL = *u
+		o.AuthorizeURL = u
 	}
 
 	if o.AuthenticateInternalAddrString != "" {
@@ -246,7 +246,7 @@ func (o *Options) Validate() error {
 		if err != nil {
 			return fmt.Errorf("bad authenticate-internal-addr %s : %v", o.AuthenticateInternalAddrString, err)
 		}
-		o.AuthenticateInternalAddr = *u
+		o.AuthenticateInternalAddr = u
 	}
 	if o.PolicyFile != "" {
 		return errors.New("policy file setting is deprecated")
