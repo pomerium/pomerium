@@ -1,14 +1,13 @@
 {
   "devDependencies": {
     "@vuepress/plugin-google-analytics": "^1.0.0-alpha.47",
-    "vuepress": "^1.0.0-alpha.47",
+    "vuepress": "^1.0.0",
     "vuepress-plugin-sitemap": "^2.1.2"
   },
   "scripts": {
     "docs:dev": "vuepress dev docs",
     "docs:build": "vuepress build docs",
     "docs:deploy": "firebase deploy"
-
   },
   "dependencies": {
     "esm": "^3.2.22"

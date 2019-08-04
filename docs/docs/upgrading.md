@@ -5,7 +5,7 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
-# Overview
+# Upgrade Guide
 
 ## Since 0.1.0
 
@@ -89,6 +89,7 @@ Usage of the POLICY_FILE envvar is no longer supported. Support for file based p
 
 ### Authenticate Internal Service Address
 
-The configuration variable [Authenticate Internal Service URL](https://www.pomerium.io/reference/#authenticate-internal-service-url) must now be a valid [URL](https://golang.org/pkg/net/url/#URL) type and contain both a hostname and valid `https` schema.
+The configuration variable [Authenticate Internal Service URL] must now be a valid [URL](https://golang.org/pkg/net/url/#URL) type and contain both a hostname and valid `https` schema.
 
-[policy]: ../reference/readme.md#policy
+[policy]: ./reference/reference.md#policy
+[authenticate internal service url]: ./reference/reference.md#authenticate-service-url
