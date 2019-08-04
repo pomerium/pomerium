@@ -10,7 +10,7 @@ meta:
 
 ## History
 
-For years, security was synonymous with network security. Firewalls, network segmentation, and VPNs reigned the day. Broadly speaking, that network focused security posture is what people mean today when they talk about the perimeter security model. So-called "impenetrable fortress" security worked well for a period of time when you could reasonably expect your network perimeter to correspond to an actual physical perimeters, users, devices, and servers. But as teams, applications, workloads, and users became more ephemeral, containered, and distributed, the shortcomings of perimeter based security have become more apparent in terms of both operational costs and security breaches.
+For years, security was synonymous with network security. Firewalls, network segmentation, and VPNs reigned the day. Broadly speaking, that network focused security posture is what people mean today when they talk about the perimeter security model. So-called "impenetrable fortress" security worked well for a period of time when you could reasonably expect your network perimeter to correspond to an actual physical perimeters, users, devices, and servers. But as teams, applications, workloads, and users became more ephemeral and distributed, the shortcomings of perimeter based security have become more apparent in terms of both operational costs and security breaches.
 
 > Most networks [have] big castle walls, hard crunchy outer shell, and soft gooey centers...
 >
