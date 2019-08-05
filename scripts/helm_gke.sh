@@ -39,7 +39,8 @@ echo "=> initiliaze a configmap setting from config.example.yaml"
 kubectl create configmap config --from-file="config.yaml"="docs/docs/examples/config/config.example.yaml"
 # git clone https://github.com/pomerium/pomerium-helm.git $HOME/pomerium-helm
 
-helm install $HOME/pomerium-helm \
+helm install \
+	pomerium \
 	--set service.type="NodePort" \
 	--set config.rootDomain="corp.beyondperimeter.com" \
 	--set config.existingConfig="config" \

@@ -38,11 +38,6 @@ _testmain.go
 # Without this, the *.[568vq] above ignores this folder.
 !**/graphrbac/1.6
 
-# Ruby
-website/vendor
-website/build
-website/tmp
-
 
 .DS_Store
 .idea
