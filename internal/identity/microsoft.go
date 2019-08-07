@@ -140,7 +140,7 @@ func (p *AzureProvider) Revoke(token string) error {
 
 // GetSignInURL returns the sign in url with typical oauth parameters
 func (p *AzureProvider) GetSignInURL(state string) string {
-	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account"))
 }
 
 // Refresh renews a user's session using an oid refresh token without reprompting the user.
