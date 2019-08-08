@@ -82,6 +82,7 @@ module.exports = {
           children: [
             "reference/certificates",
             "reference/impersonation",
+            "reference/programmatic-access",
             "reference/signed-headers",
             "reference/examples",
             "reference/reference"
