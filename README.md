@@ -12,25 +12,6 @@ Pomerium can be used to:
 - aggregate access logs and telemetry data.
 - a **VPN alternative**.
 
-## Architecture
-
-<img alt="pomerium architecture diagram" src="https://www.pomerium.io/pomerium-diagram.svg" width="100%">
-
-## Demo
-
-To make this a bit more concrete, see the following:
-
-1. An **unauthorized** user authenticating with their corporate single-sign-on provider (in this case Google)
-2. The **unauthorized** user being blocked from a protected resource.
-3. The **unauthorized** user signing out from their session.
-4. An **authorized** user authenticating with their corporate single-sign-on provider.
-5. Pomerium delegating and grating access to the requested resource.
-6. The **authorized** user inspecting their user details including group membership.
-
-<video autoplay="" loop="" muted="" playsinline="" width="100%" height="600" control=""><source src="https://www.pomerium.io/pomerium-in-action-800-600.mp4" type="video/mp4">
-Your browser does not support the video tag.
-</video>
-
 ## Docs
 
 For comprehensive docs, and tutorials see our [documentation].
