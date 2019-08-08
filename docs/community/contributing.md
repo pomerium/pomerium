@@ -11,7 +11,7 @@ You can have a direct impact on the project by helping with its code or document
 
 ## Code
 
-We hold contributions to a high standard for quality :bowtie:, so don't be surprised if we ask for revisions--even if it seems small or insignificant. Please don't take it personally. :wink: If your change is on the right track, we can guide you to make it mergable.
+We try to hold contributions to a high standard for quality, so don't be surprised if we ask for revisions--even if it seems small or insignificant. Please don't take it personally. If your change is on the right track, we can guide you to make it mergable.
 
 Here are some of the expectations we have of contributors:
 

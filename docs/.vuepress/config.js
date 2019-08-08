@@ -22,16 +22,8 @@ module.exports = {
     lastUpdated: "Last Updated",
     nav: [
       { text: "Documentation", link: "/docs/" },
+      { text: "Recipes", link: "/recipes/" },
       { text: "Community", link: "/community/" }
-
-      // {
-      //   text: "Versions",
-      //   items: [
-      //     { text: "v0.1.0", link: "https://v0-1-0.docs.pomerium.io/" },
-      //     { text: "v0.0.5", link: "https://v0-0-5.docs.pomerium.io/" },
-      //     { text: "v0.0.4", link: "https://v0-0-4.docs.pomerium.io/" }
-      //   ]
-      // }
     ],
 
     sidebar: {
@@ -103,6 +95,16 @@ module.exports = {
             "code-of-conduct",
             "security"
           ]
+        }
+      ],
+      "/recipes/": [
+        {
+          title: "Recipes",
+          type: "group",
+
+          collapsable: false,
+          sidebarDepth: 1,
+          children: ["", "vs-code-server"]
         }
       ]
     }
