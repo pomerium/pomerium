@@ -1,5 +1,17 @@
 # Changelog
 
+## vUNRELEASED
+
+### New
+
+- Add ability to set client certificates for downstream connections. [GH-259]
+
+### Fixed
+
+### Changed
+
+- A policy's custom certificate authority can set as a file or a base64 encoded blob(`tls_custom_ca`/`tls_custom_ca_file`). [GH-259]
+
 ## v0.2.0
 
 ### New
@@ -24,10 +36,6 @@
     - Support HTTP request sizes on client and server side of proxy
     - Improved HTTP metrics implementation internals
     - The HTTP method label is now `http_method`, and HTTP status label is now `http_status`
-
-### FIXED
-
-- Fixed potential race condition when signing requests. [GH-240]
 
 ### Changed
 

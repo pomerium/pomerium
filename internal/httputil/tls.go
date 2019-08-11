@@ -2,14 +2,13 @@ package httputil // import "github.com/pomerium/pomerium/internal/httputil"
 
 import (
 	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	stdlog "log"
 	"net"
 	"net/http"
 	"strings"
 
-	"github.com/pomerium/pomerium/internal/fileutil"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -25,9 +24,9 @@ func NewTLSServer(opt *ServerOptions, httpHandler http.Handler, grpcHandler http
 	var cert *tls.Certificate
 	var err error
 	if opt.Cert != "" && opt.Key != "" {
-		cert, err = decodeCertificate(opt.Cert, opt.Key)
+		cert, err = cryptutil.CertifcateFromBase64(opt.Cert, opt.Key)
 	} else {
-		cert, err = readCertificateFile(opt.CertFile, opt.KeyFile)
+		cert, err = cryptutil.CertificateFromFile(opt.CertFile, opt.KeyFile)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("internal/httputil: failed loading x509 certificate: %v", err)
@@ -65,38 +64,6 @@ func NewTLSServer(opt *ServerOptions, httpHandler http.Handler, grpcHandler http
 	}()
 
 	return srv, nil
-}
-
-func decodeCertificate(cert, key string) (*tls.Certificate, error) {
-	decodedCert, err := base64.StdEncoding.DecodeString(cert)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode certificate cert %v: %v", decodedCert, err)
-	}
-	decodedKey, err := base64.StdEncoding.DecodeString(key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode certificate key %v: %v", decodedKey, err)
-	}
-	x509, err := tls.X509KeyPair(decodedCert, decodedKey)
-	return &x509, err
-}
-
-func readCertificateFile(certFile, certKeyFile string) (*tls.Certificate, error) {
-	certReadable, err := fileutil.IsReadableFile(certFile)
-	if err != nil {
-		return nil, fmt.Errorf("TLS certificate in %v: %v", certFile, err)
-	}
-	if !certReadable {
-		return nil, fmt.Errorf("certificate file %v not readable", certFile)
-	}
-	keyReadable, err := fileutil.IsReadableFile(certKeyFile)
-	if err != nil {
-		return nil, fmt.Errorf("TLS key in %v: %v", certKeyFile, err)
-	}
-	if !keyReadable {
-		return nil, fmt.Errorf("certificate key file %v not readable", certKeyFile)
-	}
-	cert, err := tls.LoadX509KeyPair(certFile, certKeyFile)
-	return &cert, err
 }
 
 // newDefaultTLSConfig creates a new TLS config based on the certificate files given.
