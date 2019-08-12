@@ -2,7 +2,6 @@ package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"html/template"
@@ -225,15 +224,30 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		}
 		c := tripper.NewChain()
 		c = c.Append(metrics.HTTPMetricsRoundTripper("proxy", policy.Destination.Host))
+
+		var tlsClientConfig tls.Config
+		var isCustomClientConfig bool
 		if policy.TLSSkipVerify {
-			transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+			tlsClientConfig.InsecureSkipVerify = true
+			isCustomClientConfig = true
+			log.Warn().Str("to", policy.Source.String()).Msg("proxy: tls skip verify")
 		}
-		if policy.TLSCustomCA != "" {
-			rootCA, err := p.customCAPool(policy.TLSCustomCA)
-			if err != nil {
-				return fmt.Errorf("proxy: couldn't add custom ca to policy %s", policy.From)
-			}
-			transport.TLSClientConfig = &tls.Config{RootCAs: rootCA}
+		if policy.RootCAs != nil {
+			tlsClientConfig.RootCAs = policy.RootCAs
+			isCustomClientConfig = true
+			log.Debug().Str("to", policy.Source.String()).Msg("proxy: custom root ca")
+		}
+
+		if policy.ClientCertificate != nil {
+			tlsClientConfig.Certificates = []tls.Certificate{*policy.ClientCertificate}
+			isCustomClientConfig = true
+			log.Debug().Str("to", policy.Source.String()).Msg("proxy: client certs enabled")
+		}
+
+		// We avoid setting a custom client config unless we have to as
+		// if TLSClientConfig is nil, the default configuration is used.
+		if isCustomClientConfig {
+			transport.TLSClientConfig = &tlsClientConfig
 		}
 		proxy.Transport = c.Then(&transport)
 
@@ -287,18 +301,6 @@ func (p *Proxy) newRouteSigner(audience string) (cryptutil.JWTSigner, error) {
 		return nil, err
 	}
 	return cryptutil.NewES256Signer(decodedSigningKey, audience)
-}
-
-func (p *Proxy) customCAPool(cert string) (*x509.CertPool, error) {
-	certPool := x509.NewCertPool()
-	decodedCert, err := base64.StdEncoding.DecodeString(cert)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode cert: %s", err)
-	}
-	if ok := certPool.AppendCertsFromPEM(decodedCert); !ok {
-		return nil, fmt.Errorf("could not append cert: %s", decodedCert)
-	}
-	return certPool, nil
 }
 
 // newReverseProxyHandler applies handler specific options to a given route.

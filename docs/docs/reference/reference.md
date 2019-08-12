@@ -335,13 +335,21 @@ TLS Skip Verification controls whether a client verifies the server's certificat
 
 ### TLS Custom Certificate Authority
 
-- Config File Key: `tls_custom_ca`
-- Type: [base64 encoded] `string`
+- Config File Key: `tls_custom_ca` or `tls_custom_ca_file`
+- Type: [base64 encoded] `string` or relative file location
 - Optional
 
 TLS Custom Certificate Authority defines the set of root certificate authorities that clients use when verifying server certificates.
 
 Note: This setting will replace (not append) the system's trust store for a given route.
+
+### TLS Client Certificate
+
+- Config File Key: `tls_client_cert` and `tls_client_key` or `tls_client_cert_file` and `tls_client_key_file`
+- Type: [base64 encoded] `string` or relative file location
+- Optional
+
+Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/examples/tree/master/mutual-tls) and the [certificate docs](./certificates.md).
 
 # Authenticate Service
 
