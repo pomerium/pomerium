@@ -182,6 +182,8 @@ func New(opts config.Options) (*Proxy, error) {
 			SharedSecret:            opts.SharedKey,
 			CA:                      opts.CA,
 			CAFile:                  opts.CAFile,
+			RequestTimeout:          opts.GRPCClientTimeout,
+			ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
 		})
 	if err != nil {
 		return nil, err
@@ -193,6 +195,8 @@ func New(opts config.Options) (*Proxy, error) {
 			SharedSecret:            opts.SharedKey,
 			CA:                      opts.CA,
 			CAFile:                  opts.CAFile,
+			RequestTimeout:          opts.GRPCClientTimeout,
+			ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
 		})
 	return p, err
 }

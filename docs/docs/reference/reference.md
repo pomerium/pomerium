@@ -144,6 +144,31 @@ Timeouts set the global server timeouts. For route-specific timeouts, see [polic
 
 > For a deep dive on timeout values see [these](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) [two](https://blog.cloudflare.com/exposing-go-on-the-internet/) excellent blog posts.
 
+## GRPC Options
+
+These settings control upstream connections to the Authorize and Authenticate services.
+
+### GRPC Client Timeout
+
+Maxmimum time before canceling an upstream RPC request.  During transient failures, the proxy will retry upstreams for this duration, if possible.  You should leave this high enough to handle backend service restart and rediscovery so that client requests do not fail.
+
+- Environmental Variable: `GRPC_CLIENT_TIMEOUT` 
+- Config File Key: `grpc_client_timeout`
+- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
+- Default: `10s`
+
+### GRPC Client DNS RoundRobin
+
+Enable grpc DNS based round robin load balancing.  This method uses DNS to resolve endpoints and does client side load balancing of _all_ addresses returned by the DNS record.  Do not disable unless you have a specific use case.
+
+- Environmental Variable: `GRPC_CLIENT_DNS_ROUNDROBIN`
+- Config File Key: `grpc_client_dns_roundrobin`
+- Type: `bool`
+- Default: `true`
+
+
+
+
 ## HTTP Redirect Address
 
 - Environmental Variable: `HTTP_REDIRECT_ADDR`
