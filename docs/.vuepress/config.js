@@ -16,6 +16,7 @@ module.exports = {
   },
   themeConfig: {
     logo: "/logo-long-civez.png",
+    repo: "pomerium/pomerium",
     editLinks: true,
     docsDir: "docs",
     editLinkText: "Edit this page on GitHub",
@@ -88,13 +89,7 @@ module.exports = {
 
           collapsable: false,
           sidebarDepth: 1,
-          children: [
-            "",
-            "contributing",
-            "developers-guide",
-            "code-of-conduct",
-            "security"
-          ]
+          children: ["", "contributing", "code-of-conduct", "security"]
         }
       ],
       "/recipes/": [
