@@ -32,6 +32,11 @@ GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
 .PHONY: all
 all: clean lint spellcheck test build ## Runs a clean, build, fmt, lint, test, and vet.
 
+.PHONY: docs
+docs: ## Start the vuepress docs development server
+	@echo "==> $@"
+	@yarn && yarn docs:dev
+
 .PHONY: tag
 tag: ## Create a new git tag to prepare to build a release
 	git tag -sa $(VERSION) -m "$(VERSION)"
