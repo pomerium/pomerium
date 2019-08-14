@@ -5,6 +5,11 @@
 ### New
 
 - Add ability to set client certificates for downstream connections. [GH-259]
+- GRPC Improvements. [#261](https://github.com/pomerium/pomerium/pull/261) and [#69](https://github.com/pomerium/pomerium/issues/69)
+  - Enable WaitForReady to allow background retries through transient failures
+  - Expose a configurable timeout for backend requests to Authorize and Authenticate
+  - Enable DNS round_robin load balancing to Authorize and Authenticate services by default
+
 
 ### Fixed
 

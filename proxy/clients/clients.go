@@ -1,6 +1,7 @@
 package clients // import "github.com/pomerium/pomerium/proxy/clients"
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -9,13 +10,14 @@ import (
 	"io/ioutil"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
-
 	"go.opencensus.io/plugin/ocgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -38,6 +40,10 @@ type Options struct {
 	CA string
 	// CAFile specifies the TLS certificate authority file to use.
 	CAFile string
+	// RequestTimeout specifies the timeout for individual RPC calls
+	RequestTimeout time.Duration
+	// ClientDNSRoundRobin enables or disables DNS resolver based load balancing
+	ClientDNSRoundRobin bool
 }
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
@@ -102,11 +108,36 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 			return nil, err
 		}
 	}
-	return grpc.Dial(
-		connAddr,
+
+	dialOptions := []grpc.DialOption{
 		grpc.WithTransportCredentials(cert),
 		grpc.WithPerRPCCredentials(grpcAuth),
-		grpc.WithUnaryInterceptor(metrics.GRPCClientInterceptor("proxy")),
+		grpc.WithChainUnaryInterceptor(metrics.GRPCClientInterceptor("proxy"), grpcTimeoutInterceptor(opts.RequestTimeout)),
 		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
+		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
+	}
+
+	if opts.ClientDNSRoundRobin {
+		dialOptions = append(dialOptions, grpc.WithBalancerName(roundrobin.Name))
+		connAddr = fmt.Sprintf("dns:///%s", connAddr)
+	}
+
+	return grpc.Dial(
+		connAddr,
+		dialOptions...,
 	)
+}
+
+// grpcTimeoutInterceptor enforces per-RPC request timeouts
+func grpcTimeoutInterceptor(timeout time.Duration) grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		if timeout <= 0 {
+			return invoker(ctx, method, req, reply, cc, opts...)
+		}
+
+		ctx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		return invoker(ctx, method, req, reply, cc, opts...)
+
+	}
 }

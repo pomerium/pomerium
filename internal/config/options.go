@@ -145,6 +145,10 @@ type Options struct {
 	// AgentEndpoint instructs exporter to send spans to jaeger-agent at this address.
 	// For example, localhost:6831.
 	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint"`
+
+	// GRPC Service Settings
+	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout"`
+	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin"`
 }
 
 var defaultOptions = Options{
@@ -163,14 +167,16 @@ var defaultOptions = Options{
 		"X-XSS-Protection":          "1; mode=block",
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 	},
-	Addr:              ":https",
-	CertFile:          filepath.Join(fileutil.Getwd(), "cert.pem"),
-	KeyFile:           filepath.Join(fileutil.Getwd(), "privkey.pem"),
-	ReadHeaderTimeout: 10 * time.Second,
-	ReadTimeout:       30 * time.Second,
-	WriteTimeout:      0, // support streaming by default
-	IdleTimeout:       5 * time.Minute,
-	RefreshCooldown:   5 * time.Minute,
+	Addr:                    ":https",
+	CertFile:                filepath.Join(fileutil.Getwd(), "cert.pem"),
+	KeyFile:                 filepath.Join(fileutil.Getwd(), "privkey.pem"),
+	ReadHeaderTimeout:       10 * time.Second,
+	ReadTimeout:             30 * time.Second,
+	WriteTimeout:            0, // support streaming by default
+	IdleTimeout:             5 * time.Minute,
+	RefreshCooldown:         5 * time.Minute,
+	GRPCClientTimeout:       10 * time.Second, // Try to withstand transient service failures for a single request
+	GRPCClientDNSRoundRobin: true,
 }
 
 // NewOptions returns a minimal options configuration built from default options.
