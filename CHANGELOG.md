@@ -1,5 +1,11 @@
 # Pomerium Changelog
 
+## v0.2.1
+
+### SECURITY
+
+- Fixes vulnerabilities fixed in Go [1.12.8](https://groups.google.com/forum/#!topic/golang-nuts/fCQWxqxP8aA) including CVE-2019-9512, CVE-2019-9514 and CVE-2019-14809.
+
 ## v0.2.0
 
 ### New
