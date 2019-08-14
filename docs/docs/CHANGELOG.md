@@ -4,18 +4,21 @@
 
 ### New
 
-- Add ability to set client certificates for downstream connections. [GH-259]
 - GRPC Improvements. [#261](https://github.com/pomerium/pomerium/pull/261) and [#69](https://github.com/pomerium/pomerium/issues/69)
+
   - Enable WaitForReady to allow background retries through transient failures
   - Expose a configurable timeout for backend requests to Authorize and Authenticate
   - Enable DNS round_robin load balancing to Authorize and Authenticate services by default
 
+- Add ability to set client certificates for downstream connections. [GH-259](https://github.com/pomerium/pomerium/pull/259)
 
 ### Fixed
 
 ### Changed
 
-- A policy's custom certificate authority can set as a file or a base64 encoded blob(`tls_custom_ca`/`tls_custom_ca_file`). [GH-259]
+- A policy's custom certificate authority can set as a file or a base64 encoded blob(`tls_custom_ca`/`tls_custom_ca_file`). [GH-259](https://github.com/pomerium/pomerium/pull/259)
+
+- Remove references to [service named ports](https://golang.org/src/net/lookup.go) and instead use their numeric equivalent. [GH-266](https://github.com/pomerium/pomerium/pull/266)
 
 ## v0.2.0
 
@@ -172,5 +175,5 @@
 
 - `http.Server` and `httputil.NewSingleHostReverseProxy` now uses pomerium's logging package instead of the standard library's built in one. [GH-58]
 
-[synology tutorial]: ./quick-start/synology.md
 [certificates documentation]: ../reference/certificates.md
+[synology tutorial]: ./quick-start/synology.md

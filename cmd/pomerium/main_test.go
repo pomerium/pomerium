@@ -201,7 +201,7 @@ func Test_configToServerOptions(t *testing.T) {
 		opt  *config.Options
 		want *httputil.ServerOptions
 	}{
-		{"simple convert", &config.Options{Addr: ":http"}, &httputil.ServerOptions{Addr: ":http"}},
+		{"simple convert", &config.Options{Addr: ":80"}, &httputil.ServerOptions{Addr: ":80"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

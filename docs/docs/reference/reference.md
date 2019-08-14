@@ -41,11 +41,11 @@ Service mode sets the pomerium service(s) to run. If testing, you may want to se
 - Environmental Variable: `ADDRESS`
 - Config File Key: `address`
 - Type: `string`
-- Example: `:https`, `:443`, `:8443`
-- Default: `:https`
+- Example: `:443`, `:8443`
+- Default: `:443`
 - Required
 
-Address specifies the host and port to serve HTTPS and gRPC requests from. If empty, `:https`/`:443` is used.
+Address specifies the host and port to serve HTTPS and gRPC requests from. If empty, `:443` is used.
 
 ## Administrators
 
@@ -174,7 +174,7 @@ Enable grpc DNS based round robin load balancing.  This method uses DNS to resol
 - Environmental Variable: `HTTP_REDIRECT_ADDR`
 - Config File Key: `http_redirect_addr`
 - Type: `string`
-- Example: `:80`, `:http`, `:8080`
+- Example: `:80`, `:8080`
 - Optional
 
 If set, the HTTP Redirect Address specifies the host and port to redirect http to https traffic on. If unset, no redirect server is started.
