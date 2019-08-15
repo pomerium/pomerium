@@ -18,10 +18,12 @@ func Test_grpcTimeoutInterceptor(t *testing.T) {
 				t.Fatal("No deadline set")
 			}
 
-			if ok && time.Now().After(deadline) && !wantFail {
-				t.Error("Deadline exceeded, but should not have")
-			} else if time.Now().Before(deadline) && wantFail {
-				t.Error("Deadline not exceeded, but should have")
+			now := time.Now()
+
+			if ok && now.After(deadline) && !wantFail {
+				t.Errorf("Deadline exceeded, but should not have.  now=%v, deadline=%v", now, deadline)
+			} else if now.Before(deadline) && wantFail {
+				t.Errorf("Deadline not exceeded, but should have.  now=%v, deadline=%v", now, deadline)
 			}
 			return nil
 		}
