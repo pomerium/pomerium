@@ -10,7 +10,7 @@ import (
 // ServerOptions contains the configurations settings for a http server.
 type ServerOptions struct {
 	// Addr specifies the host and port on which the server should serve
-	// HTTPS requests. If empty, ":https" is used.
+	// HTTPS requests. If empty, ":443" is used.
 	Addr string
 
 	// TLS certificates to use.
@@ -27,7 +27,7 @@ type ServerOptions struct {
 }
 
 var defaultTLSServerOptions = &ServerOptions{
-	Addr:              ":https",
+	Addr:              ":443",
 	CertFile:          filepath.Join(fileutil.Getwd(), "cert.pem"),
 	KeyFile:           filepath.Join(fileutil.Getwd(), "privkey.pem"),
 	ReadHeaderTimeout: 10 * time.Second,
@@ -61,7 +61,7 @@ func (o *ServerOptions) applyTLSDefaults() {
 }
 
 var defaultHTTPServerOptions = &ServerOptions{
-	Addr:              ":http",
+	Addr:              ":80",
 	ReadHeaderTimeout: 10 * time.Second,
 	ReadTimeout:       5 * time.Second,
 	WriteTimeout:      5 * time.Second,

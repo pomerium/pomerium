@@ -43,7 +43,7 @@ type Options struct {
 	Services string `mapstructure:"services"`
 
 	// Addr specifies the host and port on which the server should serve
-	// HTTPS requests. If empty, ":https" (localhost:443) is used.
+	// HTTPS requests. If empty, ":443" (localhost:443) is used.
 	Addr string `mapstructure:"address"`
 
 	// Cert and Key specifies the TLS certificates to use.
@@ -55,8 +55,7 @@ type Options struct {
 	KeyFile  string `mapstructure:"certificate_key_file"`
 
 	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
-	// to HTTPS redirect server on. For example, ":http" would start a server
-	// on port 80.  If empty, no redirect server is started.
+	// to HTTPS redirect server on. If empty, no redirect server is started.
 	HTTPRedirectAddr string `mapstructure:"http_redirect_addr"`
 
 	// Timeout settings : https://github.com/pomerium/pomerium/issues/40
@@ -167,7 +166,7 @@ var defaultOptions = Options{
 		"X-XSS-Protection":          "1; mode=block",
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 	},
-	Addr:                    ":https",
+	Addr:                    ":443",
 	CertFile:                filepath.Join(fileutil.Getwd(), "cert.pem"),
 	KeyFile:                 filepath.Join(fileutil.Getwd(), "privkey.pem"),
 	ReadHeaderTimeout:       10 * time.Second,
