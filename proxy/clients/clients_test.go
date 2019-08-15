@@ -29,7 +29,7 @@ func Test_grpcTimeoutInterceptor(t *testing.T) {
 		}
 	}
 
-	timeOut := 10 * time.Millisecond
+	timeOut := 300 * time.Millisecond
 	to := grpcTimeoutInterceptor(timeOut)
 
 	to(context.Background(), "test", nil, nil, nil, mockInvoker(timeOut*2, true))
