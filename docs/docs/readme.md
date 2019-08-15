@@ -22,7 +22,34 @@ Pomerium can be used to:
 
 ## Architecture
 
-<img alt="pomerium architecture diagram" src="/pomerium-diagram.svg" width="100%">
+### System Level
+
+Pomerium sits between end users and services which require strong authentication.  After verifying identity with your IDP, Pomerium uses a configurable policy to decide how to route your user's request and if they are authorized to the service.
+
+<img alt="pomerium architecture diagram" src="/pomerium-system-context.svg" width="65%">
+
+### Component Level
+
+Pomerium is composed of 3 logical components:
+
+- Proxy Service
+  - All user traffic flows through the proxy
+  - Initiates authentication flow to Authentication service as needed
+  - Verifies all requests with Authorization service
+  - Verifies all requests with Authorization service
+  - Processes policy to determine external/internal route mappings
+- Authentication Service
+  - Handles authentication flow to your IDP as needed
+  - Handles identity verification after initial Authentication
+- Authorization Service
+  - Processes policy to determine permissions for each service
+  - Handles authorization check for all user sessions
+
+In production deployments, it is recommended that you deploy each component separately.  This allows you to limit external attack surface, as well as scale and manage the services independently.
+
+In test deployments, all three components may run from a single binary and configuration.
+
+<img alt="pomerium architecture diagram" src="/pomerium-container-context.svg" width="65%">
 
 ## In action
 
