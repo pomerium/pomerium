@@ -95,31 +95,23 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 
 #### kubernetes_gke
 
-<<< @/scripts/kubernetes_gke.sh
+<<< @/docs/docs/reference/examples/kubernetes/kubernetes_gke.sh
 
-#### authenticate.deploy.yml
+#### kubernetes-config.yaml
 
-<<< @/docs/docs/reference/examples/kubernetes/authenticate.deploy.yml
+<<< @/docs/docs/reference/examples/kubernetes/kubernetes-config.yaml
 
-#### authenticate.service.yml
+#### pomerium-authenticate.yml
 
-<<< @/docs/docs/reference/examples/kubernetes/authenticate.service.yml
+<<< @/docs/docs/reference/examples/kubernetes/pomerium-authenticate.yml
 
-#### authorize.deploy.yml
+#### pomerium-authorize.yml
 
-<<< @/docs/docs/reference/examples/kubernetes/authorize.deploy.yml
+<<< @/docs/docs/reference/examples/kubernetes/pomerium-authorize.yml
 
-#### authorize.service.yml
+#### pomerium-proxy.yml
 
-<<< @/docs/docs/reference/examples/kubernetes/authorize.service.yml
-
-#### proxy.deploy.yml
-
-<<< @/docs/docs/reference/examples/kubernetes/proxy.deploy.yml
-
-#### proxy.service.yml
-
-<<< @/docs/docs/reference/examples/kubernetes/proxy.service.yml
+<<< @/docs/docs/reference/examples/kubernetes/pomerium-proxy.yml
 
 #### ingress.yml
 

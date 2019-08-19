@@ -1,10 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pomerium-authenticate-service
+  annotations:
+    cloud.google.com/app-protocols: '{"https":"HTTPS"}'
+spec:
+  ports:
+    - port: 443
+      name: https
+  selector:
+    app: pomerium-authenticate
+  type: NodePort
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pomerium-authenticate
   labels:
     app: pomerium-authenticate
-  namespace: pomerium
 spec:
   replicas: 1
   selector:
@@ -16,8 +29,10 @@ spec:
         app: pomerium-authenticate
     spec:
       containers:
-        - image: pomerium/pomerium:v0.2.0
+        - image: pomerium/pomerium:latest
           name: pomerium-authenticate
+          args:
+            - --config=/etc/pomerium/config.yaml
           ports:
             - containerPort: 443
               name: https
@@ -25,14 +40,6 @@ spec:
           env:
             - name: SERVICES
               value: authenticate
-            - name: AUTHENTICATE_SERVICE_URL
-              value: https://authenticate.corp.beyondperimeter.com
-            - name: IDP_PROVIDER
-              value: google
-            - name: IDP_PROVIDER_URL
-              value: https://accounts.google.com
-            - name: IDP_CLIENT_ID
-              value: 851877082059-bfgkpj09noog7as3gpc3t7r6n9sjbgs6.apps.googleusercontent.com
             - name: SHARED_SECRET
               valueFrom:
                 secretKeyRef:
@@ -43,16 +50,6 @@ spec:
                 secretKeyRef:
                   name: cookie-secret
                   key: cookie-secret
-            - name: IDP_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: idp-client-secret
-                  key: idp-client-secret
-            - name: IDP_SERVICE_ACCOUNT
-              valueFrom:
-                secretKeyRef:
-                  name: idp-service-account
-                  key: idp-service-account
             - name: CERTIFICATE
               valueFrom:
                 secretKeyRef:
@@ -75,3 +72,10 @@ spec:
               scheme: HTTPS
             initialDelaySeconds: 10
             timeoutSeconds: 1
+          volumeMounts:
+            - mountPath: /etc/pomerium/
+              name: config
+      volumes:
+        - name: config
+          configMap:
+            name: config

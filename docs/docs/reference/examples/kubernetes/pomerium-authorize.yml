@@ -1,10 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pomerium-authorize-service
+  annotations:
+    cloud.google.com/app-protocols: '{"https":"HTTPS"}'
+spec:
+  ports:
+    - port: 443
+      name: https
+  selector:
+    app: pomerium-authorize
+  type: NodePort
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pomerium-authorize
   labels:
     app: pomerium-authorize
-  namespace: pomerium
 spec:
   replicas: 1
   selector:
@@ -16,18 +29,15 @@ spec:
         app: pomerium-authorize
     spec:
       containers:
-        - image: pomerium/pomerium:v0.2.0
+        - image: pomerium/pomerium:latest
           name: pomerium-authorize
+          args:
+            - --config=/etc/pomerium/config.yaml
           ports:
             - containerPort: 443
               name: https
               protocol: TCP
           env:
-            - name: POLICY
-              valueFrom:
-                configMapKeyRef:
-                  name: policy
-                  key: policy
             - name: SERVICES
               value: authorize
             - name: SHARED_SECRET
@@ -39,7 +49,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: certificate
-                  key: certificate 
+                  key: certificate
             - name: CERTIFICATE_KEY
               valueFrom:
                 secretKeyRef:
@@ -57,3 +67,10 @@ spec:
               scheme: HTTPS
             initialDelaySeconds: 10
             timeoutSeconds: 1
+          volumeMounts:
+            - mountPath: /etc/pomerium/
+              name: config
+      volumes:
+        - name: config
+          configMap:
+            name: config

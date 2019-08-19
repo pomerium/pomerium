@@ -150,24 +150,21 @@ These settings control upstream connections to the Authorize and Authenticate se
 
 ### GRPC Client Timeout
 
-Maxmimum time before canceling an upstream RPC request.  During transient failures, the proxy will retry upstreams for this duration, if possible.  You should leave this high enough to handle backend service restart and rediscovery so that client requests do not fail.
+Maxmimum time before canceling an upstream RPC request. During transient failures, the proxy will retry upstreams for this duration, if possible. You should leave this high enough to handle backend service restart and rediscovery so that client requests do not fail.
 
-- Environmental Variable: `GRPC_CLIENT_TIMEOUT` 
+- Environmental Variable: `GRPC_CLIENT_TIMEOUT`
 - Config File Key: `grpc_client_timeout`
 - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
 - Default: `10s`
 
 ### GRPC Client DNS RoundRobin
 
-Enable grpc DNS based round robin load balancing.  This method uses DNS to resolve endpoints and does client side load balancing of _all_ addresses returned by the DNS record.  Do not disable unless you have a specific use case.
+Enable grpc DNS based round robin load balancing. This method uses DNS to resolve endpoints and does client side load balancing of _all_ addresses returned by the DNS record. Do not disable unless you have a specific use case.
 
 - Environmental Variable: `GRPC_CLIENT_DNS_ROUNDROBIN`
 - Config File Key: `grpc_client_dns_roundrobin`
 - Type: `bool`
 - Default: `true`
-
-
-
 
 ## HTTP Redirect Address
 
@@ -473,7 +470,7 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 - Config File Key: `authenticate_internal_url`
 - Type: `URL`
 - Optional
-- Example: `https://pomerium-authenticate-service.pomerium.svc.cluster.local`
+- Example: `https://pomerium-authenticate-service.default.svc.cluster.local`
 
 Authenticate Internal Service URL is the internally routed dns name of the authenticate service. This setting is typically used with load balancers that do not gRPC, thus allowing you to specify an internally accessible name.
 
@@ -483,11 +480,11 @@ Authenticate Internal Service URL is the internally routed dns name of the authe
 - Config File Key: `authorize_service_url`
 - Type: `URL`
 - Required
-- Example: `https://access.corp.example.com` or `https://pomerium-authorize-service.pomerium.svc.cluster.local`
+- Example: `https://access.corp.example.com` or `https://pomerium-authorize-service.default.svc.cluster.local`
 
 Authorize Service URL is the location of the internally accessible authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
 
-If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`https://pomerium-authorize-service.pomerium.svc.cluster.local`) instead of an externally routable one (`https://access.corp.example.com`).
+If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`https://pomerium-authorize-service.default.svc.cluster.local`) instead of an externally routable one (`https://access.corp.example.com`).
 
 ## Override Certificate Name
 

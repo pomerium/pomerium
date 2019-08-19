@@ -1,10 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pomerium-proxy-service
+  annotations:
+    cloud.google.com/app-protocols: '{"https":"HTTPS"}'
+spec:
+  ports:
+    - port: 443
+      protocol: TCP
+      name: https
+      targetPort: https
+  selector:
+    app: pomerium-proxy
+  type: NodePort
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pomerium-proxy
   labels:
     app: pomerium-proxy
-  namespace: pomerium
 spec:
   replicas: 1
   selector:
@@ -16,8 +31,10 @@ spec:
         app: pomerium-proxy
     spec:
       containers:
-        - image: pomerium/pomerium:v0.2.0
+        - image: pomerium/pomerium:latest
           name: pomerium-proxy
+          args:
+            - --config=/etc/pomerium/config.yaml
           ports:
             - containerPort: 443
               name: https
@@ -25,14 +42,6 @@ spec:
           env:
             - name: SERVICES
               value: proxy
-            - name: AUTHORIZE_SERVICE_URL
-              value: https://pomerium-authorize-service.pomerium.svc.cluster.local
-            - name: AUTHENTICATE_SERVICE_URL
-              value: https://authenticate.corp.beyondperimeter.com
-            - name: AUTHENTICATE_INTERNAL_URL
-              value: "https://pomerium-authenticate-service.pomerium.svc.cluster.local"
-            - name: OVERRIDE_CERTIFICATE_NAME
-              value: "*.corp.beyondperimeter.com"
             - name: SHARED_SECRET
               valueFrom:
                 secretKeyRef:
@@ -43,17 +52,6 @@ spec:
                 secretKeyRef:
                   name: cookie-secret
                   key: cookie-secret
-            - name: IDP_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: idp-client-secret
-                  key: idp-client-secret
-            # e.g. service account for group retrieval, e.g. gsuite
-            - name: IDP_SERVICE_ACCOUNT
-              valueFrom:
-                secretKeyRef:
-                  name: idp-service-account
-                  key: idp-service-account
             - name: CERTIFICATE
               valueFrom:
                 secretKeyRef:
@@ -64,11 +62,6 @@ spec:
                 secretKeyRef:
                   name: certificate-key
                   key: certificate-key
-            - name: POLICY
-              valueFrom:
-                configMapKeyRef:
-                  name: policy
-                  key: policy
           readinessProbe:
             httpGet:
               path: /ping
@@ -81,3 +74,10 @@ spec:
               scheme: HTTPS
             initialDelaySeconds: 10
             timeoutSeconds: 1
+          volumeMounts:
+            - mountPath: /etc/pomerium/
+              name: config
+      volumes:
+        - name: config
+          configMap:
+            name: config
