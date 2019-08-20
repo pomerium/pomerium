@@ -26,7 +26,10 @@ module.exports = {
       { text: "Recipes", link: "/recipes/" },
       { text: "Community", link: "/community/" }
     ],
-
+    algolia: {
+      apiKey: "1653e881f3a6c17d3ad37f4d4c428e20",
+      indexName: "pomerium"
+    },
     sidebar: {
       "/docs/": [
         {
