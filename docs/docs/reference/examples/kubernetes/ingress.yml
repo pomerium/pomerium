@@ -2,7 +2,6 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: pomerium-ingress
-  namespace: pomerium
   annotations:
     kubernetes.io/ingress.allow-http: "false"
     kubernetes.io/ingress.global-static-ip-name: pomerium
@@ -13,7 +12,6 @@ spec:
       hosts:
         - "*.corp.beyondperimeter.com"
         - "authenticate.corp.beyondperimeter.com"
-        - "authorize.corp.beyondperimeter.com"
 
   rules:
     - host: "*.corp.beyondperimeter.com"
@@ -29,11 +27,4 @@ spec:
           - paths:
             backend:
               serviceName: pomerium-authenticate-service
-              servicePort: https
-    - host: "authorize.corp.beyondperimeter.com"
-      http:
-        paths:
-          - paths:
-            backend:
-              serviceName: pomerium-authorize-service
               servicePort: https

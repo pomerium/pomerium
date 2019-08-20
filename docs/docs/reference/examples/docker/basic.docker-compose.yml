@@ -1,7 +1,7 @@
 version: "3"
 services:
   pomerium:
-    image: pomerium/pomerium:v0.2.0
+    image: pomerium/pomerium:latest
     environment:
       # Generate new secret keys. e.g. `head -c32 /dev/urandom | base64`
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=

@@ -24,17 +24,18 @@ Retrieve the latest copy of pomerium's source-code by cloning the repository.
 
 ```bash
 git clone https://github.com/pomerium/pomerium.git $HOME/pomerium
+cd $HOME/pomerium/docs/docs/reference/examples/kubernetes
 ```
 
 ## Configure
 
-Edit [./scripts/kubernetes_gke.sh] making sure to change the identity provider secret value to match your [identity provider] and [wild-card tls certificate] settings.
+Edit [./kubernetes_gke.sh] making sure to change the identity provider secret value to match your [identity provider] and [wild-card tls certificate] settings.
 
-<<<@/scripts/kubernetes_gke.sh
+<<<@/docs/docs/reference/examples/kubernetes/kubernetes_gke.sh
 
 ## Run
 
-Run [./scripts/kubernetes_gke.sh] which will:
+Run [./kubernetes_gke.sh] which will:
 
 1. Provision a new cluster.
 2. Create authenticate, authorize, and proxy [deployments](https://cloud.google.com/kubernetes-engine/docs/concepts/deployment).
@@ -42,7 +43,8 @@ Run [./scripts/kubernetes_gke.sh] which will:
 4. Configure an ingress load balancer.
 
 ```bash
-sh ./scripts/kubernetes_gke.sh
+cd $HOME/pomerium/docs/docs/reference/examples/kubernetes
+sh ./kubernetes_gke.sh
 ```
 
 You should see roughly the following in your terminal. Note, provisioning does take a few minutes.
@@ -57,7 +59,7 @@ And if you check out Google's Kubernetes Engine dashboard you'll see something l
 
 Open a browser and navigate to `httpbin.your.domain.example`.
 
-[./scripts/kubernetes_gke.sh]: ../reference/examples#google-kubernetes-engine
+[./kubernetes_gke.sh]: ../reference/examples#google-kubernetes-engine
 [example kubernetes files]: ../reference/examples#google-kubernetes-engine
 [identity provider]: ../identity-providers/readme.md
 [letsencrypt]: https://letsencrypt.org/
