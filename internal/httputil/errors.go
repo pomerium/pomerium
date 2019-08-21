@@ -13,19 +13,31 @@ import (
 // Error reports an http error, its http status code, a custom message, and
 // whether it is CanDebug.
 type Error struct {
-	Message  string
-	Code     int
-	CanDebug bool
+	Message    string
+	Code       int
+	CanDebug   bool
+	InnerError error
 }
 
 // Error fulfills the error interface, returning a string representation of the error.
-func (h Error) Error() string {
-	return fmt.Sprintf("%d %s: %s", h.Code, http.StatusText(h.Code), h.Message)
+func (e Error) Error() string {
+	return fmt.Sprintf("%d %s: %s", e.Code, http.StatusText(e.Code), e.Message)
+}
+
+func (e *Error) Log(r *http.Request) {
+	log.FromRequest(r).Error().
+		Err(e.InnerError).
+		Str("error-message", e.Message).
+		Bool("error-debugable", e.CanDebug).
+		Int("error-code", e.Code).
+		Str("error-text", http.StatusText(e.Code)).
+		Msg(e.Error())
 }
 
 // ErrorResponse renders an error page for errors given a message and a status code.
 // If no message is passed, defaults to the text of the status code.
 func ErrorResponse(rw http.ResponseWriter, r *http.Request, e *Error) {
+	e.Log(r)
 	var requestID string
 	if id, ok := log.IDFromRequest(r); ok {
 		requestID = id
