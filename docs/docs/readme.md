@@ -51,6 +51,17 @@ In test deployments, all three components may run from a single binary and confi
 
 <img alt="pomerium architecture diagram" src="/pomerium-container-context.svg" width="65%">
 
+### Authentication Flow
+
+Pomerium's internal and external component interactions during full authentication from a fresh user are diagramed below.
+
+After initial authentication to provide a session token, only the authorization interactions occur.
+
+<a href="/pomerium-auth-flow.svg">
+<img alt="pomerium architecture diagram" src="/pomerium-auth-flow.svg">
+</a>
+
+
 ## In action
 
 To make this a bit more concrete, see the following short video which demonstrates:
