@@ -14,6 +14,8 @@
 
 ### Fixed
 
+- HTTP status codes now better adhere to [RFC7235](https://tools.ietf.org/html/rfc7235). In particular, authentication failures reply with [401 Unauthorized](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401) while authorization failures reply with [403 Forbidden](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403). [GH-272](https://github.com/pomerium/pomerium/pull/272)
+
 ### Changed
 
 - A policy's custom certificate authority can set as a file or a base64 encoded blob(`tls_custom_ca`/`tls_custom_ca_file`). [GH-259](https://github.com/pomerium/pomerium/pull/259)

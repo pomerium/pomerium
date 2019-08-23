@@ -69,133 +69,40 @@ func TestAuthenticate_SignIn(t *testing.T) {
 		redirectURI string
 		session     sessions.SessionStore
 		provider    identity.MockProvider
+		cipher      cryptutil.Cipher
 		wantCode    int
 	}{
-		{"good",
-			"state=example",
-			"redirect_uri=some.example",
-			&sessions.MockSessionStore{
-				Session: &sessions.SessionState{
-					AccessToken:     "AccessToken",
-					RefreshToken:    "RefreshToken",
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			identity.MockProvider{ValidateResponse: true},
-			http.StatusFound},
-		{"session not valid",
-			"state=example",
-			"redirect_uri=some.example",
-			&sessions.MockSessionStore{
-				Session: &sessions.SessionState{
-					AccessToken:     "AccessToken",
-					RefreshToken:    "RefreshToken",
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			identity.MockProvider{ValidateResponse: false},
-			http.StatusInternalServerError},
-		{"session refresh error",
-			"state=example",
-			"redirect_uri=some.example",
-			&sessions.MockSessionStore{
-				Session: &sessions.SessionState{
-					AccessToken:     "AccessToken",
-					RefreshToken:    "RefreshToken",
-					RefreshDeadline: time.Now().Add(-10 * time.Second),
-				}},
-			identity.MockProvider{
-				ValidateResponse: true,
-				RefreshError:     errors.New("error")},
-			http.StatusInternalServerError},
-		{"session save after refresh error",
-			"state=example",
-			"redirect_uri=some.example",
-			&sessions.MockSessionStore{
-				SaveError: errors.New("error"),
-				Session: &sessions.SessionState{
-					AccessToken:     "AccessToken",
-					RefreshToken:    "RefreshToken",
-					RefreshDeadline: time.Now().Add(-10 * time.Second),
-				}},
-			identity.MockProvider{
-				ValidateResponse: true,
-			},
-			http.StatusInternalServerError},
-		{"no cookie found trying to load",
-			"state=example",
-			"redirect_uri=some.example",
-			&sessions.MockSessionStore{
-				LoadError: http.ErrNoCookie,
-				Session: &sessions.SessionState{
-					AccessToken:     "AccessToken",
-					RefreshToken:    "RefreshToken",
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			identity.MockProvider{ValidateResponse: true},
-			http.StatusBadRequest},
-		{"unexpected error trying to load session",
-			"state=example",
-			"redirect_uri=some.example",
-			&sessions.MockSessionStore{
-				LoadError: errors.New("error"),
-				Session: &sessions.SessionState{
-					AccessToken:     "AccessToken",
-					RefreshToken:    "RefreshToken",
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			identity.MockProvider{ValidateResponse: true},
-			http.StatusInternalServerError},
-		{"malformed form",
-			"state=example",
-			"redirect_uri=some.example",
-			&sessions.MockSessionStore{
-				Session: &sessions.SessionState{
-					AccessToken:     "AccessToken",
-					RefreshToken:    "RefreshToken",
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			identity.MockProvider{ValidateResponse: true},
-			http.StatusInternalServerError},
-		{"empty state",
-			"state=",
-			"redirect_uri=some.example",
-			&sessions.MockSessionStore{
-				Session: &sessions.SessionState{
-					AccessToken:     "AccessToken",
-					RefreshToken:    "RefreshToken",
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			identity.MockProvider{ValidateResponse: true},
-			http.StatusBadRequest},
-
-		{"malformed redirect uri",
-			"state=example",
-			"redirect_uri=https://accounts.google.^",
-			&sessions.MockSessionStore{
-				Session: &sessions.SessionState{
-					AccessToken:     "AccessToken",
-					RefreshToken:    "RefreshToken",
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			identity.MockProvider{ValidateResponse: true},
-			http.StatusBadRequest},
+		{"good", "state=example", "https://some.example", &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * time.Second)}}, identity.MockProvider{ValidateResponse: true}, &cryptutil.MockCipher{}, http.StatusFound},
+		{"session not valid", "state=example", "https://some.example", &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * time.Second)}}, identity.MockProvider{ValidateResponse: false}, &cryptutil.MockCipher{}, http.StatusInternalServerError},
+		{"session refresh error", "state=example", "https://some.example", &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, identity.MockProvider{ValidateResponse: true, RefreshError: errors.New("error")}, &cryptutil.MockCipher{}, http.StatusInternalServerError},
+		{"session save after refresh error", "state=example", "https://some.example", &sessions.MockSessionStore{SaveError: errors.New("error"), Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, identity.MockProvider{ValidateResponse: true}, &cryptutil.MockCipher{}, http.StatusInternalServerError},
+		{"no cookie found trying to load", "state=example", "https://some.example", &sessions.MockSessionStore{LoadError: http.ErrNoCookie, Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * time.Second)}}, identity.MockProvider{ValidateResponse: true}, &cryptutil.MockCipher{}, http.StatusBadRequest},
+		{"unexpected error trying to load session", "state=example", "https://some.example", &sessions.MockSessionStore{LoadError: errors.New("error"), Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * time.Second)}}, identity.MockProvider{ValidateResponse: true}, &cryptutil.MockCipher{}, http.StatusBadRequest},
+		{"malformed form", "state=example", "https://some.example", &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * time.Second)}}, identity.MockProvider{ValidateResponse: true}, &cryptutil.MockCipher{}, http.StatusInternalServerError},
+		{"empty state", "state=", "https://some.example", &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * time.Second)}}, identity.MockProvider{ValidateResponse: true}, &cryptutil.MockCipher{}, http.StatusBadRequest},
+		{"malformed redirect uri", "state=example", "https://accounts.google.^", &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * time.Second)}}, identity.MockProvider{ValidateResponse: true}, &cryptutil.MockCipher{}, http.StatusBadRequest},
+		// actually caught by go's handler, but we should keep the test.
+		{"bad redirect uri query", "state=nonce", "%gh&%ij", &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * time.Second)}}, identity.MockProvider{ValidateResponse: true}, &cryptutil.MockCipher{}, http.StatusInternalServerError},
+		{"marshal session failure", "state=example", "https://some.example", &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", RefreshDeadline: time.Now().Add(10 * time.Second)}}, identity.MockProvider{ValidateResponse: true}, &cryptutil.MockCipher{MarshalError: errors.New("error")}, http.StatusInternalServerError},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &Authenticate{
 				sessionStore: tt.session,
 				provider:     tt.provider,
-				RedirectURL:  uriParse(tt.redirectURI),
+				RedirectURL:  uriParse("https://some.example"),
 				csrfStore:    &sessions.MockCSRFStore{},
 				SharedKey:    "secret",
-				cipher:       mockCipher{},
+				cipher:       tt.cipher,
 			}
-			uri := &url.URL{Path: "/"}
+			uri := &url.URL{Host: "corp.some.example", Scheme: "https", Path: "/"}
 			if tt.name == "malformed form" {
 				uri.RawQuery = "example=%zzzzz"
 			} else {
-				uri.RawQuery = fmt.Sprintf("%s&%s", tt.state, tt.redirectURI)
+				uri.RawQuery = fmt.Sprintf("%s&redirect_uri=%s", tt.state, tt.redirectURI)
 			}
 			r := httptest.NewRequest(http.MethodGet, uri.String(), nil)
+			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()
 
 			a.SignIn(w, r)
@@ -241,7 +148,6 @@ func Test_getAuthCodeRedirectURL(t *testing.T) {
 		{"https", uriParse("https://www.pomerium.io"), "state", "auth-code", "https://www.pomerium.io?code=auth-code&state=state"},
 		{"http", uriParse("http://www.pomerium.io"), "state", "auth-code", "http://www.pomerium.io?code=auth-code&state=state"},
 		{"no subdomain", uriParse("http://pomerium.io"), "state", "auth-code", "http://pomerium.io?code=auth-code&state=state"},
-		{"no scheme make https", uriParse("pomerium.io"), "state", "auth-code", "https://pomerium.io?code=auth-code&state=state"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -274,7 +180,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 	}{
 		{"good post", http.MethodPost, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, http.StatusFound, ""},
 		{"failed revoke", http.MethodPost, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, http.StatusBadRequest, "could not revoke"},
-		{"malformed form", http.MethodPost, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, http.StatusBadRequest, ""},
+		{"malformed form", http.MethodPost, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &sessions.MockSessionStore{Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, http.StatusInternalServerError, ""},
 		{"load session error", http.MethodPost, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &sessions.MockSessionStore{LoadError: errors.New("hi"), Session: &sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, http.StatusFound, ""},
 	}
 	for _, tt := range tests {
@@ -316,8 +222,9 @@ func redirectURLSignature(rawRedirect string, timestamp time.Time, secret string
 
 func TestAuthenticate_OAuthStart(t *testing.T) {
 	tests := []struct {
-		name   string
-		method string
+		name               string
+		method             string
+		redirectURLSetting string
 
 		redirectURL string
 		sig         string
@@ -328,47 +235,16 @@ func TestAuthenticate_OAuthStart(t *testing.T) {
 		// sessionStore sessions.SessionStore
 		wantCode int
 	}{
-		{"good",
-			http.MethodGet,
-			"https://corp.pomerium.io/",
-			redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"),
-			fmt.Sprint(time.Now().Unix()),
-			identity.MockProvider{},
-			sessions.MockCSRFStore{},
-			http.StatusFound,
-		},
-		{"bad timestamp",
-			http.MethodGet,
-			"https://corp.pomerium.io/",
-			redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"),
-			fmt.Sprint(time.Now().Add(10 * time.Hour).Unix()),
-			identity.MockProvider{},
-			sessions.MockCSRFStore{},
-			http.StatusBadRequest,
-		},
-		{"missing redirect",
-			http.MethodGet,
-			"",
-			redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"),
-			fmt.Sprint(time.Now().Unix()),
-			identity.MockProvider{},
-			sessions.MockCSRFStore{},
-			http.StatusBadRequest,
-		},
-		{"malformed redirect",
-			http.MethodGet,
-			"https://pomerium.com%zzzzz",
-			redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"),
-			fmt.Sprint(time.Now().Unix()),
-			identity.MockProvider{},
-			sessions.MockCSRFStore{},
-			http.StatusBadRequest,
-		},
+		{"good", http.MethodGet, "https://corp.pomerium.io/", "https://corp.pomerium.io/", redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"), fmt.Sprint(time.Now().Unix()), identity.MockProvider{}, sessions.MockCSRFStore{}, http.StatusFound},
+		{"bad timestamp", http.MethodGet, "https://corp.pomerium.io/", "https://corp.pomerium.io/", redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"), fmt.Sprint(time.Now().Add(10 * time.Hour).Unix()), identity.MockProvider{}, sessions.MockCSRFStore{}, http.StatusBadRequest},
+		{"missing redirect", http.MethodGet, "https://corp.pomerium.io/", "", redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"), fmt.Sprint(time.Now().Unix()), identity.MockProvider{}, sessions.MockCSRFStore{}, http.StatusBadRequest},
+		{"malformed redirect", http.MethodGet, "https://corp.pomerium.io/", "https://pomerium.com%zzzzz", redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"), fmt.Sprint(time.Now().Unix()), identity.MockProvider{}, sessions.MockCSRFStore{}, http.StatusBadRequest},
+		{"different domains", http.MethodGet, "https://corp.notpomerium.io/", "https://corp.pomerium.io/", redirectURLSignature("https://corp.pomerium.io/", time.Now(), "secret"), fmt.Sprint(time.Now().Unix()), identity.MockProvider{}, sessions.MockCSRFStore{}, http.StatusBadRequest},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &Authenticate{
-				RedirectURL: uriParse("http://www.pomerium.io"),
+				RedirectURL: uriParse(tt.redirectURLSetting),
 				csrfStore:   tt.csrfStore,
 				provider:    tt.provider,
 				SharedKey:   "secret",
@@ -383,18 +259,19 @@ func TestAuthenticate_OAuthStart(t *testing.T) {
 			u.RawQuery = params.Encode()
 
 			r := httptest.NewRequest(tt.method, u.String(), nil)
+			r.Header.Set("Accept", "application/json")
+
 			w := httptest.NewRecorder()
 
 			a.OAuthStart(w, r)
 			if status := w.Code; status != tt.wantCode {
-				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
+				t.Errorf("handler returned wrong status code: got %v want %v\n%v", status, tt.wantCode, w.Body.String())
 			}
 		})
 	}
 }
 
-func TestAuthenticate_getOAuthCallback(t *testing.T) {
-
+func TestAuthenticate_OAuthCallback(t *testing.T) {
 	tests := []struct {
 		name   string
 		method string
@@ -408,216 +285,22 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 		provider        identity.MockProvider
 		csrfStore       sessions.MockCSRFStore
 
-		want    string
-		wantErr bool
+		want     string
+		wantCode int
 	}{
-		{"good",
-			http.MethodGet,
-			"",
-			"code",
-			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			"https://authenticate.pomerium.io",
-			&sessions.MockSessionStore{},
-			identity.MockProvider{
-				AuthenticateResponse: sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
-
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			sessions.MockCSRFStore{
-				ResponseCSRF: "csrf",
-				Cookie:       &http.Cookie{Value: "nonce"}},
-			"https://corp.pomerium.io",
-			false,
-		},
-		{"get csrf error",
-			http.MethodGet,
-			"",
-			"code",
-			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			"https://authenticate.pomerium.io",
-			&sessions.MockSessionStore{},
-			identity.MockProvider{
-				AuthenticateResponse: sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
-
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			sessions.MockCSRFStore{
-				ResponseCSRF: "csrf",
-				GetError:     errors.New("error"),
-				Cookie:       &http.Cookie{Value: "not nonce"}},
-			"",
-			true,
-		},
-		{"csrf nonce error",
-			http.MethodGet,
-			"",
-			"code",
-			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			"https://authenticate.pomerium.io",
-			&sessions.MockSessionStore{},
-			identity.MockProvider{
-				AuthenticateResponse: sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
-
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			sessions.MockCSRFStore{
-				ResponseCSRF: "csrf",
-				Cookie:       &http.Cookie{Value: "not nonce"}},
-			"",
-			true,
-		},
-		{"failed authenticate",
-			http.MethodGet,
-			"",
-			"code",
-			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			"https://authenticate.pomerium.io",
-			&sessions.MockSessionStore{},
-			identity.MockProvider{
-				AuthenticateError: errors.New("error"),
-			},
-			sessions.MockCSRFStore{
-				ResponseCSRF: "csrf",
-				Cookie:       &http.Cookie{Value: "nonce"}},
-			"",
-			true,
-		},
-		{"failed save session",
-			http.MethodGet,
-			"",
-			"code",
-			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			"https://authenticate.pomerium.io",
-			&sessions.MockSessionStore{SaveError: errors.New("error")},
-			identity.MockProvider{
-				AuthenticateResponse: sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
-
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			sessions.MockCSRFStore{
-				ResponseCSRF: "csrf",
-				Cookie:       &http.Cookie{Value: "nonce"}},
-			"",
-			true,
-		},
-
-		{"error returned",
-			http.MethodGet,
-			"idp error",
-			"code",
-			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			"https://authenticate.pomerium.io",
-			&sessions.MockSessionStore{},
-			identity.MockProvider{
-				AuthenticateResponse: sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
-
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			sessions.MockCSRFStore{
-				ResponseCSRF: "csrf",
-				Cookie:       &http.Cookie{Value: "nonce"}},
-			"",
-			true,
-		},
-		{"empty code",
-			http.MethodGet,
-			"",
-			"",
-			base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")),
-			"https://authenticate.pomerium.io",
-			&sessions.MockSessionStore{},
-			identity.MockProvider{
-				AuthenticateResponse: sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
-
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			sessions.MockCSRFStore{
-				ResponseCSRF: "csrf",
-				Cookie:       &http.Cookie{Value: "nonce"}},
-			"",
-			true,
-		},
-		{"invalid state string",
-			http.MethodGet,
-			"",
-			"code",
-			"nonce:https://corp.pomerium.io",
-			"https://authenticate.pomerium.io",
-			&sessions.MockSessionStore{},
-			identity.MockProvider{
-				AuthenticateResponse: sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
-
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			sessions.MockCSRFStore{
-				ResponseCSRF: "csrf",
-				Cookie:       &http.Cookie{Value: "nonce"}},
-			"",
-			true,
-		},
-		{"malformed state",
-			http.MethodGet,
-			"",
-			"code",
-			base64.URLEncoding.EncodeToString([]byte("nonce")),
-			"https://authenticate.pomerium.io",
-			&sessions.MockSessionStore{},
-			identity.MockProvider{
-				AuthenticateResponse: sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
-
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			sessions.MockCSRFStore{
-				ResponseCSRF: "csrf",
-				Cookie:       &http.Cookie{Value: "nonce"}},
-			"",
-			true,
-		},
-		{"invalid redirect uri",
-			http.MethodGet,
-			"",
-			"code",
-			base64.URLEncoding.EncodeToString([]byte("nonce:corp.pomerium.io")),
-			"https://authenticate.pomerium.io",
-			&sessions.MockSessionStore{},
-			identity.MockProvider{
-				AuthenticateResponse: sessions.SessionState{
-					AccessToken:  "AccessToken",
-					RefreshToken: "RefreshToken",
-					Email:        "blah@blah.com",
-
-					RefreshDeadline: time.Now().Add(10 * time.Second),
-				}},
-			sessions.MockCSRFStore{
-				ResponseCSRF: "csrf",
-				Cookie:       &http.Cookie{Value: "nonce"}},
-			"",
-			true,
-		},
+		{"good", http.MethodGet, "", "code", base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "nonce"}}, "https://corp.pomerium.io", http.StatusFound},
+		{"get csrf error", http.MethodGet, "", "code", base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", GetError: errors.New("error"), Cookie: &http.Cookie{Value: "not nonce"}}, "", http.StatusInternalServerError},
+		{"csrf nonce error", http.MethodGet, "", "code", base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "not nonce"}}, "", http.StatusInternalServerError},
+		{"failed authenticate", http.MethodGet, "", "code", base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateError: errors.New("error")}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "nonce"}}, "", http.StatusInternalServerError},
+		{"failed save session", http.MethodGet, "", "code", base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{SaveError: errors.New("error")}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "nonce"}}, "", http.StatusInternalServerError},
+		{"provider returned error", http.MethodGet, "idp error", "code", base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "nonce"}}, "", http.StatusBadRequest},
+		{"empty code", http.MethodGet, "", "", base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "nonce"}}, "", http.StatusBadRequest},
+		{"invalid state string", http.MethodGet, "", "code", "nonce:https://corp.pomerium.io", "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "nonce"}}, "", http.StatusInternalServerError},
+		{"malformed state", http.MethodGet, "", "code", base64.URLEncoding.EncodeToString([]byte("nonce")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "nonce"}}, "", http.StatusInternalServerError},
+		{"invalid redirect uri", http.MethodGet, "", "code", base64.URLEncoding.EncodeToString([]byte("nonce:corp.pomerium.io")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "nonce"}}, "", http.StatusBadRequest},
+		{"malformed form", http.MethodGet, "", "code", base64.URLEncoding.EncodeToString([]byte("nonce:https://corp.pomerium.io")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "nonce"}}, "", http.StatusBadRequest},
+		{"bad redirect uri", http.MethodGet, "", "code", base64.URLEncoding.EncodeToString([]byte("nonce:http://^^^")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "nonce"}}, "https://corp.pomerium.io", http.StatusBadRequest},
+		{"different domains", http.MethodGet, "", "code", base64.URLEncoding.EncodeToString([]byte("nonce:http://some.example.notpomerium.io")), "https://authenticate.pomerium.io", &sessions.MockSessionStore{}, identity.MockProvider{AuthenticateResponse: sessions.SessionState{AccessToken: "AccessToken", RefreshToken: "RefreshToken", Email: "blah@blah.com", RefreshDeadline: time.Now().Add(10 * time.Second)}}, sessions.MockCSRFStore{ResponseCSRF: "csrf", Cookie: &http.Cookie{Value: "nonce"}}, "https://corp.pomerium.io", http.StatusBadRequest},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -636,16 +319,17 @@ func TestAuthenticate_getOAuthCallback(t *testing.T) {
 
 			u.RawQuery = params.Encode()
 
+			if tt.name == "malformed form" {
+				u.RawQuery = "example=%zzzzz"
+			}
 			r := httptest.NewRequest(tt.method, u.String(), nil)
+			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()
 
-			got, err := a.getOAuthCallback(w, r)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Authenticate.getOAuthCallback() error = %v, wantErr %v", err, tt.wantErr)
+			a.OAuthCallback(w, r)
+			if w.Result().StatusCode != tt.wantCode {
+				t.Errorf("Authenticate.OAuthCallback() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantCode, w.Body.String())
 				return
-			}
-			if got != tt.want {
-				t.Errorf("Authenticate.getOAuthCallback() = %v, want %v", got, tt.want)
 			}
 		})
 	}

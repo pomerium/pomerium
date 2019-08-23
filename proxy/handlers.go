@@ -57,7 +57,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
-			httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusBadRequest})
+			httputil.ErrorResponse(w, r, err)
 			return
 		}
 		uri, err := url.Parse(r.Form.Get("redirect_uri"))
@@ -86,9 +86,7 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	// Encrypt, and save CSRF state. Will be checked on callback.
 	localState, err := p.cipher.Marshal(state)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: failed to marshal csrf")
-		httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusInternalServerError}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 	p.csrfStore.SetCSRF(w, r, localState)
@@ -97,9 +95,7 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	// create a different cipher text using another nonce
 	remoteState, err := p.cipher.Marshal(state)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: failed to encrypt cookie")
-		httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusInternalServerError}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 
@@ -110,9 +106,7 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	// we panic as a failure most likely means the rands entropy source is failing?
 	if remoteState == localState {
 		p.sessionStore.ClearSession(w, r)
-		log.FromRequest(r).Error().Msg("proxy: encrypted state should not match")
-		httpErr := &httputil.Error{Message: http.StatusText(http.StatusBadRequest), Code: http.StatusBadRequest}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, httputil.Error("encrypted state should not match", http.StatusBadRequest, nil))
 		return
 	}
 
@@ -130,15 +124,12 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 // finish the oauth cycle
 func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: failed parsing request form")
-		httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusInternalServerError}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 
-	if errorString := r.Form.Get("error"); errorString != "" {
-		httpErr := &httputil.Error{Message: errorString, Code: http.StatusBadRequest}
-		httputil.ErrorResponse(w, r, httpErr)
+	if callbackError := r.Form.Get("error"); callbackError != "" {
+		httputil.ErrorResponse(w, r, httputil.Error(callbackError, http.StatusBadRequest, nil))
 		return
 	}
 
@@ -146,18 +137,14 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	remoteStateEncrypted := r.Form.Get("state")
 	remoteStatePlain := new(StateParameter)
 	if err := p.cipher.Unmarshal(remoteStateEncrypted, remoteStatePlain); err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: could not unmarshal state")
-		httpErr := &httputil.Error{Message: "Internal error", Code: http.StatusInternalServerError}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 
 	// Encrypted CSRF from session storage
 	c, err := p.csrfStore.GetCSRF(r)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: failed parsing csrf cookie")
-		httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusBadRequest}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 	p.csrfStore.ClearCSRF(w, r)
@@ -165,9 +152,7 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	localStatePlain := new(StateParameter)
 	err = p.cipher.Unmarshal(localStateEncrypted, localStatePlain)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: couldn't unmarshal CSRF")
-		httpErr := &httputil.Error{Message: "Internal error", Code: http.StatusInternalServerError}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 
@@ -175,18 +160,16 @@ func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	// Likely a replay attack or nonce-reuse.
 	if remoteStateEncrypted == localStateEncrypted {
 		p.sessionStore.ClearSession(w, r)
-		log.FromRequest(r).Error().Msg("proxy: local and remote state should not match")
-		httpErr := &httputil.Error{Message: http.StatusText(http.StatusBadRequest), Code: http.StatusBadRequest}
-		httputil.ErrorResponse(w, r, httpErr)
+
+		httputil.ErrorResponse(w, r, httputil.Error("local and remote state should not match!", http.StatusBadRequest, nil))
+
 		return
 	}
 
 	// Decrypted remote and local state struct (inc. nonce) must match
 	if remoteStatePlain.SessionID != localStatePlain.SessionID {
 		p.sessionStore.ClearSession(w, r)
-		log.FromRequest(r).Error().Msg("proxy: CSRF mismatch")
-		httpErr := &httputil.Error{Message: "CSRF mismatch", Code: http.StatusBadRequest}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, httputil.Error("CSRF mismatch", http.StatusBadRequest, nil))
 		return
 	}
 
@@ -225,59 +208,50 @@ func isCORSPreflight(r *http.Request) bool {
 // Proxy authenticates a request, either proxying the request if it is authenticated,
 // or starting the authenticate service for validation if not.
 func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
-	if !p.shouldSkipAuthentication(r) {
-		s, err := p.restStore.LoadSession(r)
-		// if authorization bearer token does not exist or fails, use cookie store
-		if err != nil || s == nil {
-			s, err = p.sessionStore.LoadSession(r)
-			if err != nil {
-				switch err {
-				case http.ErrNoCookie, sessions.ErrLifetimeExpired, sessions.ErrInvalidSession:
-					log.FromRequest(r).Debug().Str("cause", err.Error()).Msg("proxy: invalid session, start auth process")
-					p.sessionStore.ClearSession(w, r)
-					p.OAuthStart(w, r)
-					return
-				default:
-					log.FromRequest(r).Error().Err(err).Msg("proxy: unexpected error")
-					httpErr := &httputil.Error{Message: "An unexpected error occurred", Code: http.StatusInternalServerError}
-					httputil.ErrorResponse(w, r, httpErr)
-					return
-				}
-			}
-		}
-
-		if err = p.authenticate(w, r, s); err != nil {
-			p.sessionStore.ClearSession(w, r)
-			log.FromRequest(r).Debug().Err(err).Msg("proxy: user unauthenticated")
-			httpErr := &httputil.Error{Message: "User unauthenticated", Code: http.StatusForbidden, CanDebug: true}
-			httputil.ErrorResponse(w, r, httpErr)
-			return
-		}
-		authorized, err := p.AuthorizeClient.Authorize(r.Context(), r.Host, s)
-		if err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("proxy: failed authorization")
-			httpErr := &httputil.Error{Code: http.StatusInternalServerError}
-			httputil.ErrorResponse(w, r, httpErr)
-			return
-		}
-
-		if !authorized {
-			log.FromRequest(r).Warn().Err(err).Msg("proxy: user unauthorized")
-			httpErr := &httputil.Error{Code: http.StatusUnauthorized, CanDebug: true}
-			httputil.ErrorResponse(w, r, httpErr)
-			return
-		}
-		r.Header.Set(HeaderUserID, s.User)
-		r.Header.Set(HeaderEmail, s.RequestEmail())
-		r.Header.Set(HeaderGroups, s.RequestGroups())
-	}
-
-	// We have validated the users request and now proxy their request to the provided upstream.
+	// does a route exist for this request?
 	route, ok := p.router(r)
 	if !ok {
-		httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusNotFound})
+		httputil.ErrorResponse(w, r, httputil.Error(fmt.Sprintf("%s is not a managed route.", r.Host), http.StatusNotFound, nil))
 		return
 	}
+
+	if p.shouldSkipAuthentication(r) {
+		log.FromRequest(r).Debug().Msg("proxy: access control skipped")
+		route.ServeHTTP(w, r)
+		return
+	}
+
+	s, err := p.restStore.LoadSession(r)
+	// if authorization bearer token does not exist or fails, use cookie store
+	if err != nil || s == nil {
+		s, err = p.sessionStore.LoadSession(r)
+		if err != nil {
+			log.FromRequest(r).Debug().Str("cause", err.Error()).Msg("proxy: invalid session, re-authenticating")
+			p.sessionStore.ClearSession(w, r)
+			p.OAuthStart(w, r)
+			return
+		}
+	}
+
+	if err = p.authenticate(w, r, s); err != nil {
+		p.sessionStore.ClearSession(w, r)
+		httputil.ErrorResponse(w, r, httputil.Error("User unauthenticated", http.StatusUnauthorized, err))
+		return
+	}
+	authorized, err := p.AuthorizeClient.Authorize(r.Context(), r.Host, s)
+	if err != nil {
+		httputil.ErrorResponse(w, r, err)
+		return
+	}
+
+	if !authorized {
+		httputil.ErrorResponse(w, r, httputil.Error(fmt.Sprintf("%s is not authorized for this route", s.Email), http.StatusForbidden, nil))
+		return
+	}
+	r.Header.Set(HeaderUserID, s.User)
+	r.Header.Set(HeaderEmail, s.RequestEmail())
+	r.Header.Set(HeaderGroups, s.RequestGroups())
+
 	route.ServeHTTP(w, r)
 }
 
@@ -294,18 +268,15 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := p.authenticate(w, r, session); err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: authenticate failed")
-		httpErr := &httputil.Error{Code: http.StatusUnauthorized, CanDebug: true}
-		httputil.ErrorResponse(w, r, httpErr)
+		p.sessionStore.ClearSession(w, r)
+		httputil.ErrorResponse(w, r, httputil.Error("User unauthenticated", http.StatusUnauthorized, err))
 		return
 	}
 
 	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/.pomerium/sign_out"}
 	isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), session)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: is admin client")
-		httpErr := &httputil.Error{Code: http.StatusInternalServerError}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 
@@ -313,9 +284,7 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 	csrf := &StateParameter{SessionID: fmt.Sprintf("%x", cryptutil.GenerateKey())}
 	csrfCookie, err := p.cipher.Marshal(csrf)
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: failed to marshal csrf")
-		httpErr := &httputil.Error{Code: http.StatusInternalServerError}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 	p.csrfStore.SetCSRF(w, r, csrfCookie)
@@ -351,38 +320,29 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) Refresh(w http.ResponseWriter, r *http.Request) {
 	session, err := p.sessionStore.LoadSession(r)
 	if err != nil {
-		httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusBadRequest}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 	iss, err := session.IssuedAt()
 	if err != nil {
-		log.FromRequest(r).Error().Err(err).Msg("proxy: couldn't get token's create time")
-		httpErr := &httputil.Error{Code: http.StatusInternalServerError}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 
 	// reject a refresh if it's been less than the refresh cooldown to prevent abuse
 	if time.Since(iss) < p.refreshCooldown {
-		log.FromRequest(r).Error().Dur("cooldown", p.refreshCooldown).Err(err).Msg("proxy: refresh cooldown")
-		httpErr := &httputil.Error{
-			Message: fmt.Sprintf("Session must be %v old before refresh", p.refreshCooldown),
-			Code:    http.StatusBadRequest}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r,
+			httputil.Error(fmt.Sprintf("Session must be %s old before refreshing", p.refreshCooldown), http.StatusBadRequest, nil))
 		return
 	}
 
 	newSession, err := p.AuthenticateClient.Refresh(r.Context(), session)
 	if err != nil {
-		log.FromRequest(r).Warn().Err(err).Msg("proxy: refresh failed")
-		httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusInternalServerError}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 	if err = p.sessionStore.SaveSession(w, r, newSession); err != nil {
-		httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusInternalServerError}
-		httputil.ErrorResponse(w, r, httpErr)
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/.pomerium", http.StatusFound)
@@ -394,50 +354,35 @@ func (p *Proxy) Refresh(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		if err := r.ParseForm(); err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("proxy: impersonate form")
-			httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusBadRequest}
-			httputil.ErrorResponse(w, r, httpErr)
+			httputil.ErrorResponse(w, r, err)
 			return
 		}
 		session, err := p.sessionStore.LoadSession(r)
 		if err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("proxy: load session")
-			httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusInternalServerError}
-			httputil.ErrorResponse(w, r, httpErr)
+			httputil.ErrorResponse(w, r, err)
 			return
 		}
 		// authorization check -- is this user an admin?
 		isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), session)
 		if err != nil || !isAdmin {
-			log.FromRequest(r).Error().Err(err).Msg("proxy: user must be admin to impersonate")
-			httpErr := &httputil.Error{
-				Message:  fmt.Sprintf("%s must be and administrator", session.Email),
-				Code:     http.StatusForbidden,
-				CanDebug: true}
-			httputil.ErrorResponse(w, r, httpErr)
+			httputil.ErrorResponse(w, r, httputil.Error(fmt.Sprintf("%s is not an administrator", session.Email), http.StatusForbidden, err))
 			return
 		}
 		// CSRF check -- did this request originate from our form?
 		c, err := p.csrfStore.GetCSRF(r)
 		if err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("proxy: failed parsing csrf cookie")
-			httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusBadRequest}
-			httputil.ErrorResponse(w, r, httpErr)
+			httputil.ErrorResponse(w, r, err)
 			return
 		}
 		p.csrfStore.ClearCSRF(w, r)
 		encryptedCSRF := c.Value
 		decryptedCSRF := new(StateParameter)
 		if err = p.cipher.Unmarshal(encryptedCSRF, decryptedCSRF); err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("proxy: couldn't unmarshal CSRF")
-			httpErr := &httputil.Error{Message: "Internal error", Code: http.StatusInternalServerError}
-			httputil.ErrorResponse(w, r, httpErr)
+			httputil.ErrorResponse(w, r, err)
 			return
 		}
 		if decryptedCSRF.SessionID != r.FormValue("csrf") {
-			log.FromRequest(r).Error().Err(err).Msg("proxy: impersonate CSRF mismatch")
-			httpErr := &httputil.Error{Message: "CSRF mismatch", Code: http.StatusForbidden}
-			httputil.ErrorResponse(w, r, httpErr)
+			httputil.ErrorResponse(w, r, httputil.Error("CSRF mismatch", http.StatusBadRequest, nil))
 			return
 		}
 
@@ -446,9 +391,7 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 		session.ImpersonateGroups = strings.Split(r.FormValue("group"), ",")
 
 		if err := p.sessionStore.SaveSession(w, r, session); err != nil {
-			log.FromRequest(r).Error().Err(err).Msg("proxy: save session")
-			httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusInternalServerError}
-			httputil.ErrorResponse(w, r, httpErr)
+			httputil.ErrorResponse(w, r, err)
 			return
 		}
 	}
