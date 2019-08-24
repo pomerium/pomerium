@@ -10,12 +10,21 @@ matrix:
   allow_failures:
     - go: tip
   fast_finish: true
+before_script:
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
+
 script:
   - env GOPROXY=https://proxy.golang.org GO111MODULE=on make all
   - env GO111MODULE=on make cover
   - env GO111MODULE=on make release
+  - env GOPROXY=https://proxy.golang.org GO111MODULE=on go test ./... -coverprofile c.out
+
 after_success:
   - bash <(curl -s https://codecov.io/bash)
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
+
 deploy:
   provider: releases
   api_key:
