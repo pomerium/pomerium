@@ -175,8 +175,8 @@ func TestValidateClientSecret(t *testing.T) {
 	}{
 		{"simple", "secret", "secret", "secret", http.StatusOK},
 		{"missing get param, valid header", "secret", "", "secret", http.StatusOK},
-		{"missing both", "secret", "", "", http.StatusInternalServerError},
-		{"simple bad", "bad-secret", "secret", "", http.StatusInternalServerError},
+		{"missing both", "secret", "", "", http.StatusBadRequest},
+		{"simple bad", "bad-secret", "secret", "", http.StatusBadRequest},
 		{"malformed, invalid hex digits", "secret", "%zzzzz", "", http.StatusBadRequest},
 	}
 
@@ -218,7 +218,7 @@ func TestValidateSignature(t *testing.T) {
 		status       int
 	}{
 		{"valid signature", secretA, goodURL, sig, now, http.StatusOK},
-		{"stale signature", secretA, goodURL, sig, staleTime, http.StatusUnauthorized},
+		{"stale signature", secretA, goodURL, sig, staleTime, http.StatusBadRequest},
 		{"malformed", secretA, goodURL, "%zzzzz", now, http.StatusBadRequest},
 	}
 

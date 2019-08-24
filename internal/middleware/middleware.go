@@ -40,8 +40,7 @@ func ValidateClientSecret(sharedSecret string) func(next http.Handler) http.Hand
 			defer span.End()
 
 			if err := r.ParseForm(); err != nil {
-				httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusBadRequest}
-				httputil.ErrorResponse(w, r, httpErr)
+				httputil.ErrorResponse(w, r, httputil.Error("couldn't parse form", http.StatusBadRequest, err))
 				return
 			}
 			clientSecret := r.Form.Get("shared_secret")
@@ -51,7 +50,7 @@ func ValidateClientSecret(sharedSecret string) func(next http.Handler) http.Hand
 			}
 
 			if clientSecret != sharedSecret {
-				httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusInternalServerError})
+				httputil.ErrorResponse(w, r, httputil.Error("client secret mismatch", http.StatusBadRequest, nil))
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -68,25 +67,16 @@ func ValidateRedirectURI(rootDomain *url.URL) func(next http.Handler) http.Handl
 			defer span.End()
 			err := r.ParseForm()
 			if err != nil {
-				httpErr := &httputil.Error{
-					Message: err.Error(),
-					Code:    http.StatusBadRequest}
-				httputil.ErrorResponse(w, r, httpErr)
+				httputil.ErrorResponse(w, r, httputil.Error("couldn't parse form", http.StatusBadRequest, err))
 				return
 			}
 			redirectURI, err := url.Parse(r.Form.Get("redirect_uri"))
 			if err != nil {
-				httpErr := &httputil.Error{
-					Message: err.Error(),
-					Code:    http.StatusBadRequest}
-				httputil.ErrorResponse(w, r, httpErr)
+				httputil.ErrorResponse(w, r, httputil.Error("bad redirect_uri", http.StatusBadRequest, err))
 				return
 			}
 			if !SameDomain(redirectURI, rootDomain) {
-				httpErr := &httputil.Error{
-					Message: "Invalid redirect parameter",
-					Code:    http.StatusBadRequest}
-				httputil.ErrorResponse(w, r, httpErr)
+				httputil.ErrorResponse(w, r, httputil.Error("redirect uri and root domain differ", http.StatusBadRequest, nil))
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -117,18 +107,14 @@ func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler
 
 			err := r.ParseForm()
 			if err != nil {
-				httpErr := &httputil.Error{Message: err.Error(), Code: http.StatusBadRequest}
-				httputil.ErrorResponse(w, r, httpErr)
+				httputil.ErrorResponse(w, r, httputil.Error("couldn't parse form", http.StatusBadRequest, err))
 				return
 			}
 			redirectURI := r.Form.Get("redirect_uri")
 			sigVal := r.Form.Get("sig")
 			timestamp := r.Form.Get("ts")
 			if !ValidSignature(redirectURI, sigVal, timestamp, sharedSecret) {
-				httpErr := &httputil.Error{
-					Message: "Cross service signature failed to validate",
-					Code:    http.StatusUnauthorized}
-				httputil.ErrorResponse(w, r, httpErr)
+				httputil.ErrorResponse(w, r, httputil.Error("invalid signature", http.StatusBadRequest, nil))
 				return
 			}
 
@@ -145,7 +131,7 @@ func ValidateHost(validHost func(host string) bool) func(next http.Handler) http
 			defer span.End()
 
 			if !validHost(r.Host) {
-				httputil.ErrorResponse(w, r, &httputil.Error{Code: http.StatusNotFound})
+				httputil.ErrorResponse(w, r, httputil.Error(fmt.Sprintf("%s is not a known route.", r.Host), http.StatusNotFound, nil))
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
