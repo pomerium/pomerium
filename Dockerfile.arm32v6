@@ -12,8 +12,10 @@ COPY . .
 RUN make build
 RUN touch /config.yaml
 
-FROM gcr.io/distroless/static
+FROM arm32v6/alpine
 WORKDIR /pomerium
+COPY --from=multiarch/qemu-user-static /usr/bin/qemu-arm-static /usr/bin/
+RUN apk --no-cache add ca-certificates
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
 ENTRYPOINT [ "/bin/pomerium" ]
