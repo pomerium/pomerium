@@ -84,6 +84,11 @@ func TestStripPomeriumCookie(t *testing.T) {
 				Name:  tt.pomeriumCookie,
 				Value: "pomerium cookie!",
 			})
+
+			http.SetCookie(rr, &http.Cookie{
+				Name:  tt.pomeriumCookie + "_csrf",
+				Value: "pomerium csrf cookie!",
+			})
 			req := &http.Request{Header: http.Header{"Cookie": rr.Header()["Set-Cookie"]}}
 
 			handler := StripPomeriumCookie(tt.pomeriumCookie)(testHandler)
