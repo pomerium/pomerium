@@ -1,3 +1,7 @@
+env:
+  global:
+    secure: "IaW3NqPxMYTmIidY40pMC6rsrw9iWWZpIAbVST/NaFArI820zklyp7QdsBKITtYmvmne9XhHxYeOxqJFw5mSTZ9qT1oBpiYnwJL/m1ES+Xknx1MC1N6HV/LwSrsrRlSVbX/9Z/VDxawDq0WTH/omTBUooadcEMG8FSIIt1aDqIe7JnKGUL/EBAM1lkHYgpjT2ysVmB/PJpGGAcYUVrCRP67RR5WFFGsPBTZQHNpY1AUqrhjXneBpSyuHrz4uuj6Z4tl1EefFbBNftvgmkPiWbwhzahz5VLUboBwOEqEqb/K/VmJ7/hK16EFOwS71jGt7v18nocdQbtDFAlEhfeZjUggjJqH9oCoj0zYqhVoJ88xuptuWoBbrHew+R3DKIaCQ2jfg29hT6CEUTU0TqmAK9GLjqYfSGwNQ1h+3NmSUzbQNiNpCa53zVxy442EkVzoODnw6+8K9FkjTVCVykmi3D04btGMaZh58AelsQF8WXdKcSe8bEehVRAjwOeIO9PMsk4+0earQZKKrdXwxExByQudjTWIlvwL1THDlx8NGL3BcjzPubQAK4kcZFPVp3B5DxtBOEXicJC/EM3SYN09oX4qWqXYeJpPYJu+/opbMJJiNj2QC0G4ex0l37xLSnBndV1gwVQpBK6CGOVWK/qzPrfSNb+XaDbh3iS6usycUQFE="
+
 language: go
 go:
   - 1.x
@@ -42,3 +46,68 @@ deploy:
     - dist/pomerium-windows-amd64.md5
     - dist/pomerium-windows-amd64.sha256
   skip_cleanup: true
+
+docker_setup: &docker_setup
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+  - sudo apt-get update
+  - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
+  - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+  - echo ${DOCKER_PASSWORD} | docker login -u pomeriumci --password-stdin
+
+jobs:
+  include:
+    - name: "Test Build amd64"
+      stage: "Docker Build"
+      if: branch = bug/fix-build-arch-2
+      before_script: *docker_setup
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:${TRAVIS_COMMIT} Dockerfile.arm64v8
+
+    - name: "Build Master amd64"
+      if: branch = master
+      before_script: *docker_setup
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:master Dockerfile
+        - docker push ${TRAVIS_REPO_SLUG}
+
+    - name: "Build Master arm64v8"
+      if: branch = master
+      before_script: *docker_setup
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm64v8-master Dockerfile.arm64v8
+        - docker push ${TRAVIS_REPO_SLUG}
+
+    - name: "Build Tag amd64"
+      if: tag =~ /^v([0-9.]+)$/
+      before_script: *docker_setup
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:${TRAVIS_TAG} Dockerfile
+        - docker tag ${TRAVIS_REPO_SLUG}:${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:latest
+        - docker tag ${TRAVIS_REPO_SLUG}:${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:amd64-latest
+        - docker tag ${TRAVIS_REPO_SLUG}:${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:amd64-${TRAVIS_TAG}
+        - docker push ${TRAVIS_REPO_SLUG}
+
+    - name: "Build Tag arm64v8"
+      if: tag =~ /^v([0-9.]+)$/
+      before_script: *docker_setup
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm64v8-${TRAVIS_TAG} Dockerfile.arm64v8
+        - docker tag ${TRAVIS_REPO_SLUG}:arm64v8-${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:arm64v8-latest
+        - docker push ${TRAVIS_REPO_SLUG}
+
+    - name: "Build Tag arm32v7"
+      if: tag =~ /^v([0-9.]+)$/
+      before_script: *docker_setup
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm32v7-${TRAVIS_TAG} Dockerfile.arm32v7
+        - docker tag ${TRAVIS_REPO_SLUG}:arm32v7-${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:arm32v7-latest
+        - docker push ${TRAVIS_REPO_SLUG}
+
+    - name: "Build Tag arm32v6"
+      if: tag =~ /^v([0-9.]+)$/
+      before_script: *docker_setup
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm32v6-${TRAVIS_TAG} Dockerfile.arm32v6
+        - docker tag ${TRAVIS_REPO_SLUG}:arm32v6-${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:arm32v6-latest
+        - docker push ${TRAVIS_REPO_SLUG}
