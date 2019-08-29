@@ -32,12 +32,12 @@ func SignRequest(signer cryptutil.JWTSigner, id, email, groups, header string) f
 func StripPomeriumCookie(cookieName string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.SignRequest")
+			ctx, span := trace.StartSpan(r.Context(), "middleware.StripPomeriumCookie")
 			defer span.End()
 
-			headers := make([]string, len(r.Cookies()))
+			headers := make([]string, 0, len(r.Cookies()))
 			for _, cookie := range r.Cookies() {
-				if cookie.Name != cookieName {
+				if !strings.HasPrefix(cookie.Name, cookieName) {
 					headers = append(headers, cookie.String())
 				}
 			}
