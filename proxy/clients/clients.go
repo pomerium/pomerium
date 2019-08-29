@@ -118,7 +118,7 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 	}
 
 	if opts.ClientDNSRoundRobin {
-		dialOptions = append(dialOptions, grpc.WithBalancerName(roundrobin.Name))
+		dialOptions = append(dialOptions, grpc.WithBalancerName(roundrobin.Name), grpc.WithDisableServiceConfig())
 		connAddr = fmt.Sprintf("dns:///%s", connAddr)
 	}
 
