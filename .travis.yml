@@ -1,7 +1,3 @@
-env:
-  global:
-    secure: "IaW3NqPxMYTmIidY40pMC6rsrw9iWWZpIAbVST/NaFArI820zklyp7QdsBKITtYmvmne9XhHxYeOxqJFw5mSTZ9qT1oBpiYnwJL/m1ES+Xknx1MC1N6HV/LwSrsrRlSVbX/9Z/VDxawDq0WTH/omTBUooadcEMG8FSIIt1aDqIe7JnKGUL/EBAM1lkHYgpjT2ysVmB/PJpGGAcYUVrCRP67RR5WFFGsPBTZQHNpY1AUqrhjXneBpSyuHrz4uuj6Z4tl1EefFbBNftvgmkPiWbwhzahz5VLUboBwOEqEqb/K/VmJ7/hK16EFOwS71jGt7v18nocdQbtDFAlEhfeZjUggjJqH9oCoj0zYqhVoJ88xuptuWoBbrHew+R3DKIaCQ2jfg29hT6CEUTU0TqmAK9GLjqYfSGwNQ1h+3NmSUzbQNiNpCa53zVxy442EkVzoODnw6+8K9FkjTVCVykmi3D04btGMaZh58AelsQF8WXdKcSe8bEehVRAjwOeIO9PMsk4+0earQZKKrdXwxExByQudjTWIlvwL1THDlx8NGL3BcjzPubQAK4kcZFPVp3B5DxtBOEXicJC/EM3SYN09oX4qWqXYeJpPYJu+/opbMJJiNj2QC0G4ex0l37xLSnBndV1gwVQpBK6CGOVWK/qzPrfSNb+XaDbh3iS6usycUQFE="
-
 stages:
   - test
   - "Docker Test Build"
@@ -61,7 +57,7 @@ docker_setup: &docker_setup
   - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
 docker_login: &docker_login
-  - echo ${DOCKER_PASSWORD} | docker login -u pomeriumci --password-stdin
+  - echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
 
 jobs:
   include:
