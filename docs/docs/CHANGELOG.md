@@ -1,26 +1,36 @@
 # Changelog
 
-## vUNRELEASED
+## v0.3.0
 
 ### New
 
-- GRPC Improvements. [#261](https://github.com/pomerium/pomerium/pull/261) and [#69](https://github.com/pomerium/pomerium/issues/69)
+- GRPC Improvements. [GH-261] / [GH-69]
 
   - Enable WaitForReady to allow background retries through transient failures
   - Expose a configurable timeout for backend requests to Authorize and Authenticate
   - Enable DNS round_robin load balancing to Authorize and Authenticate services by default
 
-- Add ability to set client certificates for downstream connections. [GH-259](https://github.com/pomerium/pomerium/pull/259)
+- Add ability to set client certificates for downstream connections. [GH-259]
 
 ### Fixed
 
-- HTTP status codes now better adhere to [RFC7235](https://tools.ietf.org/html/rfc7235). In particular, authentication failures reply with [401 Unauthorized](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401) while authorization failures reply with [403 Forbidden](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403). [GH-272](https://github.com/pomerium/pomerium/pull/272)
+- Fixed non-`amd64` based docker images.[GH-284]
+- Fixed an issue where stripped cookie headers would result in a cookie full of semi-colons (`Cookie: ;;;`). [GH-285]
+- HTTP status codes now better adhere to [RFC7235](https://tools.ietf.org/html/rfc7235). In particular, authentication failures reply with [401 Unauthorized](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401) while authorization failures reply with [403 Forbidden](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403). [GH-272]
 
 ### Changed
 
-- A policy's custom certificate authority can set as a file or a base64 encoded blob(`tls_custom_ca`/`tls_custom_ca_file`). [GH-259](https://github.com/pomerium/pomerium/pull/259)
+- Pomerium will now strip `_csrf` cookies in addition to session cookies. [GG-285]
+- Disabled gRPC service config. [GH-280]
+- A policy's custom certificate authority can set as a file or a base64 encoded blob(`tls_custom_ca`/`tls_custom_ca_file`). [GH-259]
 
-- Remove references to [service named ports](https://golang.org/src/net/lookup.go) and instead use their numeric equivalent. [GH-266](https://github.com/pomerium/pomerium/pull/266)
+- Remove references to [service named ports](https://golang.org/src/net/lookup.go) and instead use their numeric equivalent. [GH-266]
+
+## v0.2.0
+
+### Security
+
+- Fixes vulnerabilities fixed in [Go 1.12.8](https://groups.google.com/forum/#!topic/golang-nuts/fCQWxqxP8aA) including CVE-2019-9512, CVE-2019-9514 and CVE-2019-14809.
 
 ## v0.2.0
 
@@ -179,3 +189,59 @@
 
 [certificates documentation]: ../reference/certificates.md
 [synology tutorial]: ./quick-start/synology.md
+[gh-35]: https://github.com/pomerium/pomerium/issues/35
+[gh-58]: https://github.com/pomerium/pomerium/issues/58
+[gh-69]: https://github.com/pomerium/pomerium/issues/69
+[gh-73]: https://github.com/pomerium/pomerium/issues/73
+[gh-74]: https://github.com/pomerium/pomerium/pull/74
+[gh-79]: https://github.com/pomerium/pomerium/pull/79
+[gh-81]: https://github.com/pomerium/pomerium/pull/81
+[gh-83]: https://github.com/pomerium/pomerium/pull/83
+[gh-92]: https://github.com/pomerium/pomerium/pull/92
+[gh-93]: https://github.com/pomerium/pomerium/pull/93
+[gh-95]: https://github.com/pomerium/pomerium/pull/95
+[gh-96]: https://github.com/pomerium/pomerium/pull/96
+[gh-97]: https://github.com/pomerium/pomerium/issues/97
+[gh-100]: https://github.com/pomerium/pomerium/issues/100
+[gh-101]: https://github.com/pomerium/pomerium/pull/101
+[gh-103]: https://github.com/pomerium/pomerium/issues/103
+[gh-108]: https://github.com/pomerium/pomerium/pull/108
+[gh-110]: https://github.com/pomerium/pomerium/issues/110
+[gh-115]: https://github.com/pomerium/pomerium/issues/115
+[gh-116]: https://github.com/pomerium/pomerium/issues/116
+[gh-121]: https://github.com/pomerium/pomerium/pull/121
+[gh-123]: https://github.com/pomerium/pomerium/pull/123
+[gh-128]: https://github.com/pomerium/pomerium/issues/128
+[gh-129]: https://github.com/pomerium/pomerium/issues/129
+[gh-131]: https://github.com/pomerium/pomerium/pull/131
+[gh-132]: https://github.com/pomerium/pomerium/issues/132
+[gh-144]: https://github.com/pomerium/pomerium/pull/144
+[gh-150]: https://github.com/pomerium/pomerium/pull/150
+[gh-151]: https://github.com/pomerium/pomerium/pull/151
+[gh-153]: https://github.com/pomerium/pomerium/issues/153
+[gh-177]: https://github.com/pomerium/pomerium/pull/177
+[gh-179]: https://github.com/pomerium/pomerium/issues/179
+[gh-181]: https://github.com/pomerium/pomerium/issues/181
+[gh-181]: https://github.com/pomerium/pomerium/issues/188
+[gh-183]: https://github.com/pomerium/pomerium/pull/183
+[gh-190]: https://github.com/pomerium/pomerium/issues/190
+[gh-204]: https://github.com/pomerium/pomerium/issues/204
+[gh-205]: https://github.com/pomerium/pomerium/issues/205
+[gh-211]: https://github.com/pomerium/pomerium/issues/211
+[gh-212]: https://github.com/pomerium/pomerium/pull/212
+[gh-218]: https://github.com/pomerium/pomerium/pull/218
+[gh-219]: https://github.com/pomerium/pomerium/pull/219
+[gh-220]: https://github.com/pomerium/pomerium/pull/220
+[gh-227]: https://github.com/pomerium/pomerium/pull/227
+[gh-230]: https://github.com/pomerium/pomerium/pull/230
+[gh-230]: https://github.com/pomerium/pomerium/pull/230
+[gh-233]: https://github.com/pomerium/pomerium/issues/233
+[gh-240]: https://github.com/pomerium/pomerium/pull/240
+[gh-259]: https://github.com/pomerium/pomerium/pull/259
+[gh-259]: https://github.com/pomerium/pomerium/pull/259
+[gh-261]: https://github.com/pomerium/pomerium/pull/261
+[gh-266]: https://github.com/pomerium/pomerium/pull/266
+[gh-272]: https://github.com/pomerium/pomerium/pull/272
+[gh-280]: https://github.com/pomerium/pomerium/issues/280
+[gh-284]: https://github.com/pomerium/pomerium/pull/284
+[gh-285]: https://github.com/pomerium/pomerium/issues/285
