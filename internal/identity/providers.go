@@ -45,10 +45,10 @@ type UserGrouper interface {
 
 // Authenticator is an interface representing the ability to authenticate with an identity provider.
 type Authenticator interface {
-	Authenticate(context.Context, string) (*sessions.SessionState, error)
-	IDTokenToSession(context.Context, string) (*sessions.SessionState, error)
+	Authenticate(context.Context, string) (*sessions.State, error)
+	IDTokenToSession(context.Context, string) (*sessions.State, error)
 	Validate(context.Context, string) (bool, error)
-	Refresh(context.Context, *sessions.SessionState) (*sessions.SessionState, error)
+	Refresh(context.Context, *sessions.State) (*sessions.State, error)
 	Revoke(string) error
 	GetSignInURL(state string) string
 }
@@ -131,7 +131,7 @@ func (p *Provider) Validate(ctx context.Context, idToken string) (bool, error) {
 // IDTokenToSession takes an identity provider issued JWT as input ('id_token')
 // and returns a session state. The provided token's audience ('aud') must
 // match Pomerium's client_id.
-func (p *Provider) IDTokenToSession(ctx context.Context, rawIDToken string) (*sessions.SessionState, error) {
+func (p *Provider) IDTokenToSession(ctx context.Context, rawIDToken string) (*sessions.State, error) {
 	idToken, err := p.verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return nil, fmt.Errorf("identity: could not verify id_token: %v", err)
@@ -146,7 +146,7 @@ func (p *Provider) IDTokenToSession(ctx context.Context, rawIDToken string) (*se
 		return nil, fmt.Errorf("identity: failed to parse id_token claims: %v", err)
 	}
 
-	return &sessions.SessionState{
+	return &sessions.State{
 		IDToken:         rawIDToken,
 		User:            idToken.Subject,
 		RefreshDeadline: idToken.Expiry.Truncate(time.Second),
@@ -157,7 +157,7 @@ func (p *Provider) IDTokenToSession(ctx context.Context, rawIDToken string) (*se
 }
 
 // Authenticate creates a session with an identity provider from a authorization code
-func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.SessionState, error) {
+func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.State, error) {
 	// exchange authorization for a oidc token
 	oauth2Token, err := p.oauth.Exchange(ctx, code)
 	if err != nil {
@@ -181,7 +181,7 @@ func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.Ses
 // Refresh renews a user's session using therefresh_token without reprompting
 // the user. If supported, group membership is also refreshed.
 // https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
-func (p *Provider) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
+func (p *Provider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
 	if s.RefreshToken == "" {
 		return nil, errors.New("identity: missing refresh token")
 	}

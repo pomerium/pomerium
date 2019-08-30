@@ -48,7 +48,6 @@ services:
       - SERVICES=proxy
       # IMPORTANT! If you are running pomerium behind another ingress (loadbalancer/firewall/etc)
       # you must tell pomerium proxy how to communicate using an internal hostname for RPC
-      - AUTHENTICATE_INTERNAL_URL=https://pomerium-authenticate
       - AUTHORIZE_SERVICE_URL=https://pomerium-authorize
       # When communicating internally, rPC is going to get a name conflict expecting an external
       # facing certificate name (i.e. authenticate-service.local vs *.corp.example.com).

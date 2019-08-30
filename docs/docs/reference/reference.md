@@ -146,7 +146,7 @@ Timeouts set the global server timeouts. For route-specific timeouts, see [polic
 
 ## GRPC Options
 
-These settings control upstream connections to the Authorize and Authenticate services.
+These settings control upstream connections to the Authorize service.
 
 ### GRPC Client Timeout
 
@@ -228,8 +228,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key       | Description                                                       | Required |
 | :--------------- | :---------------------------------------------------------------- | -------- |
-| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅       |
-| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌       |
+| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅        |
+| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌        |
 
 ### Jaeger
 
@@ -243,8 +243,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key                        | Description                                 | Required |
 | :-------------------------------- | :------------------------------------------ | -------- |
-| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅       |
-| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅       |
+| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
+| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
 
 #### Example
 
@@ -463,16 +463,6 @@ Signing key is the base64 encoded key used to sign outbound requests. For more i
 - Example: `https://authenticate.corp.example.com`
 
 Authenticate Service URL is the externally accessible URL for the authenticate service.
-
-## Authenticate Internal Service URL
-
-- Environmental Variable: `AUTHENTICATE_INTERNAL_URL`
-- Config File Key: `authenticate_internal_url`
-- Type: `URL`
-- Optional
-- Example: `https://pomerium-authenticate-service.default.svc.cluster.local`
-
-Authenticate Internal Service URL is the internally routed dns name of the authenticate service. This setting is typically used with load balancers that do not gRPC, thus allowing you to specify an internally accessible name.
 
 ## Authorize Service URL
 

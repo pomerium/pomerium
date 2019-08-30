@@ -93,7 +93,7 @@ func (p *OneLoginProvider) GetSignInURL(state string) string {
 // Refresh renews a user's session using an oid refresh token without reprompting the user.
 // Group membership is also refreshed.
 // https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
-func (p *OneLoginProvider) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
+func (p *OneLoginProvider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
 	if s.RefreshToken == "" {
 		return nil, errors.New("identity/microsoft: missing refresh token")
 	}

@@ -29,7 +29,7 @@ func (ms MockCSRFStore) GetCSRF(*http.Request) (*http.Cookie, error) {
 // MockSessionStore is a mock implementation of the SessionStore interface
 type MockSessionStore struct {
 	ResponseSession string
-	Session         *SessionState
+	Session         *State
 	SaveError       error
 	LoadError       error
 }
@@ -40,11 +40,11 @@ func (ms *MockSessionStore) ClearSession(http.ResponseWriter, *http.Request) {
 }
 
 // LoadSession returns the session and a error
-func (ms MockSessionStore) LoadSession(*http.Request) (*SessionState, error) {
+func (ms MockSessionStore) LoadSession(*http.Request) (*State, error) {
 	return ms.Session, ms.LoadError
 }
 
 // SaveSession returns a save error.
-func (ms MockSessionStore) SaveSession(http.ResponseWriter, *http.Request, *SessionState) error {
+func (ms MockSessionStore) SaveSession(http.ResponseWriter, *http.Request, *State) error {
 	return ms.SaveError
 }

@@ -67,6 +67,18 @@ func NewCipher(secret []byte) (*XChaCha20Cipher, error) {
 	}, nil
 }
 
+// NewCipherFromBase64 takes a base64 encoded secret key and returns a new XChacha20poly1305 cipher.
+func NewCipherFromBase64(s string) (*XChaCha20Cipher, error) {
+	decoded, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil, fmt.Errorf("cryptutil: invalid base64: %v", err)
+	}
+	if len(decoded) != 32 {
+		return nil, fmt.Errorf("cryptutil: got %d bytes but want 32", len(decoded))
+	}
+	return NewCipher(decoded)
+}
+
 // GenerateNonce generates a random nonce.
 // Panics if source of randomness fails.
 func (c *XChaCha20Cipher) GenerateNonce() []byte {

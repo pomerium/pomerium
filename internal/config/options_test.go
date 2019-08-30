@@ -337,7 +337,7 @@ func TestNewOptions(t *testing.T) {
 
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Options{}, "AuthenticateInternalAddr", "DefaultUpstreamTimeout", "CookieRefresh", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "ReadHeaderTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin"),
+		cmpopts.IgnoreFields(Options{}, "DefaultUpstreamTimeout", "CookieRefresh", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "ReadHeaderTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin"),
 		cmpopts.IgnoreFields(Policy{}, "Source", "Destination"),
 	}
 
@@ -361,21 +361,6 @@ func TestOptionsFromViper(t *testing.T) {
 					"X-XSS-Protection":          "1; mode=block",
 				}},
 			false},
-		{"good with authenticate internal url",
-			[]byte(`{"authenticate_internal_url": "https://internal.example","policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
-			&Options{
-				AuthenticateInternalAddrString: "https://internal.example",
-				Policies:                       []Policy{{From: "https://from.example", To: "https://to.example"}},
-				CookieName:                     "_pomerium",
-				CookieSecure:                   true,
-				CookieHTTPOnly:                 true,
-				Headers: map[string]string{
-					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-					"X-Content-Type-Options":    "nosniff",
-					"X-Frame-Options":           "SAMEORIGIN",
-					"X-XSS-Protection":          "1; mode=block",
-				}},
-			false},
 		{"good disable header",
 			[]byte(`{"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
@@ -385,7 +370,6 @@ func TestOptionsFromViper(t *testing.T) {
 				CookieHTTPOnly: true,
 				Headers:        map[string]string{}},
 			false},
-		{"bad  authenticate internal url", []byte(`{"authenticate_internal_url": "internal.example","policy":[{"from": "https://from.example","to":"https://to.example"}]}`), nil, true},
 		{"bad url", []byte(`{"policy":[{"from": "https://","to":"https://to.example"}]}`), nil, true},
 		{"bad policy", []byte(`{"policy":[{"allow_public_unauthenticated_access": "dog","to":"https://to.example"}]}`), nil, true},
 

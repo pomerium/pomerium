@@ -15,9 +15,9 @@ import (
 type Authorizer interface {
 	// Authorize takes a route and user session and returns whether the
 	// request is valid per access policy
-	Authorize(context.Context, string, *sessions.SessionState) (bool, error)
+	Authorize(context.Context, string, *sessions.State) (bool, error)
 	// IsAdmin takes a session and returns whether the user is an administrator
-	IsAdmin(context.Context, *sessions.SessionState) (bool, error)
+	IsAdmin(context.Context, *sessions.State) (bool, error)
 	// Close closes the auth connection if any.
 	Close() error
 }
@@ -46,7 +46,7 @@ type AuthorizeGRPC struct {
 
 // Authorize takes a route and user session and returns whether the
 // request is valid per access policy
-func (a *AuthorizeGRPC) Authorize(ctx context.Context, route string, s *sessions.SessionState) (bool, error) {
+func (a *AuthorizeGRPC) Authorize(ctx context.Context, route string, s *sessions.State) (bool, error) {
 	ctx, span := trace.StartSpan(ctx, "proxy.client.grpc.Authorize")
 	defer span.End()
 
@@ -65,7 +65,7 @@ func (a *AuthorizeGRPC) Authorize(ctx context.Context, route string, s *sessions
 }
 
 // IsAdmin takes a session and returns whether the user is an administrator
-func (a *AuthorizeGRPC) IsAdmin(ctx context.Context, s *sessions.SessionState) (bool, error) {
+func (a *AuthorizeGRPC) IsAdmin(ctx context.Context, s *sessions.State) (bool, error) {
 	ctx, span := trace.StartSpan(ctx, "proxy.client.grpc.IsAdmin")
 	defer span.End()
 

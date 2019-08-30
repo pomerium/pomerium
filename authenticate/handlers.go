@@ -2,12 +2,13 @@ package authenticate // import "github.com/pomerium/pomerium/authenticate"
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
-
-	"golang.org/x/xerrors"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -18,6 +19,7 @@ import (
 )
 
 // CSPHeaders are the content security headers added to the service's handlers
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src
 var CSPHeaders = map[string]string{
 	"Content-Security-Policy": "default-src 'none'; style-src 'self'" +
 		" 'sha256-z9MsgkMbQjRSLxzAfN55jB3a9pP0PQ4OHFH8b4iDP6s=' " +
@@ -27,22 +29,24 @@ var CSPHeaders = map[string]string{
 	"Referrer-Policy": "Same-origin",
 }
 
-// Handler returns the authenticate service's HTTP request multiplexer, and routes.
+// Handler returns the authenticate service's HTTP multiplexer, and routes.
 func (a *Authenticate) Handler() http.Handler {
 	// validation middleware chain
 	c := middleware.NewChain()
 	c = c.Append(middleware.SetHeaders(CSPHeaders))
-	validate := c.Append(middleware.ValidateSignature(a.SharedKey))
-	validate = validate.Append(middleware.ValidateRedirectURI(a.RedirectURL))
 	mux := http.NewServeMux()
 	mux.Handle("/robots.txt", c.ThenFunc(a.RobotsTxt))
-	// Identity Provider (IdP) callback endpoints and callbacks
-	mux.Handle("/start", c.ThenFunc(a.OAuthStart))
+	// Identity Provider (IdP) endpoints
+	mux.Handle("/oauth2", c.ThenFunc(a.OAuthStart))
 	mux.Handle("/oauth2/callback", c.ThenFunc(a.OAuthCallback))
-	// authenticate-server endpoints
-	mux.Handle("/sign_in", validate.ThenFunc(a.SignIn))
-	mux.Handle("/sign_out", validate.ThenFunc(a.SignOut)) // POST
-	// programmatic authentication endpoints
+	// Proxy service endpoints
+	validationMiddlewares := c.Append(
+		middleware.ValidateSignature(a.SharedKey),
+		middleware.ValidateRedirectURI(a.RedirectURL),
+	)
+	mux.Handle("/sign_in", validationMiddlewares.ThenFunc(a.SignIn))
+	mux.Handle("/sign_out", validationMiddlewares.ThenFunc(a.SignOut)) // POST
+	// Direct user access endpoints
 	mux.Handle("/api/v1/token", c.ThenFunc(a.ExchangeToken))
 	return mux
 }
@@ -55,43 +59,46 @@ func (a *Authenticate) RobotsTxt(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
-func (a *Authenticate) authenticate(w http.ResponseWriter, r *http.Request, session *sessions.SessionState) error {
-	if session.RefreshPeriodExpired() {
-		session, err := a.provider.Refresh(r.Context(), session)
-		if err != nil {
-			return xerrors.Errorf("session refresh failed : %w", err)
-		}
-		if err = a.sessionStore.SaveSession(w, r, session); err != nil {
-			return xerrors.Errorf("failed saving refreshed session : %w", err)
-		}
-	} else {
-		valid, err := a.provider.Validate(r.Context(), session.IDToken)
-		if err != nil || !valid {
-			return xerrors.Errorf("session valid: %v : %w", valid, err)
-		}
+func (a *Authenticate) loadExisting(w http.ResponseWriter, r *http.Request) (*sessions.State, error) {
+	session, err := a.sessionStore.LoadSession(r)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	err = session.Valid()
+	if err == nil {
+		return session, nil
+	} else if !errors.Is(err, sessions.ErrExpired) {
+		return nil, fmt.Errorf("authenticate: non-refreshable error: %w", err)
+	} else {
+		return a.refresh(w, r, session)
+	}
+}
+
+func (a *Authenticate) refresh(w http.ResponseWriter, r *http.Request, s *sessions.State) (*sessions.State, error) {
+	newSession, err := a.provider.Refresh(r.Context(), s)
+	if err != nil {
+		return nil, fmt.Errorf("authenticate: refresh failed: %w", err)
+	}
+	if err := a.sessionStore.SaveSession(w, r, newSession); err != nil {
+		return nil, fmt.Errorf("authenticate: refresh save failed: %w", err)
+	}
+	return newSession, nil
+
 }
 
 // SignIn handles to authenticating a user.
 func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
-	session, err := a.sessionStore.LoadSession(r)
+	session, err := a.loadExisting(w, r)
 	if err != nil {
-		log.FromRequest(r).Debug().Err(err).Msg("no session loaded, restart auth")
+		log.FromRequest(r).Debug().Err(err).Msg("authenticate: need new session")
 		a.sessionStore.ClearSession(w, r)
 		a.OAuthStart(w, r)
-		return
-	}
-	// if a session already exists, authenticate it
-	if err := a.authenticate(w, r, session); err != nil {
-		httputil.ErrorResponse(w, r, err)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
 		httputil.ErrorResponse(w, r, err)
 		return
 	}
-
 	state := r.Form.Get("state")
 	if state == "" {
 		httputil.ErrorResponse(w, r, httputil.Error("sign in state empty", http.StatusBadRequest, nil))
@@ -100,21 +107,20 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 
 	redirectURL, err := urlutil.ParseAndValidateURL(r.Form.Get("redirect_uri"))
 	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect_uri parameter passed", http.StatusBadRequest, err))
+		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect_uri", http.StatusBadRequest, err))
 		return
 	}
 	// encrypt session state as json blob
 	encrypted, err := sessions.MarshalSession(session, a.cipher)
 	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("couldn't marshall session", http.StatusInternalServerError, err))
+		httputil.ErrorResponse(w, r, httputil.Error("couldn't marshal session", http.StatusInternalServerError, err))
 		return
 	}
-
 	http.Redirect(w, r, getAuthCodeRedirectURL(redirectURL, state, encrypted), http.StatusFound)
 }
 
 func getAuthCodeRedirectURL(redirectURL *url.URL, state, authCode string) string {
-	// error handled by go's mux stack
+	// ParseQuery err handled by go's mux stack
 	params, _ := url.ParseQuery(redirectURL.RawQuery)
 	params.Set("code", authCode)
 	params.Set("state", state)
@@ -122,8 +128,8 @@ func getAuthCodeRedirectURL(redirectURL *url.URL, state, authCode string) string
 	return redirectURL.String()
 }
 
-// SignOut signs the user out by trying to revoke the user's remote identity session along with
-// the associated local session state. Handles both GET and POST.
+// SignOut signs the user out and attempts to revoke the user's identity session
+// Handles both GET and POST.
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		httputil.ErrorResponse(w, r, err)
@@ -156,7 +162,6 @@ func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	// OIDC : 3.1.2.1.  Authentication Request
 	nonce := fmt.Sprintf("%x", cryptutil.GenerateKey())
 	a.csrfStore.SetCSRF(w, r, nonce)
-
 	// Redirection URI to which the response will be sent. This URI MUST exactly
 	// match one of the Redirection URI values for the Client pre-registered at
 	// at your identity provider
@@ -173,7 +178,6 @@ func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, httputil.Error("invalid signature", http.StatusBadRequest, nil))
 		return
 	}
-
 	// State is the opaque value used to maintain state between the request and
 	// the callback; contains both the nonce and redirect URI
 	state := base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("%v:%v", nonce, authRedirectURL.String())))
@@ -183,74 +187,69 @@ func (a *Authenticate) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, signInURL, http.StatusFound)
 }
 
-// OAuthCallback handles the callback from the identity provider. Displays an error page if there
-// was an error. If successful, the user is redirected back to the proxy-service.
+// OAuthCallback handles the callback from the identity provider.
 // https://openid.net/specs/openid-connect-core-1_0.html#AuthResponse
 func (a *Authenticate) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	redirect, err := a.getOAuthCallback(w, r)
 	if err != nil {
-		httputil.ErrorResponse(w, r, xerrors.Errorf("oauth callback : %w", err))
+		httputil.ErrorResponse(w, r, fmt.Errorf("oauth callback : %w", err))
 		return
 	}
 	// redirect back to the proxy-service via sign_in
-	http.Redirect(w, r, redirect, http.StatusFound)
+	http.Redirect(w, r, redirect.String(), http.StatusFound)
 }
 
-func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) (string, error) {
+func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) (*url.URL, error) {
 	if err := r.ParseForm(); err != nil {
-		return "", httputil.Error("invalid signature", http.StatusBadRequest, err)
+		return nil, httputil.Error("invalid signature", http.StatusBadRequest, err)
 	}
 	// OIDC : 3.1.2.6.  Authentication Error Response
 	// https://openid.net/specs/openid-connect-core-1_0-final.html#AuthError
-	if errorString := r.Form.Get("error"); errorString != "" {
-		return "", httputil.Error("provider returned an error", http.StatusBadRequest, fmt.Errorf("provider returned error: %v", errorString))
+	if idpError := r.Form.Get("error"); idpError != "" {
+		return nil, httputil.Error("provider returned an error", http.StatusBadRequest, fmt.Errorf("provider error: %v", idpError))
 	}
-	// OIDC : 3.1.2.5.  Successful Authentication Response
-	// https://openid.net/specs/openid-connect-core-1_0.html#AuthResponse
 	code := r.Form.Get("code")
 	if code == "" {
-		return "", httputil.Error("provider didn't reply with code", http.StatusBadRequest, nil)
+		return nil, httputil.Error("provider didn't reply with code", http.StatusBadRequest, nil)
 	}
 
 	// validate the returned code with the identity provider
 	session, err := a.provider.Authenticate(r.Context(), code)
 	if err != nil {
-		return "", xerrors.Errorf("error redeeming authenticate code: %w", err)
+		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
-	// Opaque value used to maintain state between the request and the callback.
 	// OIDC : 3.1.2.5.  Successful Authentication Response
-	// https://openid.net/specs/openid-connect-core-1_0.html#AuthResponse
+	// Opaque value used to maintain state between the request and the callback.
 	bytes, err := base64.URLEncoding.DecodeString(r.Form.Get("state"))
 	if err != nil {
-		return "", xerrors.Errorf("failed decoding state: %w", err)
+		return nil, fmt.Errorf("failed decoding state: %w", err)
 	}
 	s := strings.SplitN(string(bytes), ":", 2)
 	if len(s) != 2 {
-		return "", xerrors.Errorf("invalid state size: %v", len(s))
+		return nil, fmt.Errorf("invalid state size: %d", len(s))
 	}
-	// state contains both our csrf nonce and the redirect uri
+	// state contains the csrf nonce and redirect uri
 	nonce := s[0]
 	redirect := s[1]
 	c, err := a.csrfStore.GetCSRF(r)
 	defer a.csrfStore.ClearCSRF(w, r)
 	if err != nil || c.Value != nonce {
-		return "", xerrors.Errorf("csrf failure: %w", err)
-
+		return nil, fmt.Errorf("csrf failure: %w", err)
 	}
 	redirectURL, err := urlutil.ParseAndValidateURL(redirect)
 	if err != nil {
-		return "", httputil.Error(fmt.Sprintf("invalid redirect uri %s", redirect), http.StatusBadRequest, err)
+		return nil, httputil.Error(fmt.Sprintf("invalid redirect uri %s", redirect), http.StatusBadRequest, err)
 	}
 	// sanity check, we are redirecting back to the same subdomain right?
 	if !middleware.SameDomain(redirectURL, a.RedirectURL) {
-		return "", httputil.Error(fmt.Sprintf("invalid redirect domain %v, %v", redirectURL, a.RedirectURL), http.StatusBadRequest, nil)
+		return nil, httputil.Error(fmt.Sprintf("invalid redirect domain %v, %v", redirectURL, a.RedirectURL), http.StatusBadRequest, nil)
 	}
 
 	if err := a.sessionStore.SaveSession(w, r, session); err != nil {
-		return "", xerrors.Errorf("failed saving new session: %w", err)
+		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
-	return redirect, nil
+	return redirectURL, nil
 }
 
 // ExchangeToken takes an identity provider issued JWT as input ('id_token)
@@ -263,16 +262,32 @@ func (a *Authenticate) ExchangeToken(w http.ResponseWriter, r *http.Request) {
 	}
 	code := r.Form.Get("id_token")
 	if code == "" {
-		httputil.ErrorResponse(w, r, httputil.Error("provider missing id token", http.StatusBadRequest, nil))
+		httputil.ErrorResponse(w, r, httputil.Error("missing id token", http.StatusBadRequest, nil))
 		return
 	}
 	session, err := a.provider.IDTokenToSession(r.Context(), code)
 	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("could not exchange identity for session", http.StatusInternalServerError, err))
+		httputil.ErrorResponse(w, r, err)
 		return
 	}
-	if err := a.restStore.SaveSession(w, r, session); err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("failed returning new session", http.StatusInternalServerError, err))
+	encToken, err := sessions.MarshalSession(session, a.cipher)
+	if err != nil {
+		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
 		return
 	}
+	restSession := struct {
+		Token  string
+		Expiry time.Time `json:",omitempty"`
+	}{
+		Token:  encToken,
+		Expiry: session.RefreshDeadline,
+	}
+
+	jsonBytes, err := json.Marshal(restSession)
+	if err != nil {
+		httputil.ErrorResponse(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonBytes)
 }

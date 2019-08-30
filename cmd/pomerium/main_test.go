@@ -21,9 +21,6 @@ import (
 )
 
 func Test_newAuthenticateService(t *testing.T) {
-	grpcAuth := middleware.NewSharedSecretCred("test")
-	grpcOpts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcAuth.ValidateRequest)}
-	grpcServer := grpc.NewServer(grpcOpts...)
 	mux := http.NewServeMux()
 
 	tests := []struct {
@@ -56,7 +53,7 @@ func Test_newAuthenticateService(t *testing.T) {
 				testOptsField.Set(reflect.ValueOf(tt).FieldByName("Value"))
 			}
 
-			_, err = newAuthenticateService(*testOpts, mux, grpcServer)
+			_, err = newAuthenticateService(*testOpts, mux)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("newAuthenticateService() error = %v, wantErr %v", err, tt.wantErr)
 				return

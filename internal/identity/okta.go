@@ -91,7 +91,7 @@ type accessToken struct {
 // Refresh renews a user's session using an oid refresh token without reprompting the user.
 // Group membership is also refreshed. If configured properly, Okta is we can configure the access token
 // to include group membership claims which allows us to avoid a follow up oauth2 call.
-func (p *OktaProvider) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
+func (p *OktaProvider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
 	if s.RefreshToken == "" {
 		return nil, errors.New("identity/okta: missing refresh token")
 	}

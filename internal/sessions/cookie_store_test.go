@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
@@ -49,30 +50,33 @@ func TestNewCookieStore(t *testing.T) {
 	}{
 		{"good",
 			&CookieStoreOptions{
-				Name:           "_cookie",
-				CookieSecure:   true,
-				CookieHTTPOnly: true,
-				CookieDomain:   "pomerium.io",
-				CookieExpire:   10 * time.Second,
-				CookieCipher:   cipher,
+				Name:              "_cookie",
+				CookieSecure:      true,
+				CookieHTTPOnly:    true,
+				CookieDomain:      "pomerium.io",
+				CookieExpire:      10 * time.Second,
+				CookieCipher:      cipher,
+				BearerTokenHeader: "Authorization",
 			},
 			&CookieStore{
-				Name:           "_cookie",
-				CookieSecure:   true,
-				CookieHTTPOnly: true,
-				CookieDomain:   "pomerium.io",
-				CookieExpire:   10 * time.Second,
-				CookieCipher:   cipher,
+				Name:              "_cookie",
+				CookieSecure:      true,
+				CookieHTTPOnly:    true,
+				CookieDomain:      "pomerium.io",
+				CookieExpire:      10 * time.Second,
+				CookieCipher:      cipher,
+				BearerTokenHeader: "Authorization",
 			},
 			false},
 		{"missing name",
 			&CookieStoreOptions{
-				Name:           "",
-				CookieSecure:   true,
-				CookieHTTPOnly: true,
-				CookieDomain:   "pomerium.io",
-				CookieExpire:   10 * time.Second,
-				CookieCipher:   cipher,
+				Name:              "",
+				CookieSecure:      true,
+				CookieHTTPOnly:    true,
+				CookieDomain:      "pomerium.io",
+				CookieExpire:      10 * time.Second,
+				CookieCipher:      cipher,
+				BearerTokenHeader: "Authorization",
 			},
 			nil,
 			true},
@@ -95,8 +99,12 @@ func TestNewCookieStore(t *testing.T) {
 				t.Errorf("NewCookieStore() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewCookieStore() = %#v, want %#v", got, tt.want)
+			cmpOpts := []cmp.Option{
+				cmpopts.IgnoreUnexported(cryptutil.XChaCha20Cipher{}),
+			}
+
+			if diff := cmp.Diff(got, tt.want, cmpOpts...); diff != "" {
+				t.Errorf("NewCookieStore() = %s", diff)
 			}
 		})
 	}
@@ -211,15 +219,15 @@ func TestCookieStore_SaveSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	tests := []struct {
-		name         string
-		sessionState *SessionState
-		cipher       cryptutil.Cipher
-		wantErr      bool
-		wantLoadErr  bool
+		name        string
+		State       *State
+		cipher      cryptutil.Cipher
+		wantErr     bool
+		wantLoadErr bool
 	}{
-		{"good", &SessionState{AccessToken: "token1234", RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, cipher, false, false},
-		{"bad cipher", &SessionState{AccessToken: "token1234", RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, mockCipher{}, true, true},
-		{"huge cookie", &SessionState{AccessToken: fmt.Sprintf("%x", hugeString), RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, cipher, false, false},
+		{"good", &State{AccessToken: "token1234", RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, cipher, false, false},
+		{"bad cipher", &State{AccessToken: "token1234", RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, mockCipher{}, true, true},
+		{"huge cookie", &State{AccessToken: fmt.Sprintf("%x", hugeString), RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, cipher, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -234,12 +242,12 @@ func TestCookieStore_SaveSession(t *testing.T) {
 			r := httptest.NewRequest("GET", "/", nil)
 			w := httptest.NewRecorder()
 
-			if err := s.SaveSession(w, r, tt.sessionState); (err != nil) != tt.wantErr {
+			if err := s.SaveSession(w, r, tt.State); (err != nil) != tt.wantErr {
 				t.Errorf("CookieStore.SaveSession() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			r = httptest.NewRequest("GET", "/", nil)
 			for _, cookie := range w.Result().Cookies() {
-				t.Log(cookie)
+				// t.Log(cookie)
 				r.AddCookie(cookie)
 			}
 
@@ -248,8 +256,10 @@ func TestCookieStore_SaveSession(t *testing.T) {
 				t.Errorf("LoadSession() error = %v, wantErr %v", err, tt.wantLoadErr)
 				return
 			}
-			if err == nil && !reflect.DeepEqual(state, tt.sessionState) {
-				t.Errorf("CookieStore.LoadSession() got = \n%v, want \n%v", state, tt.sessionState)
+			if err == nil {
+				if diff := cmp.Diff(state, tt.State); diff != "" {
+					t.Errorf("CookieStore.LoadSession() got = %s", diff)
+				}
 			}
 		})
 	}
@@ -291,18 +301,18 @@ func TestMockSessionStore(t *testing.T) {
 	tests := []struct {
 		name        string
 		mockCSRF    *MockSessionStore
-		saveSession *SessionState
+		saveSession *State
 		wantLoadErr bool
 		wantSaveErr bool
 	}{
 		{"basic",
 			&MockSessionStore{
 				ResponseSession: "test",
-				Session:         &SessionState{AccessToken: "AccessToken"},
+				Session:         &State{AccessToken: "AccessToken"},
 				SaveError:       nil,
 				LoadError:       nil,
 			},
-			&SessionState{AccessToken: "AccessToken"},
+			&State{AccessToken: "AccessToken"},
 			false,
 			false},
 	}

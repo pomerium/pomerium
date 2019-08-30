@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/internal/urlutil"
 
 	"golang.org/x/net/publicsuffix"
 )
@@ -70,7 +71,7 @@ func ValidateRedirectURI(rootDomain *url.URL) func(next http.Handler) http.Handl
 				httputil.ErrorResponse(w, r, httputil.Error("couldn't parse form", http.StatusBadRequest, err))
 				return
 			}
-			redirectURI, err := url.Parse(r.Form.Get("redirect_uri"))
+			redirectURI, err := urlutil.ParseAndValidateURL(r.Form.Get("redirect_uri"))
 			if err != nil {
 				httputil.ErrorResponse(w, r, httputil.Error("bad redirect_uri", http.StatusBadRequest, err))
 				return
@@ -131,7 +132,7 @@ func ValidateHost(validHost func(host string) bool) func(next http.Handler) http
 			defer span.End()
 
 			if !validHost(r.Host) {
-				httputil.ErrorResponse(w, r, httputil.Error(fmt.Sprintf("%s is not a known route.", r.Host), http.StatusNotFound, nil))
+				httputil.ErrorResponse(w, r, httputil.Error("", http.StatusNotFound, nil))
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -168,7 +169,7 @@ func ValidSignature(redirectURI, sigVal, timestamp, secret string) bool {
 	if redirectURI == "" || sigVal == "" || timestamp == "" || secret == "" {
 		return false
 	}
-	_, err := url.Parse(redirectURI)
+	_, err := urlutil.ParseAndValidateURL(redirectURI)
 	if err != nil {
 		return false
 	}

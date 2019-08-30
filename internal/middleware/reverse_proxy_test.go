@@ -1,6 +1,7 @@
 package middleware // import "github.com/pomerium/pomerium/internal/middleware"
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -40,7 +41,7 @@ func TestSignRequest(t *testing.T) {
 
 			})
 			rr := httptest.NewRecorder()
-			signer, err := cryptutil.NewES256Signer([]byte(exampleKey), "audience")
+			signer, err := cryptutil.NewES256Signer(base64.StdEncoding.EncodeToString([]byte(exampleKey)), "audience")
 			if err != nil {
 				t.Fatal(err)
 			}

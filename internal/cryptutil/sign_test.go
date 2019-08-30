@@ -1,11 +1,12 @@
 package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
 
 import (
+	"encoding/base64"
 	"testing"
 )
 
 func TestES256Signer(t *testing.T) {
-	signer, err := NewES256Signer([]byte(pemECPrivateKeyP256), "destination-url")
+	signer, err := NewES256Signer(base64.StdEncoding.EncodeToString([]byte(pemECPrivateKeyP256)), "destination-url")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,12 +26,13 @@ func TestNewES256Signer(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
-		privKey  []byte
+		privKey  string
 		audience string
 		wantErr  bool
 	}{
-		{"working example", []byte(pemECPrivateKeyP256), "some-domain.com", false},
-		{"bad private key", []byte(garbagePEM), "some-domain.com", true},
+		{"working example", base64.StdEncoding.EncodeToString([]byte(pemECPrivateKeyP256)), "some-domain.com", false},
+		{"bad private key", base64.StdEncoding.EncodeToString([]byte(garbagePEM)), "some-domain.com", true},
+		{"bad base64 key", garbagePEM, "some-domain.com", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
