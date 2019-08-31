@@ -2,7 +2,7 @@ stages:
   - test
   - "Docker Test Build"
   - name: "Docker Build and Publish"
-    if: fork = false AND pull_request = false
+    if: fork = false AND type = push
 
 language: go
 go:
