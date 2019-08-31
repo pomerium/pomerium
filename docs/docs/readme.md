@@ -35,8 +35,7 @@ Pomerium is composed of 3 logical components:
 - Proxy Service
   - All user traffic flows through the proxy
   - Initiates authentication flow to Authentication service as needed
-  - Verifies all requests with Authorization service
-  - Verifies all requests with Authorization service
+  - Verifies all requests with Authentication service
   - Processes policy to determine external/internal route mappings
 - Authentication Service
   - Handles authentication flow to your IDP as needed
