@@ -1,3 +1,9 @@
+stages:
+  - test
+  - "Docker Test Build"
+  - name: "Docker Build and Publish"
+    if: fork = false AND pull_request = false
+
 language: go
 go:
   - 1.x
@@ -42,3 +48,76 @@ deploy:
     - dist/pomerium-windows-amd64.md5
     - dist/pomerium-windows-amd64.sha256
   skip_cleanup: true
+
+docker_setup: &docker_setup
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+  - sudo apt-get update
+  - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
+  - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+docker_login: &docker_login
+  - echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+
+jobs:
+  include:
+    - name: "Test Build amd64"
+      stage: "Docker Test Build"
+      install: *docker_setup
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:${TRAVIS_COMMIT} Dockerfile
+
+    - name: "Build Master amd64"
+      stage: "Docker Build and Publish"
+      if: branch = master
+      install: *docker_setup
+      before_script: *docker_login
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:master Dockerfile
+        - docker push ${TRAVIS_REPO_SLUG}
+
+    - name: "Build Master arm64v8"
+      if: branch = master
+      install: *docker_setup
+      before_script: *docker_login
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm64v8-master Dockerfile.arm64v8
+        - docker push ${TRAVIS_REPO_SLUG}
+
+    - name: "Build Tag amd64"
+      if: tag =~ /^v([0-9.]+)$/
+      install: *docker_setup
+      before_script: *docker_login
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:${TRAVIS_TAG} Dockerfile
+        - docker tag ${TRAVIS_REPO_SLUG}:${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:latest
+        - docker tag ${TRAVIS_REPO_SLUG}:${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:amd64-latest
+        - docker tag ${TRAVIS_REPO_SLUG}:${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:amd64-${TRAVIS_TAG}
+        - docker push ${TRAVIS_REPO_SLUG}
+
+    - name: "Build Tag arm64v8"
+      if: tag =~ /^v([0-9.]+)$/
+      install: *docker_setup
+      before_script: *docker_login
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm64v8-${TRAVIS_TAG} Dockerfile.arm64v8
+        - docker tag ${TRAVIS_REPO_SLUG}:arm64v8-${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:arm64v8-latest
+        - docker push ${TRAVIS_REPO_SLUG}
+
+    - name: "Build Tag arm32v7"
+      if: tag =~ /^v([0-9.]+)$/
+      install: *docker_setup
+      before_script: *docker_login
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm32v7-${TRAVIS_TAG} Dockerfile.arm32v7
+        - docker tag ${TRAVIS_REPO_SLUG}:arm32v7-${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:arm32v7-latest
+        - docker push ${TRAVIS_REPO_SLUG}
+
+    - name: "Build Tag arm32v6"
+      if: tag =~ /^v([0-9.]+)$/
+      install: *docker_setup
+      before_script: *docker_login
+      script:
+        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm32v6-${TRAVIS_TAG} Dockerfile.arm32v6
+        - docker tag ${TRAVIS_REPO_SLUG}:arm32v6-${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:arm32v6-latest
+        - docker push ${TRAVIS_REPO_SLUG}
