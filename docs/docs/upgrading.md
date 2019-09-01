@@ -7,6 +7,10 @@ description: >-
 
 # Upgrade Guide
 
+## Since 0.2.0
+
+Pomerium `v0.3.0` has no known breaking changes compared to `v0.2.0`.
+
 ## Since 0.1.0
 
 Pomerium `v0.2.0` has no known breaking changes compared to `v0.1.0`.
