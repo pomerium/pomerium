@@ -21,7 +21,6 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
-	pbAuthenticate "github.com/pomerium/pomerium/proto/authenticate"
 	pbAuthorize "github.com/pomerium/pomerium/proto/authorize"
 	"github.com/pomerium/pomerium/proxy"
 )
@@ -47,7 +46,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	grpcServer := setupGRPCServer(opt)
-	_, err = newAuthenticateService(*opt, mux, grpcServer)
+	_, err = newAuthenticateService(*opt, mux)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: authenticate")
 	}
@@ -62,7 +61,6 @@ func main() {
 		log.Fatal().Err(err).Msg("cmd/pomerium: proxy")
 	}
 	if proxy != nil {
-		defer proxy.AuthenticateClient.Close()
 		defer proxy.AuthorizeClient.Close()
 	}
 
@@ -82,7 +80,7 @@ func main() {
 	os.Exit(0)
 }
 
-func newAuthenticateService(opt config.Options, mux *http.ServeMux, rpc *grpc.Server) (*authenticate.Authenticate, error) {
+func newAuthenticateService(opt config.Options, mux *http.ServeMux) (*authenticate.Authenticate, error) {
 	if !config.IsAuthenticate(opt.Services) {
 		return nil, nil
 	}
@@ -90,7 +88,6 @@ func newAuthenticateService(opt config.Options, mux *http.ServeMux, rpc *grpc.Se
 	if err != nil {
 		return nil, err
 	}
-	pbAuthenticate.RegisterAuthenticatorServer(rpc, service)
 	mux.Handle(urlutil.StripPort(opt.AuthenticateURL.Host)+"/", service.Handler())
 	return service, nil
 }
@@ -164,7 +161,7 @@ func configToServerOptions(opt *config.Options) *httputil.ServerOptions {
 func setupMetrics(opt *config.Options) {
 	if opt.MetricsAddr != "" {
 		if handler, err := metrics.PrometheusHandler(); err != nil {
-			log.Error().Err(err).Msg("cmd/pomerium: couldn't start metrics server")
+			log.Error().Err(err).Msg("cmd/pomerium: metrics failed to start")
 		} else {
 			metrics.SetBuildInfo(opt.Services)
 			metrics.RegisterInfoMetrics()

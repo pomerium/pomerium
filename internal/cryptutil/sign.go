@@ -1,5 +1,6 @@
 package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
 import (
+	"encoding/base64"
 	"fmt"
 	"sync"
 	"time"
@@ -48,15 +49,20 @@ type ES256Signer struct {
 	NotBefore jwt.NumericDate `json:"nbf,omitempty"`
 }
 
-// NewES256Signer creates an Elliptic Curve, NIST P-256 (aka secp256r1 aka prime256v1) JWT signer.
+// NewES256Signer creates a NIST P-256 (aka secp256r1 aka prime256v1) JWT signer
+// from a base64 encoded private key.
 //
 // RSA is not supported due to performance considerations of needing to sign each request.
 // Go's P-256 is constant-time and SHA-256 is faster on 64-bit machines and immune
 // to length extension attacks.
 // See also:
 // - https://cloud.google.com/iot/docs/how-tos/credentials/keys
-func NewES256Signer(privKey []byte, audience string) (*ES256Signer, error) {
-	key, err := DecodePrivateKey(privKey)
+func NewES256Signer(privKey, audience string) (*ES256Signer, error) {
+	decodedSigningKey, err := base64.StdEncoding.DecodeString(privKey)
+	if err != nil {
+		return nil, err
+	}
+	key, err := DecodePrivateKey(decodedSigningKey)
 	if err != nil {
 		return nil, fmt.Errorf("cryptutil: parsing key failed %v", err)
 	}

@@ -45,7 +45,6 @@ tag: ## Create a new git tag to prepare to build a release
 .PHONY: build
 build: ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
-	@echo Untracked changes? dirty? $(BUILDMETA) files? $(GITUNTRACKEDCHANGES)
 	@CGO_ENABLED=0 GO111MODULE=on go build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 .PHONY: lint

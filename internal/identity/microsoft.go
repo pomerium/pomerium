@@ -74,7 +74,7 @@ func NewAzureProvider(p *Provider) (*AzureProvider, error) {
 
 // Authenticate creates an identity session with azure from a authorization code, and follows up
 // call to the groups api to check what groups the user is in.
-func (p *AzureProvider) Authenticate(ctx context.Context, code string) (*sessions.SessionState, error) {
+func (p *AzureProvider) Authenticate(ctx context.Context, code string) (*sessions.State, error) {
 	// convert authorization code into a token
 	oauth2Token, err := p.oauth.Exchange(ctx, code)
 	if err != nil {
@@ -104,7 +104,7 @@ func (p *AzureProvider) Authenticate(ctx context.Context, code string) (*session
 // IDTokenToSession takes an identity provider issued JWT as input ('id_token')
 // and returns a session state. The provided token's audience ('aud') must
 // match Pomerium's client_id.
-func (p *AzureProvider) IDTokenToSession(ctx context.Context, rawIDToken string) (*sessions.SessionState, error) {
+func (p *AzureProvider) IDTokenToSession(ctx context.Context, rawIDToken string) (*sessions.State, error) {
 	idToken, err := p.verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return nil, fmt.Errorf("identity/microsoft: could not verify id_token %v", err)
@@ -118,7 +118,7 @@ func (p *AzureProvider) IDTokenToSession(ctx context.Context, rawIDToken string)
 		return nil, fmt.Errorf("identity/microsoft: failed to parse id_token claims %v", err)
 	}
 
-	return &sessions.SessionState{
+	return &sessions.State{
 		IDToken:         rawIDToken,
 		RefreshDeadline: idToken.Expiry.Truncate(time.Second),
 		Email:           claims.Email,
@@ -146,7 +146,7 @@ func (p *AzureProvider) GetSignInURL(state string) string {
 // Refresh renews a user's session using an oid refresh token without reprompting the user.
 // Group membership is also refreshed.
 // https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
-func (p *AzureProvider) Refresh(ctx context.Context, s *sessions.SessionState) (*sessions.SessionState, error) {
+func (p *AzureProvider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
 	if s.RefreshToken == "" {
 		return nil, errors.New("identity/microsoft: missing refresh token")
 	}

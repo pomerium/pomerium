@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // StateParameter holds the redirect id along with the session id.
@@ -36,9 +37,9 @@ func (p *Proxy) Handler() http.Handler {
 	mux.HandleFunc("/.pomerium", p.UserDashboard)
 	mux.HandleFunc("/.pomerium/impersonate", p.Impersonate) // POST
 	mux.HandleFunc("/.pomerium/sign_out", p.SignOut)
-	// handlers handlers with validation
-	mux.Handle("/.pomerium/callback", validate.ThenFunc(p.OAuthCallback))
-	mux.Handle("/.pomerium/refresh", validate.ThenFunc(p.Refresh))
+	// handlers with validation
+	mux.Handle("/.pomerium/callback", validate.ThenFunc(p.AuthenticateCallback))
+	mux.Handle("/.pomerium/refresh", validate.ThenFunc(p.ForceRefresh))
 	mux.Handle("/", validate.ThenFunc(p.Proxy))
 	return mux
 }
@@ -60,12 +61,12 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 			httputil.ErrorResponse(w, r, err)
 			return
 		}
-		uri, err := url.Parse(r.Form.Get("redirect_uri"))
+		uri, err := urlutil.ParseAndValidateURL(r.Form.Get("redirect_uri"))
 		if err == nil && uri.String() != "" {
 			redirectURL = uri
 		}
 	default:
-		uri, err := url.Parse(r.URL.Query().Get("redirect_uri"))
+		uri, err := urlutil.ParseAndValidateURL(r.URL.Query().Get("redirect_uri"))
 		if err == nil && uri.String() != "" {
 			redirectURL = uri
 		}
@@ -76,24 +77,20 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 // OAuthStart begins the authenticate flow, encrypting the redirect url
 // in a request to the provider's sign in endpoint.
 func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
-
-	// create a CSRF value used to mitigate replay attacks.
 	state := &StateParameter{
 		SessionID:   fmt.Sprintf("%x", cryptutil.GenerateKey()),
 		RedirectURI: r.URL.String(),
 	}
 
-	// Encrypt, and save CSRF state. Will be checked on callback.
-	localState, err := p.cipher.Marshal(state)
+	// Encrypt CSRF + redirect_uri and store in csrf session. Validated on callback.
+	csrfState, err := p.cipher.Marshal(state)
 	if err != nil {
 		httputil.ErrorResponse(w, r, err)
 		return
 	}
-	p.csrfStore.SetCSRF(w, r, localState)
+	p.csrfStore.SetCSRF(w, r, csrfState)
 
-	// Though the plaintext payload is identical, we re-encrypt which will
-	// create a different cipher text using another nonce
-	remoteState, err := p.cipher.Marshal(state)
+	paramState, err := p.cipher.Marshal(state)
 	if err != nil {
 		httputil.ErrorResponse(w, r, err)
 		return
@@ -101,68 +98,55 @@ func (p *Proxy) OAuthStart(w http.ResponseWriter, r *http.Request) {
 
 	// Sanity check. The encrypted payload of local and remote state should
 	// never match as each encryption round uses a cryptographic nonce.
-	//
-	// todo(bdd): since this should nearly (1/(2^32*2^32)) never happen should
-	// we panic as a failure most likely means the rands entropy source is failing?
-	if remoteState == localState {
-		p.sessionStore.ClearSession(w, r)
-		httputil.ErrorResponse(w, r, httputil.Error("encrypted state should not match", http.StatusBadRequest, nil))
-		return
-	}
+	// if paramState == csrfState {
+	// 	httputil.ErrorResponse(w, r, httputil.Error("encrypted state should not match", http.StatusBadRequest, nil))
+	// 	return
+	// }
 
-	signinURL := p.GetSignInURL(p.authenticateURL, p.GetRedirectURL(r.Host), remoteState)
-	log.FromRequest(r).Debug().Str("SigninURL", signinURL.String()).Msg("proxy: oauth start")
+	signinURL := p.GetSignInURL(p.authenticateURL, p.GetRedirectURL(r.Host), paramState)
 
 	// Redirect the user to the authenticate service along with the encrypted
 	// state which contains a redirect uri back to the proxy and a nonce
 	http.Redirect(w, r, signinURL.String(), http.StatusFound)
 }
 
-// OAuthCallback validates the cookie sent back from the authenticate service. This function will
-// contain an error, or it will contain a `code`; the code can be used to fetch an access token, and
-// other metadata, from the authenticator.
-// finish the oauth cycle
-func (p *Proxy) OAuthCallback(w http.ResponseWriter, r *http.Request) {
+// AuthenticateCallback checks the state parameter to make sure it matches the
+// local csrf state then redirects the user back to the original intended route.
+func (p *Proxy) AuthenticateCallback(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		httputil.ErrorResponse(w, r, err)
 		return
 	}
 
-	if callbackError := r.Form.Get("error"); callbackError != "" {
-		httputil.ErrorResponse(w, r, httputil.Error(callbackError, http.StatusBadRequest, nil))
-		return
-	}
-
 	// Encrypted CSRF passed from authenticate service
 	remoteStateEncrypted := r.Form.Get("state")
-	remoteStatePlain := new(StateParameter)
-	if err := p.cipher.Unmarshal(remoteStateEncrypted, remoteStatePlain); err != nil {
+	var remoteStatePlain StateParameter
+	if err := p.cipher.Unmarshal(remoteStateEncrypted, &remoteStatePlain); err != nil {
 		httputil.ErrorResponse(w, r, err)
 		return
 	}
 
-	// Encrypted CSRF from session storage
 	c, err := p.csrfStore.GetCSRF(r)
 	if err != nil {
 		httputil.ErrorResponse(w, r, err)
 		return
 	}
 	p.csrfStore.ClearCSRF(w, r)
+
 	localStateEncrypted := c.Value
-	localStatePlain := new(StateParameter)
-	err = p.cipher.Unmarshal(localStateEncrypted, localStatePlain)
+	var localStatePlain StateParameter
+	err = p.cipher.Unmarshal(localStateEncrypted, &localStatePlain)
 	if err != nil {
 		httputil.ErrorResponse(w, r, err)
 		return
 	}
 
-	// If the encrypted value of local and remote state match, reject.
-	// Likely a replay attack or nonce-reuse.
+	// assert no nonce reuse
 	if remoteStateEncrypted == localStateEncrypted {
 		p.sessionStore.ClearSession(w, r)
-
-		httputil.ErrorResponse(w, r, httputil.Error("local and remote state should not match!", http.StatusBadRequest, nil))
-
+		httputil.ErrorResponse(w, r,
+			httputil.Error("local and remote state", http.StatusBadRequest,
+				fmt.Errorf("possible nonce-reuse / replay attack")))
 		return
 	}
 
@@ -205,13 +189,23 @@ func isCORSPreflight(r *http.Request) bool {
 		r.Header.Get("Origin") != ""
 }
 
+func (p *Proxy) loadExistingSession(r *http.Request) (*sessions.State, error) {
+	s, err := p.sessionStore.LoadSession(r)
+	if err != nil {
+		return nil, fmt.Errorf("proxy: invalid session: %w", err)
+	}
+	if err := s.Valid(); err != nil {
+		return nil, fmt.Errorf("proxy: invalid state: %w", err)
+	}
+	return s, nil
+}
+
 // Proxy authenticates a request, either proxying the request if it is authenticated,
 // or starting the authenticate service for validation if not.
 func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
-	// does a route exist for this request?
 	route, ok := p.router(r)
 	if !ok {
-		httputil.ErrorResponse(w, r, httputil.Error(fmt.Sprintf("%s is not a managed route.", r.Host), http.StatusNotFound, nil))
+		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusNotFound, nil))
 		return
 	}
 
@@ -221,30 +215,17 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s, err := p.restStore.LoadSession(r)
-	// if authorization bearer token does not exist or fails, use cookie store
-	if err != nil || s == nil {
-		s, err = p.sessionStore.LoadSession(r)
-		if err != nil {
-			log.FromRequest(r).Debug().Str("cause", err.Error()).Msg("proxy: invalid session, re-authenticating")
-			p.sessionStore.ClearSession(w, r)
-			p.OAuthStart(w, r)
-			return
-		}
-	}
-
-	if err = p.authenticate(w, r, s); err != nil {
-		p.sessionStore.ClearSession(w, r)
-		httputil.ErrorResponse(w, r, httputil.Error("User unauthenticated", http.StatusUnauthorized, err))
+	s, err := p.loadExistingSession(r)
+	if err != nil {
+		log.Debug().Str("cause", err.Error()).Msg("proxy: bad authN session, redirecting")
+		p.OAuthStart(w, r)
 		return
 	}
 	authorized, err := p.AuthorizeClient.Authorize(r.Context(), r.Host, s)
 	if err != nil {
 		httputil.ErrorResponse(w, r, err)
 		return
-	}
-
-	if !authorized {
+	} else if !authorized {
 		httputil.ErrorResponse(w, r, httputil.Error(fmt.Sprintf("%s is not authorized for this route", s.Email), http.StatusForbidden, nil))
 		return
 	}
@@ -259,17 +240,10 @@ func (p *Proxy) Proxy(w http.ResponseWriter, r *http.Request) {
 // It also contains certain administrative actions like user impersonation.
 // Nota bene: This endpoint does authentication, not authorization.
 func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
-	session, err := p.sessionStore.LoadSession(r)
+	session, err := p.loadExistingSession(r)
 	if err != nil {
-		log.FromRequest(r).Debug().Str("cause", err.Error()).Msg("proxy: no session, redirecting to auth")
-		p.sessionStore.ClearSession(w, r)
+		log.Debug().Str("cause", err.Error()).Msg("proxy: bad authN session, redirecting")
 		p.OAuthStart(w, r)
-		return
-	}
-
-	if err := p.authenticate(w, r, session); err != nil {
-		p.sessionStore.ClearSession(w, r)
-		httputil.ErrorResponse(w, r, httputil.Error("User unauthenticated", http.StatusUnauthorized, err))
 		return
 	}
 
@@ -314,13 +288,14 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 	templates.New().ExecuteTemplate(w, "dashboard.html", t)
 }
 
-// Refresh redeems and extends an existing authenticated oidc session with
+// ForceRefresh redeems and extends an existing authenticated oidc session with
 // the underlying identity provider. All session details including groups,
 // timeouts, will be renewed.
-func (p *Proxy) Refresh(w http.ResponseWriter, r *http.Request) {
-	session, err := p.sessionStore.LoadSession(r)
+func (p *Proxy) ForceRefresh(w http.ResponseWriter, r *http.Request) {
+	session, err := p.loadExistingSession(r)
 	if err != nil {
-		httputil.ErrorResponse(w, r, err)
+		log.Debug().Str("cause", err.Error()).Msg("proxy: bad authN session, redirecting")
+		p.OAuthStart(w, r)
 		return
 	}
 	iss, err := session.IssuedAt()
@@ -332,16 +307,13 @@ func (p *Proxy) Refresh(w http.ResponseWriter, r *http.Request) {
 	// reject a refresh if it's been less than the refresh cooldown to prevent abuse
 	if time.Since(iss) < p.refreshCooldown {
 		httputil.ErrorResponse(w, r,
-			httputil.Error(fmt.Sprintf("Session must be %s old before refreshing", p.refreshCooldown), http.StatusBadRequest, nil))
+			httputil.Error(
+				fmt.Sprintf("Session must be %s old before refreshing", p.refreshCooldown),
+				http.StatusBadRequest, nil))
 		return
 	}
-
-	newSession, err := p.AuthenticateClient.Refresh(r.Context(), session)
-	if err != nil {
-		httputil.ErrorResponse(w, r, err)
-		return
-	}
-	if err = p.sessionStore.SaveSession(w, r, newSession); err != nil {
+	session.ForceRefresh()
+	if err = p.sessionStore.SaveSession(w, r, session); err != nil {
 		httputil.ErrorResponse(w, r, err)
 		return
 	}
@@ -357,12 +329,12 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 			httputil.ErrorResponse(w, r, err)
 			return
 		}
-		session, err := p.sessionStore.LoadSession(r)
+		session, err := p.loadExistingSession(r)
 		if err != nil {
-			httputil.ErrorResponse(w, r, err)
+			log.Debug().Str("cause", err.Error()).Msg("proxy: bad authN session, redirecting")
+			p.OAuthStart(w, r)
 			return
 		}
-		// authorization check -- is this user an admin?
 		isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), session)
 		if err != nil || !isAdmin {
 			httputil.ErrorResponse(w, r, httputil.Error(fmt.Sprintf("%s is not an administrator", session.Email), http.StatusForbidden, err))
@@ -376,7 +348,7 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 		}
 		p.csrfStore.ClearCSRF(w, r)
 		encryptedCSRF := c.Value
-		decryptedCSRF := new(StateParameter)
+		var decryptedCSRF StateParameter
 		if err = p.cipher.Unmarshal(encryptedCSRF, decryptedCSRF); err != nil {
 			httputil.ErrorResponse(w, r, err)
 			return
@@ -396,26 +368,6 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	http.Redirect(w, r, "/.pomerium", http.StatusFound)
-}
-
-// Authenticate authenticates a request by checking for a session cookie, and validating its expiration,
-// clearing the session cookie if it's invalid and returning an error if necessary..
-func (p *Proxy) authenticate(w http.ResponseWriter, r *http.Request, s *sessions.SessionState) error {
-	if s.RefreshPeriodExpired() {
-		s, err := p.AuthenticateClient.Refresh(r.Context(), s)
-		if err != nil {
-			return fmt.Errorf("proxy: session refresh failed : %v", err)
-		}
-		if err := p.sessionStore.SaveSession(w, r, s); err != nil {
-			return fmt.Errorf("proxy: refresh failed : %v", err)
-		}
-	} else {
-		valid, err := p.AuthenticateClient.Validate(r.Context(), s.IDToken)
-		if err != nil || !valid {
-			return fmt.Errorf("proxy: session validate failed: %v : %v", valid, err)
-		}
-	}
-	return nil
 }
 
 // router attempts to find a route for a request. If a route is successfully matched,
@@ -461,7 +413,7 @@ func (p *Proxy) GetSignInURL(authenticateURL, redirectURL *url.URL, state string
 	a := authenticateURL.ResolveReference(&url.URL{Path: "/sign_in"})
 	now := time.Now()
 	rawRedirect := redirectURL.String()
-	params, _ := url.ParseQuery(a.RawQuery)
+	params, _ := url.ParseQuery(a.RawQuery) // handled by ServeMux
 	params.Set("redirect_uri", rawRedirect)
 	params.Set("shared_secret", p.SharedKey)
 	params.Set("response_type", "code")
@@ -477,7 +429,7 @@ func (p *Proxy) GetSignOutURL(authenticateURL, redirectURL *url.URL) *url.URL {
 	a := authenticateURL.ResolveReference(&url.URL{Path: "/sign_out"})
 	now := time.Now()
 	rawRedirect := redirectURL.String()
-	params, _ := url.ParseQuery(a.RawQuery)
+	params, _ := url.ParseQuery(a.RawQuery) // handled by ServeMux
 	params.Add("redirect_uri", rawRedirect)
 	params.Set("ts", fmt.Sprint(now.Unix()))
 	params.Set("sig", p.signRedirectURL(rawRedirect, now))

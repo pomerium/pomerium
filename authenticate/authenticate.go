@@ -15,36 +15,31 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-// ValidateOptions checks to see if configuration values are valid for the authenticate service.
-// The checks do not modify the internal state of the Option structure. Returns
-// on first error found.
+// ValidateOptions checks that configuration are complete and valid.
+// Returns on first error found.
 func ValidateOptions(o config.Options) error {
+	if _, err := cryptutil.NewCipherFromBase64(o.SharedKey); err != nil {
+		return fmt.Errorf("authenticate: 'SHARED_SECRET' invalid: %v", err)
+	}
+	if _, err := cryptutil.NewCipherFromBase64(o.CookieSecret); err != nil {
+		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid %v", err)
+	}
 	if o.AuthenticateURL == nil {
-		return errors.New("authenticate: missing setting: authenticate-service-url")
+		return errors.New("authenticate: 'AUTHENTICATE_SERVICE_URL' is required")
 	}
 	if _, err := urlutil.ParseAndValidateURL(o.AuthenticateURL.String()); err != nil {
-		return fmt.Errorf("authenticate: error parsing authenticate url: %v", err)
+		return fmt.Errorf("authenticate: couldn't parse 'AUTHENTICATE_SERVICE_URL': %v", err)
 	}
 	if o.ClientID == "" {
-		return errors.New("authenticate: 'IDP_CLIENT_ID' missing")
+		return errors.New("authenticate: 'IDP_CLIENT_ID' is required")
 	}
 	if o.ClientSecret == "" {
-		return errors.New("authenticate: 'IDP_CLIENT_SECRET' missing")
-	}
-	if o.SharedKey == "" {
-		return errors.New("authenticate: 'SHARED_SECRET' missing")
-	}
-	decodedCookieSecret, err := base64.StdEncoding.DecodeString(o.CookieSecret)
-	if err != nil {
-		return fmt.Errorf("authenticate: 'COOKIE_SECRET' must be base64 encoded: %v", err)
-	}
-	if len(decodedCookieSecret) != 32 {
-		return fmt.Errorf("authenticate: 'COOKIE_SECRET' %s be 32; got %d", o.CookieSecret, len(decodedCookieSecret))
+		return errors.New("authenticate: 'IDP_CLIENT_SECRET' is required")
 	}
 	return nil
 }
 
-// Authenticate validates a user's identity
+// Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
 	SharedKey   string
 	RedirectURL *url.URL
@@ -52,12 +47,11 @@ type Authenticate struct {
 	templates    *template.Template
 	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
-	restStore    sessions.SessionStore
 	cipher       cryptutil.Cipher
 	provider     identity.Authenticator
 }
 
-// New validates and creates a new authenticate service from a set of Options
+// New validates and creates a new authenticate service from a set of Options.
 func New(opts config.Options) (*Authenticate, error) {
 	if err := ValidateOptions(opts); err != nil {
 		return nil, err
@@ -95,17 +89,13 @@ func New(opts config.Options) (*Authenticate, error) {
 	if err != nil {
 		return nil, err
 	}
-	restStore, err := sessions.NewRestStore(&sessions.RestStoreOptions{Cipher: cipher})
-	if err != nil {
-		return nil, err
-	}
+
 	return &Authenticate{
 		SharedKey:    opts.SharedKey,
 		RedirectURL:  redirectURL,
 		templates:    templates.New(),
 		csrfStore:    cookieStore,
 		sessionStore: cookieStore,
-		restStore:    restStore,
 		cipher:       cipher,
 		provider:     provider,
 	}, nil

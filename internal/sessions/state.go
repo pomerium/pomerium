@@ -3,7 +3,6 @@ package sessions // import "github.com/pomerium/pomerium/internal/sessions"
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -11,13 +10,11 @@ import (
 	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
-var (
-	// ErrLifetimeExpired is an error for the lifetime deadline expiring
-	ErrLifetimeExpired = errors.New("user lifetime expired")
-)
+// ErrExpired is an error for a expired sessions.
+var ErrExpired = fmt.Errorf("internal/sessions: expired session")
 
-// SessionState is our object that keeps track of a user's session state
-type SessionState struct {
+// State is our object that keeps track of a user's session state
+type State struct {
 	AccessToken     string    `json:"access_token"`
 	RefreshToken    string    `json:"refresh_token"`
 	IDToken         string    `json:"id_token"`
@@ -31,18 +28,31 @@ type SessionState struct {
 	ImpersonateGroups []string
 }
 
-// RefreshPeriodExpired returns true if the refresh period has expired
-func (s *SessionState) RefreshPeriodExpired() bool {
-	return isExpired(s.RefreshDeadline)
+// Valid returns an error if the users's session state is not valid.
+func (s *State) Valid() error {
+	if s.Expired() {
+		return ErrExpired
+	}
+	return nil
+}
+
+// ForceRefresh sets the refresh deadline to now.
+func (s *State) ForceRefresh() {
+	s.RefreshDeadline = time.Now().Truncate(time.Second)
+}
+
+// Expired returns true if the refresh period has expired
+func (s *State) Expired() bool {
+	return s.RefreshDeadline.Before(time.Now())
 }
 
 // Impersonating returns if the request is impersonating.
-func (s *SessionState) Impersonating() bool {
+func (s *State) Impersonating() bool {
 	return s.ImpersonateEmail != "" || len(s.ImpersonateGroups) != 0
 }
 
 // RequestEmail is the email to make the request as.
-func (s *SessionState) RequestEmail() string {
+func (s *State) RequestEmail() string {
 	if s.ImpersonateEmail != "" {
 		return s.ImpersonateEmail
 	}
@@ -51,7 +61,7 @@ func (s *SessionState) RequestEmail() string {
 
 // RequestGroups returns the groups of the Groups making the request; uses
 // impersonating user if set.
-func (s *SessionState) RequestGroups() string {
+func (s *State) RequestGroups() string {
 	if len(s.ImpersonateGroups) != 0 {
 		return strings.Join(s.ImpersonateGroups, ",")
 	}
@@ -68,7 +78,7 @@ type idToken struct {
 }
 
 // IssuedAt parses the IDToken's issue date and returns a valid go time.Time.
-func (s *SessionState) IssuedAt() (time.Time, error) {
+func (s *State) IssuedAt() (time.Time, error) {
 	payload, err := parseJWT(s.IDToken)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("internal/sessions: malformed jwt: %v", err)
@@ -80,13 +90,9 @@ func (s *SessionState) IssuedAt() (time.Time, error) {
 	return time.Time(token.IssuedAt), nil
 }
 
-func isExpired(t time.Time) bool {
-	return t.Before(time.Now())
-}
-
 // MarshalSession marshals the session state as JSON, encrypts the JSON using the
 // given cipher, and base64-encodes the result
-func MarshalSession(s *SessionState, c cryptutil.Cipher) (string, error) {
+func MarshalSession(s *State, c cryptutil.Cipher) (string, error) {
 	v, err := c.Marshal(s)
 	if err != nil {
 		return "", err
@@ -96,18 +102,13 @@ func MarshalSession(s *SessionState, c cryptutil.Cipher) (string, error) {
 
 // UnmarshalSession takes the marshaled string, base64-decodes into a byte slice, decrypts the
 // byte slice using the passed cipher, and unmarshals the resulting JSON into a session state struct
-func UnmarshalSession(value string, c cryptutil.Cipher) (*SessionState, error) {
-	s := &SessionState{}
+func UnmarshalSession(value string, c cryptutil.Cipher) (*State, error) {
+	s := &State{}
 	err := c.Unmarshal(value, s)
 	if err != nil {
 		return nil, err
 	}
 	return s, nil
-}
-
-// ExtendDeadline returns the time extended by a given duration, truncated by second
-func ExtendDeadline(ttl time.Duration) time.Time {
-	return time.Now().Add(ttl).Truncate(time.Second)
 }
 
 func parseJWT(p string) ([]byte, error) {

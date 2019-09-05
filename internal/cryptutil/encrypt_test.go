@@ -259,3 +259,26 @@ func TestNewCipher(t *testing.T) {
 		})
 	}
 }
+
+func TestNewCipherFromBase64(t *testing.T) {
+
+	tests := []struct {
+		name    string
+		s       string
+		wantErr bool
+	}{
+		{"simple 32 byte key", base64.StdEncoding.EncodeToString(GenerateKey()), false},
+		{"key too short", base64.StdEncoding.EncodeToString([]byte("what is entropy")), true},
+		{"key too long", GenerateRandomString(33), true},
+		{"bad base 64", string(GenerateKey()), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewCipherFromBase64(tt.s)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewCipherFromBase64() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
+}

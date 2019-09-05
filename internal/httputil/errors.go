@@ -2,20 +2,18 @@ package httputil // import "github.com/pomerium/pomerium/internal/httputil"
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
-
-	"golang.org/x/xerrors"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/templates"
 )
 
 // Error formats creates a HTTP error with code, user friendly (and safe) error
-// message. If nil or empty:
-// HTTP status code defaults to 500.
-// Message defaults to the text of the status code.
+// message. If nil or empty, HTTP status code defaults to 500 and message
+// defaults to the text of the status code.
 func Error(message string, code int, err error) error {
 	if code == 0 {
 		code = http.StatusInternalServerError
@@ -45,7 +43,9 @@ func (e *httpError) Error() string {
 func (e *httpError) Unwrap() error { return e.Err }
 
 // Timeout reports whether this error represents a user debuggable error.
-func (e *httpError) Debugable() bool { return e.Code == http.StatusUnauthorized }
+func (e *httpError) Debugable() bool {
+	return e.Code == http.StatusUnauthorized || e.Code == http.StatusForbidden
+}
 
 // ErrorResponse renders an error page given an error. If the error is a
 // http error from this package, a user friendly message is set, http status code,
@@ -57,11 +57,12 @@ func ErrorResponse(rw http.ResponseWriter, r *http.Request, e error) {
 	var requestID string
 	var httpError *httpError
 	// if this is an HTTPError, we can add some additional useful information
-	if xerrors.As(e, &httpError) {
+	if errors.As(e, &httpError) {
 		canDebug = httpError.Debugable()
 		statusCode = httpError.Code
 		errorString = httpError.Message
 	}
+
 	log.FromRequest(r).Error().Err(e).Str("http-message", errorString).Int("http-code", statusCode).Msg("http-error")
 
 	if id, ok := log.IDFromRequest(r); ok {
@@ -71,7 +72,7 @@ func ErrorResponse(rw http.ResponseWriter, r *http.Request, e error) {
 		var response struct {
 			Error string `json:"error"`
 		}
-		response.Error = e.Error()
+		response.Error = errorString
 		writeJSONResponse(rw, statusCode, response)
 	} else {
 		rw.WriteHeader(statusCode)

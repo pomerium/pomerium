@@ -97,13 +97,6 @@ type Options struct {
 	// (sudo) access including the ability to impersonate other users' access
 	Administrators []string `mapstructure:"administrators"`
 
-	// AuthenticateInternalAddr is used override the routable destination of
-	// authenticate service's GRPC endpoint.
-	// NOTE: As many load balancers do not support externally routed gRPC so
-	// this may be an internal location.
-	AuthenticateInternalAddrString string `mapstructure:"authenticate_internal_url"`
-	AuthenticateInternalAddr       *url.URL
-
 	// AuthorizeURL is the routable destination of the authorize service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
@@ -246,13 +239,6 @@ func (o *Options) Validate() error {
 		o.AuthorizeURL = u
 	}
 
-	if o.AuthenticateInternalAddrString != "" {
-		u, err := urlutil.ParseAndValidateURL(o.AuthenticateInternalAddrString)
-		if err != nil {
-			return fmt.Errorf("bad authenticate-internal-addr %s : %v", o.AuthenticateInternalAddrString, err)
-		}
-		o.AuthenticateInternalAddr = u
-	}
 	if o.PolicyFile != "" {
 		return errors.New("policy file setting is deprecated")
 	}

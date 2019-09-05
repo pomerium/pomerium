@@ -11,14 +11,14 @@ import (
 	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
-func TestSessionStateSerialization(t *testing.T) {
+func TestStateSerialization(t *testing.T) {
 	secret := cryptutil.GenerateKey()
 	c, err := cryptutil.NewCipher(secret)
 	if err != nil {
 		t.Fatalf("expected to be able to create cipher: %v", err)
 	}
 
-	want := &SessionState{
+	want := &State{
 		AccessToken:     "token1234",
 		RefreshToken:    "refresh4321",
 		RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
@@ -43,41 +43,21 @@ func TestSessionStateSerialization(t *testing.T) {
 	}
 }
 
-func TestSessionStateExpirations(t *testing.T) {
-	session := &SessionState{
+func TestStateExpirations(t *testing.T) {
+	session := &State{
 		AccessToken:     "token1234",
 		RefreshToken:    "refresh4321",
 		RefreshDeadline: time.Now().Add(-1 * time.Hour),
 		Email:           "user@domain.com",
 		User:            "user",
 	}
-	if !session.RefreshPeriodExpired() {
+	if !session.Expired() {
 		t.Errorf("expected lifetime period to be expired")
 	}
 
 }
 
-func TestExtendDeadline(t *testing.T) {
-	// tons of wiggle room here
-	now := time.Now().Truncate(time.Second)
-	tests := []struct {
-		name string
-		ttl  time.Duration
-		want time.Time
-	}{
-		{"Add a few ms", time.Millisecond * 10, now.Truncate(time.Second)},
-		{"Add a few microsecs", time.Microsecond * 10, now.Truncate(time.Second)},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := ExtendDeadline(tt.ttl); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ExtendDeadline() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestSessionState_IssuedAt(t *testing.T) {
+func TestState_IssuedAt(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name    string
@@ -91,20 +71,20 @@ func TestSessionState_IssuedAt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &SessionState{IDToken: tt.IDToken}
+			s := &State{IDToken: tt.IDToken}
 			got, err := s.IssuedAt()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SessionState.IssuedAt() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("State.IssuedAt() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SessionState.IssuedAt() = %v, want %v", got.Format(time.RFC3339), tt.want.Format(time.RFC3339))
+				t.Errorf("State.IssuedAt() = %v, want %v", got.Format(time.RFC3339), tt.want.Format(time.RFC3339))
 			}
 		})
 	}
 }
 
-func TestSessionState_Impersonating(t *testing.T) {
+func TestState_Impersonating(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name               string
@@ -123,20 +103,20 @@ func TestSessionState_Impersonating(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &SessionState{
+			s := &State{
 				Email:             tt.Email,
 				Groups:            tt.Groups,
 				ImpersonateEmail:  tt.ImpersonateEmail,
 				ImpersonateGroups: tt.ImpersonateGroups,
 			}
 			if got := s.Impersonating(); got != tt.want {
-				t.Errorf("SessionState.Impersonating() = %v, want %v", got, tt.want)
+				t.Errorf("State.Impersonating() = %v, want %v", got, tt.want)
 			}
 			if gotEmail := s.RequestEmail(); gotEmail != tt.wantResponseEmail {
-				t.Errorf("SessionState.RequestEmail() = %v, want %v", gotEmail, tt.wantResponseEmail)
+				t.Errorf("State.RequestEmail() = %v, want %v", gotEmail, tt.wantResponseEmail)
 			}
 			if gotGroups := s.RequestGroups(); gotGroups != tt.wantResponseGroups {
-				t.Errorf("SessionState.v() = %v, want %v", gotGroups, tt.wantResponseGroups)
+				t.Errorf("State.v() = %v, want %v", gotGroups, tt.wantResponseGroups)
 			}
 		})
 	}
@@ -154,11 +134,11 @@ func TestMarshalSession(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		s       *SessionState
+		s       *State
 		wantErr bool
 	}{
-		{"simple", &SessionState{}, false},
-		{"too big", &SessionState{AccessToken: fmt.Sprintf("%x", hugeString)}, false},
+		{"simple", &State{}, false},
+		{"too big", &State{AccessToken: fmt.Sprintf("%x", hugeString)}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -175,6 +155,48 @@ func TestMarshalSession(t *testing.T) {
 				if diff := cmp.Diff(tt.s, out); diff != "" {
 					t.Errorf("MarshalSession() = %s", diff)
 				}
+			}
+		})
+	}
+}
+
+func TestState_Valid(t *testing.T) {
+
+	tests := []struct {
+		name            string
+		RefreshDeadline time.Time
+		wantErr         bool
+	}{
+		{" good", time.Now().Add(10 * time.Second), false},
+		{" expired", time.Now().Add(-10 * time.Second), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &State{
+				RefreshDeadline: tt.RefreshDeadline,
+			}
+			if err := s.Valid(); (err != nil) != tt.wantErr {
+				t.Errorf("State.Valid() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestState_ForceRefresh(t *testing.T) {
+	tests := []struct {
+		name            string
+		RefreshDeadline time.Time
+	}{
+		{"good", time.Now().Truncate(time.Second)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &State{
+				RefreshDeadline: tt.RefreshDeadline,
+			}
+			s.ForceRefresh()
+			if s.RefreshDeadline != tt.RefreshDeadline {
+				t.Errorf("refresh deadline not updated")
 			}
 		})
 	}

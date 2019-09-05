@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+
 	"go.opencensus.io/plugin/ocgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer/roundrobin"
@@ -25,7 +26,7 @@ const defaultGRPCPort = 443
 
 // Options contains options for connecting to a pomerium rpc service.
 type Options struct {
-	// Addr is the location of the authenticate service.  e.g. "service.corp.example:8443"
+	// Addr is the location of the service.  e.g. "service.corp.example:8443"
 	Addr *url.URL
 	// InternalAddr is the internal (behind the ingress) address to use when
 	// making a connection. If empty, Addr is used.
@@ -34,7 +35,7 @@ type Options struct {
 	// returned certificates from the server.  gRPC internals also use it to override the virtual
 	// hosting name if it is set.
 	OverrideCertificateName string
-	// Shared secret is used to authenticate a authenticate-client with a authenticate-server.
+	// Shared secret is used to mutually authenticate a client and server.
 	SharedSecret string
 	// CA specifies the base64 encoded TLS certificate authority to use.
 	CA string

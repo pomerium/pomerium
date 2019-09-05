@@ -169,9 +169,6 @@ func TestOptions_Validate(t *testing.T) {
 	authurl, _ := url.Parse("authenticate.corp.beyondperimeter.com")
 	authenticateBadScheme := testOptions(t)
 	authenticateBadScheme.AuthenticateURL = authurl
-	authenticateInternalBadScheme := testOptions(t)
-	authenticateInternalBadScheme.AuthenticateInternalAddr = authurl
-
 	authorizeBadSCheme := testOptions(t)
 	authorizeBadSCheme.AuthorizeURL = authurl
 	authorizeNil := testOptions(t)
@@ -200,7 +197,6 @@ func TestOptions_Validate(t *testing.T) {
 		{"nil options", config.Options{}, true},
 		{"authenticate service url", badAuthURL, true},
 		{"authenticate service url no scheme", authenticateBadScheme, true},
-		{"internal authenticate service url no scheme", authenticateInternalBadScheme, true},
 		{"authorize service url no scheme", authorizeBadSCheme, true},
 		{"authorize service cannot be nil", authorizeNil, true},
 		{"no cookie secret", emptyCookieSecret, true},
@@ -221,7 +217,6 @@ func TestOptions_Validate(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-
 	good := testOptions(t)
 	shortCookieLength := testOptions(t)
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="

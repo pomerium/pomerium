@@ -8,12 +8,12 @@ import (
 
 // The following tags are applied to stats recorded by this package.
 var (
-	TagKeyHTTPMethod  tag.Key = tag.MustNewKey("http_method")
-	TagKeyService     tag.Key = tag.MustNewKey("service")
-	TagKeyGRPCService tag.Key = tag.MustNewKey("grpc_service")
-	TagKeyGRPCMethod  tag.Key = tag.MustNewKey("grpc_method")
-	TagKeyHost        tag.Key = tag.MustNewKey("host")
-	TagKeyDestination tag.Key = tag.MustNewKey("destination")
+	TagKeyHTTPMethod  = tag.MustNewKey("http_method")
+	TagKeyService     = tag.MustNewKey("service")
+	TagKeyGRPCService = tag.MustNewKey("grpc_service")
+	TagKeyGRPCMethod  = tag.MustNewKey("grpc_method")
+	TagKeyHost        = tag.MustNewKey("host")
+	TagKeyDestination = tag.MustNewKey("destination")
 )
 
 // Default distributions used by views in this package.

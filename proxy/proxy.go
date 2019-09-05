@@ -2,11 +2,9 @@ package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
 	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	"html/template"
 	stdlog "log"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -39,51 +37,27 @@ const (
 // ValidateOptions checks that proper configuration settings are set to create
 // a proper Proxy instance
 func ValidateOptions(o config.Options) error {
-	decoded, err := base64.StdEncoding.DecodeString(o.SharedKey)
-	if err != nil {
-		return fmt.Errorf("`SHARED_SECRET` setting is invalid base64: %v", err)
+	if _, err := cryptutil.NewCipherFromBase64(o.SharedKey); err != nil {
+		return fmt.Errorf("proxy: invalid 'SHARED_SECRET': %v", err)
 	}
-	if len(decoded) != 32 {
-		return fmt.Errorf("`SHARED_SECRET` want 32 but got %d bytes", len(decoded))
+	if _, err := cryptutil.NewCipherFromBase64(o.CookieSecret); err != nil {
+		return fmt.Errorf("proxy: invalid 'COOKIE_SECRET': %v", err)
 	}
-
 	if o.AuthenticateURL == nil {
-		return fmt.Errorf("proxy: missing setting: authenticate-service-url")
+		return fmt.Errorf("proxy: missing 'AUTHENTICATE_SERVICE_URL'")
 	}
 	if _, err := urlutil.ParseAndValidateURL(o.AuthenticateURL.String()); err != nil {
-		return fmt.Errorf("proxy: error parsing authenticate url: %v", err)
+		return fmt.Errorf("proxy: invalid 'AUTHENTICATE_SERVICE_URL': %v", err)
 	}
-
 	if o.AuthorizeURL == nil {
-		return fmt.Errorf("proxy: missing setting: authenticate-service-url")
+		return fmt.Errorf("proxy: missing 'AUTHORIZE_SERVICE_URL'")
 	}
 	if _, err := urlutil.ParseAndValidateURL(o.AuthorizeURL.String()); err != nil {
-		return fmt.Errorf("proxy: error parsing authorize url: %v", err)
-	}
-	if o.AuthenticateInternalAddr != nil {
-		if _, err := urlutil.ParseAndValidateURL(o.AuthenticateInternalAddr.String()); err != nil {
-			return fmt.Errorf("proxy: error parsing authorize url: %v", err)
-		}
-	}
-
-	if o.CookieSecret == "" {
-		return fmt.Errorf("proxy: missing setting: cookie-secret")
-	}
-	decodedCookieSecret, err := base64.StdEncoding.DecodeString(o.CookieSecret)
-	if err != nil {
-		return fmt.Errorf("proxy: cookie secret is invalid base64: %v", err)
-	}
-	if len(decodedCookieSecret) != 32 {
-		return fmt.Errorf("proxy: cookie secret expects 32 bytes but got %d", len(decodedCookieSecret))
+		return fmt.Errorf("proxy: invalid 'AUTHORIZE_SERVICE_URL': %v", err)
 	}
 	if len(o.SigningKey) != 0 {
-		decodedSigningKey, err := base64.StdEncoding.DecodeString(o.SigningKey)
-		if err != nil {
-			return fmt.Errorf("proxy: signing key is invalid base64: %v", err)
-		}
-		_, err = cryptutil.NewES256Signer(decodedSigningKey, "localhost")
-		if err != nil {
-			return fmt.Errorf("proxy: invalid signing key is : %v", err)
+		if _, err := cryptutil.NewES256Signer(o.SigningKey, "localhost"); err != nil {
+			return fmt.Errorf("proxy: invalid 'SIGNING_KEY': %v", err)
 		}
 	}
 	return nil
@@ -92,12 +66,11 @@ func ValidateOptions(o config.Options) error {
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
 	// SharedKey used to mutually authenticate service communication
-	SharedKey                string
-	authenticateURL          *url.URL
-	authenticateInternalAddr *url.URL
-	authorizeURL             *url.URL
-	AuthenticateClient       clients.Authenticator
-	AuthorizeClient          clients.Authorizer
+	SharedKey       string
+	authenticateURL *url.URL
+	authorizeURL    *url.URL
+
+	AuthorizeClient clients.Authorizer
 
 	cipher                 cryptutil.Cipher
 	cookieName             string
@@ -105,7 +78,6 @@ type Proxy struct {
 	defaultUpstreamTimeout time.Duration
 	redirectURL            *url.URL
 	refreshCooldown        time.Duration
-	restStore              sessions.SessionStore
 	routeConfigs           map[string]*routeConfig
 	sessionStore           sessions.SessionStore
 	signingKey             string
@@ -123,11 +95,9 @@ func New(opts config.Options) (*Proxy, error) {
 	if err := ValidateOptions(opts); err != nil {
 		return nil, err
 	}
-	// error explicitly handled by validate
-	decodedSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
-	cipher, err := cryptutil.NewCipher(decodedSecret)
+	cipher, err := cryptutil.NewCipherFromBase64(opts.CookieSecret)
 	if err != nil {
-		return nil, fmt.Errorf("cookie-secret error: %s", err.Error())
+		return nil, err
 	}
 
 	cookieStore, err := sessions.NewCookieStore(
@@ -143,10 +113,6 @@ func New(opts config.Options) (*Proxy, error) {
 	if err != nil {
 		return nil, err
 	}
-	restStore, err := sessions.NewRestStore(&sessions.RestStoreOptions{Cipher: cipher})
-	if err != nil {
-		return nil, err
-	}
 	p := &Proxy{
 		SharedKey: opts.SharedKey,
 
@@ -158,7 +124,6 @@ func New(opts config.Options) (*Proxy, error) {
 		defaultUpstreamTimeout: opts.DefaultUpstreamTimeout,
 		redirectURL:            &url.URL{Path: "/.pomerium/callback"},
 		refreshCooldown:        opts.RefreshCooldown,
-		restStore:              restStore,
 		sessionStore:           cookieStore,
 		signingKey:             opts.SigningKey,
 		templates:              templates.New(),
@@ -166,7 +131,6 @@ func New(opts config.Options) (*Proxy, error) {
 	// DeepCopy urls to avoid accidental mutation, err checked in validate func
 	p.authenticateURL, _ = urlutil.DeepCopy(opts.AuthenticateURL)
 	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
-	p.authenticateInternalAddr, _ = urlutil.DeepCopy(opts.AuthenticateInternalAddr)
 
 	if err := p.UpdatePolicies(&opts); err != nil {
 		return nil, err
@@ -174,20 +138,6 @@ func New(opts config.Options) (*Proxy, error) {
 	metrics.AddPolicyCountCallback("proxy", func() int64 {
 		return int64(len(p.routeConfigs))
 	})
-	p.AuthenticateClient, err = clients.NewAuthenticateClient("grpc",
-		&clients.Options{
-			Addr:                    p.authenticateURL,
-			InternalAddr:            p.authenticateInternalAddr,
-			OverrideCertificateName: opts.OverrideCertificateName,
-			SharedSecret:            opts.SharedKey,
-			CA:                      opts.CA,
-			CAFile:                  opts.CAFile,
-			RequestTimeout:          opts.GRPCClientTimeout,
-			ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
-		})
-	if err != nil {
-		return nil, err
-	}
 	p.AuthorizeClient, err = clients.NewAuthorizeClient("grpc",
 		&clients.Options{
 			Addr:                    p.authorizeURL,
@@ -213,19 +163,7 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		}
 		proxy := NewReverseProxy(policy.Destination)
 		// build http transport (roundtripper) middleware chain
-		// todo(bdd): replace with transport.Clone() in go 1.13
-		transport := http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-				DualStack: true,
-			}).DialContext,
-			MaxIdleConns:          100,
-			IdleConnTimeout:       90 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		}
+		transport := http.DefaultTransport.(*http.Transport).Clone()
 		c := tripper.NewChain()
 		c = c.Append(metrics.HTTPMetricsRoundTripper("proxy", policy.Destination.Host))
 
@@ -253,7 +191,7 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		if isCustomClientConfig {
 			transport.TLSClientConfig = &tlsClientConfig
 		}
-		proxy.Transport = c.Then(&transport)
+		proxy.Transport = c.Then(transport)
 
 		handler, err := p.newReverseProxyHandler(proxy, &policy)
 		if err != nil {
@@ -298,15 +236,6 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 	return proxy
 }
 
-// newRouteSigner creates a route specific signer.
-func (p *Proxy) newRouteSigner(audience string) (cryptutil.JWTSigner, error) {
-	decodedSigningKey, err := base64.StdEncoding.DecodeString(p.signingKey)
-	if err != nil {
-		return nil, err
-	}
-	return cryptutil.NewES256Signer(decodedSigningKey, audience)
-}
-
 // newReverseProxyHandler applies handler specific options to a given route.
 func (p *Proxy) newReverseProxyHandler(rp *httputil.ReverseProxy, route *config.Policy) (handler http.Handler, err error) {
 	handler = &UpstreamProxy{
@@ -318,7 +247,7 @@ func (p *Proxy) newReverseProxyHandler(rp *httputil.ReverseProxy, route *config.
 
 	// if signing key is set, add signer to middleware
 	if len(p.signingKey) != 0 {
-		signer, err := p.newRouteSigner(route.Source.Host)
+		signer, err := cryptutil.NewES256Signer(p.signingKey, route.Source.Host)
 		if err != nil {
 			return nil, err
 		}
