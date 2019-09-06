@@ -32,6 +32,7 @@ func Test_Validate(t *testing.T) {
 		{"good client certificate files", Policy{From: "https://httpbin.corp.example", To: "https://httpbin.corp.notatld", TLSClientCertFile: "testdata/example-cert.pem", TLSClientKeyFile: "testdata/example-key.pem"}, false},
 		{"bad certificate file", Policy{From: "https://httpbin.corp.example", To: "https://httpbin.corp.notatld", TLSClientCertFile: "testdata/example-cert-404.pem", TLSClientKeyFile: "testdata/example-key.pem"}, true},
 		{"bad key file", Policy{From: "https://httpbin.corp.example", To: "https://httpbin.corp.notatld", TLSClientCertFile: "testdata/example-cert.pem", TLSClientKeyFile: "testdata/example-key-404.pem"}, true},
+		{"good tls server name", Policy{From: "https://httpbin.corp.example", To: "https://internal-host-name", TLSServerName: "httpbin.corp.notatld"}, false},
 	}
 
 	for _, tt := range tests {

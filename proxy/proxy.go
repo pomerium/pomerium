@@ -186,6 +186,12 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 			log.Debug().Str("to", policy.Source.String()).Msg("proxy: client certs enabled")
 		}
 
+		if policy.TLSServerName != "" {
+			tlsClientConfig.ServerName = policy.TLSServerName
+			isCustomClientConfig = true
+			log.Debug().Str("to", policy.Source.String()).Msgf("proxy: tls hostname override to: %s", policy.TLSServerName)
+		}
+
 		// We avoid setting a custom client config unless we have to as
 		// if TLSClientConfig is nil, the default configuration is used.
 		if isCustomClientConfig {
