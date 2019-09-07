@@ -355,6 +355,14 @@ If set, enables proxying of websocket connections.
 
 TLS Skip Verification controls whether a client verifies the server's certificate chain and host name. If enabled, TLS accepts any certificate presented by the server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing.
 
+### TLS Server Name
+
+- Config File Key: `tls_server_name`
+- Type: `string`
+- Optional
+
+TLS Server Name overrides the hostname you specified in the `to` field. If set, this server name will be used to verify server side certificate. This is useful when the backend of your service is an HTTPS server with valid certificate, but you want to communicate via an internal hostname or IP address.
+
 ### TLS Custom Certificate Authority
 
 - Config File Key: `tls_custom_ca` or `tls_custom_ca_file`

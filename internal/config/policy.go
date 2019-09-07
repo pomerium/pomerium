@@ -46,6 +46,12 @@ type Policy struct {
 	// This should be used only for testing.
 	TLSSkipVerify bool `mapstructure:"tls_skip_verify" yaml:"tls_skip_verify"`
 
+	// TLSServerName overrides the hostname in the `to` field. This is useful
+	// if your backend is an HTTPS server with a valid certificate, but you
+	// want to communicate to the backend with an internal hostname (e.g.
+	// Docker container name).
+	TLSServerName string `mapstructure:"tls_server_name" yaml:"tls_server_name"`
+
 	// TLSCustomCA defines the  root certificate to use with a given
 	// route when verifying server certificates.
 	TLSCustomCA     string `mapstructure:"tls_custom_ca" yaml:"tls_custom_ca"`

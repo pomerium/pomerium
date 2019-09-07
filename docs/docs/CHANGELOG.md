@@ -1,5 +1,11 @@
 # Changelog
 
+## vUNRELEASED
+
+### New
+
+- Add ability to override HTTPS backend's TLS Server Name. [GH-297](https://github.com/pomerium/pomerium/pull/297)
+
 ## v0.3.0
 
 ### New
