@@ -15,6 +15,8 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
+const callbackPath = "/oauth2/callback"
+
 // ValidateOptions checks that configuration are complete and valid.
 // Returns on first error found.
 func ValidateOptions(o config.Options) error {
@@ -24,11 +26,8 @@ func ValidateOptions(o config.Options) error {
 	if _, err := cryptutil.NewCipherFromBase64(o.CookieSecret); err != nil {
 		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid %v", err)
 	}
-	if o.AuthenticateURL == nil {
-		return errors.New("authenticate: 'AUTHENTICATE_SERVICE_URL' is required")
-	}
-	if _, err := urlutil.ParseAndValidateURL(o.AuthenticateURL.String()); err != nil {
-		return fmt.Errorf("authenticate: couldn't parse 'AUTHENTICATE_SERVICE_URL': %v", err)
+	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
+		return fmt.Errorf("authenticate: invalid 'AUTHENTICATE_SERVICE_URL': %v", err)
 	}
 	if o.ClientID == "" {
 		return errors.New("authenticate: 'IDP_CLIENT_ID' is required")
@@ -44,8 +43,10 @@ type Authenticate struct {
 	SharedKey   string
 	RedirectURL *url.URL
 
+	cookieName   string
+	cookieDomain string
+	cookieSecret []byte
 	templates    *template.Template
-	csrfStore    sessions.CSRFStore
 	sessionStore sessions.SessionStore
 	cipher       cryptutil.Cipher
 	provider     identity.Authenticator
@@ -61,6 +62,9 @@ func New(opts config.Options) (*Authenticate, error) {
 	if err != nil {
 		return nil, err
 	}
+	if opts.CookieDomain == "" {
+		opts.CookieDomain = sessions.ParentSubdomain(opts.AuthenticateURL.String())
+	}
 	cookieStore, err := sessions.NewCookieStore(
 		&sessions.CookieStoreOptions{
 			Name:           opts.CookieName,
@@ -74,7 +78,7 @@ func New(opts config.Options) (*Authenticate, error) {
 		return nil, err
 	}
 	redirectURL, _ := urlutil.DeepCopy(opts.AuthenticateURL)
-	redirectURL.Path = "/oauth2/callback"
+	redirectURL.Path = callbackPath
 	provider, err := identity.New(
 		opts.Provider,
 		&identity.Provider{
@@ -94,9 +98,11 @@ func New(opts config.Options) (*Authenticate, error) {
 		SharedKey:    opts.SharedKey,
 		RedirectURL:  redirectURL,
 		templates:    templates.New(),
-		csrfStore:    cookieStore,
 		sessionStore: cookieStore,
 		cipher:       cipher,
 		provider:     provider,
+		cookieSecret: decodedCookieSecret,
+		cookieName:   opts.CookieName,
+		cookieDomain: opts.CookieDomain,
 	}, nil
 }

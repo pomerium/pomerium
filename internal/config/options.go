@@ -217,7 +217,7 @@ func (o *Options) Validate() error {
 	// shared key must be set for all modes other than "all"
 	if o.SharedKey == "" {
 		if o.Services == "all" {
-			o.SharedKey = cryptutil.GenerateRandomString(32)
+			o.SharedKey = cryptutil.NewBase64Key()
 		} else {
 			return errors.New("shared-key cannot be empty")
 		}

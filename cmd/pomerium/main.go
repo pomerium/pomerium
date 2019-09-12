@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/gorilla/mux"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 
@@ -44,9 +45,9 @@ func main() {
 	setupTracing(opt)
 	setupHTTPRedirectServer(opt)
 
-	mux := http.NewServeMux()
+	r := newGlobalRouter(opt)
 	grpcServer := setupGRPCServer(opt)
-	_, err = newAuthenticateService(*opt, mux)
+	_, err = newAuthenticateService(*opt, r.Host(urlutil.StripPort(opt.AuthenticateURL.Host)).Subrouter())
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: authenticate")
 	}
@@ -56,7 +57,7 @@ func main() {
 		log.Fatal().Err(err).Msg("cmd/pomerium: authorize")
 	}
 
-	proxy, err := newProxyService(*opt, mux)
+	proxy, err := newProxyService(*opt, r)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: proxy")
 	}
@@ -70,8 +71,7 @@ func main() {
 		log.Info().Str("file", e.Name).Msg("cmd/pomerium: config file changed")
 		opt = config.HandleConfigUpdate(*configFile, opt, []config.OptionsUpdater{authz, proxy})
 	})
-
-	srv, err := httputil.NewTLSServer(configToServerOptions(opt), mainHandler(opt, mux), grpcServer)
+	srv, err := httputil.NewTLSServer(configToServerOptions(opt), r, grpcServer)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium: couldn't start pomerium")
 	}
@@ -80,7 +80,7 @@ func main() {
 	os.Exit(0)
 }
 
-func newAuthenticateService(opt config.Options, mux *http.ServeMux) (*authenticate.Authenticate, error) {
+func newAuthenticateService(opt config.Options, r *mux.Router) (*authenticate.Authenticate, error) {
 	if !config.IsAuthenticate(opt.Services) {
 		return nil, nil
 	}
@@ -88,7 +88,7 @@ func newAuthenticateService(opt config.Options, mux *http.ServeMux) (*authentica
 	if err != nil {
 		return nil, err
 	}
-	mux.Handle(urlutil.StripPort(opt.AuthenticateURL.Host)+"/", service.Handler())
+	r.PathPrefix("/").Handler(service.Handler())
 	return service, nil
 }
 
@@ -104,7 +104,7 @@ func newAuthorizeService(opt config.Options, rpc *grpc.Server) (*authorize.Autho
 	return service, nil
 }
 
-func newProxyService(opt config.Options, mux *http.ServeMux) (*proxy.Proxy, error) {
+func newProxyService(opt config.Options, r *mux.Router) (*proxy.Proxy, error) {
 	if !config.IsProxy(opt.Services) {
 		return nil, nil
 	}
@@ -112,15 +112,15 @@ func newProxyService(opt config.Options, mux *http.ServeMux) (*proxy.Proxy, erro
 	if err != nil {
 		return nil, err
 	}
-	mux.Handle("/", service.Handler())
+	r.PathPrefix("/").Handler(service.Handler())
 	return service, nil
 }
 
-func mainHandler(o *config.Options, mux http.Handler) http.Handler {
-	c := middleware.NewChain()
-	c = c.Append(metrics.HTTPMetricsHandler(o.Services))
-	c = c.Append(log.NewHandler(log.Logger))
-	c = c.Append(log.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+func newGlobalRouter(o *config.Options) *mux.Router {
+	mux := httputil.NewRouter()
+	mux.Use(metrics.HTTPMetricsHandler(o.Services))
+	mux.Use(log.NewHandler(log.Logger))
+	mux.Use(log.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
 		log.FromRequest(r).Debug().
 			Dur("duration", duration).
 			Int("size", size).
@@ -133,15 +133,15 @@ func mainHandler(o *config.Options, mux http.Handler) http.Handler {
 			Msg("http-request")
 	}))
 	if len(o.Headers) != 0 {
-		c = c.Append(middleware.SetHeaders(o.Headers))
+		mux.Use(middleware.SetHeaders(o.Headers))
 	}
-	c = c.Append(log.ForwardedAddrHandler("fwd_ip"))
-	c = c.Append(log.RemoteAddrHandler("ip"))
-	c = c.Append(log.UserAgentHandler("user_agent"))
-	c = c.Append(log.RefererHandler("referer"))
-	c = c.Append(log.RequestIDHandler("req_id", "Request-Id"))
-	c = c.Append(middleware.Healthcheck("/ping", version.UserAgent()))
-	return c.Then(mux)
+	mux.Use(log.ForwardedAddrHandler("fwd_ip"))
+	mux.Use(log.RemoteAddrHandler("ip"))
+	mux.Use(log.UserAgentHandler("user_agent"))
+	mux.Use(log.RefererHandler("referer"))
+	mux.Use(log.RequestIDHandler("req_id", "Request-Id"))
+	mux.Use(middleware.Healthcheck("/ping", version.UserAgent()))
+	return mux
 }
 
 func configToServerOptions(opt *config.Options) *httputil.ServerOptions {

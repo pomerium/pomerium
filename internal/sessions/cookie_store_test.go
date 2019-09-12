@@ -1,4 +1,4 @@
-package sessions
+package sessions // import "github.com/pomerium/pomerium/internal/sessions"
 
 import (
 	"crypto/rand"
@@ -38,7 +38,7 @@ func (a mockCipher) Unmarshal(s string, i interface{}) error {
 	return nil
 }
 func TestNewCookieStore(t *testing.T) {
-	cipher, err := cryptutil.NewCipher(cryptutil.GenerateKey())
+	cipher, err := cryptutil.NewCipher(cryptutil.NewKey())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestNewCookieStore(t *testing.T) {
 }
 
 func TestCookieStore_makeCookie(t *testing.T) {
-	cipher, err := cryptutil.NewCipher(cryptutil.GenerateKey())
+	cipher, err := cryptutil.NewCipher(cryptutil.NewKey())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,62 +155,13 @@ func TestCookieStore_makeCookie(t *testing.T) {
 			if diff := cmp.Diff(s.makeSessionCookie(r, tt.value, tt.expiration, now), tt.want); diff != "" {
 				t.Errorf("CookieStore.makeSessionCookie() = \n%s", diff)
 			}
-			got := s.makeCSRFCookie(r, tt.value, tt.expiration, now)
-			tt.wantCSRF.Name = "_pomerium_csrf"
-			if !reflect.DeepEqual(got, tt.wantCSRF) {
-				t.Errorf("CookieStore.makeCookie() = \n%#v, \nwant\n%#v", got, tt.wantCSRF)
-			}
-			w := httptest.NewRecorder()
-			want := "new-csrf"
-			s.SetCSRF(w, r, want)
-			found := false
-			for _, cookie := range w.Result().Cookies() {
-				if cookie.Name == s.Name+"_csrf" && cookie.Value == want {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Error("SetCSRF failed")
-			}
-
-			w = httptest.NewRecorder()
-			s.ClearCSRF(w, r)
-			for _, cookie := range w.Result().Cookies() {
-				if cookie.Name == s.Name+"_csrf" && cookie.Value == want {
-					t.Error("clear csrf failed")
-					break
-
-				}
-			}
-			w = httptest.NewRecorder()
-			want = "new-session"
-			s.setSessionCookie(w, r, want)
-			found = false
-			for _, cookie := range w.Result().Cookies() {
-				if cookie.Name == s.Name && cookie.Value == want {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Error("SetCSRF failed")
-			}
-			w = httptest.NewRecorder()
-			s.ClearSession(w, r)
-			for _, cookie := range w.Result().Cookies() {
-				if cookie.Name == s.Name && cookie.Value == want {
-					t.Error("clear csrf failed")
-					break
-				}
-			}
 
 		})
 	}
 }
 
 func TestCookieStore_SaveSession(t *testing.T) {
-	cipher, err := cryptutil.NewCipher(cryptutil.GenerateKey())
+	cipher, err := cryptutil.NewCipher(cryptutil.NewKey())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,38 +216,6 @@ func TestCookieStore_SaveSession(t *testing.T) {
 	}
 }
 
-func TestMockCSRFStore(t *testing.T) {
-	tests := []struct {
-		name         string
-		mockCSRF     *MockCSRFStore
-		newCSRFValue string
-		wantErr      bool
-	}{
-		{"basic",
-			&MockCSRFStore{
-				ResponseCSRF: "ok",
-				Cookie:       &http.Cookie{Name: "hi"}},
-			"newcsrf",
-			false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ms := tt.mockCSRF
-			ms.SetCSRF(nil, nil, tt.newCSRFValue)
-			ms.ClearCSRF(nil, nil)
-			got, err := ms.GetCSRF(nil)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("MockCSRFStore.GetCSRF() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.mockCSRF.Cookie) {
-				t.Errorf("MockCSRFStore.GetCSRF() = %v, want %v", got, tt.mockCSRF.Cookie)
-			}
-
-		})
-	}
-}
-
 func TestMockSessionStore(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -341,7 +260,7 @@ func TestMockSessionStore(t *testing.T) {
 	}
 }
 
-func Test_splitDomain(t *testing.T) {
+func Test_ParentSubdomain(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		s    string
@@ -354,8 +273,8 @@ func Test_splitDomain(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.s, func(t *testing.T) {
-			if got := splitDomain(tt.s); got != tt.want {
-				t.Errorf("splitDomain() = %v, want %v", got, tt.want)
+			if got := ParentSubdomain(tt.s); got != tt.want {
+				t.Errorf("ParentSubdomain() = %v, want %v", got, tt.want)
 			}
 		})
 	}

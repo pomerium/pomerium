@@ -13,20 +13,27 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
+// DefaultKeySize is the default key size in bytes.
 const DefaultKeySize = 32
 
-// GenerateKey generates a random 32-byte key.
+// NewKey generates a random 32-byte key.
 //
 // Panics if source of randomness fails.
-func GenerateKey() []byte {
+func NewKey() []byte {
 	return randomBytes(DefaultKeySize)
 }
 
-// GenerateRandomString returns base64 encoded securely generated random string
-// of a given set of bytes.
+// NewBase64Key generates a random base64 encoded 32-byte key.
 //
 // Panics if source of randomness fails.
-func GenerateRandomString(c int) string {
+func NewBase64Key() string {
+	return NewRandomStringN(DefaultKeySize)
+}
+
+// NewRandomStringN returns base64 encoded random string of a given num of bytes.
+//
+// Panics if source of randomness fails.
+func NewRandomStringN(c int) string {
 	return base64.StdEncoding.EncodeToString(randomBytes(c))
 }
 

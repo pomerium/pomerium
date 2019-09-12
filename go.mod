@@ -9,10 +9,12 @@ require (
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.1
-	github.com/google/go-cmp v0.3.0
+	github.com/google/go-cmp v0.3.1
+	github.com/gorilla/mux v1.6.2
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/pelletier/go-toml v1.4.0 // indirect
+	github.com/pomerium/csrf v1.6.2-0.20190911035354-d4d212209a30
 	github.com/pomerium/go-oidc v2.0.0+incompatible
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v0.9.3

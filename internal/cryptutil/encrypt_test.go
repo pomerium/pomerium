@@ -1,4 +1,4 @@
-package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
+package cryptutil
 
 import (
 	"crypto/rand"
@@ -13,7 +13,7 @@ import (
 func TestEncodeAndDecodeAccessToken(t *testing.T) {
 	plaintext := []byte("my plain text value")
 
-	key := GenerateKey()
+	key := NewKey()
 	c, err := NewCipher(key)
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -47,7 +47,7 @@ func TestEncodeAndDecodeAccessToken(t *testing.T) {
 }
 
 func TestMarshalAndUnmarshalStruct(t *testing.T) {
-	key := GenerateKey()
+	key := NewKey()
 
 	c, err := NewCipher(key)
 	if err != nil {
@@ -102,7 +102,7 @@ func TestMarshalAndUnmarshalStruct(t *testing.T) {
 }
 
 func TestCipherDataRace(t *testing.T) {
-	cipher, err := NewCipher(GenerateKey())
+	cipher, err := NewCipher(NewKey())
 	if err != nil {
 		t.Fatalf("unexpected generating cipher err: %v", err)
 	}
@@ -183,21 +183,21 @@ func TestGenerateRandomString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := GenerateRandomString(tt.c)
+			o := NewRandomStringN(tt.c)
 			b, err := base64.StdEncoding.DecodeString(o)
 			if err != nil {
 				t.Error(err)
 			}
 			got := len(b)
 			if got != tt.want {
-				t.Errorf("GenerateRandomString() = %d, want %d", got, tt.want)
+				t.Errorf("NewRandomStringN() = %d, want %d", got, tt.want)
 			}
 		})
 	}
 }
 
 func TestXChaCha20Cipher_Marshal(t *testing.T) {
-
+	t.Parallel()
 	tests := []struct {
 		name    string
 		s       interface{}
@@ -225,7 +225,7 @@ func TestXChaCha20Cipher_Marshal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			c, err := NewCipher(GenerateKey())
+			c, err := NewCipher(NewKey())
 			if err != nil {
 				t.Fatalf("unexpected err: %v", err)
 			}
@@ -239,15 +239,15 @@ func TestXChaCha20Cipher_Marshal(t *testing.T) {
 }
 
 func TestNewCipher(t *testing.T) {
-
+	t.Parallel()
 	tests := []struct {
 		name    string
 		secret  []byte
 		wantErr bool
 	}{
-		{"simple 32 byte key", GenerateKey(), false},
+		{"simple 32 byte key", NewKey(), false},
 		{"key too short", []byte("what is entropy"), true},
-		{"key too long", []byte(GenerateRandomString(33)), true},
+		{"key too long", []byte(NewRandomStringN(33)), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -261,16 +261,16 @@ func TestNewCipher(t *testing.T) {
 }
 
 func TestNewCipherFromBase64(t *testing.T) {
-
+	t.Parallel()
 	tests := []struct {
 		name    string
 		s       string
 		wantErr bool
 	}{
-		{"simple 32 byte key", base64.StdEncoding.EncodeToString(GenerateKey()), false},
+		{"simple 32 byte key", base64.StdEncoding.EncodeToString(NewKey()), false},
 		{"key too short", base64.StdEncoding.EncodeToString([]byte("what is entropy")), true},
-		{"key too long", GenerateRandomString(33), true},
-		{"bad base 64", string(GenerateKey()), true},
+		{"key too long", NewRandomStringN(33), true},
+		{"bad base 64", string(NewKey()), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -278,6 +278,29 @@ func TestNewCipherFromBase64(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewCipherFromBase64() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+		})
+	}
+}
+
+func TestNewBase64Key(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		want int
+	}{
+		{"simple", 32},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := NewBase64Key()
+			b, err := base64.StdEncoding.DecodeString(o)
+			if err != nil {
+				t.Error(err)
+			}
+			got := len(b)
+			if got != tt.want {
+				t.Errorf("NewBase64Key() = %d, want %d", got, tt.want)
 			}
 		})
 	}

@@ -5,6 +5,23 @@
 ### New
 
 - Add ability to override HTTPS backend's TLS Server Name. [GH-297](https://github.com/pomerium/pomerium/pull/297)
+- Add ability to set pomerium's encrypted session in a auth bearer token, or query param.
+
+### Security
+
+- Under certain circumstances, where debug logging was enabled, pomerium's shared secret could be leaked to http access logs as a query param.
+
+### Fixed
+
+- Fixed an issue where CSRF would fail if multiple tabs were open. [GH-306](https://github.com/pomerium/pomerium/issues/306)
+
+### Changed
+
+- Authenticate service no longer uses gRPC.
+
+### Removed
+
+- Removed `AUTHENTICATE_INTERNAL_URL`/`authenticate_internal_url` which is no longer used.
 
 ## v0.3.0
 
