@@ -34,7 +34,7 @@ services:
     volumes:
       - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/pomerium/cert.pem:ro
       - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/pomerium/privkey.pem:ro
-      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/reference/
+      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/docs/reference/reference/
       # See `config.example.yaml` and modify to fit your needs.
       - ../config/config.example.yaml:/pomerium/config.yaml:ro
 
@@ -61,7 +61,7 @@ services:
     volumes:
       - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/pomerium/cert.pem:ro
       - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/pomerium/privkey.pem:ro
-      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/reference/
+      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/docs/reference/reference/
       # See `config.example.yaml` and modify to fit your needs.
       - ../config/config.example.yaml:/pomerium/config.yaml:ro
     expose:
@@ -80,7 +80,7 @@ services:
     volumes:
       - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/pomerium/cert.pem:ro
       - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/pomerium/privkey.pem:ro
-      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/reference/
+      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/docs/reference/reference/
       # See `config.example.yaml` and modify to fit your needs.
       - ../config/config.example.yaml:/pomerium/config.yaml:ro
     expose:
