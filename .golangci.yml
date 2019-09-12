@@ -1,7 +1,7 @@
 # forked from istio
 service:
   # When updating this, also update bin/linters.sh accordingly
-  golangci-lint-version: 1.17.x # use the fixed version to not introduce new linters unexpectedly
+  golangci-lint-version: 1.18.x # use the fixed version to not introduce new linters unexpectedly
 run:
   # timeout for analysis, e.g. 30s, 5m, default is 1m
   deadline: 5m
@@ -37,6 +37,7 @@ linters:
     - scopelint
     - maligned
     - interfacer
+    - funlen
   fast: false
 
 linters-settings:

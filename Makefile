@@ -27,10 +27,17 @@ CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.ProjectURL=$(PKG)
 GO_LDFLAGS=-ldflags "-s -w $(CTIMEVAR)"
 GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
-
-
+GOLANGCI_VERSION = v1.18.0 # .... for some reason v1.18.0 misses?
+ 
 .PHONY: all
-all: clean lint spellcheck test build ## Runs a clean, build, fmt, lint, test, and vet.
+all: clean build-deps test lint spellcheck build ## Runs a clean, build, fmt, lint, test, and vet.
+
+
+.PHONY: build-deps
+build-deps: ## Install build dependencies
+	@echo "==> $@"
+	@cd /tmp; GO111MODULE=on go get -u github.com/client9/misspell/cmd/misspell
+	@cd /tmp; GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_VERSION}
 
 .PHONY: docs
 docs: ## Start the vuepress docs development server
@@ -50,7 +57,6 @@ build: ## Builds dynamic executables and/or packages.
 .PHONY: lint
 lint: ## Verifies `golint` passes.
 	@echo "==> $@"
-	@GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 	@golangci-lint run ./...
 
 .PHONY: test
@@ -61,7 +67,6 @@ test: ## Runs the go tests.
 .PHONY: spellcheck
 spellcheck: # Spellcheck docs
 	@echo "==> Spell checking docs..."
-	@GO111MODULE=off go get -u github.com/client9/misspell/cmd/misspell
 	@misspell -error -source=text docs/
 
 
