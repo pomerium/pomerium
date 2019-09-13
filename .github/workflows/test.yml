@@ -32,6 +32,7 @@ jobs:
         with:
           go-version: 1.13
       - uses: actions/checkout@v1
+      - run: make cover
       - uses: codecov/codecov-action@v1.0.2
         with:
           token: ${{secrets.CODECOV_TOKEN}} #required
