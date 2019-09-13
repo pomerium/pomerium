@@ -32,9 +32,7 @@ jobs:
         with:
           go-version: 1.13
       - uses: actions/checkout@v1
-      - run: make cover
-      - name: upload-to-code-cov
-        env:
-          codecov_token: ${{secrets.CODECOV_TOKEN}}
-        run: |
-          bash <(curl -s https://codecov.io/bash)
+      - uses: codecov/codecov-action@v1.0.2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}} #required
+          # file: ./coverage.xml #optional
