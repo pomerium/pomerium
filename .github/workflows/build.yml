@@ -1,0 +1,14 @@
+name: build
+on: [push]
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest] #windows-latest :/
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+      - uses: actions/checkout@v1
+      - run: make build

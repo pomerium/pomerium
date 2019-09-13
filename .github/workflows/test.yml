@@ -1,0 +1,40 @@
+name: test
+on: [push]
+jobs:
+  test:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest] #  windows-latest :/
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+      - uses: actions/checkout@v1
+      - run: make test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+      - uses: actions/checkout@v1
+      - run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          make build-deps 
+          make lint
+
+  codecov:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+      - uses: actions/checkout@v1
+      - run: make cover
+      - name: upload-to-code-cov
+        env:
+          codecov_token: ${{secrets.CODECOV_TOKEN}}
+        run: |
+          bash <(curl -s https://codecov.io/bash)
