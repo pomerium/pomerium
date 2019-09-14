@@ -1,4 +1,4 @@
-# See detailed configuration settings : https://www.pomerium.io/reference/
+# See detailed configuration settings : https://www.pomerium.io/docs/reference/reference/
 authenticate_service_url: https://authenticate.corp.domain.example
 authorize_service_url: https://authorize.corp.domain.example
 

@@ -1,4 +1,4 @@
-# Main configuration flags : https://www.pomerium.io/reference/
+# Main configuration flags : https://www.pomerium.io/docs/reference/reference/
 authenticate_service_url: https://authenticate.corp.beyondperimeter.com
 authorize_service_url: https://pomerium-authorize-service.default.svc.cluster.local
 
