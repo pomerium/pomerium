@@ -20,7 +20,9 @@ import (
 
 // Handler returns the proxy service's ServeMux
 func (p *Proxy) Handler() http.Handler {
-	r := httputil.NewRouter().StrictSlash(true)
+	r := httputil.NewRouter()
+	r.SkipClean(true)
+	r.StrictSlash(true)
 	r.Use(middleware.ValidateHost(func(host string) bool {
 		_, ok := p.routeConfigs[host]
 		return ok

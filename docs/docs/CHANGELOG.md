@@ -14,6 +14,7 @@
 ### Fixed
 
 - Fixed an issue where CSRF would fail if multiple tabs were open. [GH-306](https://github.com/pomerium/pomerium/issues/306)
+- Fixed an issue where pomerium would clean double slashes from paths.[GH-262](https://github.com/pomerium/pomerium/issues/262)
 
 ### Changed
 

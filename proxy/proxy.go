@@ -247,6 +247,8 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 // each route has a custom set of middleware applied to the reverse proxy
 func (p *Proxy) newReverseProxyHandler(rp http.Handler, route *config.Policy) (http.Handler, error) {
 	r := pom_httputil.NewRouter()
+	r.SkipClean(true)
+	r.StrictSlash(true)
 	r.Use(middleware.StripPomeriumCookie(p.cookieName))
 	// if signing key is set, add signer to middleware
 	if len(p.signingKey) != 0 {
