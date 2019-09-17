@@ -7,7 +7,7 @@ jobs:
         platform: [ubuntu-latest, macos-latest] #  windows-latest :/
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@v1
+      - uses: actions/setup-go@master
         with:
           go-version: 1.13
       - uses: actions/checkout@v1
@@ -16,7 +16,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v1
+      - uses: actions/setup-go@master
         with:
           go-version: 1.13
       - uses: actions/checkout@v1
@@ -28,10 +28,10 @@ jobs:
   codecov:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v1
+      - uses: actions/setup-go@master
         with:
           go-version: 1.13
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@master
       - run: make cover
       - uses: codecov/codecov-action@v1.0.2
         with:
