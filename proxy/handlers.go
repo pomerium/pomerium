@@ -233,7 +233,10 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 	// OK to impersonation
 	session.ImpersonateEmail = r.FormValue("email")
 	session.ImpersonateGroups = strings.Split(r.FormValue("group"), ",")
-
+	groups := r.FormValue("group")
+	if groups != "" {
+		session.ImpersonateGroups = strings.Split(groups, ",")
+	}
 	if err := p.sessionStore.SaveSession(w, r, session); err != nil {
 		httputil.ErrorResponse(w, r, err)
 		return
