@@ -1,0 +1,8 @@
+/reference/				/docs/reference/reference.html
+/guide/					/docs/quick-start/
+/guide/kubernetes.html	/docs/quick-start/kubernetes.html
+/guide/kubernetes		/docs/quick-start/kubernetes.html
+/guide/synology			/docs/quick-start/synology.html
+/guide/synology.html	/docs/quick-start/synology.html
+/docs/examples.html		/recipes/
+/docs/examples			/recipes/
