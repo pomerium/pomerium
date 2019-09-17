@@ -6,6 +6,7 @@
 
 - Add ability to override HTTPS backend's TLS Server Name. [GH-297](https://github.com/pomerium/pomerium/pull/297)
 - Add ability to set pomerium's encrypted session in a auth bearer token, or query param.
+- Add host to the main request logger middleware. [GH-308](https://github.com/pomerium/pomerium/issues/308)
 
 ### Security
 
