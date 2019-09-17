@@ -4,28 +4,6 @@ import (
 	"net/http"
 )
 
-// MockCSRFStore is a mock implementation of the CSRF store interface
-type MockCSRFStore struct {
-	ResponseCSRF string
-	Cookie       *http.Cookie
-	GetError     error
-}
-
-// SetCSRF sets the ResponseCSRF string to a val
-func (ms MockCSRFStore) SetCSRF(rw http.ResponseWriter, req *http.Request, val string) {
-	ms.ResponseCSRF = val
-}
-
-// ClearCSRF clears the ResponseCSRF string
-func (ms MockCSRFStore) ClearCSRF(http.ResponseWriter, *http.Request) {
-	ms.ResponseCSRF = ""
-}
-
-// GetCSRF returns the cookie and error
-func (ms MockCSRFStore) GetCSRF(*http.Request) (*http.Cookie, error) {
-	return ms.Cookie, ms.GetError
-}
-
 // MockSessionStore is a mock implementation of the SessionStore interface
 type MockSessionStore struct {
 	ResponseSession string

@@ -228,8 +228,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key       | Description                                                       | Required |
 | :--------------- | :---------------------------------------------------------------- | -------- |
-| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅        |
-| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌        |
+| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅       |
+| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌       |
 
 ### Jaeger
 
@@ -243,8 +243,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key                        | Description                                 | Required |
 | :-------------------------------- | :------------------------------------------ | -------- |
-| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
-| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
+| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅       |
+| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅       |
 
 #### Example
 
@@ -478,11 +478,11 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 - Config File Key: `authorize_service_url`
 - Type: `URL`
 - Required
-- Example: `https://access.corp.example.com` or `https://pomerium-authorize-service.default.svc.cluster.local`
+- Example: `https://authorize.corp.example.com` or `https://pomerium-authorize-service.default.svc.cluster.local`
 
 Authorize Service URL is the location of the internally accessible authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
 
-If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`https://pomerium-authorize-service.default.svc.cluster.local`) instead of an externally routable one (`https://access.corp.example.com`).
+If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`https://pomerium-authorize-service.default.svc.cluster.local`) instead of an externally routable one (`https://authorize.corp.example.com`).
 
 ## Override Certificate Name
 

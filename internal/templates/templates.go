@@ -306,7 +306,7 @@ func New() *template.Template {
                   </svg>
                   <form method="POST" action="{{.SignoutURL}}">
                     <section>
-                        <h2>Session</h2>
+                        <h2>Current user</h2>
                         <p class="message">Your current session details.</p>
                         <fieldset>
                             <label>
@@ -334,10 +334,22 @@ func New() *template.Template {
                         </fieldset>
                     </section>
                     <div class="flex">
-                      <button class="button half" type="submit">Sign Out</button>
-                      <a href="/.pomerium/refresh" class="button half">Refresh</a>
+                    {{ .csrfField }}
+                      <button class="button full" type="submit">Sign Out</button>
                     </div>
                   </form>
+                  <section>
+                  <h2>Refresh Identity</h2>
+                  <p class="message">Pomerium will automatically refresh your user session. However, if your group memberships have recently changed and haven't taken effect yet, you can refresh your session manually.</p>
+
+                  <form method="POST" action="/.pomerium/refresh">
+                  <div class="flex">
+                  {{ .csrfField }}
+                    <button class="button full" type="submit">Refresh</button>
+                  </div>
+                  </form>
+                  </section>
+
                   {{if .IsAdmin}}
                   <form method="POST" action="/.pomerium/impersonate">
                   <section>
@@ -355,7 +367,7 @@ func New() *template.Template {
                       </fieldset>
                   </section>
                   <div class="flex">
-                  <input name="csrf" type="hidden" value="{{.CSRF}}">
+                  {{ .csrfField }}
                     <button class="button full" type="submit">Impersonate session</button>
                   </div>
                 </form>

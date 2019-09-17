@@ -21,7 +21,7 @@ import (
 )
 
 func Test_newAuthenticateService(t *testing.T) {
-	mux := http.NewServeMux()
+	mux := httputil.NewRouter()
 
 	tests := []struct {
 		name  string
@@ -127,7 +127,7 @@ func Test_newProxyeService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mux := http.NewServeMux()
+			mux := httputil.NewRouter()
 			testOpts, err := config.NewOptions("https://authenticate.example", "https://authorize.example")
 			if err != nil {
 				t.Fatal(err)
@@ -161,7 +161,7 @@ func Test_newProxyeService(t *testing.T) {
 	}
 }
 
-func Test_mainHandler(t *testing.T) {
+func Test_newGlobalRouter(t *testing.T) {
 	o := config.Options{
 		Services: "all",
 		Headers: map[string]string{
@@ -172,7 +172,6 @@ func Test_mainHandler(t *testing.T) {
 			"Content-Security-Policy":   "default-src 'none'; style-src 'self' 'sha256-pSTVzZsFAqd2U3QYu+BoBDtuJWaPM/+qMy/dBRrhb5Y='; img-src 'self';",
 			"Referrer-Policy":           "Same-origin",
 		}}
-	mux := http.NewServeMux()
 	req := httptest.NewRequest(http.MethodGet, "/404", nil)
 	rr := httptest.NewRecorder()
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -181,8 +180,9 @@ func Test_mainHandler(t *testing.T) {
 		io.WriteString(w, `OK`)
 	})
 
-	mux.Handle("/404", h)
-	out := mainHandler(&o, mux)
+	out := newGlobalRouter(&o)
+	out.Handle("/404", h)
+
 	out.ServeHTTP(rr, req)
 	expected := fmt.Sprintf("OK")
 	body := rr.Body.String()

@@ -10,9 +10,6 @@ import (
 	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
-// ErrExpired is an error for a expired sessions.
-var ErrExpired = fmt.Errorf("internal/sessions: expired session")
-
 // State is our object that keeps track of a user's session state
 type State struct {
 	AccessToken     string    `json:"access_token"`

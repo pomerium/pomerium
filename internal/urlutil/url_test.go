@@ -1,6 +1,7 @@
 package urlutil
 
 import (
+	"net/http"
 	"net/url"
 	"reflect"
 	"testing"
@@ -35,7 +36,7 @@ func Test_StripPort(t *testing.T) {
 }
 
 func TestParseAndValidateURL(t *testing.T) {
-
+	t.Parallel()
 	tests := []struct {
 		name    string
 		rawurl  string
@@ -63,7 +64,7 @@ func TestParseAndValidateURL(t *testing.T) {
 }
 
 func TestDeepCopy(t *testing.T) {
-
+	t.Parallel()
 	tests := []struct {
 		name    string
 		u       *url.URL
@@ -83,6 +84,93 @@ func TestDeepCopy(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DeepCopy() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		u       *url.URL
+		wantErr bool
+	}{
+		{"good", &url.URL{Scheme: "https", Host: "some.example"}, false},
+		{"nil", nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := ValidateURL(tt.u); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateURL() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSignedRedirectURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		mockedTime  int64
+		key         string
+		destination *url.URL
+		urlToSign   *url.URL
+		want        *url.URL
+	}{
+		{"good", 2, "hunter42", &url.URL{Host: "pomerium.io", Scheme: "https://"}, &url.URL{Host: "pomerium.io", Scheme: "https://", Path: "/ok"}, &url.URL{Host: "pomerium.io", Scheme: "https://", RawQuery: "redirect_uri=https%3A%2F%2F%3A%2F%2Fpomerium.io%2Fok&sig=7jdo1XFcmuhjBHnpfVhll5cXflYByeMnbp5kRz87CVQ%3D&ts=2"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testTimeNow = tt.mockedTime
+			got := SignedRedirectURL(tt.key, tt.destination, tt.urlToSign)
+			if diff := cmp.Diff(got, tt.want); diff != "" {
+				t.Errorf("SignedRedirectURL() = diff %v", diff)
+			}
+		})
+	}
+}
+
+func Test_timestamp(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		dontWant int64
+	}{
+		{"if unset should never return", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testTimeNow = tt.dontWant
+			if got := timestamp(); got == tt.dontWant {
+				t.Errorf("timestamp() = %v, dontWant %v", got, tt.dontWant)
+			}
+		})
+	}
+}
+
+func parseURLHelper(s string) *url.URL {
+	u, _ := url.Parse(s)
+	return u
+}
+
+func TestGetAbsoluteURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		u    *url.URL
+		want *url.URL
+	}{
+		{"add https", parseURLHelper("http://pomerium.io"), parseURLHelper("https://pomerium.io")},
+		{"missing scheme", parseURLHelper("https://pomerium.io"), parseURLHelper("https://pomerium.io")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := http.Request{URL: tt.u, Host: tt.u.Host}
+			got := GetAbsoluteURL(&r)
+			if diff := cmp.Diff(got, tt.want); diff != "" {
+				t.Errorf("GetAbsoluteURL() = %v", diff)
 			}
 		})
 	}

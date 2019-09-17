@@ -116,3 +116,9 @@ func (p *Policy) Validate() error {
 
 	return nil
 }
+func (p *Policy) String() string {
+	if p.Source == nil || p.Destination == nil {
+		return fmt.Sprintf("%s → %s", p.From, p.To)
+	}
+	return fmt.Sprintf("%s → %s", p.Source.String(), p.Destination.String())
+}

@@ -12,7 +12,7 @@ import (
 )
 
 func TestStateSerialization(t *testing.T) {
-	secret := cryptutil.GenerateKey()
+	secret := cryptutil.NewKey()
 	c, err := cryptutil.NewCipher(secret)
 	if err != nil {
 		t.Fatalf("expected to be able to create cipher: %v", err)
@@ -123,7 +123,7 @@ func TestState_Impersonating(t *testing.T) {
 }
 
 func TestMarshalSession(t *testing.T) {
-	secret := cryptutil.GenerateKey()
+	secret := cryptutil.NewKey()
 	c, err := cryptutil.NewCipher(secret)
 	if err != nil {
 		t.Fatalf("expected to be able to create cipher: %v", err)

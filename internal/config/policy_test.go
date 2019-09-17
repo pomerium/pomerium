@@ -1,4 +1,4 @@
-package config // import "github.com/pomerium/pomerium/internal/config"
+package config
 
 import (
 	"testing"
@@ -40,6 +40,31 @@ func Test_Validate(t *testing.T) {
 			err := tt.policy.Validate()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Validate() error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestPolicy_String(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		From string
+		To   string
+		want string
+	}{
+		{"good", "https://pomerium.io", "https://localhost", "https://pomerium.io → https://localhost"},
+		{"failed to validate", "https://pomerium.io", "localhost", "https://pomerium.io → localhost"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &Policy{
+				From: tt.From,
+				To:   tt.To,
+			}
+			p.Validate()
+			if got := p.String(); got != tt.want {
+				t.Errorf("Policy.String() = %v, want %v", got, tt.want)
 			}
 		})
 	}

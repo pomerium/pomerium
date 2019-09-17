@@ -2,6 +2,7 @@ package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	stdlog "log"
@@ -12,11 +13,11 @@ import (
 
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	pom_httputil "github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/templates"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -32,6 +33,11 @@ const (
 	HeaderEmail = "x-pomerium-authenticated-user-email"
 	// HeaderGroups is the header key containing the user's groups.
 	HeaderGroups = "x-pomerium-authenticated-user-groups"
+
+	// signinURL is the path to authenticate's sign in endpoint
+	signinURL = "/.pomerium/sign_in"
+	// signoutURL is the path to authenticate's sign out endpoint
+	signoutURL = "/.pomerium/sign_out"
 )
 
 // ValidateOptions checks that proper configuration settings are set to create
@@ -40,23 +46,21 @@ func ValidateOptions(o config.Options) error {
 	if _, err := cryptutil.NewCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("proxy: invalid 'SHARED_SECRET': %v", err)
 	}
+
 	if _, err := cryptutil.NewCipherFromBase64(o.CookieSecret); err != nil {
 		return fmt.Errorf("proxy: invalid 'COOKIE_SECRET': %v", err)
 	}
-	if o.AuthenticateURL == nil {
-		return fmt.Errorf("proxy: missing 'AUTHENTICATE_SERVICE_URL'")
-	}
-	if _, err := urlutil.ParseAndValidateURL(o.AuthenticateURL.String()); err != nil {
+
+	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
 		return fmt.Errorf("proxy: invalid 'AUTHENTICATE_SERVICE_URL': %v", err)
 	}
-	if o.AuthorizeURL == nil {
-		return fmt.Errorf("proxy: missing 'AUTHORIZE_SERVICE_URL'")
-	}
-	if _, err := urlutil.ParseAndValidateURL(o.AuthorizeURL.String()); err != nil {
+
+	if err := urlutil.ValidateURL(o.AuthorizeURL); err != nil {
 		return fmt.Errorf("proxy: invalid 'AUTHORIZE_SERVICE_URL': %v", err)
 	}
+
 	if len(o.SigningKey) != 0 {
-		if _, err := cryptutil.NewES256Signer(o.SigningKey, "localhost"); err != nil {
+		if _, err := cryptutil.NewES256Signer(o.SigningKey, ""); err != nil {
 			return fmt.Errorf("proxy: invalid 'SIGNING_KEY': %v", err)
 		}
 	}
@@ -66,17 +70,19 @@ func ValidateOptions(o config.Options) error {
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
 	// SharedKey used to mutually authenticate service communication
-	SharedKey       string
-	authenticateURL *url.URL
-	authorizeURL    *url.URL
+	SharedKey              string
+	authenticateURL        *url.URL
+	authenticateSigninURL  *url.URL
+	authenticateSignoutURL *url.URL
+	authorizeURL           *url.URL
 
 	AuthorizeClient clients.Authorizer
 
 	cipher                 cryptutil.Cipher
 	cookieName             string
-	csrfStore              sessions.CSRFStore
+	cookieDomain           string
+	cookieSecret           []byte
 	defaultUpstreamTimeout time.Duration
-	redirectURL            *url.URL
 	refreshCooldown        time.Duration
 	routeConfigs           map[string]*routeConfig
 	sessionStore           sessions.SessionStore
@@ -95,9 +101,16 @@ func New(opts config.Options) (*Proxy, error) {
 	if err := ValidateOptions(opts); err != nil {
 		return nil, err
 	}
+	decodedCookieSecret, err := base64.StdEncoding.DecodeString(opts.CookieSecret)
+	if err != nil {
+		return nil, err
+	}
 	cipher, err := cryptutil.NewCipherFromBase64(opts.CookieSecret)
 	if err != nil {
 		return nil, err
+	}
+	if opts.CookieDomain == "" {
+		opts.CookieDomain = sessions.ParentSubdomain(opts.AuthenticateURL.String())
 	}
 
 	cookieStore, err := sessions.NewCookieStore(
@@ -116,13 +129,12 @@ func New(opts config.Options) (*Proxy, error) {
 	p := &Proxy{
 		SharedKey: opts.SharedKey,
 
-		routeConfigs: make(map[string]*routeConfig),
-
+		routeConfigs:           make(map[string]*routeConfig),
 		cipher:                 cipher,
+		cookieSecret:           decodedCookieSecret,
+		cookieDomain:           opts.CookieDomain,
 		cookieName:             opts.CookieName,
-		csrfStore:              cookieStore,
 		defaultUpstreamTimeout: opts.DefaultUpstreamTimeout,
-		redirectURL:            &url.URL{Path: "/.pomerium/callback"},
 		refreshCooldown:        opts.RefreshCooldown,
 		sessionStore:           cookieStore,
 		signingKey:             opts.SigningKey,
@@ -130,6 +142,9 @@ func New(opts config.Options) (*Proxy, error) {
 	}
 	// DeepCopy urls to avoid accidental mutation, err checked in validate func
 	p.authenticateURL, _ = urlutil.DeepCopy(opts.AuthenticateURL)
+	p.authenticateSigninURL = p.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
+	p.authenticateSignoutURL = p.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
+
 	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
 
 	if err := p.UpdatePolicies(&opts); err != nil {
@@ -172,24 +187,24 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		if policy.TLSSkipVerify {
 			tlsClientConfig.InsecureSkipVerify = true
 			isCustomClientConfig = true
-			log.Warn().Str("to", policy.Source.String()).Msg("proxy: tls skip verify")
+			log.Warn().Str("policy", policy.String()).Msg("proxy: tls skip verify")
 		}
 		if policy.RootCAs != nil {
 			tlsClientConfig.RootCAs = policy.RootCAs
 			isCustomClientConfig = true
-			log.Debug().Str("to", policy.Source.String()).Msg("proxy: custom root ca")
+			log.Debug().Str("policy", policy.String()).Msg("proxy: custom root ca")
 		}
 
 		if policy.ClientCertificate != nil {
 			tlsClientConfig.Certificates = []tls.Certificate{*policy.ClientCertificate}
 			isCustomClientConfig = true
-			log.Debug().Str("to", policy.Source.String()).Msg("proxy: client certs enabled")
+			log.Debug().Str("policy", policy.String()).Msg("proxy: client certs enabled")
 		}
 
 		if policy.TLSServerName != "" {
 			tlsClientConfig.ServerName = policy.TLSServerName
 			isCustomClientConfig = true
-			log.Debug().Str("to", policy.Source.String()).Msgf("proxy: tls hostname override to: %s", policy.TLSServerName)
+			log.Debug().Str("policy", policy.String()).Msgf("proxy: tls hostname override to: %s", policy.TLSServerName)
 		}
 
 		// We avoid setting a custom client config unless we have to as
@@ -212,19 +227,6 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 	return nil
 }
 
-// UpstreamProxy stores information for proxying the request to the upstream.
-type UpstreamProxy struct {
-	name    string
-	handler http.Handler
-}
-
-// ServeHTTP handles the second (reverse-proxying) leg of pomerium's request flow
-func (u *UpstreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, span := trace.StartSpan(r.Context(), fmt.Sprintf("%s%s", r.Host, r.URL.Path))
-	defer span.End()
-	u.handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
 // NewReverseProxy returns a new ReverseProxy that routes URLs to the scheme, host, and
 // base path provided in target. NewReverseProxy rewrites the Host header.
 func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
@@ -242,22 +244,17 @@ func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
 	return proxy
 }
 
-// newReverseProxyHandler applies handler specific options to a given route.
-func (p *Proxy) newReverseProxyHandler(rp *httputil.ReverseProxy, route *config.Policy) (handler http.Handler, err error) {
-	handler = &UpstreamProxy{
-		name:    route.Destination.Host,
-		handler: rp,
-	}
-	c := middleware.NewChain()
-	c = c.Append(middleware.StripPomeriumCookie(p.cookieName))
-
+// each route has a custom set of middleware applied to the reverse proxy
+func (p *Proxy) newReverseProxyHandler(rp http.Handler, route *config.Policy) (http.Handler, error) {
+	r := pom_httputil.NewRouter()
+	r.Use(middleware.StripPomeriumCookie(p.cookieName))
 	// if signing key is set, add signer to middleware
 	if len(p.signingKey) != 0 {
 		signer, err := cryptutil.NewES256Signer(p.signingKey, route.Source.Host)
 		if err != nil {
 			return nil, err
 		}
-		c = c.Append(middleware.SignRequest(signer, HeaderUserID, HeaderEmail, HeaderGroups, HeaderJWT))
+		r.Use(middleware.SignRequest(signer, HeaderUserID, HeaderEmail, HeaderGroups, HeaderJWT))
 	}
 	// websockets cannot use the non-hijackable timeout-handler
 	if !route.AllowWebsockets {
@@ -265,11 +262,16 @@ func (p *Proxy) newReverseProxyHandler(rp *httputil.ReverseProxy, route *config.
 		if route.UpstreamTimeout != 0 {
 			timeout = route.UpstreamTimeout
 		}
-		timeoutMsg := fmt.Sprintf("%s failed to respond within the %s timeout period", route.Destination.Host, timeout)
-		handler = http.TimeoutHandler(handler, timeout, timeoutMsg)
+		timeoutMsg := fmt.Sprintf("%s timed out in %s", route.Destination.Host, timeout)
+		rp = http.TimeoutHandler(rp, timeout, timeoutMsg)
 	}
-
-	return c.Then(handler), nil
+	// todo(bdd) : fix cors
+	// if route.CORSAllowPreflight {
+	// 	r.Use(cors.Default().Handler)
+	// }
+	r.Host(route.Destination.Host)
+	r.PathPrefix("/").Handler(rp)
+	return r, nil
 }
 
 // UpdateOptions updates internal structures based on config.Options
