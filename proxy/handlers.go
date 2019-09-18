@@ -25,21 +25,24 @@ func (p *Proxy) Handler() http.Handler {
 		_, ok := p.routeConfigs[host]
 		return ok
 	}))
-	r.Use(csrf.Protect(
+	r.HandleFunc("/robots.txt", p.RobotsTxt)
+	// requires authN not authZ
+	r.Use(sessions.RetrieveSession(p.sessionStore))
+	r.Use(p.VerifySession)
+	// Proxy service endpoints
+	v := r.PathPrefix("/.pomerium").Subrouter()
+	v.Use(csrf.Protect(
 		p.cookieSecret,
 		csrf.Path("/"),
 		csrf.Domain(p.cookieDomain),
 		csrf.CookieName(fmt.Sprintf("%s_csrf", p.cookieName)),
 		csrf.ErrorHandler(http.HandlerFunc(httputil.CSRFFailureHandler)),
 	))
-	r.HandleFunc("/robots.txt", p.RobotsTxt)
-	// requires authN not authZ
-	r.Use(sessions.RetrieveSession(p.sessionStore))
-	r.Use(p.VerifySession)
-	r.HandleFunc("/.pomerium/", p.UserDashboard).Methods(http.MethodGet)
-	r.HandleFunc("/.pomerium/impersonate", p.Impersonate).Methods(http.MethodPost)
-	r.HandleFunc("/.pomerium/sign_out", p.SignOut).Methods(http.MethodGet, http.MethodPost)
-	r.HandleFunc("/.pomerium/refresh", p.ForceRefresh).Methods(http.MethodPost)
+	v.HandleFunc("/", p.UserDashboard).Methods(http.MethodGet)
+	v.HandleFunc("/impersonate", p.Impersonate).Methods(http.MethodPost)
+	v.HandleFunc("/sign_out", p.SignOut).Methods(http.MethodGet, http.MethodPost)
+	v.HandleFunc("/refresh", p.ForceRefresh).Methods(http.MethodPost)
+
 	r.PathPrefix("/").HandlerFunc(p.Proxy)
 	return r
 }
