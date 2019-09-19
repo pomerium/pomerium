@@ -8,7 +8,14 @@ import (
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/pomerium/pomerium/internal/cryptutil"
 )
+
+func hmacHelperFunc(rawRedirect string, timestamp time.Time, secret string) []byte {
+	data := []byte(fmt.Sprint(rawRedirect, timestamp.Unix()))
+	return cryptutil.GenerateHMAC(data, secret)
+}
 
 func Test_SameDomain(t *testing.T) {
 	t.Parallel()
@@ -45,7 +52,7 @@ func Test_ValidSignature(t *testing.T) {
 	goodURL := "https://example.com/redirect"
 	secretA := "41aOD7VNtQ1/KZDCGrkYpaHwB50JC1y6BDs2KPRVd2A="
 	now := fmt.Sprint(time.Now().Unix())
-	rawSig := redirectURLSignature(goodURL, time.Now(), secretA)
+	rawSig := hmacHelperFunc(goodURL, time.Now(), secretA)
 	sig := base64.URLEncoding.EncodeToString(rawSig)
 	staleTime := fmt.Sprint(time.Now().Add(-6 * time.Minute).Unix())
 
@@ -68,27 +75,6 @@ func Test_ValidSignature(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := ValidSignature(tt.redirectURI, tt.sigVal, tt.timestamp, tt.secret); got != tt.want {
 				t.Errorf("ValidSignature() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_redirectURLSignature(t *testing.T) {
-	tests := []struct {
-		name        string
-		rawRedirect string
-		timestamp   time.Time
-		secret      string
-		want        string
-	}{
-		{"good signature", "https://example.com/redirect", time.Unix(1546797901, 0), "K3yqsJPahIzu5CdfCVJlIK4N8Dc135-27Tg1ROuQdhc=", "XeVJC2Iysq7mRUwOL3FX_5vx1d_kZV2HONHNig9fcKk="},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := redirectURLSignature(tt.rawRedirect, tt.timestamp, tt.secret)
-			out := base64.URLEncoding.EncodeToString(got)
-			if out != tt.want {
-				t.Errorf("redirectURLSignature() = %v, want %v", tt.want, out)
 			}
 		})
 	}
@@ -209,7 +195,7 @@ func TestValidateSignature(t *testing.T) {
 	secretA := "41aOD7VNtQ1/KZDCGrkYpaHwB50JC1y6BDs2KPRVd2A="
 	now := fmt.Sprint(time.Now().Unix())
 	goodURL := "https://example.com/redirect"
-	rawSig := redirectURLSignature(goodURL, time.Now(), secretA)
+	rawSig := hmacHelperFunc(goodURL, time.Now(), secretA)
 	sig := base64.URLEncoding.EncodeToString(rawSig)
 	staleTime := fmt.Sprint(time.Now().Add(-6 * time.Minute).Unix())
 

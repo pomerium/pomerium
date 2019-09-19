@@ -14,7 +14,7 @@ require (
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/pelletier/go-toml v1.4.0 // indirect
-	github.com/pomerium/csrf v1.6.2-0.20190911035354-d4d212209a30
+	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
 	github.com/pomerium/go-oidc v2.0.0+incompatible
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v0.9.3

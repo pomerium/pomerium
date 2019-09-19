@@ -9,6 +9,11 @@ import (
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
+const (
+	// DefaultLeeway defines the default leeway for matching NotBefore/Expiry claims.
+	DefaultLeeway = 5.0 * time.Minute
+)
+
 // JWTSigner implements JWT signing according to JSON Web Token (JWT) RFC7519
 // https://tools.ietf.org/html/rfc7519
 type JWTSigner interface {
@@ -92,8 +97,8 @@ func (s *ES256Signer) SignJWT(user, email, groups string) (string, error) {
 	s.Groups = groups
 	now := time.Now()
 	s.IssuedAt = *jwt.NewNumericDate(now)
-	s.Expiry = *jwt.NewNumericDate(now.Add(jwt.DefaultLeeway))
-	s.NotBefore = *jwt.NewNumericDate(now.Add(-1 * jwt.DefaultLeeway))
+	s.Expiry = *jwt.NewNumericDate(now.Add(DefaultLeeway))
+	s.NotBefore = *jwt.NewNumericDate(now.Add(-1 * DefaultLeeway))
 	rawJWT, err := jwt.Signed(s.signer).Claims(s).CompactSerialize()
 	if err != nil {
 		return "", fmt.Errorf("cryptutil: sign failed %v", err)

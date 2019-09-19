@@ -33,7 +33,7 @@ const MaxNumChunks = 5
 // CookieStore represents all the cookie related configurations
 type CookieStore struct {
 	Name              string
-	CookieCipher      cryptutil.Cipher
+	Encoder           cryptutil.SecureEncoder
 	CookieExpire      time.Duration
 	CookieRefresh     time.Duration
 	CookieSecure      bool
@@ -50,7 +50,7 @@ type CookieStoreOptions struct {
 	CookieDomain      string
 	BearerTokenHeader string
 	CookieExpire      time.Duration
-	CookieCipher      cryptutil.Cipher
+	Encoder           cryptutil.SecureEncoder
 }
 
 // NewCookieStore returns a new session with ciphers for each of the cookie secrets
@@ -58,7 +58,7 @@ func NewCookieStore(opts *CookieStoreOptions) (*CookieStore, error) {
 	if opts.Name == "" {
 		return nil, fmt.Errorf("internal/sessions: cookie name cannot be empty")
 	}
-	if opts.CookieCipher == nil {
+	if opts.Encoder == nil {
 		return nil, fmt.Errorf("internal/sessions: cipher cannot be nil")
 	}
 	if opts.BearerTokenHeader == "" {
@@ -71,7 +71,7 @@ func NewCookieStore(opts *CookieStoreOptions) (*CookieStore, error) {
 		CookieHTTPOnly:    opts.CookieHTTPOnly,
 		CookieDomain:      opts.CookieDomain,
 		CookieExpire:      opts.CookieExpire,
-		CookieCipher:      opts.CookieCipher,
+		Encoder:           opts.Encoder,
 		BearerTokenHeader: opts.BearerTokenHeader,
 	}, nil
 }
@@ -188,7 +188,7 @@ func (cs *CookieStore) LoadSession(req *http.Request) (*State, error) {
 	if cipherText == "" {
 		return nil, ErrEmptySession
 	}
-	session, err := UnmarshalSession(cipherText, cs.CookieCipher)
+	session, err := UnmarshalSession(cipherText, cs.Encoder)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (cs *CookieStore) LoadSession(req *http.Request) (*State, error) {
 
 // SaveSession saves a session state to a request sessions.
 func (cs *CookieStore) SaveSession(w http.ResponseWriter, req *http.Request, s *State) error {
-	value, err := MarshalSession(s, cs.CookieCipher)
+	value, err := MarshalSession(s, cs.Encoder)
 	if err != nil {
 		return err
 	}

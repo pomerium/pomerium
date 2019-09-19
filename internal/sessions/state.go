@@ -89,7 +89,7 @@ func (s *State) IssuedAt() (time.Time, error) {
 
 // MarshalSession marshals the session state as JSON, encrypts the JSON using the
 // given cipher, and base64-encodes the result
-func MarshalSession(s *State, c cryptutil.Cipher) (string, error) {
+func MarshalSession(s *State, c cryptutil.SecureEncoder) (string, error) {
 	v, err := c.Marshal(s)
 	if err != nil {
 		return "", err
@@ -99,7 +99,7 @@ func MarshalSession(s *State, c cryptutil.Cipher) (string, error) {
 
 // UnmarshalSession takes the marshaled string, base64-decodes into a byte slice, decrypts the
 // byte slice using the passed cipher, and unmarshals the resulting JSON into a session state struct
-func UnmarshalSession(value string, c cryptutil.Cipher) (*State, error) {
+func UnmarshalSession(value string, c cryptutil.SecureEncoder) (*State, error) {
 	s := &State{}
 	err := c.Unmarshal(value, s)
 	if err != nil {

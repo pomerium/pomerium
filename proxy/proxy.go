@@ -43,11 +43,11 @@ const (
 // ValidateOptions checks that proper configuration settings are set to create
 // a proper Proxy instance
 func ValidateOptions(o config.Options) error {
-	if _, err := cryptutil.NewCipherFromBase64(o.SharedKey); err != nil {
+	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("proxy: invalid 'SHARED_SECRET': %v", err)
 	}
 
-	if _, err := cryptutil.NewCipherFromBase64(o.CookieSecret); err != nil {
+	if _, err := cryptutil.NewAEADCipherFromBase64(o.CookieSecret); err != nil {
 		return fmt.Errorf("proxy: invalid 'COOKIE_SECRET': %v", err)
 	}
 
@@ -78,7 +78,8 @@ type Proxy struct {
 
 	AuthorizeClient clients.Authorizer
 
-	cipher                 cryptutil.Cipher
+	// cipher                 cipher.AEAD
+	encoder                cryptutil.SecureEncoder
 	cookieName             string
 	cookieDomain           string
 	cookieSecret           []byte
@@ -105,10 +106,12 @@ func New(opts config.Options) (*Proxy, error) {
 	if err != nil {
 		return nil, err
 	}
-	cipher, err := cryptutil.NewCipherFromBase64(opts.CookieSecret)
+	cipher, err := cryptutil.NewAEADCipherFromBase64(opts.CookieSecret)
 	if err != nil {
 		return nil, err
 	}
+	encoder := cryptutil.NewSecureJSONEncoder(cipher)
+
 	if opts.CookieDomain == "" {
 		opts.CookieDomain = sessions.ParentSubdomain(opts.AuthenticateURL.String())
 	}
@@ -120,7 +123,7 @@ func New(opts config.Options) (*Proxy, error) {
 			CookieSecure:   opts.CookieSecure,
 			CookieHTTPOnly: opts.CookieHTTPOnly,
 			CookieExpire:   opts.CookieExpire,
-			CookieCipher:   cipher,
+			Encoder:        encoder,
 		})
 
 	if err != nil {
@@ -130,7 +133,7 @@ func New(opts config.Options) (*Proxy, error) {
 		SharedKey: opts.SharedKey,
 
 		routeConfigs:           make(map[string]*routeConfig),
-		cipher:                 cipher,
+		encoder:                encoder,
 		cookieSecret:           decodedCookieSecret,
 		cookieDomain:           opts.CookieDomain,
 		cookieName:             opts.CookieName,

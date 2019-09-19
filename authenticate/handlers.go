@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/csrf"
 
+	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -38,8 +39,8 @@ func (a *Authenticate) Handler() http.Handler {
 		a.cookieSecret,
 		csrf.Path("/"),
 		csrf.Domain(a.cookieDomain),
-		csrf.UnsafePaths([]string{"/oauth2/callback"}), // enforce CSRF on "safe" handler
-		csrf.FormValueName("state"),                    // rfc6749 section-10.12
+		csrf.UnsafePaths([]string{callbackPath}), // enforce CSRF on "safe" handler
+		csrf.FormValueName("state"),              // rfc6749 section-10.12
 		csrf.CookieName(fmt.Sprintf("%s_csrf", a.cookieName)),
 		csrf.ErrorHandler(http.HandlerFunc(httputil.CSRFFailureHandler)),
 	))
@@ -137,15 +138,21 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 }
 
 // redirectToIdentityProvider starts the authenticate process by redirecting the
-// user to their respective identity provider.
-//
+// user to their respective identity provider. This function also builds the
+// 'state' parameter which is encrypted and includes authenticating data
+// for validation.
+// 'state' is : nonce|timestamp|redirect_url|encrypt(redirect_url)+mac(nonce,ts))
+
 // https://openid.net/specs/openid-connect-core-1_0-final.html#AuthRequest
 // https://tools.ietf.org/html/rfc6749#section-4.2.1
 func (a *Authenticate) redirectToIdentityProvider(w http.ResponseWriter, r *http.Request) {
 	redirectURL := a.RedirectURL.ResolveReference(r.URL)
 	nonce := csrf.Token(r)
-	state := fmt.Sprintf("%v:%v", nonce, redirectURL.String())
-	encodedState := base64.URLEncoding.EncodeToString([]byte(state))
+	now := time.Now().Unix()
+	b := []byte(fmt.Sprintf("%s|%d|", nonce, now))
+	enc := cryptutil.Encrypt(a.cipher, []byte(redirectURL.String()), b)
+	b = append(b, enc...)
+	encodedState := base64.URLEncoding.EncodeToString(b)
 	http.Redirect(w, r, a.provider.GetSignInURL(encodedState), http.StatusFound)
 }
 
@@ -187,19 +194,33 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return nil, httputil.Error("malformed state", http.StatusBadRequest, err)
 	}
-	// split state into its it's components (nonce:redirect_uri)
-	statePayload := strings.SplitN(string(bytes), ":", 2)
-	if len(statePayload) != 2 {
-		return nil, fmt.Errorf("state malformed, size: %d", len(statePayload))
-	}
-	// parse redirect_uri; ignore csrf nonce (validity asserted by middleware)
-	redirectURL, err := urlutil.ParseAndValidateURL(statePayload[1])
-	if err != nil {
-		return nil, httputil.Error("invalid redirect uri", http.StatusBadRequest, err)
+
+	// split state into its it's components, e.g.
+	// (nonce|timestamp|redirect_url|encrypted_data(redirect_url)+mac(nonce,ts))
+	statePayload := strings.SplitN(string(bytes), "|", 3)
+	if len(statePayload) != 3 {
+		return nil, httputil.Error("'state' is malformed", http.StatusBadRequest,
+			fmt.Errorf("state malformed, size: %d", len(statePayload)))
 	}
 
-	// todo(bdd): if we want to be _extra_ sure, we can validate that the
-	// redirectURL hmac is valid. But the nonce should cover the integrity...
+	// verify that the returned timestamp is valid (replay attack)
+	if err := cryptutil.ValidTimestamp(statePayload[1]); err != nil {
+		return nil, httputil.Error(err.Error(), http.StatusBadRequest, err)
+	}
+
+	// Use our AEAD construct to enforce secrecy and authenticity,:
+	// mac: to validate the nonce again, and above timestamp
+	// decrypt: to prevent leaking 'redirect_uri' to IdP or logs)
+	b := []byte(fmt.Sprint(statePayload[0], "|", statePayload[1], "|"))
+	redirectString, err := cryptutil.Decrypt(a.cipher, []byte(statePayload[2]), b)
+	if err != nil {
+		return nil, httputil.Error("'state' has invalid hmac", http.StatusBadRequest, err)
+	}
+
+	redirectURL, err := urlutil.ParseAndValidateURL(string(redirectString))
+	if err != nil {
+		return nil, httputil.Error("'state' has invalid redirect uri", http.StatusBadRequest, err)
+	}
 
 	// OK. Looks good so let's persist our user session
 	if err := a.sessionStore.SaveSession(w, r, session); err != nil {
@@ -222,7 +243,7 @@ func (a *Authenticate) ExchangeToken(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, err)
 		return
 	}
-	encToken, err := sessions.MarshalSession(session, a.cipher)
+	encToken, err := sessions.MarshalSession(session, a.encoder)
 	if err != nil {
 		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
 		return

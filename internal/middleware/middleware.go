@@ -1,14 +1,11 @@
 package middleware // import "github.com/pomerium/pomerium/internal/middleware"
 
 import (
-	"crypto/hmac"
 	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -183,22 +180,8 @@ func ValidSignature(redirectURI, sigVal, timestamp, secret string) bool {
 	if err != nil {
 		return false
 	}
-	i, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil {
+	if err := cryptutil.ValidTimestamp(timestamp); err != nil {
 		return false
 	}
-	tm := time.Unix(i, 0)
-	ttl := 5 * time.Minute
-	if time.Since(tm) > ttl {
-		return false
-	}
-	localSig := redirectURLSignature(redirectURI, tm, secret)
-
-	return hmac.Equal(requestSig, localSig)
-}
-
-func redirectURLSignature(rawRedirect string, timestamp time.Time, secret string) []byte {
-	data := []byte(fmt.Sprint(rawRedirect, timestamp.Unix()))
-	h := cryptutil.Hash(secret, data)
-	return h
+	return cryptutil.CheckHMAC([]byte(fmt.Sprint(redirectURI, timestamp)), requestSig, secret)
 }

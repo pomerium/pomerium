@@ -81,9 +81,9 @@ func timestamp() int64 {
 
 // SignedRedirectURL takes a destination URL and adds redirect_uri to it's
 // query params, along with a timestamp and an keyed signature.
-func SignedRedirectURL(key string, destination, urlToSign *url.URL) *url.URL {
+func SignedRedirectURL(key string, destination, u *url.URL) *url.URL {
 	now := timestamp()
-	rawURL := urlToSign.String()
+	rawURL := u.String()
 	params, _ := url.ParseQuery(destination.RawQuery) // handled by incoming mux
 	params.Set("redirect_uri", rawURL)
 	params.Set("ts", fmt.Sprint(now))
@@ -95,7 +95,7 @@ func SignedRedirectURL(key string, destination, urlToSign *url.URL) *url.URL {
 // hmacURL takes a redirect url string and timestamp and returns the base64
 // encoded HMAC result.
 func hmacURL(key, data string, timestamp int64) string {
-	h := cryptutil.Hash(key, []byte(fmt.Sprint(data, timestamp)))
+	h := cryptutil.GenerateHMAC([]byte(fmt.Sprint(data, timestamp)), key)
 	return base64.URLEncoding.EncodeToString(h)
 }
 
