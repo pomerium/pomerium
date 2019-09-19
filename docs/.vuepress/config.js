@@ -81,7 +81,8 @@ module.exports = {
             "reference/programmatic-access",
             "reference/signed-headers",
             "reference/examples",
-            "reference/reference"
+            "reference/reference",
+            "reference/production-deployment"
           ]
         }
       ],
