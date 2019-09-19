@@ -23,6 +23,10 @@
 
 - Removed `AUTHENTICATE_INTERNAL_URL`/`authenticate_internal_url` which is no longer used.
 
+## Fixed
+
+- Fixed a bug where the impersonate form would persist an empty string for groups value if none set.[GH-303](https://github.com/pomerium/pomerium/issues/303)
+
 ## v0.3.0
 
 ### New
