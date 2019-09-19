@@ -130,7 +130,8 @@ func newGlobalRouter(o *config.Options) *mux.Router {
 			Str("group", r.Header.Get(proxy.HeaderGroups)).
 			Str("method", r.Method).
 			Str("service", o.Services).
-			Str("url", r.URL.String()).
+			Str("host", r.Host).
+			Str("path", r.URL.String()).
 			Msg("http-request")
 	}))
 	if len(o.Headers) != 0 {
