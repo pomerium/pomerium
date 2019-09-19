@@ -149,11 +149,17 @@ func Healthcheck(endpoint, msg string) func(http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.Healthcheck")
 			defer span.End()
-
-			if r.Method == "GET" && strings.EqualFold(r.URL.Path, endpoint) {
+			if strings.EqualFold(r.URL.Path, endpoint) {
+				// https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html
+				if r.Method != http.MethodGet && r.Method != http.MethodHead {
+					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+					return
+				}
 				w.Header().Set("Content-Type", "text/plain")
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(msg))
+				if r.Method == http.MethodGet {
+					w.Write([]byte(msg))
+				}
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
