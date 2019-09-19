@@ -118,6 +118,7 @@ func newProxyService(opt config.Options, r *mux.Router) (*proxy.Proxy, error) {
 
 func newGlobalRouter(o *config.Options) *mux.Router {
 	mux := httputil.NewRouter()
+	mux.SkipClean(true)
 	mux.Use(metrics.HTTPMetricsHandler(o.Services))
 	mux.Use(log.NewHandler(log.Logger))
 	mux.Use(log.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
