@@ -62,6 +62,7 @@ module.exports = {
           children: [
             "identity-providers/",
             "identity-providers/azure",
+            "identity-providers/cognito",
             "identity-providers/gitlab",
             "identity-providers/google",
             "identity-providers/okta",
