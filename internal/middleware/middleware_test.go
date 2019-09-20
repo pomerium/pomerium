@@ -11,7 +11,7 @@ import (
 )
 
 func Test_SameDomain(t *testing.T) {
-
+	t.Parallel()
 	tests := []struct {
 		name        string
 		uri         string
@@ -41,6 +41,7 @@ func Test_SameDomain(t *testing.T) {
 }
 
 func Test_ValidSignature(t *testing.T) {
+	t.Parallel()
 	goodURL := "https://example.com/redirect"
 	secretA := "41aOD7VNtQ1/KZDCGrkYpaHwB50JC1y6BDs2KPRVd2A="
 	now := fmt.Sprint(time.Now().Unix())
@@ -123,6 +124,7 @@ func TestSetHeaders(t *testing.T) {
 }
 
 func TestValidateRedirectURI(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		rootDomain  string
@@ -166,6 +168,7 @@ func TestValidateRedirectURI(t *testing.T) {
 }
 
 func TestValidateClientSecret(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		sharedSecret      string
@@ -202,6 +205,7 @@ func TestValidateClientSecret(t *testing.T) {
 }
 
 func TestValidateSignature(t *testing.T) {
+	t.Parallel()
 	secretA := "41aOD7VNtQ1/KZDCGrkYpaHwB50JC1y6BDs2KPRVd2A="
 	now := fmt.Sprint(time.Now().Unix())
 	goodURL := "https://example.com/redirect"
@@ -251,33 +255,36 @@ func TestValidateSignature(t *testing.T) {
 }
 
 func TestHealthCheck(t *testing.T) {
+	t.Parallel()
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hi"))
+	})
 	tests := []struct {
 		name       string
 		method     string
 		clientPath string
-		expected   []byte
+		serverPath string
+
+		wantStatus int
 	}{
-		{"good", http.MethodGet, "/ping", []byte("OK")},
-		//tood(bdd): miss?
+		{"good - Get", http.MethodGet, "/ping", "/ping", http.StatusOK},
+		{"good - Head", http.MethodHead, "/ping", "/ping", http.StatusOK},
+		{"bad - Options", http.MethodOptions, "/ping", "/ping", http.StatusMethodNotAllowed},
+		{"bad - Put", http.MethodPut, "/ping", "/ping", http.StatusMethodNotAllowed},
+		{"bad - Post", http.MethodPost, "/ping", "/ping", http.StatusMethodNotAllowed},
+		{"bad - route miss", http.MethodGet, "/not-ping", "/ping", http.StatusOK},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			req, err := http.NewRequest(http.MethodGet, tt.clientPath, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
+			r := httptest.NewRequest(tt.method, tt.clientPath, nil)
+			w := httptest.NewRecorder()
 
-			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("Hi"))
-			})
-			rr := httptest.NewRecorder()
-			handler := Healthcheck(tt.clientPath, string(tt.expected))(testHandler)
-			handler.ServeHTTP(rr, req)
-			if rr.Body.String() != string(tt.expected) {
-				t.Errorf("body differs. got %ss want %ss", rr.Body, tt.expected)
-				t.Errorf("%s", rr.Body)
+			handler := Healthcheck(tt.serverPath, string("OK"))(testHandler)
+			handler.ServeHTTP(w, r)
+			if w.Code != tt.wantStatus {
+				t.Errorf("code differs. got %d want %d body: %s", w.Code, tt.wantStatus, w.Body.String())
 			}
 		})
 	}
