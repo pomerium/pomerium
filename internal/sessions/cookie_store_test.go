@@ -15,33 +15,21 @@ import (
 	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
-type mockCipher struct{}
+type MockEncoder struct{}
 
-func (a mockCipher) Encrypt(s []byte) ([]byte, error) {
-	if string(s) == "error" {
-		return []byte(""), errors.New("error encrypting")
-	}
-	return []byte("OK"), nil
-}
-
-func (a mockCipher) Decrypt(s []byte) ([]byte, error) {
-	if string(s) == "error" {
-		return []byte(""), errors.New("error encrypting")
-	}
-	return []byte("OK"), nil
-}
-func (a mockCipher) Marshal(s interface{}) (string, error) { return "", errors.New("error") }
-func (a mockCipher) Unmarshal(s string, i interface{}) error {
+func (a MockEncoder) Marshal(s interface{}) (string, error) { return "", errors.New("error") }
+func (a MockEncoder) Unmarshal(s string, i interface{}) error {
 	if s == "unmarshal error" || s == "error" {
 		return errors.New("error")
 	}
 	return nil
 }
 func TestNewCookieStore(t *testing.T) {
-	cipher, err := cryptutil.NewCipher(cryptutil.NewKey())
+	cipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
 	if err != nil {
 		t.Fatal(err)
 	}
+	encoder := cryptutil.NewSecureJSONEncoder(cipher)
 	tests := []struct {
 		name    string
 		opts    *CookieStoreOptions
@@ -55,7 +43,7 @@ func TestNewCookieStore(t *testing.T) {
 				CookieHTTPOnly:    true,
 				CookieDomain:      "pomerium.io",
 				CookieExpire:      10 * time.Second,
-				CookieCipher:      cipher,
+				Encoder:           encoder,
 				BearerTokenHeader: "Authorization",
 			},
 			&CookieStore{
@@ -64,7 +52,7 @@ func TestNewCookieStore(t *testing.T) {
 				CookieHTTPOnly:    true,
 				CookieDomain:      "pomerium.io",
 				CookieExpire:      10 * time.Second,
-				CookieCipher:      cipher,
+				Encoder:           encoder,
 				BearerTokenHeader: "Authorization",
 			},
 			false},
@@ -75,7 +63,7 @@ func TestNewCookieStore(t *testing.T) {
 				CookieHTTPOnly:    true,
 				CookieDomain:      "pomerium.io",
 				CookieExpire:      10 * time.Second,
-				CookieCipher:      cipher,
+				Encoder:           encoder,
 				BearerTokenHeader: "Authorization",
 			},
 			nil,
@@ -87,7 +75,7 @@ func TestNewCookieStore(t *testing.T) {
 				CookieHTTPOnly: true,
 				CookieDomain:   "pomerium.io",
 				CookieExpire:   10 * time.Second,
-				CookieCipher:   nil,
+				Encoder:        nil,
 			},
 			nil,
 			true},
@@ -100,7 +88,7 @@ func TestNewCookieStore(t *testing.T) {
 				return
 			}
 			cmpOpts := []cmp.Option{
-				cmpopts.IgnoreUnexported(cryptutil.XChaCha20Cipher{}),
+				cmpopts.IgnoreUnexported(cryptutil.SecureJSONEncoder{}),
 			}
 
 			if diff := cmp.Diff(got, tt.want, cmpOpts...); diff != "" {
@@ -111,7 +99,8 @@ func TestNewCookieStore(t *testing.T) {
 }
 
 func TestCookieStore_makeCookie(t *testing.T) {
-	cipher, err := cryptutil.NewCipher(cryptutil.NewKey())
+	cipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +134,7 @@ func TestCookieStore_makeCookie(t *testing.T) {
 					CookieHTTPOnly: true,
 					CookieDomain:   tt.cookieDomain,
 					CookieExpire:   10 * time.Second,
-					CookieCipher:   cipher})
+					Encoder:        cryptutil.NewSecureJSONEncoder(cipher)})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -161,10 +150,12 @@ func TestCookieStore_makeCookie(t *testing.T) {
 }
 
 func TestCookieStore_SaveSession(t *testing.T) {
-	cipher, err := cryptutil.NewCipher(cryptutil.NewKey())
+	c, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
 	if err != nil {
 		t.Fatal(err)
 	}
+	cipher := cryptutil.NewSecureJSONEncoder(c)
+
 	hugeString := make([]byte, 4097)
 	if _, err := rand.Read(hugeString); err != nil {
 		t.Fatal(err)
@@ -172,12 +163,12 @@ func TestCookieStore_SaveSession(t *testing.T) {
 	tests := []struct {
 		name        string
 		State       *State
-		cipher      cryptutil.Cipher
+		cipher      cryptutil.SecureEncoder
 		wantErr     bool
 		wantLoadErr bool
 	}{
 		{"good", &State{AccessToken: "token1234", RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, cipher, false, false},
-		{"bad cipher", &State{AccessToken: "token1234", RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, mockCipher{}, true, true},
+		{"bad cipher", &State{AccessToken: "token1234", RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, MockEncoder{}, true, true},
 		{"huge cookie", &State{AccessToken: fmt.Sprintf("%x", hugeString), RefreshToken: "refresh4321", RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(), Email: "user@domain.com", User: "user"}, cipher, false, false},
 	}
 	for _, tt := range tests {
@@ -188,7 +179,7 @@ func TestCookieStore_SaveSession(t *testing.T) {
 				CookieHTTPOnly: true,
 				CookieDomain:   "pomerium.io",
 				CookieExpire:   10 * time.Second,
-				CookieCipher:   tt.cipher}
+				Encoder:        tt.cipher}
 
 			r := httptest.NewRequest("GET", "/", nil)
 			w := httptest.NewRecorder()

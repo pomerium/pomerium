@@ -13,7 +13,8 @@ import (
 
 func TestStateSerialization(t *testing.T) {
 	secret := cryptutil.NewKey()
-	c, err := cryptutil.NewCipher(secret)
+	cipher, err := cryptutil.NewAEADCipher(secret)
+	c := cryptutil.NewSecureJSONEncoder(cipher)
 	if err != nil {
 		t.Fatalf("expected to be able to create cipher: %v", err)
 	}
@@ -124,10 +125,12 @@ func TestState_Impersonating(t *testing.T) {
 
 func TestMarshalSession(t *testing.T) {
 	secret := cryptutil.NewKey()
-	c, err := cryptutil.NewCipher(secret)
+	cipher, err := cryptutil.NewAEADCipher(secret)
 	if err != nil {
 		t.Fatalf("expected to be able to create cipher: %v", err)
 	}
+	c := cryptutil.NewSecureJSONEncoder(cipher)
+
 	hugeString := make([]byte, 4097)
 	if _, err := rand.Read(hugeString); err != nil {
 		t.Fatal(err)

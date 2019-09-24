@@ -1,6 +1,7 @@
 package authenticate // import "github.com/pomerium/pomerium/authenticate"
 
 import (
+	"crypto/cipher"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -20,10 +21,10 @@ const callbackPath = "/oauth2/callback"
 // ValidateOptions checks that configuration are complete and valid.
 // Returns on first error found.
 func ValidateOptions(o config.Options) error {
-	if _, err := cryptutil.NewCipherFromBase64(o.SharedKey); err != nil {
+	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("authenticate: 'SHARED_SECRET' invalid: %v", err)
 	}
-	if _, err := cryptutil.NewCipherFromBase64(o.CookieSecret); err != nil {
+	if _, err := cryptutil.NewAEADCipherFromBase64(o.CookieSecret); err != nil {
 		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid %v", err)
 	}
 	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
@@ -48,7 +49,8 @@ type Authenticate struct {
 	cookieSecret []byte
 	templates    *template.Template
 	sessionStore sessions.SessionStore
-	cipher       cryptutil.Cipher
+	cipher       cipher.AEAD
+	encoder      cryptutil.SecureEncoder
 	provider     identity.Authenticator
 }
 
@@ -58,7 +60,8 @@ func New(opts config.Options) (*Authenticate, error) {
 		return nil, err
 	}
 	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
-	cipher, err := cryptutil.NewCipher(decodedCookieSecret)
+	cipher, err := cryptutil.NewAEADCipher(decodedCookieSecret)
+	encoder := cryptutil.NewSecureJSONEncoder(cipher)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +75,7 @@ func New(opts config.Options) (*Authenticate, error) {
 			CookieSecure:   opts.CookieSecure,
 			CookieHTTPOnly: opts.CookieHTTPOnly,
 			CookieExpire:   opts.CookieExpire,
-			CookieCipher:   cipher,
+			Encoder:        encoder,
 		})
 	if err != nil {
 		return nil, err
@@ -100,6 +103,7 @@ func New(opts config.Options) (*Authenticate, error) {
 		templates:    templates.New(),
 		sessionStore: cookieStore,
 		cipher:       cipher,
+		encoder:      encoder,
 		provider:     provider,
 		cookieSecret: decodedCookieSecret,
 		cookieName:   opts.CookieName,

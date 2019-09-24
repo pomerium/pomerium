@@ -1,11 +1,13 @@
-package httputil // import "github.com/pomerium/pomerium/internal/httputil"
+package httputil
 
 import (
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/gorilla/mux"
 )
 
 func TestCSRFFailureHandler(t *testing.T) {
@@ -31,6 +33,22 @@ func TestCSRFFailureHandler(t *testing.T) {
 			}
 			if diff := cmp.Diff(gotStatus, tt.wantStatus); diff != "" {
 				t.Errorf("RetrieveSession() = %s", diff)
+			}
+		})
+	}
+}
+
+func TestNewRouter(t *testing.T) {
+	tests := []struct {
+		name string
+		want *mux.Router
+	}{
+		{"this is a gorilla router right?", mux.NewRouter()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewRouter(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewRouter() = %v, want %v", got, tt.want)
 			}
 		})
 	}

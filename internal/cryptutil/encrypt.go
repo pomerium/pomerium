@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/cipher"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -13,122 +12,47 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-// DefaultKeySize is the default key size in bytes.
-const DefaultKeySize = 32
-
-// NewKey generates a random 32-byte key.
-//
-// Panics if source of randomness fails.
-func NewKey() []byte {
-	return randomBytes(DefaultKeySize)
-}
-
-// NewBase64Key generates a random base64 encoded 32-byte key.
-//
-// Panics if source of randomness fails.
-func NewBase64Key() string {
-	return NewRandomStringN(DefaultKeySize)
-}
-
-// NewRandomStringN returns base64 encoded random string of a given num of bytes.
-//
-// Panics if source of randomness fails.
-func NewRandomStringN(c int) string {
-	return base64.StdEncoding.EncodeToString(randomBytes(c))
-}
-
-func randomBytes(c int) []byte {
-	if c < 0 {
-		c = DefaultKeySize
+// NewAEADCipher takes secret key and returns a new XChacha20poly1305 cipher.
+func NewAEADCipher(secret []byte) (cipher.AEAD, error) {
+	if len(secret) != 32 {
+		return nil, fmt.Errorf("cryptutil: got %d bytes but want 32", len(secret))
 	}
-	b := make([]byte, c)
-	if _, err := rand.Read(b); err != nil {
-		panic(err)
-	}
-	return b
+	return chacha20poly1305.NewX(secret)
+
 }
 
-// Cipher provides methods to encrypt and decrypt values.
-type Cipher interface {
-	Encrypt([]byte) ([]byte, error)
-	Decrypt([]byte) ([]byte, error)
-	Marshal(interface{}) (string, error)
-	Unmarshal(string, interface{}) error
-}
-
-// XChaCha20Cipher provides methods to encrypt and decrypt values.
-// Using an AEAD is a cipher providing authenticated encryption with associated data.
-// For a description of the methodology, see https://en.wikipedia.org/wiki/Authenticated_encryption
-type XChaCha20Cipher struct {
-	aead cipher.AEAD
-}
-
-// NewCipher takes secret key and returns a new XChacha20poly1305 cipher.
-func NewCipher(secret []byte) (*XChaCha20Cipher, error) {
-	aead, err := chacha20poly1305.NewX(secret)
-	if err != nil {
-		return nil, err
-	}
-	return &XChaCha20Cipher{
-		aead: aead,
-	}, nil
-}
-
-// NewCipherFromBase64 takes a base64 encoded secret key and returns a new XChacha20poly1305 cipher.
-func NewCipherFromBase64(s string) (*XChaCha20Cipher, error) {
+// NewAEADCipherFromBase64 takes a base64 encoded secret key and returns a new XChacha20poly1305 cipher.
+func NewAEADCipherFromBase64(s string) (cipher.AEAD, error) {
 	decoded, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
 		return nil, fmt.Errorf("cryptutil: invalid base64: %v", err)
 	}
-	if len(decoded) != 32 {
-		return nil, fmt.Errorf("cryptutil: got %d bytes but want 32", len(decoded))
-	}
-	return NewCipher(decoded)
+	return NewAEADCipher(decoded)
 }
 
-// GenerateNonce generates a random nonce.
-// Panics if source of randomness fails.
-func (c *XChaCha20Cipher) GenerateNonce() []byte {
-	return randomBytes(c.aead.NonceSize())
+// SecureEncoder provides and interface for to encrypt and decrypting structures .
+type SecureEncoder interface {
+	Marshal(interface{}) (string, error)
+	Unmarshal(string, interface{}) error
 }
 
-// Encrypt a value using XChaCha20-Poly1305
-func (c *XChaCha20Cipher) Encrypt(plaintext []byte) (joined []byte, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("cryptutil: error encrypting bytes: %v", r)
-		}
-	}()
-	nonce := c.GenerateNonce()
-
-	ciphertext := c.aead.Seal(nil, nonce, plaintext, nil)
-
-	// we return the nonce as part of the returned value
-	joined = append(ciphertext, nonce...)
-	return joined, nil
+// SecureJSONEncoder implements SecureEncoder for JSON using an AEAD cipher.
+//
+// See https://en.wikipedia.org/wiki/Authenticated_encryption
+type SecureJSONEncoder struct {
+	aead cipher.AEAD
 }
 
-// Decrypt a value using XChaCha20-Poly1305
-func (c *XChaCha20Cipher) Decrypt(joined []byte) ([]byte, error) {
-	if len(joined) <= c.aead.NonceSize() {
-		return nil, fmt.Errorf("cryptutil: invalid input size: %d", len(joined))
-	}
-	// grab out the nonce
-	pivot := len(joined) - c.aead.NonceSize()
-	ciphertext := joined[:pivot]
-	nonce := joined[pivot:]
-
-	plaintext, err := c.aead.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return plaintext, nil
+// NewSecureJSONEncoder takes a base64 encoded secret key and returns a new XChacha20poly1305 cipher.
+func NewSecureJSONEncoder(aead cipher.AEAD) SecureEncoder {
+	return &SecureJSONEncoder{aead: aead}
 }
 
 // Marshal marshals the interface state as JSON, encrypts the JSON using the cipher
 // and base64 encodes the binary value as a string and returns the result
-func (c *XChaCha20Cipher) Marshal(s interface{}) (string, error) {
+//
+// can panic if source of random entropy is exhausted generating a nonce.
+func (c *SecureJSONEncoder) Marshal(s interface{}) (string, error) {
 	// encode json value
 	plaintext, err := json.Marshal(s)
 	if err != nil {
@@ -140,10 +64,8 @@ func (c *XChaCha20Cipher) Marshal(s interface{}) (string, error) {
 		return "", err
 	}
 	// encrypt the compressed JSON bytes
-	ciphertext, err := c.Encrypt(compressed)
-	if err != nil {
-		return "", err
-	}
+	ciphertext := Encrypt(c.aead, compressed, nil)
+
 	// base64-encode the result
 	encoded := base64.RawURLEncoding.EncodeToString(ciphertext)
 	return encoded, nil
@@ -151,14 +73,14 @@ func (c *XChaCha20Cipher) Marshal(s interface{}) (string, error) {
 
 // Unmarshal takes the marshaled string, base64-decodes into a byte slice, decrypts the
 // byte slice the passed cipher, and unmarshals the resulting JSON into the struct pointer passed
-func (c *XChaCha20Cipher) Unmarshal(value string, s interface{}) error {
+func (c *SecureJSONEncoder) Unmarshal(value string, s interface{}) error {
 	// convert base64 string value to bytes
 	ciphertext, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil {
 		return err
 	}
 	// decrypt the bytes
-	compressed, err := c.Decrypt(ciphertext)
+	compressed, err := Decrypt(c.aead, ciphertext, nil)
 	if err != nil {
 		return err
 	}
@@ -172,10 +94,10 @@ func (c *XChaCha20Cipher) Unmarshal(value string, s interface{}) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
+// compress gzips a set of bytes
 func compress(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	writer, err := gzip.NewWriterLevel(&buf, gzip.DefaultCompression)
@@ -194,6 +116,7 @@ func compress(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// decompress un-gzips a set of bytes
 func decompress(data []byte) ([]byte, error) {
 	reader, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
@@ -205,4 +128,28 @@ func decompress(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// Encrypt encrypts a value with optional associated data
+//
+// Panics if source of randomness fails.
+func Encrypt(a cipher.AEAD, data, ad []byte) []byte {
+	iv := randomBytes(a.NonceSize())
+	ciphertext := a.Seal(nil, iv, data, ad)
+	return append(ciphertext, iv...)
+}
+
+// Decrypt a value with optional associated data
+func Decrypt(a cipher.AEAD, data, ad []byte) ([]byte, error) {
+	if len(data) <= a.NonceSize() {
+		return nil, fmt.Errorf("cryptutil: invalid input size: %d", len(data))
+	}
+	size := len(data) - a.NonceSize()
+	ciphertext := data[:size]
+	nonce := data[size:]
+	plaintext, err := a.Open(nil, nonce, ciphertext, ad)
+	if err != nil {
+		return nil, err
+	}
+	return plaintext, nil
 }

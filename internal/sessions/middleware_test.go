@@ -81,11 +81,13 @@ func TestVerifier(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cipher, err := cryptutil.NewCipherFromBase64(cryptutil.NewBase64Key())
+			cipher, err := cryptutil.NewAEADCipherFromBase64(cryptutil.NewBase64Key())
+			encoder := cryptutil.NewSecureJSONEncoder(cipher)
+
 			if err != nil {
 				t.Fatal(err)
 			}
-			encSession, err := MarshalSession(&tt.state, cipher)
+			encSession, err := MarshalSession(&tt.state, encoder)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -96,8 +98,8 @@ func TestVerifier(t *testing.T) {
 			}
 
 			cs, err := NewCookieStore(&CookieStoreOptions{
-				Name:         "_pomerium",
-				CookieCipher: cipher,
+				Name:    "_pomerium",
+				Encoder: encoder,
 			})
 			if err != nil {
 				t.Fatal(err)

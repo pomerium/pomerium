@@ -10,6 +10,7 @@
 
 ### Security
 
+- The user's original intended location before completing the authentication process is now encrypted and kept confidential from the identity provider. [GH-316](https://github.com/pomerium/pomerium/pull/316)
 - Under certain circumstances, where debug logging was enabled, pomerium's shared secret could be leaked to http access logs as a query param.
 
 ### Fixed
