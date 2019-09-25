@@ -5,15 +5,14 @@ import (
 	"encoding/base64"
 	"fmt"
 	"html/template"
-	stdlog "log"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
-	pom_httputil "github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -25,15 +24,8 @@ import (
 )
 
 const (
-	// HeaderJWT is the header key containing JWT signed user details.
-	HeaderJWT = "x-pomerium-jwt-assertion"
-	// HeaderUserID is the header key containing the user's id.
-	HeaderUserID = "x-pomerium-authenticated-user-id"
-	// HeaderEmail is the header key containing the user's email.
-	HeaderEmail = "x-pomerium-authenticated-user-email"
-	// HeaderGroups is the header key containing the user's groups.
-	HeaderGroups = "x-pomerium-authenticated-user-groups"
-
+	// dashboardURL	is the path to authenticate's sign in endpoint
+	dashboardURL = "/.pomerium/"
 	// signinURL is the path to authenticate's sign in endpoint
 	signinURL = "/.pomerium/sign_in"
 	// signoutURL is the path to authenticate's sign out endpoint
@@ -78,22 +70,16 @@ type Proxy struct {
 
 	AuthorizeClient clients.Authorizer
 
-	// cipher                 cipher.AEAD
 	encoder                cryptutil.SecureEncoder
 	cookieName             string
 	cookieDomain           string
 	cookieSecret           []byte
 	defaultUpstreamTimeout time.Duration
 	refreshCooldown        time.Duration
-	routeConfigs           map[string]*routeConfig
+	Handler                http.Handler
 	sessionStore           sessions.SessionStore
 	signingKey             string
 	templates              *template.Template
-}
-
-type routeConfig struct {
-	mux    http.Handler
-	policy config.Policy
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -102,14 +88,11 @@ func New(opts config.Options) (*Proxy, error) {
 	if err := ValidateOptions(opts); err != nil {
 		return nil, err
 	}
-	decodedCookieSecret, err := base64.StdEncoding.DecodeString(opts.CookieSecret)
-	if err != nil {
-		return nil, err
-	}
-	cipher, err := cryptutil.NewAEADCipherFromBase64(opts.CookieSecret)
-	if err != nil {
-		return nil, err
-	}
+
+	// errors checked in ValidateOptions
+	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
+	cipher, _ := cryptutil.NewAEADCipherFromBase64(opts.CookieSecret)
+
 	encoder := cryptutil.NewSecureJSONEncoder(cipher)
 
 	if opts.CookieDomain == "" {
@@ -132,7 +115,6 @@ func New(opts config.Options) (*Proxy, error) {
 	p := &Proxy{
 		SharedKey: opts.SharedKey,
 
-		routeConfigs:           make(map[string]*routeConfig),
 		encoder:                encoder,
 		cookieSecret:           decodedCookieSecret,
 		cookieDomain:           opts.CookieDomain,
@@ -143,18 +125,18 @@ func New(opts config.Options) (*Proxy, error) {
 		signingKey:             opts.SigningKey,
 		templates:              templates.New(),
 	}
-	// DeepCopy urls to avoid accidental mutation, err checked in validate func
+	// errors checked in ValidateOptions
+	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
 	p.authenticateURL, _ = urlutil.DeepCopy(opts.AuthenticateURL)
+
 	p.authenticateSigninURL = p.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	p.authenticateSignoutURL = p.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
-
-	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
 
 	if err := p.UpdatePolicies(&opts); err != nil {
 		return nil, err
 	}
 	metrics.AddPolicyCountCallback("proxy", func() int64 {
-		return int64(len(p.routeConfigs))
+		return int64(len(opts.Policies))
 	})
 	p.AuthorizeClient, err = clients.NewAuthorizeClient("grpc",
 		&clients.Options{
@@ -169,116 +151,6 @@ func New(opts config.Options) (*Proxy, error) {
 	return p, err
 }
 
-// UpdatePolicies updates the handlers based on the configured policies
-func (p *Proxy) UpdatePolicies(opts *config.Options) error {
-	routeConfigs := make(map[string]*routeConfig, len(opts.Policies))
-	if len(opts.Policies) == 0 {
-		log.Warn().Msg("proxy: configuration has no policies")
-	}
-	for _, policy := range opts.Policies {
-		if err := policy.Validate(); err != nil {
-			return fmt.Errorf("proxy: couldn't update policies %s", err)
-		}
-		proxy := NewReverseProxy(policy.Destination)
-		// build http transport (roundtripper) middleware chain
-		transport := http.DefaultTransport.(*http.Transport).Clone()
-		c := tripper.NewChain()
-		c = c.Append(metrics.HTTPMetricsRoundTripper("proxy", policy.Destination.Host))
-
-		var tlsClientConfig tls.Config
-		var isCustomClientConfig bool
-		if policy.TLSSkipVerify {
-			tlsClientConfig.InsecureSkipVerify = true
-			isCustomClientConfig = true
-			log.Warn().Str("policy", policy.String()).Msg("proxy: tls skip verify")
-		}
-		if policy.RootCAs != nil {
-			tlsClientConfig.RootCAs = policy.RootCAs
-			isCustomClientConfig = true
-			log.Debug().Str("policy", policy.String()).Msg("proxy: custom root ca")
-		}
-
-		if policy.ClientCertificate != nil {
-			tlsClientConfig.Certificates = []tls.Certificate{*policy.ClientCertificate}
-			isCustomClientConfig = true
-			log.Debug().Str("policy", policy.String()).Msg("proxy: client certs enabled")
-		}
-
-		if policy.TLSServerName != "" {
-			tlsClientConfig.ServerName = policy.TLSServerName
-			isCustomClientConfig = true
-			log.Debug().Str("policy", policy.String()).Msgf("proxy: tls hostname override to: %s", policy.TLSServerName)
-		}
-
-		// We avoid setting a custom client config unless we have to as
-		// if TLSClientConfig is nil, the default configuration is used.
-		if isCustomClientConfig {
-			transport.TLSClientConfig = &tlsClientConfig
-		}
-		proxy.Transport = c.Then(transport)
-
-		handler, err := p.newReverseProxyHandler(proxy, &policy)
-		if err != nil {
-			return err
-		}
-		routeConfigs[policy.Source.Host] = &routeConfig{
-			mux:    handler,
-			policy: policy,
-		}
-	}
-	p.routeConfigs = routeConfigs
-	return nil
-}
-
-// NewReverseProxy returns a new ReverseProxy that routes URLs to the scheme, host, and
-// base path provided in target. NewReverseProxy rewrites the Host header.
-func NewReverseProxy(to *url.URL) *httputil.ReverseProxy {
-	proxy := httputil.NewSingleHostReverseProxy(to)
-	sublogger := log.With().Str("proxy", to.Host).Logger()
-	proxy.ErrorLog = stdlog.New(&log.StdLogWrapper{Logger: &sublogger}, "", 0)
-	director := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		// Identifies the originating IP addresses of a client connecting to
-		// a web server through an HTTP proxy or a load balancer.
-		req.Header.Add("X-Forwarded-Host", req.Host)
-		director(req)
-		req.Host = to.Host
-	}
-	return proxy
-}
-
-// each route has a custom set of middleware applied to the reverse proxy
-func (p *Proxy) newReverseProxyHandler(rp http.Handler, route *config.Policy) (http.Handler, error) {
-	r := pom_httputil.NewRouter()
-	r.SkipClean(true)
-	r.StrictSlash(true)
-	r.Use(middleware.StripPomeriumCookie(p.cookieName))
-	// if signing key is set, add signer to middleware
-	if len(p.signingKey) != 0 {
-		signer, err := cryptutil.NewES256Signer(p.signingKey, route.Source.Host)
-		if err != nil {
-			return nil, err
-		}
-		r.Use(middleware.SignRequest(signer, HeaderUserID, HeaderEmail, HeaderGroups, HeaderJWT))
-	}
-	// websockets cannot use the non-hijackable timeout-handler
-	if !route.AllowWebsockets {
-		timeout := p.defaultUpstreamTimeout
-		if route.UpstreamTimeout != 0 {
-			timeout = route.UpstreamTimeout
-		}
-		timeoutMsg := fmt.Sprintf("%s timed out in %s", route.Destination.Host, timeout)
-		rp = http.TimeoutHandler(rp, timeout, timeoutMsg)
-	}
-	// todo(bdd) : fix cors
-	// if route.CORSAllowPreflight {
-	// 	r.Use(cors.Default().Handler)
-	// }
-	r.Host(route.Destination.Host)
-	r.PathPrefix("/").Handler(rp)
-	return r, nil
-}
-
 // UpdateOptions updates internal structures based on config.Options
 func (p *Proxy) UpdateOptions(o config.Options) error {
 	if p == nil {
@@ -286,4 +158,124 @@ func (p *Proxy) UpdateOptions(o config.Options) error {
 	}
 	log.Info().Msg("proxy: updating options")
 	return p.UpdatePolicies(&o)
+}
+
+// UpdatePolicies updates the H basedon the configured policies
+func (p *Proxy) UpdatePolicies(opts *config.Options) error {
+	var err error
+	if len(opts.Policies) == 0 {
+		log.Warn().Msg("proxy: configuration has no policies")
+	}
+	r := httputil.NewRouter()
+	r.SkipClean(true)
+	r.StrictSlash(true)
+	r.HandleFunc("/robots.txt", p.RobotsTxt).Methods(http.MethodGet)
+	r = p.registerHelperHandlers(r)
+
+	for _, policy := range opts.Policies {
+		if err := policy.Validate(); err != nil {
+			return fmt.Errorf("proxy: invalid policy %s", err)
+		}
+		r, err = p.reverseProxyHandler(r, &policy)
+		if err != nil {
+			return err
+		}
+	}
+	p.Handler = r
+	return nil
+}
+
+func (p *Proxy) reverseProxyHandler(r *mux.Router, policy *config.Policy) (*mux.Router, error) {
+	// 1. Create the reverse proxy connection
+	proxy := httputil.NewReverseProxy(policy.Destination)
+	// 2. Override any custom transport settings (e.g. TLS settings, etc)
+	proxy.Transport = p.roundTripperFromPolicy(policy)
+	// 3. Create a sub-router for a given route's hostname (`httpbin.corp.example.com`)
+	rp := r.Host(policy.Source.Host).Subrouter()
+	rp.PathPrefix("/").Handler(proxy)
+
+	// Optional: If websockets are enabled, do not set a handler request timeout
+	// websockets cannot use the non-hijackable timeout-handler
+	if !policy.AllowWebsockets {
+		timeout := p.defaultUpstreamTimeout
+		if policy.UpstreamTimeout != 0 {
+			timeout = policy.UpstreamTimeout
+		}
+		timeoutMsg := fmt.Sprintf("%s timed out in %s", policy.Destination.Host, timeout)
+		rp.Use(middleware.TimeoutHandlerFunc(timeout, timeoutMsg))
+	}
+
+	// Optional: a cors preflight check, skip access control middleware
+	if policy.CORSAllowPreflight {
+		log.Warn().Str("route", policy.String()).Msg("proxy: cors preflight enabled")
+		rp.Use(middleware.CorsBypass(proxy))
+	}
+
+	// Optional: if a public route, skip access control middleware
+	if policy.AllowPublicUnauthenticatedAccess {
+		log.Warn().Str("route", policy.String()).Msg("proxy: all access control disabled")
+		return r, nil
+	}
+
+	// 4. Retrieve the user session and add it to the request context
+	rp.Use(sessions.RetrieveSession(p.sessionStore))
+	// 5. Strip the user session cookie from the downstream request
+	rp.Use(middleware.StripCookie(p.cookieName))
+	// 6. AuthN - Verify the user is authenticated. Set email, group, & id headers
+	rp.Use(p.AuthenticateSession)
+	// 7. AuthZ - Verify the user is authorized for route
+	rp.Use(p.AuthorizeSession)
+	// Optional: Add a signed JWT attesting to the user's id, email, and group
+	if len(p.signingKey) != 0 {
+		signer, err := cryptutil.NewES256Signer(p.signingKey, policy.Source.Host)
+		if err != nil {
+			return nil, err
+		}
+		rp.Use(p.SignRequest(signer))
+	}
+
+	return r, nil
+}
+
+// roundTripperFromPolicy adjusts the std library's `DefaultTransport RoundTripper`
+// for a given route. A route's `RoundTripper` establishes network connections
+// as needed and caches them for reuse by subsequent calls.
+func (p *Proxy) roundTripperFromPolicy(policy *config.Policy) http.RoundTripper {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	c := tripper.NewChain()
+	c = c.Append(metrics.HTTPMetricsRoundTripper("proxy", policy.Destination.Host))
+
+	var tlsClientConfig tls.Config
+	var isCustomClientConfig bool
+
+	if policy.TLSSkipVerify {
+		tlsClientConfig.InsecureSkipVerify = true
+		isCustomClientConfig = true
+		log.Warn().Str("policy", policy.String()).Msg("proxy: tls skip verify")
+	}
+
+	if policy.RootCAs != nil {
+		tlsClientConfig.RootCAs = policy.RootCAs
+		isCustomClientConfig = true
+		log.Debug().Str("policy", policy.String()).Msg("proxy: custom root ca")
+	}
+
+	if policy.ClientCertificate != nil {
+		tlsClientConfig.Certificates = []tls.Certificate{*policy.ClientCertificate}
+		isCustomClientConfig = true
+		log.Debug().Str("policy", policy.String()).Msg("proxy: client certs enabled")
+	}
+
+	if policy.TLSServerName != "" {
+		tlsClientConfig.ServerName = policy.TLSServerName
+		isCustomClientConfig = true
+		log.Debug().Str("policy", policy.String()).Msgf("proxy: tls override hostname: %s", policy.TLSServerName)
+	}
+
+	// We avoid setting a custom client config unless we have to as
+	// if TLSClientConfig is nil, the default configuration is used.
+	if isCustomClientConfig {
+		transport.TLSClientConfig = &tlsClientConfig
+	}
+	return c.Then(transport)
 }

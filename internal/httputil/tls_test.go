@@ -1,4 +1,4 @@
-package httputil
+package httputil // import "github.com/pomerium/pomerium/internal/httputil"
 
 import (
 	"encoding/base64"
