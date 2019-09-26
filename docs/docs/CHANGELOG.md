@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.1
+
+### Security
+
+- Fixes vulnerabilities fixed in [Go 1.13.1](https://groups.google.com/forum/m/#!msg/golang-announce/cszieYyuL9Q/g4Z7pKaqAgAJ) including CVE-2019-16276.
+
 ## v0.3.0
 
 ### New

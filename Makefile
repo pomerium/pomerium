@@ -30,7 +30,7 @@ GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
 
 
 .PHONY: all
-all: clean lint spellcheck test build ## Runs a clean, build, fmt, lint, test, and vet.
+all: clean spellcheck test build ## Runs a clean, build, fmt, lint, test, and vet.
 
 .PHONY: docs
 docs: ## Start the vuepress docs development server
