@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -121,22 +122,6 @@ func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler
 	}
 }
 
-// ValidateHost ensures that each request's host is valid
-func ValidateHost(validHost func(host string) bool) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateHost")
-			defer span.End()
-
-			if !validHost(r.Host) {
-				httputil.ErrorResponse(w, r, httputil.Error("", http.StatusNotFound, nil))
-				return
-			}
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
-
 // Healthcheck endpoint middleware useful to setting up a path like
 // `/ping` that load balancers or uptime testing external services
 // can make a request before hitting any routes. It's also convenient
@@ -184,4 +169,34 @@ func ValidSignature(redirectURI, sigVal, timestamp, secret string) bool {
 		return false
 	}
 	return cryptutil.CheckHMAC([]byte(fmt.Sprint(redirectURI, timestamp)), requestSig, secret)
+}
+
+// StripCookie strips the cookie from the downstram request.
+func StripCookie(cookieName string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "middleware.StripCookie")
+			defer span.End()
+
+			headers := make([]string, 0, len(r.Cookies()))
+			for _, cookie := range r.Cookies() {
+				if !strings.HasPrefix(cookie.Name, cookieName) {
+					headers = append(headers, cookie.String())
+				}
+			}
+			r.Header.Set("Cookie", strings.Join(headers, ";"))
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// TimeoutHandlerFunc wraps http.TimeoutHandler
+func TimeoutHandlerFunc(timeout time.Duration, timeoutError string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "middleware.TimeoutHandlerFunc")
+			defer span.End()
+			http.TimeoutHandler(next, timeout, timeoutError).ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
