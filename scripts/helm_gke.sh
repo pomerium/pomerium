@@ -36,7 +36,7 @@ echo "=> install pomerium with helm"
 echo " replace configuration settings to meet your specific needs and identity provider settings"
 
 echo "=> initiliaze a configmap setting from config.example.yaml"
-kubectl create configmap config --from-file="config.yaml"="docs/docs/examples/config/config.example.yaml"
+kubectl create configmap config --from-file="config.yaml"="docs/docs/reference/examples/config/config.example.yaml"
 # git clone https://github.com/pomerium/pomerium-helm.git $HOME/pomerium-helm
 
 helm install \
