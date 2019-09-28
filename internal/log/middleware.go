@@ -172,22 +172,19 @@ func AccessHandler(f func(r *http.Request, status, size int, duration time.Durat
 	}
 }
 
-// ForwardedAddrHandler returns the client IP address from a request. If present, the
-// X-Forwarded-For header is assumed to be set by a load balancer, and its
-// rightmost entry (the client IP that connected to the LB) is returned.
+// ForwardedAddrHandler returns the client IP address from a request. If a
+// request goes through multiple proxies, the IP addresses of each successive
+// proxy is listed. This means, the right-most IP address is the IP address of
+// the most recent proxy and the left-most IP address is the IP address of the
+// originating client.
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For
 func ForwardedAddrHandler(fieldKey string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			addr := r.RemoteAddr
 			if ra := r.Header.Get("X-Forwarded-For"); ra != "" {
-				forwardedList := strings.Split(ra, ",")
-				forwardedAddr := strings.TrimSpace(forwardedList[len(forwardedList)-1])
-				if forwardedAddr != "" {
-					addr = forwardedAddr
-				}
 				log := zerolog.Ctx(r.Context())
 				log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-					return c.Str(fieldKey, addr)
+					return c.Strs(fieldKey, strings.Split(ra, ","))
 				})
 			}
 			next.ServeHTTP(w, r)

@@ -22,6 +22,7 @@
 
 - The healthcheck endpoints (`/ping`) now returns the http status `405` StatusMethodNotAllowed for non-`GET` requests. [GH-319](https://github.com/pomerium/pomerium/issues/319)
 - Authenticate service no longer uses gRPC.
+- The global request logger now captures the full array of proxies from `X-Forwarded-For`, in addition to just the client IP.
 
 ### Removed
 
