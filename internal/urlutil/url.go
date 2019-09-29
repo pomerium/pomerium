@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
@@ -65,18 +66,35 @@ func DeepCopy(u *url.URL) (*url.URL, error) {
 	return ParseAndValidateURL(u.String())
 }
 
-// testTimeNow can be used in tests to set a specific int64 time
-var testTimeNow int64
+var mockNow testTime
+
+// testTime is safe to use concurrently.
+type testTime struct {
+	sync.Mutex
+	mockNow int64
+}
+
+func (tt *testTime) setNow(n int64) {
+	tt.Lock()
+	tt.mockNow = n
+	tt.Unlock()
+}
+
+func (tt *testTime) now() int64 {
+	tt.Lock()
+	defer tt.Unlock()
+	return tt.mockNow
+}
 
 // timestamp returns the current timestamp, in seconds.
 //
 // For testing purposes, the function that generates the timestamp can be
 // overridden. If not set, it will return time.Now().UTC().Unix().
 func timestamp() int64 {
-	if testTimeNow == 0 {
+	if mockNow.now() == 0 {
 		return time.Now().UTC().Unix()
 	}
-	return testTimeNow
+	return mockNow.now()
 }
 
 // SignedRedirectURL takes a destination URL and adds redirect_uri to it's

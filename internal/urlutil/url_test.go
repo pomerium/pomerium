@@ -122,7 +122,7 @@ func TestSignedRedirectURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testTimeNow = tt.mockedTime
+			mockNow.setNow(tt.mockedTime)
 			got := SignedRedirectURL(tt.key, tt.destination, tt.urlToSign)
 			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("SignedRedirectURL() = diff %v", diff)
@@ -142,7 +142,7 @@ func Test_timestamp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testTimeNow = tt.dontWant
+			mockNow.setNow(tt.dontWant)
 			if got := timestamp(); got == tt.dontWant {
 				t.Errorf("timestamp() = %v, dontWant %v", got, tt.dontWant)
 			}
