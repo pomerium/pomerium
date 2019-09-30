@@ -17,7 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 
 	"github.com/mitchellh/hashstructure"
-	"github.com/spf13/viper"
+	"github.com/pomerium/viper"
 	"gopkg.in/yaml.v2"
 )
 

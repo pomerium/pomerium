@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/spf13/viper"
+	"github.com/pomerium/viper"
 )
 
 func Test_validate(t *testing.T) {

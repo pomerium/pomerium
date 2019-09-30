@@ -9,7 +9,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
-	"github.com/spf13/viper"
+	"github.com/pomerium/viper"
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/authenticate"
