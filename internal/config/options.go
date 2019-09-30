@@ -1,18 +1,17 @@
 package config // import "github.com/pomerium/pomerium/internal/config"
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
-	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -46,13 +45,21 @@ type Options struct {
 	// HTTPS requests. If empty, ":443" (localhost:443) is used.
 	Addr string `mapstructure:"address"`
 
-	// Cert and Key specifies the TLS certificates to use.
+	// InsecureServer when enabled disables all transport security.
+	// In this mode, Pomerium is susceptible to man-in-the-middle attacks.
+	// This should be used only for testing.
+	InsecureServer bool `mapstructure:"insecure_server"`
+
+	// Cert and Key is the x509 certificate used to hydrate TLSCertificate
 	Cert string `mapstructure:"certificate"`
 	Key  string `mapstructure:"certificate_key"`
 
-	// CertFile and KeyFile specifies the TLS certificates to use.
+	// CertFile and KeyFile is the x509 certificate used to hydrate TLSCertificate
 	CertFile string `mapstructure:"certificate_file"`
 	KeyFile  string `mapstructure:"certificate_key_file"`
+
+	// TLSCertificate is the hydrated tls.Certificate.
+	TLSCertificate *tls.Certificate
 
 	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
 	// to HTTPS redirect server on. If empty, no redirect server is started.
@@ -130,7 +137,7 @@ type Options struct {
 	TracingDebug    bool   `mapstructure:"tracing_debug"`
 
 	//  Jaeger
-
+	//
 	// CollectorEndpoint is the full url to the Jaeger HTTP Thrift collector.
 	// For example, http://localhost:14268/api/traces
 	TracingJaegerCollectorEndpoint string `mapstructure:"tracing_jaeger_collector_endpoint"`
@@ -139,6 +146,15 @@ type Options struct {
 	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint"`
 
 	// GRPC Service Settings
+
+	// GRPCAddr specifies the host and port on which the server should serve
+	// gRPC requests. If running in all-in-one mode, ":5443" (localhost:5443) is used.
+	GRPCAddr string `mapstructure:"grpc_address"`
+
+	// GRPCInsecure disables transport security.
+	// If running in all-in-one mode, defaults to true.
+	GRPCInsecure bool `mapstructure:"grpc_insecure"`
+
 	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout"`
 	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin"`
 }
@@ -160,24 +176,27 @@ var defaultOptions = Options{
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 	},
 	Addr:                    ":443",
-	CertFile:                filepath.Join(fileutil.Getwd(), "cert.pem"),
-	KeyFile:                 filepath.Join(fileutil.Getwd(), "privkey.pem"),
 	ReadHeaderTimeout:       10 * time.Second,
 	ReadTimeout:             30 * time.Second,
 	WriteTimeout:            0, // support streaming by default
 	IdleTimeout:             5 * time.Minute,
 	RefreshCooldown:         5 * time.Minute,
+	GRPCAddr:                ":443",
 	GRPCClientTimeout:       10 * time.Second, // Try to withstand transient service failures for a single request
 	GRPCClientDNSRoundRobin: true,
 }
 
 // NewOptions returns a minimal options configuration built from default options.
-// Any modifications to the structure should be followed up by a subsequent
-// call to validate.
-func NewOptions(authenticateURL, authorizeURL string) (*Options, error) {
+// If nil is set for certificate param, insecure server mode is used.
+func NewOptions(authenticateURL, authorizeURL string, cert *tls.Certificate) (*Options, error) {
 	o := defaultOptions
 	o.AuthenticateURLString = authenticateURL
 	o.AuthorizeURLString = authorizeURL
+	if cert != nil {
+		o.TLSCertificate = cert
+	} else {
+		o.InsecureServer = true
+	}
 	if err := o.Validate(); err != nil {
 		return nil, fmt.Errorf("internal/config: validation error %s", err)
 	}
@@ -210,17 +229,31 @@ func OptionsFromViper(configFile string) (*Options, error) {
 
 // Validate ensures the Options fields are properly formed, present, and hydrated.
 func (o *Options) Validate() error {
+	var err error
+
 	if !IsValidService(o.Services) {
 		return fmt.Errorf("%s is an invalid service type", o.Services)
 	}
 
-	// shared key must be set for all modes other than "all"
-	if o.SharedKey == "" {
-		if o.Services == "all" {
+	if IsAll(o.Services) {
+		// mutual auth between services on the same host can be generated at runtime
+		if o.SharedKey == "" {
 			o.SharedKey = cryptutil.NewBase64Key()
-		} else {
-			return errors.New("shared-key cannot be empty")
 		}
+		// in all in one mode we are running just over the local socket
+		o.GRPCInsecure = true
+		// to avoid port collision when running on localhost
+		if o.GRPCAddr == defaultOptions.GRPCAddr {
+			o.GRPCAddr = ":5443"
+		}
+		// and we can set the corresponding client
+		if o.AuthorizeURLString == "" {
+			o.AuthorizeURLString = "https://localhost:5443"
+		}
+	}
+
+	if o.SharedKey == "" {
+		return errors.New("shared-key cannot be empty")
 	}
 
 	if o.AuthenticateURLString != "" {
@@ -254,6 +287,21 @@ func (o *Options) Validate() error {
 		o.Headers = make(map[string]string)
 	}
 
+	if o.InsecureServer {
+		log.Warn().Msg("InsecureServer mode: WE _STRONGLY_ ADVISE AGAINST USING " +
+			"POMERIUM WITHOUT ENCRYPTION! In this configuration, it is up to you " +
+			"to secure your instance and handle TLS termination. If exposing HTTP " +
+			"directly, `cookie_secure` must be set to `false`")
+	} else if o.Cert != "" && o.Key != "" {
+		o.TLSCertificate, err = cryptutil.CertifcateFromBase64(o.Cert, o.Key)
+	} else if o.CertFile != "" && o.KeyFile != "" {
+		o.TLSCertificate, err = cryptutil.CertificateFromFile(o.CertFile, o.KeyFile)
+	} else {
+		err = errors.New("no certificates supplied nor was insecure mode set")
+	}
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -350,7 +398,7 @@ func (o *Options) Checksum() string {
 func ParseOptions(configFile string) (*Options, error) {
 	o, err := OptionsFromViper(configFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("internal/config: options from viper %v", err)
 	}
 	if o.Debug {
 		log.SetDebugMode()
@@ -388,16 +436,16 @@ func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 		return opt
 	}
 
-	errored := false
+	var updateFailed bool
 	for _, service := range services {
 		if err := service.UpdateOptions(*newOpt); err != nil {
 			log.Error().Err(err).Msg("internal/config: could not update options")
-			errored = true
+			updateFailed = true
 			metrics.SetConfigInfo(opt.Services, false, "")
 		}
 	}
 
-	if !errored {
+	if !updateFailed {
 		metrics.SetConfigInfo(newOpt.Services, true, newOptChecksum)
 	}
 	return newOpt

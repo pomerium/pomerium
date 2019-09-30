@@ -1,50 +1,42 @@
 package httputil // import "github.com/pomerium/pomerium/internal/httputil"
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	stdlog "log"
 	"net"
 	"net/http"
-	"strings"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-// NewTLSServer creates a new TLS server given a set of options, handlers, and
+// NewServer creates a new HTTP(s) server given a set of options, handlers, and
 // optionally a set of gRPC endpoints as well.
 // It is the callers responsibility to close the resturned server.
-func NewTLSServer(opt *ServerOptions, httpHandler http.Handler, grpcHandler http.Handler) (*http.Server, error) {
+func NewServer(opt *ServerOptions, h http.Handler, wg *sync.WaitGroup) (*http.Server, error) {
 	if opt == nil {
-		opt = defaultTLSServerOptions
+		opt = defaultServerOptions
 	} else {
-		opt.applyTLSDefaults()
+		opt.applyServerDefaults()
 	}
-	var cert *tls.Certificate
-	var err error
-	if opt.Cert != "" && opt.Key != "" {
-		cert, err = cryptutil.CertifcateFromBase64(opt.Cert, opt.Key)
-	} else {
-		cert, err = cryptutil.CertificateFromFile(opt.CertFile, opt.KeyFile)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("internal/httputil: failed loading x509 certificate: %v", err)
-	}
-	config := newDefaultTLSConfig(cert)
+
 	ln, err := net.Listen("tcp", opt.Addr)
 	if err != nil {
 		return nil, err
 	}
-
-	ln = tls.NewListener(ln, config)
-
-	var h http.Handler
-	if grpcHandler == nil {
-		h = httpHandler
+	if opt.TLSCertificate != nil {
+		ln = tls.NewListener(ln, newDefaultTLSConfig(opt.TLSCertificate))
 	} else {
-		h = grpcHandlerFunc(grpcHandler, httpHandler)
+		log.Warn().Str("addr", opt.Addr).Msg("internal/httputil: insecure server")
 	}
+
 	sublogger := log.With().Str("addr", opt.Addr).Logger()
 
 	// Set up the main server.
@@ -53,16 +45,16 @@ func NewTLSServer(opt *ServerOptions, httpHandler http.Handler, grpcHandler http
 		ReadTimeout:       opt.ReadTimeout,
 		WriteTimeout:      opt.WriteTimeout,
 		IdleTimeout:       opt.IdleTimeout,
-		TLSConfig:         config,
 		Handler:           h,
 		ErrorLog:          stdlog.New(&log.StdLogWrapper{Logger: &sublogger}, "", 0),
 	}
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		if err := srv.Serve(ln); err != http.ErrServerClosed {
 			log.Error().Err(err).Msg("internal/httputil: tls server crashed")
 		}
 	}()
-
 	return srv, nil
 }
 
@@ -98,15 +90,35 @@ func newDefaultTLSConfig(cert *tls.Certificate) *tls.Config {
 	return tlsConfig
 }
 
-// grpcHandlerFunc splits request serving between gRPC and HTTPS depending on
-// the request type. Requires HTTP/2 to be enabled.
-func grpcHandlerFunc(rpcServer http.Handler, other http.Handler) http.Handler {
+// RedirectHandler takes an incoming request and redirects to its HTTPS counterpart
+func RedirectHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ct := r.Header.Get("Content-Type")
-		if r.ProtoMajor == 2 && strings.Contains(ct, "application/grpc") {
-			rpcServer.ServeHTTP(w, r)
-		} else {
-			other.ServeHTTP(w, r)
-		}
+		w.Header().Set("Connection", "close")
+		url := fmt.Sprintf("https://%s%s", urlutil.StripPort(r.Host), r.URL.String())
+		http.Redirect(w, r, url, http.StatusMovedPermanently)
 	})
+}
+
+// Shutdown attempts to shut down the server when a os interrupt or sigterm
+// signal are received without interrupting any
+// active connections. Shutdown works by first closing all open
+// listeners, then closing all idle connections, and then waiting
+// indefinitely for connections to return to idle and then shut down.
+// If the provided context expires before the shutdown is complete,
+// Shutdown returns the context's error, otherwise it returns any
+// error returned from closing the Server's underlying Listener(s).
+//
+// When Shutdown is called, Serve, ListenAndServe, and
+// ListenAndServeTLS immediately return ErrServerClosed.
+func Shutdown(srv *http.Server) {
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, os.Interrupt)
+	signal.Notify(sigint, syscall.SIGTERM)
+	rec := <-sigint
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	log.Info().Str("signal", rec.String()).Msg("internal/httputil: shutting down servers")
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Error().Err(err).Msg("internal/httputil: shutdown failed")
+	}
 }

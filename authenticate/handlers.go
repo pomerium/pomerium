@@ -37,6 +37,7 @@ func (a *Authenticate) Handler() http.Handler {
 	r.Use(middleware.SetHeaders(CSPHeaders))
 	r.Use(csrf.Protect(
 		a.cookieSecret,
+		csrf.Secure(a.cookieSecure),
 		csrf.Path("/"),
 		csrf.Domain(a.cookieDomain),
 		csrf.UnsafePaths([]string{callbackPath}), // enforce CSRF on "safe" handler
