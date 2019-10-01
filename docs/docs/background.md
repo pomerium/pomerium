@@ -3,7 +3,7 @@ title: Background
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy beyondcorp zero-trust reverse-proxy ztn
+    content: pomerium identity-access-proxy beyondcorp zero-trust reverse-proxy ztn zta
 ---
 
 # Background
@@ -28,8 +28,8 @@ The other side of the security trade-off is operational agility. Perimeter based
 
 Perimeter based security suffers from the following shortcomings:
 
-- Perimeter security largely ignores the insider threat. Given that thirty percent of all breaches are from internal actors, this is a pretty big omission.
-- If the last few years have proved anything it is that the impenetrable fortress theory fails in practice even for the most sophisticated of security organizations.
+- Perimeter security largely ignores the insider threat.
+- The "impenetrable fortress" model fails in practice even for the most sophisticated of security organizations.
 - Network segmentation is a time-consuming, and difficult to get exactly right mechanism for ensuring secure communication.
 - Even just defining what the network perimeter is is an increasingly difficult proposition in a remote-work, BYOD, multi-cloud world. Most organizations are a heterogeneous mix of clouds, servers, devices, and organizational units.
 - VPNs are often misused and exacerbate the issue it by opening yet another door into your network organization.
@@ -51,15 +51,15 @@ So to put all this back in context, before zero-trust tools like Pomerium existe
 
 ## Further reading
 
-Pomerium was inspired by the security model originally articulated by [John Kindervag](http://www.virtualstarmedia.com/downloads/Forrester_zero_trust_DNA.pdf) in 2010, and by Google in 2011 as a result of the [Operation Aurora](https://en.wikipedia.org/wiki/Operation_Aurora) breach. What follows is a curated list of books, papers, posts, and videos that covers the topic in more depth.
+Pomerium was inspired by the security model articulated by [John Kindervag](http://www.virtualstarmedia.com/downloads/Forrester_zero_trust_DNA.pdf) in 2010, and by Google in 2011 as a result of the [Operation Aurora](https://en.wikipedia.org/wiki/Operation_Aurora) breach. What follows is a curated list of books, papers, posts, and videos that covers the topic in more depth.
 
 ### Books
 
 - ⭐[Zero Trust Networks](http://shop.oreilly.com/product/0636920052265.do) by Gilman and Barth
-- [Site Reliability Engineering: How Google Runs Production Systems](https://www.amazon.com/Site-Reliability-Engineering-Production-Systems/dp/149192912X)
 
 ### Papers
 
+- NIST SP 800-207 [Zero Trust Architecture](https://doi.org/10.6028/NIST.SP.800-207-draft)
 - Forrester [Build Security Into Your Network's DNA: The Zero Trust Network Architecture](http://www.virtualstarmedia.com/downloads/Forrester_zero_trust_DNA.pdf)
 - ⭐️Google BeyondCorp 1 [An overview: "A New Approach to Enterprise Security"](https://research.google.com/pubs/pub43231.html)
 - Google BeyondCorp 2 [How Google did it: "Design to Deployment at Google"](https://research.google.com/pubs/pub44860.html)
@@ -70,6 +70,7 @@ Pomerium was inspired by the security model originally articulated by [John Kind
 
 ### Posts
 
+- Google [How Google adopted BeyondCorp](https://security.googleblog.com/2019/06/how-google-adopted-beyondcorp.html)
 - Google [Securing your business and securing your fleet the BeyondCorp way](https://cloud.google.com/blog/products/identity-security/securing-your-business-and-securing-your-fleet-the-beyondcorp-way)
 - Google [Preparing for a BeyondCorp world: Understanding your device inventory](https://cloud.google.com/blog/products/identity-security/preparing-beyondcorp-world-understanding-your-device-inventory)
 - Google [How BeyondCorp can help businesses be more productive](https://www.blog.google/products/google-cloud/how-beyondcorp-can-help-businesses-be-more-productive/)
@@ -82,5 +83,4 @@ Pomerium was inspired by the security model originally articulated by [John Kind
 - [What, Why, and How of Zero Trust Networking](https://youtu.be/eDVHIfVSdIo?list=PLKb9-P1fRHxhSmCy5OaYZ5spcY8v3Pbaf) by Armon Dadgar, Hashicorp
 - [O'Reilly Security 2017 NYC Beyondcorp: Beyond Fortress Security](https://youtu.be/oAvDASLehpY?list=PLKb9-P1fRHxhSmCy5OaYZ5spcY8v3Pbaf) by Neal Muller, Google
 - [Be Ready for BeyondCorp: enterprise identity, perimeters and your application](https://youtu.be/5UiWAlwok1s?list=PLKb9-P1fRHxhSmCy5OaYZ5spcY8v3Pbaf) by Jason Kent
-- ⭐️ [OAuth 2.0 and OpenID Connect (in plain English)
-  ](https://www.youtube.com/watch?v=996OiexHze0) by Nate Barbettini
+- ⭐️ [OAuth 2.0 and OpenID Connect (in plain English)](https://www.youtube.com/watch?v=996OiexHze0) by Nate Barbettini
