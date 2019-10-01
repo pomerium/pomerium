@@ -25,7 +25,8 @@ import (
 // DisableHeaderKey is the key used to check whether to disable setting header
 const DisableHeaderKey = "disable"
 
-// Options are the global environmental flags used to set up pomerium's services.
+// Options are the global environmental flags used to set up pomerium's services.  Use NewXXXOptions() methods
+// for a safely initialized data structure.
 type Options struct {
 	// Debug outputs human-readable logs to Stdout.
 	Debug bool `mapstructure:"pomerium_debug"`
@@ -206,18 +207,22 @@ func NewMinimalOptions(authenticateURL, authorizeURL string) (*Options, error) {
 func OptionsFromViper(configFile string) (*Options, error) {
 	// start a copy of the default options
 	o := NewDefaultOptions()
+	// New viper instance to save into Options later
+	v := viper.New()
 	// Load up config
-	o.bindEnvs()
+	bindEnvs(o, v)
 	if configFile != "" {
-		o.viper.SetConfigFile(configFile)
-		if err := o.viper.ReadInConfig(); err != nil {
+		v.SetConfigFile(configFile)
+		if err := v.ReadInConfig(); err != nil {
 			return nil, fmt.Errorf("internal/config: failed to read config: %s", err)
 		}
 	}
 
-	if err := o.viper.Unmarshal(&o); err != nil {
+	if err := v.Unmarshal(&o); err != nil {
 		return nil, fmt.Errorf("internal/config: failed to unmarshal config: %s", err)
 	}
+
+	o.viper = v
 
 	if err := o.Validate(); err != nil {
 		return nil, fmt.Errorf("internal/config: validation error %s", err)
@@ -333,20 +338,20 @@ func (o *Options) parseHeaders() error {
 	return nil
 }
 
-// bindEnvs makes sure viper binds to each env var based on the mapstructure tag
-func (o *Options) bindEnvs() {
+// bindEnvs binds a viper instance to each env var of an Options struct based on the mapstructure tag
+func bindEnvs(o *Options, v *viper.Viper) {
 	tagName := `mapstructure`
 	t := reflect.TypeOf(*o)
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		envName := field.Tag.Get(tagName)
-		o.viper.BindEnv(envName)
+		v.BindEnv(envName)
 	}
 
 	// Statically bind fields
-	o.viper.BindEnv("PolicyEnv", "POLICY")
-	o.viper.BindEnv("HeadersEnv", "HEADERS")
+	v.BindEnv("PolicyEnv", "POLICY")
+	v.BindEnv("HeadersEnv", "HEADERS")
 }
 
 // OptionsUpdater updates local state based on an Options struct

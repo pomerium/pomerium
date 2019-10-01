@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/spf13/viper"
 )
 
 var cmpOptIgnoreUnexported = cmpopts.IgnoreUnexported(Options{})
@@ -59,6 +60,7 @@ func Test_validate(t *testing.T) {
 
 func Test_bindEnvs(t *testing.T) {
 	o := NewOptions()
+	v := viper.New()
 	os.Clearenv()
 	defer os.Unsetenv("POMERIUM_DEBUG")
 	defer os.Unsetenv("POLICY")
@@ -66,11 +68,12 @@ func Test_bindEnvs(t *testing.T) {
 	os.Setenv("POMERIUM_DEBUG", "true")
 	os.Setenv("POLICY", "mypolicy")
 	os.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
-	o.bindEnvs()
-	err := o.viper.Unmarshal(o)
+	bindEnvs(o, v)
+	err := v.Unmarshal(o)
 	if err != nil {
 		t.Errorf("Could not unmarshal %#v: %s", o, err)
 	}
+	o.viper = v
 	if !o.Debug {
 		t.Errorf("Failed to load POMERIUM_DEBUG from environment")
 	}
