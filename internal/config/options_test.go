@@ -68,8 +68,11 @@ func Test_bindEnvs(t *testing.T) {
 	os.Setenv("POMERIUM_DEBUG", "true")
 	os.Setenv("POLICY", "mypolicy")
 	os.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
-	bindEnvs(o, v)
-	err := v.Unmarshal(o)
+	err := bindEnvs(o, v)
+	if err != nil {
+		t.Fatalf("failed to bind options to env vars: %s", err)
+	}
+	err = v.Unmarshal(o)
 	if err != nil {
 		t.Errorf("Could not unmarshal %#v: %s", o, err)
 	}

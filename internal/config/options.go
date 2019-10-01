@@ -210,7 +210,11 @@ func OptionsFromViper(configFile string) (*Options, error) {
 	// New viper instance to save into Options later
 	v := viper.New()
 	// Load up config
-	bindEnvs(o, v)
+	err := bindEnvs(o, v)
+	if err != nil {
+		return nil, fmt.Errorf("failed to bind options to env vars: %w", err)
+	}
+
 	if configFile != "" {
 		v.SetConfigFile(configFile)
 		if err := v.ReadInConfig(); err != nil {
@@ -339,19 +343,31 @@ func (o *Options) parseHeaders() error {
 }
 
 // bindEnvs binds a viper instance to each env var of an Options struct based on the mapstructure tag
-func bindEnvs(o *Options, v *viper.Viper) {
+func bindEnvs(o *Options, v *viper.Viper) error {
 	tagName := `mapstructure`
 	t := reflect.TypeOf(*o)
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		envName := field.Tag.Get(tagName)
-		v.BindEnv(envName)
+		err := v.BindEnv(envName)
+		if err != nil {
+			return fmt.Errorf("failed to bind field '%s' to env var '%s': %w", field.Name, envName, err)
+		}
+
 	}
 
 	// Statically bind fields
-	v.BindEnv("PolicyEnv", "POLICY")
-	v.BindEnv("HeadersEnv", "HEADERS")
+	err := v.BindEnv("PolicyEnv", "POLICY")
+	if err != nil {
+		return fmt.Errorf("failed to bind field 'PolicyEnv' to env var 'POLICY': %w", err)
+	}
+	err = v.BindEnv("HeadersEnv", "HEADERS")
+	if err != nil {
+		return fmt.Errorf("failed to bind field 'HeadersEnv' to env var 'HEADERS': %w", err)
+	}
+
+	return nil
 }
 
 // OptionsUpdater updates local state based on an Options struct
