@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -15,14 +16,16 @@ import (
 
 var cmpOptIgnoreUnexported = cmpopts.IgnoreUnexported(Options{})
 
-func Test_validate(t *testing.T) {
+func Test_Validate(t *testing.T) {
 	t.Parallel()
-	testOptions := func() Options {
+	testOptions := func() *Options {
 		o := NewDefaultOptions()
 
 		o.SharedKey = "test"
 		o.Services = "all"
-		return *o
+		o.CertFile = "./testdata/example-cert.pem"
+		o.KeyFile = "./testdata/example-key.pem"
+		return o
 	}
 	good := testOptions()
 	badServices := testOptions()
@@ -38,7 +41,7 @@ func Test_validate(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		testOpts Options
+		testOpts *Options
 		wantErr  bool
 	}{
 		{"good default with no env settings", good, false},
@@ -51,7 +54,7 @@ func Test_validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.testOpts.Validate()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("optionsFromEnvConfig() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 		})
@@ -59,7 +62,8 @@ func Test_validate(t *testing.T) {
 }
 
 func Test_bindEnvs(t *testing.T) {
-	o := NewOptions()
+	o := new(Options)
+	o.viper = viper.New()
 	v := viper.New()
 	os.Clearenv()
 	defer os.Unsetenv("POMERIUM_DEBUG")
@@ -92,7 +96,7 @@ func Test_bindEnvs(t *testing.T) {
 }
 
 func Test_parseHeaders(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	tests := []struct {
 		name         string
 		want         map[string]string
@@ -110,11 +114,16 @@ func Test_parseHeaders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := NewDefaultOptions()
-			o.viper.Set("headers", tt.viperHeaders)
-			o.viper.Set("HeadersEnv", tt.envHeaders)
+			var (
+				o  *Options
+				mu sync.Mutex
+			)
+			mu.Lock()
+			defer mu.Unlock()
+			o = NewDefaultOptions()
+			o.viperSet("headers", tt.viperHeaders)
+			o.viperSet("HeadersEnv", tt.envHeaders)
 			o.HeadersEnv = tt.envHeaders
-
 			err := o.parseHeaders()
 
 			if (err != nil) != tt.wantErr {
@@ -127,130 +136,6 @@ func Test_parseHeaders(t *testing.T) {
 		})
 	}
 
-}
-
-func Test_OptionsFromViper(t *testing.T) {
-
-	testPolicy := Policy{
-		To:   "https://httpbin.org",
-		From: "https://pomerium.io",
-	}
-	if err := testPolicy.Validate(); err != nil {
-		t.Fatal(err)
-	}
-	testPolicies := []Policy{
-		testPolicy,
-	}
-
-	goodConfigBytes := []byte(`{"authorize_service_url":"https://authorize.corp.example","authenticate_service_url":"https://authenticate.corp.example","shared_secret":"Setec Astronomy","service":"all","policy":[{"from":"https://pomerium.io","to":"https://httpbin.org"}]}`)
-	goodOptions := *(NewDefaultOptions())
-	goodOptions.SharedKey = "Setec Astronomy"
-	goodOptions.Services = "all"
-	goodOptions.Policies = testPolicies
-	goodOptions.CookieName = "oatmeal"
-	goodOptions.AuthorizeURLString = "https://authorize.corp.example"
-	goodOptions.AuthenticateURLString = "https://authenticate.corp.example"
-	authorize, err := url.Parse(goodOptions.AuthorizeURLString)
-	if err != nil {
-		t.Fatal(err)
-	}
-	authenticate, err := url.Parse(goodOptions.AuthenticateURLString)
-	if err != nil {
-		t.Fatal(err)
-	}
-	goodOptions.AuthorizeURL = authorize
-	goodOptions.AuthenticateURL = authenticate
-	if err := goodOptions.Validate(); err != nil {
-		t.Fatal(err)
-	}
-	badConfigBytes := []byte("badjson!")
-	badUnmarshalConfigBytes := []byte(`"debug": "blue"`)
-
-	tests := []struct {
-		name        string
-		configBytes []byte
-		want        *Options
-		wantErr     bool
-	}{
-		{"good", goodConfigBytes, &goodOptions, false},
-		{"bad json", badConfigBytes, nil, true},
-		{"bad unmarshal", badUnmarshalConfigBytes, nil, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			os.Clearenv()
-			os.Setenv("COOKIE_NAME", "oatmeal")
-			defer os.Unsetenv("COOKIE_NAME")
-			tempFile, _ := ioutil.TempFile("", "*.json")
-			defer tempFile.Close()
-			defer os.Remove(tempFile.Name())
-			tempFile.Write(tt.configBytes)
-			got, err := OptionsFromViper(tempFile.Name())
-			if (err != nil) != tt.wantErr {
-				t.Errorf("OptionsFromViper() error = \n%v, wantErr \n%v", err, tt.wantErr)
-			}
-			if tt.want != nil {
-				if err := tt.want.Validate(); err != nil {
-					t.Fatal(err)
-				}
-			}
-			if diff := cmp.Diff(got, tt.want, cmpOptIgnoreUnexported); diff != "" {
-				t.Errorf("OptionsFromViper() = \n%s\n, \ngot\n%+v\n, want \n%+v", diff, got, tt.want)
-			}
-
-		})
-	}
-
-	// Test for missing config file
-	_, err = OptionsFromViper("filedoesnotexist")
-	if err == nil {
-		t.Errorf("OptionsFromViper(): Did when loading missing file")
-	}
-}
-
-func Test_parsePolicyEnv(t *testing.T) {
-	t.Parallel()
-
-	source := "https://pomerium.io"
-	sourceURL, _ := url.ParseRequestURI(source)
-	dest := "https://httpbin.org"
-	destURL, _ := url.ParseRequestURI(dest)
-
-	tests := []struct {
-		name        string
-		policyBytes []byte
-		want        []Policy
-		wantErr     bool
-	}{
-		{"simple json", []byte(fmt.Sprintf(`[{"from": "%s","to":"%s"}]`, source, dest)), []Policy{{From: source, To: dest, Source: sourceURL, Destination: destURL}}, false},
-		{"bad from", []byte(`[{"from": "%","to":"httpbin.org"}]`), []Policy{{From: "%", To: "httpbin.org"}}, true},
-		{"bad to", []byte(`[{"from": "pomerium.io","to":"%"}]`), []Policy{{From: "pomerium.io", To: "%"}}, true},
-		{"simple error", []byte(`{}`), nil, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			o := NewOptions()
-
-			o.PolicyEnv = base64.StdEncoding.EncodeToString(tt.policyBytes)
-			err := o.parsePolicy()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parsePolicyEnv() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if diff := cmp.Diff(o.Policies, tt.want); diff != "" {
-				t.Errorf("parsePolicyEnv() = %s", diff)
-			}
-		})
-	}
-
-	// Catch bad base64
-	o := NewOptions()
-	o.PolicyEnv = "foo"
-	err := o.parsePolicy()
-	if err == nil {
-		t.Errorf("parsePolicyEnv() did not catch bad base64 %v", o)
-	}
 }
 
 func Test_parsePolicyFile(t *testing.T) {
@@ -276,7 +161,8 @@ func Test_parsePolicyFile(t *testing.T) {
 			defer tempFile.Close()
 			defer os.Remove(tempFile.Name())
 			tempFile.Write(tt.policyBytes)
-			o := NewOptions()
+			var o Options
+			o.viper = viper.New()
 			o.viper.SetConfigFile(tempFile.Name())
 			if err := o.viper.ReadInConfig(); err != nil {
 				t.Fatal(err)
@@ -316,36 +202,10 @@ func Test_Checksum(t *testing.T) {
 	}
 }
 
-func TestNewOptions(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name            string
-		authenticateURL string
-		authorizeURL    string
-		want            *Options
-		wantErr         bool
-	}{
-		{"good", "https://authenticate.example", "https://authorize.example", nil, false},
-		{"bad authenticate url no scheme", "authenticate.example", "https://authorize.example", nil, true},
-		{"bad authenticate url no host", "https://", "https://authorize.example", nil, true},
-		{"bad authorize url no scheme", "https://authenticate.example", "authorize.example", nil, true},
-		{"bad authorize url no host", "https://authenticate.example", "https://", nil, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewMinimalOptions(tt.authenticateURL, tt.authorizeURL)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewOptions() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-		})
-	}
-}
-
 func TestOptionsFromViper(t *testing.T) {
 	t.Parallel()
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Options{}, "DefaultUpstreamTimeout", "CookieRefresh", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "ReadHeaderTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin"),
+		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "AuthorizeURL", "AuthorizeURLString", "DefaultUpstreamTimeout", "CookieRefresh", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "ReadHeaderTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin"),
 		cmpopts.IgnoreFields(Policy{}, "Source", "Destination"),
 		cmpOptIgnoreUnexported,
 	}
@@ -357,11 +217,12 @@ func TestOptionsFromViper(t *testing.T) {
 		wantErr     bool
 	}{
 		{"good",
-			[]byte(`{"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			[]byte(`{"insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
 				Policies:       []Policy{{From: "https://from.example", To: "https://to.example"}},
 				CookieName:     "_pomerium",
 				CookieSecure:   true,
+				InsecureServer: true,
 				CookieHTTPOnly: true,
 				Headers: map[string]string{
 					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
@@ -371,12 +232,13 @@ func TestOptionsFromViper(t *testing.T) {
 				}},
 			false},
 		{"good disable header",
-			[]byte(`{"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			[]byte(`{"insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
 				Policies:       []Policy{{From: "https://from.example", To: "https://to.example"}},
 				CookieName:     "_pomerium",
 				CookieSecure:   true,
 				CookieHTTPOnly: true,
+				InsecureServer: true,
 				Headers:        map[string]string{}},
 			false},
 		{"bad url", []byte(`{"policy":[{"from": "https://","to":"https://to.example"}]}`), nil, true},
@@ -390,49 +252,45 @@ func TestOptionsFromViper(t *testing.T) {
 			defer tempFile.Close()
 			defer os.Remove(tempFile.Name())
 			tempFile.Write(tt.configBytes)
-			got, err := OptionsFromViper(tempFile.Name())
+			got, err := optionsFromViper(tempFile.Name())
 			if (err != nil) != tt.wantErr {
-				t.Errorf("OptionsFromViper() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("optionsFromViper() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if diff := cmp.Diff(got, tt.want, opts...); diff != "" {
-				t.Errorf("NewOptions() = %s", diff)
+				t.Errorf("NewOptionsFromConfig() = %s", diff)
 			}
 		})
 	}
 }
 
-func Test_parseOptions(t *testing.T) {
+func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 	tests := []struct {
-		name             string
-		envKey           string
-		envValue         string
-		servicesEnvKey   string
-		servicesEnvValue string
-		wantSharedKey    string
-		wantErr          bool
+		name        string
+		envKeyPairs map[string]string
+		wantErr     bool
 	}{
-		{"no shared secret", "", "", "SERVICES", "authenticate", "skip", true},
-		{"no shared secret in all mode", "", "", "", "", "", false},
-		{"good", "SHARED_SECRET", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", "", "", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", false},
+		{"good", map[string]string{"INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
+		{"bad no shared secret", map[string]string{"INSECURE_SERVER": "true", "SERVICES": "authenticate"}, true},
+		{"good no shared secret in all mode", map[string]string{"INSECURE_SERVER": "true"}, false},
+		{"bad header", map[string]string{"HEADERS": "x;y;z", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
+		{"bad authenticate url", map[string]string{"AUTHENTICATE_SERVICE_URL": "authenticate.example", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
+		{"bad authorize url", map[string]string{"AUTHORIZE_SERVICE_URL": "authorize.example", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
+		{"bad cert base64", map[string]string{"CERTIFICATE": "bad cert", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
+		{"bad cert key base64", map[string]string{"CERTIFICATE_KEY": "bad cert", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
+		{"bad no certs no insecure mode set", map[string]string{"SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
+		{"good disable headers ", map[string]string{"HEADERS": "disable:true", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv(tt.servicesEnvKey, tt.servicesEnvValue)
-			os.Setenv(tt.envKey, tt.envValue)
-			defer os.Unsetenv(tt.envKey)
-			defer os.Unsetenv(tt.servicesEnvKey)
-
-			got, err := ParseOptions("")
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseOptions() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			for k, v := range tt.envKeyPairs {
+				os.Setenv(k, v)
+				defer os.Unsetenv(k)
 			}
-			if got != nil && got.Services != "all" && got.SharedKey != tt.wantSharedKey {
-				t.Errorf("ParseOptions()\n")
-				t.Errorf("got: %+v\n", got.SharedKey)
-				t.Errorf("want: %+v\n", tt.wantSharedKey)
-
+			_, err := NewOptionsFromConfig("")
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewOptionsFromConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
 		})
 	}
@@ -453,42 +311,102 @@ func (m *mockService) UpdateOptions(o Options) error {
 }
 
 func Test_HandleConfigUpdate(t *testing.T) {
-	os.Clearenv()
-	os.Setenv("SHARED_SECRET", "foo")
-	defer os.Unsetenv("SHARED_SECRET")
-
-	blankOpts, err := NewMinimalOptions("https://authenticate.example", "https://authorize.example")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	goodOpts, err := OptionsFromViper("")
-	if err != nil {
-		t.Fatal(err)
-	}
 	tests := []struct {
-		name       string
-		envarKey   string
-		envarValue string
-		service    *mockService
-		oldOpts    Options
-		wantUpdate bool
+		name           string
+		oldEnvKeyPairs map[string]string
+		newEnvKeyPairs map[string]string
+		service        *mockService
+		wantUpdate     bool
 	}{
-		{"good", "", "", &mockService{fail: false}, *blankOpts, true},
-		{"good set debug", "POMERIUM_DEBUG", "true", &mockService{fail: false}, *blankOpts, true},
-		{"bad", "", "", &mockService{fail: true}, *blankOpts, true},
-		{"no change", "", "", &mockService{fail: false}, *goodOpts, false},
-		{"bad policy file unmarshal error", "POLICY", base64.StdEncoding.EncodeToString([]byte("{json:}")), &mockService{fail: false}, *blankOpts, false},
-		{"bad header key", "SERVICES", "error", &mockService{fail: false}, *blankOpts, false},
-		{"bad header header value", "HEADERS", "x;y;z", &mockService{fail: false}, *blankOpts, false},
+		{"good",
+			map[string]string{
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			map[string]string{
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			&mockService{fail: false},
+			true},
+		{"good set debug",
+			map[string]string{
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			map[string]string{
+				"POMERIUM_DEBUG":           "true",
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			&mockService{fail: false},
+			true},
+		{"bad",
+			map[string]string{
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			map[string]string{
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			&mockService{fail: true},
+			true},
+		{"bad policy file unmarshal error",
+			map[string]string{
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			map[string]string{
+				"POLICY":                   base64.StdEncoding.EncodeToString([]byte("{json:}")),
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			&mockService{fail: false},
+			false},
+		{"bad header key",
+			map[string]string{
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			map[string]string{
+				"SERVICES":                 "error",
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			&mockService{fail: false},
+			false},
+		{"bad header header value",
+			map[string]string{
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			map[string]string{
+				"HEADERS":                  "x;y;z",
+				"INSECURE_SERVER":          "true",
+				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
+				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
+			&mockService{fail: false},
+			false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv(tt.envarKey, tt.envarValue)
-			defer os.Unsetenv(tt.envarKey)
-
-			HandleConfigUpdate("", &tt.oldOpts, []OptionsUpdater{tt.service})
+			for k, v := range tt.oldEnvKeyPairs {
+				os.Setenv(k, v)
+			}
+			oldOpts, err := NewOptionsFromConfig("")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for k := range tt.oldEnvKeyPairs {
+				os.Unsetenv(k)
+			}
+			for k, v := range tt.newEnvKeyPairs {
+				os.Setenv(k, v)
+				defer os.Unsetenv(k)
+			}
+			HandleConfigUpdate("", oldOpts, []OptionsUpdater{tt.service})
 			if tt.service.Updated != tt.wantUpdate {
 				t.Errorf("Failed to update config on service")
 			}

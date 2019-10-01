@@ -81,6 +81,7 @@ func TestAuthorizeGRPC_IsAdmin(t *testing.T) {
 }
 
 func TestNewGRPC(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		opts       *Options
@@ -100,6 +101,8 @@ func TestNewGRPC(t *testing.T) {
 		{"bad ca encoding", &Options{Addr: nil, InternalAddr: &url.URL{Scheme: "https", Host: "localhost.example"}, OverrideCertificateName: "*.local", SharedSecret: "shh", CA: "^"}, true, "", "localhost.example:443"},
 		{"custom ca file", &Options{Addr: nil, InternalAddr: &url.URL{Scheme: "https", Host: "localhost.example"}, OverrideCertificateName: "*.local", SharedSecret: "shh", CAFile: "testdata/example.crt"}, false, "", "localhost.example:443"},
 		{"bad custom ca file", &Options{Addr: nil, InternalAddr: &url.URL{Scheme: "https", Host: "localhost.example"}, OverrideCertificateName: "*.local", SharedSecret: "shh", CAFile: "testdata/example.crt2"}, true, "", "localhost.example:443"},
+		{"valid with insecure", &Options{Addr: &url.URL{Scheme: "https", Host: "localhost.example:8443"}, SharedSecret: "shh", WithInsecure: true}, false, "", "localhost.example:8443"},
+		{"valid client round robin", &Options{Addr: &url.URL{Scheme: "https", Host: "localhost.example:8443"}, SharedSecret: "shh", ClientDNSRoundRobin: true}, false, "", "dns:///localhost.example:8443"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

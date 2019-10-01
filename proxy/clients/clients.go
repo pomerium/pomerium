@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/grpcutil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 
 	"go.opencensus.io/plugin/ocgrpc"
@@ -45,6 +45,10 @@ type Options struct {
 	RequestTimeout time.Duration
 	// ClientDNSRoundRobin enables or disables DNS resolver based load balancing
 	ClientDNSRoundRobin bool
+
+	// WithInsecure disables transport security for  this ClientConn.
+	// Note that transport security is required unless WithInsecure is set.
+	WithInsecure bool
 }
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
@@ -57,7 +61,6 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		return nil, errors.New("proxy/clients: connection address required")
 
 	}
-	grpcAuth := middleware.NewSharedSecretCred(opts.SharedSecret)
 
 	var connAddr string
 	if opts.InternalAddr != nil {
@@ -69,60 +72,61 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 	if !strings.Contains(connAddr, ":") {
 		connAddr = fmt.Sprintf("%s:%d", connAddr, defaultGRPCPort)
 	}
-
-	var cp *x509.CertPool
-	if opts.CA != "" || opts.CAFile != "" {
-		cp = x509.NewCertPool()
-		var ca []byte
-		var err error
-		if opts.CA != "" {
-			ca, err = base64.StdEncoding.DecodeString(opts.CA)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode certificate authority: %v", err)
-			}
-		} else {
-			ca, err = ioutil.ReadFile(opts.CAFile)
-			if err != nil {
-				return nil, fmt.Errorf("certificate authority file %v not readable: %v", opts.CAFile, err)
-			}
-		}
-		if ok := cp.AppendCertsFromPEM(ca); !ok {
-			return nil, fmt.Errorf("failed to append CA cert to certPool")
-		}
-		log.Debug().Msg("proxy/clients: using a custom certificate authority")
-	} else {
-		newCp, err := x509.SystemCertPool()
-		if err != nil {
-			return nil, err
-		}
-		cp = newCp
-		log.Debug().Msg("proxy/clients: using system certificate pool")
-	}
-
-	log.Debug().Str("cert-override-name", opts.OverrideCertificateName).Str("addr", connAddr).Msgf("proxy/clients: grpc connection")
-	cert := credentials.NewTLS(&tls.Config{RootCAs: cp})
-
-	// override allowed certificate name string, typically used when doing behind ingress connection
-	if opts.OverrideCertificateName != "" {
-		err := cert.OverrideServerName(opts.OverrideCertificateName)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	dialOptions := []grpc.DialOption{
-		grpc.WithTransportCredentials(cert),
-		grpc.WithPerRPCCredentials(grpcAuth),
+		grpc.WithPerRPCCredentials(grpcutil.NewSharedSecretCred(opts.SharedSecret)),
 		grpc.WithChainUnaryInterceptor(metrics.GRPCClientInterceptor("proxy"), grpcTimeoutInterceptor(opts.RequestTimeout)),
 		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
 		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
+	}
+
+	if opts.WithInsecure {
+		log.Info().Str("addr", connAddr).Msg("proxy/clients: grpc with insecure")
+		dialOptions = append(dialOptions, grpc.WithInsecure())
+	} else {
+		rootCAs, err := x509.SystemCertPool()
+		if err != nil {
+			log.Warn().Msg("proxy/clients: failed getting system cert pool making new one")
+			rootCAs = x509.NewCertPool()
+		}
+		if opts.CA != "" || opts.CAFile != "" {
+			var ca []byte
+			var err error
+			if opts.CA != "" {
+				ca, err = base64.StdEncoding.DecodeString(opts.CA)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode certificate authority: %v", err)
+				}
+			} else {
+				ca, err = ioutil.ReadFile(opts.CAFile)
+				if err != nil {
+					return nil, fmt.Errorf("certificate authority file %v not readable: %v", opts.CAFile, err)
+				}
+			}
+			if ok := rootCAs.AppendCertsFromPEM(ca); !ok {
+				return nil, fmt.Errorf("failed to append CA cert to certPool")
+			}
+			log.Debug().Msg("proxy/clients: added custom certificate authority")
+		}
+
+		cert := credentials.NewTLS(&tls.Config{RootCAs: rootCAs})
+
+		// override allowed certificate name string, typically used when doing behind ingress connection
+		if opts.OverrideCertificateName != "" {
+			log.Debug().Str("cert-override-name", opts.OverrideCertificateName).Msg("proxy/clients: grpc")
+			err := cert.OverrideServerName(opts.OverrideCertificateName)
+			if err != nil {
+				return nil, err
+			}
+		}
+		// finally add our credential
+		dialOptions = append(dialOptions, grpc.WithTransportCredentials(cert))
+
 	}
 
 	if opts.ClientDNSRoundRobin {
 		dialOptions = append(dialOptions, grpc.WithBalancerName(roundrobin.Name), grpc.WithDisableServiceConfig())
 		connAddr = fmt.Sprintf("dns:///%s", connAddr)
 	}
-
 	return grpc.Dial(
 		connAddr,
 		dialOptions...,

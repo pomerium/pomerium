@@ -7,6 +7,12 @@ description: >-
 
 # Upgrade Guide
 
+## Since 0.3.0
+
+### Breaking: No default certificate location
+
+In previous versions, if no explicit certificate pair (in base64 or file form) was set, Pomerium would make a last ditch effort to check for certificate files (`cert.key`/`privkey.pem`) in the root directory. With the introduction of insecure server configuration, we've removed that functionality. If there settings for certificates and insecure server mode are unset, pomerium will give a appropriate error instead of a failed to find/open certificate error.
+
 ## Since 0.2.0
 
 Pomerium `v0.3.0` has no known breaking changes compared to `v0.2.0`.

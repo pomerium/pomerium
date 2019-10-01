@@ -1,10 +1,8 @@
 package httputil // import "github.com/pomerium/pomerium/internal/httputil"
 
 import (
-	"path/filepath"
+	"crypto/tls"
 	"time"
-
-	"github.com/pomerium/pomerium/internal/fileutil"
 )
 
 // ServerOptions contains the configurations settings for a http server.
@@ -14,11 +12,7 @@ type ServerOptions struct {
 	Addr string
 
 	// TLS certificates to use.
-	Cert     string
-	Key      string
-	CertFile string
-	KeyFile  string
-
+	TLSCertificate *tls.Certificate
 	// Timeouts
 	ReadHeaderTimeout time.Duration
 	ReadTimeout       time.Duration
@@ -26,62 +20,28 @@ type ServerOptions struct {
 	IdleTimeout       time.Duration
 }
 
-var defaultTLSServerOptions = &ServerOptions{
+var defaultServerOptions = &ServerOptions{
 	Addr:              ":443",
-	CertFile:          filepath.Join(fileutil.Getwd(), "cert.pem"),
-	KeyFile:           filepath.Join(fileutil.Getwd(), "privkey.pem"),
 	ReadHeaderTimeout: 10 * time.Second,
 	ReadTimeout:       30 * time.Second,
 	WriteTimeout:      0, // support streaming by default
 	IdleTimeout:       5 * time.Minute,
 }
 
-func (o *ServerOptions) applyTLSDefaults() {
+func (o *ServerOptions) applyServerDefaults() {
 	if o.Addr == "" {
-		o.Addr = defaultTLSServerOptions.Addr
-	}
-	if o.Cert == "" && o.CertFile == "" {
-		o.CertFile = defaultTLSServerOptions.CertFile
-	}
-	if o.Key == "" && o.KeyFile == "" {
-		o.KeyFile = defaultTLSServerOptions.KeyFile
+		o.Addr = defaultServerOptions.Addr
 	}
 	if o.ReadHeaderTimeout == 0 {
-		o.ReadHeaderTimeout = defaultTLSServerOptions.ReadHeaderTimeout
+		o.ReadHeaderTimeout = defaultServerOptions.ReadHeaderTimeout
 	}
 	if o.ReadTimeout == 0 {
-		o.ReadTimeout = defaultTLSServerOptions.ReadTimeout
+		o.ReadTimeout = defaultServerOptions.ReadTimeout
 	}
 	if o.WriteTimeout == 0 {
-		o.WriteTimeout = defaultTLSServerOptions.WriteTimeout
+		o.WriteTimeout = defaultServerOptions.WriteTimeout
 	}
 	if o.IdleTimeout == 0 {
-		o.IdleTimeout = defaultTLSServerOptions.IdleTimeout
-	}
-}
-
-var defaultHTTPServerOptions = &ServerOptions{
-	Addr:              ":80",
-	ReadHeaderTimeout: 10 * time.Second,
-	ReadTimeout:       5 * time.Second,
-	WriteTimeout:      5 * time.Second,
-	IdleTimeout:       5 * time.Minute,
-}
-
-func (o *ServerOptions) applyHTTPDefaults() {
-	if o.Addr == "" {
-		o.Addr = defaultHTTPServerOptions.Addr
-	}
-	if o.ReadHeaderTimeout == 0 {
-		o.ReadHeaderTimeout = defaultHTTPServerOptions.ReadHeaderTimeout
-	}
-	if o.ReadTimeout == 0 {
-		o.ReadTimeout = defaultHTTPServerOptions.ReadTimeout
-	}
-	if o.WriteTimeout == 0 {
-		o.WriteTimeout = defaultHTTPServerOptions.WriteTimeout
-	}
-	if o.IdleTimeout == 0 {
-		o.IdleTimeout = defaultHTTPServerOptions.IdleTimeout
+		o.IdleTimeout = defaultServerOptions.IdleTimeout
 	}
 }

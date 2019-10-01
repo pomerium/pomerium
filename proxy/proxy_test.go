@@ -10,27 +10,18 @@ import (
 	"github.com/pomerium/pomerium/internal/config"
 )
 
-func newTestOptions(t *testing.T) *config.Options {
-	opts, err := config.NewMinimalOptions("https://authenticate.example", "https://authorize.example")
-	if err != nil {
-		t.Fatal(err)
-	}
-	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
-	return opts
-}
-
 func testOptions(t *testing.T) config.Options {
-	authenticateService, _ := url.Parse("https://authenticate.corp.beyondperimeter.com")
-	authorizeService, _ := url.Parse("https://authorize.corp.beyondperimeter.com")
+	opts := config.NewDefaultOptions()
+	opts.AuthenticateURLString = "https://authenticate.example"
+	opts.AuthorizeURLString = "https://authorize.example"
 
-	opts := newTestOptions(t)
 	testPolicy := config.Policy{From: "https://corp.example.example", To: "https://example.example"}
 	opts.Policies = []config.Policy{testPolicy}
-	opts.AuthenticateURL = authenticateService
-	opts.AuthorizeURL = authorizeService
+	opts.InsecureServer = true
+	opts.CookieSecure = false
+	opts.Services = config.ServiceAll
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
-	opts.CookieName = "pomerium"
 	err := opts.Validate()
 	if err != nil {
 		t.Fatal(err)

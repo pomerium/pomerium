@@ -1,4 +1,4 @@
-package middleware // import "github.com/pomerium/pomerium/internal/middleware"
+package grpcutil // import "github.com/pomerium/pomerium/internal/grpcutil"
 
 import (
 	"context"
@@ -24,7 +24,8 @@ func (s SharedSecretCred) GetRequestMetadata(context.Context, ...string) (map[st
 	return map[string]string{"authorization": s.sharedSecret}, nil
 }
 
-// RequireTransportSecurity should be true as we want to have it encrypted over the wire.
+// RequireTransportSecurity indicates whether the credentials requires
+// transport security.
 func (s SharedSecretCred) RequireTransportSecurity() bool { return false }
 
 // ValidateRequest ensures a valid token exists within a request's metadata. If

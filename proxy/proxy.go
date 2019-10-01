@@ -147,6 +147,7 @@ func New(opts config.Options) (*Proxy, error) {
 			CAFile:                  opts.CAFile,
 			RequestTimeout:          opts.GRPCClientTimeout,
 			ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
+			WithInsecure:            opts.GRPCInsecure,
 		})
 	return p, err
 }
