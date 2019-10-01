@@ -10,7 +10,9 @@ import (
 	"reflect"
 	"regexp"
 	"testing"
+	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/rs/zerolog"
 )
 
@@ -267,4 +269,29 @@ func TestForwardedAddrHandler(t *testing.T) {
 	if want, got := `{"fwd_ip":["proxy1","proxy2","proxy3"]}`+"\n", decodeIfBinary(out); want != got {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
 	}
+}
+func TestAccessHandler(t *testing.T) {
+	out := &bytes.Buffer{}
+
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	h := AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+		l := FromRequest(r)
+		l.Log().Int("status", status).Int("size", size).Msg("info")
+
+	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		l := FromRequest(r)
+		l.Log().Msg("some inner logging")
+		w.Write([]byte("Add something to the request of non-zero size"))
+	}))
+	h = NewHandler(zerolog.New(out))(h)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, r)
+	want := "{\"message\":\"some inner logging\"}\n{\"status\":200,\"size\":45,\"message\":\"info\"}\n"
+	got := decodeIfBinary(out)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("TestAccessHandler: %s", diff)
+	}
+
 }
