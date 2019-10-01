@@ -175,7 +175,7 @@ var defaultOptions = Options{
 	GRPCClientDNSRoundRobin: true,
 }
 
-// NewEmptyOptions creates a new Options struct with only viper initialized
+// NewOptions creates a new Options struct with only viper initialized
 func NewOptions() *Options {
 	o := Options{}
 	o.viper = viper.New()
@@ -189,7 +189,7 @@ func NewDefaultOptions() *Options {
 	return &o
 }
 
-// NewOptions returns a minimal options configuration built from default options.
+// NewMinimalOptions returns a minimal options configuration built from default options.
 // Any modifications to the structure should be followed up by a subsequent
 // call to validate.
 func NewMinimalOptions(authenticateURL, authorizeURL string) (*Options, error) {
