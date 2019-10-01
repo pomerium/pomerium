@@ -11,7 +11,7 @@ import (
 )
 
 func newTestOptions(t *testing.T) *config.Options {
-	opts, err := config.NewOptions("https://authenticate.example", "https://authorize.example")
+	opts, err := config.NewMinimalOptions("https://authenticate.example", "https://authorize.example")
 	if err != nil {
 		t.Fatal(err)
 	}
