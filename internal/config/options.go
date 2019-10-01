@@ -141,6 +141,9 @@ type Options struct {
 	// GRPC Service Settings
 	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout"`
 	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin"`
+
+	// Scoped viper instance
+	viper *viper.Viper
 }
 
 var defaultOptions = Options{
@@ -171,41 +174,55 @@ var defaultOptions = Options{
 	GRPCClientDNSRoundRobin: true,
 }
 
+// NewEmptyOptions creates a new Options struct with only viper initialized
+func NewEmptyOptions() *Options {
+	o := Options{}
+	o.viper = viper.New()
+	return &o
+}
+
+// NewDefaultOptions returns an Options struct with defaults set and viper initialized
+func NewDefaultOptions() *Options {
+	o := defaultOptions
+	o.viper = viper.New()
+	return &o
+}
+
 // NewOptions returns a minimal options configuration built from default options.
 // Any modifications to the structure should be followed up by a subsequent
 // call to validate.
 func NewOptions(authenticateURL, authorizeURL string) (*Options, error) {
-	o := defaultOptions
+	o := NewDefaultOptions()
 	o.AuthenticateURLString = authenticateURL
 	o.AuthorizeURLString = authorizeURL
 	if err := o.Validate(); err != nil {
 		return nil, fmt.Errorf("internal/config: validation error %s", err)
 	}
-	return &o, nil
+	return o, nil
 }
 
 // OptionsFromViper builds the main binary's configuration
 // options by parsing environmental variables and config file
 func OptionsFromViper(configFile string) (*Options, error) {
 	// start a copy of the default options
-	o := defaultOptions
+	o := NewDefaultOptions()
 	// Load up config
 	o.bindEnvs()
 	if configFile != "" {
-		viper.SetConfigFile(configFile)
-		if err := viper.ReadInConfig(); err != nil {
+		o.viper.SetConfigFile(configFile)
+		if err := o.viper.ReadInConfig(); err != nil {
 			return nil, fmt.Errorf("internal/config: failed to read config: %s", err)
 		}
 	}
 
-	if err := viper.Unmarshal(&o); err != nil {
+	if err := o.viper.Unmarshal(&o); err != nil {
 		return nil, fmt.Errorf("internal/config: failed to unmarshal config: %s", err)
 	}
 
 	if err := o.Validate(); err != nil {
 		return nil, fmt.Errorf("internal/config: validation error %s", err)
 	}
-	return &o, nil
+	return o, nil
 }
 
 // Validate ensures the Options fields are properly formed, present, and hydrated.
@@ -270,7 +287,7 @@ func (o *Options) parsePolicy() error {
 		if err := yaml.Unmarshal(policyBytes, &policies); err != nil {
 			return fmt.Errorf("could not unmarshal policy yaml: %s", err)
 		}
-	} else if err := viper.UnmarshalKey("policy", &policies); err != nil {
+	} else if err := o.viper.UnmarshalKey("policy", &policies); err != nil {
 		return err
 	}
 	if len(policies) != 0 {
@@ -291,7 +308,7 @@ func (o *Options) parseHeaders() error {
 	var headers map[string]string
 	if o.HeadersEnv != "" {
 		// Handle JSON by default via viper
-		if headers = viper.GetStringMapString("HeadersEnv"); len(headers) == 0 {
+		if headers = o.viper.GetStringMapString("HeadersEnv"); len(headers) == 0 {
 			// Try to parse "Key1:Value1,Key2:Value2" syntax
 			headerSlice := strings.Split(o.HeadersEnv, ",")
 			for n := range headerSlice {
@@ -307,9 +324,9 @@ func (o *Options) parseHeaders() error {
 
 		}
 		o.Headers = headers
-	} else if viper.IsSet("headers") {
-		if err := viper.UnmarshalKey("headers", &headers); err != nil {
-			return fmt.Errorf("header %s failed to parse: %s", viper.Get("headers"), err)
+	} else if o.viper.IsSet("headers") {
+		if err := o.viper.UnmarshalKey("headers", &headers); err != nil {
+			return fmt.Errorf("header %s failed to parse: %s", o.viper.Get("headers"), err)
 		}
 		o.Headers = headers
 	}
@@ -324,12 +341,12 @@ func (o *Options) bindEnvs() {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		envName := field.Tag.Get(tagName)
-		viper.BindEnv(envName)
+		o.viper.BindEnv(envName)
 	}
 
 	// Statically bind fields
-	viper.BindEnv("PolicyEnv", "POLICY")
-	viper.BindEnv("HeadersEnv", "HEADERS")
+	o.viper.BindEnv("PolicyEnv", "POLICY")
+	o.viper.BindEnv("HeadersEnv", "HEADERS")
 }
 
 // OptionsUpdater updates local state based on an Options struct

@@ -10,15 +10,18 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/spf13/viper"
 )
 
+var cmpOptIgnoreUnexported = cmpopts.IgnoreUnexported(Options{})
+
 func Test_validate(t *testing.T) {
+	t.Parallel()
 	testOptions := func() Options {
-		o := defaultOptions
+		o := NewDefaultOptions()
+
 		o.SharedKey = "test"
 		o.Services = "all"
-		return o
+		return *o
 	}
 	good := testOptions()
 	badServices := testOptions()
@@ -55,7 +58,7 @@ func Test_validate(t *testing.T) {
 }
 
 func Test_bindEnvs(t *testing.T) {
-	o := &Options{}
+	o := NewEmptyOptions()
 	os.Clearenv()
 	defer os.Unsetenv("POMERIUM_DEBUG")
 	defer os.Unsetenv("POLICY")
@@ -64,7 +67,7 @@ func Test_bindEnvs(t *testing.T) {
 	os.Setenv("POLICY", "mypolicy")
 	os.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
 	o.bindEnvs()
-	err := viper.Unmarshal(o)
+	err := o.viper.Unmarshal(o)
 	if err != nil {
 		t.Errorf("Could not unmarshal %#v: %s", o, err)
 	}
@@ -83,6 +86,7 @@ func Test_bindEnvs(t *testing.T) {
 }
 
 func Test_parseHeaders(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		want         map[string]string
@@ -100,9 +104,9 @@ func Test_parseHeaders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := defaultOptions
-			viper.Set("headers", tt.viperHeaders)
-			viper.Set("HeadersEnv", tt.envHeaders)
+			o := NewDefaultOptions()
+			o.viper.Set("headers", tt.viperHeaders)
+			o.viper.Set("HeadersEnv", tt.envHeaders)
 			o.HeadersEnv = tt.envHeaders
 
 			err := o.parseHeaders()
@@ -114,14 +118,12 @@ func Test_parseHeaders(t *testing.T) {
 			if !tt.wantErr && !cmp.Equal(tt.want, o.Headers) {
 				t.Errorf("Did get expected headers: %s", cmp.Diff(tt.want, o.Headers))
 			}
-			viper.Reset()
 		})
 	}
 
 }
 
 func Test_OptionsFromViper(t *testing.T) {
-	viper.Reset()
 
 	testPolicy := Policy{
 		To:   "https://httpbin.org",
@@ -135,7 +137,7 @@ func Test_OptionsFromViper(t *testing.T) {
 	}
 
 	goodConfigBytes := []byte(`{"authorize_service_url":"https://authorize.corp.example","authenticate_service_url":"https://authenticate.corp.example","shared_secret":"Setec Astronomy","service":"all","policy":[{"from":"https://pomerium.io","to":"https://httpbin.org"}]}`)
-	goodOptions := defaultOptions
+	goodOptions := *(NewDefaultOptions())
 	goodOptions.SharedKey = "Setec Astronomy"
 	goodOptions.Services = "all"
 	goodOptions.Policies = testPolicies
@@ -168,9 +170,9 @@ func Test_OptionsFromViper(t *testing.T) {
 		{"bad json", badConfigBytes, nil, true},
 		{"bad unmarshal", badUnmarshalConfigBytes, nil, true},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			viper.Reset()
 			os.Clearenv()
 			os.Setenv("COOKIE_NAME", "oatmeal")
 			defer os.Unsetenv("COOKIE_NAME")
@@ -187,7 +189,7 @@ func Test_OptionsFromViper(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if diff := cmp.Diff(got, tt.want); diff != "" {
+			if diff := cmp.Diff(got, tt.want, cmpOptIgnoreUnexported); diff != "" {
 				t.Errorf("OptionsFromViper() = \n%s\n, \ngot\n%+v\n, want \n%+v", diff, got, tt.want)
 			}
 
@@ -203,7 +205,6 @@ func Test_OptionsFromViper(t *testing.T) {
 
 func Test_parsePolicyEnv(t *testing.T) {
 	t.Parallel()
-	viper.Reset()
 
 	source := "https://pomerium.io"
 	sourceURL, _ := url.ParseRequestURI(source)
@@ -223,7 +224,7 @@ func Test_parsePolicyEnv(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := new(Options)
+			o := NewEmptyOptions()
 
 			o.PolicyEnv = base64.StdEncoding.EncodeToString(tt.policyBytes)
 			err := o.parsePolicy()
@@ -238,7 +239,7 @@ func Test_parsePolicyEnv(t *testing.T) {
 	}
 
 	// Catch bad base64
-	o := new(Options)
+	o := NewEmptyOptions()
 	o.PolicyEnv = "foo"
 	err := o.parsePolicy()
 	if err == nil {
@@ -247,7 +248,7 @@ func Test_parsePolicyEnv(t *testing.T) {
 }
 
 func Test_parsePolicyFile(t *testing.T) {
-	viper.Reset()
+	t.Parallel()
 	source := "https://pomerium.io"
 	sourceURL, _ := url.ParseRequestURI(source)
 	dest := "https://httpbin.org"
@@ -269,9 +270,9 @@ func Test_parsePolicyFile(t *testing.T) {
 			defer tempFile.Close()
 			defer os.Remove(tempFile.Name())
 			tempFile.Write(tt.policyBytes)
-			o := new(Options)
-			viper.SetConfigFile(tempFile.Name())
-			if err := viper.ReadInConfig(); err != nil {
+			o := NewEmptyOptions()
+			o.viper.SetConfigFile(tempFile.Name())
+			if err := o.viper.ReadInConfig(); err != nil {
 				t.Fatal(err)
 			}
 			err := o.parsePolicy()
@@ -290,7 +291,7 @@ func Test_parsePolicyFile(t *testing.T) {
 }
 
 func Test_Checksum(t *testing.T) {
-	o := defaultOptions
+	o := NewDefaultOptions()
 
 	oldChecksum := o.Checksum()
 	o.SharedKey = "changemeplease"
@@ -310,7 +311,7 @@ func Test_Checksum(t *testing.T) {
 }
 
 func TestNewOptions(t *testing.T) {
-	viper.Reset()
+	t.Parallel()
 	tests := []struct {
 		name            string
 		authenticateURL string
@@ -336,9 +337,11 @@ func TestNewOptions(t *testing.T) {
 }
 
 func TestOptionsFromViper(t *testing.T) {
+	t.Parallel()
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Options{}, "DefaultUpstreamTimeout", "CookieRefresh", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "ReadHeaderTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin"),
 		cmpopts.IgnoreFields(Policy{}, "Source", "Destination"),
+		cmpOptIgnoreUnexported,
 	}
 
 	tests := []struct {
@@ -394,8 +397,6 @@ func TestOptionsFromViper(t *testing.T) {
 }
 
 func Test_parseOptions(t *testing.T) {
-	viper.Reset()
-
 	tests := []struct {
 		name             string
 		envKey           string
