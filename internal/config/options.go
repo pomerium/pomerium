@@ -175,7 +175,7 @@ var defaultOptions = Options{
 }
 
 // NewEmptyOptions creates a new Options struct with only viper initialized
-func NewEmptyOptions() *Options {
+func NewOptions() *Options {
 	o := Options{}
 	o.viper = viper.New()
 	return &o
@@ -191,7 +191,7 @@ func NewDefaultOptions() *Options {
 // NewOptions returns a minimal options configuration built from default options.
 // Any modifications to the structure should be followed up by a subsequent
 // call to validate.
-func NewOptions(authenticateURL, authorizeURL string) (*Options, error) {
+func NewMinimalOptions(authenticateURL, authorizeURL string) (*Options, error) {
 	o := NewDefaultOptions()
 	o.AuthenticateURLString = authenticateURL
 	o.AuthorizeURLString = authorizeURL

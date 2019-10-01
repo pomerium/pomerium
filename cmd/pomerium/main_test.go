@@ -38,7 +38,7 @@ func Test_newAuthenticateService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testOpts, err := config.NewOptions("https://authenticate.example", "https://authorize.example")
+			testOpts, err := config.NewMinimalOptions("https://authenticate.example", "https://authorize.example")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -83,7 +83,7 @@ func Test_newAuthorizeService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testOpts, err := config.NewOptions("https://some.example", "https://some.example")
+			testOpts, err := config.NewMinimalOptions("https://some.example", "https://some.example")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -128,7 +128,7 @@ func Test_newProxyeService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mux := httputil.NewRouter()
-			testOpts, err := config.NewOptions("https://authenticate.example", "https://authorize.example")
+			testOpts, err := config.NewMinimalOptions("https://authenticate.example", "https://authorize.example")
 			if err != nil {
 				t.Fatal(err)
 			}

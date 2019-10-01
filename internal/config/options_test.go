@@ -58,7 +58,7 @@ func Test_validate(t *testing.T) {
 }
 
 func Test_bindEnvs(t *testing.T) {
-	o := NewEmptyOptions()
+	o := NewOptions()
 	os.Clearenv()
 	defer os.Unsetenv("POMERIUM_DEBUG")
 	defer os.Unsetenv("POLICY")
@@ -224,7 +224,7 @@ func Test_parsePolicyEnv(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := NewEmptyOptions()
+			o := NewOptions()
 
 			o.PolicyEnv = base64.StdEncoding.EncodeToString(tt.policyBytes)
 			err := o.parsePolicy()
@@ -239,7 +239,7 @@ func Test_parsePolicyEnv(t *testing.T) {
 	}
 
 	// Catch bad base64
-	o := NewEmptyOptions()
+	o := NewOptions()
 	o.PolicyEnv = "foo"
 	err := o.parsePolicy()
 	if err == nil {
@@ -270,7 +270,7 @@ func Test_parsePolicyFile(t *testing.T) {
 			defer tempFile.Close()
 			defer os.Remove(tempFile.Name())
 			tempFile.Write(tt.policyBytes)
-			o := NewEmptyOptions()
+			o := NewOptions()
 			o.viper.SetConfigFile(tempFile.Name())
 			if err := o.viper.ReadInConfig(); err != nil {
 				t.Fatal(err)
@@ -327,7 +327,7 @@ func TestNewOptions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewOptions(tt.authenticateURL, tt.authorizeURL)
+			_, err := NewMinimalOptions(tt.authenticateURL, tt.authorizeURL)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewOptions() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -451,7 +451,7 @@ func Test_HandleConfigUpdate(t *testing.T) {
 	os.Setenv("SHARED_SECRET", "foo")
 	defer os.Unsetenv("SHARED_SECRET")
 
-	blankOpts, err := NewOptions("https://authenticate.example", "https://authorize.example")
+	blankOpts, err := NewMinimalOptions("https://authenticate.example", "https://authorize.example")
 	if err != nil {
 		t.Fatal(err)
 	}
