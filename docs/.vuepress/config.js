@@ -24,7 +24,17 @@ module.exports = {
     nav: [
       { text: "Documentation", link: "/docs/" },
       { text: "Recipes", link: "/recipes/" },
-      { text: "Community", link: "/community/" }
+      { text: "Community", link: "/community/" },
+      {
+        text: "v0.3.1",
+        ariaLabel: "Version menu",
+        items: [
+          { text: "🚧Dev", link: "https://master.docs.pomerium.io/docs" },
+          { text: "v0.3.x", link: "https://0-3-0.docs.pomerium.io/docs" },
+          { text: "v0.2.x", link: "https://0-2-0.docs.pomerium.io/docs" },
+          { text: "v0.1.x", link: "https://0-1-0.docs.pomerium.io/docs" }
+        ]
+      }
     ],
     algolia: {
       apiKey: "1653e881f3a6c17d3ad37f4d4c428e20",
