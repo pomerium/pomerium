@@ -1,25 +1,22 @@
-<!--  
-Thanks for sending a pull request!
-We generally follow Go coding and contributing conventions
-https://golang.org/doc/contribute.html#commit_messages
+## Summary
+<!--  For example...
+The existing implementation has poor numerical properties for
+large arguments, so use the McGillicutty algorithm to improve
+accuracy above 1e10.
 
-Here's an example of a good PR/Commit:
+The algorithm is described at https://wikipedia.org/wiki/McGillicutty_Algorithm
+-->
 
-    math: improve Sin, Cos and Tan precision for very large arguments
-
-    The existing implementation has poor numerical properties for
-    large arguments, so use the McGillicutty algorithm to improve
-    accuracy above 1e10.
-
-    The algorithm is described at https://wikipedia.org/wiki/McGillicutty_Algorithm
-
-    Fixes #159
+## Related issues
+<!-- For example...
+Fixes #159 
 -->
 
 
 **Checklist**:
+- [ ] add related issues
 - [ ] updated docs
-- [ ] unit tests added
-- [ ] related issues referenced
+- [ ] updated unit tests
 - [ ] updated CHANGELOG.md
+- [ ] updated UPGRADING.md
 - [ ] ready for review

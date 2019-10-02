@@ -3,39 +3,35 @@ name: Bug report
 about: Let us know about a bug!
 ---
 
-<!-- Please reserve GitHub issues for bug reports and feature requests. -->
+## What happened?
 
- **Describe the bug** A clear and concise description of what the bug is.
+## What did you expect to happen?
 
-**To Reproduce** Steps to reproduce the behavior:
+## How'd it happen?
 
 1. Ran `x`
 2. Clicked `y`
 3. Saw error `z`
 
-**Expected behavior**
+## What's your environment like?
 
-A clear and concise description of what you expected to happen.
-
-**Environment:**
-
-- Pomerium version (retrieve with `pomerium --version`):
+- Pomerium version (retrieve with `pomerium --version` or `/ping` endpoint):
 - Server Operating System/Architecture/Cloud:
 
-Configuration file(s):
+## What's your config.yaml?
 
-```text
+```config.yaml
 # Paste your configs here
 # Be sure to scrub any sensitive values
 ```
 
-Logs(s):
+## What did you see in the logs?
 
-```text
-# Paste your configs here.
+```logs
+# Paste your logs here.
 # Be sure to scrub any sensitive values
 ```
 
-**Additional context**
+## Additional context
 
 Add any other context about the problem here.
