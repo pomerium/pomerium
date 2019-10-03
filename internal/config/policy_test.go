@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func Test_Validate(t *testing.T) {
+func Test_PolicyValidate(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {

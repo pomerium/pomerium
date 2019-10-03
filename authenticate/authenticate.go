@@ -45,6 +45,7 @@ type Authenticate struct {
 	RedirectURL *url.URL
 
 	cookieName   string
+	cookieSecure bool
 	cookieDomain string
 	cookieSecret []byte
 	templates    *template.Template
@@ -108,5 +109,6 @@ func New(opts config.Options) (*Authenticate, error) {
 		cookieSecret: decodedCookieSecret,
 		cookieName:   opts.CookieName,
 		cookieDomain: opts.CookieDomain,
+		cookieSecure: opts.CookieSecure,
 	}, nil
 }

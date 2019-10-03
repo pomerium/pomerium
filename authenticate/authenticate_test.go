@@ -7,14 +7,19 @@ import (
 )
 
 func newTestOptions(t *testing.T) *config.Options {
-	opts, err := config.NewMinimalOptions("https://authenticate.example", "https://authorize.example")
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	opts := config.NewDefaultOptions()
+	opts.AuthenticateURLString = "https://authenticate.example"
+	opts.AuthorizeURLString = "https://authorize.example"
+	opts.InsecureServer = true
 	opts.ClientID = "client-id"
 	opts.Provider = "google"
 	opts.ClientSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
+	err := opts.Validate()
+	if err != nil {
+		t.Fatal(err)
+	}
 	return opts
 }
 

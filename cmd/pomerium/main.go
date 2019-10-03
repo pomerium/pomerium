@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"os"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/internal/config"
+	"github.com/pomerium/pomerium/internal/grpcutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -30,36 +31,47 @@ var versionFlag = flag.Bool("version", false, "prints the version")
 var configFile = flag.String("config", "", "Specify configuration file location")
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal().Err(err).Msg("cmd/pomerium")
+	}
+}
+
+func run() error {
 	flag.Parse()
 	if *versionFlag {
 		fmt.Println(version.FullVersion())
-		os.Exit(0)
+		return nil
 	}
-	opt, err := config.ParseOptions(*configFile)
+	opt, err := config.NewOptionsFromConfig(*configFile)
 	if err != nil {
-		log.Fatal().Err(err).Msg("cmd/pomerium: options")
+		return err
 	}
 	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
-
-	setupMetrics(opt)
-	setupTracing(opt)
-	setupHTTPRedirectServer(opt)
-
-	r := newGlobalRouter(opt)
-	grpcServer := setupGRPCServer(opt)
-	_, err = newAuthenticateService(*opt, r.Host(urlutil.StripPort(opt.AuthenticateURL.Host)).Subrouter())
-	if err != nil {
-		log.Fatal().Err(err).Msg("cmd/pomerium: authenticate")
+	// since we can have multiple listeners, we create a wait group
+	var wg sync.WaitGroup
+	if err := setupMetrics(opt, &wg); err != nil {
+		return err
+	}
+	if err := setupTracing(opt); err != nil {
+		return err
+	}
+	if err := setupHTTPRedirectServer(opt, &wg); err != nil {
+		return err
 	}
 
-	authz, err := newAuthorizeService(*opt, grpcServer)
+	r := newGlobalRouter(opt)
+	_, err = newAuthenticateService(*opt, r)
 	if err != nil {
-		log.Fatal().Err(err).Msg("cmd/pomerium: authorize")
+		return err
+	}
+	authz, err := newAuthorizeService(*opt, &wg)
+	if err != nil {
+		return err
 	}
 
 	proxy, err := newProxyService(*opt, r)
 	if err != nil {
-		log.Fatal().Err(err).Msg("cmd/pomerium: proxy")
+		return err
 	}
 	if proxy != nil {
 		defer proxy.AuthorizeClient.Close()
@@ -71,13 +83,15 @@ func main() {
 		log.Info().Str("file", e.Name).Msg("cmd/pomerium: config file changed")
 		opt = config.HandleConfigUpdate(*configFile, opt, []config.OptionsUpdater{authz, proxy})
 	})
-	srv, err := httputil.NewTLSServer(configToServerOptions(opt), r, grpcServer)
-	if err != nil {
-		log.Fatal().Err(err).Msg("cmd/pomerium: couldn't start pomerium")
-	}
-	httputil.Shutdown(srv)
 
-	os.Exit(0)
+	srv, err := httputil.NewServer(httpServerOptions(opt), r, &wg)
+	if err != nil {
+		return err
+	}
+	go httputil.Shutdown(srv)
+	// Blocks and waits until ALL WaitGroup members have signaled completion
+	wg.Wait()
+	return nil
 }
 
 func newAuthenticateService(opt config.Options, r *mux.Router) (*authenticate.Authenticate, error) {
@@ -88,19 +102,33 @@ func newAuthenticateService(opt config.Options, r *mux.Router) (*authenticate.Au
 	if err != nil {
 		return nil, err
 	}
-	r.PathPrefix("/").Handler(service.Handler())
+	sr := r.Host(urlutil.StripPort(opt.AuthenticateURL.Host)).Subrouter()
+	sr.PathPrefix("/").Handler(service.Handler())
+
 	return service, nil
 }
 
-func newAuthorizeService(opt config.Options, rpc *grpc.Server) (*authorize.Authorize, error) {
+func newAuthorizeService(opt config.Options, wg *sync.WaitGroup) (*authorize.Authorize, error) {
 	if !config.IsAuthorize(opt.Services) {
 		return nil, nil
 	}
+	log.Info().Interface("opts", opt).Msg("newAuthorizeService")
 	service, err := authorize.New(opt)
 	if err != nil {
 		return nil, err
 	}
-	pbAuthorize.RegisterAuthorizerServer(rpc, service)
+	regFn := func(s *grpc.Server) {
+		pbAuthorize.RegisterAuthorizerServer(s, service)
+	}
+	so := &grpcutil.ServerOptions{
+		Addr:      opt.GRPCAddr,
+		SharedKey: opt.SharedKey,
+	}
+	if !opt.GRPCInsecure {
+		so.TLSCertificate = opt.TLSCertificate
+	}
+	grpcSrv := grpcutil.NewServer(so, regFn, wg)
+	go grpcutil.Shutdown(grpcSrv)
 	return service, nil
 }
 
@@ -146,35 +174,25 @@ func newGlobalRouter(o *config.Options) *mux.Router {
 	return mux
 }
 
-func configToServerOptions(opt *config.Options) *httputil.ServerOptions {
-	return &httputil.ServerOptions{
-		Addr:              opt.Addr,
-		Cert:              opt.Cert,
-		Key:               opt.Key,
-		CertFile:          opt.CertFile,
-		KeyFile:           opt.KeyFile,
-		ReadTimeout:       opt.ReadTimeout,
-		WriteTimeout:      opt.WriteTimeout,
-		ReadHeaderTimeout: opt.ReadHeaderTimeout,
-		IdleTimeout:       opt.IdleTimeout,
-	}
-}
-
-func setupMetrics(opt *config.Options) {
+func setupMetrics(opt *config.Options, wg *sync.WaitGroup) error {
 	if opt.MetricsAddr != "" {
-		if handler, err := metrics.PrometheusHandler(); err != nil {
-			log.Error().Err(err).Msg("cmd/pomerium: metrics failed to start")
-		} else {
-			metrics.SetBuildInfo(opt.Services)
-			metrics.RegisterInfoMetrics()
-			serverOpts := &httputil.ServerOptions{Addr: opt.MetricsAddr}
-			srv := httputil.NewHTTPServer(serverOpts, handler)
-			go httputil.Shutdown(srv)
+		handler, err := metrics.PrometheusHandler()
+		if err != nil {
+			return err
 		}
+		metrics.SetBuildInfo(opt.Services)
+		metrics.RegisterInfoMetrics()
+		serverOpts := &httputil.ServerOptions{Addr: opt.MetricsAddr}
+		srv, err := httputil.NewServer(serverOpts, handler, wg)
+		if err != nil {
+			return err
+		}
+		go httputil.Shutdown(srv)
 	}
+	return nil
 }
 
-func setupTracing(opt *config.Options) {
+func setupTracing(opt *config.Options) error {
 	if opt.TracingProvider != "" {
 		tracingOpts := &trace.TracingOptions{
 			Provider:                opt.TracingProvider,
@@ -184,25 +202,31 @@ func setupTracing(opt *config.Options) {
 			JaegerCollectorEndpoint: opt.TracingJaegerCollectorEndpoint,
 		}
 		if err := trace.RegisterTracing(tracingOpts); err != nil {
-			log.Error().Err(err).Msg("cmd/pomerium: couldn't register tracing")
-		} else {
-			log.Info().Interface("options", tracingOpts).Msg("cmd/pomerium: metrics configured")
+			return err
 		}
 	}
+	return nil
 }
 
-func setupHTTPRedirectServer(opt *config.Options) {
+func setupHTTPRedirectServer(opt *config.Options, wg *sync.WaitGroup) error {
 	if opt.HTTPRedirectAddr != "" {
 		serverOpts := httputil.ServerOptions{Addr: opt.HTTPRedirectAddr}
-		srv := httputil.NewHTTPServer(&serverOpts, httputil.RedirectHandler())
+		srv, err := httputil.NewServer(&serverOpts, httputil.RedirectHandler(), wg)
+		if err != nil {
+			return err
+		}
 		go httputil.Shutdown(srv)
 	}
+	return nil
 }
 
-func setupGRPCServer(opt *config.Options) *grpc.Server {
-	grpcAuth := middleware.NewSharedSecretCred(opt.SharedKey)
-	grpcOpts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(grpcAuth.ValidateRequest),
-		grpc.StatsHandler(metrics.NewGRPCServerStatsHandler(opt.Services))}
-	return grpc.NewServer(grpcOpts...)
+func httpServerOptions(opt *config.Options) *httputil.ServerOptions {
+	return &httputil.ServerOptions{
+		Addr:              opt.Addr,
+		TLSCertificate:    opt.TLSCertificate,
+		ReadTimeout:       opt.ReadTimeout,
+		WriteTimeout:      opt.WriteTimeout,
+		ReadHeaderTimeout: opt.ReadHeaderTimeout,
+		IdleTimeout:       opt.IdleTimeout,
+	}
 }

@@ -45,7 +45,7 @@ Service mode sets the pomerium service(s) to run. If testing, you may want to se
 - Default: `:443`
 - Required
 
-Address specifies the host and port to serve HTTPS and gRPC requests from. If empty, `:443` is used.
+Address specifies the host and port to serve HTTP requests from. If empty, `:443` is used.
 
 ## Administrators
 
@@ -112,6 +112,21 @@ If `false`
 
 Log level sets the global logging level for pomerium. Only logs of the desired level and above will be logged.
 
+## Insecure Server
+
+- Environmental Variable: `INSECURE_SERVER`
+- Config File Key: `insecure_server`
+- Type: `bool`
+- Required if certificates unset
+
+Turning on insecure server mode will result in pomerium starting, and operating without any protocol encryption in transit.
+
+This setting can be useful in a situation where you have Pomerium behind a TLS terminating ingress or proxy. However, even in that case, it is highly recommended to use TLS to protect the confidentiality and integrity of service communication even behind the ingress using self-signed certificates or an internal CA. Please see our helm-chart for an example of just that.
+
+:::warning
+Pomerium should _never_ be exposed to the internet without TLS encryption.
+:::
+
 ## Certificate
 
 - Environmental Variable: either `CERTIFICATE` or `CERTIFICATE_FILE`
@@ -119,7 +134,7 @@ Log level sets the global logging level for pomerium. Only logs of the desired l
 - Type: [base64 encoded] `string` or relative file location
 - Required
 
-Certificate is the x509 _public-key_ used to establish secure HTTP and gRPC connections. If unset, pomerium will attempt to find and use `./cert.pem`.
+Certificate is the x509 _public-key_ used to establish secure HTTP and gRPC connections.
 
 ## Certificate Key
 
@@ -128,7 +143,7 @@ Certificate is the x509 _public-key_ used to establish secure HTTP and gRPC conn
 - Type: [base64 encoded] `string`
 - Required
 
-Certificate key is the x509 _private-key_ used to establish secure HTTP and gRPC connections. If unset, pomerium will attempt to find and use `./privkey.pem`.
+Certificate key is the x509 _private-key_ used to establish secure HTTP and gRPC connections.
 
 ## Global Timeouts
 
@@ -148,9 +163,28 @@ Timeouts set the global server timeouts. For route-specific timeouts, see [polic
 
 These settings control upstream connections to the Authorize service.
 
+## GRPC Address
+
+- Environmental Variable: `GRPC_ADDRESS`
+- Config File Key: `grpc_address`
+- Type: `string`
+- Example: `:443`, `:8443`
+- Default: `:443` or `:5443` if in all-in-one mode
+
+Address specifies the host and port to serve GRPC requests from. Defaults to `:443` (or `:5443` in all in one mode).
+
+## GRPC Insecure
+
+- Environmental Variable: `GRPC_INSECURE`
+- Config File Key: `grpc_insecure`
+- Type: `bool`
+- Default: `:443` (or `:5443` if in all-in-one mode)
+
+If set, GRPC Insecure disables transport security for communication between the proxy and authorize components. If running in all-in-one mode, defaults to true as communication will run over localhost's own socket.
+
 ### GRPC Client Timeout
 
-Maxmimum time before canceling an upstream RPC request. During transient failures, the proxy will retry upstreams for this duration, if possible. You should leave this high enough to handle backend service restart and rediscovery so that client requests do not fail.
+Maximum time before canceling an upstream RPC request. During transient failures, the proxy will retry upstreams for this duration, if possible. You should leave this high enough to handle backend service restart and rediscovery so that client requests do not fail.
 
 - Environmental Variable: `GRPC_CLIENT_TIMEOUT`
 - Config File Key: `grpc_client_timeout`

@@ -17,6 +17,7 @@
 
 - Fixed an issue where CSRF would fail if multiple tabs were open. [GH-306](https://github.com/pomerium/pomerium/issues/306)
 - Fixed an issue where pomerium would clean double slashes from paths.[GH-262](https://github.com/pomerium/pomerium/issues/262)
+- Fixed a bug where the impersonate form would persist an empty string for groups value if none set.[GH-303](https://github.com/pomerium/pomerium/issues/303)
 
 ### Changed
 
@@ -24,14 +25,12 @@
 - Authenticate service no longer uses gRPC.
 - The global request logger now captures the full array of proxies from `X-Forwarded-For`, in addition to just the client IP.
 - Options code refactored to eliminate global Viper state. [GH-332](https://github.com/pomerium/pomerium/pull/332/files)
+- Pomerium will no longer default to looking for certificates in the root directory. [GH-328](https://github.com/pomerium/pomerium/issues/328)
+- Pomerium will validate that either `insecure_server`, or a valid certificate bundle is set. [GH-328](https://github.com/pomerium/pomerium/issues/328)
 
 ### Removed
 
 - Removed `AUTHENTICATE_INTERNAL_URL`/`authenticate_internal_url` which is no longer used.
-
-## Fixed
-
-- Fixed a bug where the impersonate form would persist an empty string for groups value if none set.[GH-303](https://github.com/pomerium/pomerium/issues/303)
 
 ## v0.3.0
 

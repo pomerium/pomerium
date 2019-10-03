@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"os/signal"
-	"reflect"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -16,150 +16,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/middleware"
-	"google.golang.org/grpc"
 )
-
-func Test_newAuthenticateService(t *testing.T) {
-	mux := httputil.NewRouter()
-
-	tests := []struct {
-		name  string
-		s     string
-		Field string
-		Value string
-
-		wantHostname string
-		wantErr      bool
-	}{
-		{"wrong service", "proxy", "", "", "", false},
-		{"bad", "authenticate", "SharedKey", "error!", "", true},
-		{"good", "authenticate", "ClientID", "test", "auth.server.com", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testOpts, err := config.NewMinimalOptions("https://authenticate.example", "https://authorize.example")
-			if err != nil {
-				t.Fatal(err)
-			}
-			testOpts.Provider = "google"
-			testOpts.ClientSecret = "TEST"
-			testOpts.SharedKey = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
-			testOpts.CookieSecret = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
-			testOpts.Services = tt.s
-
-			if tt.Field != "" {
-				testOptsField := reflect.ValueOf(testOpts).Elem().FieldByName(tt.Field)
-				testOptsField.Set(reflect.ValueOf(tt).FieldByName("Value"))
-			}
-
-			_, err = newAuthenticateService(*testOpts, mux)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("newAuthenticateService() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-		})
-	}
-}
-
-func Test_newAuthorizeService(t *testing.T) {
-	os.Clearenv()
-	grpcAuth := middleware.NewSharedSecretCred("test")
-	grpcOpts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcAuth.ValidateRequest)}
-	grpcServer := grpc.NewServer(grpcOpts...)
-
-	tests := []struct {
-		name  string
-		s     string
-		Field string
-		Value string
-
-		wantErr bool
-	}{
-		{"wrong service", "proxy", "", "", false},
-		{"bad option parsing", "authorize", "SharedKey", "false", true},
-		{"good", "authorize", "SharedKey", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testOpts, err := config.NewMinimalOptions("https://some.example", "https://some.example")
-			if err != nil {
-				t.Fatal(err)
-			}
-			testOpts.Services = tt.s
-			testOpts.CookieSecret = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
-			testPolicy := config.Policy{From: "http://some.example", To: "https://some.example"}
-			if err := testPolicy.Validate(); err != nil {
-				t.Fatal(err)
-			}
-			testOpts.Policies = []config.Policy{
-				testPolicy,
-			}
-
-			if tt.Field != "" {
-				testOptsField := reflect.ValueOf(testOpts).Elem().FieldByName(tt.Field)
-				testOptsField.Set(reflect.ValueOf(tt).FieldByName("Value"))
-			}
-
-			_, err = newAuthorizeService(*testOpts, grpcServer)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("newAuthorizeService() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-		})
-	}
-}
-
-func Test_newProxyeService(t *testing.T) {
-	os.Clearenv()
-	tests := []struct {
-		name  string
-		s     string
-		Field string
-		Value string
-
-		wantErr bool
-	}{
-		{"wrong service", "authenticate", "", "", false},
-		{"bad option parsing", "proxy", "SharedKey", "false", true},
-		{"good", "proxy", "SharedKey", "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mux := httputil.NewRouter()
-			testOpts, err := config.NewMinimalOptions("https://authenticate.example", "https://authorize.example")
-			if err != nil {
-				t.Fatal(err)
-			}
-			testPolicy := config.Policy{From: "http://some.example", To: "http://some.example"}
-			if err := testPolicy.Validate(); err != nil {
-				t.Fatal(err)
-			}
-			testOpts.Policies = []config.Policy{
-				testPolicy,
-			}
-
-			AuthenticateURL, _ := url.Parse("https://authenticate.example.com")
-			AuthorizeURL, _ := url.Parse("https://authorize.example.com")
-
-			testOpts.AuthenticateURL = AuthenticateURL
-			testOpts.AuthorizeURL = AuthorizeURL
-			testOpts.CookieSecret = "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="
-			testOpts.Services = tt.s
-
-			if tt.Field != "" {
-				testOptsField := reflect.ValueOf(testOpts).Elem().FieldByName(tt.Field)
-				testOptsField.Set(reflect.ValueOf(tt).FieldByName("Value"))
-			}
-			_, err = newProxyService(*testOpts, mux)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("newProxyService() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-		})
-	}
-}
 
 func Test_newGlobalRouter(t *testing.T) {
 	o := config.Options{
@@ -192,7 +49,7 @@ func Test_newGlobalRouter(t *testing.T) {
 	}
 }
 
-func Test_configToServerOptions(t *testing.T) {
+func Test_httpServerOptions(t *testing.T) {
 	tests := []struct {
 		name string
 		opt  *config.Options
@@ -202,25 +59,8 @@ func Test_configToServerOptions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if diff := cmp.Diff(configToServerOptions(tt.opt), tt.want); diff != "" {
-				t.Errorf("configToServerOptions() = \n %s", diff)
-			}
-		})
-	}
-}
-
-func Test_setupGRPCServer(t *testing.T) {
-	tests := []struct {
-		name     string
-		opt      *config.Options
-		dontWant *grpc.Server
-	}{
-		{"good", &config.Options{SharedKey: "test"}, nil},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if diff := cmp.Diff(setupGRPCServer(tt.opt), tt.dontWant); diff == "" {
-				t.Errorf("setupGRPCServer() = \n %s", diff)
+			if diff := cmp.Diff(httpServerOptions(tt.opt), tt.want); diff != "" {
+				t.Errorf("httpServerOptions() = \n %s", diff)
 			}
 		})
 	}
@@ -255,7 +95,9 @@ func Test_setupMetrics(t *testing.T) {
 			c := make(chan os.Signal, 1)
 			signal.Notify(c, syscall.SIGINT)
 			defer signal.Stop(c)
-			setupMetrics(tt.opt)
+			var wg sync.WaitGroup
+
+			setupMetrics(tt.opt, &wg)
 			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 			waitSig(t, c, syscall.SIGINT)
 
@@ -265,18 +107,26 @@ func Test_setupMetrics(t *testing.T) {
 
 func Test_setupHTTPRedirectServer(t *testing.T) {
 	tests := []struct {
-		name string
-		opt  *config.Options
+		name    string
+		opt     *config.Options
+		wantErr bool
 	}{
-		{"dont register aything", &config.Options{}},
-		{"good redirect server", &config.Options{HTTPRedirectAddr: "localhost:0"}},
+		{"dont register anything", &config.Options{}, false},
+		{"good redirect server", &config.Options{HTTPRedirectAddr: "localhost:0"}, false},
+		{"bad redirect server port", &config.Options{HTTPRedirectAddr: "localhost:-1"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := make(chan os.Signal, 1)
+			var wg sync.WaitGroup
+
 			signal.Notify(c, syscall.SIGINT)
 			defer signal.Stop(c)
-			setupHTTPRedirectServer(tt.opt)
+			err := setupHTTPRedirectServer(tt.opt, &wg)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
 			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 			waitSig(t, c, syscall.SIGINT)
 
@@ -292,5 +142,169 @@ func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
 		}
 	case <-time.After(1 * time.Second):
 		t.Fatalf("timeout waiting for %v", sig)
+	}
+}
+
+func Test_run(t *testing.T) {
+	os.Clearenv()
+	t.Parallel()
+	tests := []struct {
+		name           string
+		versionFlag    bool
+		configFileFlag string
+		wantErr        bool
+	}{
+		{"simply print version", true, "", false},
+		{"nil configuration", false, "", true},
+		{"simple proxy", false, `
+		{ 
+			"address": ":9433",
+			"grpc_address": ":9444",
+			"grpc_insecure": true,
+			"insecure_server": true,
+			"authorize_service_url": "https://authorize.corp.example",
+			"authenticate_service_url": "https://authenticate.corp.example",
+			"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"services": "proxy",
+			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		  }	  
+		`, false},
+		{"simple authorize", false, `
+		{ 
+			"address": ":9433",
+			"grpc_address": ":9444",
+			"grpc_insecure": false,
+			"insecure_server": true,
+			"authorize_service_url": "https://authorize.corp.example",
+			"authenticate_service_url": "https://authenticate.corp.example",
+			"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"services": "authorize",
+			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		  }	  
+		`, false},
+		{"bad proxy no authenticate url", false, `
+		{ 
+			"address": ":9433",
+			"grpc_address": ":9444",
+			"insecure_server": true,
+			"authorize_service_url": "https://authorize.corp.example",
+			"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"services": "proxy",
+			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		  }	  
+		`, true},
+		{"bad authenticate no cookie secret", false, `
+		{ 
+			"address": ":9433",
+			"grpc_address": ":9444",
+			"insecure_server": true,
+			"authenticate_service_url": "https://authenticate.corp.example",
+			"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"services": "authenticate",
+			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		  }	  
+		`, true},
+		{"bad authorize service bad shared key", false, `
+		{ 
+			"address": ":9433",
+			"grpc_address": ":9444",
+			"insecure_server": true,
+			"authorize_service_url": "https://authorize.corp.example",
+			"shared_secret": "^^^",
+			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"services": "authorize",
+			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		  }	  
+		`, true},
+		{"bad http port", false, `
+		{ 
+			"address": ":-1",
+			"grpc_address": ":9444",
+			"grpc_insecure": true,
+			"insecure_server": true,
+			"authorize_service_url": "https://authorize.corp.example",
+			"authenticate_service_url": "https://authenticate.corp.example",
+			"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"services": "proxy",
+			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		  }	  
+		`, true},
+		{"bad redirect port", false, `
+		{ 
+			"address": ":9433",
+			"http_redirect_addr":":-1",
+			"grpc_address": ":9444",
+			"grpc_insecure": true,
+			"insecure_server": true,
+			"authorize_service_url": "https://authorize.corp.example",
+			"authenticate_service_url": "https://authenticate.corp.example",
+			"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"services": "proxy",
+			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		  }	  
+		`, true},
+		{"bad metrics port ", false, `
+		{ 
+			"address": ":9433",
+			"metrics_address": ":-1",
+			"grpc_insecure": true,
+			"insecure_server": true,
+			"authorize_service_url": "https://authorize.corp.example",
+			"authenticate_service_url": "https://authenticate.corp.example",
+			"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"services": "proxy",
+			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		  }
+		`, true},
+		{"malformed tracing provider", false, `
+		{ 
+			"tracing_provider": "bad tracing provider",
+			"address": ":9433",
+			"grpc_address": ":9444",
+			"grpc_insecure": true,
+			"insecure_server": true,
+			"authorize_service_url": "https://authorize.corp.example",
+			"authenticate_service_url": "https://authenticate.corp.example",
+			"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+			"services": "proxy",
+			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		  }	  
+		`, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			versionFlag = &tt.versionFlag
+			tmpFile, err := ioutil.TempFile(os.TempDir(), "*.json")
+			if err != nil {
+				t.Fatal("Cannot create temporary file", err)
+			}
+			defer os.Remove(tmpFile.Name())
+			fn := tmpFile.Name()
+			if _, err := tmpFile.Write([]byte(tt.configFileFlag)); err != nil {
+				tmpFile.Close()
+				t.Fatal(err)
+			}
+			configFile = &fn
+			proc, err := os.FindProcess(os.Getpid())
+			if err != nil {
+				t.Fatal(err)
+			}
+			go func() {
+				time.Sleep(time.Millisecond * 500)
+				proc.Signal(os.Interrupt)
+			}()
+
+			err = run()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }

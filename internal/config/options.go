@@ -1,18 +1,17 @@
 package config // import "github.com/pomerium/pomerium/internal/config"
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
-	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -25,8 +24,8 @@ import (
 // DisableHeaderKey is the key used to check whether to disable setting header
 const DisableHeaderKey = "disable"
 
-// Options are the global environmental flags used to set up pomerium's services.  Use NewXXXOptions() methods
-// for a safely initialized data structure.
+// Options are the global environmental flags used to set up pomerium's services.
+// Use NewXXXOptions() methods for a safely initialized data structure.
 type Options struct {
 	// Debug outputs human-readable logs to Stdout.
 	Debug bool `mapstructure:"pomerium_debug"`
@@ -47,13 +46,21 @@ type Options struct {
 	// HTTPS requests. If empty, ":443" (localhost:443) is used.
 	Addr string `mapstructure:"address"`
 
-	// Cert and Key specifies the TLS certificates to use.
+	// InsecureServer when enabled disables all transport security.
+	// In this mode, Pomerium is susceptible to man-in-the-middle attacks.
+	// This should be used only for testing.
+	InsecureServer bool `mapstructure:"insecure_server"`
+
+	// Cert and Key is the x509 certificate used to hydrate TLSCertificate
 	Cert string `mapstructure:"certificate"`
 	Key  string `mapstructure:"certificate_key"`
 
-	// CertFile and KeyFile specifies the TLS certificates to use.
+	// CertFile and KeyFile is the x509 certificate used to hydrate TLSCertificate
 	CertFile string `mapstructure:"certificate_file"`
 	KeyFile  string `mapstructure:"certificate_key_file"`
+
+	// TLSCertificate is the hydrated tls.Certificate.
+	TLSCertificate *tls.Certificate
 
 	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
 	// to HTTPS redirect server on. If empty, no redirect server is started.
@@ -131,7 +138,7 @@ type Options struct {
 	TracingDebug    bool   `mapstructure:"tracing_debug"`
 
 	//  Jaeger
-
+	//
 	// CollectorEndpoint is the full url to the Jaeger HTTP Thrift collector.
 	// For example, http://localhost:14268/api/traces
 	TracingJaegerCollectorEndpoint string `mapstructure:"tracing_jaeger_collector_endpoint"`
@@ -140,13 +147,22 @@ type Options struct {
 	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint"`
 
 	// GRPC Service Settings
+
+	// GRPCAddr specifies the host and port on which the server should serve
+	// gRPC requests. If running in all-in-one mode, ":5443" (localhost:5443) is used.
+	GRPCAddr string `mapstructure:"grpc_address"`
+
+	// GRPCInsecure disables transport security.
+	// If running in all-in-one mode, defaults to true.
+	GRPCInsecure bool `mapstructure:"grpc_insecure"`
+
 	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout"`
 	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin"`
 
-	// Scoped viper instance
 	viper *viper.Viper
 }
 
+// DefaultOptions are the default configuration options for pomerium
 var defaultOptions = Options{
 	Debug:                  false,
 	LogLevel:               "debug",
@@ -164,47 +180,50 @@ var defaultOptions = Options{
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 	},
 	Addr:                    ":443",
-	CertFile:                filepath.Join(fileutil.Getwd(), "cert.pem"),
-	KeyFile:                 filepath.Join(fileutil.Getwd(), "privkey.pem"),
 	ReadHeaderTimeout:       10 * time.Second,
 	ReadTimeout:             30 * time.Second,
 	WriteTimeout:            0, // support streaming by default
 	IdleTimeout:             5 * time.Minute,
 	RefreshCooldown:         5 * time.Minute,
+	GRPCAddr:                ":443",
 	GRPCClientTimeout:       10 * time.Second, // Try to withstand transient service failures for a single request
 	GRPCClientDNSRoundRobin: true,
 }
 
-// NewOptions creates a new Options struct with only viper initialized
-func NewOptions() *Options {
-	o := Options{}
-	o.viper = viper.New()
-	return &o
-}
-
-// NewDefaultOptions returns an Options struct with defaults set and viper initialized
+// NewDefaultOptions returns a copy the default options. It's the caller's
+// responsibility to do a follow up Validate call.
 func NewDefaultOptions() *Options {
-	o := defaultOptions
-	o.viper = viper.New()
-	return &o
+	newOpts := defaultOptions
+	newOpts.viper = viper.New()
+	return &newOpts
 }
 
-// NewMinimalOptions returns a minimal options configuration built from default options.
-// Any modifications to the structure should be followed up by a subsequent
-// call to validate.
-func NewMinimalOptions(authenticateURL, authorizeURL string) (*Options, error) {
-	o := NewDefaultOptions()
-	o.AuthenticateURLString = authenticateURL
-	o.AuthorizeURLString = authorizeURL
-	if err := o.Validate(); err != nil {
-		return nil, fmt.Errorf("internal/config: validation error %s", err)
+// NewOptionsFromConfig builds the main binary's configuration options by parsing
+// environmental variables and config file
+func NewOptionsFromConfig(configFile string) (*Options, error) {
+	o, err := optionsFromViper(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("internal/config: options from viper %w", err)
 	}
+	if o.Debug {
+		log.SetDebugMode()
+	}
+	if o.LogLevel != "" {
+		log.SetLevel(o.LogLevel)
+	}
+	metrics.AddPolicyCountCallback(o.Services, func() int64 {
+		return int64(len(o.Policies))
+	})
+
+	checksumDec, err := strconv.ParseUint(o.Checksum(), 16, 64)
+	if err != nil {
+		log.Warn().Err(err).Msg("internal/config: could not parse config checksum into decimal")
+	}
+	metrics.SetConfigChecksum(o.Services, checksumDec)
 	return o, nil
 }
 
-// OptionsFromViper builds the main binary's configuration
-// options by parsing environmental variables and config file
-func OptionsFromViper(configFile string) (*Options, error) {
+func optionsFromViper(configFile string) (*Options, error) {
 	// start a copy of the default options
 	o := NewDefaultOptions()
 	// New viper instance to save into Options later
@@ -218,69 +237,20 @@ func OptionsFromViper(configFile string) (*Options, error) {
 	if configFile != "" {
 		v.SetConfigFile(configFile)
 		if err := v.ReadInConfig(); err != nil {
-			return nil, fmt.Errorf("internal/config: failed to read config: %s", err)
+			return nil, fmt.Errorf("failed to read config: %w", err)
 		}
 	}
 
 	if err := v.Unmarshal(&o); err != nil {
-		return nil, fmt.Errorf("internal/config: failed to unmarshal config: %s", err)
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
 	o.viper = v
 
 	if err := o.Validate(); err != nil {
-		return nil, fmt.Errorf("internal/config: validation error %s", err)
+		return nil, fmt.Errorf("validation error %w", err)
 	}
 	return o, nil
-}
-
-// Validate ensures the Options fields are properly formed, present, and hydrated.
-func (o *Options) Validate() error {
-	if !IsValidService(o.Services) {
-		return fmt.Errorf("%s is an invalid service type", o.Services)
-	}
-
-	// shared key must be set for all modes other than "all"
-	if o.SharedKey == "" {
-		if o.Services == "all" {
-			o.SharedKey = cryptutil.NewBase64Key()
-		} else {
-			return errors.New("shared-key cannot be empty")
-		}
-	}
-
-	if o.AuthenticateURLString != "" {
-		u, err := urlutil.ParseAndValidateURL(o.AuthenticateURLString)
-		if err != nil {
-			return fmt.Errorf("bad authenticate-url %s : %v", o.AuthenticateURLString, err)
-		}
-		o.AuthenticateURL = u
-	}
-
-	if o.AuthorizeURLString != "" {
-		u, err := urlutil.ParseAndValidateURL(o.AuthorizeURLString)
-		if err != nil {
-			return fmt.Errorf("bad authorize-url %s : %v", o.AuthorizeURLString, err)
-		}
-		o.AuthorizeURL = u
-	}
-
-	if o.PolicyFile != "" {
-		return errors.New("policy file setting is deprecated")
-	}
-	if err := o.parsePolicy(); err != nil {
-		return fmt.Errorf("failed to parse policy: %s", err)
-	}
-
-	if err := o.parseHeaders(); err != nil {
-		return fmt.Errorf("failed to parse headers: %s", err)
-	}
-
-	if _, disable := o.Headers[DisableHeaderKey]; disable {
-		o.Headers = make(map[string]string)
-	}
-
-	return nil
 }
 
 // parsePolicy initializes policy to the options from either base64 environmental
@@ -291,12 +261,12 @@ func (o *Options) parsePolicy() error {
 	if o.PolicyEnv != "" {
 		policyBytes, err := base64.StdEncoding.DecodeString(o.PolicyEnv)
 		if err != nil {
-			return fmt.Errorf("could not decode POLICY env var: %s", err)
+			return fmt.Errorf("could not decode POLICY env var: %w", err)
 		}
 		if err := yaml.Unmarshal(policyBytes, &policies); err != nil {
-			return fmt.Errorf("could not unmarshal policy yaml: %s", err)
+			return fmt.Errorf("could not unmarshal policy yaml: %w", err)
 		}
-	} else if err := o.viper.UnmarshalKey("policy", &policies); err != nil {
+	} else if err := o.viperUnmarshalKey("policy", &policies); err != nil {
 		return err
 	}
 	if len(policies) != 0 {
@@ -309,6 +279,18 @@ func (o *Options) parsePolicy() error {
 		}
 	}
 	return nil
+}
+
+func (o *Options) viperUnmarshalKey(key string, rawVal interface{}) error {
+	return o.viper.UnmarshalKey(key, &rawVal)
+}
+
+func (o *Options) viperSet(key string, value interface{}) {
+	o.viper.Set(key, value)
+}
+
+func (o *Options) viperIsSet(key string) bool {
+	return o.viper.IsSet(key)
 }
 
 // parseHeaders handles unmarshalling any custom headers correctly from the
@@ -333,8 +315,8 @@ func (o *Options) parseHeaders() error {
 
 		}
 		o.Headers = headers
-	} else if o.viper.IsSet("headers") {
-		if err := o.viper.UnmarshalKey("headers", &headers); err != nil {
+	} else if o.viperIsSet("headers") {
+		if err := o.viperUnmarshalKey("headers", &headers); err != nil {
 			return fmt.Errorf("header %s failed to parse: %s", o.viper.Get("headers"), err)
 		}
 		o.Headers = headers
@@ -342,7 +324,8 @@ func (o *Options) parseHeaders() error {
 	return nil
 }
 
-// bindEnvs binds a viper instance to each env var of an Options struct based on the mapstructure tag
+// bindEnvs binds a viper instance to each env var of an Options struct based
+// on the mapstructure tag
 func bindEnvs(o *Options, v *viper.Viper) error {
 	tagName := `mapstructure`
 	t := reflect.TypeOf(*o)
@@ -370,6 +353,81 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 	return nil
 }
 
+// Validate ensures the Options fields are valid, and hydrated.
+func (o *Options) Validate() error {
+	var err error
+
+	if !IsValidService(o.Services) {
+		return fmt.Errorf("internal/config: %s is an invalid service type", o.Services)
+	}
+
+	if IsAll(o.Services) {
+		// mutual auth between services on the same host can be generated at runtime
+		if o.SharedKey == "" {
+			o.SharedKey = cryptutil.NewBase64Key()
+		}
+		// in all in one mode we are running just over the local socket
+		o.GRPCInsecure = true
+		// to avoid port collision when running on localhost
+		if o.GRPCAddr == defaultOptions.GRPCAddr {
+			o.GRPCAddr = ":5443"
+		}
+		// and we can set the corresponding client
+		if o.AuthorizeURLString == "" {
+			o.AuthorizeURLString = "https://localhost:5443"
+		}
+	}
+
+	if o.SharedKey == "" {
+		return errors.New("internal/config: shared-key cannot be empty")
+	}
+
+	if o.AuthenticateURLString != "" {
+		u, err := urlutil.ParseAndValidateURL(o.AuthenticateURLString)
+		if err != nil {
+			return fmt.Errorf("internal/config: bad authenticate-url %s : %v", o.AuthenticateURLString, err)
+		}
+		o.AuthenticateURL = u
+	}
+
+	if o.AuthorizeURLString != "" {
+		u, err := urlutil.ParseAndValidateURL(o.AuthorizeURLString)
+		if err != nil {
+			return fmt.Errorf("internal/config: bad authorize-url %s : %w", o.AuthorizeURLString, err)
+		}
+		o.AuthorizeURL = u
+	}
+
+	if o.PolicyFile != "" {
+		return errors.New("internal/config: policy file setting is deprecated")
+	}
+	if err := o.parsePolicy(); err != nil {
+		return fmt.Errorf("internal/config: failed to parse policy: %w", err)
+	}
+
+	if err := o.parseHeaders(); err != nil {
+		return fmt.Errorf("internal/config: failed to parse headers: %w", err)
+	}
+
+	if _, disable := o.Headers[DisableHeaderKey]; disable {
+		o.Headers = make(map[string]string)
+	}
+
+	if o.InsecureServer {
+		log.Warn().Msg("internal/config: insecure mode enabled")
+	} else if o.Cert != "" || o.Key != "" {
+		o.TLSCertificate, err = cryptutil.CertifcateFromBase64(o.Cert, o.Key)
+	} else if o.CertFile != "" || o.KeyFile != "" {
+		o.TLSCertificate, err = cryptutil.CertificateFromFile(o.CertFile, o.KeyFile)
+	} else {
+		err = errors.New("internal/config:no certificates supplied nor was insecure mode set")
+	}
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // OptionsUpdater updates local state based on an Options struct
 type OptionsUpdater interface {
 	UpdateOptions(Options) error
@@ -385,34 +443,10 @@ func (o *Options) Checksum() string {
 	return fmt.Sprintf("%x", hash)
 }
 
-func ParseOptions(configFile string) (*Options, error) {
-	o, err := OptionsFromViper(configFile)
-	if err != nil {
-		return nil, err
-	}
-	if o.Debug {
-		log.SetDebugMode()
-	}
-	if o.LogLevel != "" {
-		log.SetLevel(o.LogLevel)
-	}
-	metrics.AddPolicyCountCallback(o.Services, func() int64 {
-		return int64(len(o.Policies))
-	})
-
-	checksumDec, err := strconv.ParseUint(o.Checksum(), 16, 64)
-	if err != nil {
-		log.Warn().Err(err).Msg("internal/config: could not parse config checksum into decimal")
-	}
-	metrics.SetConfigChecksum(o.Services, checksumDec)
-
-	return o, nil
-}
-
 func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdater) *Options {
-	newOpt, err := ParseOptions(configFile)
+	newOpt, err := NewOptionsFromConfig(configFile)
 	if err != nil {
-		log.Error().Err(err).Msg("config: could not reload configuration")
+		log.Error().Err(err).Msg("internal/config: could not reload configuration")
 		metrics.SetConfigInfo(opt.Services, false, "")
 		return opt
 	}
@@ -426,16 +460,16 @@ func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 		return opt
 	}
 
-	errored := false
+	var updateFailed bool
 	for _, service := range services {
 		if err := service.UpdateOptions(*newOpt); err != nil {
 			log.Error().Err(err).Msg("internal/config: could not update options")
-			errored = true
+			updateFailed = true
 			metrics.SetConfigInfo(opt.Services, false, "")
 		}
 	}
 
-	if !errored {
+	if !updateFailed {
 		metrics.SetConfigInfo(newOpt.Services, true, newOptChecksum)
 	}
 	return newOpt
