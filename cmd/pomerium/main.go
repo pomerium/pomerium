@@ -9,7 +9,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/authenticate"
@@ -77,9 +76,7 @@ func run() error {
 		defer proxy.AuthorizeClient.Close()
 	}
 
-	go viper.WatchConfig()
-
-	viper.OnConfigChange(func(e fsnotify.Event) {
+	opt.OnConfigChange(func(e fsnotify.Event) {
 		log.Info().Str("file", e.Name).Msg("cmd/pomerium: config file changed")
 		opt = config.HandleConfigUpdate(*configFile, opt, []config.OptionsUpdater{authz, proxy})
 	})
@@ -112,7 +109,6 @@ func newAuthorizeService(opt config.Options, wg *sync.WaitGroup) (*authorize.Aut
 	if !config.IsAuthorize(opt.Services) {
 		return nil, nil
 	}
-	log.Info().Interface("opts", opt).Msg("newAuthorizeService")
 	service, err := authorize.New(opt)
 	if err != nil {
 		return nil, err

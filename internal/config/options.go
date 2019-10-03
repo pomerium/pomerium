@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -220,6 +221,7 @@ func NewOptionsFromConfig(configFile string) (*Options, error) {
 		log.Warn().Err(err).Msg("internal/config: could not parse config checksum into decimal")
 	}
 	metrics.SetConfigChecksum(o.Services, checksumDec)
+
 	return o, nil
 }
 
@@ -279,6 +281,13 @@ func (o *Options) parsePolicy() error {
 		}
 	}
 	return nil
+}
+
+// OnConfigChange starts a go routine and watches for any changes. If any are
+// detected, via an fsnotify event the provided function is run.
+func (o *Options) OnConfigChange(run func(in fsnotify.Event)) {
+	go o.viper.WatchConfig()
+	o.viper.OnConfigChange(run)
 }
 
 func (o *Options) viperUnmarshalKey(key string, rawVal interface{}) error {
