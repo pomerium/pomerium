@@ -26,7 +26,7 @@ module.exports = {
       { text: "Recipes", link: "/recipes/" },
       { text: "Community", link: "/community/" },
       {
-        text: "v0.3.1",
+        text: "🚧Dev", // current tagged version
         ariaLabel: "Version menu",
         items: [
           { text: "🚧Dev", link: "https://master.docs.pomerium.io/docs" },
