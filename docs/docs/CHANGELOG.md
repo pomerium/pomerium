@@ -4,6 +4,7 @@
 
 ### New
 
+- Allow setting request headers for back-end requests on per route basis in policy. [GH-308]
 - Add endpoint to support "forward-auth" integration with third-party ingresses and proxies. Supports [nginx]https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-subrequest-authentication/, [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), and [Traefik](https://docs.traefik.io/middlewares/forwardauth/). [GH-324]
 - Add insecure transport support. [GH-328]
 - Add setting to override HTTPS backend's TLS Server Name. [GH-297]
@@ -13,7 +14,7 @@
 ### Security
 
 - The user's original intended location before completing the authentication process is now encrypted and kept confidential from the identity provider. [GH-316]
-- Under certain circumstances, where debug logging was enabled, pomerium's shared secret could be leaked to http access logs as a query param.
+- Under certain circumstances, where debug logging was enabled, pomerium's shared secret could be leaked to http access logs as a query param. [GH-338]
 
 ### Fixed
 
@@ -288,3 +289,4 @@
 [gh-319]: https://github.com/pomerium/pomerium/issues/319
 [gh-328]: https://github.com/pomerium/pomerium/issues/328
 [gh-332]: https://github.com/pomerium/pomerium/pull/332/
+[gh-338]: https://github.com/pomerium/pomerium/issues/338

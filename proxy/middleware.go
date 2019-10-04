@@ -111,3 +111,17 @@ func (p *Proxy) reqNeedsAuthentication(w http.ResponseWriter, r *http.Request) {
 	uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, urlutil.GetAbsoluteURL(r))
 	http.Redirect(w, r, uri.String(), http.StatusFound)
 }
+
+// SetResponseHeaders sets a map of response headers.
+func SetResponseHeaders(headers map[string]string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "middleware.SetResponseHeaders")
+			defer span.End()
+			for key, val := range headers {
+				r.Header.Set(key, val)
+			}
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}

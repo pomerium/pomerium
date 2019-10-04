@@ -491,6 +491,28 @@ Note: This setting will replace (not append) the system's trust store for a give
 
 Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/examples/tree/master/mutual-tls) and the [certificate docs](./certificates.md).
 
+### Set Request Headers
+
+- Config File Key: `set_request_headers`
+- Type: map of `strings` key value pairs
+- Optional
+
+Set Request Headers allows you to set static values for given request headers. This can be useful if you want to pass along additional information to downstream applications as headers, or set authentication header to the request. For example:
+
+```yaml
+- from: https://httpbin.corp.example.com
+  to: https://httpbin.org
+  allowed_users:
+    - bdd@pomerium.io
+    - bobbydesimone@gmail.com
+    - bobby@tdia.com
+  set_request_headers:
+    # works auto-magically!
+    # https://httpbin.corp.example.com/basic-auth/root/hunter42
+    Authorization: Basic cm9vdDpodW50ZXI0Mg==
+    X-Your-favorite-authenticating-Proxy: "Pomerium"
+```
+
 # Authenticate Service
 
 ## Authenticate Service URL
