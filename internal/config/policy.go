@@ -65,6 +65,15 @@ type Policy struct {
 	TLSClientCertFile string `mapstructure:"tls_client_cert_file" yaml:"tls_client_cert_file"`
 	TLSClientKeyFile  string `mapstructure:"tls_client_key_file" yaml:"tls_client_key_file"`
 	ClientCertificate *tls.Certificate
+
+	// IsForwardAuthEndpoint allows for a given route to be used as a forward-auth
+	// endpoint instead of a reverse proxy. Some third-party proxies that do not
+	// have rich access control capabilities (nginx, envoy, ambassador, traefik)
+	// allow you to delegate and authenticate each request to your website
+	// with an external server or service. Pomerium can be configured to accept
+	// these requests with this switch
+	// todo(bdd): link to docs
+	IsForwardAuthEndpoint bool
 }
 
 // Validate checks the validity of a policy.

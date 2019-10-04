@@ -22,6 +22,8 @@ const (
 	HeaderEmail = "x-pomerium-authenticated-user-email"
 	// HeaderGroups is the header key containing the user's groups.
 	HeaderGroups = "x-pomerium-authenticated-user-groups"
+
+	disableCallback = "pomerium-auth-callback"
 )
 
 // AuthenticateSession is middleware to enforce a valid authentication
@@ -33,14 +35,15 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 		s, err := sessions.FromContext(r.Context())
 		if err != nil {
 			log.Debug().Str("cause", err.Error()).Msg("proxy: re-authenticating due to session state error")
-			p.authenticate(w, r)
+			p.reqNeedsAuthentication(w, r)
 			return
 		}
 		if err := s.Valid(); err != nil {
 			log.Debug().Str("cause", err.Error()).Msg("proxy: re-authenticating due to invalid session")
-			p.authenticate(w, r)
+			p.reqNeedsAuthentication(w, r)
 			return
 		}
+		// add pomerium's headers to the downstream request
 		r.Header.Set(HeaderUserID, s.User)
 		r.Header.Set(HeaderEmail, s.RequestEmail())
 		r.Header.Set(HeaderGroups, s.RequestGroups())
@@ -89,15 +92,22 @@ func (p *Proxy) SignRequest(signer cryptutil.JWTSigner) func(next http.Handler) 
 				log.Warn().Err(err).Msg("proxy: failed signing jwt")
 			} else {
 				r.Header.Set(HeaderJWT, jwt)
+				w.Header().Set(HeaderJWT, jwt)
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
 
-// Authenticate begins the authenticate flow, encrypting the redirect url
-// in a request to the provider's sign in endpoint.
-func (p *Proxy) authenticate(w http.ResponseWriter, r *http.Request) {
+// reqNeedsAuthentication begins the authenticate flow, encrypting the
+// redirect url in a request to the provider's sign in endpoint.
+func (p *Proxy) reqNeedsAuthentication(w http.ResponseWriter, r *http.Request) {
+	// some proxies like nginx won't follow redirects, and treat any
+	// non 2xx or 4xx status as an internal service error.
+	// https://nginx.org/en/docs/http/ngx_http_auth_request_module.html
+	if _, ok := r.URL.Query()[disableCallback]; ok {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+	}
 	uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, urlutil.GetAbsoluteURL(r))
 	http.Redirect(w, r, uri.String(), http.StatusFound)
 }
