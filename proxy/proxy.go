@@ -25,7 +25,7 @@ import (
 
 const (
 	// dashboardURL	is the path to authenticate's sign in endpoint
-	dashboardURL = "/.pomerium/"
+	dashboardURL = "/.pomerium"
 	// signinURL is the path to authenticate's sign in endpoint
 	signinURL = "/.pomerium/sign_in"
 	// signoutURL is the path to authenticate's sign out endpoint
