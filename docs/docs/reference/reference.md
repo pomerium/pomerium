@@ -163,7 +163,7 @@ Timeouts set the global server timeouts. For route-specific timeouts, see [polic
 
 These settings control upstream connections to the Authorize service.
 
-## GRPC Address
+### GRPC Address
 
 - Environmental Variable: `GRPC_ADDRESS`
 - Config File Key: `grpc_address`
@@ -173,7 +173,7 @@ These settings control upstream connections to the Authorize service.
 
 Address specifies the host and port to serve GRPC requests from. Defaults to `:443` (or `:5443` in all in one mode).
 
-## GRPC Insecure
+### GRPC Insecure
 
 - Environmental Variable: `GRPC_INSECURE`
 - Config File Key: `grpc_insecure`
@@ -283,6 +283,82 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 #### Example
 
 ![jaeger example trace](./img/jaeger.png) pomerium_config_last_reload_success_timestamp | Gauge | The timestamp of the last successful configuration reload by service pomerium_build_info | Gauge | Pomerium build metadata by git revision, service, version and goversion
+
+## Forward Auth
+
+- Environmental Variable: `FORWARD_AUTH_URL`
+- Config File Key: `forward_auth_url`
+- Type: `URL` (must contain a scheme and hostname)
+- Example: `https://fwdauth.corp.example.com`
+- Resulting Verification URL: `https://fwdauth.corp.example.com/.pomerium/verify/{URL-TO-VERIFY}`
+- Optional
+
+Forward authentication creates an endpoint that can be used with third-party proxies that do not have rich access control capabilities ([nginx](http://nginx.org/en/docs/http/ngx_http_auth_request_module.html), [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), [ambassador](https://www.getambassador.io/reference/services/auth-service/), [traefik](https://docs.traefik.io/middlewares/forwardauth/)). Forward authentication allow you to delegate authentication and authorization for each request to Pomerium.
+
+### Request flow
+
+![pomerium forward auth request flow](./img/auth-flow-diagram.svg)
+
+### Examples
+
+#### NGINX Ingress
+
+Some reverse-proxies, such as nginx split access control flow into two parts: verification and sign-in redirection. Notice the additional the additional `?no_redirect=true` query param in `auth-rul` which tells Pomerium to return a `401` instead of redirecting and starting the sign-in process.
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: httpbin
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    certmanager.k8s.io/issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/auth-url: https://fwdauth.corp.example.com/.pomerium/verify/httpbin.corp.example.com?no_redirect=true
+    nginx.ingress.kubernetes.io/auth-signin: https://fwdauth.corp.example.com/.pomerium/verify/httpbin.corp.example.com
+spec:
+  tls:
+    - hosts:
+        - httpbin.corp.example.com
+      secretName: quickstart-example-tls
+  rules:
+    - host: httpbin.corp.example.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: httpbin
+              servicePort: 80
+```
+
+### Traefik docker-compose
+
+```yml
+version: "3"
+
+services:
+  traefik:
+    # The official v2.0 Traefik docker image
+    image: traefik:v2.0
+    # Enables the web UI and tells Traefik to listen to docker
+    command: --api.insecure=true --providers.docker
+    ports:
+      # The HTTP port
+      - "80:80"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+  httpbin:
+    # A container that exposes an API to show its IP address
+    image: kennethreitz/httpbin:latest
+    labels:
+      - "traefik.http.routers.httpbin.rule=Host(`httpbin.corp.example.com`)"
+      # Create a middleware named `foo-add-prefix`
+      - "traefik.http.middlewares.test-auth.forwardauth.authResponseHeaders=X-Pomerium-Authenticated-User-Email,x-pomerium-authenticated-user-id,x-pomerium-authenticated-user-groups,x-pomerium-jwt-assertion"
+      - "traefik.http.middlewares.test-auth.forwardauth.address=http://fwdauth.corp.example.com/.pomerium/verify/httpbin.corp.example.com"
+      - "traefik.http.routers.httpbin.middlewares=test-auth@docker"
+```
 
 ## Policy
 
@@ -564,7 +640,9 @@ Certificate Authority is set when behind-the-ingress service communication uses 
   Strict-Transport-Security:max-age=31536000; includeSubDomains; preload,
   ```
 
-  Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added to proxied requests. _Nota bene_ Downstream application headers will be overwritten by Pomerium's headers on conflict.
+```
+
+Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added to proxied requests. _Nota bene_ Downstream application headers will be overwritten by Pomerium's headers on conflict.
 
 By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
 
@@ -599,3 +677,4 @@ Default Upstream Timeout is the default timeout applied to a proxied route when 
 [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
 [toml]: https://en.wikipedia.org/wiki/TOML
 [yaml]: https://en.wikipedia.org/wiki/YAML
+```

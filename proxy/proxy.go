@@ -173,6 +173,11 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 	r.HandleFunc("/robots.txt", p.RobotsTxt).Methods(http.MethodGet)
 	r = p.registerHelperHandlers(r)
 
+	if opts.ForwardAuthURL != nil {
+		// create a route to handle forward auth requests
+		r.Host(opts.ForwardAuthURL.Host).Subrouter().PathPrefix("/")
+	}
+
 	for _, policy := range opts.Policies {
 		if err := policy.Validate(); err != nil {
 			return fmt.Errorf("proxy: invalid policy %s", err)

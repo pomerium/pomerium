@@ -19,8 +19,11 @@ import (
 // registerHelperHandlers returns the proxy service's ServeMux
 func (p *Proxy) registerHelperHandlers(r *mux.Router) *mux.Router {
 	h := r.PathPrefix(dashboardURL).Subrouter()
+	// 1. Retrieve the user session and add it to the request context
 	h.Use(sessions.RetrieveSession(p.sessionStore))
+	// 2. AuthN - Verify the user is authenticated. Set email, group, & id headers
 	h.Use(p.AuthenticateSession)
+	// 3. Enforce CSRF protections for any non-idempotent http method
 	h.Use(csrf.Protect(
 		p.cookieSecret,
 		csrf.Path("/"),
@@ -32,6 +35,7 @@ func (p *Proxy) registerHelperHandlers(r *mux.Router) *mux.Router {
 	h.HandleFunc("/impersonate", p.Impersonate).Methods(http.MethodPost)
 	h.HandleFunc("/sign_out", p.SignOut).Methods(http.MethodGet, http.MethodPost)
 	h.HandleFunc("/refresh", p.ForceRefresh).Methods(http.MethodPost)
+	h.HandleFunc("/verify/{hostname}", p.Verify).Methods(http.MethodGet)
 	return r
 }
 
@@ -146,4 +150,51 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, dashboardURL, http.StatusFound)
+}
+
+// Verify checks a user's credentials for an arbitrary host. If the user is
+// properly authenticated and is authorized to access the supplied host,
+// a 200 http status code is returned. If the user is not authenticated, they
+// will be redirected to the authenticate service to sign in with their identity
+// provider. If the user is unauthorized, they will be given a 403 http status.
+func (p *Proxy) Verify(w http.ResponseWriter, r *http.Request) {
+	// retrieve the target destination hostname from the url path
+	hostname, ok := mux.Vars(r)["hostname"]
+	if !ok {
+		httputil.ErrorResponse(w, r, httputil.Error("no hostname set", http.StatusBadRequest, nil))
+		return
+	}
+	// attempt to retrieve the user session from the request context, validity
+	// of the identity session is asserted by the middleware chain
+	s, err := sessions.FromContext(r.Context())
+	if err != nil {
+		httputil.ErrorResponse(w, r, err)
+		return
+	}
+	// query the authorization service to see if the session's user has
+	// the appropriate authorization to access the given hostname
+	authorized, err := p.AuthorizeClient.Authorize(r.Context(), hostname, s)
+	if err != nil {
+		httputil.ErrorResponse(w, r, err)
+		return
+	} else if !authorized {
+		errMsg := fmt.Sprintf("%s is not authorized for this route", s.RequestEmail())
+		httputil.ErrorResponse(w, r, httputil.Error(errMsg, http.StatusForbidden, nil))
+		return
+	}
+	// check the queryparams to see if this check immediately followed
+	// authentication. If so, redirect back to the originally requested hostname.
+	if isCallback := r.URL.Query().Get(disableCallback); isCallback == "true" {
+		http.Redirect(w, r, "http://"+hostname, http.StatusFound)
+		return
+	}
+
+	// User is authenticated and authorized for the given host.
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set(HeaderUserID, s.User)
+	w.Header().Set(HeaderEmail, s.RequestEmail())
+	w.Header().Set(HeaderGroups, s.RequestGroups())
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "%s is authorized for %s.", s.Email, hostname)
 }

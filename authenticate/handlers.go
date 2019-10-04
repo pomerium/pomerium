@@ -113,6 +113,13 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect_uri", http.StatusBadRequest, err))
 		return
 	}
+	// Add query param to let downstream apps (or auth endpoints) know
+	// this request followed authentication. Useful for auth-forward-endpoint
+	// redirecting
+	q := redirectURL.Query()
+	q.Add("pomerium-auth-callback", "true")
+	redirectURL.RawQuery = q.Encode()
+
 	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
@@ -142,8 +149,6 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 // user to their respective identity provider. This function also builds the
 // 'state' parameter which is encrypted and includes authenticating data
 // for validation.
-// 'state' is : nonce|timestamp|redirect_url|encrypt(redirect_url)+mac(nonce,ts))
-
 // https://openid.net/specs/openid-connect-core-1_0-final.html#AuthRequest
 // https://tools.ietf.org/html/rfc6749#section-4.2.1
 func (a *Authenticate) redirectToIdentityProvider(w http.ResponseWriter, r *http.Request) {

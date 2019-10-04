@@ -267,7 +267,7 @@ func New() *template.Template {
         <section>
           <p class="message">
             {{if .Message}}{{.Message}}</br>{{end}}
-            {{if .CanDebug}}Troubleshoot your <a href="/.pomerium">session</a>.</br>{{end}}
+            {{if .CanDebug}}Troubleshoot your <a href="/.pomerium/">session</a>.</br>{{end}}
             {{if .RequestID}} Request {{.RequestID}}</br>{{end}}
           
           </p>

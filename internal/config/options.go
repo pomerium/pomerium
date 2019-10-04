@@ -160,6 +160,17 @@ type Options struct {
 	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout"`
 	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin"`
 
+	// ForwardAuthEndpoint allows for a given route to be used as a forward-auth
+	// endpoint instead of a reverse proxy. Some third-party proxies that do not
+	// have rich access control capabilities (nginx, envoy, ambassador, traefik)
+	// allow you to delegate and authenticate each request to your website
+	// with an external server or service. Pomerium can be configured to accept
+	// these requests with this switch
+	//
+	// todo(bdd): link to docs
+	ForwardAuthURLString string `mapstructure:"forward_auth_url"`
+	ForwardAuthURL       *url.URL
+
 	viper *viper.Viper
 }
 
@@ -405,6 +416,14 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("internal/config: bad authorize-url %s : %w", o.AuthorizeURLString, err)
 		}
 		o.AuthorizeURL = u
+	}
+
+	if o.ForwardAuthURLString != "" {
+		u, err := urlutil.ParseAndValidateURL(o.ForwardAuthURLString)
+		if err != nil {
+			return fmt.Errorf("internal/config: bad forward-auth-url %s : %w", o.ForwardAuthURLString, err)
+		}
+		o.ForwardAuthURL = u
 	}
 
 	if o.PolicyFile != "" {

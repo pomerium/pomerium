@@ -4,29 +4,31 @@
 
 ### New
 
-- Add ability to override HTTPS backend's TLS Server Name. [GH-297](https://github.com/pomerium/pomerium/pull/297)
-- Add ability to set pomerium's encrypted session in a auth bearer token, or query param.
-- Add host to the main request logger middleware. [GH-308](https://github.com/pomerium/pomerium/issues/308)
+- Add endpoint to support "forward-auth" integration with third-party ingresses and proxies. Supports [nginx]https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-subrequest-authentication/, [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), and [Traefik](https://docs.traefik.io/middlewares/forwardauth/). [GH-324]
+- Add insecure transport support. [GH-328]
+- Add setting to override HTTPS backend's TLS Server Name. [GH-297]
+- Add setting to set pomerium's encrypted session in a auth bearer token, or query param.
+- Add host to the main request logger middleware. [GH-308]
 
 ### Security
 
-- The user's original intended location before completing the authentication process is now encrypted and kept confidential from the identity provider. [GH-316](https://github.com/pomerium/pomerium/pull/316)
+- The user's original intended location before completing the authentication process is now encrypted and kept confidential from the identity provider. [GH-316]
 - Under certain circumstances, where debug logging was enabled, pomerium's shared secret could be leaked to http access logs as a query param.
 
 ### Fixed
 
-- Fixed an issue where CSRF would fail if multiple tabs were open. [GH-306](https://github.com/pomerium/pomerium/issues/306)
-- Fixed an issue where pomerium would clean double slashes from paths.[GH-262](https://github.com/pomerium/pomerium/issues/262)
-- Fixed a bug where the impersonate form would persist an empty string for groups value if none set.[GH-303](https://github.com/pomerium/pomerium/issues/303)
+- Fixed an issue where CSRF would fail if multiple tabs were open. [GH-306]
+- Fixed an issue where pomerium would clean double slashes from paths. [GH-262]
+- Fixed a bug where the impersonate form would persist an empty string for groups value if none set. [GH-303]
 
 ### Changed
 
-- The healthcheck endpoints (`/ping`) now returns the http status `405` StatusMethodNotAllowed for non-`GET` requests. [GH-319](https://github.com/pomerium/pomerium/issues/319)
+- The healthcheck endpoints (`/ping`) now returns the http status `405` StatusMethodNotAllowed for non-`GET` requests.
 - Authenticate service no longer uses gRPC.
 - The global request logger now captures the full array of proxies from `X-Forwarded-For`, in addition to just the client IP.
-- Options code refactored to eliminate global Viper state. [GH-332](https://github.com/pomerium/pomerium/pull/332/files)
-- Pomerium will no longer default to looking for certificates in the root directory. [GH-328](https://github.com/pomerium/pomerium/issues/328)
-- Pomerium will validate that either `insecure_server`, or a valid certificate bundle is set. [GH-328](https://github.com/pomerium/pomerium/issues/328)
+- Options code refactored to eliminate global Viper state. [GH-332]
+- Pomerium will no longer default to looking for certificates in the root directory. [GH-328]
+- Pomerium will validate that either `insecure_server`, or a valid certificate bundle is set. [GH-328]
 
 ### Removed
 
@@ -52,7 +54,7 @@
 
 ### Changed
 
-- Pomerium will now strip `_csrf` cookies in addition to session cookies. [GG-285]
+- Pomerium will now strip `_csrf` cookies in addition to session cookies. [GH-285]
 - Disabled gRPC service config. [GH-280]
 - A policy's custom certificate authority can set as a file or a base64 encoded blob(`tls_custom_ca`/`tls_custom_ca_file`). [GH-259]
 
@@ -272,8 +274,17 @@
 [gh-259]: https://github.com/pomerium/pomerium/pull/259
 [gh-259]: https://github.com/pomerium/pomerium/pull/259
 [gh-261]: https://github.com/pomerium/pomerium/pull/261
+[gh-262]: https://github.com/pomerium/pomerium/issues/262
 [gh-266]: https://github.com/pomerium/pomerium/pull/266
 [gh-272]: https://github.com/pomerium/pomerium/pull/272
 [gh-280]: https://github.com/pomerium/pomerium/issues/280
 [gh-284]: https://github.com/pomerium/pomerium/pull/284
 [gh-285]: https://github.com/pomerium/pomerium/issues/285
+[gh-297]: https://github.com/pomerium/pomerium/pull/297
+[gh-303]: https://github.com/pomerium/pomerium/issues/303
+[gh-306]: https://github.com/pomerium/pomerium/issues/306
+[gh-308]: https://github.com/pomerium/pomerium/issues/308
+[gh-316]: https://github.com/pomerium/pomerium/pull/316
+[gh-319]: https://github.com/pomerium/pomerium/issues/319
+[gh-328]: https://github.com/pomerium/pomerium/issues/328
+[gh-332]: https://github.com/pomerium/pomerium/pull/332/
