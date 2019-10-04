@@ -16,13 +16,13 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
-// SetHeaders ensures that every response includes some basic security headers
-func SetHeaders(securityHeaders map[string]string) func(next http.Handler) http.Handler {
+// SetHeaders sets a map of response headers.
+func SetHeaders(headers map[string]string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.SetHeaders")
 			defer span.End()
-			for key, val := range securityHeaders {
+			for key, val := range headers {
 				w.Header().Set(key, val)
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))

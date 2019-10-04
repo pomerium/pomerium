@@ -242,7 +242,11 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy *config.Policy) (*mux.
 		}
 		rp.Use(p.SignRequest(signer))
 	}
-
+	// Optional: if additional headers are to be set for this url
+	if len(policy.SetRequestHeaders) != 0 {
+		log.Warn().Interface("headers", policy.SetRequestHeaders).Msg("proxy: set request headers")
+		rp.Use(SetResponseHeaders(policy.SetRequestHeaders))
+	}
 	return r, nil
 }
 
