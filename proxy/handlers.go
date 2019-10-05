@@ -184,8 +184,8 @@ func (p *Proxy) Verify(w http.ResponseWriter, r *http.Request) {
 	}
 	// check the queryparams to see if this check immediately followed
 	// authentication. If so, redirect back to the originally requested hostname.
-	if isCallback := r.URL.Query().Get(disableCallback); isCallback == "true" {
-		http.Redirect(w, r, "http://"+hostname, http.StatusFound)
+	if isCallback := r.URL.Query().Get("pomerium-auth-callback"); isCallback == "true" {
+		http.Redirect(w, r, hostname, http.StatusFound)
 		return
 	}
 

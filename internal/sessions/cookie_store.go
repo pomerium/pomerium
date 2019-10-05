@@ -10,47 +10,39 @@ import (
 	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
-// ChunkedCanaryByte is the byte value used as a canary prefix to distinguish if
-// the cookie is multi-part or not. This constant *should not* be valid
-// base64. It's important this byte is ASCII to avoid UTF-8 variable sized runes.
-// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#Directives
-const ChunkedCanaryByte byte = '%'
+const (
+	// ChunkedCanaryByte is the byte value used as a canary prefix to distinguish if
+	// the cookie is multi-part or not. This constant *should not* be valid
+	// base64. It's important this byte is ASCII to avoid UTF-8 variable sized runes.
+	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#Directives
+	ChunkedCanaryByte byte = '%'
+	// MaxChunkSize sets the upper bound on a cookie chunks payload value.
+	// Note, this should be lower than the actual cookie's max size (4096 bytes)
+	// which includes metadata.
+	MaxChunkSize = 3800
+	// MaxNumChunks limits the number of chunks to iterate through. Conservatively
+	// set to prevent any abuse.
+	MaxNumChunks = 5
+)
 
-// DefaultBearerTokenHeader is default header name for the authorization bearer
-// token header as defined in rfc2617
-// https://tools.ietf.org/html/rfc6750#section-2.1
-const DefaultBearerTokenHeader = "Authorization"
-
-// MaxChunkSize sets the upper bound on a cookie chunks payload value.
-// Note, this should be lower than the actual cookie's max size (4096 bytes)
-// which includes metadata.
-const MaxChunkSize = 3800
-
-// MaxNumChunks limits the number of chunks to iterate through. Conservatively
-// set to prevent any abuse.
-const MaxNumChunks = 5
-
-// CookieStore represents all the cookie related configurations
+// CookieStore implements the session store interface for session cookies.
 type CookieStore struct {
-	Name              string
-	Encoder           cryptutil.SecureEncoder
-	CookieExpire      time.Duration
-	CookieRefresh     time.Duration
-	CookieSecure      bool
-	CookieHTTPOnly    bool
-	CookieDomain      string
-	BearerTokenHeader string
+	Name           string
+	CookieDomain   string
+	CookieExpire   time.Duration
+	CookieHTTPOnly bool
+	CookieSecure   bool
+	Encoder        cryptutil.SecureEncoder
 }
 
 // CookieStoreOptions holds options for CookieStore
 type CookieStoreOptions struct {
-	Name              string
-	CookieSecure      bool
-	CookieHTTPOnly    bool
-	CookieDomain      string
-	BearerTokenHeader string
-	CookieExpire      time.Duration
-	Encoder           cryptutil.SecureEncoder
+	Name           string
+	CookieDomain   string
+	CookieExpire   time.Duration
+	CookieHTTPOnly bool
+	CookieSecure   bool
+	Encoder        cryptutil.SecureEncoder
 }
 
 // NewCookieStore returns a new session with ciphers for each of the cookie secrets
@@ -61,18 +53,14 @@ func NewCookieStore(opts *CookieStoreOptions) (*CookieStore, error) {
 	if opts.Encoder == nil {
 		return nil, fmt.Errorf("internal/sessions: cipher cannot be nil")
 	}
-	if opts.BearerTokenHeader == "" {
-		opts.BearerTokenHeader = DefaultBearerTokenHeader
-	}
 
 	return &CookieStore{
-		Name:              opts.Name,
-		CookieSecure:      opts.CookieSecure,
-		CookieHTTPOnly:    opts.CookieHTTPOnly,
-		CookieDomain:      opts.CookieDomain,
-		CookieExpire:      opts.CookieExpire,
-		Encoder:           opts.Encoder,
-		BearerTokenHeader: opts.BearerTokenHeader,
+		Name:           opts.Name,
+		CookieSecure:   opts.CookieSecure,
+		CookieHTTPOnly: opts.CookieHTTPOnly,
+		CookieDomain:   opts.CookieDomain,
+		CookieExpire:   opts.CookieExpire,
+		Encoder:        opts.Encoder,
 	}, nil
 }
 
@@ -103,9 +91,41 @@ func (cs *CookieStore) makeCookie(req *http.Request, name string, value string, 
 	return c
 }
 
+// ClearSession clears the session cookie from a request
+func (cs *CookieStore) ClearSession(w http.ResponseWriter, req *http.Request) {
+	http.SetCookie(w, cs.makeCookie(req, cs.Name, "", time.Hour*-1, time.Now()))
+}
+
+// LoadSession returns a State from the cookie in the request.
+func (cs *CookieStore) LoadSession(req *http.Request) (*State, error) {
+	cipherText := loadChunkedCookie(req, cs.Name)
+	if cipherText == "" {
+		return nil, ErrNoSessionFound
+	}
+	session, err := UnmarshalSession(cipherText, cs.Encoder)
+	if err != nil {
+		return nil, ErrMalformed
+	}
+	return session, nil
+}
+
+// SaveSession saves a session state to a request sessions.
+func (cs *CookieStore) SaveSession(w http.ResponseWriter, req *http.Request, s *State) error {
+	value, err := MarshalSession(s, cs.Encoder)
+	if err != nil {
+		return err
+	}
+	cs.setSessionCookie(w, req, value)
+	return nil
+}
+
 // makeSessionCookie constructs a session cookie given the request, an expiration time and the current time.
 func (cs *CookieStore) makeSessionCookie(req *http.Request, value string, expiration time.Duration, now time.Time) *http.Cookie {
 	return cs.makeCookie(req, cs.Name, value, expiration, now)
+}
+
+func (cs *CookieStore) setSessionCookie(w http.ResponseWriter, req *http.Request, val string) {
+	cs.setCookie(w, cs.makeSessionCookie(req, val, cs.CookieExpire, time.Now()))
 }
 
 func (cs *CookieStore) setCookie(w http.ResponseWriter, cookie *http.Cookie) {
@@ -126,35 +146,6 @@ func (cs *CookieStore) setCookie(w http.ResponseWriter, cookie *http.Cookie) {
 		}
 		http.SetCookie(w, &nc)
 	}
-}
-
-func chunk(s string, size int) []string {
-	ss := make([]string, 0, len(s)/size+1)
-	for len(s) > 0 {
-		if len(s) < size {
-			size = len(s)
-		}
-		ss, s = append(ss, s[:size]), s[size:]
-	}
-	return ss
-}
-
-// ClearSession clears the session cookie from a request
-func (cs *CookieStore) ClearSession(w http.ResponseWriter, req *http.Request) {
-	http.SetCookie(w, cs.makeCookie(req, cs.Name, "", time.Hour*-1, time.Now()))
-}
-
-func (cs *CookieStore) setSessionCookie(w http.ResponseWriter, req *http.Request, val string) {
-	cs.setCookie(w, cs.makeSessionCookie(req, val, cs.CookieExpire, time.Now()))
-}
-
-func loadBearerToken(r *http.Request, headerKey string) string {
-	authHeader := r.Header.Get(headerKey)
-	split := strings.Split(authHeader, "Bearer")
-	if authHeader == "" || len(split) != 2 {
-		return ""
-	}
-	return strings.TrimSpace(split[1])
 }
 
 func loadChunkedCookie(r *http.Request, cookieName string) string {
@@ -179,37 +170,13 @@ func loadChunkedCookie(r *http.Request, cookieName string) string {
 	return cipherText
 }
 
-// LoadSession returns a State from the cookie in the request.
-func (cs *CookieStore) LoadSession(req *http.Request) (*State, error) {
-	cipherText := loadChunkedCookie(req, cs.Name)
-	if cipherText == "" {
-		cipherText = loadBearerToken(req, cs.BearerTokenHeader)
+func chunk(s string, size int) []string {
+	ss := make([]string, 0, len(s)/size+1)
+	for len(s) > 0 {
+		if len(s) < size {
+			size = len(s)
+		}
+		ss, s = append(ss, s[:size]), s[size:]
 	}
-	if cipherText == "" {
-		return nil, ErrEmptySession
-	}
-	session, err := UnmarshalSession(cipherText, cs.Encoder)
-	if err != nil {
-		return nil, err
-	}
-	return session, nil
-}
-
-// SaveSession saves a session state to a request sessions.
-func (cs *CookieStore) SaveSession(w http.ResponseWriter, req *http.Request, s *State) error {
-	value, err := MarshalSession(s, cs.Encoder)
-	if err != nil {
-		return err
-	}
-	cs.setSessionCookie(w, req, value)
-	return nil
-}
-
-// ParentSubdomain returns the parent subdomain.
-func ParentSubdomain(s string) string {
-	if strings.Count(s, ".") < 2 {
-		return ""
-	}
-	split := strings.SplitN(s, ".", 2)
-	return split[1]
+	return ss
 }

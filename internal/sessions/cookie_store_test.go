@@ -38,33 +38,30 @@ func TestNewCookieStore(t *testing.T) {
 	}{
 		{"good",
 			&CookieStoreOptions{
-				Name:              "_cookie",
-				CookieSecure:      true,
-				CookieHTTPOnly:    true,
-				CookieDomain:      "pomerium.io",
-				CookieExpire:      10 * time.Second,
-				Encoder:           encoder,
-				BearerTokenHeader: "Authorization",
+				Name:           "_cookie",
+				CookieSecure:   true,
+				CookieHTTPOnly: true,
+				CookieDomain:   "pomerium.io",
+				CookieExpire:   10 * time.Second,
+				Encoder:        encoder,
 			},
 			&CookieStore{
-				Name:              "_cookie",
-				CookieSecure:      true,
-				CookieHTTPOnly:    true,
-				CookieDomain:      "pomerium.io",
-				CookieExpire:      10 * time.Second,
-				Encoder:           encoder,
-				BearerTokenHeader: "Authorization",
+				Name:           "_cookie",
+				CookieSecure:   true,
+				CookieHTTPOnly: true,
+				CookieDomain:   "pomerium.io",
+				CookieExpire:   10 * time.Second,
+				Encoder:        encoder,
 			},
 			false},
 		{"missing name",
 			&CookieStoreOptions{
-				Name:              "",
-				CookieSecure:      true,
-				CookieHTTPOnly:    true,
-				CookieDomain:      "pomerium.io",
-				CookieExpire:      10 * time.Second,
-				Encoder:           encoder,
-				BearerTokenHeader: "Authorization",
+				Name:           "",
+				CookieSecure:   true,
+				CookieHTTPOnly: true,
+				CookieDomain:   "pomerium.io",
+				CookieExpire:   10 * time.Second,
+				Encoder:        encoder,
 			},
 			nil,
 			true},
@@ -246,26 +243,6 @@ func TestMockSessionStore(t *testing.T) {
 			ms.ClearSession(nil, nil)
 			if ms.ResponseSession != "" {
 				t.Errorf("ResponseSession not empty! %s", ms.ResponseSession)
-			}
-		})
-	}
-}
-
-func Test_ParentSubdomain(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		s    string
-		want string
-	}{
-		{"httpbin.corp.example.com", "corp.example.com"},
-		{"some.httpbin.corp.example.com", "httpbin.corp.example.com"},
-		{"example.com", ""},
-		{"", ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.s, func(t *testing.T) {
-			if got := ParentSubdomain(tt.s); got != tt.want {
-				t.Errorf("ParentSubdomain() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -78,6 +78,7 @@ type Proxy struct {
 	refreshCooldown        time.Duration
 	Handler                http.Handler
 	sessionStore           sessions.SessionStore
+	sessionLoaders         []sessions.SessionLoader
 	signingKey             string
 	templates              *template.Template
 }
@@ -122,8 +123,12 @@ func New(opts config.Options) (*Proxy, error) {
 		defaultUpstreamTimeout: opts.DefaultUpstreamTimeout,
 		refreshCooldown:        opts.RefreshCooldown,
 		sessionStore:           cookieStore,
-		signingKey:             opts.SigningKey,
-		templates:              templates.New(),
+		sessionLoaders: []sessions.SessionLoader{
+			cookieStore,
+			sessions.NewHeaderStore(encoder),
+			sessions.NewQueryParamStore(encoder)},
+		signingKey: opts.SigningKey,
+		templates:  templates.New(),
 	}
 	// errors checked in ValidateOptions
 	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
@@ -227,7 +232,7 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy *config.Policy) (*mux.
 	}
 
 	// 4. Retrieve the user session and add it to the request context
-	rp.Use(sessions.RetrieveSession(p.sessionStore))
+	rp.Use(sessions.RetrieveSession(p.sessionLoaders...))
 	// 5. Strip the user session cookie from the downstream request
 	rp.Use(middleware.StripCookie(p.cookieName))
 	// 6. AuthN - Verify the user is authenticated. Set email, group, & id headers
