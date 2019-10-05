@@ -9,9 +9,39 @@ description: >-
 
 ## Since 0.3.0
 
-### Breaking: No default certificate location
+### Breaking
+
+#### Removed Authenticate Internal URL
+
+The authenticate service no longer uses gRPC to do back channel communication. As a result, `AUTHENTICATE_INTERNAL_URL`/`authenticate_internal_url` is no longer required.
+
+#### No default certificate location
 
 In previous versions, if no explicit certificate pair (in base64 or file form) was set, Pomerium would make a last ditch effort to check for certificate files (`cert.key`/`privkey.pem`) in the root directory. With the introduction of insecure server configuration, we've removed that functionality. If there settings for certificates and insecure server mode are unset, pomerium will give a appropriate error instead of a failed to find/open certificate error.
+
+#### Authorize service health-check is non-http
+
+The Authorize service will no longer respond to `HTTP`-based healthcheck queries when run as a distinct service (vs all-in-one). As an alternative, you can used on TCP based checks. For example, if using [Kubernetes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-a-tcp-liveness-probe):
+
+```yaml
+---
+readinessProbe:
+  tcpSocket:
+    port: 443
+  initialDelaySeconds: 5
+  periodSeconds: 10
+livenessProbe:
+  tcpSocket:
+    port: 443
+  initialDelaySeconds: 15
+  periodSeconds: 20
+```
+
+### Non-breaking changes
+
+#### All-in-one
+
+If service mode (`SERVICES`/`services`) is set to `all`, gRPC communication with the authorize service will by default occur over localhost, on port `:5443`.
 
 ## Since 0.2.0
 

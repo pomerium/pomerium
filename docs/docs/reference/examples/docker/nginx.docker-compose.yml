@@ -12,10 +12,11 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
   pomerium-authenticate:
-    image: pomerium/pomerium:master # or `build: .` to build from source
+    image: pomerium/pomerium:v0.4.0 # or `build: .` to build from source
     restart: always
     environment:
       - SERVICES=authenticate
+      - INSECURE_SERVER=TRUE
       # NOTE!: Replace with your identity provider settings https://www.pomerium.io/docs/identity-providers.html
       # - IDP_PROVIDER=google
       # - IDP_PROVIDER_URL=https://accounts.google.com
@@ -24,62 +25,50 @@ services:
       # - IDP_SERVICE_ACCOUNT=REPLACE_ME
       # NOTE! Generate new secret keys! e.g. `head -c32 /dev/urandom | base64`
       # Generated secret keys must match between services
-
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
       # Tell nginx how to proxy pomerium's routes
-      - VIRTUAL_PROTO=https
+      - VIRTUAL_PROTO=http
       - VIRTUAL_HOST=authenticate.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
     volumes:
-      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/pomerium/cert.pem:ro
-      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/pomerium/privkey.pem:ro
-      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/docs/reference/reference/
-      # See `config.example.yaml` and modify to fit your needs.
       - ../config/config.example.yaml:/pomerium/config.yaml:ro
 
     expose:
       - 443
 
   pomerium-proxy:
-    image: pomerium/pomerium:master # or `build: .` to build from source
+    image: pomerium/pomerium:v0.4.0 # or `build: .` to build from source
     restart: always
     environment:
       - SERVICES=proxy
+      - INSECURE_SERVER=TRUE
       # IMPORTANT! If you are running pomerium behind another ingress (loadbalancer/firewall/etc)
       # you must tell pomerium proxy how to communicate using an internal hostname for RPC
-      - AUTHORIZE_SERVICE_URL=https://pomerium-authorize
+      - AUTHORIZE_SERVICE_URL=http://pomerium-authorize:443
       # When communicating internally, rPC is going to get a name conflict expecting an external
       # facing certificate name (i.e. authenticate-service.local vs *.corp.example.com).
-      - OVERRIDE_CERTIFICATE_NAME=*.corp.beyondperimeter.com
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
       # Tell nginx how to proxy pomerium's routes
-      - VIRTUAL_PROTO=https
+      - VIRTUAL_PROTO=http
       - VIRTUAL_HOST=*.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
     volumes:
-      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/pomerium/cert.pem:ro
-      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/pomerium/privkey.pem:ro
-      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/docs/reference/reference/
-      # See `config.example.yaml` and modify to fit your needs.
       - ../config/config.example.yaml:/pomerium/config.yaml:ro
     expose:
       - 443
 
   pomerium-authorize:
-    image: pomerium/pomerium:master # or `build: .` to build from source
+    image: pomerium/pomerium:v0.4.0 # or `build: .` to build from source
     restart: always
     environment:
       - SERVICES=authorize
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
-      # Tell nginx how to proxy pomerium's routes
-      - VIRTUAL_PROTO=https
-      - VIRTUAL_HOST=authorize.corp.beyondperimeter.com
-      - VIRTUAL_PORT=443
+      - GRPC_INSECURE=TRUE
+      - GRPC_ADDRESS=:443
+
     volumes:
-      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/pomerium/cert.pem:ro
-      - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/pomerium/privkey.pem:ro
       # Retrieve non-secret config keys from the config file : https://www.pomerium.io/docs/reference/reference/
       # See `config.example.yaml` and modify to fit your needs.
       - ../config/config.example.yaml:/pomerium/config.yaml:ro

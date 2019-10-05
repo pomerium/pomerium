@@ -6,13 +6,16 @@
 # log_level: info # optional, default is debug
 
 authenticate_service_url: https://authenticate.corp.beyondperimeter.com
-authorize_service_url: https://authorize.corp.beyondperimeter.com
+# authorize_service_url: https://authorize.corp.beyondperimeter.com # usually a behind an ingress url
 
-# Certificates can be loaded as files or base64 encoded bytes. If neither is set, a
-# pomerium will attempt to locate a pair in the root directory
+# Certificates can be loaded as files or base64 encoded bytes.
 # certificate_file: "./cert.pem" # optional, defaults to `./cert.pem`
 # certificate_key_file: "./privkey.pem" # optional, defaults to `./certprivkey.pem`
 # certificate_authority_file: "./cert.pem"
+
+# alternatively, insecure mode can be used if behind a TLS terminating ingress,
+# or when using a sidecar proxy
+# insecure_server: true
 
 # base64 encoded cert, eg. `base64 -i cert.pem` / `base64 -i privkey.pem`
 # certificate: |

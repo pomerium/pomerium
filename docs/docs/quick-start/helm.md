@@ -8,7 +8,7 @@ meta:
 
 # Pomerium using Helm
 
-This quickstart will show you how to deploy Pomerium with Kubernetes.
+This quick-start will show you how to deploy Pomerium with [Helm](https://helm.sh) on [Kubernetes](https://kubernetes.io).
 
 ## Prerequisites
 

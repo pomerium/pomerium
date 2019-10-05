@@ -2,12 +2,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: pomerium-authenticate-service
-  annotations:
-    cloud.google.com/app-protocols: '{"https":"HTTPS"}'
 spec:
   ports:
-    - port: 443
-      name: https
+    - port: 80
+      name: http
   selector:
     app: pomerium-authenticate
   type: NodePort
@@ -29,13 +27,13 @@ spec:
         app: pomerium-authenticate
     spec:
       containers:
-        - image: pomerium/pomerium:master
+        - image: pomerium/pomerium:v0.4.0
           name: pomerium-authenticate
           args:
             - --config=/etc/pomerium/config.yaml
           ports:
-            - containerPort: 443
-              name: https
+            - containerPort: 80
+              name: http
               protocol: TCP
           env:
             - name: SERVICES
@@ -50,27 +48,17 @@ spec:
                 secretKeyRef:
                   name: cookie-secret
                   key: cookie-secret
-            - name: CERTIFICATE
-              valueFrom:
-                secretKeyRef:
-                  name: certificate
-                  key: certificate
-            - name: CERTIFICATE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: certificate-key
-                  key: certificate-key
           readinessProbe:
             httpGet:
               path: /ping
-              port: 443
-              scheme: HTTPS
+              port: 80
+              scheme: HTTP
           livenessProbe:
             httpGet:
               path: /ping
-              port: 443
-              scheme: HTTPS
-            initialDelaySeconds: 10
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 5
             timeoutSeconds: 1
           volumeMounts:
             - mountPath: /etc/pomerium/

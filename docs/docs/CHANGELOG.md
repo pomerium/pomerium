@@ -1,15 +1,16 @@
 # Changelog
 
-## vUNRELEASED
+## v0.4.0
 
 ### New
 
-- Allow setting request headers for back-end requests on per route basis in policy. [GH-308]
-- Add endpoint to support "forward-auth" integration with third-party ingresses and proxies. Supports [nginx]https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-subrequest-authentication/, [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), and [Traefik](https://docs.traefik.io/middlewares/forwardauth/). [GH-324]
-- Add insecure transport support. [GH-328]
-- Add setting to override HTTPS backend's TLS Server Name. [GH-297]
-- Add setting to set pomerium's encrypted session in a auth bearer token, or query param.
+- Allow setting request headers on a per route basis in policy. [GH-308]
+- Support "forward-auth" integration with third-party ingresses and proxies. [nginx](https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-subrequest-authentication/), [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), and [Traefik](https://docs.traefik.io/middlewares/forwardauth/) are currently supported. [GH-324]
+- Add insecure transport / TLS termination support. [GH-328]
+- Add setting to override a route's TLS Server Name. [GH-297]
+- Pomerium's session can now be passed as a [bearer-auth header](https://tools.ietf.org/html/rfc6750) or [query string](https://en.wikipedia.org/wiki/Query_string) in addition to as a session cookie.
 - Add host to the main request logger middleware. [GH-308]
+- Add AWS cognito identity provider settings. [GH-314]
 
 ### Security
 
@@ -21,6 +22,7 @@
 - Fixed an issue where CSRF would fail if multiple tabs were open. [GH-306]
 - Fixed an issue where pomerium would clean double slashes from paths. [GH-262]
 - Fixed a bug where the impersonate form would persist an empty string for groups value if none set. [GH-303]
+- Fixed HTTP redirect server which was not redirecting the correct hostname.
 
 ### Changed
 
@@ -34,6 +36,12 @@
 ### Removed
 
 - Removed `AUTHENTICATE_INTERNAL_URL`/`authenticate_internal_url` which is no longer used.
+
+## v0.3.1
+
+### Security
+
+- Fixes vulnerabilities fixed in [Go 1.13.1](https://groups.google.com/forum/m/#!msg/golang-announce/cszieYyuL9Q/g4Z7pKaqAgAJ) including CVE-2019-16276.
 
 ## v0.3.0
 
@@ -61,7 +69,7 @@
 
 - Remove references to [service named ports](https://golang.org/src/net/lookup.go) and instead use their numeric equivalent. [GH-266]
 
-## v0.2.0
+## v0.2.1
 
 ### Security
 
@@ -285,6 +293,7 @@
 [gh-303]: https://github.com/pomerium/pomerium/issues/303
 [gh-306]: https://github.com/pomerium/pomerium/issues/306
 [gh-308]: https://github.com/pomerium/pomerium/issues/308
+[gh-314]: https://github.com/pomerium/pomerium/pull/314
 [gh-316]: https://github.com/pomerium/pomerium/pull/316
 [gh-319]: https://github.com/pomerium/pomerium/issues/319
 [gh-328]: https://github.com/pomerium/pomerium/issues/328
