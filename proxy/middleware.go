@@ -23,7 +23,9 @@ const (
 	// HeaderGroups is the header key containing the user's groups.
 	HeaderGroups = "x-pomerium-authenticated-user-groups"
 
-	disableCallback = "pomerium-auth-callback"
+	// HeaderNoAuthRedirect is the header / query param key used to disable
+	// redirecting unauthenticated request by default but instead return a 401.
+	HeaderNoAuthRedirect = "x-pomerium-no-auth-redirect"
 )
 
 // AuthenticateSession is middleware to enforce a valid authentication
@@ -33,8 +35,8 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 		ctx, span := trace.StartSpan(r.Context(), "middleware.AuthenticateSession")
 		defer span.End()
 		s, err := sessions.FromContext(r.Context())
-		if err != nil {
-			log.Debug().Str("cause", err.Error()).Msg("proxy: re-authenticating due to session state error")
+		if err != nil || s == nil {
+			log.Debug().Msg("proxy: re-authenticating due to session state error")
 			p.reqNeedsAuthentication(w, r)
 			return
 		}
@@ -58,7 +60,7 @@ func (p *Proxy) AuthorizeSession(next http.Handler) http.Handler {
 		ctx, span := trace.StartSpan(r.Context(), "middleware.AuthorizeSession")
 		defer span.End()
 		s, err := sessions.FromContext(r.Context())
-		if err != nil {
+		if err != nil || s == nil {
 			httputil.ErrorResponse(w, r.WithContext(ctx), httputil.Error("", http.StatusForbidden, err))
 			return
 		}
@@ -105,9 +107,11 @@ func (p *Proxy) reqNeedsAuthentication(w http.ResponseWriter, r *http.Request) {
 	// some proxies like nginx won't follow redirects, and treat any
 	// non 2xx or 4xx status as an internal service error.
 	// https://nginx.org/en/docs/http/ngx_http_auth_request_module.html
-	if _, ok := r.URL.Query()[disableCallback]; ok {
+	redirectHeader := r.Header.Get(HeaderNoAuthRedirect)
+	if _, ok := r.URL.Query()[HeaderNoAuthRedirect]; ok || redirectHeader == "true" {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 	}
+	r.Header.Get(HeaderNoAuthRedirect)
 	uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, urlutil.GetAbsoluteURL(r))
 	http.Redirect(w, r, uri.String(), http.StatusFound)
 }
