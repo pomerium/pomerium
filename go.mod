@@ -10,7 +10,7 @@ require (
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.3.1
-	github.com/gorilla/mux v1.6.2
+	github.com/gorilla/mux v1.7.3
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/pelletier/go-toml v1.4.0 // indirect
