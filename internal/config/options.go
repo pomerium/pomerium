@@ -25,6 +25,11 @@ import (
 // DisableHeaderKey is the key used to check whether to disable setting header
 const DisableHeaderKey = "disable"
 
+// DefaultAlternativeAddr is the address used is two services are competing over
+// the same listener. Typically this is invisible to the end user (e.g. localhost)
+// gRPC server, or is used for healthchecks (authorize only service)
+const DefaultAlternativeAddr = ":5443"
+
 // Options are the global environmental flags used to set up pomerium's services.
 // Use NewXXXOptions() methods for a safely initialized data structure.
 type Options struct {
@@ -166,8 +171,6 @@ type Options struct {
 	// allow you to delegate and authenticate each request to your website
 	// with an external server or service. Pomerium can be configured to accept
 	// these requests with this switch
-	//
-	// todo(bdd): link to docs
 	ForwardAuthURLString string `mapstructure:"forward_auth_url"`
 	ForwardAuthURL       *url.URL
 
@@ -390,11 +393,21 @@ func (o *Options) Validate() error {
 		o.GRPCInsecure = true
 		// to avoid port collision when running on localhost
 		if o.GRPCAddr == defaultOptions.GRPCAddr {
-			o.GRPCAddr = ":5443"
+			o.GRPCAddr = DefaultAlternativeAddr
 		}
 		// and we can set the corresponding client
 		if o.AuthorizeURLString == "" {
-			o.AuthorizeURLString = "https://localhost:5443"
+			o.AuthorizeURLString = "https://localhost" + DefaultAlternativeAddr
+		}
+	}
+
+	if IsAuthorize(o.Services) {
+		// if authorize is set, we don't really need a http server
+		// but we'll still set one up incase the user wants to use
+		// the HTTP health check api
+		if o.Addr == o.GRPCAddr {
+			o.Addr = DefaultAlternativeAddr
+			log.Warn().Str("Addr", o.Addr).Str("GRPCAddr", o.Addr).Msg("internal/config: default http handler changed")
 		}
 	}
 
