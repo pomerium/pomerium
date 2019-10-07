@@ -8,7 +8,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/golang/mock v1.3.1
-	github.com/golang/protobuf v1.3.1
+	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.3.1
 	github.com/gorilla/mux v1.7.3
 	github.com/magiconair/properties v1.8.1 // indirect
@@ -26,13 +26,13 @@ require (
 	github.com/stretchr/testify v1.4.0 // indirect
 	go.opencensus.io v0.22.0
 	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
-	golang.org/x/net v0.0.0-20190611141213-3f473d35a33a
+	golang.org/x/net v0.0.0-20191003171128-d98b1b443823
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
-	golang.org/x/sys v0.0.0-20190927073244-c990c680b611 // indirect
+	golang.org/x/sys v0.0.0-20191005200804-aed5e4c7ecf9 // indirect
 	google.golang.org/api v0.6.0
 	google.golang.org/appengine v1.6.1 // indirect
-	google.golang.org/genproto v0.0.0-20190611190212-a7e196e89fd3 // indirect
-	google.golang.org/grpc v1.22.0
+	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143 // indirect
+	google.golang.org/grpc v1.24.0
 	gopkg.in/square/go-jose.v2 v2.3.1
 	gopkg.in/yaml.v2 v2.2.3
 )

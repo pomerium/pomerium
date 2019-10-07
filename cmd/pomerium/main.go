@@ -167,6 +167,9 @@ func newGlobalRouter(o *config.Options) *mux.Router {
 	mux.Use(log.RefererHandler("referer"))
 	mux.Use(log.RequestIDHandler("req_id", "Request-Id"))
 	mux.Use(middleware.Healthcheck("/ping", version.UserAgent()))
+	mux.HandleFunc("/healthz", httputil.HealthCheck)
+	mux.HandleFunc("/ping", httputil.HealthCheck)
+
 	return mux
 }
 
