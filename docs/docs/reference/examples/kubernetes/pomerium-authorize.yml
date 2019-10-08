@@ -2,15 +2,13 @@ apiVersion: v1
 kind: Service
 metadata:
   name: pomerium-authorize-service
-  annotations:
-    cloud.google.com/app-protocols: '{"https":"HTTPS"}'
 spec:
   ports:
-    - port: 443
-      name: https
+    - port: 80
+      name: grpc
   selector:
     app: pomerium-authorize
-  type: NodePort
+  type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -29,13 +27,13 @@ spec:
         app: pomerium-authorize
     spec:
       containers:
-        - image: pomerium/pomerium:master
+        - image: pomerium/pomerium:v0.4.0
           name: pomerium-authorize
           args:
             - --config=/etc/pomerium/config.yaml
           ports:
-            - containerPort: 443
-              name: https
+            - containerPort: 80
+              name: grpc
               protocol: TCP
           env:
             - name: SERVICES
@@ -45,28 +43,17 @@ spec:
                 secretKeyRef:
                   name: shared-secret
                   key: shared-secret
-            - name: CERTIFICATE
-              valueFrom:
-                secretKeyRef:
-                  name: certificate
-                  key: certificate
-            - name: CERTIFICATE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: certificate-key
-                  key: certificate-key
           readinessProbe:
-            httpGet:
-              path: /ping
-              port: 443
-              scheme: HTTPS
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /ping
-              port: 443
-              scheme: HTTPS
-            initialDelaySeconds: 10
-            timeoutSeconds: 1
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+
           volumeMounts:
             - mountPath: /etc/pomerium/
               name: config

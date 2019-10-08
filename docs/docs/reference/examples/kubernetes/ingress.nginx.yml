@@ -1,12 +1,14 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: pomerium-http
+  name: pomerium-ingress
   annotations:
     kubernetes.io/ingress.class: "nginx"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    # kubernetes.io/tls-acme: "true"
+    # certmanager.k8s.io/issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    # nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
     # to avoid ingress routing, enable
     # nginx.ingress.kubernetes.io/ssl-passthrough: "true"
 
@@ -16,7 +18,6 @@ spec:
       hosts:
         - "*.corp.beyondperimeter.com"
         - "authenticate.corp.beyondperimeter.com"
-        - "authorize.corp.beyondperimeter.com"
 
   rules:
     - host: "*.corp.beyondperimeter.com"
@@ -25,7 +26,7 @@ spec:
           - paths:
             backend:
               serviceName: pomerium-proxy-service
-              servicePort: https
+              servicePort: http
 
     - host: "authenticate.corp.beyondperimeter.com"
       http:
@@ -33,4 +34,4 @@ spec:
           - paths:
             backend:
               serviceName: pomerium-authenticate-service
-              servicePort: https
+              servicePort: http

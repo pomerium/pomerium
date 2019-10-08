@@ -54,6 +54,8 @@ To see difference between releases, please refer to the changelog and upgrading 
 
 For convenience, we maintain hosted documentation for each tagged release. The format for which is `https://{MAJOR}-{MINOR}-{PATCH}.docs.pomerium.io`. For example:
 
+- [github@master](https://master.docs.pomerium.io/)
+- [v0.4.0](https://0-4-0.docs.pomerium.io/)
 - [v0.3.0](https://0-3-0.docs.pomerium.io/)
 - [v0.2.0](https://0-2-0.docs.pomerium.io/)
 - [v0.1.0](https://0-1-0.docs.pomerium.io/)

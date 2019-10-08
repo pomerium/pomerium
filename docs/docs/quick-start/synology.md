@@ -26,7 +26,7 @@ Pomerium is lightweight, can easily handle hundreds of concurrent requests, and 
 - A configured Google OAuth2 [identity provider]
 - A [wild-card TLS certificate][certificate documentation]
 
-Though any supported identity provider would work, this guide uses google.
+Though any supported [identity provider] would work, this guide uses google.
 
 ## Port forwarding
 
@@ -54,7 +54,7 @@ Set the following **Reverse Proxy Rules**.
 | Destination Port     | 8443        |
 | HTTP/2               | Enabled     |
 | HSTS                 | Enabled     |
-| Destination Protocol | HTTPS       |
+| Destination Protocol | HTTP        |
 | Destination Hostname | localhost   |
 | Destination Port     | 32443       |
 
@@ -170,20 +170,15 @@ These are the minimum set of configuration settings to get Pomerium running in t
 
 Go to **Environment** tab.
 
-| Field                     | Value                                                                                    |
-| ------------------------- | ---------------------------------------------------------------------------------------- |
-| POLICY                    | output of `base64 -i policy.yaml`                                                        |
-| CERTIFICATE               | output of `base64 -i "$HOME/.acme.sh/*.int.nas.example.io_ecc/fullchain.cer"`            |
-| CERTIFICATE_KEY           | output of `base64 -i "$HOME/.acme.sh/*.int.nas.example.io_ecc/*.int.nas.example.io.key"` |
-| CERTIFICATE_AUTHORITY     | output of `base64 -i "$HOME/.acme.sh/*.int.nas.example.io_ecc/ca.cer"`                   |
-| OVERRIDE_CERTIFICATE_NAME | `*.int.nas.example`                                                                      |
-| IDP_CLIENT_SECRET         | Values from setting up your [identity provider]                                          |
-| IDP_CLIENT_ID             | Values from setting up your [identity provider]                                          |
-| IDP_PROVIDER              | Values from setting up your [identity provider] (e.g. `google`)                          |
-| COOKIE_SECRET             | output of `head -c32 /dev/urandom | base64`                                              |
-| SHARED_SECRET             | output of `head -c32 /dev/urandom | base64`                                              |
-| AUTHORIZE_SERVICE_URL     | `https://localhost`                                                                      |
-| AUTHENTICATE_SERVICE_URL  | `https://authenticate.int.nas.example`                                                   |
+| Field                    | Value                                                           |
+| ------------------------ | --------------------------------------------------------------- |
+| POLICY                   | output of `base64 -i policy.yaml`                               |
+| INSECURE_SERVER          | `TRUE`, internal routing within docker will not be encrypted.   |
+| IDP_CLIENT_SECRET        | Values from setting up your [identity provider]                 |
+| IDP_CLIENT_ID            | Values from setting up your [identity provider]                 |
+| IDP_PROVIDER             | Values from setting up your [identity provider] (e.g. `google`) |
+| COOKIE_SECRET            | output of `head -c32 /dev/urandom | base64`                     |
+| AUTHENTICATE_SERVICE_URL | `https://authenticate.int.nas.example`                          |
 
 For a detailed explanation, and additional options, please refer to the [configuration variable docs]. Also note, though not covered in this guide, settings can be made via a mounted configuration file.
 

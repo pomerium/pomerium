@@ -8,7 +8,7 @@ meta:
 
 # Pomerium using Kubernetes
 
-This quickstart will cover how to deploy Pomerium with Kubernetes. Though there are [many ways](https://kubernetes.io/docs/setup/pick-right-solution/) to work with Kubernetes, for the purpose of this guide, we will use Google's [Kubernetes Engine](https://cloud.google.com/kubernetes-engine/). That said, most of the following steps should be very similar using any other provider.
+This quickstart will cover how to deploy Pomerium with Kubernetes. 
 
 ## Prerequisites
 

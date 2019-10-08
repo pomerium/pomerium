@@ -42,7 +42,7 @@ Once you've setup your wildcard domain, we can use acme.sh to create a certifica
 
 ```bash
 # Requires acme.sh @ https://github.com/Neilpang/acme.sh
-# Install (after reviewing, obviously) by running : 
+# Install (after reviewing, obviously) by running :
 # $ curl https://get.acme.sh | sh
 $HOME/.acme.sh/acme.sh \
     --issue \
@@ -91,7 +91,7 @@ Success
 Verify finished, start to sign.
 Cert success.
 -----BEGIN CERTIFICATE-----
-.... snip... 
+.... snip...
 -----END CERTIFICATE-----
 Your cert is in  $HOME/.acme.sh/*.corp.example.com_ecc/*.corp.example.com.cer
 Your cert key is in  $HOME/.acme.sh/*.corp.example.com_ecc/*.corp.example.com.key
@@ -101,12 +101,12 @@ And the full chain certs is there:  $HOME/.acme.sh/*.corp.example.com_ecc/fullch
 
 Here's how the above certificates signed by LetsEncrypt correspond to their respective Pomerium configuration settings:
 
-Pomerium Config             | Certificate file
---------------------------- | --------------------------------------------------------------
-[CERTIFICATE]               | `$HOME/.acme.sh/*.corp.example.com_ecc/fullchain.cer`
-[CERTIFICATE_KEY]           | `$HOME/.acme.sh/*.corp.example.com_ecc/*.corp.example.com.key`
-[CERTIFICATE_AUTHORITY]     | `$HOME/.acme.sh/*.corp.example.com_ecc/ca.cer`
-[OVERRIDE_CERTIFICATE_NAME] | `*.corp.example.com`
+| Pomerium Config             | Certificate file                                               |
+| --------------------------- | -------------------------------------------------------------- |
+| [CERTIFICATE]               | `$HOME/.acme.sh/*.corp.example.com_ecc/fullchain.cer`          |
+| [CERTIFICATE_KEY]           | `$HOME/.acme.sh/*.corp.example.com_ecc/*.corp.example.com.key` |
+| [CERTIFICATE_AUTHORITY]     | `$HOME/.acme.sh/*.corp.example.com_ecc/ca.cer`                 |
+| [OVERRIDE_CERTIFICATE_NAME] | `*.corp.example.com`                                           |
 
 Your end users will see a valid certificate for all domains delegated by Pomerium.
 
