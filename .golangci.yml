@@ -171,6 +171,7 @@ issues:
     - "goroutine calls T.Fatalf, which must be called in the same goroutine as the test"
     # good job Protobuffs!
     - "method XXX"
+    - "SA1019"
 
   exclude-rules:
     # Exclude some linters from running on test files.
