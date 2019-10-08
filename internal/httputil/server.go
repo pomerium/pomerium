@@ -48,9 +48,11 @@ func NewServer(opt *ServerOptions, h http.Handler, wg *sync.WaitGroup) (*http.Se
 	go func() {
 		defer wg.Done()
 		if err := srv.Serve(ln); err != http.ErrServerClosed {
-			log.Error().Err(err).Msg("internal/httputil: tls server crashed")
+			sublogger.Error().Err(err).Msg("internal/httputil: http server crashed")
 		}
 	}()
+	sublogger.Info().Msg("internal/httputil: http server started")
+
 	return srv, nil
 }
 
