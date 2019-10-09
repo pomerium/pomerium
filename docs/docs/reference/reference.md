@@ -662,8 +662,6 @@ Certificate Authority is set when behind-the-ingress service communication uses 
   Strict-Transport-Security:max-age=31536000; includeSubDomains; preload,
   ```
 
-```
-
 Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added to proxied requests. _Nota bene_ Downstream application headers will be overwritten by Pomerium's headers on conflict.
 
 By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
@@ -699,4 +697,3 @@ Default Upstream Timeout is the default timeout applied to a proxied route when 
 [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
 [toml]: https://en.wikipedia.org/wiki/TOML
 [yaml]: https://en.wikipedia.org/wiki/YAML
-```

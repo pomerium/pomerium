@@ -116,7 +116,7 @@ module.exports = {
 
           collapsable: false,
           sidebarDepth: 1,
-          children: ["", "vs-code-server"]
+          children: ["", "ad-guard", "vs-code-server"]
         }
       ]
     }
