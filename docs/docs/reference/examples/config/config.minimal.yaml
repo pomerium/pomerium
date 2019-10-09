@@ -1,6 +1,5 @@
 # See detailed configuration settings : https://www.pomerium.io/docs/reference/reference/
 authenticate_service_url: https://authenticate.corp.beyondperimeter.com
-authorize_service_url: https://authorize.corp.beyondperimeter.com
 
 # identity provider settings : https://www.pomerium.io/docs/identity-providers.html
 idp_provider: google

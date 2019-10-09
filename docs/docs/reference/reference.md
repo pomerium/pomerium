@@ -609,8 +609,8 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 - Environmental Variable: `AUTHORIZE_SERVICE_URL`
 - Config File Key: `authorize_service_url`
 - Type: `URL`
-- Required
-- Example: `https://authorize.corp.example.com` or `https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`
+- Required; inferred in all-in-one mode to be localhost.
+- Example: https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`
 
 Authorize Service URL is the location of the internally accessible authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
 
@@ -624,7 +624,7 @@ If your load balancer does not support gRPC pass-through you'll need to set this
 - Optional (but typically required if Authenticate Internal Service Address is set)
 - Example: `*.corp.example.com` if wild card or `authenticate.corp.example.com`/`authorize.corp.example.com`
 
-When Authenticate Internal Service Address is set, secure service communication can fail because the external certificate name will not match the internally routed service hostname/[SNI](https://en.wikipedia.org/wiki/Server_Name_Indication). This setting allows you to override that check.
+Secure service communication can fail if the external certificate does not match the internally routed service hostname/[SNI](https://en.wikipedia.org/wiki/Server_Name_Indication). This setting allows you to override that value.
 
 ## Certificate Authority
 
