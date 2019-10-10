@@ -610,7 +610,7 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 - Config File Key: `authorize_service_url`
 - Type: `URL`
 - Required; inferred in all-in-one mode to be localhost.
-- Example: https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`
+- Example: `https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`
 
 Authorize Service URL is the location of the internally accessible authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
 

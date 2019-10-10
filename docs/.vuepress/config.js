@@ -48,7 +48,14 @@ module.exports = {
           type: "group",
           collapsable: false,
           sidebarDepth: 0,
-          children: ["", "background", "releases", "upgrading", "CHANGELOG"]
+          children: [
+            "",
+            "background",
+            "releases",
+            "upgrading",
+            "CHANGELOG",
+            "FAQ"
+          ]
         },
         {
           title: "Quick Start",
