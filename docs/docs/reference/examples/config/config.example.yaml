@@ -6,7 +6,9 @@
 # log_level: info # optional, default is debug
 
 authenticate_service_url: https://authenticate.corp.beyondperimeter.com
-# authorize_service_url: https://authorize.corp.beyondperimeter.com # usually a behind an ingress url
+# authorize service url will default to localhost in all-in-one mode, otherwise
+# it should be set to a "behind-the-ingress" routable url
+# authorize_service_url: https://pomerium-authorize-service.default.svc.cluster.local
 
 # Certificates can be loaded as files or base64 encoded bytes.
 # certificate_file: "./cert.pem" # optional, defaults to `./cert.pem`
