@@ -290,25 +290,28 @@ func TestProxy_VerifyWithMiddleware(t *testing.T) {
 	t.Parallel()
 	opts := testOptions(t)
 	tests := []struct {
-		name     string
-		options  config.Options
-		ctxError error
-		method   string
-		qp       string
-		path     string
+		name      string
+		options   config.Options
+		ctxError  error
+		method    string
+		qp        string
+		path      string
+		verifyURI string
 
 		cipher       cryptutil.SecureEncoder
 		sessionStore sessions.SessionStore
 		authorizer   clients.Authorizer
 		wantStatus   int
 	}{
-		{"good", opts, nil, http.MethodGet, "", "/.pomerium/verify/some.domain.name", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
-		{"good post auth redirect", opts, nil, http.MethodGet, "pomerium-auth-callback", "/.pomerium/verify/some.domain.name", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusFound},
-		{"not authorized", opts, nil, http.MethodGet, "", "/.pomerium/verify/some.domain.name", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
-		{"not authorized expired, redirect to auth", opts, nil, http.MethodGet, "", "/.pomerium/verify/some.domain.name", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusFound},
-		{"not authorized expired, don't redirect!", opts, nil, http.MethodGet, HeaderNoAuthRedirect, "/.pomerium/verify/some.domain.name?no_redirect=true", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusUnauthorized},
-		{"not authorized because of error", opts, nil, http.MethodGet, "", "/.pomerium/verify/some.domain.name", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeError: errors.New("authz error")}, http.StatusInternalServerError},
-		{"bad context retrieval error", opts, errors.New("oh no"), http.MethodGet, "", "/.pomerium/verify/some.domain.name", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
+		{"good", opts, nil, http.MethodGet, "", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
+		{"bad naked domain uri given", opts, nil, http.MethodGet, "", "/.pomerium/verify", "a.naked.domain", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest},
+		{"bad empty verification uri given", opts, nil, http.MethodGet, "", "/.pomerium/verify", " ", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest},
+		{"good post auth redirect", opts, nil, http.MethodGet, "pomerium-auth-callback", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusFound},
+		{"not authorized", opts, nil, http.MethodGet, "", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
+		{"not authorized expired, redirect to auth", opts, nil, http.MethodGet, "", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusFound},
+		{"not authorized expired, don't redirect!", opts, nil, http.MethodGet, HeaderNoAuthRedirect, "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusUnauthorized},
+		{"not authorized because of error", opts, nil, http.MethodGet, "", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeError: errors.New("authz error")}, http.StatusInternalServerError},
+		{"bad context retrieval error", opts, errors.New("oh no"), http.MethodGet, "", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -324,6 +327,9 @@ func TestProxy_VerifyWithMiddleware(t *testing.T) {
 			queryString := uri.Query()
 			if tt.qp != "" {
 				queryString.Set(tt.qp, "true")
+			}
+			if tt.verifyURI != "" {
+				queryString.Set("uri", tt.verifyURI)
 			}
 			uri.RawQuery = queryString.Encode()
 
@@ -343,58 +349,6 @@ func TestProxy_VerifyWithMiddleware(t *testing.T) {
 			router.StrictSlash(true)
 			router = p.registerHelperHandlers(router)
 			router.ServeHTTP(w, r)
-			if status := w.Code; status != tt.wantStatus {
-				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
-				t.Errorf("\n%+v", w.Body.String())
-			}
-		})
-	}
-}
-
-func TestProxy_Verify(t *testing.T) {
-	t.Parallel()
-	opts := testOptions(t)
-	tests := []struct {
-		name     string
-		options  config.Options
-		ctxError error
-		method   string
-		qp       string
-		path     string
-
-		cipher       cryptutil.SecureEncoder
-		sessionStore sessions.SessionStore
-		authorizer   clients.Authorizer
-		wantStatus   int
-	}{
-		{"bad - no hostname in path", opts, nil, http.MethodGet, "false", "/ok", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(tt.options)
-			if err != nil {
-				t.Fatal(err)
-			}
-			p.encoder = tt.cipher
-			p.sessionStore = tt.sessionStore
-			p.AuthorizeClient = tt.authorizer
-			uri := &url.URL{Path: tt.path}
-			queryString := uri.Query()
-			queryString.Set("pomerium-auth-callback", tt.qp)
-			uri.RawQuery = queryString.Encode()
-
-			r := httptest.NewRequest(tt.method, uri.String(), nil)
-			state, err := tt.sessionStore.LoadSession(r)
-			if err != nil {
-				t.Fatal(err)
-			}
-			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
-			r = r.WithContext(ctx)
-			r.Header.Set("Authorization", "Bearer blah")
-			r.Header.Set("Accept", "application/json")
-			w := httptest.NewRecorder()
-			p.Verify(w, r)
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
 				t.Errorf("\n%+v", w.Body.String())

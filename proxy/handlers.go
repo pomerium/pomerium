@@ -35,7 +35,7 @@ func (p *Proxy) registerHelperHandlers(r *mux.Router) *mux.Router {
 	h.HandleFunc("/impersonate", p.Impersonate).Methods(http.MethodPost)
 	h.HandleFunc("/sign_out", p.SignOut).Methods(http.MethodGet, http.MethodPost)
 	h.HandleFunc("/refresh", p.ForceRefresh).Methods(http.MethodPost)
-	h.HandleFunc("/verify/{hostname}", p.Verify).Methods(http.MethodGet)
+	h.HandleFunc("/verify", p.Verify).Queries("uri", "{uri}").Methods(http.MethodGet)
 	return r
 }
 
@@ -158,12 +158,12 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 // will be redirected to the authenticate service to sign in with their identity
 // provider. If the user is unauthorized, they will be given a 403 http status.
 func (p *Proxy) Verify(w http.ResponseWriter, r *http.Request) {
-	// retrieve the target destination hostname from the url path
-	hostname, ok := mux.Vars(r)["hostname"]
-	if !ok {
-		httputil.ErrorResponse(w, r, httputil.Error("no hostname set", http.StatusBadRequest, nil))
+	uri, err := urlutil.ParseAndValidateURL(r.FormValue("uri"))
+	if err != nil || uri.String() == "" {
+		httputil.ErrorResponse(w, r, httputil.Error("bad verification uri given", http.StatusBadRequest, nil))
 		return
 	}
+
 	// attempt to retrieve the user session from the request context, validity
 	// of the identity session is asserted by the middleware chain
 	s, err := sessions.FromContext(r.Context())
@@ -173,7 +173,7 @@ func (p *Proxy) Verify(w http.ResponseWriter, r *http.Request) {
 	}
 	// query the authorization service to see if the session's user has
 	// the appropriate authorization to access the given hostname
-	authorized, err := p.AuthorizeClient.Authorize(r.Context(), hostname, s)
+	authorized, err := p.AuthorizeClient.Authorize(r.Context(), uri.Host, s)
 	if err != nil {
 		httputil.ErrorResponse(w, r, err)
 		return
@@ -185,7 +185,7 @@ func (p *Proxy) Verify(w http.ResponseWriter, r *http.Request) {
 	// check the queryparams to see if this check immediately followed
 	// authentication. If so, redirect back to the originally requested hostname.
 	if isCallback := r.URL.Query().Get("pomerium-auth-callback"); isCallback == "true" {
-		http.Redirect(w, r, hostname, http.StatusFound)
+		http.Redirect(w, r, uri.String(), http.StatusFound)
 		return
 	}
 
@@ -196,5 +196,5 @@ func (p *Proxy) Verify(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(HeaderEmail, s.RequestEmail())
 	w.Header().Set(HeaderGroups, s.RequestGroups())
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "%s is authorized for %s.", s.Email, hostname)
+	fmt.Fprintf(w, "%s is authorized for %s.", s.Email, uri.String())
 }
