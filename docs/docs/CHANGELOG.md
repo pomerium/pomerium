@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Fixed an issue where requests handled by forward-auth would not be redirected back to the underlying route after successful authentication and authorization. [GH-363]
+
 ## v0.4.0
 
 ### New
@@ -299,3 +305,4 @@
 [gh-328]: https://github.com/pomerium/pomerium/issues/328
 [gh-332]: https://github.com/pomerium/pomerium/pull/332/
 [gh-338]: https://github.com/pomerium/pomerium/issues/338
+[gh-363]: https://github.com/pomerium/pomerium/issues/363
