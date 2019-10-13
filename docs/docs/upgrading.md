@@ -7,6 +7,22 @@ description: >-
 
 # Upgrade Guide
 
+## Since 0.4.0
+
+### Breaking
+
+Previously, routes were verified by taking the downstream applications hostname in the form of a path `(e.g. ${fwdauth}/.pomerium/verify/httpbin.some.example`) variable. The new method for verifying a route using forward authentication is to pass the entire requested url in the form of a query string `(e.g. ${fwdauth}/.pomerium/verify?url=https://httpbin.some.example)` where the routed domain is the value of the `uri` key.
+
+For example, in nginx this would look like:
+
+```diff
+-    nginx.ingress.kubernetes.io/auth-url: https://fwdauth.corp.example.com/.pomerium/verify/httpbin.corp.example.com?no_redirect=true
+-    nginx.ingress.kubernetes.io/auth-signin: https://fwdauth.corp.example.com/.pomerium/verify/httpbin.corp.example.com
++    nginx.ingress.kubernetes.io/auth-url: https://fwdauth.corp.example.com/.pomerium/verify?uri=$scheme://$host$request_uri&x-pomerium-no-auth-redirect=true
++    nginx.ingress.kubernetes.io/auth-signin: https://fwdauth.corp.example.com/.pomerium/verify?uri=$scheme://$host$request_uri
+
+```
+
 ## Since 0.3.0
 
 ### Breaking
