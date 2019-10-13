@@ -1,0 +1,19 @@
+# letsencrypt-prod.yaml
+# As LE has very strict usage limits, it is highly suggested you start with staging
+# https://letsencrypt.org/docs/staging-environment/
+apiVersion: cert-manager.io/v1alpha2
+kind: Issuer
+metadata:
+  name: letsencrypt-prod # letsencrypt-staging
+  namespace: default
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory # https://acme-staging-v02.api.letsencrypt.org/directory
+    email: your@email.example # your email :)
+    privateKeySecretRef:
+      name: letsencrypt-prod # letsencrypt-staging
+    solvers:
+      - selector: {}
+        http01:
+          ingress:
+            class: nginx
