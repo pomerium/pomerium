@@ -22,42 +22,52 @@ const (
 	HeaderEmail = "x-pomerium-authenticated-user-email"
 	// HeaderGroups is the header key containing the user's groups.
 	HeaderGroups = "x-pomerium-authenticated-user-groups"
-
-	// HeaderNoAuthRedirect is the header / query param key used to disable
-	// redirecting unauthenticated request by default but instead return a 401.
-	HeaderNoAuthRedirect = "x-pomerium-no-auth-redirect"
 )
 
 // AuthenticateSession is middleware to enforce a valid authentication
 // session state is retrieved from the users's request context.
 func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := trace.StartSpan(r.Context(), "middleware.AuthenticateSession")
+		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthenticateSession")
 		defer span.End()
-		s, err := sessions.FromContext(r.Context())
-		if err != nil || s == nil {
-			log.Debug().Msg("proxy: re-authenticating due to session state error")
-			p.reqNeedsAuthentication(w, r)
+		if err := p.authenticate(w, r); err != nil {
+			log.FromRequest(r).Debug().Err(err).Msg("proxy: authenticate session")
+			uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, urlutil.GetAbsoluteURL(r))
+			http.Redirect(w, r, uri.String(), http.StatusFound)
 			return
 		}
-		if err := s.Valid(); err != nil {
-			log.Debug().Str("cause", err.Error()).Msg("proxy: re-authenticating due to invalid session")
-			p.reqNeedsAuthentication(w, r)
-			return
-		}
-		// add pomerium's headers to the downstream request
-		r.Header.Set(HeaderUserID, s.User)
-		r.Header.Set(HeaderEmail, s.RequestEmail())
-		r.Header.Set(HeaderGroups, s.RequestGroups())
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func (p *Proxy) authenticate(w http.ResponseWriter, r *http.Request) error {
+	s, err := sessions.FromContext(r.Context())
+	if err != nil {
+		return err
+	}
+	if s == nil {
+		return fmt.Errorf("empty session state")
+	}
+	if err := s.Valid(); err != nil {
+		return err
+	}
+	// add pomerium's headers to the downstream request
+	r.Header.Set(HeaderUserID, s.User)
+	r.Header.Set(HeaderEmail, s.RequestEmail())
+	r.Header.Set(HeaderGroups, s.RequestGroups())
+	// and upstream
+	w.Header().Set(HeaderUserID, s.User)
+	w.Header().Set(HeaderEmail, s.RequestEmail())
+	w.Header().Set(HeaderGroups, s.RequestGroups())
+	return nil
 }
 
 // AuthorizeSession is middleware to enforce a user is authorized for a request
 // session state is retrieved from the users's request context.
 func (p *Proxy) AuthorizeSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := trace.StartSpan(r.Context(), "middleware.AuthorizeSession")
+		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthorizeSession")
 		defer span.End()
 		s, err := sessions.FromContext(r.Context())
 		if err != nil || s == nil {
@@ -82,7 +92,7 @@ func (p *Proxy) AuthorizeSession(next http.Handler) http.Handler {
 func (p *Proxy) SignRequest(signer cryptutil.JWTSigner) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.SignRequest")
+			ctx, span := trace.StartSpan(r.Context(), "proxy.SignRequest")
 			defer span.End()
 			s, err := sessions.FromContext(r.Context())
 			if err != nil {
@@ -91,7 +101,7 @@ func (p *Proxy) SignRequest(signer cryptutil.JWTSigner) func(next http.Handler) 
 			}
 			jwt, err := signer.SignJWT(s.User, s.Email, strings.Join(s.Groups, ","))
 			if err != nil {
-				log.Warn().Err(err).Msg("proxy: failed signing jwt")
+				log.FromRequest(r).Warn().Err(err).Msg("proxy: failed signing jwt")
 			} else {
 				r.Header.Set(HeaderJWT, jwt)
 				w.Header().Set(HeaderJWT, jwt)
@@ -101,26 +111,11 @@ func (p *Proxy) SignRequest(signer cryptutil.JWTSigner) func(next http.Handler) 
 	}
 }
 
-// reqNeedsAuthentication begins the authenticate flow, encrypting the
-// redirect url in a request to the provider's sign in endpoint.
-func (p *Proxy) reqNeedsAuthentication(w http.ResponseWriter, r *http.Request) {
-	// some proxies like nginx won't follow redirects, and treat any
-	// non 2xx or 4xx status as an internal service error.
-	// https://nginx.org/en/docs/http/ngx_http_auth_request_module.html
-	redirectHeader := r.Header.Get(HeaderNoAuthRedirect)
-	if _, ok := r.URL.Query()[HeaderNoAuthRedirect]; ok || redirectHeader == "true" {
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-	}
-	r.Header.Get(HeaderNoAuthRedirect)
-	uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, urlutil.GetAbsoluteURL(r))
-	http.Redirect(w, r, uri.String(), http.StatusFound)
-}
-
 // SetResponseHeaders sets a map of response headers.
 func SetResponseHeaders(headers map[string]string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.SetResponseHeaders")
+			ctx, span := trace.StartSpan(r.Context(), "proxy.SetResponseHeaders")
 			defer span.End()
 			for key, val := range headers {
 				r.Header.Set(key, val)
