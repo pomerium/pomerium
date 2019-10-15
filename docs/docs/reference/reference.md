@@ -303,7 +303,7 @@ Forward authentication creates an endpoint that can be used with third-party pro
 
 #### NGINX Ingress
 
-Some reverse-proxies, such as nginx split access control flow into two parts: verification and sign-in redirection. Notice the additional the additional `?no_redirect=true` query param in `auth-rul` which tells Pomerium to return a `401` instead of redirecting and starting the sign-in process.
+Some reverse-proxies, such as nginx split access control flow into two parts: verification and sign-in redirection. Notice the additional path `/verify` used for `auth-url` indicating to Pomerium that it should return a `401` instead of redirecting and starting the sign-in process.
 
 ```yaml
 apiVersion: extensions/v1beta1
@@ -313,8 +313,8 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "nginx"
     certmanager.k8s.io/issuer: "letsencrypt-prod"
-    nginx.ingress.kubernetes.io/auth-url: https://fwdauth.corp.example.com/.pomerium/verify?uri=$scheme://$host$request_uri&x-pomerium-no-auth-redirect=true
-    nginx.ingress.kubernetes.io/auth-signin: "https://fwdauth.corp.example.com/.pomerium/verify?uri=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-url: https://fwdauth.corp.example.com?uri=$scheme://$host$request_uri
+    nginx.ingress.kubernetes.io/auth-signin: "https://fwdauth.corp.example.com/verify?uri=$scheme://$host$request_uri"
 spec:
   tls:
     - hosts:
@@ -356,7 +356,7 @@ services:
       - "traefik.http.routers.httpbin.rule=Host(`httpbin.corp.example.com`)"
       # Create a middleware named `foo-add-prefix`
       - "traefik.http.middlewares.test-auth.forwardauth.authResponseHeaders=X-Pomerium-Authenticated-User-Email,x-pomerium-authenticated-user-id,x-pomerium-authenticated-user-groups,x-pomerium-jwt-assertion"
-      - "traefik.http.middlewares.test-auth.forwardauth.address=http://fwdauth.corp.example.com/.pomerium/verify?uri=https://httpbin.corp.example.com"
+      - "traefik.http.middlewares.test-auth.forwardauth.address=http://fwdauth.corp.example.com/?uri=https://httpbin.corp.example.com"
       - "traefik.http.routers.httpbin.middlewares=test-auth@docker"
 ```
 

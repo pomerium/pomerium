@@ -11,8 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
-
+	"github.com/google/go-cmp/cmp"
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -53,27 +52,6 @@ func TestProxy_Signout(t *testing.T) {
 	want := (proxy.authenticateURL.String())
 	if !strings.Contains(body, want) {
 		t.Errorf("handler returned unexpected body: got %v want %s ", body, want)
-	}
-}
-
-func TestProxy_authenticate(t *testing.T) {
-	proxy, err := New(testOptions(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := httptest.NewRequest(http.MethodGet, "/oauth-start", nil)
-
-	rr := httptest.NewRecorder()
-	proxy.reqNeedsAuthentication(rr, req)
-	// expect oauth redirect
-	if status := rr.Code; status != http.StatusFound {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusFound)
-	}
-	// expected url
-	expected := `<a href="https://authenticate.example/.pomerium/sign_in`
-	body := rr.Body.String()
-	if !strings.HasPrefix(body, expected) {
-		t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
 	}
 }
 
@@ -302,16 +280,21 @@ func TestProxy_VerifyWithMiddleware(t *testing.T) {
 		sessionStore sessions.SessionStore
 		authorizer   clients.Authorizer
 		wantStatus   int
+		wantBody     string
 	}{
-		{"good", opts, nil, http.MethodGet, "", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
-		{"bad naked domain uri given", opts, nil, http.MethodGet, "", "/.pomerium/verify", "a.naked.domain", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest},
-		{"bad empty verification uri given", opts, nil, http.MethodGet, "", "/.pomerium/verify", " ", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest},
-		{"good post auth redirect", opts, nil, http.MethodGet, "pomerium-auth-callback", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusFound},
-		{"not authorized", opts, nil, http.MethodGet, "", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusForbidden},
-		{"not authorized expired, redirect to auth", opts, nil, http.MethodGet, "", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusFound},
-		{"not authorized expired, don't redirect!", opts, nil, http.MethodGet, HeaderNoAuthRedirect, "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusUnauthorized},
-		{"not authorized because of error", opts, nil, http.MethodGet, "", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeError: errors.New("authz error")}, http.StatusInternalServerError},
-		{"bad context retrieval error", opts, errors.New("oh no"), http.MethodGet, "", "/.pomerium/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK},
+		{"good", opts, nil, http.MethodGet, "", "/", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK, ""},
+		{"good verify only", opts, nil, http.MethodGet, "", "/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusOK, ""},
+		{"bad naked domain uri given", opts, nil, http.MethodGet, "", "/", "a.naked.domain", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest, "{\"error\":\"bad verification uri given\"}\n"},
+		{"bad naked domain uri given verify only", opts, nil, http.MethodGet, "", "/verify", "a.naked.domain", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest, "{\"error\":\"bad verification uri given\"}\n"},
+		{"bad empty verification uri given", opts, nil, http.MethodGet, "", "/", " ", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest, "{\"error\":\"bad verification uri given\"}\n"},
+		{"bad empty verification uri given verify only", opts, nil, http.MethodGet, "", "/verify", " ", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusBadRequest, "{\"error\":\"bad verification uri given\"}\n"},
+		{"good post auth redirect", opts, nil, http.MethodGet, callbackQueryParam, "/", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: true}, http.StatusFound, "<a href=\"https://some.domain.example\">Found</a>.\n\n"},
+		{"not authorized", opts, nil, http.MethodGet, "", "/", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusUnauthorized, "{\"error\":\"Unauthorized\"}\n"},
+		{"not authorized verify endpoint", opts, nil, http.MethodGet, "", "/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusUnauthorized, "{\"error\":\"Unauthorized\"}\n"},
+		{"not authorized expired, redirect to auth", opts, nil, http.MethodGet, "", "/", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusFound, ""},
+		{"not authorized expired, don't redirect!", opts, nil, http.MethodGet, "", "/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusUnauthorized, "{\"error\":\"Unauthorized\"}\n"},
+		{"not authorized because of error", opts, nil, http.MethodGet, "", "/", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(10 * time.Second)}}, clients.MockAuthorize{AuthorizeError: errors.New("authz error")}, http.StatusUnauthorized, "{\"error\":\"Unauthorized\"}\n"},
+		{"not authorized expired, do not redirect to auth", opts, nil, http.MethodGet, "", "/verify", "https://some.domain.example", &cryptutil.MockEncoder{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@test.example", RefreshDeadline: time.Now().Add(-10 * time.Second)}}, clients.MockAuthorize{AuthorizeResponse: false}, http.StatusUnauthorized, "{\"error\":\"Unauthorized\"}\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -325,12 +308,14 @@ func TestProxy_VerifyWithMiddleware(t *testing.T) {
 			p.UpdateOptions(tt.options)
 			uri := &url.URL{Path: tt.path}
 			queryString := uri.Query()
+			queryString.Set("donstrip", "ok")
 			if tt.qp != "" {
 				queryString.Set(tt.qp, "true")
 			}
 			if tt.verifyURI != "" {
 				queryString.Set("uri", tt.verifyURI)
 			}
+
 			uri.RawQuery = queryString.Encode()
 
 			r := httptest.NewRequest(tt.method, uri.String(), nil)
@@ -345,13 +330,18 @@ func TestProxy_VerifyWithMiddleware(t *testing.T) {
 			r.Header.Set("Accept", "application/json")
 
 			w := httptest.NewRecorder()
-			router := mux.NewRouter()
-			router.StrictSlash(true)
-			router = p.registerHelperHandlers(router)
+			router := p.registerFwdAuthHandlers()
 			router.ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
 				t.Errorf("\n%+v", w.Body.String())
+			}
+
+			if tt.wantBody != "" {
+				body := w.Body.String()
+				if diff := cmp.Diff(body, tt.wantBody); diff != "" {
+					t.Errorf("wrong body\n%s", diff)
+				}
 			}
 		})
 	}

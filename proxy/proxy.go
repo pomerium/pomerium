@@ -30,6 +30,8 @@ const (
 	signinURL = "/.pomerium/sign_in"
 	// signoutURL is the path to authenticate's sign out endpoint
 	signoutURL = "/.pomerium/sign_out"
+
+	callbackQueryParam = "pomerium-auth-callback"
 )
 
 // ValidateOptions checks that proper configuration settings are set to create
@@ -179,11 +181,13 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 	r.SkipClean(true)
 	r.StrictSlash(true)
 	r.HandleFunc("/robots.txt", p.RobotsTxt).Methods(http.MethodGet)
-	r = p.registerHelperHandlers(r)
+	// dashboard handlers are registered to all routes
+	r = p.registerDashboardHandlers(r)
 
 	if opts.ForwardAuthURL != nil {
-		// create a route to handle forward auth requests
-		r.Host(opts.ForwardAuthURL.Host).Subrouter().PathPrefix("/")
+		// if a forward auth endpoint is set, register its handlers
+		h := r.Host(opts.ForwardAuthURL.Host).Subrouter()
+		h.PathPrefix("/").Handler(p.registerFwdAuthHandlers())
 	}
 
 	for _, policy := range opts.Policies {
