@@ -5,6 +5,7 @@
 ### Fixed
 
 - Fixed an issue where requests handled by forward-auth would not be redirected back to the underlying route after successful authentication and authorization. [GH-363]
+- Fixed an issue where requests handled by forward-auth would add an extraneous query-param following sign-in causing issues in some configurations. [GH-366]
 
 ## v0.4.0
 
