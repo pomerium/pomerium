@@ -123,7 +123,7 @@ module.exports = {
 
           collapsable: false,
           sidebarDepth: 1,
-          children: ["", "ad-guard", "vs-code-server"]
+          children: ["", "ad-guard", "vs-code-server", "kubernetes"]
         }
       ]
     }

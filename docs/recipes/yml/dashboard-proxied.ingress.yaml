@@ -1,0 +1,23 @@
+# dashboard-proxied.ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: dashboard-proxied
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/issuer: "letsencrypt-prod" # see `letsencrypt.issuer.yaml`
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+
+spec:
+  tls:
+    - hosts:
+        - dashboard-proxied.domain.example
+      secretName: dashboard-proxied-tls
+  rules:
+    - host: dashboard-proxied.domain.example
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: helm-pomerium-proxy
+              servicePort: https
