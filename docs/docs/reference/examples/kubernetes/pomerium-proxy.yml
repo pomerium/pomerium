@@ -29,7 +29,7 @@ spec:
         app: pomerium-proxy
     spec:
       containers:
-        - image: pomerium/pomerium:master
+        - image: pomerium/pomerium:v0.4.1
           name: pomerium-proxy
           args:
             - --config=/etc/pomerium/config.yaml
