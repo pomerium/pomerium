@@ -1,10 +1,12 @@
 # Changelog
 
-## v0.4.1
+## v0.4.2
 
 ### Security
 
 - Fixes vulnerabilities fixed in [1.13.2](https://groups.google.com/forum/#!topic/golang-announce/lVEm7llp0w0) including CVE-2019-17596.
+
+## v0.4.1
 
 ### Fixed
 
