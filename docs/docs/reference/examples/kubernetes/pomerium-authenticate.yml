@@ -27,7 +27,7 @@ spec:
         app: pomerium-authenticate
     spec:
       containers:
-        - image: pomerium/pomerium:v0.4.1
+        - image: pomerium/pomerium:v0.4.2
           name: pomerium-authenticate
           args:
             - --config=/etc/pomerium/config.yaml
