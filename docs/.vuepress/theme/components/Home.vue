@@ -14,7 +14,7 @@
           </p>
         </div>
 
-        <video class="media" autoplay loop muted playsinline>
+        <video v-if="data.heroImage" class="media" autoplay loop muted playsinline>
           <source
             v-if="data.heroImage"
             :src="$withBase(data.heroImage)"
@@ -22,6 +22,31 @@
             type="video/mp4"
           />Your browser does not support the video tag.
         </video>
+        <form
+          v-if="data.contactForm === true"
+          method="POST"
+          name="contact"
+          data-netlify="true"
+          netlify-honeypot="bot-field"
+        >
+          <input type="hidden" name="form-name" value="contact" />
+
+          <fieldset>
+            <label>
+              <span>Name</span>
+              <input name="name" class="field" required />
+            </label>
+            <label>
+              <span>Email</span>
+              <input name="email" type="email" class="field" required />
+            </label>
+            <label>
+              <span>Company</span>
+              <input name="company" class="field" />
+            </label>
+          </fieldset>
+          <button class="nav-link action-button" type="submit">Get in touch</button>
+        </form>
       </div>
     </header>
 
@@ -100,6 +125,81 @@ export default {
         flex: 1;
         max-width: 45%;
         align-items: center;
+      }
+
+      form {
+        background-color: $accentColor;
+        padding: 0 20px;
+        flex: 1;
+        max-width: 40%;
+
+        button {
+          display: block;
+          background: $textColor;
+          color: $section-color;
+          box-shadow: 0 1px 3px darken($textColor, 5%), 0 1px 1px rgba(0, 0, 0, 0.98);
+          border-radius: 6px;
+          border: 0;
+          width: 100%;
+          height: 40px;
+          outline: none;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          font-size: 1.2rem;
+          font-weight: 450;
+
+          &:hover {
+            transform: translateY(-1px);
+          }
+        }
+
+        fieldset {
+          margin-bottom: 20px;
+          background: #fff;
+          box-shadow: 0 1px 2px 0 lighten($section-color, 35%), 0 2px 2px 0 lighten($section-color, 35%);
+          border-radius: 4px;
+          border: none;
+
+          label {
+            position: relative;
+            display: flex;
+            flex-direction: row;
+            height: 42px;
+            padding: 8px 0;
+            align-items: center;
+            justify-content: center;
+
+            &:not(:last-child) {
+              border-bottom: 1px solid #f0f5fa;
+            }
+
+            span {
+              color: lighten($textColor, 25%);
+              font-weight: 450;
+              min-width: 60px;
+              padding: 0 15px;
+              text-align: right;
+              font-size: 0.9rem;
+            }
+          }
+
+          .field {
+            flex: 1;
+            padding: 0 15px;
+            background: transparent;
+            color: $textColor;
+            outline: none;
+            cursor: text;
+            font-size: 0.95rem;
+          }
+
+          input {
+            flex: 1;
+            border-style: none;
+            outline: none;
+            color: #313b3f;
+          }
+        }
       }
 
       .content {

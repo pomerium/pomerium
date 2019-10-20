@@ -25,6 +25,8 @@ module.exports = {
       { text: "Documentation", link: "/docs/" },
       { text: "Recipes", link: "/recipes/" },
       { text: "Community", link: "/community/" },
+      { text: "Enterprise", link: "/enterprise/" },
+
       {
         text: "🚧Dev", // current tagged version
         ariaLabel: "Version menu",
@@ -124,6 +126,15 @@ module.exports = {
           collapsable: false,
           sidebarDepth: 1,
           children: ["", "ad-guard", "vs-code-server", "kubernetes"]
+        }
+      ],
+      "/enterprise/": [
+        {
+          title: "Enterprise",
+          type: "group",
+          collapsable: false,
+          sidebarDepth: 1,
+          children: [""]
         }
       ]
     }
