@@ -25,6 +25,10 @@
 - Force refresh has been removed from the dashboard.
 - Previous programmatic authentication endpoints (`/api/v1/token`) has been removed and is no longer supported.
 
+### Fixed
+
+- Fixed an issue where cookie sessions would not clear on error.[GH-376]
+
 ## v0.4.2
 
 ### Security
@@ -338,3 +342,4 @@
 [gh-332]: https://github.com/pomerium/pomerium/pull/332/
 [gh-338]: https://github.com/pomerium/pomerium/issues/338
 [gh-363]: https://github.com/pomerium/pomerium/issues/363
+[gh-376]: https://github.com/pomerium/pomerium/pull/376/

@@ -1,6 +1,6 @@
 package encoding // import "github.com/pomerium/pomerium/internal/encoding"
 
-// Marshaler can both Marshal and Unmarshal a struct into and from a set of bytes.
+// MarshalUnmarshaler can both Marshal and Unmarshal a struct into and from a set of bytes.
 type MarshalUnmarshaler interface {
 	Marshaler
 	Unmarshaler
