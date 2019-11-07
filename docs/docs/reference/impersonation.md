@@ -37,7 +37,7 @@ In certain circumstances, it's useful for an administrative user to impersonate 
 Here's what it looks like.
 
 <video width="100%" height="600" controls=""><source src="./img/pomerium-user-impersonation.mp4" type="video/mp4">
-  Your browser does not support the video tag.
+Your browser does not support the video tag.
 </video>
 
-[configuration settings]: ../reference/#administrators
+[configuration settings]: ../reference/reference.md#administrators
