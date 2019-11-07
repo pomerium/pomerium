@@ -1,79 +1,136 @@
 from __future__ import absolute_import, division, print_function
 
 import argparse
+import http.server
 import json
 import sys
-
+import urllib.parse
+import webbrowser
+from urllib.parse import urlparse
 import requests
 
+done = False
+
 parser = argparse.ArgumentParser()
-parser.add_argument('--openid-configuration',
-                    default="https://accounts.google.com/.well-known/openid-configuration")
-parser.add_argument('--client-id')
-parser.add_argument('--client-secret')
-parser.add_argument('--pomerium-client-id')
-parser.add_argument('--code')
-parser.add_argument('--pomerium-token-url',
-                    default="https://authenticate.corp.beyondperimeter.com/api/v1/token")
-parser.add_argument('--pomerium-token')
-parser.add_argument('--pomerium-url', default="https://httpbin.corp.beyondperimeter.com/get")
+parser.add_argument("--login", action="store_true")
+parser.add_argument(
+    "--dst", default="https://httpbin.imac.bdd.io/headers",
+)
+parser.add_argument(
+    "--refresh-endpoint", default="https://authenticate.imac.bdd.io/api/v1/refresh",
+)
+parser.add_argument("--server", default="localhost", type=str)
+parser.add_argument("--port", default=8000, type=int)
+parser.add_argument(
+    "--cred", default="pomerium-cred.json",
+)
+args = parser.parse_args()
+
+
+class PomeriumSession:
+    def __init__(self, jwt, refresh_token):
+        self.jwt = jwt
+        self.refresh_token = refresh_token
+
+    def to_json(self):
+        return json.dumps(self.__dict__, indent=2)
+
+    @classmethod
+    def from_json_file(cls, fn):
+        with open(fn) as f:
+            data = json.load(f)
+            return cls(**data)
+
+
+class Callback(http.server.BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # silence http server logs for now
+        return
+
+    def do_GET(self):
+        global args
+        global done
+        self.send_response(200)
+        self.end_headers()
+        response = b"OK"
+        if "pomerium" in self.path:
+            path = urllib.parse.urlparse(self.path).query
+            path_qp = urllib.parse.parse_qs(path)
+            session = PomeriumSession(
+                path_qp.get("pomerium_jwt")[0],
+                path_qp.get("pomerium_refresh_token")[0],
+            )
+            done = True
+            response = session.to_json().encode()
+            with open(args.cred, "w", encoding="utf-8") as f:
+                f.write(session.to_json())
+                print("=> pomerium json credential saved to:\n{}".format(f.name))
+
+        self.wfile.write(response)
 
 
 def main():
-    args = parser.parse_args()
-    code = args.code
-    pomerium_token = args.pomerium_token
-    oidc_document = requests.get(args.openid_configuration).json()
-    token_url = oidc_document['token_endpoint']
-    print(token_url)
-    sign_in_url = oidc_document['authorization_endpoint']
+    global args
 
-    if not code and not pomerium_token:
-        if not args.client_id:
-            print("client-id is required")
-            sys.exit(1)
+    dst = urllib.parse.urlparse(args.dst)
+    try:
+        cred = PomeriumSession.from_json_file(args.cred)
+    except:
+        print("=> no credential found, let's login")
+        args.login = True
 
-        sign_in_url = "{}?response_type=code&scope=openid%20email&access_type=offline&redirect_uri=urn:ietf:wg:oauth:2.0:oob&client_id={}".format(
-            oidc_document['authorization_endpoint'], args.client_id)
-        print("Access code not set, so we'll do the process interactively!")
-        print("Go to the url : {}".format(sign_in_url))
-        code = input("Complete the login and enter your code:")
-        print(code)
+    # initial login to make sure we have our credential
+    if args.login:
+        dst = urllib.parse.urlparse(args.dst)
+        query_params = {"redirect_uri": "http://{}:{}".format(args.server, args.port)}
+        enc_query_params = urllib.parse.urlencode(query_params)
+        dst_login = "{}://{}{}?{}".format(
+            dst.scheme, dst.hostname, "/.pomerium/api/v1/login", enc_query_params,
+        )
+        response = requests.get(dst_login)
+        print("=> Your browser has been opened to visit:\n{}".format(response.text))
+        webbrowser.open(response.text)
 
-    if not pomerium_token:
-        req = requests.post(
-            token_url, {
-                'client_id': args.client_id,
-                'client_secret': args.client_secret,
-                'code': code,
-                'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob',
-                'grant_type': 'authorization_code'
-            })
+        with http.server.HTTPServer((args.server, args.port), Callback) as httpd:
+            while not done:
+                httpd.handle_request()
 
-        refresh_token = req.json()['refresh_token']
-        print("refresh token: {}".format(refresh_token))
+    cred = PomeriumSession.from_json_file(args.cred)
+    response = requests.get(
+        args.dst,
+        headers={
+            "Authorization": "Pomerium {}".format(cred.jwt),
+            "Content-type": "application/json",
+            "Accept": "application/json",
+        },
+    )
+    print(
+        "==> request\n{}\n==> response.status_code\n{}\n==>response.text\n{}\n".format(
+            args.dst, response.status_code, response.text
+        )
+    )
+    # if response.status_code == 200:
+    if response.status_code == 401:
+        # user our refresh token to get a new cred
+        print("==> got a 401, let's try to refresh that credential")
+        response = requests.get(
+            args.refresh_endpoint,
+            headers={
+                "Authorization": "Pomerium {}".format(cred.refresh_token),
+                "Content-type": "application/json",
+                "Accept": "application/json",
+            },
+        )
+        print(
+            "==>request\n{}\n ==> response.status_code\n{}\nresponse.text==>\n{}\n".format(
+                args.refresh_endpoint, response.status_code, response.text
+            )
+        )
+        # update our cred!
+        with open(args.cred, "w", encoding="utf-8") as f:
+            f.write(response.text)
+            print("=> pomerium json credential saved to:\n{}".format(f.name))
 
-        print("create a new id_token with our pomerium app as the audience")
-        req = requests.post(
-            token_url, {
-                'refresh_token': refresh_token,
-                'client_id': args.client_id,
-                'client_secret': args.client_secret,
-                'audience': args.pomerium_client_id,
-                'grant_type': 'refresh_token'
-            })
-        id_token = req.json()['id_token']
-        print("pomerium id_token: {}".format(id_token))
 
-        print("exchange our identity providers id token for a pomerium bearer token")
-        req = requests.post(args.pomerium_token_url, {'id_token': id_token})
-        pomerium_token = req.json()['Token']
-        print("pomerium bearer token is: {}".format(pomerium_token))
-
-    req = requests.get(args.pomerium_url, headers={'Authorization': 'Bearer ' + pomerium_token})
-    json_formatted = json.dumps(req.json(), indent=1)
-    print(json_formatted)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

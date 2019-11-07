@@ -1,6 +1,7 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
+	"crypto/cipher"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
@@ -10,8 +11,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -30,8 +33,6 @@ const (
 	signinURL = "/.pomerium/sign_in"
 	// signoutURL is the path to authenticate's sign out endpoint
 	signoutURL = "/.pomerium/sign_out"
-
-	callbackQueryParam = "pomerium-auth-callback"
 )
 
 // ValidateOptions checks that proper configuration settings are set to create
@@ -54,7 +55,7 @@ func ValidateOptions(o config.Options) error {
 	}
 
 	if len(o.SigningKey) != 0 {
-		if _, err := cryptutil.NewES256Signer(o.SigningKey, ""); err != nil {
+		if _, err := jws.NewES256Signer(o.SigningKey, ""); err != nil {
 			return fmt.Errorf("proxy: invalid 'SIGNING_KEY': %v", err)
 		}
 	}
@@ -64,7 +65,9 @@ func ValidateOptions(o config.Options) error {
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
 	// SharedKey used to mutually authenticate service communication
-	SharedKey              string
+	SharedKey    string
+	sharedCipher cipher.AEAD
+
 	authenticateURL        *url.URL
 	authenticateSigninURL  *url.URL
 	authenticateSignoutURL *url.URL
@@ -72,9 +75,8 @@ type Proxy struct {
 
 	AuthorizeClient clients.Authorizer
 
-	encoder                cryptutil.SecureEncoder
-	cookieName             string
-	cookieDomain           string
+	encoder                sessions.Encoder
+	cookieOptions          *sessions.CookieOptions
 	cookieSecret           []byte
 	defaultUpstreamTimeout time.Duration
 	refreshCooldown        time.Duration
@@ -92,50 +94,48 @@ func New(opts config.Options) (*Proxy, error) {
 		return nil, err
 	}
 
-	// errors checked in ValidateOptions
+	sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(opts.SharedKey)
 	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
-	cipher, _ := cryptutil.NewAEADCipherFromBase64(opts.CookieSecret)
 
-	encoder := cryptutil.NewSecureJSONEncoder(cipher)
-
-	if opts.CookieDomain == "" {
-		opts.CookieDomain = sessions.ParentSubdomain(opts.AuthenticateURL.String())
-	}
-
-	cookieStore, err := sessions.NewCookieStore(
-		&sessions.CookieStoreOptions{
-			Name:           opts.CookieName,
-			CookieDomain:   opts.CookieDomain,
-			CookieSecure:   opts.CookieSecure,
-			CookieHTTPOnly: opts.CookieHTTPOnly,
-			CookieExpire:   opts.CookieExpire,
-			Encoder:        encoder,
-		})
-
+	// used to load and verify JWT tokens signed by the authenticate service
+	encoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.AuthenticateURL.Host)
 	if err != nil {
 		return nil, err
 	}
-	p := &Proxy{
-		SharedKey: opts.SharedKey,
 
-		encoder:                encoder,
+	cookieOptions := &sessions.CookieOptions{
+		Name:     opts.CookieName,
+		Domain:   opts.CookieDomain,
+		Secure:   opts.CookieSecure,
+		HTTPOnly: opts.CookieHTTPOnly,
+		Expire:   opts.CookieExpire,
+	}
+
+	cookieStore, err := sessions.NewCookieLoader(cookieOptions, encoder)
+	if err != nil {
+		return nil, err
+	}
+
+	p := &Proxy{
+		SharedKey:    opts.SharedKey,
+		sharedCipher: sharedCipher,
+		encoder:      encoder,
+
 		cookieSecret:           decodedCookieSecret,
-		cookieDomain:           opts.CookieDomain,
-		cookieName:             opts.CookieName,
+		cookieOptions:          cookieOptions,
 		defaultUpstreamTimeout: opts.DefaultUpstreamTimeout,
 		refreshCooldown:        opts.RefreshCooldown,
 		sessionStore:           cookieStore,
 		sessionLoaders: []sessions.SessionLoader{
 			cookieStore,
-			sessions.NewHeaderStore(encoder),
-			sessions.NewQueryParamStore(encoder)},
+			sessions.NewHeaderStore(encoder, "Pomerium"),
+			sessions.NewQueryParamStore(encoder, "pomerium_session")},
 		signingKey: opts.SigningKey,
 		templates:  templates.New(),
 	}
 	// errors checked in ValidateOptions
 	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
 	p.authenticateURL, _ = urlutil.DeepCopy(opts.AuthenticateURL)
-
 	p.authenticateSigninURL = p.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	p.authenticateSignoutURL = p.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
 
@@ -238,14 +238,14 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy *config.Policy) (*mux.
 	// 4. Retrieve the user session and add it to the request context
 	rp.Use(sessions.RetrieveSession(p.sessionLoaders...))
 	// 5. Strip the user session cookie from the downstream request
-	rp.Use(middleware.StripCookie(p.cookieName))
+	rp.Use(middleware.StripCookie(p.cookieOptions.Name))
 	// 6. AuthN - Verify the user is authenticated. Set email, group, & id headers
 	rp.Use(p.AuthenticateSession)
 	// 7. AuthZ - Verify the user is authorized for route
 	rp.Use(p.AuthorizeSession)
 	// Optional: Add a signed JWT attesting to the user's id, email, and group
 	if len(p.signingKey) != 0 {
-		signer, err := cryptutil.NewES256Signer(p.signingKey, policy.Source.Host)
+		signer, err := jws.NewES256Signer(p.signingKey, policy.Destination.Host)
 		if err != nil {
 			return nil, err
 		}

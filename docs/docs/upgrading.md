@@ -11,6 +11,30 @@ description: >-
 
 ### Breaking
 
+#### Subdomain requirement dropped
+
+- Pomerium services and managed routes are no longer required to be on the same domain-tree. Access can be delegated to any route, on any domain (that you have access to, of course).
+
+#### Azure AD
+
+- The Azure AD provider now uses the globally unique and immutable`ID` instead of `group name` to attest a user's [group membership](https://docs.microsoft.com/en-us/graph/api/group-get?view=graph-rest-1.0&tabs=http). Please update your policies to use Group `ID`s instead of group names.
+
+#### Okta
+
+- Okta no longer uses tokens to retrieve group membership. [Group membership](https://developer.okta.com/docs/reference/api/groups/) is now fetched using Okta's API. Please update your policies to use Group `ID`s instead of group names.
+- Okta's group membership is now determined by the globally unique and immutable ID field.
+- Okta now requires an additional set of credentials to be used to query for group membership set as a [service account](https://www.pomerium.io/docs/reference/reference.html#identity-provider-service-account).
+
+#### Force Refresh Removed
+
+Force refresh has been removed from the dashboard. Logging out and back in again should have the equivalent desired effect.
+
+#### Programmatic Access API changed
+
+Previous programmatic authentication endpoints (`/api/v1/token`) has been removed and has been replaced by a per-route, oauth2 based auth flow. Please see updated [programmatic documentation](https://www.pomerium.io/docs/reference/programmatic-access.html) how to use the new programmatic access api.
+
+#### Forward-auth route change
+
 Previously, routes were verified by taking the downstream applications hostname in the form of a path `(e.g. ${fwdauth}/.pomerium/verify/httpbin.some.example`) variable. The new method for verifying a route using forward authentication is to pass the entire requested url in the form of a query string `(e.g. ${fwdauth}/.pomerium/verify?url=https://httpbin.some.example)` where the routed domain is the value of the `uri` key.
 
 Note that the verification URL is no longer nested under the `.pomerium` endpoint.

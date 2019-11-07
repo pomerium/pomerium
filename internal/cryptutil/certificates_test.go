@@ -1,9 +1,35 @@
 package cryptutil
 
 import (
+	"bytes"
 	"crypto/tls"
+	"strings"
 	"testing"
 )
+
+// A keypair for NIST P-256 / secp256r1
+// Generated using:
+//   openssl ecparam -genkey -name prime256v1 -outform PEM
+var pemECPrivateKeyP256 = `-----BEGIN EC PARAMETERS-----
+BggqhkjOPQMBBw==
+-----END EC PARAMETERS-----
+-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIOI+EZsjyN3jvWJI/KDihFmqTuDpUe/if6f/pgGTBta/oAoGCCqGSM49
+AwEHoUQDQgAEhhObKJ1r1PcUw+3REd/TbmSZnDvXnFUSTwqQFo5gbfIlP+gvEYba
++Rxj2hhqjfzqxIleRK40IRyEi3fJM/8Qhg==
+-----END EC PRIVATE KEY-----
+`
+
+var pemECPublicKeyP256 = `-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhhObKJ1r1PcUw+3REd/TbmSZnDvX
+nFUSTwqQFo5gbfIlP+gvEYba+Rxj2hhqjfzqxIleRK40IRyEi3fJM/8Qhg==
+-----END PUBLIC KEY-----
+`
+
+var garbagePEM = `-----BEGIN GARBAGE-----
+TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ=
+-----END GARBAGE-----
+`
 
 func TestCertifcateFromBase64(t *testing.T) {
 
@@ -90,4 +116,40 @@ func TestCertificateFromFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = listener
+}
+
+func TestPublicKeyMarshaling(t *testing.T) {
+	ecKey, err := DecodePublicKey([]byte(pemECPublicKeyP256))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = DecodePublicKey(nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	pemBytes, _ := EncodePublicKey(ecKey)
+	if !bytes.Equal(pemBytes, []byte(pemECPublicKeyP256)) {
+		t.Fatal("public key encoding did not match")
+	}
+
+}
+
+func TestPrivateKeyBadDecode(t *testing.T) {
+	_, err := DecodePrivateKey([]byte(garbagePEM))
+	if err == nil {
+		t.Fatal("decoded garbage data without complaint")
+	}
+}
+
+func TestPrivateKeyMarshaling(t *testing.T) {
+	ecKey, err := DecodePrivateKey([]byte(pemECPrivateKeyP256))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pemBytes, _ := EncodePrivateKey(ecKey)
+	if !strings.HasSuffix(pemECPrivateKeyP256, string(pemBytes)) {
+		t.Fatal("private key encoding did not match")
+	}
 }

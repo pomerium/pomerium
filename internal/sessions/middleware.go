@@ -12,10 +12,8 @@ var (
 	ErrorCtxKey   = &contextKey{"Error"}
 )
 
-// RetrieveSession will search for a auth session in a http request, in the order:
-//   1. `pomerium_session` URI query parameter
-//   2. `Authorization: BEARER` request header
-//   3. Cookie `_pomerium` value
+// RetrieveSession takes a slice of session loaders and tries to find a valid
+// session in the order they were supplied and is added to the request's context
 func RetrieveSession(s ...SessionLoader) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return retrieve(s...)(next)
@@ -34,35 +32,21 @@ func retrieve(s ...SessionLoader) func(http.Handler) http.Handler {
 	}
 }
 
+// retrieveFromRequest extracts sessions state from the request by calling
+// token find functions in the order they where provided.
 func retrieveFromRequest(r *http.Request, sessions ...SessionLoader) (*State, error) {
-	state := new(State)
-	var err error
-
-	// Extract sessions state from the request by calling token find functions in
-	// the order they where provided. Further extraction stops if a function
-	// returns a non-empty string.
 	for _, s := range sessions {
-		state, err = s.LoadSession(r)
+		state, err := s.LoadSession(r)
 		if err != nil && !errors.Is(err, ErrNoSessionFound) {
-			//  unexpected error
-			return nil, err
+			return state, err
 		}
-		// break, we found a session state
 		if state != nil {
-			break
+			err := state.Verify(r.Host)
+			return state, err // N.B.: state is _not nil_
 		}
 	}
-	// no session found if state is still empty
-	if state == nil {
-		return nil, ErrNoSessionFound
-	}
 
-	if err = state.Valid(); err != nil {
-		// a little unusual but we want to return the expired state too
-		return state, err
-	}
-
-	return state, nil
+	return nil, ErrNoSessionFound
 }
 
 // NewContext sets context values for the user session state and error.

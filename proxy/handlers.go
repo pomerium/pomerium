@@ -1,16 +1,17 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pomerium/csrf"
 
+	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -27,15 +28,24 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	// 3. Enforce CSRF protections for any non-idempotent http method
 	h.Use(csrf.Protect(
 		p.cookieSecret,
-		csrf.Path("/"),
-		csrf.Domain(p.cookieDomain),
-		csrf.CookieName(fmt.Sprintf("%s_csrf", p.cookieName)),
+		csrf.Secure(p.cookieOptions.Secure),
+		csrf.CookieName(fmt.Sprintf("%s_csrf", p.cookieOptions.Name)),
 		csrf.ErrorHandler(http.HandlerFunc(httputil.CSRFFailureHandler)),
 	))
 	h.HandleFunc("/", p.UserDashboard).Methods(http.MethodGet)
 	h.HandleFunc("/impersonate", p.Impersonate).Methods(http.MethodPost)
 	h.HandleFunc("/sign_out", p.SignOut).Methods(http.MethodGet, http.MethodPost)
-	h.HandleFunc("/refresh", p.ForceRefresh).Methods(http.MethodPost)
+
+	// Authenticate service callback handlers and middleware
+	c := r.PathPrefix(dashboardURL + "/callback").Subrouter()
+	// only accept payloads that have come from a trusted service (hmac)
+	c.Use(middleware.ValidateSignature(p.SharedKey))
+	c.HandleFunc("/", p.Callback).Queries("redirect_uri", "{redirect_uri}").Methods(http.MethodGet)
+
+	// Programmatic API handlers and middleware
+	a := r.PathPrefix(dashboardURL + "/api").Subrouter()
+	a.HandleFunc("/v1/login", p.ProgrammaticLogin).Queries("redirect_uri", "{redirect_uri}").Methods(http.MethodGet)
+
 	return r
 }
 
@@ -56,6 +66,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 		redirectURL = uri
 	}
 	uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSignoutURL, redirectURL)
+	p.sessionStore.ClearSession(w, r)
 	http.Redirect(w, r, uri.String(), http.StatusFound)
 }
 
@@ -74,51 +85,12 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, err)
 		return
 	}
-	//todo(bdd): make sign out redirect a configuration option so that
-	// 			admins can set to whatever their corporate homepage is
-	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/"}
-	signoutURL := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSignoutURL, redirectURL)
+
 	templates.New().ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Email":            session.Email,
-		"User":             session.User,
-		"Groups":           session.Groups,
-		"RefreshDeadline":  time.Until(session.RefreshDeadline).Round(time.Second).String(),
-		"SignoutURL":       signoutURL.String(),
-		"IsAdmin":          isAdmin,
-		"ImpersonateEmail": session.ImpersonateEmail,
-		"ImpersonateGroup": strings.Join(session.ImpersonateGroups, ","),
-		"csrfField":        csrf.TemplateField(r),
+		"Session":   session,
+		"IsAdmin":   isAdmin,
+		"csrfField": csrf.TemplateField(r),
 	})
-}
-
-// ForceRefresh redeems and extends an existing authenticated oidc session with
-// the underlying identity provider. All session details including groups,
-// timeouts, will be renewed.
-func (p *Proxy) ForceRefresh(w http.ResponseWriter, r *http.Request) {
-	session, err := sessions.FromContext(r.Context())
-	if err != nil {
-		httputil.ErrorResponse(w, r, err)
-		return
-	}
-	iss, err := session.IssuedAt()
-	if err != nil {
-		httputil.ErrorResponse(w, r, err)
-		return
-	}
-
-	// reject a refresh if it's been less than the refresh cooldown to prevent abuse
-	if time.Since(iss) < p.refreshCooldown {
-		errStr := fmt.Sprintf("Session must be %s old before refreshing", p.refreshCooldown)
-		httpErr := httputil.Error(errStr, http.StatusBadRequest, nil)
-		httputil.ErrorResponse(w, r, httpErr)
-		return
-	}
-	session.ForceRefresh()
-	if err = p.sessionStore.SaveSession(w, r, session); err != nil {
-		httputil.ErrorResponse(w, r, err)
-		return
-	}
-	http.Redirect(w, r, dashboardURL, http.StatusFound)
 }
 
 // Impersonate takes the result of a form and adds user impersonation details
@@ -138,101 +110,112 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// OK to impersonation
-	session.ImpersonateEmail = r.FormValue("email")
-	session.ImpersonateGroups = strings.Split(r.FormValue("group"), ",")
-	groups := r.FormValue("group")
-	if groups != "" {
-		session.ImpersonateGroups = strings.Split(groups, ",")
-	}
-	if err := p.sessionStore.SaveSession(w, r, session); err != nil {
-		httputil.ErrorResponse(w, r, err)
-		return
-	}
-
-	http.Redirect(w, r, dashboardURL, http.StatusFound)
+	redirectURL := urlutil.GetAbsoluteURL(r)
+	redirectURL.Path = dashboardURL // redirect back to the dashboard
+	q := redirectURL.Query()
+	q.Add("impersonate_email", r.FormValue("email"))
+	q.Add("impersonate_group", r.FormValue("group"))
+	redirectURL.RawQuery = q.Encode()
+	uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, redirectURL).String()
+	http.Redirect(w, r, uri, http.StatusFound)
 }
 
 func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r := httputil.NewRouter()
 	r.StrictSlash(true)
 	r.Use(sessions.RetrieveSession(p.sessionStore))
-	r.HandleFunc("/", p.VerifyAndSignin).Queries("uri", "{uri}").Methods(http.MethodGet)
-	r.HandleFunc("/verify", p.VerifyOnly).Queries("uri", "{uri}").Methods(http.MethodGet)
+	r.Handle("/", p.Verify(false)).Queries("uri", "{uri}").Methods(http.MethodGet)
+	r.Handle("/verify", p.Verify(true)).Queries("uri", "{uri}").Methods(http.MethodGet)
 	return r
 }
 
-// VerifyAndSignin checks a user's credentials for an arbitrary host. If the user
+// Verify checks a user's credentials for an arbitrary host. If the user
 // is properly authenticated and is authorized to access the supplied host,
 // a `200` http status code is returned. If the user is not authenticated, they
 // will be redirected to the authenticate service to sign in with their identity
 // provider. If the user is unauthorized, a `401` error is returned.
-func (p *Proxy) VerifyAndSignin(w http.ResponseWriter, r *http.Request) {
-	uri, err := urlutil.ParseAndValidateURL(r.FormValue("uri"))
-	if err != nil || uri.String() == "" {
-		httputil.ErrorResponse(w, r, httputil.Error("bad verification uri given", http.StatusBadRequest, nil))
+func (p *Proxy) Verify(verifyOnly bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		uri, err := urlutil.ParseAndValidateURL(r.FormValue("uri"))
+		if err != nil || uri.String() == "" {
+			httputil.ErrorResponse(w, r, httputil.Error("bad verification uri", http.StatusBadRequest, nil))
+			return
+		}
+		if err := p.authenticate(verifyOnly, w, r); err != nil {
+			return
+		}
+		if err := p.authorize(uri.Host, w, r); err != nil {
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, fmt.Sprintf("Access to %s is allowed.", uri.Host))
+	})
+
+}
+
+// Callback takes a `redirect_uri` query param that has been hmac'd by the
+// authenticate service. Embedded in the `redirect_uri` are query-params
+// that tell this handler how to set the per-route user session.
+// Callback is responsible for redirecting the user back to the intended
+// destination URL and path, as well as to clean up any additional query params
+// added by the authenticate service.
+func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) {
+	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue("redirect_uri"))
+	if err != nil {
+		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect_uri", http.StatusBadRequest, err))
 		return
 	}
-	if err := p.authenticate(w, r); err != nil {
-		uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, urlutil.GetAbsoluteURL(r))
-		http.Redirect(w, r, uri.String(), http.StatusFound)
-	}
-	if err := p.authorize(r, uri); err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusUnauthorized, err))
+
+	q := redirectURL.Query()
+	// 1. extract the base64 encoded and encrypted JWT from redirect_uri's query params
+	encryptedJWT, err := base64.URLEncoding.DecodeString(q.Get("pomerium_jwt"))
+	if err != nil {
+		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusBadRequest, err))
 		return
 	}
-	// check the queryparams to see if this check immediately followed
-	// authentication. If so, redirect back to the originally requested hostname.
-	if isCallback := r.URL.Query().Get(callbackQueryParam); isCallback == "true" {
-		q := uri.Query()
-		q.Del(callbackQueryParam)
-		uri.RawQuery = q.Encode()
-		http.Redirect(w, r, uri.String(), http.StatusFound)
+	q.Del("pomerium_jwt")
+	q.Del("impersonate_email")
+	q.Del("impersonate_group")
+
+	// 2. decrypt the JWT using the cipher using the _shared_ secret key
+	rawJWT, err := cryptutil.Decrypt(p.sharedCipher, encryptedJWT, nil)
+	if err != nil {
+		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusBadRequest, err))
 		return
 	}
+	// 3. Save the decrypted JWT to the session store directly as a string, without resigning
+	if err = p.sessionStore.SaveSession(w, r, rawJWT); err != nil {
+		httputil.ErrorResponse(w, r, err)
+		return
+	}
+
+	// if this is a programmatic request, don't strip the tokens before redirect
+	if redirectURL.Query().Get("pomerium_programmatic_destination_url") != "" {
+		q.Set("pomerium_jwt", string(rawJWT))
+	}
+	redirectURL.RawQuery = q.Encode()
+
+	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+}
+
+// ProgrammaticLogin returns a signed url that can be used to login
+// using the authenticate service.
+func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) {
+	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue("redirect_uri"))
+	if err != nil {
+		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect_uri", http.StatusBadRequest, err))
+		return
+	}
+	q := redirectURL.Query()
+	q.Add("pomerium_programmatic_destination_url", urlutil.GetAbsoluteURL(r).String())
+	redirectURL.RawQuery = q.Encode()
+	response := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, redirectURL).String()
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
-
-}
-
-// VerifyOnly checks a user's credentials for an arbitrary host. If the user
-// is properly authenticated and is authorized to access the supplied host,
-// a `200` http status code is returned otherwise a `401` error is returned.
-func (p *Proxy) VerifyOnly(w http.ResponseWriter, r *http.Request) {
-	uri, err := urlutil.ParseAndValidateURL(r.FormValue("uri"))
-	if err != nil || uri.String() == "" {
-		httputil.ErrorResponse(w, r, httputil.Error("bad verification uri given", http.StatusBadRequest, nil))
-		return
-	}
-	if err := p.authenticate(w, r); err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusUnauthorized, err))
-		return
-	}
-	if err := p.authorize(r, uri); err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusUnauthorized, err))
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(http.StatusOK)
-}
-
-func (p *Proxy) authorize(r *http.Request, uri *url.URL) error {
-	// attempt to retrieve the user session from the request context, validity
-	// of the identity session is asserted by the middleware chain
-	s, err := sessions.FromContext(r.Context())
-	if err != nil {
-		return err
-	}
-	// query the authorization service to see if the session's user has
-	// the appropriate authorization to access the given hostname
-	authorized, err := p.AuthorizeClient.Authorize(r.Context(), uri.Host, s)
-	if err != nil {
-		return err
-	} else if !authorized {
-		return fmt.Errorf("%s is not authorized for %s", s.RequestEmail(), uri.String())
-	}
-	return nil
+	w.Write([]byte(response))
 }

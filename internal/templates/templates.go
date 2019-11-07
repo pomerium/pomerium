@@ -143,9 +143,12 @@ func New() *template.Template {
     text-align: center;
     width: 75px;
     height: auto;  
+    border-radius: 50%;
   }
   
   .logo {
+    padding-bottom: 20px;
+    padding-top: 20px;
     width: 115px;
     height: auto;  
   }
@@ -161,6 +164,7 @@ func New() *template.Template {
   p.message {
     margin-top: 10px;
     margin-bottom: 10px;
+    padding-bottom: 20px;
   }
 
   .field {
@@ -300,37 +304,119 @@ func New() *template.Template {
       <div id="main">
           <div id="info-box">
             <div class="card">
-                  <svg class="icon ok" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                {{if .Session.Picture }}
+                <img class="icon" src="{{.Session.Picture}}" alt="user image">
+                {{else}}
+                <svg class="icon ok" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
                       <path fill="none" d="M0 0h24v24H0V0z" />
                       <path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
                   </svg>
-                  <form method="POST" action="{{.SignoutURL}}">
+                  {{end}}
+
+                  <form method="POST" action="/.pomerium/sign_out">
                     <section>
                         <h2>Current user</h2>
                         <p class="message">Your current session details.</p>
                         <fieldset>
+                            {{if .Session.Name}}
+                            <label>
+                                <span>Name</span>
+                                <input name="Name" type="text" class="field" value="{{.Session.Name}}" disabled>
+                            </label>
+                            {{else}}
+                              {{if .Session.GivenName}}
+                              <label>
+                                  <span>Given Name</span>
+                                  <input name="GivenName" type="text" class="field" value="{{.Session.GivenName}}" disabled>
+                              </label>
+                              {{end}}
+                              {{if .Session.FamilyName}}
+                              <label>
+                                  <span>Family Name</span>
+                                  <input name="FamilyName" type="text" class="field" value="{{.Session.FamilyName}}" disabled>
+                              </label>
+                              {{end}}
+                            {{end}}
+                            {{if .Session.Subject}}
+                            <label>
+                                <span>UserID</span>
+                                <input name="email" type="text" class="field" value="{{.Session.Subject}}" disabled>
+                            </label>                               
+                            {{end}}
+                            {{if .Session.Email}}
                             <label>
                                 <span>Email</span>
-                                <input name="email" type="email" class="field" value="{{.Email}}" disabled>
+                                <input name="email" type="email" class="field" value="{{.Session.Email}}" disabled>
                             </label>
+                            {{end}}
+                            {{if .Session.User}}
                             <label>
                                 <span>User</span>
-                                <input name="user" type="text" class="field" value="{{.User}}" disabled>
+                                <input name="user" type="text" class="field" value="{{.Session.User}}" disabled>
                             </label>
+                            {{end}}
+                            {{if .Session.Groups}}
                             <label class="select">
                                 <span>Groups</span>
                                 <div id="group" class="field">
                                     <select name="group">
-                                        {{range .Groups}}
+                                        {{range .Session.Groups}}
                                         <option value="{{.}}">{{.}}</option>
                                         {{end}}
                                     </select>
                                 </div>
                             </label>
+                            {{end}}
+                            {{if .Session.Expiry}}
                             <label>
                               <span>Expiry</span>
-                              <input name="session expiration" type="text" class="field" value="{{.RefreshDeadline}}" disabled>
+                              <input name="session expiration" type="text" class="field" value="{{.Session.Expiry.Time}}" disabled>
                             </label>
+                            {{end}}
+                            {{if .Session.IssuedAt}}
+                            <label>
+                              <span>Issued</span>
+                              <input name="session expiration" type="text" class="field" value="{{.Session.IssuedAt.Time}}" disabled>
+                            </label>
+                            {{end}}
+                            {{if .Session.Issuer}}
+                            <label>
+                              <span>Issuer</span>
+                              <input name="session expiration" type="text" class="field" value=" {{ .Session.Issuer}}" disabled>
+                            </label>
+                            {{end}}
+                            {{if .Session.Audience}}
+                            <label class="select">
+                                <span>Audiences</span>
+                                <div id="group" class="field">
+                                    <select name="group">
+                                        {{range .Session.Audience}}
+                                        <option value="{{.}}">{{ printf "%.30s" . }}</option>
+                                        {{end}}
+                                    </select>
+                                </div>
+                            </label>
+                            {{end}}
+
+                            {{if .Session.ImpersonateEmail}}
+                            <label>
+                              <span>Impersonating Email</span>
+                              <input name="session expiration" type="text" class="field" value="{{.Session.ImpersonateEmail}}" disabled>
+                            </label>
+                            {{end}}
+                            {{if .Session.ImpersonateGroups}}
+                            <label class="select">
+                                <span>Impersonating Groups</span>
+                                <div id="group" class="field">
+                                    <select name="group">
+                                        {{range .Session.ImpersonateGroups}}
+                                        <option value="{{.}}">{{.}}</option>
+                                        {{end}}
+                                    </select>
+                                </div>
+                            </label>
+                            {{end}}
+
                         </fieldset>
                     </section>
                     <div class="flex">
@@ -338,17 +424,7 @@ func New() *template.Template {
                       <button class="button full" type="submit">Sign Out</button>
                     </div>
                   </form>
-                  <section>
-                  <h2>Refresh Identity</h2>
-                  <p class="message">Pomerium will automatically refresh your user session. However, if your group memberships have recently changed and haven't taken effect yet, you can refresh your session manually.</p>
 
-                  <form method="POST" action="/.pomerium/refresh">
-                  <div class="flex">
-                  {{ .csrfField }}
-                    <button class="button full" type="submit">Refresh</button>
-                  </div>
-                  </form>
-                  </section>
 
                   {{if .IsAdmin}}
                   <form method="POST" action="/.pomerium/impersonate">
@@ -358,11 +434,11 @@ func New() *template.Template {
                       <fieldset>
                           <label>
                               <span>Email</span>
-                              <input name="email" type="email" class="field" value="{{.ImpersonateEmail}}" placeholder="user@example.com">
+                              <input name="email" type="email" class="field" value="" placeholder="user@example.com">
                           </label>
                           <label>
                               <span>Group</span>
-                              <input name="group" type="text" class="field" value="{{.ImpersonateGroup}}" placeholder="engineering">
+                              <input name="group" type="text" class="field" value="" placeholder="engineering">
                           </label>
                       </fieldset>
                   </section>

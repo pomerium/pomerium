@@ -27,7 +27,7 @@ const defaultAzureGroupURL = "https://graph.microsoft.com/v1.0/me/memberOf"
 type AzureProvider struct {
 	*Provider
 	// non-standard oidc fields
-	RevokeURL *url.URL
+	RevokeURL string `json:"end_session_endpoint"`
 }
 
 // NewAzureProvider returns a new AzureProvider and sets the provider url endpoints.
@@ -54,84 +54,22 @@ func NewAzureProvider(p *Provider) (*AzureProvider, error) {
 		Scopes:       p.Scopes,
 	}
 
-	azureProvider := &AzureProvider{
-		Provider: p,
-	}
-	// azure has a "end session endpoint"
-	var claims struct {
-		RevokeURL string `json:"end_session_endpoint"`
-	}
-	if err := p.provider.Claims(&claims); err != nil {
+	azureProvider := &AzureProvider{Provider: p}
+	if err := p.provider.Claims(&azureProvider); err != nil {
 		return nil, err
 	}
-	azureProvider.RevokeURL, err = url.Parse(claims.RevokeURL)
-	if err != nil {
-		return nil, err
-	}
+
+	p.UserGroupFn = azureProvider.UserGroups
 
 	return azureProvider, nil
 }
 
-// Authenticate creates an identity session with azure from a authorization code, and follows up
-// call to the groups api to check what groups the user is in.
-func (p *AzureProvider) Authenticate(ctx context.Context, code string) (*sessions.State, error) {
-	// convert authorization code into a token
-	oauth2Token, err := p.oauth.Exchange(ctx, code)
-	if err != nil {
-		return nil, fmt.Errorf("identity/microsoft: token exchange failed %v", err)
-	}
-
-	// id_token contains claims about the authenticated user
-	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
-	if !ok {
-		return nil, fmt.Errorf("identity/microsoft: response did not contain an id_token")
-	}
-	// Parse and verify ID Token payload.
-	session, err := p.IDTokenToSession(ctx, rawIDToken)
-	if err != nil {
-		return nil, fmt.Errorf("identity/microsoft: could not verify id_token %v", err)
-	}
-
-	session.AccessToken = oauth2Token.AccessToken
-	session.RefreshToken = oauth2Token.RefreshToken
-	session.Groups, err = p.UserGroups(ctx, session.AccessToken)
-	if err != nil {
-		return nil, fmt.Errorf("identity/microsoft: could not retrieve groups %v", err)
-	}
-	return session, nil
-}
-
-// IDTokenToSession takes an identity provider issued JWT as input ('id_token')
-// and returns a session state. The provided token's audience ('aud') must
-// match Pomerium's client_id.
-func (p *AzureProvider) IDTokenToSession(ctx context.Context, rawIDToken string) (*sessions.State, error) {
-	idToken, err := p.verifier.Verify(ctx, rawIDToken)
-	if err != nil {
-		return nil, fmt.Errorf("identity/microsoft: could not verify id_token %v", err)
-	}
-	var claims struct {
-		Email         string `json:"email"`
-		EmailVerified bool   `json:"email_verified"`
-	}
-	// parse claims from the raw, encoded jwt token
-	if err := idToken.Claims(&claims); err != nil {
-		return nil, fmt.Errorf("identity/microsoft: failed to parse id_token claims %v", err)
-	}
-
-	return &sessions.State{
-		IDToken:         rawIDToken,
-		RefreshDeadline: idToken.Expiry.Truncate(time.Second),
-		Email:           claims.Email,
-		User:            idToken.Subject,
-	}, nil
-}
-
 // Revoke revokes the access token a given session state.
 // https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-protocols-oidc#send-a-sign-out-request
-func (p *AzureProvider) Revoke(token string) error {
+func (p *AzureProvider) Revoke(ctx context.Context, token *oauth2.Token) error {
 	params := url.Values{}
-	params.Add("token", token)
-	err := httputil.Client(http.MethodPost, p.RevokeURL.String(), version.UserAgent(), nil, params, nil)
+	params.Add("token", token.AccessToken)
+	err := httputil.Client(ctx, http.MethodPost, p.RevokeURL, version.UserAgent(), nil, params, nil)
 	if err != nil && err != httputil.ErrTokenRevoked {
 		return err
 	}
@@ -143,34 +81,14 @@ func (p *AzureProvider) GetSignInURL(state string) string {
 	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account"))
 }
 
-// Refresh renews a user's session using an oid refresh token without reprompting the user.
-// Group membership is also refreshed.
-// https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
-func (p *AzureProvider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
-	if s.RefreshToken == "" {
-		return nil, errors.New("identity/microsoft: missing refresh token")
-	}
-	t := oauth2.Token{RefreshToken: s.RefreshToken}
-	newToken, err := p.oauth.TokenSource(ctx, &t).Token()
-	if err != nil {
-		log.Error().Err(err).Msg("identity/microsoft: refresh failed")
-		return nil, err
-	}
-	s.AccessToken = newToken.AccessToken
-	s.RefreshDeadline = newToken.Expiry.Truncate(time.Second)
-	s.Groups, err = p.UserGroups(ctx, s.AccessToken)
-	if err != nil {
-		log.Error().Err(err).Msg("identity/microsoft: refresh failed")
-		return nil, err
-	}
-	return s, nil
-}
-
 // UserGroups returns a slice of group names a given user is in.
 // `Directory.Read.All` is required.
 // https://docs.microsoft.com/en-us/graph/api/resources/directoryobject?view=graph-rest-1.0
 // https://docs.microsoft.com/en-us/graph/api/user-list-memberof?view=graph-rest-1.0
-func (p *AzureProvider) UserGroups(ctx context.Context, accessToken string) ([]string, error) {
+func (p *AzureProvider) UserGroups(ctx context.Context, s *sessions.State) ([]string, error) {
+	if s == nil || s.AccessToken == nil {
+		return nil, errors.New("identity/azure: session cannot be nil")
+	}
 	var response struct {
 		Groups []struct {
 			ID              string    `json:"id"`
@@ -180,15 +98,15 @@ func (p *AzureProvider) UserGroups(ctx context.Context, accessToken string) ([]s
 			GroupTypes      []string  `json:"groupTypes,omitempty"`
 		} `json:"value"`
 	}
-	headers := map[string]string{"Authorization": fmt.Sprintf("Bearer %s", accessToken)}
-	err := httputil.Client(http.MethodGet, defaultAzureGroupURL, version.UserAgent(), headers, nil, &response)
+	headers := map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.AccessToken.AccessToken)}
+	err := httputil.Client(ctx, http.MethodGet, defaultAzureGroupURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return nil, err
 	}
 	var groups []string
 	for _, group := range response.Groups {
 		log.Debug().Str("DisplayName", group.DisplayName).Str("ID", group.ID).Msg("identity/microsoft: group")
-		groups = append(groups, group.DisplayName)
+		groups = append(groups, group.ID)
 	}
 	return groups, nil
 }

@@ -1,13 +1,12 @@
 package sessions // import "github.com/pomerium/pomerium/internal/sessions"
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
 const (
@@ -27,50 +26,66 @@ const (
 
 // CookieStore implements the session store interface for session cookies.
 type CookieStore struct {
-	Name           string
-	CookieDomain   string
-	CookieExpire   time.Duration
-	CookieHTTPOnly bool
-	CookieSecure   bool
-	Encoder        cryptutil.SecureEncoder
+	Name     string
+	Domain   string
+	Expire   time.Duration
+	HTTPOnly bool
+	Secure   bool
+	encoder  Marshaler
+	decoder  Unmarshaler
 }
 
-// CookieStoreOptions holds options for CookieStore
-type CookieStoreOptions struct {
-	Name           string
-	CookieDomain   string
-	CookieExpire   time.Duration
-	CookieHTTPOnly bool
-	CookieSecure   bool
-	Encoder        cryptutil.SecureEncoder
+// CookieOptions holds options for CookieStore
+type CookieOptions struct {
+	Name     string
+	Domain   string
+	Expire   time.Duration
+	HTTPOnly bool
+	Secure   bool
 }
 
 // NewCookieStore returns a new session with ciphers for each of the cookie secrets
-func NewCookieStore(opts *CookieStoreOptions) (*CookieStore, error) {
+func NewCookieStore(opts *CookieOptions, encoder Encoder) (*CookieStore, error) {
 	if opts.Name == "" {
 		return nil, fmt.Errorf("internal/sessions: cookie name cannot be empty")
 	}
-	if opts.Encoder == nil {
-		return nil, fmt.Errorf("internal/sessions: cipher cannot be nil")
+	if encoder == nil {
+		return nil, fmt.Errorf("internal/sessions: decoder cannot be nil")
 	}
-
 	return &CookieStore{
-		Name:           opts.Name,
-		CookieSecure:   opts.CookieSecure,
-		CookieHTTPOnly: opts.CookieHTTPOnly,
-		CookieDomain:   opts.CookieDomain,
-		CookieExpire:   opts.CookieExpire,
-		Encoder:        opts.Encoder,
+		Name:     opts.Name,
+		Secure:   opts.Secure,
+		HTTPOnly: opts.HTTPOnly,
+		Domain:   opts.Domain,
+		Expire:   opts.Expire,
+		encoder:  encoder,
+		decoder:  encoder,
+	}, nil
+}
+
+// NewCookieLoader returns a new session with ciphers for each of the cookie secrets
+func NewCookieLoader(opts *CookieOptions, decoder Unmarshaler) (*CookieStore, error) {
+	if opts.Name == "" {
+		return nil, fmt.Errorf("internal/sessions: cookie name cannot be empty")
+	}
+	if decoder == nil {
+		return nil, fmt.Errorf("internal/sessions: decoder cannot be nil")
+	}
+	return &CookieStore{
+		Name:     opts.Name,
+		Secure:   opts.Secure,
+		HTTPOnly: opts.HTTPOnly,
+		Domain:   opts.Domain,
+		Expire:   opts.Expire,
+		decoder:  decoder,
 	}, nil
 }
 
 func (cs *CookieStore) makeCookie(req *http.Request, name string, value string, expiration time.Duration, now time.Time) *http.Cookie {
 	domain := req.Host
 
-	if cs.CookieDomain != "" {
-		domain = cs.CookieDomain
-	} else {
-		domain = ParentSubdomain(domain)
+	if cs.Domain != "" {
+		domain = cs.Domain
 	}
 
 	if h, _, err := net.SplitHostPort(domain); err == nil {
@@ -81,8 +96,8 @@ func (cs *CookieStore) makeCookie(req *http.Request, name string, value string, 
 		Value:    value,
 		Path:     "/",
 		Domain:   domain,
-		HttpOnly: cs.CookieHTTPOnly,
-		Secure:   cs.CookieSecure,
+		HttpOnly: cs.HTTPOnly,
+		Secure:   cs.Secure,
 	}
 	// only set an expiration if we want one, otherwise default to non perm session based
 	if expiration != 0 {
@@ -98,22 +113,37 @@ func (cs *CookieStore) ClearSession(w http.ResponseWriter, req *http.Request) {
 
 // LoadSession returns a State from the cookie in the request.
 func (cs *CookieStore) LoadSession(req *http.Request) (*State, error) {
-	cipherText := loadChunkedCookie(req, cs.Name)
-	if cipherText == "" {
+	data := loadChunkedCookie(req, cs.Name)
+	if data == "" {
 		return nil, ErrNoSessionFound
 	}
-	session, err := UnmarshalSession(cipherText, cs.Encoder)
+	var session State
+	err := cs.decoder.Unmarshal([]byte(data), &session)
 	if err != nil {
 		return nil, ErrMalformed
 	}
-	return session, nil
+
+	return &session, err
 }
 
-// SaveSession saves a session state to a request sessions.
-func (cs *CookieStore) SaveSession(w http.ResponseWriter, req *http.Request, s *State) error {
-	value, err := MarshalSession(s, cs.Encoder)
-	if err != nil {
-		return err
+// SaveSession saves a session state to a request's cookie store.
+func (cs *CookieStore) SaveSession(w http.ResponseWriter, req *http.Request, x interface{}) error {
+	var value string
+	if cs.encoder != nil {
+		data, err := cs.encoder.Marshal(x)
+		if err != nil {
+			return err
+		}
+		value = string(data)
+	} else {
+		switch v := x.(type) {
+		case []byte:
+			value = string(v)
+		case string:
+			value = v
+		default:
+			return errors.New("internal/sessions: cannot save non-string type")
+		}
 	}
 	cs.setSessionCookie(w, req, value)
 	return nil
@@ -125,7 +155,7 @@ func (cs *CookieStore) makeSessionCookie(req *http.Request, value string, expira
 }
 
 func (cs *CookieStore) setSessionCookie(w http.ResponseWriter, req *http.Request, val string) {
-	cs.setCookie(w, cs.makeSessionCookie(req, val, cs.CookieExpire, time.Now()))
+	cs.setCookie(w, cs.makeSessionCookie(req, val, cs.Expire, time.Now()))
 }
 
 func (cs *CookieStore) setCookie(w http.ResponseWriter, cookie *http.Cookie) {
@@ -153,11 +183,11 @@ func loadChunkedCookie(r *http.Request, cookieName string) string {
 	if err != nil {
 		return ""
 	}
-	cipherText := c.Value
+	data := c.Value
 	// if the first byte is our canary byte, we need to handle the multipart bit
 	if []byte(c.Value)[0] == ChunkedCanaryByte {
 		var b strings.Builder
-		fmt.Fprintf(&b, "%s", cipherText[1:])
+		fmt.Fprintf(&b, "%s", data[1:])
 		for i := 1; i <= MaxNumChunks; i++ {
 			next, err := r.Cookie(fmt.Sprintf("%s_%d", cookieName, i))
 			if err != nil {
@@ -165,9 +195,9 @@ func loadChunkedCookie(r *http.Request, cookieName string) string {
 			}
 			fmt.Fprintf(&b, "%s", next.Value)
 		}
-		cipherText = b.String()
+		data = b.String()
 	}
-	return cipherText
+	return data
 }
 
 func chunk(s string, size int) []string {

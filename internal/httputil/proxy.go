@@ -9,9 +9,9 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-// HeaderForwardHost is the header key the identifies the originating
-// IP addresses of a client connecting to a web server through an HTTP proxy
-// or a load balancer.
+// HeaderForwardHost is the header key that identifies the original host requested
+// by the client in the Host HTTP request header.
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-Host
 const HeaderForwardHost = "X-Forwarded-Host"
 
 // NewReverseProxy returns a new ReverseProxy that routes

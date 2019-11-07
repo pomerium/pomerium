@@ -2,6 +2,7 @@ package httputil // import "github.com/pomerium/pomerium/internal/httputil"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,7 +28,7 @@ var httpClient = &http.Client{
 }
 
 // Client provides a simple helper interface to make HTTP requests
-func Client(method, endpoint, userAgent string, headers map[string]string, params url.Values, response interface{}) error {
+func Client(ctx context.Context, method, endpoint, userAgent string, headers map[string]string, params url.Values, response interface{}) error {
 	var body io.Reader
 	switch method {
 	case http.MethodPost:
@@ -41,7 +42,7 @@ func Client(method, endpoint, userAgent string, headers map[string]string, param
 	default:
 		return fmt.Errorf(http.StatusText(http.StatusBadRequest))
 	}
-	req, err := http.NewRequest(method, endpoint, body)
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, body)
 	if err != nil {
 		return err
 	}

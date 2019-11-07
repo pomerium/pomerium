@@ -17,36 +17,6 @@ func hmacHelperFunc(rawRedirect string, timestamp time.Time, secret string) []by
 	return cryptutil.GenerateHMAC(data, secret)
 }
 
-func Test_SameDomain(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name        string
-		uri         string
-		rootDomains string
-		want        bool
-	}{
-		{"good url redirect", "https://example.com/redirect", "https://example.com", true},
-		{"good multilevel", "https://httpbin.a.corp.example.com", "https://auth.b.corp.example.com", true},
-		{"good complex tld", "https://httpbin.a.corp.example.co.uk", "https://auth.b.corp.example.co.uk", true},
-		{"bad complex tld", "https://httpbin.a.corp.notexample.co.uk", "https://auth.b.corp.example.co.uk", false},
-		{"simple sub", "https://auth.example.com", "https://test.example.com", true},
-		{"bad domain", "https://auth.example.com/redirect", "https://test.notexample.com", false},
-		{"malformed url", "^example.com/redirect", "https://notexample.com", false},
-		{"empty domain list", "https://example.com/redirect", ".com", false},
-		{"empty domain", "https://example.com/redirect", "", false},
-		{"empty url", "", "example.com", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			u, _ := url.Parse(tt.uri)
-			j, _ := url.Parse(tt.rootDomains)
-			if got := SameDomain(u, j); got != tt.want {
-				t.Errorf("SameDomain() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func Test_ValidSignature(t *testing.T) {
 	t.Parallel()
 	goodURL := "https://example.com/redirect"
@@ -105,87 +75,6 @@ func TestSetHeaders(t *testing.T) {
 			rr := httptest.NewRecorder()
 			handler := SetHeaders(tt.securityHeaders)(testHandler)
 			handler.ServeHTTP(rr, req)
-		})
-	}
-}
-
-func TestValidateRedirectURI(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name        string
-		rootDomain  string
-		redirectURI string
-		status      int
-	}{
-		{"simple", "https://auth.google.com", "redirect_uri=https://b.google.com", http.StatusOK},
-		{"deep ok", "https://a.some.really.deep.sub.domain.google.com", "redirect_uri=https://b.some.really.deep.sub.domain.google.com", http.StatusOK},
-		{"bad match", "https://auth.aol.com", "redirect_uri=https://test.google.com", http.StatusBadRequest},
-		{"bad simple", "https://auth.corp.aol.com", "redirect_uri=https://test.corp.google.com", http.StatusBadRequest},
-		{"deep bad", "https://a.some.really.deep.sub.domain.scroogle.com", "redirect_uri=https://b.some.really.deep.sub.domain.google.com", http.StatusBadRequest},
-		{"with cname", "https://auth.google.com", "redirect_uri=https://www.google.com", http.StatusOK},
-		{"with path", "https://auth.google.com", "redirect_uri=https://www.google.com/path", http.StatusOK},
-		{"http mistmatch", "https://auth.google.com", "redirect_uri=http://www.google.com/path", http.StatusOK},
-		{"http", "http://auth.google.com", "redirect_uri=http://www.google.com/path", http.StatusOK},
-		{"ip", "http://1.1.1.1", "redirect_uri=http://8.8.8.8", http.StatusBadRequest},
-		{"redirect get param not set", "https://auth.google.com", "not_redirect_uri!=https://b.google.com", http.StatusBadRequest},
-		{"malformed, invalid get params", "https://auth.google.com", "redirect_uri=https://%zzzzz", http.StatusBadRequest},
-		{"malformed, invalid url", "https://auth.google.com", "redirect_uri=https://accounts.google.^", http.StatusBadRequest},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := &http.Request{
-				Method: http.MethodGet,
-				URL:    &url.URL{RawQuery: tt.redirectURI},
-			}
-			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("Hi"))
-			})
-			rr := httptest.NewRecorder()
-			u, _ := url.Parse(tt.rootDomain)
-			handler := ValidateRedirectURI(u)(testHandler)
-			handler.ServeHTTP(rr, req)
-			if rr.Code != tt.status {
-				t.Errorf("Status code differs. got %d want %d", rr.Code, tt.status)
-				t.Errorf("%s", rr.Body)
-			}
-		})
-	}
-}
-
-func TestValidateClientSecret(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name              string
-		sharedSecret      string
-		clientGetValue    string
-		clientHeaderValue string
-		status            int
-	}{
-		{"simple", "secret", "secret", "secret", http.StatusOK},
-		{"missing get param, valid header", "secret", "", "secret", http.StatusOK},
-		{"missing both", "secret", "", "", http.StatusBadRequest},
-		{"simple bad", "bad-secret", "secret", "", http.StatusBadRequest},
-		{"malformed, invalid hex digits", "secret", "%zzzzz", "", http.StatusBadRequest},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := &http.Request{
-				Method: http.MethodGet,
-				Header: http.Header{"X-Client-Secret": []string{tt.clientHeaderValue}},
-				URL:    &url.URL{RawQuery: fmt.Sprintf("shared_secret=%s", tt.clientGetValue)},
-			}
-			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("Hi"))
-			})
-			rr := httptest.NewRecorder()
-			handler := ValidateClientSecret(tt.sharedSecret)(testHandler)
-			handler.ServeHTTP(rr, req)
-			if rr.Code != tt.status {
-				t.Errorf("Status code differs. got %d want %d", rr.Code, tt.status)
-				t.Errorf("%s", rr.Body)
-			}
 		})
 	}
 }

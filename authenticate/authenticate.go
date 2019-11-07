@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"html/template"
 	"net/url"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/encoding/ecjson"
+	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/templates"
@@ -17,6 +20,10 @@ import (
 )
 
 const callbackPath = "/oauth2/callback"
+
+// DefaultSessionDuration is the default time a managed route session is
+// valid for.
+var DefaultSessionDuration = time.Minute * 10
 
 // ValidateOptions checks that configuration are complete and valid.
 // Returns on first error found.
@@ -41,18 +48,34 @@ func ValidateOptions(o config.Options) error {
 
 // Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
-	SharedKey   string
+	// RedirectURL is the authenticate service's externally accessible
+	// url that the identity provider (IdP) will callback to following
+	// authentication flow
 	RedirectURL *url.URL
 
-	cookieName   string
-	cookieSecure bool
-	cookieDomain string
+	// sharedKey is used to encrypt and authenticate data between services
+	sharedKey string
+	// sharedCipher is used to encrypt data for use between services
+	sharedCipher cipher.AEAD
+	// sharedEncoder is the encoder to use to serialize data to be consumed
+	// by other services
+	sharedEncoder sessions.Encoder
+
+	// data related to this service only
+	cookieOptions *sessions.CookieOptions
+	// cookieSecret is the secret to encrypt and authenticate data for this service
 	cookieSecret []byte
-	templates    *template.Template
-	sessionStore sessions.SessionStore
-	cipher       cipher.AEAD
-	encoder      cryptutil.SecureEncoder
-	provider     identity.Authenticator
+	// is the cipher to use to encrypt data for this service
+	cookieCipher     cipher.AEAD
+	sessionStore     sessions.SessionStore
+	encryptedEncoder sessions.Encoder
+	sessionStores    []sessions.SessionStore
+	sessionLoaders   []sessions.SessionLoader
+
+	// provider is the interface to interacting with the identity provider (IdP)
+	provider identity.Authenticator
+
+	templates *template.Template
 }
 
 // New validates and creates a new authenticate service from a set of Options.
@@ -60,29 +83,37 @@ func New(opts config.Options) (*Authenticate, error) {
 	if err := ValidateOptions(opts); err != nil {
 		return nil, err
 	}
+
+	// shared state encoder setup
+	sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(opts.SharedKey)
+	signedEncoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.AuthenticateURL.Host)
+	if err != nil {
+		return nil, err
+	}
+
+	// private state encoder setup
 	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
-	cipher, err := cryptutil.NewAEADCipher(decodedCookieSecret)
-	encoder := cryptutil.NewSecureJSONEncoder(cipher)
+	cookieCipher, _ := cryptutil.NewAEADCipher(decodedCookieSecret)
+	encryptedEncoder := ecjson.New(cookieCipher)
+
+	cookieOptions := &sessions.CookieOptions{
+		Name:     opts.CookieName,
+		Domain:   opts.CookieDomain,
+		Secure:   opts.CookieSecure,
+		HTTPOnly: opts.CookieHTTPOnly,
+		Expire:   opts.CookieExpire,
+	}
+
+	cookieStore, err := sessions.NewCookieStore(cookieOptions, encryptedEncoder)
 	if err != nil {
 		return nil, err
 	}
-	if opts.CookieDomain == "" {
-		opts.CookieDomain = sessions.ParentSubdomain(opts.AuthenticateURL.String())
-	}
-	cookieStore, err := sessions.NewCookieStore(
-		&sessions.CookieStoreOptions{
-			Name:           opts.CookieName,
-			CookieDomain:   opts.CookieDomain,
-			CookieSecure:   opts.CookieSecure,
-			CookieHTTPOnly: opts.CookieHTTPOnly,
-			CookieExpire:   opts.CookieExpire,
-			Encoder:        encoder,
-		})
-	if err != nil {
-		return nil, err
-	}
+	qpStore := sessions.NewQueryParamStore(encryptedEncoder, "pomerium_programmatic_token")
+	headerStore := sessions.NewHeaderStore(encryptedEncoder, "Pomerium")
+
 	redirectURL, _ := urlutil.DeepCopy(opts.AuthenticateURL)
 	redirectURL.Path = callbackPath
+	// configure our identity provider
 	provider, err := identity.New(
 		opts.Provider,
 		&identity.Provider{
@@ -99,16 +130,22 @@ func New(opts config.Options) (*Authenticate, error) {
 	}
 
 	return &Authenticate{
-		SharedKey:    opts.SharedKey,
-		RedirectURL:  redirectURL,
-		templates:    templates.New(),
-		sessionStore: cookieStore,
-		cipher:       cipher,
-		encoder:      encoder,
-		provider:     provider,
-		cookieSecret: decodedCookieSecret,
-		cookieName:   opts.CookieName,
-		cookieDomain: opts.CookieDomain,
-		cookieSecure: opts.CookieSecure,
+		RedirectURL: redirectURL,
+		// shared state
+		sharedKey:     opts.SharedKey,
+		sharedCipher:  sharedCipher,
+		sharedEncoder: signedEncoder,
+		// private state
+		cookieSecret:     decodedCookieSecret,
+		cookieCipher:     cookieCipher,
+		cookieOptions:    cookieOptions,
+		sessionStore:     cookieStore,
+		encryptedEncoder: encryptedEncoder,
+		sessionLoaders:   []sessions.SessionLoader{qpStore, headerStore, cookieStore},
+		sessionStores:    []sessions.SessionStore{cookieStore, qpStore},
+		// IdP
+		provider: provider,
+
+		templates: templates.New(),
 	}, nil
 }

@@ -7,6 +7,11 @@ import (
 	"time"
 )
 
+const (
+	// DefaultLeeway defines the default leeway for matching NotBefore/Expiry claims.
+	DefaultLeeway = 1.0 * time.Minute
+)
+
 var (
 	errTimestampMalformed = errors.New("internal/cryptutil: timestamp malformed")
 	errTimestampExpired   = errors.New("internal/cryptutil: timestamp expired")
@@ -31,7 +36,6 @@ func CheckHMAC(data, suppliedMAC []byte, key string) bool {
 // ValidTimestamp is a helper function often used in conjunction with an HMAC
 // function to verify that the timestamp (in unix seconds) is within leeway
 // period.
-// todo(bdd) : should leeway be configurable?
 func ValidTimestamp(ts string) error {
 	var timeStamp int64
 	var err error

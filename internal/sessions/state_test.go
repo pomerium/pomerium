@@ -1,89 +1,15 @@
 package sessions
 
 import (
-	"crypto/rand"
-	"fmt"
-	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"golang.org/x/oauth2"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
-
-func TestStateSerialization(t *testing.T) {
-	secret := cryptutil.NewKey()
-	cipher, err := cryptutil.NewAEADCipher(secret)
-	c := cryptutil.NewSecureJSONEncoder(cipher)
-	if err != nil {
-		t.Fatalf("expected to be able to create cipher: %v", err)
-	}
-
-	want := &State{
-		AccessToken:     "token1234",
-		RefreshToken:    "refresh4321",
-		RefreshDeadline: time.Now().Add(1 * time.Hour).Truncate(time.Second).UTC(),
-		Email:           "user@domain.com",
-		User:            "user",
-	}
-
-	ciphertext, err := MarshalSession(want, c)
-	if err != nil {
-		t.Fatalf("expected to be encode session: %v", err)
-	}
-
-	got, err := UnmarshalSession(ciphertext, c)
-	if err != nil {
-		t.Fatalf("expected to be decode session: %v", err)
-	}
-
-	if !reflect.DeepEqual(want, got) {
-		t.Logf("want: %#v", want)
-		t.Logf(" got: %#v", got)
-		t.Errorf("encoding and decoding session resulted in unexpected output")
-	}
-}
-
-func TestStateExpirations(t *testing.T) {
-	session := &State{
-		AccessToken:     "token1234",
-		RefreshToken:    "refresh4321",
-		RefreshDeadline: time.Now().Add(-1 * time.Hour),
-		Email:           "user@domain.com",
-		User:            "user",
-	}
-	if !session.Expired() {
-		t.Errorf("expected lifetime period to be expired")
-	}
-
-}
-
-func TestState_IssuedAt(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name    string
-		IDToken string
-		want    time.Time
-		wantErr bool
-	}{
-		{"simple parse", "eyJhbGciOiJSUzI1NiIsImtpZCI6IjA3YTA4MjgzOWYyZTcxYTliZjZjNTk2OTk2Yjk0NzM5Nzg1YWZkYzMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI4NTE4NzcwODIwNTktYmZna3BqMDlub29nN2FzM2dwYzN0N3I2bjlzamJnczYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI4NTE4NzcwODIwNTktYmZna3BqMDlub29nN2FzM2dwYzN0N3I2bjlzamJnczYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTE0MzI2NTU5NzcyNzMxNTAzMDgiLCJoZCI6InBvbWVyaXVtLmlvIiwiZW1haWwiOiJiZGRAcG9tZXJpdW0uaW8iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6IlkzYm1qV3R4US16OW1fM1RLb0dtRWciLCJuYW1lIjoiQm9iYnkgRGVTaW1vbmUiLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tLy1PX1BzRTlILTgzRS9BQUFBQUFBQUFBSS9BQUFBQUFBQUFBQS9BQ0hpM3JjQ0U0SFRLVDBhQk1pUFVfOEZfVXFOQ3F6RTBRL3M5Ni1jL3Bob3RvLmpwZyIsImdpdmVuX25hbWUiOiJCb2JieSIsImZhbWlseV9uYW1lIjoiRGVTaW1vbmUiLCJsb2NhbGUiOiJlbiIsImlhdCI6MTU1ODY3MjY4NywiZXhwIjoxNTU4Njc2Mjg3fQ.a4g8W94E7iVJhiIUmsNMwJssfx3Evi8sXeiXgXMC7kHNvftQ2CFU_LJ-dqZ5Jf61OXcrp26r7lUcTNENXuen9tyUWAiHvxk6OHTxZusdywTCY5xowpSZBO9PDWYrmmdvfhRbaKO6QVAUMkbKr1Tr8xqfoaYVXNZhERXhcVReDznI0ccbwCGrNx5oeqiL4eRdZY9eqFXi4Yfee0mkef9oyVPc2HvnpwcpM0eckYa_l_ZQChGjXVGBFIus_Ao33GbWDuc9gs-_Vp2ev4KUT2qWb7AXMCGDLx0tWI9umm7mCBi_7xnaanGKUYcVwcSrv45arllAAwzuNxO0BVw3oRWa5Q", time.Unix(1558672687, 0), false},
-		{"bad jwt", "x.x.x-x-x", time.Time{}, true},
-		{"malformed jwt", "x", time.Time{}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &State{IDToken: tt.IDToken}
-			got, err := s.IssuedAt()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("State.IssuedAt() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("State.IssuedAt() = %v, want %v", got.Format(time.RFC3339), tt.want.Format(time.RFC3339))
-			}
-		})
-	}
-}
 
 func TestState_Impersonating(t *testing.T) {
 	t.Parallel()
@@ -105,11 +31,10 @@ func TestState_Impersonating(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &State{
-				Email:             tt.Email,
-				Groups:            tt.Groups,
-				ImpersonateEmail:  tt.ImpersonateEmail,
-				ImpersonateGroups: tt.ImpersonateGroups,
+				Email:  tt.Email,
+				Groups: tt.Groups,
 			}
+			s.SetImpersonation(tt.ImpersonateEmail, strings.Join(tt.ImpersonateGroups, ","))
 			if got := s.Impersonating(); got != tt.want {
 				t.Errorf("State.Impersonating() = %v, want %v", got, tt.want)
 			}
@@ -123,84 +48,80 @@ func TestState_Impersonating(t *testing.T) {
 	}
 }
 
-func TestMarshalSession(t *testing.T) {
-	secret := cryptutil.NewKey()
-	cipher, err := cryptutil.NewAEADCipher(secret)
-	if err != nil {
-		t.Fatalf("expected to be able to create cipher: %v", err)
-	}
-	c := cryptutil.NewSecureJSONEncoder(cipher)
-
-	hugeString := make([]byte, 4097)
-	if _, err := rand.Read(hugeString); err != nil {
-		t.Fatal(err)
-	}
+func TestState_Verify(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name    string
-		s       *State
-		wantErr bool
+		name        string
+		Audience    jwt.Audience
+		Expiry      *jwt.NumericDate
+		NotBefore   *jwt.NumericDate
+		IssuedAt    *jwt.NumericDate
+		AccessToken *oauth2.Token
+
+		audience string
+		wantErr  bool
 	}{
-		{"simple", &State{}, false},
-		{"too big", &State{AccessToken: fmt.Sprintf("%x", hugeString)}, false},
+		{"good", []string{"a", "b", "c"}, jwt.NewNumericDate(time.Now().Add(time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), &oauth2.Token{Expiry: time.Now().Add(time.Hour)}, "a", false},
+		{"bad expiry", []string{"a", "b", "c"}, jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), &oauth2.Token{Expiry: time.Now().Add(time.Hour)}, "a", true},
+		{"bad audience", []string{"x", "y", "z"}, jwt.NewNumericDate(time.Now().Add(time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), &oauth2.Token{Expiry: time.Now().Add(time.Hour)}, "a", true},
+		{"bad not before", []string{"a", "b", "c"}, jwt.NewNumericDate(time.Now().Add(time.Hour)), jwt.NewNumericDate(time.Now().Add(time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), &oauth2.Token{Expiry: time.Now().Add(time.Hour)}, "a", true},
+		{"bad issued at", []string{"a", "b", "c"}, jwt.NewNumericDate(time.Now().Add(time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(time.Hour)), &oauth2.Token{Expiry: time.Now().Add(time.Hour)}, "a", true},
+		{"bad access token expiry", []string{"a", "b", "c"}, jwt.NewNumericDate(time.Now().Add(time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), &oauth2.Token{Expiry: time.Now().Add(-time.Hour)}, "a", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			in, err := MarshalSession(tt.s, c)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("MarshalSession() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			s := &State{
+				Audience:    tt.Audience,
+				Expiry:      tt.Expiry,
+				NotBefore:   tt.NotBefore,
+				IssuedAt:    tt.IssuedAt,
+				AccessToken: tt.AccessToken,
 			}
-			if err == nil {
-				out, err := UnmarshalSession(in, c)
-				if err != nil {
-					t.Fatalf("expected to be decode session: %v", err)
-				}
-				if diff := cmp.Diff(tt.s, out); diff != "" {
-					t.Errorf("MarshalSession() = %s", diff)
-				}
+			if err := s.Verify(tt.audience); (err != nil) != tt.wantErr {
+				t.Errorf("State.Verify() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestState_Valid(t *testing.T) {
-
+func TestState_RouteSession(t *testing.T) {
+	now := time.Now()
+	timeNow = func() time.Time {
+		return now
+	}
 	tests := []struct {
-		name            string
-		RefreshDeadline time.Time
-		wantErr         bool
+		name        string
+		Issuer      string
+		Audience    jwt.Audience
+		Expiry      *jwt.NumericDate
+		AccessToken *oauth2.Token
+
+		issuer string
+
+		audience []string
+		validity time.Duration
+
+		want *State
 	}{
-		{" good", time.Now().Add(10 * time.Second), false},
-		{" expired", time.Now().Add(-10 * time.Second), true},
+		{"good", "authenticate.x.y.z", []string{"http.x.y.z"}, jwt.NewNumericDate(timeNow()), nil, "authenticate.a.b.c", []string{"http.a.b.c"}, 20 * time.Second, &State{Issuer: "authenticate.a.b.c", Audience: []string{"http.a.b.c"}, NotBefore: jwt.NewNumericDate(timeNow()), IssuedAt: jwt.NewNumericDate(timeNow()), Expiry: jwt.NewNumericDate(timeNow().Add(20 * time.Second))}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &State{
-				RefreshDeadline: tt.RefreshDeadline,
+			s := State{
+				Issuer:      tt.Issuer,
+				Audience:    tt.Audience,
+				Expiry:      tt.Expiry,
+				AccessToken: tt.AccessToken,
 			}
-			if err := s.Valid(); (err != nil) != tt.wantErr {
-				t.Errorf("State.Valid() error = %v, wantErr %v", err, tt.wantErr)
+			cmpOpts := []cmp.Option{
+				cmpopts.IgnoreUnexported(State{}),
 			}
-		})
-	}
-}
+			got := s.NewSession(tt.issuer, tt.audience)
+			got = got.RouteSession(tt.validity)
+			if diff := cmp.Diff(got, tt.want, cmpOpts...); diff != "" {
+				t.Errorf("State.RouteSession() = %s", diff)
+			}
 
-func TestState_ForceRefresh(t *testing.T) {
-	tests := []struct {
-		name            string
-		RefreshDeadline time.Time
-	}{
-		{"good", time.Now().Truncate(time.Second)},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &State{
-				RefreshDeadline: tt.RefreshDeadline,
-			}
-			s.ForceRefresh()
-			if s.RefreshDeadline != tt.RefreshDeadline {
-				t.Errorf("refresh deadline not updated")
-			}
 		})
 	}
 }
