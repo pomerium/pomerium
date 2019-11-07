@@ -72,7 +72,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		state, err := sessions.FromContext(r.Context())
 		if errors.Is(err, sessions.ErrExpired) {
 			if err := a.refresh(w, r, state); err != nil {
-				log.FromRequest(r).Debug().Str("cause", err.Error()).Msg("authenticate: couldn't refresh session")
+				log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session, refresh")
 				a.redirectToIdentityProvider(w, r)
 				return
 			}
@@ -80,7 +80,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			http.Redirect(w, r, urlutil.GetAbsoluteURL(r).String(), http.StatusFound)
 			return
 		} else if err != nil {
-			log.FromRequest(r).Err(err).Msg("authenticate: malformed session")
+			log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session")
 			a.redirectToIdentityProvider(w, r)
 			return
 		}

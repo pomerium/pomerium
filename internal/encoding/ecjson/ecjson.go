@@ -11,6 +11,7 @@ import (
 	"io"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/encoding"
 )
 
 // EncryptedCompressedJSON implements SecureEncoder for JSON using an AEAD cipher.
@@ -21,7 +22,7 @@ type EncryptedCompressedJSON struct {
 }
 
 // New takes a base64 encoded secret key and returns a new XChacha20poly1305 cipher.
-func New(aead cipher.AEAD) *EncryptedCompressedJSON {
+func New(aead cipher.AEAD) encoding.MarshalUnmarshaler {
 	return &EncryptedCompressedJSON{aead: aead}
 }
 

@@ -3,6 +3,8 @@ package sessions // import "github.com/pomerium/pomerium/internal/sessions"
 import (
 	"net/http"
 	"strings"
+
+	"github.com/pomerium/pomerium/internal/encoding"
 )
 
 const (
@@ -15,7 +17,7 @@ const (
 type HeaderStore struct {
 	authHeader string
 	authType   string
-	encoder    Unmarshaler
+	encoder    encoding.Unmarshaler
 }
 
 // NewHeaderStore returns a new header store for loading sessions from
@@ -23,7 +25,7 @@ type HeaderStore struct {
 //
 // NOTA BENE: While most servers do not log Authorization headers by default,
 // you should ensure no other services are logging or leaking your auth headers.
-func NewHeaderStore(enc Unmarshaler, headerType string) *HeaderStore {
+func NewHeaderStore(enc encoding.Unmarshaler, headerType string) *HeaderStore {
 	if headerType == "" {
 		headerType = defaultAuthType
 	}

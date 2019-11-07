@@ -2,6 +2,8 @@ package sessions // import "github.com/pomerium/pomerium/internal/sessions"
 
 import (
 	"net/http"
+
+	"github.com/pomerium/pomerium/internal/encoding"
 )
 
 const (
@@ -12,8 +14,8 @@ const (
 // query strings / query parameters.
 type QueryParamStore struct {
 	queryParamKey string
-	encoder       Marshaler
-	decoder       Unmarshaler
+	encoder       encoding.Marshaler
+	decoder       encoding.Unmarshaler
 }
 
 // NewQueryParamStore returns a new query param store for loading sessions from
@@ -21,7 +23,7 @@ type QueryParamStore struct {
 //
 // NOTA BENE: By default, most servers _DO_ log query params, the leaking or
 // accidental logging of which should be considered a security issue.
-func NewQueryParamStore(enc Encoder, qp string) *QueryParamStore {
+func NewQueryParamStore(enc encoding.MarshalUnmarshaler, qp string) *QueryParamStore {
 	if qp == "" {
 		qp = defaultQueryParamKey
 	}

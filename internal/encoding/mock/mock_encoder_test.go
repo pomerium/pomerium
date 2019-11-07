@@ -1,4 +1,4 @@
-package encoding // import "github.com/pomerium/pomerium/internal/encoding"
+package mock // import "github.com/pomerium/pomerium/internal/encoding/mock"
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 
 func TestMockEncoder(t *testing.T) {
 	e := errors.New("err")
-	mc := MockEncoder{
+	mc := Encoder{
 		MarshalResponse: []byte("MarshalResponse"),
 		MarshalError:    e,
 		UnmarshalError:  e,

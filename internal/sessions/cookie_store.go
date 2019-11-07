@@ -3,10 +3,11 @@ package sessions // import "github.com/pomerium/pomerium/internal/sessions"
 import (
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pomerium/pomerium/internal/encoding"
 )
 
 const (
@@ -31,8 +32,9 @@ type CookieStore struct {
 	Expire   time.Duration
 	HTTPOnly bool
 	Secure   bool
-	encoder  Marshaler
-	decoder  Unmarshaler
+
+	encoder encoding.Marshaler
+	decoder encoding.Unmarshaler
 }
 
 // CookieOptions holds options for CookieStore
@@ -45,70 +47,60 @@ type CookieOptions struct {
 }
 
 // NewCookieStore returns a new session with ciphers for each of the cookie secrets
-func NewCookieStore(opts *CookieOptions, encoder Encoder) (*CookieStore, error) {
-	if opts.Name == "" {
-		return nil, fmt.Errorf("internal/sessions: cookie name cannot be empty")
+func NewCookieStore(opts *CookieOptions, encoder encoding.MarshalUnmarshaler) (*CookieStore, error) {
+	cs, err := NewCookieLoader(opts, encoder)
+	if err != nil {
+		return nil, err
 	}
-	if encoder == nil {
-		return nil, fmt.Errorf("internal/sessions: decoder cannot be nil")
-	}
-	return &CookieStore{
-		Name:     opts.Name,
-		Secure:   opts.Secure,
-		HTTPOnly: opts.HTTPOnly,
-		Domain:   opts.Domain,
-		Expire:   opts.Expire,
-		encoder:  encoder,
-		decoder:  encoder,
-	}, nil
+	cs.encoder = encoder
+	return cs, nil
 }
 
 // NewCookieLoader returns a new session with ciphers for each of the cookie secrets
-func NewCookieLoader(opts *CookieOptions, decoder Unmarshaler) (*CookieStore, error) {
+func NewCookieLoader(opts *CookieOptions, dencoder encoding.Unmarshaler) (*CookieStore, error) {
+	if dencoder == nil {
+		return nil, fmt.Errorf("internal/sessions: dencoder cannot be nil")
+	}
+	cs, err := newCookieStore(opts)
+	if err != nil {
+		return nil, err
+	}
+	cs.decoder = dencoder
+	return cs, nil
+}
+
+func newCookieStore(opts *CookieOptions) (*CookieStore, error) {
 	if opts.Name == "" {
 		return nil, fmt.Errorf("internal/sessions: cookie name cannot be empty")
 	}
-	if decoder == nil {
-		return nil, fmt.Errorf("internal/sessions: decoder cannot be nil")
-	}
+
 	return &CookieStore{
 		Name:     opts.Name,
 		Secure:   opts.Secure,
 		HTTPOnly: opts.HTTPOnly,
 		Domain:   opts.Domain,
 		Expire:   opts.Expire,
-		decoder:  decoder,
 	}, nil
 }
 
-func (cs *CookieStore) makeCookie(req *http.Request, name string, value string, expiration time.Duration, now time.Time) *http.Cookie {
-	domain := req.Host
-
-	if cs.Domain != "" {
-		domain = cs.Domain
-	}
-
-	if h, _, err := net.SplitHostPort(domain); err == nil {
-		domain = h
-	}
-	c := &http.Cookie{
-		Name:     name,
+func (cs *CookieStore) makeCookie(value string) *http.Cookie {
+	return &http.Cookie{
+		Name:     cs.Name,
 		Value:    value,
 		Path:     "/",
-		Domain:   domain,
+		Domain:   cs.Domain,
 		HttpOnly: cs.HTTPOnly,
 		Secure:   cs.Secure,
+		Expires:  timeNow().Add(cs.Expire),
 	}
-	// only set an expiration if we want one, otherwise default to non perm session based
-	if expiration != 0 {
-		c.Expires = now.Add(expiration)
-	}
-	return c
 }
 
 // ClearSession clears the session cookie from a request
-func (cs *CookieStore) ClearSession(w http.ResponseWriter, req *http.Request) {
-	http.SetCookie(w, cs.makeCookie(req, cs.Name, "", time.Hour*-1, time.Now()))
+func (cs *CookieStore) ClearSession(w http.ResponseWriter, _ *http.Request) {
+	c := cs.makeCookie("")
+	c.MaxAge = -1
+	c.Expires = timeNow().Add(-time.Hour)
+	http.SetCookie(w, c)
 }
 
 // LoadSession returns a State from the cookie in the request.
@@ -127,7 +119,7 @@ func (cs *CookieStore) LoadSession(req *http.Request) (*State, error) {
 }
 
 // SaveSession saves a session state to a request's cookie store.
-func (cs *CookieStore) SaveSession(w http.ResponseWriter, req *http.Request, x interface{}) error {
+func (cs *CookieStore) SaveSession(w http.ResponseWriter, _ *http.Request, x interface{}) error {
 	var value string
 	if cs.encoder != nil {
 		data, err := cs.encoder.Marshal(x)
@@ -145,17 +137,12 @@ func (cs *CookieStore) SaveSession(w http.ResponseWriter, req *http.Request, x i
 			return errors.New("internal/sessions: cannot save non-string type")
 		}
 	}
-	cs.setSessionCookie(w, req, value)
+	cs.setSessionCookie(w, value)
 	return nil
 }
 
-// makeSessionCookie constructs a session cookie given the request, an expiration time and the current time.
-func (cs *CookieStore) makeSessionCookie(req *http.Request, value string, expiration time.Duration, now time.Time) *http.Cookie {
-	return cs.makeCookie(req, cs.Name, value, expiration, now)
-}
-
-func (cs *CookieStore) setSessionCookie(w http.ResponseWriter, req *http.Request, val string) {
-	cs.setCookie(w, cs.makeSessionCookie(req, val, cs.Expire, time.Now()))
+func (cs *CookieStore) setSessionCookie(w http.ResponseWriter, val string) {
+	cs.setCookie(w, cs.makeCookie(val))
 }
 
 func (cs *CookieStore) setCookie(w http.ResponseWriter, cookie *http.Cookie) {
