@@ -32,6 +32,7 @@ module.exports = {
         ariaLabel: "Version menu",
         items: [
           { text: "🚧Dev", link: "https://master.docs.pomerium.io/docs" },
+          { text: "v0.5.x", link: "https://0-5-0.docs.pomerium.io/docs" },
           { text: "v0.4.x", link: "https://0-4-0.docs.pomerium.io/docs" },
           { text: "v0.3.x", link: "https://0-3-0.docs.pomerium.io/docs" },
           { text: "v0.2.x", link: "https://0-2-0.docs.pomerium.io/docs" },
