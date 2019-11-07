@@ -1,5 +1,30 @@
 # Changelog
 
+## vUnreleased
+
+### New
+
+- Session state is now route-scoped. Each managed route uses a transparent, signed JSON Web Token (JWT) to assert identity.
+- Managed routes no longer need to be under the same subdomain! Access can be delegated to any route, on any domain.
+- Programmatic access now also uses JWT tokens. Access tokens are now generated via a standard oauth2 token flow, and credentials can be refreshed for as long as is permitted by the underlying identity provider.
+- User dashboard now pulls in additional user context fields (where supported) like the profile picture, first and last name, and so on.
+
+### Security
+
+- Some identity providers (Okta and Azure) previously used mutable signifiers to set and assert group membership. Group membership for all providers now use globally unique and immutable identifiers when available.
+
+### Changed
+
+- Azure AD identity provider now uses globally unique and immutable `ID` for [group membership](https://docs.microsoft.com/en-us/graph/api/group-get?view=graph-rest-1.0&tabs=http).
+- Okta no longer uses tokens to retrieve group membership. Group membership is now fetched using Okta's HTTP API. [Group membership](https://developer.okta.com/docs/reference/api/groups/) is now determined by the globally unique and immutable `ID` field.
+- Okta now requires an additional set of credentials to be used to query for group membership set as a [service account](https://www.pomerium.io/docs/reference/reference.html#identity-provider-service-account).
+- URLs are no longer validated to be on the same domain-tree as the authenticate service. Managed routes can live on any domain.
+
+### Removed
+
+- Force refresh has been removed from the dashboard.
+- Previous programmatic authentication endpoints (`/api/v1/token`) has been removed and is no longer supported.
+
 ## v0.4.2
 
 ### Security

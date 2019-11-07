@@ -1,4 +1,4 @@
-package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
+package encoding // import "github.com/pomerium/pomerium/internal/encoding"
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 func TestMockEncoder(t *testing.T) {
 	e := errors.New("err")
 	mc := MockEncoder{
-		MarshalResponse: "MarshalResponse",
+		MarshalResponse: []byte("MarshalResponse"),
 		MarshalError:    e,
 		UnmarshalError:  e,
 	}
@@ -16,10 +16,10 @@ func TestMockEncoder(t *testing.T) {
 	if err != e {
 		t.Error("unexpected Marshal error")
 	}
-	if s != "MarshalResponse" {
+	if string(s) != "MarshalResponse" {
 		t.Error("unexpected MarshalResponse error")
 	}
-	err = mc.Unmarshal("s", "s")
+	err = mc.Unmarshal([]byte("s"), "s")
 	if err != e {
 		t.Error("unexpected Unmarshal error")
 	}

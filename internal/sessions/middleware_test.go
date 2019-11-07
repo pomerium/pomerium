@@ -11,6 +11,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/encoding/ecjson"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 func TestNewContext(t *testing.T) {
@@ -27,7 +29,7 @@ func TestNewContext(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctxOut := NewContext(tt.ctx, tt.t, tt.err)
 			stateOut, errOut := FromContext(ctxOut)
-			if diff := cmp.Diff(tt.t, stateOut); diff != "" {
+			if diff := cmp.Diff(tt.t.Email, stateOut.Email); diff != "" {
 				t.Errorf("NewContext() = %s", diff)
 			}
 			if diff := cmp.Diff(tt.err, errOut); diff != "" {
@@ -67,56 +69,54 @@ func TestVerifier(t *testing.T) {
 		wantBody   string
 		wantStatus int
 	}{
-		{"good cookie session", State{Email: "user@pomerium.io", RefreshDeadline: time.Now().Add(10 * time.Second)}, true, false, false, http.StatusText(http.StatusOK), http.StatusOK},
-		{"expired cookie", State{Email: "user@pomerium.io", RefreshDeadline: time.Now().Add(-10 * time.Second)}, true, false, false, "internal/sessions: session is expired\n", http.StatusUnauthorized},
-		{"malformed cookie", State{Email: "user@pomerium.io", RefreshDeadline: time.Now().Add(-10 * time.Second)}, true, false, false, "internal/sessions: session is malformed\n", http.StatusUnauthorized},
-		{"good auth header session", State{Email: "user@pomerium.io", RefreshDeadline: time.Now().Add(10 * time.Second)}, false, true, false, http.StatusText(http.StatusOK), http.StatusOK},
-		{"expired auth header", State{Email: "user@pomerium.io", RefreshDeadline: time.Now().Add(-10 * time.Second)}, false, true, false, "internal/sessions: session is expired\n", http.StatusUnauthorized},
-		{"malformed auth header", State{Email: "user@pomerium.io", RefreshDeadline: time.Now().Add(-10 * time.Second)}, false, true, false, "internal/sessions: session is malformed\n", http.StatusUnauthorized},
-		{"good auth query param session", State{Email: "user@pomerium.io", RefreshDeadline: time.Now().Add(10 * time.Second)}, false, true, true, http.StatusText(http.StatusOK), http.StatusOK},
-		{"expired auth query param", State{Email: "user@pomerium.io", RefreshDeadline: time.Now().Add(-10 * time.Second)}, false, false, true, "internal/sessions: session is expired\n", http.StatusUnauthorized},
-		{"malformed auth query param", State{Email: "user@pomerium.io", RefreshDeadline: time.Now().Add(-10 * time.Second)}, false, false, true, "internal/sessions: session is malformed\n", http.StatusUnauthorized},
-		{"no session", State{Email: "user@pomerium.io", RefreshDeadline: time.Now().Add(-10 * time.Second)}, false, false, false, "internal/sessions: session is not found\n", http.StatusUnauthorized},
+		{"good cookie session", State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}, true, false, false, http.StatusText(http.StatusOK), http.StatusOK},
+		{"expired cookie", State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, true, false, false, "internal/sessions: validation failed, token is expired (exp)\n", http.StatusUnauthorized},
+		{"malformed cookie", State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, true, false, false, "internal/sessions: session is malformed\n", http.StatusUnauthorized},
+		{"good auth header session", State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}, false, true, false, http.StatusText(http.StatusOK), http.StatusOK},
+		{"expired auth header", State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, false, true, false, "internal/sessions: validation failed, token is expired (exp)\n", http.StatusUnauthorized},
+		{"malformed auth header", State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, false, true, false, "internal/sessions: session is malformed\n", http.StatusUnauthorized},
+		{"good auth query param session", State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}, false, true, true, http.StatusText(http.StatusOK), http.StatusOK},
+		{"expired auth query param", State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, false, false, true, "internal/sessions: validation failed, token is expired (exp)\n", http.StatusUnauthorized},
+		{"malformed auth query param", State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, false, false, true, "internal/sessions: session is malformed\n", http.StatusUnauthorized},
+		{"no session", State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, false, false, false, "internal/sessions: session is not found\n", http.StatusUnauthorized},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cipher, err := cryptutil.NewAEADCipherFromBase64(cryptutil.NewBase64Key())
-			encoder := cryptutil.NewSecureJSONEncoder(cipher)
-
+			encoder := ecjson.New(cipher)
 			if err != nil {
 				t.Fatal(err)
 			}
-			encSession, err := MarshalSession(&tt.state, encoder)
+			encSession, err := encoder.Marshal(&tt.state)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if strings.Contains(tt.name, "malformed") {
 				// add some garbage to the end of the string
-				encSession += cryptutil.NewBase64Key()
+				encSession = append(encSession, cryptutil.NewKey()...)
 			}
 
-			cs, err := NewCookieStore(&CookieStoreOptions{
-				Name:    "_pomerium",
-				Encoder: encoder,
-			})
+			cs, err := NewCookieStore(&CookieOptions{
+				Name: "_pomerium",
+			}, encoder)
 			if err != nil {
 				t.Fatal(err)
 			}
-			as := NewHeaderStore(encoder)
+			as := NewHeaderStore(encoder, "")
 
-			qp := NewQueryParamStore(encoder)
+			qp := NewQueryParamStore(encoder, "")
 
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()
 			if tt.cookie {
-				r.AddCookie(&http.Cookie{Name: "_pomerium", Value: encSession})
+				r.AddCookie(&http.Cookie{Name: "_pomerium", Value: string(encSession)})
 			} else if tt.header {
-				r.Header.Set("Authorization", "Bearer "+encSession)
+				r.Header.Set("Authorization", "Bearer "+string(encSession))
 			} else if tt.param {
 				q := r.URL.Query()
 
-				q.Set("pomerium_session", encSession)
+				q.Set("pomerium_session", string(encSession))
 				r.URL.RawQuery = q.Encode()
 			}
 

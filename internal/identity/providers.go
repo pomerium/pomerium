@@ -7,11 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"time"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 
 	oidc "github.com/pomerium/go-oidc"
 	"golang.org/x/oauth2"
@@ -34,22 +31,13 @@ const (
 
 // ErrMissingProviderURL is returned when an identity provider requires a provider url
 // does not receive one.
-var ErrMissingProviderURL = errors.New("identity: missing provider url")
-
-// UserGrouper is an interface representing the ability to retrieve group membership information
-// from an identity provider
-type UserGrouper interface {
-	// UserGroups returns a slice of group names a given user is in
-	UserGroups(context.Context, string) ([]string, error)
-}
+var ErrMissingProviderURL = errors.New("internal/identity: missing provider url")
 
 // Authenticator is an interface representing the ability to authenticate with an identity provider.
 type Authenticator interface {
 	Authenticate(context.Context, string) (*sessions.State, error)
-	IDTokenToSession(context.Context, string) (*sessions.State, error)
-	Validate(context.Context, string) (bool, error)
 	Refresh(context.Context, *sessions.State) (*sessions.State, error)
-	Revoke(string) error
+	Revoke(context.Context, *oauth2.Token) error
 	GetSignInURL(state string) string
 }
 
@@ -59,8 +47,8 @@ func New(providerName string, p *Provider) (a Authenticator, err error) {
 	switch providerName {
 	case AzureProviderName:
 		a, err = NewAzureProvider(p)
-	case GitlabProviderName:
-		return nil, fmt.Errorf("identity: %s currently not supported", providerName)
+	// case GitlabProviderName:
+	// 	return nil, fmt.Errorf("internal/identity: %s currently not supported", providerName)
 	case GoogleProviderName:
 		a, err = NewGoogleProvider(p)
 	case OIDCProviderName:
@@ -70,7 +58,7 @@ func New(providerName string, p *Provider) (a Authenticator, err error) {
 	case OneLoginProviderName:
 		a, err = NewOneLoginProvider(p)
 	default:
-		return nil, fmt.Errorf("identity: %s provider not known", providerName)
+		return nil, fmt.Errorf("internal/identity: %s provider not known", providerName)
 	}
 	if err != nil {
 		return nil, err
@@ -84,14 +72,17 @@ func New(providerName string, p *Provider) (a Authenticator, err error) {
 type Provider struct {
 	ProviderName string
 
-	RedirectURL  *url.URL
+	RedirectURL *url.URL
+
 	ClientID     string
 	ClientSecret string
 	ProviderURL  string
 	Scopes       []string
 
-	// Some providers, such as google, require additional remote api calls to retrieve
-	// user details like groups. Provider is responsible for parsing.
+	UserGroupFn func(context.Context, *sessions.State) ([]string, error)
+
+	// ServiceAccount can be set for those providers that require additional
+	// credentials or tokens to do follow up API calls (e.g. Google)
 	ServiceAccount string
 
 	provider *oidc.Provider
@@ -110,94 +101,73 @@ func (p *Provider) GetSignInURL(state string) string {
 	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline)
 }
 
-// Validate validates a given session's from it's JWT token
-// The function verifies it's been signed by the provider, preforms
-// any additional checks depending on the Config, and returns the payload.
-//
-// Validate does NOT do nonce validation.
-// Validate does NOT check if revoked.
-// https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
-func (p *Provider) Validate(ctx context.Context, idToken string) (bool, error) {
-	ctx, span := trace.StartSpan(ctx, "identity.provider.Validate")
-	defer span.End()
-	_, err := p.verifier.Verify(ctx, idToken)
-	if err != nil {
-		log.Error().Err(err).Msg("identity: failed to verify session state")
-		return false, err
-	}
-	return true, nil
-}
-
-// IDTokenToSession takes an identity provider issued JWT as input ('id_token')
-// and returns a session state. The provided token's audience ('aud') must
-// match Pomerium's client_id.
-func (p *Provider) IDTokenToSession(ctx context.Context, rawIDToken string) (*sessions.State, error) {
-	idToken, err := p.verifier.Verify(ctx, rawIDToken)
-	if err != nil {
-		return nil, fmt.Errorf("identity: could not verify id_token: %v", err)
-	}
-	// extract additional, non-oidc standard claims
-	var claims struct {
-		Email         string   `json:"email"`
-		EmailVerified bool     `json:"email_verified"`
-		Groups        []string `json:"groups"`
-	}
-	if err := idToken.Claims(&claims); err != nil {
-		return nil, fmt.Errorf("identity: failed to parse id_token claims: %v", err)
-	}
-
-	return &sessions.State{
-		IDToken:         rawIDToken,
-		User:            idToken.Subject,
-		RefreshDeadline: idToken.Expiry.Truncate(time.Second),
-		Email:           claims.Email,
-		Groups:          claims.Groups,
-	}, nil
-
-}
-
-// Authenticate creates a session with an identity provider from a authorization code
+// Authenticate creates an identity session with google from a authorization code, and follows up
+// call to the admin/group api to check what groups the user is in.
 func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.State, error) {
-	// exchange authorization for a oidc token
 	oauth2Token, err := p.oauth.Exchange(ctx, code)
 	if err != nil {
-		return nil, fmt.Errorf("identity: failed token exchange: %v", err)
+		return nil, fmt.Errorf("internal/identity: token exchange failed: %w", err)
 	}
-	//id_token contains claims about the authenticated user
-	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
-	if !ok {
-		return nil, fmt.Errorf("token response did not contain an id_token")
-	}
-	session, err := p.IDTokenToSession(ctx, rawIDToken)
+	idToken, err := p.IdentityFromToken(ctx, oauth2Token)
 	if err != nil {
-		return nil, fmt.Errorf("identity: could not verify id_token: %v", err)
-	}
-	session.AccessToken = oauth2Token.AccessToken
-	session.RefreshToken = oauth2Token.RefreshToken
-
-	return session, nil
-}
-
-// Refresh renews a user's session using therefresh_token without reprompting
-// the user. If supported, group membership is also refreshed.
-// https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
-func (p *Provider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
-	if s.RefreshToken == "" {
-		return nil, errors.New("identity: missing refresh token")
-	}
-	t := oauth2.Token{RefreshToken: s.RefreshToken}
-	newToken, err := p.oauth.TokenSource(ctx, &t).Token()
-	if err != nil {
-		log.Error().Err(err).Msg("identity: refresh failed")
 		return nil, err
 	}
-	s.AccessToken = newToken.AccessToken
-	s.RefreshDeadline = newToken.Expiry.Truncate(time.Second)
+
+	s, err := sessions.NewStateFromTokens(idToken, oauth2Token, p.RedirectURL.Host)
+	if err != nil {
+		return nil, err
+	}
+	if p.UserGroupFn != nil {
+		s.Groups, err = p.UserGroupFn(ctx, s)
+		if err != nil {
+			return nil, fmt.Errorf("internal/identity: could not retrieve groups %w", err)
+		}
+	}
 	return s, nil
+}
+
+// Refresh renews a user's session using an oidc refresh token withoutreprompting the user.
+// Group membership is also refreshed.
+// https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
+func (p *Provider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
+	if s.AccessToken == nil || s.AccessToken.RefreshToken == "" {
+		return nil, errors.New("internal/identity: missing refresh token")
+	}
+
+	t := oauth2.Token{RefreshToken: s.AccessToken.RefreshToken}
+	oauthToken, err := p.oauth.TokenSource(ctx, &t).Token()
+	if err != nil {
+		return nil, fmt.Errorf("internal/identity: refresh failed %w", err)
+	}
+	idToken, err := p.IdentityFromToken(ctx, oauthToken)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.UpdateState(idToken, oauthToken); err != nil {
+		return nil, fmt.Errorf("internal/identity: state update failed %w", err)
+	}
+	if p.UserGroupFn != nil {
+		s.Groups, err = p.UserGroupFn(ctx, s)
+		if err != nil {
+			return nil, fmt.Errorf("internal/identity: could not retrieve groups %w", err)
+		}
+	}
+	return s, nil
+}
+
+// IdentityFromToken takes an identity provider issued JWT as input ('id_token')
+// and returns a session state. The provided token's audience ('aud') must
+// match Pomerium's client_id.
+func (p *Provider) IdentityFromToken(ctx context.Context, t *oauth2.Token) (*oidc.IDToken, error) {
+	rawIDToken, ok := t.Extra("id_token").(string)
+	if !ok {
+		return nil, fmt.Errorf("internal/identity: id_token not found")
+	}
+	return p.verifier.Verify(ctx, rawIDToken)
 }
 
 // Revoke enables a user to revoke her token. If the identity provider supports revocation
 // the endpoint is available, otherwise an error is thrown.
-func (p *Provider) Revoke(token string) error {
-	return fmt.Errorf("identity: revoke not implemented by %s", p.ProviderName)
+func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
+	return fmt.Errorf("internal/identity: revoke not implemented by %s", p.ProviderName)
 }

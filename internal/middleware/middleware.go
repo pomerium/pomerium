@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -12,8 +11,6 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
-
-	"golang.org/x/net/publicsuffix"
 )
 
 // SetHeaders sets a map of response headers.
@@ -28,72 +25,6 @@ func SetHeaders(headers map[string]string) func(next http.Handler) http.Handler 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
-}
-
-// ValidateClientSecret checks the request header for the client secret and returns
-// an error if it does not match the proxy client secret
-func ValidateClientSecret(sharedSecret string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateClientSecret")
-			defer span.End()
-
-			if err := r.ParseForm(); err != nil {
-				httputil.ErrorResponse(w, r, httputil.Error("couldn't parse form", http.StatusBadRequest, err))
-				return
-			}
-			clientSecret := r.Form.Get("shared_secret")
-			// check the request header for the client secret
-			if clientSecret == "" {
-				clientSecret = r.Header.Get("X-Client-Secret")
-			}
-
-			if clientSecret != sharedSecret {
-				httputil.ErrorResponse(w, r, httputil.Error("client secret mismatch", http.StatusBadRequest, nil))
-				return
-			}
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
-
-// ValidateRedirectURI checks the redirect uri in the query parameters and ensures that
-// the its domain is in the list of proxy root domains.
-func ValidateRedirectURI(rootDomain *url.URL) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateRedirectURI")
-			defer span.End()
-			err := r.ParseForm()
-			if err != nil {
-				httputil.ErrorResponse(w, r, httputil.Error("couldn't parse form", http.StatusBadRequest, err))
-				return
-			}
-			redirectURI, err := urlutil.ParseAndValidateURL(r.Form.Get("redirect_uri"))
-			if err != nil {
-				httputil.ErrorResponse(w, r, httputil.Error("bad redirect_uri", http.StatusBadRequest, err))
-				return
-			}
-			if !SameDomain(redirectURI, rootDomain) {
-				httputil.ErrorResponse(w, r, httputil.Error("redirect uri and root domain differ", http.StatusBadRequest, nil))
-				return
-			}
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
-
-// SameDomain checks to see if two URLs share the top level domain (TLD Plus One).
-func SameDomain(u, j *url.URL) bool {
-	a, err := publicsuffix.EffectiveTLDPlusOne(u.Hostname())
-	if err != nil {
-		return false
-	}
-	b, err := publicsuffix.EffectiveTLDPlusOne(j.Hostname())
-	if err != nil {
-		return false
-	}
-	return a == b
 }
 
 // ValidateSignature ensures the request is valid and has been signed with

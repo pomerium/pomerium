@@ -1,46 +1,147 @@
 package sessions // import "github.com/pomerium/pomerium/internal/sessions"
 
 import (
-	"encoding/base64"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
+	oidc "github.com/pomerium/go-oidc"
+	"golang.org/x/oauth2"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
+
+const (
+	// DefaultLeeway defines the default leeway for matching NotBefore/Expiry claims.
+	DefaultLeeway = 1.0 * time.Minute
+)
+
+// timeNow is time.Now but pulled out as a variable for tests.
+var timeNow = time.Now
 
 // State is our object that keeps track of a user's session state
 type State struct {
-	AccessToken     string    `json:"access_token"`
-	RefreshToken    string    `json:"refresh_token"`
-	IDToken         string    `json:"id_token"`
-	RefreshDeadline time.Time `json:"refresh_deadline"`
+	// Public claim values (as specified in RFC 7519).
+	Issuer    string           `json:"iss,omitempty"`
+	Subject   string           `json:"sub,omitempty"`
+	Audience  jwt.Audience     `json:"aud,omitempty"`
+	Expiry    *jwt.NumericDate `json:"exp,omitempty"`
+	NotBefore *jwt.NumericDate `json:"nbf,omitempty"`
+	IssuedAt  *jwt.NumericDate `json:"iat,omitempty"`
+	ID        string           `json:"jti,omitempty"`
 
+	// core pomerium identity claims ; not standard to RFC 7519
 	Email  string   `json:"email"`
-	User   string   `json:"user"`
-	Groups []string `json:"groups"`
+	Groups []string `json:"groups,omitempty"`
+	User   string   `json:"user,omitempty"` // google
 
-	ImpersonateEmail  string
-	ImpersonateGroups []string
+	// commonly supported IdP information
+	// https://www.iana.org/assignments/jwt/jwt.xhtml#claims
+	Name          string `json:"name,omitempty"`           // google
+	GivenName     string `json:"given_name,omitempty"`     // google
+	FamilyName    string `json:"family_name,omitempty"`    // google
+	Picture       string `json:"picture,omitempty"`        // google
+	EmailVerified bool   `json:"email_verified,omitempty"` // google
+
+	// Impersonate-able fields
+	ImpersonateEmail  string   `json:"impersonate_email,omitempty"`
+	ImpersonateGroups []string `json:"impersonate_groups,omitempty"`
+
+	// Programmatic whether this state is used for machine-to-machine
+	// programatic access.
+	Programmatic bool `json:"programatic"`
+
+	AccessToken *oauth2.Token `json:"access_token,omitempty"`
+
+	idToken *oidc.IDToken
 }
 
-// Valid returns an error if the users's session state is not valid.
-func (s *State) Valid() error {
-	if s.Expired() {
-		return ErrExpired
+// NewStateFromTokens returns a session state built from oidc and oauth2
+// tokens as part of OpenID Connect flow with a new audience appended to the
+// audience claim.
+func NewStateFromTokens(idToken *oidc.IDToken, accessToken *oauth2.Token, audience string) (*State, error) {
+	if idToken == nil {
+		return nil, errors.New("sessions: oidc id token missing")
 	}
+	if accessToken == nil {
+		return nil, errors.New("sessions: oauth2 token missing")
+	}
+	s := &State{}
+	if err := idToken.Claims(s); err != nil {
+		return nil, fmt.Errorf("sessions: couldn't unmarshal extra claims %w", err)
+	}
+	s.Audience = []string{audience}
+	s.idToken = idToken
+	s.AccessToken = accessToken
+
+	return s, nil
+}
+
+// UpdateState updates the current state given a new identity (oidc) and authorization
+// (oauth2) tokens following a oidc refresh. NB, unlike during authentication,
+// refresh typically provides fewer claims in the token so we want to build from
+// our previous state.
+func (s *State) UpdateState(idToken *oidc.IDToken, accessToken *oauth2.Token) error {
+	if idToken == nil {
+		return errors.New("sessions: oidc id token missing")
+	}
+	if accessToken == nil {
+		return errors.New("sessions: oauth2 token missing")
+	}
+	audience := append(s.Audience[:0:0], s.Audience...)
+	s.AccessToken = accessToken
+	if err := idToken.Claims(s); err != nil {
+		return fmt.Errorf("sessions: update state failed %w", err)
+	}
+	s.Audience = audience
+	s.Expiry = jwt.NewNumericDate(accessToken.Expiry)
 	return nil
 }
 
-// ForceRefresh sets the refresh deadline to now.
-func (s *State) ForceRefresh() {
-	s.RefreshDeadline = time.Now().Truncate(time.Second)
+// NewSession updates issuer, audience, and issuance timestamps but keeps
+// parent expiry.
+func (s State) NewSession(issuer string, audience []string) *State {
+	s.IssuedAt = jwt.NewNumericDate(timeNow())
+	s.NotBefore = s.IssuedAt
+	s.Audience = audience
+	s.Issuer = issuer
+	return &s
 }
 
-// Expired returns true if the refresh period has expired
-func (s *State) Expired() bool {
-	return s.RefreshDeadline.Before(time.Now())
+// RouteSession creates a route session with access tokens stripped and a
+// custom validity period.
+func (s State) RouteSession(validity time.Duration) *State {
+	s.Expiry = jwt.NewNumericDate(timeNow().Add(validity))
+	s.AccessToken = nil
+	return &s
+}
+
+// Verify returns an error if the users's session state is not valid.
+func (s *State) Verify(audience string) error {
+	if s.NotBefore != nil && timeNow().Add(DefaultLeeway).Before(s.NotBefore.Time()) {
+		return ErrNotValidYet
+	}
+
+	if s.Expiry != nil && timeNow().Add(-DefaultLeeway).After(s.Expiry.Time()) {
+		return ErrExpired
+	}
+
+	if s.IssuedAt != nil && timeNow().Add(DefaultLeeway).Before(s.IssuedAt.Time()) {
+		return ErrIssuedInTheFuture
+	}
+
+	// if we have an associated access token, check if that token has expired as well
+	if s.AccessToken != nil && timeNow().Add(-DefaultLeeway).After(s.AccessToken.Expiry) {
+		return ErrExpired
+	}
+
+	if len(s.Audience) != 0 {
+		if !s.Audience.Contains(audience) {
+			return ErrInvalidAudience
+		}
+
+	}
+	return nil
 }
 
 // Impersonating returns if the request is impersonating.
@@ -65,79 +166,12 @@ func (s *State) RequestGroups() string {
 	return strings.Join(s.Groups, ",")
 }
 
-type idToken struct {
-	Issuer   string   `json:"iss"`
-	Subject  string   `json:"sub"`
-	Expiry   jsonTime `json:"exp"`
-	IssuedAt jsonTime `json:"iat"`
-	Nonce    string   `json:"nonce"`
-	AtHash   string   `json:"at_hash"`
-}
-
-// IssuedAt parses the IDToken's issue date and returns a valid go time.Time.
-func (s *State) IssuedAt() (time.Time, error) {
-	payload, err := parseJWT(s.IDToken)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("internal/sessions: malformed jwt: %v", err)
-	}
-	var token idToken
-	if err := json.Unmarshal(payload, &token); err != nil {
-		return time.Time{}, fmt.Errorf("internal/sessions: failed to unmarshal claims: %v", err)
-	}
-	return time.Time(token.IssuedAt), nil
-}
-
-// MarshalSession marshals the session state as JSON, encrypts the JSON using the
-// given cipher, and base64-encodes the result
-func MarshalSession(s *State, c cryptutil.SecureEncoder) (string, error) {
-	v, err := c.Marshal(s)
-	if err != nil {
-		return "", err
-	}
-	return v, nil
-}
-
-// UnmarshalSession takes the marshaled string, base64-decodes into a byte slice, decrypts the
-// byte slice using the passed cipher, and unmarshals the resulting JSON into a session state struct
-func UnmarshalSession(value string, c cryptutil.SecureEncoder) (*State, error) {
-	s := &State{}
-	err := c.Unmarshal(value, s)
-	if err != nil {
-		return nil, err
-	}
-	return s, nil
-}
-
-func parseJWT(p string) ([]byte, error) {
-	parts := strings.Split(p, ".")
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("internal/sessions: malformed jwt, expected 3 parts got %d", len(parts))
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil, fmt.Errorf("internal/sessions: malformed jwt payload: %v", err)
-	}
-	return payload, nil
-}
-
-type jsonTime time.Time
-
-func (j *jsonTime) UnmarshalJSON(b []byte) error {
-	var n json.Number
-	if err := json.Unmarshal(b, &n); err != nil {
-		return err
-	}
-	var unix int64
-
-	if t, err := n.Int64(); err == nil {
-		unix = t
+// SetImpersonation sets impersonation user and groups.
+func (s *State) SetImpersonation(email, groups string) {
+	s.ImpersonateEmail = email
+	if groups == "" {
+		s.ImpersonateGroups = nil
 	} else {
-		f, err := n.Float64()
-		if err != nil {
-			return err
-		}
-		unix = int64(f)
+		s.ImpersonateGroups = strings.Split(groups, ",")
 	}
-	*j = jsonTime(time.Unix(unix, 0))
-	return nil
 }

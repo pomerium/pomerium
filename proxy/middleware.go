@@ -3,9 +3,8 @@ package proxy // import "github.com/pomerium/pomerium/proxy"
 import (
 	"fmt"
 	"net/http"
-	"strings"
+	"time"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -30,34 +29,35 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthenticateSession")
 		defer span.End()
-		if err := p.authenticate(w, r); err != nil {
+		if err := p.authenticate(false, w, r.WithContext(ctx)); err != nil {
+			p.sessionStore.ClearSession(w, r)
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: authenticate session")
-			uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, urlutil.GetAbsoluteURL(r))
-			http.Redirect(w, r, uri.String(), http.StatusFound)
 			return
 		}
-
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+
 }
 
-func (p *Proxy) authenticate(w http.ResponseWriter, r *http.Request) error {
+// authenticate authenticates a user and sets an appropriate response type,
+// redirect to authenticate or error handler depending on if err on failure is set.
+func (p *Proxy) authenticate(errOnFailure bool, w http.ResponseWriter, r *http.Request) error {
 	s, err := sessions.FromContext(r.Context())
 	if err != nil {
-		return err
-	}
-	if s == nil {
-		return fmt.Errorf("empty session state")
-	}
-	if err := s.Valid(); err != nil {
+		if errOnFailure || (s != nil && s.Programmatic) {
+			httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusUnauthorized, err))
+			return err
+		}
+		uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, urlutil.GetAbsoluteURL(r))
+		http.Redirect(w, r, uri.String(), http.StatusFound)
 		return err
 	}
 	// add pomerium's headers to the downstream request
-	r.Header.Set(HeaderUserID, s.User)
+	r.Header.Set(HeaderUserID, s.Subject)
 	r.Header.Set(HeaderEmail, s.RequestEmail())
 	r.Header.Set(HeaderGroups, s.RequestGroups())
 	// and upstream
-	w.Header().Set(HeaderUserID, s.User)
+	w.Header().Set(HeaderUserID, s.Subject)
 	w.Header().Set(HeaderEmail, s.RequestEmail())
 	w.Header().Set(HeaderGroups, s.RequestGroups())
 	return nil
@@ -69,27 +69,35 @@ func (p *Proxy) AuthorizeSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthorizeSession")
 		defer span.End()
-		s, err := sessions.FromContext(r.Context())
-		if err != nil || s == nil {
-			httputil.ErrorResponse(w, r.WithContext(ctx), httputil.Error("", http.StatusForbidden, err))
-			return
-		}
-		authorized, err := p.AuthorizeClient.Authorize(r.Context(), r.Host, s)
-		if err != nil {
-			httputil.ErrorResponse(w, r.WithContext(ctx), err)
-			return
-		} else if !authorized {
-			errMsg := fmt.Sprintf("%s is not authorized for this route", s.RequestEmail())
-			httputil.ErrorResponse(w, r.WithContext(ctx), httputil.Error(errMsg, http.StatusForbidden, nil))
+		if err := p.authorize(r.Host, w, r.WithContext(ctx)); err != nil {
+			log.FromRequest(r).Debug().Err(err).Msg("proxy: AuthorizeSession")
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
+func (p *Proxy) authorize(host string, w http.ResponseWriter, r *http.Request) error {
+	s, err := sessions.FromContext(r.Context())
+	if err != nil {
+		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusUnauthorized, err))
+		return err
+	}
+	authorized, err := p.AuthorizeClient.Authorize(r.Context(), host, s)
+	if err != nil {
+		httputil.ErrorResponse(w, r, err)
+		return err
+	} else if !authorized {
+		err = fmt.Errorf("%s is not authorized for %s", s.RequestEmail(), host)
+		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusUnauthorized, err))
+		return err
+	}
+	return nil
+}
+
 // SignRequest is middleware that signs a JWT that contains a user's id,
 // email, and group. Session state is retrieved from the users's request context
-func (p *Proxy) SignRequest(signer cryptutil.JWTSigner) func(next http.Handler) http.Handler {
+func (p *Proxy) SignRequest(signer sessions.Marshaler) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "proxy.SignRequest")
@@ -99,12 +107,13 @@ func (p *Proxy) SignRequest(signer cryptutil.JWTSigner) func(next http.Handler) 
 				httputil.ErrorResponse(w, r.WithContext(ctx), httputil.Error("", http.StatusForbidden, err))
 				return
 			}
-			jwt, err := signer.SignJWT(s.User, s.Email, strings.Join(s.Groups, ","))
+			newSession := s.NewSession(r.Host, []string{r.Host})
+			jwt, err := signer.Marshal(newSession.RouteSession(time.Minute))
 			if err != nil {
-				log.FromRequest(r).Warn().Err(err).Msg("proxy: failed signing jwt")
+				log.FromRequest(r).Error().Err(err).Msg("proxy: failed signing jwt")
 			} else {
-				r.Header.Set(HeaderJWT, jwt)
-				w.Header().Set(HeaderJWT, jwt)
+				r.Header.Set(HeaderJWT, string(jwt))
+				w.Header().Set(HeaderJWT, string(jwt))
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

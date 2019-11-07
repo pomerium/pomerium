@@ -3,14 +3,9 @@ package sessions // import "github.com/pomerium/pomerium/internal/sessions"
 import (
 	"net/http"
 	"strings"
-
-	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
 const (
-	// defaultAuthHeader and defaultAuthType are default header name for the
-	// authorization bearer  token header as defined in rfc2617
-	// https://tools.ietf.org/html/rfc6750#section-2.1
 	defaultAuthHeader = "Authorization"
 	defaultAuthType   = "Bearer"
 )
@@ -20,41 +15,44 @@ const (
 type HeaderStore struct {
 	authHeader string
 	authType   string
-	encoder    cryptutil.SecureEncoder
+	encoder    Unmarshaler
 }
 
 // NewHeaderStore returns a new header store for loading sessions from
-// authorization headers.
-func NewHeaderStore(enc cryptutil.SecureEncoder) *HeaderStore {
+// authorization header as defined in as defined in rfc2617
+//
+// NOTA BENE: While most servers do not log Authorization headers by default,
+// you should ensure no other services are logging or leaking your auth headers.
+func NewHeaderStore(enc Unmarshaler, headerType string) *HeaderStore {
+	if headerType == "" {
+		headerType = defaultAuthType
+	}
 	return &HeaderStore{
 		authHeader: defaultAuthHeader,
-		authType:   defaultAuthType,
+		authType:   headerType,
 		encoder:    enc,
 	}
 }
 
 // LoadSession tries to retrieve the token string from the Authorization header.
-//
-// NOTA BENE: While most servers do not log Authorization headers by default,
-// you should ensure no other services are logging or leaking your auth headers.
 func (as *HeaderStore) LoadSession(r *http.Request) (*State, error) {
-	cipherText := as.tokenFromHeader(r)
+	cipherText := TokenFromHeader(r, as.authHeader, as.authType)
 	if cipherText == "" {
 		return nil, ErrNoSessionFound
 	}
-	session, err := UnmarshalSession(cipherText, as.encoder)
-	if err != nil {
+	var session State
+	if err := as.encoder.Unmarshal([]byte(cipherText), &session); err != nil {
 		return nil, ErrMalformed
 	}
-	return session, nil
-
+	return &session, nil
 }
 
-// retrieve the value of the authorization header
-func (as *HeaderStore) tokenFromHeader(r *http.Request) string {
-	bearer := r.Header.Get(as.authHeader)
-	atSize := len(as.authType)
-	if len(bearer) > atSize && strings.EqualFold(bearer[0:atSize], as.authType) {
+// TokenFromHeader retrieves the value of the authorization header from a given
+// request, header key, and authentication type.
+func TokenFromHeader(r *http.Request, authHeader, authType string) string {
+	bearer := r.Header.Get(authHeader)
+	atSize := len(authType)
+	if len(bearer) > atSize && strings.EqualFold(bearer[0:atSize], authType) {
 		return bearer[atSize+1:]
 	}
 	return ""

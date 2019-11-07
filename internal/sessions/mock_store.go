@@ -23,6 +23,6 @@ func (ms MockSessionStore) LoadSession(*http.Request) (*State, error) {
 }
 
 // SaveSession returns a save error.
-func (ms MockSessionStore) SaveSession(http.ResponseWriter, *http.Request, *State) error {
+func (ms MockSessionStore) SaveSession(http.ResponseWriter, *http.Request, interface{}) error {
 	return ms.SaveError
 }

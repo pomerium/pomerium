@@ -3,21 +3,19 @@ package identity // import "github.com/pomerium/pomerium/internal/identity"
 import (
 	"context"
 
+	"golang.org/x/oauth2"
+
 	"github.com/pomerium/pomerium/internal/sessions"
 )
 
 // MockProvider provides a mocked implementation of the providers interface.
 type MockProvider struct {
-	AuthenticateResponse     sessions.State
-	AuthenticateError        error
-	IDTokenToSessionResponse sessions.State
-	IDTokenToSessionError    error
-	ValidateResponse         bool
-	ValidateError            error
-	RefreshResponse          *sessions.State
-	RefreshError             error
-	RevokeError              error
-	GetSignInURLResponse     string
+	AuthenticateResponse sessions.State
+	AuthenticateError    error
+	RefreshResponse      sessions.State
+	RefreshError         error
+	RevokeError          error
+	GetSignInURLResponse string
 }
 
 // Authenticate is a mocked providers function.
@@ -25,23 +23,13 @@ func (mp MockProvider) Authenticate(ctx context.Context, code string) (*sessions
 	return &mp.AuthenticateResponse, mp.AuthenticateError
 }
 
-// IDTokenToSession is a mocked providers function.
-func (mp MockProvider) IDTokenToSession(ctx context.Context, code string) (*sessions.State, error) {
-	return &mp.IDTokenToSessionResponse, mp.IDTokenToSessionError
-}
-
-// Validate is a mocked providers function.
-func (mp MockProvider) Validate(ctx context.Context, s string) (bool, error) {
-	return mp.ValidateResponse, mp.ValidateError
-}
-
 // Refresh is a mocked providers function.
 func (mp MockProvider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
-	return mp.RefreshResponse, mp.RefreshError
+	return &mp.RefreshResponse, mp.RefreshError
 }
 
 // Revoke is a mocked providers function.
-func (mp MockProvider) Revoke(s string) error {
+func (mp MockProvider) Revoke(ctx context.Context, s *oauth2.Token) error {
 	return mp.RevokeError
 }
 
