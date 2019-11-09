@@ -19,6 +19,7 @@
 - Okta no longer uses tokens to retrieve group membership. Group membership is now fetched using Okta's HTTP API. [Group membership](https://developer.okta.com/docs/reference/api/groups/) is now determined by the globally unique and immutable `ID` field.
 - Okta now requires an additional set of credentials to be used to query for group membership set as a [service account](https://www.pomerium.io/docs/reference/reference.html#identity-provider-service-account).
 - URLs are no longer validated to be on the same domain-tree as the authenticate service. Managed routes can live on any domain.
+- Moved `internal/config` to `pkg/config`
 
 ### Removed
 
