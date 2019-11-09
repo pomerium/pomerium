@@ -3,7 +3,7 @@ package authorize
 import (
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/config"
+	"github.com/pomerium/pomerium/config"
 )
 
 func TestNew(t *testing.T) {

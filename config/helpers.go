@@ -1,4 +1,4 @@
-package config // import "github.com/pomerium/pomerium/internal/config"
+package config // import "github.com/pomerium/pomerium/config"
 
 const (
 	// ServiceAll represents running all services in "all-in-one" mode

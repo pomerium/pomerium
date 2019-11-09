@@ -1,4 +1,4 @@
-package config // import "github.com/pomerium/pomerium/internal/config"
+package config // import "github.com/pomerium/pomerium/config"
 
 import (
 	"crypto/tls"
@@ -77,45 +77,45 @@ func (p *Policy) Validate() error {
 	var err error
 	p.Source, err = urlutil.ParseAndValidateURL(p.From)
 	if err != nil {
-		return fmt.Errorf("internal/config: policy bad source url %s", err)
+		return fmt.Errorf("config: policy bad source url %s", err)
 	}
 
 	p.Destination, err = urlutil.ParseAndValidateURL(p.To)
 	if err != nil {
-		return fmt.Errorf("internal/config: policy bad destination url %s", err)
+		return fmt.Errorf("config: policy bad destination url %s", err)
 	}
 
 	// Only allow public access if no other whitelists are in place
 	if p.AllowPublicUnauthenticatedAccess && (p.AllowedDomains != nil || p.AllowedGroups != nil || p.AllowedEmails != nil) {
-		return fmt.Errorf("internal/config: policy route marked as public but contains whitelists")
+		return fmt.Errorf("config: policy route marked as public but contains whitelists")
 	}
 
 	if (p.TLSClientCert == "" && p.TLSClientKey != "") || (p.TLSClientCert != "" && p.TLSClientKey == "") ||
 		(p.TLSClientCertFile == "" && p.TLSClientKeyFile != "") || (p.TLSClientCertFile != "" && p.TLSClientKeyFile == "") {
-		return fmt.Errorf("internal/config: client certificate key and cert both must be non-empty")
+		return fmt.Errorf("config: client certificate key and cert both must be non-empty")
 	}
 
 	if p.TLSClientCert != "" && p.TLSClientKey != "" {
 		p.ClientCertificate, err = cryptutil.CertifcateFromBase64(p.TLSClientCert, p.TLSClientKey)
 		if err != nil {
-			return fmt.Errorf("internal/config: couldn't decode client cert %v", err)
+			return fmt.Errorf("config: couldn't decode client cert %v", err)
 		}
 	} else if p.TLSClientCertFile != "" && p.TLSClientKeyFile != "" {
 		p.ClientCertificate, err = cryptutil.CertificateFromFile(p.TLSClientCertFile, p.TLSClientKeyFile)
 		if err != nil {
-			return fmt.Errorf("internal/config: couldn't load client cert file %v", err)
+			return fmt.Errorf("config: couldn't load client cert file %v", err)
 		}
 	}
 
 	if p.TLSCustomCA != "" {
 		p.RootCAs, err = cryptutil.CertPoolFromBase64(p.TLSCustomCA)
 		if err != nil {
-			return fmt.Errorf("internal/config: couldn't decode custom ca %v", err)
+			return fmt.Errorf("config: couldn't decode custom ca %v", err)
 		}
 	} else if p.TLSCustomCAFile != "" {
 		p.RootCAs, err = cryptutil.CertPoolFromFile(p.TLSCustomCAFile)
 		if err != nil {
-			return fmt.Errorf("internal/config: couldn't load custom ca file %v", err)
+			return fmt.Errorf("config: couldn't load custom ca file %v", err)
 		}
 	}
 

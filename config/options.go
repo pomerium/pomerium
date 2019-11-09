@@ -1,4 +1,4 @@
-package config // import "github.com/pomerium/pomerium/internal/config"
+package config // import "github.com/pomerium/pomerium/config"
 
 import (
 	"crypto/tls"
@@ -218,7 +218,7 @@ func NewDefaultOptions() *Options {
 func NewOptionsFromConfig(configFile string) (*Options, error) {
 	o, err := optionsFromViper(configFile)
 	if err != nil {
-		return nil, fmt.Errorf("internal/config: options from viper %w", err)
+		return nil, fmt.Errorf("config: options from viper %w", err)
 	}
 	if o.Debug {
 		log.SetDebugMode()
@@ -232,7 +232,7 @@ func NewOptionsFromConfig(configFile string) (*Options, error) {
 
 	checksumDec, err := strconv.ParseUint(o.Checksum(), 16, 64)
 	if err != nil {
-		log.Warn().Err(err).Msg("internal/config: could not parse config checksum into decimal")
+		log.Warn().Err(err).Msg("config: could not parse config checksum into decimal")
 	}
 	metrics.SetConfigChecksum(o.Services, checksumDec)
 
@@ -381,7 +381,7 @@ func (o *Options) Validate() error {
 	var err error
 
 	if !IsValidService(o.Services) {
-		return fmt.Errorf("internal/config: %s is an invalid service type", o.Services)
+		return fmt.Errorf("config: %s is an invalid service type", o.Services)
 	}
 
 	if IsAll(o.Services) {
@@ -407,18 +407,18 @@ func (o *Options) Validate() error {
 		// the HTTP health check api
 		if o.Addr == o.GRPCAddr {
 			o.Addr = DefaultAlternativeAddr
-			log.Warn().Str("Addr", o.Addr).Str("GRPCAddr", o.Addr).Msg("internal/config: default http handler changed")
+			log.Warn().Str("Addr", o.Addr).Str("GRPCAddr", o.Addr).Msg("config: default http handler changed")
 		}
 	}
 
 	if o.SharedKey == "" {
-		return errors.New("internal/config: shared-key cannot be empty")
+		return errors.New("config: shared-key cannot be empty")
 	}
 
 	if o.AuthenticateURLString != "" {
 		u, err := urlutil.ParseAndValidateURL(o.AuthenticateURLString)
 		if err != nil {
-			return fmt.Errorf("internal/config: bad authenticate-url %s : %v", o.AuthenticateURLString, err)
+			return fmt.Errorf("config: bad authenticate-url %s : %v", o.AuthenticateURLString, err)
 		}
 		o.AuthenticateURL = u
 	}
@@ -426,7 +426,7 @@ func (o *Options) Validate() error {
 	if o.AuthorizeURLString != "" {
 		u, err := urlutil.ParseAndValidateURL(o.AuthorizeURLString)
 		if err != nil {
-			return fmt.Errorf("internal/config: bad authorize-url %s : %w", o.AuthorizeURLString, err)
+			return fmt.Errorf("config: bad authorize-url %s : %w", o.AuthorizeURLString, err)
 		}
 		o.AuthorizeURL = u
 	}
@@ -434,20 +434,20 @@ func (o *Options) Validate() error {
 	if o.ForwardAuthURLString != "" {
 		u, err := urlutil.ParseAndValidateURL(o.ForwardAuthURLString)
 		if err != nil {
-			return fmt.Errorf("internal/config: bad forward-auth-url %s : %w", o.ForwardAuthURLString, err)
+			return fmt.Errorf("config: bad forward-auth-url %s : %w", o.ForwardAuthURLString, err)
 		}
 		o.ForwardAuthURL = u
 	}
 
 	if o.PolicyFile != "" {
-		return errors.New("internal/config: policy file setting is deprecated")
+		return errors.New("config: policy file setting is deprecated")
 	}
 	if err := o.parsePolicy(); err != nil {
-		return fmt.Errorf("internal/config: failed to parse policy: %w", err)
+		return fmt.Errorf("config: failed to parse policy: %w", err)
 	}
 
 	if err := o.parseHeaders(); err != nil {
-		return fmt.Errorf("internal/config: failed to parse headers: %w", err)
+		return fmt.Errorf("config: failed to parse headers: %w", err)
 	}
 
 	if _, disable := o.Headers[DisableHeaderKey]; disable {
@@ -455,13 +455,13 @@ func (o *Options) Validate() error {
 	}
 
 	if o.InsecureServer {
-		log.Warn().Msg("internal/config: insecure mode enabled")
+		log.Warn().Msg("config: insecure mode enabled")
 	} else if o.Cert != "" || o.Key != "" {
 		o.TLSCertificate, err = cryptutil.CertifcateFromBase64(o.Cert, o.Key)
 	} else if o.CertFile != "" || o.KeyFile != "" {
 		o.TLSCertificate, err = cryptutil.CertificateFromFile(o.CertFile, o.KeyFile)
 	} else {
-		err = errors.New("internal/config:no certificates supplied nor was insecure mode set")
+		err = errors.New("config:no certificates supplied nor was insecure mode set")
 	}
 	if err != nil {
 		return err
@@ -478,7 +478,7 @@ type OptionsUpdater interface {
 func (o *Options) Checksum() string {
 	hash, err := hashstructure.Hash(o, nil)
 	if err != nil {
-		log.Warn().Err(err).Msg("internal/config: checksum failure")
+		log.Warn().Err(err).Msg("config: checksum failure")
 		return "no checksum available"
 	}
 	return fmt.Sprintf("%x", hash)
@@ -487,24 +487,24 @@ func (o *Options) Checksum() string {
 func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdater) *Options {
 	newOpt, err := NewOptionsFromConfig(configFile)
 	if err != nil {
-		log.Error().Err(err).Msg("internal/config: could not reload configuration")
+		log.Error().Err(err).Msg("config: could not reload configuration")
 		metrics.SetConfigInfo(opt.Services, false, "")
 		return opt
 	}
 	optChecksum := opt.Checksum()
 	newOptChecksum := newOpt.Checksum()
 
-	log.Debug().Str("old-checksum", optChecksum).Str("new-checksum", newOptChecksum).Msg("internal/config: checksum change")
+	log.Debug().Str("old-checksum", optChecksum).Str("new-checksum", newOptChecksum).Msg("config: checksum change")
 
 	if newOptChecksum == optChecksum {
-		log.Debug().Msg("internal/config: loaded configuration has not changed")
+		log.Debug().Msg("config: loaded configuration has not changed")
 		return opt
 	}
 
 	var updateFailed bool
 	for _, service := range services {
 		if err := service.UpdateOptions(*newOpt); err != nil {
-			log.Error().Err(err).Msg("internal/config: could not update options")
+			log.Error().Err(err).Msg("config: could not update options")
 			updateFailed = true
 			metrics.SetConfigInfo(opt.Services, false, "")
 		}
