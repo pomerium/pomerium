@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -97,7 +98,7 @@ func (p *Proxy) authorize(host string, w http.ResponseWriter, r *http.Request) e
 
 // SignRequest is middleware that signs a JWT that contains a user's id,
 // email, and group. Session state is retrieved from the users's request context
-func (p *Proxy) SignRequest(signer sessions.Marshaler) func(next http.Handler) http.Handler {
+func (p *Proxy) SignRequest(signer encoding.Marshaler) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "proxy.SignRequest")

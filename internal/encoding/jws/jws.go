@@ -5,10 +5,11 @@ package jws // import "github.com/pomerium/pomerium/internal/encoding/jws"
 import (
 	"encoding/base64"
 
+	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/encoding"
+
 	jose "gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
-
-	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
 // JSONWebSigner is the struct representing a signed JWT.
@@ -21,7 +22,7 @@ type JSONWebSigner struct {
 }
 
 // NewHS256Signer creates a SHA256 JWT signer from a 32 byte key.
-func NewHS256Signer(key []byte, issuer string) (*JSONWebSigner, error) {
+func NewHS256Signer(key []byte, issuer string) (encoding.MarshalUnmarshaler, error) {
 	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: key},
 		(&jose.SignerOptions{}).WithType("JWT"))
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -75,7 +76,7 @@ type Proxy struct {
 
 	AuthorizeClient clients.Authorizer
 
-	encoder                sessions.Encoder
+	encoder                encoding.Unmarshaler
 	cookieOptions          *sessions.CookieOptions
 	cookieSecret           []byte
 	defaultUpstreamTimeout time.Duration

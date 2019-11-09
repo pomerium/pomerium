@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/ecjson"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/identity"
@@ -59,7 +60,7 @@ type Authenticate struct {
 	sharedCipher cipher.AEAD
 	// sharedEncoder is the encoder to use to serialize data to be consumed
 	// by other services
-	sharedEncoder sessions.Encoder
+	sharedEncoder encoding.MarshalUnmarshaler
 
 	// data related to this service only
 	cookieOptions *sessions.CookieOptions
@@ -68,7 +69,7 @@ type Authenticate struct {
 	// is the cipher to use to encrypt data for this service
 	cookieCipher     cipher.AEAD
 	sessionStore     sessions.SessionStore
-	encryptedEncoder sessions.Encoder
+	encryptedEncoder encoding.MarshalUnmarshaler
 	sessionStores    []sessions.SessionStore
 	sessionLoaders   []sessions.SessionLoader
 
