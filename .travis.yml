@@ -22,10 +22,10 @@ before_script:
   - ./cc-test-reporter before-build
 
 script:
-  - env GOPROXY=https://proxy.golang.org GO111MODULE=on make all
+  - env GOPROXY=https://proxy.golang.org,direct GO111MODULE=on make all
   - env GO111MODULE=on make cover
   - env GO111MODULE=on make release
-  - env GOPROXY=https://proxy.golang.org GO111MODULE=on go test ./... -coverprofile c.out
+  - env GOPROXY=https://proxy.golang.org,direct GO111MODULE=on go test ./... -coverprofile c.out
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
