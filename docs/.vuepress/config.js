@@ -141,7 +141,7 @@ module.exports = {
       ],
       "/configuration/": [
         {
-          title: "",
+          title: "Configuration",
           type: "group",
           collapsable: false,
           sidebarDepth: 1,

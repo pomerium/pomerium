@@ -1,5 +1,5 @@
 ---
-title: Configuration Settings
+title: Settings
 lang: en-US
 sidebarDepth: 1
 meta:

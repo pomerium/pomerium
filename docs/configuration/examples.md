@@ -1,7 +1,7 @@
 ---
-title: Configuration Examples
+title: Examples
 lang: en-US
-sidebarDepth: 0
+sidebarDepth: 2
 meta:
   - name: keywords
     content: pomerium community help bugs updates features
@@ -11,7 +11,7 @@ description: >-
   report issues, get help, and suggest new features.
 ---
 
-# Config Examples
+# Examples
 
 A collection of copy-and-paste-able configurations for various types of clouds, use-cases, and deployments. These files can also be found in the git repository in the `docs/configuration/examples/` directory.
 
@@ -23,13 +23,13 @@ Remember to set your identity provider settings and to generate new secret keys!
 
 [[toc]]
 
-## Configurations
+## Settings
 
-#### Configuration File
+### Configuration File
 
 <<< @/docs/configuration/examples/config/config.example.yaml
 
-#### Environmental Variables
+### Environmental Variables
 
 <<< @/docs/configuration/examples/config/config.example.env
 
@@ -49,7 +49,7 @@ Customize for your identity provider and run `./bin/pomerium -config config.yaml
 
 Uses the [latest pomerium build](https://hub.docker.com/r/pomerium/pomerium) from docker hub. Docker and docker-compose are great tools for standing up and testing multiple service, and containers without having to stand-up a full on cluster.
 
-#### Basic
+### All-in-One
 
 - Minimal container-based configuration.
 - Docker and Docker-Compose based.
@@ -62,7 +62,7 @@ Customize for your identity provider run `docker-compose up -f basic.docker-comp
 
 <<< @/docs/configuration/examples/docker/basic.docker-compose.yml
 
-#### NGINX micro-services
+### Distinct Services
 
 - Docker and Docker-Compose based.
 - Uses pre-configured built-in nginx load balancer
@@ -82,13 +82,13 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 - Routes default to hosted version of httpbin.org
 - Includes installer script
 
-#### helm_gke.sh
+### GKE
 
 - Uses Google Kubernetes Engine's built-in ingress to do [HTTPS load balancing]
 
 <<< @/scripts/helm_gke.sh
 
-#### helm_aws.sh
+### AWS ECS
 
 - Uses Amazon Elastic Container Service
 
