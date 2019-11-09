@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/pkg/config"
 )
 
 func Test_newGlobalRouter(t *testing.T) {

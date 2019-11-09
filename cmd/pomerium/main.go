@@ -13,7 +13,6 @@ import (
 
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
-	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/grpcutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -22,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/config"
 	pbAuthorize "github.com/pomerium/pomerium/proto/authorize"
 	"github.com/pomerium/pomerium/proxy"
 )

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/config"
 )
 
 // Identity contains a user's identity information.

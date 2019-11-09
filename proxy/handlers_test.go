@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/pkg/config"
 	"github.com/pomerium/pomerium/proxy/clients"
 
 	"github.com/google/go-cmp/cmp"

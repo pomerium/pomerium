@@ -12,7 +12,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/pomerium/pomerium/internal/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -24,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/templates"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/config"
 	"github.com/pomerium/pomerium/proxy/clients"
 )
 
