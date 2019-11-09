@@ -1,3 +1,12 @@
+/docs/reference/reference.html				/docs/configuration/
+
+/community/							/docs/community/
+/community/contributing.html		/docs/community/contributing.html
+/community/code-of-conduct.html		/docs/community/code-of-conduct.html		
+/community/security.html			/docs/community/security.html		
+
+/docs/reference/examples.html		/configuration/examples.html
+
 /reference/				/docs/reference/reference.html
 /guide/					/docs/quick-start/
 /guide/kubernetes.html	/docs/quick-start/kubernetes.html

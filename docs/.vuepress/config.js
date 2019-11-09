@@ -23,8 +23,8 @@ module.exports = {
     lastUpdated: "Last Updated",
     nav: [
       { text: "Documentation", link: "/docs/" },
+      { text: "Configuration", link: "/configuration/" },
       { text: "Recipes", link: "/recipes/" },
-      { text: "Community", link: "/community/" },
       { text: "Enterprise", link: "/enterprise/" },
 
       {
@@ -84,10 +84,22 @@ module.exports = {
             "identity-providers/",
             "identity-providers/azure",
             "identity-providers/cognito",
-            "identity-providers/gitlab",
             "identity-providers/google",
             "identity-providers/okta",
             "identity-providers/one-login"
+          ]
+        },
+        {
+          title: "Community",
+          collapsable: false,
+          path: "/docs/community/",
+          type: "group",
+          sidebarDepth: 0,
+          children: [
+            "community/",
+            "community/contributing",
+            "community/code-of-conduct",
+            "community/security"
           ]
         },
         {
@@ -103,20 +115,9 @@ module.exports = {
             "reference/programmatic-access",
             "reference/getting-users-identity",
             "reference/signed-headers",
-            "reference/examples",
-            "reference/reference",
+            // "reference/examples",
             "reference/production-deployment"
           ]
-        }
-      ],
-      "/community/": [
-        {
-          title: "Community",
-          type: "group",
-
-          collapsable: false,
-          sidebarDepth: 1,
-          children: ["", "contributing", "code-of-conduct", "security"]
         }
       ],
       "/recipes/": [
@@ -136,6 +137,15 @@ module.exports = {
           collapsable: false,
           sidebarDepth: 1,
           children: [""]
+        }
+      ],
+      "/configuration/": [
+        {
+          title: "",
+          type: "group",
+          collapsable: false,
+          sidebarDepth: 1,
+          children: ["", "examples"]
         }
       ]
     }

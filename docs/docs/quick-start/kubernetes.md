@@ -8,7 +8,7 @@ meta:
 
 # Pomerium using Kubernetes
 
-This quickstart will cover how to deploy Pomerium with Kubernetes. 
+This quickstart will cover how to deploy Pomerium with Kubernetes.
 
 ## Prerequisites
 
@@ -24,14 +24,14 @@ Retrieve the latest copy of pomerium's source-code by cloning the repository.
 
 ```bash
 git clone https://github.com/pomerium/pomerium.git $HOME/pomerium
-cd $HOME/pomerium/docs/docs/reference/examples/kubernetes
+cd $HOME/pomerium/docs/configuration/examples/kubernetes
 ```
 
 ## Configure
 
 Edit [./kubernetes_gke.sh] making sure to change the identity provider secret value to match your [identity provider] and [wild-card tls certificate] settings.
 
-<<<@/docs/docs/reference/examples/kubernetes/kubernetes_gke.sh
+<<<@/docs/configuration/examples/kubernetes/kubernetes_gke.sh
 
 ## Run
 
@@ -43,7 +43,7 @@ Run [./kubernetes_gke.sh] which will:
 4. Configure an ingress load balancer.
 
 ```bash
-cd $HOME/pomerium/docs/docs/reference/examples/kubernetes
+cd $HOME/pomerium/docs/configuration/examples/kubernetes
 sh ./kubernetes_gke.sh
 ```
 

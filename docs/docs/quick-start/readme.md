@@ -22,7 +22,7 @@ In the following quick-start, we'll create a minimal but complete environment fo
 
 Create a [configuration file] (e.g `config.yaml`) for defining Pomerium's configuration settings, routes, and access-policies. Consider the following example:
 
-<<< @/docs/docs/reference/examples/config/config.minimal.yaml
+<<< @/docs/configuration/examples/config/config.minimal.yaml
 
 Ensure the `docker-compose.yml` contains the correct path to your `config.yaml`.
 
@@ -34,7 +34,7 @@ Download the following `docker-compose.yml` file and modify it to:
 - mount your [wild-card TLS certificate]
 - mount your `config.yaml` [configuration file]
 
-<<< @/docs/docs/reference/examples/docker/basic.docker-compose.yml
+<<< @/docs/configuration/examples/docker/basic.docker-compose.yml
 
 ## Run
 
@@ -48,7 +48,7 @@ Docker will automatically download the required [container images] for Pomerium 
 
 You should now be able access to the routes (e.g. `https://httpbin.corp.yourdomain.example`) as specified in your policy file.
 
-[configuration file]: ../reference/reference.md
+[configuration file]: ../../configuration/readme.md
 [container images]: https://hub.docker.com/r/pomerium/pomerium
 [docker]: https://docs.docker.com/install/
 [docker-compose]: https://docs.docker.com/compose/install/

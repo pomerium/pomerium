@@ -27,13 +27,13 @@ Pomerium supports setting [configuration variables] using both environmental var
 
 Create a config file (`config.yaml`). This file will be used to determine Pomerium's configuration settings, routes, and access-policies. Consider the following example:
 
-<<< @/docs/docs/reference/examples/config/config.minimal.yaml
+<<< @/docs/configuration/examples/config/config.minimal.yaml
 
 ### Environmental Variables
 
 As mentioned above, Pomerium supports mixing and matching configuration. For example, we can specify our secret values and domains certificates as [environmental configuration variables], and set the rest as part of the configuration file.
 
-<<< @/docs/docs/reference/examples/config/config.minimal.env
+<<< @/docs/configuration/examples/config/config.minimal.env
 
 ## Run
 
@@ -48,7 +48,7 @@ source ./env
 
 Browse to `external-httpbin.your.domain.example`. Connections between you and [httpbin] will now be proxied and managed by Pomerium.
 
-[configuration variables]: ../reference/reference.md
+[configuration variables]: ../../configuration/readme.md
 [download]: https://github.com/pomerium/pomerium/releases
 [environmental configuration variables]: https://12factor.net/config
 [httpbin]: https://httpbin.org/

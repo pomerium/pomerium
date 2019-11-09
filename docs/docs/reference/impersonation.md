@@ -40,4 +40,4 @@ Here's what it looks like.
 Your browser does not support the video tag.
 </video>
 
-[configuration settings]: ../reference/reference.md#administrators
+[configuration settings]: ../../configuration/readme.md#administrators

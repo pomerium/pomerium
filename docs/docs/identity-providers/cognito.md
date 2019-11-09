@@ -1,3 +1,12 @@
+---
+title: AWS Cognito
+lang: en-US
+# sidebarDepth: 0
+meta:
+  - name: keywords
+    content: amazon aws cognito open-id oidc
+---
+
 # AWS Cognito
 
 ## Setting up AWS Cognito

@@ -39,12 +39,6 @@ authenticate_service_url: https://authenticate.corp.beyondperimeter.com
 # idp_client_id: "REPLACEME
 # idp_client_secret: "REPLACEME"
 
-# Gitlab
-# idp_provider: "gitlab"
-# idp_provider_url: "https://gitlab.onprem.example.com" # optional, defaults to `https://gitlab.com`
-# idp_client_id: "REPLACEME
-# idp_client_secret: "REPLACEME"
-
 ## GOOGLE
 # idp_provider: "google"
 # idp_provider_url: "https://accounts.google.com" # optional for google

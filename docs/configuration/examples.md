@@ -1,10 +1,19 @@
 ---
-sidebarDepth: 2
+title: Configuration Examples
+lang: en-US
+sidebarDepth: 0
+meta:
+  - name: keywords
+    content: pomerium community help bugs updates features
+
+description: >-
+  This document describes how you users can stay up to date with pomerium,
+  report issues, get help, and suggest new features.
 ---
 
 # Config Examples
 
-A collection of copy-and-paste-able configurations for various types of clouds, use-cases, and deployments. These files can also be found in the git repository in the `docs/docs/examples/` directory.
+A collection of copy-and-paste-able configurations for various types of clouds, use-cases, and deployments. These files can also be found in the git repository in the `docs/configuration/examples/` directory.
 
 :::tip
 
@@ -18,11 +27,11 @@ Remember to set your identity provider settings and to generate new secret keys!
 
 #### Configuration File
 
-<<< @/docs/docs/reference/examples/config/config.example.yaml
+<<< @/docs/configuration/examples/config/config.example.yaml
 
 #### Environmental Variables
 
-<<< @/docs/docs/reference/examples/config/config.example.env
+<<< @/docs/configuration/examples/config/config.example.env
 
 ## Binary
 
@@ -51,7 +60,7 @@ Customize for your identity provider run `docker-compose up -f basic.docker-comp
 
 #### basic.docker-compose.yml
 
-<<< @/docs/docs/reference/examples/docker/basic.docker-compose.yml
+<<< @/docs/configuration/examples/docker/basic.docker-compose.yml
 
 #### NGINX micro-services
 
@@ -64,7 +73,7 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 
 #### nginx.docker-compose.yml
 
-<<< @/docs/docs/reference/examples/docker/nginx.docker-compose.yml
+<<< @/docs/configuration/examples/docker/nginx.docker-compose.yml
 
 ## Helm
 
@@ -95,27 +104,27 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 
 #### kubernetes_gke
 
-<<< @/docs/docs/reference/examples/kubernetes/kubernetes_gke.sh
+<<< @/docs/configuration/examples/kubernetes/kubernetes_gke.sh
 
 #### kubernetes-config.yaml
 
-<<< @/docs/docs/reference/examples/kubernetes/kubernetes-config.yaml
+<<< @/docs/configuration/examples/kubernetes/kubernetes-config.yaml
 
 #### pomerium-authenticate.yml
 
-<<< @/docs/docs/reference/examples/kubernetes/pomerium-authenticate.yml
+<<< @/docs/configuration/examples/kubernetes/pomerium-authenticate.yml
 
 #### pomerium-authorize.yml
 
-<<< @/docs/docs/reference/examples/kubernetes/pomerium-authorize.yml
+<<< @/docs/configuration/examples/kubernetes/pomerium-authorize.yml
 
 #### pomerium-proxy.yml
 
-<<< @/docs/docs/reference/examples/kubernetes/pomerium-proxy.yml
+<<< @/docs/configuration/examples/kubernetes/pomerium-proxy.yml
 
 #### ingress.yml
 
-<<< @/docs/docs/reference/examples/kubernetes/ingress.yml
+<<< @/docs/configuration/examples/kubernetes/ingress.yml
 
 [helloworld]: https://hub.docker.com/r/tutum/hello-world
 [httpbin]: https://httpbin.org/

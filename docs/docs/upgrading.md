@@ -13,17 +13,21 @@ description: >-
 
 #### Subdomain requirement dropped
 
-- Pomerium services and managed routes are no longer required to be on the same domain-tree. Access can be delegated to any route, on any domain (that you have access to, of course).
+- Pomerium services and managed routes are no longer required to be on the same domain-tree root. Access can be delegated to any route, on any domain (that you have access to, of course).
 
 #### Azure AD
 
-- The Azure AD provider now uses the globally unique and immutable`ID` instead of `group name` to attest a user's [group membership](https://docs.microsoft.com/en-us/graph/api/group-get?view=graph-rest-1.0&tabs=http). Please update your policies to use Group `ID`s instead of group names.
+- Azure Active Directory now uses the globally unique and immutable`ID` instead of `group name` to attest a user's [group membership](https://docs.microsoft.com/en-us/graph/api/group-get?view=graph-rest-1.0&tabs=http). Please update your policies to use group `ID` instead of group name.
 
 #### Okta
 
-- Okta no longer uses tokens to retrieve group membership. [Group membership](https://developer.okta.com/docs/reference/api/groups/) is now fetched using Okta's API. Please update your policies to use Group `ID`s instead of group names.
-- Okta's group membership is now determined by the globally unique and immutable ID field.
+- Okta no longer uses tokens to retrieve group membership. [Group membership](https://developer.okta.com/docs/reference/api/groups/) is now fetched using Okta's API.
+- Okta's group membership is now determined by the globally unique and immutable ID field. Please update your policies to use group `ID` instead of group name.
 - Okta now requires an additional set of credentials to be used to query for group membership set as a [service account](https://www.pomerium.io/docs/reference/reference.html#identity-provider-service-account).
+
+#### OneLogin
+
+- OneLogin [group membership](https://developers.onelogin.com/openid-connect/api/user-info) is now determined by the globally unique and immutable ID field. Please update your policies to use group `ID` instead of group name.
 
 #### Force Refresh Removed
 
@@ -173,5 +177,5 @@ Usage of the POLICY_FILE envvar is no longer supported. Support for file based p
 
 The configuration variable [Authenticate Internal Service URL] must now be a valid [URL](https://golang.org/pkg/net/url/#URL) type and contain both a hostname and valid `https` schema.
 
-[policy]: ./reference/reference.md#policy
-[authenticate internal service url]: ./reference/reference.md#authenticate-service-url
+[policy]: ./configuration/readme.md#policy
+[authenticate internal service url]: ./configuration/readme.md#authenticate-service-url

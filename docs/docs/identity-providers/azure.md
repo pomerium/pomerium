@@ -64,6 +64,8 @@ Next you need to ensure that the Pomerium's Redirect URL is listed in allowed re
 
 Next, in order to retrieve group information from Active Directory, we need to enable the necessary permissions for the [Microsoft Graph API](https://docs.microsoft.com/en-us/graph/auth-v2-service#azure-ad-endpoint-considerations).
 
+Please note, [Group ID](https://docs.microsoft.com/en-us/graph/api/group-get?view=graph-rest-1.0&tabs=http) not group name will be used to affirm group membership.
+
 On the **App registrations** page, click **API permissions**. Click the **Add a permission** button and select **Microsoft Graph API**, select **Delegated permissions**. Under the **Directory** row, select the checkbox for **Group.Read.All**.
 
 ![Azure add group membership claims](./img/azure-api-settings.png)
@@ -104,8 +106,8 @@ IDP_CLIENT_ID="REPLACE-ME"
 IDP_CLIENT_SECRET="REPLACE-ME"
 ```
 
-[client id]: ../reference/reference.md#identity-provider-client-id
-[client secret]: ../reference/reference.md#identity-provider-client-secret
+[client id]: ../../configuration/readme.md#identity-provider-client-id
+[client secret]: ../../configuration/readme.md#identity-provider-client-secret
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
 [openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect
