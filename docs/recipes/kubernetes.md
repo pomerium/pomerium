@@ -284,10 +284,10 @@ Finally, we get to install Pomerium! 🎉 Once again, we will use Helm to deploy
 
 ```bash
 helm install stable/pomerium \
-  --name "helm-pomerium" \
+	--name "helm-pomerium" \
 	--set config.rootDomain="domain.example" \
-  --set config.existingConfig="config" \
-  --set authenticate.idp.provider="google" \
+	--set config.existingConfig="config" \
+	--set authenticate.idp.provider="google" \
 	--set authenticate.idp.clientID="YOUR_CLIENT_ID" \
 	--set authenticate.idp.clientSecret="YOUR_SECRET"
 ```
