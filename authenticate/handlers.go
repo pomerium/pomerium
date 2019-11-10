@@ -118,7 +118,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 	// create a clone of the redirect URI, unless this is a programmatic request
 	// in which case we will redirect back to proxy's callback endpoint
 	callbackURL, _ := urlutil.DeepCopy(redirectURL)
-	callbackURL.Path = "/.pomerium/callback"
 
 	q := redirectURL.Query()
 
@@ -162,6 +161,8 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 	q.Set("pomerium_jwt", encodedJWT)
 
 	redirectURL.RawQuery = q.Encode()
+
+	callbackURL.Path = "/.pomerium/callback"
 
 	// build our hmac-d redirect URL with our session, pointing back to the
 	// proxy's callback URL which is responsible for setting our new route-session
