@@ -1,4 +1,4 @@
-package config // import "github.com/pomerium/pomerium/internal/config"
+package config // import "github.com/pomerium/pomerium/config"
 
 import (
 	"testing"

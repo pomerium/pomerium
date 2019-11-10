@@ -3,7 +3,7 @@ package authenticate
 import (
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/config"
+	"github.com/pomerium/pomerium/config"
 )
 
 func newTestOptions(t *testing.T) *config.Options {

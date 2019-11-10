@@ -13,7 +13,7 @@ import (
 
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
-	"github.com/pomerium/pomerium/internal/config"
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/grpcutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"

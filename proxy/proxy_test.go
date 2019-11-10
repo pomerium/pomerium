@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/config"
+	"github.com/pomerium/pomerium/config"
 )
 
 func testOptions(t *testing.T) config.Options {
