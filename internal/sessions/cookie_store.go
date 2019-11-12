@@ -96,26 +96,40 @@ func (cs *CookieStore) makeCookie(value string) *http.Cookie {
 }
 
 // ClearSession clears the session cookie from a request
-func (cs *CookieStore) ClearSession(w http.ResponseWriter, _ *http.Request) {
+func (cs *CookieStore) ClearSession(w http.ResponseWriter, r *http.Request) {
 	c := cs.makeCookie("")
 	c.MaxAge = -1
 	c.Expires = timeNow().Add(-time.Hour)
 	http.SetCookie(w, c)
 }
 
+func getCookies(r *http.Request, name string) []*http.Cookie {
+	allCookies := r.Cookies()
+	matchedCookies := make([]*http.Cookie, 0, len(allCookies))
+	for _, c := range allCookies {
+		if strings.EqualFold(c.Name, name) {
+			matchedCookies = append(matchedCookies, c)
+		}
+	}
+	return matchedCookies
+}
+
 // LoadSession returns a State from the cookie in the request.
-func (cs *CookieStore) LoadSession(req *http.Request) (*State, error) {
-	data := loadChunkedCookie(req, cs.Name)
-	if data == "" {
+func (cs *CookieStore) LoadSession(r *http.Request) (*State, error) {
+	cookies := getCookies(r, cs.Name)
+	if len(cookies) == 0 {
 		return nil, ErrNoSessionFound
 	}
-	var session State
-	err := cs.decoder.Unmarshal([]byte(data), &session)
-	if err != nil {
-		return nil, ErrMalformed
-	}
+	for _, cookie := range cookies {
+		data := loadChunkedCookie(r, cookie)
 
-	return &session, err
+		session := &State{}
+		err := cs.decoder.Unmarshal([]byte(data), session)
+		if err == nil {
+			return session, nil
+		}
+	}
+	return nil, ErrMalformed
 }
 
 // SaveSession saves a session state to a request's cookie store.
@@ -165,18 +179,14 @@ func (cs *CookieStore) setCookie(w http.ResponseWriter, cookie *http.Cookie) {
 	}
 }
 
-func loadChunkedCookie(r *http.Request, cookieName string) string {
-	c, err := r.Cookie(cookieName)
-	if err != nil {
-		return ""
-	}
+func loadChunkedCookie(r *http.Request, c *http.Cookie) string {
 	data := c.Value
 	// if the first byte is our canary byte, we need to handle the multipart bit
 	if []byte(c.Value)[0] == ChunkedCanaryByte {
 		var b strings.Builder
 		fmt.Fprintf(&b, "%s", data[1:])
 		for i := 1; i <= MaxNumChunks; i++ {
-			next, err := r.Cookie(fmt.Sprintf("%s_%d", cookieName, i))
+			next, err := r.Cookie(fmt.Sprintf("%s_%d", c.Name, i))
 			if err != nil {
 				break // break if we can't find the next cookie
 			}

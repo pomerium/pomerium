@@ -31,7 +31,6 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthenticateSession")
 		defer span.End()
 		if err := p.authenticate(false, w, r.WithContext(ctx)); err != nil {
-			p.sessionStore.ClearSession(w, r)
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: authenticate session")
 			return
 		}
@@ -45,6 +44,8 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 func (p *Proxy) authenticate(errOnFailure bool, w http.ResponseWriter, r *http.Request) error {
 	s, err := sessions.FromContext(r.Context())
 	if err != nil {
+		p.sessionStore.ClearSession(w, r)
+
 		if errOnFailure || (s != nil && s.Programmatic) {
 			httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusUnauthorized, err))
 			return err
