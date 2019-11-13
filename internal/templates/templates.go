@@ -175,6 +175,11 @@ func New() *template.Template {
     color: #31325f;
     outline: none;
     cursor: text;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  
   }
   
   fieldset .select::after {
@@ -191,7 +196,7 @@ func New() *template.Template {
   }
   
   input {
-    flex: 1;
+    // flex: 1;
     border-style: none;
     outline: none;
     color: #313b3f;
@@ -321,102 +326,95 @@ func New() *template.Template {
                             {{if .Session.Name}}
                             <label>
                                 <span>Name</span>
-                                <input name="Name" type="text" class="field" value="{{.Session.Name}}" disabled>
+                                <input type="text" class="field" value="{{.Session.Name}}" title="{{.Session.Name}}" disabled>
                             </label>
                             {{else}}
                               {{if .Session.GivenName}}
                               <label>
                                   <span>Given Name</span>
-                                  <input name="GivenName" type="text" class="field" value="{{.Session.GivenName}}" disabled>
+                                  <input type="text" class="field" value="{{.Session.GivenName}}" title="{{.Session.GivenName}}" disabled>
                               </label>
                               {{end}}
                               {{if .Session.FamilyName}}
                               <label>
                                   <span>Family Name</span>
-                                  <input name="FamilyName" type="text" class="field" value="{{.Session.FamilyName}}" disabled>
+                                  <input type="text" class="field" value="{{.Session.FamilyName}}" title="{{.Session.FamilyName}}" disabled>
                               </label>
                               {{end}}
                             {{end}}
                             {{if .Session.Subject}}
                             <label>
                                 <span>UserID</span>
-                                <input name="email" type="text" class="field" value="{{.Session.Subject}}" disabled>
+                                <input type="text" class="field" value="{{.Session.Subject}}" title="{{.Session.Subject}}" disabled>
                             </label>                               
                             {{end}}
                             {{if .Session.Email}}
                             <label>
                                 <span>Email</span>
-                                <input name="email" type="email" class="field" value="{{.Session.Email}}" disabled>
+                                <input type="email" class="field" value="{{.Session.Email}}" title="{{.Session.Email}}" disabled>
                             </label>
                             {{end}}
                             {{if .Session.User}}
                             <label>
                                 <span>User</span>
-                                <input name="user" type="text" class="field" value="{{.Session.User}}" disabled>
+                                <input type="text" class="field" value="{{.Session.User}}" title="{{.Session.User}}" disabled>
                             </label>
                             {{end}}
-                            {{if .Session.Groups}}
-                            <label class="select">
-                                <span>Groups</span>
-                                <div id="group" class="field">
-                                    <select name="group">
-                                        {{range .Session.Groups}}
-                                        <option value="{{.}}">{{.}}</option>
-                                        {{end}}
-                                    </select>
-                                </div>
+                            {{range $i,$_:= .Session.Groups}}
+                            <label>
+                              {{if eq $i 0}}
+                              <span>Group</span>
+                              {{else}}
+                              <span></span>
+                              {{end}}
+                              <input type="text" class="field" value="{{.}}" title="{{.}}" disabled>
                             </label>
                             {{end}}
                             {{if .Session.Expiry}}
                             <label>
                               <span>Expiry</span>
-                              <input name="session expiration" type="text" class="field" value="{{.Session.Expiry.Time}}" disabled>
+                              <input type="text" class="field" value="{{.Session.Expiry.Time}}" title="{{.Session.Expiry.Time}}" disabled>
                             </label>
                             {{end}}
                             {{if .Session.IssuedAt}}
                             <label>
                               <span>Issued</span>
-                              <input name="session expiration" type="text" class="field" value="{{.Session.IssuedAt.Time}}" disabled>
+                              <input type="text" class="field" value="{{.Session.IssuedAt.Time}}" title="{{.Session.IssuedAt.Time}}" disabled>
                             </label>
                             {{end}}
                             {{if .Session.Issuer}}
                             <label>
                               <span>Issuer</span>
-                              <input name="session expiration" type="text" class="field" value=" {{ .Session.Issuer}}" disabled>
+                              <input type="text" class="field" value="{{ .Session.Issuer}}" title="{{ .Session.Issuer}}" disabled>
                             </label>
                             {{end}}
-                            {{if .Session.Audience}}
-                            <label class="select">
-                                <span>Audiences</span>
-                                <div id="group" class="field">
-                                    <select name="group">
-                                        {{range .Session.Audience}}
-                                        <option value="{{.}}">{{ printf "%.30s" . }}</option>
-                                        {{end}}
-                                    </select>
-                                </div>
+                            {{range $i, $_:= .Session.Audience}}
+                            <label>
+                              {{if eq $i 0}}
+                              <span>Audience</span>
+                              {{else}}
+                              <span></span>
+                              {{end}}
+                              <input type="text" class="field" title="{{ . }}" value="{{ . }}" disabled>
                             </label>
                             {{end}}
 
                             {{if .Session.ImpersonateEmail}}
                             <label>
                               <span>Impersonating Email</span>
-                              <input name="session expiration" type="text" class="field" value="{{.Session.ImpersonateEmail}}" disabled>
+                              <input type="text" class="field" value="{{.Session.ImpersonateEmail}}" disabled>
                             </label>
                             {{end}}
-                            {{if .Session.ImpersonateGroups}}
-                            <label class="select">
-                                <span>Impersonating Groups</span>
-                                <div id="group" class="field">
-                                    <select name="group">
-                                        {{range .Session.ImpersonateGroups}}
-                                        <option value="{{.}}">{{.}}</option>
-                                        {{end}}
-                                    </select>
-                                </div>
+                            {{range $i,$_:= .Session.ImpersonateGroups}}
+                            <label>
+                              {{if eq $i 0}}
+                              <span>Impersonating Group</span>
+                              {{else}}
+                              <span></span>
+                              {{end}}
+                                <input type="text" class="field" value="{{.}}" title="{{.}}" disabled>
                             </label>
                             {{end}}
-
                         </fieldset>
                     </section>
                     <div class="flex">
@@ -430,7 +428,7 @@ func New() *template.Template {
                   <form method="POST" action="/.pomerium/impersonate">
                   <section>
                       <h2>Sign-in-as</h2>
-                      <p class="message">Administrators can temporarily impersonate another a user.</p>
+                      <p class="message">Administrators can temporarily impersonate another user.</p>
                       <fieldset>
                           <label>
                               <span>Email</span>
