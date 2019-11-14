@@ -53,15 +53,9 @@ func (a *Authenticate) Handler() http.Handler {
 	// Proxy service endpoints
 	v := r.PathPrefix("/.pomerium").Subrouter()
 	c := cors.New(cors.Options{
-		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
-			return middleware.ValidSignature(
-				r.FormValue("redirect_uri"),
-				r.FormValue("sig"),
-				r.FormValue("ts"),
-				a.sharedKey)
-		},
-		AllowCredentials: true,
-		AllowedHeaders:   []string{"*"},
+		AllowOriginRequestFunc: middleware.ValidateRedirectURI,
+		AllowCredentials:       true,
+		AllowedHeaders:         []string{"*"},
 	})
 	v.Use(c.Handler)
 	v.Use(middleware.ValidateSignature(a.sharedKey))
