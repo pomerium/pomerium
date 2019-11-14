@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pomerium/csrf"
+	"github.com/rs/cors"
 
+	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -51,6 +52,18 @@ func (a *Authenticate) Handler() http.Handler {
 
 	// Proxy service endpoints
 	v := r.PathPrefix("/.pomerium").Subrouter()
+	c := cors.New(cors.Options{
+		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
+			return middleware.ValidSignature(
+				r.FormValue("redirect_uri"),
+				r.FormValue("sig"),
+				r.FormValue("ts"),
+				a.sharedKey)
+		},
+		AllowCredentials: true,
+		AllowedHeaders:   []string{"*"},
+	})
+	v.Use(c.Handler)
 	v.Use(middleware.ValidateSignature(a.sharedKey))
 	v.Use(sessions.RetrieveSession(a.sessionLoaders...))
 	v.Use(a.VerifySession)
@@ -73,7 +86,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		if errors.Is(err, sessions.ErrExpired) {
 			if err := a.refresh(w, r, state); err != nil {
 				log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session, refresh")
-				a.redirectToIdentityProvider(w, r)
+				a.reauthenticateOrFail(w, r, err)
 				return
 			}
 			// redirect to restart middleware-chain following refresh
@@ -81,7 +94,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return
 		} else if err != nil {
 			log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session")
-			a.redirectToIdentityProvider(w, r)
+			a.reauthenticateOrFail(w, r, err)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -192,13 +205,22 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
-// redirectToIdentityProvider starts the authenticate process by redirecting the
+// reauthenticateOrFail starts the authenticate process by redirecting the
 // user to their respective identity provider. This function also builds the
 // 'state' parameter which is encrypted and includes authenticating data
 // for validation.
+// If the request is a `xhr/ajax` request (e.g the `X-Requested-With` header)
+// is set do not redirect but instead return 401 unauthorized.
+//
 // https://openid.net/specs/openid-connect-core-1_0-final.html#AuthRequest
 // https://tools.ietf.org/html/rfc6749#section-4.2.1
-func (a *Authenticate) redirectToIdentityProvider(w http.ResponseWriter, r *http.Request) {
+// https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
+func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Request, err error) {
+	// If request AJAX/XHR request, return a 401 instead .
+	if reqType := r.Header.Get("X-Requested-With"); strings.EqualFold(reqType, "XmlHttpRequest") {
+		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusUnauthorized, err))
+		return
+	}
 	a.sessionStore.ClearSession(w, r)
 	redirectURL := a.RedirectURL.ResolveReference(r.URL)
 	nonce := csrf.Token(r)
