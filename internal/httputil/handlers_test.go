@@ -35,3 +35,34 @@ func TestHealthCheck(t *testing.T) {
 		})
 	}
 }
+
+func TestRedirect(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		method string
+
+		url  string
+		code int
+
+		wantStatus int
+	}{
+		{"good", http.MethodGet, "https://pomerium.io", http.StatusFound, http.StatusFound},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			r := httptest.NewRequest(tt.method, "/", nil)
+			w := httptest.NewRecorder()
+
+			Redirect(w, r, tt.url, tt.code)
+			if w.Code != tt.wantStatus {
+				t.Errorf("code differs. got %d want %d body: %s", w.Code, tt.wantStatus, w.Body.String())
+			}
+			if w.Result().Header.Get(HeaderPomeriumResponse) == "" {
+				t.Errorf("pomerium header not found")
+			}
+		})
+	}
+}

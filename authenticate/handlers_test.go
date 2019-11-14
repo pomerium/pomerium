@@ -69,6 +69,25 @@ func TestAuthenticate_Handler(t *testing.T) {
 	if body != expected {
 		t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
 	}
+
+	// cors preflight
+	req = httptest.NewRequest(http.MethodOptions, "/.pomerium/sign_in", nil)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Access-Control-Request-Method", "GET")
+	req.Header.Set("Access-Control-Request-Headers", "X-Requested-With")
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	expected = fmt.Sprintf("User-agent: *\nDisallow: /")
+	code := rr.Code
+	if code != http.StatusOK {
+		t.Errorf("bad preflight code")
+	}
+	resp := rr.Result()
+	body = resp.Header.Get("vary")
+	if body == "" {
+		t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
+	}
+
 }
 
 func TestAuthenticate_SignIn(t *testing.T) {
