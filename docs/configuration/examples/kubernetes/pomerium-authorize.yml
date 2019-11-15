@@ -1,65 +1,59 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: pomerium-authenticate-service
+  name: pomerium-authorize-service
 spec:
   ports:
     - port: 80
-      name: http
+      name: grpc
   selector:
-    app: pomerium-authenticate
-  type: NodePort
+    app: pomerium-authorize
+  type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pomerium-authenticate
+  name: pomerium-authorize
   labels:
-    app: pomerium-authenticate
+    app: pomerium-authorize
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: pomerium-authenticate
+      app: pomerium-authorize
   template:
     metadata:
       labels:
-        app: pomerium-authenticate
+        app: pomerium-authorize
     spec:
       containers:
-        - image: pomerium/pomerium:v0.4.2
-          name: pomerium-authenticate
+        - image: pomerium/pomerium:v0.5.0
+          name: pomerium-authorize
           args:
             - --config=/etc/pomerium/config.yaml
           ports:
             - containerPort: 80
-              name: http
+              name: grpc
               protocol: TCP
           env:
             - name: SERVICES
-              value: authenticate
+              value: authorize
             - name: SHARED_SECRET
               valueFrom:
                 secretKeyRef:
                   name: shared-secret
                   key: shared-secret
-            - name: COOKIE_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: cookie-secret
-                  key: cookie-secret
           readinessProbe:
-            httpGet:
-              path: /ping
+            tcpSocket:
               port: 80
-              scheme: HTTP
-          livenessProbe:
-            httpGet:
-              path: /ping
-              port: 80
-              scheme: HTTP
             initialDelaySeconds: 5
-            timeoutSeconds: 1
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+
           volumeMounts:
             - mountPath: /etc/pomerium/
               name: config

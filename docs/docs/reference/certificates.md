@@ -123,9 +123,9 @@ Certificates, TLS, and Public Key Cryptography is a vast subject we cannot adequ
 - [Use TLS](https://smallstep.com/blog/use-tls.html) covers why TLS should be used everywhere; not just for securing typical internet traffic but for securing service communication in both "trusted" and adversarial situations.
 - [Everything you should know about certificates and PKI but are too afraid to ask](https://smallstep.com/blog/everything-pki.html)
 
-[certificate]: ../reference/#certificate
-[certificate_authority]: ../reference/#certificate-authority
-[certificate_key]: ../reference/#certificate-key
-[override_certificate_name]: ../reference/#override-certificate-name
+[certificate]: ../../configuration/readme.md#certificate
+[certificate_authority]: ../../configuration/readme.md#certificate-authority
+[certificate_key]: ../../configuration/readme.md#certificate-key
+[override_certificate_name]: ../../configuration/readme.md#override-certificate-name
 [principles]: ../docs/#why
 [zero-trust]: ../docs/#why

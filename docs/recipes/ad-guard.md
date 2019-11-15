@@ -10,7 +10,7 @@ description: >-
 
 # Securing AdGuard Home
 
-This guide covers how to add authentication and authorization to an instance of AdGuard while giving us a great excuse to demonstrate how to use Pomerium's [add headers](../docs/reference/reference.md) functionality to **transparently pass along basic authentication credentials to a downstream app**.
+This guide covers how to add authentication and authorization to an instance of AdGuard while giving us a great excuse to demonstrate how to use Pomerium's [add headers](../docs/configuration/readme.md) functionality to **transparently pass along basic authentication credentials to a downstream app**.
 
 ## What is AdGuard?
 

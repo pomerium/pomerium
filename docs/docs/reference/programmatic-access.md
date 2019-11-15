@@ -7,62 +7,80 @@ description: >-
 
 # Programmatic access
 
-This page describes how to access Pomerium endpoints programmatically.
+This page describes how to obtain Pomerium access credentials programmatically via a web-based oauth2 based authorization flow. If you have ever used Google's `gcloud` commandline app, the mechanism is very similar.
 
-## Configuration
+## Components
 
-Every identity provider has slightly different methods for issuing OAuth 2.0 access tokens [suitable][proof key for code exchange] for machine-to-machine use, please review your identity provider's documentation. For example:
+### Login API
 
-- [Google Oauth2 2.0 for Desktop Apps](https://developers.google.com/identity/protocols/OAuth2InstalledApp)
-- [Okta PKCE Flow](https://developer.okta.com/docs/concepts/auth-overview/#authorization-code-flow)
-- [Azure Active Directory using the OAuth 2.0 code grant flow](https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code)
+The API returns a signed, sign-in url that can be used to complete a user-driven login process with Pomerium and your identity provider. The Login API endpoints takes a `redirect_uri` query param as an argument which points to the location of the callback server to be called following a successful login.
 
-For the sake of illustration, this guide and example scripts will use Google as the underlying identity provider.
+For example:
 
-### Identity Provider Configuration
+```bash
+$ curl "https://httpbin.example.com/.pomerium/api/v1/login?redirect_uri=http://localhost:8000"
 
-To configure programmatic access for Pomerium we'll need to set up **an additional** OAuth 2.0 client ID that can issue `id_tokens` whose [audience](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation) matches the Client ID of Pomerium. Follow these instructions adapted from [Google's documentation](https://cloud.google.com/iap/docs/authentication-howto#authenticating_from_a_desktop_app):
+https://authenticate.example.com/.pomerium/sign_in?redirect_uri=http%3A%2F%2Flocalhost%3Fpomerium_programmatic_destination_url%3Dhttps%253A%252F%252Fhttpbin.corp.example%252F.pomerium%252Fapi%252Fv1%252Flogin%253Fredirect_uri%253Dhttp%253A%252F%252Flocalhost&sig=hsLuzJctmgsN4kbMeQL16fe_FahjDBEcX0_kPYfg8bs%3D&ts=1573262981
+```
 
-1. Go to the [Credentials page](https://console.cloud.google.com/apis/credentials).
-2. Select the project with the Pomerium secured resource.
-3. Click **Create credentials**, then select **OAuth Client ID**.
-4. Under **Application type**, select **Other**, add a **Name**, then click **Create**.
-5. On the OAuth client window that appears, note the **client ID** and **client secret**.
-6. On the **Credentials** window, your new **Other** credentials appear along with the primary client ID that's used to access your application.
+### Callback handler
 
-### High level flow
+It is the script or application's responsibility to create a HTTP callback handler. Authenticated sessions are returned in the form of a [callback](https://developer.okta.com/docs/concepts/auth-overview/#what-kind-of-client-are-you-building) from pomerium to a HTTP server. This is the `redirect_uri` value used to build Login API's URL, and represents the URL of a (usually local) http server responsible for receiving the resulting user session in the form of `pomerium_jwt` and `pomerium_refresh_token` query parameters.
 
-The application interacting with Pomerium will roughly have to manage the following access flow.
+See the python script below for example of how to start a callback server, and store the session payload.
 
-1. A user authenticates with the OpenID Connect identity provider. This typically requires handling the [Proof Key for Code Exchange] process.
-2. Exchange the code from the [Proof Key for Code Exchange] for a valid `refresh_token`.
-3. Using the `refresh_token` from the last step, request the identity provider issue a new `id_token` which has our Pomerium app's `client_id` as the `audience`.
-4. Exchange the identity provider issued `id_token` for a `pomerium` token (e.g. `https://authenticate.{your-domain}/api/v1/token`).
-5. Use the pomerium issued `Token` [authorization bearer token] for all requests to Pomerium protected endpoints until it's `Expiry`. Authorization policy will be tied to the user as normal.
+### Refresh API
 
-### Expiration and revocation
+The Refresh API allows for a valid refresh token enabled session, using an `Authorization: Pomerium` bearer token, to refresh the current user session and return a new user session (`jwt`) and refresh token (`refresh_token`). If successfully, a new updated refresh token and identity session are returned as a json response.
 
-Your application should handle token expiration. If the session expires before work is done, the identity provider issued `refresh_token` can be used to create a new valid session by repeating steps 3 and on.
+```bash
+$ curl \
+	-H "Accept: application/json" \
+	-H "Authorization: Pomerium $(cat cred-from-above-step.json | jq -r .refresh_token)" \
+	https://authenticate.example.com/api/v1/refresh
 
-Also, you should write your code to anticipate the possibility that a granted `refresh_token` may stop working. For example, a refresh token might stop working if the underlying user changes passwords, revokes access, or if the administrator removes rotates or deletes the OAuth Client ID.
+{
+  "jwt":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token":"fXiWCF_z1NWKU3yZ...."
+}
+
+```
+
+:::tip
+Note that the Authorization refresh token is set to Authorization `Pomerium` _not_ `Bearer`.
+:::
+
+## Handling expiration and revocation
+
+Your application should handle token expiration. If the session expires before work is done, the identity provider issued `refresh_token` can be used to create a new valid session.
+
+Also, your script or application should anticipate the possibility that a granted `refresh_token` may stop working. For example, a refresh token might stop working if the underlying user changes passwords, revokes access, or if the administrator removes rotates or deletes the OAuth Client ID.
+
+## High level workflow
+
+The application interacting with Pomerium must manage the following workflow. Consider the following example where a script or program desires delegated, programmatic access to the domain `httpbin.corp.domain.example`:
+
+1. The script or application requests a new login url from the pomerium managed endpoint (e.g. `https://httpbin.corp.domain.example/.pomerium/api/v1/login`) and takes a `redirect_uri` as an argument.
+1. The script or application opens a browser or redirects the user to the returned login page.
+1. The user completes the identity providers login flow.
+1. The identity provider makes a callback to pomerium's authenticate service (e.g. `authenticate.corp.domain.example`) .
+1. Pomerium's authenticate service creates a user session and redirect token, then redirects back to the the managed endpoint (e.g. `httpbin.corp.domain.example`)
+1. Pomerium's proxy service and makes a callback request to the original `redirect_uri` with the user session and refresh token as arguments.
+1. The script or application is responsible for handling that http callback request, and securely handling the callback session (`pomerium_jwt`) and refresh token (`pomerium_refresh_token`) queryparams.
+1. The script or application can now make any requests as normal, by setting the `Authorization: Pomerium ${pomerium_jwt}` header.
+1. If the script or application encounters a `401` error or token expiration error, the script or application can make a request the authenticate service's refresh api endpoint (e.g. `https://authenticate.corp.domain.example/api/v1/refresh`) with the `Authorization: Pomerium ${pomerium_refresh_token}` header. Note that the refresh token is used, not the user session jwt. If successful, a new user session jwt and refresh token will be returned and requests can continue as before.
 
 ## Example Code
 
-It's not as bad as it sounds. Please see the following minimal but complete examples.
-
-### Python
+Please consider see the following minimal but complete python example.
 
 ```bash
-python scripts/programmatic_access.py --client-secret REPLACE_ME \
-    --client-id 851877082059-85tfqg9hlm8j9km5d9uripd0dvk72mvk.apps.googleusercontent.com \
-    --pomerium-client-id 851877082059-bfgkpj09noog7as3gpc3t7r6n9sjbgs6.apps.googleusercontent.com
+python3 scripts/programmatic_access.py \
+	--dst https://httpbin.example.com/headers \
+	--refresh-endpoint https://authenticate.example.com/api/v1/refresh
 ```
 
 <<< @/scripts/programmatic_access.py
-
-### Bash
-
-<<< @/scripts/programmatic_access.sh
 
 [authorization bearer token]: https://developers.google.com/gmail/markup/actions/verifying-bearer-tokens
 [identity provider]: ../identity-providers/readme.md

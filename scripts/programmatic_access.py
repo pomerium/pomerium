@@ -14,10 +14,10 @@ done = False
 parser = argparse.ArgumentParser()
 parser.add_argument("--login", action="store_true")
 parser.add_argument(
-    "--dst", default="https://httpbin.imac.bdd.io/headers",
+    "--dst", default="https://httpbin.example.com/headers",
 )
 parser.add_argument(
-    "--refresh-endpoint", default="https://authenticate.imac.bdd.io/api/v1/refresh",
+    "--refresh-endpoint", default="https://authenticate.example.com/api/v1/refresh",
 )
 parser.add_argument("--server", default="localhost", type=str)
 parser.add_argument("--port", default=8000, type=int)

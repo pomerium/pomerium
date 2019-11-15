@@ -1,3 +1,12 @@
+---
+title: Security
+lang: en-US
+sidebarDepth: 0
+meta:
+  - name: keywords
+    content: pomerium security disclosure vulnerabilities
+---
+
 # Security
 
 We deeply appreciate any effort to discover and disclose security vulnerabilities responsibly.

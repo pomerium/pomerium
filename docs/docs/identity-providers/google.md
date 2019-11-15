@@ -1,3 +1,12 @@
+---
+title: Google / GSuite
+lang: en-US
+sidebarDepth: 0
+meta:
+  - name: keywords
+    content: google gsuite gmail oidc openid-connect
+---
+
 # Google
 
 Log in to your Google account and go to the [APIs & services](https://console.developers.google.com/projectselector/apis/credentials). Navigate to **Credentials** using the left-hand menu.
@@ -46,12 +55,12 @@ Then, you'll need to manually open an editor and add an `impersonate_user` field
 
 :::
 
-```json
+```git
 {
   "type": "service_account",
   "client_id": "109818058799274859509",
   ...
-  "impersonate_user": "user@pomerium.io"
++  "impersonate_user": "user@pomerium.io"
   ...
 }
 ```
@@ -80,8 +89,8 @@ IDP_CLIENT_SECRET="xxxxxx"
 IDP_SERVICE_ACCOUNT="zzzz" # output of `cat service-account-key.json | base64`
 ```
 
-[client id]: ../reference/reference.md#identity-provider-client-id
-[client secret]: ../reference/reference.md#identity-provider-client-secret
+[client id]: ../../configuration/readme.md#identity-provider-client-id
+[client secret]: ../../configuration/readme.md#identity-provider-client-secret
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
 [openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect

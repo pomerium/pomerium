@@ -2,6 +2,8 @@
 
 Log in to your [OneLogin](https://www.onelogin.com/) account and head to the dashboard.
 
+## Create OpenID Connect App
+
 Click **Apps** on the top menu. Select the **Add apps** menu item.
 
 ![One Login Add a New App](./img/one-login-add-app.png)
@@ -26,17 +28,11 @@ Under **Token Timeout settings** set **Refresh Token** to 60 minutes (or whateve
 
 ![One Login SSO settings](./img/one-login-sso-settings.png)
 
-[OneLogin's OIDC implementation](https://developers.onelogin.com/openid-connect/scopes) supports the `groups` which can return either the user's group or role which can be used within pomerium to enforced group-based ACL policy.
+## Groups
 
-To return the user's Active Directory field, configure the group to return `member_of`. In the Default if no value field, select **User Roles** and Select **Semicolon Delimited** in the adjacent field. **Select Save**
+Group membership will be fetched using a follow up HTTP API call using your `CLIENT_ID` and `CLIENT_SECRET` as credentials. A [Group's ID](https://developers.onelogin.com/openid-connect/api/user-info) will be used to affirm user group membership.
 
-![OneLogin set role](./img/one-login-oidc-params.png)
-
-**Alternatively**, groups can return the _roles_ a user is assigned. In the Default if no value field, select **User Roles** and Select **Semicolon Delimited** in the adjacent field. **Select Save**
-
-![OneLogin set role](./img/one-login-oidc-groups-param.png)
-
-Finally, configure Pomerium with the identity provider settings retrieved in the previous steps. Your [environmental variables] should look something like this.
+## Pomerium Configuration
 
 ```bash
 IDP_PROVIDER="onelogin"
@@ -49,8 +45,8 @@ After reloading Pomerium, you should be able to see any login events from your O
 
 ![One Login Events Dashboard](./img/one-login-events.png)
 
-[client id]: ../reference/reference.md#identity-provider-client-id
-[client secret]: ../reference/reference.md#identity-provider-client-secret
+[client id]: ../../configuration/readme.md#identity-provider-client-id
+[client secret]: ../../configuration/readme.md#identity-provider-client-secret
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
 [openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect

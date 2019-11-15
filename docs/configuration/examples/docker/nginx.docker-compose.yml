@@ -12,7 +12,7 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
   pomerium-authenticate:
-    image: pomerium/pomerium:v0.4.2 # or `build: .` to build from source
+    image: pomerium/pomerium:v0.5.0 # or `build: .` to build from source
     restart: always
     environment:
       - SERVICES=authenticate
@@ -38,7 +38,7 @@ services:
       - 443
 
   pomerium-proxy:
-    image: pomerium/pomerium:v0.4.2 # or `build: .` to build from source
+    image: pomerium/pomerium:v0.5.0 # or `build: .` to build from source
     restart: always
     environment:
       - SERVICES=proxy
@@ -60,7 +60,7 @@ services:
       - 443
 
   pomerium-authorize:
-    image: pomerium/pomerium:v0.4.2 # or `build: .` to build from source
+    image: pomerium/pomerium:v0.5.0 # or `build: .` to build from source
     restart: always
     environment:
       - SERVICES=authorize
