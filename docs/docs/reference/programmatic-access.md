@@ -7,13 +7,13 @@ description: >-
 
 # Programmatic access
 
-This page describes how to obtain Pomerium access credentials programmatically via a web-based oauth2 based authorization flow. If you have ever used Google's `gcloud` commandline app, the mechanism is very similar. 
+This page describes how to obtain Pomerium access credentials programmatically via a web-based oauth2 based authorization flow. If you have ever used Google's `gcloud` commandline app, the mechanism is very similar.
 
 ## Components
 
 ### Login API
 
-The API returns a signed, sign-in url that can be used to complete a user-driven login process with Pomerium and your identity provider. The Login API endpoints takes a `redirect_uri` query param as an argument which points to the location of the callback server to be called following a successful login. 
+The API returns a signed, sign-in url that can be used to complete a user-driven login process with Pomerium and your identity provider. The Login API endpoints takes a `redirect_uri` query param as an argument which points to the location of the callback server to be called following a successful login.
 
 For example:
 
@@ -25,7 +25,7 @@ https://authenticate.example.com/.pomerium/sign_in?redirect_uri=http%3A%2F%2Floc
 
 ### Callback handler
 
-It is the script or application's responsibility to create a HTTP callback handler. Authenticated sessions are returned in the form of a [callback](https://developer.okta.com/docs/concepts/auth-overview/#what-kind-of-client-are-you-building) from pomerium to a HTTP server. This is the `redirect_uri` value used to build Login API's URL, and represents the URL of a (usually local) http server  responsible for receiving the resulting user session in the form of `pomerium_jwt` and `pomerium_refresh_token` query parameters. 
+It is the script or application's responsibility to create a HTTP callback handler. Authenticated sessions are returned in the form of a [callback](https://developer.okta.com/docs/concepts/auth-overview/#what-kind-of-client-are-you-building) from pomerium to a HTTP server. This is the `redirect_uri` value used to build Login API's URL, and represents the URL of a (usually local) http server responsible for receiving the resulting user session in the form of `pomerium_jwt` and `pomerium_refresh_token` query parameters.
 
 See the python script below for example of how to start a callback server, and store the session payload.
 
@@ -58,7 +58,7 @@ Also, your script or application should anticipate the possibility that a grante
 
 ## High level workflow
 
-The application interacting with Pomerium must manage the following workflow flow. Consider the following example where a script or program desires delegated, programmatic access to the domain `httpbin.corp.domain.example`:
+The application interacting with Pomerium must manage the following workflow. Consider the following example where a script or program desires delegated, programmatic access to the domain `httpbin.corp.domain.example`:
 
 1. The script or application requests a new login url from the pomerium managed endpoint (e.g. `https://httpbin.corp.domain.example/.pomerium/api/v1/login`) and takes a `redirect_uri` as an argument.
 1. The script or application opens a browser or redirects the user to the returned login page.
