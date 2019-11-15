@@ -53,9 +53,11 @@ func (a *Authenticate) Handler() http.Handler {
 	// Proxy service endpoints
 	v := r.PathPrefix("/.pomerium").Subrouter()
 	c := cors.New(cors.Options{
-		AllowOriginRequestFunc: middleware.ValidateRedirectURI,
-		AllowCredentials:       true,
-		AllowedHeaders:         []string{"*"},
+		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
+			return middleware.ValidateRedirectURI(r, a.sharedKey)
+		},
+		AllowCredentials: true,
+		AllowedHeaders:   []string{"*"},
 	})
 	v.Use(c.Handler)
 	v.Use(middleware.ValidateSignature(a.sharedKey))
@@ -84,7 +86,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 				return
 			}
 			// redirect to restart middleware-chain following refresh
-			http.Redirect(w, r, urlutil.GetAbsoluteURL(r).String(), http.StatusFound)
+			httputil.Redirect(w, r, urlutil.GetAbsoluteURL(r).String(), http.StatusFound)
 			return
 		} else if err != nil {
 			log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session")
@@ -174,7 +176,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 	// build our hmac-d redirect URL with our session, pointing back to the
 	// proxy's callback URL which is responsible for setting our new route-session
 	uri := urlutil.SignedRedirectURL(a.sharedKey, callbackURL, redirectURL)
-	http.Redirect(w, r, uri.String(), http.StatusFound)
+	httputil.Redirect(w, r, uri.String(), http.StatusFound)
 }
 
 // SignOut signs the user out and attempts to revoke the user's identity session
@@ -196,7 +198,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect_uri", http.StatusBadRequest, err))
 		return
 	}
-	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
 // reauthenticateOrFail starts the authenticate process by redirecting the
@@ -223,7 +225,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	enc := cryptutil.Encrypt(a.cookieCipher, []byte(redirectURL.String()), b)
 	b = append(b, enc...)
 	encodedState := base64.URLEncoding.EncodeToString(b)
-	http.Redirect(w, r, a.provider.GetSignInURL(encodedState), http.StatusFound)
+	httputil.Redirect(w, r, a.provider.GetSignInURL(encodedState), http.StatusFound)
 }
 
 // OAuthCallback handles the callback from the identity provider.
@@ -236,7 +238,7 @@ func (a *Authenticate) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, fmt.Errorf("oauth callback : %w", err))
 		return
 	}
-	http.Redirect(w, r, redirect.String(), http.StatusFound)
+	httputil.Redirect(w, r, redirect.String(), http.StatusFound)
 }
 
 func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) (*url.URL, error) {

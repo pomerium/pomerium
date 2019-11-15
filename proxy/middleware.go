@@ -51,7 +51,7 @@ func (p *Proxy) authenticate(errOnFailure bool, w http.ResponseWriter, r *http.R
 			return err
 		}
 		uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, urlutil.GetAbsoluteURL(r))
-		http.Redirect(w, r, uri.String(), http.StatusFound)
+		httputil.Redirect(w, r, uri.String(), http.StatusFound)
 		return err
 	}
 	// add pomerium's headers to the downstream request
