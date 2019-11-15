@@ -17,3 +17,10 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(http.StatusText(http.StatusOK)))
 	}
 }
+
+// Redirect wraps the std libs's redirect method indicating that pomerium is
+// the origin of the response.
+func Redirect(w http.ResponseWriter, r *http.Request, url string, code int) {
+	w.Header().Set(HeaderPomeriumResponse, "true")
+	http.Redirect(w, r, url, code)
+}

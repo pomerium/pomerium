@@ -50,7 +50,7 @@ func (e *httpError) Debugable() bool {
 // ErrorResponse renders an error page given an error. If the error is a
 // http error from this package, a user friendly message is set, http status code,
 // the ability to debug are also set.
-func ErrorResponse(rw http.ResponseWriter, r *http.Request, e error) {
+func ErrorResponse(w http.ResponseWriter, r *http.Request, e error) {
 	statusCode := http.StatusInternalServerError // default status code to return
 	errorString := e.Error()
 	var canDebug bool
@@ -63,6 +63,9 @@ func ErrorResponse(rw http.ResponseWriter, r *http.Request, e error) {
 		errorString = httpError.Message
 	}
 
+	// indicate to clients that the error originates from Pomerium, not the app
+	w.Header().Set(HeaderPomeriumResponse, "true")
+
 	log.FromRequest(r).Error().Err(e).Str("http-message", errorString).Int("http-code", statusCode).Msg("http-error")
 
 	if id, ok := log.IDFromRequest(r); ok {
@@ -73,9 +76,9 @@ func ErrorResponse(rw http.ResponseWriter, r *http.Request, e error) {
 			Error string `json:"error"`
 		}
 		response.Error = errorString
-		writeJSONResponse(rw, statusCode, response)
+		writeJSONResponse(w, statusCode, response)
 	} else {
-		rw.WriteHeader(statusCode)
+		w.WriteHeader(statusCode)
 		t := struct {
 			Code      int
 			Title     string
@@ -89,17 +92,17 @@ func ErrorResponse(rw http.ResponseWriter, r *http.Request, e error) {
 			RequestID: requestID,
 			CanDebug:  canDebug,
 		}
-		templates.New().ExecuteTemplate(rw, "error.html", t)
+		templates.New().ExecuteTemplate(w, "error.html", t)
 	}
 }
 
 // writeJSONResponse is a helper that sets the application/json header and writes a response.
-func writeJSONResponse(rw http.ResponseWriter, code int, response interface{}) {
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(code)
+func writeJSONResponse(w http.ResponseWriter, code int, response interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
 
-	err := json.NewEncoder(rw).Encode(response)
+	err := json.NewEncoder(w).Encode(response)
 	if err != nil {
-		io.WriteString(rw, err.Error())
+		io.WriteString(w, err.Error())
 	}
 }

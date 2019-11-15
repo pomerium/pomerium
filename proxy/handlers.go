@@ -67,7 +67,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	}
 	uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSignoutURL, redirectURL)
 	p.sessionStore.ClearSession(w, r)
-	http.Redirect(w, r, uri.String(), http.StatusFound)
+	httputil.Redirect(w, r, uri.String(), http.StatusFound)
 }
 
 // UserDashboard lets users investigate, and refresh their current session.
@@ -117,7 +117,7 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 	q.Add("impersonate_group", r.FormValue("group"))
 	redirectURL.RawQuery = q.Encode()
 	uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, redirectURL).String()
-	http.Redirect(w, r, uri, http.StatusFound)
+	httputil.Redirect(w, r, uri, http.StatusFound)
 }
 
 func (p *Proxy) registerFwdAuthHandlers() http.Handler {
@@ -198,7 +198,7 @@ func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 	redirectURL.RawQuery = q.Encode()
 
-	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
 // ProgrammaticLogin returns a signed url that can be used to login

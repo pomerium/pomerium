@@ -34,23 +34,23 @@ func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateSignature")
 			defer span.End()
-
-			err := r.ParseForm()
-			if err != nil {
-				httputil.ErrorResponse(w, r, httputil.Error("couldn't parse form", http.StatusBadRequest, err))
-				return
-			}
-			redirectURI := r.Form.Get("redirect_uri")
-			sigVal := r.Form.Get("sig")
-			timestamp := r.Form.Get("ts")
-			if !ValidSignature(redirectURI, sigVal, timestamp, sharedSecret) {
+			if !ValidateRedirectURI(r, sharedSecret) {
 				httputil.ErrorResponse(w, r, httputil.Error("invalid signature", http.StatusBadRequest, nil))
 				return
 			}
-
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// ValidateRedirectURI takes a request and parses `redirect_uri`, `sig`, `ts`
+// and validates the supplied signature (`sig`)'s HMAC for validity.
+func ValidateRedirectURI(r *http.Request, key string) bool {
+	return ValidSignature(
+		r.FormValue("redirect_uri"),
+		r.FormValue("sig"),
+		r.FormValue("ts"),
+		key)
 }
 
 // Healthcheck endpoint middleware useful to setting up a path like
