@@ -16,27 +16,27 @@ type Policy struct {
 	From string `mapstructure:"from" yaml:"from"`
 	To   string `mapstructure:"to" yaml:"to"`
 	// Identity related policy
-	AllowedEmails  []string `mapstructure:"allowed_users" yaml:"allowed_users"`
-	AllowedGroups  []string `mapstructure:"allowed_groups" yaml:"allowed_groups"`
-	AllowedDomains []string `mapstructure:"allowed_domains" yaml:"allowed_domains"`
+	AllowedEmails  []string `mapstructure:"allowed_users" yaml:"allowed_users,omitempty"`
+	AllowedGroups  []string `mapstructure:"allowed_groups" yaml:"allowed_groups,omitempty"`
+	AllowedDomains []string `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty"`
 
 	Source      *url.URL
 	Destination *url.URL
 
 	// Allow unauthenticated HTTP OPTIONS requests as per the CORS spec
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests
-	CORSAllowPreflight bool `mapstructure:"cors_allow_preflight" yaml:"cors_allow_preflight"`
+	CORSAllowPreflight bool `mapstructure:"cors_allow_preflight" yaml:"cors_allow_preflight,omitempty"`
 
 	// Allow any public request to access this route. **Bypasses authentication**
-	AllowPublicUnauthenticatedAccess bool `mapstructure:"allow_public_unauthenticated_access" yaml:"allow_public_unauthenticated_access"`
+	AllowPublicUnauthenticatedAccess bool `mapstructure:"allow_public_unauthenticated_access" yaml:"allow_public_unauthenticated_access,omitempty"`
 
 	// UpstreamTimeout is the route specific timeout. Must be less than the global
 	// timeout. If unset,  route will fallback to the proxy's DefaultUpstreamTimeout.
-	UpstreamTimeout time.Duration `mapstructure:"timeout" yaml:"timeout"`
+	UpstreamTimeout time.Duration `mapstructure:"timeout" yaml:"timeout,omitempty"`
 
 	// Enable proxying of websocket connections by removing the default timeout handler.
 	// Caution: Enabling this feature could result in abuse via DOS attacks.
-	AllowWebsockets bool `mapstructure:"allow_websockets"  yaml:"allow_websockets"`
+	AllowWebsockets bool `mapstructure:"allow_websockets"  yaml:"allow_websockets,omitempty"`
 
 	// TLSSkipVerify controls whether a client verifies the server's certificate
 	// chain and host name.
@@ -44,32 +44,32 @@ type Policy struct {
 	// server and any host name in that certificate.
 	// In this mode, TLS is susceptible to man-in-the-middle attacks.
 	// This should be used only for testing.
-	TLSSkipVerify bool `mapstructure:"tls_skip_verify" yaml:"tls_skip_verify"`
+	TLSSkipVerify bool `mapstructure:"tls_skip_verify" yaml:"tls_skip_verify,omitempty"`
 
 	// TLSServerName overrides the hostname in the `to` field. This is useful
 	// if your backend is an HTTPS server with a valid certificate, but you
 	// want to communicate to the backend with an internal hostname (e.g.
 	// Docker container name).
-	TLSServerName string `mapstructure:"tls_server_name" yaml:"tls_server_name"`
+	TLSServerName string `mapstructure:"tls_server_name" yaml:"tls_server_name,omitempty"`
 
 	// TLSCustomCA defines the  root certificate to use with a given
 	// route when verifying server certificates.
-	TLSCustomCA     string `mapstructure:"tls_custom_ca" yaml:"tls_custom_ca"`
-	TLSCustomCAFile string `mapstructure:"tls_custom_ca_file" yaml:"tls_custom_ca_file"`
+	TLSCustomCA     string `mapstructure:"tls_custom_ca" yaml:"tls_custom_ca,omitempty"`
+	TLSCustomCAFile string `mapstructure:"tls_custom_ca_file" yaml:"tls_custom_ca_file,omitempty"`
 	RootCAs         *x509.CertPool
 
 	// Contains the x.509 client certificate to to present to the downstream
 	// host.
-	TLSClientCert     string `mapstructure:"tls_client_cert" yaml:"tls_client_cert"`
-	TLSClientKey      string `mapstructure:"tls_client_key" yaml:"tls_client_key"`
-	TLSClientCertFile string `mapstructure:"tls_client_cert_file" yaml:"tls_client_cert_file"`
-	TLSClientKeyFile  string `mapstructure:"tls_client_key_file" yaml:"tls_client_key_file"`
+	TLSClientCert     string `mapstructure:"tls_client_cert" yaml:"tls_client_cert,omitempty"`
+	TLSClientKey      string `mapstructure:"tls_client_key" yaml:"tls_client_key,omitempty"`
+	TLSClientCertFile string `mapstructure:"tls_client_cert_file" yaml:"tls_client_cert_file,omitempty"`
+	TLSClientKeyFile  string `mapstructure:"tls_client_key_file" yaml:"tls_client_key_file,omitempty"`
 	ClientCertificate *tls.Certificate
 
 	// SetRequestHeaders adds a collection of headers to the downstream request
 	// in the form of key value pairs. Note bene, this will overwrite the
 	// value of any existing value of a given header key.
-	SetRequestHeaders map[string]string `mapstructure:"set_request_headers" yaml:"set_request_headers"`
+	SetRequestHeaders map[string]string `mapstructure:"set_request_headers" yaml:"set_request_headers,omitempty"`
 }
 
 // Validate checks the validity of a policy.
