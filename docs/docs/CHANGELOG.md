@@ -1,5 +1,13 @@
 # Changelog
 
+## vUnreleased
+
+### New
+
+### Changed
+
+- Added yaml tags to all options structs
+
 ## v0.5.0
 
 ### New
