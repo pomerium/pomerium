@@ -151,7 +151,7 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, fmt.Sprintf("Access to %s is allowed.", uri.Host))
+		fmt.Fprintf(w, "Access to %s is allowed.", uri.Host)
 	})
 
 }

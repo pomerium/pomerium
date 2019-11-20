@@ -1,10 +1,10 @@
 # forked from istio
 service:
   # When updating this, also update bin/linters.sh accordingly
-  golangci-lint-version: 1.18.x # use the fixed version to not introduce new linters unexpectedly
+  golangci-lint-version: 1.21.x # use the fixed version to not introduce new linters unexpectedly
 run:
   # timeout for analysis, e.g. 30s, 5m, default is 1m
-  deadline: 5m
+  deadline: 20m
 
   # which dirs to skip: they won't be analyzed;
   # can use regexp here: generated.*, regexp is applied on full path;
@@ -28,16 +28,20 @@ linters:
   disable:
     - depguard
     - dupl
+    - funlen
     - gochecknoglobals
     - gochecknoinits
+    - gocognit
     - goconst
     - gocyclo
+    - godox
+    - interfacer
+    - maligned
     - nakedret
     - prealloc
     - scopelint
-    - maligned
-    - interfacer
-    - funlen
+    - whitespace
+    - wsl
   fast: false
 
 linters-settings:
