@@ -1,5 +1,13 @@
 # Changelog
 
+## vUnreleased
+
+### New
+
+### Changed
+
+- Added yaml tags to all options structs [GH-394](https://github.com/pomerium/pomerium/pull/394)
+
 ## v0.5.0
 
 ### New
