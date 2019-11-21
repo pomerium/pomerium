@@ -34,7 +34,7 @@ const DefaultAlternativeAddr = ":5443"
 // Use NewXXXOptions() methods for a safely initialized data structure.
 type Options struct {
 	// Debug outputs human-readable logs to Stdout.
-	Debug bool `mapstructure:"pomerium_debug" yaml:"pomerium_debug,omitempty" yaml:"pomerium_debug,omitempty"`
+	Debug bool `mapstructure:"pomerium_debug" yaml:"pomerium_debug,omitempty"`
 
 	// LogLevel sets the global override for log level. All Loggers will use at least this value.
 	// Possible options are "info","warn", and "error". Defaults to "debug".
