@@ -136,7 +136,7 @@ func newProxyService(opt config.Options, r *mux.Router) (*proxy.Proxy, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.PathPrefix("/").Handler(service.Handler)
+	r.PathPrefix("/").Handler(service)
 	return service, nil
 }
 

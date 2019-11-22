@@ -302,3 +302,7 @@ func (p *Proxy) roundTripperFromPolicy(policy *config.Policy) http.RoundTripper 
 	}
 	return c.Then(transport)
 }
+
+func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	p.Handler.ServeHTTP(w, r)
+}
