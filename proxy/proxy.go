@@ -16,12 +16,12 @@ import (
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
+	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
-	"github.com/pomerium/pomerium/internal/templates"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/proxy/clients"
@@ -132,7 +132,7 @@ func New(opts config.Options) (*Proxy, error) {
 			sessions.NewHeaderStore(encoder, "Pomerium"),
 			sessions.NewQueryParamStore(encoder, "pomerium_session")},
 		signingKey: opts.SigningKey,
-		templates:  templates.New(),
+		templates:  template.Must(frontend.NewTemplates()),
 	}
 	// errors checked in ValidateOptions
 	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)

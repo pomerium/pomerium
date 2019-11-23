@@ -14,9 +14,9 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/ecjson"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
+	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/templates"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -147,6 +147,6 @@ func New(opts config.Options) (*Authenticate, error) {
 		// IdP
 		provider: provider,
 
-		templates: templates.New(),
+		templates: template.Must(frontend.NewTemplates()),
 	}, nil
 }

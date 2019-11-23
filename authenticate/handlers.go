@@ -21,21 +21,10 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-// CSPHeaders are the content security headers added to the service's handlers
-// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src
-var CSPHeaders = map[string]string{
-	"Content-Security-Policy": "default-src 'none'; style-src 'self'" +
-		" 'sha256-z9MsgkMbQjRSLxzAfN55jB3a9pP0PQ4OHFH8b4iDP6s=' " +
-		" 'sha256-qnVkQSG7pWu17hBhIw0kCpfEB3XGvt0mNRa6+uM6OUU=' " +
-		" 'sha256-qOdRsNZhtR+htazbcy7guQl3Cn1cqOw1FcE4d3llae0='; " +
-		"img-src 'self';",
-	"Referrer-Policy": "Same-origin",
-}
-
 // Handler returns the authenticate service's handler chain.
 func (a *Authenticate) Handler() http.Handler {
 	r := httputil.NewRouter()
-	r.Use(middleware.SetHeaders(CSPHeaders))
+	r.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 	r.Use(csrf.Protect(
 		a.cookieSecret,
 		csrf.Secure(a.cookieOptions.Secure),

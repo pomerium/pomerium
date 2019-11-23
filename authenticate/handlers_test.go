@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,9 +14,9 @@ import (
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
+	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/templates"
 
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -29,7 +30,7 @@ func testAuthenticate() *Authenticate {
 	auth.sharedKey = cryptutil.NewBase64Key()
 	auth.cookieSecret = cryptutil.NewKey()
 	auth.cookieOptions = &sessions.CookieOptions{Name: "name"}
-	auth.templates = templates.New()
+	auth.templates = template.Must(frontend.NewTemplates())
 	return &auth
 }
 
@@ -189,7 +190,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			a := &Authenticate{
 				sessionStore: tt.sessionStore,
 				provider:     tt.provider,
-				templates:    templates.New(),
+				templates:    template.Must(frontend.NewTemplates()),
 			}
 			u, _ := url.Parse("/sign_out")
 			params, _ := url.ParseQuery(u.RawQuery)
