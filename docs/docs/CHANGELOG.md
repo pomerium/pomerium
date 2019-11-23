@@ -6,7 +6,9 @@
 
 ### Changed
 
-- Added yaml tags to all options structs [GH-394](https://github.com/pomerium/pomerium/pull/394)
+- Added yaml tags to all options struct fields
+  - [GH-394](https://github.com/pomerium/pomerium/pull/394)
+  - [GH-397](https://github.com/pomerium/pomerium/pull/397)
 
 ### Fixed
 
