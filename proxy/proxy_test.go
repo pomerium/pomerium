@@ -222,7 +222,7 @@ func Test_UpdateOptions(t *testing.T) {
 			if err == nil {
 				r := httptest.NewRequest("GET", tt.host, nil)
 				w := httptest.NewRecorder()
-				p.Handler.ServeHTTP(w, r)
+				p.ServeHTTP(w, r)
 				if tt.wantRoute && w.Code != http.StatusNotFound {
 					t.Errorf("Failed to find route handler")
 					return
