@@ -66,7 +66,7 @@ type Options struct {
 	KeyFile  string `mapstructure:"certificate_key_file" yaml:"certificate_key_file,omitempty"`
 
 	// TLSCertificate is the hydrated tls.Certificate.
-	TLSCertificate *tls.Certificate
+	TLSCertificate *tls.Certificate `yaml:",omitempty"`
 
 	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
 	// to HTTPS redirect server on. If empty, no redirect server is started.
@@ -80,13 +80,13 @@ type Options struct {
 
 	// Policies define per-route configuration and access control policies.
 	Policies   []Policy
-	PolicyEnv  string
+	PolicyEnv  string `yaml:",omitempty"`
 	PolicyFile string `mapstructure:"policy_file" yaml:"policy_file,omitempty"`
 
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
-	AuthenticateURLString string `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
-	AuthenticateURL       *url.URL
+	AuthenticateURLString string   `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
+	AuthenticateURL       *url.URL `yaml:"-,omitempty"`
 
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
@@ -114,8 +114,8 @@ type Options struct {
 	// AuthorizeURL is the routable destination of the authorize service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
-	AuthorizeURLString string `mapstructure:"authorize_service_url" yaml:"authorize_service_url,omitempty"`
-	AuthorizeURL       *url.URL
+	AuthorizeURLString string   `mapstructure:"authorize_service_url" yaml:"authorize_service_url,omitempty"`
+	AuthorizeURL       *url.URL `yaml:",omitempty"`
 
 	// Settings to enable custom behind-the-ingress service communication
 	OverrideCertificateName string `mapstructure:"override_certificate_name" yaml:"override_certificate_name,omitempty"`
@@ -127,8 +127,8 @@ type Options struct {
 	SigningKey string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
 
 	// Headers to set on all proxied requests. Add a 'disable' key map to turn off.
-	HeadersEnv string
-	Headers    map[string]string
+	HeadersEnv string            `yaml:",omitempty"`
+	Headers    map[string]string `yaml:",omitempty"`
 
 	// RefreshCooldown limits the rate a user can refresh her session
 	RefreshCooldown time.Duration `mapstructure:"refresh_cooldown" yaml:"refresh_cooldown,omitempty"`
@@ -171,8 +171,8 @@ type Options struct {
 	// allow you to delegate and authenticate each request to your website
 	// with an external server or service. Pomerium can be configured to accept
 	// these requests with this switch
-	ForwardAuthURLString string `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
-	ForwardAuthURL       *url.URL
+	ForwardAuthURLString string   `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
+	ForwardAuthURL       *url.URL `yaml:",omitempty"`
 
 	viper *viper.Viper
 }

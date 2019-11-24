@@ -20,8 +20,8 @@ type Policy struct {
 	AllowedGroups  []string `mapstructure:"allowed_groups" yaml:"allowed_groups,omitempty"`
 	AllowedDomains []string `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty"`
 
-	Source      *url.URL
-	Destination *url.URL
+	Source      *url.URL `yaml:",omitempty"`
+	Destination *url.URL `yaml:",omitempty"`
 
 	// Allow unauthenticated HTTP OPTIONS requests as per the CORS spec
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests
@@ -54,17 +54,17 @@ type Policy struct {
 
 	// TLSCustomCA defines the  root certificate to use with a given
 	// route when verifying server certificates.
-	TLSCustomCA     string `mapstructure:"tls_custom_ca" yaml:"tls_custom_ca,omitempty"`
-	TLSCustomCAFile string `mapstructure:"tls_custom_ca_file" yaml:"tls_custom_ca_file,omitempty"`
-	RootCAs         *x509.CertPool
+	TLSCustomCA     string         `mapstructure:"tls_custom_ca" yaml:"tls_custom_ca,omitempty"`
+	TLSCustomCAFile string         `mapstructure:"tls_custom_ca_file" yaml:"tls_custom_ca_file,omitempty"`
+	RootCAs         *x509.CertPool `yaml:",omitempty"`
 
 	// Contains the x.509 client certificate to to present to the downstream
 	// host.
-	TLSClientCert     string `mapstructure:"tls_client_cert" yaml:"tls_client_cert,omitempty"`
-	TLSClientKey      string `mapstructure:"tls_client_key" yaml:"tls_client_key,omitempty"`
-	TLSClientCertFile string `mapstructure:"tls_client_cert_file" yaml:"tls_client_cert_file,omitempty"`
-	TLSClientKeyFile  string `mapstructure:"tls_client_key_file" yaml:"tls_client_key_file,omitempty"`
-	ClientCertificate *tls.Certificate
+	TLSClientCert     string           `mapstructure:"tls_client_cert" yaml:"tls_client_cert,omitempty"`
+	TLSClientKey      string           `mapstructure:"tls_client_key" yaml:"tls_client_key,omitempty"`
+	TLSClientCertFile string           `mapstructure:"tls_client_cert_file" yaml:"tls_client_cert_file,omitempty"`
+	TLSClientKeyFile  string           `mapstructure:"tls_client_key_file" yaml:"tls_client_key_file,omitempty"`
+	ClientCertificate *tls.Certificate `yaml:",omitempty"`
 
 	// SetRequestHeaders adds a collection of headers to the downstream request
 	// in the form of key value pairs. Note bene, this will overwrite the
