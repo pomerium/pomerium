@@ -1,0 +1,31 @@
+name-template: v$NEXT_MINOR_VERSION
+tag-template: v$NEXT_MINOR_VERSION
+categories:
+  - title: New
+    labels:
+      - enhancement
+      - feature
+      - improvement
+  - title: Fixed
+    label: bug
+  - title: Removed
+    label: removed
+  - title: Documentation
+    label: docs
+  - title: Depedency
+    label: depedency
+  - title: Breaking
+    label: breaking
+exclude-labels:
+  - no-changelog
+
+change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+template: |
+
+  <!-- Optional: add a release summary here -->
+  ## Changes
+  $CHANGES
+
+replacers:
+  - search: '/CVE-(\d{4})-(\d+)/g'
+    replace: "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-$1-$2"
