@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.1
+
+### Fixed
+
+- Fixes foward-auth configurations for nginx and traefik.
+
 ## v0.5.0
 
 ### New
