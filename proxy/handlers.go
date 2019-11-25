@@ -13,13 +13,13 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/templates"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // registerDashboardHandlers returns the proxy service's ServeMux
 func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	h := r.PathPrefix(dashboardURL).Subrouter()
+	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 	// 1. Retrieve the user session and add it to the request context
 	h.Use(sessions.RetrieveSession(p.sessionStore))
 	// 2. AuthN - Verify the user is authenticated. Set email, group, & id headers
@@ -97,7 +97,7 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	templates.New().ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
+	p.templates.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
 		"Session":   session,
 		"IsAdmin":   isAdmin,
 		"csrfField": csrf.TemplateField(r),

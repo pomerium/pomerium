@@ -34,136 +34,136 @@ const DefaultAlternativeAddr = ":5443"
 // Use NewXXXOptions() methods for a safely initialized data structure.
 type Options struct {
 	// Debug outputs human-readable logs to Stdout.
-	Debug bool `mapstructure:"pomerium_debug"`
+	Debug bool `mapstructure:"pomerium_debug" yaml:"pomerium_debug,omitempty"`
 
 	// LogLevel sets the global override for log level. All Loggers will use at least this value.
 	// Possible options are "info","warn", and "error". Defaults to "debug".
-	LogLevel string `mapstructure:"log_level"`
+	LogLevel string `mapstructure:"log_level" yaml:"log_level,omitempty"`
 
 	// SharedKey is the shared secret authorization key used to mutually authenticate
 	// requests between services.
-	SharedKey string `mapstructure:"shared_secret"`
+	SharedKey string `mapstructure:"shared_secret" yaml:"shared_secret,omitempty"`
 
 	// Services is a list enabled service mode. If none are selected, "all" is used.
 	// Available options are : "all", "authenticate", "proxy".
-	Services string `mapstructure:"services"`
+	Services string `mapstructure:"services" yaml:"services,omitempty"`
 
 	// Addr specifies the host and port on which the server should serve
 	// HTTPS requests. If empty, ":443" (localhost:443) is used.
-	Addr string `mapstructure:"address"`
+	Addr string `mapstructure:"address" yaml:"address,omitempty"`
 
 	// InsecureServer when enabled disables all transport security.
 	// In this mode, Pomerium is susceptible to man-in-the-middle attacks.
 	// This should be used only for testing.
-	InsecureServer bool `mapstructure:"insecure_server"`
+	InsecureServer bool `mapstructure:"insecure_server" yaml:"insecure_server,omitempty"`
 
 	// Cert and Key is the x509 certificate used to hydrate TLSCertificate
-	Cert string `mapstructure:"certificate"`
-	Key  string `mapstructure:"certificate_key"`
+	Cert string `mapstructure:"certificate" yaml:"certificate,omitempty"`
+	Key  string `mapstructure:"certificate_key" yaml:"certificate_key,omitempty"`
 
 	// CertFile and KeyFile is the x509 certificate used to hydrate TLSCertificate
-	CertFile string `mapstructure:"certificate_file"`
-	KeyFile  string `mapstructure:"certificate_key_file"`
+	CertFile string `mapstructure:"certificate_file" yaml:"certificate_file,omitempty"`
+	KeyFile  string `mapstructure:"certificate_key_file" yaml:"certificate_key_file,omitempty"`
 
 	// TLSCertificate is the hydrated tls.Certificate.
-	TLSCertificate *tls.Certificate
+	TLSCertificate *tls.Certificate `yaml:",omitempty"`
 
 	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
 	// to HTTPS redirect server on. If empty, no redirect server is started.
-	HTTPRedirectAddr string `mapstructure:"http_redirect_addr"`
+	HTTPRedirectAddr string `mapstructure:"http_redirect_addr" yaml:"http_redirect_addr,omitempty"`
 
 	// Timeout settings : https://github.com/pomerium/pomerium/issues/40
-	ReadTimeout       time.Duration `mapstructure:"timeout_read"`
-	WriteTimeout      time.Duration `mapstructure:"timeout_write"`
-	ReadHeaderTimeout time.Duration `mapstructure:"timeout_read_header"`
-	IdleTimeout       time.Duration `mapstructure:"timeout_idle"`
+	ReadTimeout       time.Duration `mapstructure:"timeout_read" yaml:"timeout_read,omitempty"`
+	WriteTimeout      time.Duration `mapstructure:"timeout_write" yaml:"timeout_write,omitempty"`
+	ReadHeaderTimeout time.Duration `mapstructure:"timeout_read_header" yaml:"timeout_read_header,omitempty"`
+	IdleTimeout       time.Duration `mapstructure:"timeout_idle" yaml:"timeout_idle,omitempty"`
 
 	// Policies define per-route configuration and access control policies.
 	Policies   []Policy
-	PolicyEnv  string
-	PolicyFile string `mapstructure:"policy_file"`
+	PolicyEnv  string `yaml:",omitempty"`
+	PolicyFile string `mapstructure:"policy_file" yaml:"policy_file,omitempty"`
 
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
-	AuthenticateURLString string `mapstructure:"authenticate_service_url"`
-	AuthenticateURL       *url.URL
+	AuthenticateURLString string   `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
+	AuthenticateURL       *url.URL `yaml:"-,omitempty"`
 
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
-	CookieName     string        `mapstructure:"cookie_name"`
-	CookieSecret   string        `mapstructure:"cookie_secret"`
-	CookieDomain   string        `mapstructure:"cookie_domain"`
-	CookieSecure   bool          `mapstructure:"cookie_secure"`
-	CookieHTTPOnly bool          `mapstructure:"cookie_http_only"`
-	CookieExpire   time.Duration `mapstructure:"cookie_expire"`
-	CookieRefresh  time.Duration `mapstructure:"cookie_refresh"`
+	CookieName     string        `mapstructure:"cookie_name" yaml:"cookie_name,omitempty"`
+	CookieSecret   string        `mapstructure:"cookie_secret" yaml:"cookie_secret,omitempty"`
+	CookieDomain   string        `mapstructure:"cookie_domain" yaml:"cookie_domain,omitempty"`
+	CookieSecure   bool          `mapstructure:"cookie_secure" yaml:"cookie_secure,omitempty"`
+	CookieHTTPOnly bool          `mapstructure:"cookie_http_only" yaml:"cookie_http_only,omitempty"`
+	CookieExpire   time.Duration `mapstructure:"cookie_expire" yaml:"cookie_expire,omitempty"`
+	CookieRefresh  time.Duration `mapstructure:"cookie_refresh" yaml:"cookie_refresh,omitempty"`
 
 	// Identity provider configuration variables as specified by RFC6749
 	// https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
-	ClientID       string   `mapstructure:"idp_client_id"`
-	ClientSecret   string   `mapstructure:"idp_client_secret"`
-	Provider       string   `mapstructure:"idp_provider"`
-	ProviderURL    string   `mapstructure:"idp_provider_url"`
-	Scopes         []string `mapstructure:"idp_scopes"`
-	ServiceAccount string   `mapstructure:"idp_service_account"`
+	ClientID       string   `mapstructure:"idp_client_id" yaml:"idp_client_id,omitempty"`
+	ClientSecret   string   `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
+	Provider       string   `mapstructure:"idp_provider" yaml:"idp_provider,omitempty"`
+	ProviderURL    string   `mapstructure:"idp_provider_url" yaml:"idp_provider_url,omitempty"`
+	Scopes         []string `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
+	ServiceAccount string   `mapstructure:"idp_service_account" yaml:"idp_service_account,omitempty"`
 
 	// Administrators contains a set of emails with users who have super user
 	// (sudo) access including the ability to impersonate other users' access
-	Administrators []string `mapstructure:"administrators"`
+	Administrators []string `mapstructure:"administrators" yaml:"administrators,omitempty"`
 
 	// AuthorizeURL is the routable destination of the authorize service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
-	AuthorizeURLString string `mapstructure:"authorize_service_url"`
-	AuthorizeURL       *url.URL
+	AuthorizeURLString string   `mapstructure:"authorize_service_url" yaml:"authorize_service_url,omitempty"`
+	AuthorizeURL       *url.URL `yaml:",omitempty"`
 
 	// Settings to enable custom behind-the-ingress service communication
-	OverrideCertificateName string `mapstructure:"override_certificate_name"`
-	CA                      string `mapstructure:"certificate_authority"`
-	CAFile                  string `mapstructure:"certificate_authority_file"`
+	OverrideCertificateName string `mapstructure:"override_certificate_name" yaml:"override_certificate_name,omitempty"`
+	CA                      string `mapstructure:"certificate_authority" yaml:"certificate_authority,omitempty"`
+	CAFile                  string `mapstructure:"certificate_authority_file" yaml:"certificate_authority_file,omitempty"`
 
 	// SigningKey is the private key used to add a JWT-signature.
 	// https://www.pomerium.io/docs/signed-headers.html
-	SigningKey string `mapstructure:"signing_key"`
+	SigningKey string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
 
 	// Headers to set on all proxied requests. Add a 'disable' key map to turn off.
-	HeadersEnv string
-	Headers    map[string]string
+	HeadersEnv string            `yaml:",omitempty"`
+	Headers    map[string]string `yaml:",omitempty"`
 
 	// RefreshCooldown limits the rate a user can refresh her session
-	RefreshCooldown time.Duration `mapstructure:"refresh_cooldown"`
+	RefreshCooldown time.Duration `mapstructure:"refresh_cooldown" yaml:"refresh_cooldown,omitempty"`
 
-	//Routes                 map[string]string `mapstructure:"routes"`
-	DefaultUpstreamTimeout time.Duration `mapstructure:"default_upstream_timeout"`
+	//Routes                 map[string]string `mapstructure:"routes" yaml:"routes,omitempty"`
+	DefaultUpstreamTimeout time.Duration `mapstructure:"default_upstream_timeout" yaml:"default_upstream_timeout,omitempty"`
 
 	// Address/Port to bind to for prometheus metrics
-	MetricsAddr string `mapstructure:"metrics_address"`
+	MetricsAddr string `mapstructure:"metrics_address" yaml:"metrics_address,omitempty"`
 
 	// Tracing shared settings
-	TracingProvider string `mapstructure:"tracing_provider"`
-	TracingDebug    bool   `mapstructure:"tracing_debug"`
+	TracingProvider string `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
+	TracingDebug    bool   `mapstructure:"tracing_debug" yaml:"tracing_debug,omitempty"`
 
 	//  Jaeger
 	//
 	// CollectorEndpoint is the full url to the Jaeger HTTP Thrift collector.
 	// For example, http://localhost:14268/api/traces
-	TracingJaegerCollectorEndpoint string `mapstructure:"tracing_jaeger_collector_endpoint"`
+	TracingJaegerCollectorEndpoint string `mapstructure:"tracing_jaeger_collector_endpoint" yaml:"tracing_jaeger_collector_endpoint,omitempty"`
 	// AgentEndpoint instructs exporter to send spans to jaeger-agent at this address.
 	// For example, localhost:6831.
-	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint"`
+	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint" yaml:"tracing_jaeger_agent_endpoint,omitempty"`
 
 	// GRPC Service Settings
 
 	// GRPCAddr specifies the host and port on which the server should serve
 	// gRPC requests. If running in all-in-one mode, ":5443" (localhost:5443) is used.
-	GRPCAddr string `mapstructure:"grpc_address"`
+	GRPCAddr string `mapstructure:"grpc_address" yaml:"grpc_address,omitempty"`
 
 	// GRPCInsecure disables transport security.
 	// If running in all-in-one mode, defaults to true.
-	GRPCInsecure bool `mapstructure:"grpc_insecure"`
+	GRPCInsecure bool `mapstructure:"grpc_insecure" yaml:"grpc_insecure,omitempty"`
 
-	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout"`
-	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin"`
+	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
+	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin" yaml:"grpc_client_dns_roundrobin,omitempty"`
 
 	// ForwardAuthEndpoint allows for a given route to be used as a forward-auth
 	// endpoint instead of a reverse proxy. Some third-party proxies that do not
@@ -171,8 +171,8 @@ type Options struct {
 	// allow you to delegate and authenticate each request to your website
 	// with an external server or service. Pomerium can be configured to accept
 	// these requests with this switch
-	ForwardAuthURLString string `mapstructure:"forward_auth_url"`
-	ForwardAuthURL       *url.URL
+	ForwardAuthURLString string   `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
+	ForwardAuthURL       *url.URL `yaml:",omitempty"`
 
 	viper *viper.Viper
 }

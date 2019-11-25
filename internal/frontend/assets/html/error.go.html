@@ -1,0 +1,35 @@
+{{define "error.html"}}
+<!DOCTYPE html>
+<html lang="en" charset="utf-8">
+  <head>
+    <title>{{.Code}} - {{.Title}}</title>
+    {{template "header.html"}}
+  </head>
+  <body>
+    <div id="main">
+      <div id="info-box">
+        <div class="card">
+          <img
+            class="icon"
+            src="/.pomerium/assets/img/error-24px.svg"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+          />
+          <h1 class="title">{{.Title}}</h1>
+          <section>
+            <p class="message">
+              {{if .Message}}{{.Message}}{{end}} {{if .CanDebug}}Troubleshoot
+              your
+              <a href="/.pomerium/">session</a>.{{end}} {{if .RequestID}}
+              Request {{.RequestID}}{{end}}
+            </p>
+          </section>
+        </div>
+      </div>
+      {{template "footer.html"}}
+    </div>
+  </body>
+</html>
+
+{{end}}

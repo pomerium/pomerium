@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 
+	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/templates"
 )
 
 // Error formats creates a HTTP error with code, user friendly (and safe) error
@@ -94,7 +95,7 @@ func ErrorResponse(w http.ResponseWriter, r *http.Request, e error) {
 			RequestID: requestID,
 			CanDebug:  canDebug,
 		}
-		templates.New().ExecuteTemplate(w, "error.html", t)
+		template.Must(frontend.NewTemplates()).ExecuteTemplate(w, "error.html", t)
 	}
 }
 

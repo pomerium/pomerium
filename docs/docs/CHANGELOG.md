@@ -1,5 +1,19 @@
 # Changelog
 
+## vUnreleased
+
+### New
+
+### Changed
+
+- Added yaml tags to all options struct fields
+  - [GH-394](https://github.com/pomerium/pomerium/pull/394)
+  - [GH-397](https://github.com/pomerium/pomerium/pull/397)
+
+### Fixed
+
+- Fixed regression preventing policy reload [GH-396](https://github.com/pomerium/pomerium/pull/396)
+
 ## v0.5.0
 
 ### New

@@ -27,7 +27,7 @@ CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.ProjectURL=$(PKG)
 GO_LDFLAGS=-ldflags "-s -w $(CTIMEVAR)"
 GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
-GOLANGCI_VERSION = v1.18.0 # .... for some reason v1.18.0 misses?
+GOLANGCI_VERSION = v1.21.0 # .... for some reason v1.18.0 misses?
  
 .PHONY: all
 all: clean build-deps test lint spellcheck build ## Runs a clean, build, fmt, lint, test, and vet.
@@ -48,6 +48,11 @@ docs: ## Start the vuepress docs development server
 tag: ## Create a new git tag to prepare to build a release
 	git tag -sa $(VERSION) -m "$(VERSION)"
 	@echo "Run git push origin $(VERSION) to push your new tag to GitHub."
+
+.PHONY: frontend
+frontend: ## Runs go generate on the static assets package.
+	@echo "==> $@"
+	@CGO_ENABLED=0 GO111MODULE=on go generate github.com/pomerium/pomerium/internal/frontend
 
 .PHONY: build
 build: ## Builds dynamic executables and/or packages.

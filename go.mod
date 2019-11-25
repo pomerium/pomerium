@@ -18,6 +18,7 @@ require (
 	github.com/pomerium/go-oidc v2.0.0+incompatible
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v0.9.3
+	github.com/rakyll/statik v0.1.6
 	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.16.0
 	github.com/spf13/afero v1.2.2 // indirect
