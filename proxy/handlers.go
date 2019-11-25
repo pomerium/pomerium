@@ -19,7 +19,6 @@ import (
 
 // registerDashboardHandlers returns the proxy service's ServeMux
 func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
-	// dashboard subrouter
 	h := r.PathPrefix(dashboardURL).Subrouter()
 	// 1. Retrieve the user session and add it to the request context
 	h.Use(sessions.RetrieveSession(p.sessionStore))
@@ -32,19 +31,27 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 		csrf.CookieName(fmt.Sprintf("%s_csrf", p.cookieOptions.Name)),
 		csrf.ErrorHandler(http.HandlerFunc(httputil.CSRFFailureHandler)),
 	))
+	// dashboard endpoints can be used by user's to view, or modify their session
 	h.HandleFunc("/", p.UserDashboard).Methods(http.MethodGet)
 	h.HandleFunc("/impersonate", p.Impersonate).Methods(http.MethodPost)
 	h.HandleFunc("/sign_out", p.SignOut).Methods(http.MethodGet, http.MethodPost)
 
 	// Authenticate service callback handlers and middleware
+	// callback used to set route-scoped session and redirect back to destination
+	// only accept signed requests (hmac) from other trusted pomerium services
 	c := r.PathPrefix(dashboardURL + "/callback").Subrouter()
-	// only accept payloads that have come from a trusted service (hmac)
 	c.Use(middleware.ValidateSignature(p.SharedKey))
-	c.HandleFunc("/", p.Callback).Queries("redirect_uri", "{redirect_uri}").Methods(http.MethodGet)
 
+	c.Path("/").HandlerFunc(p.ProgrammaticCallback).Methods(http.MethodGet).
+		Queries(urlutil.QueryIsProgrammatic, "true")
+
+	c.Path("/").HandlerFunc(p.Callback).Methods(http.MethodGet)
 	// Programmatic API handlers and middleware
 	a := r.PathPrefix(dashboardURL + "/api").Subrouter()
-	a.HandleFunc("/v1/login", p.ProgrammaticLogin).Queries("redirect_uri", "{redirect_uri}").Methods(http.MethodGet)
+	// login api handler generates a user-navigable login url to authenticate
+	a.HandleFunc("/v1/login", p.ProgrammaticLogin).
+		Queries(urlutil.QueryRedirectURI, "").
+		Methods(http.MethodGet)
 
 	return r
 }
@@ -52,7 +59,6 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 // RobotsTxt sets the User-Agent header in the response to be "Disallow"
 func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
@@ -62,12 +68,17 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 // the local session state.
 func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/"}
-	if uri, err := urlutil.ParseAndValidateURL(r.FormValue("redirect_uri")); err == nil && uri.String() != "" {
+	if uri, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI)); err == nil && uri.String() != "" {
 		redirectURL = uri
 	}
-	uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSignoutURL, redirectURL)
+
+	signoutURL := *p.authenticateSignoutURL
+	q := signoutURL.Query()
+	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
+	signoutURL.RawQuery = q.Encode()
+
 	p.sessionStore.ClearSession(w, r)
-	httputil.Redirect(w, r, uri.String(), http.StatusFound)
+	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signoutURL).String(), http.StatusFound)
 }
 
 // UserDashboard lets users investigate, and refresh their current session.
@@ -112,110 +123,95 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 	// OK to impersonation
 	redirectURL := urlutil.GetAbsoluteURL(r)
 	redirectURL.Path = dashboardURL // redirect back to the dashboard
-	q := redirectURL.Query()
-	q.Add("impersonate_email", r.FormValue("email"))
-	q.Add("impersonate_group", r.FormValue("group"))
-	redirectURL.RawQuery = q.Encode()
-	uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, redirectURL).String()
-	httputil.Redirect(w, r, uri, http.StatusFound)
+	signinURL := *p.authenticateSigninURL
+	q := signinURL.Query()
+	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
+	q.Set(urlutil.QueryImpersonateEmail, r.FormValue("email"))
+	q.Set(urlutil.QueryImpersonateGroups, r.FormValue("group"))
+	signinURL.RawQuery = q.Encode()
+	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signinURL).String(), http.StatusFound)
 }
 
-func (p *Proxy) registerFwdAuthHandlers() http.Handler {
-	r := httputil.NewRouter()
-	r.StrictSlash(true)
-	r.Use(sessions.RetrieveSession(p.sessionStore))
-	r.Handle("/", p.Verify(false)).Queries("uri", "{uri}").Methods(http.MethodGet)
-	r.Handle("/verify", p.Verify(true)).Queries("uri", "{uri}").Methods(http.MethodGet)
-	return r
-}
-
-// Verify checks a user's credentials for an arbitrary host. If the user
-// is properly authenticated and is authorized to access the supplied host,
-// a `200` http status code is returned. If the user is not authenticated, they
-// will be redirected to the authenticate service to sign in with their identity
-// provider. If the user is unauthorized, a `401` error is returned.
-func (p *Proxy) Verify(verifyOnly bool) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		uri, err := urlutil.ParseAndValidateURL(r.FormValue("uri"))
-		if err != nil || uri.String() == "" {
-			httputil.ErrorResponse(w, r, httputil.Error("bad verification uri", http.StatusBadRequest, nil))
-			return
-		}
-		if err := p.authenticate(verifyOnly, w, r); err != nil {
-			return
-		}
-		if err := p.authorize(uri.Host, w, r); err != nil {
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, fmt.Sprintf("Access to %s is allowed.", uri.Host))
-	})
-
-}
-
-// Callback takes a `redirect_uri` query param that has been hmac'd by the
-// authenticate service. Embedded in the `redirect_uri` are query-params
-// that tell this handler how to set the per-route user session.
-// Callback is responsible for redirecting the user back to the intended
-// destination URL and path, as well as to clean up any additional query params
-// added by the authenticate service.
+// Callback handles the result of a successful call to the authenticate service
+// and is responsible setting returned per-route session.
 func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) {
-	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue("redirect_uri"))
-	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect_uri", http.StatusBadRequest, err))
+	redirectURLString := r.FormValue(urlutil.QueryRedirectURI)
+	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
+
+	if _, err := p.saveCallbackSession(w, r, encryptedSession); err != nil {
+		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
 		return
 	}
 
-	q := redirectURL.Query()
-	// 1. extract the base64 encoded and encrypted JWT from redirect_uri's query params
-	encryptedJWT, err := base64.URLEncoding.DecodeString(q.Get("pomerium_jwt"))
-	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusBadRequest, err))
-		return
-	}
-	q.Del("pomerium_jwt")
-	q.Del("impersonate_email")
-	q.Del("impersonate_group")
+	httputil.Redirect(w, r, redirectURLString, http.StatusFound)
+}
 
+// saveCallbackSession takes an encrypted per-route session token, and decrypts
+// it using the shared service key, then stores it the local session store.
+func (p *Proxy) saveCallbackSession(w http.ResponseWriter, r *http.Request, enctoken string) ([]byte, error) {
+	// 1. extract the base64 encoded and encrypted JWT from query params
+	encryptedJWT, err := base64.URLEncoding.DecodeString(enctoken)
+	if err != nil {
+		return nil, fmt.Errorf("proxy: malfromed callback token: %w", err)
+	}
 	// 2. decrypt the JWT using the cipher using the _shared_ secret key
 	rawJWT, err := cryptutil.Decrypt(p.sharedCipher, encryptedJWT, nil)
 	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusBadRequest, err))
-		return
+		return nil, fmt.Errorf("proxy: callback token decrypt error: %w", err)
 	}
 	// 3. Save the decrypted JWT to the session store directly as a string, without resigning
 	if err = p.sessionStore.SaveSession(w, r, rawJWT); err != nil {
-		httputil.ErrorResponse(w, r, err)
-		return
+		return nil, fmt.Errorf("proxy: callback session save failure: %w", err)
 	}
-
-	// if this is a programmatic request, don't strip the tokens before redirect
-	if redirectURL.Query().Get("pomerium_programmatic_destination_url") != "" {
-		q.Set("pomerium_jwt", string(rawJWT))
-	}
-	redirectURL.RawQuery = q.Encode()
-
-	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	return rawJWT, nil
 }
 
 // ProgrammaticLogin returns a signed url that can be used to login
 // using the authenticate service.
 func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) {
-	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue("redirect_uri"))
+	redirectURI, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect_uri", http.StatusBadRequest, err))
+		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect uri", http.StatusBadRequest, err))
 		return
 	}
-	q := redirectURL.Query()
-	q.Add("pomerium_programmatic_destination_url", urlutil.GetAbsoluteURL(r).String())
-	redirectURL.RawQuery = q.Encode()
-	response := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, redirectURL).String()
+	signinURL := *p.authenticateSigninURL
+	callbackURI := urlutil.GetAbsoluteURL(r)
+	callbackURI.Path = dashboardURL + "/callback/"
+	q := signinURL.Query()
+	q.Set(urlutil.QueryCallbackURI, callbackURI.String())
+	q.Set(urlutil.QueryRedirectURI, redirectURI.String())
+	q.Set(urlutil.QueryIsProgrammatic, "true")
+	signinURL.RawQuery = q.Encode()
+	response := urlutil.NewSignedURL(p.SharedKey, &signinURL).String()
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(response))
+}
+
+// ProgrammaticCallback handles a successful call to the authenticate service.
+// In addition to returning the individual route session (JWT) it also returns
+// the refresh token.
+func (p *Proxy) ProgrammaticCallback(w http.ResponseWriter, r *http.Request) {
+	redirectURLString := r.FormValue(urlutil.QueryRedirectURI)
+	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
+
+	redirectURL, err := urlutil.ParseAndValidateURL(redirectURLString)
+	if err != nil {
+		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect uri", http.StatusBadRequest, err))
+		return
+	}
+
+	rawJWT, err := p.saveCallbackSession(w, r, encryptedSession)
+	if err != nil {
+		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
+		return
+	}
+
+	q := redirectURL.Query()
+	q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
+	q.Set(urlutil.QueryRefreshToken, r.FormValue(urlutil.QueryRefreshToken))
+	redirectURL.RawQuery = q.Encode()
+
+	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }

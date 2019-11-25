@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
@@ -172,20 +171,21 @@ func AccessHandler(f func(r *http.Request, status, size int, duration time.Durat
 	}
 }
 
-// ForwardedAddrHandler returns the client IP address from a request. If a
-// request goes through multiple proxies, the IP addresses of each successive
-// proxy is listed. This means, the right-most IP address is the IP address of
-// the most recent proxy and the left-most IP address is the IP address of the
-// originating client.
+// HeadersHandler adds the provided set of header keys to the log context.
+//
+// https://tools.ietf.org/html/rfc7239
+// https://en.wikipedia.org/wiki/X-Forwarded-For
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For
-func ForwardedAddrHandler(fieldKey string) func(next http.Handler) http.Handler {
+func HeadersHandler(headers []string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if ra := r.Header.Get("X-Forwarded-For"); ra != "" {
-				log := zerolog.Ctx(r.Context())
-				log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-					return c.Strs(fieldKey, strings.Split(ra, ","))
-				})
+			for _, key := range headers {
+				if values := r.Header[key]; len(values) != 0 {
+					log := zerolog.Ctx(r.Context())
+					log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+						return c.Strs(key, values)
+					})
+				}
 			}
 			next.ServeHTTP(w, r)
 		})

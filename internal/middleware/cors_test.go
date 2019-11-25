@@ -19,7 +19,6 @@ func TestCorsBypass(t *testing.T) {
 	t.Parallel()
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
 		fmt.Fprint(w, http.StatusText(http.StatusOK))
 		w.WriteHeader(http.StatusOK)
 	})

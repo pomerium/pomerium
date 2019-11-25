@@ -1,13 +1,10 @@
 package middleware // import "github.com/pomerium/pomerium/internal/middleware"
 
 import (
-	"encoding/base64"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -34,8 +31,8 @@ func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateSignature")
 			defer span.End()
-			if !ValidateRedirectURI(r, sharedSecret) {
-				httputil.ErrorResponse(w, r, httputil.Error("invalid signature", http.StatusBadRequest, nil))
+			if err := ValidateRequestURL(r, sharedSecret); err != nil {
+				httputil.ErrorResponse(w, r, httputil.Error("invalid signature", http.StatusBadRequest, err))
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -43,27 +40,24 @@ func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler
 	}
 }
 
-// ValidateRedirectURI takes a request and parses `redirect_uri`, `sig`, `ts`
-// and validates the supplied signature (`sig`)'s HMAC for validity.
-func ValidateRedirectURI(r *http.Request, key string) bool {
-	return ValidSignature(
-		r.FormValue("redirect_uri"),
-		r.FormValue("sig"),
-		r.FormValue("ts"),
-		key)
+// ValidateRequestURL validates the current absolute request URL was signed
+// by a given shared key.
+func ValidateRequestURL(r *http.Request, key string) error {
+	return urlutil.NewSignedURL(key, urlutil.GetAbsoluteURL(r)).Validate()
 }
 
 // Healthcheck endpoint middleware useful to setting up a path like
 // `/ping` that load balancers or uptime testing external services
 // can make a request before hitting any routes. It's also convenient
 // to place this above ACL middlewares as well.
+//
+// https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html
 func Healthcheck(endpoint, msg string) func(http.Handler) http.Handler {
 	f := func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.Healthcheck")
 			defer span.End()
 			if strings.EqualFold(r.URL.Path, endpoint) {
-				// https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html
 				if r.Method != http.MethodGet && r.Method != http.MethodHead {
 					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 					return
@@ -80,26 +74,6 @@ func Healthcheck(endpoint, msg string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(fn)
 	}
 	return f
-}
-
-// ValidSignature checks to see if a signature is valid. Compares hmac of
-// redirect uri, timestamp, and secret and signature.
-func ValidSignature(redirectURI, sigVal, timestamp, secret string) bool {
-	if redirectURI == "" || sigVal == "" || timestamp == "" || secret == "" {
-		return false
-	}
-	_, err := urlutil.ParseAndValidateURL(redirectURI)
-	if err != nil {
-		return false
-	}
-	requestSig, err := base64.URLEncoding.DecodeString(sigVal)
-	if err != nil {
-		return false
-	}
-	if err := cryptutil.ValidTimestamp(timestamp); err != nil {
-		return false
-	}
-	return cryptutil.CheckHMAC([]byte(fmt.Sprint(redirectURI, timestamp)), requestSig, secret)
 }
 
 // StripCookie strips the cookie from the downstram request.

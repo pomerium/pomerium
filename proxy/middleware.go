@@ -30,39 +30,37 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthenticateSession")
 		defer span.End()
-		if err := p.authenticate(false, w, r.WithContext(ctx)); err != nil {
+
+		if s, err := sessions.FromContext(ctx); err != nil {
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: authenticate session")
+			p.sessionStore.ClearSession(w, r)
+			if s != nil && s.Programmatic {
+				httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusUnauthorized, err))
+				return
+			}
+			signinURL := *p.authenticateSigninURL
+			q := signinURL.Query()
+			q.Set(urlutil.QueryRedirectURI, urlutil.GetAbsoluteURL(r).String())
+			signinURL.RawQuery = q.Encode()
+			httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signinURL).String(), http.StatusFound)
 			return
 		}
+		p.addPomeriumHeaders(w, r)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 
 }
 
-// authenticate authenticates a user and sets an appropriate response type,
-// redirect to authenticate or error handler depending on if err on failure is set.
-func (p *Proxy) authenticate(errOnFailure bool, w http.ResponseWriter, r *http.Request) error {
+func (p *Proxy) addPomeriumHeaders(w http.ResponseWriter, r *http.Request) {
 	s, err := sessions.FromContext(r.Context())
-	if err != nil {
-		p.sessionStore.ClearSession(w, r)
-
-		if errOnFailure || (s != nil && s.Programmatic) {
-			httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusUnauthorized, err))
-			return err
-		}
-		uri := urlutil.SignedRedirectURL(p.SharedKey, p.authenticateSigninURL, urlutil.GetAbsoluteURL(r))
-		httputil.Redirect(w, r, uri.String(), http.StatusFound)
-		return err
+	if err == nil && s != nil {
+		r.Header.Set(HeaderUserID, s.Subject)
+		r.Header.Set(HeaderEmail, s.RequestEmail())
+		r.Header.Set(HeaderGroups, s.RequestGroups())
+		w.Header().Set(HeaderUserID, s.Subject)
+		w.Header().Set(HeaderEmail, s.RequestEmail())
+		w.Header().Set(HeaderGroups, s.RequestGroups())
 	}
-	// add pomerium's headers to the downstream request
-	r.Header.Set(HeaderUserID, s.Subject)
-	r.Header.Set(HeaderEmail, s.RequestEmail())
-	r.Header.Set(HeaderGroups, s.RequestGroups())
-	// and upstream
-	w.Header().Set(HeaderUserID, s.Subject)
-	w.Header().Set(HeaderEmail, s.RequestEmail())
-	w.Header().Set(HeaderGroups, s.RequestGroups())
-	return nil
 }
 
 // AuthorizeSession is middleware to enforce a user is authorized for a request
