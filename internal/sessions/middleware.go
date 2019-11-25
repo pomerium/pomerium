@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // Context keys
@@ -41,8 +43,8 @@ func retrieveFromRequest(r *http.Request, sessions ...SessionLoader) (*State, er
 			return state, err
 		}
 		if state != nil {
-			err := state.Verify(r.Host)
-			return state, err // N.B.: state is _not nil_
+			err := state.Verify(urlutil.StripPort(r.Host))
+			return state, err // N.B.: state is _not_ nil_
 		}
 	}
 

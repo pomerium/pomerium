@@ -20,7 +20,7 @@ For example:
 ```bash
 $ curl "https://httpbin.example.com/.pomerium/api/v1/login?redirect_uri=http://localhost:8000"
 
-https://authenticate.example.com/.pomerium/sign_in?redirect_uri=http%3A%2F%2Flocalhost%3Fpomerium_programmatic_destination_url%3Dhttps%253A%252F%252Fhttpbin.corp.example%252F.pomerium%252Fapi%252Fv1%252Flogin%253Fredirect_uri%253Dhttp%253A%252F%252Flocalhost&sig=hsLuzJctmgsN4kbMeQL16fe_FahjDBEcX0_kPYfg8bs%3D&ts=1573262981
+https://authenticate.example.com/.pomerium/sign_in?redirect_uri=http%3A%2F%2Flocalhost%3Fpomerium_callback_uri%3Dhttps%253A%252F%252Fhttpbin.corp.example%252F.pomerium%252Fapi%252Fv1%252Flogin%253Fredirect_uri%253Dhttp%253A%252F%252Flocalhost&sig=hsLuzJctmgsN4kbMeQL16fe_FahjDBEcX0_kPYfg8bs%3D&ts=1573262981
 ```
 
 ### Callback handler

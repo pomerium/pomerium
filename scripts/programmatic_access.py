@@ -82,7 +82,9 @@ def main():
     # initial login to make sure we have our credential
     if args.login:
         dst = urllib.parse.urlparse(args.dst)
-        query_params = {"redirect_uri": "http://{}:{}".format(args.server, args.port)}
+        query_params = {
+            "pomerium_redirect_uri": "http://{}:{}".format(args.server, args.port)
+        }
         enc_query_params = urllib.parse.urlencode(query_params)
         dst_login = "{}://{}{}?{}".format(
             dst.scheme, dst.hostname, "/.pomerium/api/v1/login", enc_query_params,

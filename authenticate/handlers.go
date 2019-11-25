@@ -43,7 +43,8 @@ func (a *Authenticate) Handler() http.Handler {
 	v := r.PathPrefix("/.pomerium").Subrouter()
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
-			return middleware.ValidateRedirectURI(r, a.sharedKey)
+			err := middleware.ValidateRequestURL(r, a.sharedKey)
+			return err == nil
 		},
 		AllowCredentials: true,
 		AllowedHeaders:   []string{"*"},
@@ -100,71 +101,84 @@ func (a *Authenticate) refresh(w http.ResponseWriter, r *http.Request, s *sessio
 // RobotsTxt handles the /robots.txt route.
 func (a *Authenticate) RobotsTxt(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
 // SignIn handles to authenticating a user.
 func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
-	// grab and parse our redirect_uri
-	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue("redirect_uri"))
+	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {
 		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect_uri", http.StatusBadRequest, err))
 		return
 	}
-	// create a clone of the redirect URI, unless this is a programmatic request
-	// in which case we will redirect back to proxy's callback endpoint
-	callbackURL, _ := urlutil.DeepCopy(redirectURL)
 
-	q := redirectURL.Query()
+	jwtAudience := []string{a.RedirectURL.Hostname(), redirectURL.Hostname()}
 
-	if q.Get("pomerium_programmatic_destination_url") != "" {
-		callbackURL, err = urlutil.ParseAndValidateURL(q.Get("pomerium_programmatic_destination_url"))
+	var callbackURL *url.URL
+	// if the callback is explicitly set, set it and add an additional audience
+	if callbackStr := r.FormValue(urlutil.QueryCallbackURI); callbackStr != "" {
+		callbackURL, err = urlutil.ParseAndValidateURL(callbackStr)
 		if err != nil {
-			httputil.ErrorResponse(w, r, httputil.Error("", http.StatusBadRequest, err))
+			httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
 			return
 		}
+		jwtAudience = append(jwtAudience, callbackURL.Hostname())
+	} else {
+		// otherwise, assume callback is the same host as redirect
+		callbackURL, _ = urlutil.DeepCopy(redirectURL)
+		callbackURL.Path = "/.pomerium/callback/"
+		callbackURL.RawQuery = ""
 	}
+
+	// add an additional claim for the forward-auth host, if set
+	if fwdAuth := r.FormValue(urlutil.QueryForwardAuth); fwdAuth != "" {
+		jwtAudience = append(jwtAudience, fwdAuth)
+	}
+
 	s, err := sessions.FromContext(r.Context())
 	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusBadRequest, err))
+		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
 		return
 	}
-	s.SetImpersonation(q.Get("impersonate_email"), q.Get("impersonate_group"))
 
-	newSession := s.NewSession(a.RedirectURL.Host, []string{a.RedirectURL.Host, callbackURL.Host})
-	if q.Get("pomerium_programmatic_destination_url") != "" {
+	s.SetImpersonation(r.FormValue(urlutil.QueryImpersonateEmail), r.FormValue(urlutil.QueryImpersonateGroups))
+
+	newSession := s.NewSession(a.RedirectURL.Host, jwtAudience)
+
+	callbackParams := callbackURL.Query()
+
+	if r.FormValue(urlutil.QueryIsProgrammatic) == "true" {
 		newSession.Programmatic = true
 		encSession, err := a.encryptedEncoder.Marshal(newSession)
 		if err != nil {
-			httputil.ErrorResponse(w, r, httputil.Error("", http.StatusBadRequest, err))
+			httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
 			return
 		}
-		q.Set("pomerium_refresh_token", string(encSession))
+		callbackParams.Set(urlutil.QueryRefreshToken, string(encSession))
+		callbackParams.Set(urlutil.QueryIsProgrammatic, "true")
 	}
 
 	// sign the route session, as a JWT
 	signedJWT, err := a.sharedEncoder.Marshal(newSession.RouteSession(DefaultSessionDuration))
 	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusBadRequest, err))
+		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
 		return
 	}
+
 	// encrypt our route-based token JWT avoiding any accidental logging
 	encryptedJWT := cryptutil.Encrypt(a.sharedCipher, signedJWT, nil)
 	// base64 our encrypted payload for URL-friendlyness
 	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
 
 	// add our encoded and encrypted route-session JWT to a query param
-	q.Set("pomerium_jwt", encodedJWT)
-
-	redirectURL.RawQuery = q.Encode()
-
-	callbackURL.Path = "/.pomerium/callback"
+	callbackParams.Set(urlutil.QuerySessionEncrypted, encodedJWT)
+	callbackParams.Set(urlutil.QueryRedirectURI, redirectURL.String())
+	callbackURL.RawQuery = callbackParams.Encode()
 
 	// build our hmac-d redirect URL with our session, pointing back to the
 	// proxy's callback URL which is responsible for setting our new route-session
-	uri := urlutil.SignedRedirectURL(a.sharedKey, callbackURL, redirectURL)
+	uri := urlutil.NewSignedURL(a.sharedKey, callbackURL)
 	httputil.Redirect(w, r, uri.String(), http.StatusFound)
 }
 
@@ -182,7 +196,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) {
 		httputil.ErrorResponse(w, r, httputil.Error("could not revoke user session", http.StatusBadRequest, err))
 		return
 	}
-	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue("redirect_uri"))
+	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {
 		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect_uri", http.StatusBadRequest, err))
 		return

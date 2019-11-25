@@ -189,7 +189,6 @@ var defaultOptions = Options{
 	CookieName:             "_pomerium",
 	DefaultUpstreamTimeout: 30 * time.Second,
 	Headers: map[string]string{
-		"X-Content-Type-Options":    "nosniff",
 		"X-Frame-Options":           "SAMEORIGIN",
 		"X-XSS-Protection":          "1; mode=block",
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
