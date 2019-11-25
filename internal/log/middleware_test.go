@@ -253,20 +253,20 @@ func BenchmarkDataRace(b *testing.B) {
 	})
 }
 
-func TestForwardedAddrHandler(t *testing.T) {
+func TestLogHeadersHandler(t *testing.T) {
 	out := &bytes.Buffer{}
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	r.Header.Set("X-Forwarded-For", "proxy1,proxy2,proxy3")
 
-	h := ForwardedAddrHandler("fwd_ip")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := HeadersHandler([]string{"X-Forwarded-For"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
 	h = NewHandler(zerolog.New(out))(h)
 	h.ServeHTTP(nil, r)
-	if want, got := `{"fwd_ip":["proxy1","proxy2","proxy3"]}`+"\n", decodeIfBinary(out); want != got {
+	if want, got := `{"X-Forwarded-For":["proxy1,proxy2,proxy3"]}`+"\n", decodeIfBinary(out); want != got {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
 	}
 }

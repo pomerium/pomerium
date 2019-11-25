@@ -79,6 +79,8 @@ func ErrorResponse(w http.ResponseWriter, r *http.Request, e error) {
 		writeJSONResponse(w, statusCode, response)
 	} else {
 		w.WriteHeader(statusCode)
+		w.Header().Set("Content-Type", "text/html")
+
 		t := struct {
 			Code      int
 			Title     string

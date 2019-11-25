@@ -161,7 +161,7 @@ func newGlobalRouter(o *config.Options) *mux.Router {
 	if len(o.Headers) != 0 {
 		mux.Use(middleware.SetHeaders(o.Headers))
 	}
-	mux.Use(log.ForwardedAddrHandler("fwd_ip"))
+	mux.Use(log.HeadersHandler(httputil.HeadersXForwarded))
 	mux.Use(log.RemoteAddrHandler("ip"))
 	mux.Use(log.UserAgentHandler("user_agent"))
 	mux.Use(log.RefererHandler("referer"))
