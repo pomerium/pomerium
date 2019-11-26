@@ -1,6 +1,8 @@
 stages:
-  - test
-  - "Docker Test Build"
+  - name: "test"
+    if: fork = false AND type = push
+  - name: "Docker Test Build"
+    if: fork = false AND type = push
   - name: "Docker Build and Publish"
     if: fork = false AND type = push
 
