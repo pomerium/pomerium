@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Fixes foward-auth configurations for nginx and traefik.
+- Fixes forward-auth configurations for nginx and traefik.
 
 ## v0.5.0
 
