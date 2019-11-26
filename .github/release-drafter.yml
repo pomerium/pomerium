@@ -12,8 +12,8 @@ categories:
     label: removed
   - title: Documentation
     label: docs
-  - title: Depedency
-    label: depedency
+  - title: Dependency
+    label: dependency
   - title: Breaking
     label: breaking
 exclude-labels:
