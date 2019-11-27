@@ -5,11 +5,11 @@
 package mock_authorize
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	"github.com/pomerium/pomerium/proto/authorize"
-	context "golang.org/x/net/context"
+	authorize "github.com/pomerium/pomerium/proto/authorize"
 	grpc "google.golang.org/grpc"
 )
 
