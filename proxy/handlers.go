@@ -98,9 +98,12 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p.templates.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Session":   session,
-		"IsAdmin":   isAdmin,
-		"csrfField": csrf.TemplateField(r),
+		"Session":           session,
+		"IsAdmin":           isAdmin,
+		"csrfField":         csrf.TemplateField(r),
+		"ImpersonateAction": urlutil.QueryImpersonateAction,
+		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
+		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
 	})
 }
 
@@ -126,9 +129,9 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 	signinURL := *p.authenticateSigninURL
 	q := signinURL.Query()
 	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
-	q.Set(urlutil.QueryImpersonateAction, r.FormValue("impersonate_action"))
-	q.Set(urlutil.QueryImpersonateEmail, r.FormValue("email"))
-	q.Set(urlutil.QueryImpersonateGroups, r.FormValue("group"))
+	q.Set(urlutil.QueryImpersonateAction, r.FormValue(urlutil.QueryImpersonateAction))
+	q.Set(urlutil.QueryImpersonateEmail, r.FormValue(urlutil.QueryImpersonateEmail))
+	q.Set(urlutil.QueryImpersonateGroups, r.FormValue(urlutil.QueryImpersonateGroups))
 	signinURL.RawQuery = q.Encode()
 	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signinURL).String(), http.StatusFound)
 }

@@ -201,7 +201,7 @@
                 <label>
                   <span>Email</span>
                   <input
-                    name="email"
+                    name="{{ .ImpersonateEmail }}"
                     type="email"
                     class="field"
                     value=""
@@ -211,7 +211,7 @@
                 <label>
                   <span>Group</span>
                   <input
-                    name="group"
+                    name=" {{ .ImpersonateGroups }}"
                     type="text"
                     class="field"
                     value=""
@@ -223,7 +223,7 @@
             <div class="flex">
               {{ .csrfField }}
               <button
-                name="impersonate_action"
+                name="{{ .ImpersonateAction }}"
                 value="set"
                 class="button full"
                 type="submit"
