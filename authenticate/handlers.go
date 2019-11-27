@@ -142,7 +142,14 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.SetImpersonation(r.FormValue(urlutil.QueryImpersonateEmail), r.FormValue(urlutil.QueryImpersonateGroups))
+	// user impersonation
+	if impersonate := r.FormValue(urlutil.QueryImpersonateAction); impersonate != "" {
+		s.SetImpersonation(r.FormValue(urlutil.QueryImpersonateEmail), r.FormValue(urlutil.QueryImpersonateGroups))
+		if err := a.sessionStore.SaveSession(w, r, s); err != nil {
+			httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
+			return
+		}
+	}
 
 	newSession := s.NewSession(a.RedirectURL.Host, jwtAudience)
 

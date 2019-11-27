@@ -7,6 +7,7 @@ const (
 	QueryCallbackURI       = "pomerium_callback_uri"
 	QueryImpersonateEmail  = "pomerium_impersonate_email"
 	QueryImpersonateGroups = "pomerium_impersonate_groups"
+	QueryImpersonateAction = "pomerium_impersonate_action"
 	QueryIsProgrammatic    = "pomerium_programmatic"
 	QueryForwardAuth       = "pomerium_forward_auth"
 	QueryPomeriumJWT       = "pomerium_jwt"

@@ -222,8 +222,13 @@
             </section>
             <div class="flex">
               {{ .csrfField }}
-              <button class="button full" type="submit">
-                Impersonate session
+              <button
+                name="impersonate_action"
+                value="set"
+                class="button full"
+                type="submit"
+              >
+                Impersonate
               </button>
             </div>
           </form>

@@ -126,6 +126,7 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 	signinURL := *p.authenticateSigninURL
 	q := signinURL.Query()
 	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
+	q.Set(urlutil.QueryImpersonateAction, r.FormValue("impersonate_action"))
 	q.Set(urlutil.QueryImpersonateEmail, r.FormValue("email"))
 	q.Set(urlutil.QueryImpersonateGroups, r.FormValue("group"))
 	signinURL.RawQuery = q.Encode()
