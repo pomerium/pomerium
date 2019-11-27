@@ -57,6 +57,16 @@ For example, in nginx this would look like:
 
 ### Breaking
 
+#### Authorize Service URL no longer used in all-in-one mode
+
+Pomerium no longer handles both gRPC and HTTPS traffic from the same network listener (port). As a result, all-in-one mode configurations will default to serving gRPC traffic over loopback on port `5443` and will serve HTTPS traffic as before on port `443`. In previous versions, it was recommended to configure authorize in this mode which will now break. The error will typically look something like:
+
+```
+rpc error: code = DeadlineExceeded desc = latest connection error: connection closed
+```
+
+To upgrade, simply remove the `AUTHORIZE_SERVICE_URL` setting.
+
 #### Removed Authenticate Internal URL
 
 The authenticate service no longer uses gRPC to do back channel communication. As a result, `AUTHENTICATE_INTERNAL_URL`/`authenticate_internal_url` is no longer required.
