@@ -65,12 +65,12 @@ func (su *SignedURL) Validate() error {
 
 	issued, err := newNumericDateFromString(params.Get(QueryHmacIssued))
 	if err != nil {
-		return fmt.Errorf("internal/urlutil: issued %w", err)
+		return err
 	}
 
 	expiry, err := newNumericDateFromString(params.Get(QueryHmacExpiry))
 	if err != nil {
-		return fmt.Errorf("internal/urlutil: expiry %w", err)
+		return err
 	}
 
 	if expiry != nil && now.Add(-DefaultLeeway).After(expiry.Time()) {
@@ -86,7 +86,7 @@ func (su *SignedURL) Validate() error {
 		sig,
 		su.key)
 	if !validHMAC {
-		return fmt.Errorf("internal/urlutil: hmac failed %s", su.uri.String())
+		return fmt.Errorf("internal/urlutil: hmac failed")
 	}
 	return nil
 }

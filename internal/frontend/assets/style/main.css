@@ -7,35 +7,50 @@
   box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", sans-serif;
-  font-size: 15px;
+  font-size: 1rem;
   line-height: 1.4em;
+}
+
+.primary {
+  color: #6e43e8;
+}
+.light {
+  /* a571ff */
+  color: rgb(165, 113, 255);
+}
+.dark {
+  /* #422D66 */
+  color: rgb(66, 45, 102);
+}
+
+.text-monospace {
+  font-size: 0.85rem;
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace !important;
 }
 
 body {
   display: flex;
   flex-direction: row;
   align-items: center;
-  background: #f8f8ff;
-}
-
-#main {
-  width: 100%;
-  height: 100vh;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
+  background: rgba(165, 113, 255, 0.05);
+  color: rgb(33, 37, 41);
   justify-content: space-between;
 }
 
-#info-box {
-  max-width: 480px;
-  width: 480px;
-  margin-top: 200px;
-  margin-right: auto;
-  margin-bottom: 0px;
-  margin-left: auto;
+#main {
+  display: flex;
+  flex-direction: column;
   justify-content: center;
-  flex-grow: 1;
+  width: 100%;
+  min-height: 100vh;
+}
+
+#info-box {
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  padding-bottom: 2.2rem;
 }
 
 section {
@@ -43,46 +58,49 @@ section {
   flex-direction: column;
   position: relative;
   text-align: left;
+  min-height: 12em;
 }
 
 h1 {
-  font-size: 36px;
+  font-size: 2.5rem;
   font-weight: 400;
   text-align: center;
   letter-spacing: 0.3px;
   text-transform: uppercase;
-  color: #32325d;
+  color: rgb(110, 67, 232);
 }
 
 h1.title {
   text-align: center;
-  background: #f8f8ff;
-  margin: 15px 0;
+  padding: 0.75rem 1.25rem;
 }
 
 h2 {
-  margin: 15px 0;
-  color: #32325d;
+  text-align: left;
+  color: #333333;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  font-size: 18px;
+  font-size: 1.25rem;
   font-weight: 650;
-  padding-top: 20px;
 }
 
 .card {
-  margin: 0 -30px;
-  padding: 20px 30px 30px;
+  border-radius: 0.5rem;
   border-radius: 4px;
-  border: 1px solid #e8e8fb;
-  background-color: #f8f8ff;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  flex-grow: 1;
+  flex-shrink: 1;
+  margin: 0 -30px;
+  max-width: 40%;
+  min-width: 480px;
+  padding: 1.25rem 1.25rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
 }
 
 fieldset {
   margin-bottom: 20px;
-  background: #fcfcff;
-  box-shadow: 0 1px 3px 0 rgba(50, 50, 93, 0.15),
-    0 4px 6px 0 rgba(112, 157, 199, 0.15);
+  background: #fcfcff5d;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
   border-radius: 4px;
   border: none;
   font-size: 0;
@@ -100,7 +118,7 @@ fieldset label {
 }
 
 fieldset label:not(:last-child) {
-  border-bottom: 1px solid #f0f5fa;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 fieldset label span {
@@ -109,55 +127,24 @@ fieldset label span {
   text-align: right;
 }
 
-#group {
-  display: flex;
-  align-items: center;
-}
-
-#group::before {
-  display: inline-flex;
-  content: "";
-  height: 15px;
-  background-position: -1000px -1000px;
-  background-repeat: no-repeat;
-}
-
-.icon {
-  display: inline-table;
-  margin-top: -72px;
-  text-align: center;
-  width: 75px;
-  height: auto;
+img.icon {
+  width: auto;
+  height: 36px;
   border-radius: 50%;
 }
 
-.icon svg {
-  fill: #6e43e8;
-  background: red;
-}
-
-.logo {
-  padding-bottom: 20px;
-  padding-top: 20px;
-  width: 115px;
-  height: auto;
-}
-
-p.message {
-  margin-top: 10px;
-  margin-bottom: 10px;
-  padding-bottom: 20px;
+.message {
+  padding: 2.55rem 0.75rem;
 }
 
 .field {
   flex: 1;
   padding: 0 15px;
-  background: transparent;
   font-weight: 400;
-  color: #31325f;
+  color: rgb(66, 45, 102);
+  background: #fcfcff5d;
   outline: none;
   cursor: text;
-
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -177,7 +164,6 @@ fieldset .select::after {
 input {
   border-style: none;
   outline: none;
-  color: #313b3f;
 }
 
 select {
@@ -207,7 +193,6 @@ select {
   border-radius: 4px;
   border: 0;
   font-weight: 700;
-  width: 50%;
   height: 40px;
   outline: none;
   cursor: pointer;
@@ -234,6 +219,49 @@ select {
   background: #5735b5;
 }
 
-.powered-by-pomerium {
+.footer-icon {
+  display: inline-table;
+  margin-top: -12px;
+  height: 24px;
+  width: auto;
+  vertical-align: top;
+}
+
+.text-muted {
+  color: #6c757d !important;
+  font-size: 0.75rem;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: left;
+  margin-top: 0px;
+  margin-right: -1.25rem;
+  margin-bottom: -1.25rem;
+  margin-left: -1.25rem;
+  padding: 0.75rem 1.25rem;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-top: 1px solid rgba(0, 0, 0, 0.125);
+  border-bottom-right-radius: 0.5rem;
+  border-bottom-left-radius: 0.5rem;
+}
+
+.card-header {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  margin-top: 0px;
+  margin-right: -1.25rem;
+  margin-top: -1.25rem;
+  margin-left: -1.25rem;
+  padding: 0.75rem 1.25rem;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+  border-top-right-radius: 0.5rem;
+  border-top-left-radius: 0.5rem;
+}
+
+.text-right {
+  text-align: right;
 }

@@ -28,14 +28,14 @@ func SetHeaders(headers map[string]string) func(next http.Handler) http.Handler 
 // the correspdoning client secret key
 func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateSignature")
 			defer span.End()
 			if err := ValidateRequestURL(r, sharedSecret); err != nil {
-				httputil.ErrorResponse(w, r, httputil.Error("invalid signature", http.StatusBadRequest, err))
-				return
+				return httputil.NewError(http.StatusBadRequest, err)
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
+			return nil
 		})
 	}
 }

@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/httputil"
+
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
@@ -154,8 +156,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			r = r.WithContext(ctx)
 
 			w := httptest.NewRecorder()
-
-			a.SignIn(w, r)
+			httputil.HandlerFunc(a.SignIn).ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantCode {
 				t.Errorf("handler returned wrong status code: got %v want %v %s", status, tt.wantCode, uri)
 				t.Errorf("\n%+v", w.Body)
@@ -186,9 +187,9 @@ func TestAuthenticate_SignOut(t *testing.T) {
 		wantBody     string
 	}{
 		{"good post", http.MethodPost, nil, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusFound, ""},
-		{"failed revoke", http.MethodPost, nil, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"error\":\"could not revoke user session\"}\n"},
-		{"load session error", http.MethodPost, errors.New("error"), "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"error\":\"Bad Request\"}\n"},
-		{"bad redirect uri", http.MethodPost, nil, "corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"error\":\"malformed redirect_uri\"}\n"},
+		{"failed revoke", http.MethodPost, nil, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: OH NO\"}\n"},
+		{"load session error", http.MethodPost, errors.New("error"), "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: error\"}\n"},
+		{"bad redirect uri", http.MethodPost, nil, "corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &sessions.MockSessionStore{Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: corp.pomerium.io/ url does contain a valid scheme\"}\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -211,8 +212,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			r.Header.Set("Accept", "application/json")
 
 			w := httptest.NewRecorder()
-
-			a.SignOut(w, r)
+			httputil.HandlerFunc(a.SignOut).ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantCode {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
 			}
@@ -299,8 +299,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			r := httptest.NewRequest(tt.method, u.String(), nil)
 			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()
-
-			a.OAuthCallback(w, r)
+			httputil.HandlerFunc(a.OAuthCallback).ServeHTTP(w, r)
 			if w.Result().StatusCode != tt.wantCode {
 				t.Errorf("Authenticate.OAuthCallback() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantCode, w.Body.String())
 				return
@@ -366,7 +365,6 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			got.ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("VerifySession() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantStatus, w.Body.String())
-
 			}
 		})
 	}
@@ -417,7 +415,7 @@ func TestAuthenticate_RefreshAPI(t *testing.T) {
 			r.Header.Set("Accept", "application/json")
 
 			w := httptest.NewRecorder()
-			a.RefreshAPI(w, r)
+			httputil.HandlerFunc(a.RefreshAPI).ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("VerifySession() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantStatus, w.Body.String())
 

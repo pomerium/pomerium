@@ -27,7 +27,7 @@ const (
 // AuthenticateSession is middleware to enforce a valid authentication
 // session state is retrieved from the users's request context.
 func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthenticateSession")
 		defer span.End()
 
@@ -35,18 +35,17 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: authenticate session")
 			p.sessionStore.ClearSession(w, r)
 			if s != nil && s.Programmatic {
-				httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusUnauthorized, err))
-				return
+				return httputil.NewError(http.StatusUnauthorized, err)
 			}
 			signinURL := *p.authenticateSigninURL
 			q := signinURL.Query()
 			q.Set(urlutil.QueryRedirectURI, urlutil.GetAbsoluteURL(r).String())
 			signinURL.RawQuery = q.Encode()
 			httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signinURL).String(), http.StatusFound)
-			return
 		}
 		p.addPomeriumHeaders(w, r)
 		next.ServeHTTP(w, r.WithContext(ctx))
+		return nil
 	})
 
 }
@@ -66,31 +65,28 @@ func (p *Proxy) addPomeriumHeaders(w http.ResponseWriter, r *http.Request) {
 // AuthorizeSession is middleware to enforce a user is authorized for a request
 // session state is retrieved from the users's request context.
 func (p *Proxy) AuthorizeSession(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthorizeSession")
 		defer span.End()
-		if err := p.authorize(r.Host, w, r.WithContext(ctx)); err != nil {
+		if err := p.authorize(r.Host, r.WithContext(ctx)); err != nil {
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: AuthorizeSession")
-			return
+			return err
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
+		return nil
 	})
 }
 
-func (p *Proxy) authorize(host string, w http.ResponseWriter, r *http.Request) error {
+func (p *Proxy) authorize(host string, r *http.Request) error {
 	s, err := sessions.FromContext(r.Context())
 	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusUnauthorized, err))
-		return err
+		return httputil.NewError(http.StatusUnauthorized, err)
 	}
 	authorized, err := p.AuthorizeClient.Authorize(r.Context(), host, s)
 	if err != nil {
-		httputil.ErrorResponse(w, r, err)
 		return err
 	} else if !authorized {
-		err = fmt.Errorf("%s is not authorized for %s", s.RequestEmail(), host)
-		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusUnauthorized, err))
-		return err
+		return httputil.NewError(http.StatusUnauthorized, fmt.Errorf("%s is not authorized for %s", s.RequestEmail(), host))
 	}
 	return nil
 }
@@ -99,13 +95,12 @@ func (p *Proxy) authorize(host string, w http.ResponseWriter, r *http.Request) e
 // email, and group. Session state is retrieved from the users's request context
 func (p *Proxy) SignRequest(signer encoding.Marshaler) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 			ctx, span := trace.StartSpan(r.Context(), "proxy.SignRequest")
 			defer span.End()
 			s, err := sessions.FromContext(r.Context())
 			if err != nil {
-				httputil.ErrorResponse(w, r.WithContext(ctx), httputil.Error("", http.StatusForbidden, err))
-				return
+				return httputil.NewError(http.StatusForbidden, err)
 			}
 			newSession := s.NewSession(r.Host, []string{r.Host})
 			jwt, err := signer.Marshal(newSession.RouteSession(time.Minute))
@@ -116,6 +111,7 @@ func (p *Proxy) SignRequest(signer encoding.Marshaler) func(next http.Handler) h
 				w.Header().Set(HeaderJWT, string(jwt))
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
+			return nil
 		})
 	}
 }

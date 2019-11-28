@@ -29,12 +29,12 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 		p.cookieSecret,
 		csrf.Secure(p.cookieOptions.Secure),
 		csrf.CookieName(fmt.Sprintf("%s_csrf", p.cookieOptions.Name)),
-		csrf.ErrorHandler(http.HandlerFunc(httputil.CSRFFailureHandler)),
+		csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
 	))
 	// dashboard endpoints can be used by user's to view, or modify their session
-	h.HandleFunc("/", p.UserDashboard).Methods(http.MethodGet)
-	h.HandleFunc("/impersonate", p.Impersonate).Methods(http.MethodPost)
-	h.HandleFunc("/sign_out", p.SignOut).Methods(http.MethodGet, http.MethodPost)
+	h.Path("/").Handler(httputil.HandlerFunc(p.UserDashboard)).Methods(http.MethodGet)
+	h.Path("/impersonate").Handler(httputil.HandlerFunc(p.Impersonate)).Methods(http.MethodPost)
+	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
 
 	// Authenticate service callback handlers and middleware
 	// callback used to set route-scoped session and redirect back to destination
@@ -42,14 +42,16 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	c := r.PathPrefix(dashboardURL + "/callback").Subrouter()
 	c.Use(middleware.ValidateSignature(p.SharedKey))
 
-	c.Path("/").HandlerFunc(p.ProgrammaticCallback).Methods(http.MethodGet).
+	c.Path("/").
+		Handler(httputil.HandlerFunc(p.ProgrammaticCallback)).
+		Methods(http.MethodGet).
 		Queries(urlutil.QueryIsProgrammatic, "true")
 
-	c.Path("/").HandlerFunc(p.Callback).Methods(http.MethodGet)
+	c.Path("/").Handler(httputil.HandlerFunc(p.Callback)).Methods(http.MethodGet)
 	// Programmatic API handlers and middleware
 	a := r.PathPrefix(dashboardURL + "/api").Subrouter()
 	// login api handler generates a user-navigable login url to authenticate
-	a.HandleFunc("/v1/login", p.ProgrammaticLogin).
+	a.Path("/v1/login").Handler(httputil.HandlerFunc(p.ProgrammaticLogin)).
 		Queries(urlutil.QueryRedirectURI, "").
 		Methods(http.MethodGet)
 
@@ -84,17 +86,15 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 // UserDashboard lets users investigate, and refresh their current session.
 // It also contains certain administrative actions like user impersonation.
 // Nota bene: This endpoint does authentication, not authorization.
-func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
 	session, err := sessions.FromContext(r.Context())
 	if err != nil {
-		httputil.ErrorResponse(w, r, err)
-		return
+		return err
 	}
 
 	isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), session)
 	if err != nil {
-		httputil.ErrorResponse(w, r, err)
-		return
+		return err
 	}
 
 	p.templates.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
@@ -105,23 +105,23 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
 		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
 	})
+	return nil
 }
 
 // Impersonate takes the result of a form and adds user impersonation details
 // to the user's current user sessions state if the user is currently an
 // administrative user. Requests are redirected back to the user dashboard.
-func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) error {
 	session, err := sessions.FromContext(r.Context())
 	if err != nil {
-		httputil.ErrorResponse(w, r, err)
-		return
+		return err
 	}
 	isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), session)
-	if err != nil || !isAdmin {
-		errStr := fmt.Sprintf("%s is not an administrator", session.RequestEmail())
-		httpErr := httputil.Error(errStr, http.StatusForbidden, err)
-		httputil.ErrorResponse(w, r, httpErr)
-		return
+	if err != nil {
+		return err
+	}
+	if !isAdmin {
+		return httputil.NewError(http.StatusForbidden, fmt.Errorf("%s is not an administrator", session.RequestEmail()))
 	}
 	// OK to impersonation
 	redirectURL := urlutil.GetAbsoluteURL(r)
@@ -134,20 +134,20 @@ func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) {
 	q.Set(urlutil.QueryImpersonateGroups, r.FormValue(urlutil.QueryImpersonateGroups))
 	signinURL.RawQuery = q.Encode()
 	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signinURL).String(), http.StatusFound)
+	return nil
 }
 
 // Callback handles the result of a successful call to the authenticate service
 // and is responsible setting returned per-route session.
-func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
 	redirectURLString := r.FormValue(urlutil.QueryRedirectURI)
 	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
 
 	if _, err := p.saveCallbackSession(w, r, encryptedSession); err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
-		return
+		return httputil.NewError(http.StatusBadRequest, err)
 	}
-
 	httputil.Redirect(w, r, redirectURLString, http.StatusFound)
+	return nil
 }
 
 // saveCallbackSession takes an encrypted per-route session token, and decrypts
@@ -172,11 +172,10 @@ func (p *Proxy) saveCallbackSession(w http.ResponseWriter, r *http.Request, enct
 
 // ProgrammaticLogin returns a signed url that can be used to login
 // using the authenticate service.
-func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error {
 	redirectURI, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect uri", http.StatusBadRequest, err))
-		return
+		return httputil.NewError(http.StatusBadRequest, err)
 	}
 	signinURL := *p.authenticateSigninURL
 	callbackURI := urlutil.GetAbsoluteURL(r)
@@ -191,31 +190,30 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(response))
+	return nil
 }
 
 // ProgrammaticCallback handles a successful call to the authenticate service.
 // In addition to returning the individual route session (JWT) it also returns
 // the refresh token.
-func (p *Proxy) ProgrammaticCallback(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) ProgrammaticCallback(w http.ResponseWriter, r *http.Request) error {
 	redirectURLString := r.FormValue(urlutil.QueryRedirectURI)
 	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
 
 	redirectURL, err := urlutil.ParseAndValidateURL(redirectURLString)
 	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error("malformed redirect uri", http.StatusBadRequest, err))
-		return
+		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
 	rawJWT, err := p.saveCallbackSession(w, r, encryptedSession)
 	if err != nil {
-		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
-		return
+		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
 	q := redirectURL.Query()
 	q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
 	q.Set(urlutil.QueryRefreshToken, r.FormValue(urlutil.QueryRefreshToken))
 	redirectURL.RawQuery = q.Encode()
-
 	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	return nil
 }

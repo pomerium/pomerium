@@ -1,9 +1,12 @@
 package httputil
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestHealthCheck(t *testing.T) {
@@ -62,6 +65,29 @@ func TestRedirect(t *testing.T) {
 			}
 			if w.Result().Header.Get(HeaderPomeriumResponse) == "" {
 				t.Errorf("pomerium header not found")
+			}
+		})
+	}
+}
+
+func TestHandlerFunc_ServeHTTP(t *testing.T) {
+
+	tests := []struct {
+		name     string
+		f        HandlerFunc
+		wantBody string
+	}{
+		{"good http error", func(w http.ResponseWriter, r *http.Request) error { return NewError(404, errors.New("404")) }, "{\"Status\":404,\"Error\":\"Not Found: 404\"}\n"},
+		{"good std error", func(w http.ResponseWriter, r *http.Request) error { return errors.New("404") }, "{\"Status\":500,\"Error\":\"Internal Server Error: 404\"}\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest("GET", "/", nil)
+			r.Header.Set("Accept", "application/json")
+			w := httptest.NewRecorder()
+			tt.f.ServeHTTP(w, r)
+			if diff := cmp.Diff(tt.wantBody, w.Body.String()); diff != "" {
+				t.Errorf("ErrorResponse status:\n %s", diff)
 			}
 		})
 	}
