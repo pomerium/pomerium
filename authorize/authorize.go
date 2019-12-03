@@ -14,7 +14,7 @@ import (
 func ValidateOptions(o config.Options) error {
 	decoded, err := base64.StdEncoding.DecodeString(o.SharedKey)
 	if err != nil {
-		return fmt.Errorf("authorize: `SHARED_SECRET` malformed base64: %v", err)
+		return fmt.Errorf("authorize: `SHARED_SECRET` malformed base64: %w", err)
 	}
 	if len(decoded) != 32 {
 		return fmt.Errorf("authorize: `SHARED_SECRET` want 32 but got %d bytes", len(decoded))

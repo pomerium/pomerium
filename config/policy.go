@@ -77,12 +77,12 @@ func (p *Policy) Validate() error {
 	var err error
 	p.Source, err = urlutil.ParseAndValidateURL(p.From)
 	if err != nil {
-		return fmt.Errorf("config: policy bad source url %s", err)
+		return fmt.Errorf("config: policy bad source url %w", err)
 	}
 
 	p.Destination, err = urlutil.ParseAndValidateURL(p.To)
 	if err != nil {
-		return fmt.Errorf("config: policy bad destination url %s", err)
+		return fmt.Errorf("config: policy bad destination url %w", err)
 	}
 
 	// Only allow public access if no other whitelists are in place
@@ -98,24 +98,24 @@ func (p *Policy) Validate() error {
 	if p.TLSClientCert != "" && p.TLSClientKey != "" {
 		p.ClientCertificate, err = cryptutil.CertifcateFromBase64(p.TLSClientCert, p.TLSClientKey)
 		if err != nil {
-			return fmt.Errorf("config: couldn't decode client cert %v", err)
+			return fmt.Errorf("config: couldn't decode client cert %w", err)
 		}
 	} else if p.TLSClientCertFile != "" && p.TLSClientKeyFile != "" {
 		p.ClientCertificate, err = cryptutil.CertificateFromFile(p.TLSClientCertFile, p.TLSClientKeyFile)
 		if err != nil {
-			return fmt.Errorf("config: couldn't load client cert file %v", err)
+			return fmt.Errorf("config: couldn't load client cert file %w", err)
 		}
 	}
 
 	if p.TLSCustomCA != "" {
 		p.RootCAs, err = cryptutil.CertPoolFromBase64(p.TLSCustomCA)
 		if err != nil {
-			return fmt.Errorf("config: couldn't decode custom ca %v", err)
+			return fmt.Errorf("config: couldn't decode custom ca %w", err)
 		}
 	} else if p.TLSCustomCAFile != "" {
 		p.RootCAs, err = cryptutil.CertPoolFromFile(p.TLSCustomCAFile)
 		if err != nil {
-			return fmt.Errorf("config: couldn't load custom ca file %v", err)
+			return fmt.Errorf("config: couldn't load custom ca file %w", err)
 		}
 	}
 

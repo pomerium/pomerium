@@ -22,7 +22,7 @@ func PrometheusHandler() (http.Handler, error) {
 			Registry:  reg,
 		})
 	if err != nil {
-		return nil, fmt.Errorf("telemetry/metrics: prometheus exporter: %v", err)
+		return nil, fmt.Errorf("telemetry/metrics: prometheus exporter: %w", err)
 	}
 	view.RegisterExporter(exporter)
 	mux := http.NewServeMux()

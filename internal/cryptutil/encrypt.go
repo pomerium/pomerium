@@ -21,7 +21,7 @@ func NewAEADCipher(secret []byte) (cipher.AEAD, error) {
 func NewAEADCipherFromBase64(s string) (cipher.AEAD, error) {
 	decoded, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
-		return nil, fmt.Errorf("cryptutil: invalid base64: %v", err)
+		return nil, fmt.Errorf("cryptutil: invalid base64: %w", err)
 	}
 	return NewAEADCipher(decoded)
 }

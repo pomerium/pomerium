@@ -14,11 +14,11 @@ import (
 func CertifcateFromBase64(cert, key string) (*tls.Certificate, error) {
 	decodedCert, err := base64.StdEncoding.DecodeString(cert)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode certificate cert %v: %v", decodedCert, err)
+		return nil, fmt.Errorf("failed to decode certificate cert %v: %w", decodedCert, err)
 	}
 	decodedKey, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode certificate key %v: %v", decodedKey, err)
+		return nil, fmt.Errorf("failed to decode certificate key %v: %w", decodedKey, err)
 	}
 	x509, err := tls.X509KeyPair(decodedCert, decodedKey)
 	return &x509, err
@@ -32,7 +32,7 @@ func CertificateFromFile(certFile, keyFile string) (*tls.Certificate, error) {
 func CertPoolFromBase64(encPemCerts string) (*x509.CertPool, error) {
 	b, err := base64.StdEncoding.DecodeString(encPemCerts)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't decode pem %v: %v", b, err)
+		return nil, fmt.Errorf("couldn't decode pem %v: %w", b, err)
 	}
 	return bytesToCertPool(b)
 }

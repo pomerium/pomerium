@@ -94,12 +94,12 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 			if opts.CA != "" {
 				ca, err = base64.StdEncoding.DecodeString(opts.CA)
 				if err != nil {
-					return nil, fmt.Errorf("failed to decode certificate authority: %v", err)
+					return nil, fmt.Errorf("failed to decode certificate authority: %w", err)
 				}
 			} else {
 				ca, err = ioutil.ReadFile(opts.CAFile)
 				if err != nil {
-					return nil, fmt.Errorf("certificate authority file %v not readable: %v", opts.CAFile, err)
+					return nil, fmt.Errorf("certificate authority file %v not readable: %w", opts.CAFile, err)
 				}
 			}
 			if ok := rootCAs.AppendCertsFromPEM(ca); !ok {

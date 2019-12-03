@@ -67,13 +67,13 @@ func NewGoogleProvider(p *Provider) (*GoogleProvider, error) {
 	if p.ServiceAccount != "" {
 		apiCreds, err := base64.StdEncoding.DecodeString(p.ServiceAccount)
 		if err != nil {
-			return nil, fmt.Errorf("identity/google: could not decode service account json %v", err)
+			return nil, fmt.Errorf("identity/google: could not decode service account json %w", err)
 		}
 		// Required scopes for groups api
 		// https://developers.google.com/admin-sdk/directory/v1/reference/groups/list
 		conf, err := google.JWTConfigFromJSON(apiCreds, admin.AdminDirectoryUserReadonlyScope, admin.AdminDirectoryGroupReadonlyScope)
 		if err != nil {
-			return nil, fmt.Errorf("identity/google: failed making jwt config from json %v", err)
+			return nil, fmt.Errorf("identity/google: failed making jwt config from json %w", err)
 		}
 		var credentialsFile struct {
 			ImpersonateUser string `json:"impersonate_user"`
@@ -85,7 +85,7 @@ func NewGoogleProvider(p *Provider) (*GoogleProvider, error) {
 		client := conf.Client(context.TODO())
 		gp.apiClient, err = admin.New(client)
 		if err != nil {
-			return nil, fmt.Errorf("identity/google: failed creating admin service %v", err)
+			return nil, fmt.Errorf("identity/google: failed creating admin service %w", err)
 		}
 		gp.UserGroupFn = gp.UserGroups
 	} else {
@@ -133,7 +133,7 @@ func (p *GoogleProvider) UserGroups(ctx context.Context, s *sessions.State) ([]s
 		req := p.apiClient.Groups.List().UserKey(s.Subject).MaxResults(100)
 		resp, err := req.Do()
 		if err != nil {
-			return nil, fmt.Errorf("identity/google: group api request failed %v", err)
+			return nil, fmt.Errorf("identity/google: group api request failed %w", err)
 		}
 		for _, group := range resp.Groups {
 			groups = append(groups, group.Email)

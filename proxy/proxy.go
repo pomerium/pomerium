@@ -40,24 +40,24 @@ const (
 // a proper Proxy instance
 func ValidateOptions(o config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
-		return fmt.Errorf("proxy: invalid 'SHARED_SECRET': %v", err)
+		return fmt.Errorf("proxy: invalid 'SHARED_SECRET': %w", err)
 	}
 
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.CookieSecret); err != nil {
-		return fmt.Errorf("proxy: invalid 'COOKIE_SECRET': %v", err)
+		return fmt.Errorf("proxy: invalid 'COOKIE_SECRET': %w", err)
 	}
 
 	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
-		return fmt.Errorf("proxy: invalid 'AUTHENTICATE_SERVICE_URL': %v", err)
+		return fmt.Errorf("proxy: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
 	}
 
 	if err := urlutil.ValidateURL(o.AuthorizeURL); err != nil {
-		return fmt.Errorf("proxy: invalid 'AUTHORIZE_SERVICE_URL': %v", err)
+		return fmt.Errorf("proxy: invalid 'AUTHORIZE_SERVICE_URL': %w", err)
 	}
 
 	if len(o.SigningKey) != 0 {
 		if _, err := jws.NewES256Signer(o.SigningKey, ""); err != nil {
-			return fmt.Errorf("proxy: invalid 'SIGNING_KEY': %v", err)
+			return fmt.Errorf("proxy: invalid 'SIGNING_KEY': %w", err)
 		}
 	}
 	return nil
@@ -193,7 +193,7 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 
 	for _, policy := range opts.Policies {
 		if err := policy.Validate(); err != nil {
-			return fmt.Errorf("proxy: invalid policy %s", err)
+			return fmt.Errorf("proxy: invalid policy %w", err)
 		}
 		r, err = p.reverseProxyHandler(r, &policy)
 		if err != nil {
