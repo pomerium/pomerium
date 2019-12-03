@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/url"
-	"time"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
@@ -21,10 +20,6 @@ import (
 )
 
 const callbackPath = "/oauth2/callback"
-
-// DefaultSessionDuration is the default time a managed route session is
-// valid for.
-var DefaultSessionDuration = time.Minute * 10
 
 // ValidateOptions checks that configuration are complete and valid.
 // Returns on first error found.

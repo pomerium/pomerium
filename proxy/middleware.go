@@ -3,7 +3,6 @@ package proxy // import "github.com/pomerium/pomerium/proxy"
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -108,7 +107,7 @@ func (p *Proxy) SignRequest(signer encoding.Marshaler) func(next http.Handler) h
 				return
 			}
 			newSession := s.NewSession(r.Host, []string{r.Host})
-			jwt, err := signer.Marshal(newSession.RouteSession(time.Minute))
+			jwt, err := signer.Marshal(newSession.RouteSession())
 			if err != nil {
 				log.FromRequest(r).Error().Err(err).Msg("proxy: failed signing jwt")
 			} else {
