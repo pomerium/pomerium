@@ -30,13 +30,13 @@ var DefaultSessionDuration = time.Minute * 10
 // Returns on first error found.
 func ValidateOptions(o config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
-		return fmt.Errorf("authenticate: 'SHARED_SECRET' invalid: %v", err)
+		return fmt.Errorf("authenticate: 'SHARED_SECRET' invalid: %w", err)
 	}
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.CookieSecret); err != nil {
-		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid %v", err)
+		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid %w", err)
 	}
 	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
-		return fmt.Errorf("authenticate: invalid 'AUTHENTICATE_SERVICE_URL': %v", err)
+		return fmt.Errorf("authenticate: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
 	}
 	if o.ClientID == "" {
 		return errors.New("authenticate: 'IDP_CLIENT_ID' is required")

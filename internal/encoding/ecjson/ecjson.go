@@ -82,13 +82,13 @@ func compress(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	writer, err := gzip.NewWriterLevel(&buf, gzip.DefaultCompression)
 	if err != nil {
-		return nil, fmt.Errorf("cryptutil: failed to create a gzip writer: %q", err)
+		return nil, fmt.Errorf("cryptutil: failed to create a gzip writer: %w", err)
 	}
 	if writer == nil {
 		return nil, fmt.Errorf("cryptutil: failed to create a gzip writer")
 	}
 	if _, err = writer.Write(data); err != nil {
-		return nil, fmt.Errorf("cryptutil: failed to compress data with err: %q", err)
+		return nil, fmt.Errorf("cryptutil: failed to compress data with err: %w", err)
 	}
 	if err = writer.Close(); err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func compress(data []byte) ([]byte, error) {
 func decompress(data []byte) ([]byte, error) {
 	reader, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("cryptutil: failed to create a gzip reader: %q", err)
+		return nil, fmt.Errorf("cryptutil: failed to create a gzip reader: %w", err)
 	}
 	defer reader.Close()
 	var buf bytes.Buffer

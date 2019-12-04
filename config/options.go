@@ -339,7 +339,7 @@ func (o *Options) parseHeaders() error {
 		o.Headers = headers
 	} else if o.viperIsSet("headers") {
 		if err := o.viperUnmarshalKey("headers", &headers); err != nil {
-			return fmt.Errorf("header %s failed to parse: %s", o.viper.Get("headers"), err)
+			return fmt.Errorf("header %s failed to parse: %w", o.viper.Get("headers"), err)
 		}
 		o.Headers = headers
 	}
@@ -417,7 +417,7 @@ func (o *Options) Validate() error {
 	if o.AuthenticateURLString != "" {
 		u, err := urlutil.ParseAndValidateURL(o.AuthenticateURLString)
 		if err != nil {
-			return fmt.Errorf("config: bad authenticate-url %s : %v", o.AuthenticateURLString, err)
+			return fmt.Errorf("config: bad authenticate-url %s : %w", o.AuthenticateURLString, err)
 		}
 		o.AuthenticateURL = u
 	}
