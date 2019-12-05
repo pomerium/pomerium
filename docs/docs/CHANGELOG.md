@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.2
+
+### Fixed
+
+- Route sessions match the upstream identity provider's expiry. [GH-416]
+
 ## v0.5.1
 
 ### Fixed
@@ -350,3 +356,4 @@
 [gh-338]: https://github.com/pomerium/pomerium/issues/338
 [gh-363]: https://github.com/pomerium/pomerium/issues/363
 [gh-376]: https://github.com/pomerium/pomerium/pull/376/
+[gh-416]: https://github.com/pomerium/pomerium/pull/416/
