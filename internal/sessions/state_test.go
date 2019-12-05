@@ -99,11 +99,10 @@ func TestState_RouteSession(t *testing.T) {
 		issuer string
 
 		audience []string
-		validity time.Duration
 
 		want *State
 	}{
-		{"good", "authenticate.x.y.z", []string{"http.x.y.z"}, jwt.NewNumericDate(timeNow()), nil, "authenticate.a.b.c", []string{"http.a.b.c"}, 20 * time.Second, &State{Issuer: "authenticate.a.b.c", Audience: []string{"http.a.b.c"}, NotBefore: jwt.NewNumericDate(timeNow()), IssuedAt: jwt.NewNumericDate(timeNow()), Expiry: jwt.NewNumericDate(timeNow().Add(20 * time.Second))}},
+		{"good", "authenticate.x.y.z", []string{"http.x.y.z"}, jwt.NewNumericDate(timeNow()), nil, "authenticate.a.b.c", []string{"http.a.b.c"}, &State{Issuer: "authenticate.a.b.c", Audience: []string{"http.a.b.c"}, NotBefore: jwt.NewNumericDate(timeNow()), IssuedAt: jwt.NewNumericDate(timeNow()), Expiry: jwt.NewNumericDate(timeNow())}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -117,7 +116,7 @@ func TestState_RouteSession(t *testing.T) {
 				cmpopts.IgnoreUnexported(State{}),
 			}
 			got := s.NewSession(tt.issuer, tt.audience)
-			got = got.RouteSession(tt.validity)
+			got = got.RouteSession()
 			if diff := cmp.Diff(got, tt.want, cmpOpts...); diff != "" {
 				t.Errorf("State.RouteSession() = %s", diff)
 			}

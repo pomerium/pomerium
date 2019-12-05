@@ -108,10 +108,8 @@ func (s State) NewSession(issuer string, audience []string) *State {
 	return &s
 }
 
-// RouteSession creates a route session with access tokens stripped and a
-// custom validity period.
-func (s State) RouteSession(validity time.Duration) *State {
-	s.Expiry = jwt.NewNumericDate(timeNow().Add(validity))
+// RouteSession creates a route session with access tokens stripped.
+func (s State) RouteSession() *State {
 	s.AccessToken = nil
 	return &s
 }
