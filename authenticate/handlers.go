@@ -44,6 +44,9 @@ func (a *Authenticate) Handler() http.Handler {
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
 			err := middleware.ValidateRequestURL(r, a.sharedKey)
+			if err != nil {
+				log.FromRequest(r).Info().Err(err).Msg("authenticate: origin blocked")
+			}
 			return err == nil
 		},
 		AllowCredentials: true,
@@ -167,7 +170,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// sign the route session, as a JWT
-	signedJWT, err := a.sharedEncoder.Marshal(newSession.RouteSession(DefaultSessionDuration))
+	signedJWT, err := a.sharedEncoder.Marshal(newSession.RouteSession())
 	if err != nil {
 		httputil.ErrorResponse(w, r, httputil.Error(err.Error(), http.StatusBadRequest, err))
 		return
@@ -333,7 +336,7 @@ func (a *Authenticate) RefreshAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signedJWT, err := a.sharedEncoder.Marshal(newSession.RouteSession(DefaultSessionDuration))
+	signedJWT, err := a.sharedEncoder.Marshal(newSession.RouteSession())
 	if err != nil {
 		httputil.ErrorResponse(w, r, httputil.Error("", http.StatusInternalServerError, err))
 		return
