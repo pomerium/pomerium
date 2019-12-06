@@ -52,7 +52,7 @@ func ValidateURL(u *url.URL) error {
 		return fmt.Errorf("nil url")
 	}
 	if u.Scheme == "" {
-		return fmt.Errorf("%s url does contain a valid scheme. Did you mean https://%s?", u.String(), u.String())
+		return fmt.Errorf("%s url does contain a valid scheme", u.String())
 	}
 	if u.Host == "" {
 		return fmt.Errorf("%s url does contain a valid hostname", u.String())

@@ -2,34 +2,57 @@
 <!DOCTYPE html>
 <html lang="en" charset="utf-8">
   <head>
-    <title>{{.Code}} - {{.Title}}</title>
+    <title>{{.Status}} - {{.StatusText}}</title>
     {{template "header.html"}}
   </head>
   <body>
     <div id="main">
       <div id="info-box">
         <div class="card">
-          <img
-            class="icon"
-            src="/.pomerium/assets/img/error-24px.svg"
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-          />
-          <h1 class="title">{{.Title}}</h1>
+          <div class="card-header">
+            <img
+              class="icon"
+              src="/.pomerium/assets/img/error-24px.svg"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+            <h2>{{.StatusText}}</h2>
+            <h2>{{.Status}}</h2>
+          </div>
           <section>
-            <p class="message">
-              {{if .Message}}{{.Message}}{{end}} {{if .CanDebug}}Troubleshoot
-              your
-              <a href="/.pomerium/">session</a>.{{end}} {{if .RequestID}}
-              Request {{.RequestID}}{{end}}
-            </p>
+            <div class="message">
+              <div class="text-monospace">{{.Error}}</div>
+            </div>
+            {{if .CanDebug}}
+            <div class="message">
+              If you should have access, contact your administrator and provide
+              them with your
+              <a href="/.pomerium/">request details</a>.
+            </div>
+
+            {{end}} {{if.RetryURL}}
+            <div class="message">
+              If you believe the error is temporary, you can
+              <a href="{{.RetryURL}}">retry</a> the request.
+            </div>
+            {{end}}
           </section>
+          <div class="card-footer">
+            <a href="https://www.pomerium.io">
+              <img
+                src="/.pomerium/assets/img/pomerium_circle_96.svg"
+                xmlns="http://www.w3.org/2000/svg"
+                class="icon"
+              />
+            </a>
+
+            <div class="text-right text-muted small">
+              {{.RequestID}} <br />
+              Pomerium {{.Version}}
+            </div>
+          </div>
         </div>
       </div>
-      {{template "footer.html"}}
     </div>
   </body>
 </html>
-
 {{end}}

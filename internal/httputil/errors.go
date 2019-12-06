@@ -2,110 +2,91 @@ package httputil // import "github.com/pomerium/pomerium/internal/httputil"
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"html/template"
-	"io"
 	"net/http"
 
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/internal/version"
 )
 
-// Error formats creates a HTTP error with code, user friendly (and safe) error
-// message. If nil or empty, HTTP status code defaults to 500 and message
-// defaults to the text of the status code.
-func Error(message string, code int, err error) error {
-	if code == 0 {
-		code = http.StatusInternalServerError
-	}
-	if message == "" {
-		message = http.StatusText(code)
-	}
-	return &httpError{Message: message, Code: code, Err: err}
-}
+var errorTemplate = template.Must(frontend.NewTemplates())
+var fullVersion = version.FullVersion()
 
-type httpError struct {
-	// Message to present to the end user.
-	Message string
+// HTTPError contains an HTTP status code and wrapped error.
+type HTTPError struct {
 	// HTTP status codes as registered with IANA.
-	Code int
-
-	Err error // the cause
+	Status int
+	// Err is the wrapped error
+	Err error
 }
 
-func (e *httpError) Error() string {
-	s := fmt.Sprintf("%d %s: %s", e.Code, http.StatusText(e.Code), e.Message)
-	if e.Err != nil {
-		return s + ": " + e.Err.Error()
-	}
-	return s
-}
-func (e *httpError) Unwrap() error { return e.Err }
-
-// Timeout reports whether this error represents a user debuggable error.
-func (e *httpError) Debugable() bool {
-	return e.Code == http.StatusUnauthorized || e.Code == http.StatusForbidden
+// NewError returns an error that contains a HTTP status and error.
+func NewError(status int, err error) error {
+	return &HTTPError{Status: status, Err: err}
 }
 
-// ErrorResponse renders an error page given an error. If the error is a
-// http error from this package, a user friendly message is set, http status code,
-// the ability to debug are also set.
-func ErrorResponse(w http.ResponseWriter, r *http.Request, e error) {
-	statusCode := http.StatusInternalServerError // default status code to return
-	errorString := e.Error()
-	var canDebug bool
-	var requestID string
-	var httpError *httpError
-	// if this is an HTTPError, we can add some additional useful information
-	if errors.As(e, &httpError) {
-		canDebug = httpError.Debugable()
-		statusCode = httpError.Code
-		errorString = httpError.Message
-	}
+// Error implements the `error` interface.
+func (e *HTTPError) Error() string {
+	return http.StatusText(e.Status) + ": " + e.Err.Error()
+}
 
+// Unwrap implements the `error` Unwrap interface.
+func (e *HTTPError) Unwrap() error { return e.Err }
+
+// Debugable reports whether this error represents a user debuggable error.
+func (e *HTTPError) Debugable() bool {
+	return e.Status == http.StatusUnauthorized || e.Status == http.StatusForbidden
+}
+
+// RetryURL returns the requests intended destination, if any.
+func (e *HTTPError) RetryURL(r *http.Request) string {
+	return r.FormValue(urlutil.QueryRedirectURI)
+}
+
+type errResponse struct {
+	Status int
+	Error  string
+
+	StatusText string `json:"-"`
+	RequestID  string `json:",omitempty"`
+	CanDebug   bool   `json:"-"`
+	RetryURL   string `json:"-"`
+	Version    string `json:"-"`
+}
+
+// ErrorResponse replies to the request with the specified error message and HTTP code.
+// It does not otherwise end the request; the caller should ensure no further
+// writes are done to w.
+func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
 	// indicate to clients that the error originates from Pomerium, not the app
 	w.Header().Set(HeaderPomeriumResponse, "true")
+	w.WriteHeader(e.Status)
 
-	log.FromRequest(r).Error().Err(e).Str("http-message", errorString).Int("http-code", statusCode).Msg("http-error")
-
+	log.FromRequest(r).Info().Err(e).Msg("httputil: ErrorResponse")
+	var requestID string
 	if id, ok := log.IDFromRequest(r); ok {
 		requestID = id
 	}
-	if r.Header.Get("Accept") == "application/json" {
-		var response struct {
-			Error string `json:"error"`
-		}
-		response.Error = errorString
-		writeJSONResponse(w, statusCode, response)
-	} else {
-		w.WriteHeader(statusCode)
-		w.Header().Set("Content-Type", "text/html")
-
-		t := struct {
-			Code      int
-			Title     string
-			Message   string
-			RequestID string
-			CanDebug  bool
-		}{
-			Code:      statusCode,
-			Title:     http.StatusText(statusCode),
-			Message:   errorString,
-			RequestID: requestID,
-			CanDebug:  canDebug,
-		}
-		template.Must(frontend.NewTemplates()).ExecuteTemplate(w, "error.html", t)
+	response := errResponse{
+		Status:     e.Status,
+		StatusText: http.StatusText(e.Status),
+		Error:      e.Error(),
+		RequestID:  requestID,
+		CanDebug:   e.Debugable(),
+		RetryURL:   e.RetryURL(r),
+		Version:    fullVersion,
 	}
-}
 
-// writeJSONResponse is a helper that sets the application/json header and writes a response.
-func writeJSONResponse(w http.ResponseWriter, code int, response interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-
-	err := json.NewEncoder(w).Encode(response)
-	if err != nil {
-		io.WriteString(w, err.Error())
+	if r.Header.Get("Accept") == "application/json" {
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(response)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	} else {
+		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		errorTemplate.ExecuteTemplate(w, "error.html", response)
 	}
 }

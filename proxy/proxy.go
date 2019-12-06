@@ -176,8 +176,8 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		log.Warn().Msg("proxy: configuration has no policies")
 	}
 	r := httputil.NewRouter()
-	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		httputil.ErrorResponse(w, r, httputil.Error(fmt.Sprintf("%s route unknown", r.Host), http.StatusNotFound, nil))
+	r.NotFoundHandler = httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		return httputil.NewError(http.StatusNotFound, fmt.Errorf("%s route unknown", r.Host))
 	})
 	r.SkipClean(true)
 	r.StrictSlash(true)

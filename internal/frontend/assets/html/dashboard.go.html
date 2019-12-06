@@ -10,21 +10,21 @@
     <div id="main">
       <div id="info-box">
         <div class="card">
-          {{if .Session.Picture }}
-          <img class="icon" src="{{.Session.Picture}}" alt="user image" />
-          {{else}}
-          <img
-            class="icon"
-            src="/.pomerium/assets/img/account_circle-24px.svg"
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-          />
-          {{end}}
+          <div class="card-header">
+            <h2>Current user</h2>
+            {{if .Session.Picture }}
+            <img class="icon" src="{{.Session.Picture}}" alt="user image" />
+            {{else}}
+            <img
+              class="icon"
+              src="/.pomerium/assets/img/account_circle-24px.svg"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+            {{end}}
+          </div>
 
           <form method="POST" action="/.pomerium/sign_out">
             <section>
-              <h2>Current user</h2>
               <p class="message">Your current session details.</p>
               <fieldset>
                 {{if .Session.Name}}
@@ -189,11 +189,23 @@
               <button class="button full" type="submit">Sign Out</button>
             </div>
           </form>
+        </div>
+      </div>
+      {{if .IsAdmin}}
 
-          {{if .IsAdmin}}
+      <div id="info-box">
+        <div class="card">
+          <div class="card-header">
+            <h2>Sign-in-as</h2>
+            <img
+              class="icon"
+              src="/.pomerium/assets/img/supervised_user_circle-24px.svg"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+          </div>
+
           <form method="POST" action="/.pomerium/impersonate">
             <section>
-              <h2>Sign-in-as</h2>
               <p class="message">
                 Administrators can temporarily impersonate another user.
               </p>
@@ -235,7 +247,6 @@
           {{ end }}
         </div>
       </div>
-      {{template "footer.html"}}
     </div>
   </body>
 </html>
