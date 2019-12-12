@@ -22,7 +22,7 @@ There's no such thing as perfect security. Many recent high-profile breaches hav
 >
 > [Armon Dadgar, Cofounder of HashiCorp @ PagerDuty Nov 2018](https://www.hashicorp.com/resources/how-zero-trust-networking)
 
-The other side of the security trade-off is operational agility. Perimeter based approaches tend to focus on network segmentation which entails creating virtual or physical boundaries around services that need to communicate. Making those boundaries is increasingly difficult to manage in a world of microservices, and cloud computing where service communication requirements are constantly in flux. In theory, an organization could "micro/nano/pico-segment" each and every layer of an application stack to ensure the appropriate audience, however, in practice, operators usually choose between a very precise boundary that is high-touch, time-consuming to mange, and error prone, and that of a more lax boundary that may entail more risk but is less time consuming to update and manage and less prone to break.
+The other side of the security trade-off is operational agility. Perimeter based approaches tend to focus on network segmentation which entails creating virtual or physical boundaries around services that need to communicate. Making those boundaries is increasingly difficult to manage in a world of microservices, and cloud computing where service communication requirements are constantly in flux. In theory, an organization could "micro/nano/pico-segment" each and every layer of an application stack to ensure the appropriate audience. However, in practice, operators usually choose between two sides. A very precise boundary that is high-touch, time-consuming to manage, and error prone. Or that of a more lax boundary that may entail more risk but is less time consuming to update, manage and less prone to break.
 
 ### Gaps in the perimeter
 
@@ -32,7 +32,7 @@ Perimeter based security suffers from the following shortcomings:
 - The "impenetrable fortress" model fails in practice even for the most sophisticated of security organizations.
 - Network segmentation is a time-consuming, and difficult to get exactly right mechanism for ensuring secure communication.
 - Even just defining what the network perimeter is is an increasingly difficult proposition in a remote-work, BYOD, multi-cloud world. Most organizations are a heterogeneous mix of clouds, servers, devices, and organizational units.
-- VPNs are often misused and exacerbate the issue it by opening yet another door into your network organization.
+- VPNs are often misused and exacerbate the issue by opening yet another door into your network organization.
 
 ### Zero-trust, behind the gates
 
@@ -40,14 +40,14 @@ Perimeter based security suffers from the following shortcomings:
 
 - Trust flows from identity, device-state, and context; not network location.
 - Treat both internal and external networks as completely untrusted. Mutually authenticated encryption is used instead of network segmentation.
-- Act like you are already breached, because you probably are, and an attacker could be anyone, and anywhere on your network.
+- Act like you are already breached, because you probably are. An attacker could be anyone, and anywhere on your network.
 - Every device, user, and application's communication should be authenticated, authorized, and encrypted. Access policy should be dynamic, and built from multiple sources.
 
 To be clear, perimeter security is not defunct, nor is zero-trust security a panacea or a single product. Many of the ideas and principles of perimeter security are still relevant and are part of a holistic, and wide-ranging security policy. After all, we still want our castles to have high walls.
 
 ### Where Pomerium Fits
 
-So to put all this back in context, before zero-trust tools like Pomerium existed, access to internal applications were gated by whether a user was on the corporate network or not. Trust flowed and was anchored to the security of the perimeter. For all the reasons discussed above, this has turned to be a lacking security model. In contrast, Pomerium adopts the zero-trust stance and uses identity, device-state, and context compared against a single-source of rich authorization policy as the basis for delegating access to an internal resource. All Pomerium communication is mutually authenticated and encrypted, there is no trust belied to internal vs external network.
+So to put all this back in context, before zero-trust tools like Pomerium existed, access to internal applications were gated by whether a user was on the corporate network or not. Trust flowed through and was anchored to the security of the perimeter. For all the reasons discussed above, this has turned to be a lacking security model. In contrast, Pomerium adopts the zero-trust stance and uses identity, device-state, and context compared against a single-source of rich authorization policy as the basis for delegating access to an internal resource. All Pomerium communication is mutually authenticated and encrypted, there is no trust belied to internal vs external network.
 
 ## Further reading
 
