@@ -414,6 +414,10 @@ func (o *Options) Validate() error {
 		return errors.New("config: shared-key cannot be empty")
 	}
 
+	if o.SharedKey != strings.TrimSpace(o.SharedKey) {
+		return errors.New("config: shared-key contains whitespace")
+	}
+
 	if o.AuthenticateURLString != "" {
 		u, err := urlutil.ParseAndValidateURL(o.AuthenticateURLString)
 		if err != nil {
