@@ -9,6 +9,7 @@
 - Added yaml tags to all options struct fields
   - [GH-394](https://github.com/pomerium/pomerium/pull/394)
   - [GH-397](https://github.com/pomerium/pomerium/pull/397)
+- Improved config validation for `shared_secret` [GH-427](https://github.com/pomerium/pomerium/pull/427)
 
 ### Fixed
 
