@@ -198,6 +198,81 @@ Enable grpc DNS based round robin load balancing. This method uses DNS to resolv
 - Type: `bool`
 - Default: `true`
 
+### Cookie options
+
+These settings control the Pomerium session cookies sent to users's
+browsers.
+
+#### Cookie name
+
+- Environmental Variable: `COOKIE_NAME`
+- Config File Key: `cookie_name`
+- Type: `string`
+- Default: `_pomerium`
+
+The name of the session cookie sent to clients.
+
+#### Cookie secret
+
+- Environmental Variable: `COOKIE_SECRET`
+- Config File Key: `cookie_secret`
+- Type: [base64 encoded] `string`
+
+Secret used to encrypt and sign session cookies. You can generate a
+random key with `head -c32 /dev/urandom | base64`.
+
+#### Cookie domain
+
+- Environmental Variable: `COOKIE_SECRET`
+- Config File Key: `cookie_secret`
+- Type: `string`
+- Example: `corp.beyondperimeter.com`
+- Optional
+
+The scope of session cookies issued by Pomerium. Session cookies will
+be shared by all subdomains of the domain specified here.
+
+#### HTTPS only
+
+- Environmental Variable: `COOKIE_SECURE`
+- Config File Key: `cookie_secure`
+- Type: `bool`
+- Default: `true`
+
+If true, instructs browsers to only send user session cookies over
+HTTPS. 
+
+:::warning
+Setting this to false may result in session cookies being sent in
+cleartext.
+:::
+
+#### Javascript security
+
+- Environmental Variable: `COOKIE_HTTP_ONLY`
+- Config File Key: `cookie_http_only`
+- Type: `bool`
+- Default: `true`
+
+If true, prevents javascript in browsers from reading user session
+cookies.
+
+:::warning
+Setting this to false enables hostile javascript to steal session
+cookies and impersonate users.
+:::
+
+#### Expiration
+
+- Environmental Variable: `COOKIE_EXPIRE`
+- Config File Key: `cookie_expire`
+- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
+- Default: `14h`
+
+Sets the lifetime of session cookies. After this interval, users will
+be forced to go through the OAuth login flow again to get a new
+cookie.
+
 ### HTTP Redirect Address
 
 - Environmental Variable: `HTTP_REDIRECT_ADDR`
