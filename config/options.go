@@ -96,7 +96,6 @@ type Options struct {
 	CookieSecure   bool          `mapstructure:"cookie_secure" yaml:"cookie_secure,omitempty"`
 	CookieHTTPOnly bool          `mapstructure:"cookie_http_only" yaml:"cookie_http_only,omitempty"`
 	CookieExpire   time.Duration `mapstructure:"cookie_expire" yaml:"cookie_expire,omitempty"`
-	CookieRefresh  time.Duration `mapstructure:"cookie_refresh" yaml:"cookie_refresh,omitempty"`
 
 	// Identity provider configuration variables as specified by RFC6749
 	// https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
@@ -185,7 +184,6 @@ var defaultOptions = Options{
 	CookieHTTPOnly:         true,
 	CookieSecure:           true,
 	CookieExpire:           14 * time.Hour,
-	CookieRefresh:          30 * time.Minute,
 	CookieName:             "_pomerium",
 	DefaultUpstreamTimeout: 30 * time.Second,
 	Headers: map[string]string{
