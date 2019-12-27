@@ -18,12 +18,15 @@ import (
 var ErrTokenRevoked = errors.New("token expired or revoked")
 
 var httpClient = &http.Client{
-	Timeout: time.Second * 5,
+	Timeout: 1 * time.Minute,
 	Transport: &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout: 2 * time.Second,
-		}).Dial,
-		TLSHandshakeTimeout: 2 * time.Second,
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 10 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 4 * time.Second,
+		ResponseHeaderTimeout: 3 * time.Second,
 	},
 }
 
@@ -36,9 +39,11 @@ func Client(ctx context.Context, method, endpoint, userAgent string, headers map
 	case http.MethodGet:
 		// error checking skipped because we are just parsing in
 		// order to make a copy of an existing URL
-		u, _ := url.Parse(endpoint)
-		u.RawQuery = params.Encode()
-		endpoint = u.String()
+		if params != nil {
+			u, _ := url.Parse(endpoint)
+			u.RawQuery = params.Encode()
+			endpoint = u.String()
+		}
 	default:
 		return fmt.Errorf(http.StatusText(http.StatusBadRequest))
 	}
@@ -79,7 +84,6 @@ func Client(ctx context.Context, method, endpoint, userAgent string, headers map
 			return fmt.Errorf(http.StatusText(resp.StatusCode))
 		}
 	}
-
 	if response != nil {
 		err := json.Unmarshal(respBody, &response)
 		if err != nil {

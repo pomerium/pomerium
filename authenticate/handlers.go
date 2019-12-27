@@ -1,6 +1,7 @@
 package authenticate // import "github.com/pomerium/pomerium/authenticate"
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/groupcache"
 	"github.com/rs/cors"
 
 	"github.com/pomerium/csrf"
@@ -58,11 +60,25 @@ func (a *Authenticate) Handler() http.Handler {
 	v.Use(a.VerifySession)
 	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	v.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
+	v.Path("/refresh").Handler(httputil.HandlerFunc(a.Refresh)).Methods(http.MethodGet)
 
 	// programmatic access api endpoint
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(sessions.RetrieveSession(a.sessionLoaders...))
 	api.Path("/v1/refresh").Handler(httputil.HandlerFunc(a.RefreshAPI))
+
+	// todo(bdd): replace with gossip based discovery
+	// todo(bdd): this works for exactly one instance of authenticate....
+	// with one instance, these calls AFAIK always hit local memory cache
+	// auth on client side will be set by custom transport
+	// auth on server side will be enforced by standard signature mw
+	cache := r.PathPrefix("/cache").Subrouter()
+	cache.Use(middleware.ValidateSignature(a.sharedKey))
+	pool := groupcache.NewHTTPPoolOpts(a.addr,
+		&groupcache.HTTPPoolOptions{
+			BasePath: "/",
+		})
+	cache.Path("/").Handler(pool)
 
 	return r
 }
@@ -73,12 +89,12 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		state, err := sessions.FromContext(r.Context())
 		if errors.Is(err, sessions.ErrExpired) {
-			if err := a.refresh(w, r, state); err != nil {
+			ctx, err := a.refresh(w, r, state)
+			if err != nil {
 				log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session, refresh")
 				return a.reauthenticateOrFail(w, r, err)
 			}
-			// redirect to restart middleware-chain following refresh
-			httputil.Redirect(w, r, urlutil.GetAbsoluteURL(r).String(), http.StatusFound)
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return nil
 		} else if err != nil {
 			log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session")
@@ -89,15 +105,16 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 	})
 }
 
-func (a *Authenticate) refresh(w http.ResponseWriter, r *http.Request, s *sessions.State) error {
+func (a *Authenticate) refresh(w http.ResponseWriter, r *http.Request, s *sessions.State) (context.Context, error) {
 	newSession, err := a.provider.Refresh(r.Context(), s)
 	if err != nil {
-		return fmt.Errorf("authenticate: refresh failed: %w", err)
+		return nil, fmt.Errorf("authenticate: refresh failed: %w", err)
 	}
 	if err := a.sessionStore.SaveSession(w, r, newSession); err != nil {
-		return fmt.Errorf("authenticate: refresh save failed: %w", err)
+		return nil, fmt.Errorf("authenticate: refresh save failed: %w", err)
 	}
-	return nil
+	// return the new session and add it to the current request context
+	return sessions.NewContext(r.Context(), newSession, err), nil
 }
 
 // RobotsTxt handles the /robots.txt route.
@@ -336,6 +353,34 @@ func (a *Authenticate) RefreshAPI(w http.ResponseWriter, r *http.Request) error 
 	}
 	response.RefreshToken = string(encSession)
 	response.JWT = string(signedJWT)
+
+	jsonResponse, err := json.Marshal(&response)
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonResponse)
+	return nil
+}
+
+func (a *Authenticate) Refresh(w http.ResponseWriter, r *http.Request) error {
+	s, err := sessions.FromContext(r.Context())
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	routeSession := s.NewSession(r.Host, []string{r.Host, r.FormValue("aud")})
+	routeSession.AccessTokenID = s.AccessTokenID
+
+	signedJWT, err := a.sharedEncoder.Marshal(routeSession.RouteSession())
+	if err != nil {
+		return err
+	}
+	response := struct {
+		JWT string `json:"jwt"`
+	}{
+		string(signedJWT),
+	}
 
 	jsonResponse, err := json.Marshal(&response)
 	if err != nil {

@@ -1,4 +1,4 @@
-package sessions // import "github.com/pomerium/pomerium/internal/sessions"
+package cookie // import "github.com/pomerium/pomerium/internal/sessions/cookie"
 
 import (
 	"errors"
@@ -8,7 +8,14 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/encoding"
+	"github.com/pomerium/pomerium/internal/sessions"
 )
+
+var _ sessions.SessionStore = &Store{}
+var _ sessions.SessionLoader = &Store{}
+
+// timeNow is time.Now but pulled out as a variable for tests.
+var timeNow = time.Now
 
 const (
 	// ChunkedCanaryByte is the byte value used as a canary prefix to distinguish if
@@ -25,8 +32,8 @@ const (
 	MaxNumChunks = 5
 )
 
-// CookieStore implements the session store interface for session cookies.
-type CookieStore struct {
+// Store implements the session store interface for session cookies.
+type Store struct {
 	Name     string
 	Domain   string
 	Expire   time.Duration
@@ -37,8 +44,8 @@ type CookieStore struct {
 	decoder encoding.Unmarshaler
 }
 
-// CookieOptions holds options for CookieStore
-type CookieOptions struct {
+// Options holds options for Store
+type Options struct {
 	Name     string
 	Domain   string
 	Expire   time.Duration
@@ -46,8 +53,8 @@ type CookieOptions struct {
 	Secure   bool
 }
 
-// NewCookieStore returns a new session with ciphers for each of the cookie secrets
-func NewCookieStore(opts *CookieOptions, encoder encoding.MarshalUnmarshaler) (*CookieStore, error) {
+// NewStore returns a new session with ciphers for each of the cookie secrets
+func NewStore(opts *Options, encoder encoding.MarshalUnmarshaler) (sessions.SessionStore, error) {
 	cs, err := NewCookieLoader(opts, encoder)
 	if err != nil {
 		return nil, err
@@ -57,11 +64,11 @@ func NewCookieStore(opts *CookieOptions, encoder encoding.MarshalUnmarshaler) (*
 }
 
 // NewCookieLoader returns a new session with ciphers for each of the cookie secrets
-func NewCookieLoader(opts *CookieOptions, dencoder encoding.Unmarshaler) (*CookieStore, error) {
+func NewCookieLoader(opts *Options, dencoder encoding.Unmarshaler) (*Store, error) {
 	if dencoder == nil {
 		return nil, fmt.Errorf("internal/sessions: dencoder cannot be nil")
 	}
-	cs, err := newCookieStore(opts)
+	cs, err := newStore(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -69,12 +76,12 @@ func NewCookieLoader(opts *CookieOptions, dencoder encoding.Unmarshaler) (*Cooki
 	return cs, nil
 }
 
-func newCookieStore(opts *CookieOptions) (*CookieStore, error) {
+func newStore(opts *Options) (*Store, error) {
 	if opts.Name == "" {
 		return nil, fmt.Errorf("internal/sessions: cookie name cannot be empty")
 	}
 
-	return &CookieStore{
+	return &Store{
 		Name:     opts.Name,
 		Secure:   opts.Secure,
 		HTTPOnly: opts.HTTPOnly,
@@ -83,7 +90,7 @@ func newCookieStore(opts *CookieOptions) (*CookieStore, error) {
 	}, nil
 }
 
-func (cs *CookieStore) makeCookie(value string) *http.Cookie {
+func (cs *Store) makeCookie(value string) *http.Cookie {
 	return &http.Cookie{
 		Name:     cs.Name,
 		Value:    value,
@@ -96,7 +103,7 @@ func (cs *CookieStore) makeCookie(value string) *http.Cookie {
 }
 
 // ClearSession clears the session cookie from a request
-func (cs *CookieStore) ClearSession(w http.ResponseWriter, r *http.Request) {
+func (cs *Store) ClearSession(w http.ResponseWriter, r *http.Request) {
 	c := cs.makeCookie("")
 	c.MaxAge = -1
 	c.Expires = timeNow().Add(-time.Hour)
@@ -115,51 +122,58 @@ func getCookies(r *http.Request, name string) []*http.Cookie {
 }
 
 // LoadSession returns a State from the cookie in the request.
-func (cs *CookieStore) LoadSession(r *http.Request) (*State, error) {
+func (cs *Store) LoadSession(r *http.Request) (*sessions.State, error) {
 	cookies := getCookies(r, cs.Name)
 	if len(cookies) == 0 {
-		return nil, ErrNoSessionFound
+		return nil, sessions.ErrNoSessionFound
 	}
 	for _, cookie := range cookies {
 		data := loadChunkedCookie(r, cookie)
 
-		session := &State{}
+		session := &sessions.State{}
 		err := cs.decoder.Unmarshal([]byte(data), session)
 		if err == nil {
 			return session, nil
 		}
 	}
-	return nil, ErrMalformed
+	return nil, sessions.ErrMalformed
 }
 
 // SaveSession saves a session state to a request's cookie store.
-func (cs *CookieStore) SaveSession(w http.ResponseWriter, _ *http.Request, x interface{}) error {
+func (cs *Store) SaveSession(w http.ResponseWriter, _ *http.Request, x interface{}) error {
 	var value string
-	if cs.encoder != nil {
+	// if cs.encoder != nil {
+	// 	data, err := cs.encoder.Marshal(x)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	value = string(data)
+	// } else {
+	switch v := x.(type) {
+	case []byte:
+		value = string(v)
+	case string:
+		value = v
+	default:
+		if cs.encoder == nil {
+			return errors.New("internal/sessions: cannot save non-string type")
+		}
 		data, err := cs.encoder.Marshal(x)
 		if err != nil {
 			return err
 		}
 		value = string(data)
-	} else {
-		switch v := x.(type) {
-		case []byte:
-			value = string(v)
-		case string:
-			value = v
-		default:
-			return errors.New("internal/sessions: cannot save non-string type")
-		}
 	}
+
 	cs.setSessionCookie(w, value)
 	return nil
 }
 
-func (cs *CookieStore) setSessionCookie(w http.ResponseWriter, val string) {
+func (cs *Store) setSessionCookie(w http.ResponseWriter, val string) {
 	cs.setCookie(w, cs.makeCookie(val))
 }
 
-func (cs *CookieStore) setCookie(w http.ResponseWriter, cookie *http.Cookie) {
+func (cs *Store) setCookie(w http.ResponseWriter, cookie *http.Cookie) {
 	if len(cookie.String()) <= MaxChunkSize {
 		http.SetCookie(w, cookie)
 		return
@@ -180,20 +194,26 @@ func (cs *CookieStore) setCookie(w http.ResponseWriter, cookie *http.Cookie) {
 }
 
 func loadChunkedCookie(r *http.Request, c *http.Cookie) string {
+	if len(c.Value) == 0 {
+		return ""
+	}
+	if []byte(c.Value)[0] != ChunkedCanaryByte {
+		return c.Value
+	}
+
 	data := c.Value
 	// if the first byte is our canary byte, we need to handle the multipart bit
-	if []byte(c.Value)[0] == ChunkedCanaryByte {
-		var b strings.Builder
-		fmt.Fprintf(&b, "%s", data[1:])
-		for i := 1; i <= MaxNumChunks; i++ {
-			next, err := r.Cookie(fmt.Sprintf("%s_%d", c.Name, i))
-			if err != nil {
-				break // break if we can't find the next cookie
-			}
-			fmt.Fprintf(&b, "%s", next.Value)
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s", data[1:])
+	for i := 1; i <= MaxNumChunks; i++ {
+		next, err := r.Cookie(fmt.Sprintf("%s_%d", c.Name, i))
+		if err != nil {
+			break // break if we can't find the next cookie
 		}
-		data = b.String()
+		fmt.Fprintf(&b, "%s", next.Value)
 	}
+	data = b.String()
+
 	return data
 }
 

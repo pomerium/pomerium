@@ -1,4 +1,4 @@
-package sessions
+package queryparam // import "github.com/pomerium/pomerium/internal/sessions/queryparam"
 
 import (
 	"errors"
@@ -9,39 +9,40 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
+	"github.com/pomerium/pomerium/internal/sessions"
 )
 
 func TestNewQueryParamStore(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		State *State
+		State *sessions.State
 
 		enc     encoding.MarshalUnmarshaler
 		qp      string
 		wantErr bool
 		wantURL *url.URL
 	}{
-		{"simple good", &State{Email: "user@domain.com", User: "user"}, mock.Encoder{MarshalResponse: []byte("ok")}, "", false, &url.URL{Path: "/", RawQuery: "pomerium_session=ok"}},
-		{"marshall error", &State{Email: "user@domain.com", User: "user"}, mock.Encoder{MarshalError: errors.New("error")}, "", true, &url.URL{Path: "/"}},
+		{"simple good", &sessions.State{Email: "user@domain.com", User: "user"}, mock.Encoder{MarshalResponse: []byte("ok")}, "", false, &url.URL{Path: "/", RawQuery: "pomerium_session=ok"}},
+		{"marshall error", &sessions.State{Email: "user@domain.com", User: "user"}, mock.Encoder{MarshalError: errors.New("error")}, "", true, &url.URL{Path: "/"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewQueryParamStore(tt.enc, tt.qp)
+			got := NewStore(tt.enc, tt.qp)
 
 			r := httptest.NewRequest("GET", "/", nil)
 			w := httptest.NewRecorder()
 
 			if err := got.SaveSession(w, r, tt.State); (err != nil) != tt.wantErr {
-				t.Errorf("NewQueryParamStore.SaveSession() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NewStore.SaveSession() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if diff := cmp.Diff(r.URL, tt.wantURL); diff != "" {
-				t.Errorf("NewQueryParamStore() = %v", diff)
+				t.Errorf("NewStore() = %v", diff)
 			}
 			got.ClearSession(w, r)
 			if diff := cmp.Diff(r.URL, &url.URL{Path: "/"}); diff != "" {
-				t.Errorf("NewQueryParamStore() = %v", diff)
+				t.Errorf("NewStore() = %v", diff)
 			}
 		})
 	}

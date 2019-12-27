@@ -1,35 +1,38 @@
-package sessions // import "github.com/pomerium/pomerium/internal/sessions"
+package header // import "github.com/pomerium/pomerium/internal/sessions/header"
 
 import (
 	"net/http"
 	"strings"
 
 	"github.com/pomerium/pomerium/internal/encoding"
+	"github.com/pomerium/pomerium/internal/sessions"
 )
+
+var _ sessions.SessionLoader = &Store{}
 
 const (
 	defaultAuthHeader = "Authorization"
 	defaultAuthType   = "Bearer"
 )
 
-// HeaderStore implements the load session store interface using http
+// Store implements the load session store interface using http
 // authorization headers.
-type HeaderStore struct {
+type Store struct {
 	authHeader string
 	authType   string
 	encoder    encoding.Unmarshaler
 }
 
-// NewHeaderStore returns a new header store for loading sessions from
+// NewStore returns a new header store for loading sessions from
 // authorization header as defined in as defined in rfc2617
 //
 // NOTA BENE: While most servers do not log Authorization headers by default,
 // you should ensure no other services are logging or leaking your auth headers.
-func NewHeaderStore(enc encoding.Unmarshaler, headerType string) *HeaderStore {
+func NewStore(enc encoding.Unmarshaler, headerType string) *Store {
 	if headerType == "" {
 		headerType = defaultAuthType
 	}
-	return &HeaderStore{
+	return &Store{
 		authHeader: defaultAuthHeader,
 		authType:   headerType,
 		encoder:    enc,
@@ -37,14 +40,14 @@ func NewHeaderStore(enc encoding.Unmarshaler, headerType string) *HeaderStore {
 }
 
 // LoadSession tries to retrieve the token string from the Authorization header.
-func (as *HeaderStore) LoadSession(r *http.Request) (*State, error) {
+func (as *Store) LoadSession(r *http.Request) (*sessions.State, error) {
 	cipherText := TokenFromHeader(r, as.authHeader, as.authType)
 	if cipherText == "" {
-		return nil, ErrNoSessionFound
+		return nil, sessions.ErrNoSessionFound
 	}
-	var session State
+	var session sessions.State
 	if err := as.encoder.Unmarshal([]byte(cipherText), &session); err != nil {
-		return nil, ErrMalformed
+		return nil, sessions.ErrMalformed
 	}
 	return &session, nil
 }

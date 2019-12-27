@@ -1,26 +1,28 @@
-package sessions // import "github.com/pomerium/pomerium/internal/sessions"
+package mock // import "github.com/pomerium/pomerium/internal/sessions/mock"
 
 import (
 	"reflect"
 	"testing"
+
+	"github.com/pomerium/pomerium/internal/sessions"
 )
 
-func TestMockSessionStore(t *testing.T) {
+func TestStore(t *testing.T) {
 	tests := []struct {
 		name        string
-		mockCSRF    *MockSessionStore
-		saveSession *State
+		mockCSRF    *Store
+		saveSession *sessions.State
 		wantLoadErr bool
 		wantSaveErr bool
 	}{
 		{"basic",
-			&MockSessionStore{
+			&Store{
 				ResponseSession: "test",
-				Session:         &State{Subject: "0101"},
+				Session:         &sessions.State{Subject: "0101"},
 				SaveError:       nil,
 				LoadError:       nil,
 			},
-			&State{Subject: "0101"},
+			&sessions.State{Subject: "0101"},
 			false,
 			false},
 	}

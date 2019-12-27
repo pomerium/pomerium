@@ -21,6 +21,9 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/sessions/cookie"
+	"github.com/pomerium/pomerium/internal/sessions/header"
+	"github.com/pomerium/pomerium/internal/sessions/queryparam"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -28,12 +31,11 @@ import (
 )
 
 const (
-	// dashboardURL	is the path to authenticate's sign in endpoint
+	// authenticate urls
 	dashboardURL = "/.pomerium"
-	// signinURL is the path to authenticate's sign in endpoint
-	signinURL = "/.pomerium/sign_in"
-	// signoutURL is the path to authenticate's sign out endpoint
-	signoutURL = "/.pomerium/sign_out"
+	signinURL    = "/.pomerium/sign_in"
+	signoutURL   = "/.pomerium/sign_out"
+	refreshURL   = "/.pomerium/refresh"
 )
 
 // ValidateOptions checks that proper configuration settings are set to create
@@ -72,12 +74,14 @@ type Proxy struct {
 	authenticateURL        *url.URL
 	authenticateSigninURL  *url.URL
 	authenticateSignoutURL *url.URL
-	authorizeURL           *url.URL
+	authenticateRefreshURL *url.URL
+
+	authorizeURL *url.URL
 
 	AuthorizeClient clients.Authorizer
 
 	encoder                encoding.Unmarshaler
-	cookieOptions          *sessions.CookieOptions
+	cookieOptions          *cookie.Options
 	cookieSecret           []byte
 	defaultUpstreamTimeout time.Duration
 	refreshCooldown        time.Duration
@@ -104,7 +108,7 @@ func New(opts config.Options) (*Proxy, error) {
 		return nil, err
 	}
 
-	cookieOptions := &sessions.CookieOptions{
+	cookieOptions := &cookie.Options{
 		Name:     opts.CookieName,
 		Domain:   opts.CookieDomain,
 		Secure:   opts.CookieSecure,
@@ -112,7 +116,7 @@ func New(opts config.Options) (*Proxy, error) {
 		Expire:   opts.CookieExpire,
 	}
 
-	cookieStore, err := sessions.NewCookieLoader(cookieOptions, encoder)
+	cookieStore, err := cookie.NewStore(cookieOptions, encoder)
 	if err != nil {
 		return nil, err
 	}
@@ -129,8 +133,8 @@ func New(opts config.Options) (*Proxy, error) {
 		sessionStore:           cookieStore,
 		sessionLoaders: []sessions.SessionLoader{
 			cookieStore,
-			sessions.NewHeaderStore(encoder, "Pomerium"),
-			sessions.NewQueryParamStore(encoder, "pomerium_session")},
+			header.NewStore(encoder, "Pomerium"),
+			queryparam.NewStore(encoder, "pomerium_session")},
 		signingKey: opts.SigningKey,
 		templates:  template.Must(frontend.NewTemplates()),
 	}
@@ -139,6 +143,7 @@ func New(opts config.Options) (*Proxy, error) {
 	p.authenticateURL, _ = urlutil.DeepCopy(opts.AuthenticateURL)
 	p.authenticateSigninURL = p.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	p.authenticateSignoutURL = p.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
+	p.authenticateRefreshURL = p.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
 
 	if err := p.UpdatePolicies(&opts); err != nil {
 		return nil, err

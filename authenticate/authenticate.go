@@ -16,6 +16,10 @@ import (
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/sessions/cache"
+	"github.com/pomerium/pomerium/internal/sessions/cookie"
+	"github.com/pomerium/pomerium/internal/sessions/header"
+	"github.com/pomerium/pomerium/internal/sessions/queryparam"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -49,6 +53,8 @@ type Authenticate struct {
 	// authentication flow
 	RedirectURL *url.URL
 
+	// values related to cross service communication
+	//
 	// sharedKey is used to encrypt and authenticate data between services
 	sharedKey string
 	// sharedCipher is used to encrypt data for use between services
@@ -57,21 +63,27 @@ type Authenticate struct {
 	// by other services
 	sharedEncoder encoding.MarshalUnmarshaler
 
-	// data related to this service only
-	cookieOptions *sessions.CookieOptions
-	// cookieSecret is the secret to encrypt and authenticate data for this service
+	// values related to user sessions
+	//
+	// cookieSecret is the secret to encrypt and authenticate session data
 	cookieSecret []byte
-	// is the cipher to use to encrypt data for this service
-	cookieCipher     cipher.AEAD
-	sessionStore     sessions.SessionStore
+	// cookieCipher is the cipher to use to encrypt/decrypt session data
+	cookieCipher cipher.AEAD
+	// encryptedEncoder is the encoder used to marshal and unmarshal session data
 	encryptedEncoder encoding.MarshalUnmarshaler
-	sessionStores    []sessions.SessionStore
-	sessionLoaders   []sessions.SessionLoader
+	// sessionStore is the session store used to persist a user's session
+	sessionStore  sessions.SessionStore
+	cookieOptions *cookie.Options
+
+	// sessionLoaders are a collection of session loaders to attempt to pull
+	// a user's session state from
+	sessionLoaders []sessions.SessionLoader
 
 	// provider is the interface to interacting with the identity provider (IdP)
 	provider identity.Authenticator
 
 	templates *template.Template
+	addr      string
 }
 
 // New validates and creates a new authenticate service from a set of Options.
@@ -92,7 +104,7 @@ func New(opts config.Options) (*Authenticate, error) {
 	cookieCipher, _ := cryptutil.NewAEADCipher(decodedCookieSecret)
 	encryptedEncoder := ecjson.New(cookieCipher)
 
-	cookieOptions := &sessions.CookieOptions{
+	cookieOptions := &cookie.Options{
 		Name:     opts.CookieName,
 		Domain:   opts.CookieDomain,
 		Secure:   opts.CookieSecure,
@@ -100,12 +112,13 @@ func New(opts config.Options) (*Authenticate, error) {
 		Expire:   opts.CookieExpire,
 	}
 
-	cookieStore, err := sessions.NewCookieStore(cookieOptions, encryptedEncoder)
+	cookieStore, err := cookie.NewStore(cookieOptions, encryptedEncoder)
 	if err != nil {
 		return nil, err
 	}
-	qpStore := sessions.NewQueryParamStore(encryptedEncoder, "pomerium_programmatic_token")
-	headerStore := sessions.NewHeaderStore(encryptedEncoder, "Pomerium")
+	cacheStore := cache.NewStore(encryptedEncoder, cookieStore, opts.CookieName)
+	qpStore := queryparam.NewStore(encryptedEncoder, "pomerium_programmatic_token")
+	headerStore := header.NewStore(encryptedEncoder, "Pomerium")
 
 	redirectURL, _ := urlutil.DeepCopy(opts.AuthenticateURL)
 	redirectURL.Path = callbackPath
@@ -135,13 +148,13 @@ func New(opts config.Options) (*Authenticate, error) {
 		cookieSecret:     decodedCookieSecret,
 		cookieCipher:     cookieCipher,
 		cookieOptions:    cookieOptions,
-		sessionStore:     cookieStore,
+		sessionStore:     cacheStore,
 		encryptedEncoder: encryptedEncoder,
-		sessionLoaders:   []sessions.SessionLoader{qpStore, headerStore, cookieStore},
-		sessionStores:    []sessions.SessionStore{cookieStore, qpStore},
+		sessionLoaders:   []sessions.SessionLoader{cacheStore, qpStore, headerStore, cookieStore},
 		// IdP
 		provider: provider,
 
 		templates: template.Must(frontend.NewTemplates()),
+		addr:      opts.Addr,
 	}, nil
 }

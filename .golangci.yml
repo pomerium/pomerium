@@ -198,11 +198,6 @@ issues:
       linters:
         - staticcheck
 
-    # todo(bdd): replace in go 1.13
-    - path: proxy/proxy.go
-      text: "copylocks: assignment copies lock value to transport"
-      linters:
-        - govet
   # Independently from option `exclude` we use default exclude patterns,
   # it can be disabled by this option. To list all
   # excluded by default patterns execute `golangci-lint run --help`.

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mitchellh/hashstructure"
 	oidc "github.com/pomerium/go-oidc"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2/jwt"
@@ -51,7 +52,8 @@ type State struct {
 	// programatic access.
 	Programmatic bool `json:"programatic"`
 
-	AccessToken *oauth2.Token `json:"access_token,omitempty"`
+	AccessToken   *oauth2.Token `json:"act,omitempty"`
+	AccessTokenID string        `json:"ati,omitempty"`
 
 	idToken *oidc.IDToken
 }
@@ -73,7 +75,7 @@ func NewStateFromTokens(idToken *oidc.IDToken, accessToken *oauth2.Token, audien
 	s.Audience = []string{audience}
 	s.idToken = idToken
 	s.AccessToken = accessToken
-
+	s.AccessTokenID = s.accessTokenHash()
 	return s, nil
 }
 
@@ -95,6 +97,7 @@ func (s *State) UpdateState(idToken *oidc.IDToken, accessToken *oauth2.Token) er
 	}
 	s.Audience = audience
 	s.Expiry = jwt.NewNumericDate(accessToken.Expiry)
+	s.AccessTokenID = s.accessTokenHash()
 	return nil
 }
 
@@ -172,4 +175,12 @@ func (s *State) SetImpersonation(email, groups string) {
 	} else {
 		s.ImpersonateGroups = strings.Split(groups, ",")
 	}
+}
+
+func (s *State) accessTokenHash() string {
+	hash, err := hashstructure.Hash(s.AccessToken, nil)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", hash)
 }
