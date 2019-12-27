@@ -11,7 +11,7 @@ type SessionStore interface {
 	SaveSession(http.ResponseWriter, *http.Request, interface{}) error
 }
 
-// SessionStore defines an interface for loading a session.
+// SessionLoader defines an interface for loading a session.
 type SessionLoader interface {
 	LoadSession(*http.Request) (*State, error)
 }

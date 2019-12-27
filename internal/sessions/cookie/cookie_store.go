@@ -53,7 +53,8 @@ type Options struct {
 	Secure   bool
 }
 
-// NewStore returns a new session with ciphers for each of the cookie secrets
+// NewStore returns a new store that implements the SessionStore interface
+// using http cookies.
 func NewStore(opts *Options, encoder encoding.MarshalUnmarshaler) (sessions.SessionStore, error) {
 	cs, err := NewCookieLoader(opts, encoder)
 	if err != nil {
@@ -63,7 +64,8 @@ func NewStore(opts *Options, encoder encoding.MarshalUnmarshaler) (sessions.Sess
 	return cs, nil
 }
 
-// NewCookieLoader returns a new session with ciphers for each of the cookie secrets
+// NewCookieLoader returns a new store that implements the SessionLoader
+// interface using http cookies.
 func NewCookieLoader(opts *Options, dencoder encoding.Unmarshaler) (*Store, error) {
 	if dencoder == nil {
 		return nil, fmt.Errorf("internal/sessions: dencoder cannot be nil")
@@ -142,13 +144,6 @@ func (cs *Store) LoadSession(r *http.Request) (*sessions.State, error) {
 // SaveSession saves a session state to a request's cookie store.
 func (cs *Store) SaveSession(w http.ResponseWriter, _ *http.Request, x interface{}) error {
 	var value string
-	// if cs.encoder != nil {
-	// 	data, err := cs.encoder.Marshal(x)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	value = string(data)
-	// } else {
 	switch v := x.(type) {
 	case []byte:
 		value = string(v)

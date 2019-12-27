@@ -19,6 +19,7 @@ const (
 	defaultQueryParamKey = "ati"
 )
 
+// Store implements the session store interface using a distributed cache.
 type Store struct {
 	name    string
 	encoder encoding.Marshaler
@@ -30,6 +31,9 @@ type Store struct {
 
 const defaultCacheSize = 20 * (4 << 20)
 
+// NewStore creates a new session store built on the distributed caching library
+// groupcache. On a cache miss, the cache store attempts to fallback to another
+// SessionStore implementation.
 func NewStore(enc encoding.MarshalUnmarshaler, wrappedStore sessions.SessionStore, name string) *Store {
 	store := &Store{
 		name:         name,
@@ -44,7 +48,7 @@ func NewStore(enc encoding.MarshalUnmarshaler, wrappedStore sessions.SessionStor
 			// of the request context in SaveSession.
 			b := fromContext(ctx)
 			if len(b) == 0 {
-				return fmt.Errorf("sessions/cache: no match for key : %s", id)
+				return fmt.Errorf("sessions/cache: cannot fill key %s from ctx", id)
 			}
 			if err := dest.SetBytes(b); err != nil {
 				return fmt.Errorf("sessions/cache: sink error %w", err)
@@ -56,6 +60,7 @@ func NewStore(enc encoding.MarshalUnmarshaler, wrappedStore sessions.SessionStor
 	return store
 }
 
+// LoadSession implements SessionLoaders's LoadSession method for the cache store.
 func (s *Store) LoadSession(r *http.Request) (*sessions.State, error) {
 	sessionID := r.URL.Query().Get(defaultQueryParamKey)
 	if sessionID == "" {
@@ -77,6 +82,7 @@ func (s *Store) LoadSession(r *http.Request) (*sessions.State, error) {
 
 }
 
+// SaveSession implements SessionStore's SaveSession method for the cache store.
 func (s *Store) ClearSession(w http.ResponseWriter, r *http.Request) {
 	// todo(bdd): do we want to handle eviction? If a refresh token is
 	// invalidated by the IdP we'd get an error on refresh and the session
@@ -84,13 +90,13 @@ func (s *Store) ClearSession(w http.ResponseWriter, r *http.Request) {
 	s.wrappedStore.ClearSession(w, r)
 }
 
+// SaveSession implements SessionStore's SaveSession method for the cache store.
 func (s *Store) SaveSession(w http.ResponseWriter, r *http.Request, x interface{}) error {
 	err := s.wrappedStore.SaveSession(w, r, x)
 	if err != nil {
 		return fmt.Errorf("sessions/cache: wrapped store save error %w", err)
 	}
 
-	//todo(bdd): replace type assertion with interface type that implements a hasher type?
 	state, ok := x.(*sessions.State)
 	if !ok {
 		return errors.New("internal/sessions: cannot cache non state type")

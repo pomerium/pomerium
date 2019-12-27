@@ -1,8 +1,11 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -31,48 +34,65 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthenticateSession")
 		defer span.End()
 
-		s, err := sessions.FromContext(ctx)
+		_, err := sessions.FromContext(ctx)
 		if errors.Is(err, sessions.ErrExpired) {
-			log.FromRequest(r).Info().Err(err).Msg("proxy: session expired")
-			// 1 - make an hmac'd backend call to the authenticate
-			// service to refresh the parent access token
-			refreshURI := *p.authenticateRefreshURL
-			q := refreshURI.Query()
-			q.Set("ati", s.AccessTokenID) // hash value points to parent token
-			q.Set("aud", r.Host)          // request's audience, this route
-			refreshURI.RawQuery = q.Encode()
-			req := urlutil.NewSignedURL(p.SharedKey, &refreshURI).String()
-
-			var response struct {
-				JWT string `json:"jwt"`
-			}
-			// todo(bdd): replace with a less horrific  😱 http.Client 😱
-			err := httputil.Client(ctx, http.MethodGet, req, "proxy", nil, nil, &response)
+			ctx, err = p.refresh(w, r)
 			if err != nil {
-				log.FromRequest(r).Warn().Err(err).Msg("proxy: session refresh failed")
+				log.FromRequest(r).Warn().Err(err).Msg("proxy: refresh failed")
 				return p.redirectToSignin(w, r)
 			}
-			// 2 - save the newly refreshed session to the client's session store
-			if err = p.sessionStore.SaveSession(w, r, response.JWT); err != nil {
-				p.sessionStore.ClearSession(w, r)
-				return fmt.Errorf("proxy: refresh save failure: %w", err)
-			}
-			// 3 - add the newly refreshed session to the current request's
-			//  context so that subsequent middlewares checks can continue
-			session := &sessions.State{}
-			err = p.encoder.Unmarshal([]byte(response.JWT), session)
-			if err != nil {
-				return fmt.Errorf("proxy: refresh bad jwt: %w", err)
-			}
-			ctx = sessions.NewContext(ctx, session, nil)
+			log.FromRequest(r).Info().Msg("proxy: refresh success")
+
 		} else if err != nil {
-			log.FromRequest(r).Warn().Err(err).Msg("proxy: authenticate session")
+			log.FromRequest(r).Debug().Err(err).Msg("proxy: session state")
 			return p.redirectToSignin(w, r)
 		}
 		p.addPomeriumHeaders(w, r)
 		next.ServeHTTP(w, r.WithContext(ctx))
 		return nil
 	})
+}
+
+func (p *Proxy) refresh(w http.ResponseWriter, r *http.Request) (context.Context, error) {
+	s, err := sessions.FromContext(r.Context())
+	if !errors.Is(err, sessions.ErrExpired) || s == nil {
+		return nil, errors.New("proxy: unexpected session state for refresh")
+	}
+	// 1 - make an hmac'd backend call to the authenticate
+	// service to refresh the parent access token
+	refreshURI := *p.authenticateRefreshURL
+	q := refreshURI.Query()
+	q.Set("ati", s.AccessTokenID)           // hash value points to parent token
+	q.Set("aud", urlutil.StripPort(r.Host)) // request's audience, this route
+	refreshURI.RawQuery = q.Encode()
+	signedRefreshURL := urlutil.NewSignedURL(p.SharedKey, &refreshURI).String()
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, signedRefreshURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("proxy: backend refresh: new request: %v", err)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("proxy: fetch %v: %w", signedRefreshURL, err)
+	}
+	defer res.Body.Close()
+	jwtBytes, err := ioutil.ReadAll(io.LimitReader(res.Body, 4<<10))
+	if err != nil {
+		return nil, err
+	}
+
+	// 2 - save the newly refreshed session to the client's session store
+	if err = p.sessionStore.SaveSession(w, r, jwtBytes); err != nil {
+		return nil, err
+	}
+	// 3 - add the newly refreshed session to the current request's
+	//  context so that subsequent middlewares checks can continue
+	state := &sessions.State{}
+	if err := p.encoder.Unmarshal(jwtBytes, state); err != nil {
+		return nil, err
+	}
+	err = state.Verify(urlutil.StripPort(r.Host))
+	return sessions.NewContext(r.Context(), state, err), nil
 }
 
 func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {

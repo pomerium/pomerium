@@ -175,7 +175,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		encSession, err := a.encryptedEncoder.Marshal(newSession)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
-
 		}
 		callbackParams.Set(urlutil.QueryRefreshToken, string(encSession))
 		callbackParams.Set(urlutil.QueryIsProgrammatic, "true")
@@ -363,6 +362,11 @@ func (a *Authenticate) RefreshAPI(w http.ResponseWriter, r *http.Request) error 
 	return nil
 }
 
+// Refresh is called by the proxy service to handle backend session refresh.
+//
+// NOTE: The actual refresh is actually handled as part of the "VerifySession"
+// middleware. This handler is responsible for creating a new route scoped
+// session and returning it.
 func (a *Authenticate) Refresh(w http.ResponseWriter, r *http.Request) error {
 	s, err := sessions.FromContext(r.Context())
 	if err != nil {
@@ -376,17 +380,8 @@ func (a *Authenticate) Refresh(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	response := struct {
-		JWT string `json:"jwt"`
-	}{
-		string(signedJWT),
-	}
 
-	jsonResponse, err := json.Marshal(&response)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(jsonResponse)
+	w.Header().Set("Content-Type", "application/jwt") // RFC 7519 : 10.3.1
+	w.Write(signedJWT)
 	return nil
 }
