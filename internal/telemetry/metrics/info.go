@@ -154,7 +154,7 @@ func SetBuildInfo(service string) {
 	registry.setBuildInfo(service)
 }
 
-// Register non-view based metrics registry globally for export
+// RegisterInfoMetrics registers non-view based metrics registry globally for export
 func RegisterInfoMetrics() {
 	metricproducer.GlobalManager().AddProducer(registry.registry)
 }
