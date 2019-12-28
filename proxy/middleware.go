@@ -43,7 +43,6 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 				return p.redirectToSignin(w, r)
 			}
 			log.FromRequest(r).Info().Msg("proxy: refresh success")
-
 		} else if err != nil {
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: session state")
 			return p.redirectToSignin(w, r)
@@ -59,8 +58,7 @@ func (p *Proxy) refresh(w http.ResponseWriter, r *http.Request) (context.Context
 	if !errors.Is(err, sessions.ErrExpired) || s == nil {
 		return nil, errors.New("proxy: unexpected session state for refresh")
 	}
-	// 1 - make an hmac'd backend call to the authenticate
-	// service to refresh the parent access token
+	// 1 - build a signed backend call to the authenticate service
 	refreshURI := *p.authenticateRefreshURL
 	q := refreshURI.Query()
 	q.Set("ati", s.AccessTokenID)           // hash value points to parent token
@@ -68,6 +66,7 @@ func (p *Proxy) refresh(w http.ResponseWriter, r *http.Request) (context.Context
 	refreshURI.RawQuery = q.Encode()
 	signedRefreshURL := urlutil.NewSignedURL(p.SharedKey, &refreshURI).String()
 
+	// 2 - Make a restful http call to authenticate service
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, signedRefreshURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("proxy: backend refresh: new request: %v", err)
@@ -85,12 +84,11 @@ func (p *Proxy) refresh(w http.ResponseWriter, r *http.Request) (context.Context
 		return nil, err
 	}
 
-	// 2 - save the newly refreshed session to the client's session store
+	// 3 - save the newly refreshed session to the client's session store
 	if err = p.sessionStore.SaveSession(w, r, jwtBytes); err != nil {
 		return nil, err
 	}
-	// 3 - add the newly refreshed session to the current request's
-	//  context so that subsequent middlewares checks can continue
+	// 4 - add refreshed session to the current request context
 	state := &sessions.State{}
 	if err := p.encoder.Unmarshal(jwtBytes, state); err != nil {
 		return nil, err
