@@ -44,8 +44,8 @@ func NewStore(enc encoding.MarshalUnmarshaler, wrappedStore sessions.SessionStor
 
 	store.cache = groupcache.NewGroup(name, defaultCacheSize, groupcache.GetterFunc(
 		func(ctx context.Context, id string, dest groupcache.Sink) error {
-			// fill the cache with session set as part
-			// of the request context in SaveSession.
+			// fill the cache with session set as part of the request
+			// context set previously as part of SaveSession.
 			b := fromContext(ctx)
 			if len(b) == 0 {
 				return fmt.Errorf("sessions/cache: cannot fill key %s from ctx", id)
@@ -60,17 +60,19 @@ func NewStore(enc encoding.MarshalUnmarshaler, wrappedStore sessions.SessionStor
 	return store
 }
 
-// LoadSession implements SessionLoaders's LoadSession method for the cache store.
+// LoadSession implements SessionLoaders's LoadSession method for cache store.
 func (s *Store) LoadSession(r *http.Request) (*sessions.State, error) {
+	// look for our cache's key in the default query param
 	sessionID := r.URL.Query().Get(defaultQueryParamKey)
 	if sessionID == "" {
-		log.FromRequest(r).Debug().Msg("sessions/cache: no query param, using wrapped loader")
+		// if unset, fallback to default cache store
+		log.FromRequest(r).Debug().Msg("sessions/cache: no query param, trying wrapped loader")
 		return s.wrappedStore.LoadSession(r)
 	}
 
 	var b []byte
 	if err := s.cache.Get(r.Context(), sessionID, groupcache.AllocatingByteSliceSink(&b)); err != nil {
-		log.FromRequest(r).Debug().Err(err).Msg("sessions/cache: miss, using wrapped loader")
+		log.FromRequest(r).Debug().Err(err).Msg("sessions/cache: miss, trying wrapped loader")
 		return s.wrappedStore.LoadSession(r)
 	}
 	var session sessions.State
@@ -82,7 +84,7 @@ func (s *Store) LoadSession(r *http.Request) (*sessions.State, error) {
 
 }
 
-// SaveSession implements SessionStore's SaveSession method for the cache store.
+// ClearSession implements SessionStore's ClearSession for the cache store.
 func (s *Store) ClearSession(w http.ResponseWriter, r *http.Request) {
 	// todo(bdd): do we want to handle eviction? If a refresh token is
 	// invalidated by the IdP we'd get an error on refresh and the session
@@ -90,7 +92,7 @@ func (s *Store) ClearSession(w http.ResponseWriter, r *http.Request) {
 	s.wrappedStore.ClearSession(w, r)
 }
 
-// SaveSession implements SessionStore's SaveSession method for the cache store.
+// SaveSession implements SessionStore's SaveSession method for cache store.
 func (s *Store) SaveSession(w http.ResponseWriter, r *http.Request, x interface{}) error {
 	err := s.wrappedStore.SaveSession(w, r, x)
 	if err != nil {
