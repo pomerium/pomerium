@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/fsnotify/fsnotify"
 	"github.com/mitchellh/hashstructure"
 	"github.com/spf13/viper"

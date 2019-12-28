@@ -424,3 +424,54 @@ func TestAuthenticate_RefreshAPI(t *testing.T) {
 		})
 	}
 }
+func TestAuthenticate_Refresh(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+
+		session  sessions.SessionStore
+		ctxError error
+
+		provider      identity.Authenticator
+		secretEncoder encoding.MarshalUnmarshaler
+		sharedEncoder encoding.MarshalUnmarshaler
+
+		wantStatus int
+	}{
+		{"good", &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, nil, identity.MockProvider{RefreshResponse: sessions.State{AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}}}, mock.Encoder{MarshalResponse: []byte("ok")}, mock.Encoder{MarshalResponse: []byte("ok")}, http.StatusOK},
+		{"bad session", &mstore.Store{}, errors.New("err"), identity.MockProvider{RefreshResponse: sessions.State{AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}}}, mock.Encoder{MarshalResponse: []byte("ok")}, mock.Encoder{MarshalResponse: []byte("ok")}, http.StatusBadRequest},
+		{"encoder error", &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, nil, identity.MockProvider{RefreshResponse: sessions.State{AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}}}, mock.Encoder{MarshalResponse: []byte("ok")}, mock.Encoder{MarshalError: errors.New("err")}, http.StatusInternalServerError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
+			if err != nil {
+				t.Fatal(err)
+			}
+			a := Authenticate{
+				sharedKey:        cryptutil.NewBase64Key(),
+				cookieSecret:     cryptutil.NewKey(),
+				RedirectURL:      uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
+				encryptedEncoder: tt.secretEncoder,
+				sharedEncoder:    tt.sharedEncoder,
+				sessionStore:     tt.session,
+				provider:         tt.provider,
+				cookieCipher:     aead,
+			}
+			r := httptest.NewRequest("GET", "/", nil)
+			state, _ := tt.session.LoadSession(r)
+			ctx := r.Context()
+			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			r = r.WithContext(ctx)
+
+			r.Header.Set("Accept", "application/json")
+
+			w := httptest.NewRecorder()
+			httputil.HandlerFunc(a.Refresh).ServeHTTP(w, r)
+			if status := w.Code; status != tt.wantStatus {
+				t.Errorf("VerifySession() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantStatus, w.Body.String())
+
+			}
+		})
+	}
+}
