@@ -124,3 +124,26 @@ func TestState_RouteSession(t *testing.T) {
 		})
 	}
 }
+
+func TestState_accessTokenHash(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		state State
+		want  string
+	}{
+		{"empty access token", State{}, "a8c7f832281a39c5"},
+		{"no change to access token", State{Subject: "test"}, "a8c7f832281a39c5"},
+		{"empty oauth2 token", State{AccessToken: &oauth2.Token{}}, "41a68a3cc15e6b57"},
+		{"refresh token a", State{AccessToken: &oauth2.Token{RefreshToken: "a"}}, "604028bcf59ac553"},
+		{"refresh token b", State{AccessToken: &oauth2.Token{RefreshToken: "b"}}, "3f8224c1a1c055b2"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &tt.state
+			if got := s.accessTokenHash(); got != tt.want {
+				t.Errorf("State.accessTokenHash() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
