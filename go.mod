@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go v0.49.0 // indirect
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
-	github.com/cespare/xxhash/v2 v2.1.1 // indirect
+	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/golang/groupcache v0.0.0-20191227052852-215e87163ea7
 	github.com/golang/mock v1.3.1

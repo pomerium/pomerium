@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/mitchellh/hashstructure"
 	oidc "github.com/pomerium/go-oidc"
 	"golang.org/x/oauth2"
@@ -178,7 +179,9 @@ func (s *State) SetImpersonation(email, groups string) {
 }
 
 func (s *State) accessTokenHash() string {
-	hash, err := hashstructure.Hash(s.AccessToken, nil)
+	hash, err := hashstructure.Hash(
+		s.AccessToken,
+		&hashstructure.HashOptions{Hasher: xxhash.New()})
 	if err != nil {
 		return ""
 	}

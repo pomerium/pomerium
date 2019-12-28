@@ -132,11 +132,11 @@ func TestState_accessTokenHash(t *testing.T) {
 		state State
 		want  string
 	}{
-		{"empty access token", State{}, "a8c7f832281a39c5"},
-		{"no change to access token", State{Subject: "test"}, "a8c7f832281a39c5"},
-		{"empty oauth2 token", State{AccessToken: &oauth2.Token{}}, "41a68a3cc15e6b57"},
-		{"refresh token a", State{AccessToken: &oauth2.Token{RefreshToken: "a"}}, "604028bcf59ac553"},
-		{"refresh token b", State{AccessToken: &oauth2.Token{RefreshToken: "b"}}, "3f8224c1a1c055b2"},
+		{"empty access token", State{}, "34c96acdcadb1bbb"},
+		{"no change to access token", State{Subject: "test"}, "34c96acdcadb1bbb"},
+		{"empty oauth2 token", State{AccessToken: &oauth2.Token{}}, "bbd82197d215198f"},
+		{"refresh token a", State{AccessToken: &oauth2.Token{RefreshToken: "a"}}, "76316ac79b301bd6"},
+		{"refresh token b", State{AccessToken: &oauth2.Token{RefreshToken: "b"}}, "fab7cb29e50161f1"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
