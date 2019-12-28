@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -71,10 +70,7 @@ func (p *Proxy) refresh(w http.ResponseWriter, r *http.Request) (context.Context
 	if err != nil {
 		return nil, fmt.Errorf("proxy: backend refresh: new request: %v", err)
 	}
-	// For safety, set explicit timeout on the http client. That said,
-	// the client should inherent the request timeout and cancellation.
-	httpClient := &http.Client{Timeout: 10 * time.Second}
-	res, err := httpClient.Do(req)
+	res, err := httputil.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("proxy: fetch %v: %w", signedRefreshURL, err)
 	}

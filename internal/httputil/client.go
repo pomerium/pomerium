@@ -16,7 +16,8 @@ import (
 // ErrTokenRevoked signifies a token revokation or expiration error
 var ErrTokenRevoked = errors.New("token expired or revoked")
 
-var httpClient = &http.Client{
+// DefaultClient avoids leaks by setting an upper limit for timeouts.
+var DefaultClient = &http.Client{
 	Timeout: 1 * time.Minute,
 }
 
@@ -47,7 +48,7 @@ func Client(ctx context.Context, method, endpoint, userAgent string, headers map
 		req.Header.Set(k, v)
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
