@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -19,15 +18,6 @@ var ErrTokenRevoked = errors.New("token expired or revoked")
 
 var httpClient = &http.Client{
 	Timeout: 1 * time.Minute,
-	Transport: &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   10 * time.Second,
-			KeepAlive: 10 * time.Second,
-		}).DialContext,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 4 * time.Second,
-		ResponseHeaderTimeout: 3 * time.Second,
-	},
 }
 
 // Client provides a simple helper interface to make HTTP requests

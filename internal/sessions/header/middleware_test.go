@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/encoding/ecjson"
 	"github.com/pomerium/pomerium/internal/sessions"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/pomerium/pomerium/internal/cryptutil"
-	"github.com/pomerium/pomerium/internal/encoding/ecjson"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
