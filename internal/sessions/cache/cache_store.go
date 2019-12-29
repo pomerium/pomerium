@@ -31,7 +31,7 @@ type Store struct {
 }
 
 // defaultCacheSize is ~10MB
-const defaultCacheSize = 10 << 20
+var defaultCacheSize int64 = 10 << 20
 
 // NewStore creates a new session store built on the distributed caching library
 // groupcache. On a cache miss, the cache store attempts to fallback to another
@@ -83,7 +83,6 @@ func (s *Store) LoadSession(r *http.Request) (*sessions.State, error) {
 		return nil, sessions.ErrMalformed
 	}
 	return &session, nil
-
 }
 
 // ClearSession implements SessionStore's ClearSession for the cache store.
@@ -112,21 +111,13 @@ func (s *Store) SaveSession(w http.ResponseWriter, r *http.Request, x interface{
 
 	ctx := newContext(r.Context(), data)
 	var b []byte
-	err = s.cache.Get(ctx, state.AccessTokenID, groupcache.AllocatingByteSliceSink(&b))
-	if err != nil {
-		return fmt.Errorf("sessions/cache: save error %w", err)
-	}
-	return nil
+	return s.cache.Get(ctx, state.AccessTokenID, groupcache.AllocatingByteSliceSink(&b))
 }
 
 var sessionCtxKey = &contextKey{"PomeriumCachedSessionBytes"}
 
 type contextKey struct {
 	name string
-}
-
-func (k *contextKey) String() string {
-	return "context value " + k.name
 }
 
 func newContext(ctx context.Context, b []byte) context.Context {
