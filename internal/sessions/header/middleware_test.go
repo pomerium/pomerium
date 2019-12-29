@@ -36,13 +36,16 @@ func TestVerifier(t *testing.T) {
 
 	tests := []struct {
 		name       string
+		authType   string
 		state      sessions.State
 		wantBody   string
 		wantStatus int
 	}{
-		{"good auth header session", sessions.State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}, http.StatusText(http.StatusOK), http.StatusOK},
-		{"expired auth header", sessions.State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, "internal/sessions: validation failed, token is expired (exp)\n", http.StatusUnauthorized},
-		{"malformed auth header", sessions.State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, "internal/sessions: session is malformed\n", http.StatusUnauthorized},
+		{"good auth header session", "Bearer ", sessions.State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}, http.StatusText(http.StatusOK), http.StatusOK},
+		{"expired auth header", "Bearer ", sessions.State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, "internal/sessions: validation failed, token is expired (exp)\n", http.StatusUnauthorized},
+		{"malformed auth header", "Bearer ", sessions.State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, "internal/sessions: session is malformed\n", http.StatusUnauthorized},
+		{"empty auth header", "Bearer ", sessions.State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, "internal/sessions: session is not found\n", http.StatusUnauthorized},
+		{"bad auth type", "bees ", sessions.State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, "internal/sessions: session is not found\n", http.StatusUnauthorized},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -59,14 +62,17 @@ func TestVerifier(t *testing.T) {
 				// add some garbage to the end of the string
 				encSession = append(encSession, cryptutil.NewKey()...)
 			}
-
 			s := NewStore(encoder, "")
 
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()
 
-			r.Header.Set("Authorization", "Bearer "+string(encSession))
+			if strings.Contains(tt.name, "empty") {
+				// add some garbage to the end of the string
+				encSession = []byte("")
+			}
+			r.Header.Set("Authorization", tt.authType+string(encSession))
 
 			got := sessions.RetrieveSession(s)(testAuthorizer((fnh)))
 			got.ServeHTTP(w, r)
