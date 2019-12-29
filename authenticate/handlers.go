@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -106,7 +107,9 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 }
 
 func (a *Authenticate) refresh(w http.ResponseWriter, r *http.Request, s *sessions.State) (context.Context, error) {
-	newSession, err := a.provider.Refresh(r.Context(), s)
+	ctx, span := trace.StartSpan(r.Context(), "authenticate.VerifySession/refresh")
+	defer span.End()
+	newSession, err := a.provider.Refresh(ctx, s)
 	if err != nil {
 		return nil, fmt.Errorf("authenticate: refresh failed: %w", err)
 	}
@@ -114,7 +117,7 @@ func (a *Authenticate) refresh(w http.ResponseWriter, r *http.Request, s *sessio
 		return nil, fmt.Errorf("authenticate: refresh save failed: %w", err)
 	}
 	// return the new session and add it to the current request context
-	return sessions.NewContext(r.Context(), newSession, err), nil
+	return sessions.NewContext(ctx, newSession, err), nil
 }
 
 // RobotsTxt handles the /robots.txt route.

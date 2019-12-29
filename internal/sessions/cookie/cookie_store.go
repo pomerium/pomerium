@@ -192,12 +192,12 @@ func loadChunkedCookie(r *http.Request, c *http.Cookie) string {
 	if len(c.Value) == 0 {
 		return ""
 	}
+	// if the first byte is our canary byte, we need to handle the multipart bit
 	if []byte(c.Value)[0] != ChunkedCanaryByte {
 		return c.Value
 	}
 
 	data := c.Value
-	// if the first byte is our canary byte, we need to handle the multipart bit
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s", data[1:])
 	for i := 1; i <= MaxNumChunks; i++ {
