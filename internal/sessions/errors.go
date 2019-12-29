@@ -17,6 +17,9 @@ var (
 	// ErrExpired indicates that token is used after expiry time indicated in exp claim.
 	ErrExpired = errors.New("internal/sessions: validation failed, token is expired (exp)")
 
+	// ErrExpiryRequired indicates that the token does not contain a valid expiry (exp) claim.
+	ErrExpiryRequired = errors.New("internal/sessions: validation failed, token expiry (exp) is required")
+
 	// ErrIssuedInTheFuture indicates that the iat field is in the future.
 	ErrIssuedInTheFuture = errors.New("internal/sessions: validation field, token issued in the future (iat)")
 

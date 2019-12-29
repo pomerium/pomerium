@@ -83,7 +83,6 @@ type Authenticate struct {
 	provider identity.Authenticator
 
 	templates *template.Template
-	addr      string
 }
 
 // New validates and creates a new authenticate service from a set of Options.
@@ -155,6 +154,5 @@ func New(opts config.Options) (*Authenticate, error) {
 		provider: provider,
 
 		templates: template.Must(frontend.NewTemplates()),
-		addr:      opts.Addr,
 	}, nil
 }

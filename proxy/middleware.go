@@ -57,7 +57,7 @@ func (p *Proxy) refresh(w http.ResponseWriter, r *http.Request) (context.Context
 	if !errors.Is(err, sessions.ErrExpired) || s == nil {
 		return nil, errors.New("proxy: unexpected session state for refresh")
 	}
-	// 1 - build a signed backend call to the authenticate service
+	// 1 - build a signed url to call refresh on authenticate service
 	refreshURI := *p.authenticateRefreshURL
 	q := refreshURI.Query()
 	q.Set("ati", s.AccessTokenID)           // hash value points to parent token
@@ -65,7 +65,7 @@ func (p *Proxy) refresh(w http.ResponseWriter, r *http.Request) (context.Context
 	refreshURI.RawQuery = q.Encode()
 	signedRefreshURL := urlutil.NewSignedURL(p.SharedKey, &refreshURI).String()
 
-	// 2 - Make a restful http call to authenticate service
+	// 2 -  http call to authenticate service
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, signedRefreshURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("proxy: backend refresh: new request: %v", err)
@@ -80,17 +80,19 @@ func (p *Proxy) refresh(w http.ResponseWriter, r *http.Request) (context.Context
 		return nil, err
 	}
 
-	// 3 - save the newly refreshed session to the client's session store
+	// 3 - save refreshed session to the client's session store
 	if err = p.sessionStore.SaveSession(w, r, jwtBytes); err != nil {
 		return nil, err
 	}
 	// 4 - add refreshed session to the current request context
-	state := &sessions.State{}
-	if err := p.encoder.Unmarshal(jwtBytes, state); err != nil {
+	var state sessions.State
+	if err := p.encoder.Unmarshal(jwtBytes, &state); err != nil {
 		return nil, err
 	}
-	err = state.Verify(urlutil.StripPort(r.Host))
-	return sessions.NewContext(r.Context(), state, err), nil
+	if err := state.Verify(urlutil.StripPort(r.Host)); err != nil {
+		return nil, err
+	}
+	return sessions.NewContext(r.Context(), &state, err), nil
 }
 
 func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {

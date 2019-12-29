@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/golang/groupcache"
+
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -29,7 +30,8 @@ type Store struct {
 	wrappedStore sessions.SessionStore
 }
 
-const defaultCacheSize = 20 * (4 << 20)
+// defaultCacheSize is ~10MB
+const defaultCacheSize = 10 << 20
 
 // NewStore creates a new session store built on the distributed caching library
 // groupcache. On a cache miss, the cache store attempts to fallback to another
@@ -85,10 +87,9 @@ func (s *Store) LoadSession(r *http.Request) (*sessions.State, error) {
 }
 
 // ClearSession implements SessionStore's ClearSession for the cache store.
+// Since group cache has no explicit eviction, we just call the wrapped
+// store's ClearSession method here.
 func (s *Store) ClearSession(w http.ResponseWriter, r *http.Request) {
-	// todo(bdd): do we want to handle eviction? If a refresh token is
-	// invalidated by the IdP we'd get an error on refresh and the session
-	// would just naturally get evicted as part of the underlying LRU cache
 	s.wrappedStore.ClearSession(w, r)
 }
 

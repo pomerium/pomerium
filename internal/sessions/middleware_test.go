@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 func TestNewContext(t *testing.T) {
@@ -106,7 +108,7 @@ func TestVerifier(t *testing.T) {
 		wantStatus int
 	}{
 		{"empty session", store{}, State{}, "internal/sessions: session is not found\n", 401},
-		{"simple good load", store{Session: &State{Subject: "hi"}}, State{}, "OK", 200},
+		{"simple good load", store{Session: &State{Subject: "hi", Expiry: jwt.NewNumericDate(time.Now().Add(time.Second))}}, State{}, "OK", 200},
 		{"empty session", store{LoadError: errors.New("err")}, State{}, "err\n", 401},
 	}
 	for _, tt := range tests {

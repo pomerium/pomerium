@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/groupcache"
 	"github.com/rs/cors"
 
 	"github.com/pomerium/csrf"
@@ -67,19 +66,6 @@ func (a *Authenticate) Handler() http.Handler {
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(sessions.RetrieveSession(a.sessionLoaders...))
 	api.Path("/v1/refresh").Handler(httputil.HandlerFunc(a.RefreshAPI))
-
-	// todo(bdd): replace with gossip based discovery
-	// todo(bdd): this works for exactly one instance of authenticate....
-	// with one instance, these calls AFAIK always hit local memory cache
-	// auth on client side will be set by custom transport
-	// auth on server side will be enforced by standard signature mw
-	cache := r.PathPrefix("/cache").Subrouter()
-	cache.Use(middleware.ValidateSignature(a.sharedKey))
-	pool := groupcache.NewHTTPPoolOpts(a.addr,
-		&groupcache.HTTPPoolOptions{
-			BasePath: "/",
-		})
-	cache.Path("/").Handler(pool)
 
 	return r
 }
