@@ -69,7 +69,6 @@ func TestVerifier(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			if strings.Contains(tt.name, "empty") {
-				// add some garbage to the end of the string
 				encSession = []byte("")
 			}
 			r.Header.Set("Authorization", tt.authType+string(encSession))
