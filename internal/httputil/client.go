@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"go.opencensus.io/plugin/ochttp"
 )
 
 // ErrTokenRevoked signifies a token revokation or expiration error
@@ -19,6 +21,8 @@ var ErrTokenRevoked = errors.New("token expired or revoked")
 // DefaultClient avoids leaks by setting an upper limit for timeouts.
 var DefaultClient = &http.Client{
 	Timeout: 1 * time.Minute,
+	//todo(bdd): incorporate metrics.HTTPMetricsRoundTripper
+	Transport: &ochttp.Transport{},
 }
 
 // Client provides a simple helper interface to make HTTP requests

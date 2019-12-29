@@ -34,10 +34,10 @@ var (
 // DefaultViews are a set of default views to view HTTP and GRPC metrics.
 var (
 	DefaultViews = [][]*view.View{
-		GRPCServerViews,
-		HTTPServerViews,
 		GRPCClientViews,
 		GRPCServerViews,
+		HTTPClientViews,
+		HTTPServerViews,
 		InfoViews,
 	}
 )

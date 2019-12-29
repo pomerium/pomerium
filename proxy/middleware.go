@@ -36,7 +36,7 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 
 		_, err := sessions.FromContext(ctx)
 		if errors.Is(err, sessions.ErrExpired) {
-			ctx, err = p.refresh(w, r)
+			ctx, err = p.refresh(ctx, w, r)
 			if err != nil {
 				log.FromRequest(r).Warn().Err(err).Msg("proxy: refresh failed")
 				return p.redirectToSignin(w, r)
@@ -52,8 +52,10 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 	})
 }
 
-func (p *Proxy) refresh(w http.ResponseWriter, r *http.Request) (context.Context, error) {
-	s, err := sessions.FromContext(r.Context())
+func (p *Proxy) refresh(ctx context.Context, w http.ResponseWriter, r *http.Request) (context.Context, error) {
+	ctx, span := trace.StartSpan(ctx, "proxy.AuthenticateSession/refresh")
+	defer span.End()
+	s, err := sessions.FromContext(ctx)
 	if !errors.Is(err, sessions.ErrExpired) || s == nil {
 		return nil, errors.New("proxy: unexpected session state for refresh")
 	}
@@ -66,7 +68,7 @@ func (p *Proxy) refresh(w http.ResponseWriter, r *http.Request) (context.Context
 	signedRefreshURL := urlutil.NewSignedURL(p.SharedKey, &refreshURI).String()
 
 	// 2 -  http call to authenticate service
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, signedRefreshURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, signedRefreshURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("proxy: backend refresh: new request: %v", err)
 	}
