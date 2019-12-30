@@ -11,12 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 
+	"github.com/cespare/xxhash/v2"
+	"github.com/fsnotify/fsnotify"
 	"github.com/mitchellh/hashstructure"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
@@ -477,7 +478,7 @@ type OptionsUpdater interface {
 
 // Checksum returns the checksum of the current options struct
 func (o *Options) Checksum() string {
-	hash, err := hashstructure.Hash(o, nil)
+	hash, err := hashstructure.Hash(o, &hashstructure.HashOptions{Hasher: xxhash.New()})
 	if err != nil {
 		log.Warn().Err(err).Msg("config: checksum failure")
 		return "no checksum available"

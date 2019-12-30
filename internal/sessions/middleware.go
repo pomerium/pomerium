@@ -44,7 +44,7 @@ func retrieveFromRequest(r *http.Request, sessions ...SessionLoader) (*State, er
 		}
 		if state != nil {
 			err := state.Verify(urlutil.StripPort(r.Host))
-			return state, err // N.B.: state is _not_ nil_
+			return state, err // N.B.: state is _not_ nil
 		}
 	}
 

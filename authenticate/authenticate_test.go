@@ -72,15 +72,18 @@ func TestOptions_Validate(t *testing.T) {
 
 func TestNew(t *testing.T) {
 	good := newTestOptions(t)
+	good.CookieName = "A"
 
 	badRedirectURL := newTestOptions(t)
 	badRedirectURL.AuthenticateURL = nil
+	badRedirectURL.CookieName = "B"
 
 	badCookieName := newTestOptions(t)
 	badCookieName.CookieName = ""
 
 	badProvider := newTestOptions(t)
 	badProvider.Provider = ""
+	badProvider.CookieName = "C"
 
 	tests := []struct {
 		name string

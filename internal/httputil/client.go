@@ -8,23 +8,21 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/url"
 	"time"
+
+	"go.opencensus.io/plugin/ochttp"
 )
 
 // ErrTokenRevoked signifies a token revokation or expiration error
 var ErrTokenRevoked = errors.New("token expired or revoked")
 
-var httpClient = &http.Client{
-	Timeout: time.Second * 5,
-	Transport: &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout: 2 * time.Second,
-		}).Dial,
-		TLSHandshakeTimeout: 2 * time.Second,
-	},
+// DefaultClient avoids leaks by setting an upper limit for timeouts.
+var DefaultClient = &http.Client{
+	Timeout: 1 * time.Minute,
+	//todo(bdd): incorporate metrics.HTTPMetricsRoundTripper
+	Transport: &ochttp.Transport{},
 }
 
 // Client provides a simple helper interface to make HTTP requests
@@ -36,9 +34,11 @@ func Client(ctx context.Context, method, endpoint, userAgent string, headers map
 	case http.MethodGet:
 		// error checking skipped because we are just parsing in
 		// order to make a copy of an existing URL
-		u, _ := url.Parse(endpoint)
-		u.RawQuery = params.Encode()
-		endpoint = u.String()
+		if params != nil {
+			u, _ := url.Parse(endpoint)
+			u.RawQuery = params.Encode()
+			endpoint = u.String()
+		}
 	default:
 		return fmt.Errorf(http.StatusText(http.StatusBadRequest))
 	}
@@ -52,7 +52,7 @@ func Client(ctx context.Context, method, endpoint, userAgent string, headers map
 		req.Header.Set(k, v)
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,6 @@ func Client(ctx context.Context, method, endpoint, userAgent string, headers map
 			return fmt.Errorf(http.StatusText(resp.StatusCode))
 		}
 	}
-
 	if response != nil {
 		err := json.Unmarshal(respBody, &response)
 		if err != nil {

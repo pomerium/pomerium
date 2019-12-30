@@ -1,6 +1,7 @@
 package authenticate // import "github.com/pomerium/pomerium/authenticate"
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -18,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -58,6 +60,7 @@ func (a *Authenticate) Handler() http.Handler {
 	v.Use(a.VerifySession)
 	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	v.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
+	v.Path("/refresh").Handler(httputil.HandlerFunc(a.Refresh)).Methods(http.MethodGet)
 
 	// programmatic access api endpoint
 	api := r.PathPrefix("/api").Subrouter()
@@ -73,12 +76,12 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		state, err := sessions.FromContext(r.Context())
 		if errors.Is(err, sessions.ErrExpired) {
-			if err := a.refresh(w, r, state); err != nil {
+			ctx, err := a.refresh(w, r, state)
+			if err != nil {
 				log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session, refresh")
 				return a.reauthenticateOrFail(w, r, err)
 			}
-			// redirect to restart middleware-chain following refresh
-			httputil.Redirect(w, r, urlutil.GetAbsoluteURL(r).String(), http.StatusFound)
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return nil
 		} else if err != nil {
 			log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session")
@@ -89,15 +92,18 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 	})
 }
 
-func (a *Authenticate) refresh(w http.ResponseWriter, r *http.Request, s *sessions.State) error {
-	newSession, err := a.provider.Refresh(r.Context(), s)
+func (a *Authenticate) refresh(w http.ResponseWriter, r *http.Request, s *sessions.State) (context.Context, error) {
+	ctx, span := trace.StartSpan(r.Context(), "authenticate.VerifySession/refresh")
+	defer span.End()
+	newSession, err := a.provider.Refresh(ctx, s)
 	if err != nil {
-		return fmt.Errorf("authenticate: refresh failed: %w", err)
+		return nil, fmt.Errorf("authenticate: refresh failed: %w", err)
 	}
 	if err := a.sessionStore.SaveSession(w, r, newSession); err != nil {
-		return fmt.Errorf("authenticate: refresh save failed: %w", err)
+		return nil, fmt.Errorf("authenticate: refresh save failed: %w", err)
 	}
-	return nil
+	// return the new session and add it to the current request context
+	return sessions.NewContext(ctx, newSession, err), nil
 }
 
 // RobotsTxt handles the /robots.txt route.
@@ -158,7 +164,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		encSession, err := a.encryptedEncoder.Marshal(newSession)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
-
 		}
 		callbackParams.Set(urlutil.QueryRefreshToken, string(encSession))
 		callbackParams.Set(urlutil.QueryIsProgrammatic, "true")
@@ -343,5 +348,29 @@ func (a *Authenticate) RefreshAPI(w http.ResponseWriter, r *http.Request) error 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonResponse)
+	return nil
+}
+
+// Refresh is called by the proxy service to handle backend session refresh.
+//
+// NOTE: The actual refresh is actually handled as part of the "VerifySession"
+// middleware. This handler is responsible for creating a new route scoped
+// session and returning it.
+func (a *Authenticate) Refresh(w http.ResponseWriter, r *http.Request) error {
+	s, err := sessions.FromContext(r.Context())
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	routeSession := s.NewSession(r.Host, []string{r.Host, r.FormValue("aud")})
+	routeSession.AccessTokenID = s.AccessTokenID
+
+	signedJWT, err := a.sharedEncoder.Marshal(routeSession.RouteSession())
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "application/jwt") // RFC 7519 : 10.3.1
+	w.Write(signedJWT)
 	return nil
 }
