@@ -260,8 +260,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key       | Description                                                       | Required |
 | :--------------- | :---------------------------------------------------------------- | -------- |
-| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅       |
-| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌       |
+| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅        |
+| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌        |
 
 #### Jaeger
 
@@ -275,8 +275,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key                        | Description                                 | Required |
 | :-------------------------------- | :------------------------------------------ | -------- |
-| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅       |
-| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅       |
+| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
+| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
 
 #### Example
 
@@ -311,8 +311,8 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "nginx"
     certmanager.k8s.io/issuer: "letsencrypt-prod"
-    nginx.ingress.kubernetes.io/auth-url: https://fwdauth.corp.example.com?uri=$scheme://$host$request_uri
-    nginx.ingress.kubernetes.io/auth-signin: "https://fwdauth.corp.example.com/verify?uri=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-url: https://fwdauth.corp.example.com/verify?uri=$scheme://$host$request_uri
+    nginx.ingress.kubernetes.io/auth-signin: "https://fwdauth.corp.example.com/?uri=$scheme://$host$request_uri"
 spec:
   tls:
     - hosts:
