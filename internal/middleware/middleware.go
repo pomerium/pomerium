@@ -1,6 +1,7 @@
 package middleware // import "github.com/pomerium/pomerium/internal/middleware"
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -32,7 +33,7 @@ func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler
 			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateSignature")
 			defer span.End()
 			if err := ValidateRequestURL(r, sharedSecret); err != nil {
-				return httputil.NewError(http.StatusBadRequest, err)
+				return httputil.NewError(http.StatusBadRequest, fmt.Errorf("invalid signature: %w", err))
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return nil

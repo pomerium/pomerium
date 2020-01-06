@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"net/http"
 	"net/url"
 
+	"github.com/pomerium/autocache"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -53,6 +55,10 @@ type Authenticate struct {
 	// authentication flow
 	RedirectURL *url.URL
 
+	// CachePool initializes an HTTP pool of peers used to manage, set, and
+	// retrieve items from the group cache.
+	CachePool http.Handler
+
 	// values related to cross service communication
 	//
 	// sharedKey is used to encrypt and authenticate data between services
@@ -72,7 +78,8 @@ type Authenticate struct {
 	// encryptedEncoder is the encoder used to marshal and unmarshal session data
 	encryptedEncoder encoding.MarshalUnmarshaler
 	// sessionStore is the session store used to persist a user's session
-	sessionStore  sessions.SessionStore
+	sessionStore sessions.SessionStore
+
 	cookieOptions *cookie.Options
 
 	// sessionLoaders are a collection of session loaders to attempt to pull
@@ -115,7 +122,17 @@ func New(opts config.Options) (*Authenticate, error) {
 	if err != nil {
 		return nil, err
 	}
-	cacheStore := cache.NewStore(encryptedEncoder, cookieStore, opts.CookieName)
+
+	cacheStore := cache.NewStore(encryptedEncoder, cookieStore, opts.CookieName, opts.SharedKey)
+	var cachePool http.Handler
+	if opts.AuthenticateInternalURL != nil {
+		cachePool, err = autocache.New(&autocache.Options{
+			TransportFn: cacheStore.AddSessionToCtx,
+			SeedNodes:   []string{opts.AuthenticateInternalURL.String()}})
+		if err != nil {
+			return nil, err
+		}
+	}
 	qpStore := queryparam.NewStore(encryptedEncoder, "pomerium_programmatic_token")
 	headerStore := header.NewStore(encryptedEncoder, "Pomerium")
 
@@ -151,7 +168,8 @@ func New(opts config.Options) (*Authenticate, error) {
 		encryptedEncoder: encryptedEncoder,
 		sessionLoaders:   []sessions.SessionLoader{cacheStore, qpStore, headerStore, cookieStore},
 		// IdP
-		provider: provider,
+		provider:  provider,
+		CachePool: cachePool,
 
 		templates: template.Must(frontend.NewTemplates()),
 	}, nil

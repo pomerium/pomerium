@@ -21,15 +21,16 @@ type SignedURL struct {
 }
 
 // NewSignedURL creates a new copy of a URL that can be signed with a shared key.
-//
-// N.B. It is the user's responsibility to make sure the key is 256 bits and
-// 		the url is not nil.
+// It is the user's responsibility to make sure the key is 256 bits and
+// the url is not nil.
 func NewSignedURL(key string, uri *url.URL) *SignedURL {
-	return &SignedURL{uri: *uri, key: key, timeNow: time.Now} // uri is copied
+	return &SignedURL{uri: *uri, key: key, timeNow: time.Now}
 }
 
-// Sign creates a shared-key HMAC signed URL.
+// Sign creates a shared-key HMAC signed URL. Scheme is ignored for signing.
 func (su *SignedURL) Sign() *url.URL {
+	urlScheme := su.uri.Scheme
+	su.uri.Scheme = ""
 	now := su.timeNow()
 	issued := newNumericDate(now)
 	expiry := newNumericDate(now.Add(5 * time.Minute))
@@ -40,6 +41,7 @@ func (su *SignedURL) Sign() *url.URL {
 	params.Set(QueryHmacSignature, hmacURL(su.key, su.uri.String(), issued, expiry))
 	su.uri.RawQuery = params.Encode()
 	su.signed = true
+	su.uri.Scheme = urlScheme
 	return &su.uri
 }
 
@@ -54,6 +56,7 @@ func (su *SignedURL) String() string {
 
 // Validate checks to see if a signed URL is valid.
 func (su *SignedURL) Validate() error {
+	su.uri.Scheme = ""
 	now := su.timeNow()
 	params := su.uri.Query()
 	sig, err := base64.URLEncoding.DecodeString(params.Get(QueryHmacSignature))
@@ -62,7 +65,6 @@ func (su *SignedURL) Validate() error {
 	}
 	params.Del(QueryHmacSignature)
 	su.uri.RawQuery = params.Encode()
-
 	issued, err := newNumericDateFromString(params.Get(QueryHmacIssued))
 	if err != nil {
 		return err

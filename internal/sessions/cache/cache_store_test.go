@@ -60,7 +60,7 @@ func TestVerifier(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			cacheStore := NewStore(encoder, cs, t.Name())
+			cacheStore := NewStore(encoder, cs, t.Name(), "sharedSecret")
 
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			q := r.URL.Query()
@@ -120,7 +120,7 @@ func TestStore_SaveSession(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			cacheStore := NewStore(encoder, cs, t.Name())
+			cacheStore := NewStore(encoder, cs, t.Name(), "shared secret")
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()

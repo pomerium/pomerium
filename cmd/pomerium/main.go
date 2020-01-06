@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
+	"github.com/pomerium/pomerium/internal/sessions/cache"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -60,10 +61,12 @@ func run() error {
 	}
 
 	r := newGlobalRouter(opt)
+
 	_, err = newAuthenticateService(*opt, r)
 	if err != nil {
 		return err
 	}
+
 	authz, err := newAuthorizeService(*opt, &wg)
 	if err != nil {
 		return err
@@ -99,6 +102,12 @@ func newAuthenticateService(opt config.Options, r *mux.Router) (*authenticate.Au
 	service, err := authenticate.New(opt)
 	if err != nil {
 		return nil, err
+	}
+	if service.CachePool != nil {
+		gc := r.PathPrefix("/_groupcache").Subrouter()
+		gc.Use(middleware.ValidateSignature(opt.SharedKey))
+		gc.Use(cache.QueryParamToCtx)
+		gc.PathPrefix("/").Handler(service.CachePool)
 	}
 	sr := r.Host(urlutil.StripPort(opt.AuthenticateURL.Host)).Subrouter()
 	sr.PathPrefix("/").Handler(service.Handler())

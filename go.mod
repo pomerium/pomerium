@@ -15,6 +15,7 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/pelletier/go-toml v1.6.0 // indirect
+	github.com/pomerium/autocache v0.0.0-20200106162410-887ef1e2d93f
 	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
 	github.com/pomerium/go-oidc v2.0.0+incompatible
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
@@ -30,13 +31,13 @@ require (
 	github.com/uber/jaeger-client-go v2.20.1+incompatible // indirect
 	go.opencensus.io v0.22.2
 	golang.org/x/crypto v0.0.0-20191227163750-53104e6ec876
-	golang.org/x/net v0.0.0-20191125084936-ffdde1057850 // indirect
 	golang.org/x/oauth2 v0.0.0-20191202225959-858c2ad4c8b6
-	golang.org/x/sys v0.0.0-20191120155948-bd437916bb0e // indirect
+	golang.org/x/sys v0.0.0-20200106162015-b016eb3dc98e // indirect
 	google.golang.org/api v0.14.0
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11 // indirect
 	google.golang.org/grpc v1.26.0
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/square/go-jose.v2 v2.4.1
 	gopkg.in/yaml.v2 v2.2.7
 )

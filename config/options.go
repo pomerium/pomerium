@@ -89,6 +89,9 @@ type Options struct {
 	AuthenticateURLString string   `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
 	AuthenticateURL       *url.URL `yaml:"-,omitempty"`
 
+	AuthenticateInternalURLString string   `mapstructure:"authenticate_internal_service_url" yaml:"authenticate_service_url,omitempty"`
+	AuthenticateInternalURL       *url.URL `yaml:"-,omitempty"`
+
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
 	CookieName     string        `mapstructure:"cookie_name" yaml:"cookie_name,omitempty"`
@@ -423,6 +426,14 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad authenticate-url %s : %w", o.AuthenticateURLString, err)
 		}
 		o.AuthenticateURL = u
+	}
+
+	if o.AuthenticateInternalURLString != "" {
+		u, err := urlutil.ParseAndValidateURL(o.AuthenticateInternalURLString)
+		if err != nil {
+			return fmt.Errorf("config: bad authenticate-internal-url %s : %w", o.AuthenticateInternalURLString, err)
+		}
+		o.AuthenticateInternalURL = u
 	}
 
 	if o.AuthorizeURLString != "" {

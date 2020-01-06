@@ -22,8 +22,8 @@ func TestSignedURL(t *testing.T) {
 	}{
 		{"good", "test-key", url.URL{Scheme: "https", Host: "pomerium.io"},
 			func() time.Time { return original }, func() time.Time { return original },
-			"https://pomerium.io?pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=XtvM-Y-oPvoGGV2Q5G0vrQ_CgNeYhVyTG5dHIqLsBOU%3D",
-			url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=XtvM-Y-oPvoGGV2Q5G0vrQ_CgNeYhVyTG5dHIqLsBOU%3D"},
+			"https://pomerium.io?pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=KIdaRlvAl3XHt6-6w-3aaoWQHXxBzui5BcRYWBmovoM%3D",
+			url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=KIdaRlvAl3XHt6-6w-3aaoWQHXxBzui5BcRYWBmovoM%3D"},
 			false},
 	}
 	for _, tt := range tests {
@@ -76,13 +76,15 @@ func TestSignedURL_Validate(t *testing.T) {
 
 		wantErr bool
 	}{
-		{"good", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=XtvM-Y-oPvoGGV2Q5G0vrQ_CgNeYhVyTG5dHIqLsBOU%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0) }, false},
-		{"bad key", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=XtvM-Y-oPvoGGV2Q5G0vrQ_CgNeYhVyTG5dHIqLsBOU%3D"}, "bad-key", func() time.Time { return time.Unix(1574117851, 0) }, true},
-		{"bad no expiry", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_issued=1574117851&pomerium_signature=XtvM-Y-oPvoGGV2Q5G0vrQ_CgNeYhVyTG5dHIqLsBOU%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0) }, true},
-		{"bad issued", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_signature=XtvM-Y-oPvoGGV2Q5G0vrQ_CgNeYhVyTG5dHIqLsBOU%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0) }, true},
+		{"good", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=KIdaRlvAl3XHt6-6w-3aaoWQHXxBzui5BcRYWBmovoM%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0) }, false},
+		{"bad key", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=KIdaRlvAl3XHt6-6w-3aaoWQHXxBzui5BcRYWBmovoM%3D"}, "bad-key", func() time.Time { return time.Unix(1574117851, 0) }, true},
+		{"bad no expiry", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_issued=1574117851&pomerium_signature=KIdaRlvAl3XHt6-6w-3aaoWQHXxBzui5BcRYWBmovoM%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0) }, true},
+		{"bad issued", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_signature=KIdaRlvAl3XHt6-6w-3aaoWQHXxBzui5BcRYWBmovoM%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0) }, true},
 		{"bad signature body", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=^"}, "test-key", func() time.Time { return time.Unix(1574117851, 0) }, true},
-		{"bad expired", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=XtvM-Y-oPvoGGV2Q5G0vrQ_CgNeYhVyTG5dHIqLsBOU%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0).Add(time.Hour) }, true},
-		{"bad not yet valid", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=XtvM-Y-oPvoGGV2Q5G0vrQ_CgNeYhVyTG5dHIqLsBOU%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0).Add(-time.Hour) }, true},
+		{"bad expired", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=KIdaRlvAl3XHt6-6w-3aaoWQHXxBzui5BcRYWBmovoM%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0).Add(time.Hour) }, true},
+		{"bad not yet valid", url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=KIdaRlvAl3XHt6-6w-3aaoWQHXxBzui5BcRYWBmovoM%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0).Add(-time.Hour) }, true},
+		{"good scheme doesn't matter", url.URL{Scheme: "http", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=KIdaRlvAl3XHt6-6w-3aaoWQHXxBzui5BcRYWBmovoM%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0) }, false},
+		{"good scheme doesn't matter", url.URL{Scheme: "//", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=KIdaRlvAl3XHt6-6w-3aaoWQHXxBzui5BcRYWBmovoM%3D"}, "test-key", func() time.Time { return time.Unix(1574117851, 0) }, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
