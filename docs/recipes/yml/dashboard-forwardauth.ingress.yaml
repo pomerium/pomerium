@@ -1,22 +1,22 @@
-# dashboard-fwdauth.ingress.yaml
+# dashboard-forwardauth.ingress.yaml
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: dashboard-fwdauth
+  name: dashboard-forwardauth
   annotations:
     kubernetes.io/ingress.class: "nginx"
     cert-manager.io/issuer: "letsencrypt-prod" # see `letsencrypt.issuer.yaml`
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-    nginx.ingress.kubernetes.io/auth-url: "https://fwdauth.domain.example/verify?uri=$scheme://$host$request_uri"
-    nginx.ingress.kubernetes.io/auth-signin: "https://fwdauth.domain.example?uri=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-url: "https://forwardauth.domain.example/verify?uri=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-signin: "https://forwardauth.domain.example?uri=$scheme://$host$request_uri"
 
 spec:
   tls:
     - hosts:
-        - dashboard-fwdauth.domain.example
-      secretName: dashboard-fwdauth-tls
+        - dashboard-forwardauth.domain.example
+      secretName: dashboard-forwardauth-tls
   rules:
-    - host: dashboard-fwdauth.domain.example
+    - host: dashboard-forwardauth.domain.example
       http:
         paths:
           - path: /

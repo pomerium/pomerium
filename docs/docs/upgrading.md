@@ -39,17 +39,17 @@ Previous programmatic authentication endpoints (`/api/v1/token`) has been remove
 
 #### Forward-auth route change
 
-Previously, routes were verified by taking the downstream applications hostname in the form of a path `(e.g. ${fwdauth}/.pomerium/verify/httpbin.some.example`) variable. The new method for verifying a route using forward authentication is to pass the entire requested url in the form of a query string `(e.g. ${fwdauth}/.pomerium/verify?url=https://httpbin.some.example)` where the routed domain is the value of the `uri` key.
+Previously, routes were verified by taking the downstream applications hostname in the form of a path `(e.g. ${forwardauth}/.pomerium/verify/httpbin.some.example`) variable. The new method for verifying a route using forward authentication is to pass the entire requested url in the form of a query string `(e.g. ${forwardauth}/.pomerium/verify?url=https://httpbin.some.example)` where the routed domain is the value of the `uri` key.
 
 Note that the verification URL is no longer nested under the `.pomerium` endpoint.
 
 For example, in nginx this would look like:
 
 ```diff
--    nginx.ingress.kubernetes.io/auth-url: https://fwdauth.corp.example.com/.pomerium/verify/httpbin.corp.example.com?no_redirect=true
--    nginx.ingress.kubernetes.io/auth-signin: https://fwdauth.corp.example.com/.pomerium/verify/httpbin.corp.example.com
-+    nginx.ingress.kubernetes.io/auth-url: https://fwdauth.corp.example.com/verify?uri=$scheme://$host$request_uri
-+    nginx.ingress.kubernetes.io/auth-signin: https://fwdauth.corp.example.com?uri=$scheme://$host$request_uri
+-    nginx.ingress.kubernetes.io/auth-url: https://forwardauth.corp.example.com/.pomerium/verify/httpbin.corp.example.com?no_redirect=true
+-    nginx.ingress.kubernetes.io/auth-signin: https://forwardauth.corp.example.com/.pomerium/verify/httpbin.corp.example.com
++    nginx.ingress.kubernetes.io/auth-url: https://forwardauth.corp.example.com/verify?uri=$scheme://$host$request_uri
++    nginx.ingress.kubernetes.io/auth-signin: https://forwardauth.corp.example.com?uri=$scheme://$host$request_uri
 
 ```
 

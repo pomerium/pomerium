@@ -240,7 +240,7 @@ be shared by all subdomains of the domain specified here.
 - Default: `true`
 
 If true, instructs browsers to only send user session cookies over
-HTTPS. 
+HTTPS.
 
 :::warning
 Setting this to false may result in session cookies being sent in
@@ -335,8 +335,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key       | Description                                                       | Required |
 | :--------------- | :---------------------------------------------------------------- | -------- |
-| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅        |
-| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌        |
+| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅       |
+| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌       |
 
 #### Jaeger
 
@@ -350,8 +350,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key                        | Description                                 | Required |
 | :-------------------------------- | :------------------------------------------ | -------- |
-| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
-| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
+| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅       |
+| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅       |
 
 #### Example
 
@@ -362,8 +362,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 - Environmental Variable: `FORWARD_AUTH_URL`
 - Config File Key: `forward_auth_url`
 - Type: `URL` (must contain a scheme and hostname)
-- Example: `https://fwdauth.corp.example.com`
-- Resulting Verification URL: `https://fwdauth.corp.example.com/.pomerium/verify/{URL-TO-VERIFY}`
+- Example: `https://forwardauth.corp.example.com`
+- Resulting Verification URL: `https://forwardauth.corp.example.com/.pomerium/verify/{URL-TO-VERIFY}`
 - Optional
 
 Forward authentication creates an endpoint that can be used with third-party proxies that do not have rich access control capabilities ([nginx](http://nginx.org/en/docs/http/ngx_http_auth_request_module.html), [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), [ambassador](https://www.getambassador.io/reference/services/auth-service/), [traefik](https://docs.traefik.io/middlewares/forwardauth/)). Forward authentication allow you to delegate authentication and authorization for each request to Pomerium.
@@ -386,8 +386,8 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "nginx"
     certmanager.k8s.io/issuer: "letsencrypt-prod"
-    nginx.ingress.kubernetes.io/auth-url: https://fwdauth.corp.example.com/verify?uri=$scheme://$host$request_uri
-    nginx.ingress.kubernetes.io/auth-signin: "https://fwdauth.corp.example.com/?uri=$scheme://$host$request_uri"
+    nginx.ingress.kubernetes.io/auth-url: https://forwardauth.corp.example.com/verify?uri=$scheme://$host$request_uri
+    nginx.ingress.kubernetes.io/auth-signin: "https://forwardauth.corp.example.com/?uri=$scheme://$host$request_uri"
 spec:
   tls:
     - hosts:
@@ -429,7 +429,7 @@ services:
       - "traefik.http.routers.httpbin.rule=Host(`httpbin.corp.example.com`)"
       # Create a middleware named `foo-add-prefix`
       - "traefik.http.middlewares.test-auth.forwardauth.authResponseHeaders=X-Pomerium-Authenticated-User-Email,x-pomerium-authenticated-user-id,x-pomerium-authenticated-user-groups,x-pomerium-jwt-assertion"
-      - "traefik.http.middlewares.test-auth.forwardauth.address=http://fwdauth.corp.example.com/?uri=https://httpbin.corp.example.com"
+      - "traefik.http.middlewares.test-auth.forwardauth.address=http://forwardauth.corp.example.com/?uri=https://httpbin.corp.example.com"
       - "traefik.http.routers.httpbin.middlewares=test-auth@docker"
 ```
 

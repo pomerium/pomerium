@@ -13,8 +13,8 @@ spec:
         - authenticate.domain.example
       secretName: pomerium-authenticate-external-tls
     - hosts:
-        - fwdauth.domain.example
-      secretName: pomerium-fwdauth-external-tls
+        - forwardauth.domain.example
+      secretName: pomerium-forwardauth-external-tls
 
   rules:
     - host: authenticate.domain.example
@@ -24,7 +24,7 @@ spec:
             backend:
               serviceName: helm-pomerium-authenticate
               servicePort: https
-    - host: fwdauth.domain.example
+    - host: forwardauth.domain.example
       http:
         paths:
           - path: /
