@@ -252,7 +252,7 @@ The above token then needs to be assigned to our route configuration and policy.
 
 ```yaml
 # config.yaml
-forward_auth_url: https://fwdauth.domain.example
+forward_auth_url: https://forwardauth.domain.example
 
 policy:
   # this route is directly proxied by pomerium & injects the authorization header
@@ -265,7 +265,7 @@ policy:
       Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.....
 
   # this route is indirectly checked for access using forward-auth
-  - from: https://dashboard-fwdauth.domain.example
+  - from: https://dashboard-forwardauth.domain.example
     to: https://helm-dashboard-kubernetes-dashboard
     allowed_users:
       - user@domain.example
@@ -303,10 +303,10 @@ $kubectl apply -f docs/recipes/yml/pomerium.ingress.yaml
 <<< @/docs/recipes/yml/pomerium.ingress.yaml
 
 ```sh
-$kubectl apply -f docs/recipes/yml/dashboard-fwdauth.ingress.yaml
+$kubectl apply -f docs/recipes/yml/dashboard-forwardauth.ingress.yaml
 ```
 
-<<< @/docs/recipes/yml/dashboard-fwdauth.ingress.yaml
+<<< @/docs/recipes/yml/dashboard-forwardauth.ingress.yaml
 
 ```sh
 $kubectl apply -f docs/recipes/yml/dashboard-proxied.ingress.yaml
@@ -322,7 +322,7 @@ And finally, check that the ingresses are up and running.
 
 ```sh
 NAME                    HOSTS                                                ADDRESS   PORTS     AGE
-dashboard-fwdauth       dashboard-fwdauth.domain.example                               80, 443   42h
+dashboard-forwardauth   dashboard-forwardauth.domain.example                               80, 443   42h
 dashboard-proxied       dashboard-proxied.domain.example                               80, 443   42h
 helm-pomerium           *.domain.example,authenticate.domain.example                   80, 443   42h
 ```
