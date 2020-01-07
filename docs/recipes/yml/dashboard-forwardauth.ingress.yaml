@@ -1,4 +1,4 @@
-# dashboard-fwdauth.ingress.yaml
+# dashboard-forwardauth.ingress.yaml
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
