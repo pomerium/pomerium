@@ -1,9 +1,13 @@
 package cache
 
 import (
+	"context"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -12,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/ecjson"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
@@ -98,7 +103,6 @@ func TestVerifier(t *testing.T) {
 }
 
 func TestStore_SaveSession(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		x       interface{}
@@ -127,6 +131,56 @@ func TestStore_SaveSession(t *testing.T) {
 
 			if err := cacheStore.SaveSession(w, r, tt.x); (err != nil) != tt.wantErr {
 				t.Errorf("Store.SaveSession() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestStore_AddSessionToCtx(t *testing.T) {
+	tests := []struct {
+		name      string
+		serverKey string
+		clientKey string
+		payload   []byte
+		wantErr   bool
+	}{
+		{"good", "secretA", "secretA", []byte("some session data!"), false},
+		{"bad hmac", "secretA", "secretB", []byte("some session data!"), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Store{sharedKey: tt.serverKey}
+			ts := httptest.NewServer(
+				QueryParamToCtx(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("payload", string(fromContext(r.Context())))
+					fmt.Fprintf(w, "%s", urlutil.GetAbsoluteURL(r).String())
+				})))
+			defer ts.Close()
+			client := ts.Client()
+			client.Transport = s.AddSessionToCtx(newContext(context.TODO(), tt.payload))
+			res, err := client.Get(ts.URL + "/") // trailing slash fails hmac lol
+			if err != nil {
+				log.Fatal(err)
+			}
+			out, err := ioutil.ReadAll(res.Body)
+			res.Body.Close()
+			if err != nil {
+				log.Fatal("bad closer", err)
+			}
+			outURL, err := url.Parse(string(out))
+			if err != nil {
+				log.Fatal(err)
+			}
+			u := urlutil.NewSignedURL(tt.clientKey, outURL)
+
+			err = u.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("want hmac error() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			payloadOut := res.Header.Get("payload")
+			if diff := cmp.Diff(string(tt.payload), payloadOut); diff != "" {
+				t.Errorf("AddSessionToCtx() = %s", diff)
 			}
 		})
 	}
