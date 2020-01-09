@@ -1,13 +1,13 @@
 package authenticate
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/pomerium/pomerium/config"
 )
 
 func newTestOptions(t *testing.T) *config.Options {
-
 	opts := config.NewDefaultOptions()
 	opts.AuthenticateURLString = "https://authenticate.example"
 	opts.AuthorizeURLString = "https://authorize.example"
@@ -85,6 +85,10 @@ func TestNew(t *testing.T) {
 	badProvider.Provider = ""
 	badProvider.CookieName = "C"
 
+	goodWithInternalServiceURL := newTestOptions(t)
+	goodWithInternalServiceURL.AuthenticateInternalURL = &url.URL{Scheme: "http", Host: "example"}
+	goodWithInternalServiceURL.Validate()
+
 	tests := []struct {
 		name string
 		opts *config.Options
@@ -96,6 +100,7 @@ func TestNew(t *testing.T) {
 		{"fails to validate", badRedirectURL, true},
 		{"bad cookie name", badCookieName, true},
 		{"bad provider", badProvider, true},
+		{"good cache service url", goodWithInternalServiceURL, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

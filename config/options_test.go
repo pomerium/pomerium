@@ -280,6 +280,12 @@ func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 		{"bad no certs no insecure mode set", map[string]string{"SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
 		{"good disable headers ", map[string]string{"HEADERS": "disable:true", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 		{"bad whitespace in secret", map[string]string{"INSECURE_SERVER": "true", "SERVICES": "authenticate", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=\n"}, true},
+		{"good forward-auth url", map[string]string{"FORWARD_AUTH_URL": "https://fwdauth.example", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
+		{"good forward-auth url with port", map[string]string{"FORWARD_AUTH_URL": "https://fwdauth.example:443", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
+		{"bad forward-auth url", map[string]string{"FORWARD_AUTH_URL": "fwdauth.example", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
+		{"good internal authenticate service url", map[string]string{"AUTHENTICATE_INTERNAL_SERVICE_URL": "https://authenticate.local.cluster.svc", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
+		{"good internal authenticate service url with port", map[string]string{"AUTHENTICATE_INTERNAL_SERVICE_URL": "https://authenticate.local.cluster.svc:443", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
+		{"bad internal authenticate service url", map[string]string{"AUTHENTICATE_INTERNAL_SERVICE_URL": "authenticate.local.cluster.svc", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
