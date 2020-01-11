@@ -142,13 +142,13 @@ func (p *Proxy) AuthorizeSession(next http.Handler) http.Handler {
 func (p *Proxy) authorize(host string, r *http.Request) error {
 	s, err := sessions.FromContext(r.Context())
 	if err != nil {
-		return httputil.NewError(http.StatusUnauthorized, err)
+		return httputil.NewError(http.StatusInternalServerError, err)
 	}
 	authorized, err := p.AuthorizeClient.Authorize(r.Context(), host, s)
 	if err != nil {
 		return err
 	} else if !authorized {
-		return httputil.NewError(http.StatusUnauthorized, fmt.Errorf("%s is not authorized for %s", s.RequestEmail(), host))
+		return httputil.NewError(http.StatusForbidden, fmt.Errorf("%s is not authorized for %s", s.RequestEmail(), host))
 	}
 	return nil
 }
