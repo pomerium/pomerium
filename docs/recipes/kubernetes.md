@@ -25,6 +25,10 @@ This tutorial covers:
   - _directly_, using Pomerium's proxy component
   - _indirectly_, using Pomerium as a [forward-auth] provider
 
+:::warning
+nginx-ingress [version 0.26.2](https://github.com/helm/charts/issues/20001) contains a regression that breaks external auth and results in an infinite loop.
+:::
+
 ## Background
 
 Though securing [kubernetes dashboard] as an example may seem contrived, the damages caused by an unsecured dashboard is a real threat vector. In late 2018, Telsa [determined](https://redlock.io/blog/cryptojacking-tesla) that the hackers who were running [crypto-mining malware](https://arstechnica.com/information-technology/2018/02/tesla-cloud-resources-are-hacked-to-run-cryptocurrency-mining-malware/) on their cloud accounts came in through an unsecured [Kubernetes Dashboard] instance.
@@ -61,24 +65,11 @@ A script for the [trusting](https://sysdig.com/blog/friends-dont-let-friends-cur
 curl -L https://git.io/get_helm.sh | bash
 ```
 
-#### Server
-
-Next, we'll deploy Helm's server component, [Tiller] to your currently selected `kubtctl` instance.
+Add the default repository
 
 ```bash
-helm init
+helm repo add stable https://kubernetes-charts.storage.googleapis.com/
 ```
-
-```bash
-Creating $HOME/.helm
-...
-...
-$HELM_HOME has been configured at $HOME/.helm.
-
-Tiller (the Helm server-side component) has been installed into your Kubernetes Cluster.
-```
-
-Now that you have both the helm client installed on your machine, and Tiller installed on your Kubernetes cluster, you can use [Helm] to deploy the subsequent packages.
 
 ## NGINX Ingress
 
@@ -91,7 +82,7 @@ Also, please note that while this guide uses [NGINX Ingress Controller], Pomeriu
 NGINX Ingress controller can be installed via [Helm] from the official charts repository. To install the chart with the release name `helm-nginx-ingress`:
 
 ```bash
-helm install stable/nginx-ingress --name helm-nginx-ingress
+install helm-nginx-ingress stable/nginx-ingress
 ```
 
 ```bash
@@ -126,25 +117,25 @@ Like in previous steps, we will use [Helm] to install [Cert-manager].
 
 ```sh
 # Install the CustomResourceDefinition resources separately
-$kubectl apply --validate=false -f https://raw.githubusercontent.com/jetstack/cert-manager/release-0.11/deploy/manifests/00-crds.yaml
+$ kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v0.12.0/cert-manager.yaml
 # Create the namespace for cert-manager
-$kubectl create namespace cert-manager
+$ kubectl create namespace cert-manager
 # Add the Jetstack Helm repository
 helm repo add jetstack https://charts.jetstack.io
 # Update your local Helm chart repository cache
 helm repo update
 # Install the cert-manager Helm chart
 helm install \
-  --name cert-manager \
   --namespace cert-manager \
-  --version v0.11.0 \
+  --version v0.12.0 \
+  cert-manager \
   jetstack/cert-manager
 ```
 
 And we'll confirm cert-manager is up and running.
 
 ```
-$kubectl get pods --namespace cert-manager
+$ kubectl get pods --namespace cert-manager
 ```
 
 ```
@@ -159,7 +150,7 @@ cert-manager-webhook-645b8bdb7-8kgc9       1/1     Running   0          23s
 Now that cert-manager is installed, we need to make one more configuration to be able to retrieve certificates. We need to add a [http-01 issuer](https://letsencrypt.org/docs/challenge-types/) for use with [LetsEncrypt].
 
 ```sh
-$kubectl apply -f docs/recipes/yml/letsencrypt-prod.yaml
+$ kubectl apply -f docs/recipes/yml/letsencrypt-prod.yaml
 ```
 
 <<< @/docs/recipes/yml/letsencrypt-prod.yaml
@@ -167,7 +158,7 @@ $kubectl apply -f docs/recipes/yml/letsencrypt-prod.yaml
 And confirm your issuer is set up correctly.
 
 ```bash
-$kubectl describe issuer
+$ kubectl describe issuer
 ```
 
 ```bash
@@ -210,8 +201,9 @@ If you see something like the above, cert-manager should be all set to help issu
 As with the previous steps, we can use [Helm] to install our instance of [Kubernetes Dashboard].
 
 ```sh
-helm install stable/kubernetes-dashboard \
-  --name helm-dashboard \
+helm install \
+  helm-dashboard \
+  stable/kubernetes-dashboard \
   --set ingress.enabled="false" \
   --set enableSkipLogin="true"
 ```
@@ -229,7 +221,7 @@ Before installing, we will configure Pomerium's configuration settings in `confi
 We can retrieve the token to add to our proxied policy's authorization header as follows.
 
 ```sh
-$kubectl describe secret dashboard-kubernetes-dashboard-token
+$ kubectl describe secret helm-dashboard
 ```
 
 ```Name:         dashboard-kubernetes-dashboard-token-bv9jq
@@ -275,7 +267,7 @@ We then add our configuration to Kubernetes as a [ConfigMap](https://kubernetes.
 
 ```bash
 # add our pomerium policy to kubernetes as a configmap
-$kubectl create configmap config --from-file="config.yaml"="config.yaml"
+$ kubectl create configmap config --from-file="config.yaml"="config.yaml"
 ```
 
 ### Install
@@ -283,8 +275,9 @@ $kubectl create configmap config --from-file="config.yaml"="config.yaml"
 Finally, we get to install Pomerium! 🎉 Once again, we will use Helm to deploy Pomerium.
 
 ```bash
-helm install stable/pomerium \
-	--name "helm-pomerium" \
+helm install \
+	"helm-pomerium" \
+	stable/pomerium \
 	--set config.rootDomain="domain.example" \
 	--set config.existingConfig="config" \
 	--set authenticate.idp.provider="google" \

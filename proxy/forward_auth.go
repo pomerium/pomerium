@@ -73,6 +73,9 @@ func (p *Proxy) traefikCallback(w http.ResponseWriter, r *http.Request) error {
 // provider. If the user is unauthorized, a `401` error is returned.
 func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		if status := r.FormValue("auth_status"); status == fmt.Sprint(http.StatusForbidden) {
+			return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
+		}
 		uri, err := urlutil.ParseAndValidateURL(r.FormValue("uri"))
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
