@@ -29,7 +29,7 @@ require (
 	github.com/spf13/viper v1.6.1
 	github.com/uber/jaeger-client-go v2.20.1+incompatible // indirect
 	go.opencensus.io v0.22.2
-	golang.org/x/crypto v0.0.0-20191227163750-53104e6ec876
+	golang.org/x/crypto v0.0.0-20200109152110-61a87790db17
 	golang.org/x/net v0.0.0-20191125084936-ffdde1057850 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sys v0.0.0-20191120155948-bd437916bb0e // indirect
