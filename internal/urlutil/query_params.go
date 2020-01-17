@@ -14,6 +14,8 @@ const (
 	QuerySessionEncrypted  = "pomerium_session_encrypted"
 	QueryRedirectURI       = "pomerium_redirect_uri"
 	QueryRefreshToken      = "pomerium_refresh_token"
+	QueryAccessTokenID     = "pomerium_session_access_token_id"
+	QueryAudience          = "pomerium_session_audience"
 )
 
 // URL signature based query params used for verifying the authenticity of a URL.

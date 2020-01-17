@@ -17,6 +17,8 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
+	"github.com/pomerium/pomerium/internal/grpc"
+	"github.com/pomerium/pomerium/internal/grpc/authorize/client"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -27,7 +29,6 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/proxy/clients"
 )
 
 const (
@@ -78,7 +79,7 @@ type Proxy struct {
 
 	authorizeURL *url.URL
 
-	AuthorizeClient clients.Authorizer
+	AuthorizeClient client.Authorizer
 
 	encoder                encoding.Unmarshaler
 	cookieOptions          *cookie.Options
@@ -151,17 +152,21 @@ func New(opts config.Options) (*Proxy, error) {
 	metrics.AddPolicyCountCallback("proxy", func() int64 {
 		return int64(len(opts.Policies))
 	})
-	p.AuthorizeClient, err = clients.NewAuthorizeClient("grpc",
-		&clients.Options{
-			Addr:                    p.authorizeURL,
-			OverrideCertificateName: opts.OverrideCertificateName,
-			SharedSecret:            opts.SharedKey,
-			CA:                      opts.CA,
-			CAFile:                  opts.CAFile,
-			RequestTimeout:          opts.GRPCClientTimeout,
-			ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
-			WithInsecure:            opts.GRPCInsecure,
-		})
+
+	authzConn, err := grpc.NewGRPCClientConn(&grpc.Options{
+		Addr:                    p.authorizeURL,
+		OverrideCertificateName: opts.OverrideCertificateName,
+		CA:                      opts.CA,
+		CAFile:                  opts.CAFile,
+		RequestTimeout:          opts.GRPCClientTimeout,
+		ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
+		WithInsecure:            opts.GRPCInsecure,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	p.AuthorizeClient, err = client.New(authzConn)
 	return p, err
 }
 

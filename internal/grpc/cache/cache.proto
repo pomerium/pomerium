@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package cache;
+
+service Cache {
+  rpc Get(GetRequest) returns (GetReply) {}
+  rpc Set(SetRequest) returns (SetReply) {}
+}
+
+message GetRequest { string key = 1; }
+message GetReply {
+  bool exists = 1;
+  bytes value = 2;
+}
+
+message SetRequest {
+  string key = 1;
+  bytes value = 2;
+}
+message SetReply {}

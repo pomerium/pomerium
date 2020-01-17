@@ -14,6 +14,8 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/ecjson"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
+	"github.com/pomerium/pomerium/internal/grpc"
+	"github.com/pomerium/pomerium/internal/grpc/cache/client"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cache"
@@ -82,6 +84,9 @@ type Authenticate struct {
 	// provider is the interface to interacting with the identity provider (IdP)
 	provider identity.Authenticator
 
+	// cacheClient is the interface for setting and getting sessions from a cache
+	cacheClient client.Cacher
+
 	templates *template.Template
 }
 
@@ -115,7 +120,29 @@ func New(opts config.Options) (*Authenticate, error) {
 	if err != nil {
 		return nil, err
 	}
-	cacheStore := cache.NewStore(encryptedEncoder, cookieStore, opts.CookieName)
+
+	cacheConn, err := grpc.NewGRPCClientConn(
+		&grpc.Options{
+			Addr:                    opts.CacheURL,
+			OverrideCertificateName: opts.OverrideCertificateName,
+			CA:                      opts.CA,
+			CAFile:                  opts.CAFile,
+			RequestTimeout:          opts.GRPCClientTimeout,
+			ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
+			WithInsecure:            opts.GRPCInsecure,
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	cacheClient := client.New(cacheConn)
+
+	cacheStore := cache.NewStore(&cache.Options{
+		Cache:        cacheClient,
+		Encoder:      encryptedEncoder,
+		QueryParam:   urlutil.QueryAccessTokenID,
+		WrappedStore: cookieStore})
+
 	qpStore := queryparam.NewStore(encryptedEncoder, "pomerium_programmatic_token")
 	headerStore := header.NewStore(encryptedEncoder, "Pomerium")
 
@@ -152,6 +179,8 @@ func New(opts config.Options) (*Authenticate, error) {
 		sessionLoaders:   []sessions.SessionLoader{cacheStore, qpStore, headerStore, cookieStore},
 		// IdP
 		provider: provider,
+		// grpc client for cache
+		cacheClient: cacheClient,
 
 		templates: template.Must(frontend.NewTemplates()),
 	}, nil

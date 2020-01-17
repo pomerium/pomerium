@@ -13,9 +13,12 @@ import (
 
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
+	"github.com/pomerium/pomerium/cache"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/frontend"
-	"github.com/pomerium/pomerium/internal/grpcutil"
+	pgrpc "github.com/pomerium/pomerium/internal/grpc"
+	pbAuthorize "github.com/pomerium/pomerium/internal/grpc/authorize"
+	pbCache "github.com/pomerium/pomerium/internal/grpc/cache"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -23,7 +26,6 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
-	pbAuthorize "github.com/pomerium/pomerium/proto/authorize"
 	"github.com/pomerium/pomerium/proxy"
 )
 
@@ -64,9 +66,17 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	authz, err := newAuthorizeService(*opt, &wg)
+	authz, err := newAuthorizeService(*opt)
 	if err != nil {
 		return err
+	}
+
+	cacheSvc, err := newCacheService(*opt)
+	if err != nil {
+		return err
+	}
+	if cacheSvc != nil {
+		defer cacheSvc.Close()
 	}
 
 	proxy, err := newProxyService(*opt, r)
@@ -81,6 +91,10 @@ func run() error {
 		log.Info().Str("file", e.Name).Msg("cmd/pomerium: config file changed")
 		opt = config.HandleConfigUpdate(*configFile, opt, []config.OptionsUpdater{authz, proxy})
 	})
+
+	if err := newGRPCServer(*opt, authz, cacheSvc, &wg); err != nil {
+		return err
+	}
 
 	srv, err := httputil.NewServer(httpServerOptions(opt), r, &wg)
 	if err != nil {
@@ -106,27 +120,43 @@ func newAuthenticateService(opt config.Options, r *mux.Router) (*authenticate.Au
 	return service, nil
 }
 
-func newAuthorizeService(opt config.Options, wg *sync.WaitGroup) (*authorize.Authorize, error) {
+func newAuthorizeService(opt config.Options) (*authorize.Authorize, error) {
 	if !config.IsAuthorize(opt.Services) {
 		return nil, nil
 	}
-	service, err := authorize.New(opt)
-	if err != nil {
-		return nil, err
+	return authorize.New(opt)
+}
+
+func newCacheService(opt config.Options) (*cache.Cache, error) {
+	if !config.IsCache(opt.Services) {
+		return nil, nil
+	}
+	return cache.New(opt)
+}
+
+func newGRPCServer(opt config.Options, as *authorize.Authorize, cs *cache.Cache, wg *sync.WaitGroup) error {
+	if as == nil && cs == nil {
+		return nil
 	}
 	regFn := func(s *grpc.Server) {
-		pbAuthorize.RegisterAuthorizerServer(s, service)
+		if as != nil {
+			pbAuthorize.RegisterAuthorizerServer(s, as)
+		}
+		if cs != nil {
+			pbCache.RegisterCacheServer(s, cs)
+
+		}
 	}
-	so := &grpcutil.ServerOptions{
-		Addr:      opt.GRPCAddr,
-		SharedKey: opt.SharedKey,
-	}
+	so := &pgrpc.ServerOptions{Addr: opt.GRPCAddr}
 	if !opt.GRPCInsecure {
 		so.TLSCertificate = opt.TLSCertificate
 	}
-	grpcSrv := grpcutil.NewServer(so, regFn, wg)
-	go grpcutil.Shutdown(grpcSrv)
-	return service, nil
+	grpcSrv, err := pgrpc.NewServer(so, regFn, wg)
+	if err != nil {
+		return err
+	}
+	go pgrpc.Shutdown(grpcSrv)
+	return nil
 }
 
 func newProxyService(opt config.Options, r *mux.Router) (*proxy.Proxy, error) {

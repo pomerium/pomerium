@@ -1,3 +1,4 @@
+*.db
 .*.yml
 .*.yaml
 pem

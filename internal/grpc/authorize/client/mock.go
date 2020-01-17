@@ -1,10 +1,12 @@
-package clients // import "github.com/pomerium/pomerium/proxy/clients"
+package client
 
 import (
 	"context"
 
 	"github.com/pomerium/pomerium/internal/sessions"
 )
+
+var _ Authorizer = &MockAuthorize{}
 
 // MockAuthorize provides a mocked implementation of the authorizer interface.
 type MockAuthorize struct {

@@ -150,9 +150,11 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	// user impersonation
 	if impersonate := r.FormValue(urlutil.QueryImpersonateAction); impersonate != "" {
 		s.SetImpersonation(r.FormValue(urlutil.QueryImpersonateEmail), r.FormValue(urlutil.QueryImpersonateGroups))
-		if err := a.sessionStore.SaveSession(w, r, s); err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
-		}
+	}
+
+	// re-persist the session, useful when session was evicted from session
+	if err := a.sessionStore.SaveSession(w, r, s); err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
 	newSession := s.NewSession(a.RedirectURL.Host, jwtAudience)
@@ -353,7 +355,7 @@ func (a *Authenticate) RefreshAPI(w http.ResponseWriter, r *http.Request) error 
 
 // Refresh is called by the proxy service to handle backend session refresh.
 //
-// NOTE: The actual refresh is actually handled as part of the "VerifySession"
+// NOTE: The actual refresh is handled as part of the "VerifySession"
 // middleware. This handler is responsible for creating a new route scoped
 // session and returning it.
 func (a *Authenticate) Refresh(w http.ResponseWriter, r *http.Request) error {
@@ -362,7 +364,7 @@ func (a *Authenticate) Refresh(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	routeSession := s.NewSession(r.Host, []string{r.Host, r.FormValue("aud")})
+	routeSession := s.NewSession(r.Host, []string{r.Host, r.FormValue(urlutil.QueryAudience)})
 	routeSession.AccessTokenID = s.AccessTokenID
 
 	signedJWT, err := a.sharedEncoder.Marshal(routeSession.RouteSession())

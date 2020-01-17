@@ -1,4 +1,4 @@
-package grpcutil // import "github.com/pomerium/pomerium/internal/grpcutil"
+package grpc // import "github.com/pomerium/pomerium/internal/grpc"
 
 import (
 	"crypto/tls"
@@ -10,13 +10,14 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
 // NewServer creates a new gRPC serve.
 // It is the callers responsibility to close the resturned server.
-func NewServer(opt *ServerOptions, registrationFn func(s *grpc.Server), wg *sync.WaitGroup) *grpc.Server {
+func NewServer(opt *ServerOptions, registrationFn func(s *grpc.Server), wg *sync.WaitGroup) (*grpc.Server, error) {
 	if opt == nil {
 		opt = defaultServerOptions
 	} else {
@@ -24,33 +25,31 @@ func NewServer(opt *ServerOptions, registrationFn func(s *grpc.Server), wg *sync
 	}
 	ln, err := net.Listen("tcp", opt.Addr)
 	if err != nil {
-		log.Fatal().Str("addr", opt.Addr).Err(err).Msg("internal/grpcutil: unexpected ")
+		return nil, err
 	}
-	grpcAuth := NewSharedSecretCred(opt.SharedKey)
-	grpcOpts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(grpcAuth.ValidateRequest),
-		grpc.StatsHandler(metrics.NewGRPCServerStatsHandler(opt.Addr))}
+	grpcOpts := []grpc.ServerOption{grpc.StatsHandler(metrics.NewGRPCServerStatsHandler(opt.Addr))}
 
 	if opt.TLSCertificate != nil {
-		log.Debug().Str("addr", opt.Addr).Msg("internal/grpcutil: with TLS")
+		log.Debug().Str("addr", opt.Addr).Msg("internal/grpc: serving over TLS")
 		cert := credentials.NewServerTLSFromCert(opt.TLSCertificate)
 		grpcOpts = append(grpcOpts, grpc.Creds(cert))
 	} else {
-		log.Warn().Str("addr", opt.Addr).Msg("internal/grpcutil: insecure server")
+		log.Warn().Str("addr", opt.Addr).Msg("internal/grpc: serving without TLS")
 	}
 
 	srv := grpc.NewServer(grpcOpts...)
 	registrationFn(srv)
+	log.Info().Interface("grpc-service-info", srv.GetServiceInfo()).Msg("internal/grpc: registered")
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if err := srv.Serve(ln); err != grpc.ErrServerStopped {
-			log.Error().Str("addr", opt.Addr).Err(err).Msg("internal/grpcutil: unexpected shutdown")
+			log.Error().Str("addr", opt.Addr).Err(err).Msg("internal/grpc: unexpected shutdown")
 		}
 	}()
 
-	return srv
+	return srv, nil
 }
 
 // ServerOptions contains the configurations settings for a gRPC server.
@@ -58,10 +57,6 @@ type ServerOptions struct {
 	// Addr specifies the host and port on which the server should serve
 	// gRPC requests. If empty, ":443" is used.
 	Addr string
-
-	// SharedKey is the shared secret authorization key used to mutually authenticate
-	// requests between services.
-	SharedKey string
 
 	// TLS certificates to use, if any.
 	TLSCertificate *tls.Certificate
@@ -93,8 +88,7 @@ func Shutdown(srv *grpc.Server) {
 	signal.Notify(sigint, os.Interrupt)
 	signal.Notify(sigint, syscall.SIGTERM)
 	rec := <-sigint
-	log.Info().Str("signal", rec.String()).Msg("internal/grpcutil: shutting down servers")
+	log.Info().Str("signal", rec.String()).Msg("internal/grpc: shutting down servers")
 	srv.GracefulStop()
-	log.Info().Str("signal", rec.String()).Msg("internal/grpcutil: shut down servers")
-
+	log.Info().Str("signal", rec.String()).Msg("internal/grpc: shut down servers")
 }

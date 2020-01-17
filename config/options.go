@@ -174,6 +174,25 @@ type Options struct {
 	ForwardAuthURLString string   `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
 	ForwardAuthURL       *url.URL `yaml:",omitempty"`
 
+	// CacheStore is the name of session cache backend to use.
+	// Options are : "bolt", "redis", and "autocache".
+	// Default is "autocache".
+	CacheStore string `mapstructure:"cache_store" yaml:"cache_store,omitempty"`
+
+	// CacheURL is the routable destination of the cache service's
+	// gRPC endpoint. NOTE: As many load balancers do not support
+	// externally routed gRPC so this may be an internal location.
+	CacheURLString string   `mapstructure:"cache_service_url" yaml:"cache_service_url,omitempty"`
+	CacheURL       *url.URL `yaml:",omitempty"`
+
+	// CacheStoreAddr specifies the host and port on which the cache store
+	// should connect to. e.g. (localhost:6379)
+	CacheStoreAddr string `mapstructure:"cache_store_address" yaml:"cache_store_address,omitempty"`
+	// CacheStorePassword is the password used to connect to the cache store.
+	CacheStorePassword string `mapstructure:"cache_store_password" yaml:"cache_store_password,omitempty"`
+	// CacheStorePath is the path to use for a given cache store. e.g. /etc/bolt.db
+	CacheStorePath string `mapstructure:"cache_store_path" yaml:"cache_store_path,omitempty"`
+
 	viper *viper.Viper
 }
 
@@ -201,6 +220,7 @@ var defaultOptions = Options{
 	GRPCAddr:                ":443",
 	GRPCClientTimeout:       10 * time.Second, // Try to withstand transient service failures for a single request
 	GRPCClientDNSRoundRobin: true,
+	CacheStore:              "autocache",
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -397,9 +417,12 @@ func (o *Options) Validate() error {
 		if o.AuthorizeURLString == "" {
 			o.AuthorizeURLString = "https://localhost" + DefaultAlternativeAddr
 		}
+		if o.CacheURLString == "" {
+			o.CacheURLString = "https://localhost" + DefaultAlternativeAddr
+		}
 	}
 
-	if IsAuthorize(o.Services) {
+	if IsAuthorize(o.Services) || IsCache(o.Services) {
 		// if authorize is set, we don't really need a http server
 		// but we'll still set one up incase the user wants to use
 		// the HTTP health check api
@@ -431,6 +454,14 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad authorize-url %s : %w", o.AuthorizeURLString, err)
 		}
 		o.AuthorizeURL = u
+	}
+
+	if o.CacheURLString != "" {
+		u, err := urlutil.ParseAndValidateURL(o.CacheURLString)
+		if err != nil {
+			return fmt.Errorf("config: bad cache service url %s : %w", o.CacheURLString, err)
+		}
+		o.CacheURL = u
 	}
 
 	if o.ForwardAuthURLString != "" {

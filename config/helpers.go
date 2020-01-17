@@ -9,6 +9,8 @@ const (
 	ServiceAuthorize = "authorize"
 	// ServiceAuthenticate represents running the authenticate service component
 	ServiceAuthenticate = "authenticate"
+	// ServiceCache represents running the cache service component
+	ServiceCache = "cache"
 )
 
 // IsValidService checks to see if a service is a valid service mode
@@ -16,9 +18,10 @@ func IsValidService(s string) bool {
 	switch s {
 	case
 		ServiceAll,
-		ServiceProxy,
+		ServiceAuthenticate,
 		ServiceAuthorize,
-		ServiceAuthenticate:
+		ServiceCache,
+		ServiceProxy:
 		return true
 	}
 	return false
@@ -52,6 +55,17 @@ func IsProxy(s string) bool {
 	case
 		ServiceAll,
 		ServiceProxy:
+		return true
+	}
+	return false
+}
+
+// IsCache checks to see if we should be running the proxy service
+func IsCache(s string) bool {
+	switch s {
+	case
+		ServiceAll,
+		ServiceCache:
 		return true
 	}
 	return false

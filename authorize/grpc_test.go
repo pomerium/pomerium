@@ -1,5 +1,3 @@
-//go:generate protoc -I ../proto/authorize --go_out=plugins=grpc:../proto/authorize ../proto/authorize/authorize.proto
-
 package authorize
 
 import (
@@ -7,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	pb "github.com/pomerium/pomerium/proto/authorize"
+	pb "github.com/pomerium/pomerium/internal/grpc/authorize"
 )
 
 func TestAuthorize_Authorize(t *testing.T) {
