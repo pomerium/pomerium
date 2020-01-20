@@ -206,6 +206,10 @@ If that user is authorized to see the httpbin service, you should be redirected 
 
 ![Synology done](./img/synology-step-3-validate-header.png)
 
+You can also navigate to the special pomerium endpoint `httpbin.your.domain.example/.pomerium/` to see your current user details.
+
+![currently logged in user](./img/logged-in-as.png)
+
 And just to be safe, try logging in from another google account to see what happens. You should be greeted with a `403` unauthorized access page.
 
 ![Synology done](./img/synology-step-4-unauthorized.png)

@@ -30,7 +30,7 @@ These are configuration variables shared by all services, in all service modes.
 - Config File Key: `services`
 - Type: `string`
 - Default: `all`
-- Options: `all` `authenticate` `authorize` or `proxy`
+- Options: `all` `authenticate` `authorize` `cache` or `proxy`
 
 Service mode sets the pomerium service(s) to run. If testing, you may want to set to `all` and run pomerium in "all-in-one mode." In production, you'll likely want to spin up several instances of each service mode for high availability.
 
@@ -43,7 +43,7 @@ Service mode sets the pomerium service(s) to run. If testing, you may want to se
 - Default: `:443`
 - Required
 
-Address specifies the host and port to serve HTTP requests from. If empty, `:443` is used.
+Address specifies the host and port to serve HTTP requests from. If empty, `:443` is used. Note, in all-in-one deployments, gRPC traffic will be served on loopback on port `:5443`.
 
 ### Administrators
 
@@ -541,7 +541,7 @@ If your load balancer does not support gRPC pass-through you'll need to set this
 - Environmental Variable: `OVERRIDE_CERTIFICATE_NAME`
 - Config File Key: `override_certificate_name`
 - Type: `int`
-- Optional (but typically required if Authenticate Internal Service Address is set)
+- Optional
 - Example: `*.corp.example.com` if wild card or `authenticate.corp.example.com`/`authorize.corp.example.com`
 
 Secure service communication can fail if the external certificate does not match the internally routed service hostname/[SNI](https://en.wikipedia.org/wiki/Server_Name_Indication). This setting allows you to override that value.
@@ -607,6 +607,64 @@ Refresh cooldown is the minimum amount of time between allowed manually refreshe
 - Default: `30s`
 
 Default Upstream Timeout is the default timeout applied to a proxied route when no `timeout` key is specified by the policy.
+
+## Cache Service
+
+The cache service is used for storing user session data.
+
+### Cache Store
+
+- Environmental Variable: `CACHE_STORE`
+- Config File Key: `cache_store`
+- Type: `string`
+- Default: `autocache`
+- Options: `autocache` `bolt` or `redis`. Other contributions are welcome.
+
+CacheStore is the name of session cache backend to use.
+
+### Autocache
+
+[Autocache](https://github.com/pomerium/autocache) is the default session store. Autocache is based off of distributed version of [memecached](https://memcached.org/), called [groupcache](https://github.com/golang/groupcache) made by Google and used by many organizations like Twitter and Vimeo in production. Autocache is suitable for both small deployments, where it acts as a embedded cache, or larger scale, distributed installs.
+
+When deployed in a distributed fashion, autocache uses [gossip](https://github.com/hashicorp/memberlist) based membership to manage its peers.
+
+Autocache does not require any additional settings but does require that the cache url setting returns name records that correspond to a [list of peers](https://kubernetes.io/docs/concepts/services-networking/service/#headless-services).
+
+### [Redis](https://redis.io/)
+
+Redis, when used as a [LRU cache](https://redis.io/topics/lru-cache), functions in a very similar way to autocache. Redis store support allows you to leverage existing infrastructure, and to persist session data if that is a requirement.
+
+#### Redis Address
+
+- Environmental Variable: `CACHE_STORE_ADDRESS`
+- Config File Key: `cache_store_address`
+- Type: `string`
+- Example: `localhost:6379`
+
+CacheStoreAddr specifies the host and port on which the cache store should connect to redis.
+
+#### Redis Password
+
+- Environmental Variable: `CACHE_STORE_PASSWORD`
+- Config File Key: `cache_store_password`
+- Type: `string`
+
+CacheStoreAddr is the password used to connect to redis.
+
+### [Bolt](https://godoc.org/go.etcd.io/bbolt/)
+
+Bolt is a simple, lightweight, low level key value store and is the underlying storage mechanism in projects like [etcd](https://etcd.io/). Bolt persists data to a file, and has no built in eviction mechanism.
+
+Bolt is suitable for all-in-one deployments that do not require concurrent / distributed writes.
+
+#### Bolt Path
+
+- Environmental Variable: `CACHE_STORE_PATH`
+- Config File Key: `cache_store_path`
+- Type: `string`
+- Example: `/etc/bolt.db`
+
+CacheStorePath is the path to save bolt's database file.
 
 ## Policy
 
