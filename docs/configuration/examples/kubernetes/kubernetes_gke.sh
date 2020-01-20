@@ -5,10 +5,10 @@
 # NOTE! You must change the identity provider client secret setting in your config file!
 
 echo "=> creating cluster"
-gcloud container clusters create pomerium --num-nodes 2
+gcloud container clusters create pomerium --num-nodes 3 --region us-west2
 
 echo "=> get cluster credentials so we can use kubctl locally"
-gcloud container clusters get-credentials pomerium
+gcloud container clusters get-credentials pomerium --region us-west2
 
 echo "=> create config from kubernetes-config.yaml which we will mount"
 kubectl create configmap config --from-file="config.yaml"="kubernetes-config.yaml"
@@ -32,6 +32,7 @@ echo "=> deploy pomerium proxy, authorize, and authenticate"
 kubectl apply -f pomerium-proxy.yml
 kubectl apply -f pomerium-authenticate.yml
 kubectl apply -f pomerium-authorize.yml
+kubectl apply -f pomerium-cache.yml
 
 echo "=> deploy our test app, httpbin"
 kubectl apply -f httpbin.yml

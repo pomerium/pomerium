@@ -1,19 +1,46 @@
 # Changelog
 
-## vUnreleased
+## v0.6.0
 
-### New
+## New
 
-### Changed
+- authenticate: support backend refresh @desimone [GH-438]
+- cache: add cache service @desimone [GH-457]
 
-- Added yaml tags to all options struct fields
-  - [GH-394](https://github.com/pomerium/pomerium/pull/394)
-  - [GH-397](https://github.com/pomerium/pomerium/pull/397)
-- Improved config validation for `shared_secret` [GH-427](https://github.com/pomerium/pomerium/pull/427)
+## Changed
 
-### Fixed
+- authorize: consolidate gRPC packages @desimone [GH-443]
+- config: added yaml tags to all options struct fields @travisgroth [GH-394],[gh-397]
+- config: improved config validation for `shared_secret` @travisgroth [GH-427]
+- config: Remove CookieRefresh [GH-428] @u5surf [GH-436]
+- config: validate that `shared_key` does not contain whitespace @travisgroth [GH-427]
+- httputil : wrap handlers for additional context @desimone [GH-413]
 
-- Fixed regression preventing policy reload [GH-396](https://github.com/pomerium/pomerium/pull/396)
+## Fixed
+
+- proxy: fix unauthorized redirect loop for forward auth @desimone [GH-448]
+- proxy: fixed regression preventing policy reload [GH-396](https://github.com/pomerium/pomerium/pull/396)
+
+## Documentation
+
+- add cookie settings @danderson [GH-429]
+- fix typo in forward auth nginx example @travisgroth [GH-445]
+- improved sentence flow and other stuff @Rio [GH-422]
+- rename fwdauth to be forwardauth @desimone [GH-447]
+
+## Dependency
+
+- chore(deps): update golang.org/x/crypto commit hash to 61a8779 @renovate [GH-452]
+- chore(deps): update golang.org/x/crypto commit hash to 530e935 @renovate [GH-458]
+- chore(deps): update golang.org/x/crypto commit hash to 53104e6 @renovate [GH-431]
+- chore(deps): update golang.org/x/crypto commit hash to e9b2fee @renovate [GH-414]
+- chore(deps): update golang.org/x/oauth2 commit hash to 858c2ad @renovate [GH-415]
+- chore(deps): update golang.org/x/oauth2 commit hash to bf48bf1 @renovate [GH-453]
+- chore(deps): update module google.golang.org/grpc to v1.26.0 @renovate [GH-433]
+- chore(deps): update module google/go-cmp to v0.4.0 @renovate [GH-454]
+- chore(deps): update module spf13/viper to v1.6.1 @renovate [GH-423]
+- chore(deps): update module spf13/viper to v1.6.2 @renovate [GH-459]
+- chore(deps): update module square/go-jose to v2.4.1 @renovate [GH-435]
 
 ## v0.5.0
 

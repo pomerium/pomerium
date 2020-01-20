@@ -360,6 +360,5 @@ Whichever option you choose to go with, 🎉🍾🎊 **congratulations** 🎉�
 [nginx]: https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-subrequest-authentication/
 [securing your helm installation]: https://helm.sh/docs/using_helm/#securing-your-helm-installation
 [snap]: https://github.com/snapcrafters/helm
-[tiller]: https://helm.sh/docs/install/#installing-tiller
 [with pomerium]: ../docs/reference/reference.html#forward-auth
 [your dashboard]: http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/login

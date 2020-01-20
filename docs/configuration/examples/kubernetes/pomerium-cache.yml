@@ -1,67 +1,60 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: pomerium-proxy-service
+  name: pomerium-cache-service
 spec:
+  clusterIP: None # cache is a headless service!
   ports:
     - port: 443
-      protocol: TCP
-      name: https
-      targetPort: https
+      name: grpc
   selector:
-    app: pomerium-proxy
-  type: NodePort
+    app: pomerium-cache
+  type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pomerium-proxy
+  name: pomerium-cache
   labels:
-    app: pomerium-proxy
+    app: pomerium-cache
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: pomerium-proxy
+      app: pomerium-cache
   template:
     metadata:
       labels:
-        app: pomerium-proxy
+        app: pomerium-cache
     spec:
       containers:
         - image: pomerium/pomerium:master
-          name: pomerium-proxy
+          name: pomerium-cache
           args:
             - --config=/etc/pomerium/config.yaml
           ports:
             - containerPort: 443
-              name: https
+              name: grpc
               protocol: TCP
           env:
             - name: SERVICES
-              value: proxy
+              value: cache
             - name: SHARED_SECRET
               valueFrom:
                 secretKeyRef:
                   name: shared-secret
                   key: shared-secret
-            - name: COOKIE_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: cookie-secret
-                  key: cookie-secret
           readinessProbe:
-            httpGet:
-              path: /ping
+            tcpSocket:
               port: 443
-              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /ping
+            tcpSocket:
               port: 443
-              scheme: HTTP
-            initialDelaySeconds: 10
-            timeoutSeconds: 1
+            initialDelaySeconds: 15
+            periodSeconds: 20
+
           volumeMounts:
             - mountPath: /etc/pomerium/
               name: config

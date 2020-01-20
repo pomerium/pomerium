@@ -59,6 +59,10 @@ And if you check out Google's Kubernetes Engine dashboard you'll see something l
 
 Open a browser and navigate to `httpbin.your.domain.example`.
 
+You can also navigate to the special pomerium endpoint `httpbin.your.domain.example/.pomerium/` to see your current user details.
+
+![currently logged in user](./img/logged-in-as.png)
+
 [./kubernetes_gke.sh]: ../reference/examples#google-kubernetes-engine
 [example kubernetes files]: ../reference/examples#google-kubernetes-engine
 [identity provider]: ../identity-providers/readme.md

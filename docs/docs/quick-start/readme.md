@@ -48,6 +48,10 @@ Docker will automatically download the required [container images] for Pomerium 
 
 You should now be able access to the routes (e.g. `https://httpbin.corp.yourdomain.example`) as specified in your policy file.
 
+You can also navigate to the special pomerium endpoint `httpbin.corp.yourdomain.example/.pomerium/` to see your current user details.
+
+![currently logged in user](./img/logged-in-as.png)
+
 [configuration file]: ../../configuration/readme.md
 [container images]: https://hub.docker.com/r/pomerium/pomerium
 [docker]: https://docs.docker.com/install/

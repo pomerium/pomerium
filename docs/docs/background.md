@@ -16,17 +16,19 @@ For years, security was synonymous with network security. Firewalls, network seg
 >
 > [Rob Joyce](https://en.wikipedia.org/wiki/Rob_Joyce) [Chief of Tailored Access Operations](https://en.wikipedia.org/wiki/Tailored_Access_Operations), [National Security Agency @ ENIGMA 2016](https://www.youtube.com/watch?v=bDJb8WOJYdA&feature=youtu.be&t=1627)
 
-There's no such thing as perfect security. Many recent high-profile breaches have demonstrated just how difficult it is for even large companies with sophisticated security organizations to avoid a breach. To pick just two of many possible breaches were perimeter security played a role, consider the Target and Google hacks. In Target's case, hackers circumvented both the physical and network perimeter by [hacking the HVAC system](https://krebsonsecurity.com/2014/02/target-hackers-broke-in-via-hvac-company/) which was connected to the internal corporate network and then moved laterally to exfiltrate customer credit card data. In Google's case, they experienced a devastating attack at the hands of the Chinese military. Google did a bottom up review of their security posture following [Operation Aurora](https://en.wikipedia.org/wiki/Operation_Aurora). The resulting actions from that review would be released as a [series of white papers](https://ai.google/research/pubs/pub43231) called "BeyondCorp" which have since become foundational documents in articulating how and why an organization could move beyond corporate perimeter (BeyondCorp...get it?) based security.
+There's no such thing as perfect security. Many recent high-profile breaches have demonstrated just how difficult it is for even large companies with sophisticated security organizations to avoid a breach. To pick just two of many possible breaches that epitomize the shortcomings of perimeter security, consider the Target and Google hacks. In Target's case, hackers circumvented both the physical and network perimeter by [hacking the HVAC system](https://krebsonsecurity.com/2014/02/target-hackers-broke-in-via-hvac-company/) which was connected to the internal corporate network from which hackers were then able  to move laterally and exfiltrate customer credit card data. In Google's case, they experienced a devastating attack at the hands of the Chinese military known as [Operation Aurora](https://en.wikipedia.org/wiki/Operation_Aurora). After which, Google did a bottom up review of their security posture. The resulting actions from that review would be released as a [series of white papers](https://ai.google/research/pubs/pub43231) called "BeyondCorp" which have since become foundational documents in articulating how and why an organization could move beyond corporate perimeter (BeyondCorp...get it?) based security.
 
 > In reality, there's never one front door; there are many front doors...[and] ... we're not securing a single castle. We're starting to think about securing many different interconnected castles.
 >
 > [Armon Dadgar, Cofounder of HashiCorp @ PagerDuty Nov 2018](https://www.hashicorp.com/resources/how-zero-trust-networking)
 
-The other side of the security trade-off is operational agility. Perimeter based approaches tend to focus on network segmentation which entails creating virtual or physical boundaries around services that need to communicate. Making those boundaries is increasingly difficult to manage in a world of microservices, and cloud computing where service communication requirements are constantly in flux. In theory, an organization could "micro/nano/pico-segment" each and every layer of an application stack to ensure the appropriate audience. However, in practice, operators usually choose between two sides. A very precise boundary that is high-touch, time-consuming to manage, and error prone. Or that of a more lax boundary that may entail more risk but is less time consuming to update, manage and less prone to break.
+The other side of the security trade-off is operational agility. Perimeter based approaches tend to focus on network segmentation which entails creating virtual or physical boundaries around services that need to communicate. Making those boundaries is increasingly difficult to manage in a world of microservices, and cloud computing where service communication requirements are constantly in flux.
+
+In theory, an organization could "micro/nano/pico-segment" each and every layer of an application stack to ensure appropriate access controls. However, in practice, operators are usually pulled in the direction of one of two extremes. That is, either a very precise boundary that is high-touch, time-consuming to manage, and error prone. Or that of a more lax boundary that may entail more risk but is less time consuming to update, manage and less prone to break.
 
 ### Gaps in the perimeter
 
-Perimeter based security suffers from the following shortcomings:
+In summary, perimeter based security suffers from the following shortcomings:
 
 - Perimeter security largely ignores the insider threat.
 - The "impenetrable fortress" model fails in practice even for the most sophisticated of security organizations.
@@ -34,14 +36,15 @@ Perimeter based security suffers from the following shortcomings:
 - Even just defining what the network perimeter is is an increasingly difficult proposition in a remote-work, BYOD, multi-cloud world. Most organizations are a heterogeneous mix of clouds, servers, devices, and organizational units.
 - VPNs are often misused and exacerbate the issue by opening yet another door into your network organization.
 
-### Zero-trust, behind the gates
+### Zero-trust, security behind the gates
 
 [Zero-trust](https://ldapwiki.com/wiki/Zero%20Trust) instead attempts to mitigate these shortcomings by adopting the following principles:
 
 - Trust flows from identity, device-state, and context; not network location.
 - Treat both internal and external networks as completely untrusted. Mutually authenticated encryption is used instead of network segmentation.
 - Act like you are already breached, because you probably are. An attacker could be anyone, and anywhere on your network.
-- Every device, user, and application's communication should be authenticated, authorized, and encrypted. Access policy should be dynamic, and built from multiple sources.
+- Every device, user, and application's communication should be authenticated, authorized, and encrypted.
+- Access policy should be dynamic, and built from multiple sources.
 
 To be clear, perimeter security is not defunct, nor is zero-trust security a panacea or a single product. Many of the ideas and principles of perimeter security are still relevant and are part of a holistic, and wide-ranging security policy. After all, we still want our castles to have high walls.
 
