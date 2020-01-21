@@ -84,6 +84,9 @@ func TestNew(t *testing.T) {
 	badProvider := newTestOptions(t)
 	badProvider.Provider = ""
 	badProvider.CookieName = "C"
+	badGRPCConn := newTestOptions(t)
+	badGRPCConn.CacheURL = nil
+	badGRPCConn.CookieName = "D"
 
 	tests := []struct {
 		name string
@@ -96,6 +99,7 @@ func TestNew(t *testing.T) {
 		{"fails to validate", badRedirectURL, true},
 		{"bad cookie name", badCookieName, true},
 		{"bad provider", badProvider, true},
+		{"bad cache url", badGRPCConn, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

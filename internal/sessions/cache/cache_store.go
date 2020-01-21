@@ -1,14 +1,12 @@
 package cache // import "github.com/pomerium/pomerium/internal/sessions/cache"
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/golang/groupcache"
-
 	"github.com/pomerium/pomerium/internal/encoding"
+	"github.com/pomerium/pomerium/internal/grpc/cache/client"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 )
@@ -16,83 +14,69 @@ import (
 var _ sessions.SessionStore = &Store{}
 var _ sessions.SessionLoader = &Store{}
 
-const (
-	defaultQueryParamKey = "ati"
-)
-
-// Store implements the session store interface using a distributed cache.
+// Store implements the session store interface using a cache service.
 type Store struct {
-	name    string
-	encoder encoding.Marshaler
-	decoder encoding.Unmarshaler
-
-	cache        *groupcache.Group
+	cache        client.Cacher
+	encoder      encoding.MarshalUnmarshaler
+	queryParam   string
 	wrappedStore sessions.SessionStore
 }
 
-// defaultCacheSize is ~10MB
-var defaultCacheSize int64 = 10 << 20
-
-// NewStore creates a new session store built on the distributed caching library
-// groupcache. On a cache miss, the cache store attempts to fallback to another
-// SessionStore implementation.
-func NewStore(enc encoding.MarshalUnmarshaler, wrappedStore sessions.SessionStore, name string) *Store {
-	store := &Store{
-		name:         name,
-		encoder:      enc,
-		decoder:      enc,
-		wrappedStore: wrappedStore,
-	}
-
-	store.cache = groupcache.NewGroup(name, defaultCacheSize, groupcache.GetterFunc(
-		func(ctx context.Context, id string, dest groupcache.Sink) error {
-			// fill the cache with session set as part of the request
-			// context set previously as part of SaveSession.
-			b := fromContext(ctx)
-			if len(b) == 0 {
-				return fmt.Errorf("sessions/cache: cannot fill key %s from ctx", id)
-			}
-			if err := dest.SetBytes(b); err != nil {
-				return fmt.Errorf("sessions/cache: sink error %w", err)
-			}
-			return nil
-		},
-	))
-
-	return store
+// Options represent cache store's available configurations.
+type Options struct {
+	Cache        client.Cacher
+	Encoder      encoding.MarshalUnmarshaler
+	QueryParam   string
+	WrappedStore sessions.SessionStore
 }
 
-// LoadSession implements SessionLoaders's LoadSession method for cache store.
+var defaultOptions = &Options{
+	QueryParam: "cache_store_key",
+}
+
+// NewStore creates a new cache
+func NewStore(o *Options) *Store {
+	if o.QueryParam == "" {
+		o.QueryParam = defaultOptions.QueryParam
+	}
+	return &Store{
+		cache:        o.Cache,
+		encoder:      o.Encoder,
+		queryParam:   o.QueryParam,
+		wrappedStore: o.WrappedStore,
+	}
+}
+
+// LoadSession looks for a preset query parameter in the request body
+//  representing the key to lookup from the cache.
 func (s *Store) LoadSession(r *http.Request) (*sessions.State, error) {
 	// look for our cache's key in the default query param
-	sessionID := r.URL.Query().Get(defaultQueryParamKey)
+	sessionID := r.URL.Query().Get(s.queryParam)
 	if sessionID == "" {
-		// if unset, fallback to default cache store
-		log.FromRequest(r).Debug().Msg("sessions/cache: no query param, trying wrapped loader")
-		return s.wrappedStore.LoadSession(r)
+		return nil, sessions.ErrNoSessionFound
 	}
-
-	var b []byte
-	if err := s.cache.Get(r.Context(), sessionID, groupcache.AllocatingByteSliceSink(&b)); err != nil {
-		log.FromRequest(r).Debug().Err(err).Msg("sessions/cache: miss, trying wrapped loader")
-		return s.wrappedStore.LoadSession(r)
+	exists, val, err := s.cache.Get(r.Context(), sessionID)
+	if err != nil {
+		log.FromRequest(r).Debug().Msg("sessions/cache: miss, trying wrapped loader")
+		return nil, err
+	}
+	if !exists {
+		return nil, sessions.ErrNoSessionFound
 	}
 	var session sessions.State
-	if err := s.decoder.Unmarshal(b, &session); err != nil {
+	if err := s.encoder.Unmarshal(val, &session); err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("sessions/cache: unmarshal")
 		return nil, sessions.ErrMalformed
 	}
 	return &session, nil
 }
 
-// ClearSession implements SessionStore's ClearSession for the cache store.
-// Since group cache has no explicit eviction, we just call the wrapped
-// store's ClearSession method here.
+// ClearSession clears the session from the wrapped store.
 func (s *Store) ClearSession(w http.ResponseWriter, r *http.Request) {
 	s.wrappedStore.ClearSession(w, r)
 }
 
-// SaveSession implements SessionStore's SaveSession method for cache store.
+// SaveSession saves the session to the cache, and wrapped store.
 func (s *Store) SaveSession(w http.ResponseWriter, r *http.Request, x interface{}) error {
 	err := s.wrappedStore.SaveSession(w, r, x)
 	if err != nil {
@@ -101,7 +85,7 @@ func (s *Store) SaveSession(w http.ResponseWriter, r *http.Request, x interface{
 
 	state, ok := x.(*sessions.State)
 	if !ok {
-		return errors.New("internal/sessions: cannot cache non state type")
+		return errors.New("sessions/cache: cannot cache non state type")
 	}
 
 	data, err := s.encoder.Marshal(&state)
@@ -109,23 +93,5 @@ func (s *Store) SaveSession(w http.ResponseWriter, r *http.Request, x interface{
 		return fmt.Errorf("sessions/cache: marshal %w", err)
 	}
 
-	ctx := newContext(r.Context(), data)
-	var b []byte
-	return s.cache.Get(ctx, state.AccessTokenID, groupcache.AllocatingByteSliceSink(&b))
-}
-
-var sessionCtxKey = &contextKey{"PomeriumCachedSessionBytes"}
-
-type contextKey struct {
-	name string
-}
-
-func newContext(ctx context.Context, b []byte) context.Context {
-	ctx = context.WithValue(ctx, sessionCtxKey, b)
-	return ctx
-}
-
-func fromContext(ctx context.Context) []byte {
-	b, _ := ctx.Value(sessionCtxKey).([]byte)
-	return b
+	return s.cache.Set(r.Context(), state.AccessTokenID, data)
 }

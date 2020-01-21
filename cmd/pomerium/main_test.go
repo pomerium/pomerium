@@ -277,6 +277,51 @@ func Test_run(t *testing.T) {
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }	  
 		`, true},
+		// {"simple cache", false, `
+		// {
+		// 	"address": ":9433",
+		// 	"grpc_address": ":9444",
+		// 	"grpc_insecure": false,
+		// 	"insecure_server": true,
+		// 	"cache_service_url": "https://authorize.corp.example",
+		// 	"authenticate_service_url": "https://authenticate.corp.example",
+		// 	"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+		// 	"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+		// 	"services": "cache",
+		// 	"cache_store": "bolt",
+		// 	"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		//   }
+		// `, false},
+		// {"malformed cache", false, `
+		// {
+		// 	"address": ":9433",
+		// 	"grpc_address": ":9444",
+		// 	"grpc_insecure": false,
+		// 	"insecure_server": true,
+		// 	"cache_service_url": "https://authorize.corp.example",
+		// 	"authenticate_service_url": "https://authenticate.corp.example",
+		// 	"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+		// 	"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+		// 	"services": "cache",
+		// 	"cache_store": "bad bolt",
+		// 	"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		//   }
+		// `, true},
+		// {"bad cache port", false, `
+		// {
+		// 	"address": ":9433",
+		// 	"grpc_address": ":9999999",
+		// 	"grpc_insecure": false,
+		// 	"insecure_server": true,
+		// 	"cache_service_url": "https://authorize.corp.example",
+		// 	"authenticate_service_url": "https://authenticate.corp.example",
+		// 	"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+		// 	"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
+		// 	"services": "cache",
+		// 	"cache_store": "bolt",
+		// 	"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
+		//   }
+		// `, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

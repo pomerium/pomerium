@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	authorize "github.com/pomerium/pomerium/proto/authorize"
+	authorize "github.com/pomerium/pomerium/internal/grpc/authorize"
 	grpc "google.golang.org/grpc"
 )
 

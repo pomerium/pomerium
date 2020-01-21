@@ -62,24 +62,31 @@ func (p *Proxy) refresh(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	// 1 - build a signed url to call refresh on authenticate service
 	refreshURI := *p.authenticateRefreshURL
 	q := refreshURI.Query()
-	q.Set("ati", s.AccessTokenID)           // hash value points to parent token
-	q.Set("aud", urlutil.StripPort(r.Host)) // request's audience, this route
+	q.Set(urlutil.QueryAccessTokenID, s.AccessTokenID)      // hash value points to parent token
+	q.Set(urlutil.QueryAudience, urlutil.StripPort(r.Host)) // request's audience, this route
 	refreshURI.RawQuery = q.Encode()
 	signedRefreshURL := urlutil.NewSignedURL(p.SharedKey, &refreshURI).String()
 
 	// 2 -  http call to authenticate service
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, signedRefreshURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("proxy: backend refresh: new request: %v", err)
+		return nil, fmt.Errorf("proxy: refresh request: %v", err)
 	}
+
+	req.Header.Set("X-Requested-With", "XmlHttpRequest")
+	req.Header.Set("Accept", "application/json")
 	res, err := httputil.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("proxy: fetch %v: %w", signedRefreshURL, err)
+		return nil, fmt.Errorf("proxy: client err %s: %w", signedRefreshURL, err)
 	}
 	defer res.Body.Close()
 	jwtBytes, err := ioutil.ReadAll(io.LimitReader(res.Body, 4<<10))
 	if err != nil {
 		return nil, err
+	}
+	// auth couldn't refersh the session, delete the session and reload via 302
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("proxy: backend refresh failed: %s", jwtBytes)
 	}
 
 	// 3 - save refreshed session to the client's session store
@@ -99,10 +106,10 @@ func (p *Proxy) refresh(ctx context.Context, w http.ResponseWriter, r *http.Requ
 
 func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
 	s, err := sessions.FromContext(r.Context())
+	p.sessionStore.ClearSession(w, r)
 	if s != nil && err != nil && s.Programmatic {
 		return httputil.NewError(http.StatusUnauthorized, err)
 	}
-	p.sessionStore.ClearSession(w, r)
 	signinURL := *p.authenticateSigninURL
 	q := signinURL.Query()
 	q.Set(urlutil.QueryRedirectURI, urlutil.GetAbsoluteURL(r).String())

@@ -120,7 +120,6 @@ linters-settings:
       - initClause
       - methodExprCall
       - nilValReturn
-      - octalLiteral
       - offBy1
       - rangeExprCopy
       - regexpMust

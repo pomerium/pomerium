@@ -1,12 +1,12 @@
-package clients // import "github.com/pomerium/pomerium/proxy/clients"
+package client
 
 import (
 	"context"
 	"errors"
 
+	pb "github.com/pomerium/pomerium/internal/grpc/authorize"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	pb "github.com/pomerium/pomerium/proto/authorize"
 
 	"google.golang.org/grpc"
 )
@@ -22,38 +22,27 @@ type Authorizer interface {
 	Close() error
 }
 
-// NewAuthorizeClient returns a new authorize service client.
-func NewAuthorizeClient(name string, opts *Options) (a Authorizer, err error) {
-	// Only gRPC is supported and is always returned so name is ignored
-	return NewGRPCAuthorizeClient(opts)
-}
-
-// NewGRPCAuthorizeClient returns a new authorize service client.
-func NewGRPCAuthorizeClient(opts *Options) (p *AuthorizeGRPC, err error) {
-	conn, err := NewGRPCClientConn(opts)
-	if err != nil {
-		return nil, err
-	}
-	client := pb.NewAuthorizerClient(conn)
-	return &AuthorizeGRPC{Conn: conn, client: client}, nil
-}
-
-// AuthorizeGRPC is a gRPC implementation of an authenticator (authorize client)
-type AuthorizeGRPC struct {
+// Client is a gRPC implementation of an authenticator (authorize client)
+type Client struct {
 	Conn   *grpc.ClientConn
 	client pb.AuthorizerClient
 }
 
+// New returns a new authorize service client.
+func New(conn *grpc.ClientConn) (p *Client, err error) {
+	return &Client{Conn: conn, client: pb.NewAuthorizerClient(conn)}, nil
+}
+
 // Authorize takes a route and user session and returns whether the
 // request is valid per access policy
-func (a *AuthorizeGRPC) Authorize(ctx context.Context, route string, s *sessions.State) (bool, error) {
-	ctx, span := trace.StartSpan(ctx, "proxy.client.grpc.Authorize")
+func (c *Client) Authorize(ctx context.Context, route string, s *sessions.State) (bool, error) {
+	ctx, span := trace.StartSpan(ctx, "grpc.authorize.client.Authorize")
 	defer span.End()
 
 	if s == nil {
 		return false, errors.New("session cannot be nil")
 	}
-	response, err := a.client.Authorize(ctx, &pb.Identity{
+	response, err := c.client.Authorize(ctx, &pb.Identity{
 		Route:             route,
 		User:              s.User,
 		Email:             s.Email,
@@ -65,18 +54,18 @@ func (a *AuthorizeGRPC) Authorize(ctx context.Context, route string, s *sessions
 }
 
 // IsAdmin takes a session and returns whether the user is an administrator
-func (a *AuthorizeGRPC) IsAdmin(ctx context.Context, s *sessions.State) (bool, error) {
-	ctx, span := trace.StartSpan(ctx, "proxy.client.grpc.IsAdmin")
+func (c *Client) IsAdmin(ctx context.Context, s *sessions.State) (bool, error) {
+	ctx, span := trace.StartSpan(ctx, "grpc.authorize.client.IsAdmin")
 	defer span.End()
 
 	if s == nil {
 		return false, errors.New("session cannot be nil")
 	}
-	response, err := a.client.IsAdmin(ctx, &pb.Identity{Email: s.Email, Groups: s.Groups})
+	response, err := c.client.IsAdmin(ctx, &pb.Identity{Email: s.Email, Groups: s.Groups})
 	return response.GetIsAdmin(), err
 }
 
 // Close tears down the ClientConn and all underlying connections.
-func (a *AuthorizeGRPC) Close() error {
-	return a.Conn.Close()
+func (c *Client) Close() error {
+	return c.Conn.Close()
 }
