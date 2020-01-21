@@ -1,12 +1,15 @@
 package proxy // import "github.com/pomerium/pomerium/proxy"
 
 import (
+	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/pomerium/pomerium/config"
 )
 
@@ -176,6 +179,9 @@ func Test_UpdateOptions(t *testing.T) {
 	fwdAuth.ForwardAuthURL = &url.URL{Scheme: "https", Host: "corp.example.example"}
 	reqHeaders := testOptions(t)
 	reqHeaders.Policies = []config.Policy{{To: "http://foo.example", From: "http://bar.example", SetRequestHeaders: map[string]string{"x": "y"}}}
+	preserveHostHeader := testOptions(t)
+	preserveHostHeader.Policies = []config.Policy{{To: "http://foo.example", From: "http://bar.example", PreserveHostHeader: true}}
+
 	tests := []struct {
 		name            string
 		originalOptions config.Options
@@ -203,6 +209,7 @@ func Test_UpdateOptions(t *testing.T) {
 		{"disable auth", good, disableAuth, "", "https://corp.example.example", false, true},
 		{"enable forward auth", good, fwdAuth, "", "https://corp.example.example", false, true},
 		{"set request headers", good, reqHeaders, "", "https://corp.example.example", false, true},
+		{"preserve host headers", preserveHostHeader, preserveHostHeader, "", "https://corp.example.example", false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -234,4 +241,50 @@ func Test_UpdateOptions(t *testing.T) {
 	// Test nil
 	var p *Proxy
 	p.UpdateOptions(config.Options{})
+}
+
+func TestNewReverseProxy(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		hostname, _, _ := net.SplitHostPort(r.Host)
+		w.Write([]byte(hostname))
+	}))
+	defer backend.Close()
+
+	backendURL, _ := url.Parse(backend.URL)
+	backendHostname, backendPort, _ := net.SplitHostPort(backendURL.Host)
+	backendHost := net.JoinHostPort(backendHostname, backendPort)
+	proxyURL, _ := url.Parse(backendURL.Scheme + "://" + backendHost + "/")
+
+	ts := httptest.NewUnstartedServer(nil)
+	ts.Start()
+	defer ts.Close()
+
+	p, err := New(testOptions(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	newPolicy := config.Policy{To: proxyURL.String(), From: ts.URL, AllowPublicUnauthenticatedAccess: true}
+	err = newPolicy.Validate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler, err := p.reverseProxyHandler(mux.NewRouter(), newPolicy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts.Config.Handler = proxyHandler
+
+	getReq, _ := http.NewRequest("GET", newPolicy.From, nil)
+	res, err := http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 200 {
+		t.Errorf("Failed to find route handler")
+	}
+	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	if g, e := string(bodyBytes), backendHostname; g != e {
+		t.Errorf("got body %q; expected %q", g, e)
+	}
 }
