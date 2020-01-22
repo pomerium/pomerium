@@ -59,11 +59,12 @@ docker_setup: &docker_setup
 docker_login: &docker_login
   - echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
 
-jobs:
+matrix:
   include:
     - name: "Test Build amd64"
       stage: "Docker Test Build"
       install: *docker_setup
+      go: 1.x
       script:
         - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:${TRAVIS_COMMIT} Dockerfile
 
@@ -72,6 +73,7 @@ jobs:
       if: branch = master
       install: *docker_setup
       before_script: *docker_login
+      go: 1.x
       script:
         - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:master Dockerfile
         - docker push ${TRAVIS_REPO_SLUG}
@@ -80,6 +82,7 @@ jobs:
       if: branch = master
       install: *docker_setup
       before_script: *docker_login
+      go: 1.x
       script:
         - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm64v8-master Dockerfile.arm64v8
         - docker push ${TRAVIS_REPO_SLUG}
@@ -88,6 +91,7 @@ jobs:
       if: tag =~ /^v([0-9.]+)$/
       install: *docker_setup
       before_script: *docker_login
+      go: 1.x
       script:
         - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:${TRAVIS_TAG} Dockerfile
         - docker tag ${TRAVIS_REPO_SLUG}:${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:latest
@@ -99,6 +103,7 @@ jobs:
       if: tag =~ /^v([0-9.]+)$/
       install: *docker_setup
       before_script: *docker_login
+      go: 1.x
       script:
         - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm64v8-${TRAVIS_TAG} Dockerfile.arm64v8
         - docker tag ${TRAVIS_REPO_SLUG}:arm64v8-${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:arm64v8-latest
@@ -108,6 +113,7 @@ jobs:
       if: tag =~ /^v([0-9.]+)$/
       install: *docker_setup
       before_script: *docker_login
+      go: 1.x
       script:
         - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm32v7-${TRAVIS_TAG} Dockerfile.arm32v7
         - docker tag ${TRAVIS_REPO_SLUG}:arm32v7-${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:arm32v7-latest
@@ -117,6 +123,7 @@ jobs:
       if: tag =~ /^v([0-9.]+)$/
       install: *docker_setup
       before_script: *docker_login
+      go: 1.x
       script:
         - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:arm32v6-${TRAVIS_TAG} Dockerfile.arm32v6
         - docker tag ${TRAVIS_REPO_SLUG}:arm32v6-${TRAVIS_TAG} ${TRAVIS_REPO_SLUG}:arm32v6-latest
