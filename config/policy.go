@@ -70,6 +70,11 @@ type Policy struct {
 	// in the form of key value pairs. Note bene, this will overwrite the
 	// value of any existing value of a given header key.
 	SetRequestHeaders map[string]string `mapstructure:"set_request_headers" yaml:"set_request_headers,omitempty"`
+
+	// PreserveHostHeader disables host header rewriting.
+	//
+	// https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header
+	PreserveHostHeader bool `mapstructure:"preserve_host_header" yaml:"preserve_host_header,omitempty"`
 }
 
 // Validate checks the validity of a policy.

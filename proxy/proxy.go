@@ -6,7 +6,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"html/template"
+	stdlog "log"
 	"net/http"
+	stdhttputil "net/http/httputil"
 	"net/url"
 	"time"
 
@@ -205,7 +207,7 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		if err := policy.Validate(); err != nil {
 			return fmt.Errorf("proxy: invalid policy %w", err)
 		}
-		r, err = p.reverseProxyHandler(r, &policy)
+		r, err = p.reverseProxyHandler(r, policy)
 		if err != nil {
 			return err
 		}
@@ -214,12 +216,25 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 	return nil
 }
 
-func (p *Proxy) reverseProxyHandler(r *mux.Router, policy *config.Policy) (*mux.Router, error) {
+func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) (*mux.Router, error) {
 	// 1. Create the reverse proxy connection
-	proxy := httputil.NewReverseProxy(policy.Destination)
-	// 2. Override any custom transport settings (e.g. TLS settings, etc)
-	proxy.Transport = p.roundTripperFromPolicy(policy)
-	// 3. Create a sub-router for a given route's hostname (`httpbin.corp.example.com`)
+	proxy := stdhttputil.NewSingleHostReverseProxy(policy.Destination)
+	// 2. Create a sublogger to handle any error logs
+	sublogger := log.With().Str("route", policy.Destination.Host).Logger()
+	proxy.ErrorLog = stdlog.New(&log.StdLogWrapper{Logger: &sublogger}, "", 0)
+	// 3. Rewrite host headers and add X-Forwarded-Host header
+	director := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		req.Header.Add(httputil.HeaderForwardedHost, req.Host)
+		director(req)
+		if !policy.PreserveHostHeader {
+			req.Host = policy.Destination.Host
+		}
+	}
+
+	// 4. Override any custom transport settings (e.g. TLS settings, etc)
+	proxy.Transport = p.roundTripperFromPolicy(&policy)
+	// 5. Create a sub-router for a given route's hostname (`httpbin.corp.example.com`)
 	rp := r.Host(policy.Source.Host).Subrouter()
 	rp.PathPrefix("/").Handler(proxy)
 

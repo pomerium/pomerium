@@ -759,6 +759,17 @@ Set Request Headers allows you to set static values for given request headers. T
     X-Your-favorite-authenticating-Proxy: "Pomerium"
 ```
 
+### Preserve Host Header
+
+- `yaml`/`json` setting: `preserve_host_header`
+- Type: `bool`
+- Optional
+- Default: `false`
+
+When enabled, this option will pass the host header from the incoming request to the proxied host, instead of the destination hostname.
+
+See [ProxyPreserveHost](http://httpd.apache.org/docs/2.0/mod/mod_proxy.html#proxypreservehost).
+
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [identity provider]: ./identity-providers.md
