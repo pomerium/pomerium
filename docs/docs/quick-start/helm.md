@@ -46,6 +46,10 @@ Run [./scripts/helm_gke.sh] which will:
 
 Open a browser and navigate to `httpbin.your.domain.example`.
 
+You can also navigate to the special pomerium endpoint `httpbin.your.domain.example/.pomerium/` to see your current user details.
+
+![currently logged in user](./img/logged-in-as.png)
+
 [./scripts/helm_gke.sh]: ../reference/examples.html#helm
 [./scripts/kubernetes_gke.sh]: ../reference/examples.html#google-kubernetes-engine
 [example kubernetes files]: ../reference/examples.html#google-kubernetes-engine

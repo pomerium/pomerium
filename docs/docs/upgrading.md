@@ -7,6 +7,38 @@ description: >-
 
 # Upgrade Guide
 
+## Since 0.5.0
+
+### Breaking
+
+#### New cache service
+
+A back-end cache service was added to support session refreshing from [single-page-apps](https://en.wikipedia.org/wiki/Single-page_application).
+
+- For all-in-one deployments, _no changes are required_. The cache will be embedded in the binary. By default, autocache an in-memory LRU cache will be used to temporarily store user session data. If you wish to persist session data, it's also possible to use bolt or redis.
+- For split-service deployments, you will need to deploy an additional service called cache. By default, pomerium will use autocache as a distributed, automatically managed cache. It is also possible to use redis as backend in this mode.
+
+For a concrete example of the required changes, consider the following changes for those running split service mode,:
+
+```diff
+...
+  pomerium-authenticate:
+    environment:
+      - SERVICES=authenticate
++      - CACHE_SERVICE_URL=http://pomerium-cache:443
+...
++  pomerium-cache:
++    image: pomerium/pomerium
++    environment:
++      - SERVICES=cache
++    volumes:
++      - ../config/config.example.yaml:/pomerium/config.yaml:ro
++    expose:
++      - 443
+```
+
+Please see the updated examples, and [cache service docs] as a reference and for the available cache stores. For more details as to why this was necessary, please see [PR438](https://github.com/pomerium/pomerium/pull/438) and [PR457](https://github.com/pomerium/pomerium/pull/457).
+
 ## Since 0.4.0
 
 ### Breaking
@@ -187,5 +219,7 @@ Usage of the POLICY_FILE envvar is no longer supported. Support for file based p
 
 The configuration variable [Authenticate Internal Service URL] must now be a valid [URL](https://golang.org/pkg/net/url/#URL) type and contain both a hostname and valid `https` schema.
 
-[policy]: ./configuration/readme.md#policy
-[authenticate internal service url]: ./configuration/readme.md#authenticate-service-url
+[policy]: ../configuration/readme.md#policy
+[authenticate internal service url]: ../configuration/readme.md#authenticate-service-url
+[cache service docs]: ../configuration/readme.md#cache-service
+[split service example]: ../configuration/examples.md#distinct-services

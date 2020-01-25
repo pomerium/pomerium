@@ -1,9 +1,10 @@
 # Main configuration flags : https://www.pomerium.io/docs/reference/reference/
-address: ":80"
 insecure_server: true
+grpc_insecure: true
 
 authenticate_service_url: https://authenticate.corp.beyondperimeter.com
 authorize_service_url: https://pomerium-authorize-service.default.svc.cluster.local
+cache_service_url: https://pomerium-cache-service.default.svc.cluster.local
 
 override_certificate_name: "*.corp.beyondperimeter.com"
 

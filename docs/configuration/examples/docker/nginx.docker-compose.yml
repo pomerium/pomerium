@@ -12,7 +12,7 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
   pomerium-authenticate:
-    image: pomerium/pomerium:v0.5.0 # or `build: .` to build from source
+    image: pomerium/pomerium:latest # or `build: .` to build from source
     restart: always
     environment:
       - SERVICES=authenticate
@@ -31,6 +31,7 @@ services:
       - VIRTUAL_PROTO=http
       - VIRTUAL_HOST=authenticate.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
+      - CACHE_SERVICE_URL=http://pomerium-cache:443
     volumes:
       - ../config/config.example.yaml:/pomerium/config.yaml:ro
 
@@ -38,7 +39,7 @@ services:
       - 443
 
   pomerium-proxy:
-    image: pomerium/pomerium:v0.5.0 # or `build: .` to build from source
+    image: pomerium/pomerium:latest # or `build: .` to build from source
     restart: always
     environment:
       - SERVICES=proxy
@@ -60,7 +61,7 @@ services:
       - 443
 
   pomerium-authorize:
-    image: pomerium/pomerium:v0.5.0 # or `build: .` to build from source
+    image: pomerium/pomerium:latest # or `build: .` to build from source
     restart: always
     environment:
       - SERVICES=authorize
@@ -68,6 +69,21 @@ services:
       - GRPC_INSECURE=TRUE
       - GRPC_ADDRESS=:443
 
+    volumes:
+      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/docs/reference/reference/
+      # See `config.example.yaml` and modify to fit your needs.
+      - ../config/config.example.yaml:/pomerium/config.yaml:ro
+    expose:
+      - 443
+
+  pomerium-cache:
+    image: pomerium/pomerium:latest # or `build: .` to build from source
+    restart: always
+    environment:
+      - SERVICES=cache
+      - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
+      - GRPC_INSECURE=TRUE
+      - GRPC_ADDRESS=:443
     volumes:
       # Retrieve non-secret config keys from the config file : https://www.pomerium.io/docs/reference/reference/
       # See `config.example.yaml` and modify to fit your needs.
