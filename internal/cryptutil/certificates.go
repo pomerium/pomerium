@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 )
 
+// CertifcateFromBase64 returns an X509 pair from a base64 encoded blob.
 func CertifcateFromBase64(cert, key string) (*tls.Certificate, error) {
 	decodedCert, err := base64.StdEncoding.DecodeString(cert)
 	if err != nil {
@@ -24,11 +25,15 @@ func CertifcateFromBase64(cert, key string) (*tls.Certificate, error) {
 	return &x509, err
 }
 
+// CertificateFromFile given a certificate, and key file path, returns a X509
+// keypair.
 func CertificateFromFile(certFile, keyFile string) (*tls.Certificate, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	return &cert, err
 }
 
+// CertPoolFromBase64 takes a base64 encoded string and returns a new
+// X509 certificate pool.
 func CertPoolFromBase64(encPemCerts string) (*x509.CertPool, error) {
 	b, err := base64.StdEncoding.DecodeString(encPemCerts)
 	if err != nil {
@@ -37,6 +42,7 @@ func CertPoolFromBase64(encPemCerts string) (*x509.CertPool, error) {
 	return bytesToCertPool(b)
 }
 
+// CertPoolFromFile reads a file and returns an X509 certificate pool.
 func CertPoolFromFile(pemFile string) (*x509.CertPool, error) {
 	b, err := ioutil.ReadFile(pemFile)
 	if err != nil {

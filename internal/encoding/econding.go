@@ -1,3 +1,5 @@
+// Package encoding defines interfaces shared by other packages that
+// convert data to and from byte-level and textual representations.
 package encoding // import "github.com/pomerium/pomerium/internal/encoding"
 
 // MarshalUnmarshaler can both Marshal and Unmarshal a struct into and from a set of bytes.

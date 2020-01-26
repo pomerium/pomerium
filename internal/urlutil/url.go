@@ -1,3 +1,4 @@
+// Package urlutil provides utility functions for working with go urls.
 package urlutil // import "github.com/pomerium/pomerium/internal/urlutil"
 
 import (
@@ -60,6 +61,7 @@ func ValidateURL(u *url.URL) error {
 	return nil
 }
 
+// DeepCopy creates a deep copy of a *url.URL
 func DeepCopy(u *url.URL) (*url.URL, error) {
 	if u == nil {
 		return nil, nil

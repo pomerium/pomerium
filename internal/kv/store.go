@@ -1,3 +1,5 @@
+// Package kv defines a Store interfaces that can be implemented by
+// datastores to provide key value storage capabilities.
 package kv
 
 import "context"

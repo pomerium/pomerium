@@ -1,5 +1,7 @@
 //go:generate statik -src=./assets -include=*.svg,*.html,*.css,*.js
 
+// Package frontend handles the generation, and instantiation of Pomerium's
+// html templates.
 package frontend // import "github.com/pomerium/pomerium/internal/frontend"
 
 import (

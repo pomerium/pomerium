@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	// JaegerTracingProviderName is the name of the tracing provider Jaeger.
 	JaegerTracingProviderName = "jaeger"
 )
 
@@ -31,6 +32,7 @@ type TracingOptions struct {
 	JaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint"`
 }
 
+// RegisterTracing creates a new trace exporter from TracingOptions.
 func RegisterTracing(opts *TracingOptions) error {
 	var err error
 	switch opts.Provider {

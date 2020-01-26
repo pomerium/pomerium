@@ -1,3 +1,5 @@
+// Package redis implements a key value store (kv.Store) using redis.
+// For more details, see https://redis.io/
 package redis
 
 import (

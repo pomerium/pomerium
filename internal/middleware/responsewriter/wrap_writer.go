@@ -1,3 +1,5 @@
+// Package responsewriter contains helper functions that useful for
+// hooking into various parts of a response.
 package responsewriter
 
 // The original work was derived from Goji's middleware, source:

@@ -517,6 +517,9 @@ func (o *Options) Checksum() string {
 	return fmt.Sprintf("%x", hash)
 }
 
+// HandleConfigUpdate takes configuration file, an existing options struct, and
+// updates each service in the services slice OptionsUpdater with a new set of
+// options if any change is detected.
 func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdater) *Options {
 	newOpt, err := NewOptionsFromConfig(configFile)
 	if err != nil {
