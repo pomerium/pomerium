@@ -1,3 +1,6 @@
+// Package cache is a pomerium service that handles the storage of user
+// session state. It communicates over RPC with other pomerium services,
+// and can be configured to use a number of different backend cache stores.
 package cache // import "github.com/pomerium/pomerium/cache"
 
 import (

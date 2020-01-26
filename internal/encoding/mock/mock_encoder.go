@@ -1,3 +1,4 @@
+// Package mock implements a mock implementation of MarshalUnmarshaler.
 package mock // import "github.com/pomerium/pomerium/internal/encoding/mock"
 
 import (

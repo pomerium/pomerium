@@ -1,3 +1,6 @@
+// Package autocache implements a key value store (kv.Store) using autocache
+// which combines functionality from groupcache, and memberlist libraries.
+// For more details, see https://github.com/pomerium/autocache
 package autocache
 
 import (

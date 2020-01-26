@@ -1,3 +1,4 @@
+// Package client implements a gRPC client for the authorization service.
 package client
 
 import (

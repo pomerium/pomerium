@@ -1,3 +1,5 @@
+// Package queryparam provides a query param based implementation of a both
+// as session store and loader.
 package queryparam // import "github.com/pomerium/pomerium/internal/sessions/queryparam"
 
 import (

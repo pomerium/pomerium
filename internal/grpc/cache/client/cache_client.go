@@ -1,3 +1,4 @@
+// Package client implements a gRPC client for the cache service.
 package client
 
 import (

@@ -1,3 +1,4 @@
+// Package urlutil provides utility functions for working with go urls.
 package urlutil // import "github.com/pomerium/pomerium/internal/urlutil"
 
 import (

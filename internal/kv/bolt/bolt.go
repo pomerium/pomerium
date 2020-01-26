@@ -1,3 +1,5 @@
+// Package bolt implements a key value store (kv.Store) using bbolt.
+// For more details, see https://github.com/etcd-io/bbolt
 package bolt
 
 import (

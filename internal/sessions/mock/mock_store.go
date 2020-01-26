@@ -1,3 +1,4 @@
+// Package mock provides a mock implementation of session store and loader.
 package mock // import "github.com/pomerium/pomerium/internal/sessions/mock"
 
 import (
