@@ -15,10 +15,10 @@ func SetHeaders(headers map[string]string) func(next http.Handler) http.Handler 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.SetHeaders")
-			defer span.End()
 			for key, val := range headers {
 				w.Header().Set(key, val)
 			}
+			span.End()
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -30,10 +30,10 @@ func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler
 	return func(next http.Handler) http.Handler {
 		return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateSignature")
-			defer span.End()
 			if err := ValidateRequestURL(r, sharedSecret); err != nil {
 				return httputil.NewError(http.StatusBadRequest, err)
 			}
+			span.End()
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return nil
 		})
@@ -56,7 +56,6 @@ func Healthcheck(endpoint, msg string) func(http.Handler) http.Handler {
 	f := func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.Healthcheck")
-			defer span.End()
 			if strings.EqualFold(r.URL.Path, endpoint) {
 				if r.Method != http.MethodGet && r.Method != http.MethodHead {
 					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
@@ -69,6 +68,7 @@ func Healthcheck(endpoint, msg string) func(http.Handler) http.Handler {
 				}
 				return
 			}
+			span.End()
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 		return http.HandlerFunc(fn)
@@ -81,8 +81,6 @@ func StripCookie(cookieName string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.StripCookie")
-			defer span.End()
-
 			headers := make([]string, 0, len(r.Cookies()))
 			for _, cookie := range r.Cookies() {
 				if !strings.HasPrefix(cookie.Name, cookieName) {
@@ -90,6 +88,7 @@ func StripCookie(cookieName string) func(next http.Handler) http.Handler {
 				}
 			}
 			r.Header.Set("Cookie", strings.Join(headers, ";"))
+			span.End()
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -100,7 +99,7 @@ func TimeoutHandlerFunc(timeout time.Duration, timeoutError string) func(next ht
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.TimeoutHandlerFunc")
-			defer span.End()
+			span.End()
 			http.TimeoutHandler(next, timeout, timeoutError).ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

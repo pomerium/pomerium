@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"go.opencensus.io/plugin/ochttp"
 )
 
@@ -27,6 +28,8 @@ var DefaultClient = &http.Client{
 
 // Client provides a simple helper interface to make HTTP requests
 func Client(ctx context.Context, method, endpoint, userAgent string, headers map[string]string, params url.Values, response interface{}) error {
+	ctx, span := trace.StartSpan(ctx, fmt.Sprintf("httputil.Client.%s", endpoint))
+	defer span.End()
 	var body io.Reader
 	switch method {
 	case http.MethodPost:

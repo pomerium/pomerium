@@ -47,6 +47,7 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 			return p.redirectToSignin(w, r)
 		}
 		p.addPomeriumHeaders(w, r)
+		span.End()
 		next.ServeHTTP(w, r.WithContext(ctx))
 		return nil
 	})
@@ -136,11 +137,11 @@ func (p *Proxy) addPomeriumHeaders(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) AuthorizeSession(next http.Handler) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthorizeSession")
-		defer span.End()
 		if err := p.authorize(r.Host, r.WithContext(ctx)); err != nil {
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: AuthorizeSession")
 			return err
 		}
+		span.End()
 		next.ServeHTTP(w, r.WithContext(ctx))
 		return nil
 	})
@@ -179,6 +180,7 @@ func (p *Proxy) SignRequest(signer encoding.Marshaler) func(next http.Handler) h
 				r.Header.Set(HeaderJWT, string(jwt))
 				w.Header().Set(HeaderJWT, string(jwt))
 			}
+			span.End()
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return nil
 		})
@@ -194,6 +196,7 @@ func SetResponseHeaders(headers map[string]string) func(next http.Handler) http.
 			for key, val := range headers {
 				r.Header.Set(key, val)
 			}
+			span.End()
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
