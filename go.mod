@@ -10,7 +10,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/go-redis/redis v6.15.6+incompatible
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
-	github.com/golang/mock v1.3.1
+	github.com/golang/mock v1.4.0
 	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.4.0
 	github.com/gorilla/mux v1.7.3
