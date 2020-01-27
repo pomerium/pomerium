@@ -47,8 +47,8 @@ func New(providerName string, p *Provider) (a Authenticator, err error) {
 	switch providerName {
 	case AzureProviderName:
 		a, err = NewAzureProvider(p)
-	// case GitlabProviderName:
-	// 	return nil, fmt.Errorf("internal/identity: %s currently not supported", providerName)
+	case GitlabProviderName:
+		a, err = NewGitLabProvider(p)
 	case GoogleProviderName:
 		a, err = NewGoogleProvider(p)
 	case OIDCProviderName:
