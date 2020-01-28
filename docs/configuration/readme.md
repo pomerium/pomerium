@@ -223,8 +223,8 @@ random key with `head -c32 /dev/urandom | base64`.
 
 #### Cookie domain
 
-- Environmental Variable: `COOKIE_SECRET`
-- Config File Key: `cookie_secret`
+- Environmental Variable: `COOKIE_DOMAIN`
+- Config File Key: `cookie_domain`
 - Type: `string`
 - Example: `corp.beyondperimeter.com`
 - Optional
