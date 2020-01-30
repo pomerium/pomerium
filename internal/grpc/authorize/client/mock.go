@@ -2,8 +2,7 @@ package client
 
 import (
 	"context"
-
-	"github.com/pomerium/pomerium/internal/sessions"
+	"net/http"
 )
 
 var _ Authorizer = &MockAuthorize{}
@@ -21,11 +20,11 @@ type MockAuthorize struct {
 func (a MockAuthorize) Close() error { return a.CloseError }
 
 // Authorize is a mocked authorizer client function.
-func (a MockAuthorize) Authorize(ctx context.Context, route string, s *sessions.State) (bool, error) {
+func (a MockAuthorize) Authorize(ctx context.Context, user string, s *http.Request) (bool, error) {
 	return a.AuthorizeResponse, a.AuthorizeError
 }
 
 // IsAdmin is a mocked IsAdmin function.
-func (a MockAuthorize) IsAdmin(ctx context.Context, s *sessions.State) (bool, error) {
+func (a MockAuthorize) IsAdmin(ctx context.Context, user string) (bool, error) {
 	return a.IsAdminResponse, a.IsAdminError
 }

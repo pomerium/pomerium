@@ -138,7 +138,7 @@ func TestStore_SaveSession(t *testing.T) {
 				r.AddCookie(cookie)
 			}
 
-			state, err := s.LoadSession(r)
+			state, _, err := s.LoadSession(r)
 			if (err != nil) != tt.wantLoadErr {
 				t.Errorf("LoadSession() error = %v, wantErr %v", err, tt.wantLoadErr)
 				return

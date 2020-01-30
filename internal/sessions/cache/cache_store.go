@@ -51,26 +51,26 @@ func NewStore(o *Options) *Store {
 
 // LoadSession looks for a preset query parameter in the request body
 //  representing the key to lookup from the cache.
-func (s *Store) LoadSession(r *http.Request) (*sessions.State, error) {
+func (s *Store) LoadSession(r *http.Request) (*sessions.State, string, error) {
 	// look for our cache's key in the default query param
 	sessionID := r.URL.Query().Get(s.queryParam)
 	if sessionID == "" {
-		return nil, sessions.ErrNoSessionFound
+		return nil, "", sessions.ErrNoSessionFound
 	}
 	exists, val, err := s.cache.Get(r.Context(), sessionID)
 	if err != nil {
 		log.FromRequest(r).Debug().Msg("sessions/cache: miss, trying wrapped loader")
-		return nil, err
+		return nil, "", err
 	}
 	if !exists {
-		return nil, sessions.ErrNoSessionFound
+		return nil, "", sessions.ErrNoSessionFound
 	}
 	var session sessions.State
 	if err := s.encoder.Unmarshal(val, &session); err != nil {
 		log.FromRequest(r).Error().Err(err).Msg("sessions/cache: unmarshal")
-		return nil, sessions.ErrMalformed
+		return nil, "", sessions.ErrMalformed
 	}
-	return &session, nil
+	return &session, string(val), nil
 }
 
 // ClearSession clears the session from the wrapped store.

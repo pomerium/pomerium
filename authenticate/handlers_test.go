@@ -151,9 +151,9 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			uri.RawQuery = queryString.Encode()
 			r := httptest.NewRequest(http.MethodGet, uri.String(), nil)
 			r.Header.Set("Accept", "application/json")
-			state, err := tt.session.LoadSession(r)
+			state, _, err := tt.session.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, err)
+			ctx = sessions.NewContext(ctx, state, "", err)
 			r = r.WithContext(ctx)
 
 			w := httptest.NewRecorder()
@@ -206,9 +206,9 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			params.Add(urlutil.QueryRedirectURI, tt.redirectURL)
 			u.RawQuery = params.Encode()
 			r := httptest.NewRequest(tt.method, u.String(), nil)
-			state, _ := tt.sessionStore.LoadSession(r)
+			state, _, _ := tt.sessionStore.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
 			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 
@@ -349,9 +349,9 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				cookieCipher: aead,
 			}
 			r := httptest.NewRequest("GET", "/", nil)
-			state, _ := tt.session.LoadSession(r)
+			state, _, _ := tt.session.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
 			r = r.WithContext(ctx)
 
 			r.Header.Set("Accept", "application/json")
@@ -408,9 +408,9 @@ func TestAuthenticate_RefreshAPI(t *testing.T) {
 				cookieCipher:     aead,
 			}
 			r := httptest.NewRequest("GET", "/", nil)
-			state, _ := tt.session.LoadSession(r)
+			state, _, _ := tt.session.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
 			r = r.WithContext(ctx)
 
 			r.Header.Set("Accept", "application/json")
@@ -459,9 +459,9 @@ func TestAuthenticate_Refresh(t *testing.T) {
 				cookieCipher:     aead,
 			}
 			r := httptest.NewRequest("GET", "/", nil)
-			state, _ := tt.session.LoadSession(r)
+			state, _, _ := tt.session.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
 			r = r.WithContext(ctx)
 
 			r.Header.Set("Accept", "application/json")

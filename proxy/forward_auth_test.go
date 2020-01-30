@@ -91,10 +91,10 @@ func TestProxy_ForwardAuth(t *testing.T) {
 			uri.RawQuery = queryString.Encode()
 
 			r := httptest.NewRequest(tt.method, uri.String(), nil)
-			state, _ := tt.sessionStore.LoadSession(r)
+			state, _, _ := tt.sessionStore.LoadSession(r)
 
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
 			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 			if len(tt.headers) != 0 {

@@ -187,7 +187,7 @@ func TestStore_LoadSession(t *testing.T) {
 			r.URL.RawQuery = q.Encode()
 			r.Header.Set("Accept", "application/json")
 
-			_, err := s.LoadSession(r)
+			_, _, err := s.LoadSession(r)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Store.LoadSession() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -73,9 +73,9 @@ func TestProxy_AuthenticateSession(t *testing.T) {
 				encoder:                tt.encoder,
 			}
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			state, _ := tt.session.LoadSession(r)
+			state, _, _ := tt.session.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
 			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()
@@ -122,9 +122,9 @@ func TestProxy_AuthorizeSession(t *testing.T) {
 				AuthorizeClient:       tt.authzClient,
 			}
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			state, _ := tt.session.LoadSession(r)
+			state, _, _ := tt.session.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
 			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()
@@ -181,9 +181,9 @@ func TestProxy_SignRequest(t *testing.T) {
 				sessionStore:          tt.session,
 			}
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			state, _ := tt.session.LoadSession(r)
+			state, _, _ := tt.session.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
 			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()

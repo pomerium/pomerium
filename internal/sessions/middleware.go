@@ -10,8 +10,9 @@ import (
 
 // Context keys
 var (
-	SessionCtxKey = &contextKey{"Session"}
-	ErrorCtxKey   = &contextKey{"Error"}
+	SessionCtxKey    = &contextKey{"Session"}
+	SessionJWTCtxKey = &contextKey{"SessionJWT"}
+	ErrorCtxKey      = &contextKey{"Error"}
 )
 
 // RetrieveSession takes a slice of session loaders and tries to find a valid
@@ -26,8 +27,8 @@ func retrieve(s ...SessionLoader) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			state, err := retrieveFromRequest(r, s...)
-			ctx = NewContext(ctx, state, err)
+			state, jwt, err := retrieveFromRequest(r, s...)
+			ctx = NewContext(ctx, state, jwt, err)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 		return http.HandlerFunc(hfn)
@@ -36,33 +37,36 @@ func retrieve(s ...SessionLoader) func(http.Handler) http.Handler {
 
 // retrieveFromRequest extracts sessions state from the request by calling
 // token find functions in the order they where provided.
-func retrieveFromRequest(r *http.Request, sessions ...SessionLoader) (*State, error) {
+func retrieveFromRequest(r *http.Request, sessions ...SessionLoader) (*State, string, error) {
 	for _, s := range sessions {
-		state, err := s.LoadSession(r)
+		state, jwt, err := s.LoadSession(r)
 		if err != nil && !errors.Is(err, ErrNoSessionFound) {
-			return state, err
+			return state, jwt, err
 		}
 		if state != nil {
+			//todo(bdd): have authz verify
 			err := state.Verify(urlutil.StripPort(r.Host))
-			return state, err // N.B.: state is _not_ nil
+			return state, jwt, err // N.B.: state is _not_ nil
 		}
 	}
 
-	return nil, ErrNoSessionFound
+	return nil, "", ErrNoSessionFound
 }
 
 // NewContext sets context values for the user session state and error.
-func NewContext(ctx context.Context, t *State, err error) context.Context {
+func NewContext(ctx context.Context, t *State, jwt string, err error) context.Context {
 	ctx = context.WithValue(ctx, SessionCtxKey, t)
+	ctx = context.WithValue(ctx, SessionJWTCtxKey, jwt)
 	ctx = context.WithValue(ctx, ErrorCtxKey, err)
 	return ctx
 }
 
 // FromContext retrieves context values for the user session state and error.
-func FromContext(ctx context.Context) (*State, error) {
+func FromContext(ctx context.Context) (*State, string, error) {
 	state, _ := ctx.Value(SessionCtxKey).(*State)
+	jwt, _ := ctx.Value(SessionJWTCtxKey).(string)
 	err, _ := ctx.Value(ErrorCtxKey).(error)
-	return state, err
+	return state, jwt, err
 }
 
 // contextKey is a value for use with context.WithValue. It's used as

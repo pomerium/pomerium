@@ -3,69 +3,67 @@
 package authorize // import "github.com/pomerium/pomerium/authorize"
 
 import (
-	"encoding/base64"
+	"context"
 	"fmt"
 
+	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/authorize/evaluator/opa"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
-// ValidateOptions checks to see if configuration values are valid for the
-// authorize service. Returns first error, if found.
-func ValidateOptions(o config.Options) error {
-	decoded, err := base64.StdEncoding.DecodeString(o.SharedKey)
-	if err != nil {
-		return fmt.Errorf("authorize: `SHARED_SECRET` malformed base64: %w", err)
+// Authorize struct holds
+type Authorize struct {
+	pe evaluator.Evaluator
+}
+
+// New validates and creates a new Authorize service from a set of config options.
+func New(opts config.Options) (*Authorize, error) {
+	if err := validateOptions(opts); err != nil {
+		return nil, fmt.Errorf("authorize: bad options: %w", err)
 	}
-	if len(decoded) != 32 {
-		return fmt.Errorf("authorize: `SHARED_SECRET` want 32 but got %d bytes", len(decoded))
+	var a Authorize
+	var err error
+	if a.pe, err = newPolicyEvaluator(&opts); err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+func validateOptions(o config.Options) error {
+	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
+		return fmt.Errorf("bad shared_secret: %w", err)
 	}
 	return nil
 }
 
-// Authorize struct holds
-type Authorize struct {
-	SharedKey string
-
-	identityAccess IdentityValidator
-	// contextValidator
-	// deviceValidator
-}
-
-// New validates and creates a new Authorize service from a set of Options
-func New(opts config.Options) (*Authorize, error) {
-	if err := ValidateOptions(opts); err != nil {
-		return nil, err
-	}
-	// errors handled by validate
-	sharedKey, _ := base64.StdEncoding.DecodeString(opts.SharedKey)
-	return &Authorize{
-		SharedKey:      string(sharedKey),
-		identityAccess: NewIdentityWhitelist(opts.Policies, opts.Administrators),
-	}, nil
-}
-
-// NewIdentityWhitelist returns an indentity validator.
-// todo(bdd) : a radix-tree implementation is probably more efficient
-func NewIdentityWhitelist(policies []config.Policy, admins []string) IdentityValidator {
+// newPolicyEvaluator returns an policy evaluator.
+func newPolicyEvaluator(opts *config.Options) (evaluator.Evaluator, error) {
 	metrics.AddPolicyCountCallback("authorize", func() int64 {
-		return int64(len(policies))
+		return int64(len(opts.Policies))
 	})
-	return newIdentityWhitelistMap(policies, admins)
-}
+	ctx := context.Background()
+	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
+	defer span.End()
 
-// ValidIdentity returns if an identity is authorized to access a route resource.
-func (a *Authorize) ValidIdentity(route string, identity *Identity) bool {
-	return a.identityAccess.Valid(route, identity)
-}
-
-// UpdateOptions updates internal structures based on config.Options
-func (a *Authorize) UpdateOptions(o config.Options) error {
-	if a == nil {
-		return nil
+	data := map[string]interface{}{
+		"shared_key":     opts.SharedKey,
+		"route_policies": opts.Policies,
+		"admins":         opts.Administrators,
 	}
-	log.Info().Msg("authorize: updating options")
-	a.identityAccess = NewIdentityWhitelist(o.Policies, o.Administrators)
+	return opa.New(ctx, &opa.Options{Data: data})
+}
+
+// UpdateOptions implements the OptionsUpdater interface and updates internal
+// structures based on config.Options
+func (a *Authorize) UpdateOptions(opts config.Options) error {
+	log.Info().Str("checksum", opts.Checksum()).Msg("authorize: updating options")
+	var err error
+	if a.pe, err = newPolicyEvaluator(&opts); err != nil {
+		return err
+	}
 	return nil
 }

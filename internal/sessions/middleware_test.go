@@ -25,8 +25,8 @@ func TestNewContext(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctxOut := NewContext(tt.ctx, tt.t, tt.err)
-			stateOut, errOut := FromContext(ctxOut)
+			ctxOut := NewContext(tt.ctx, tt.t, "", tt.err)
+			stateOut, _, errOut := FromContext(ctxOut)
 			if diff := cmp.Diff(tt.t.Email, stateOut.Email); diff != "" {
 				t.Errorf("NewContext() = %s", diff)
 			}
@@ -59,7 +59,7 @@ func Test_contextKey_String(t *testing.T) {
 
 func testAuthorizer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, err := FromContext(r.Context())
+		_, _, err := FromContext(r.Context())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
@@ -84,8 +84,8 @@ func (ms *store) ClearSession(http.ResponseWriter, *http.Request) {
 }
 
 // LoadSession returns the session and a error
-func (ms store) LoadSession(*http.Request) (*State, error) {
-	return ms.Session, ms.LoadError
+func (ms store) LoadSession(*http.Request) (*State, string, error) {
+	return ms.Session, "", ms.LoadError
 }
 
 // SaveSession returns a save error.

@@ -96,9 +96,9 @@ func TestProxy_UserDashboard(t *testing.T) {
 			p.AuthorizeClient = tt.authorizer
 
 			r := httptest.NewRequest(tt.method, "/", nil)
-			state, _ := tt.session.LoadSession(r)
+			state, _, _ := tt.session.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
 			r = r.WithContext(ctx)
 
 			r.Header.Set("Accept", "application/json")
@@ -159,9 +159,9 @@ func TestProxy_Impersonate(t *testing.T) {
 			uri := &url.URL{Path: "/"}
 
 			r := httptest.NewRequest(tt.method, uri.String(), bytes.NewBufferString(postForm.Encode()))
-			state, _ := tt.sessionStore.LoadSession(r)
+			state, _, _ := tt.sessionStore.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
 			r = r.WithContext(ctx)
 
 			r.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
