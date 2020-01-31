@@ -80,9 +80,9 @@ type Options struct {
 	IdleTimeout       time.Duration `mapstructure:"timeout_idle" yaml:"timeout_idle,omitempty"`
 
 	// Policies define per-route configuration and access control policies.
-	Policies   []Policy
-	PolicyEnv  string `yaml:",omitempty"`
-	PolicyFile string `mapstructure:"policy_file" yaml:"policy_file,omitempty"`
+	Policies   []Policy `yaml:"policy,omitempty"`
+	PolicyEnv  string   `yaml:",omitempty"`
+	PolicyFile string   `mapstructure:"policy_file" yaml:"policy_file,omitempty"`
 
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
