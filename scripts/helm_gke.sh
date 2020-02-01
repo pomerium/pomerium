@@ -7,40 +7,24 @@
 # NOTE! If you are using gsuite, you should also set `authenticate.idp.serviceAccount`, see docs !
 
 echo "=> [GCE] creating cluster"
-gcloud container clusters create pomerium
+gcloud container clusters create pomerium --region us-west2
 
 echo "=> [GCE] get cluster credentials so we can use kubctl locally"
-gcloud container clusters get-credentials pomerium
+gcloud container clusters get-credentials pomerium --region us-west2
 
-echo "=> [GCE] ensure your user account has the cluster-admin role in your cluster"
-kubectl create \
-	clusterrolebinding \
-	user-admin-binding \
-	--clusterrole=cluster-admin \
-	--user=$(gcloud config get-value account)
+echo "=> add pomerium's helm repo"
+helm repo add pomerium https://helm.pomerium.io
 
-echo "=> Create a service account that Tiller, the server side of Helm, can use for deploying your charts."
-kubectl create serviceaccount tiller --namespace kube-system
-
-echo "=> Grant the Tiller service account the cluster-admin role in your cluster"
-kubectl create clusterrolebinding tiller-admin-binding --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-
-echo "=> initialize Helm to install Tiller in your cluster"
-helm init --service-account=tiller
+echo "=> update helm"
 helm repo update
 
-echo "=> wait a minute for tiller to get setup"
-sleep 60
-
 echo "=> install pomerium with helm"
-echo " replace configuration settings to meet your specific needs and identity provider settings"
-
 echo "=> initiliaze a configmap setting from config.example.yaml"
-kubectl create configmap config --from-file="config.yaml"="docs/docs/reference/examples/config/config.example.yaml"
-# git clone https://github.com/pomerium/pomerium-helm.git $HOME/pomerium-helm
+kubectl create configmap config --from-file="config.yaml"="docs/configuration/examples/kubernetes/kubernetes-config.yaml"
 
 helm install \
 	pomerium \
+	pomerium/pomerium \
 	--set service.type="NodePort" \
 	--set config.rootDomain="corp.beyondperimeter.com" \
 	--set config.existingConfig="config" \
@@ -49,11 +33,9 @@ helm install \
 	--set ingress.secret.name="pomerium-tls" \
 	--set ingress.secret.cert=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer") \
 	--set ingress.secret.key=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key") \
-	--set authenticate.idp.provider="google" \
-	--set authenticate.idp.clientID="REPLACE_ME" \
-	--set authenticate.idp.clientSecret="REPLACE_ME" \
 	--set-string ingress.annotations."kubernetes\.io/ingress\.allow-http"=false \
-	--set service.annotations."cloud\.google\.com/app-protocols"='\{"https":"HTTPS"\}'
+	--set authenticate.service.annotations."cloud\.google\.com/app-protocols"='\{"https":"HTTPS"\}' \
+	--set proxy.service.annotations."cloud\.google\.com/app-protocols"='\{"https":"HTTPS"\}'
 
 # When done, clean up by deleting the cluster!
 # helm del $(helm ls --all --short) --purge # deletes all your helm instances
