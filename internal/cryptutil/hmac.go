@@ -9,7 +9,7 @@ import (
 
 const (
 	// DefaultLeeway defines the default leeway for matching NotBefore/Expiry claims.
-	DefaultLeeway = 1.0 * time.Minute
+	DefaultLeeway = 5.0 * time.Minute
 )
 
 var (
