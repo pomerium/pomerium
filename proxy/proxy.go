@@ -255,6 +255,12 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) (*mux.R
 		rp.Use(middleware.CorsBypass(proxy))
 	}
 
+	// Optional: if additional headers are to be set for this url
+	if len(policy.SetRequestHeaders) != 0 {
+		log.Warn().Interface("headers", policy.SetRequestHeaders).Msg("proxy: set request headers")
+		rp.Use(SetResponseHeaders(policy.SetRequestHeaders))
+	}
+
 	// Optional: if a public route, skip access control middleware
 	if policy.AllowPublicUnauthenticatedAccess {
 		log.Warn().Str("route", policy.String()).Msg("proxy: all access control disabled")
@@ -277,11 +283,7 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) (*mux.R
 		}
 		rp.Use(p.SignRequest(signer))
 	}
-	// Optional: if additional headers are to be set for this url
-	if len(policy.SetRequestHeaders) != 0 {
-		log.Warn().Interface("headers", policy.SetRequestHeaders).Msg("proxy: set request headers")
-		rp.Use(SetResponseHeaders(policy.SetRequestHeaders))
-	}
+
 	return r, nil
 }
 
