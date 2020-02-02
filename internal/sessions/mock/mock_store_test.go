@@ -35,7 +35,7 @@ func TestStore(t *testing.T) {
 				t.Errorf("MockCSRFStore.GetCSRF() error = %v, wantSaveErr %v", err, tt.wantSaveErr)
 				return
 			}
-			got, err := ms.LoadSession(nil)
+			got, _, err := ms.LoadSession(nil)
 			if (err != nil) != tt.wantLoadErr {
 				t.Errorf("MockCSRFStore.GetCSRF() error = %v, wantLoadErr %v", err, tt.wantLoadErr)
 				return

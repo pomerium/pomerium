@@ -81,7 +81,7 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
 
-		s, err := sessions.FromContext(r.Context())
+		s, _, err := sessions.FromContext(r.Context())
 		if errors.Is(err, sessions.ErrNoSessionFound) || errors.Is(err, sessions.ErrExpired) {
 			if verifyOnly {
 				return httputil.NewError(http.StatusUnauthorized, err)
@@ -104,7 +104,8 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusUnauthorized, err)
 		}
 		p.addPomeriumHeaders(w, r)
-		if err := p.authorize(uri.Host, r); err != nil {
+		r.Host = uri.Host
+		if err := p.authorize(r); err != nil {
 			return err
 		}
 

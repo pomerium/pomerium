@@ -87,12 +87,12 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 // It also contains certain administrative actions like user impersonation.
 // Nota bene: This endpoint does authentication, not authorization.
 func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
-	session, err := sessions.FromContext(r.Context())
+	session, jwt, err := sessions.FromContext(r.Context())
 	if err != nil {
 		return err
 	}
 
-	isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), session)
+	isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), jwt)
 	if err != nil {
 		return err
 	}
@@ -112,11 +112,11 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
 // to the user's current user sessions state if the user is currently an
 // administrative user. Requests are redirected back to the user dashboard.
 func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) error {
-	session, err := sessions.FromContext(r.Context())
+	session, jwt, err := sessions.FromContext(r.Context())
 	if err != nil {
 		return err
 	}
-	isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), session)
+	isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), jwt)
 	if err != nil {
 		return err
 	}

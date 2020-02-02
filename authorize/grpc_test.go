@@ -1,36 +1,43 @@
+//go:generate protoc -I ../internal/grpc/authorize/ --go_out=plugins=grpc:../internal/grpc/authorize/ ../internal/grpc/authorize/authorize.proto
+
 package authorize
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
-	pb "github.com/pomerium/pomerium/internal/grpc/authorize"
+	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/authorize/evaluator/mock"
+	"github.com/pomerium/pomerium/internal/grpc/authorize"
 )
 
-func TestAuthorize_Authorize(t *testing.T) {
+func TestAuthorize_IsAuthorized(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name           string
-		SharedKey      string
-		identityAccess IdentityValidator
-		in             *pb.Identity
-		want           *pb.AuthorizeReply
-		wantErr        bool
+		name    string
+		pe      evaluator.Evaluator
+		in      *authorize.IsAuthorizedRequest
+		want    *authorize.IsAuthorizedReply
+		wantErr bool
 	}{
-		{"valid authorization request", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", &MockIdentityValidator{ValidResponse: true}, &pb.Identity{Route: "http://pomerium.io", User: "user@pomerium.io"}, &pb.AuthorizeReply{IsValid: true}, false},
-		{"invalid authorization request", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", &MockIdentityValidator{ValidResponse: false}, &pb.Identity{Route: "http://pomerium.io", User: "user@pomerium.io"}, &pb.AuthorizeReply{IsValid: false}, false},
+		{"want false", &mock.PolicyEvaluator{}, &authorize.IsAuthorizedRequest{}, &authorize.IsAuthorizedReply{IsValid: false}, false},
+		{"want true", &mock.PolicyEvaluator{IsAuthorizedResponse: true}, &authorize.IsAuthorizedRequest{}, &authorize.IsAuthorizedReply{IsValid: true}, false},
+		{"want err", &mock.PolicyEvaluator{IsAuthorizedErr: errors.New("err")}, &authorize.IsAuthorizedRequest{}, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &Authorize{SharedKey: tt.SharedKey, identityAccess: tt.identityAccess}
-			got, err := a.Authorize(context.Background(), tt.in)
+			a := &Authorize{
+				pe: tt.pe,
+			}
+			got, err := a.IsAuthorized(context.TODO(), tt.in)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Authorize.Authorize() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Authorize.IsAuthorized() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Authorize.Authorize() = %v, want %v", got, tt.want)
+				t.Errorf("Authorize.IsAuthorized() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -39,22 +46,22 @@ func TestAuthorize_Authorize(t *testing.T) {
 func TestAuthorize_IsAdmin(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name           string
-		identityAccess IdentityValidator
-		in             *pb.Identity
-		want           *pb.IsAdminReply
-		wantErr        bool
+		name    string
+		pe      evaluator.Evaluator
+		in      *authorize.IsAdminRequest
+		want    *authorize.IsAdminReply
+		wantErr bool
 	}{
-		{"valid authorization request", &MockIdentityValidator{IsAdminResponse: true}, &pb.Identity{Route: "http://pomerium.io", User: "user@pomerium.io"}, &pb.IsAdminReply{IsAdmin: true}, false},
-		{"invalid authorization request", &MockIdentityValidator{IsAdminResponse: false}, &pb.Identity{Route: "http://pomerium.io", User: "user@pomerium.io"}, &pb.IsAdminReply{IsAdmin: false}, false},
+		{"want false", &mock.PolicyEvaluator{}, &authorize.IsAdminRequest{}, &authorize.IsAdminReply{IsValid: false}, false},
+		{"want true", &mock.PolicyEvaluator{IsAdminResponse: true}, &authorize.IsAdminRequest{}, &authorize.IsAdminReply{IsValid: true}, false},
+		{"want err", &mock.PolicyEvaluator{IsAdminErr: errors.New("err")}, &authorize.IsAdminRequest{}, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &Authorize{
-				SharedKey:      "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y",
-				identityAccess: tt.identityAccess,
+				pe: tt.pe,
 			}
-			got, err := a.IsAdmin(context.Background(), tt.in)
+			got, err := a.IsAdmin(context.TODO(), tt.in)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Authorize.IsAdmin() error = %v, wantErr %v", err, tt.wantErr)
 				return

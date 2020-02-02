@@ -34,7 +34,7 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthenticateSession")
 		defer span.End()
 
-		_, err := sessions.FromContext(ctx)
+		_, _, err := sessions.FromContext(ctx)
 		if errors.Is(err, sessions.ErrExpired) {
 			ctx, err = p.refresh(ctx, w, r)
 			if err != nil {
@@ -55,7 +55,7 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 func (p *Proxy) refresh(ctx context.Context, w http.ResponseWriter, r *http.Request) (context.Context, error) {
 	ctx, span := trace.StartSpan(ctx, "proxy.AuthenticateSession/refresh")
 	defer span.End()
-	s, err := sessions.FromContext(ctx)
+	s, _, err := sessions.FromContext(ctx)
 	if !errors.Is(err, sessions.ErrExpired) || s == nil {
 		return nil, errors.New("proxy: unexpected session state for refresh")
 	}
@@ -101,11 +101,11 @@ func (p *Proxy) refresh(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	if err := state.Verify(urlutil.StripPort(r.Host)); err != nil {
 		return nil, err
 	}
-	return sessions.NewContext(r.Context(), &state, err), nil
+	return sessions.NewContext(r.Context(), &state, string(jwtBytes), err), nil
 }
 
 func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
-	s, err := sessions.FromContext(r.Context())
+	s, _, err := sessions.FromContext(r.Context())
 	p.sessionStore.ClearSession(w, r)
 	if s != nil && err != nil && s.Programmatic {
 		return httputil.NewError(http.StatusUnauthorized, err)
@@ -120,7 +120,7 @@ func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (p *Proxy) addPomeriumHeaders(w http.ResponseWriter, r *http.Request) {
-	s, err := sessions.FromContext(r.Context())
+	s, _, err := sessions.FromContext(r.Context())
 	if err == nil && s != nil {
 		r.Header.Set(HeaderUserID, s.Subject)
 		r.Header.Set(HeaderEmail, s.RequestEmail())
@@ -137,7 +137,7 @@ func (p *Proxy) AuthorizeSession(next http.Handler) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthorizeSession")
 		defer span.End()
-		if err := p.authorize(r.Host, r.WithContext(ctx)); err != nil {
+		if err := p.authorize(r.WithContext(ctx)); err != nil {
 			log.FromRequest(r).Debug().Err(err).Msg("proxy: AuthorizeSession")
 			return err
 		}
@@ -146,16 +146,16 @@ func (p *Proxy) AuthorizeSession(next http.Handler) http.Handler {
 	})
 }
 
-func (p *Proxy) authorize(host string, r *http.Request) error {
-	s, err := sessions.FromContext(r.Context())
+func (p *Proxy) authorize(r *http.Request) error {
+	s, jwt, err := sessions.FromContext(r.Context())
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
-	authorized, err := p.AuthorizeClient.Authorize(r.Context(), host, s)
+	authorized, err := p.AuthorizeClient.Authorize(r.Context(), jwt, r)
 	if err != nil {
 		return err
 	} else if !authorized {
-		return httputil.NewError(http.StatusForbidden, fmt.Errorf("%s is not authorized for %s", s.RequestEmail(), host))
+		return httputil.NewError(http.StatusForbidden, fmt.Errorf("%s is not authorized for %s", s.RequestEmail(), r.Host))
 	}
 	return nil
 }
@@ -167,7 +167,7 @@ func (p *Proxy) SignRequest(signer encoding.Marshaler) func(next http.Handler) h
 		return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 			ctx, span := trace.StartSpan(r.Context(), "proxy.SignRequest")
 			defer span.End()
-			s, err := sessions.FromContext(r.Context())
+			s, _, err := sessions.FromContext(r.Context())
 			if err != nil {
 				return httputil.NewError(http.StatusForbidden, err)
 			}

@@ -3,23 +3,35 @@ syntax = "proto3";
 package authorize;
 
 service Authorizer {
-  rpc Authorize(Identity) returns (AuthorizeReply) {}
-  rpc IsAdmin(Identity) returns (IsAdminReply) {}
-
+  rpc IsAuthorized(IsAuthorizedRequest) returns (IsAuthorizedReply) {}
+  rpc IsAdmin(IsAdminRequest) returns (IsAdminReply) {}
 }
 
-message Identity {
-  // request context
-  string route = 1;
-  // user context
-  string user = 2;
-  string email = 3;
-  repeated string groups = 4;
-  // user context
-  string impersonate_email = 5;
-  repeated string impersonate_groups = 6;
+message IsAuthorizedRequest {
+  // User Context
+  //
+  string user_token = 1;
+  // Request Context
+  //
+  // Method specifies the HTTP method (GET, POST, PUT, etc.).
+  string request_method = 2;
+  // URL specifies either the URI being requested
+  string request_url = 3;
+  // host specifies the host on which the URL per RFC 7230, section 5.4
+  string request_host = 4;
+  // request_uri is the unmodified request-target of the
+  // Request-Line (RFC 7230, Section 3.1.1) as sent by the client
+  string request_request_uri = 5;
+  // RemoteAddr allows HTTP servers and other software to record
+  // the network address that sent the request, usually for
+  string request_remote_addr = 6;
+  // headers represents key-value pairs in an HTTP header; map[string][]string
+  message Headers { repeated string value = 1; }
+  map<string, Headers> request_headers = 7;
 }
 
-message AuthorizeReply { bool is_valid = 1; }
+message IsAuthorizedReply { bool is_valid = 1; }
 
-message IsAdminReply { bool is_admin = 1; }
+message IsAdminRequest { string user_token = 1; }
+
+message IsAdminReply { bool is_valid = 1; }

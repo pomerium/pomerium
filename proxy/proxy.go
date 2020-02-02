@@ -176,7 +176,8 @@ func New(opts config.Options) (*Proxy, error) {
 	return p, err
 }
 
-// UpdateOptions updates internal structures based on config.Options
+// UpdateOptions implements the OptionsUpdater interface and updates internal
+// structures based on config.Options
 func (p *Proxy) UpdateOptions(o config.Options) error {
 	if p == nil {
 		return nil
@@ -273,12 +274,13 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) (*mux.R
 
 	// 4. Retrieve the user session and add it to the request context
 	rp.Use(sessions.RetrieveSession(p.sessionLoaders...))
-	// 5. Strip the user session cookie from the downstream request
-	rp.Use(middleware.StripCookie(p.cookieOptions.Name))
-	// 6. AuthN - Verify the user is authenticated. Set email, group, & id headers
+	// 5. AuthN - Verify the user is authenticated. Set email, group, & id headers
 	rp.Use(p.AuthenticateSession)
-	// 7. AuthZ - Verify the user is authorized for route
+	// 6. AuthZ - Verify the user is authorized for route
 	rp.Use(p.AuthorizeSession)
+	// 7. Strip the user session cookie from the downstream request
+	rp.Use(middleware.StripCookie(p.cookieOptions.Name))
+
 	// Optional: Add a signed JWT attesting to the user's id, email, and group
 	if len(p.signingKey) != 0 {
 		signer, err := jws.NewES256Signer(p.signingKey, policy.Destination.Host)

@@ -6,18 +6,20 @@ require (
 	cloud.google.com/go v0.49.0 // indirect
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
+	github.com/OneOfOne/xxhash v1.2.7 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/go-redis/redis v6.15.6+incompatible
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
-	github.com/golang/mock v1.4.0
 	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.4.0
 	github.com/gorilla/mux v1.7.3
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/onsi/ginkgo v1.11.0 // indirect
 	github.com/onsi/gomega v1.8.1 // indirect
+	github.com/open-policy-agent/opa v0.16.2
 	github.com/pelletier/go-toml v1.6.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pomerium/autocache v0.0.0-20200121155820-dc85d6127c4e
 	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
 	github.com/pomerium/go-oidc v2.0.0+incompatible
@@ -25,6 +27,7 @@ require (
 	github.com/prometheus/client_golang v1.2.1
 	github.com/prometheus/procfs v0.0.8 // indirect
 	github.com/rakyll/statik v0.1.6
+	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.17.2
 	github.com/spf13/afero v1.2.2 // indirect

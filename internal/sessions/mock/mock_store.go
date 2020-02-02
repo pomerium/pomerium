@@ -13,6 +13,7 @@ var _ sessions.SessionLoader = &Store{}
 // Store is a mock implementation of the SessionStore interface
 type Store struct {
 	ResponseSession string
+	SessionJWT      string
 	Session         *sessions.State
 	SaveError       error
 	LoadError       error
@@ -24,8 +25,8 @@ func (ms *Store) ClearSession(http.ResponseWriter, *http.Request) {
 }
 
 // LoadSession returns the session and a error
-func (ms Store) LoadSession(*http.Request) (*sessions.State, error) {
-	return ms.Session, ms.LoadError
+func (ms Store) LoadSession(*http.Request) (*sessions.State, string, error) {
+	return ms.Session, ms.SessionJWT, ms.LoadError
 }
 
 // SaveSession returns a save error.

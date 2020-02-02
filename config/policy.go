@@ -3,6 +3,7 @@ package config // import "github.com/pomerium/pomerium/config"
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
@@ -16,12 +17,12 @@ type Policy struct {
 	From string `mapstructure:"from" yaml:"from"`
 	To   string `mapstructure:"to" yaml:"to"`
 	// Identity related policy
-	AllowedEmails  []string `mapstructure:"allowed_users" yaml:"allowed_users,omitempty"`
-	AllowedGroups  []string `mapstructure:"allowed_groups" yaml:"allowed_groups,omitempty"`
-	AllowedDomains []string `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty"`
+	AllowedUsers   []string `mapstructure:"allowed_users" yaml:"allowed_users,omitempty" json:"allowed_users,omitempty"`
+	AllowedGroups  []string `mapstructure:"allowed_groups" yaml:"allowed_groups,omitempty" json:"allowed_groups,omitempty"`
+	AllowedDomains []string `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 
-	Source      *url.URL `yaml:",omitempty"`
-	Destination *url.URL `yaml:",omitempty"`
+	Source      *HostnameURL `yaml:",omitempty" json:"source,omitempty"`
+	Destination *url.URL     `yaml:",omitempty" json:"destination,omitempty"`
 
 	// Allow unauthenticated HTTP OPTIONS requests as per the CORS spec
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests
@@ -80,10 +81,11 @@ type Policy struct {
 // Validate checks the validity of a policy.
 func (p *Policy) Validate() error {
 	var err error
-	p.Source, err = urlutil.ParseAndValidateURL(p.From)
+	source, err := urlutil.ParseAndValidateURL(p.From)
 	if err != nil {
 		return fmt.Errorf("config: policy bad source url %w", err)
 	}
+	p.Source = &HostnameURL{source}
 
 	p.Destination, err = urlutil.ParseAndValidateURL(p.To)
 	if err != nil {
@@ -91,7 +93,7 @@ func (p *Policy) Validate() error {
 	}
 
 	// Only allow public access if no other whitelists are in place
-	if p.AllowPublicUnauthenticatedAccess && (p.AllowedDomains != nil || p.AllowedGroups != nil || p.AllowedEmails != nil) {
+	if p.AllowPublicUnauthenticatedAccess && (p.AllowedDomains != nil || p.AllowedGroups != nil || p.AllowedUsers != nil) {
 		return fmt.Errorf("config: policy route marked as public but contains whitelists")
 	}
 
@@ -123,12 +125,23 @@ func (p *Policy) Validate() error {
 			return fmt.Errorf("config: couldn't load custom ca file %w", err)
 		}
 	}
-
 	return nil
 }
+
 func (p *Policy) String() string {
 	if p.Source == nil || p.Destination == nil {
 		return fmt.Sprintf("%s → %s", p.From, p.To)
 	}
 	return fmt.Sprintf("%s → %s", p.Source.String(), p.Destination.String())
+}
+
+// HostnameURL wraps url but marshals only the host representation of that
+// url struct.
+type HostnameURL struct {
+	*url.URL
+}
+
+// MarshalJSON returns the URLs host as json.
+func (j *HostnameURL) MarshalJSON() ([]byte, error) {
+	return json.Marshal(j.Host)
 }

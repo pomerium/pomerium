@@ -74,7 +74,7 @@ func (a *Authenticate) Handler() http.Handler {
 // session state is attached to the users's request context.
 func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		state, err := sessions.FromContext(r.Context())
+		state, _, err := sessions.FromContext(r.Context())
 		if errors.Is(err, sessions.ErrExpired) {
 			ctx, err := a.refresh(w, r, state)
 			if err != nil {
@@ -103,7 +103,7 @@ func (a *Authenticate) refresh(w http.ResponseWriter, r *http.Request, s *sessio
 		return nil, fmt.Errorf("authenticate: refresh save failed: %w", err)
 	}
 	// return the new session and add it to the current request context
-	return sessions.NewContext(ctx, newSession, err), nil
+	return sessions.NewContext(ctx, newSession, "", err), nil
 }
 
 // RobotsTxt handles the /robots.txt route.
@@ -142,7 +142,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		jwtAudience = append(jwtAudience, fwdAuth)
 	}
 
-	s, err := sessions.FromContext(r.Context())
+	s, _, err := sessions.FromContext(r.Context())
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -197,7 +197,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 // SignOut signs the user out and attempts to revoke the user's identity session
 // Handles both GET and POST.
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
-	session, err := sessions.FromContext(r.Context())
+	session, _, err := sessions.FromContext(r.Context())
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -318,7 +318,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 // tokens and state with the identity provider. If successful, a new signed JWT
 // and refresh token (`refresh_token`) are returned as JSON
 func (a *Authenticate) RefreshAPI(w http.ResponseWriter, r *http.Request) error {
-	s, err := sessions.FromContext(r.Context())
+	s, _, err := sessions.FromContext(r.Context())
 	if err != nil && !errors.Is(err, sessions.ErrExpired) {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -359,7 +359,7 @@ func (a *Authenticate) RefreshAPI(w http.ResponseWriter, r *http.Request) error 
 // middleware. This handler is responsible for creating a new route scoped
 // session and returning it.
 func (a *Authenticate) Refresh(w http.ResponseWriter, r *http.Request) error {
-	s, err := sessions.FromContext(r.Context())
+	s, _, err := sessions.FromContext(r.Context())
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}

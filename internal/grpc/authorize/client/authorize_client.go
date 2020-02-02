@@ -3,10 +3,10 @@ package client
 
 import (
 	"context"
-	"errors"
+	"net/http"
 
+	"github.com/pomerium/pomerium/internal/grpc/authorize"
 	pb "github.com/pomerium/pomerium/internal/grpc/authorize"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 
 	"google.golang.org/grpc"
@@ -16,9 +16,9 @@ import (
 type Authorizer interface {
 	// Authorize takes a route and user session and returns whether the
 	// request is valid per access policy
-	Authorize(context.Context, string, *sessions.State) (bool, error)
+	Authorize(ctx context.Context, user string, r *http.Request) (bool, error)
 	// IsAdmin takes a session and returns whether the user is an administrator
-	IsAdmin(context.Context, *sessions.State) (bool, error)
+	IsAdmin(ctx context.Context, user string) (bool, error)
 	// Close closes the auth connection if any.
 	Close() error
 }
@@ -36,37 +36,47 @@ func New(conn *grpc.ClientConn) (p *Client, err error) {
 
 // Authorize takes a route and user session and returns whether the
 // request is valid per access policy
-func (c *Client) Authorize(ctx context.Context, route string, s *sessions.State) (bool, error) {
+func (c *Client) Authorize(ctx context.Context, user string, r *http.Request) (bool, error) {
 	ctx, span := trace.StartSpan(ctx, "grpc.authorize.client.Authorize")
 	defer span.End()
-
-	if s == nil {
-		return false, errors.New("session cannot be nil")
-	}
-	response, err := c.client.Authorize(ctx, &pb.Identity{
-		Route:             route,
-		User:              s.User,
-		Email:             s.Email,
-		Groups:            s.Groups,
-		ImpersonateEmail:  s.ImpersonateEmail,
-		ImpersonateGroups: s.ImpersonateGroups,
+	// var h map[string]&structpb.ListValue{}
+	response, err := c.client.IsAuthorized(ctx, &pb.IsAuthorizedRequest{
+		UserToken:         user,
+		RequestHost:       r.Host,
+		RequestMethod:     r.Method,
+		RequestHeaders:    cloneHeaders(r.Header),
+		RequestRemoteAddr: r.RemoteAddr,
+		RequestRequestUri: r.RequestURI,
+		RequestUrl:        r.URL.String(),
 	})
 	return response.GetIsValid(), err
 }
 
-// IsAdmin takes a session and returns whether the user is an administrator
-func (c *Client) IsAdmin(ctx context.Context, s *sessions.State) (bool, error) {
+// IsAdmin takes a route and user session and returns whether the
+// request is valid per access policy
+func (c *Client) IsAdmin(ctx context.Context, user string) (bool, error) {
 	ctx, span := trace.StartSpan(ctx, "grpc.authorize.client.IsAdmin")
 	defer span.End()
 
-	if s == nil {
-		return false, errors.New("session cannot be nil")
-	}
-	response, err := c.client.IsAdmin(ctx, &pb.Identity{Email: s.Email, Groups: s.Groups})
-	return response.GetIsAdmin(), err
+	response, err := c.client.IsAdmin(ctx, &pb.IsAdminRequest{
+		UserToken: user,
+	})
+	return response.GetIsValid(), err
 }
 
 // Close tears down the ClientConn and all underlying connections.
 func (c *Client) Close() error {
 	return c.Conn.Close()
+}
+
+type protoHeader map[string]*authorize.IsAuthorizedRequest_Headers
+
+func cloneHeaders(in http.Header) protoHeader {
+	out := make(protoHeader, len(in))
+	for key, values := range in {
+		newValues := make([]string, len(values))
+		copy(newValues, values)
+		out[key] = &authorize.IsAuthorizedRequest_Headers{Value: newValues}
+	}
+	return out
 }
