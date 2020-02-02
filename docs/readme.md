@@ -30,5 +30,5 @@ features:
 
   - src: /secure-server.svg
     title: Your apps. Your data. Deployed anywhere.
-    text: BeyondCorp-style access shouldn't come at the cost of cloud vendor lock-in, or control over data tenancy. Pomerium supports a wide array of deployment options. Whether you are on-prem, hybrid, or multi-cloud, we’ve got you covered.
+    text: BeyondCorp-style access shouldn't come at the cost of cloud vendor lock-in or control over data tenancy. Pomerium supports a wide array of deployment options. Whether you are on-prem, hybrid, or multi-cloud, we’ve got you covered.
 ---

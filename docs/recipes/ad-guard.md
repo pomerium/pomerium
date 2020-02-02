@@ -74,3 +74,5 @@ Set your router to use your new host as the primary DNS server.
 Simply navigate to your new adguard instance (e.g. `https://adguard.domain.example`) and behold all of the malware you and your family are no longer subjected to.
 
 ![adguard dashboard](./img/adguard-dashboard.png)
+
+[quick start]: ../docs/quick-start
