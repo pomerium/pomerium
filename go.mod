@@ -7,6 +7,7 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/cespare/xxhash/v2 v2.1.1
+	github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473 // indirect
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/go-redis/redis v6.15.6+incompatible
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
@@ -41,7 +42,7 @@ require (
 	google.golang.org/api v0.14.0
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11 // indirect
-	google.golang.org/grpc v1.26.0
+	google.golang.org/grpc v1.25.1
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.4.1
