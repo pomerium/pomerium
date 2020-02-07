@@ -503,6 +503,24 @@ Identity provider scopes correspond to access privilege scopes as defined in Sec
 
 Identity Provider Service Account is field used to configure any additional user account or access-token that may be required for querying additional user information during authentication. For a concrete example, Google an additional service account and to make a follow-up request to query a user's group membership. For more information, refer to the [identity provider] docs to see if your provider requires this setting.
 
+### Authenticate Callback Path
+
+- Environmental Variable: `AUTHENTICATE_CALLBACK_PATH`
+- Config File Key: `authenticate_callback_path`
+- Type: `string`
+- Default: `/oauth2/callback`
+- Optional
+
+The authenticate callback path is the path/url from the authenticate service that will receive the response from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client.
+
+This value is referred to as the `redirect_url` in the [OpenIDConnect](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest) and OAuth2 specs.
+
+See also:
+
+- [OAuth2 RFC 6749](https://tools.ietf.org/html/rfc6749#section-3.1.2)
+- [OIDC Spec](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)
+- [Google - Setting Redirect URI](https://developers.google.com/identity/protocols/OpenIDConnect#setredirecturi)
+
 ## Proxy Service
 
 ### Signing Key

@@ -43,6 +43,8 @@ func TestOptions_Validate(t *testing.T) {
 	badSharedKey.SharedKey = ""
 	badAuthenticateURL := newTestOptions(t)
 	badAuthenticateURL.AuthenticateURL = nil
+	badCallbackPath := newTestOptions(t)
+	badCallbackPath.AuthenticateCallbackPath = ""
 
 	tests := []struct {
 		name    string
@@ -60,6 +62,7 @@ func TestOptions_Validate(t *testing.T) {
 		{"no client id", emptyClientID, true},
 		{"no client secret", emptyClientSecret, true},
 		{"empty authenticate url", badAuthenticateURL, true},
+		{"empty callback path", badCallbackPath, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

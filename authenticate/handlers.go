@@ -31,8 +31,8 @@ func (a *Authenticate) Handler() http.Handler {
 		a.cookieSecret,
 		csrf.Secure(a.cookieOptions.Secure),
 		csrf.Path("/"),
-		csrf.UnsafePaths([]string{callbackPath}), // enforce CSRF on "safe" handler
-		csrf.FormValueName("state"),              // rfc6749 section-10.12
+		csrf.UnsafePaths([]string{a.RedirectURL.Path}), // enforce CSRF on "safe" handler
+		csrf.FormValueName("state"),                    // rfc6749 section-10.12
 		csrf.CookieName(fmt.Sprintf("%s_csrf", a.cookieOptions.Name)),
 		csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
 	))
