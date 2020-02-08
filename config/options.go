@@ -89,6 +89,12 @@ type Options struct {
 	AuthenticateURLString string   `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
 	AuthenticateURL       *url.URL `yaml:"-,omitempty"`
 
+	// AuthenticateCallbackPath is the path to the HTTP endpoint that will
+	// receive the response from your identity provider. The value must exactly
+	// match one of the authorized redirect URIs for the OAuth 2.0 client.
+	// Defaults to: `/oauth2/callback`
+	AuthenticateCallbackPath string `mapstructure:"authenticate_callback_path" yaml:"authenticate_callback_path,omitempty"`
+
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
 	CookieName     string        `mapstructure:"cookie_name" yaml:"cookie_name,omitempty"`
@@ -211,16 +217,17 @@ var defaultOptions = Options{
 		"X-XSS-Protection":          "1; mode=block",
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 	},
-	Addr:                    ":443",
-	ReadHeaderTimeout:       10 * time.Second,
-	ReadTimeout:             30 * time.Second,
-	WriteTimeout:            0, // support streaming by default
-	IdleTimeout:             5 * time.Minute,
-	RefreshCooldown:         5 * time.Minute,
-	GRPCAddr:                ":443",
-	GRPCClientTimeout:       10 * time.Second, // Try to withstand transient service failures for a single request
-	GRPCClientDNSRoundRobin: true,
-	CacheStore:              "autocache",
+	Addr:                     ":443",
+	ReadHeaderTimeout:        10 * time.Second,
+	ReadTimeout:              30 * time.Second,
+	WriteTimeout:             0, // support streaming by default
+	IdleTimeout:              5 * time.Minute,
+	RefreshCooldown:          5 * time.Minute,
+	GRPCAddr:                 ":443",
+	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
+	GRPCClientDNSRoundRobin:  true,
+	CacheStore:               "autocache",
+	AuthenticateCallbackPath: "/oauth2/callback",
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's

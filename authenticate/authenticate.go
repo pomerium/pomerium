@@ -27,8 +27,6 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-const callbackPath = "/oauth2/callback"
-
 // ValidateOptions checks that configuration are complete and valid.
 // Returns on first error found.
 func ValidateOptions(o config.Options) error {
@@ -46,6 +44,9 @@ func ValidateOptions(o config.Options) error {
 	}
 	if o.ClientSecret == "" {
 		return errors.New("authenticate: 'IDP_CLIENT_SECRET' is required")
+	}
+	if o.AuthenticateCallbackPath == "" {
+		return errors.New("authenticate: 'AUTHENTICATE_CALLBACK_PATH' is required")
 	}
 	return nil
 }
@@ -149,7 +150,7 @@ func New(opts config.Options) (*Authenticate, error) {
 	headerStore := header.NewStore(encryptedEncoder, "Pomerium")
 
 	redirectURL, _ := urlutil.DeepCopy(opts.AuthenticateURL)
-	redirectURL.Path = callbackPath
+	redirectURL.Path = opts.AuthenticateCallbackPath
 	// configure our identity provider
 	provider, err := identity.New(
 		opts.Provider,
