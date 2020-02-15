@@ -68,7 +68,7 @@ curl -L https://git.io/get_helm.sh | bash
 Add the default repository
 
 ```bash
-helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+helm repo add pomerium https://helm.pomerium.io
 ```
 
 ## NGINX Ingress
@@ -82,7 +82,7 @@ Also, please note that while this guide uses [NGINX Ingress Controller], Pomeriu
 NGINX Ingress controller can be installed via [Helm] from the official charts repository. To install the chart with the release name `helm-nginx-ingress`:
 
 ```bash
-install helm-nginx-ingress stable/nginx-ingress
+helm install helm-nginx-ingress stable/nginx-ingress
 ```
 
 ```bash
