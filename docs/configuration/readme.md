@@ -198,6 +198,30 @@ Enable grpc DNS based round robin load balancing. This method uses DNS to resolv
 - Type: `bool`
 - Default: `true`
 
+#### GRPC Server Max Connection Age
+
+Set max connection age for GRPC servers.  After this interval, servers ask clients to reconnect and perform any rediscovery for new/updated endpoints from DNS.  
+
+See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for details
+
+- Environmental Variable: `GRPC_SERVER_MAX_CONNECTION_AGE`
+- Config File Key: `grpc_server_max_connection_age`
+- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
+- Default: `5m`
+
+
+#### GRPC Server Max Connection Age Grace
+
+Additive period with `grpc_server_max_connection_age`, after which servers will force connections to close.
+
+See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for details
+
+- Environmental Variable: `GRPC_SERVER_MAX_CONNECTION_AGE_GRACE`
+- Config File Key: `grpc_server_max_connection_age_grace`
+- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
+- Default: `5m`
+
+
 ### Cookie options
 
 These settings control the Pomerium session cookies sent to users's
@@ -335,8 +359,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key       | Description                                                       | Required |
 | :--------------- | :---------------------------------------------------------------- | -------- |
-| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅       |
-| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌       |
+| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅        |
+| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌        |
 
 #### Jaeger
 
@@ -350,8 +374,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key                        | Description                                 | Required |
 | :-------------------------------- | :------------------------------------------ | -------- |
-| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅       |
-| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅       |
+| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
+| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
 
 #### Example
 
