@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
+
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 const privKey = `-----BEGIN EC PRIVATE KEY-----
@@ -46,6 +48,7 @@ func TestNewServer(t *testing.T) {
 		wantErr        bool
 	}{
 		{"simple", &ServerOptions{Addr: ":0"}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
+		{"simple keepalive options", &ServerOptions{Addr: ":0", KeepaliveParams: keepalive.ServerParameters{MaxConnectionAge: 5 * time.Minute}}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
 		{"bad tcp port", &ServerOptions{Addr: ":9999999"}, func(s *grpc.Server) {}, &sync.WaitGroup{}, true, true},
 		{"with certs", &ServerOptions{Addr: ":0", TLSCertificate: certb64}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
 	}

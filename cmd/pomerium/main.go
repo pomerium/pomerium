@@ -7,10 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
-	"github.com/gorilla/mux"
-	"google.golang.org/grpc"
-
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/cache"
@@ -27,6 +23,11 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/proxy"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 var versionFlag = flag.Bool("version", false, "prints the version")
@@ -147,7 +148,13 @@ func newGRPCServer(opt config.Options, as *authorize.Authorize, cs *cache.Cache,
 
 		}
 	}
-	so := &pgrpc.ServerOptions{Addr: opt.GRPCAddr}
+	so := &pgrpc.ServerOptions{
+		Addr: opt.GRPCAddr,
+		KeepaliveParams: keepalive.ServerParameters{
+			MaxConnectionAge:      opt.GRPCServerMaxConnectionAge,
+			MaxConnectionAgeGrace: opt.GRPCServerMaxConnectionAgeGrace,
+		},
+	}
 	if !opt.GRPCInsecure {
 		so.TLSCertificate = opt.TLSCertificate
 	}

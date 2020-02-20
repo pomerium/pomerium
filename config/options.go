@@ -171,6 +171,11 @@ type Options struct {
 	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin" yaml:"grpc_client_dns_roundrobin,omitempty"`
 
+	//GRPCServerMaxConnectionAge sets MaxConnectionAge in the grpc ServerParameters used to create GRPC Services
+	GRPCServerMaxConnectionAge time.Duration `mapstructure:"grpc_server_max_connection_age" yaml:"grpc_server_max_connection_age,omitempty"`
+	//GRPCServerMaxConnectionAgeGrace sets MaxConnectionAgeGrace in the grpc ServerParameters used to create GRPC Services
+	GRPCServerMaxConnectionAgeGrace time.Duration `mapstructure:"grpc_server_max_connection_age_grace,omitempty" yaml:"grpc_server_max_connection_age_grace,omitempty"` //nolint: lll
+
 	// ForwardAuthEndpoint allows for a given route to be used as a forward-auth
 	// endpoint instead of a reverse proxy. Some third-party proxies that do not
 	// have rich access control capabilities (nginx, envoy, ambassador, traefik)
@@ -217,17 +222,19 @@ var defaultOptions = Options{
 		"X-XSS-Protection":          "1; mode=block",
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 	},
-	Addr:                     ":443",
-	ReadHeaderTimeout:        10 * time.Second,
-	ReadTimeout:              30 * time.Second,
-	WriteTimeout:             0, // support streaming by default
-	IdleTimeout:              5 * time.Minute,
-	RefreshCooldown:          5 * time.Minute,
-	GRPCAddr:                 ":443",
-	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
-	GRPCClientDNSRoundRobin:  true,
-	CacheStore:               "autocache",
-	AuthenticateCallbackPath: "/oauth2/callback",
+	Addr:                            ":443",
+	ReadHeaderTimeout:               10 * time.Second,
+	ReadTimeout:                     30 * time.Second,
+	WriteTimeout:                    0, // support streaming by default
+	IdleTimeout:                     5 * time.Minute,
+	RefreshCooldown:                 5 * time.Minute,
+	GRPCAddr:                        ":443",
+	GRPCClientTimeout:               10 * time.Second, // Try to withstand transient service failures for a single request
+	GRPCClientDNSRoundRobin:         true,
+	GRPCServerMaxConnectionAge:      5 * time.Minute,
+	GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
+	CacheStore:                      "autocache",
+	AuthenticateCallbackPath:        "/oauth2/callback",
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's

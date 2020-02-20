@@ -13,6 +13,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
 )
 
 // NewServer creates a new gRPC serve.
@@ -27,7 +28,10 @@ func NewServer(opt *ServerOptions, registrationFn func(s *grpc.Server), wg *sync
 	if err != nil {
 		return nil, err
 	}
-	grpcOpts := []grpc.ServerOption{grpc.StatsHandler(metrics.NewGRPCServerStatsHandler(opt.Addr))}
+	grpcOpts := []grpc.ServerOption{
+		grpc.StatsHandler(metrics.NewGRPCServerStatsHandler(opt.Addr)),
+		grpc.KeepaliveParams(opt.KeepaliveParams),
+	}
 
 	if opt.TLSCertificate != nil {
 		log.Debug().Str("addr", opt.Addr).Msg("internal/grpc: serving over TLS")
@@ -65,6 +69,8 @@ type ServerOptions struct {
 	// In this mode, Pomerium is susceptible to man-in-the-middle attacks.
 	// This should be used only for testing.
 	InsecureServer bool
+
+	KeepaliveParams keepalive.ServerParameters
 }
 
 var defaultServerOptions = &ServerOptions{
