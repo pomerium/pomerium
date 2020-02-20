@@ -8,6 +8,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -219,12 +220,14 @@ func TestOptionsFromViper(t *testing.T) {
 		{"good",
 			[]byte(`{"insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				Policies:                 []Policy{{From: "https://from.example", To: "https://to.example"}},
-				CookieName:               "_pomerium",
-				CookieSecure:             true,
-				InsecureServer:           true,
-				CookieHTTPOnly:           true,
-				AuthenticateCallbackPath: "/oauth2/callback",
+				Policies:                        []Policy{{From: "https://from.example", To: "https://to.example"}},
+				CookieName:                      "_pomerium",
+				CookieSecure:                    true,
+				InsecureServer:                  true,
+				CookieHTTPOnly:                  true,
+				GRPCServerMaxConnectionAge:      5 * time.Minute,
+				GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
+				AuthenticateCallbackPath:        "/oauth2/callback",
 				Headers: map[string]string{
 					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 					"X-Frame-Options":           "SAMEORIGIN",
@@ -234,13 +237,15 @@ func TestOptionsFromViper(t *testing.T) {
 		{"good disable header",
 			[]byte(`{"insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				Policies:                 []Policy{{From: "https://from.example", To: "https://to.example"}},
-				CookieName:               "_pomerium",
-				AuthenticateCallbackPath: "/oauth2/callback",
-				CookieSecure:             true,
-				CookieHTTPOnly:           true,
-				InsecureServer:           true,
-				Headers:                  map[string]string{}},
+				Policies:                        []Policy{{From: "https://from.example", To: "https://to.example"}},
+				CookieName:                      "_pomerium",
+				AuthenticateCallbackPath:        "/oauth2/callback",
+				CookieSecure:                    true,
+				CookieHTTPOnly:                  true,
+				InsecureServer:                  true,
+				GRPCServerMaxConnectionAge:      5 * time.Minute,
+				GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
+				Headers:                         map[string]string{}},
 			false},
 		{"bad url", []byte(`{"policy":[{"from": "https://","to":"https://to.example"}]}`), nil, true},
 		{"bad policy", []byte(`{"policy":[{"allow_public_unauthenticated_access": "dog","to":"https://to.example"}]}`), nil, true},
