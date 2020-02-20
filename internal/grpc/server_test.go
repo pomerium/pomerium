@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 )

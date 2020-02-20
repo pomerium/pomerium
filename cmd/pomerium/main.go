@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
-	"github.com/gorilla/mux"
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/cache"
@@ -25,6 +23,9 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/proxy"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/gorilla/mux"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 )
