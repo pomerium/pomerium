@@ -29,7 +29,7 @@ func NewServer(opt *ServerOptions, registrationFn func(s *grpc.Server), wg *sync
 		return nil, err
 	}
 	grpcOpts := []grpc.ServerOption{
-		grpc.StatsHandler(metrics.NewGRPCServerStatsHandler(opt.Addr)),
+		grpc.StatsHandler(metrics.NewGRPCServerStatsHandler(opt.ServiceName)),
 		grpc.KeepaliveParams(opt.KeepaliveParams),
 	}
 
@@ -70,7 +70,11 @@ type ServerOptions struct {
 	// This should be used only for testing.
 	InsecureServer bool
 
+	// KeepaliveParams sets GRPC keepalive.ServerParameters
 	KeepaliveParams keepalive.ServerParameters
+
+	// ServiceName specifies the service name for telemetry exposition
+	ServiceName string
 }
 
 var defaultServerOptions = &ServerOptions{
