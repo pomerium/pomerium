@@ -131,10 +131,10 @@ func GRPCClientInterceptor(service string) grpc.UnaryClientInterceptor {
 
 		taggedCtx, tagErr := tag.New(
 			ctx,
-			tag.Insert(TagKeyService, service),
-			tag.Insert(TagKeyHost, cc.Target()),
-			tag.Insert(TagKeyGRPCMethod, rpcMethod),
-			tag.Insert(TagKeyGRPCService, rpcService),
+			tag.Upsert(TagKeyService, service),
+			tag.Upsert(TagKeyHost, cc.Target()),
+			tag.Upsert(TagKeyGRPCMethod, rpcMethod),
+			tag.Upsert(TagKeyGRPCService, rpcService),
 		)
 		if tagErr != nil {
 			log.Warn().Err(tagErr).Str("context", "GRPCClientInterceptor").Msg("telemetry/metrics: failed to create context")
@@ -170,9 +170,9 @@ func (h *GRPCServerStatsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.
 
 	taggedCtx, tagErr := tag.New(
 		handledCtx,
-		tag.Insert(TagKeyService, h.service),
-		tag.Insert(TagKeyGRPCMethod, rpcMethod),
-		tag.Insert(TagKeyGRPCService, rpcService),
+		tag.Upsert(TagKeyService, h.service),
+		tag.Upsert(TagKeyGRPCMethod, rpcMethod),
+		tag.Upsert(TagKeyGRPCService, rpcService),
 	)
 	if tagErr != nil {
 		log.Warn().Err(tagErr).Str("context", "GRPCServerStatsHandler").Msg("telemetry/metrics: failed to create context")

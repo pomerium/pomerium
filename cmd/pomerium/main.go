@@ -149,7 +149,8 @@ func newGRPCServer(opt config.Options, as *authorize.Authorize, cs *cache.Cache,
 		}
 	}
 	so := &pgrpc.ServerOptions{
-		Addr: opt.GRPCAddr,
+		Addr:        opt.GRPCAddr,
+		ServiceName: opt.Services,
 		KeepaliveParams: keepalive.ServerParameters{
 			MaxConnectionAge:      opt.GRPCServerMaxConnectionAge,
 			MaxConnectionAgeGrace: opt.GRPCServerMaxConnectionAgeGrace,

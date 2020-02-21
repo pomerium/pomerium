@@ -43,6 +43,9 @@ type Options struct {
 	// WithInsecure disables transport security for this ClientConn.
 	// Note that transport security is required unless WithInsecure is set.
 	WithInsecure bool
+
+	// ServiceName specifies the service name for telemetry exposition
+	ServiceName string
 }
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
@@ -57,7 +60,7 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		connAddr = fmt.Sprintf("%s:%d", connAddr, defaultGRPCPort)
 	}
 	dialOptions := []grpc.DialOption{
-		grpc.WithChainUnaryInterceptor(metrics.GRPCClientInterceptor(connAddr), grpcTimeoutInterceptor(opts.RequestTimeout)),
+		grpc.WithChainUnaryInterceptor(metrics.GRPCClientInterceptor(opts.ServiceName), grpcTimeoutInterceptor(opts.RequestTimeout)),
 		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
 		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
 	}

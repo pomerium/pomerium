@@ -112,9 +112,9 @@ func HTTPMetricsHandler(service string) func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, tagErr := tag.New(
 				r.Context(),
-				tag.Insert(TagKeyService, service),
-				tag.Insert(TagKeyHost, r.Host),
-				tag.Insert(TagKeyHTTPMethod, r.Method),
+				tag.Upsert(TagKeyService, service),
+				tag.Upsert(TagKeyHost, r.Host),
+				tag.Upsert(TagKeyHTTPMethod, r.Method),
 			)
 			if tagErr != nil {
 				log.Warn().Err(tagErr).Str("context", "HTTPMetricsHandler").Msg("telemetry/metrics: failed to create metrics tag")
@@ -139,10 +139,10 @@ func HTTPMetricsRoundTripper(service string, destination string) func(next http.
 		return tripper.RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
 			ctx, tagErr := tag.New(
 				r.Context(),
-				tag.Insert(TagKeyService, service),
-				tag.Insert(TagKeyHost, r.Host),
-				tag.Insert(TagKeyHTTPMethod, r.Method),
-				tag.Insert(TagKeyDestination, destination),
+				tag.Upsert(TagKeyService, service),
+				tag.Upsert(TagKeyHost, r.Host),
+				tag.Upsert(TagKeyHTTPMethod, r.Method),
+				tag.Upsert(TagKeyDestination, destination),
 			)
 			if tagErr != nil {
 				log.Warn().Err(tagErr).Str("context", "HTTPMetricsRoundTripper").Msg("telemetry/metrics: failed to create metrics tag")
