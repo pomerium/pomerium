@@ -28,7 +28,7 @@ module.exports = {
       { text: "Enterprise", link: "/enterprise/" },
 
       {
-        text: "v0.6.x", // current tagged version
+        text: "🚧Dev", // current tagged version
         ariaLabel: "Version menu",
         items: [
           { text: "🚧Dev", link: "https://master.docs.pomerium.io/docs" },
@@ -72,7 +72,8 @@ module.exports = {
             "quick-start/binary",
             "quick-start/helm",
             "quick-start/kubernetes",
-            "quick-start/synology"
+            "quick-start/synology",
+            "quick-start/from-source"
           ]
         },
         {
