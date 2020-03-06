@@ -182,7 +182,7 @@ func (p *Proxy) UpdateOptions(o config.Options) error {
 	if p == nil {
 		return nil
 	}
-	log.Info().Msg("proxy: updating options")
+	log.Info().Str("checksum", fmt.Sprintf("%x", o.Checksum())).Msg("proxy: updating options")
 	return p.UpdatePolicies(&o)
 }
 

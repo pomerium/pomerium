@@ -55,7 +55,7 @@ var (
 
 // SetConfigInfo records the status, checksum and timestamp of a configuration
 // reload. You must register InfoViews or the related config views before calling
-func SetConfigInfo(service string, success bool, checksum string) {
+func SetConfigInfo(service string, success bool) {
 
 	if success {
 		serviceTag := tag.Insert(TagKeyService, service)

@@ -15,19 +15,18 @@ func Test_SetConfigInfo(t *testing.T) {
 	tests := []struct {
 		name                  string
 		success               bool
-		checksum              string
 		wantLastReload        string
 		wantLastReloadSuccess string
 	}{
-		{"success", true, "abcde", "{ { {service test_service} }&{1.", "{ { {service test_service} }&{1} }"},
-		{"failed", false, "abcde", "", "{ {  }&{0} }"},
+		{"success", true, "{ { {service test_service} }&{1.", "{ { {service test_service} }&{1} }"},
+		{"failed", false, "", "{ {  }&{0} }"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			view.Unregister(InfoViews...)
 			view.Register(InfoViews...)
-			SetConfigInfo("test_service", tt.success, tt.checksum)
+			SetConfigInfo("test_service", tt.success)
 
 			testDataRetrieval(ConfigLastReloadView, t, tt.wantLastReload)
 			testDataRetrieval(ConfigLastReloadSuccessView, t, tt.wantLastReloadSuccess)

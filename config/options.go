@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -262,11 +261,7 @@ func NewOptionsFromConfig(configFile string) (*Options, error) {
 		return int64(len(o.Policies))
 	})
 
-	checksumDec, err := strconv.ParseUint(o.Checksum(), 16, 64)
-	if err != nil {
-		log.Warn().Err(err).Msg("config: could not parse config checksum into decimal")
-	}
-	metrics.SetConfigChecksum(o.Services, checksumDec)
+	metrics.SetConfigChecksum(o.Services, o.Checksum())
 
 	return o, nil
 }
@@ -522,13 +517,13 @@ type OptionsUpdater interface {
 }
 
 // Checksum returns the checksum of the current options struct
-func (o *Options) Checksum() string {
+func (o *Options) Checksum() uint64 {
 	hash, err := hashstructure.Hash(o, &hashstructure.HashOptions{Hasher: xxhash.New()})
 	if err != nil {
 		log.Warn().Err(err).Msg("config: checksum failure")
-		return "no checksum available"
+		return 0
 	}
-	return fmt.Sprintf("%x", hash)
+	return hash
 }
 
 // HandleConfigUpdate takes configuration file, an existing options struct, and
@@ -538,13 +533,13 @@ func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 	newOpt, err := NewOptionsFromConfig(configFile)
 	if err != nil {
 		log.Error().Err(err).Msg("config: could not reload configuration")
-		metrics.SetConfigInfo(opt.Services, false, "")
+		metrics.SetConfigInfo(opt.Services, false)
 		return opt
 	}
 	optChecksum := opt.Checksum()
 	newOptChecksum := newOpt.Checksum()
 
-	log.Debug().Str("old-checksum", optChecksum).Str("new-checksum", newOptChecksum).Msg("config: checksum change")
+	log.Debug().Str("old-checksum", fmt.Sprintf("%x", optChecksum)).Str("new-checksum", fmt.Sprintf("%x", newOptChecksum)).Msg("config: checksum change")
 
 	if newOptChecksum == optChecksum {
 		log.Debug().Msg("config: loaded configuration has not changed")
@@ -556,12 +551,13 @@ func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 		if err := service.UpdateOptions(*newOpt); err != nil {
 			log.Error().Err(err).Msg("config: could not update options")
 			updateFailed = true
-			metrics.SetConfigInfo(opt.Services, false, "")
+			metrics.SetConfigInfo(opt.Services, false)
 		}
 	}
 
 	if !updateFailed {
-		metrics.SetConfigInfo(newOpt.Services, true, newOptChecksum)
+		metrics.SetConfigInfo(newOpt.Services, true)
+		metrics.SetConfigChecksum(newOpt.Services, newOptChecksum)
 	}
 	return newOpt
 }

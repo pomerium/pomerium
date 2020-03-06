@@ -60,7 +60,7 @@ func newPolicyEvaluator(opts *config.Options) (evaluator.Evaluator, error) {
 // UpdateOptions implements the OptionsUpdater interface and updates internal
 // structures based on config.Options
 func (a *Authorize) UpdateOptions(opts config.Options) error {
-	log.Info().Str("checksum", opts.Checksum()).Msg("authorize: updating options")
+	log.Info().Str("checksum", fmt.Sprintf("%x", opts.Checksum())).Msg("authorize: updating options")
 	var err error
 	if a.pe, err = newPolicyEvaluator(&opts); err != nil {
 		return err
