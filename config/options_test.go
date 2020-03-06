@@ -191,10 +191,10 @@ func Test_Checksum(t *testing.T) {
 	newChecksum := o.Checksum()
 
 	if newChecksum == oldChecksum {
-		t.Errorf("Checksum() failed to update old = %s, new = %s", oldChecksum, newChecksum)
+		t.Errorf("Checksum() failed to update old = %d, new = %d", oldChecksum, newChecksum)
 	}
 
-	if newChecksum == "" || oldChecksum == "" {
+	if newChecksum == 0 || oldChecksum == 0 {
 		t.Error("Checksum() not returning data")
 	}
 
