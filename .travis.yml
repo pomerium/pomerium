@@ -12,10 +12,7 @@ cache:
   directories:
     - $HOME/.cache/go-build
     - $HOME/gopath/pkg/mod
-matrix:
-  allow_failures:
-    - go: tip
-  fast_finish: true
+
 before_script:
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
   - chmod +x ./cc-test-reporter
@@ -60,6 +57,9 @@ docker_login: &docker_login
   - echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
 
 matrix:
+  allow_failures:
+    - go: tip
+  fast_finish: true
   include:
     - name: "Test Build amd64"
       stage: "Docker Test Build"
