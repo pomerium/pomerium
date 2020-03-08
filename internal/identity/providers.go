@@ -10,7 +10,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/sessions"
 
-	oidc "github.com/pomerium/go-oidc"
+	oidc "github.com/coreos/go-oidc"
 	"golang.org/x/oauth2"
 )
 
@@ -81,6 +81,8 @@ type Provider struct {
 
 	UserGroupFn func(context.Context, *sessions.State) ([]string, error)
 
+	UserInfoEndpoint bool
+
 	// ServiceAccount can be set for those providers that require additional
 	// credentials or tokens to do follow up API calls (e.g. Google)
 	ServiceAccount string
@@ -117,6 +119,23 @@ func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.Sta
 	if err != nil {
 		return nil, err
 	}
+
+	// check if provider has info endpoint, try to hit that and gather more info
+	// especially useful if initial request did not an contain email, or subject
+	// https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
+	var claims struct {
+		UserInfoURL string `json:"userinfo_endpoint"`
+	}
+
+	if err := p.provider.Claims(&claims); err == nil && claims.UserInfoURL != "" {
+		userInfo, err := p.provider.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
+		if err != nil {
+			return nil, fmt.Errorf("internal/identity: could not retrieve user info %w", err)
+		}
+		s.Email = userInfo.Email
+		s.Subject = userInfo.Subject
+	}
+
 	if p.UserGroupFn != nil {
 		s.Groups, err = p.UserGroupFn(ctx, s)
 		if err != nil {

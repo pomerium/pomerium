@@ -3,7 +3,7 @@ package identity // import "github.com/pomerium/pomerium/internal/identity"
 import (
 	"context"
 
-	oidc "github.com/pomerium/go-oidc"
+	oidc "github.com/coreos/go-oidc"
 	"golang.org/x/oauth2"
 )
 

@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	oidc "github.com/pomerium/go-oidc"
+	oidc "github.com/coreos/go-oidc"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"

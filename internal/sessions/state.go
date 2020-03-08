@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash/v2"
+	oidc "github.com/coreos/go-oidc"
 	"github.com/mitchellh/hashstructure"
-	oidc "github.com/pomerium/go-oidc"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
