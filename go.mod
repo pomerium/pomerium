@@ -8,7 +8,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/fsnotify/fsnotify v1.4.7
-	github.com/go-redis/redis v6.15.6+incompatible
+	github.com/go-redis/redis/v7 v7.2.0
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 	github.com/golang/protobuf v1.3.4
 	github.com/google/go-cmp v0.4.0
