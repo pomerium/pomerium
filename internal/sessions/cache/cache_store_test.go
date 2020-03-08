@@ -163,13 +163,6 @@ func TestStore_LoadSession(t *testing.T) {
 			defaultOptions.QueryParam,
 			&mock.Store{Session: &sessions.State{AccessTokenID: key, Email: "user@pomerium.io"}},
 			true},
-		{"unmarshal failure",
-			&sessions.State{AccessTokenID: key, Email: "user@pomerium.io"},
-			&mockCache{KeyExists: true},
-			mock_encoder.Encoder{UnmarshalError: errors.New("err")},
-			defaultOptions.QueryParam,
-			&mock.Store{Session: &sessions.State{AccessTokenID: key, Email: "user@pomerium.io"}},
-			true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -187,7 +180,7 @@ func TestStore_LoadSession(t *testing.T) {
 			r.URL.RawQuery = q.Encode()
 			r.Header.Set("Accept", "application/json")
 
-			_, _, err := s.LoadSession(r)
+			_, err := s.LoadSession(r)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Store.LoadSession() error = %v, wantErr %v", err, tt.wantErr)
 				return

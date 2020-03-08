@@ -18,7 +18,7 @@ import (
 
 func testAuthorizer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _, err := sessions.FromContext(r.Context())
+		_, err := sessions.FromContext(r.Context())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return

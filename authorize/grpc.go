@@ -11,7 +11,7 @@ import (
 
 // IsAuthorized checks to see if a given user is authorized to make a request.
 func (a *Authorize) IsAuthorized(ctx context.Context, in *authorize.IsAuthorizedRequest) (*authorize.IsAuthorizedReply, error) {
-	_, span := trace.StartSpan(ctx, "authorize.grpc.Authorize")
+	ctx, span := trace.StartSpan(ctx, "authorize.grpc.IsAuthorized")
 	defer span.End()
 
 	req := &evaluator.Request{
@@ -23,25 +23,7 @@ func (a *Authorize) IsAuthorized(ctx context.Context, in *authorize.IsAuthorized
 		RemoteAddr: in.GetRequestRemoteAddr(),
 		URL:        in.GetRequestUrl(),
 	}
-	ok, err := a.pe.IsAuthorized(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	return &authorize.IsAuthorizedReply{IsValid: ok}, nil
-}
-
-// IsAdmin checks to see if a given user has super user privleges.
-func (a *Authorize) IsAdmin(ctx context.Context, in *authorize.IsAdminRequest) (*authorize.IsAdminReply, error) {
-	_, span := trace.StartSpan(ctx, "authorize.grpc.IsAdmin")
-	defer span.End()
-	req := &evaluator.Request{
-		User: in.GetUserToken(),
-	}
-	ok, err := a.pe.IsAdmin(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	return &authorize.IsAdminReply{IsValid: ok}, nil
+	return a.pe.IsAuthorized(ctx, req)
 }
 
 type protoHeader map[string]*authorize.IsAuthorizedRequest_Headers

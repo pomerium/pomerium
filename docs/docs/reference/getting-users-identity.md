@@ -17,7 +17,7 @@ By default, pomerium passes the following [response headers] to it's downstream 
 | `x-pomerium-authenticated-user-id`     | Subject is the user's id.                                      |
 | `x-pomerium-authenticated-user-email`  | Email is the user's email.                                     |
 | `x-pomerium-authenticated-user-groups` | Groups is the user's groups.                                   |
-| `x-pomerium-iap-jwt-assertion`         | **Recommended** Contains the user's details as a signed [JWT]. |
+| `x-pomerium-jwt-assertion`             | **Recommended** Contains the user's details as a signed [JWT]. |
 
 In an ideal environment, the cryptographic authenticity of the user's identifying headers should be enforced at the protocol level using mTLS.
 

@@ -15,5 +15,5 @@ type SessionStore interface {
 
 // SessionLoader defines an interface for loading a session.
 type SessionLoader interface {
-	LoadSession(*http.Request) (*State, string, error)
+	LoadSession(*http.Request) (string, error)
 }

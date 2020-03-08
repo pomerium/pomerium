@@ -63,9 +63,8 @@ func NewOktaProvider(p *Provider) (*OktaProvider, error) {
 		}
 		userAPI.Path = "/api/v1/users/"
 		oktaProvider.userAPI = userAPI
-
 	} else {
-		log.Warn().Msg("identity/okta: api token provided, cannot retrieve groups")
+		log.Warn().Msg("identity/okta: api token not set, cannot retrieve groups")
 	}
 
 	return &oktaProvider, nil

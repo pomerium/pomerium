@@ -3,8 +3,6 @@ package authorize
 import (
 	"testing"
 
-	"github.com/pomerium/pomerium/authorize/evaluator"
-	"github.com/pomerium/pomerium/authorize/evaluator/mock"
 	"github.com/pomerium/pomerium/config"
 )
 
@@ -49,26 +47,4 @@ func testPolicies(t *testing.T) []config.Policy {
 		testPolicy,
 	}
 	return policies
-}
-
-func TestAuthorize_UpdateOptions(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name    string
-		pe      evaluator.Evaluator
-		opts    config.Options
-		wantErr bool
-	}{
-		{"good", &mock.PolicyEvaluator{}, config.Options{}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := &Authorize{
-				pe: tt.pe,
-			}
-			if err := a.UpdateOptions(tt.opts); (err != nil) != tt.wantErr {
-				t.Errorf("Authorize.UpdateOptions() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
 }

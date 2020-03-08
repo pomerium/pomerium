@@ -41,16 +41,13 @@ func NewStore(enc encoding.MarshalUnmarshaler, qp string) *Store {
 }
 
 // LoadSession tries to retrieve the token string from URL query parameters.
-func (qp *Store) LoadSession(r *http.Request) (*sessions.State, string, error) {
+func (qp *Store) LoadSession(r *http.Request) (string, error) {
 	jwt := r.URL.Query().Get(qp.queryParamKey)
 	if jwt == "" {
-		return nil, "", sessions.ErrNoSessionFound
+		return "", sessions.ErrNoSessionFound
 	}
-	var session sessions.State
-	if err := qp.decoder.Unmarshal([]byte(jwt), &session); err != nil {
-		return nil, "", sessions.ErrMalformed
-	}
-	return &session, jwt, nil
+
+	return jwt, nil
 }
 
 // ClearSession clears the session cookie from a request's query param key `pomerium_session`.

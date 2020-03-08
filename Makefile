@@ -27,7 +27,7 @@ CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.ProjectURL=$(PKG)
 GO_LDFLAGS=-ldflags "-s -w $(CTIMEVAR)"
 GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
-GOLANGCI_VERSION = v1.21.0 # .... for some reason v1.18.0 misses?
+GOLANGCI_VERSION = v1.21.0 
  
 .PHONY: all
 all: clean build-deps test lint spellcheck build ## Runs a clean, build, fmt, lint, test, and vet.

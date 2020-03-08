@@ -13,6 +13,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
+	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -151,9 +152,9 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			uri.RawQuery = queryString.Encode()
 			r := httptest.NewRequest(http.MethodGet, uri.String(), nil)
 			r.Header.Set("Accept", "application/json")
-			state, _, err := tt.session.LoadSession(r)
+			state, err := tt.session.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, "", err)
+			ctx = sessions.NewContext(ctx, state, err)
 			r = r.WithContext(ctx)
 
 			w := httptest.NewRecorder()
@@ -187,17 +188,19 @@ func TestAuthenticate_SignOut(t *testing.T) {
 		wantCode     int
 		wantBody     string
 	}{
-		{"good post", http.MethodPost, nil, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &mstore.Store{Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusFound, ""},
-		{"failed revoke", http.MethodPost, nil, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &mstore.Store{Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: OH NO\"}\n"},
-		{"load session error", http.MethodPost, errors.New("error"), "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &mstore.Store{Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: error\"}\n"},
-		{"bad redirect uri", http.MethodPost, nil, "corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &mstore.Store{Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: corp.pomerium.io/ url does contain a valid scheme\"}\n"},
+		{"good post", http.MethodPost, nil, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &mstore.Store{Encrypted: true, Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusFound, ""},
+		{"failed revoke", http.MethodPost, nil, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &mstore.Store{Encrypted: true, Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: OH NO\"}\n"},
+		{"load session error", http.MethodPost, errors.New("error"), "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &mstore.Store{Encrypted: true, Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: error\"}\n"},
+		{"bad redirect uri", http.MethodPost, nil, "corp.pomerium.io/", "sig", "ts", identity.MockProvider{}, &mstore.Store{Encrypted: true, Session: &sessions.State{Email: "user@pomerium.io", AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Second)}}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: corp.pomerium.io/ url does contain a valid scheme\"}\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
 			a := &Authenticate{
-				sessionStore: tt.sessionStore,
-				provider:     tt.provider,
-				templates:    template.Must(frontend.NewTemplates()),
+				sessionStore:     tt.sessionStore,
+				provider:         tt.provider,
+				encryptedEncoder: mock.Encoder{},
+				templates:        template.Must(frontend.NewTemplates()),
 			}
 			u, _ := url.Parse("/sign_out")
 			params, _ := url.ParseQuery(u.RawQuery)
@@ -206,9 +209,12 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			params.Add(urlutil.QueryRedirectURI, tt.redirectURL)
 			u.RawQuery = params.Encode()
 			r := httptest.NewRequest(tt.method, u.String(), nil)
-			state, _, _ := tt.sessionStore.LoadSession(r)
+			state, err := tt.sessionStore.LoadSession(r)
+			if err != nil {
+				t.Fatal(err)
+			}
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, tt.ctxError)
 			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 
@@ -329,7 +335,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 	}{
 		{"good", nil, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, nil, identity.MockProvider{RefreshResponse: sessions.State{AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}}}, http.StatusOK},
 		{"invalid session", nil, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, errors.New("hi"), identity.MockProvider{}, http.StatusFound},
-		{"good refresh expired", nil, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, sessions.ErrExpired, identity.MockProvider{RefreshResponse: sessions.State{AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}}}, http.StatusOK},
+		{"good refresh expired", nil, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, nil, identity.MockProvider{RefreshResponse: sessions.State{AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}}}, http.StatusOK},
 		{"expired,refresh error", nil, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, sessions.ErrExpired, identity.MockProvider{RefreshError: errors.New("error")}, http.StatusFound},
 		{"expired,save error", nil, &mstore.Store{SaveError: errors.New("error"), Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, sessions.ErrExpired, identity.MockProvider{RefreshResponse: sessions.State{AccessToken: &oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}}}, http.StatusFound},
 		{"expired XHR,refresh error", map[string]string{"X-Requested-With": "XmlHttpRequest"}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, sessions.ErrExpired, identity.MockProvider{RefreshError: errors.New("error")}, http.StatusUnauthorized},
@@ -340,18 +346,26 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			signer, err := jws.NewHS256Signer(nil, "mock")
+			if err != nil {
+				t.Fatal(err)
+			}
 			a := Authenticate{
-				sharedKey:    cryptutil.NewBase64Key(),
-				cookieSecret: cryptutil.NewKey(),
-				RedirectURL:  uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
-				sessionStore: tt.session,
-				provider:     tt.provider,
-				cookieCipher: aead,
+				sharedKey:        cryptutil.NewBase64Key(),
+				cookieSecret:     cryptutil.NewKey(),
+				RedirectURL:      uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
+				sessionStore:     tt.session,
+				provider:         tt.provider,
+				cookieCipher:     aead,
+				encryptedEncoder: signer,
 			}
 			r := httptest.NewRequest("GET", "/", nil)
-			state, _, _ := tt.session.LoadSession(r)
+			state, err := tt.session.LoadSession(r)
+			if err != nil {
+				t.Fatal(err)
+			}
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, tt.ctxError)
 			r = r.WithContext(ctx)
 
 			r.Header.Set("Accept", "application/json")
@@ -408,9 +422,9 @@ func TestAuthenticate_RefreshAPI(t *testing.T) {
 				cookieCipher:     aead,
 			}
 			r := httptest.NewRequest("GET", "/", nil)
-			state, _, _ := tt.session.LoadSession(r)
+			state, _ := tt.session.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, tt.ctxError)
 			r = r.WithContext(ctx)
 
 			r.Header.Set("Accept", "application/json")
@@ -459,9 +473,9 @@ func TestAuthenticate_Refresh(t *testing.T) {
 				cookieCipher:     aead,
 			}
 			r := httptest.NewRequest("GET", "/", nil)
-			state, _, _ := tt.session.LoadSession(r)
+			state, _ := tt.session.LoadSession(r)
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, "", tt.ctxError)
+			ctx = sessions.NewContext(ctx, state, tt.ctxError)
 			r = r.WithContext(ctx)
 
 			r.Header.Set("Accept", "application/json")

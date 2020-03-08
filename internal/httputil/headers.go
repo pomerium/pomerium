@@ -1,11 +1,20 @@
 package httputil // import "github.com/pomerium/pomerium/internal/httputil"
 
+// Pomerium headers contain information added to a request.
 const (
 	// HeaderPomeriumResponse is set when pomerium itself creates a response,
 	// as opposed to the downstream application and can be used to distinguish
 	// between an application error, and a pomerium related error when debugging.
 	// Especially useful when working with single page apps (SPA).
 	HeaderPomeriumResponse = "x-pomerium-intercepted-response"
+	// HeaderPomeriumJWTAssertion is the header key containing JWT signed user details.
+	HeaderPomeriumJWTAssertion = "x-pomerium-jwt-assertion"
+	// HeaderPomeriumUserID is the header key containing the user's id.
+	HeaderPomeriumUserID = "x-pomerium-authenticated-user-id"
+	// HeaderPomeriumEmail is the header key containing the user's email.
+	HeaderPomeriumEmail = "x-pomerium-authenticated-user-email"
+	// HeaderPomeriumGroups is the header key containing the user's groups.
+	HeaderPomeriumGroups = "x-pomerium-authenticated-user-groups"
 )
 
 // HeadersContentSecurityPolicy are the content security headers added to the service's handlers

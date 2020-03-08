@@ -4,7 +4,10 @@ package authorize // import "github.com/pomerium/pomerium/authorize"
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+
+	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/evaluator/opa"
@@ -48,12 +51,37 @@ func newPolicyEvaluator(opts *config.Options) (evaluator.Evaluator, error) {
 	ctx := context.Background()
 	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
+	var jwk jose.JSONWebKey
+	if opts.SigningKey == "" {
+		key, err := cryptutil.NewSigningKey()
+		if err != nil {
+			return nil, fmt.Errorf("authorize: couldn't generate signing key: %w", err)
+		}
+		jwk.Key = key
+		pubKeyBytes, err := cryptutil.EncodePublicKey(&key.PublicKey)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: encode public key: %w", err)
+		}
+		log.Info().Interface("PublicKey", pubKeyBytes).Msg("authorize: ecdsa public key")
+	} else {
+		decodedCert, err := base64.StdEncoding.DecodeString(opts.SigningKey)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: failed to decode certificate cert %v: %w", decodedCert, err)
+		}
+		keyBytes, err := cryptutil.DecodePrivateKey((decodedCert))
+		if err != nil {
+			return nil, fmt.Errorf("authorize: couldn't generate signing key: %w", err)
+		}
+		jwk.Key = keyBytes
+	}
 
 	data := map[string]interface{}{
 		"shared_key":     opts.SharedKey,
 		"route_policies": opts.Policies,
 		"admins":         opts.Administrators,
+		"signing_key":    jwk,
 	}
+
 	return opa.New(ctx, &opa.Options{Data: data})
 }
 

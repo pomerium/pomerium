@@ -1,4 +1,4 @@
-//go:generate statik -src=./assets -include=*.svg,*.html,*.css,*.js
+//go:generate statik -src=./assets -include=*.svg,*.html,*.css,*.js -ns web
 
 // Package frontend handles the generation, and instantiation of Pomerium's
 // html templates.
@@ -16,10 +16,12 @@ import (
 	_ "github.com/pomerium/pomerium/internal/frontend/statik" // load static assets
 )
 
+const statikNamespace = "web"
+
 // NewTemplates loads pomerium's templates. Panics on failure.
 func NewTemplates() (*template.Template, error) {
 	t := template.New("pomerium-templates")
-	statikFS, err := fs.New()
+	statikFS, err := fs.NewWithNamespace(statikNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("internal/frontend: error creating new file system: %w", err)
 	}
@@ -49,7 +51,7 @@ func NewTemplates() (*template.Template, error) {
 // MustAssetHandler wraps a call to the embedded static file system and panics
 // if the error is non-nil. It is intended for use in variable initializations
 func MustAssetHandler() http.Handler {
-	statikFS, err := fs.New()
+	statikFS, err := fs.NewWithNamespace(statikNamespace)
 	if err != nil {
 		panic(err)
 	}

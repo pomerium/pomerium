@@ -30,21 +30,21 @@ To properly secure your app, you must use signed headers for all app types.
 
 ## Verification
 
-To secure your app with JWT, cryptographically verify the header, payload, and signature of the JWT. The JWT is in the HTTP request header `x-pomerium-iap-jwt-assertion`. If an attacker bypasses pomerium, they can forge the unsigned identity headers, `x-pomerium-authenticated-user-{email,id,groups}`. JWT provides a more secure alternative.
+To secure your app with JWT, cryptographically verify the header, payload, and signature of the JWT. The JWT is in the HTTP request header `x-pomerium-jwt-assertion`. If an attacker bypasses pomerium, they can forge the unsigned identity headers, `x-pomerium-authenticated-user-{email,id,groups}`. JWT provides a more secure alternative.
 
 Note that pomerium it strips the `x-pomerium-*` headers provided by the client when the request goes through the serving infrastructure.
 
 Verify that the JWT's header conforms to the following constraints:
 
- [JWT]   | description
-:------: | ------------------------------------------------------------------------------------------------------
- `exp`   | Expiration time in seconds since the UNIX epoch. Allow 1 minute for skew.
- `iat`   | Issued-at time in seconds since the UNIX epoch. Allow 1 minute for skew.
- `aud`   | The client's final domain e.g. `httpbin.corp.example.com`.
- `iss`   | Issuer must be `pomerium-proxy`.
- `sub`   | Subject is the user's id. Can be used instead of the `x-pomerium-authenticated-user-id` header.
-`email`  | Email is the user's email. Can be used instead of the `x-pomerium-authenticated-user-email` header.
-`groups` | Groups is the user's groups. Can be used instead of the `x-pomerium-authenticated-user-groups` header.
+|  [JWT]   | description                                                                                            |
+| :------: | ------------------------------------------------------------------------------------------------------ |
+|  `exp`   | Expiration time in seconds since the UNIX epoch. Allow 1 minute for skew.                              |
+|  `iat`   | Issued-at time in seconds since the UNIX epoch. Allow 1 minute for skew.                               |
+|  `aud`   | The client's final domain e.g. `httpbin.corp.example.com`.                                             |
+|  `iss`   | Issuer must be the URL of your authentication domain e.g. `authenticate.corp.example`.                 |
+|  `sub`   | Subject is the user's id. Can be used instead of the `x-pomerium-authenticated-user-id` header.        |
+| `email`  | Email is the user's email. Can be used instead of the `x-pomerium-authenticated-user-email` header.    |
+| `groups` | Groups is the user's groups. Can be used instead of the `x-pomerium-authenticated-user-groups` header. |
 
 ### Manual verification
 
@@ -52,33 +52,33 @@ Though you will very likely be verifying signed-headers programmatically in your
 
 1. Provide pomerium with a base64 encoded Elliptic Curve ([NIST P-256] aka [secp256r1] aka prime256v1) Private Key. In production, you'd likely want to get these from your KMS.
 
-  ```bash
-  # see ./scripts/generate_self_signed_signing_key.sh
-  openssl ecparam  -genkey  -name prime256v1  -noout  -out ec_private.pem
-  openssl req  -x509  -new  -key ec_private.pem  -days 1000000  -out ec_public.pem  -subj "/CN=unused"
-  # careful! this will output your private key in terminal
-  cat ec_private.pem | base64
-  ```
+```bash
+# see ./scripts/generate_self_signed_signing_key.sh
+openssl ecparam  -genkey  -name prime256v1  -noout  -out ec_private.pem
+openssl req  -x509  -new  -key ec_private.pem  -days 1000000  -out ec_public.pem  -subj "/CN=unused"
+# careful! this will output your private key in terminal
+cat ec_private.pem | base64
+```
 
-  Copy the base64 encoded value of your private key to `pomerium-proxy`'s environmental configuration variable `SIGNING_KEY`.
+Copy the base64 encoded value of your private key to `pomerium-proxy`'s environmental configuration variable `SIGNING_KEY`.
 
-  ```bash
-  SIGNING_KEY=ZxqyyIPPX0oWrrOwsxXgl0hHnTx3mBVhQ2kvW1YB4MM=
-  ```
+```bash
+SIGNING_KEY=ZxqyyIPPX0oWrrOwsxXgl0hHnTx3mBVhQ2kvW1YB4MM=
+```
 
 2. Reload `pomerium-proxy`. Navigate to httpbin (by default, `https://httpbin.corp.${YOUR-DOMAIN}.com`), and login as usual. Click **request inspection**. Select `/headers'. Click **try it out** and then **execute**. You should see something like the following.
 
-  ![httpbin displaying jwt headers](./img/inspect-headers.png)
+![httpbin displaying jwt headers](./img/inspect-headers.png)
 
 3. `X-Pomerium-Jwt-Assertion` is the signature value. It's less scary than it looks and basically just a compressed, json blob as described above. Navigate to [jwt.io] which provides a helpful GUI to manually verify JWT values.
 
 4. Paste the value of `X-Pomerium-Jwt-Assertion` header token into the `Encoded` form. You should notice that the decoded values look much more familiar.
 
-  ![httpbin displaying decoded jwt](./img/verifying-headers-1.png)
+![httpbin displaying decoded jwt](./img/verifying-headers-1.png)
 
 5. Finally, we want to cryptographically verify the validity of the token. To do this, we will need the signer's public key. You can simply copy and past the output of `cat ec_public.pem`.
 
-  ![httpbin displaying verified jwt](./img/verifying-headers-2.png)
+![httpbin displaying verified jwt](./img/verifying-headers-2.png)
 
 **Viola!** Hopefully walking through a manual verification has helped give you a better feel for how signed JWT tokens are used as a secondary validation mechanism in pomerium.
 

@@ -1,16 +1,17 @@
 package mock // import "github.com/pomerium/pomerium/internal/sessions/mock"
 
 import (
-	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pomerium/pomerium/internal/sessions"
 )
 
 func TestStore(t *testing.T) {
 	tests := []struct {
 		name        string
-		mockCSRF    *Store
+		store       *Store
+		wantLoad    string
 		saveSession *sessions.State
 		wantLoadErr bool
 		wantSaveErr bool
@@ -22,26 +23,27 @@ func TestStore(t *testing.T) {
 				SaveError:       nil,
 				LoadError:       nil,
 			},
+			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IiIsInByb2dyYW1hdGljIjpmYWxzZSwic3ViIjoiMDEwMSJ9.u0dzrEkbt-Bec7Rq85E8pbglE61D7UqGN33MFtfoCCM",
 			&sessions.State{Subject: "0101"},
 			false,
 			false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ms := tt.mockCSRF
+			ms := tt.store
 
 			err := ms.SaveSession(nil, nil, tt.saveSession)
 			if (err != nil) != tt.wantSaveErr {
-				t.Errorf("MockCSRFStore.GetCSRF() error = %v, wantSaveErr %v", err, tt.wantSaveErr)
+				t.Errorf("mockstore.SaveSession() error = %v, wantSaveErr %v", err, tt.wantSaveErr)
 				return
 			}
-			got, _, err := ms.LoadSession(nil)
+			got, err := ms.LoadSession(nil)
 			if (err != nil) != tt.wantLoadErr {
-				t.Errorf("MockCSRFStore.GetCSRF() error = %v, wantLoadErr %v", err, tt.wantLoadErr)
+				t.Errorf("mockstore.LoadSession() error = %v, wantLoadErr %v", err, tt.wantLoadErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.mockCSRF.Session) {
-				t.Errorf("MockCSRFStore.GetCSRF() = %v, want %v", got, tt.mockCSRF.Session)
+			if diff := cmp.Diff(got, tt.wantLoad); diff != "" {
+				t.Errorf("mockstore.LoadSession() = %v", diff)
 			}
 			ms.ClearSession(nil, nil)
 			if ms.ResponseSession != "" {
