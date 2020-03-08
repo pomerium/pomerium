@@ -132,8 +132,9 @@ func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.Sta
 		if err != nil {
 			return nil, fmt.Errorf("internal/identity: could not retrieve user info %w", err)
 		}
-		s.Email = userInfo.Email
-		s.Subject = userInfo.Subject
+		if err := userInfo.Claims(&s); err != nil {
+			return nil, err
+		}
 	}
 
 	if p.UserGroupFn != nil {
