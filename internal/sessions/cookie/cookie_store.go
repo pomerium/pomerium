@@ -125,10 +125,10 @@ func getCookies(r *http.Request, name string) []*http.Cookie {
 }
 
 // LoadSession returns a State from the cookie in the request.
-func (cs *Store) LoadSession(r *http.Request) (*sessions.State, string, error) {
+func (cs *Store) LoadSession(r *http.Request) (string, error) {
 	cookies := getCookies(r, cs.Name)
 	if len(cookies) == 0 {
-		return nil, "", sessions.ErrNoSessionFound
+		return "", sessions.ErrNoSessionFound
 	}
 	for _, cookie := range cookies {
 		jwt := loadChunkedCookie(r, cookie)
@@ -136,10 +136,10 @@ func (cs *Store) LoadSession(r *http.Request) (*sessions.State, string, error) {
 		session := &sessions.State{}
 		err := cs.decoder.Unmarshal([]byte(jwt), session)
 		if err == nil {
-			return session, jwt, nil
+			return jwt, nil
 		}
 	}
-	return nil, "", sessions.ErrMalformed
+	return "", sessions.ErrMalformed
 }
 
 // SaveSession saves a session state to a request's cookie store.

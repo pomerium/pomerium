@@ -191,7 +191,6 @@
           </form>
         </div>
       </div>
-      {{if .IsAdmin}}
 
       <div id="info-box">
         <div class="card">
@@ -204,7 +203,7 @@
             />
           </div>
 
-          <form method="POST" action="/.pomerium/impersonate">
+          <form method="POST" action="/.pomerium/admin/impersonate">
             <section>
               <p class="message">
                 Administrators can temporarily impersonate another user.
@@ -244,7 +243,6 @@
               </button>
             </div>
           </form>
-          {{ end }}
         </div>
       </div>
     </div>

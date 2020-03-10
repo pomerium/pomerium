@@ -63,12 +63,6 @@ func ValidateOptions(o config.Options) error {
 	if err := urlutil.ValidateURL(o.AuthorizeURL); err != nil {
 		return fmt.Errorf("proxy: invalid 'AUTHORIZE_SERVICE_URL': %w", err)
 	}
-
-	if len(o.SigningKey) != 0 {
-		if _, err := jws.NewES256Signer(o.SigningKey, ""); err != nil {
-			return fmt.Errorf("proxy: invalid 'SIGNING_KEY': %w", err)
-		}
-	}
 	return nil
 }
 
@@ -95,7 +89,6 @@ type Proxy struct {
 	Handler                http.Handler
 	sessionStore           sessions.SessionStore
 	sessionLoaders         []sessions.SessionLoader
-	signingKey             string
 	templates              *template.Template
 }
 
@@ -142,8 +135,7 @@ func New(opts config.Options) (*Proxy, error) {
 			cookieStore,
 			header.NewStore(encoder, "Pomerium"),
 			queryparam.NewStore(encoder, "pomerium_session")},
-		signingKey: opts.SigningKey,
-		templates:  template.Must(frontend.NewTemplates()),
+		templates: template.Must(frontend.NewTemplates()),
 	}
 	// errors checked in ValidateOptions
 	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
@@ -188,7 +180,6 @@ func (p *Proxy) UpdateOptions(o config.Options) error {
 
 // UpdatePolicies updates the H basedon the configured policies
 func (p *Proxy) UpdatePolicies(opts *config.Options) error {
-	var err error
 	if len(opts.Policies) == 0 {
 		log.Warn().Msg("proxy: configuration has no policies")
 	}
@@ -212,16 +203,14 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		if err := policy.Validate(); err != nil {
 			return fmt.Errorf("proxy: invalid policy %w", err)
 		}
-		r, err = p.reverseProxyHandler(r, policy)
-		if err != nil {
-			return err
-		}
+		r = p.reverseProxyHandler(r, policy)
+
 	}
 	p.Handler = r
 	return nil
 }
 
-func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) (*mux.Router, error) {
+func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) *mux.Router {
 	// 1. Create the reverse proxy connection
 	proxy := stdhttputil.NewSingleHostReverseProxy(policy.Destination)
 	// 2. Create a sublogger to handle any error logs
@@ -269,28 +258,21 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) (*mux.R
 	// Optional: if a public route, skip access control middleware
 	if policy.AllowPublicUnauthenticatedAccess {
 		log.Warn().Str("route", policy.String()).Msg("proxy: all access control disabled")
-		return r, nil
+		return r
 	}
 
 	// 4. Retrieve the user session and add it to the request context
 	rp.Use(sessions.RetrieveSession(p.sessionLoaders...))
-	// 5. AuthN - Verify the user is authenticated. Set email, group, & id headers
+	// 5. AuthN - Verify user session has been added to the request context
 	rp.Use(p.AuthenticateSession)
 	// 6. AuthZ - Verify the user is authorized for route
 	rp.Use(p.AuthorizeSession)
 	// 7. Strip the user session cookie from the downstream request
 	rp.Use(middleware.StripCookie(p.cookieOptions.Name))
+	// 8 . Add user details to the request logger context
+	rp.Use(p.userDetailsLoggerMiddleware)
 
-	// Optional: Add a signed JWT attesting to the user's id, email, and group
-	if len(p.signingKey) != 0 {
-		signer, err := jws.NewES256Signer(p.signingKey, policy.Destination.Host)
-		if err != nil {
-			return nil, err
-		}
-		rp.Use(p.SignRequest(signer))
-	}
-
-	return r, nil
+	return r
 }
 
 // roundTripperFromPolicy adjusts the std library's `DefaultTransport RoundTripper`

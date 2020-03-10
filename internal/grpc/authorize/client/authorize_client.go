@@ -16,31 +16,28 @@ import (
 type Authorizer interface {
 	// Authorize takes a route and user session and returns whether the
 	// request is valid per access policy
-	Authorize(ctx context.Context, user string, r *http.Request) (bool, error)
-	// IsAdmin takes a session and returns whether the user is an administrator
-	IsAdmin(ctx context.Context, user string) (bool, error)
+	Authorize(ctx context.Context, user string, r *http.Request) (*pb.IsAuthorizedReply, error)
 	// Close closes the auth connection if any.
 	Close() error
 }
 
 // Client is a gRPC implementation of an authenticator (authorize client)
 type Client struct {
-	Conn   *grpc.ClientConn
+	conn   *grpc.ClientConn
 	client pb.AuthorizerClient
 }
 
 // New returns a new authorize service client.
 func New(conn *grpc.ClientConn) (p *Client, err error) {
-	return &Client{Conn: conn, client: pb.NewAuthorizerClient(conn)}, nil
+	return &Client{conn: conn, client: pb.NewAuthorizerClient(conn)}, nil
 }
 
 // Authorize takes a route and user session and returns whether the
 // request is valid per access policy
-func (c *Client) Authorize(ctx context.Context, user string, r *http.Request) (bool, error) {
+func (c *Client) Authorize(ctx context.Context, user string, r *http.Request) (*pb.IsAuthorizedReply, error) {
 	ctx, span := trace.StartSpan(ctx, "grpc.authorize.client.Authorize")
 	defer span.End()
-	// var h map[string]&structpb.ListValue{}
-	response, err := c.client.IsAuthorized(ctx, &pb.IsAuthorizedRequest{
+	in := &pb.IsAuthorizedRequest{
 		UserToken:         user,
 		RequestHost:       r.Host,
 		RequestMethod:     r.Method,
@@ -48,25 +45,13 @@ func (c *Client) Authorize(ctx context.Context, user string, r *http.Request) (b
 		RequestRemoteAddr: r.RemoteAddr,
 		RequestRequestUri: r.RequestURI,
 		RequestUrl:        r.URL.String(),
-	})
-	return response.GetIsValid(), err
-}
-
-// IsAdmin takes a route and user session and returns whether the
-// request is valid per access policy
-func (c *Client) IsAdmin(ctx context.Context, user string) (bool, error) {
-	ctx, span := trace.StartSpan(ctx, "grpc.authorize.client.IsAdmin")
-	defer span.End()
-
-	response, err := c.client.IsAdmin(ctx, &pb.IsAdminRequest{
-		UserToken: user,
-	})
-	return response.GetIsValid(), err
+	}
+	return c.client.IsAuthorized(ctx, in)
 }
 
 // Close tears down the ClientConn and all underlying connections.
 func (c *Client) Close() error {
-	return c.Conn.Close()
+	return c.conn.Close()
 }
 
 type protoHeader map[string]*authorize.IsAuthorizedRequest_Headers

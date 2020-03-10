@@ -4,7 +4,6 @@ package authorize;
 
 service Authorizer {
   rpc IsAuthorized(IsAuthorizedRequest) returns (IsAuthorizedReply) {}
-  rpc IsAdmin(IsAdminRequest) returns (IsAdminReply) {}
 }
 
 message IsAuthorizedRequest {
@@ -30,8 +29,13 @@ message IsAuthorizedRequest {
   map<string, Headers> request_headers = 7;
 }
 
-message IsAuthorizedReply { bool is_valid = 1; }
+message IsAuthorizedReply {
+  bool allow = 1;
+  bool session_expired = 2; // special case
+  repeated string deny_reasons = 3;
+  string signed_jwt = 4;
+  string user = 5;
+  string email = 6;
+  repeated string groups = 7;
+}
 
-message IsAdminRequest { string user_token = 1; }
-
-message IsAdminReply { bool is_valid = 1; }

@@ -33,8 +33,11 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	))
 	// dashboard endpoints can be used by user's to view, or modify their session
 	h.Path("/").Handler(httputil.HandlerFunc(p.UserDashboard)).Methods(http.MethodGet)
-	h.Path("/impersonate").Handler(httputil.HandlerFunc(p.Impersonate)).Methods(http.MethodPost)
 	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
+	// admin endpoints authorization is also delegated to authorizer service
+	admin := h.PathPrefix("/admin").Subrouter()
+	admin.Use(p.AuthorizeSession)
+	admin.Path("/impersonate").Handler(httputil.HandlerFunc(p.Impersonate)).Methods(http.MethodPost)
 
 	// Authenticate service callback handlers and middleware
 	// callback used to set route-scoped session and redirect back to destination
@@ -85,21 +88,20 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 
 // UserDashboard lets users investigate, and refresh their current session.
 // It also contains certain administrative actions like user impersonation.
+//
 // Nota bene: This endpoint does authentication, not authorization.
 func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
-	session, jwt, err := sessions.FromContext(r.Context())
+	jwt, err := sessions.FromContext(r.Context())
 	if err != nil {
 		return err
 	}
-
-	isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), jwt)
-	if err != nil {
-		return err
+	var s sessions.State
+	if err := p.encoder.Unmarshal([]byte(jwt), &s); err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
 	p.templates.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Session":           session,
-		"IsAdmin":           isAdmin,
+		"Session":           s,
 		"csrfField":         csrf.TemplateField(r),
 		"ImpersonateAction": urlutil.QueryImpersonateAction,
 		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
@@ -112,18 +114,6 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
 // to the user's current user sessions state if the user is currently an
 // administrative user. Requests are redirected back to the user dashboard.
 func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) error {
-	session, jwt, err := sessions.FromContext(r.Context())
-	if err != nil {
-		return err
-	}
-	isAdmin, err := p.AuthorizeClient.IsAdmin(r.Context(), jwt)
-	if err != nil {
-		return err
-	}
-	if !isAdmin {
-		return httputil.NewError(http.StatusForbidden, fmt.Errorf("%s is not an administrator", session.RequestEmail()))
-	}
-	// OK to impersonation
 	redirectURL := urlutil.GetAbsoluteURL(r)
 	redirectURL.Path = dashboardURL // redirect back to the dashboard
 	signinURL := *p.authenticateSigninURL

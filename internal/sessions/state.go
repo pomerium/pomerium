@@ -13,11 +13,6 @@ import (
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
-const (
-	// DefaultLeeway defines the default leeway for matching NotBefore/Expiry claims.
-	DefaultLeeway = 1.0 * time.Minute
-)
-
 // timeNow is time.Now but pulled out as a variable for tests.
 var timeNow = time.Now
 
@@ -120,20 +115,20 @@ func (s State) RouteSession() *State {
 
 // Verify returns an error if the users's session state is not valid.
 func (s *State) Verify(audience string) error {
-	if s.NotBefore != nil && timeNow().Add(DefaultLeeway).Before(s.NotBefore.Time()) {
+	if s.NotBefore != nil && timeNow().Before(s.NotBefore.Time()) {
 		return ErrNotValidYet
 	}
 
-	if s.Expiry != nil && timeNow().Add(-DefaultLeeway).After(s.Expiry.Time()) {
+	if s.Expiry != nil && timeNow().After(s.Expiry.Time()) {
 		return ErrExpired
 	}
 
-	if s.IssuedAt != nil && timeNow().Add(DefaultLeeway).Before(s.IssuedAt.Time()) {
+	if s.IssuedAt != nil && !timeNow().Equal(s.IssuedAt.Time()) && timeNow().Before(s.IssuedAt.Time()) {
 		return ErrIssuedInTheFuture
 	}
 
 	// if we have an associated access token, check if that token has expired as well
-	if s.AccessToken != nil && timeNow().Add(-DefaultLeeway).After(s.AccessToken.Expiry) {
+	if s.AccessToken != nil && timeNow().After(s.AccessToken.Expiry) {
 		return ErrExpired
 	}
 

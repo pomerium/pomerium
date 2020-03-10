@@ -99,8 +99,7 @@ func TestStore_SaveSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	tests := []struct {
-		name string
-		// State       *State
+		name        string
 		State       interface{}
 		encoder     encoding.Marshaler
 		decoder     encoding.Unmarshaler
@@ -138,16 +137,20 @@ func TestStore_SaveSession(t *testing.T) {
 				r.AddCookie(cookie)
 			}
 
-			state, _, err := s.LoadSession(r)
+			enc := ecjson.New(c)
+			jwt, err := s.LoadSession(r)
 			if (err != nil) != tt.wantLoadErr {
 				t.Errorf("LoadSession() error = %v, wantErr %v", err, tt.wantLoadErr)
 				return
 			}
+			var state sessions.State
+			enc.Unmarshal([]byte(jwt), &state)
+
 			cmpOpts := []cmp.Option{
 				cmpopts.IgnoreUnexported(sessions.State{}),
 			}
 			if err == nil {
-				if diff := cmp.Diff(state, tt.State, cmpOpts...); diff != "" {
+				if diff := cmp.Diff(&state, tt.State, cmpOpts...); diff != "" {
 					t.Errorf("Store.LoadSession() got = %s", diff)
 				}
 			}

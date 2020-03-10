@@ -200,7 +200,7 @@ Enable grpc DNS based round robin load balancing. This method uses DNS to resolv
 
 #### GRPC Server Max Connection Age
 
-Set max connection age for GRPC servers.  After this interval, servers ask clients to reconnect and perform any rediscovery for new/updated endpoints from DNS.  
+Set max connection age for GRPC servers. After this interval, servers ask clients to reconnect and perform any rediscovery for new/updated endpoints from DNS.
 
 See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for details
 
@@ -208,7 +208,6 @@ See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for deta
 - Config File Key: `grpc_server_max_connection_age`
 - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
 - Default: `5m`
-
 
 #### GRPC Server Max Connection Age Grace
 
@@ -220,7 +219,6 @@ See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for deta
 - Config File Key: `grpc_server_max_connection_age_grace`
 - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
 - Default: `5m`
-
 
 ### Cookie options
 
@@ -359,8 +357,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key       | Description                                                       | Required |
 | :--------------- | :---------------------------------------------------------------- | -------- |
-| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅        |
-| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌        |
+| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅       |
+| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌       |
 
 #### Jaeger
 
@@ -374,8 +372,8 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key                        | Description                                 | Required |
 | :-------------------------------- | :------------------------------------------ | -------- |
-| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
-| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
+| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅       |
+| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅       |
 
 #### Example
 
@@ -546,15 +544,6 @@ See also:
 - [Google - Setting Redirect URI](https://developers.google.com/identity/protocols/OpenIDConnect#setredirecturi)
 
 ## Proxy Service
-
-### Signing Key
-
-- Environmental Variable: `SIGNING_KEY`
-- Config File Key: `signing_key`
-- Type: [base64 encoded] `string`
-- Optional
-
-Signing key is the base64 encoded key used to sign outbound requests. For more information see the [signed headers](./signed-headers.md) docs.
 
 ### Authenticate Service URL
 
@@ -869,6 +858,19 @@ Set Request Headers allows you to set static values for given request headers. T
 When enabled, this option will pass the host header from the incoming request to the proxied host, instead of the destination hostname.
 
 See [ProxyPreserveHost](http://httpd.apache.org/docs/2.0/mod/mod_proxy.html#proxypreservehost).
+
+## Authorize Service
+
+### Signing Key
+
+- Environmental Variable: `SIGNING_KEY`
+- Config File Key: `signing_key`
+- Type: [base64 encoded] `string`
+- Optional
+
+Signing key is the base64 encoded key used to sign outbound requests. For more information see the [signed headers](./signed-headers.md) docs.
+
+If no certificate is specified, one will be generated for you and the base64'd public key will be added to the logs.
 
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable

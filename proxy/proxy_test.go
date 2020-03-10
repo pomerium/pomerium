@@ -51,8 +51,6 @@ func TestOptions_Validate(t *testing.T) {
 	invalidCookieSecret.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
 	shortCookieLength := testOptions(t)
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
-	invalidSignKey := testOptions(t)
-	invalidSignKey.SigningKey = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
 	badSharedKey := testOptions(t)
 	badSharedKey.SharedKey = ""
 	sharedKeyBadBas64 := testOptions(t)
@@ -75,7 +73,6 @@ func TestOptions_Validate(t *testing.T) {
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},
-		{"invalid signing key", invalidSignKey, true},
 		{"shared secret bad base64", sharedKeyBadBas64, true},
 	}
 	for _, tt := range tests {
@@ -94,8 +91,6 @@ func TestNew(t *testing.T) {
 	good := testOptions(t)
 	shortCookieLength := testOptions(t)
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
-	badRoutedProxy := testOptions(t)
-	badRoutedProxy.SigningKey = "YmFkIGtleQo="
 	badCookie := testOptions(t)
 	badCookie.CookieName = ""
 	badPolicyURL := config.Policy{To: "http://", From: "http://bar.example"}
@@ -113,7 +108,6 @@ func TestNew(t *testing.T) {
 		{"good", good, true, false},
 		{"empty options", config.Options{}, false, true},
 		{"short secret/validate sanity check", shortCookieLength, false, true},
-		{"invalid ec key, valid base64 though", badRoutedProxy, false, true},
 		{"invalid cookie name, empty", badCookie, false, true},
 		{"bad policy, bad policy url", badNewPolicy, false, true},
 	}
@@ -186,30 +180,27 @@ func Test_UpdateOptions(t *testing.T) {
 		name            string
 		originalOptions config.Options
 		updatedOptions  config.Options
-		signingKey      string
 		host            string
 		wantErr         bool
 		wantRoute       bool
 	}{
-		{"good no change", good, good, "", "https://corp.example.example", false, true},
-		{"changed", good, newPolicies, "", "https://bar.example", false, true},
-		{"changed and missing", good, newPolicies, "", "https://corp.example.example", false, false},
-		{"bad signing key", good, newPolicies, "^bad base 64", "https://corp.example.example", true, false},
-		{"good signing key", good, newPolicies, "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSU0zbXBaSVdYQ1g5eUVneFU2czU3Q2J0YlVOREJTQ0VBdFFGNWZVV0hwY1FvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFaFBRditMQUNQVk5tQlRLMHhTVHpicEVQa1JyazFlVXQxQk9hMzJTRWZVUHpOaTRJV2VaLwpLS0lUdDJxMUlxcFYyS01TYlZEeXI5aWp2L1hoOThpeUV3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQ==", "https://corp.example.example", false, true},
-		{"bad change bad policy url", good, badNewPolicy, "", "https://bar.example", true, false},
-		{"disable tls verification", good, disableTLSPolicies, "", "https://bar.example", false, true},
-		{"custom root ca", good, customCAPolicies, "", "https://bar.example", false, true},
-		{"bad custom root ca base64", good, badCustomCAPolicies, "", "https://bar.example", true, false},
-		{"good client certs", good, goodClientCertPolicies, "", "https://bar.example", false, true},
-		{"custom server name", customServerName, customServerName, "", "https://bar.example", false, true},
-		{"good no policies to start", emptyPolicies, good, "", "https://corp.example.example", false, true},
-		{"allow websockets", good, allowWebSockets, "", "https://corp.example.example", false, true},
-		{"no websockets, custom timeout", good, customTimeout, "", "https://corp.example.example", false, true},
-		{"enable cors preflight", good, corsPreflight, "", "https://corp.example.example", false, true},
-		{"disable auth", good, disableAuth, "", "https://corp.example.example", false, true},
-		{"enable forward auth", good, fwdAuth, "", "https://corp.example.example", false, true},
-		{"set request headers", good, reqHeaders, "", "https://corp.example.example", false, true},
-		{"preserve host headers", preserveHostHeader, preserveHostHeader, "", "https://corp.example.example", false, true},
+		{"good no change", good, good, "https://corp.example.example", false, true},
+		{"changed", good, newPolicies, "https://bar.example", false, true},
+		{"changed and missing", good, newPolicies, "https://corp.example.example", false, false},
+		{"bad change bad policy url", good, badNewPolicy, "https://bar.example", true, false},
+		{"disable tls verification", good, disableTLSPolicies, "https://bar.example", false, true},
+		{"custom root ca", good, customCAPolicies, "https://bar.example", false, true},
+		{"bad custom root ca base64", good, badCustomCAPolicies, "https://bar.example", true, false},
+		{"good client certs", good, goodClientCertPolicies, "https://bar.example", false, true},
+		{"custom server name", customServerName, customServerName, "https://bar.example", false, true},
+		{"good no policies to start", emptyPolicies, good, "https://corp.example.example", false, true},
+		{"allow websockets", good, allowWebSockets, "https://corp.example.example", false, true},
+		{"no websockets, custom timeout", good, customTimeout, "https://corp.example.example", false, true},
+		{"enable cors preflight", good, corsPreflight, "https://corp.example.example", false, true},
+		{"disable auth", good, disableAuth, "https://corp.example.example", false, true},
+		{"enable forward auth", good, fwdAuth, "https://corp.example.example", false, true},
+		{"set request headers", good, reqHeaders, "https://corp.example.example", false, true},
+		{"preserve host headers", preserveHostHeader, preserveHostHeader, "https://corp.example.example", false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -218,7 +209,6 @@ func Test_UpdateOptions(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			p.signingKey = tt.signingKey
 			err = p.UpdateOptions(tt.updatedOptions)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateOptions: err = %v, wantErr = %v", err, tt.wantErr)
@@ -269,10 +259,8 @@ func TestNewReverseProxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	proxyHandler, err := p.reverseProxyHandler(mux.NewRouter(), newPolicy)
-	if err != nil {
-		t.Fatal(err)
-	}
+	proxyHandler := p.reverseProxyHandler(mux.NewRouter(), newPolicy)
+
 	ts.Config.Handler = proxyHandler
 
 	getReq, _ := http.NewRequest("GET", newPolicy.From, nil)

@@ -1,15 +1,18 @@
+//go:generate mockgen -destination mock_evaluator/mock.go github.com/pomerium/pomerium/authorize/evaluator Evaluator
+
 // Package evaluator defines a Evaluator interfaces that can be implemented by
 // a policy evaluator framework.
 package evaluator
 
 import (
 	"context"
+
+	pb "github.com/pomerium/pomerium/internal/grpc/authorize"
 )
 
 // Evaluator specifies the interface for a policy engine.
 type Evaluator interface {
-	IsAuthorized(ctx context.Context, input interface{}) (bool, error)
-	IsAdmin(ctx context.Context, input interface{}) (bool, error)
+	IsAuthorized(ctx context.Context, input interface{}) (*pb.IsAuthorizedReply, error)
 	PutData(ctx context.Context, data map[string]interface{}) error
 }
 
@@ -45,7 +48,5 @@ type Request struct {
 
 	// Device context
 	//
-	// todo(bdd):
-	// Use the peer TLS certificate as the basis for binding device
-	// identity with a request context !
+	// todo(bdd):  Use the peer TLS certificate to bind device state with a request
 }

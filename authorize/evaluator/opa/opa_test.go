@@ -100,8 +100,8 @@ func Test_Eval(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got != tt.want {
-				t.Errorf("pe.Eval() = %v, want %v", got, tt.want)
+			if got.GetAllow() != tt.want {
+				t.Errorf("pe.Eval() = %v, want %v", got.GetAllow(), tt.want)
 			}
 		})
 	}

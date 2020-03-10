@@ -42,16 +42,12 @@ func NewStore(enc encoding.Unmarshaler, headerType string) *Store {
 }
 
 // LoadSession tries to retrieve the token string from the Authorization header.
-func (as *Store) LoadSession(r *http.Request) (*sessions.State, string, error) {
+func (as *Store) LoadSession(r *http.Request) (string, error) {
 	jwt := TokenFromHeader(r, as.authHeader, as.authType)
 	if jwt == "" {
-		return nil, "", sessions.ErrNoSessionFound
+		return "", sessions.ErrNoSessionFound
 	}
-	var session sessions.State
-	if err := as.encoder.Unmarshal([]byte(jwt), &session); err != nil {
-		return nil, "", sessions.ErrMalformed
-	}
-	return &session, jwt, nil
+	return jwt, nil
 }
 
 // TokenFromHeader retrieves the value of the authorization header from a given

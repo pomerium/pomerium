@@ -7,6 +7,15 @@ description: >-
 
 # Upgrade Guide
 
+## Since 0.6.0
+
+### Breaking
+
+#### Getting user's identity
+
+User detail headers
+( `x-pomerium-authenticated-user-id` / `x-pomerium-authenticated-user-email` / `x-pomerium-authenticated-user-groups`) have been removed in favor of using the more secure, more data rich attestation jwt header (`x-pomerium-jwt-assertion`).
+
 ## Since 0.5.0
 
 ### Breaking

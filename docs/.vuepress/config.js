@@ -116,8 +116,6 @@ module.exports = {
             "reference/impersonation",
             "reference/programmatic-access",
             "reference/getting-users-identity",
-            "reference/signed-headers",
-            // "reference/examples",
             "reference/production-deployment"
           ]
         }

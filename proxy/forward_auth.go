@@ -40,7 +40,6 @@ func (p *Proxy) postSessionSetNOP(w http.ResponseWriter, r *http.Request) error 
 func (p *Proxy) nginxCallback(w http.ResponseWriter, r *http.Request) error {
 	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
 	if _, err := p.saveCallbackSession(w, r, encryptedSession); err != nil {
-
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -58,7 +57,6 @@ func (p *Proxy) traefikCallback(w http.ResponseWriter, r *http.Request) error {
 	encryptedSession := q.Get(urlutil.QuerySessionEncrypted)
 
 	if _, err := p.saveCallbackSession(w, r, encryptedSession); err != nil {
-
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -73,6 +71,7 @@ func (p *Proxy) traefikCallback(w http.ResponseWriter, r *http.Request) error {
 // provider. If the user is unauthorized, a `401` error is returned.
 func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		var err error
 		if status := r.FormValue("auth_status"); status == fmt.Sprint(http.StatusForbidden) {
 			return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
 		}
@@ -80,9 +79,8 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
-
-		s, _, err := sessions.FromContext(r.Context())
-		if errors.Is(err, sessions.ErrNoSessionFound) || errors.Is(err, sessions.ErrExpired) {
+		jwt, err := sessions.FromContext(r.Context())
+		if err != nil {
 			if verifyOnly {
 				return httputil.NewError(http.StatusUnauthorized, err)
 			}
@@ -94,18 +92,14 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			authN.RawQuery = q.Encode()
 			httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
 			return nil
-		} else if err != nil {
-			return httputil.NewError(http.StatusUnauthorized, err)
 		}
-		// depending on the configuration of the fronting proxy, the request Host
-		// and/or `X-Forwarded-Host` may be untrustd or change so we reverify
-		// the session's validity against the supplied uri
-		if err := s.Verify(uri.Hostname()); err != nil {
-			return httputil.NewError(http.StatusUnauthorized, err)
+		var s sessions.State
+		if err := p.encoder.Unmarshal([]byte(jwt), &s); err != nil {
+			return httputil.NewError(http.StatusBadRequest, err)
 		}
-		p.addPomeriumHeaders(w, r)
+
 		r.Host = uri.Host
-		if err := p.authorize(r); err != nil {
+		if err := p.authorize(w, r); err != nil {
 			return err
 		}
 
