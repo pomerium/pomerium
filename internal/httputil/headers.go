@@ -9,12 +9,6 @@ const (
 	HeaderPomeriumResponse = "x-pomerium-intercepted-response"
 	// HeaderPomeriumJWTAssertion is the header key containing JWT signed user details.
 	HeaderPomeriumJWTAssertion = "x-pomerium-jwt-assertion"
-	// HeaderPomeriumUserID is the header key containing the user's id.
-	HeaderPomeriumUserID = "x-pomerium-authenticated-user-id"
-	// HeaderPomeriumEmail is the header key containing the user's email.
-	HeaderPomeriumEmail = "x-pomerium-authenticated-user-email"
-	// HeaderPomeriumGroups is the header key containing the user's groups.
-	HeaderPomeriumGroups = "x-pomerium-authenticated-user-groups"
 )
 
 // HeadersContentSecurityPolicy are the content security headers added to the service's handlers

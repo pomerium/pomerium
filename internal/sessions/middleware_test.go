@@ -79,7 +79,7 @@ func TestVerifier(t *testing.T) {
 		state      sessions.State
 		wantStatus int
 	}{
-		{"empty session", mock.Store{}, sessions.State{}, 401},
+		{"empty session", mock.Store{LoadError: sessions.ErrNoSessionFound}, sessions.State{}, 401},
 		{"simple good load", mock.Store{Session: &sessions.State{Subject: "hi", Expiry: jwt.NewNumericDate(time.Now().Add(time.Second))}}, sessions.State{}, 200},
 		{"session error", mock.Store{LoadError: errors.New("err")}, sessions.State{}, 401},
 	}

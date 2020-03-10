@@ -269,6 +269,8 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) *mux.Ro
 	rp.Use(p.AuthorizeSession)
 	// 7. Strip the user session cookie from the downstream request
 	rp.Use(middleware.StripCookie(p.cookieOptions.Name))
+	// 8 . Add user details to the request logger context
+	rp.Use(p.userDetailsLoggerMiddleware)
 
 	return r
 }

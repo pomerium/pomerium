@@ -2,12 +2,12 @@
 
 ## v0.6.0
 
-## New
+### New
 
 - authenticate: support backend refresh @desimone [GH-438]
 - cache: add cache service @desimone [GH-457]
 
-## Changed
+### Changed
 
 - authorize: consolidate gRPC packages @desimone [GH-443]
 - config: added yaml tags to all options struct fields @travisgroth [GH-394],[gh-397]
@@ -16,19 +16,19 @@
 - config: validate that `shared_key` does not contain whitespace @travisgroth [GH-427]
 - httputil : wrap handlers for additional context @desimone [GH-413]
 
-## Fixed
+### Fixed
 
 - proxy: fix unauthorized redirect loop for forward auth @desimone [GH-448]
 - proxy: fixed regression preventing policy reload [GH-396](https://github.com/pomerium/pomerium/pull/396)
 
-## Documentation
+### Documentation
 
 - add cookie settings @danderson [GH-429]
 - fix typo in forward auth nginx example @travisgroth [GH-445]
 - improved sentence flow and other stuff @Rio [GH-422]
 - rename fwdauth to be forwardauth @desimone [GH-447]
 
-## Dependency
+### Dependency
 
 - chore(deps): update golang.org/x/crypto commit hash to 61a8779 @renovate [GH-452]
 - chore(deps): update golang.org/x/crypto commit hash to 530e935 @renovate [GH-458]

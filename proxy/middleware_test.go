@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"gopkg.in/square/go-jose.v2/jwt"
-
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/grpc/authorize"
@@ -19,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 func TestProxy_AuthenticateSession(t *testing.T) {
@@ -73,7 +72,7 @@ func TestProxy_AuthenticateSession(t *testing.T) {
 			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()
-			got := a.AuthenticateSession(fn)
+			got := a.userDetailsLoggerMiddleware(a.AuthenticateSession(fn))
 			got.ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("AuthenticateSession() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantStatus, w.Body.String())

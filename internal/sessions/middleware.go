@@ -67,7 +67,3 @@ func FromContext(ctx context.Context) (string, error) {
 type contextKey struct {
 	name string
 }
-
-func (k *contextKey) String() string {
-	return "context value " + k.name
-}

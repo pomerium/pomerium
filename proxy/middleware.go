@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/rs/zerolog"
+
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -136,12 +138,6 @@ func (p *Proxy) authorize(w http.ResponseWriter, r *http.Request) error {
 
 	r.Header.Set(httputil.HeaderPomeriumJWTAssertion, authz.GetSignedJwt())
 	w.Header().Set(httputil.HeaderPomeriumJWTAssertion, authz.GetSignedJwt())
-	r.Header.Set(httputil.HeaderPomeriumUserID, authz.GetUser())
-	w.Header().Set(httputil.HeaderPomeriumUserID, authz.GetUser())
-	r.Header.Set(httputil.HeaderPomeriumEmail, authz.GetEmail())
-	w.Header().Set(httputil.HeaderPomeriumEmail, authz.GetEmail())
-	r.Header.Set(httputil.HeaderPomeriumGroups, strings.Join(authz.GetGroups(), ","))
-	w.Header().Set(httputil.HeaderPomeriumGroups, strings.Join(authz.GetGroups(), ","))
 	return nil
 }
 
@@ -157,4 +153,27 @@ func SetResponseHeaders(headers map[string]string) func(next http.Handler) http.
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func (p *Proxy) userDetailsLoggerMiddleware(next http.Handler) http.Handler {
+	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		if jwt, err := sessions.FromContext(r.Context()); err == nil {
+			var s sessions.State
+			if err := p.encoder.Unmarshal([]byte(jwt), &s); err == nil {
+				l := log.Ctx(r.Context())
+				l.UpdateContext(func(c zerolog.Context) zerolog.Context {
+					return c.Strs("groups", s.Groups)
+				})
+				l.UpdateContext(func(c zerolog.Context) zerolog.Context {
+					return c.Str("email", s.Email)
+				})
+				l.UpdateContext(func(c zerolog.Context) zerolog.Context {
+					return c.Str("user-id", s.User)
+				})
+			}
+		}
+		next.ServeHTTP(w, r)
+		return nil
+	})
+
 }

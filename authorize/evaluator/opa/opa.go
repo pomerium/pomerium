@@ -19,7 +19,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	_ "github.com/pomerium/pomerium/authorize/evaluator/opa/policy" // load static assets
 	pb "github.com/pomerium/pomerium/internal/grpc/authorize"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
@@ -172,7 +171,6 @@ func decisionFromInterface(i interface{}) (*pb.IsAuthorizedReply, error) {
 	if v, ok := m["signed_jwt"].(string); ok {
 		d.SignedJwt = v
 	}
-	log.Debug().Interface("d", d).Interface("m", m).Msg("decision")
 	return &d, nil
 }
 

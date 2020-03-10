@@ -82,6 +82,7 @@ func TestProxy_UserDashboard(t *testing.T) {
 	}{
 		{"good", nil, opts, http.MethodGet, &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, true, http.StatusOK},
 		{"session context error", errors.New("error"), opts, http.MethodGet, &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, false, http.StatusInternalServerError},
+		{"bad encoder unmarshal", nil, opts, http.MethodGet, &mock.Encoder{UnmarshalError: errors.New("err")}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, false, http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
