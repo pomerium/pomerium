@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	oidc "github.com/pomerium/go-oidc"
+	oidc "github.com/coreos/go-oidc"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	admin "google.golang.org/api/admin/directory/v1"
