@@ -1,5 +1,5 @@
 // Package log provides a global logger for zerolog.
-package log // import "github.com/pomerium/pomerium/internal/log"
+package log
 
 import (
 	"context"

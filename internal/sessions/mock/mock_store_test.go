@@ -1,4 +1,4 @@
-package mock // import "github.com/pomerium/pomerium/internal/sessions/mock"
+package mock
 
 import (
 	"testing"

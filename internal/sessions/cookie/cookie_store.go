@@ -1,5 +1,5 @@
 // Package cookie provides a cookie based implementation of session store and loader.
-package cookie // import "github.com/pomerium/pomerium/internal/sessions/cookie"
+package cookie
 
 import (
 	"errors"

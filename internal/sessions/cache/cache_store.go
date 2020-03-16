@@ -1,6 +1,6 @@
 // Package cache provides a remote cache based implementation of session store
 // and loader. See pomerium's cache service for more details.
-package cache // import "github.com/pomerium/pomerium/internal/sessions/cache"
+package cache
 
 import (
 	"errors"

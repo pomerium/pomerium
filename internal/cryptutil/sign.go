@@ -1,4 +1,5 @@
-package cryptutil // import "github.com/pomerium/pomerium/internal/cryptutil"
+package cryptutil
+
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"

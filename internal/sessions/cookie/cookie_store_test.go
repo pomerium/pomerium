@@ -1,4 +1,4 @@
-package cookie // import "github.com/pomerium/pomerium/internal/sessions/cookie"
+package cookie
 
 import (
 	"crypto/rand"

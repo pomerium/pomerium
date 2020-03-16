@@ -1,4 +1,4 @@
-package header // import "github.com/pomerium/pomerium/internal/sessions/header"
+package header
 
 import (
 	"fmt"

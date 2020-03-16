@@ -1,6 +1,7 @@
 //go:generate protoc -I ../internal/grpc/authorize/ --go_out=plugins=grpc:../internal/grpc/authorize/ ../internal/grpc/authorize/authorize.proto
 
-package authorize // import "github.com/pomerium/pomerium/authorize"
+package authorize
+
 import (
 	"context"
 

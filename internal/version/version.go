@@ -1,5 +1,5 @@
 // Package version enables setting build-time version using ldflags.
-package version // import "github.com/pomerium/pomerium/internal/version"
+package version
 
 import (
 	"fmt"

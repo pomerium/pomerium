@@ -1,6 +1,6 @@
 // Package identity provides support for making OpenID Connect (OIDC)
 // and OAuth2 authenticated HTTP requests with third party identity providers.
-package identity // import "github.com/pomerium/pomerium/internal/identity"
+package identity
 
 import (
 	"context"

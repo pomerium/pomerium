@@ -1,4 +1,4 @@
-package middleware // import "github.com/pomerium/pomerium/internal/middleware"
+package middleware
 
 import (
 	"net/http"

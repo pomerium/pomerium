@@ -1,4 +1,4 @@
-package metrics // import "github.com/pomerium/pomerium/internal/telemetry/metrics"
+package metrics
 
 import (
 	"runtime"

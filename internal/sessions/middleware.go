@@ -1,4 +1,4 @@
-package sessions // import "github.com/pomerium/pomerium/internal/sessions"
+package sessions
 
 import (
 	"context"

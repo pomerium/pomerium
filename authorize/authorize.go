@@ -1,6 +1,6 @@
 // Package authorize is a pomerium service that is responsible for determining
 // if a given request should be authorized (AuthZ).
-package authorize // import "github.com/pomerium/pomerium/authorize"
+package authorize
 
 import (
 	"context"

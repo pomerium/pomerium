@@ -1,4 +1,4 @@
-package httputil // import "github.com/pomerium/pomerium/internal/httputil"
+package httputil
 
 import (
 	"crypto/tls"

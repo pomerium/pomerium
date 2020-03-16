@@ -1,4 +1,4 @@
-package tripper // import "github.com/pomerium/pomerium/internal/tripper"
+package tripper
 
 import "net/http"
 

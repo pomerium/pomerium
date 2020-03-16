@@ -1,4 +1,4 @@
-package identity // import "github.com/pomerium/pomerium/internal/identity"
+package identity
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package grpc // import "github.com/pomerium/pomerium/internal/grpc"
+package grpc
 
 import (
 	"crypto/tls"
