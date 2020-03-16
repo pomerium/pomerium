@@ -1,6 +1,7 @@
 //go:generate protoc -I ../internal/grpc/cache/ --go_out=plugins=grpc:../internal/grpc/cache/ ../internal/grpc/cache/cache.proto
 
-package cache // import "github.com/pomerium/pomerium/cache"
+package cache
+
 import (
 	"context"
 

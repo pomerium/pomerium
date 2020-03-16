@@ -1,4 +1,4 @@
-package main // import "github.com/pomerium/pomerium/cmd/pomerium"
+package main
 
 import (
 	"flag"

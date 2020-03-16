@@ -1,6 +1,6 @@
 // Package header provides a request header based implementation of a
 // session loader.
-package header // import "github.com/pomerium/pomerium/internal/sessions/header"
+package header
 
 import (
 	"net/http"

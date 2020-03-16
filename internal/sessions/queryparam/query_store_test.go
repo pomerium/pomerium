@@ -1,4 +1,4 @@
-package queryparam // import "github.com/pomerium/pomerium/internal/sessions/queryparam"
+package queryparam
 
 import (
 	"errors"

@@ -2,7 +2,7 @@
 // internal routes. The proxy packages interoperates with other pomerium
 // services over RPC in order to make access control decisions about a
 // given incoming request.
-package proxy // import "github.com/pomerium/pomerium/proxy"
+package proxy
 
 import (
 	"crypto/cipher"

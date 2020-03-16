@@ -1,6 +1,6 @@
 // Package authenticate is a pomerium service that handles user authentication
 // and refersh (AuthN).
-package authenticate // import "github.com/pomerium/pomerium/authenticate"
+package authenticate
 
 import (
 	"crypto/cipher"

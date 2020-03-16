@@ -1,4 +1,4 @@
-package authenticate // import "github.com/pomerium/pomerium/authenticate"
+package authenticate
 
 import (
 	"context"

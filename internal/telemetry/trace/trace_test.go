@@ -1,4 +1,4 @@
-package trace // import "github.com/pomerium/pomerium/internal/telemetry/trace"
+package trace
 
 import "testing"
 

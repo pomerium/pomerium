@@ -1,4 +1,4 @@
-package proxy // import "github.com/pomerium/pomerium/proxy"
+package proxy
 
 import (
 	"io/ioutil"

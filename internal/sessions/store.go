@@ -1,6 +1,6 @@
 // Package sessions handles the storage, management, and validation
 // of pomerium user sessions.
-package sessions // import "github.com/pomerium/pomerium/internal/sessions"
+package sessions
 
 import (
 	"net/http"

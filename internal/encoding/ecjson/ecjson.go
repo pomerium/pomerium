@@ -1,5 +1,5 @@
 // Package ecjson represents encrypted and compressed content using JSON-based
-package ecjson // import "github.com/pomerium/pomerium/internal/encoding/ecjson"
+package ecjson
 
 import (
 	"bytes"

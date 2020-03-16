@@ -1,6 +1,6 @@
 // Package jws represents content secured with digitalsignatures
 // using JSON-based data structures as specified by rfc7515
-package jws // import "github.com/pomerium/pomerium/internal/encoding/jws"
+package jws
 
 import (
 	"github.com/pomerium/pomerium/internal/encoding"

@@ -1,6 +1,6 @@
 // Package tripper provides utility functions for working with the
 // http.RoundTripper interface.
-package tripper // import "github.com/pomerium/pomerium/internal/tripper"
+package tripper
 
 import (
 	"net/http"

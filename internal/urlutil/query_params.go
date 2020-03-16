@@ -1,4 +1,4 @@
-package urlutil // import "github.com/pomerium/pomerium/internal/urlutil"
+package urlutil
 
 // Common query parameters used to set and send data between Pomerium
 // services over HTTP calls and redirects. They are typically used in

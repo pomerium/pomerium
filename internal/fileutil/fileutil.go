@@ -1,6 +1,6 @@
 // Package fileutil provides file utility functions, complementing the
 // lower level abstractions found in the standard library.
-package fileutil // import "github.com/pomerium/pomerium/internal/fileutil"
+package fileutil
 
 import (
 	"errors"

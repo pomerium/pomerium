@@ -1,4 +1,4 @@
-package urlutil // import "github.com/pomerium/pomerium/internal/urlutil"
+package urlutil
 
 import "errors"
 

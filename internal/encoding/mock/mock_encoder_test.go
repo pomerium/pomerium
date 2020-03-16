@@ -1,4 +1,4 @@
-package mock // import "github.com/pomerium/pomerium/internal/encoding/mock"
+package mock
 
 import (
 	"errors"
