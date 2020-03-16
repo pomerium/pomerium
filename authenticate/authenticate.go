@@ -39,6 +39,9 @@ func ValidateOptions(o config.Options) error {
 	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
 		return fmt.Errorf("authenticate: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
 	}
+	if o.Provider == "" {
+		return errors.New("authenticate: 'IDP_PROVIDER' is required")
+	}
 	if o.ClientID == "" {
 		return errors.New("authenticate: 'IDP_CLIENT_ID' is required")
 	}
