@@ -1,6 +1,7 @@
 package sessions
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -181,4 +182,25 @@ func (s *State) accessTokenHash() string {
 		return ""
 	}
 	return fmt.Sprintf("%x", hash)
+}
+
+// UnmarshalJSON parses the JSON-encoded session state.
+// TODO(BDD): remove in v0.8.0
+func (s *State) UnmarshalJSON(b []byte) error {
+	type Alias State
+	t := &struct {
+		*Alias
+		OldToken *oauth2.Token `json:"access_token,omitempty"` // < v0.5.0
+	}{
+		Alias: (*Alias)(s),
+	}
+	if err := json.Unmarshal(b, &t); err != nil {
+		return err
+	}
+	if t.AccessToken == nil {
+		t.AccessToken = t.OldToken
+	}
+	*s = *(*State)(t.Alias)
+
+	return nil
 }
