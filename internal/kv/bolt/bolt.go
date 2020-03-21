@@ -5,9 +5,10 @@ package bolt
 import (
 	"context"
 
-	"github.com/pomerium/pomerium/internal/kv"
-
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/pomerium/pomerium/internal/kv"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 
 var _ kv.Store = &Store{}
@@ -64,6 +65,7 @@ func New(o *Options) (*Store, error) {
 		return nil, err
 	}
 
+	metrics.AddBoltDBMetrics(db.Stats)
 	return &Store{db: db, bucket: o.Bucket}, nil
 }
 

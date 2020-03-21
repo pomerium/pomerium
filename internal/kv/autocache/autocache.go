@@ -12,9 +12,11 @@ import (
 	"sync"
 
 	"github.com/golang/groupcache"
+
 	"github.com/pomerium/autocache"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/kv"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -116,13 +118,14 @@ func New(o *Options) (*Store, error) {
 	}
 	serverOpts := &httputil.ServerOptions{Addr: o.Addr}
 	var wg sync.WaitGroup
-	s.srv, err = httputil.NewServer(serverOpts, QueryParamToCtx(s.cluster), &wg)
+	s.srv, err = httputil.NewServer(serverOpts, metrics.HTTPMetricsHandler("groupcache")(QueryParamToCtx(s.cluster)), &wg)
 	if err != nil {
 		return nil, err
 	}
 	if _, err := s.cluster.Join([]string{o.ClusterDomain}); err != nil {
 		return nil, err
 	}
+	metrics.AddGroupCacheMetrics(s.db)
 	return &s, nil
 }
 
@@ -191,7 +194,9 @@ func (s signedSession) RoundTrip(req *http.Request) (*http.Response, error) {
 	q.Set(defaultQueryParamKey, session)
 	newReqURL.RawQuery = q.Encode()
 	newReq.URL = urlutil.NewSignedURL(s.sharedKey, &newReqURL).Sign()
-	return http.DefaultTransport.RoundTrip(newReq)
+
+	tripper := metrics.HTTPMetricsRoundTripper("cache", "groupcache")(http.DefaultTransport)
+	return tripper.RoundTrip(newReq)
 }
 
 // QueryParamToCtx takes a value from a query param and adds it to the
