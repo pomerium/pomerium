@@ -1,4 +1,4 @@
-project_name: pomerium-cli
+project_name: pomerium
 
 before:
   hooks:
@@ -7,13 +7,20 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
+    goarch:
+      - 386
+      - amd64
+      - arm
+      - arm64
     goos:
       - linux
       - darwin
       - windows
       - freebsd
-    main: ./cmd/pomerium-cli/cli.go
-    # binary: pomerium-sa
+    main: ./cmd/pomerium/main.go
+    ignore:
+      - goos: darwin
+        goarch: 386
 
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
@@ -52,4 +59,26 @@ brews:
     homepage: https://www.pomerium.io
     description: Authenticate, authorize, monitor, and secure user access to any application without a VPN.
     test: |
-      system "#{bin}/pomerium-cli"
+      system "#{bin}/pomerium --version"
+
+dockers:
+  - image_templates:
+      - "pomerium/pomerium:{{ .Tag }}"
+      - "pomerium/pomerium:latest"
+    dockerfile: Dockerfile
+    binaries:
+      - pomerium
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--label=com.github.actions.name={{.ProjectName}}"
+      - "--label=com.github.actions.description=Authenticate, authorize, monitor, and secure user access to any application without a VPN"
+      - "--label=com.github.actions.icon=terminal"
+      - "--label=com.github.actions.color=blue"
+      - "--label=repository=http://github.com/pomerium/pomerium"
+      - "--label=homepage=http://www.pomerium.io"
+      - "--label=maintainer=Bobby DeSimone <bdd@pomerium.io>"
