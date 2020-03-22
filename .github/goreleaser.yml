@@ -38,18 +38,18 @@ checksum:
 snapshot:
   name_template: "{{ .Tag }}-next"
 
-changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "README"
-      - "readme"
-      - "dependency"
-      - "dep"
-      - "^docs:"
-      - "^test:"
-      - Merge pull request
-      - Merge branch
+# changelog:
+#   sort: asc
+#   filters:
+#     exclude:
+#       - "README"
+#       - "readme"
+#       - "dependency"
+#       - "dep"
+#       - "^docs:"
+#       - "^test:"
+#       - Merge pull request
+#       - Merge branch
 
 brews:
   - github:
@@ -82,9 +82,6 @@ dockers:
       - "--label=repository=http://github.com/pomerium/pomerium"
       - "--label=homepage=http://www.pomerium.io"
       - "--label=maintainer=Bobby DeSimone <bdd@pomerium.io>"
-    extra_files:
-      - go.mod
-      - go.sum
     # goos: linux
     # goarch: amd64
     # goarm: ""

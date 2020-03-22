@@ -4,6 +4,6 @@ RUN touch /config.yaml
 FROM gcr.io/distroless/static
 WORKDIR /pomerium
 COPY --from=build /config.yaml /pomerium/config.yaml
-COPY scripts/entrypoint.sh /entrypoint.sh
+COPY pomerium /bin/pomerium
 ENTRYPOINT [ "/bin/pomerium" ]
 CMD ["-config","/pomerium/config.yaml"]
