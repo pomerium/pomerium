@@ -189,8 +189,6 @@ func newGlobalRouter(o *config.Options) *mux.Router {
 			Dur("duration", duration).
 			Int("size", size).
 			Int("status", status).
-			// Str("email", r.Header.Get(httputil.HeaderPomeriumEmail)).
-			// Str("group", r.Header.Get(httputil.HeaderPomeriumGroups)).
 			Str("method", r.Method).
 			Str("service", o.Services).
 			Str("host", r.Host).
