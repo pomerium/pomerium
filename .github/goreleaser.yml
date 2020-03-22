@@ -82,3 +82,9 @@ dockers:
       - "--label=repository=http://github.com/pomerium/pomerium"
       - "--label=homepage=http://www.pomerium.io"
       - "--label=maintainer=Bobby DeSimone <bdd@pomerium.io>"
+    extra_files:
+      - go.mod
+      - go.sum
+    # goos: linux
+    # goarch: amd64
+    # goarm: ""
