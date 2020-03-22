@@ -116,16 +116,9 @@ func (s State) RouteSession() *State {
 
 // Verify returns an error if the users's session state is not valid.
 func (s *State) Verify(audience string) error {
-	if s.NotBefore != nil && timeNow().Before(s.NotBefore.Time()) {
-		return ErrNotValidYet
-	}
 
 	if s.Expiry != nil && timeNow().After(s.Expiry.Time()) {
 		return ErrExpired
-	}
-
-	if s.IssuedAt != nil && !timeNow().Equal(s.IssuedAt.Time()) && timeNow().Before(s.IssuedAt.Time()) {
-		return ErrIssuedInTheFuture
 	}
 
 	// if we have an associated access token, check if that token has expired as well

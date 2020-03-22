@@ -75,11 +75,13 @@ expired {
 }
 
 deny["token is expired (exp)"]{
-	now_seconds:=time.now_ns()/1e9
-	[header, payload, _] := io.jwt.decode(input.user)
-	payload.exp < now_seconds
+	expired
 }
 
+deny[sprintf("token has bad audience (aud): %s not in %+v",[input.host,payload.aud])]{
+	[header, payload, _] := io.jwt.decode(input.user)
+	not element_in_list(payload.aud,input.host)
+}
 
 # allow user is admin
 allow {
