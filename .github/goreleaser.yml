@@ -1,0 +1,55 @@
+project_name: pomerium-cli
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+      - freebsd
+    main: ./cmd/pomerium-cli/cli.go
+    # binary: pomerium-sa
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    replacements:
+      darwin: macos
+      386: i386
+      amd64: x86_64
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "{{ .ProjectName }}_checksums.txt"
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "README"
+      - "readme"
+      - "dependency"
+      - "dep"
+      - "^docs:"
+      - "^test:"
+      - Merge pull request
+      - Merge branch
+
+brews:
+  - github:
+      owner: pomerium
+      name: homebrew-tap
+    folder: Formula
+    homepage: https://www.pomerium.io
+    description: Authenticate, authorize, monitor, and secure user access to any application without a VPN.
+    test: |
+      system "#{bin}/pomerium-cli"
