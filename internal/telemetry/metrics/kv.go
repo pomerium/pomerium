@@ -14,16 +14,16 @@ func AddGroupCacheMetrics(gc *groupcache.Group) {
 		desc string
 		f    func() int64
 	}{
-		{"groupcache_gets", "Total get request, including from peers", gc.Stats.Gets.Get},
-		{"groupcache_cache_hits", "Total cache hits in local or cluster cache", gc.Stats.CacheHits.Get},
-		{"groupcache_cache_hits", "Total cache hits in local or cluster cache", gc.Stats.CacheHits.Get},
-		{"groupcache_peer_loads", "Total remote loads or cache hits without error", gc.Stats.PeerLoads.Get},
-		{"groupcache_peer_errors", "Total errors from peers", gc.Stats.PeerErrors.Get},
-		{"groupcache_loads", "Total gets without cache hits", gc.Stats.Loads.Get},
-		{"groupcache_loads_deduped", "gets without cache hits after duplicate suppression", gc.Stats.LoadsDeduped.Get},
-		{"groupcache_local_loads", "Total good local loads", gc.Stats.LocalLoads.Get},
-		{"groupcache_local_load_errs", "Total local load errors", gc.Stats.LocalLoadErrs.Get},
-		{"groupcache_server_requests", "Total gets from peers", gc.Stats.ServerRequests.Get},
+		{"groupcache_gets_total", "Total get request, including from peers", gc.Stats.Gets.Get},
+		{"groupcache_cache_hits_total", "Total cache hits in local or cluster cache", gc.Stats.CacheHits.Get},
+		{"groupcache_cache_hits_total", "Total cache hits in local or cluster cache", gc.Stats.CacheHits.Get},
+		{"groupcache_peer_loads_total", "Total remote loads or cache hits without error", gc.Stats.PeerLoads.Get},
+		{"groupcache_peer_errors_total", "Total errors from peers", gc.Stats.PeerErrors.Get},
+		{"groupcache_loads_total", "Total gets without cache hits", gc.Stats.Loads.Get},
+		{"groupcache_loads_deduped_total", "gets without cache hits after duplicate suppression", gc.Stats.LoadsDeduped.Get},
+		{"groupcache_local_loads_total", "Total good local loads", gc.Stats.LocalLoads.Get},
+		{"groupcache_local_load_errs_total", "Total local load errors", gc.Stats.LocalLoadErrs.Get},
+		{"groupcache_server_requests_total", "Total gets from peers", gc.Stats.ServerRequests.Get},
 	}
 
 	for _, m := range cumulativeMetrics {

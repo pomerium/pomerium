@@ -21,9 +21,9 @@ func Test_AddGroupCacheMetrics(t *testing.T) {
 		stat *groupcache.AtomicInt
 		want int64
 	}{
-		{"groupcache_gets", &gc.Stats.Gets, 4},
-		{"groupcache_loads", &gc.Stats.Loads, 42},
-		{"groupcache_server_requests", &gc.Stats.ServerRequests, 8},
+		{"groupcache_gets_total", &gc.Stats.Gets, 4},
+		{"groupcache_loads_total", &gc.Stats.Loads, 42},
+		{"groupcache_server_requests_total", &gc.Stats.ServerRequests, 8},
 	}
 
 	labelValues := []metricdata.LabelValue{
