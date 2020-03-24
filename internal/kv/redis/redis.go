@@ -9,7 +9,9 @@ import (
 	"fmt"
 
 	"github.com/go-redis/redis/v7"
+
 	"github.com/pomerium/pomerium/internal/kv"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 
 var _ kv.Store = &Store{}
@@ -56,6 +58,7 @@ func New(o *Options) (*Store, error) {
 		return nil, fmt.Errorf("kv/redis: error connecting to redis: %w", err)
 	}
 
+	metrics.AddRedisMetrics(db.PoolStats)
 	return &Store{db: db}, nil
 }
 
