@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -87,6 +88,25 @@ func run() error {
 	sa.Expiry = jwt.NewNumericDate(time.Now().Add(expiry))
 	sa.IssuedAt = jwt.NewNumericDate(time.Now())
 	sa.NotBefore = jwt.NewNumericDate(time.Now())
+	// why not be pretty?
+	c := color.New(color.FgGreen)
+	// check that we've got our shared key to sign our jwt
+	var sharedKey string
+	args := flags.Args()
+	if len(args) == 1 {
+		sharedKey = args[0]
+	} else {
+		if _, err := c.Println("Enter base64 encoded shared key >"); err != nil {
+			return err
+		}
+		scanner := bufio.NewScanner(os.Stdin)
+		scanner.Scan()
+		sharedKey = scanner.Text()
+	}
+
+	if sharedKey == "" {
+		return errors.New("shared key required")
+	}
 
 	if sa.Email == "" {
 		return errors.New("email is required")
@@ -100,13 +120,6 @@ func run() error {
 		return errors.New("iss is required")
 	}
 
-	// check that we've got our shared key to sign our jwt
-	args := flags.Args()
-	if len(args) != 1 {
-		return errors.New("shared key required")
-	}
-
-	sharedKey := args[0]
 	decodedKey, err := base64.StdEncoding.DecodeString(sharedKey)
 	if err != nil {
 		return fmt.Errorf("shared key not base64: %w", err)
@@ -124,7 +137,6 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("couldn't pretty print jwt: %w", err)
 	}
-	c := color.New(color.FgCyan).Add(color.Underline)
 	if _, err := c.Println("Service Account"); err != nil {
 		return err
 	}
