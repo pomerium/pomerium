@@ -115,7 +115,7 @@ func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.Sta
 		return nil, err
 	}
 
-	s, err := sessions.NewStateFromTokens(idToken, oauth2Token, p.RedirectURL.Hostname())
+	s, err := sessions.NewStateFromTokens(idToken, oauth2Token, p.RedirectURL.Host)
 	if err != nil {
 		return nil, err
 	}
