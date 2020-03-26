@@ -16,22 +16,6 @@ import (
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
-type stringSlice []string
-
-func (i *stringSlice) String() string {
-	return fmt.Sprint(*i)
-}
-
-func (i *stringSlice) Set(value string) error {
-	if len(*i) > 0 {
-		return errors.New("already set")
-	}
-	for _, dt := range strings.Split(value, ",") {
-		*i = append(*i, dt)
-	}
-	return nil
-}
-
 type serviceAccount struct {
 	// Standard claims (as specified in RFC 7519).
 	jwt.Claims
@@ -60,9 +44,9 @@ func run() error {
 	// temporary variables we will use to hydrate our service account
 	// struct from basic types pulled in from our flags
 	var (
-		aud               stringSlice
-		groups            stringSlice
-		impersonateGroups stringSlice
+		aud               xstrings.CommaSlice
+		groups            xstrings.CommaSlice
+		impersonateGroups xstrings.CommaSlice
 		expiry            time.Duration
 	)
 
