@@ -133,7 +133,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	jwtAudience := []string{a.RedirectURL.Hostname(), redirectURL.Hostname()}
+	jwtAudience := []string{a.RedirectURL.Host, redirectURL.Host}
 
 	var callbackURL *url.URL
 	// if the callback is explicitly set, set it and add an additional audience
@@ -142,7 +142,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
-		jwtAudience = append(jwtAudience, callbackURL.Hostname())
+		jwtAudience = append(jwtAudience, callbackURL.Host)
 	} else {
 		// otherwise, assume callback is the same host as redirect
 		callbackURL, _ = urlutil.DeepCopy(redirectURL)

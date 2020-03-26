@@ -78,7 +78,7 @@ func (p GitLabProvider) Authenticate(ctx context.Context, code string) (*session
 		return nil, err
 	}
 
-	s, err := sessions.NewStateFromTokens(idToken, oauth2Token, p.RedirectURL.Hostname())
+	s, err := sessions.NewStateFromTokens(idToken, oauth2Token, p.RedirectURL.Host)
 	if err != nil {
 		return nil, err
 	}
