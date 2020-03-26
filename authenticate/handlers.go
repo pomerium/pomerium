@@ -279,12 +279,21 @@ func (a *Authenticate) OAuthCallback(w http.ResponseWriter, r *http.Request) err
 	return nil
 }
 
+func (a *Authenticate) statusForErrorCode(errorCode string) int {
+	switch errorCode {
+	case "access_denied", "unauthorized_client":
+		return http.StatusUnauthorized
+	default:
+		return http.StatusBadRequest
+	}
+}
+
 func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) (*url.URL, error) {
 	// Error Authentication Response: rfc6749#section-4.1.2.1 & OIDC#3.1.2.6
 	//
 	// first, check if the identity provider returned an error
 	if idpError := r.FormValue("error"); idpError != "" {
-		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("identity provider: %v", idpError))
+		return nil, httputil.NewError(a.statusForErrorCode(idpError), fmt.Errorf("identity provider: %v", idpError))
 	}
 	// fail if no session redemption code is returned
 	code := r.FormValue("code")
