@@ -13,19 +13,26 @@
 
     <div
       class="links"
-      :style="linksWrapMaxWidth ? {
-        'max-width': linksWrapMaxWidth + 'px'
-      } : {}"
+      :style="
+        linksWrapMaxWidth
+          ? {
+              'max-width': linksWrapMaxWidth + 'px'
+            }
+          : {}
+      "
     >
       <NavLinks class="can-hide" />
       <AlgoliaSearchBox v-if="isAlgoliaSearch" :options="algolia" />
       <SearchBox
-        v-else-if="$site.themeConfig.search !== false && $page.frontmatter.search !== false"
+        v-else-if="
+          $site.themeConfig.search !== false &&
+            $page.frontmatter.search !== false
+        "
       />
     </div>
   </header>
 </template>
- 
+
 <script>
 import AlgoliaSearchBox from "@AlgoliaSearchBox";
 import SearchBox from "@SearchBox";
@@ -82,61 +89,46 @@ function css(el, property) {
 </script>
 
 <style lang="stylus">
-$navbar-vertical-padding = 0.7rem;
-$navbar-horizontal-padding = 1.5rem;
-
-.navbar {
-  padding: $navbar-vertical-padding $navbar-horizontal-padding;
-  line-height: $navbarHeight - 1.4rem;
-  background: $navbar-background;
-
-  a, span, img {
-    display: inline-block;
-  }
-
-  .logo {
-    height: $navbarHeight - 3.1rem;
-    margin-right: 0.2rem;
-    vertical-align: middle;
-  }
-
-  .site-name {
-    font-size: 1.3rem;
-    font-weight: 600;
-    color: $textColor;
-    position: relative;
-  }
-
-  .links {
-    // padding-left: 1.5rem;
-    box-sizing: border-box;
-    background-color: $navbar-background;
-    white-space: nowrap;
-    font-size: 0.95rem;
-    position: absolute;
-    right: $navbar-horizontal-padding;
-    top: $navbar-vertical-padding;
-    display: flex;
-
-    .search-box {
-      padding-left: 1.5rem;
-      flex: 0 0 auto;
-      vertical-align: middle;
-    }
-  }
-}
-
-@media (max-width: $MQMobile) {
-  .navbar {
-    padding-left: 4rem;
-
-    .can-hide {
-      display: none;
-    }
-
-    .links {
-      padding-left: 1.5rem;
-    }
-  }
-}
+$navbar-vertical-padding = 0.7rem
+$navbar-horizontal-padding = 1.5rem
+.navbar
+  padding $navbar-vertical-padding $navbar-horizontal-padding
+  line-height $navbarHeight - 1.4rem
+  a, span, img
+    display inline-block
+  .logo
+    height $navbarHeight - 3.4rem
+    min-width $navbarHeight - 3.4rem
+    margin-right 0.8rem
+    vertical-align relative
+  .site-name
+    font-size 1.3rem
+    font-weight 600
+    color $textColor
+    position relative
+  .links
+    padding-left 1.5rem
+    box-sizing border-box
+    background-color navbar-background
+    white-space nowrap
+    font-size 0.9rem
+    position absolute
+    right $navbar-horizontal-padding
+    top $navbar-vertical-padding
+    display flex
+    .search-box
+      flex: 0 0 auto
+      vertical-align top
+@media (max-width: $MQMobile)
+  .navbar
+    padding-left 4rem
+    .can-hide
+      display none
+    .links
+      padding-left 1.5rem
+    .site-name
+      width calc(100vw - 9.4rem)
+      overflow hidden
+      white-space nowrap
+      text-overflow ellipsis
 </style>

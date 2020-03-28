@@ -126,14 +126,8 @@ a.sidebar-link {
   line-height: 1.3;
   width: 100%;
   box-sizing: border-box;
-
-  &:hover {
-    color: $accentColor;
-  }
-
   &.active {
     font-weight: 600;
-    color: $accentColor;
   }
 
   .sidebar-group & {

@@ -71,7 +71,6 @@ export default {
     background-color: $mainColor;
     color: $navbar-text-color;
     a {
-      line-height: 1.4rem;
       color: $navbar-text-color;
 
       &:hover, &.router-link-active {
@@ -86,10 +85,12 @@ export default {
     background-color: $mainColor;
     color: $navbar-text-color;
     a {
-      line-height: 1.4rem;
       color: $navbar-text-color;
-
       &:hover, &.router-link-active {
+        color: $navbar-text-color;
+      }
+      &.active {
+        font-weight: 600;
         color: $navbar-text-color;
       }
     }
