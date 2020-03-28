@@ -23,11 +23,13 @@ Name         | The name of your web app
 Redirect URI | `https://${authenticate_service_url}/oauth2/callback`
 Scopes       | **Must** select **read_user** and **openid**
 
+[Group ID](https://docs.gitlab.com/ee/api/groups.html#details-of-a-group) will be used to affirm group(s) a user belongs to.
+
 Your `Client ID` and `Client Secret` will be displayed:
 
 ![Gitlab OAuth Client ID and Secret](./img/gitlab/gitlab-credentials.png)
 
-Set `Client ID` and `Client Secret` in Pomerium's settings. Your [environmental variables] should look something like this.
+Set `Client ID` and `Client Secret` in Pomerium's settings. Your environment variables should look something like this.
 
 ```bash
 authenticate_service_url: https://authenticate.localhost.pomerium.io
