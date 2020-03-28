@@ -2,16 +2,19 @@ package identity // import "github.com/pomerium/pomerium/internal/identity"
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 
 	oidc "github.com/coreos/go-oidc"
+	"golang.org/x/oauth2"
+
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
-	"golang.org/x/oauth2"
 )
 
 const (
@@ -61,51 +64,8 @@ func NewGitLabProvider(p *Provider) (*GitLabProvider, error) {
 	if err := p.provider.Claims(&gp); err != nil {
 		return nil, err
 	}
-
+	gp.UserGroupFn = gp.UserGroups
 	return gp, nil
-}
-
-// Authenticate creates an identity session with gitlab from a authorization code, and makes
-// a call to the userinfo endpoint to get the information of the user.
-func (p GitLabProvider) Authenticate(ctx context.Context, code string) (*sessions.State, error) {
-	oauth2Token, err := p.oauth.Exchange(ctx, code)
-	if err != nil {
-		return nil, fmt.Errorf("internal/gitlab: token exchange failed: %w", err)
-	}
-
-	idToken, err := p.IdentityFromToken(ctx, oauth2Token)
-	if err != nil {
-		return nil, err
-	}
-
-	s, err := sessions.NewStateFromTokens(idToken, oauth2Token, p.RedirectURL.Host)
-	if err != nil {
-		return nil, err
-	}
-
-	var claims struct {
-		ID          string `json:"sub"`
-		UserInfoURL string `json:"userinfo_endpoint"`
-	}
-
-	if err := p.provider.Claims(&claims); err == nil && claims.UserInfoURL != "" {
-		userInfo, err := p.provider.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
-		if err != nil {
-			return nil, fmt.Errorf("internal/gitlab: could not retrieve user info %w", err)
-		}
-		if err := userInfo.Claims(&s); err != nil {
-			return nil, err
-		}
-	}
-
-	if p.UserGroupFn != nil {
-		s.Groups, err = p.UserGroupFn(ctx, s)
-		if err != nil {
-			return nil, fmt.Errorf("internal/gitlab: could not retrieve groups %w", err)
-		}
-	}
-
-	return s, nil
 }
 
 // UserGroups returns a slice of groups for the user.
@@ -118,11 +78,16 @@ func (p *GitLabProvider) UserGroups(ctx context.Context, s *sessions.State) ([]s
 	}
 
 	var response []struct {
-		ID          string `json:"id"`
-		Name        string `json:"name"`
-		Path        string `json:"path"`
-		Description string `json:"description"`
-		Visibility  string `json:"visibility"`
+		ID                             json.Number `json:"id"`
+		Name                           string      `json:"name,omitempty"`
+		Path                           string      `json:"path,omitempty"`
+		Description                    string      `json:"description,omitempty"`
+		Visibility                     string      `json:"visibility,omitempty"`
+		ShareWithGroupLock             bool        `json:"share_with_group_lock,omitempty"`
+		RequireTwoFactorAuthentication bool        `json:"require_two_factor_authentication,omitempty"`
+		SubgroupCreationLevel          string      `json:"subgroup_creation_level,omitempty"`
+		FullName                       string      `json:"full_name,omitempty"`
+		FullPath                       string      `json:"full_path,omitempty"`
 	}
 	headers := map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.AccessToken.AccessToken)}
 	err := httputil.Client(ctx, http.MethodGet, defaultGitLabGroupURL, version.UserAgent(), headers, nil, &response)
@@ -131,8 +96,10 @@ func (p *GitLabProvider) UserGroups(ctx context.Context, s *sessions.State) ([]s
 	}
 
 	var groups []string
+	log.Debug().Interface("response", response).Msg("identity/gitlab: groups")
+
 	for _, group := range response {
-		groups = append(groups, group.Name)
+		groups = append(groups, group.ID.String())
 	}
 
 	return groups, nil
