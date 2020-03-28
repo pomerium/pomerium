@@ -133,7 +133,7 @@ func New(o *Options) (*Store, error) {
 // Get, we have to be a little creative in how we smuggle in value using
 // context.
 func (s Store) Set(ctx context.Context, k string, v []byte) error {
-	// smuggle the the value pair as a context value
+	// smuggle the value pair as a context value
 	ctx = newContext(ctx, v)
 	if err := s.db.Get(ctx, k, groupcache.AllocatingByteSliceSink(&v)); err != nil {
 		return fmt.Errorf("autocache: set %s failed: %w", k, err)

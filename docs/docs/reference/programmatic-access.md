@@ -64,7 +64,7 @@ The application interacting with Pomerium must manage the following workflow. Co
 1. The script or application opens a browser or redirects the user to the returned login page.
 1. The user completes the identity providers login flow.
 1. The identity provider makes a callback to pomerium's authenticate service (e.g. `authenticate.corp.domain.example`) .
-1. Pomerium's authenticate service creates a user session and redirect token, then redirects back to the the managed endpoint (e.g. `httpbin.corp.domain.example`)
+1. Pomerium's authenticate service creates a user session and redirect token, then redirects back to the managed endpoint (e.g. `httpbin.corp.domain.example`)
 1. Pomerium's proxy service and makes a callback request to the original `redirect_uri` with the user session and refresh token as arguments.
 1. The script or application is responsible for handling that http callback request, and securely handling the callback session (`pomerium_jwt`) and refresh token (`pomerium_refresh_token`) queryparams.
 1. The script or application can now make any requests as normal, by setting the `Authorization: Pomerium ${pomerium_jwt}` header.

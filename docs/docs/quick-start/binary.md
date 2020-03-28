@@ -37,7 +37,7 @@ As mentioned above, Pomerium supports mixing and matching configuration. For exa
 
 ## Run
 
-Finally, source the the configuration `env` file and run pomerium specifying the `config.yaml` .
+Finally, source the configuration `env` file and run pomerium specifying the `config.yaml` .
 
 ```bash
 source ./env

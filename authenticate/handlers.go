@@ -133,7 +133,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	jwtAudience := []string{a.RedirectURL.Hostname(), redirectURL.Hostname()}
+	jwtAudience := []string{a.RedirectURL.Host, redirectURL.Host}
 
 	var callbackURL *url.URL
 	// if the callback is explicitly set, set it and add an additional audience
@@ -142,7 +142,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
-		jwtAudience = append(jwtAudience, callbackURL.Hostname())
+		jwtAudience = append(jwtAudience, callbackURL.Host)
 	} else {
 		// otherwise, assume callback is the same host as redirect
 		callbackURL, _ = urlutil.DeepCopy(redirectURL)
@@ -279,12 +279,21 @@ func (a *Authenticate) OAuthCallback(w http.ResponseWriter, r *http.Request) err
 	return nil
 }
 
+func (a *Authenticate) statusForErrorCode(errorCode string) int {
+	switch errorCode {
+	case "access_denied", "unauthorized_client":
+		return http.StatusUnauthorized
+	default:
+		return http.StatusBadRequest
+	}
+}
+
 func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) (*url.URL, error) {
 	// Error Authentication Response: rfc6749#section-4.1.2.1 & OIDC#3.1.2.6
 	//
 	// first, check if the identity provider returned an error
 	if idpError := r.FormValue("error"); idpError != "" {
-		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("identity provider: %v", idpError))
+		return nil, httputil.NewError(a.statusForErrorCode(idpError), fmt.Errorf("identity provider: %v", idpError))
 	}
 	// fail if no session redemption code is returned
 	code := r.FormValue("code")
