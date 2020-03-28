@@ -68,14 +68,31 @@ export default {
 
 @media (max-width: $MQMobileNarrow) {
   .sidebar {
-    background-color: #6E43E8;
+    background-color: $mainColor;
+    color: $navbar-text-color;
+    a {
+      line-height: 1.4rem;
+      color: $navbar-text-color;
+
+      &:hover, &.router-link-active {
+        color: $navbar-text-color;
+      }
+    }
   }
 }
 
 @media (max-width: $MQMobile) {
   .sidebar {
-    background-color: #6E43E8;
+    background-color: $mainColor;
+    color: $navbar-text-color;
+    a {
+      line-height: 1.4rem;
+      color: $navbar-text-color;
 
+      &:hover, &.router-link-active {
+        color: $navbar-text-color;
+      }
+    }
     .nav-links {
       display: block;
 
