@@ -28,10 +28,11 @@ module.exports = {
       { text: "Enterprise", link: "/enterprise/" },
 
       {
-        text: "🚧Dev", // current tagged version
+        text: "v0.7.x", // current tagged version
         ariaLabel: "Version menu",
         items: [
           { text: "🚧Dev", link: "https://master.docs.pomerium.io/docs" },
+          { text: "v0.7.x", link: "https://0-7-0.docs.pomerium.io/docs" },
           { text: "v0.6.x", link: "https://0-6-0.docs.pomerium.io/docs" },
           { text: "v0.5.x", link: "https://0-5-0.docs.pomerium.io/docs" },
           { text: "v0.4.x", link: "https://0-4-0.docs.pomerium.io/docs" },
