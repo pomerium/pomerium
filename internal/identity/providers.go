@@ -19,6 +19,8 @@ const (
 	AzureProviderName = "azure"
 	// GitlabProviderName identifies the GitLab identity provider
 	GitlabProviderName = "gitlab"
+	// GithubProviderName identifies the GitHub identity provider
+	GithubProviderName = "github"
 	// GoogleProviderName identifies the Google identity provider
 	GoogleProviderName = "google"
 	// OIDCProviderName identifies a generic OpenID connect provider
@@ -49,6 +51,8 @@ func New(providerName string, p *Provider) (a Authenticator, err error) {
 		a, err = NewAzureProvider(p)
 	case GitlabProviderName:
 		a, err = NewGitLabProvider(p)
+	case GithubProviderName:
+		a, err = NewGitHubProvider(p)
 	case GoogleProviderName:
 		a, err = NewGoogleProvider(p)
 	case OIDCProviderName:

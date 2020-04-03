@@ -87,6 +87,7 @@ module.exports = {
             "identity-providers/azure",
             "identity-providers/cognito",
             "identity-providers/gitlab",
+            "identity-providers/github",
             "identity-providers/google",
             "identity-providers/okta",
             "identity-providers/one-login"
