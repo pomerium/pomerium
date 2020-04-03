@@ -16,7 +16,7 @@ On the App Configuration page, **name the app** and **select a logo**. Select **
 
 ![One Login select logo](./img/one-login-select-logo.png)
 
-Next, set set the **Redirect URI's** setting to be Pomerium's redirect url `https://${AUTHENTICATE_SERVICE_URL}/oauth2/callback`.
+Next, set set the **Redirect URI's** setting to be Pomerium's redirect url `https://${authenticate_service_url}/oauth2/callback`.
 
 ![One Login set callback url](./img/one-login-callback-url.png)
 
