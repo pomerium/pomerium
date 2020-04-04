@@ -1,6 +1,6 @@
 stages:
-  - test
-  - "Docker Test Build"
+  - name: test
+    if: fork = false AND type = push
   - name: "Docker Build and Publish"
     if: fork = false AND type = push
 
@@ -61,13 +61,6 @@ matrix:
     - go: tip
   fast_finish: true
   include:
-    - name: "Test Build amd64"
-      stage: "Docker Test Build"
-      install: *docker_setup
-      go: 1.x
-      script:
-        - .travis/docker_build.sh ${TRAVIS_REPO_SLUG}:${TRAVIS_COMMIT} Dockerfile
-
     - name: "Build Master amd64"
       stage: "Docker Build and Publish"
       if: branch = master
