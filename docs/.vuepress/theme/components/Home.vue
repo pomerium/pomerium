@@ -3,24 +3,36 @@
     <header class="hero">
       <div class="section">
         <div class="content">
-          <h1 v-if="data.heroText !== null" id="main-title">{{ data.heroText || $title || 'Hello' }}</h1>
+          <h1 v-if="data.heroText !== null" id="main-title">
+            {{ data.heroText || $title || "Hello" }}
+          </h1>
 
-          <p
-            class="description"
-          >{{ data.tagline || $description || 'Welcome to your VuePress site' }}</p>
+          <p class="description">
+            {{
+              data.tagline || $description || "Welcome to your VuePress site"
+            }}
+          </p>
 
           <p class="action" v-if="data.actionText && data.actionLink">
             <NavLink class="action-button" :item="actionLink" />
           </p>
         </div>
 
-        <video v-if="data.heroImage" class="media" autoplay loop muted playsinline>
+        <video
+          v-if="data.heroImage"
+          class="media"
+          autoplay
+          loop
+          muted
+          playsinline
+        >
           <source
             v-if="data.heroImage"
             :src="$withBase(data.heroImage)"
-            :alt="data.heroAlt "
+            :alt="data.heroAlt"
             type="video/mp4"
-          />Your browser does not support the video tag.
+          />
+          Your browser does not support the video tag.
         </video>
         <form
           v-if="data.contactForm === true"
@@ -45,13 +57,19 @@
               <input name="company" class="field" />
             </label>
           </fieldset>
-          <button class="nav-link action-button" type="submit">Get in touch</button>
+          <button class="nav-link action-button" type="submit">
+            Get in touch
+          </button>
         </form>
       </div>
     </header>
 
     <div class v-if="data.features && data.features.length">
-      <div class="features section" v-for="(feature, index) in data.features" :key="index">
+      <div
+        class="features section"
+        v-for="(feature, index) in data.features"
+        :key="index"
+      >
         <div class="feature">
           <img class="media" :src="$withBase(feature.src)" />
           <div class="content">
@@ -65,7 +83,11 @@
     <div class v-if="data.triples && data.triples.length">
       <div class="triples">
         <div class="feature">
-          <div class="content" v-for="(feature, index) in data.triples" :key="index">
+          <div
+            class="content"
+            v-for="(feature, index) in data.triples"
+            :key="index"
+          >
             <img class="media" :src="$withBase(feature.src)" />
             <h2>{{ feature.title }}</h2>
             <p>{{ feature.text }}</p>
@@ -75,7 +97,14 @@
     </div>
     <Content class="theme-default-content custom" />
 
-    <div class="footer" v-if="data.footer">{{ data.footer }}</div>
+    <div class="footer">
+      <a href="https://www.netlify.com/">
+        <img
+          src="https://api.netlify.com/api/v1/badges/1853c996-a1f7-4545-b60c-612e8fca557c/deploy-status"
+          alt="Deploy status badge"
+        />
+      </a>
+    </div>
   </main>
 </template>
 
@@ -358,14 +387,12 @@ export default {
       }
     }
   }
-
-  .footer {
-    padding: 2.5rem;
+}
+.footer {
+    padding: 0.75rem;
     border-top: 1px solid $borderColor;
     text-align: center;
-    color: lighten($textColor, 25%);
   }
-}
 
 @media (max-width: $MQMobile) {
   .home {
