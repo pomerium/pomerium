@@ -14,7 +14,7 @@ There are a few configuration steps required for identity provider integration. 
 
 In this guide we'll cover how to do the following for each identity provider:
 
-1. Set a **[Redirect URL](https://www.oauth.com/oauth2-servers/redirect-uris/)** pointing back to Pomerium.
+1. Set a **[Redirect URL](https://www.oauth.com/oauth2-servers/redirect-uris/)** pointing back to Pomerium. For example, `https://${authenticate_service_url}/oauth2/callback`.
 2. Generate a **[Client ID]** and **[Client Secret]**.
 3. Configure Pomerium to use the **[Client ID]** and **[Client Secret]** keys.
 

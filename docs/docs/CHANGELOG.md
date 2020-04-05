@@ -1,5 +1,79 @@
 # Changelog
 
+## v0.7.0
+
+### New
+
+- \*: remove import path comments @desimone (#545)
+- authenticate: make callback path configurable @desimone (#493)
+- authenticate: return 401 for some specific error codes @cuonglm (#561)
+- authorization: log audience claim failure @desimone (#553)
+- authorize: use jwt instead of state struct @desimone (#514)
+- authorize: use opa for policy engine @desimone (#474)
+- cmd: add cli to generate service accounts @desimone (#552)
+- config: Expose and set default GRPC Server Keepalive Parameters @travisgroth (#509)
+- config: Make IDP_PROVIDER env var mandatory @mihaitodor (#536)
+- config: Remove superfluous Options.Checksum type conversions @travisgroth (#522)
+- gitlab/identity: change group unique identifier to ID @Lumexralph (#571)
+- identity: support oidc UserInfo Response @desimone (#529)
+- internal/cryptutil: standardize leeway to 5 mins @desimone (#476)
+- metrics: Add storage metrics @travisgroth (#554)
+
+### Fixed
+
+- cache: add option validations @desimone (#468)
+- config: Add proper yaml tag to Options.Policies @travisgroth (#475)
+- ensure correct service name on GRPC related metrics @travisgroth (#510)
+- fix group impersonation @desimone (#569)
+- fix sign-out bug , fixes #530 @desimone (#544)
+- proxy: move set request headers before handle allow public access @ohdarling (#479)
+- use service port for session audiences @travisgroth (#562)
+
+### Documentation
+
+- fix `the` typo @ilgooz (#566)
+- fix kubernetes dashboard recipe docs @desimone (#504)
+- make from source quickstart @desimone (#519)
+- update background @desimone (#505)
+- update helm for v3 @desimone (#469)
+- various fixes @desimone (#478)
+- fix cookie_domain @nitper (#472)
+
+### Dependency
+
+- chore(deps): update github.com/pomerium/autocache commit hash to 6c66ed5 @renovate (#480)
+- chore(deps): update github.com/pomerium/autocache commit hash to 227c993 @renovate (#537)
+- chore(deps): update golang.org/x/crypto commit hash to 0ec3e99 @renovate (#574)
+- chore(deps): update golang.org/x/crypto commit hash to 1b76d66 @renovate (#538)
+- chore(deps): update golang.org/x/crypto commit hash to 78000ba @renovate (#481)
+- chore(deps): update golang.org/x/crypto commit hash to 891825f @renovate (#556)
+- chore(deps): update module fatih/color to v1.9.0 @renovate (#575)
+- chore(deps): update module fsnotify/fsnotify to v1.4.9 @renovate (#539)
+- chore(deps): update module go.etcd.io/bbolt to v1.3.4 @renovate (#557)
+- chore(deps): update module go.opencensus.io to v0.22.3 @renovate (#483)
+- chore(deps): update module golang/mock to v1.4.0 @renovate (#470)
+- chore(deps): update module golang/mock to v1.4.3 @renovate (#540)
+- chore(deps): update module golang/protobuf to v1.3.4 @renovate (#485)
+- chore(deps): update module golang/protobuf to v1.3.5 @renovate (#541)
+- chore(deps): update module google.golang.org/api to v0.20.0 @renovate (#495)
+- chore(deps): update module google.golang.org/grpc to v1.27.1 @renovate (#496)
+- chore(deps): update module gorilla/mux to v1.7.4 @renovate (#506)
+- chore(deps): update module open-policy-agent/opa to v0.17.1 @renovate (#497)
+- chore(deps): update module open-policy-agent/opa to v0.17.3 @renovate (#513)
+- chore(deps): update module open-policy-agent/opa to v0.18.0 @renovate (#558)
+- chore(deps): update module prometheus/client_golang to v1.4.1 @renovate (#498)
+- chore(deps): update module prometheus/client_golang to v1.5.0 @renovate (#531)
+- chore(deps): update module prometheus/client_golang to v1.5.1 @renovate (#543)
+- chore(deps): update module rakyll/statik to v0.1.7 @renovate (#517)
+- chore(deps): update module rs/zerolog to v1.18.0 @renovate (#507)
+- chore(deps): update module yaml to v2.2.8 @renovate (#471)
+- ci: Consolidate matrix build parameters @travisgroth (#521)
+- dependency: use go mod redis @desimone (#528)
+- deployment: throw away golanglint-ci defaults @desimone (#439)
+- deployment: throw away golanglint-ci defaults @desimone (#439)
+- deps: enable automerge and set labels on renovate PRs @travisgroth (#527)
+- Roll back grpc to v1.25.1 @travisgroth (#484)
+
 ## v0.6.0
 
 ### New

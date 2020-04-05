@@ -27,10 +27,10 @@ Click the button on the banner to go to the consent screen configuration. If all
 
 On the **Create [Client ID]** page, select **Web application**. In the new fields that display, set the following parameters:
 
-| Field                    | Description                                                                |
-| ------------------------ | -------------------------------------------------------------------------- |
-| Name                     | The name of your web app                                                   |
-| Authorized redirect URIs | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`) |
+| Field        | Description                                                              |
+| ------------ | ------------------------------------------------------------------------ |
+| Name         | The name of your web app                                                 |
+| Redirect URI | Redirect URL (e.g.`https://${authenticate_service_url}/oauth2/callback`) |
 
 ![Web App Credentials Configuration](./img/google-create-client-id-config.png)
 

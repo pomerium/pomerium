@@ -58,7 +58,7 @@ Click on **Save** and the key will be displayed. **Make sure to copy the value o
 
 ![Creating a Key](./img/azure-create-key.png)
 
-Next you need to ensure that the Pomerium's Redirect URL is listed in allowed reply URLs for the created application. Navigate to **Azure Active Directory** -> **Apps registrations** and select your app. Then click **Settings** -> **Reply URLs** and add Pomerium's redirect URL. For example, `https://authenticate.corp.beyondperimeter.com/oauth2/callback`.
+Next you need to ensure that the Pomerium's Redirect URL is listed in allowed reply URLs for the created application. Navigate to **Azure Active Directory** -> **Apps registrations** and select your app. Then click **Settings** -> **Reply URLs** and add Pomerium's redirect URL. For example, `https://${authenticate_service_url}/oauth2/callback`.
 
 ![Add Reply URL](./img/azure-redirect-url.png)
 

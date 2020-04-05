@@ -21,13 +21,13 @@ On the **Create New Application** page, select the **Web** for your application.
 
 Next, provide the following information for your application settings:
 
-| Field                        | Description                                                                 |
-| ---------------------------- | --------------------------------------------------------------------------- |
-| Name                         | The name of your application.                                               |
-| Base URIs (optional)         | The domain(s) of your application.                                          |
-| Login redirect URIs          | Redirect URL (e.g.`https://authenticate.corp.example.com/oauth2/callback`). |
-| Group assignments (optional) | The user groups that can sign in to this application.                       |
-| Grant type allowed           | **You must enable Refresh Token.**                                          |
+| Field                        | Description                                                               |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| Name                         | The name of your application.                                             |
+| Base URIs (optional)         | The domain(s) of your application.                                        |
+| Login redirect URIs          | Redirect URL (e.g.`https://${authenticate_service_url}/oauth2/callback`). |
+| Group assignments (optional) | The user groups that can sign in to this application.                     |
+| Grant type allowed           | **You must enable Refresh Token.**                                        |
 
 ![Okta Create Application Settings](./img/okta-create-app-settings.png)
 
