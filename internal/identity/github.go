@@ -8,13 +8,12 @@ import (
 	"net/http"
 	"time"
 
-	"gopkg.in/square/go-jose.v2/jwt"
-
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
 
 	"golang.org/x/oauth2"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 const (
@@ -24,6 +23,7 @@ const (
 	githubUserGroupURL       = "https://api.github.com/user/orgs"
 	githubRevokeURL          = "https://github.com/oauth/revoke"
 
+	// since github doesn't implement oidc, we need this to refresh the user session
 	refreshDeadline = time.Minute * 60
 )
 
@@ -31,7 +31,6 @@ const (
 type GitHubProvider struct {
 	*Provider
 
-	// baseURL would be different in the enterprise version
 	authURL      string
 	tokenURL     string
 	userEndpoint string
