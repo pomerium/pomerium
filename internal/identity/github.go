@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
 
@@ -20,7 +21,7 @@ const (
 	defaultGitHubProviderURL = "https://github.com"
 	githubAuthURL            = "/login/oauth/authorize"
 	githubUserURL            = "https://api.github.com/user"
-	githubUserGroupURL       = "https://api.github.com/user/orgs"
+	githubUserTeamURL        = "https://api.github.com/user/teams"
 	githubRevokeURL          = "https://github.com/oauth/revoke"
 
 	// since github doesn't implement oidc, we need this to refresh the user session
@@ -52,7 +53,7 @@ func NewGitHubProvider(p *Provider) (*GitHubProvider, error) {
 	}
 
 	if len(p.Scopes) == 0 {
-		p.Scopes = []string{"read:org"}
+		p.Scopes = []string{"user", "read:org"}
 	}
 
 	p.oauth = &oauth2.Config{
@@ -121,7 +122,7 @@ func (p *GitHubProvider) userInfo(ctx context.Context, s *sessions.State) (*sess
 	s.Name = response.Name
 	s.Email = response.Email
 	s.Picture = response.AvatarURL
-	s.Groups, err = p.userOrganizations(ctx, s)
+	s.Groups, err = p.userTeams(ctx, s)
 	if err != nil {
 		return nil, fmt.Errorf("identity/github: could not retrieve groups %w", err)
 	}
@@ -131,7 +132,7 @@ func (p *GitHubProvider) userInfo(ctx context.Context, s *sessions.State) (*sess
 	return s, nil
 }
 
-// Refresh renews a user's session by making a new userInfo request
+// Refresh renews a user's session by making a new userInfo request.
 func (p *GitHubProvider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
 	if s.AccessToken == nil {
 		return nil, errors.New("identity/github: missing oauth2 access token")
@@ -140,31 +141,34 @@ func (p *GitHubProvider) Refresh(ctx context.Context, s *sessions.State) (*sessi
 	return p.userInfo(ctx, s)
 }
 
-// userOrganizations returns a slice of organizations for the user.
-func (p *GitHubProvider) userOrganizations(ctx context.Context, s *sessions.State) ([]string, error) {
+// userTeams returns a slice of teams the user belongs.
+func (p *GitHubProvider) userTeams(ctx context.Context, s *sessions.State) ([]string, error) {
 	if s == nil || s.AccessToken == nil {
 		return nil, errors.New("identity/github: user session cannot be empty")
 	}
 
 	var response []struct {
 		ID          json.Number `json:"id"`
-		Login       string      `json:"login,omitempty"`
+		Name        string      `json:"name,omitempty"`
 		URL         string      `json:"url,omitempty"`
+		Slug        string      `json:"slug"`
 		Description string      `json:"description,omitempty"`
 		ReposURL    string      `json:"repos_url,omitempty"`
-		AvatarURL   string      `json:"avatar_url,omitempty"`
+		Privacy     string      `json:"privacy,omitempty"`
 	}
 
 	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", s.AccessToken.AccessToken)}
-	err := httputil.Client(ctx, http.MethodGet, githubUserGroupURL, version.UserAgent(), headers, nil, &response)
+	err := httputil.Client(ctx, http.MethodGet, githubUserTeamURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return nil, err
 	}
 
-	var groups []string
+	log.Debug().Interface("teams", response).Msg("identity/github: user teams")
+
+	var teams []string
 	for _, org := range response {
-		groups = append(groups, org.Login)
+		teams = append(teams, org.ID.String())
 	}
 
-	return groups, nil
+	return teams, nil
 }
