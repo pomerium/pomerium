@@ -1,0 +1,9 @@
+FROM busybox:latest as build
+RUN touch /config.yaml
+
+FROM gcr.io/distroless/static
+WORKDIR /pomerium
+COPY pomerium* /bin/
+COPY --from=build /config.yaml /pomerium/config.yaml
+ENTRYPOINT [ "/bin/pomerium" ]
+CMD ["-config","/pomerium/config.yaml"]
