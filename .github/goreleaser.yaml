@@ -89,15 +89,6 @@ checksum:
 
 snapshot:
   name_template: "{{ .Tag }}+next"
-# brews:
-#   - github:
-#       owner: pomerium
-#       name: homebrew-tap
-#     folder: Formula
-#     homepage: https://www.pomerium.io
-#     description: Authenticate, authorize, monitor, and secure user access to any application without a VPN.
-#     test: |
-#       system "#{bin}/pomerium --version"
 
 dockers:
   - image_templates:
