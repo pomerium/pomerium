@@ -23,6 +23,7 @@ const (
 	githubUserURL            = "https://api.github.com/user"
 	githubUserTeamURL        = "https://api.github.com/user/teams"
 	githubRevokeURL          = "https://github.com/oauth/revoke"
+	githubUserEmailURL       = "https://api.github.com/user/emails"
 
 	// since github doesn't implement oidc, we need this to refresh the user session
 	refreshDeadline = time.Minute * 60
@@ -53,7 +54,7 @@ func NewGitHubProvider(p *Provider) (*GitHubProvider, error) {
 	}
 
 	if len(p.Scopes) == 0 {
-		p.Scopes = []string{"user", "read:org"}
+		p.Scopes = []string{"user:email", "read:org"}
 	}
 
 	p.oauth = &oauth2.Config{
@@ -96,6 +97,8 @@ func (p *GitHubProvider) Authenticate(ctx context.Context, code string) (*sessio
 }
 
 // userInfo will get the user information from github and also retrieve the user's organization(s)
+//
+// https://developer.github.com/v3/users/#get-the-authenticated-user
 func (p *GitHubProvider) userInfo(ctx context.Context, s *sessions.State) (*sessions.State, error) {
 	if s == nil || s.AccessToken == nil {
 		return nil, errors.New("identity/github: user session cannot be empty")
@@ -120,7 +123,11 @@ func (p *GitHubProvider) userInfo(ctx context.Context, s *sessions.State) (*sess
 
 	s.User = response.Login
 	s.Name = response.Name
-	s.Email = response.Email
+	s.Email, err = p.userEmail(ctx, s)
+	if err != nil {
+		return nil, fmt.Errorf("identity/github: could not retrieve user email %w", err)
+	}
+
 	s.Picture = response.AvatarURL
 	s.Groups, err = p.userTeams(ctx, s)
 	if err != nil {
@@ -141,7 +148,10 @@ func (p *GitHubProvider) Refresh(ctx context.Context, s *sessions.State) (*sessi
 	return p.userInfo(ctx, s)
 }
 
-// userTeams returns a slice of teams the user belongs.
+// userTeams returns a slice of teams the user belongs by making a request
+// to github API
+//
+// https://developer.github.com/v3/teams/#list-user-teams
 func (p *GitHubProvider) userTeams(ctx context.Context, s *sessions.State) ([]string, error) {
 	if s == nil || s.AccessToken == nil {
 		return nil, errors.New("identity/github: user session cannot be empty")
@@ -171,4 +181,38 @@ func (p *GitHubProvider) userTeams(ctx context.Context, s *sessions.State) ([]st
 	}
 
 	return teams, nil
+}
+
+// userEmail returns the primary email of the user by making
+// a query to github API.
+//
+// https://developer.github.com/v3/users/emails/#list-email-addresses-for-a-user
+func (p *GitHubProvider) userEmail(ctx context.Context, s *sessions.State) (string, error) {
+	if s == nil || s.AccessToken == nil {
+		return "", errors.New("identity/github: user session cannot be empty")
+	}
+
+	// response represents the github user email
+	// https://developer.github.com/v3/users/emails/#response
+	var response []struct {
+		Email      string `json:"email"`
+		Verified   bool   `json:"verified"`
+		Primary    bool   `json:"primary"`
+		Visibility string `json:"visibility"`
+	}
+	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", s.AccessToken.AccessToken)}
+	err := httputil.Client(ctx, http.MethodGet, githubUserEmailURL, version.UserAgent(), headers, nil, &response)
+	if err != nil {
+		return "", err
+	}
+
+	log.Debug().Interface("emails", response).Msg("identity/github: user emails")
+
+	for _, email := range response {
+		if email.Primary && email.Verified {
+			return email.Email, nil
+		}
+	}
+
+	return "", nil
 }
