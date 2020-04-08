@@ -74,8 +74,6 @@ func NewOktaProvider(p *Provider) (*OktaProvider, error) {
 // https://developer.okta.com/docs/api/resources/oidc#revoke
 func (p *OktaProvider) Revoke(ctx context.Context, token *oauth2.Token) error {
 	params := url.Values{}
-	params.Add("client_id", p.ClientID)
-	params.Add("client_secret", p.ClientSecret)
 	params.Add("token", token.AccessToken)
 	params.Add("token_type_hint", "refresh_token")
 	err := httputil.Client(ctx, http.MethodPost, p.RevokeURL, version.UserAgent(), nil, params, nil)

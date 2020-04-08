@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -227,6 +228,12 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	a.sessionStore.ClearSession(w, r)
 	err = a.provider.Revoke(r.Context(), s.AccessToken)
+	// we log the error as against returning an error if
+	// the revoke is not implemented
+	if errors.Is(err, identity.ErrRevokeNotImplemented) {
+		log.Debug().Interface("error", err.Error()).Msg("handlers/signout: token revocation")
+	}
+
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}

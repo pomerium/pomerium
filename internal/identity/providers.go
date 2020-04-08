@@ -6,9 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/version"
 
 	oidc "github.com/coreos/go-oidc"
 	"golang.org/x/oauth2"
@@ -188,6 +191,47 @@ func (p *Provider) IdentityFromToken(ctx context.Context, t *oauth2.Token) (*oid
 
 // Revoke enables a user to revoke her token. If the identity provider supports revocation
 // the endpoint is available, otherwise an error is thrown.
+//
+// We will attempt to get the identity provider's possible revocation endpoint by making a
+// request to their /.well-known/openid-configuration, and based on the common endpoint keys
+// we'll be using the revocation_endpoint and end_session_endpoint keys  to get the
+// endpoint and the implement it in the most generic way.
+//
+// Google : https://accounts.google.com/.well-known/openid-configuration
+// Azure: https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
 func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
-	return fmt.Errorf("internal/identity: revoke not implemented by %s", p.ProviderName)
+	var response struct {
+		RevocationURL string `json:"revocation_endpoint"`
+		EndSessionURL string `json:"end_session_endpoint"`
+	}
+
+	// try to see if the provider has a way to revoke token
+	wellKnownURL := p.ProviderURL + "/.well-known/openid-configuration"
+	err := httputil.Client(ctx, http.MethodGet, wellKnownURL, version.UserAgent(), nil, nil, &response)
+	if err != nil {
+		return err
+	}
+
+	var revokeURL string
+	switch {
+	case response.RevocationURL != "":
+		revokeURL = response.RevocationURL
+	case response.EndSessionURL != "":
+		revokeURL = response.EndSessionURL
+	default:
+		err := ProviderError{
+			Provider: p.ProviderName,
+			Source:   "internal/identity",
+			Err:      ErrRevokeNotImplemented,
+		}
+		return err
+	}
+
+	params := url.Values{}
+	params.Add("token", token.AccessToken)
+	err = httputil.Client(ctx, http.MethodPost, revokeURL, version.UserAgent(), nil, params, nil)
+	if err != nil && err != httputil.ErrTokenRevoked {
+		return err
+	}
+	return nil
 }
