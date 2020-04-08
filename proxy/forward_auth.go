@@ -79,8 +79,7 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
-		jwt, err := sessions.FromContext(r.Context())
-		if err != nil {
+		if _, err := sessions.FromContext(r.Context()); err != nil {
 			if verifyOnly {
 				return httputil.NewError(http.StatusUnauthorized, err)
 			}
@@ -92,10 +91,6 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			authN.RawQuery = q.Encode()
 			httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
 			return nil
-		}
-		var s sessions.State
-		if err := p.encoder.Unmarshal([]byte(jwt), &s); err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
 		}
 
 		r.Host = uri.Host
