@@ -72,7 +72,7 @@ func TestProxy_AuthenticateSession(t *testing.T) {
 			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()
-			got := a.userDetailsLoggerMiddleware(a.AuthenticateSession(fn))
+			got := a.jwtClaimMiddleware(a.AuthenticateSession(fn))
 			got.ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("AuthenticateSession() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantStatus, w.Body.String())
