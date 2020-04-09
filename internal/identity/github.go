@@ -88,7 +88,7 @@ func (p *GitHubProvider) Authenticate(ctx context.Context, code string) (*sessio
 		AccessTokenID: resp.AccessToken,
 	}
 
-	s, err = p.userInfo(ctx, s)
+	err = p.updateSessionState(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -96,47 +96,31 @@ func (p *GitHubProvider) Authenticate(ctx context.Context, code string) (*sessio
 	return s, nil
 }
 
-// userInfo will get the user information from github and also retrieve the user's organization(s)
+// updateSessionState will get the user information from github and also retrieve the user's team(s)
 //
 // https://developer.github.com/v3/users/#get-the-authenticated-user
-func (p *GitHubProvider) userInfo(ctx context.Context, s *sessions.State) (*sessions.State, error) {
+func (p *GitHubProvider) updateSessionState(ctx context.Context, s *sessions.State) error {
 	if s == nil || s.AccessToken == nil {
-		return nil, errors.New("identity/github: user session cannot be empty")
+		return errors.New("identity/github: user session cannot be empty")
 	}
+	accessToken := s.AccessToken.AccessToken
 
-	var response struct {
-		ID        int    `json:"id"`
-		Login     string `json:"login"`
-		Name      string `json:"name"`
-		Email     string `json:"email"`
-		AvatarURL string `json:"avatar_url,omitempty"`
-	}
-
-	headers := map[string]string{
-		"Authorization": fmt.Sprintf("token %s", s.AccessToken.AccessToken),
-		"Accept":        "application/vnd.github.v3+json",
-	}
-	err := httputil.Client(ctx, http.MethodGet, p.userEndpoint, version.UserAgent(), headers, nil, &response)
+	err := p.userInfo(ctx, accessToken, s)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("identity/github: could not user info %w", err)
 	}
 
-	s.User = response.Login
-	s.Name = response.Name
-	s.Email, err = p.userEmail(ctx, s)
+	err = p.userEmail(ctx, accessToken, s)
 	if err != nil {
-		return nil, fmt.Errorf("identity/github: could not retrieve user email %w", err)
+		return fmt.Errorf("identity/github: could not retrieve user email %w", err)
 	}
 
-	s.Picture = response.AvatarURL
-	s.Groups, err = p.userTeams(ctx, s)
+	err = p.userTeams(ctx, accessToken, s)
 	if err != nil {
-		return nil, fmt.Errorf("identity/github: could not retrieve groups %w", err)
+		return fmt.Errorf("identity/github: could not retrieve groups %w", err)
 	}
 
-	// set the session expiry
-	s.Expiry = jwt.NewNumericDate(time.Now().Add(refreshDeadline))
-	return s, nil
+	return nil
 }
 
 // Refresh renews a user's session by making a new userInfo request.
@@ -144,18 +128,18 @@ func (p *GitHubProvider) Refresh(ctx context.Context, s *sessions.State) (*sessi
 	if s.AccessToken == nil {
 		return nil, errors.New("identity/github: missing oauth2 access token")
 	}
-
-	return p.userInfo(ctx, s)
+	if err := p.updateSessionState(ctx, s); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 // userTeams returns a slice of teams the user belongs by making a request
 // to github API
 //
 // https://developer.github.com/v3/teams/#list-user-teams
-func (p *GitHubProvider) userTeams(ctx context.Context, s *sessions.State) ([]string, error) {
-	if s == nil || s.AccessToken == nil {
-		return nil, errors.New("identity/github: user session cannot be empty")
-	}
+// https://developer.github.com/v3/auth/
+func (p *GitHubProvider) userTeams(ctx context.Context, at string, s *sessions.State) error {
 
 	var response []struct {
 		ID          json.Number `json:"id"`
@@ -167,31 +151,28 @@ func (p *GitHubProvider) userTeams(ctx context.Context, s *sessions.State) ([]st
 		Privacy     string      `json:"privacy,omitempty"`
 	}
 
-	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", s.AccessToken.AccessToken)}
+	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", at)}
 	err := httputil.Client(ctx, http.MethodGet, githubUserTeamURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	log.Debug().Interface("teams", response).Msg("identity/github: user teams")
 
-	var teams []string
+	s.Groups = nil
 	for _, org := range response {
-		teams = append(teams, org.ID.String())
+		s.Groups = append(s.Groups, org.ID.String())
 	}
 
-	return teams, nil
+	return nil
 }
 
 // userEmail returns the primary email of the user by making
 // a query to github API.
 //
 // https://developer.github.com/v3/users/emails/#list-email-addresses-for-a-user
-func (p *GitHubProvider) userEmail(ctx context.Context, s *sessions.State) (string, error) {
-	if s == nil || s.AccessToken == nil {
-		return "", errors.New("identity/github: user session cannot be empty")
-	}
-
+// https://developer.github.com/v3/auth/
+func (p *GitHubProvider) userEmail(ctx context.Context, at string, s *sessions.State) error {
 	// response represents the github user email
 	// https://developer.github.com/v3/users/emails/#response
 	var response []struct {
@@ -200,19 +181,45 @@ func (p *GitHubProvider) userEmail(ctx context.Context, s *sessions.State) (stri
 		Primary    bool   `json:"primary"`
 		Visibility string `json:"visibility"`
 	}
-	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", s.AccessToken.AccessToken)}
+	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", at)}
 	err := httputil.Client(ctx, http.MethodGet, githubUserEmailURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	log.Debug().Interface("emails", response).Msg("identity/github: user emails")
-
 	for _, email := range response {
 		if email.Primary && email.Verified {
-			return email.Email, nil
+			s.Email = email.Email
+			s.EmailVerified = true
+			return nil
 		}
 	}
+	return nil
+}
 
-	return "", nil
+func (p *GitHubProvider) userInfo(ctx context.Context, at string, s *sessions.State) error {
+	var response struct {
+		ID        int    `json:"id"`
+		Login     string `json:"login"`
+		Name      string `json:"name"`
+		Email     string `json:"email"`
+		AvatarURL string `json:"avatar_url,omitempty"`
+	}
+
+	headers := map[string]string{
+		"Authorization": fmt.Sprintf("token %s", at),
+		"Accept":        "application/vnd.github.v3+json",
+	}
+	err := httputil.Client(ctx, http.MethodGet, p.userEndpoint, version.UserAgent(), headers, nil, &response)
+	if err != nil {
+		return err
+	}
+
+	s.User = response.Login
+	s.Name = response.Name
+	s.Picture = response.AvatarURL
+	// set the session expiry
+	s.Expiry = jwt.NewNumericDate(time.Now().Add(refreshDeadline))
+	return nil
 }

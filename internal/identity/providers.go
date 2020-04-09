@@ -193,5 +193,5 @@ func (p *Provider) IdentityFromToken(ctx context.Context, t *oauth2.Token) (*oid
 // Revoke enables a user to revoke her token. If the identity provider supports revocation
 // the endpoint is available, otherwise an error is thrown.
 func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
-	return fmt.Errorf("internal/identity: revoke not implemented by %s", p.ProviderName)
+	return ErrRevokeNotImplemented
 }
