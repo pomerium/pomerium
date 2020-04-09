@@ -109,7 +109,7 @@
 </template>
 
 <script>
-import NavLink from "@theme/components/NavLink.vue";
+import NavLink from "@parent-theme/components/NavLink.vue";
 
 export default {
   components: { NavLink },
@@ -122,10 +122,10 @@ export default {
     actionLink() {
       return {
         link: this.data.actionLink,
-        text: this.data.actionText
+        text: this.data.actionText,
       };
-    }
-  }
+    },
+  },
 };
 </script>
 

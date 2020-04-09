@@ -15,7 +15,6 @@
     </Sidebar>
 
     <Home v-if="$page.frontmatter.home" />
-
     <Page v-else :sidebar-items="sidebarItems">
       <slot name="page-top" slot="top" />
       <slot name="page-bottom" slot="bottom" />
@@ -25,9 +24,9 @@
 
 <script>
 import Home from "@theme/components/Home.vue";
-import Navbar from "@theme/components/Navbar.vue";
-import Page from "@theme/components/Page.vue";
-import Sidebar from "@theme/components/Sidebar.vue";
+import Navbar from "@parent-theme/components/Navbar.vue";
+import Page from "@parent-theme/components/Page.vue";
+import Sidebar from "@parent-theme/components/Sidebar.vue";
 import { resolveSidebarItems } from "../util";
 
 export default {
@@ -35,7 +34,7 @@ export default {
 
   data() {
     return {
-      isSidebarOpen: false
+      isSidebarOpen: false,
     };
   },
 
@@ -79,11 +78,11 @@ export default {
         {
           "no-navbar": !this.shouldShowNavbar,
           "sidebar-open": this.isSidebarOpen,
-          "no-sidebar": !this.shouldShowSidebar
+          "no-sidebar": !this.shouldShowSidebar,
         },
-        userPageClass
+        userPageClass,
       ];
-    }
+    },
   },
 
   mounted() {
@@ -101,7 +100,7 @@ export default {
     onTouchStart(e) {
       this.touchStart = {
         x: e.changedTouches[0].clientX,
-        y: e.changedTouches[0].clientY
+        y: e.changedTouches[0].clientY,
       };
     },
 
@@ -115,7 +114,7 @@ export default {
           this.toggleSidebar(false);
         }
       }
-    }
-  }
+    },
+  },
 };
 </script>
