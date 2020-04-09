@@ -228,15 +228,12 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	a.sessionStore.ClearSession(w, r)
 	err = a.provider.Revoke(r.Context(), s.AccessToken)
-	// we log the error as against returning an error if
-	// the revoke is not implemented
 	if errors.Is(err, identity.ErrRevokeNotImplemented) {
-		log.Debug().Interface("error", err.Error()).Msg("handlers/signout: token revocation")
-	}
-
-	if err != nil {
+		log.FromRequest(r).Warn().Err(err).Msg("authenticate: revoke not implemented")
+	} else if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
+
 	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)

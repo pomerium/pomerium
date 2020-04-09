@@ -19,7 +19,6 @@ import (
 
 const (
 	defaultGitLabProviderURL = "https://gitlab.com"
-	revokeURL                = "https://gitlab.com/oauth/revoke"
 	defaultGitLabGroupURL    = "https://gitlab.com/api/v4/groups"
 )
 
@@ -56,10 +55,7 @@ func NewGitLabProvider(p *Provider) (*GitLabProvider, error) {
 		RedirectURL:  p.RedirectURL.String(),
 		Scopes:       p.Scopes,
 	}
-	gp := &GitLabProvider{
-		Provider:  p,
-		RevokeURL: revokeURL,
-	}
+	gp := &GitLabProvider{Provider: p}
 
 	if err := p.provider.Claims(&gp); err != nil {
 		return nil, err
