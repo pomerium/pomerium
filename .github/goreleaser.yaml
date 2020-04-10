@@ -93,7 +93,6 @@ snapshot:
 dockers:
   - image_templates:
       - "pomerium/pomerium:{{ .Tag }}"
-      - "pomerium/pomerium:latest"
     dockerfile: .github/Dockerfile-release
     binaries:
       - pomerium
@@ -111,7 +110,6 @@ dockers:
   - goarch: arm64
     image_templates:
       - "pomerium/pomerium:arm64v8-{{ .Tag }}"
-      - "pomerium/pomerium:arm64v8-latest"
     dockerfile: .github/Dockerfile-release.arm64v8
     binaries:
       - pomerium
@@ -130,7 +128,6 @@ dockers:
     goarm: 7
     image_templates:
       - "pomerium/pomerium:arm32v7-{{ .Tag }}"
-      - "pomerium/pomerium:arm32v7-latest"
     dockerfile: .github/Dockerfile-release.arm32v7
     binaries:
       - pomerium
@@ -150,7 +147,6 @@ dockers:
     goarm: 6
     image_templates:
       - "pomerium/pomerium:arm32v6-{{ .Tag }}"
-      - "pomerium/pomerium:arm32v6-latest"
     dockerfile: .github/Dockerfile-release.arm32v6
     binaries:
       - pomerium
