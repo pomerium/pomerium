@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -227,7 +228,9 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	a.sessionStore.ClearSession(w, r)
 	err = a.provider.Revoke(r.Context(), s.AccessToken)
-	if err != nil {
+	if errors.Is(err, identity.ErrRevokeNotImplemented) {
+		log.FromRequest(r).Warn().Err(err).Msg("authenticate: revoke not implemented")
+	} else if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))

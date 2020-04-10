@@ -19,6 +19,8 @@ const (
 	AzureProviderName = "azure"
 	// GitlabProviderName identifies the GitLab identity provider
 	GitlabProviderName = "gitlab"
+	// GithubProviderName identifies the GitHub identity provider
+	GithubProviderName = "github"
 	// GoogleProviderName identifies the Google identity provider
 	GoogleProviderName = "google"
 	// OIDCProviderName identifies a generic OpenID connect provider
@@ -49,6 +51,8 @@ func New(providerName string, p *Provider) (a Authenticator, err error) {
 		a, err = NewAzureProvider(p)
 	case GitlabProviderName:
 		a, err = NewGitLabProvider(p)
+	case GithubProviderName:
+		a, err = NewGitHubProvider(p)
 	case GoogleProviderName:
 		a, err = NewGoogleProvider(p)
 	case OIDCProviderName:
@@ -189,5 +193,5 @@ func (p *Provider) IdentityFromToken(ctx context.Context, t *oauth2.Token) (*oid
 // Revoke enables a user to revoke her token. If the identity provider supports revocation
 // the endpoint is available, otherwise an error is thrown.
 func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
-	return fmt.Errorf("internal/identity: revoke not implemented by %s", p.ProviderName)
+	return ErrRevokeNotImplemented
 }
