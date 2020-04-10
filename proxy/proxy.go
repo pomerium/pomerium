@@ -90,6 +90,7 @@ type Proxy struct {
 	sessionStore           sessions.SessionStore
 	sessionLoaders         []sessions.SessionLoader
 	templates              *template.Template
+	jwtClaimHeaders        []string
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -135,7 +136,8 @@ func New(opts config.Options) (*Proxy, error) {
 			cookieStore,
 			header.NewStore(encoder, "Pomerium"),
 			queryparam.NewStore(encoder, "pomerium_session")},
-		templates: template.Must(frontend.NewTemplates()),
+		templates:       template.Must(frontend.NewTemplates()),
+		jwtClaimHeaders: opts.JWTClaimsHeaders,
 	}
 	// errors checked in ValidateOptions
 	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
@@ -269,8 +271,8 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) *mux.Ro
 	rp.Use(p.AuthorizeSession)
 	// 7. Strip the user session cookie from the downstream request
 	rp.Use(middleware.StripCookie(p.cookieOptions.Name))
-	// 8 . Add user details to the request logger context
-	rp.Use(p.userDetailsLoggerMiddleware)
+	// 8 . Add claim details to the request logger context and headers
+	rp.Use(p.jwtClaimMiddleware)
 
 	return r
 }
