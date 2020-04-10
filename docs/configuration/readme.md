@@ -681,9 +681,9 @@ Default Upstream Timeout is the default timeout applied to a proxied route when 
 - Example: `email,groups`, `user`
 - Optional
   
-Set this option for the pomerium proxy to copy JWT claim information into request headers with the name `x-pomerium-claim-*`.  Any claim listed in the pomerium JWT can be placed into a header of the same name for downstream consumption.
+Set this option for the pomerium proxy to copy JWT claim information into request headers with the name `x-pomerium-claim-*`.  Any claim listed in the pomerium JWT can be placed into a header of the same name for downstream consumption.  This claim information sourced from your IDP and pomerium's own session metadata.
 
-Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}` for downstream authN/Z.
+Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}` for downstream authN/Z.  
 
 ## Cache Service
 
