@@ -22,6 +22,8 @@ const (
 	AzureProviderName = "azure"
 	// GitlabProviderName identifies the GitLab identity provider
 	GitlabProviderName = "gitlab"
+	// GithubProviderName identifies the GitHub identity provider
+	GithubProviderName = "github"
 	// GoogleProviderName identifies the Google identity provider
 	GoogleProviderName = "google"
 	// OIDCProviderName identifies a generic OpenID connect provider
@@ -52,6 +54,8 @@ func New(providerName string, p *Provider) (a Authenticator, err error) {
 		a, err = NewAzureProvider(p)
 	case GitlabProviderName:
 		a, err = NewGitLabProvider(p)
+	case GithubProviderName:
+		a, err = NewGitHubProvider(p)
 	case GoogleProviderName:
 		a, err = NewGoogleProvider(p)
 	case OIDCProviderName:
@@ -106,6 +110,15 @@ func (p *Provider) GetSignInURL(state string) string {
 	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline)
 }
 
+// check if provider has info endpoint, try to hit that and gather more info
+// especially useful if initial request did not an contain email, or subject
+// https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
+var claims struct {
+	UserInfoURL   string `json:"userinfo_endpoint"`
+	RevocationURL string `json:"revocation_endpoint"`
+	EndSessionURL string `json:"end_session_endpoint"`
+}
+
 // Authenticate creates an identity session with google from a authorization code, and follows up
 // call to the admin/group api to check what groups the user is in.
 func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.State, error) {
@@ -121,13 +134,6 @@ func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.Sta
 	s, err := sessions.NewStateFromTokens(idToken, oauth2Token, p.RedirectURL.Host)
 	if err != nil {
 		return nil, err
-	}
-
-	// check if provider has info endpoint, try to hit that and gather more info
-	// especially useful if initial request did not an contain email, or subject
-	// https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
-	var claims struct {
-		UserInfoURL string `json:"userinfo_endpoint"`
 	}
 
 	if err := p.provider.Claims(&claims); err == nil && claims.UserInfoURL != "" {
@@ -149,7 +155,7 @@ func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.Sta
 	return s, nil
 }
 
-// Refresh renews a user's session using an oidc refresh token withoutreprompting the user.
+// Refresh renews a user's session using an oidc refresh token without reprompting the user.
 // Group membership is also refreshed.
 // https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
 func (p *Provider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
@@ -200,15 +206,6 @@ func (p *Provider) IdentityFromToken(ctx context.Context, t *oauth2.Token) (*oid
 // Google : https://accounts.google.com/.well-known/openid-configuration
 // Azure: https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
 func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
-	var claims struct {
-		RevocationURL string `json:"revocation_endpoint"`
-		EndSessionURL string `json:"end_session_endpoint"`
-	}
-
-	if err := p.provider.Claims(&claims); err != nil {
-		return err
-	}
-
 	var revokeURL string
 	switch {
 	case claims.RevocationURL != "":

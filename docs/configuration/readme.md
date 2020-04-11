@@ -674,6 +674,17 @@ Refresh cooldown is the minimum amount of time between allowed manually refreshe
 
 Default Upstream Timeout is the default timeout applied to a proxied route when no `timeout` key is specified by the policy.
 
+### JWT Claim Headers
+- Environmental Variable: `JWT_CLAIMS_HEADERS`
+- Config File Key: `jwt_claims_headers`
+- Type: `string list`
+- Example: `email,groups`, `user`
+- Optional
+  
+Set this option for the pomerium proxy to copy JWT claim information into request headers with the name `x-pomerium-claim-*`.  Any claim listed in the pomerium JWT can be placed into a corresponding header for downstream consumption.  This claim information is sourced from your IDP and pomerium's own session metadata.
+
+Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}` for downstream authN/Z.  
+
 ## Cache Service
 
 The cache service is used for storing user session data.

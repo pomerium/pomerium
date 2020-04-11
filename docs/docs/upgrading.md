@@ -13,6 +13,8 @@ description: >-
 
 User detail headers ( `x-pomerium-authenticated-user-id` / `x-pomerium-authenticated-user-email` / `x-pomerium-authenticated-user-groups`) have been removed in favor of using the more secure, more data rich attestation jwt header (`x-pomerium-jwt-assertion`).
 
+If you still rely on individual claim headers, please see the `jwt_claims_headers` option [here](https://www.pomerium.io/configuration/#jwt-claim-headers).
+
 ### Non-standard port users
 
 Non-standard port users (e.g. those not using `443`/`80` where the port _would_ be part of the client's request) will have to clear their user's session before upgrading. Starting with version v0.7.0, audience (`aud`) and issuer (`iss`) claims will be port specific.

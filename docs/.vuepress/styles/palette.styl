@@ -1,0 +1,74 @@
+// colors
+$mainColor= #6E43E8
+
+
+$sidebarColor=#FAFAFC
+$accentColor = #6E43E8
+$textColor =rgb(51, 51, 51)
+$headerColor=rgb(17, 17, 17)
+$borderColor = #e8e8fb
+$codeBgColor = #282c34
+$arrowBgColor = #ccc
+$section-color=#f7f7f7;
+$fontSize = 16px
+
+// navbar
+// $navbarHeight = 5.2rem
+$navbar-vertical-padding = 1.4rem;
+$navbar-horizontal-padding = 1.4rem;
+$navbar-background = #6E43E8;
+$navbar-text-color = #ffffff;
+
+$sidebarWidth = 16rem
+$contentWidth = 960px
+
+// // responsive breakpoints
+$MQNarrow = 959px
+$MQMobile = 719px
+$MQMobileNarrow = 419px
+
+.icon.outbound
+  display none !important 
+  
+.navbar
+  background-color: $navbar-background !important
+  border-bottom 1px solid $navbar-background !important
+  .logo
+    height $navbarHeight - 3.2rem 
+    min-width $navbarHeight - 3.2rem
+    margin-right 0.8rem
+    vertical-align top
+  .links
+    background-color: $navbar-background !important
+    color: $navbar-text-color !important
+    padding-left 0rem
+
+.nav-links
+  a
+    &:hover, &.router-link-active
+      color lighten($textColor, 8%) !important
+
+@media (min-width: $MQMobile)
+  .nav-links a
+    &:hover, &.router-link-active
+      color lighten($navbar-text-color, 8%) !important
+  .nav-item > a:not(.external)
+    &:hover, &.router-link-active
+      margin-bottom -2px
+      border-bottom 2px solid lighten($navbar-text-color, 8%) !important
+
+
+
+.dropdown-wrapper
+  .dropdown-title
+    color $navbar-text-color !important
+    
+@media (max-width: $MQMobile)
+  .dropdown-wrapper
+    .dropdown-title
+      color $textColor !important
+
+@media (min-width: $MQMobile)
+  .dropdown-wrapper
+    .dropdown-title
+      color $navbar-text-color !important
