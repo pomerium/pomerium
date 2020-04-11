@@ -11,7 +11,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-func (p *Proxy) registerFwdAuthHandlers() http.Handler {
+func (p *Proxy) registerFwdAuthHandlers(uriFromHeaders bool) http.Handler {
 	r := httputil.NewRouter()
 	r.StrictSlash(true)
 	r.Use(sessions.RetrieveSession(p.sessionStore))
@@ -24,8 +24,12 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 			urlutil.QueryRedirectURI, "")
 	r.Handle("/", httputil.HandlerFunc(p.traefikCallback)).
 		HeadersRegexp(httputil.HeaderForwardedURI, urlutil.QuerySessionEncrypted)
-	r.Handle("/", p.Verify(false)).Queries("uri", "{uri}")
-	r.Handle("/verify", p.Verify(true)).Queries("uri", "{uri}")
+	r.Handle("/", p.Verify(false, false)).Queries("uri", "{uri}")
+	r.Handle("/verify", p.Verify(true, false)).Queries("uri", "{uri}")
+
+	if uriFromHeaders {
+		r.Handle("/", p.Verify(false, true)).Queries("uriFromHeaders", "")
+	}
 
 	return r
 }
@@ -69,16 +73,29 @@ func (p *Proxy) traefikCallback(w http.ResponseWriter, r *http.Request) error {
 // a `200` http status code is returned. If the user is not authenticated, they
 // will be redirected to the authenticate service to sign in with their identity
 // provider. If the user is unauthorized, a `401` error is returned.
-func (p *Proxy) Verify(verifyOnly bool) http.Handler {
+func (p *Proxy) Verify(verifyOnly bool, uriFromHeaders bool) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		var err error
 		if status := r.FormValue("auth_status"); status == fmt.Sprint(http.StatusForbidden) {
 			return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
 		}
-		uri, err := urlutil.ParseAndValidateURL(r.FormValue("uri"))
+
+		// Find the uri to validate from urlParams or http headers
+		var uriString string
+		if r.FormValue("uri") != "" {
+			uriString = r.FormValue("uri")
+		} else if uriFromHeaders {
+			uriString = r.Header.Get(httputil.HeaderForwardedProto) + "://" + r.Header.Get(httputil.HeaderForwardedHost)
+		} else {
+			err = errors.New("no uri to validate")
+			return httputil.NewError(http.StatusBadRequest, err)
+		}
+
+		uri, err := urlutil.ParseAndValidateURL(uriString)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
+
 		if _, err := sessions.FromContext(r.Context()); err != nil {
 			if verifyOnly {
 				return httputil.NewError(http.StatusUnauthorized, err)

@@ -198,7 +198,7 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 	if opts.ForwardAuthURL != nil {
 		// if a forward auth endpoint is set, register its handlers
 		h := r.Host(opts.ForwardAuthURL.Hostname()).Subrouter()
-		h.PathPrefix("/").Handler(p.registerFwdAuthHandlers())
+		h.PathPrefix("/").Handler(p.registerFwdAuthHandlers(opts.ForwardAuthURIFromHeaders))
 	}
 
 	for _, policy := range opts.Policies {
