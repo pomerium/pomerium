@@ -425,19 +425,19 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 Forward authentication creates an endpoint that can be used with third-party proxies that do not have rich access control capabilities ([nginx](http://nginx.org/en/docs/http/ngx_http_auth_request_module.html), [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), [ambassador](https://www.getambassador.io/reference/services/auth-service/), [traefik](https://docs.traefik.io/middlewares/forwardauth/)). Forward authentication allow you to delegate authentication and authorization for each request to Pomerium.
 
-### Forward Auth with URIs from HTTP Headers
+#### Forward Auth Verify URIs from HTTP Headers
 
 - Environmental Variable: `FORWARD_AUTH_URI_FROM_HEADERS`
 - Config File Key: `forward_auth_uri_from_headers`
 - Type: `bool`
-- Resulting Verification URL: `https://forwardauth.corp.example.com/?uriFromHeaders`
+- Resulting Verification URL: `https://forwardauth.corp.example.com/`
 - Example HTTP Headers For URL:
   - `X-Forwarded-Proto`: `https`
   - `X-Forwarded-Host`: `service.corp.example.com:8080`
 - Optional
 - Default: `false`
 
-Some third-party proxies include the url-to-verify in HTTP headers `X-Forwarded-Proto` and `X-Forwarded-Host`. This optional tells Pomerium to use the values from those headers to determine the uri to verify. Note that the verification URL must include the parameter `?uriFromHeaders`.
+Some third-party proxies include the url-to-verify in HTTP headers `X-Forwarded-Proto` and `X-Forwarded-Host`. This option tells Pomerium to use the values from those headers to determine the url-to-verify.
 
 #### Request flow
 

@@ -91,6 +91,8 @@ type Proxy struct {
 	sessionLoaders         []sessions.SessionLoader
 	templates              *template.Template
 	jwtClaimHeaders        []string
+
+	forwardAuthURIFromHeaders bool
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -136,8 +138,9 @@ func New(opts config.Options) (*Proxy, error) {
 			cookieStore,
 			header.NewStore(encoder, "Pomerium"),
 			queryparam.NewStore(encoder, "pomerium_session")},
-		templates:       template.Must(frontend.NewTemplates()),
-		jwtClaimHeaders: opts.JWTClaimsHeaders,
+		templates:                 template.Must(frontend.NewTemplates()),
+		jwtClaimHeaders:           opts.JWTClaimsHeaders,
+		forwardAuthURIFromHeaders: opts.ForwardAuthURIFromHeaders,
 	}
 	// errors checked in ValidateOptions
 	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
@@ -195,10 +198,11 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 	// dashboard handlers are registered to all routes
 	r = p.registerDashboardHandlers(r)
 
+	p.forwardAuthURIFromHeaders = opts.ForwardAuthURIFromHeaders
 	if opts.ForwardAuthURL != nil {
 		// if a forward auth endpoint is set, register its handlers
 		h := r.Host(opts.ForwardAuthURL.Hostname()).Subrouter()
-		h.PathPrefix("/").Handler(p.registerFwdAuthHandlers(opts.ForwardAuthURIFromHeaders))
+		h.PathPrefix("/").Handler(p.registerFwdAuthHandlers())
 	}
 
 	for _, policy := range opts.Policies {
