@@ -66,7 +66,6 @@ func run() error {
 		expiry            time.Duration
 	)
 
-	// set our JWT claims from the supplied CLI flags
 	flags = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flags.StringVar(&sa.Email, "email", "", "Email")
 	flags.StringVar(&sa.ImpersonateEmail, "impersonate_email", "", "Impersonation Email (optional)")
@@ -77,20 +76,19 @@ func run() error {
 	flags.Var(&groups, "groups", "Groups (e.g. admins@pomerium.io,users@pomerium.io)")
 	flags.Var(&impersonateGroups, "impersonate_groups", "Impersonation Groups (optional)")
 	flags.DurationVar(&expiry, "expiry", time.Hour, "Expiry")
-
-	// hydrate the sessions non-primate types
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		return err
 	}
+
+	// hydrate our session
 	sa.Audience = jwt.Audience(aud)
 	sa.Groups = []string(groups)
 	sa.ImpersonateGroups = []string(impersonateGroups)
 	sa.Expiry = jwt.NewNumericDate(time.Now().Add(expiry))
 	sa.IssuedAt = jwt.NewNumericDate(time.Now())
 	sa.NotBefore = jwt.NewNumericDate(time.Now())
-	// why not be pretty?
+
 	c := color.New(color.FgGreen)
-	// check that we've got our shared key to sign our jwt
 	var sharedKey string
 	args := flags.Args()
 	if len(args) == 1 {
