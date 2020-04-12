@@ -30,3 +30,28 @@ jobs:
           args: release --config .github/goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get tag name
+        id: tagName
+        uses: olegtarasov/get-tag@v1
+
+      - name: Find latest tag
+        id: latestTag
+        run: |
+          LATEST_TAG=$(git tag | sort --version-sort | tail -1)
+          echo "::set-env name=LATEST_TAG::$LATEST_TAG"
+
+      - name: Publish latest tag
+        if: "env.LATEST_TAG == steps.tagName.outputs.tag"
+        run: |
+          docker tag pomerium/pomerium:${{ env.LATEST_TAG }} pomerium/pomerium:latest
+          docker push pomerium/pomerium:latest
+
+          docker tag pomerium/pomerium:arm32v7-${{ env.LATEST_TAG }} pomerium/pomerium:arm32v7-latest
+          docker push pomerium/pomerium:arm32v7-latest
+
+          docker tag pomerium/pomerium:arm32v6-${{ env.LATEST_TAG }} pomerium/pomerium:arm32v6-latest
+          docker push pomerium/pomerium:arm32v6-latest
+
+          docker tag pomerium/pomerium:arm64v8-${{ env.LATEST_TAG }} pomerium/pomerium:arm64v8-latest
+          docker push pomerium/pomerium:arm64v8-latest
