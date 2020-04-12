@@ -48,6 +48,14 @@ $MQMobileNarrow = 419px
     &:hover, &.router-link-active
       color lighten($textColor, 8%) !important
 
+
+.dropdown-wrapper
+  .dropdown-title
+    color $navbar-text-color !important
+  .nav-dropdown
+    .dropdown-item
+      color $textColor !important
+
 @media (min-width: $MQMobile)
   .nav-links a
     &:hover, &.router-link-active
@@ -56,19 +64,6 @@ $MQMobileNarrow = 419px
     &:hover, &.router-link-active
       margin-bottom -2px
       border-bottom 2px solid lighten($navbar-text-color, 8%) !important
-
-
-
-.dropdown-wrapper
-  .dropdown-title
-    color $navbar-text-color !important
-    
-@media (max-width: $MQMobile)
-  .dropdown-wrapper
-    .dropdown-title
-      color $textColor !important
-
-@media (min-width: $MQMobile)
   .dropdown-wrapper
     .dropdown-title
       color $navbar-text-color !important
