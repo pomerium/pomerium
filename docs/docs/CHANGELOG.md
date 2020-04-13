@@ -1,10 +1,34 @@
 # Changelog
 
+## v0.7.2
+
+## Changes
+
+- proxy: remove extra session unmarshalling @desimone (#592)
+- proxy: add configurable JWT claim headers @travisgroth (#596)
+- grpcutil: remove unused pkg @desimone (#593)
+
+## Fixed
+
+- site: fix site on mobile @desimone (#597)
+
+## Documentation
+
+- site: fix site on mobile @desimone (#597)
+
+## Dependency
+
+- chore(deps): update vuepress monorepo to v1.4.0 @renovate (#559)
+
+  ## v0.7.1
+
+There were no changes in the v0.7.1 release, but we updated the build process slightly.
+
 ## v0.7.0
 
 ### New
 
-- \*: remove import path comments @desimone (#545)
+- *: remove import path comments @desimone (#545)
 - authenticate: make callback path configurable @desimone (#493)
 - authenticate: return 401 for some specific error codes @cuonglm (#561)
 - authorization: log audience claim failure @desimone (#553)
@@ -390,20 +414,6 @@
 - `http.Server` and `httputil.NewSingleHostReverseProxy` now uses pomerium's logging package instead of the standard library's built in one. [GH-58]
 
 [certificates documentation]: ../reference/certificates.md
-[synology tutorial]: ./quick-start/synology.md
-[gh-35]: https://github.com/pomerium/pomerium/issues/35
-[gh-58]: https://github.com/pomerium/pomerium/issues/58
-[gh-69]: https://github.com/pomerium/pomerium/issues/69
-[gh-73]: https://github.com/pomerium/pomerium/issues/73
-[gh-74]: https://github.com/pomerium/pomerium/pull/74
-[gh-79]: https://github.com/pomerium/pomerium/pull/79
-[gh-81]: https://github.com/pomerium/pomerium/pull/81
-[gh-83]: https://github.com/pomerium/pomerium/pull/83
-[gh-92]: https://github.com/pomerium/pomerium/pull/92
-[gh-93]: https://github.com/pomerium/pomerium/pull/93
-[gh-95]: https://github.com/pomerium/pomerium/pull/95
-[gh-96]: https://github.com/pomerium/pomerium/pull/96
-[gh-97]: https://github.com/pomerium/pomerium/issues/97
 [gh-100]: https://github.com/pomerium/pomerium/issues/100
 [gh-101]: https://github.com/pomerium/pomerium/pull/101
 [gh-103]: https://github.com/pomerium/pomerium/issues/103
@@ -423,7 +433,6 @@
 [gh-153]: https://github.com/pomerium/pomerium/issues/153
 [gh-177]: https://github.com/pomerium/pomerium/pull/177
 [gh-179]: https://github.com/pomerium/pomerium/issues/179
-[gh-181]: https://github.com/pomerium/pomerium/issues/181
 [gh-181]: https://github.com/pomerium/pomerium/issues/188
 [gh-183]: https://github.com/pomerium/pomerium/pull/183
 [gh-190]: https://github.com/pomerium/pomerium/issues/190
@@ -436,10 +445,8 @@
 [gh-220]: https://github.com/pomerium/pomerium/pull/220
 [gh-227]: https://github.com/pomerium/pomerium/pull/227
 [gh-230]: https://github.com/pomerium/pomerium/pull/230
-[gh-230]: https://github.com/pomerium/pomerium/pull/230
 [gh-233]: https://github.com/pomerium/pomerium/issues/233
 [gh-240]: https://github.com/pomerium/pomerium/pull/240
-[gh-259]: https://github.com/pomerium/pomerium/pull/259
 [gh-259]: https://github.com/pomerium/pomerium/pull/259
 [gh-261]: https://github.com/pomerium/pomerium/pull/261
 [gh-262]: https://github.com/pomerium/pomerium/issues/262
@@ -458,5 +465,19 @@
 [gh-328]: https://github.com/pomerium/pomerium/issues/328
 [gh-332]: https://github.com/pomerium/pomerium/pull/332/
 [gh-338]: https://github.com/pomerium/pomerium/issues/338
+[gh-35]: https://github.com/pomerium/pomerium/issues/35
 [gh-363]: https://github.com/pomerium/pomerium/issues/363
 [gh-376]: https://github.com/pomerium/pomerium/pull/376/
+[gh-58]: https://github.com/pomerium/pomerium/issues/58
+[gh-69]: https://github.com/pomerium/pomerium/issues/69
+[gh-73]: https://github.com/pomerium/pomerium/issues/73
+[gh-74]: https://github.com/pomerium/pomerium/pull/74
+[gh-79]: https://github.com/pomerium/pomerium/pull/79
+[gh-81]: https://github.com/pomerium/pomerium/pull/81
+[gh-83]: https://github.com/pomerium/pomerium/pull/83
+[gh-92]: https://github.com/pomerium/pomerium/pull/92
+[gh-93]: https://github.com/pomerium/pomerium/pull/93
+[gh-95]: https://github.com/pomerium/pomerium/pull/95
+[gh-96]: https://github.com/pomerium/pomerium/pull/96
+[gh-97]: https://github.com/pomerium/pomerium/issues/97
+[synology tutorial]: ./quick-start/synology.md

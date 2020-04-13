@@ -1,18 +1,18 @@
 // .vuepress/config.js
 module.exports = {
-  // title: "Pomerium",
+  title: "Pomerium",
   description:
     "Pomerium is a beyond-corp inspired, zero trust, open source identity-aware access proxy.",
   plugins: {
     sitemap: {
-      hostname: "https://www.pomerium.io",
+      hostname: "https://www.pomerium.io"
     },
     "@vuepress/google-analytics": {
-      ga: "UA-129872447-2",
-    },
+      ga: "UA-129872447-2"
+    }
   },
   markdown: {
-    externalLinkSymbol: false,
+    externalLinkSymbol: false
   },
   themeConfig: {
     logo: "/logo-long-civez.png",
@@ -38,13 +38,13 @@ module.exports = {
           { text: "v0.4.x", link: "https://0-4-0.docs.pomerium.io/docs" },
           { text: "v0.3.x", link: "https://0-3-0.docs.pomerium.io/docs" },
           { text: "v0.2.x", link: "https://0-2-0.docs.pomerium.io/docs" },
-          { text: "v0.1.x", link: "https://0-1-0.docs.pomerium.io/docs" },
-        ],
-      },
+          { text: "v0.1.x", link: "https://0-1-0.docs.pomerium.io/docs" }
+        ]
+      }
     ],
     algolia: {
       apiKey: "1653e881f3a6c17d3ad37f4d4c428e20",
-      indexName: "pomerium",
+      indexName: "pomerium"
     },
     sidebar: {
       "/docs/": [
@@ -59,8 +59,8 @@ module.exports = {
             "releases",
             "upgrading",
             "CHANGELOG",
-            "FAQ",
-          ],
+            "FAQ"
+          ]
         },
         {
           title: "Quick Start",
@@ -74,8 +74,8 @@ module.exports = {
             "quick-start/helm",
             "quick-start/kubernetes",
             "quick-start/synology",
-            "quick-start/from-source",
-          ],
+            "quick-start/from-source"
+          ]
         },
         {
           title: "Identity Providers",
@@ -90,8 +90,8 @@ module.exports = {
             "identity-providers/gitlab",
             "identity-providers/google",
             "identity-providers/okta",
-            "identity-providers/one-login",
-          ],
+            "identity-providers/one-login"
+          ]
         },
         {
           title: "Community",
@@ -103,8 +103,8 @@ module.exports = {
             "community/",
             "community/contributing",
             "community/code-of-conduct",
-            "community/security",
-          ],
+            "community/security"
+          ]
         },
         {
           title: "Reference",
@@ -118,9 +118,9 @@ module.exports = {
             "reference/impersonation",
             "reference/programmatic-access",
             "reference/getting-users-identity",
-            "reference/production-deployment",
-          ],
-        },
+            "reference/production-deployment"
+          ]
+        }
       ],
       "/recipes/": [
         {
@@ -129,8 +129,8 @@ module.exports = {
 
           collapsable: false,
           sidebarDepth: 1,
-          children: ["", "ad-guard", "vs-code-server", "kubernetes"],
-        },
+          children: ["", "ad-guard", "vs-code-server", "kubernetes"]
+        }
       ],
       "/enterprise/": [
         {
@@ -138,8 +138,8 @@ module.exports = {
           type: "group",
           collapsable: false,
           sidebarDepth: 1,
-          children: [""],
-        },
+          children: [""]
+        }
       ],
       "/configuration/": [
         {
@@ -147,9 +147,9 @@ module.exports = {
           type: "group",
           collapsable: false,
           sidebarDepth: 1,
-          children: ["", "examples"],
-        },
-      ],
-    },
-  },
+          children: ["", "examples"]
+        }
+      ]
+    }
+  }
 };
