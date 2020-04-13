@@ -13,7 +13,7 @@ description: >-
 
 :::warning
 
-This changed was reverted in v0.7.3, and the old headers can be safely used.
+This changed was partially reverted in v0.7.2\. Session details like `user`, `email`, and `groups` can still be explicitly extracted by setting the [jwt_claims_header](../configuration/readme.md#jwt-claim-headers) configuration option.
 
 :::
 
