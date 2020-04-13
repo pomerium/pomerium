@@ -9,6 +9,8 @@ meta:
 
 # AWS Cognito
 
+This document describes the use of AWS Cognito as an identity provider with Pomerium.
+
 ## Setting up AWS Cognito
 
 Log in to the [AWS Console](https://console.aws.amazon.com) account.

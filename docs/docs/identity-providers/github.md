@@ -9,23 +9,28 @@ meta:
 
 # GitHub
 
-## Setting up GitHub OAuth2 for your Application
+This document describes the use of GitHub as an identity provider for Pomerium.
 
-We would like you to be aware that GitHub did not implement the OpenID Connect just OAuth2 and for this reason, we have not gotten a better way to implement revocation of user access on sign out yet.
+Before we proceed, please be aware that [GitHub API] does not support [OpenID Connect], just [OAuth 2.0].
+For this reason, it was challenging to implement revocation of a user's **Access Token** (a string representing the granted permissions) when they sign out from Pomerium's dashboard. 
 
-Also, the organizations a user belongs to will be used as the groups on Pomerium dashboard.
+In addition, the teams of the organization(s) a user belongs to, will be used as groups on Pomerium.
 
-Log in to [Github](https://github.com/login) or create an account.
+## Setting up GitHub OAuth 2.0 for your Application
 
-Navigate to your profile using the avatar on the navigation bar and go to your settings. 
+1. Log in to [Github](https://github.com/login) or create an account.
+
+2. Navigate to your profile using the avatar on the navigation bar.
+
+3. Go to your settings. 
 
 ![GitHub settings](./img/github/github-user-profile.png)
 
-Click the Developers settings and create a new OAuth Application
+4. Click the Developers settings and create a new OAuth Application.
 
 ![GitHub OAuth2 Application creation](./img/github/github-oauth-creation.png)
 
-Create a new OAuth2 application by filling the field with the following parameters:
+5. Create a new OAuth2 application by filling the form fields above with the following parameters:
 
 Field                       | Description
 --------------------------- | --------------------------------------------
@@ -36,9 +41,10 @@ Authorization callback URL  | `https://${authenticate_service_url}/oauth2/callba
 
 After the application had been created, you will have access to the credentials, the **Client ID** and **Client Secret**.
 
+
 ## Pomerium Configuration
 
-If the setup for GitHub OAuth application has been completed, you can create your **Pomerium** configuration like the example below:
+After creating your GitHub OAuth application, you can create your **Pomerium** configuration like the example below:
 
 ```bash
 authenticate_service_url: https://authenticate.localhost.pomerium.io
@@ -50,3 +56,7 @@ idp_client_secret: "REDACTED"   // github application secret
 Whenever a user tries to access  your application integrated with Pomerium, they will be presented with a sign-on page as below:
 
 ![GitHub Sign-on Page](./img/github/github-signon-page.png)
+
+[Github API]: https://developer.github.com/v3/#oauth2-token-sent-in-a-header
+[openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect
+[OAuth 2.0]: https://auth0.com/docs/protocols/oauth2
