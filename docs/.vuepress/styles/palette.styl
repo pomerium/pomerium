@@ -42,6 +42,8 @@ $MQMobileNarrow = 419px
     background-color: $navbar-background !important
     color: $navbar-text-color !important
     padding-left 0rem
+  .site-name
+    display: none !important 
 
 .nav-links
   a
@@ -70,3 +72,8 @@ $MQMobileNarrow = 419px
     .nav-dropdown
       .dropdown-item
         color $textColor !important
+
+@media (max-width: $MQMobile)
+  .navbar
+    .site-name
+      display: none !important 
