@@ -11,6 +11,12 @@ description: >-
 
 ### Getting user's identity
 
+:::warning
+
+This changed was partially reverted in v0.7.2\. Session details like `user`, `email`, and `groups` can still be explicitly extracted by setting the [jwt_claims_header](../configuration/readme.md#jwt-claim-headers) configuration option.
+
+:::
+
 User detail headers ( `x-pomerium-authenticated-user-id` / `x-pomerium-authenticated-user-email` / `x-pomerium-authenticated-user-groups`) have been removed in favor of using the more secure, more data rich attestation jwt header (`x-pomerium-jwt-assertion`).
 
 If you still rely on individual claim headers, please see the `jwt_claims_headers` option [here](https://www.pomerium.io/configuration/#jwt-claim-headers).
