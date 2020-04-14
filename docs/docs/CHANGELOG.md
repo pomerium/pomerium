@@ -1,26 +1,32 @@
 # Changelog
 
+## v0.7.3
+
+### Fixed
+
+- Upgrade gRPC to 1.27.1 @travisgroth (#609)
+
 ## v0.7.2
 
-## Changes
+### Changes
 
 - proxy: remove extra session unmarshalling @desimone (#592)
 - proxy: add configurable JWT claim headers @travisgroth (#596)
 - grpcutil: remove unused pkg @desimone (#593)
 
-## Fixed
+### Fixed
 
 - site: fix site on mobile @desimone (#597)
 
-## Documentation
+### Documentation
 
 - site: fix site on mobile @desimone (#597)
 
-## Dependency
+### Dependency
 
 - chore(deps): update vuepress monorepo to v1.4.0 @renovate (#559)
 
-  ## v0.7.1
+## v0.7.1
 
 There were no changes in the v0.7.1 release, but we updated the build process slightly.
 
