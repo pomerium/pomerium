@@ -97,6 +97,11 @@ type Provider struct {
 	provider *oidc.Provider
 	verifier *oidc.IDTokenVerifier
 	oauth    *oauth2.Config
+
+	// revocationURL or endSessionURL endpoint is needed to be able to implement
+	// revoke of a user's access token.
+	revocationURL string
+	endSessionURL string
 }
 
 // GetSignInURL returns a URL to OAuth 2.0 provider's consent page
@@ -108,15 +113,6 @@ type Provider struct {
 // See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
 func (p *Provider) GetSignInURL(state string) string {
 	return p.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline)
-}
-
-// check if provider has info endpoint, try to hit that and gather more info
-// especially useful if initial request did not an contain email, or subject
-// https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
-var claims struct {
-	UserInfoURL   string `json:"userinfo_endpoint"`
-	RevocationURL string `json:"revocation_endpoint"`
-	EndSessionURL string `json:"end_session_endpoint"`
 }
 
 // Authenticate creates an identity session with google from a authorization code, and follows up
@@ -136,7 +132,20 @@ func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.Sta
 		return nil, err
 	}
 
+	// We will attempt to get the identity provider's possible information from
+	// their /.well-known/openid-configuration.
+	// https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
+	var claims struct {
+		UserInfoURL   string `json:"userinfo_endpoint"`
+		RevocationURL string `json:"revocation_endpoint"`
+		EndSessionURL string `json:"end_session_endpoint"`
+	}
+
 	if err := p.provider.Claims(&claims); err == nil && claims.UserInfoURL != "" {
+		// get the possible revocation endpoint
+		p.revocationURL = claims.RevocationURL
+		p.endSessionURL = claims.EndSessionURL
+
 		userInfo, err := p.provider.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
 		if err != nil {
 			return nil, fmt.Errorf("internal/identity: could not retrieve user info %w", err)
@@ -198,20 +207,21 @@ func (p *Provider) IdentityFromToken(ctx context.Context, t *oauth2.Token) (*oid
 // Revoke enables a user to revoke her token. If the identity provider supports revocation
 // the endpoint is available, otherwise an error is thrown.
 //
-// We will attempt to get the identity provider's possible revocation endpoint by making a
-// request to their /.well-known/openid-configuration, and based on the common endpoint keys
-// we'll be using the revocation_endpoint and end_session_endpoint keys  to get the
-// endpoint and implement it in the most generic way.
+// We will attempt to get the identity provider's possible revocation endpoint from
+// their /.well-known/openid-configuration.
+// we use the revocation_endpoint or end_session_endpoint to implement
+// the generic revocation of a user's access token.
 //
+// reference:
 // Google : https://accounts.google.com/.well-known/openid-configuration
 // Azure: https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
 func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
 	var revokeURL string
 	switch {
-	case claims.RevocationURL != "":
-		revokeURL = claims.RevocationURL
-	case claims.EndSessionURL != "":
-		revokeURL = claims.EndSessionURL
+	case p.revocationURL != "":
+		revokeURL = p.revocationURL
+	case p.endSessionURL != "":
+		revokeURL = p.endSessionURL
 	default:
 		return ErrRevokeNotImplemented
 	}
