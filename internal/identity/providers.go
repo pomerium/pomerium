@@ -102,7 +102,10 @@ type Provider struct {
 	// We will attempt to get the identity provider's possible information from
 	// their /.well-known/openid-configuration.
 	// https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
-	UserInfoURL   string `json:"userinfo_endpoint"`
+	UserInfoURL string `json:"userinfo_endpoint"`
+
+	// RevocationURL is the location of the OAuth 2.0 token revocation endpoint.
+	// https://tools.ietf.org/html/rfc7009
 	RevocationURL string //can be empty
 }
 
@@ -193,23 +196,24 @@ func (p *Provider) IdentityFromToken(ctx context.Context, t *oauth2.Token) (*oid
 	return p.verifier.Verify(ctx, rawIDToken)
 }
 
-// Revoke enables a user to revoke her token. If the identity provider supports revocation
-// the endpoint is available, otherwise an error is thrown.
+// Revoke enables a user to revoke her token. If the identity provider does not
+// support revocation an error is thrown.
 //
-// We will attempt to get the identity provider's possible revocation endpoint from
-// their /.well-known/openid-configuration.
-// we use the revocation_endpoint or end_session_endpoint to implement
-// the generic revocation of a user's access token.
-//
-// reference:
-// Google : https://accounts.google.com/.well-known/openid-configuration
-// Azure: https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
+// https://tools.ietf.org/html/rfc7009
 func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
 	if p.RevocationURL == "" {
 		return ErrRevokeNotImplemented
 	}
 	params := url.Values{}
+	// https://tools.ietf.org/html/rfc7009#section-2.1
 	params.Add("token", token.AccessToken)
+	params.Add("token_type_hint", "access_token")
+	// Some providers like okta / onelogin require "client authentication"
+	// https://developer.okta.com/docs/reference/api/oidc/#client-secret
+	// https://developers.onelogin.com/openid-connect/api/revoke-session
+	params.Add("client_id", p.ClientID)
+	params.Add("client_secret", p.ClientSecret)
+
 	err := httputil.Client(ctx, http.MethodPost, p.RevocationURL, version.UserAgent(), nil, params, nil)
 	if err != nil && err != httputil.ErrTokenRevoked {
 		return err

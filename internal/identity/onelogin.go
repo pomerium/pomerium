@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	oidc "github.com/coreos/go-oidc"
@@ -23,9 +22,6 @@ const defaultOneloginGroupURL = "https://openid-connect.onelogin.com/oidc/me"
 // of an authorization identity provider.
 type OneLoginProvider struct {
 	*Provider
-
-	// non-standard oidc fields
-	RevokeURL string `json:"revocation_endpoint"`
 }
 
 // NewOneLoginProvider creates a new instance of an OpenID Connect provider.
@@ -60,21 +56,6 @@ func NewOneLoginProvider(p *Provider) (*OneLoginProvider, error) {
 	p.UserGroupFn = olProvider.UserGroups
 
 	return &olProvider, nil
-}
-
-// Revoke revokes the access token a given session state.
-// https://developers.onelogin.com/openid-connect/api/revoke-session
-func (p *OneLoginProvider) Revoke(ctx context.Context, token *oauth2.Token) error {
-	params := url.Values{}
-	params.Add("client_id", p.ClientID)
-	params.Add("client_secret", p.ClientSecret)
-	params.Add("token", token.AccessToken)
-	params.Add("token_type_hint", "access_token")
-	err := httputil.Client(ctx, http.MethodPost, p.RevokeURL, version.UserAgent(), nil, params, nil)
-	if err != nil && err != httputil.ErrTokenRevoked {
-		return fmt.Errorf("identity/onelogin: revocation error %w", err)
-	}
-	return nil
 }
 
 // UserGroups returns a slice of group names a given user is in.
