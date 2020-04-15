@@ -107,7 +107,7 @@ func (p *GitHubProvider) updateSessionState(ctx context.Context, s *sessions.Sta
 
 	err := p.userInfo(ctx, accessToken, s)
 	if err != nil {
-		return fmt.Errorf("identity/github: could not user info %w", err)
+		return fmt.Errorf("identity/github: could not retrieve user info %w", err)
 	}
 
 	err = p.userEmail(ctx, accessToken, s)

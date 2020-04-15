@@ -4,6 +4,7 @@ package identity
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -98,10 +99,11 @@ type Provider struct {
 	verifier *oidc.IDTokenVerifier
 	oauth    *oauth2.Config
 
-	// revocationURL or endSessionURL endpoint is needed to be able to implement
-	// revoke of a user's access token.
-	revocationURL string
-	endSessionURL string
+	// We will attempt to get the identity provider's possible information from
+	// their /.well-known/openid-configuration.
+	// https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
+	UserInfoURL   string `json:"userinfo_endpoint"`
+	RevocationURL string //can be empty
 }
 
 // GetSignInURL returns a URL to OAuth 2.0 provider's consent page
@@ -132,20 +134,7 @@ func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.Sta
 		return nil, err
 	}
 
-	// We will attempt to get the identity provider's possible information from
-	// their /.well-known/openid-configuration.
-	// https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
-	var claims struct {
-		UserInfoURL   string `json:"userinfo_endpoint"`
-		RevocationURL string `json:"revocation_endpoint"`
-		EndSessionURL string `json:"end_session_endpoint"`
-	}
-
-	if err := p.provider.Claims(&claims); err == nil && claims.UserInfoURL != "" {
-		// get the possible revocation endpoint
-		p.revocationURL = claims.RevocationURL
-		p.endSessionURL = claims.EndSessionURL
-
+	if err := p.provider.Claims(&p); err == nil && p.UserInfoURL != "" {
 		userInfo, err := p.provider.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
 		if err != nil {
 			return nil, fmt.Errorf("internal/identity: could not retrieve user info %w", err)
@@ -216,21 +205,48 @@ func (p *Provider) IdentityFromToken(ctx context.Context, t *oauth2.Token) (*oid
 // Google : https://accounts.google.com/.well-known/openid-configuration
 // Azure: https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
 func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
-	var revokeURL string
-	switch {
-	case p.revocationURL != "":
-		revokeURL = p.revocationURL
-	case p.endSessionURL != "":
-		revokeURL = p.endSessionURL
-	default:
+	if p.RevocationURL == "" {
 		return ErrRevokeNotImplemented
 	}
-
 	params := url.Values{}
 	params.Add("token", token.AccessToken)
-	err := httputil.Client(ctx, http.MethodPost, revokeURL, version.UserAgent(), nil, params, nil)
+	err := httputil.Client(ctx, http.MethodPost, p.RevocationURL, version.UserAgent(), nil, params, nil)
 	if err != nil && err != httputil.ErrTokenRevoked {
 		return err
 	}
+
+	return nil
+}
+
+// UnmarshalJSON method is needed so that provider will be able to
+// satisfy the Unmarshaler interface
+// https://pkg.go.dev/gopkg.in/square/go-jose.v2/json#Unmarshaler
+//
+// For the the go-oidc package to be able to apply the Claims method which tries to unmarshal
+// the response body from the provider's /.well-known/openid-configuration
+// on the supplied interface, and in our case, it will be the Provider.
+// An extra step is made to create this implementation because the endpoint
+// to revoke a user's access token can be revocation_endpoint or end_session_endpoint.
+// We want to be able to have only one field and not repeat any of the two possible
+// endpoints on the Provider field.
+func (p *Provider) UnmarshalJSON(b []byte) error {
+	type Alias Provider
+	t := &struct {
+		*Alias
+		EndSessionEndpoint string `json:"end_session_endpoint,omitempty"`
+		RevocationEndpoint string `json:"revocation_endpoint,omitempty"`
+	}{
+		Alias: (*Alias)(p),
+	}
+	if err := json.Unmarshal(b, &t); err != nil {
+		return err
+	}
+	if t.EndSessionEndpoint != "" {
+		t.RevocationURL = t.EndSessionEndpoint
+	}
+	if t.RevocationEndpoint != "" {
+		t.RevocationURL = t.RevocationEndpoint
+	}
+	*p = *(*Provider)(t.Alias)
 	return nil
 }
