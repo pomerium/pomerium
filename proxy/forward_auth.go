@@ -23,8 +23,8 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	// NGNIX's forward-auth capabilities are split across two settings:
 	// `auth-url` and `auth-signin` which correspond to `verify` and `auth-url`
 	//
-	// NOTE: Route order matters here. As such, it's rather confusing to follow
-	// 		 so each step of the process is labeled in order of the flow
+	// NOTE: Route order matters here which makes the request flow confusing
+	// 		 to reason about so each step has a postfix order step.
 
 	// nginx 3: save the returned session post authenticate flow
 	r.Handle("/verify", httputil.HandlerFunc(p.nginxCallback)).
@@ -69,7 +69,7 @@ func (p *Proxy) nginxCallback(w http.ResponseWriter, r *http.Request) error {
 }
 
 // forwardedURIHeaderCallback handles the post-authentication callback from
-// forwarding proxies that support the `X-Forwarded-Uri` header per rfc7239.
+// forwarding proxies that support the `X-Forwarded-Uri`.
 func (p *Proxy) forwardedURIHeaderCallback(w http.ResponseWriter, r *http.Request) error {
 	forwardedURL, err := url.Parse(r.Header.Get(httputil.HeaderForwardedURI))
 	if err != nil {
@@ -99,8 +99,8 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
 		}
 
-		// the route to validate will either be pull from the uri queryparam or
-		// inferred from the forwarding headers as specified by rfc7239.
+		// the route to validate will be pulled from the uri queryparam
+		// or inferred from forwarding headers
 		uriString := r.FormValue("uri")
 		if uriString == "" {
 			if r.Header.Get(httputil.HeaderForwardedProto) == "" || r.Header.Get(httputil.HeaderForwardedHost) == "" {
