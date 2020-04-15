@@ -21,29 +21,27 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r.Use(sessions.RetrieveSession(p.sessionStore))
 
 	// NGNIX's forward-auth capabilities are split across two settings:
-	// `auth-url` and `auth-signin` which correspond to `verify` and `auth-url`.
+	// `auth-url` and `auth-signin` which correspond to `verify` and `auth-url`
 	//
 	// NOTE: Route order matters here. As such, it's rather confusing to follow
 	// 		 so each step of the process is labeled in order of the flow
 
-	// nginx 3: save the returned session post callback.
+	// nginx 3: save the returned session post authenticate flow
 	r.Handle("/verify", httputil.HandlerFunc(p.nginxCallback)).
 		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
 
-	// nginx 1: return 401 if invalid causing NGINX to redirect to `auth-signin`
+	// nginx 1: verify. Return 401 if invalid and NGINX will call `auth-signin`
 	r.Handle("/verify", p.Verify(true)).Queries("uri", "{uri}")
 
-	// nginx 4: now that the the session is save, redirect the user back to
-	// their originally requested location.
+	// nginx 4: redirect the user back to their originally requested location.
 	r.Handle("/", httputil.HandlerFunc(p.nginxPostCallbackRedirect)).
 		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
 
-	// not nginx: save the returned session post callback
+	// not nginx: save the returned session post authenticate flow
 	r.Handle("/", httputil.HandlerFunc(p.forwardedURIHeaderCallback)).
 		HeadersRegexp(httputil.HeaderForwardedURI, urlutil.QuerySessionEncrypted)
 
-	// nginx 2: nginx start the authentication process, redirecting to authN
-	// not nginx: verify otherwise start authN flow
+	// nginx 2 / not nginx: verify and then start authenticate flow
 	r.Handle("/", p.Verify(false))
 
 	return r
