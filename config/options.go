@@ -186,9 +186,6 @@ type Options struct {
 	// these requests with this switch
 	ForwardAuthURLString string   `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
 	ForwardAuthURL       *url.URL `yaml:",omitempty"`
-	// ForwardAuthURIFromHeaders allows the uri being authorized to be derived
-	// from HTTP headers rather than manually specified in a query parameter
-	ForwardAuthURIFromHeaders bool `mapstructure:"forward_auth_uri_from_headers" yaml:"forward_auth_uri_from_headers,omitempty"`
 
 	// CacheStore is the name of session cache backend to use.
 	// Options are : "bolt", "redis", and "autocache".

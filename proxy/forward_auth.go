@@ -11,38 +11,55 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
+// registerFwdAuthHandlers returns a set of handlers that support using pomerium
+// as a "forward-auth" provider with other reverse proxies like nginx, traefik.
+//
+// see : https://www.pomerium.io/configuration/#forward-auth
 func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r := httputil.NewRouter()
 	r.StrictSlash(true)
 	r.Use(sessions.RetrieveSession(p.sessionStore))
 
+	// NGNIX's forward-auth capabilities are split across two settings:
+	// `auth-url` and `auth-signin` which correspond to `verify` and `auth-url`.
+	//
+	// NOTE: Route order matters here. As such, it's rather confusing to follow
+	// 		 so each step of the process is labeled in order of the flow
+
+	// nginx 3: save the returned session post callback.
 	r.Handle("/verify", httputil.HandlerFunc(p.nginxCallback)).
 		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
-	r.Handle("/", httputil.HandlerFunc(p.postSessionSetNOP)).
-		Queries("uri", "{uri}",
-			urlutil.QuerySessionEncrypted, "",
-			urlutil.QueryRedirectURI, "")
-	r.Handle("/", httputil.HandlerFunc(p.traefikCallback)).
-		HeadersRegexp(httputil.HeaderForwardedURI, urlutil.QuerySessionEncrypted)
-	r.Handle("/", p.Verify(false)).Queries("uri", "{uri}")
+
+	// nginx 1: return 401 if invalid causing NGINX to redirect to `auth-signin`
 	r.Handle("/verify", p.Verify(true)).Queries("uri", "{uri}")
 
-	if p.forwardAuthURIFromHeaders {
-		r.Handle("/", p.Verify(false)).
-			HeadersRegexp(httputil.HeaderForwardedProto, "",
-				httputil.HeaderForwardedHost, "")
-	}
+	// nginx 4: now that the the session is save, redirect the user back to
+	// their originally requested location.
+	r.Handle("/", httputil.HandlerFunc(p.nginxPostCallbackRedirect)).
+		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
+
+	// not nginx: save the returned session post callback
+	r.Handle("/", httputil.HandlerFunc(p.forwardedURIHeaderCallback)).
+		HeadersRegexp(httputil.HeaderForwardedURI, urlutil.QuerySessionEncrypted)
+
+	// nginx 2: nginx start the authentication process, redirecting to authN
+	// not nginx: verify otherwise start authN flow
+	r.Handle("/", p.Verify(false))
 
 	return r
 }
 
-// postSessionSetNOP after successfully setting the
-func (p *Proxy) postSessionSetNOP(w http.ResponseWriter, r *http.Request) error {
+// nginxPostCallbackRedirect redirects the user to their original destination.
+func (p *Proxy) nginxPostCallbackRedirect(w http.ResponseWriter, r *http.Request) error {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	httputil.Redirect(w, r, r.FormValue(urlutil.QueryRedirectURI), http.StatusFound)
 	return nil
 }
 
+// nginxCallback saves the returned session post callback and then returns an
+// unauthorized status in order to restart the request flow process. Strangely
+// we need to throw a 401 after saving the session to redirect the user
+// to their originally desired location.
 func (p *Proxy) nginxCallback(w http.ResponseWriter, r *http.Request) error {
 	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
 	if _, err := p.saveCallbackSession(w, r, encryptedSession); err != nil {
@@ -53,7 +70,9 @@ func (p *Proxy) nginxCallback(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (p *Proxy) traefikCallback(w http.ResponseWriter, r *http.Request) error {
+// forwardedURIHeaderCallback handles the post-authentication callback from
+// forwarding proxies that support the `X-Forwarded-Uri` header per rfc7239.
+func (p *Proxy) forwardedURIHeaderCallback(w http.ResponseWriter, r *http.Request) error {
 	forwardedURL, err := url.Parse(r.Header.Get(httputil.HeaderForwardedURI))
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -82,15 +101,15 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
 		}
 
-		// Find the uri to validate from urlParams or http headers
-		var uriString string
-		if r.FormValue("uri") != "" {
-			uriString = r.FormValue("uri")
-		} else if p.forwardAuthURIFromHeaders {
+		// the route to validate will either be pull from the uri queryparam or
+		// inferred from the forwarding headers as specified by rfc7239.
+		uriString := r.FormValue("uri")
+		if uriString == "" {
+			if r.Header.Get(httputil.HeaderForwardedProto) == "" || r.Header.Get(httputil.HeaderForwardedHost) == "" {
+				return httputil.NewError(http.StatusBadRequest, errors.New("no uri to validate"))
+
+			}
 			uriString = r.Header.Get(httputil.HeaderForwardedProto) + "://" + r.Header.Get(httputil.HeaderForwardedHost)
-		} else {
-			err = errors.New("no uri to validate")
-			return httputil.NewError(http.StatusBadRequest, err)
 		}
 
 		uri, err := urlutil.ParseAndValidateURL(uriString)
