@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -19,11 +21,11 @@ import (
 
 const (
 	defaultGitHubProviderURL = "https://github.com"
-	githubAuthURL            = "/login/oauth/authorize"
-	githubUserURL            = "https://api.github.com/user"
-	githubUserTeamURL        = "https://api.github.com/user/teams"
-	githubRevokeURL          = "https://github.com/oauth/revoke"
-	githubUserEmailURL       = "https://api.github.com/user/emails"
+	githubAPIURL             = "https://api.github.com"
+	userPath                 = "/user"
+	teamPath                 = "/user/teams"
+	revokePath               = "/applications/%s/grant"
+	emailPath                = "/user/emails"
 
 	// since github doesn't implement oidc, we need this to refresh the user session
 	refreshDeadline = time.Minute * 60
@@ -33,22 +35,11 @@ const (
 type GitHubProvider struct {
 	*Provider
 
-	authURL      string
-	tokenURL     string
 	userEndpoint string
-
-	RevokeURL string `json:"revocation_endpoint"`
 }
 
 // NewGitHubProvider returns a new GitHubProvider.
 func NewGitHubProvider(p *Provider) (*GitHubProvider, error) {
-	gp := &GitHubProvider{
-		authURL:      defaultGitHubProviderURL + githubAuthURL,
-		tokenURL:     defaultGitHubProviderURL + "/login/oauth/access_token",
-		userEndpoint: githubUserURL,
-		RevokeURL:    githubRevokeURL,
-	}
-
 	if p.ProviderURL == "" {
 		p.ProviderURL = defaultGitHubProviderURL
 	}
@@ -61,13 +52,16 @@ func NewGitHubProvider(p *Provider) (*GitHubProvider, error) {
 		ClientID:     p.ClientID,
 		ClientSecret: p.ClientSecret,
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  gp.authURL,
-			TokenURL: gp.tokenURL,
+			AuthURL:  p.ProviderURL + "/login/oauth/authorize",
+			TokenURL: p.ProviderURL + "/login/oauth/access_token",
 		},
 		RedirectURL: p.RedirectURL.String(),
 		Scopes:      p.Scopes,
 	}
-	gp.Provider = p
+	gp := &GitHubProvider{
+		Provider:     p,
+		userEndpoint: githubAPIURL + userPath,
+	}
 
 	return gp, nil
 }
@@ -152,7 +146,7 @@ func (p *GitHubProvider) userTeams(ctx context.Context, at string, s *sessions.S
 	}
 
 	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", at)}
-	err := httputil.Client(ctx, http.MethodGet, githubUserTeamURL, version.UserAgent(), headers, nil, &response)
+	err := httputil.Client(ctx, http.MethodGet, githubAPIURL+teamPath, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return err
 	}
@@ -182,7 +176,7 @@ func (p *GitHubProvider) userEmail(ctx context.Context, at string, s *sessions.S
 		Visibility string `json:"visibility"`
 	}
 	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", at)}
-	err := httputil.Client(ctx, http.MethodGet, githubUserEmailURL, version.UserAgent(), headers, nil, &response)
+	err := httputil.Client(ctx, http.MethodGet, githubAPIURL+emailPath, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return err
 	}
@@ -221,5 +215,35 @@ func (p *GitHubProvider) userInfo(ctx context.Context, at string, s *sessions.St
 	s.Picture = response.AvatarURL
 	// set the session expiry
 	s.Expiry = jwt.NewNumericDate(time.Now().Add(refreshDeadline))
+	return nil
+}
+
+// Revoke method will remove all the github grants the user
+// gave pomerium application during authorization.
+//
+// https://developer.github.com/v3/apps/oauth_applications/#delete-an-app-authorization
+func (p *GitHubProvider) Revoke(ctx context.Context, token *oauth2.Token) error {
+	// build the basic authentication request
+	basicAuth := url.UserPassword(p.ClientID, p.ClientSecret)
+	revokeURL := url.URL{
+		Scheme: "https",
+		User:   basicAuth,
+		Host:   "api.github.com",
+		Path:   fmt.Sprintf(revokePath, p.ClientID),
+	}
+	reqBody := strings.NewReader(fmt.Sprintf(`{"access_token": "%s"}`, token.AccessToken))
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, revokeURL.String(), reqBody)
+	if err != nil {
+		return errors.New("identity/github could not create revoke request")
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
 	return nil
 }

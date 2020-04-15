@@ -5,18 +5,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
 
 	oidc "github.com/coreos/go-oidc"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	admin "google.golang.org/api/admin/directory/v1"
 
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/version"
 )
 
 const defaultGoogleProviderURL = "https://accounts.google.com"
@@ -24,8 +20,6 @@ const defaultGoogleProviderURL = "https://accounts.google.com"
 // GoogleProvider is an implementation of the Provider interface.
 type GoogleProvider struct {
 	*Provider
-
-	RevokeURL string `json:"revocation_endpoint"`
 
 	apiClient *admin.Service
 }
@@ -93,19 +87,6 @@ func NewGoogleProvider(p *Provider) (*GoogleProvider, error) {
 	}
 
 	return gp, nil
-}
-
-// Revoke revokes the access token a given session state.
-//
-// https://developers.google.com/identity/protocols/OAuth2WebServer#tokenrevoke
-func (p *GoogleProvider) Revoke(ctx context.Context, token *oauth2.Token) error {
-	params := url.Values{}
-	params.Add("token", token.AccessToken)
-	err := httputil.Client(ctx, http.MethodPost, p.RevokeURL, version.UserAgent(), nil, params, nil)
-	if err != nil && err != httputil.ErrTokenRevoked {
-		return err
-	}
-	return nil
 }
 
 // GetSignInURL returns a URL to OAuth 2.0 provider's consent page that asks for permissions for
