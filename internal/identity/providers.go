@@ -251,6 +251,6 @@ func (p *Provider) UnmarshalJSON(b []byte) error {
 	if t.RevocationEndpoint != "" {
 		t.RevocationURL = t.RevocationEndpoint
 	}
-	*p = *(*Provider)(t.Alias)
+
 	return nil
 }
