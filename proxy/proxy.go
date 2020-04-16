@@ -326,7 +326,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.Handler.ServeHTTP(w, r)
 }
 
-
 // routeMatcherFuncFromPolicy returns a mux matcher function which compares an http request with a policy.
 //
 // Routes can be filtered by the `source`, `prefix`, `path` and `regex` fields in the policy config.
