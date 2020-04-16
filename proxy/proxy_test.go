@@ -292,14 +292,6 @@ func TestRouteMatcherFuncFromPolicy(t *testing.T) {
 			"https://www.google.com", false,
 			"should not match when host is different from source host"},
 
-		// path prefix in source
-		{"https://www.example.com/admin", "", "", "",
-			"https://www.example.com/admin/someaction", true,
-			"should match when path begins with source path"},
-		{"https://www.example.com/admin", "", "", "",
-			"https://www.example.com/notadmin", false,
-			"should not match when path does not begin with source path"},
-
 		// path prefix
 		{"https://www.example.com", "/admin", "", "",
 			"https://www.example.com/admin/someaction", true,

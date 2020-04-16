@@ -74,7 +74,6 @@ allowed_route_source(input_url_obj, policy) {
 	object.get(policy, "source", "") != ""
 	source_url_obj := parse_url(policy.source)
 	input_url_obj.host == source_url_obj.host
-	startswith(input_url_obj.path, source_url_obj.path)
 }
 
 allowed_route_prefix(input_url_obj, policy) {
