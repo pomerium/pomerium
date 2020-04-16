@@ -9,7 +9,7 @@ description: >-
 
 ## What
 
-User impersonation and services accounts enables administrative users to temporarily "sign in as" another user in pomerium. Users with impersonation permissions can impersonate all other users and groups. The impersonating user will be subject to the authorization and access policies of the impersonated user.
+User impersonation and service accounts enables administrative users to temporarily "sign in as" another user in pomerium. Users with impersonation permissions can impersonate all other users and groups. The impersonating user will be subject to the authorization and access policies of the impersonated user.
 
 ## Why
 
