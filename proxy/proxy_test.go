@@ -336,7 +336,7 @@ func TestRouteMatcherFuncFromPolicy(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		src := &config.HostnameURL{URL: srcURL}
+		src := &config.StringURL{URL: srcURL}
 		matcher := routeMatcherFuncFromPolicy(config.Policy{
 			Source: src,
 			Prefix: tt.prefix,

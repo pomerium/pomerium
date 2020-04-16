@@ -57,8 +57,8 @@ func TestPolicy_String(t *testing.T) {
 		want     string
 		wantFrom string
 	}{
-		{"good", "https://pomerium.io", "https://localhost", "https://pomerium.io → https://localhost", `"pomerium.io"`},
-		{"failed to validate", "https://pomerium.io", "localhost", "https://pomerium.io → localhost", `"pomerium.io"`},
+		{"good", "https://pomerium.io", "https://localhost", "https://pomerium.io → https://localhost", `"https://pomerium.io"`},
+		{"failed to validate", "https://pomerium.io", "localhost", "https://pomerium.io → localhost", `"https://pomerium.io"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

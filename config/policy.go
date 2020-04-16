@@ -21,8 +21,8 @@ type Policy struct {
 	AllowedGroups  []string `mapstructure:"allowed_groups" yaml:"allowed_groups,omitempty" json:"allowed_groups,omitempty"`
 	AllowedDomains []string `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 
-	Source      *HostnameURL `yaml:",omitempty" json:"source,omitempty"`
-	Destination *url.URL     `yaml:",omitempty" json:"destination,omitempty"`
+	Source      *StringURL `yaml:",omitempty" json:"source,omitempty"`
+	Destination *url.URL   `yaml:",omitempty" json:"destination,omitempty"`
 
 	// Additional route matching options
 	Prefix string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
@@ -90,7 +90,7 @@ func (p *Policy) Validate() error {
 	if err != nil {
 		return fmt.Errorf("config: policy bad source url %w", err)
 	}
-	p.Source = &HostnameURL{source}
+	p.Source = &StringURL{source}
 
 	p.Destination, err = urlutil.ParseAndValidateURL(p.To)
 	if err != nil {
@@ -140,13 +140,12 @@ func (p *Policy) String() string {
 	return fmt.Sprintf("%s → %s", p.Source.String(), p.Destination.String())
 }
 
-// HostnameURL wraps url but marshals only the host representation of that
-// url struct.
-type HostnameURL struct {
+// StringURL stores a URL as a string in json.
+type StringURL struct {
 	*url.URL
 }
 
 // MarshalJSON returns the URLs host as json.
-func (j *HostnameURL) MarshalJSON() ([]byte, error) {
-	return json.Marshal(j.Host)
+func (u *StringURL) MarshalJSON() ([]byte, error) {
+	return json.Marshal(u.String())
 }
