@@ -20,6 +20,7 @@ func Test_PolicyValidate(t *testing.T) {
 		{"empty from host", Policy{From: "https://", To: "https://httpbin.corp.example"}, true},
 		{"empty from scheme", Policy{From: "httpbin.corp.example", To: "https://httpbin.corp.example"}, true},
 		{"empty to scheme", Policy{From: "https://httpbin.corp.example", To: "//httpbin.corp.example"}, true},
+		{"path in from", Policy{From: "https://httpbin.corp.example/some/path", To: "https://httpbin.corp.example"}, true},
 		{"cors policy", Policy{From: "https://httpbin.corp.example", To: "https://httpbin.corp.notatld", CORSAllowPreflight: true}, false},
 		{"public policy", Policy{From: "https://httpbin.corp.example", To: "https://httpbin.corp.notatld", AllowPublicUnauthenticatedAccess: true}, false},
 		{"public and whitelist", Policy{From: "https://httpbin.corp.example", To: "https://httpbin.corp.notatld", AllowPublicUnauthenticatedAccess: true, AllowedUsers: []string{"test@domain.example"}}, true},

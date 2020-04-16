@@ -330,10 +330,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //
 // Routes can be filtered by the `source`, `prefix`, `path` and `regex` fields in the policy config.
 func routeMatcherFuncFromPolicy(policy config.Policy) mux.MatcherFunc {
-	if !(policy.Source.Path == "" || policy.Source.Path == "/") {
-		log.Warn().Str("from", policy.From).Msgf("proxy: dropping path from %s, should be set using path key", policy.Source.String())
-	}
-
 	// match by source
 	sourceMatches := func(r *http.Request) bool {
 		return r.Host == policy.Source.Host

@@ -90,6 +90,13 @@ func (p *Policy) Validate() error {
 	if err != nil {
 		return fmt.Errorf("config: policy bad source url %w", err)
 	}
+
+	// Make sure there's no path set on the from url
+	if !(source.Path == "" || source.Path == "/") {
+		return fmt.Errorf("config: policy source url (%s) contains a path, but it should be set using the path field instead",
+			source.String())
+	}
+
 	p.Source = &StringURL{source}
 
 	p.Destination, err = urlutil.ParseAndValidateURL(p.To)
