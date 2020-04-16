@@ -19,8 +19,7 @@ import (
 
 const (
 	defaultGitLabProviderURL = "https://gitlab.com"
-	revokeURL                = "https://gitlab.com/oauth/revoke"
-	defaultGitLabGroupURL    = "https://gitlab.com/api/v4/groups"
+	groupPath                = "/api/v4/groups"
 )
 
 // GitLabProvider is an implementation of the OAuth Provider
@@ -57,8 +56,7 @@ func NewGitLabProvider(p *Provider) (*GitLabProvider, error) {
 		Scopes:       p.Scopes,
 	}
 	gp := &GitLabProvider{
-		Provider:  p,
-		RevokeURL: revokeURL,
+		Provider: p,
 	}
 
 	if err := p.provider.Claims(&gp); err != nil {
@@ -89,8 +87,9 @@ func (p *GitLabProvider) UserGroups(ctx context.Context, s *sessions.State) ([]s
 		FullName                       string      `json:"full_name,omitempty"`
 		FullPath                       string      `json:"full_path,omitempty"`
 	}
+	userGroupURL := p.ProviderURL + groupPath
 	headers := map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.AccessToken.AccessToken)}
-	err := httputil.Client(ctx, http.MethodGet, defaultGitLabGroupURL, version.UserAgent(), headers, nil, &response)
+	err := httputil.Client(ctx, http.MethodGet, userGroupURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return nil, err
 	}
