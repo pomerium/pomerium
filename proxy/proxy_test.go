@@ -307,6 +307,28 @@ func TestRouteMatcherFuncFromPolicy(t *testing.T) {
 		{"https://www.example.com", "/admin", "", "",
 			"https://www.example.com/notadmin", false,
 			"should not match when path does not begin with prefix"},
+
+		// path
+		{"https://www.example.com", "", "/admin", "",
+			"https://www.example.com/admin", true,
+			"should match when path is the same as the policy path"},
+		{"https://www.example.com", "", "/admin", "",
+			"https://www.example.com/admin/someaction", false,
+			"should not match when path merely begins with the policy path"},
+		{"https://www.example.com", "", "/admin", "",
+			"https://www.example.com/notadmin", false,
+			"should not match when path is different from the policy path"},
+
+		// path regex
+		{"https://www.example.com", "", "", "^/admin/[a-z]+$",
+			"https://www.example.com/admin/someaction", true,
+			"should match when path matches policy path regex"},
+		{"https://www.example.com", "", "", "^/admin/[a-z]+$",
+			"https://www.example.com/notadmin", false,
+			"should not match when path does not match policy path regex"},
+		{"https://www.example.com", "", "", "invalid[",
+			"https://www.example.com/invalid", false,
+			"should not match on invalid policy path regex"},
 	}
 
 	for _, tt := range tests {
