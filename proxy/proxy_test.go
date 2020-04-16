@@ -276,3 +276,59 @@ func TestNewReverseProxy(t *testing.T) {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
 }
+
+func TestRouteMatcherFuncFromPolicy(t *testing.T) {
+	tests := []struct {
+		source, prefix, path, regex string
+		incomingURL                 string
+		expect                      bool
+		msg                         string
+	}{
+		// host in source
+		{"https://www.example.com", "", "", "",
+			"https://www.example.com", true,
+			"should match when host is the same as source host"},
+		{"https://www.example.com", "", "", "",
+			"https://www.google.com", false,
+			"should not match when host is different from source host"},
+
+		// path prefix in source
+		{"https://www.example.com/admin", "", "", "",
+			"https://www.example.com/admin/someaction", true,
+			"should match when path begins with source path"},
+		{"https://www.example.com/admin", "", "", "",
+			"https://www.example.com/notadmin", false,
+			"should not match when path does not begin with source path"},
+
+		// path prefix
+		{"https://www.example.com", "/admin", "", "",
+			"https://www.example.com/admin/someaction", true,
+			"should match when path begins with prefix"},
+		{"https://www.example.com", "/admin", "", "",
+			"https://www.example.com/notadmin", false,
+			"should not match when path does not begin with prefix"},
+	}
+
+	for _, tt := range tests {
+		srcURL, err := url.Parse(tt.source)
+		if err != nil {
+			panic(err)
+		}
+		src := &config.HostnameURL{URL: srcURL}
+		matcher := routeMatcherFuncFromPolicy(config.Policy{
+			Source: src,
+			Prefix: tt.prefix,
+			Path:   tt.path,
+			Regex:  tt.regex,
+		})
+		req, err := http.NewRequest("GET", tt.incomingURL, nil)
+		if err != nil {
+			panic(err)
+		}
+		actual := matcher(req, nil)
+		if actual != tt.expect {
+			t.Errorf("%s (source=%s prefix=%s path=%s regex=%s incoming-url=%s)",
+				tt.msg, tt.source, tt.prefix, tt.path, tt.regex, tt.incomingURL)
+		}
+	}
+}

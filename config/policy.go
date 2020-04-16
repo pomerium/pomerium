@@ -24,6 +24,11 @@ type Policy struct {
 	Source      *HostnameURL `yaml:",omitempty" json:"source,omitempty"`
 	Destination *url.URL     `yaml:",omitempty" json:"destination,omitempty"`
 
+	// Additional route matching options
+	Prefix string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
+	Path string `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty"`
+	Regex string `mapstructure:"regex" yaml:"regex,omitempty" json:"regex,omitempty"`
+
 	// Allow unauthenticated HTTP OPTIONS requests as per the CORS spec
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests
 	CORSAllowPreflight bool `mapstructure:"cors_allow_preflight" yaml:"cors_allow_preflight,omitempty"`

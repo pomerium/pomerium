@@ -14,6 +14,8 @@ import (
 	"net/http"
 	stdhttputil "net/http/httputil"
 	"net/url"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -230,8 +232,8 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) *mux.Ro
 
 	// 4. Override any custom transport settings (e.g. TLS settings, etc)
 	proxy.Transport = p.roundTripperFromPolicy(&policy)
-	// 5. Create a sub-router for a given route's hostname (`httpbin.corp.example.com`)
-	rp := r.Host(policy.Source.Host).Subrouter()
+	// 5. Create a sub-router with a matcher derived from the policy (host, path, etc...)
+	rp := r.MatcherFunc(routeMatcherFuncFromPolicy(policy)).Subrouter()
 	rp.PathPrefix("/").Handler(proxy)
 
 	// Optional: If websockets are enabled, do not set a handler request timeout
@@ -322,4 +324,45 @@ func (p *Proxy) roundTripperFromPolicy(policy *config.Policy) http.RoundTripper 
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.Handler.ServeHTTP(w, r)
+}
+
+
+// routeMatcherFuncFromPolicy returns a mux matcher function which compares an http request with a policy.
+//
+// Routes can be filtered by the `source`, `prefix`, `path` and `regex` fields in the policy config.
+func routeMatcherFuncFromPolicy(policy config.Policy) mux.MatcherFunc {
+	// match by source
+	sourceMatches := func(r *http.Request) bool {
+		return r.Host == policy.Source.Host &&
+			strings.HasPrefix(r.URL.Path, policy.Source.Path)
+	}
+
+	// match by prefix
+	prefixMatches := func(r *http.Request) bool {
+		return policy.Prefix == "" ||
+			strings.HasPrefix(r.URL.Path, policy.Prefix)
+	}
+
+	// match by path
+	pathMatches := func(r *http.Request) bool {
+		return policy.Path == "" ||
+			r.URL.Path == policy.Path
+	}
+
+	// match by path regex
+	var regexMatches func(*http.Request) bool
+	if policy.Regex == "" {
+		regexMatches = func(r *http.Request) bool { return true }
+	} else if re, err := regexp.Compile(policy.Regex); err == nil {
+		regexMatches = func(r *http.Request) bool {
+			return re.MatchString(r.URL.Path)
+		}
+	} else {
+		log.Error().Err(err).Str("regex", policy.Regex).Msg("proxy: invalid regex in policy, ignoring route")
+		regexMatches = func(r *http.Request) bool { return false }
+	}
+
+	return func(r *http.Request, rm *mux.RouteMatch) bool {
+		return sourceMatches(r) && prefixMatches(r) && pathMatches(r) && regexMatches(r)
+	}
 }
