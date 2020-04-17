@@ -31,6 +31,11 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: ${{ matrix.go-version }}
+      - name: Install OPA
+        run: |
+          cd /usr/local/bin
+          sudo curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64
+          sudo chmod +x ./opa
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Test
