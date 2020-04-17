@@ -753,12 +753,27 @@ Policy contains route specific settings, and access control details. If you are 
 
 <<< @/docs/configuration/examples/config/policy.example.yaml
 
+Policy routes are checked in the order they appear in the policy, so more specific routes should appear before less specific routes. For example:
+
+```yaml
+policies:
+  - from: http://from.example.com
+    to: http://to.example.com
+    prefix: /admin
+    allowed_groups: ["superuser"]
+  - from: http://from.example.com
+    to: http://to.example.com
+    allow_public_unauthenticated_access: true
+```
+
+In this example an incoming request with a path prefix of `/admin` would be handled by the first route (which is restricted to superusers). All other requests for `from.example.com` would be handled by the second route (which is open to the public).
+
 A list of policy configuration variables follows.
 
 ### From
 
 - `yaml`/`json` setting: `from`
-- Type: `URL` (must contain a scheme and hostname)
+- Type: `URL` (must contain a scheme and hostname, must not contain a path)
 - Required
 - Example: `https://httpbin.corp.example.com`
 
@@ -772,6 +787,33 @@ A list of policy configuration variables follows.
 - Example: `http://httpbin` , `https://192.1.20.12:8080`, `http://neverssl.com`
 
 `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
+
+### Prefix
+
+- `yaml`/`json` setting: `prefix`
+- Type: `string`
+- Optional
+- Example: `/admin`
+
+If set, the route will only match incoming requests with a path that begins with the specified prefix.
+
+### Path
+
+- `yaml`/`json` setting: `path`
+- Type: `string`
+- Optional
+- Example: `/admin/some/exact/path`
+
+If set, the route will only match incoming requests with a path that is an exact match for the specified path.
+
+### Regex
+
+- `yaml`/`json` setting: `regex`
+- Type: `string` (containing a regular expression)
+- Optional
+- Example: `^/(admin|superuser)/.*$`
+
+If set, the route will only match incoming requests with a path that matches the specified regular expression. The supported syntax is the same as the Go [regexp package](https://golang.org/pkg/regexp/) which is based on [re2](https://github.com/google/re2/wiki/Syntax).
 
 ### Allowed Users
 
