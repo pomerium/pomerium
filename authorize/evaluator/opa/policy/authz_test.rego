@@ -54,6 +54,8 @@ test_allowed_route_source {
 	allowed_route("http://example.com", {"source": "http://example.com"})
 	allowed_route("http://example.com", {"source": "https://example.com"})
 	allowed_route("http://example.com/", {"source": "https://example.com"})
+	allowed_route("http://example.com", {"source": "https://example.com/"})
+	allowed_route("http://example.com/", {"source": "https://example.com/"})
 	not allowed_route("http://example.org", {"source": "example.com"})
 }
 
