@@ -33,6 +33,8 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Build dependencies
+        run: make build-deps
       - name: Test
         run: make test
 
