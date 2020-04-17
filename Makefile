@@ -38,6 +38,7 @@ build-deps: ## Install build dependencies
 	@echo "==> $@"
 	@cd /tmp; GO111MODULE=on go get -u github.com/client9/misspell/cmd/misspell
 	@cd /tmp; GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_VERSION}
+	@cd /tmp; GO111MODULE=on go get -u github.com/open-policy-agent/opa
 
 .PHONY: docs
 docs: ## Start the vuepress docs development server
