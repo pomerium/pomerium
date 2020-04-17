@@ -365,14 +365,14 @@ func TestPolicyPrefixRouting(t *testing.T) {
 	opts := testOptions(t)
 	opts.Policies = []config.Policy{
 		{
-			From: "https://from.example.com",
-			To: "http://" + adminServer.Listener.Addr().String(),
-			Prefix: "/admin",
+			From:                             "https://from.example.com",
+			To:                               "http://" + adminServer.Listener.Addr().String(),
+			Prefix:                           "/admin",
 			AllowPublicUnauthenticatedAccess: true,
 		},
 		{
-			From: "https://from.example.com",
-			To: "http://" + publicServer.Listener.Addr().String(),
+			From:                             "https://from.example.com",
+			To:                               "http://" + publicServer.Listener.Addr().String(),
 			AllowPublicUnauthenticatedAccess: true,
 		},
 	}
