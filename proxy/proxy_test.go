@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -348,4 +349,66 @@ func TestRouteMatcherFuncFromPolicy(t *testing.T) {
 				tt.msg, tt.source, tt.prefix, tt.path, tt.regex, tt.incomingURL)
 		}
 	}
+}
+
+func TestPolicyPrefixRouting(t *testing.T) {
+	adminServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "admin: "+r.URL.Path)
+	}))
+	defer adminServer.Close()
+
+	publicServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "public: "+r.URL.Path)
+	}))
+	defer publicServer.Close()
+
+	opts := testOptions(t)
+	opts.Policies = []config.Policy{
+		{
+			From: "https://from.example.com",
+			To: "http://" + adminServer.Listener.Addr().String(),
+			Prefix: "/admin",
+			AllowPublicUnauthenticatedAccess: true,
+		},
+		{
+			From: "https://from.example.com",
+			To: "http://" + publicServer.Listener.Addr().String(),
+			AllowPublicUnauthenticatedAccess: true,
+		},
+	}
+
+	p, err := New(opts)
+	if err != nil {
+		t.Fatalf("error creating proxy: %v", err)
+	}
+
+	t.Run("admin", func(t *testing.T) {
+		req, err := http.NewRequest("GET", "https://from.example.com/admin/path", nil)
+		if err != nil {
+			t.Fatalf("error creating http request: %v", err)
+		}
+
+		rr := httptest.NewRecorder()
+		p.ServeHTTP(rr, req)
+		rr.Flush()
+
+		if rr.Body.String() != "admin: /admin/path" {
+			t.Errorf("expected admin request to go to the admin backend")
+		}
+	})
+
+	t.Run("non-admin", func(t *testing.T) {
+		req, err := http.NewRequest("GET", "https://from.example.com/nonadmin/path", nil)
+		if err != nil {
+			t.Fatalf("error creating http request: %v", err)
+		}
+
+		rr := httptest.NewRecorder()
+		p.ServeHTTP(rr, req)
+		rr.Flush()
+
+		if rr.Body.String() != "public: /nonadmin/path" {
+			t.Errorf("expected non-admin request to go to the public backend")
+		}
+	})
 }
