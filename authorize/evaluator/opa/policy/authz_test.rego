@@ -53,6 +53,7 @@ test_allowed_route_source {
 	allowed_route("http://example.com", {"source": "example.com"})
 	allowed_route("http://example.com", {"source": "http://example.com"})
 	allowed_route("http://example.com", {"source": "https://example.com"})
+	allowed_route("http://example.com/", {"source": "https://example.com"})
 	not allowed_route("http://example.org", {"source": "example.com"})
 }
 
@@ -64,6 +65,7 @@ test_allowed_route_prefix {
 
 test_allowed_route_path {
 	allowed_route("http://example.com", {"path": "/"})
+	allowed_route("http://example.com/", {"path": "/"})
 	not allowed_route("http://example.com/admin/somepath", {"path": "/admin"})
 	not allowed_route("http://example.com", {"path": "/admin"})
 }
