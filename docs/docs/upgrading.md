@@ -5,6 +5,45 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.8.0
+
+## Breaking
+
+### Using paths in from URLs
+
+Although it's unlikely anyone ever used it, prior to 0.8.0 the policy configuration allowed you to specify a `from` field with a path component:
+
+```yaml
+policy:
+  - from: "https://example.com/some/path"
+```
+The proxy and authorization server would simply ignore the path and route/authorize based on the host name.
+
+With the introduction of `prefix`, `path` and `regex` fields to the policy route configuration, we decided not to support using a path in the `from` url, since the behavior was somewhat ambiguous and better handled by the explicit fields.
+
+To avoid future confusion, the application will now declare any configuration which contains a `from` field with a path as invalid, with this error message:
+
+```
+config: policy source url (%s) contains a path, but it should be set using the path field instead
+```
+
+If you see this error you can fix it by simply removing the path from the `from` field and moving it to a `prefix` field.
+
+In other words, this configuration:
+
+```yaml
+policy:
+  - from: "http://example.com/some/path"
+```
+
+Should be written like this:
+
+```yaml
+policy:
+  - from: "http://example.com"
+    prefix: "/some/path"
+```
+
 # Since 0.6.0
 
 ## Breaking
