@@ -63,6 +63,7 @@
         </form>
       </div>
     </header>
+    <SimpleNewsletter />
 
     <div class v-if="data.features && data.features.length">
       <div
@@ -96,14 +97,15 @@
       </div>
     </div>
     <Content class="theme-default-content custom" />
-
-    <div class="footer">
-      <a href="https://www.netlify.com/">
-        <img
-          src="https://api.netlify.com/api/v1/badges/1853c996-a1f7-4545-b60c-612e8fca557c/deploy-status"
-          alt="Deploy status badge"
-        />
-      </a>
+    <div class v-if="data.footer">
+      <div class="footer">
+        <a href="https://www.netlify.com/">
+          <img
+            src="https://api.netlify.com/api/v1/badges/1853c996-a1f7-4545-b60c-612e8fca557c/deploy-status"
+            alt="Deploy status badge"
+          />
+        </a>
+      </div>
     </div>
   </main>
 </template>
@@ -164,9 +166,9 @@ export default {
 
         button {
           display: block;
-          background: $textColor;
+          background: $offColor
           color: $section-color;
-          box-shadow: 0 1px 3px darken($textColor, 5%), 0 1px 1px rgba(0, 0, 0, 0.98);
+          box-shadow: 0 1px 3px darken($accentColor, 5%), 0 1px 1px rgba(0, 0, 0, 0.98);
           border-radius: 6px;
           border: 0;
           width: 100%;
