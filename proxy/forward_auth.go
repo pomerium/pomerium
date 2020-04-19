@@ -37,17 +37,18 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r.Handle("/", httputil.HandlerFunc(p.nginxPostCallbackRedirect)).
 		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
 
-	// not nginx: save the returned session post authenticate flow
+	// traefik 2: save the returned session post authenticate flow
 	r.Handle("/", httputil.HandlerFunc(p.forwardedURIHeaderCallback)).
 		HeadersRegexp(httputil.HeaderForwardedURI, urlutil.QuerySessionEncrypted)
 
-	// nginx 2 / not nginx: verify and then start authenticate flow
+	// nginx 2 / traefik 1: verify and then start authenticate flow
 	r.Handle("/", p.Verify(false))
 
 	return r
 }
 
-// nginxPostCallbackRedirect redirects the user to their original destination.
+// nginxPostCallbackRedirect redirects the user to their original destination
+// in order to drop the authenticate related query params
 func (p *Proxy) nginxPostCallbackRedirect(w http.ResponseWriter, r *http.Request) error {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	httputil.Redirect(w, r, r.FormValue(urlutil.QueryRedirectURI), http.StatusFound)
@@ -130,6 +131,8 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		}
 
 		r.Host = uri.Host
+		r.URL = uri
+		r.RequestURI = uri.String()
 		if err := p.authorize(w, r); err != nil {
 			return err
 		}
