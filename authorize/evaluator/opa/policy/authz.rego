@@ -41,11 +41,12 @@ allow {
 	count(deny)==0
 }
 
-# allow by domain 
+# allow by domain
 allow {
 	some route
 	input.host = route_policies[route].source
-	allowed_user_domain(token.payload.email)
+	some domain
+	email_in_domain(token.payload.email, route_policies[route].allowed_domains[domain])
 	token.valid
 	count(deny)==0
 }
@@ -54,17 +55,17 @@ allow {
 allow {
 	some route
 	input.host = route_policies[route].source
-	allowed_user_domain(token.payload.impersonate_email)
+	some domain
+	email_in_domain(token.payload.impersonate_email, route_policies[route].allowed_domains[domain])
 	token.valid
 	count(deny)==0
 }
 
-allowed_user_domain(email){
+email_in_domain(email, domain) {
 	x := split(email, "@")
-	count(x)=2
-	x[1] == route_policies[route].allowed_domains[_]
+	count(x) == 2
+	x[1] == domain
 }
-
 
 default expired = false
 
