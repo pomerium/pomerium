@@ -226,19 +226,34 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
+	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+
 	a.sessionStore.ClearSession(w, r)
 	err = a.provider.Revoke(r.Context(), s.AccessToken)
 	if errors.Is(err, identity.ErrRevokeNotImplemented) {
 		log.FromRequest(r).Warn().Err(err).Msg("authenticate: revoke not implemented")
+	} else if errors.Is(err, identity.ErrNoRevokeWithEndSessionURL) {
+		// attempt to logout the user according to
+		// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
+		endSessionURL, err := a.provider.LogOut()
+		if err != nil {
+			return httputil.NewError(http.StatusBadRequest, err)
+
+		}
+
+		params := url.Values{}
+		params.Add("post_logout_redirect_uri", redirectURL.String())
+		endSessionURL.RawQuery = params.Encode()
+		httputil.Redirect(w, r, endSessionURL.String(), http.StatusFound)
+		return nil
+
 	} else if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-
-	}
 	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
 	return nil
 }

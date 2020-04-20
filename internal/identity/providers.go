@@ -4,7 +4,6 @@ package identity
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -45,6 +44,7 @@ type Authenticator interface {
 	Refresh(context.Context, *sessions.State) (*sessions.State, error)
 	Revoke(context.Context, *oauth2.Token) error
 	GetSignInURL(state string) string
+	LogOut() (*url.URL, error)
 }
 
 // New returns a new identity provider based on its name.
@@ -106,7 +106,14 @@ type Provider struct {
 
 	// RevocationURL is the location of the OAuth 2.0 token revocation endpoint.
 	// https://tools.ietf.org/html/rfc7009
-	RevocationURL string //can be empty
+	RevocationURL string `json:"revocation_endpoint,omitempty"`
+
+	// EndSessionURL is another endpoint that can be used by other identity
+	// providers that doesn't implement the revocation endpoint but a logout session.
+	// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
+	// e.g Microsoft Azure
+	// https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
+	EndSessionURL string `json:"end_session_endpoint,omitempty"`
 }
 
 // GetSignInURL returns a URL to OAuth 2.0 provider's consent page
@@ -150,7 +157,7 @@ func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.Sta
 	if p.UserGroupFn != nil {
 		s.Groups, err = p.UserGroupFn(ctx, s)
 		if err != nil {
-			return nil, fmt.Errorf("internal/identity: could not retrieve groups %w", err)
+			fmt.Println(err)
 		}
 	}
 	return s, nil
@@ -202,8 +209,12 @@ func (p *Provider) IdentityFromToken(ctx context.Context, t *oauth2.Token) (*oid
 // https://tools.ietf.org/html/rfc7009
 func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
 	if p.RevocationURL == "" {
+		if p.EndSessionURL != "" {
+			return ErrNoRevokeWithEndSessionURL
+		}
 		return ErrRevokeNotImplemented
 	}
+
 	params := url.Values{}
 	// https://tools.ietf.org/html/rfc7009#section-2.1
 	params.Add("token", token.AccessToken)
@@ -222,35 +233,13 @@ func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
 	return nil
 }
 
-// UnmarshalJSON method is needed so that provider will be able to
-// satisfy the Unmarshaler interface
-// https://pkg.go.dev/gopkg.in/square/go-jose.v2/json#Unmarshaler
-//
-// For the the go-oidc package to be able to apply the Claims method which tries to unmarshal
-// the response body from the provider's /.well-known/openid-configuration
-// on the supplied interface, and in our case, it will be the Provider.
-// An extra step is made to create this implementation because the endpoint
-// to revoke a user's access token can be revocation_endpoint or end_session_endpoint.
-// We want to be able to have only one field and not repeat any of the two possible
-// endpoints on the Provider field.
-func (p *Provider) UnmarshalJSON(b []byte) error {
-	type Alias Provider
-	t := &struct {
-		*Alias
-		EndSessionEndpoint string `json:"end_session_endpoint,omitempty"`
-		RevocationEndpoint string `json:"revocation_endpoint,omitempty"`
-	}{
-		Alias: (*Alias)(p),
+// LogOut returns the EndSessionURL endpoint to allow a logout
+// session to be initiated.
+// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
+func (p *Provider) LogOut() (*url.URL, error) {
+	baseURL, err := url.Parse(p.EndSessionURL)
+	if err != nil {
+		return nil, err
 	}
-	if err := json.Unmarshal(b, &t); err != nil {
-		return err
-	}
-	if t.EndSessionEndpoint != "" {
-		t.RevocationURL = t.EndSessionEndpoint
-	}
-	if t.RevocationEndpoint != "" {
-		t.RevocationURL = t.RevocationEndpoint
-	}
-
-	return nil
+	return baseURL, nil
 }
