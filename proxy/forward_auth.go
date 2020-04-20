@@ -115,6 +115,7 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
+		originalRequest := p.getOriginalRequest(r, uri)
 
 		if _, err := sessions.FromContext(r.Context()); err != nil {
 			if verifyOnly {
@@ -130,10 +131,7 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return nil
 		}
 
-		r.Host = uri.Host
-		r.URL = uri
-		r.RequestURI = uri.String()
-		if err := p.authorize(w, r); err != nil {
+		if err := p.authorize(w, originalRequest); err != nil {
 			return err
 		}
 
@@ -142,4 +140,11 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		fmt.Fprintf(w, "Access to %s is allowed.", uri.Host)
 		return nil
 	})
+}
+
+func (p *Proxy) getOriginalRequest(r *http.Request, originalURL *url.URL) *http.Request {
+	originalRequest := r.Clone(r.Context())
+	originalRequest.Host = originalURL.Host
+	originalRequest.URL = originalURL
+	return originalRequest
 }

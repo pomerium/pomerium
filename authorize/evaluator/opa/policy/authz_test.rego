@@ -26,6 +26,29 @@ test_email_allowed {
 	}
 }
 
+test_example {
+	user := io.jwt.encode_sign(jwt_header, {
+		"aud": ["example.com"],
+		"email": "joe@example.com"
+	}, signing_key)
+	not allow with data.route_policies as [
+		{
+			"source": "http://example.com",
+			"path": "/a",
+			"allowed_domains": ["example.com"]
+		},
+		{
+			"source": "http://example.com",
+			"path": "/b",
+			"allowed_users": ["noone@pomerium.com"]
+		},
+	] with data.signing_key as signing_key with data.shared_key as shared_key with input as {
+		"url": "http://example.com/b",
+		"host": "example.com",
+		"user": user
+	}
+}
+
 test_email_denied {
 	user := io.jwt.encode_sign(jwt_header, {
 		"aud": ["example.com"],
