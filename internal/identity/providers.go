@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 
 	oidc "github.com/coreos/go-oidc"
@@ -157,7 +158,7 @@ func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.Sta
 	if p.UserGroupFn != nil {
 		s.Groups, err = p.UserGroupFn(ctx, s)
 		if err != nil {
-			fmt.Println(err)
+			return nil, fmt.Errorf("internal/identity: could not retrieve groups %w", err)
 		}
 	}
 	return s, nil
@@ -209,9 +210,6 @@ func (p *Provider) IdentityFromToken(ctx context.Context, t *oauth2.Token) (*oid
 // https://tools.ietf.org/html/rfc7009
 func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
 	if p.RevocationURL == "" {
-		if p.EndSessionURL != "" {
-			return ErrNoRevokeWithEndSessionURL
-		}
 		return ErrRevokeNotImplemented
 	}
 
@@ -237,9 +235,8 @@ func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
 // session to be initiated.
 // https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
 func (p *Provider) LogOut() (*url.URL, error) {
-	baseURL, err := url.Parse(p.EndSessionURL)
-	if err != nil {
-		return nil, err
+	if p.EndSessionURL == "" {
+		return nil, ErrSignoutNotImplemented
 	}
-	return baseURL, nil
+	return urlutil.ParseAndValidateURL(p.EndSessionURL)
 }
