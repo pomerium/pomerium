@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.5
+
+### Fixed
+
+- authorize: fix authorization check for allowed_domains to only match current route @calebdoxsey [GH-624]
+
 ## v0.7.4
 
 ### Fixed
