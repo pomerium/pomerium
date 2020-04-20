@@ -217,6 +217,9 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 // SignOut signs the user out and attempts to revoke the user's identity session
 // Handles both GET and POST.
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
+	// no matter what happens, we want to clear the local session store
+	defer a.sessionStore.ClearSession(w, r)
+
 	jwt, err := sessions.FromContext(r.Context())
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -226,34 +229,29 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
+	redirectString := r.FormValue(urlutil.QueryRedirectURI)
+
+	// first, try to revoke the session if implemented
+	err = a.provider.Revoke(r.Context(), s.AccessToken)
+	if err != nil && !errors.Is(err, identity.ErrRevokeNotImplemented) {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	// next, try to build a logout url if implemented
+	endSessionURL, err := a.provider.LogOut()
+	if err == nil {
+		params := url.Values{}
+		params.Add("post_logout_redirect_uri", redirectString)
+		endSessionURL.RawQuery = params.Encode()
+		redirectString = endSessionURL.String()
+	} else if !errors.Is(err, identity.ErrSignoutNotImplemented) {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	redirectURL, err := urlutil.ParseAndValidateURL(redirectString)
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
-
-	a.sessionStore.ClearSession(w, r)
-	err = a.provider.Revoke(r.Context(), s.AccessToken)
-	if errors.Is(err, identity.ErrRevokeNotImplemented) {
-		log.FromRequest(r).Warn().Err(err).Msg("authenticate: revoke not implemented")
-	} else if errors.Is(err, identity.ErrNoRevokeWithEndSessionURL) {
-		// attempt to logout the user according to
-		// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
-		endSessionURL, err := a.provider.LogOut()
-		if err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
-
-		}
-
-		params := url.Values{}
-		params.Add("post_logout_redirect_uri", redirectURL.String())
-		endSessionURL.RawQuery = params.Encode()
-		httputil.Redirect(w, r, endSessionURL.String(), http.StatusFound)
-		return nil
-
-	} else if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
 	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
 	return nil
 }

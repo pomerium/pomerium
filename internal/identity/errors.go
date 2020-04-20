@@ -4,8 +4,9 @@ import "errors"
 
 // ErrRevokeNotImplemented error type when Revoke method is not implemented
 // by an identity provider
-var ErrRevokeNotImplemented = errors.New("revoke not implemented")
+var ErrRevokeNotImplemented = errors.New("internal/identity: revoke not implemented")
 
-// ErrNoRevokeWithEndSessionURL error type when Revoke method is not implemented
-// by a provider but the EndSessionURL is supplied.
-var ErrNoRevokeWithEndSessionURL = errors.New("revoke not implemented, end session url exists")
+// ErrSignoutNotImplemented error type when end session is not implemented
+// by an identity provider
+// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
+var ErrSignoutNotImplemented = errors.New("internal/identity: end session not implemented")
