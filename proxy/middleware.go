@@ -133,7 +133,7 @@ func (p *Proxy) authorize(w http.ResponseWriter, r *http.Request) error {
 			Bool("allow", authz.GetAllow()).
 			Bool("expired", authz.GetSessionExpired()).
 			Msg("proxy/authorize: deny")
-		return httputil.NewError(http.StatusUnauthorized, errors.New("request denied"))
+		return httputil.NewError(http.StatusForbidden, errors.New("request denied"))
 	}
 
 	r.Header.Set(httputil.HeaderPomeriumJWTAssertion, authz.GetSignedJwt())

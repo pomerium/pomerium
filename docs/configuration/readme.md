@@ -416,7 +416,7 @@ tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. 
 - Config File Key: `forward_auth_url`
 - Type: `URL` (must contain a scheme and hostname)
 - Example: `https://forwardauth.corp.example.com`
-- Resulting Verification URL: `https://forwardauth.corp.example.com/.pomerium/verify/{URL-TO-VERIFY}`
+- Resulting Verification URL: `https://forwardauth.corp.example.com/?uri={URL-TO-VERIFY}`
 - Optional
 
 Forward authentication creates an endpoint that can be used with third-party proxies that do not have rich access control capabilities ([nginx](http://nginx.org/en/docs/http/ngx_http_auth_request_module.html), [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), [ambassador](https://www.getambassador.io/reference/services/auth-service/), [traefik](https://docs.traefik.io/middlewares/forwardauth/)). Forward authentication allow you to delegate authentication and authorization for each request to Pomerium.

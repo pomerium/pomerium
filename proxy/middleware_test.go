@@ -158,10 +158,10 @@ func TestProxy_AuthorizeSession(t *testing.T) {
 		wantStatus int
 	}{
 		{"user is authorized", 200, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}}, client.MockAuthorize{AuthorizeResponse: &authorize.IsAuthorizedReply{Allow: true}}, nil, identity.MockProvider{}, http.StatusOK},
-		{"user is not authorized", 200, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}}, client.MockAuthorize{AuthorizeResponse: &authorize.IsAuthorizedReply{Allow: false}}, nil, identity.MockProvider{}, http.StatusUnauthorized},
+		{"user is not authorized", 200, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}}, client.MockAuthorize{AuthorizeResponse: &authorize.IsAuthorizedReply{Allow: false}}, nil, identity.MockProvider{}, http.StatusForbidden},
 		{"ctx error", 200, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}}, client.MockAuthorize{AuthorizeResponse: &authorize.IsAuthorizedReply{Allow: true}}, errors.New("hi"), identity.MockProvider{}, http.StatusInternalServerError},
 		{"authz client error", 200, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}}, client.MockAuthorize{AuthorizeError: errors.New("err")}, nil, identity.MockProvider{}, http.StatusInternalServerError},
-		{"expired, reauth failed", 200, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}}, client.MockAuthorize{AuthorizeResponse: &authorize.IsAuthorizedReply{SessionExpired: true}}, nil, identity.MockProvider{}, http.StatusUnauthorized},
+		{"expired, reauth failed", 200, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}}, client.MockAuthorize{AuthorizeResponse: &authorize.IsAuthorizedReply{SessionExpired: true}}, nil, identity.MockProvider{}, http.StatusForbidden},
 		//todo(bdd): it's a bit tricky to test the refresh flow
 	}
 	for _, tt := range tests {
