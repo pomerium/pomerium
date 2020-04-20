@@ -146,7 +146,8 @@ func (p *GitHubProvider) userTeams(ctx context.Context, at string, s *sessions.S
 	}
 
 	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", at)}
-	err := httputil.Client(ctx, http.MethodGet, githubAPIURL+teamPath, version.UserAgent(), headers, nil, &response)
+	teamURL := githubAPIURL + teamPath
+	err := httputil.Client(ctx, http.MethodGet, teamURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return err
 	}
@@ -176,7 +177,8 @@ func (p *GitHubProvider) userEmail(ctx context.Context, at string, s *sessions.S
 		Visibility string `json:"visibility"`
 	}
 	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", at)}
-	err := httputil.Client(ctx, http.MethodGet, githubAPIURL+emailPath, version.UserAgent(), headers, nil, &response)
+	emailURL := githubAPIURL + emailPath
+	err := httputil.Client(ctx, http.MethodGet, emailURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return err
 	}
