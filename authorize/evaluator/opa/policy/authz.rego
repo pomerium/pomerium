@@ -12,7 +12,6 @@ allow {
 	token.payload.email = route_policies[route].allowed_users[_]
 	token.valid
 	count(deny)==0
-	trace(sprintf("allow by email (route=%v email=%v)", [route, token.payload.email]))
 }
 
 # allow group
@@ -23,7 +22,6 @@ allow {
 	token.payload.groups[group] == route_policies[route].allowed_groups[_]
 	token.valid
 	count(deny)==0
-	trace(sprintf("allow by group (route=%v group=%v)", [route, group]))
 }
 
 # allow by impersonate email
@@ -33,7 +31,6 @@ allow {
 	token.payload.impersonate_email = route_policies[route].allowed_users[_]
 	token.valid
 	count(deny)==0
-	trace(sprintf("allow by impersonate email (route=%v email=%v)", [route, token.payload.impersonate_email]))
 }
 
 # allow by impersonate group
@@ -44,7 +41,6 @@ allow {
 	token.payload.impersonate_groups[group] == route_policies[route].allowed_groups[_]
 	token.valid
 	count(deny)==0
-	trace(sprintf("allow by impersonate group (route=%v group=%v)", [route, group]))
 }
 
 # allow by domain
@@ -55,7 +51,6 @@ allow {
 	email_in_domain(token.payload.email, route_policies[route].allowed_domains[domain])
 	token.valid
 	count(deny)==0
-	trace(sprintf("allow by domain (route=%v email=%v domain=%v)", [route, token.payload.email, domain]))
 }
 
 # allow by impersonate domain
@@ -66,7 +61,6 @@ allow {
 	email_in_domain(token.payload.impersonate_email, route_policies[route].allowed_domains[domain])
 	token.valid
 	count(deny)==0
-	trace(sprintf("allow by impersonate domain (route=%v email=%v domain=%v)", [route, token.payload.impersonate_email, domain]))
 }
 
 allowed_route(input_url, policy){
