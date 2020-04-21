@@ -82,6 +82,8 @@ Also, please note that while this guide uses [NGINX Ingress Controller], Pomeriu
 NGINX Ingress controller can be installed via [Helm] from the official charts repository. To install the chart with the release name `helm-nginx-ingress`:
 
 ```bash
+helm repo add stable https://kubernetes-charts.storage.googleapis.com
+helm repo update # important to make sure we get >.30
 helm install helm-nginx-ingress stable/nginx-ingress
 ```
 

@@ -33,8 +33,12 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Build dependencies
+        run: make build-deps
       - name: Test
-        run: make test
+        run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          make test
 
   cover:
     strategy:

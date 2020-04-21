@@ -8,7 +8,7 @@ default allow = false
 # allow by email
 allow {
 	some route
-	input.host = route_policies[route].source
+	allowed_route(input.url, route_policies[route])
 	token.payload.email = route_policies[route].allowed_users[_]
 	token.valid
 	count(deny)==0
@@ -17,8 +17,9 @@ allow {
 # allow group
 allow {
 	some route
-	input.host = route_policies[route].source
-	token.payload.groups[_] = route_policies[route].allowed_groups[_]
+	allowed_route(input.url, route_policies[route])
+	some group
+	token.payload.groups[group] == route_policies[route].allowed_groups[_]
 	token.valid
 	count(deny)==0
 }
@@ -26,7 +27,7 @@ allow {
 # allow by impersonate email
 allow {
 	some route
-	input.host = route_policies[route].source
+	allowed_route(input.url, route_policies[route])
 	token.payload.impersonate_email = route_policies[route].allowed_users[_]
 	token.valid
 	count(deny)==0
@@ -35,17 +36,19 @@ allow {
 # allow by impersonate group
 allow {
 	some route
-	input.host = route_policies[route].source
-	token.payload.impersonate_groups[_] = route_policies[route].allowed_groups[_]
+	allowed_route(input.url, route_policies[route])
+	some group
+	token.payload.impersonate_groups[group] == route_policies[route].allowed_groups[_]
 	token.valid
 	count(deny)==0
 }
 
-# allow by domain 
+# allow by domain
 allow {
 	some route
-	input.host = route_policies[route].source
-	allowed_user_domain(token.payload.email)
+	allowed_route(input.url, route_policies[route])
+	some domain
+	email_in_domain(token.payload.email, route_policies[route].allowed_domains[domain])
 	token.valid
 	count(deny)==0
 }
@@ -53,18 +56,73 @@ allow {
 # allow by impersonate domain
 allow {
 	some route
-	input.host = route_policies[route].source
-	allowed_user_domain(token.payload.impersonate_email)
+	allowed_route(input.url, route_policies[route])
+	some domain
+	email_in_domain(token.payload.impersonate_email, route_policies[route].allowed_domains[domain])
 	token.valid
 	count(deny)==0
 }
 
-allowed_user_domain(email){
-	x := split(email, "@")
-	count(x)=2
-	x[1] == route_policies[route].allowed_domains[_]
+allowed_route(input_url, policy){
+	input_url_obj := parse_url(input_url)
+	allowed_route_source(input_url_obj, policy)
+	allowed_route_prefix(input_url_obj, policy)
+	allowed_route_path(input_url_obj, policy)
+	allowed_route_regex(input_url_obj, policy)
 }
 
+allowed_route_source(input_url_obj, policy) {
+	object.get(policy, "source", "") == ""
+}
+allowed_route_source(input_url_obj, policy) {
+	object.get(policy, "source", "") != ""
+	source_url_obj := parse_url(policy.source)
+	input_url_obj.host == source_url_obj.host
+}
+
+allowed_route_prefix(input_url_obj, policy) {
+	object.get(policy, "prefix", "") == ""
+}
+allowed_route_prefix(input_url_obj, policy) {
+	object.get(policy, "prefix", "") != ""
+	startswith(input_url_obj.path, policy.prefix)
+}
+
+allowed_route_path(input_url_obj, policy) {
+	object.get(policy, "path", "") == ""
+}
+allowed_route_path(input_url_obj, policy) {
+	object.get(policy, "path", "") != ""
+	policy.path == input_url_obj.path
+}
+
+allowed_route_regex(input_url_obj, policy) {
+	object.get(policy, "regex", "") == ""
+}
+allowed_route_regex(input_url_obj, policy) {
+	object.get(policy, "regex", "") != ""
+	re_match(policy.regex, input_url_obj.path)
+}
+
+parse_url(str) = { "scheme": scheme, "host": host, "path": path } {
+	[_, scheme, host, rawpath] = regex.find_all_string_submatch_n(
+		`(?:(http[s]?)://)?([^/]+)([^?#]*)`,
+		str, 1)[0]
+	path = normalize_url_path(rawpath)
+}
+
+normalize_url_path(str) = "/" {
+	str == ""
+}
+normalize_url_path(str) = str {
+	str != ""
+}
+
+email_in_domain(email, domain) {
+	x := split(email, "@")
+	count(x) == 2
+	x[1] == domain
+}
 
 default expired = false
 

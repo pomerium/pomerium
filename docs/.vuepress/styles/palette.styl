@@ -1,6 +1,6 @@
 // colors
 $mainColor= #6E43E8
-
+$offColor = #259C30
 
 $sidebarColor=#FAFAFC
 $accentColor = #6E43E8
@@ -42,11 +42,42 @@ $MQMobileNarrow = 419px
     background-color: $navbar-background !important
     color: $navbar-text-color !important
     padding-left 0rem
+  .site-name
+    display: none !important 
 
 .nav-links
   a
     &:hover, &.router-link-active
       color lighten($textColor, 8%) !important
+
+
+.dropdown-wrapper
+  .dropdown-title
+    color $textColor !important
+  .nav-dropdown
+    .dropdown-item
+      color $textColor !important
+
+
+.newsletter
+  background-color $section-color
+  border-top 1px solid darken($section-color, 10%)
+  border-bottom 1px solid darken($section-color, 10%)
+
+  &__wrap
+    margin 1.5rem auto
+    padding 1.8rem 2.3rem
+    border-radius 3px
+    box-sizing border-box
+    max-width $contentWidth !important
+    background #f8f8f8
+  &__title
+    font-size 1.2rem
+
+  &__content
+    margin-top 1.5rem
+    margin-bottom 1.5rem
+    line-height 1.7rem
 
 @media (min-width: $MQMobile)
   .nav-links a
@@ -56,19 +87,19 @@ $MQMobileNarrow = 419px
     &:hover, &.router-link-active
       margin-bottom -2px
       border-bottom 2px solid lighten($navbar-text-color, 8%) !important
-
-
-
-.dropdown-wrapper
-  .dropdown-title
-    color $navbar-text-color !important
-    
-@media (max-width: $MQMobile)
-  .dropdown-wrapper
-    .dropdown-title
-      color $textColor !important
-
-@media (min-width: $MQMobile)
   .dropdown-wrapper
     .dropdown-title
       color $navbar-text-color !important
+    .nav-dropdown
+      .dropdown-item
+          color $textColor !important
+  .newsletter
+    &__input
+      width 30% !important
+    &__button
+      width 15% !important
+@media (max-width: $MQMobile)
+  .navbar
+    .site-name
+      display: none !important 
+      

@@ -4,6 +4,7 @@ package authorize
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/grpc/authorize"
@@ -22,7 +23,7 @@ func (a *Authorize) IsAuthorized(ctx context.Context, in *authorize.IsAuthorized
 		Method:     in.GetRequestMethod(),
 		RequestURI: in.GetRequestRequestUri(),
 		RemoteAddr: in.GetRequestRemoteAddr(),
-		URL:        in.GetRequestUrl(),
+		URL:        getFullURL(in.GetRequestUrl(), in.GetRequestHost()),
 	}
 	return a.pe.IsAuthorized(ctx, req)
 }
@@ -37,4 +38,18 @@ func cloneHeaders(in protoHeader) map[string][]string {
 		out[key] = newValues
 	}
 	return out
+}
+
+func getFullURL(rawurl, host string) string {
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		u = &url.URL{Path: rawurl}
+	}
+	if u.Host == "" {
+		u.Host = host
+	}
+	if u.Scheme == "" {
+		u.Scheme = "http"
+	}
+	return u.String()
 }

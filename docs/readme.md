@@ -1,5 +1,6 @@
 ---
 home: true
+footer: true
 heroImage: /pomerium-in-action-800-600.mp4
 heroText: Secure Application Access
 tagline: Authenticate, authorize, monitor, and secure user access to any application without a VPN.

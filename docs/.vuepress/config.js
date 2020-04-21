@@ -1,6 +1,6 @@
 // .vuepress/config.js
 module.exports = {
-  // title: "Pomerium",
+  title: "Pomerium",
   description:
     "Pomerium is a beyond-corp inspired, zero trust, open source identity-aware access proxy.",
   plugins: {
@@ -9,6 +9,25 @@ module.exports = {
     },
     "@vuepress/google-analytics": {
       ga: "UA-129872447-2",
+    },
+    "@vuepress/blog": {
+      directories: [
+        {
+          id: "post",
+          dirname: "_posts",
+          path: "/posts/",
+          itemPermalink: "/posts/:year/:month/:day/:slug",
+        },
+      ],
+    },
+    "vuepress-plugin-mailchimp": {
+      title: "Sign up to be notified of new features and updates",
+      content: " ",
+      endpoint:
+        "https://pomerium.us19.list-manage.com/subscribe/post?u=76f0996a737c138396687fd6b&amp;id=2f4f70cf07",
+      sitemap: {
+        hostname: "https://www.pomerium.io",
+      },
     },
   },
   markdown: {

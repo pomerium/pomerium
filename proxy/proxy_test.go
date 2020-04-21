@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -275,4 +276,139 @@ func TestNewReverseProxy(t *testing.T) {
 	if g, e := string(bodyBytes), backendHostname; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
+}
+
+func TestRouteMatcherFuncFromPolicy(t *testing.T) {
+	tests := []struct {
+		source, prefix, path, regex string
+		incomingURL                 string
+		expect                      bool
+		msg                         string
+	}{
+		// host in source
+		{"https://www.example.com", "", "", "",
+			"https://www.example.com", true,
+			"should match when host is the same as source host"},
+		{"https://www.example.com/", "", "", "",
+			"https://www.example.com", true,
+			"should match when host is the same as source host with trailing slash"},
+		{"https://www.example.com", "", "", "",
+			"https://www.google.com", false,
+			"should not match when host is different from source host"},
+
+		// path prefix
+		{"https://www.example.com", "/admin", "", "",
+			"https://www.example.com/admin/someaction", true,
+			"should match when path begins with prefix"},
+		{"https://www.example.com", "/admin", "", "",
+			"https://www.example.com/notadmin", false,
+			"should not match when path does not begin with prefix"},
+
+		// path
+		{"https://www.example.com", "", "/admin", "",
+			"https://www.example.com/admin", true,
+			"should match when path is the same as the policy path"},
+		{"https://www.example.com", "", "/admin", "",
+			"https://www.example.com/admin/someaction", false,
+			"should not match when path merely begins with the policy path"},
+		{"https://www.example.com", "", "/admin", "",
+			"https://www.example.com/notadmin", false,
+			"should not match when path is different from the policy path"},
+
+		// path regex
+		{"https://www.example.com", "", "", "^/admin/[a-z]+$",
+			"https://www.example.com/admin/someaction", true,
+			"should match when path matches policy path regex"},
+		{"https://www.example.com", "", "", "^/admin/[a-z]+$",
+			"https://www.example.com/notadmin", false,
+			"should not match when path does not match policy path regex"},
+		{"https://www.example.com", "", "", "invalid[",
+			"https://www.example.com/invalid", false,
+			"should not match on invalid policy path regex"},
+	}
+
+	for _, tt := range tests {
+		srcURL, err := url.Parse(tt.source)
+		if err != nil {
+			panic(err)
+		}
+		src := &config.StringURL{URL: srcURL}
+		matcher := routeMatcherFuncFromPolicy(config.Policy{
+			Source: src,
+			Prefix: tt.prefix,
+			Path:   tt.path,
+			Regex:  tt.regex,
+		})
+		req, err := http.NewRequest("GET", tt.incomingURL, nil)
+		if err != nil {
+			panic(err)
+		}
+		actual := matcher(req, nil)
+		if actual != tt.expect {
+			t.Errorf("%s (source=%s prefix=%s path=%s regex=%s incoming-url=%s)",
+				tt.msg, tt.source, tt.prefix, tt.path, tt.regex, tt.incomingURL)
+		}
+	}
+}
+
+func TestPolicyPrefixRouting(t *testing.T) {
+	adminServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "admin: "+r.URL.Path)
+	}))
+	defer adminServer.Close()
+
+	publicServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "public: "+r.URL.Path)
+	}))
+	defer publicServer.Close()
+
+	opts := testOptions(t)
+	opts.Policies = []config.Policy{
+		{
+			From:                             "https://from.example.com",
+			To:                               "http://" + adminServer.Listener.Addr().String(),
+			Prefix:                           "/admin",
+			AllowPublicUnauthenticatedAccess: true,
+		},
+		{
+			From:                             "https://from.example.com",
+			To:                               "http://" + publicServer.Listener.Addr().String(),
+			AllowPublicUnauthenticatedAccess: true,
+		},
+	}
+
+	p, err := New(opts)
+	if err != nil {
+		t.Fatalf("error creating proxy: %v", err)
+	}
+
+	t.Run("admin", func(t *testing.T) {
+		req, err := http.NewRequest("GET", "https://from.example.com/admin/path", nil)
+		if err != nil {
+			t.Fatalf("error creating http request: %v", err)
+		}
+
+		rr := httptest.NewRecorder()
+		p.ServeHTTP(rr, req)
+		rr.Flush()
+
+		if rr.Body.String() != "admin: /admin/path" {
+			t.Errorf("expected admin request to go to the admin backend")
+		}
+	})
+
+	t.Run("non-admin", func(t *testing.T) {
+		req, err := http.NewRequest("GET", "https://from.example.com/nonadmin/path", nil)
+		if err != nil {
+			t.Fatalf("error creating http request: %v", err)
+		}
+
+		rr := httptest.NewRecorder()
+		p.ServeHTTP(rr, req)
+		rr.Flush()
+
+		if rr.Body.String() != "public: /nonadmin/path" {
+			t.Errorf("expected non-admin request to go to the public backend")
+		}
+	})
 }

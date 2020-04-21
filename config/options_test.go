@@ -152,7 +152,7 @@ func Test_parsePolicyFile(t *testing.T) {
 		want        []Policy
 		wantErr     bool
 	}{
-		{"simple json", []byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, dest)), []Policy{{From: source, To: dest, Source: &HostnameURL{sourceURL}, Destination: destURL}}, false},
+		{"simple json", []byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, dest)), []Policy{{From: source, To: dest, Source: &StringURL{sourceURL}, Destination: destURL}}, false},
 		{"bad from", []byte(`{"policy":[{"from": "%","to":"httpbin.org"}]}`), nil, true},
 		{"bad to", []byte(`{"policy":[{"from": "pomerium.io","to":"%"}]}`), nil, true},
 	}

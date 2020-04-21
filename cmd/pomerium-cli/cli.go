@@ -2,8 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,8 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fatih/color"
-	"gopkg.in/square/go-jose.v2"
+	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
@@ -45,7 +42,7 @@ type serviceAccount struct {
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, color.RedString("\n⛔️ %s\n\n"), err)
+		fmt.Fprintf(os.Stderr, "\n⛔️%s\n\n", err)
 		printHelp(flags)
 		os.Exit(1)
 	}
@@ -66,7 +63,6 @@ func run() error {
 		expiry            time.Duration
 	)
 
-	// set our JWT claims from the supplied CLI flags
 	flags = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flags.StringVar(&sa.Email, "email", "", "Email")
 	flags.StringVar(&sa.ImpersonateEmail, "impersonate_email", "", "Impersonation Email (optional)")
@@ -77,28 +73,24 @@ func run() error {
 	flags.Var(&groups, "groups", "Groups (e.g. admins@pomerium.io,users@pomerium.io)")
 	flags.Var(&impersonateGroups, "impersonate_groups", "Impersonation Groups (optional)")
 	flags.DurationVar(&expiry, "expiry", time.Hour, "Expiry")
-
-	// hydrate the sessions non-primate types
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		return err
 	}
+
+	// hydrate our session
 	sa.Audience = jwt.Audience(aud)
 	sa.Groups = []string(groups)
 	sa.ImpersonateGroups = []string(impersonateGroups)
 	sa.Expiry = jwt.NewNumericDate(time.Now().Add(expiry))
 	sa.IssuedAt = jwt.NewNumericDate(time.Now())
 	sa.NotBefore = jwt.NewNumericDate(time.Now())
-	// why not be pretty?
-	c := color.New(color.FgGreen)
-	// check that we've got our shared key to sign our jwt
+
 	var sharedKey string
 	args := flags.Args()
 	if len(args) == 1 {
 		sharedKey = args[0]
 	} else {
-		if _, err := c.Println("Enter base64 encoded shared key >"); err != nil {
-			return err
-		}
+		fmt.Print("Enter base64 encoded shared key >")
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
 		sharedKey = scanner.Text()
@@ -119,33 +111,15 @@ func run() error {
 	if sa.Issuer == "" {
 		return errors.New("iss is required")
 	}
-
-	decodedKey, err := base64.StdEncoding.DecodeString(sharedKey)
-	if err != nil {
-		return fmt.Errorf("shared key not base64: %w", err)
-	}
-
-	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: decodedKey}, nil)
+	encoder, err := jws.NewHS256Signer([]byte(sharedKey), sa.Issuer)
 	if err != nil {
 		return fmt.Errorf("bad shared key: %w", err)
 	}
-	raw, err := jwt.Signed(signer).Claims(sa).CompactSerialize()
+	raw, err := encoder.Marshal(sa)
 	if err != nil {
-		return fmt.Errorf("couldn't sign jwt: %w", err)
+		return fmt.Errorf("bad encode: %w", err)
 	}
-	saJSON, err := json.MarshalIndent(sa, "", " ")
-	if err != nil {
-		return fmt.Errorf("couldn't pretty print jwt: %w", err)
-	}
-	if _, err := c.Println("Service Account"); err != nil {
-		return err
-	}
-	fmt.Fprintf(os.Stdout, "%s\n\n", saJSON)
-	if _, err := c.Println("JWT 🍪"); err != nil {
-		return err
-	}
-	fmt.Fprintf(os.Stdout, "%s\n\n", raw)
-
+	fmt.Fprintf(os.Stdout, "%s", raw)
 	return nil
 }
 
@@ -155,7 +129,7 @@ func printHelp(fs *flag.FlagSet) {
 }
 
 const help = `
-pomerium-sa generates a pomerium service account from a shared key.
+pomerium-cli generates a pomerium service account from a shared key.
 
 Usage: %[1]s [flags] [base64'd shared secret setting]
 

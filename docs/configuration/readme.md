@@ -80,7 +80,7 @@ Enabling the debug flag will result in sensitive information being logged!!!
 
 :::
 
-By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](<https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)>). In production, it's recommended to be set to `false`.
+By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)>). In production, it's recommended to be set to `false`.
 
 For example, if `true`
 
@@ -122,7 +122,9 @@ Turning on insecure server mode will result in pomerium starting, and operating 
 This setting can be useful in a situation where you have Pomerium behind a TLS terminating ingress or proxy. However, even in that case, it is highly recommended to use TLS to protect the confidentiality and integrity of service communication even behind the ingress using self-signed certificates or an internal CA. Please see our helm-chart for an example of just that.
 
 :::warning
+
 Pomerium should _never_ be exposed to the internet without TLS encryption.
+
 :::
 
 ### Certificate
@@ -202,7 +204,7 @@ Enable grpc DNS based round robin load balancing. This method uses DNS to resolv
 
 Set max connection age for GRPC servers. After this interval, servers ask clients to reconnect and perform any rediscovery for new/updated endpoints from DNS.
 
-See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for details
+See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
 
 - Environmental Variable: `GRPC_SERVER_MAX_CONNECTION_AGE`
 - Config File Key: `grpc_server_max_connection_age`
@@ -213,7 +215,7 @@ See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for deta
 
 Additive period with `grpc_server_max_connection_age`, after which servers will force connections to close.
 
-See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for details
+See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
 
 - Environmental Variable: `GRPC_SERVER_MAX_CONNECTION_AGE_GRACE`
 - Config File Key: `grpc_server_max_connection_age_grace`
@@ -222,8 +224,7 @@ See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for deta
 
 ### Cookie options
 
-These settings control the Pomerium session cookies sent to users's
-browsers.
+These settings control the Pomerium session cookies sent to users's browsers.
 
 #### Cookie name
 
@@ -240,8 +241,7 @@ The name of the session cookie sent to clients.
 - Config File Key: `cookie_secret`
 - Type: [base64 encoded] `string`
 
-Secret used to encrypt and sign session cookies. You can generate a
-random key with `head -c32 /dev/urandom | base64`.
+Secret used to encrypt and sign session cookies. You can generate a random key with `head -c32 /dev/urandom | base64`.
 
 #### Cookie domain
 
@@ -251,8 +251,7 @@ random key with `head -c32 /dev/urandom | base64`.
 - Example: `corp.beyondperimeter.com`
 - Optional
 
-The scope of session cookies issued by Pomerium. Session cookies will
-be shared by all subdomains of the domain specified here.
+The scope of session cookies issued by Pomerium. Session cookies will be shared by all subdomains of the domain specified here.
 
 #### HTTPS only
 
@@ -261,12 +260,12 @@ be shared by all subdomains of the domain specified here.
 - Type: `bool`
 - Default: `true`
 
-If true, instructs browsers to only send user session cookies over
-HTTPS.
+If true, instructs browsers to only send user session cookies over HTTPS.
 
 :::warning
-Setting this to false may result in session cookies being sent in
-cleartext.
+
+Setting this to false may result in session cookies being sent in cleartext.
+
 :::
 
 #### Javascript security
@@ -276,12 +275,12 @@ cleartext.
 - Type: `bool`
 - Default: `true`
 
-If true, prevents javascript in browsers from reading user session
-cookies.
+If true, prevents javascript in browsers from reading user session cookies.
 
 :::warning
-Setting this to false enables hostile javascript to steal session
-cookies and impersonate users.
+
+Setting this to false enables hostile javascript to steal session cookies and impersonate users.
+
 :::
 
 #### Expiration
@@ -291,9 +290,7 @@ cookies and impersonate users.
 - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
 - Default: `14h`
 
-Sets the lifetime of session cookies. After this interval, users will
-be forced to go through the OAuth login flow again to get a new
-cookie.
+Sets the lifetime of session cookies. After this interval, users will be forced to go through the OAuth login flow again to get a new cookie.
 
 ### HTTP Redirect Address
 
@@ -324,63 +321,62 @@ Expose a prometheus format HTTP endpoint on the specified port. Disabled by defa
 
 **Metrics tracked**
 
-| Name                                          | Type      | Description                                                             |
-| --------------------------------------------- | --------- | ----------------------------------------------------------------------- |
-| boltdb_free_alloc_size_bytes                  | Gauge     | Bytes allocated in free pages                                           |
-| boltdb_free_page_n                            | Gauge     | Number of free pages on the freelist                                    |
-| boltdb_freelist_inuse_size_bytes              | Gauge     | Bytes used by the freelist                                              |
-| boltdb_open_txn                               | Gauge     | number of currently open read transactions                              |
-| boltdb_pending_page_n                         | Gauge     | Number of pending pages on the freelist                                 |
-| boltdb_txn                                    | Gauge     | total number of started read transactions                               |
-| boltdb_txn_cursor_total                       | Counter   | Total number of cursors created                                         |
-| boltdb_txn_node_deref_total                   | Counter   | Total number of node dereferences                                       |
-| boltdb_txn_node_total                         | Counter   | Total number of node allocations                                        |
-| boltdb_txn_page_alloc_size_bytes_total        | Counter   | Total bytes allocated                                                   |
-| boltdb_txn_page_total                         | Counter   | Total number of page allocations                                        |
-| boltdb_txn_rebalance_duration_ms_total        | Counter   | Total time spent rebalancing                                            |
-| boltdb_txn_rebalance_total                    | Counter   | Total number of node rebalances                                         |
-| boltdb_txn_spill_duration_ms_total            | Counter   | Total time spent spilling                                               |
-| boltdb_txn_spill_total                        | Counter   | Total number of nodes spilled                                           |
-| boltdb_txn_split_total                        | Counter   | Total number of nodes split                                             |
-| boltdb_txn_write_duration_ms_total            | Counter   | Total time spent writing to disk                                        |
-| boltdb_txn_write_total                        | Counter   | Total number of writes performed                                        |
-| groupcache_cache_hits_total                   | Counter   | Total cache hits in local or cluster cache                              |
-| groupcache_cache_hits_total                   | Counter   | Total cache hits in local or cluster cache                              |
-| groupcache_gets_total                         | Counter   | Total get request, including from peers                                 |
-| groupcache_loads_deduped_total                | Counter   | gets without cache hits after duplicate suppression                     |
-| groupcache_loads_total                        | Counter   | Total gets without cache hits                                           |
-| groupcache_local_load_errs_total              | Counter   | Total local load errors                                                 |
-| groupcache_local_loads_total                  | Counter   | Total good local loads                                                  |
-| groupcache_peer_errors_total                  | Counter   | Total errors from peers                                                 |
-| groupcache_peer_loads_total                   | Counter   | Total remote loads or cache hits without error                          |
-| groupcache_server_requests_total              | Counter   | Total gets from peers                                                   |
-| grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service                                 |
-| grpc_client_request_size_bytes                | Histogram | GRPC client request size by service                                     |
-| grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service                              |
-| grpc_client_response_size_bytes               | Histogram | GRPC client response size by service                                    |
-| grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service                                 |
-| grpc_server_request_size_bytes                | Histogram | GRPC server request size by service                                     |
-| grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service                              |
-| grpc_server_response_size_bytes               | Histogram | GRPC server response size by service                                    |
-| http_client_request_duration_ms               | Histogram | HTTP client request duration by service                                 |
-| http_client_request_size_bytes                | Histogram | HTTP client request size by service                                     |
-| http_client_requests_total                    | Counter   | Total HTTP client requests made by service                              |
-| http_client_response_size_bytes               | Histogram | HTTP client response size by service                                    |
-| http_server_request_duration_ms               | Histogram | HTTP server request duration by service                                 |
-| http_server_request_size_bytes                | Histogram | HTTP server request size by service                                     |
-| http_server_requests_total                    | Counter   | Total HTTP server requests handled by service                           |
-| http_server_response_size_bytes               | Histogram | HTTP server response size by service                                    |
-| pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion |
-| pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service                      |
-| pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service              |
-| pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service    |
-| redis_conns                                   | Gauge     | Number of total connections in the pool                                 |
-| redis_hits_total                              | Counter   | Total number of times free connection was found in the pool             |
-| redis_idle_conns                              | Gauge     | Number of idle connections in the pool                                  |
-| redis_misses_total                            | Counter   | Total number of times free connection was NOT found in the pool         |
-| redis_stale_conns_total                       | Counter   | Total number of stale connections removed from the pool                 |
-| redis_timeouts_total                          | Counter   | Total number of times a wait timeout occurred                           |
-
+Name                                          | Type      | Description
+--------------------------------------------- | --------- | -----------------------------------------------------------------------
+boltdb_free_alloc_size_bytes                  | Gauge     | Bytes allocated in free pages
+boltdb_free_page_n                            | Gauge     | Number of free pages on the freelist
+boltdb_freelist_inuse_size_bytes              | Gauge     | Bytes used by the freelist
+boltdb_open_txn                               | Gauge     | number of currently open read transactions
+boltdb_pending_page_n                         | Gauge     | Number of pending pages on the freelist
+boltdb_txn                                    | Gauge     | total number of started read transactions
+boltdb_txn_cursor_total                       | Counter   | Total number of cursors created
+boltdb_txn_node_deref_total                   | Counter   | Total number of node dereferences
+boltdb_txn_node_total                         | Counter   | Total number of node allocations
+boltdb_txn_page_alloc_size_bytes_total        | Counter   | Total bytes allocated
+boltdb_txn_page_total                         | Counter   | Total number of page allocations
+boltdb_txn_rebalance_duration_ms_total        | Counter   | Total time spent rebalancing
+boltdb_txn_rebalance_total                    | Counter   | Total number of node rebalances
+boltdb_txn_spill_duration_ms_total            | Counter   | Total time spent spilling
+boltdb_txn_spill_total                        | Counter   | Total number of nodes spilled
+boltdb_txn_split_total                        | Counter   | Total number of nodes split
+boltdb_txn_write_duration_ms_total            | Counter   | Total time spent writing to disk
+boltdb_txn_write_total                        | Counter   | Total number of writes performed
+groupcache_cache_hits_total                   | Counter   | Total cache hits in local or cluster cache
+groupcache_cache_hits_total                   | Counter   | Total cache hits in local or cluster cache
+groupcache_gets_total                         | Counter   | Total get request, including from peers
+groupcache_loads_deduped_total                | Counter   | gets without cache hits after duplicate suppression
+groupcache_loads_total                        | Counter   | Total gets without cache hits
+groupcache_local_load_errs_total              | Counter   | Total local load errors
+groupcache_local_loads_total                  | Counter   | Total good local loads
+groupcache_peer_errors_total                  | Counter   | Total errors from peers
+groupcache_peer_loads_total                   | Counter   | Total remote loads or cache hits without error
+groupcache_server_requests_total              | Counter   | Total gets from peers
+grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service
+grpc_client_request_size_bytes                | Histogram | GRPC client request size by service
+grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service
+grpc_client_response_size_bytes               | Histogram | GRPC client response size by service
+grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service
+grpc_server_request_size_bytes                | Histogram | GRPC server request size by service
+grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service
+grpc_server_response_size_bytes               | Histogram | GRPC server response size by service
+http_client_request_duration_ms               | Histogram | HTTP client request duration by service
+http_client_request_size_bytes                | Histogram | HTTP client request size by service
+http_client_requests_total                    | Counter   | Total HTTP client requests made by service
+http_client_response_size_bytes               | Histogram | HTTP client response size by service
+http_server_request_duration_ms               | Histogram | HTTP server request duration by service
+http_server_request_size_bytes                | Histogram | HTTP server request size by service
+http_server_requests_total                    | Counter   | Total HTTP server requests handled by service
+http_server_response_size_bytes               | Histogram | HTTP server response size by service
+pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion
+pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service
+pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service
+pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service
+redis_conns                                   | Gauge     | Number of total connections in the pool
+redis_hits_total                              | Counter   | Total number of times free connection was found in the pool
+redis_idle_conns                              | Gauge     | Number of idle connections in the pool
+redis_misses_total                            | Counter   | Total number of times free connection was NOT found in the pool
+redis_stale_conns_total                       | Counter   | Total number of stale connections removed from the pool
+redis_timeouts_total                          | Counter   | Total number of times a wait timeout occurred
 
 ### Tracing
 
@@ -390,10 +386,10 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 #### Shared Tracing Settings
 
-| Config Key       | Description                                                       | Required |
-| :--------------- | :---------------------------------------------------------------- | -------- |
-| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅        |
-| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌        |
+Config Key       | Description                                                       | Required
+:--------------- | :---------------------------------------------------------------- | --------
+tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅
+tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌
 
 #### Jaeger
 
@@ -405,10 +401,10 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 - Service dependency analysis
 - Performance / latency optimization
 
-| Config Key                        | Description                                 | Required |
-| :-------------------------------- | :------------------------------------------ | -------- |
-| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
-| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
+Config Key                        | Description                                 | Required
+:-------------------------------- | :------------------------------------------ | --------
+tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅
+tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅
 
 #### Example
 
@@ -420,7 +416,7 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 - Config File Key: `forward_auth_url`
 - Type: `URL` (must contain a scheme and hostname)
 - Example: `https://forwardauth.corp.example.com`
-- Resulting Verification URL: `https://forwardauth.corp.example.com/.pomerium/verify/{URL-TO-VERIFY}`
+- Resulting Verification URL: `https://forwardauth.corp.example.com/?uri={URL-TO-VERIFY}`
 - Optional
 
 Forward authentication creates an endpoint that can be used with third-party proxies that do not have rich access control capabilities ([nginx](http://nginx.org/en/docs/http/ngx_http_auth_request_module.html), [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), [ambassador](https://www.getambassador.io/reference/services/auth-service/), [traefik](https://docs.traefik.io/middlewares/forwardauth/)). Forward authentication allow you to delegate authentication and authorization for each request to Pomerium.
@@ -570,12 +566,12 @@ Identity Provider Service Account is field used to configure any additional user
 
 The authenticate callback path is the path/url from the authenticate service that will receive the response from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client.
 
-This value is referred to as the `redirect_url` in the [OpenIDConnect](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest) and OAuth2 specs.
+This value is referred to as the `redirect_url` in the [OpenIDConnect][oidc rfc] and OAuth2 specs.
 
 See also:
 
 - [OAuth2 RFC 6749](https://tools.ietf.org/html/rfc6749#section-3.1.2)
-- [OIDC Spec](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest)
+- [OIDC Spec][oidc rfc]
 - [Google - Setting Redirect URI](https://developers.google.com/identity/protocols/OpenIDConnect#setredirecturi)
 
 ## Proxy Service
@@ -675,15 +671,18 @@ Refresh cooldown is the minimum amount of time between allowed manually refreshe
 Default Upstream Timeout is the default timeout applied to a proxied route when no `timeout` key is specified by the policy.
 
 ### JWT Claim Headers
+
 - Environmental Variable: `JWT_CLAIMS_HEADERS`
 - Config File Key: `jwt_claims_headers`
-- Type: `string list`
-- Example: `email,groups`, `user`
+- Type: slice of `string`
+- Example: `email`,`groups`, `user`
 - Optional
-  
-Set this option for the pomerium proxy to copy JWT claim information into request headers with the name `x-pomerium-claim-*`.  Any claim listed in the pomerium JWT can be placed into a corresponding header for downstream consumption.  This claim information is sourced from your IDP and pomerium's own session metadata.
 
-Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}` for downstream authN/Z.  
+The JWT Claim Headers setting allows you to pass specific user session data down to downstream applications as HTTP request headers. Note, unlike the header `x-pomerium-jwt-assertion` these values are not signed by the authorization service.
+
+Any claim in the pomerium session JWT can be placed into a corresponding header for downstream consumption. This claim information is sourced from your Identity Provider (IdP) and Pomerium's own session metadata.
+
+Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}` for downstream authN/Z.
 
 ## Cache Service
 
@@ -754,12 +753,27 @@ Policy contains route specific settings, and access control details. If you are 
 
 <<< @/docs/configuration/examples/config/policy.example.yaml
 
+Policy routes are checked in the order they appear in the policy, so more specific routes should appear before less specific routes. For example:
+
+```yaml
+policies:
+  - from: http://from.example.com
+    to: http://to.example.com
+    prefix: /admin
+    allowed_groups: ["superuser"]
+  - from: http://from.example.com
+    to: http://to.example.com
+    allow_public_unauthenticated_access: true
+```
+
+In this example an incoming request with a path prefix of `/admin` would be handled by the first route (which is restricted to superusers). All other requests for `from.example.com` would be handled by the second route (which is open to the public).
+
 A list of policy configuration variables follows.
 
 ### From
 
 - `yaml`/`json` setting: `from`
-- Type: `URL` (must contain a scheme and hostname)
+- Type: `URL` (must contain a scheme and hostname, must not contain a path)
 - Required
 - Example: `https://httpbin.corp.example.com`
 
@@ -773,6 +787,33 @@ A list of policy configuration variables follows.
 - Example: `http://httpbin` , `https://192.1.20.12:8080`, `http://neverssl.com`
 
 `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
+
+### Prefix
+
+- `yaml`/`json` setting: `prefix`
+- Type: `string`
+- Optional
+- Example: `/admin`
+
+If set, the route will only match incoming requests with a path that begins with the specified prefix.
+
+### Path
+
+- `yaml`/`json` setting: `path`
+- Type: `string`
+- Optional
+- Example: `/admin/some/exact/path`
+
+If set, the route will only match incoming requests with a path that is an exact match for the specified path.
+
+### Regex
+
+- `yaml`/`json` setting: `regex`
+- Type: `string` (containing a regular expression)
+- Optional
+- Example: `^/(admin|superuser)/.*$`
+
+If set, the route will only match incoming requests with a path that matches the specified regular expression. The supported syntax is the same as the Go [regexp package](https://golang.org/pkg/regexp/) which is based on [re2](https://github.com/google/re2/wiki/Syntax).
 
 ### Allowed Users
 

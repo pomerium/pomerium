@@ -10,7 +10,7 @@ COPY . .
 RUN make
 RUN touch /config.yaml
 
-FROM gcr.io/distroless/static
+FROM gcr.io/distroless/base:debug
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
