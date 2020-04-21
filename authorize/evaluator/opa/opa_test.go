@@ -91,9 +91,11 @@ func Test_Eval(t *testing.T) {
 			}
 			req := struct {
 				Host string `json:"host,omitempty"`
+				URL  string `json:"url,omitempty"`
 				User string `json:"user,omitempty"`
 			}{
 				Host: tt.route,
+				URL:  "https://" + tt.route,
 				User: rawJWT,
 			}
 			got, err := pe.IsAuthorized(context.TODO(), req)

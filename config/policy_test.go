@@ -20,6 +20,7 @@ func Test_PolicyValidate(t *testing.T) {
 		{"empty from host", Policy{From: "https://", To: "https://httpbin.corp.example"}, true},
 		{"empty from scheme", Policy{From: "httpbin.corp.example", To: "https://httpbin.corp.example"}, true},
 		{"empty to scheme", Policy{From: "https://httpbin.corp.example", To: "//httpbin.corp.example"}, true},
+		{"path in from", Policy{From: "https://httpbin.corp.example/some/path", To: "https://httpbin.corp.example"}, true},
 		{"cors policy", Policy{From: "https://httpbin.corp.example", To: "https://httpbin.corp.notatld", CORSAllowPreflight: true}, false},
 		{"public policy", Policy{From: "https://httpbin.corp.example", To: "https://httpbin.corp.notatld", AllowPublicUnauthenticatedAccess: true}, false},
 		{"public and whitelist", Policy{From: "https://httpbin.corp.example", To: "https://httpbin.corp.notatld", AllowPublicUnauthenticatedAccess: true, AllowedUsers: []string{"test@domain.example"}}, true},
@@ -57,8 +58,8 @@ func TestPolicy_String(t *testing.T) {
 		want     string
 		wantFrom string
 	}{
-		{"good", "https://pomerium.io", "https://localhost", "https://pomerium.io → https://localhost", `"pomerium.io"`},
-		{"failed to validate", "https://pomerium.io", "localhost", "https://pomerium.io → localhost", `"pomerium.io"`},
+		{"good", "https://pomerium.io", "https://localhost", "https://pomerium.io → https://localhost", `"https://pomerium.io"`},
+		{"failed to validate", "https://pomerium.io", "localhost", "https://pomerium.io → localhost", `"https://pomerium.io"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

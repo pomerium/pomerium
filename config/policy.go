@@ -21,8 +21,13 @@ type Policy struct {
 	AllowedGroups  []string `mapstructure:"allowed_groups" yaml:"allowed_groups,omitempty" json:"allowed_groups,omitempty"`
 	AllowedDomains []string `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 
-	Source      *HostnameURL `yaml:",omitempty" json:"source,omitempty"`
-	Destination *url.URL     `yaml:",omitempty" json:"destination,omitempty"`
+	Source      *StringURL `yaml:",omitempty" json:"source,omitempty"`
+	Destination *url.URL   `yaml:",omitempty" json:"destination,omitempty"`
+
+	// Additional route matching options
+	Prefix string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
+	Path   string `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty"`
+	Regex  string `mapstructure:"regex" yaml:"regex,omitempty" json:"regex,omitempty"`
 
 	// Allow unauthenticated HTTP OPTIONS requests as per the CORS spec
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests
@@ -85,7 +90,14 @@ func (p *Policy) Validate() error {
 	if err != nil {
 		return fmt.Errorf("config: policy bad source url %w", err)
 	}
-	p.Source = &HostnameURL{source}
+
+	// Make sure there's no path set on the from url
+	if !(source.Path == "" || source.Path == "/") {
+		return fmt.Errorf("config: policy source url (%s) contains a path, but it should be set using the path field instead",
+			source.String())
+	}
+
+	p.Source = &StringURL{source}
 
 	p.Destination, err = urlutil.ParseAndValidateURL(p.To)
 	if err != nil {
@@ -135,13 +147,12 @@ func (p *Policy) String() string {
 	return fmt.Sprintf("%s → %s", p.Source.String(), p.Destination.String())
 }
 
-// HostnameURL wraps url but marshals only the host representation of that
-// url struct.
-type HostnameURL struct {
+// StringURL stores a URL as a string in json.
+type StringURL struct {
 	*url.URL
 }
 
 // MarshalJSON returns the URLs host as json.
-func (j *HostnameURL) MarshalJSON() ([]byte, error) {
-	return json.Marshal(j.Host)
+func (u *StringURL) MarshalJSON() ([]byte, error) {
+	return json.Marshal(u.String())
 }
