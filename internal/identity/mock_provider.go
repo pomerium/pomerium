@@ -17,7 +17,7 @@ type MockProvider struct {
 	RefreshError         error
 	RevokeError          error
 	GetSignInURLResponse string
-	LogOutResponse       *url.URL
+	LogOutResponse       url.URL
 	LogOutError          error
 }
 
@@ -40,4 +40,4 @@ func (mp MockProvider) Revoke(ctx context.Context, s *oauth2.Token) error {
 func (mp MockProvider) GetSignInURL(s string) string { return mp.GetSignInURLResponse }
 
 // LogOut is a mocked providers function.
-func (mp MockProvider) LogOut() (*url.URL, error) { return mp.LogOutResponse, mp.LogOutError }
+func (mp MockProvider) LogOut() (*url.URL, error) { return &mp.LogOutResponse, mp.LogOutError }
