@@ -64,7 +64,7 @@ type Policy struct {
 	TLSCustomCAFile string         `mapstructure:"tls_custom_ca_file" yaml:"tls_custom_ca_file,omitempty"`
 	RootCAs         *x509.CertPool `yaml:",omitempty"`
 
-	// Contains the x.509 client certificate to to present to the downstream
+	// Contains the x.509 client certificate to present to the downstream
 	// host.
 	TLSClientCert     string           `mapstructure:"tls_client_cert" yaml:"tls_client_cert,omitempty"`
 	TLSClientKey      string           `mapstructure:"tls_client_key" yaml:"tls_client_key,omitempty"`

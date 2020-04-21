@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	oidc "github.com/coreos/go-oidc"
@@ -26,8 +25,6 @@ const defaultAzureGroupURL = "https://graph.microsoft.com/v1.0/me/memberOf"
 // AzureProvider is an implementation of the Provider interface
 type AzureProvider struct {
 	*Provider
-	// non-standard oidc fields
-	RevokeURL string `json:"end_session_endpoint"`
 }
 
 // NewAzureProvider returns a new AzureProvider and sets the provider url endpoints.
@@ -62,18 +59,6 @@ func NewAzureProvider(p *Provider) (*AzureProvider, error) {
 	p.UserGroupFn = azureProvider.UserGroups
 
 	return azureProvider, nil
-}
-
-// Revoke revokes the access token a given session state.
-// https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-protocols-oidc#send-a-sign-out-request
-func (p *AzureProvider) Revoke(ctx context.Context, token *oauth2.Token) error {
-	params := url.Values{}
-	params.Add("token", token.AccessToken)
-	err := httputil.Client(ctx, http.MethodPost, p.RevokeURL, version.UserAgent(), nil, params, nil)
-	if err != nil && err != httputil.ErrTokenRevoked {
-		return err
-	}
-	return nil
 }
 
 // GetSignInURL returns the sign in url with typical oauth parameters

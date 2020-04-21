@@ -22,8 +22,7 @@ import (
 type OktaProvider struct {
 	*Provider
 
-	RevokeURL string `json:"revocation_endpoint"`
-	userAPI   *url.URL
+	userAPI *url.URL
 }
 
 // NewOktaProvider creates a new instance of Okta as an identity provider.
@@ -49,7 +48,6 @@ func NewOktaProvider(p *Provider) (*OktaProvider, error) {
 		Scopes:       p.Scopes,
 	}
 
-	// okta supports a revocation endpoint
 	oktaProvider := OktaProvider{Provider: p}
 	if err := p.provider.Claims(&oktaProvider); err != nil {
 		return nil, err
@@ -68,21 +66,6 @@ func NewOktaProvider(p *Provider) (*OktaProvider, error) {
 	}
 
 	return &oktaProvider, nil
-}
-
-// Revoke revokes the access token a given session state.
-// https://developer.okta.com/docs/api/resources/oidc#revoke
-func (p *OktaProvider) Revoke(ctx context.Context, token *oauth2.Token) error {
-	params := url.Values{}
-	params.Add("client_id", p.ClientID)
-	params.Add("client_secret", p.ClientSecret)
-	params.Add("token", token.AccessToken)
-	params.Add("token_type_hint", "refresh_token")
-	err := httputil.Client(ctx, http.MethodPost, p.RevokeURL, version.UserAgent(), nil, params, nil)
-	if err != nil && err != httputil.ErrTokenRevoked {
-		return err
-	}
-	return nil
 }
 
 // UserGroups fetches the groups of which the user is a member

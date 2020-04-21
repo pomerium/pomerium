@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 
 	oidc "github.com/coreos/go-oidc"
 	"golang.org/x/oauth2"
@@ -25,7 +24,6 @@ const (
 // GitLabProvider is an implementation of the OAuth Provider
 type GitLabProvider struct {
 	*Provider
-	RevokeURL string `json:"revocation_endpoint"`
 }
 
 // NewGitLabProvider returns a new GitLabProvider.
@@ -55,9 +53,7 @@ func NewGitLabProvider(p *Provider) (*GitLabProvider, error) {
 		RedirectURL:  p.RedirectURL.String(),
 		Scopes:       p.Scopes,
 	}
-	gp := &GitLabProvider{
-		Provider: p,
-	}
+	gp := &GitLabProvider{Provider: p}
 
 	if err := p.provider.Claims(&gp); err != nil {
 		return nil, err
@@ -102,18 +98,4 @@ func (p *GitLabProvider) UserGroups(ctx context.Context, s *sessions.State) ([]s
 	}
 
 	return groups, nil
-}
-
-// Revoke attempts to revoke session access via revocation endpoint
-// https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#revoking-a-personal-access-token
-func (p *GitLabProvider) Revoke(ctx context.Context, token *oauth2.Token) error {
-	params := url.Values{}
-	params.Add("access_token", token.AccessToken)
-
-	err := httputil.Client(ctx, http.MethodPost, p.RevokeURL, version.UserAgent(), nil, params, nil)
-	if err != nil && err != httputil.ErrTokenRevoked {
-		return err
-	}
-
-	return nil
 }
