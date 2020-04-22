@@ -16,7 +16,7 @@ import (
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/identity"
+	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -233,7 +233,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	// first, try to revoke the session if implemented
 	err = a.provider.Revoke(r.Context(), s.AccessToken)
-	if err != nil && !errors.Is(err, identity.ErrRevokeNotImplemented) {
+	if err != nil && !errors.Is(err, oidc.ErrRevokeNotImplemented) {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
@@ -244,7 +244,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 		params.Add("post_logout_redirect_uri", redirectString)
 		endSessionURL.RawQuery = params.Encode()
 		redirectString = endSessionURL.String()
-	} else if !errors.Is(err, identity.ErrSignoutNotImplemented) {
+	} else if !errors.Is(err, oidc.ErrSignoutNotImplemented) {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 

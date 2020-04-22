@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/grpc"
 	"github.com/pomerium/pomerium/internal/grpc/cache/client"
 	"github.com/pomerium/pomerium/internal/identity"
+	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cache"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
@@ -155,9 +156,8 @@ func New(opts config.Options) (*Authenticate, error) {
 	redirectURL, _ := urlutil.DeepCopy(opts.AuthenticateURL)
 	redirectURL.Path = opts.AuthenticateCallbackPath
 	// configure our identity provider
-	provider, err := identity.New(
-		opts.Provider,
-		&identity.Provider{
+	provider, err := identity.NewAuthenticator(
+		oauth.Options{
 			RedirectURL:    redirectURL,
 			ProviderName:   opts.Provider,
 			ProviderURL:    opts.ProviderURL,
@@ -166,6 +166,7 @@ func New(opts config.Options) (*Authenticate, error) {
 			Scopes:         opts.Scopes,
 			ServiceAccount: opts.ServiceAccount,
 		})
+
 	if err != nil {
 		return nil, err
 	}
