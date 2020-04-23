@@ -22,7 +22,7 @@ import (
 // Name identifies the GitLab identity provider
 const Name = "gitlab"
 
-var defaultScopes = []string{oidc.ScopeOpenID, "api", "read_user", "profile", "email"}
+var defaultScopes = []string{oidc.ScopeOpenID, "read_api", "read_user", "profile", "email"}
 
 const (
 	defaultProviderURL = "https://gitlab.com"

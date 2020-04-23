@@ -25,9 +25,9 @@ Field        | Description
 ------------ | --------------------------------------------
 Name         | The name of your web app
 Redirect URI | `https://${authenticate_service_url}/oauth2/callback`
-Scopes       | **Must** select **openid**, **read_user** and **api**
+Scopes       | **Must** select **openid**, **read_user** and **read_api**
 
-If no scopes are set, we will use the following scopes: `openid`, `api`, `read_user`, `profile`, `email`.
+If no scopes are set, we will use the following scopes: `openid`, `read_api`, `read_user`, `profile`, `email`.
 
 Your `Client ID` and `Client Secret` will be displayed like below:
 
