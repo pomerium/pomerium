@@ -18,7 +18,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
-	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
+	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
@@ -47,14 +47,14 @@ var defaultScopes = []string{"user:email", "read:org"}
 
 // Provider is an implementation of the OAuth Provider.
 type Provider struct {
-	*pom_oidc.Provider
+	Oauth *oauth2.Config
 
 	userEndpoint string
 }
 
 // New instantiates an OAuth2 provider for Github.
 func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
-	var p Provider
+	p := Provider{}
 	if o.ProviderURL == "" {
 		o.ProviderURL = defaultProviderURL
 	}
@@ -64,15 +64,14 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 	p.Oauth = &oauth2.Config{
 		ClientID:     o.ClientID,
 		ClientSecret: o.ClientSecret,
+		Scopes:       o.Scopes,
+		RedirectURL:  o.RedirectURL.String(),
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  o.ProviderURL + authURL,
 			TokenURL: o.ProviderURL + tokenURL,
 		},
-		RedirectURL: o.RedirectURL.String(),
-		Scopes:      o.Scopes,
 	}
 	p.userEndpoint = githubAPIURL + userPath
-
 	return &p, nil
 }
 
@@ -257,4 +256,15 @@ func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
 	defer resp.Body.Close()
 
 	return nil
+}
+
+// GetSignInURL returns a URL to OAuth 2.0 provider's consent page
+// that asks for permissions for the required scopes explicitly.
+func (p *Provider) GetSignInURL(state string) string {
+	return p.Oauth.AuthCodeURL(state, oauth2.AccessTypeOffline)
+}
+
+// LogOut is not implemented by github.
+func (p *Provider) LogOut() (*url.URL, error) {
+	return nil, oidc.ErrSignoutNotImplemented
 }

@@ -218,7 +218,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 // Handles both GET and POST.
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	// no matter what happens, we want to clear the local session store
-	defer a.sessionStore.ClearSession(w, r)
+	a.sessionStore.ClearSession(w, r)
 
 	jwt, err := sessions.FromContext(r.Context())
 	if err != nil {
