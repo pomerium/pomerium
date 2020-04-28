@@ -1,3 +1,4 @@
+// Package httputil has helper functions for working with HTTP.
 package httputil
 
 import (
@@ -11,6 +12,8 @@ type localRoundTripper struct {
 	portToAddr map[string]string
 }
 
+// NewLocalRoundTripper creates a new http.RoundTripper which routes localhost traffic to the remote destinations
+// defined by `portToAddr`.
 func NewLocalRoundTripper(underlying http.RoundTripper, portToAddr map[string]string) http.RoundTripper {
 	lrt := &localRoundTripper{underlying: underlying, portToAddr: portToAddr}
 	return lrt

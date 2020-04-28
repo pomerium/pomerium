@@ -1,3 +1,4 @@
+// Package flows has helper functions for working with pomerium end-user use-case flows.
 package flows
 
 import (

@@ -15,8 +15,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const localHTTPSPort = 9443
-
 var (
 	mainCtx     context.Context
 	testcluster *cluster.Cluster
@@ -39,8 +37,7 @@ func TestMain(m *testing.M) {
 	mainCtx, clearTimeout = context.WithTimeout(mainCtx, time.Minute*10)
 	defer clearTimeout()
 
-	_, mainTestFilePath, _, _ := runtime.Caller(0)
-	testcluster = cluster.New(filepath.Dir(mainTestFilePath))
+	testcluster = cluster.New(getBaseDir())
 	if err := testcluster.Setup(mainCtx); err != nil {
 		log.Fatal().Err(err).Send()
 	}
@@ -49,4 +46,10 @@ func TestMain(m *testing.M) {
 	cancel()
 	gocleanup.Cleanup()
 	os.Exit(status)
+}
+
+// getBaseDir returns the directory that main_test resides in
+func getBaseDir() string {
+	_, file, _, _ := runtime.Caller(0) //nolint
+	return filepath.Dir(file)
 }

@@ -40,7 +40,7 @@ func (cluster *Cluster) Setup(ctx context.Context) error {
 		return err
 	}
 
-	jsonsrc, err := cluster.generateManifests(ctx)
+	jsonsrc, err := cluster.generateManifests()
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (cluster *Cluster) getNodeHTTPSAddr(ctx context.Context) (hostport string, 
 	return net.JoinHostPort(hostIP, port), nil
 }
 
-func (cluster *Cluster) generateManifests(ctx context.Context) (string, error) {
+func (cluster *Cluster) generateManifests() (string, error) {
 	src, err := ioutil.ReadFile(filepath.Join(cluster.workingDir, "manifests", "manifests.jsonnet"))
 	if err != nil {
 		return "", fmt.Errorf("error reading manifest jsonnet src: %w", err)

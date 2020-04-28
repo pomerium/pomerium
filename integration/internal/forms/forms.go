@@ -1,3 +1,4 @@
+// Package forms has helper functions for working with HTML forms.
 package forms
 
 import (
@@ -69,6 +70,7 @@ func Parse(r io.Reader) []Form {
 	return forms
 }
 
+// NewRequestWithContext creates a new request from the form details.
 func (f *Form) NewRequestWithContext(ctx context.Context, baseURL *url.URL) (*http.Request, error) {
 	actionURL, err := url.Parse(f.Action)
 	if err != nil {

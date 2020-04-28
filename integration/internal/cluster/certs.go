@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// TLSCerts holds the certificate authority, certificate and certificate key for a TLS connection.
 type TLSCerts struct {
 	CA   string
 	Cert string

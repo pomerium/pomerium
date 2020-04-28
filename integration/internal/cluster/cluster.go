@@ -1,3 +1,4 @@
+// Package cluster is used to configure a kubernetes cluster for testing.
 package cluster
 
 import (
@@ -8,6 +9,7 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
+// A Cluster is used to configure a kubernetes cluster.
 type Cluster struct {
 	workingDir string
 
@@ -15,12 +17,15 @@ type Cluster struct {
 	certs     *TLSCerts
 }
 
+// New creates a new Cluster.
 func New(workingDir string) *Cluster {
 	return &Cluster{
 		workingDir: workingDir,
 	}
 }
 
+// NewHTTPClient creates a new *http.Client, with a cookie jar, and a LocalRoundTripper
+// which routes traffic to the nginx ingress controller.
 func (cluster *Cluster) NewHTTPClient() *http.Client {
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
