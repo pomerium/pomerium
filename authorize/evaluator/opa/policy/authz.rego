@@ -5,10 +5,15 @@ import data.shared_key
 
 default allow = false
 
+# allow public
+allow {
+	route := first_allowed_route(input.url)
+	route_policies[route].AllowPublicUnauthenticatedAccess == true
+}
+
 # allow by email
 allow {
-	some route
-	allowed_route(input.url, route_policies[route])
+	route := first_allowed_route(input.url)
 	token.payload.email = route_policies[route].allowed_users[_]
 	token.valid
 	count(deny)==0
@@ -16,8 +21,7 @@ allow {
 
 # allow group
 allow {
-	some route
-	allowed_route(input.url, route_policies[route])
+	route := first_allowed_route(input.url)
 	some group
 	token.payload.groups[group] == route_policies[route].allowed_groups[_]
 	token.valid
@@ -26,8 +30,7 @@ allow {
 
 # allow by impersonate email
 allow {
-	some route
-	allowed_route(input.url, route_policies[route])
+	route := first_allowed_route(input.url)
 	token.payload.impersonate_email = route_policies[route].allowed_users[_]
 	token.valid
 	count(deny)==0
@@ -35,8 +38,7 @@ allow {
 
 # allow by impersonate group
 allow {
-	some route
-	allowed_route(input.url, route_policies[route])
+	route := first_allowed_route(input.url)
 	some group
 	token.payload.impersonate_groups[group] == route_policies[route].allowed_groups[_]
 	token.valid
@@ -45,8 +47,7 @@ allow {
 
 # allow by domain
 allow {
-	some route
-	allowed_route(input.url, route_policies[route])
+	route := first_allowed_route(input.url)
 	some domain
 	email_in_domain(token.payload.email, route_policies[route].allowed_domains[domain])
 	token.valid
@@ -55,12 +56,22 @@ allow {
 
 # allow by impersonate domain
 allow {
-	some route
-	allowed_route(input.url, route_policies[route])
+	route := first_allowed_route(input.url)
 	some domain
 	email_in_domain(token.payload.impersonate_email, route_policies[route].allowed_domains[domain])
 	token.valid
 	count(deny)==0
+}
+
+# allow pomerium urls
+allow {
+	contains(input.url, "/.pomerium/")
+	not contains(input.url,"/.pomerium/admin")
+}
+
+# returns the first matching route
+first_allowed_route(input_url) = route {
+	route := [route | some route ; allowed_route(input.url, route_policies[route])][0]
 }
 
 allowed_route(input_url, policy){

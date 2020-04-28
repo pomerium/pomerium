@@ -16,8 +16,6 @@ func TestAuthorization(t *testing.T) {
 	defer clearTimeout()
 
 	t.Run("public", func(t *testing.T) {
-		t.Skip() // pomerium doesn't currently handle unauthenticated public routes
-
 		client := testcluster.NewHTTPClient()
 
 		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io", nil)
@@ -33,7 +31,6 @@ func TestAuthorization(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code, headers=%v", res.Header)
 	})
-
 	t.Run("domains", func(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
 			client := testcluster.NewHTTPClient()
@@ -78,7 +75,7 @@ func TestAuthorization(t *testing.T) {
 			client := testcluster.NewHTTPClient()
 			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-group"), "joe@cats.test", []string{"user"})
 			if assert.NoError(t, err) {
-				assertDeniedAccess(t, res, "expected Forbidden for user")
+				assertDeniedAccess(t, res, "expected Forbidden for user, but got %d", res.StatusCode)
 			}
 		})
 	})

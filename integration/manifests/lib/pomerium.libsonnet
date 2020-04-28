@@ -1,30 +1,33 @@
 local tls = import './tls.libsonnet';
 
-local PomeriumPolicy = function() [
-  {
-    from: 'http://httpdetails.localhost.pomerium.io',
-    prefix: '/by-domain',
-    to: 'http://httpdetails.default.svc.cluster.local',
-    allowed_domains: ['dogs.test'],
-  },
-  {
-    from: 'http://httpdetails.localhost.pomerium.io',
-    prefix: '/by-user',
-    to: 'http://httpdetails.default.svc.cluster.local',
-    allowed_users: ['bob@dogs.test'],
-  },
-  {
-    from: 'http://httpdetails.localhost.pomerium.io',
-    prefix: '/by-group',
-    to: 'http://httpdetails.default.svc.cluster.local',
-    allowed_groups: ['admin'],
-  },
-  {
-    from: 'http://httpdetails.localhost.pomerium.io',
-    to: 'http://httpdetails.default.svc.cluster.local',
-    allow_public_unauthenticated_access: true,
-  },
-];
+local PomeriumPolicy = function() std.flattenArrays([
+  [
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      prefix: '/by-domain',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+      allowed_domains: ['dogs.test'],
+    },
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      prefix: '/by-user',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+      allowed_users: ['bob@dogs.test'],
+    },
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      prefix: '/by-group',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+      allowed_groups: ['admin'],
+    },
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+      allow_public_unauthenticated_access: true,
+    },
+  ]
+  for domain in ['httpdetails', 'fa-httpdetails']
+]);
 
 local PomeriumPolicyHash = std.base64(std.md5(std.manifestJsonEx(PomeriumPolicy(), '')));
 
@@ -292,20 +295,27 @@ local PomeriumForwardAuthIngress = function() {
     tls: [
       {
         hosts: [
-          'fa-httpecho.localhost.pomerium.io',
+          'fa-httpdetails.localhost.pomerium.io',
         ],
         secretName: 'pomerium-tls',
       },
     ],
     rules: [
       {
-        host: 'fa-httpecho.localhost.pomerium.io',
+        host: 'fa-httpdetails.localhost.pomerium.io',
         http: {
           paths: [
             {
+              path: '/.pomerium/',
+              backend: {
+                serviceName: 'proxy',
+                servicePort: 'https',
+              },
+            },
+            {
               path: '/',
               backend: {
-                serviceName: 'httpecho',
+                serviceName: 'httpdetails',
                 servicePort: 'http',
               },
             },
