@@ -20,8 +20,7 @@ import (
 )
 
 var requiredDeployments = []string{
-	"default/httpbin",
-	"default/httpecho",
+	"default/httpdetails",
 	"default/openid",
 	"default/pomerium-authenticate",
 	"default/pomerium-authorize",
