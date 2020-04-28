@@ -131,4 +131,4 @@ jobs:
         run: |
           ./scripts/build-dev-docker.bash
       - name: test
-        run: go test -v
+        run: go test -v ./integration/...
