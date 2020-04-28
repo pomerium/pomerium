@@ -18,7 +18,7 @@ require (
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/onsi/ginkgo v1.11.0 // indirect
 	github.com/onsi/gomega v1.8.1 // indirect
-	github.com/open-policy-agent/opa v0.18.0
+	github.com/open-policy-agent/opa v0.19.2
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pomerium/autocache v0.0.0-20200309220911-227c9939d0ce
