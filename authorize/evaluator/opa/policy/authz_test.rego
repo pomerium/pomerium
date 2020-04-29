@@ -65,6 +65,51 @@ test_email_denied {
 	}
 }
 
+test_public_allowed {
+	allow with data.route_policies as [{
+		"source": "example.com",
+		"AllowPublicUnauthenticatedAccess": true
+	}] with input as {
+		"url": "http://example.com",
+		"host": "example.com"
+	}
+}
+test_public_denied {
+	not allow with data.route_policies as [
+		{
+			"source": "example.com",
+			"prefix": "/by-user",
+			"allowed_users": ["bob@example.com"]
+		},
+		{
+			"source": "example.com",
+			"AllowPublicUnauthenticatedAccess": true
+		}
+	] with input as {
+		"url": "http://example.com/by-user",
+		"host": "example.com"
+	}
+}
+
+test_pomerium_allowed {
+	allow with data.route_policies as [{
+		"source": "example.com",
+		"allowed_users": ["bob@example.com"]
+	}] with input as {
+		"url": "http://example.com/.pomerium/",
+		"host": "example.com"
+	}
+}
+test_pomerium_denied {
+	not allow with data.route_policies as [{
+		"source": "example.com",
+		"allowed_users": ["bob@example.com"]
+	}] with input as {
+		"url": "http://example.com/.pomerium/admin",
+		"host": "example.com"
+	}
+}
+
 test_parse_url {
 	url := parse_url("http://example.com/some/path?qs")
 	url.scheme == "http"

@@ -8,6 +8,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/grpc/authorize"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
@@ -25,7 +26,19 @@ func (a *Authorize) IsAuthorized(ctx context.Context, in *authorize.IsAuthorized
 		RemoteAddr: in.GetRequestRemoteAddr(),
 		URL:        getFullURL(in.GetRequestUrl(), in.GetRequestHost()),
 	}
-	return a.pe.IsAuthorized(ctx, req)
+	reply, err := a.pe.IsAuthorized(ctx, req)
+	log.Info().
+		// request
+		Str("method", req.Method).
+		Str("url", req.URL).
+		// reply
+		Bool("allow", reply.Allow).
+		Strs("deny-reasons", reply.DenyReasons).
+		Str("user", reply.User).
+		Str("email", reply.Email).
+		Strs("groups", reply.Groups).
+		Msg("authorize.grpc.IsAuthorized")
+	return reply, err
 }
 
 type protoHeader map[string]*authorize.IsAuthorizedRequest_Headers

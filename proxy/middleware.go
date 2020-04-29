@@ -103,10 +103,7 @@ func (p *Proxy) AuthorizeSession(next http.Handler) http.Handler {
 func (p *Proxy) authorize(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "proxy.authorize")
 	defer span.End()
-	jwt, err := sessions.FromContext(ctx)
-	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, err)
-	}
+	jwt, _ := sessions.FromContext(ctx)
 	authz, err := p.AuthorizeClient.Authorize(ctx, jwt, r)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
