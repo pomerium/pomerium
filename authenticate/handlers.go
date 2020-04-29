@@ -86,15 +86,12 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
 
-		if err := s.Verify(r.Host); errors.Is(err, sessions.ErrExpired) {
+		if s.IsExpired() {
 			ctx, err = a.refresh(w, r, &s)
 			if err != nil {
 				log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session, refresh")
 				return a.reauthenticateOrFail(w, r, err)
 			}
-		} else if err != nil {
-			log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session")
-			return a.reauthenticateOrFail(w, r, err)
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 		return nil
@@ -164,9 +161,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	if err := a.encryptedEncoder.Unmarshal([]byte(jwt), &s); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
-	if err := s.Verify(r.Host); err != nil && !errors.Is(err, sessions.ErrExpired) {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
+
 	// user impersonation
 	if impersonate := r.FormValue(urlutil.QueryImpersonateAction); impersonate != "" {
 		s.SetImpersonation(r.FormValue(urlutil.QueryImpersonateEmail), r.FormValue(urlutil.QueryImpersonateGroups))
@@ -376,10 +371,6 @@ func (a *Authenticate) RefreshAPI(w http.ResponseWriter, r *http.Request) error 
 	if err := a.encryptedEncoder.Unmarshal([]byte(jwt), &s); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
-	err = s.Verify(r.Host)
-	if err != nil && !errors.Is(err, sessions.ErrExpired) {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
 	newSession, err := a.provider.Refresh(r.Context(), &s)
 	if err != nil {
 		return err
@@ -425,9 +416,7 @@ func (a *Authenticate) Refresh(w http.ResponseWriter, r *http.Request) error {
 	if err := a.encryptedEncoder.Unmarshal([]byte(jwt), &s); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
-	if err := s.Verify(r.Host); err != nil && !errors.Is(err, sessions.ErrExpired) {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
+
 	aud := strings.Split(r.FormValue(urlutil.QueryAudience), ",")
 	routeSession := s.NewSession(r.Host, aud)
 	routeSession.AccessTokenID = s.AccessTokenID
