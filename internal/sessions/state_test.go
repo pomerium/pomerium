@@ -48,7 +48,7 @@ func TestState_Impersonating(t *testing.T) {
 	}
 }
 
-func TestState_Verify(t *testing.T) {
+func TestState_IsExpired(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name        string
@@ -63,7 +63,6 @@ func TestState_Verify(t *testing.T) {
 	}{
 		{"good", []string{"a", "b", "c"}, jwt.NewNumericDate(time.Now().Add(time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), &oauth2.Token{Expiry: time.Now().Add(time.Hour)}, "a", false},
 		{"bad expiry", []string{"a", "b", "c"}, jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), &oauth2.Token{Expiry: time.Now().Add(time.Hour)}, "a", true},
-		{"bad audience", []string{"x", "y", "z"}, jwt.NewNumericDate(time.Now().Add(time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), &oauth2.Token{Expiry: time.Now().Add(time.Hour)}, "a", true},
 		{"bad access token expiry", []string{"a", "b", "c"}, jwt.NewNumericDate(time.Now().Add(time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), &oauth2.Token{Expiry: time.Now().Add(-time.Hour)}, "a", true},
 	}
 	for _, tt := range tests {
@@ -75,8 +74,8 @@ func TestState_Verify(t *testing.T) {
 				IssuedAt:    tt.IssuedAt,
 				AccessToken: tt.AccessToken,
 			}
-			if err := s.Verify(tt.audience); (err != nil) != tt.wantErr {
-				t.Errorf("State.Verify() error = %v, wantErr %v", err, tt.wantErr)
+			if exp := s.IsExpired(); exp != tt.wantErr {
+				t.Errorf("State.IsExpired() error = %v, wantErr %v", exp, tt.wantErr)
 			}
 		})
 	}

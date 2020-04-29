@@ -114,25 +114,18 @@ func (s State) RouteSession() *State {
 	return &s
 }
 
-// Verify returns an error if the users's session state is not valid.
-func (s *State) Verify(audience string) error {
+// IsExpired returns true if the users's session is expired.
+func (s *State) IsExpired() bool {
 
 	if s.Expiry != nil && timeNow().After(s.Expiry.Time()) {
-		return ErrExpired
+		return true
 	}
 
-	// if we have an associated access token, check if that token has expired as well
 	if s.AccessToken != nil && timeNow().After(s.AccessToken.Expiry) {
-		return ErrExpired
+		return true
 	}
 
-	if len(s.Audience) != 0 {
-		if !s.Audience.Contains(audience) {
-			return ErrInvalidAudience
-		}
-
-	}
-	return nil
+	return false
 }
 
 // Impersonating returns if the request is impersonating.
