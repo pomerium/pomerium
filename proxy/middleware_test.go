@@ -73,7 +73,7 @@ func TestProxy_AuthenticateSession(t *testing.T) {
 			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()
-			got := a.jwtClaimMiddleware(a.AuthenticateSession(fn))
+			got := a.jwtClaimMiddleware(false)(a.AuthenticateSession(fn))
 			got.ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("AuthenticateSession() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantStatus, w.Body.String())
@@ -113,7 +113,7 @@ func Test_jwtClaimMiddleware(t *testing.T) {
 	ctx = sessions.NewContext(ctx, string(state), nil)
 	r = r.WithContext(ctx)
 	w := httptest.NewRecorder()
-	proxyHandler := a.jwtClaimMiddleware(handler)
+	proxyHandler := a.jwtClaimMiddleware(true)(handler)
 	proxyHandler.ServeHTTP(w, r)
 
 	t.Run("email claim", func(t *testing.T) {
@@ -127,6 +127,13 @@ func Test_jwtClaimMiddleware(t *testing.T) {
 		groupsHeader := r.Header.Get("x-pomerium-claim-groups")
 		if groupsHeader != strings.Join(groups, ",") {
 			t.Errorf("did not find claim groups, want=%q, got=%q", groups, groupsHeader)
+		}
+	})
+
+	t.Run("email response claim", func(t *testing.T) {
+		emailHeader := w.Header().Get("x-pomerium-claim-email")
+		if emailHeader != email {
+			t.Errorf("did not find claim email in response, want=%q, got=%q", email, emailHeader)
 		}
 	})
 
