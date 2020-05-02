@@ -157,7 +157,7 @@ func newGRPCServer(opt config.Options, as *authorize.Authorize, cs *cache.Cache,
 		},
 	}
 	if !opt.GRPCInsecure {
-		so.TLSCertificate = opt.TLSCertificate
+		so.TLSCertificate = opt.TLSConfig.Certificates
 	}
 	grpcSrv, err := pgrpc.NewServer(so, regFn, wg)
 	if err != nil {
@@ -247,7 +247,7 @@ func setupTracing(opt *config.Options) error {
 
 func setupHTTPRedirectServer(opt *config.Options, wg *sync.WaitGroup) error {
 	if opt.HTTPRedirectAddr != "" {
-		serverOpts := httputil.ServerOptions{Addr: opt.HTTPRedirectAddr}
+		serverOpts := httputil.ServerOptions{Addr: opt.HTTPRedirectAddr, Insecure: true}
 		srv, err := httputil.NewServer(&serverOpts, httputil.RedirectHandler(), wg)
 		if err != nil {
 			return err
@@ -260,7 +260,8 @@ func setupHTTPRedirectServer(opt *config.Options, wg *sync.WaitGroup) error {
 func httpServerOptions(opt *config.Options) *httputil.ServerOptions {
 	return &httputil.ServerOptions{
 		Addr:              opt.Addr,
-		TLSCertificate:    opt.TLSCertificate,
+		TLSConfig:         opt.TLSConfig,
+		Insecure:          opt.InsecureServer,
 		ReadTimeout:       opt.ReadTimeout,
 		WriteTimeout:      opt.WriteTimeout,
 		ReadHeaderTimeout: opt.ReadHeaderTimeout,

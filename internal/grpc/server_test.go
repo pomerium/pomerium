@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"os"
 	"os/signal"
@@ -50,7 +51,7 @@ func TestNewServer(t *testing.T) {
 		{"simple", &ServerOptions{Addr: ":0"}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
 		{"simple keepalive options", &ServerOptions{Addr: ":0", KeepaliveParams: keepalive.ServerParameters{MaxConnectionAge: 5 * time.Minute}}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
 		{"bad tcp port", &ServerOptions{Addr: ":9999999"}, func(s *grpc.Server) {}, &sync.WaitGroup{}, true, true},
-		{"with certs", &ServerOptions{Addr: ":0", TLSCertificate: certb64}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
+		{"with certs", &ServerOptions{Addr: ":0", TLSCertificate: []tls.Certificate{*certb64}}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

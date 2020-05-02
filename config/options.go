@@ -6,7 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"time"
 
@@ -57,7 +60,14 @@ type Options struct {
 	// This should be used only for testing.
 	InsecureServer bool `mapstructure:"insecure_server" yaml:"insecure_server,omitempty"`
 
-	// Cert and Key is the x509 certificate used to hydrate TLSCertificate
+	// AutoCert enables fully automated certificate management including issuance
+	// and renewal from LetsEncrypt. Must be used in conjunction with CertFolder.
+	AutoCert bool `mapstructure:"auto_cert" yaml:"auto_cert,omitempty"`
+
+	// CertFolder specifies the location of your `pem` encoded x509 certificates.
+	CertFolder string `mapstructure:"certificate_folder" yaml:"certificate_folder,omitempty"`
+
+	// Cert and Key is the x509 certificate used to create the HTTPS server.
 	Cert string `mapstructure:"certificate" yaml:"certificate,omitempty"`
 	Key  string `mapstructure:"certificate_key" yaml:"certificate_key,omitempty"`
 
@@ -65,8 +75,8 @@ type Options struct {
 	CertFile string `mapstructure:"certificate_file" yaml:"certificate_file,omitempty"`
 	KeyFile  string `mapstructure:"certificate_key_file" yaml:"certificate_key_file,omitempty"`
 
-	// TLSCertificate is the hydrated tls.Certificate.
-	TLSCertificate *tls.Certificate `yaml:",omitempty"`
+	// TLSConfig represents the TLS configuration.
+	TLSConfig *tls.Config `yaml:",omitempty"`
 
 	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
 	// to HTTPS redirect server on. If empty, no redirect server is started.
@@ -237,6 +247,7 @@ var defaultOptions = Options{
 	GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
 	CacheStore:                      "autocache",
 	AuthenticateCallbackPath:        "/oauth2/callback",
+	CertFolder:                      filepath.Join(homeDir(), ".pomerium", "certs"),
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -499,19 +510,34 @@ func (o *Options) Validate() error {
 		o.Headers = make(map[string]string)
 	}
 
-	if o.InsecureServer {
-		log.Warn().Msg("config: insecure mode enabled")
+	if o.AutoCert {
+		o.TLSConfig, err = cryptutil.NewAutocert(o.sourceHostnames(), o.CertFolder)
 	} else if o.Cert != "" || o.Key != "" {
-		o.TLSCertificate, err = cryptutil.CertifcateFromBase64(o.Cert, o.Key)
+		o.TLSConfig, err = cryptutil.TLSConfigFromBase64(o.Cert, o.Key)
 	} else if o.CertFile != "" || o.KeyFile != "" {
-		o.TLSCertificate, err = cryptutil.CertificateFromFile(o.CertFile, o.KeyFile)
+		o.TLSConfig, err = cryptutil.TLSConfigFromFile(o.CertFile, o.KeyFile)
+	} else if o.InsecureServer {
+		log.Warn().Msg("config: insecure mode enabled")
 	} else {
-		err = errors.New("config:no certificates supplied nor was insecure mode set")
+		err = errors.New("insecure mode not set, and tls certs not provided" +
+			"to have certificates auto managed, try enabling autocert setting")
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("config: %w", err)
 	}
 	return nil
+}
+
+func (o *Options) sourceHostnames() []string {
+	if len(o.Policies) == 0 {
+		return nil
+	}
+	h := make([]string, len(o.Policies)+1)
+	for i, p := range o.Policies {
+		h[i] = p.Source.Hostname()
+	}
+	h[len(o.Policies)] = o.AuthenticateURL.Hostname()
+	return h
 }
 
 // OptionsUpdater updates local state based on an Options struct
@@ -563,4 +589,23 @@ func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 		metrics.SetConfigChecksum(newOpt.Services, newOptChecksum)
 	}
 	return newOpt
+}
+
+// homeDir returns the best guess of the current user's home
+// directory from environment variables. If unknown, "." (the
+// current directory) is returned instead.
+func homeDir() string {
+	home := os.Getenv("HOME")
+	if home == "" && runtime.GOOS == "windows" {
+		drive := os.Getenv("HOMEDRIVE")
+		path := os.Getenv("HOMEPATH")
+		home = drive + path
+		if drive == "" || path == "" {
+			home = os.Getenv("USERPROFILE")
+		}
+	}
+	if home == "" {
+		home = "."
+	}
+	return home
 }

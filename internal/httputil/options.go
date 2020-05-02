@@ -11,8 +11,10 @@ type ServerOptions struct {
 	// HTTPS requests. If empty, ":443" is used.
 	Addr string
 
-	// TLS certificates to use.
-	TLSCertificate *tls.Certificate
+	TLSConfig *tls.Config
+
+	Insecure bool
+
 	// Timeouts
 	ReadHeaderTimeout time.Duration
 	ReadTimeout       time.Duration

@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"crypto/tls"
+	"errors"
 	"net"
 	"os"
 	"os/signal"
@@ -33,12 +34,14 @@ func NewServer(opt *ServerOptions, registrationFn func(s *grpc.Server), wg *sync
 		grpc.KeepaliveParams(opt.KeepaliveParams),
 	}
 
-	if opt.TLSCertificate != nil {
+	if len(opt.TLSCertificate) == 1 {
 		log.Debug().Str("addr", opt.Addr).Msg("internal/grpc: serving over TLS")
-		cert := credentials.NewServerTLSFromCert(opt.TLSCertificate)
+		cert := credentials.NewServerTLSFromCert(&opt.TLSCertificate[0])
 		grpcOpts = append(grpcOpts, grpc.Creds(cert))
-	} else {
+	} else if len(opt.TLSCertificate) == 0 {
 		log.Warn().Str("addr", opt.Addr).Msg("internal/grpc: serving without TLS")
+	} else {
+		return nil, errors.New("internal/grpc: unexpected number of certificates")
 	}
 
 	srv := grpc.NewServer(grpcOpts...)
@@ -63,7 +66,7 @@ type ServerOptions struct {
 	Addr string
 
 	// TLS certificates to use, if any.
-	TLSCertificate *tls.Certificate
+	TLSCertificate []tls.Certificate
 
 	// InsecureServer when enabled disables all transport security.
 	// In this mode, Pomerium is susceptible to man-in-the-middle attacks.
