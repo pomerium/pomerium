@@ -423,3 +423,39 @@ func Test_HandleConfigUpdate(t *testing.T) {
 		})
 	}
 }
+
+func TestOptions_sourceHostnames(t *testing.T) {
+	t.Parallel()
+	testOptions := func() *Options {
+		o := NewDefaultOptions()
+		o.SharedKey = "test"
+		o.Services = "all"
+		o.InsecureServer = true
+		return o
+	}
+	tests := []struct {
+		name            string
+		policies        []Policy
+		authenticateURL string
+		want            []string
+	}{
+		{"empty", []Policy{}, "", nil},
+		{"good no authN", []Policy{{From: "https://from.example", To: "https://to.example"}}, "", []string{"from.example"}},
+		{"good with authN", []Policy{{From: "https://from.example", To: "https://to.example"}}, "https://authn.example.com", []string{"from.example", "authn.example.com"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := testOptions()
+			o.Policies = tt.policies
+			o.AuthenticateURLString = tt.authenticateURL
+			err := o.Validate()
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := o.sourceHostnames()
+			if diff := cmp.Diff(got, tt.want); diff != "" {
+				t.Errorf("Options.sourceHostnames() = %v", diff)
+			}
+		})
+	}
+}

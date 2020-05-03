@@ -529,11 +529,13 @@ func (o *Options) sourceHostnames() []string {
 	if len(o.Policies) == 0 {
 		return nil
 	}
-	h := make([]string, len(o.Policies)+1)
-	for i, p := range o.Policies {
-		h[i] = p.Source.Hostname()
+	var h []string
+	for _, p := range o.Policies {
+		h = append(h, p.Source.Hostname())
 	}
-	h[len(o.Policies)] = o.AuthenticateURL.Hostname()
+	if o.AuthenticateURL != nil {
+		h = append(h, o.AuthenticateURL.Hostname())
+	}
 	return h
 }
 
