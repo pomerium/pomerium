@@ -48,8 +48,8 @@ func TestNewServer(t *testing.T) {
 		wantNil        bool
 		wantErr        bool
 	}{
-		{"simple", &ServerOptions{Addr: ":0"}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
-		{"simple keepalive options", &ServerOptions{Addr: ":0", KeepaliveParams: keepalive.ServerParameters{MaxConnectionAge: 5 * time.Minute}}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
+		{"simple", &ServerOptions{Addr: ":0", InsecureServer: true}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
+		{"simple keepalive options", &ServerOptions{Addr: ":0", InsecureServer: true, KeepaliveParams: keepalive.ServerParameters{MaxConnectionAge: 5 * time.Minute}}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
 		{"bad tcp port", &ServerOptions{Addr: ":9999999"}, func(s *grpc.Server) {}, &sync.WaitGroup{}, true, true},
 		{"with certs", &ServerOptions{Addr: ":0", TLSCertificate: []tls.Certificate{*certb64}}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
 	}
