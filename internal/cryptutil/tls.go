@@ -1,6 +1,7 @@
 package cryptutil
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 
@@ -18,15 +19,14 @@ func NewAutocert(hostnames []string, path string) (*tls.Config, error) {
 	certmagic.DefaultACME.DisableHTTPChallenge = true
 	cm := certmagic.NewDefault()
 	cm.Storage = &certmagic.FileStorage{Path: path}
-	// obtains certificates or renews them if necessary
-	if err := cm.ManageSync(hostnames); err != nil {
+
+	// todo(bdd) : add cancellation context?
+	if err := cm.ManageAsync(context.TODO(), hostnames); err != nil {
 		return nil, fmt.Errorf("cryptutil: sync failed: %w", err)
 	}
-
 	tlsConfig.GetCertificate = cm.GetCertificate
 	tlsConfig.NextProtos = append(tlsConfig.NextProtos, tlsalpn01.ACMETLS1Protocol)
 
-	// sniff the hostname from the cert
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig, nil
 }
@@ -56,7 +56,20 @@ func TLSConfigFromFile(cert, key string) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-// defaultTLSConfig creates an opinionated TLS configuration.
+// TLSConfigFromFolder returns an tls configuration from a certificate and
+// key file .
+// func TLSConfigFromFolder(path string) (*tls.Config, error) {
+// 	tlsConfig := defaultTLSConfig()
+// 	c, err := CertificateFromFile(cert, key)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	tlsConfig.Certificates = []tls.Certificate{*c}
+// 	tlsConfig.BuildNameToCertificate()
+// 	return tlsConfig, nil
+// }
+
+// defaultTLSConfig returns an opinionated TLS configuration.
 // See :
 // https://wiki.mozilla.org/Security/Server_Side_TLS#Recommended_configurations
 // https://blog.cloudflare.com/exposing-go-on-the-internet/

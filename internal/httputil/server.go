@@ -26,7 +26,11 @@ func NewServer(opt *ServerOptions, h http.Handler, wg *sync.WaitGroup) (*http.Se
 	} else {
 		opt.applyServerDefaults()
 	}
-	sublogger := log.With().Str("addr", opt.Addr).Logger()
+	sublogger := log.With().
+		Str("service", opt.Service).
+		Bool("insecure", opt.Insecure).
+		Str("addr", opt.Addr).
+		Logger()
 
 	if !opt.Insecure && opt.TLSConfig == nil {
 		return nil, errors.New("internal/httputil: server must run in insecure mode or have a valid tls config")
@@ -37,9 +41,7 @@ func NewServer(opt *ServerOptions, h http.Handler, wg *sync.WaitGroup) (*http.Se
 		return nil, err
 	}
 
-	if opt.Insecure {
-		sublogger.Info().Msg("internal/httputil: running server without TLS")
-	} else {
+	if !opt.Insecure {
 		ln = tls.NewListener(ln, opt.TLSConfig)
 	}
 

@@ -35,18 +35,20 @@ func NewServer(opt *ServerOptions, registrationFn func(s *grpc.Server), wg *sync
 	}
 
 	if len(opt.TLSCertificate) == 1 {
-		log.Debug().Str("addr", opt.Addr).Msg("internal/grpc: serving over TLS")
 		cert := credentials.NewServerTLSFromCert(&opt.TLSCertificate[0])
 		grpcOpts = append(grpcOpts, grpc.Creds(cert))
-	} else if len(opt.TLSCertificate) == 0 {
-		log.Warn().Str("addr", opt.Addr).Msg("internal/grpc: serving without TLS")
-	} else {
+	} else if !opt.InsecureServer {
 		return nil, errors.New("internal/grpc: unexpected number of certificates")
 	}
 
 	srv := grpc.NewServer(grpcOpts...)
 	registrationFn(srv)
-	log.Info().Interface("grpc-service-info", srv.GetServiceInfo()).Msg("internal/grpc: registered")
+	log.Info().
+		Str("addr", opt.Addr).
+		Bool("insecure", opt.InsecureServer).
+		Str("service", opt.ServiceName).
+		Interface("grpc-service-info", srv.GetServiceInfo()).
+		Msg("internal/grpc: registered")
 
 	wg.Add(1)
 	go func() {

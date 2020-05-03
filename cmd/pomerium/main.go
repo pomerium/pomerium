@@ -97,7 +97,9 @@ func run() error {
 		return err
 	}
 
-	srv, err := httputil.NewServer(httpServerOptions(opt), r, &wg)
+	httpOpts := httpServerOptions(opt)
+	httpOpts.Service = opt.Services
+	srv, err := httputil.NewServer(httpOpts, r, &wg)
 	if err != nil {
 		return err
 	}
@@ -145,7 +147,6 @@ func newGRPCServer(opt config.Options, as *authorize.Authorize, cs *cache.Cache,
 		}
 		if cs != nil {
 			pbCache.RegisterCacheServer(s, cs)
-
 		}
 	}
 	so := &pgrpc.ServerOptions{
@@ -155,9 +156,10 @@ func newGRPCServer(opt config.Options, as *authorize.Authorize, cs *cache.Cache,
 			MaxConnectionAge:      opt.GRPCServerMaxConnectionAge,
 			MaxConnectionAgeGrace: opt.GRPCServerMaxConnectionAgeGrace,
 		},
+		InsecureServer: opt.GRPCInsecure,
 	}
 	if !opt.GRPCInsecure {
-		so.TLSCertificate = opt.TLSConfig.Certificates
+		so.TLSCertificate = opt.TLSConfig().Certificates
 	}
 	grpcSrv, err := pgrpc.NewServer(so, regFn, wg)
 	if err != nil {
@@ -219,7 +221,11 @@ func setupMetrics(opt *config.Options, wg *sync.WaitGroup) error {
 		}
 		metrics.SetBuildInfo(opt.Services)
 		metrics.RegisterInfoMetrics()
-		serverOpts := &httputil.ServerOptions{Addr: opt.MetricsAddr}
+		serverOpts := &httputil.ServerOptions{
+			Addr:     opt.MetricsAddr,
+			Insecure: true,
+			Service:  "metrics",
+		}
 		srv, err := httputil.NewServer(serverOpts, handler, wg)
 		if err != nil {
 			return err
@@ -247,7 +253,11 @@ func setupTracing(opt *config.Options) error {
 
 func setupHTTPRedirectServer(opt *config.Options, wg *sync.WaitGroup) error {
 	if opt.HTTPRedirectAddr != "" {
-		serverOpts := httputil.ServerOptions{Addr: opt.HTTPRedirectAddr, Insecure: true}
+		serverOpts := httputil.ServerOptions{
+			Addr:     opt.HTTPRedirectAddr,
+			Insecure: true,
+			Service:  "HTTP->HTTPS Redirect",
+		}
 		srv, err := httputil.NewServer(&serverOpts, httputil.RedirectHandler(), wg)
 		if err != nil {
 			return err
@@ -260,7 +270,7 @@ func setupHTTPRedirectServer(opt *config.Options, wg *sync.WaitGroup) error {
 func httpServerOptions(opt *config.Options) *httputil.ServerOptions {
 	return &httputil.ServerOptions{
 		Addr:              opt.Addr,
-		TLSConfig:         opt.TLSConfig,
+		TLSConfig:         opt.TLSConfig(),
 		Insecure:          opt.InsecureServer,
 		ReadTimeout:       opt.ReadTimeout,
 		WriteTimeout:      opt.WriteTimeout,

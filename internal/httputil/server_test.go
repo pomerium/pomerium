@@ -29,13 +29,21 @@ func TestNewServer(t *testing.T) {
 
 		{"good basic http handler",
 			&ServerOptions{
-				Addr:     "127.0.0.1:0",
+				Addr:     ":0",
 				Insecure: true,
 			},
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
 			false},
+		{"bad neither insecure nor certs set",
+			&ServerOptions{
+				Addr: ":0",
+			},
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintln(w, "Hello, http")
+			}),
+			true},
 		// todo(bdd): fails travis-ci
 		// {"good no address",
 		// 	&ServerOptions{
@@ -54,7 +62,7 @@ func TestNewServer(t *testing.T) {
 		// false},
 		{"bad port - invalid port range ",
 			&ServerOptions{
-				Addr:     "127.0.0.1:65536",
+				Addr:     ":65536",
 				Insecure: true,
 			}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "Hello, http")

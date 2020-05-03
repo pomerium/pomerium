@@ -79,3 +79,6 @@ i18n/*
 docs/.vuepress/dist/
 .firebase/
 .changes.md
+
+# autocert
+.pomerium/

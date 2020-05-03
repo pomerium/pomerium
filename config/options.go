@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"time"
 
@@ -62,7 +60,7 @@ type Options struct {
 
 	// AutoCert enables fully automated certificate management including issuance
 	// and renewal from LetsEncrypt. Must be used in conjunction with CertFolder.
-	AutoCert bool `mapstructure:"auto_cert" yaml:"auto_cert,omitempty"`
+	AutoCert bool `mapstructure:"autocert" yaml:"autocert,omitempty"`
 
 	// CertFolder specifies the location of your `pem` encoded x509 certificates.
 	CertFolder string `mapstructure:"certificate_folder" yaml:"certificate_folder,omitempty"`
@@ -75,8 +73,7 @@ type Options struct {
 	CertFile string `mapstructure:"certificate_file" yaml:"certificate_file,omitempty"`
 	KeyFile  string `mapstructure:"certificate_key_file" yaml:"certificate_key_file,omitempty"`
 
-	// TLSConfig represents the TLS configuration.
-	TLSConfig *tls.Config `yaml:",omitempty"`
+	tlsConfig *tls.Config
 
 	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
 	// to HTTPS redirect server on. If empty, no redirect server is started.
@@ -247,7 +244,7 @@ var defaultOptions = Options{
 	GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
 	CacheStore:                      "autocache",
 	AuthenticateCallbackPath:        "/oauth2/callback",
-	CertFolder:                      filepath.Join(homeDir(), ".pomerium", "certs"),
+	CertFolder:                      filepath.Join(".", ".pomerium", "certs"),
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -511,11 +508,11 @@ func (o *Options) Validate() error {
 	}
 
 	if o.AutoCert {
-		o.TLSConfig, err = cryptutil.NewAutocert(o.sourceHostnames(), o.CertFolder)
+		o.tlsConfig, err = cryptutil.NewAutocert(o.sourceHostnames(), o.CertFolder)
 	} else if o.Cert != "" || o.Key != "" {
-		o.TLSConfig, err = cryptutil.TLSConfigFromBase64(o.Cert, o.Key)
+		o.tlsConfig, err = cryptutil.TLSConfigFromBase64(o.Cert, o.Key)
 	} else if o.CertFile != "" || o.KeyFile != "" {
-		o.TLSConfig, err = cryptutil.TLSConfigFromFile(o.CertFile, o.KeyFile)
+		o.tlsConfig, err = cryptutil.TLSConfigFromFile(o.CertFile, o.KeyFile)
 	} else if o.InsecureServer {
 		log.Warn().Msg("config: insecure mode enabled")
 	} else {
@@ -591,21 +588,7 @@ func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 	return newOpt
 }
 
-// homeDir returns the best guess of the current user's home
-// directory from environment variables. If unknown, "." (the
-// current directory) is returned instead.
-func homeDir() string {
-	home := os.Getenv("HOME")
-	if home == "" && runtime.GOOS == "windows" {
-		drive := os.Getenv("HOMEDRIVE")
-		path := os.Getenv("HOMEPATH")
-		home = drive + path
-		if drive == "" || path == "" {
-			home = os.Getenv("USERPROFILE")
-		}
-	}
-	if home == "" {
-		home = "."
-	}
-	return home
+// TLSConfig returns the tls configuration, if any.
+func (o *Options) TLSConfig() *tls.Config {
+	return o.tlsConfig
 }
