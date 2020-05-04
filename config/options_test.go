@@ -459,3 +459,60 @@ func TestOptions_sourceHostnames(t *testing.T) {
 		})
 	}
 }
+
+func Test_TLSConfig(t *testing.T) {
+	t.Parallel()
+	testOptions := func() *Options {
+		o := NewDefaultOptions()
+		o.SharedKey = "test"
+		o.Services = "all"
+		return o
+	}
+	tests := []struct {
+		name     string
+		testOpts func() *Options
+		certFile string
+		keyFile  string
+		wantErr  bool
+		wantNil  bool
+	}{
+		{"no certs provided",
+			func() *Options {
+				o := NewDefaultOptions()
+				o.SharedKey = "test"
+				o.Services = "all"
+				return o
+			},
+			"",
+			"",
+			true, true},
+		{"no certs provided",
+			func() *Options {
+				o := NewDefaultOptions()
+				o.SharedKey = "test"
+				o.Services = "all"
+				return o
+			},
+			"./testdata/example-cert.pem",
+			"./testdata/example-key.pem",
+			false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := testOptions()
+			opts.CertFile = tt.certFile
+			opts.KeyFile = tt.keyFile
+			err := opts.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			got := opts.TLSConfig()
+			if (got == nil) != tt.wantNil {
+				t.Errorf("Options.TLSConfig() wanted nil but gt = %v ", got)
+				return
+			}
+		})
+	}
+}
