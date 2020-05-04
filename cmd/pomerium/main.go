@@ -97,9 +97,7 @@ func run() error {
 		return err
 	}
 
-	httpOpts := httpServerOptions(opt)
-	httpOpts.Service = opt.Services
-	srv, err := httputil.NewServer(httpOpts, r, &wg)
+	srv, err := httputil.NewServer(httpServerOptions(opt), r, &wg)
 	if err != nil {
 		return err
 	}
@@ -276,5 +274,6 @@ func httpServerOptions(opt *config.Options) *httputil.ServerOptions {
 		WriteTimeout:      opt.WriteTimeout,
 		ReadHeaderTimeout: opt.ReadHeaderTimeout,
 		IdleTimeout:       opt.IdleTimeout,
+		Service:           opt.Services,
 	}
 }

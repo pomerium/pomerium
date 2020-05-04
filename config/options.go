@@ -62,7 +62,8 @@ type Options struct {
 	// and renewal from LetsEncrypt. Must be used in conjunction with CertFolder.
 	AutoCert bool `mapstructure:"autocert" yaml:"autocert,omitempty"`
 
-	// CertFolder specifies the location of your `pem` encoded x509 certificates.
+	// CertFolder specifies the location to store (if using autocert), and load
+	// your TLS certificates.
 	CertFolder string `mapstructure:"certificate_folder" yaml:"certificate_folder,omitempty"`
 
 	// Cert and Key is the x509 certificate used to create the HTTPS server.
@@ -244,7 +245,7 @@ var defaultOptions = Options{
 	GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
 	CacheStore:                      "autocache",
 	AuthenticateCallbackPath:        "/oauth2/callback",
-	CertFolder:                      filepath.Join(".", ".pomerium", "certs"),
+	CertFolder:                      filepath.Join(".", ".pomerium"),
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -260,7 +261,7 @@ func NewDefaultOptions() *Options {
 func NewOptionsFromConfig(configFile string) (*Options, error) {
 	o, err := optionsFromViper(configFile)
 	if err != nil {
-		return nil, fmt.Errorf("config: options from viper %w", err)
+		return nil, fmt.Errorf("config: options from config file %w", err)
 	}
 	if o.Debug {
 		log.SetDebugMode()
