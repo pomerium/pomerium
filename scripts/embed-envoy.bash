@@ -28,7 +28,7 @@ mkdir -p "$_wd"
 (
   cd "$_wd"
   echo "downloading $_envoy_url"
-  curl --no-progress-meter -L "$_envoy_url" | tar --extract --xz --strip-components=3
+  curl --silent -L "$_envoy_url" | tar --extract --xz --strip-components=3
   echo "appending to $_pomerium_binary_path"
   # if this binary already has a zip file appended to it
   if unzip -z -qq "$_pomerium_binary_path" >/dev/null 2>&1; then
