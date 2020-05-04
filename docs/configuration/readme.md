@@ -80,7 +80,7 @@ Enabling the debug flag will result in sensitive information being logged!!!
 
 :::
 
-By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)>). In production, it's recommended to be set to `false`.
+By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)>>>). In production, it's recommended to be set to `false`.
 
 For example, if `true`
 
@@ -126,6 +126,38 @@ This setting can be useful in a situation where you have Pomerium behind a TLS t
 Pomerium should _never_ be exposed to the internet without TLS encryption.
 
 :::
+
+### Autocert
+
+- Environmental Variable: `AUTOCERT`
+- Config File Key: `autocert`
+- Type: `bool`
+- Optional
+
+Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] for each of your managed pomerium routes as well as for the authenticate service. This setting must be used in conjunction with `Certificate Folder` as autocert must have a place to persist, and share certificate data between services.
+
+This setting can be useful in a situation where you do not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
+
+:::warning
+
+By using autocert, you agree to the [Let's Encrypt Subscriber Agreement](https://letsencrypt.org/documents/LE-SA-v1.2-November-15-2017.pdf). There are [_strict_ usage limits](https://letsencrypt.org/docs/rate-limits/) per domain you should be aware of.
+
+:::
+
+:::warning
+
+Autocert requires that port `443` be accessible from the internet in order to complete a [TLS-ALPN-01 challenge](https://letsencrypt.org/docs/challenge-types/#tls-alpn-01).
+
+:::
+
+### Certificate Folder
+
+- Environmental Variable: either `CERT_FOLDER`
+- Config File Key: `cert_folder`
+- Type: `string` pointing to the path of the folder
+- Required if using Autocert setting
+
+Certificate Folder is path in which to store x509 public and private certificates.
 
 ### Certificate
 
