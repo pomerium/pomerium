@@ -54,7 +54,13 @@ func NewServer(grpcPort, httpPort string) (*Server, error) {
 }
 
 func (srv *Server) Run(ctx context.Context) error {
-	srv.cmd = exec.CommandContext(ctx, "envoy",
+	envoyPath, err := extractEmbeddedEnvoy()
+	if err != nil {
+		log.Warn().Err(err).Send()
+		envoyPath = "envoy"
+	}
+
+	srv.cmd = exec.CommandContext(ctx, envoyPath,
 		"-c", configFileName,
 		"--log-level", log.Logger.GetLevel().String(),
 		"--log-format", "%l--%n--%v",
