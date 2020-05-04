@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/proxy"
 
+	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
 	"google.golang.org/grpc"
@@ -142,6 +143,7 @@ func newGRPCServer(opt config.Options, as *authorize.Authorize, cs *cache.Cache,
 	regFn := func(s *grpc.Server) {
 		if as != nil {
 			pbAuthorize.RegisterAuthorizerServer(s, as)
+			envoy_service_auth_v2.RegisterAuthorizationServer(s, as)
 		}
 		if cs != nil {
 			pbCache.RegisterCacheServer(s, cs)

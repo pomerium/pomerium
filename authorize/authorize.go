@@ -6,8 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-
-	"gopkg.in/square/go-jose.v2"
+	"sync/atomic"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/evaluator/opa"
@@ -16,11 +15,27 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+
+	"gopkg.in/square/go-jose.v2"
 )
+
+type atomicOptions struct {
+	value atomic.Value
+}
+
+func (a *atomicOptions) Load() config.Options {
+	return a.value.Load().(config.Options)
+}
+
+func (a *atomicOptions) Store(options config.Options) {
+	a.value.Store(options)
+}
 
 // Authorize struct holds
 type Authorize struct {
 	pe evaluator.Evaluator
+
+	currentOptions atomicOptions
 }
 
 // New validates and creates a new Authorize service from a set of config options.
@@ -29,8 +44,9 @@ func New(opts config.Options) (*Authorize, error) {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
 	}
 	var a Authorize
-	var err error
-	if a.pe, err = newPolicyEvaluator(&opts); err != nil {
+	a.currentOptions.Store(config.Options{})
+	err := a.UpdateOptions(opts)
+	if err != nil {
 		return nil, err
 	}
 	return &a, nil
@@ -76,10 +92,11 @@ func newPolicyEvaluator(opts *config.Options) (evaluator.Evaluator, error) {
 	}
 
 	data := map[string]interface{}{
-		"shared_key":     opts.SharedKey,
-		"route_policies": opts.Policies,
-		"admins":         opts.Administrators,
-		"signing_key":    jwk,
+		"shared_key":       opts.SharedKey,
+		"route_policies":   opts.Policies,
+		"admins":           opts.Administrators,
+		"signing_key":      jwk,
+		"authenticate_url": opts.AuthenticateURLString,
 	}
 
 	return opa.New(ctx, &opa.Options{Data: data})
@@ -88,14 +105,12 @@ func newPolicyEvaluator(opts *config.Options) (evaluator.Evaluator, error) {
 // UpdateOptions implements the OptionsUpdater interface and updates internal
 // structures based on config.Options
 func (a *Authorize) UpdateOptions(opts config.Options) error {
-	if a == nil {
-		return nil
-	}
 	log.Info().Str("checksum", fmt.Sprintf("%x", opts.Checksum())).Msg("authorize: updating options")
-	pe, err := newPolicyEvaluator(&opts)
-	if err != nil {
+	a.currentOptions.Store(opts)
+
+	var err error
+	if a.pe, err = newPolicyEvaluator(&opts); err != nil {
 		return err
 	}
-	a.pe = pe
 	return nil
 }
