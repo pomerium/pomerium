@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
+_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 _dir=/tmp/pomerium-dev-docker
 mkdir -p "$_dir"
 
@@ -13,6 +14,15 @@ env GOOS=linux \
   -ldflags "-s -w" \
   -o "$_dir/pomerium" \
   ./cmd/pomerium
+
+# embed envoy
+(
+  cd "$_script_dir"
+  env GOOS=linux \
+    GOARCH=amd64 \
+    ./embed-envoy.bash \
+    "$_dir/pomerium"
+)
 
 # build docker image
 (
@@ -30,5 +40,11 @@ ENTRYPOINT [ "/bin/pomerium" ]
 CMD ["-config","/pomerium/config.yaml"]
 EOF
   docker build --tag=pomerium/pomerium:dev .
-  kind load docker-image pomerium/pomerium:dev
+
+  # build for minikube
+  if command -v minikube >/dev/null 2>&1; then
+    eval "$(minikube docker-env --shell=bash)"
+    docker build --tag=pomerium/pomerium:dev .
+  fi
+
 )

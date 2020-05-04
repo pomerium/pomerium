@@ -36,7 +36,6 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
 	// admin endpoints authorization is also delegated to authorizer service
 	admin := h.PathPrefix("/admin").Subrouter()
-	admin.Use(p.AuthorizeSession)
 	admin.Path("/impersonate").Handler(httputil.HandlerFunc(p.Impersonate)).Methods(http.MethodPost)
 
 	// Authenticate service callback handlers and middleware

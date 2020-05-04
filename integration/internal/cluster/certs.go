@@ -46,6 +46,9 @@ func bootstrapCerts(ctx context.Context) (*TLSCertsBundle, error) {
 		{&bundle.WronglyNamed, filepath.Join(wd, "wrongly-named"), true, "*.localhost.notpomerium.io"},
 		{&bundle.Untrusted, filepath.Join(wd, "untrusted"), false, "*.localhost.pomerium.io"},
 	}
+	defer func() {
+		_ = os.RemoveAll(wd)
+	}()
 
 	for _, generator := range generators {
 		err = os.MkdirAll(generator.caroot, 0755)
