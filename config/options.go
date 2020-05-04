@@ -516,8 +516,8 @@ func (o *Options) Validate() error {
 	} else if o.InsecureServer {
 		log.Warn().Msg("config: insecure mode enabled")
 	} else {
-		err = errors.New("insecure mode not set, and tls certs not provided" +
-			"to have certificates auto managed, try enabling autocert setting")
+		err = errors.New("config: server must be run with `autocert`, " +
+			"`insecure_server` or manually provided certificates to start")
 	}
 	if err != nil {
 		return fmt.Errorf("config: %w", err)

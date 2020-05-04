@@ -56,19 +56,6 @@ func TLSConfigFromFile(cert, key string) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-// TLSConfigFromFolder returns an tls configuration from a certificate and
-// key file .
-// func TLSConfigFromFolder(path string) (*tls.Config, error) {
-// 	tlsConfig := defaultTLSConfig()
-// 	c, err := CertificateFromFile(cert, key)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	tlsConfig.Certificates = []tls.Certificate{*c}
-// 	tlsConfig.BuildNameToCertificate()
-// 	return tlsConfig, nil
-// }
-
 // defaultTLSConfig returns an opinionated TLS configuration.
 // See :
 // https://wiki.mozilla.org/Security/Server_Side_TLS#Recommended_configurations

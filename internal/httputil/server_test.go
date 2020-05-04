@@ -1,6 +1,7 @@
 package httputil
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -17,6 +18,9 @@ import (
 )
 
 func TestNewServer(t *testing.T) {
+
+	// to support envs that won't let us use 443 without root
+	defaultServerOptions.Addr = ":0"
 
 	t.Parallel()
 	tests := []struct {
@@ -44,22 +48,20 @@ func TestNewServer(t *testing.T) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
 			true},
-		// todo(bdd): fails travis-ci
-		// {"good no address",
-		// 	&ServerOptions{
-		// 		TLSCertificate: certb64,
-		// 	},
-		// 	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 		fmt.Fprintln(w, "Hello, http")
-		// 	}),
-		// 	false},
-		// todo(bdd): fails travis-ci
-		// {"empty handler",
-		// nil,
-		// http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 	fmt.Fprintln(w, "Hello, http")
-		// }),
-		// false},
+		{"good no address",
+			&ServerOptions{
+				Insecure: true,
+			},
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintln(w, "Hello, http")
+			}),
+			false},
+		{"empty handler",
+			nil,
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintln(w, "Hello, http")
+			}),
+			true},
 		{"bad port - invalid port range ",
 			&ServerOptions{
 				Addr:     ":65536",
@@ -68,6 +70,14 @@ func TestNewServer(t *testing.T) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
 			true},
+		{"good tls set",
+			&ServerOptions{
+				TLSConfig: &tls.Config{},
+			},
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintln(w, "Hello, http")
+			}),
+			false},
 	}
 
 	for _, tt := range tests {
