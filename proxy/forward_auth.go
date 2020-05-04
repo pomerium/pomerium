@@ -19,6 +19,7 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r := httputil.NewRouter()
 	r.StrictSlash(true)
 	r.Use(sessions.RetrieveSession(p.sessionStore))
+	r.Use(p.jwtClaimMiddleware(true))
 
 	// NGNIX's forward-auth capabilities are split across two settings:
 	// `auth-url` and `auth-signin` which correspond to `verify` and `auth-url`
@@ -117,7 +118,8 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		}
 		originalRequest := p.getOriginalRequest(r, uri)
 
-		if err := p.authorize(w, originalRequest); err != nil {
+		authz, err := p.authorize(w, originalRequest)
+		if err != nil {
 			// no session, so redirect
 			if _, err := sessions.FromContext(r.Context()); err != nil {
 				if verifyOnly {
@@ -132,9 +134,10 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 				httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
 				return nil
 			}
-
 			return err
 		}
+
+		w.Header().Set(httputil.HeaderPomeriumJWTAssertion, authz.GetSignedJwt())
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)

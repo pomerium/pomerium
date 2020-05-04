@@ -274,7 +274,7 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) *mux.Ro
 	// 7. Strip the user session cookie from the downstream request
 	rp.Use(middleware.StripCookie(p.cookieOptions.Name))
 	// 8 . Add claim details to the request logger context and headers
-	rp.Use(p.jwtClaimMiddleware)
+	rp.Use(p.jwtClaimMiddleware(false))
 
 	return r
 }
