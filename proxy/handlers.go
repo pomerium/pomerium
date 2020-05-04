@@ -33,7 +33,6 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	))
 	// dashboard endpoints can be used by user's to view, or modify their session
 	h.Path("/").Handler(httputil.HandlerFunc(p.UserDashboard)).Methods(http.MethodGet)
-	h.Path("/sign_in").HandlerFunc(p.SignIn).Methods(http.MethodGet)
 	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
 	// admin endpoints authorization is also delegated to authorizer service
 	admin := h.PathPrefix("/admin").Subrouter()
@@ -66,22 +65,6 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
-}
-
-// SignIn redircts /.pomerium/sign_in to the authentication server.
-func (p *Proxy) SignIn(w http.ResponseWriter, r *http.Request) {
-	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/"}
-	if uri, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI)); err == nil && uri.String() != "" {
-		redirectURL = uri
-	}
-
-	signinURL := *p.authenticateSigninURL
-	q := signinURL.Query()
-	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
-	signinURL.RawQuery = q.Encode()
-
-	p.sessionStore.ClearSession(w, r)
-	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signinURL).String(), http.StatusFound)
 }
 
 // SignOut redirects the request to the sign out url. It's the responsibility

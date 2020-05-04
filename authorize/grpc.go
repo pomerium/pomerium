@@ -45,6 +45,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
 	defer span.End()
 
+	opts := a.currentOptions.Load()
 	hattrs := in.GetAttributes().GetRequest().GetHttp()
 
 	hdrs := getCheckRequestHeaders(in)
@@ -107,11 +108,11 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 		}, nil
 	}
 
-	signinURL := requestURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_in"})
+	signinURL := opts.AuthenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_in"})
 	q := signinURL.Query()
 	q.Set(urlutil.QueryRedirectURI, requestURL.String())
 	signinURL.RawQuery = q.Encode()
-	redirectTo := signinURL.String()
+	redirectTo := urlutil.NewSignedURL(opts.SharedKey, signinURL).String()
 
 	return &envoy_service_auth_v2.CheckResponse{
 		Status: &status.Status{
