@@ -118,7 +118,7 @@ jobs:
           sudo install mkcert /usr/local/bin/
       - name: start minikube
         run: |
-          minikube start
+          minikube start --driver=docker
           kubectl cluster-info
 
       - name: install go
