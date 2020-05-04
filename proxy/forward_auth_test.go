@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -51,10 +50,6 @@ func TestProxy_ForwardAuth(t *testing.T) {
 		{"bad naked domain uri verify only", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/verify", "a.naked.domain", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{AuthorizeResponse: &pb.IsAuthorizedReply{Allow: true}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: a.naked.domain url does contain a valid scheme\"}\n"},
 		{"bad empty verification uri", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/", " ", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{AuthorizeResponse: &pb.IsAuthorizedReply{Allow: true}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: %20 url does contain a valid scheme\"}\n"},
 		{"bad empty verification uri verify only", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/verify", " ", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{AuthorizeResponse: &pb.IsAuthorizedReply{Allow: true}}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: %20 url does contain a valid scheme\"}\n"},
-		{"not authorized", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/", "https://some.domain.example", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{AuthorizeResponse: &pb.IsAuthorizedReply{Allow: false}}, http.StatusForbidden, "{\"Status\":403,\"Error\":\"Forbidden: request denied\"}\n"},
-		{"not authorized verify endpoint", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/verify", "https://some.domain.example", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{AuthorizeResponse: &pb.IsAuthorizedReply{Allow: false}}, http.StatusForbidden, "{\"Status\":403,\"Error\":\"Forbidden: request denied\"}\n"},
-		{"not authorized because of error", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/", "https://some.domain.example", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{AuthorizeError: errors.New("authz error")}, http.StatusInternalServerError, "{\"Status\":500,\"Error\":\"Internal Server Error: authz error\"}\n"},
-		{"expired", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/", "https://some.domain.example", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, client.MockAuthorize{AuthorizeResponse: &pb.IsAuthorizedReply{Allow: false}}, http.StatusForbidden, "{\"Status\":403,\"Error\":\"Forbidden: request denied\"}\n"},
 		// traefik
 		{"good traefik callback", opts, nil, http.MethodGet, map[string]string{httputil.HeaderForwardedURI: "https://some.domain.example?" + urlutil.QuerySessionEncrypted + "=" + goodEncryptionString}, nil, "https://some.domain.example/", "https://some.domain.example", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{AuthorizeResponse: &pb.IsAuthorizedReply{Allow: true}}, http.StatusFound, ""},
 		{"bad traefik callback bad session", opts, nil, http.MethodGet, map[string]string{httputil.HeaderForwardedURI: "https://some.domain.example?" + urlutil.QuerySessionEncrypted + "=" + goodEncryptionString + "garbage"}, nil, "https://some.domain.example/", "https://some.domain.example", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{AuthorizeResponse: &pb.IsAuthorizedReply{Allow: true}}, http.StatusBadRequest, ""},
@@ -73,7 +68,6 @@ func TestProxy_ForwardAuth(t *testing.T) {
 				t.Fatal(err)
 			}
 			p.sessionStore = tt.sessionStore
-			p.AuthorizeClient = tt.authorizer
 			signer, err := jws.NewHS256Signer(nil, "mock")
 			if err != nil {
 				t.Fatal(err)
@@ -110,7 +104,7 @@ func TestProxy_ForwardAuth(t *testing.T) {
 			router := p.registerFwdAuthHandlers()
 			router.ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantStatus {
-				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
+				t.Errorf("status code: got %v want %v in %s", status, tt.wantStatus, tt.name)
 				t.Errorf("\n%+v", w.Body.String())
 			}
 

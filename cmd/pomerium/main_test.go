@@ -1,11 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"io"
 	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/signal"
 	"sync"
@@ -17,37 +13,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 )
-
-func Test_newGlobalRouter(t *testing.T) {
-	o := config.Options{
-		Services: "all",
-		Headers: map[string]string{
-			"X-Content-Type-Options":    "nosniff",
-			"X-Frame-Options":           "SAMEORIGIN",
-			"X-XSS-Protection":          "1; mode=block",
-			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-			"Content-Security-Policy":   "default-src 'none'; style-src 'self' 'sha256-pSTVzZsFAqd2U3QYu+BoBDtuJWaPM/+qMy/dBRrhb5Y='; img-src 'self';",
-			"Referrer-Policy":           "Same-origin",
-		}}
-	req := httptest.NewRequest(http.MethodGet, "/404", nil)
-	rr := httptest.NewRecorder()
-	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `OK`)
-	})
-
-	out := newGlobalRouter(&o)
-	out.Handle("/404", h)
-
-	out.ServeHTTP(rr, req)
-	expected := fmt.Sprintf("OK")
-	body := rr.Body.String()
-
-	if body != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
-	}
-}
 
 func Test_httpServerOptions(t *testing.T) {
 	tests := []struct {
@@ -157,7 +122,7 @@ func Test_run(t *testing.T) {
 		{"simply print version", true, "", false},
 		{"nil configuration", false, "", true},
 		{"simple proxy", false, `
-		{ 
+		{
 			"address": ":9433",
 			"grpc_address": ":9444",
 			"grpc_insecure": true,
@@ -168,10 +133,10 @@ func Test_run(t *testing.T) {
 			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
 			"services": "proxy",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		  }	  
+		  }
 		`, false},
 		{"simple authorize", false, `
-		{ 
+		{
 			"address": ":9433",
 			"grpc_address": ":9444",
 			"grpc_insecure": false,
@@ -182,10 +147,10 @@ func Test_run(t *testing.T) {
 			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
 			"services": "authorize",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		  }	  
+		  }
 		`, false},
 		{"bad proxy no authenticate url", false, `
-		{ 
+		{
 			"address": ":9433",
 			"grpc_address": ":9444",
 			"insecure_server": true,
@@ -194,10 +159,10 @@ func Test_run(t *testing.T) {
 			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
 			"services": "proxy",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		  }	  
+		  }
 		`, true},
 		{"bad authenticate no cookie secret", false, `
-		{ 
+		{
 			"address": ":9433",
 			"grpc_address": ":9444",
 			"insecure_server": true,
@@ -205,10 +170,10 @@ func Test_run(t *testing.T) {
 			"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
 			"services": "authenticate",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		  }	  
+		  }
 		`, true},
 		{"bad authorize service bad shared key", false, `
-		{ 
+		{
 			"address": ":9433",
 			"grpc_address": ":9444",
 			"insecure_server": true,
@@ -217,10 +182,10 @@ func Test_run(t *testing.T) {
 			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
 			"services": "authorize",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		  }	  
+		  }
 		`, true},
 		{"bad http port", false, `
-		{ 
+		{
 			"address": ":-1",
 			"grpc_address": ":9444",
 			"grpc_insecure": true,
@@ -231,10 +196,10 @@ func Test_run(t *testing.T) {
 			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
 			"services": "proxy",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		  }	  
+		  }
 		`, true},
 		{"bad redirect port", false, `
-		{ 
+		{
 			"address": ":9433",
 			"http_redirect_addr":":-1",
 			"grpc_address": ":9444",
@@ -246,10 +211,10 @@ func Test_run(t *testing.T) {
 			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
 			"services": "proxy",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		  }	  
+		  }
 		`, true},
 		{"bad metrics port ", false, `
-		{ 
+		{
 			"address": ":9433",
 			"metrics_address": ":-1",
 			"grpc_insecure": true,
@@ -263,7 +228,7 @@ func Test_run(t *testing.T) {
 		  }
 		`, true},
 		{"malformed tracing provider", false, `
-		{ 
+		{
 			"tracing_provider": "bad tracing provider",
 			"address": ":9433",
 			"grpc_address": ":9444",
@@ -275,7 +240,7 @@ func Test_run(t *testing.T) {
 			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
 			"services": "proxy",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		  }	  
+		  }
 		`, true},
 		// {"simple cache", false, `
 		// {

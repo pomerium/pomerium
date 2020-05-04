@@ -93,7 +93,6 @@ func TestProxy_UserDashboard(t *testing.T) {
 			}
 			p.encoder = tt.cipher
 			p.sessionStore = tt.session
-			p.AuthorizeClient = tt.authorizer
 
 			r := httptest.NewRequest(tt.method, "/", nil)
 			state, _ := tt.session.LoadSession(r)
@@ -147,7 +146,6 @@ func TestProxy_Impersonate(t *testing.T) {
 			}
 			p.encoder = tt.cipher
 			p.sessionStore = tt.sessionStore
-			p.AuthorizeClient = tt.authorizer
 			postForm := url.Values{}
 			postForm.Add("email", tt.email)
 			postForm.Add("group", tt.groups)
@@ -257,7 +255,6 @@ func TestProxy_Callback(t *testing.T) {
 			}
 			p.encoder = tt.cipher
 			p.sessionStore = tt.sessionStore
-			p.AuthorizeClient = tt.authorizer
 			p.UpdateOptions(tt.options)
 			redirectURI := &url.URL{Scheme: tt.scheme, Host: tt.host, Path: tt.path}
 			queryString := redirectURI.Query()
@@ -398,7 +395,6 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 			}
 			p.encoder = tt.cipher
 			p.sessionStore = tt.sessionStore
-			p.AuthorizeClient = tt.authorizer
 			p.UpdateOptions(tt.options)
 			redirectURI, _ := url.Parse(tt.redirectURI)
 			queryString := redirectURI.Query()

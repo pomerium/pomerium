@@ -116,39 +116,24 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
-		originalRequest := p.getOriginalRequest(r, uri)
 
-		authz, err := p.authorize(w, originalRequest)
-		if err != nil {
-			// no session, so redirect
-			if _, err := sessions.FromContext(r.Context()); err != nil {
-				if verifyOnly {
-					return httputil.NewError(http.StatusUnauthorized, err)
-				}
-				authN := *p.authenticateSigninURL
-				q := authN.Query()
-				q.Set(urlutil.QueryCallbackURI, uri.String())
-				q.Set(urlutil.QueryRedirectURI, uri.String())              // final destination
-				q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
-				authN.RawQuery = q.Encode()
-				httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
-				return nil
+		if _, err := sessions.FromContext(r.Context()); err != nil {
+			if verifyOnly {
+				return httputil.NewError(http.StatusUnauthorized, err)
 			}
-			return err
+			authN := *p.authenticateSigninURL
+			q := authN.Query()
+			q.Set(urlutil.QueryCallbackURI, uri.String())
+			q.Set(urlutil.QueryRedirectURI, uri.String())              // final destination
+			q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
+			authN.RawQuery = q.Encode()
+			httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
+			return nil
 		}
-
-		w.Header().Set(httputil.HeaderPomeriumJWTAssertion, authz.GetSignedJwt())
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Access to %s is allowed.", uri.Host)
 		return nil
 	})
-}
-
-func (p *Proxy) getOriginalRequest(r *http.Request, originalURL *url.URL) *http.Request {
-	originalRequest := r.Clone(r.Context())
-	originalRequest.Host = originalURL.Host
-	originalRequest.URL = originalURL
-	return originalRequest
 }
