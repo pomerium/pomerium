@@ -121,34 +121,6 @@ func Test_run(t *testing.T) {
 	}{
 		{"simply print version", true, "", false},
 		{"nil configuration", false, "", true},
-		{"simple proxy", false, `
-		{
-			"address": ":9433",
-			"grpc_address": ":9444",
-			"grpc_insecure": true,
-			"insecure_server": true,
-			"authorize_service_url": "https://authorize.corp.example",
-			"authenticate_service_url": "https://authenticate.corp.example",
-			"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
-			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
-			"services": "proxy",
-			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		  }
-		`, false},
-		{"simple authorize", false, `
-		{
-			"address": ":9433",
-			"grpc_address": ":9444",
-			"grpc_insecure": false,
-			"insecure_server": true,
-			"authorize_service_url": "https://authorize.corp.example",
-			"authenticate_service_url": "https://authenticate.corp.example",
-			"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
-			"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
-			"services": "authorize",
-			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		  }
-		`, false},
 		{"bad proxy no authenticate url", false, `
 		{
 			"address": ":9433",
