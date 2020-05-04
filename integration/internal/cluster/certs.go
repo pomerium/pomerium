@@ -42,6 +42,9 @@ func bootstrapCerts(ctx context.Context) (*TLSCerts, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating temporary directory: %w", err)
 	}
+	defer func() {
+		_ = os.RemoveAll(wd)
+	}()
 
 	err = run(ctx, "mkcert", withArgs("*.localhost.pomerium.io"), withWorkingDir(wd))
 	if err != nil {

@@ -1,6 +1,7 @@
 package controlplane
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net"
 	"net/url"
@@ -97,9 +98,10 @@ func (srv *Server) buildListeners(options config.Options) []*envoy_config_listen
 func (srv *Server) buildDownstreamTLSContext(options config.Options) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
 	var cert envoy_extensions_transport_sockets_tls_v3.TlsCertificate
 	if options.Cert != "" {
+		bs, _ := base64.StdEncoding.DecodeString(options.Cert)
 		cert.CertificateChain = &envoy_config_core_v3.DataSource{
-			Specifier: &envoy_config_core_v3.DataSource_InlineString{
-				InlineString: options.Cert,
+			Specifier: &envoy_config_core_v3.DataSource_InlineBytes{
+				InlineBytes: bs,
 			},
 		}
 	} else {
@@ -110,9 +112,10 @@ func (srv *Server) buildDownstreamTLSContext(options config.Options) *envoy_exte
 		}
 	}
 	if options.Key != "" {
+		bs, _ := base64.StdEncoding.DecodeString(options.Key)
 		cert.PrivateKey = &envoy_config_core_v3.DataSource{
-			Specifier: &envoy_config_core_v3.DataSource_InlineString{
-				InlineString: options.Key,
+			Specifier: &envoy_config_core_v3.DataSource_InlineBytes{
+				InlineBytes: bs,
 			},
 		}
 	} else {
@@ -128,6 +131,7 @@ func (srv *Server) buildDownstreamTLSContext(options config.Options) *envoy_exte
 			TlsCertificates: []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{
 				&cert,
 			},
+			AlpnProtocols: []string{"h2", "http/1.1"},
 		},
 	}
 }
