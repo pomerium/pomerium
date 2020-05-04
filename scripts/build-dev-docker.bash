@@ -15,9 +15,13 @@ env GOOS=linux \
   -o "$_dir/pomerium" \
   ./cmd/pomerium
 
+# embed envoy
 (
   cd "$_script_dir"
-  env OS=Linux ARCH=x86_64 ./embed-envoy.bash "$_dir/pomerium"
+  env GOOS=linux \
+    GOARCH=amd64 \
+    ./embed-envoy.bash \
+    "$_dir/pomerium"
 )
 
 # build docker image

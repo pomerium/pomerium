@@ -116,6 +116,7 @@ GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 GO111MODULE=on go build ${GO_LDFLAGS} \
 	 ${GO_LDFLAGS_STATIC} ./cmd/$(NAME);
 md5sum $(BUILDDIR)/$(NAME)-$(1)-$(2) > $(BUILDDIR)/$(NAME)-$(1)-$(2).md5;
 sha256sum $(BUILDDIR)/$(NAME)-$(1)-$(2) > $(BUILDDIR)/$(NAME)-$(1)-$(2).sha256;
+GOOS=$(1) GOARCH=$(2) ./scripts/embed-envoy.bash "$(BUILDDIR)/$(NAME)-$(1)-$(2)" || true;
 endef
 
 .PHONY: release

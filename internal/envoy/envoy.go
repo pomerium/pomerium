@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/natefinch/atomic"
 	"github.com/pomerium/pomerium/internal/log"
@@ -81,9 +80,7 @@ func (srv *Server) Run(ctx context.Context) error {
 	go srv.handleLogs(stdout)
 
 	// make sure envoy is killed if we're killed
-	srv.cmd.SysProcAttr = &syscall.SysProcAttr{
-		Pdeathsig: syscall.SIGTERM,
-	}
+	srv.cmd.SysProcAttr = sysProcAttr
 	return srv.cmd.Run()
 }
 
