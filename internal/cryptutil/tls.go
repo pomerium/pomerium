@@ -4,65 +4,84 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net/http"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/go-acme/lego/v3/challenge/tlsalpn01"
 )
 
-// NewAutocert automatically retrieves public certificates from the free
-// lets encrypt certificate authority using the TLS-ALPN challenge per the ACME
-// spec.
-// Requires port 443, or at least packet forwarding from port 443.
-func NewAutocert(hostnames []string, path string) (*tls.Config, error) {
-	tlsConfig := defaultTLSConfig()
-	certmagic.DefaultACME.Agreed = true
-	certmagic.DefaultACME.DisableHTTPChallenge = true
-	cm := certmagic.NewDefault()
-	cm.Storage = &certmagic.FileStorage{Path: path}
+// effectiveCA is used to test Let's Encrypt without hitting production
+// usage limits.
+var effectiveCA = certmagic.LetsEncryptStagingCA
 
+// NewAutocert automatically retrieves public certificates from the free
+// certificate authority Let's Encrypt using HTTP-01 and TLS-ALPN-01 challenges.
+// To complete the challenges, the server must be accessible from the internet
+// by port 80 or 443 .
+//
+// https://letsencrypt.org/docs/challenge-types/#http-01-challenge
+// https://letsencrypt.org/docs/challenge-types/#tls-alpn-01
+func NewAutocert(tlsConfig *tls.Config, hostnames []string, path string) (*tls.Config, func(h http.Handler) http.Handler, error) {
+	certmagic.DefaultACME.Agreed = true
+	certmagic.DefaultACME.CA = effectiveCA
+	cm := certmagic.NewDefault()
+
+	tlsConfig = newTLSConfigIfEmpty(tlsConfig)
+	// add existing certs to the cache, and staple OCSP
+	for _, cert := range tlsConfig.Certificates {
+		if err := cm.CacheUnmanagedTLSCertificate(cert, nil); err != nil {
+			return nil, nil, fmt.Errorf("cryptutil: failed az existing cert: %w", err)
+		}
+	}
+	cm.Storage = &certmagic.FileStorage{Path: path}
+	acmeConfig := certmagic.NewACMEManager(cm, certmagic.DefaultACME)
+	cm.Issuer = acmeConfig
 	// todo(bdd) : add cancellation context?
 	if err := cm.ManageAsync(context.TODO(), hostnames); err != nil {
-		return nil, fmt.Errorf("cryptutil: sync failed: %w", err)
+		return nil, nil, fmt.Errorf("cryptutil: sync failed: %w", err)
 	}
+
 	tlsConfig.GetCertificate = cm.GetCertificate
 	tlsConfig.NextProtos = append(tlsConfig.NextProtos, tlsalpn01.ACMETLS1Protocol)
-
 	tlsConfig.BuildNameToCertificate()
-	return tlsConfig, nil
+	return tlsConfig, acmeConfig.HTTPChallengeHandler, nil
 }
 
 // TLSConfigFromBase64 returns an tls configuration from a base64 encoded blob.
-func TLSConfigFromBase64(cert, key string) (*tls.Config, error) {
-	tlsConfig := defaultTLSConfig()
+func TLSConfigFromBase64(tlsConfig *tls.Config, cert, key string) (*tls.Config, error) {
+	tlsConfig = newTLSConfigIfEmpty(tlsConfig)
 	c, err := CertifcateFromBase64(cert, key)
 	if err != nil {
 		return nil, err
 	}
-	tlsConfig.Certificates = []tls.Certificate{*c}
+	tlsConfig.Certificates = append(tlsConfig.Certificates, *c)
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig, nil
 }
 
 // TLSConfigFromFile returns an tls configuration from a certificate and
 // key file .
-func TLSConfigFromFile(cert, key string) (*tls.Config, error) {
-	tlsConfig := defaultTLSConfig()
+func TLSConfigFromFile(tlsConfig *tls.Config, cert, key string) (*tls.Config, error) {
+	tlsConfig = newTLSConfigIfEmpty(tlsConfig)
 	c, err := CertificateFromFile(cert, key)
 	if err != nil {
 		return nil, err
 	}
-	tlsConfig.Certificates = []tls.Certificate{*c}
+	tlsConfig.Certificates = append(tlsConfig.Certificates, *c)
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig, nil
 }
 
-// defaultTLSConfig returns an opinionated TLS configuration.
+// newTLSConfigIfEmpty returns an opinionated TLS configuration if config is nil.
 // See :
 // https://wiki.mozilla.org/Security/Server_Side_TLS#Recommended_configurations
 // https://blog.cloudflare.com/exposing-go-on-the-internet/
 // https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices
 // https://github.com/golang/go/blob/df91b8044dbe790c69c16058330f545be069cc1f/src/crypto/tls/common.go#L919
-func defaultTLSConfig() *tls.Config {
+func newTLSConfigIfEmpty(tlsConfig *tls.Config) *tls.Config {
+	if tlsConfig != nil {
+		return tlsConfig
+	}
 	return &tls.Config{
 		MinVersion: tls.VersionTLS12,
 		// Prioritize cipher suites sped up by AES-NI (AES-GCM)

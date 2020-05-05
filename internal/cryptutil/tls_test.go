@@ -27,7 +27,7 @@ func TestTLSConfigFromBase64(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := TLSConfigFromBase64(tt.cert, tt.key)
+			_, err := TLSConfigFromBase64(nil, tt.cert, tt.key)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TLSConfigFromBase64() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -37,7 +37,7 @@ func TestTLSConfigFromBase64(t *testing.T) {
 }
 
 func TestTLSConfigFromFile(t *testing.T) {
-	cfg, err := TLSConfigFromFile("testdata/example-cert.pem", "testdata/example-key.pem")
+	cfg, err := TLSConfigFromFile(nil, "testdata/example-cert.pem", "testdata/example-key.pem")
 	if err != nil {
 		t.Fatal(err)
 	}

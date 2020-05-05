@@ -159,23 +159,31 @@ Autocert requires that port `443` be accessible from the internet in order to co
 
 Certificate Folder is path in which to store x509 public and private certificates.
 
-### Certificate
+### Certificates
 
-- Environmental Variable: either `CERTIFICATE` or `CERTIFICATE_FILE`
-- Config File Key: `certificate` or `certificate_file`
-- Type: [base64 encoded] `string` or relative file location
-- Required
-
-Certificate is the x509 _public-key_ used to establish secure HTTP and gRPC connections.
-
-### Certificate Key
-
-- Environmental Variable: either `CERTIFICATE_KEY` or `CERTIFICATE_KEY_FILE`
-- Config File Key: `certificate_key` or `certificate_key_file`
+- Config File Key: `certificates` (NOTE: cannot be set using en)
+- Config File Key: `certificate` / `certificate_key`
+- Config File Key: `certificate_file` / `certificate_key_file`
+- Environmental Variable: `CERTIFICATE` / `CERTIFICATE_KEY`
+- Environmental Variable: `CERTIFICATE_FILE` / `CERTIFICATE_KEY_FILE`
+- Type: array of relative file locations `string`
 - Type: [base64 encoded] `string`
-- Required
+- Type: certificate relative file location `string`
+- Required (if insecure not set)
 
-Certificate key is the x509 _private-key_ used to establish secure HTTP and gRPC connections.
+Certificates are the x509 _public-key_ and _private-key_ used to establish secure HTTP and gRPC connections. Any combination of the above can be used together.
+
+For example, if specifying multiple certificates at once:
+
+```yaml
+certificates:
+  - cert: "$HOME/.acme.sh/authenticate.example.com_ecc/fullchain.cer"
+    key: "$HOME/.acme.sh/authenticate.example.com_ecc/authenticate.example.com.key"
+  - cert: "$HOME/.acme.sh/httpbin.example.com_ecc/fullchain.cer"
+    key: "$HOME/.acme.sh/httpbin.example.com_ecc/httpbin.example.com.key"
+  - cert: "$HOME/.acme.sh/prometheus.example.com_ecc/fullchain.cer"
+    key: "$HOME/.acme.sh/prometheus.example.com_ecc/prometheus.example.com.key"
+```
 
 ### Global Timeouts
 

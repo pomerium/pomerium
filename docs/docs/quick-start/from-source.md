@@ -75,4 +75,4 @@ Browse to `httpbin.localhost.pomerium.io`. Connections between you and [httpbin]
 [httpbin]: https://httpbin.org/
 [identity provider]: ../docs/identity-providers/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
-[wild-card tls certificate]: ../reference/certificates.md
+[tls certificates]: ../reference/certificates.md
