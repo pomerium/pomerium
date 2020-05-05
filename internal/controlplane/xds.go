@@ -213,7 +213,7 @@ func (srv *Server) buildHTTPListener(options config.Options) *envoy_config_liste
 				Name: "envoy.filters.http.router",
 			},
 		},
-		AccessLog: []*envoy_config_accesslog_v3.AccessLog{srv.buildAccessLog(options)},
+		AccessLog: []*envoy_config_accesslog_v3.AccessLog{srv.buildAccessLog()},
 	})
 
 	li := &envoy_config_listener_v3.Listener{
@@ -234,7 +234,7 @@ func (srv *Server) buildHTTPListener(options config.Options) *envoy_config_liste
 	return li
 }
 
-func (srv *Server) buildAccessLog(options config.Options) *envoy_config_accesslog_v3.AccessLog {
+func (srv *Server) buildAccessLog() *envoy_config_accesslog_v3.AccessLog {
 	tc, _ := ptypes.MarshalAny(&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{
 		CommonConfig: &envoy_extensions_access_loggers_grpc_v3.CommonGrpcAccessLogConfig{
 			LogName: "ingress-http",

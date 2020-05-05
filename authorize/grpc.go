@@ -9,7 +9,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
-	"github.com/pomerium/pomerium/internal/grpc/authorize"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
@@ -162,18 +161,6 @@ func (a *Authorize) loadSessionFromCheckRequest(req *envoy_service_auth_v2.Check
 		Header: http.Header(getCheckRequestHeaders(req)),
 	})
 	return sess, err
-}
-
-type protoHeader map[string]*authorize.IsAuthorizedRequest_Headers
-
-func cloneHeaders(in protoHeader) map[string][]string {
-	out := make(map[string][]string, len(in))
-	for key, values := range in {
-		newValues := make([]string, len(values.Value))
-		copy(newValues, values.Value)
-		out[key] = newValues
-	}
-	return out
 }
 
 func getFullURL(rawurl, host string) string {

@@ -1,3 +1,4 @@
+// Package envoy creates and configures an envoy server.
 package envoy
 
 import (
@@ -52,6 +53,7 @@ func NewServer(grpcPort, httpPort string) (*Server, error) {
 	return srv, nil
 }
 
+// Run runs the server by extracting the embedded envoy and then executing it.
 func (srv *Server) Run(ctx context.Context) error {
 	envoyPath, err := extractEmbeddedEnvoy()
 	if err != nil {
