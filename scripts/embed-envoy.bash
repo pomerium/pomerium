@@ -26,6 +26,8 @@ _envoy_url="$(
     jq -r '.flavors.standard.versions["'"$_envoy_version"'"].builds["'"$_envoy_build"'"].downloadLocationUrl'
 )"
 
+_abs_pomerium_binary_path="$(readlink -f "$_pomerium_binary_path")"
+
 _wd="/tmp/pomerium-embedded-files"
 mkdir -p "$_wd"
 (
@@ -36,13 +38,13 @@ mkdir -p "$_wd"
   fi
   echo "extracting"
   tar --extract --xz --strip-components=3 --file "envoy-$_envoy_version.tar.xz"
-  echo "appending to $_pomerium_binary_path"
+  echo "appending to $_abs_pomerium_binary_path"
   # if this binary already has a zip file appended to it
-  if [ -z "$(unzip -z -qq "$_pomerium_binary_path" 2>&1)" ]; then
-    zip -A "$_pomerium_binary_path" envoy
+  if [ -z "$(unzip -z -qq "$_abs_pomerium_binary_path" 2>&1)" ]; then
+    zip -A "$_abs_pomerium_binary_path" envoy
   else
     zip envoy.zip envoy
-    cat envoy.zip >>"$_pomerium_binary_path"
+    cat envoy.zip >>"$_abs_pomerium_binary_path"
   fi
-  zip -A "$_pomerium_binary_path"
+  zip -A "$_abs_pomerium_binary_path"
 )
