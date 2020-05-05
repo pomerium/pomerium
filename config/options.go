@@ -62,16 +62,23 @@ type Options struct {
 	InsecureServer bool `mapstructure:"insecure_server" yaml:"insecure_server,omitempty"`
 
 	// AutoCert enables fully automated certificate management including issuance
-	// and renewal from LetsEncrypt. Must be used in conjunction with CertFolder.
+	// and renewal from LetsEncrypt. Must be used in conjunction with AutoCertFolder.
 	AutoCert bool `mapstructure:"autocert" yaml:"autocert,omitempty"`
 
 	// AutoCertHandler is the HTTP challenge handler used in a http-01 acme
 	// https://letsencrypt.org/docs/challenge-types/#http-01-challenge
 	AutoCertHandler func(h http.Handler) http.Handler `hash:"ignore"`
 
-	// CertFolder specifies the location to store (if using autocert), and load
-	// your TLS certificates.
-	CertFolder string `mapstructure:"certificate_folder" yaml:"certificate_folder,omitempty"`
+	// AutoCertFolder specifies the location to store, and load autocert managed
+	// TLS certificates.
+	// defaults to $XDG_DATA_HOME/pomerium
+	AutoCertFolder string `mapstructure:"autocert_folder" yaml:"autocert_folder,omitempty"`
+
+	// AutoCertUseStaging tells autocert to use Let's Encrypt's staging CA which
+	// has less strict usage limits then the (default) production CA.
+	//
+	// https://letsencrypt.org/docs/staging-environment/
+	AutoCertUseStaging bool `mapstructure:"autocert_use_staging" yaml:"autocert_use_staging,omitempty"`
 
 	Certificates []certificateFilePair `mapstructure:"certificates" yaml:"certificates,omitempty"`
 
@@ -260,7 +267,7 @@ var defaultOptions = Options{
 	GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
 	CacheStore:                      "autocache",
 	AuthenticateCallbackPath:        "/oauth2/callback",
-	CertFolder:                      dataDir(),
+	AutoCertFolder:                  dataDir(),
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -546,7 +553,11 @@ func (o *Options) Validate() error {
 		}
 	}
 	if o.AutoCert {
-		o.TLSConfig, o.AutoCertHandler, err = cryptutil.NewAutocert(o.TLSConfig, o.sourceHostnames(), o.CertFolder)
+		o.TLSConfig, o.AutoCertHandler, err = cryptutil.NewAutocert(
+			o.TLSConfig,
+			o.sourceHostnames(),
+			o.AutoCertUseStaging,
+			o.AutoCertFolder)
 		if err != nil {
 			return fmt.Errorf("config: autocert failed %w", err)
 		}

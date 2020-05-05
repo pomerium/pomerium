@@ -10,10 +10,6 @@ import (
 	"github.com/go-acme/lego/v3/challenge/tlsalpn01"
 )
 
-// effectiveCA is used to test Let's Encrypt without hitting production
-// usage limits.
-var effectiveCA = certmagic.LetsEncryptStagingCA
-
 // NewAutocert automatically retrieves public certificates from the free
 // certificate authority Let's Encrypt using HTTP-01 and TLS-ALPN-01 challenges.
 // To complete the challenges, the server must be accessible from the internet
@@ -21,16 +17,18 @@ var effectiveCA = certmagic.LetsEncryptStagingCA
 //
 // https://letsencrypt.org/docs/challenge-types/#http-01-challenge
 // https://letsencrypt.org/docs/challenge-types/#tls-alpn-01
-func NewAutocert(tlsConfig *tls.Config, hostnames []string, path string) (*tls.Config, func(h http.Handler) http.Handler, error) {
+func NewAutocert(tlsConfig *tls.Config, hostnames []string, useStaging bool, path string) (*tls.Config, func(h http.Handler) http.Handler, error) {
 	certmagic.DefaultACME.Agreed = true
-	certmagic.DefaultACME.CA = effectiveCA
+	if useStaging {
+		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+	}
 	cm := certmagic.NewDefault()
 
 	tlsConfig = newTLSConfigIfEmpty(tlsConfig)
 	// add existing certs to the cache, and staple OCSP
 	for _, cert := range tlsConfig.Certificates {
 		if err := cm.CacheUnmanagedTLSCertificate(cert, nil); err != nil {
-			return nil, nil, fmt.Errorf("cryptutil: failed az existing cert: %w", err)
+			return nil, nil, fmt.Errorf("cryptutil: failed caching cert: %w", err)
 		}
 	}
 	cm.Storage = &certmagic.FileStorage{Path: path}

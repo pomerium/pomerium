@@ -42,7 +42,6 @@ Pomerium itself can be used to retrieve, manage, and renew certificates certific
 
 ```yaml
 autocert: true
-certificate_folder: "./certs"
 ```
 
 ### Self-signed wildcard certificate

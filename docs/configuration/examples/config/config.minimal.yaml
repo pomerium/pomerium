@@ -5,7 +5,6 @@ authenticate_service_url: https://authenticate.localhost.pomerium.io
 
 # certificate settings:  https://www.pomerium.io/docs/reference/certificates.html
 autocert: true
-certificate_folder: "./certs"
 
 # identity provider settings : https://www.pomerium.io/docs/identity-providers.html
 idp_provider: google

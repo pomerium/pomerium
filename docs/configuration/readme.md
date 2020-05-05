@@ -140,7 +140,7 @@ This setting can be useful in a situation where you do not have Pomerium behind 
 
 :::warning
 
-By using autocert, you agree to the [Let's Encrypt Subscriber Agreement](https://letsencrypt.org/documents/LE-SA-v1.2-November-15-2017.pdf). There are [_strict_ usage limits](https://letsencrypt.org/docs/rate-limits/) per domain you should be aware of.
+By using autocert, you agree to the [Let's Encrypt Subscriber Agreement](https://letsencrypt.org/documents/LE-SA-v1.2-November-15-2017.pdf). There are [_strict_ usage limits](https://letsencrypt.org/docs/rate-limits/) per domain you should be aware of. Consider testing with `autocert_use_staging` first.
 
 :::
 
@@ -150,14 +150,24 @@ Autocert requires that port `443` be accessible from the internet in order to co
 
 :::
 
-### Certificate Folder
+### Autocert Foler
 
-- Environmental Variable: either `CERT_FOLDER`
-- Config File Key: `cert_folder`
+- Environmental Variable: either `AUTOCERT_FOLDER`
+- Config File Key: `autocert_folder`
 - Type: `string` pointing to the path of the folder
 - Required if using Autocert setting
+- Default: [$XDG_DATA_HOME](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) or `$HOME/.local/share/pomerium`
 
-Certificate Folder is path in which to store x509 public and private certificates.
+Autocert folder is path in which autocert will store x509 certificate data.
+
+### Autocert Use Staging
+
+- Environmental Variable: `AUTOCERT_USE_STAGING`
+- Config File Key: `autocert_use_staging`
+- Type: `bool`
+- Optional
+
+Let's Encrypt has strict [usage limits](https://letsencrypt.org/docs/rate-limits/). Enabling this setting allows you to use Let's Encrypt's [staging environment](https://letsencrypt.org/docs/staging-environment/) which has much more lax usage limits.
 
 ### Certificates
 
