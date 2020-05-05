@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"time"
 
@@ -634,27 +633,12 @@ func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 	return newOpt
 }
 
-// homeDir returns the best guess of the current user's home
-// directory from environment variables. If unknown, "." (the
-// current directory) is returned instead.
-func homeDir() string {
-	home := os.Getenv("HOME")
-	if home == "" && runtime.GOOS == "windows" {
-		drive := os.Getenv("HOMEDRIVE")
-		path := os.Getenv("HOMEPATH")
-		home = drive + path
-		if drive == "" || path == "" {
-			home = os.Getenv("USERPROFILE")
-		}
-	}
-	if home == "" {
-		home = "."
-	}
-	return home
-}
-
 func dataDir() string {
-	baseDir := filepath.Join(homeDir(), ".local", "share")
+	homeDir, _ := os.UserHomeDir()
+	if homeDir == "" {
+		homeDir = "."
+	}
+	baseDir := filepath.Join(homeDir, ".local", "share")
 	if xdgData := os.Getenv("XDG_DATA_HOME"); xdgData != "" {
 		baseDir = xdgData
 	}
