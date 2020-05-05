@@ -134,7 +134,7 @@ Pomerium should _never_ be exposed to the internet without TLS encryption.
 - Type: `bool`
 - Optional
 
-Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] for each of your managed pomerium routes as well as for the authenticate service. This setting must be used in conjunction with `Certificate Folder` as autocert must have a place to persist, and share certificate data between services.
+Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] for each of your managed pomerium routes as well as for the authenticate service. This setting must be used in conjunction with `Certificate Folder` as Autocert must have a place to persist, and share certificate data between services. Provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
 
 This setting can be useful in a situation where you do not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
 
@@ -161,7 +161,7 @@ Certificate Folder is path in which to store x509 public and private certificate
 
 ### Certificates
 
-- Config File Key: `certificates` (NOTE: cannot be set using en)
+- Config File Key: `certificates` (not yet settable using environmental variables)
 - Config File Key: `certificate` / `certificate_key`
 - Config File Key: `certificate_file` / `certificate_key_file`
 - Environmental Variable: `CERTIFICATE` / `CERTIFICATE_KEY`
@@ -171,7 +171,7 @@ Certificate Folder is path in which to store x509 public and private certificate
 - Type: certificate relative file location `string`
 - Required (if insecure not set)
 
-Certificates are the x509 _public-key_ and _private-key_ used to establish secure HTTP and gRPC connections. Any combination of the above can be used together.
+Certificates are the x509 _public-key_ and _private-key_ used to establish secure HTTP and gRPC connections. Any combination of the above can be used together, and are additive. Use in conjunction with `Autocert` to get OCSP stapling.
 
 For example, if specifying multiple certificates at once:
 
