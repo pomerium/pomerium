@@ -26,7 +26,7 @@ _envoy_url="$(
     jq -r '.flavors.standard.versions["'"$_envoy_version"'"].builds["'"$_envoy_build"'"].downloadLocationUrl'
 )"
 
-_abs_pomerium_binary_path="$(readlink -f "$_pomerium_binary_path")"
+_abs_pomerium_binary_path="$(realpath "$_pomerium_binary_path")"
 
 _wd="/tmp/pomerium-embedded-files"
 mkdir -p "$_wd"
