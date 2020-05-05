@@ -7,7 +7,7 @@ RUN go mod download
 COPY . .
 
 # build
-RUN make build
+RUN make
 RUN touch /config.yaml
 
 FROM gcr.io/distroless/base:debug
