@@ -71,7 +71,7 @@ type Options struct {
 	// AutoCertFolder specifies the location to store, and load autocert managed
 	// TLS certificates.
 	// defaults to $XDG_DATA_HOME/pomerium
-	AutoCertFolder string `mapstructure:"autocert_folder" yaml:"autocert_folder,omitempty"`
+	AutoCertFolder string `mapstructure:"autocert_dir" yaml:"autocert_dir,omitempty"`
 
 	// AutoCertUseStaging tells autocert to use Let's Encrypt's staging CA which
 	// has less strict usage limits then the (default) production CA.

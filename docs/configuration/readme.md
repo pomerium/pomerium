@@ -152,8 +152,8 @@ Autocert requires that port `443` be accessible from the internet in order to co
 
 ### Autocert Foler
 
-- Environmental Variable: either `AUTOCERT_FOLDER`
-- Config File Key: `autocert_folder`
+- Environmental Variable: either `AUTOCERT_DIR`
+- Config File Key: `autocert_dir`
 - Type: `string` pointing to the path of the folder
 - Required if using Autocert setting
 - Default: [$XDG_DATA_HOME](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) or `$HOME/.local/share/pomerium`
