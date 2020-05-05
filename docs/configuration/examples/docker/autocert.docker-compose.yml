@@ -1,0 +1,18 @@
+version: "3"
+services:
+  pomerium:
+    image: pomerium/pomerium:v0.7.0
+    environment:
+      # Generate new secret keys. e.g. `head -c32 /dev/urandom | base64`
+      - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
+    volumes:
+      # Mount a volume to store ACME certificates
+      - pomerium:/data:rw
+    ports:
+      - 443:443
+
+  # https://httpbin.corp.beyondperimeter.com --> Pomerium --> http://httpbin
+  httpbin:
+    image: kennethreitz/httpbin:latest
+    expose:
+      - 80
