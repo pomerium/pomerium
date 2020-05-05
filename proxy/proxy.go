@@ -218,7 +218,7 @@ func (p *Proxy) reverseProxyHandler(r *mux.Router, policy config.Policy) *mux.Ro
 	// 1. Create the reverse proxy connection
 	proxy := stdhttputil.NewSingleHostReverseProxy(policy.Destination)
 	// 2. Create a sublogger to handle any error logs
-	sublogger := log.With().Str("route", policy.Destination.Host).Logger()
+	sublogger := log.With().Str("route", policy.String()).Logger()
 	proxy.ErrorLog = stdlog.New(&log.StdLogWrapper{Logger: &sublogger}, "", 0)
 	// 3. Rewrite host headers and add X-Forwarded-Host header
 	director := proxy.Director

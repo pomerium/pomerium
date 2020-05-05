@@ -14,7 +14,7 @@ In the following quick-start, we'll create a minimal but complete environment fo
 
 - A configured [identity provider]
 - [Docker] and [docker-compose]
-- A [wild-card TLS certificate]
+- [TLS certificates]
 
 ## Configure
 
@@ -31,7 +31,7 @@ Ensure the `docker-compose.yml` contains the correct path to your `config.yaml`.
 Download the following `docker-compose.yml` file and modify it to:
 
 - generate new secrets
-- mount your [wild-card TLS certificate]
+- mount your [TLS certificates]
 - mount your `config.yaml` [configuration file]
 
 <<< @/docs/configuration/examples/docker/basic.docker-compose.yml
@@ -58,4 +58,4 @@ You can also navigate to the special pomerium endpoint `httpbin.corp.yourdomain.
 [docker-compose]: https://docs.docker.com/compose/install/
 [httpbin]: https://httpbin.org/
 [identity provider]: ../identity-providers/readme.md
-[wild-card tls certificate]: ../reference/certificates.md
+[tls certificates]: ../reference/certificates.md

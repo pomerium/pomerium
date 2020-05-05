@@ -5,7 +5,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
@@ -57,7 +60,28 @@ type Options struct {
 	// This should be used only for testing.
 	InsecureServer bool `mapstructure:"insecure_server" yaml:"insecure_server,omitempty"`
 
-	// Cert and Key is the x509 certificate used to hydrate TLSCertificate
+	// AutoCert enables fully automated certificate management including issuance
+	// and renewal from LetsEncrypt. Must be used in conjunction with AutoCertFolder.
+	AutoCert bool `mapstructure:"autocert" yaml:"autocert,omitempty"`
+
+	// AutoCertHandler is the HTTP challenge handler used in a http-01 acme
+	// https://letsencrypt.org/docs/challenge-types/#http-01-challenge
+	AutoCertHandler func(h http.Handler) http.Handler `hash:"ignore"`
+
+	// AutoCertFolder specifies the location to store, and load autocert managed
+	// TLS certificates.
+	// defaults to $XDG_DATA_HOME/pomerium
+	AutoCertFolder string `mapstructure:"autocert_dir" yaml:"autocert_dir,omitempty"`
+
+	// AutoCertUseStaging tells autocert to use Let's Encrypt's staging CA which
+	// has less strict usage limits then the (default) production CA.
+	//
+	// https://letsencrypt.org/docs/staging-environment/
+	AutoCertUseStaging bool `mapstructure:"autocert_use_staging" yaml:"autocert_use_staging,omitempty"`
+
+	Certificates []certificateFilePair `mapstructure:"certificates" yaml:"certificates,omitempty"`
+
+	// Cert and Key is the x509 certificate used to create the HTTPS server.
 	Cert string `mapstructure:"certificate" yaml:"certificate,omitempty"`
 	Key  string `mapstructure:"certificate_key" yaml:"certificate_key,omitempty"`
 
@@ -65,8 +89,7 @@ type Options struct {
 	CertFile string `mapstructure:"certificate_file" yaml:"certificate_file,omitempty"`
 	KeyFile  string `mapstructure:"certificate_key_file" yaml:"certificate_key_file,omitempty"`
 
-	// TLSCertificate is the hydrated tls.Certificate.
-	TLSCertificate *tls.Certificate `yaml:",omitempty"`
+	TLSConfig *tls.Config `hash:"ignore"`
 
 	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
 	// to HTTPS redirect server on. If empty, no redirect server is started.
@@ -209,6 +232,12 @@ type Options struct {
 	viper *viper.Viper
 }
 
+type certificateFilePair struct {
+	// CertFile and KeyFile is the x509 certificate used to hydrate TLSCertificate
+	CertFile string `mapstructure:"cert" yaml:"cert,omitempty"`
+	KeyFile  string `mapstructure:"key" yaml:"key,omitempty"`
+}
+
 // DefaultOptions are the default configuration options for pomerium
 var defaultOptions = Options{
 	Debug:                  false,
@@ -237,6 +266,7 @@ var defaultOptions = Options{
 	GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
 	CacheStore:                      "autocache",
 	AuthenticateCallbackPath:        "/oauth2/callback",
+	AutoCertFolder:                  dataDir(),
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -252,7 +282,7 @@ func NewDefaultOptions() *Options {
 func NewOptionsFromConfig(configFile string) (*Options, error) {
 	o, err := optionsFromViper(configFile)
 	if err != nil {
-		return nil, fmt.Errorf("config: options from viper %w", err)
+		return nil, fmt.Errorf("config: options from config file %w", err)
 	}
 	if o.Debug {
 		log.SetDebugMode()
@@ -499,19 +529,57 @@ func (o *Options) Validate() error {
 		o.Headers = make(map[string]string)
 	}
 
-	if o.InsecureServer {
-		log.Warn().Msg("config: insecure mode enabled")
-	} else if o.Cert != "" || o.Key != "" {
-		o.TLSCertificate, err = cryptutil.CertifcateFromBase64(o.Cert, o.Key)
-	} else if o.CertFile != "" || o.KeyFile != "" {
-		o.TLSCertificate, err = cryptutil.CertificateFromFile(o.CertFile, o.KeyFile)
-	} else {
-		err = errors.New("config:no certificates supplied nor was insecure mode set")
+	if o.Cert != "" || o.Key != "" {
+		o.TLSConfig, err = cryptutil.TLSConfigFromBase64(o.TLSConfig, o.Cert, o.Key)
+		if err != nil {
+			return fmt.Errorf("config: bad cert base64 %w", err)
+		}
 	}
-	if err != nil {
-		return err
+
+	if len(o.Certificates) != 0 {
+		for _, c := range o.Certificates {
+			o.TLSConfig, err = cryptutil.TLSConfigFromFile(o.TLSConfig, c.CertFile, c.KeyFile)
+			if err != nil {
+				return fmt.Errorf("config: bad cert file %w", err)
+			}
+		}
+	}
+
+	if o.CertFile != "" || o.KeyFile != "" {
+		o.TLSConfig, err = cryptutil.TLSConfigFromFile(o.TLSConfig, o.CertFile, o.KeyFile)
+		if err != nil {
+			return fmt.Errorf("config: bad cert file %w", err)
+		}
+	}
+	if o.AutoCert {
+		o.TLSConfig, o.AutoCertHandler, err = cryptutil.NewAutocert(
+			o.TLSConfig,
+			o.sourceHostnames(),
+			o.AutoCertUseStaging,
+			o.AutoCertFolder)
+		if err != nil {
+			return fmt.Errorf("config: autocert failed %w", err)
+		}
+	}
+	if !o.InsecureServer && o.TLSConfig == nil {
+		return fmt.Errorf("config: server must be run with `autocert`, " +
+			"`insecure_server` or manually provided certificates to start")
 	}
 	return nil
+}
+
+func (o *Options) sourceHostnames() []string {
+	if len(o.Policies) == 0 {
+		return nil
+	}
+	var h []string
+	for _, p := range o.Policies {
+		h = append(h, p.Source.Hostname())
+	}
+	if o.AuthenticateURL != nil {
+		h = append(h, o.AuthenticateURL.Hostname())
+	}
+	return h
 }
 
 // OptionsUpdater updates local state based on an Options struct
@@ -563,4 +631,16 @@ func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 		metrics.SetConfigChecksum(newOpt.Services, newOptChecksum)
 	}
 	return newOpt
+}
+
+func dataDir() string {
+	homeDir, _ := os.UserHomeDir()
+	if homeDir == "" {
+		homeDir = "."
+	}
+	baseDir := filepath.Join(homeDir, ".local", "share")
+	if xdgData := os.Getenv("XDG_DATA_HOME"); xdgData != "" {
+		baseDir = xdgData
+	}
+	return filepath.Join(baseDir, "pomerium")
 }

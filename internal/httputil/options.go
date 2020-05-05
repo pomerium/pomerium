@@ -11,8 +11,17 @@ type ServerOptions struct {
 	// HTTPS requests. If empty, ":443" is used.
 	Addr string
 
-	// TLS certificates to use.
-	TLSCertificate *tls.Certificate
+	// TLSConfig is the tls configuration used to setup the HTTPS server.
+	TLSConfig *tls.Config
+
+	// InsecureServer when enabled disables all transport security.
+	// In this mode, Pomerium is susceptible to man-in-the-middle attacks.
+	// This should be used only for testing.
+	Insecure bool
+
+	// Service is an optional field that helps define what the server's role is.
+	Service string
+
 	// Timeouts
 	ReadHeaderTimeout time.Duration
 	ReadTimeout       time.Duration

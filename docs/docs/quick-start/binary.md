@@ -13,7 +13,7 @@ The following quick-start guide covers how to configure and run Pomerium using t
 ## Prerequisites
 
 - A configured [identity provider]
-- A [wild-card TLS certificate]
+- [TLS certificates]
 
 ## Download
 
@@ -54,4 +54,4 @@ Browse to `external-httpbin.your.domain.example`. Connections between you and [h
 [httpbin]: https://httpbin.org/
 [identity provider]: ../docs/identity-providers/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
-[wild-card tls certificate]: ../reference/certificates.md
+[tls certificates]: ../reference/certificates.md

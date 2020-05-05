@@ -174,7 +174,7 @@ func Test_run(t *testing.T) {
 		{ 
 			"address": ":9433",
 			"grpc_address": ":9444",
-			"grpc_insecure": false,
+			"grpc_insecure": true,
 			"insecure_server": true,
 			"authorize_service_url": "https://authorize.corp.example",
 			"authenticate_service_url": "https://authenticate.corp.example",
