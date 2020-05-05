@@ -10,32 +10,39 @@ is_musl() {
 }
 
 # URLs from: https://tetrate.bintray.com/getenvoy/manifest.json
-_envoy_url_linux="https://dl.bintray.com/tetrate/getenvoy/getenvoy-envoy-1.14.1.p0.g3504d40-1p63.g902f20f-linux-glibc-release-x86_64.tar.xz"
-_envoy_url_darwin="https://dl.bintray.com/tetrate/getenvoy/getenvoy-envoy-1.14.1.p0.g3504d40-1p63.g902f20f-darwin-release-x86_64.tar.xz"
-_envoy_url=""
+_envoy_version="1.14.1"
+_envoy_build=""
 if [ "$_go_os" == linux ] && ! is_musl && [ "$_go_arch" == "amd64" ]; then
-  _envoy_url="$_envoy_url_linux"
+  _envoy_build="LINUX_GLIBC"
 elif [ "$_go_os" == darwin ] && [ "$_go_arch" == "amd64" ]; then
-  _envoy_url="$_envoy_url_darwin"
+  _envoy_build="DARWIN"
 fi
-if [ -z "$_envoy_url" ]; then
+if [ -z "$_envoy_build" ]; then
   echo "this platform is not supported for embedded envoy"
   exit 1
 fi
+_envoy_url="$(
+  curl --silent "https://tetrate.bintray.com/getenvoy/manifest.json" |
+    jq -r '.flavors.standard.versions["'"$_envoy_version"'"].builds["'"$_envoy_build"'"].downloadLocationUrl'
+)"
 
 _wd="/tmp/pomerium-embedded-files"
 mkdir -p "$_wd"
 (
   cd "$_wd"
-  echo "downloading $_envoy_url"
-  curl --silent -L "$_envoy_url" | tar --extract --xz --strip-components=3
+  if [ ! -f "envoy-$_envoy_version.tar.xz" ]; then
+    echo "downloading $_envoy_url"
+    curl --silent --location --output "envoy-$_envoy_version.tar.xz" "$_envoy_url"
+  fi
+  echo "extracting"
+  tar --extract --xz --strip-components=3 --file "envoy-$_envoy_version.tar.xz"
   echo "appending to $_pomerium_binary_path"
   # if this binary already has a zip file appended to it
-  if unzip -z -qq "$_pomerium_binary_path" >/dev/null 2>&1; then
-    zip "$_pomerium_binary_path" envoy >/dev/null 2>&1
+  if [ -z "$(unzip -z -qq "$_pomerium_binary_path" 2>&1)" ]; then
+    zip -A "$_pomerium_binary_path" envoy
   else
-    zip envoy.zip envoy >/dev/null 2>&1
+    zip envoy.zip envoy
     cat envoy.zip >>"$_pomerium_binary_path"
   fi
-  zip -A "$_pomerium_binary_path" >/dev/null 2>&1
+  zip -A "$_pomerium_binary_path"
 )

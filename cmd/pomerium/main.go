@@ -13,7 +13,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/envoy"
-	pbAuthorize "github.com/pomerium/pomerium/internal/grpc/authorize"
 	pbCache "github.com/pomerium/pomerium/internal/grpc/cache"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -101,7 +100,6 @@ func run() error {
 		if err != nil {
 			return fmt.Errorf("error creating authorize service: %w", err)
 		}
-		pbAuthorize.RegisterAuthorizerServer(controlPlane.GRPCServer, svc)
 		envoy_service_auth_v2.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
 
 		log.Info().Msg("enabled authorize service")

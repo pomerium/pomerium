@@ -326,6 +326,9 @@ func (srv *Server) getAllRouteableDomains(options config.Options, addr string) [
 		for _, policy := range options.Policies {
 			lookup[urlutil.StripPort(policy.Source.Host)] = struct{}{}
 		}
+		if options.ForwardAuthURL != nil {
+			lookup[urlutil.StripPort(options.ForwardAuthURL.Host)] = struct{}{}
+		}
 	}
 
 	domains := make([]string, 0, len(lookup))
@@ -378,6 +381,21 @@ func (srv *Server) buildPomeriumHTTPRoutes(options config.Options, domain string
 			Match: &envoy_config_route_v3.RouteMatch{
 				PathSpecifier: &envoy_config_route_v3.RouteMatch_Path{
 					Path: options.AuthenticateCallbackPath,
+				},
+			},
+			Action: action,
+			TypedPerFilterConfig: map[string]*any.Any{
+				"envoy.filters.http.ext_authz": disableExtAuthz,
+			},
+		})
+	}
+	// if we're the proxy and this is the forward-auth url
+	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && domain == urlutil.StripPort(options.ForwardAuthURL.Host) {
+		routes = append(routes, &envoy_config_route_v3.Route{
+			Name: "pomerium-forward-authenticate-verify",
+			Match: &envoy_config_route_v3.RouteMatch{
+				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{
+					Prefix: "/",
 				},
 			},
 			Action: action,
