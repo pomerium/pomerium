@@ -77,56 +77,24 @@ func run() error {
 	_, grpcPort, _ := net.SplitHostPort(controlPlane.GRPCListener.Addr().String())
 	_, httpPort, _ := net.SplitHostPort(controlPlane.HTTPListener.Addr().String())
 
-	//
+	// create envoy server
 	envoyServer, err := envoy.NewServer(grpcPort, httpPort)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server")
 	}
 
 	// add services
-	if config.IsAuthenticate(opt.Services) {
-		svc, err := authenticate.New(*opt)
-		if err != nil {
-			return fmt.Errorf("error creating authenticate service: %w", err)
-		}
-		host := urlutil.StripPort(opt.AuthenticateURL.Host)
-		sr := controlPlane.HTTPRouter.Host(host).Subrouter()
-		svc.Mount(sr)
-		log.Info().Str("host", host).Msg("enabled authenticate service")
+	if err := setupAuthenticate(opt, controlPlane); err != nil {
+		return err
 	}
-
-	if config.IsAuthorize(opt.Services) {
-		svc, err := authorize.New(*opt)
-		if err != nil {
-			return fmt.Errorf("error creating authorize service: %w", err)
-		}
-		envoy_service_auth_v2.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
-
-		log.Info().Msg("enabled authorize service")
-
-		optionsUpdaters = append(optionsUpdaters, svc)
-		err = svc.UpdateOptions(*opt)
-		if err != nil {
-			return fmt.Errorf("error updating authorize options: %w", err)
-		}
+	if err := setupAuthorize(opt, controlPlane, &optionsUpdaters); err != nil {
+		return err
 	}
-
-	if config.IsCache(opt.Services) {
-		svc, err := cache.New(*opt)
-		if err != nil {
-			return fmt.Errorf("error creating config service: %w", err)
-		}
-		defer svc.Close()
-		pbCache.RegisterCacheServer(controlPlane.GRPCServer, svc)
-		log.Info().Msg("enabled cache service")
+	if err := setupCache(opt, controlPlane); err != nil {
+		return err
 	}
-
-	if config.IsProxy(opt.Services) {
-		svc, err := proxy.New(*opt)
-		if err != nil {
-			return fmt.Errorf("error creating proxy service: %w", err)
-		}
-		controlPlane.HTTPRouter.PathPrefix("/").Handler(svc)
+	if err := setupProxy(opt, controlPlane); err != nil {
+		return err
 	}
 
 	// start the config change listener
@@ -150,6 +118,59 @@ func run() error {
 	return eg.Wait()
 }
 
+func setupAuthenticate(opt *config.Options, controlPlane *controlplane.Server) error {
+	if !config.IsAuthenticate(opt.Services) {
+		return nil
+	}
+
+	svc, err := authenticate.New(*opt)
+	if err != nil {
+		return fmt.Errorf("error creating authenticate service: %w", err)
+	}
+	host := urlutil.StripPort(opt.AuthenticateURL.Host)
+	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
+	svc.Mount(sr)
+	log.Info().Str("host", host).Msg("enabled authenticate service")
+
+	return nil
+}
+
+func setupAuthorize(opt *config.Options, controlPlane *controlplane.Server, optionsUpdaters *[]config.OptionsUpdater) error {
+	if !config.IsAuthorize(opt.Services) {
+		return nil
+	}
+
+	svc, err := authorize.New(*opt)
+	if err != nil {
+		return fmt.Errorf("error creating authorize service: %w", err)
+	}
+	envoy_service_auth_v2.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
+
+	log.Info().Msg("enabled authorize service")
+
+	*optionsUpdaters = append(*optionsUpdaters, svc)
+	err = svc.UpdateOptions(*opt)
+	if err != nil {
+		return fmt.Errorf("error updating authorize options: %w", err)
+	}
+	return nil
+}
+
+func setupCache(opt *config.Options, controlPlane *controlplane.Server) error {
+	if !config.IsCache(opt.Services) {
+		return nil
+	}
+
+	svc, err := cache.New(*opt)
+	if err != nil {
+		return fmt.Errorf("error creating config service: %w", err)
+	}
+	defer svc.Close()
+	pbCache.RegisterCacheServer(controlPlane.GRPCServer, svc)
+	log.Info().Msg("enabled cache service")
+	return nil
+}
+
 func setupMetrics(opt *config.Options, wg *sync.WaitGroup) error {
 	if opt.MetricsAddr != "" {
 		handler, err := metrics.PrometheusHandler()
@@ -165,6 +186,19 @@ func setupMetrics(opt *config.Options, wg *sync.WaitGroup) error {
 		}
 		go httputil.Shutdown(srv)
 	}
+	return nil
+}
+
+func setupProxy(opt *config.Options, controlPlane *controlplane.Server) error {
+	if !config.IsProxy(opt.Services) {
+		return nil
+	}
+
+	svc, err := proxy.New(*opt)
+	if err != nil {
+		return fmt.Errorf("error creating proxy service: %w", err)
+	}
+	controlPlane.HTTPRouter.PathPrefix("/").Handler(svc)
 	return nil
 }
 
