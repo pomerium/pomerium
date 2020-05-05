@@ -105,6 +105,10 @@ func newPolicyEvaluator(opts *config.Options) (evaluator.Evaluator, error) {
 // UpdateOptions implements the OptionsUpdater interface and updates internal
 // structures based on config.Options
 func (a *Authorize) UpdateOptions(opts config.Options) error {
+	if a == nil {
+		return nil
+	}
+
 	log.Info().Str("checksum", fmt.Sprintf("%x", opts.Checksum())).Msg("authorize: updating options")
 	a.currentOptions.Store(opts)
 
