@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"time"
 
@@ -258,7 +260,7 @@ var defaultOptions = Options{
 	GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
 	CacheStore:                      "autocache",
 	AuthenticateCallbackPath:        "/oauth2/callback",
-	CertFolder:                      filepath.Join(".", ".pomerium"),
+	CertFolder:                      dataDir(),
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -619,4 +621,31 @@ func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 		metrics.SetConfigChecksum(newOpt.Services, newOptChecksum)
 	}
 	return newOpt
+}
+
+// homeDir returns the best guess of the current user's home
+// directory from environment variables. If unknown, "." (the
+// current directory) is returned instead.
+func homeDir() string {
+	home := os.Getenv("HOME")
+	if home == "" && runtime.GOOS == "windows" {
+		drive := os.Getenv("HOMEDRIVE")
+		path := os.Getenv("HOMEPATH")
+		home = drive + path
+		if drive == "" || path == "" {
+			home = os.Getenv("USERPROFILE")
+		}
+	}
+	if home == "" {
+		home = "."
+	}
+	return home
+}
+
+func dataDir() string {
+	baseDir := filepath.Join(homeDir(), ".local", "share")
+	if xdgData := os.Getenv("XDG_DATA_HOME"); xdgData != "" {
+		baseDir = xdgData
+	}
+	return filepath.Join(baseDir, "pomerium")
 }
