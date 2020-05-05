@@ -38,6 +38,8 @@ Download the following `docker-compose.yml` file and modify it to:
 
 <<< @/docs/configuration/examples/docker/autocert.docker-compose.yml
 
+Please note that you should use a persistent volume to store certificate data, or you may exhaust your domain quota on Let's Encrypt.
+
 ### Wildcard Docker-compose
 
 Download the following `docker-compose.yml` file and modify it to:
