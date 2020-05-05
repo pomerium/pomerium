@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.6
+
+### Fixed
+
+- authorize: fix unexpected panic on reload @travisgroth [GH-652]
+
 ## v0.7.5
 
 ### Fixed
