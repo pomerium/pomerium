@@ -107,7 +107,6 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		if uriString == "" {
 			if r.Header.Get(httputil.HeaderForwardedProto) == "" || r.Header.Get(httputil.HeaderForwardedHost) == "" {
 				return httputil.NewError(http.StatusBadRequest, errors.New("no uri to validate"))
-
 			}
 			uriString = r.Header.Get(httputil.HeaderForwardedProto) + "://" + r.Header.Get(httputil.HeaderForwardedHost)
 		}
@@ -117,23 +116,44 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
 
-		if _, err := sessions.FromContext(r.Context()); err != nil {
-			if verifyOnly {
-				return httputil.NewError(http.StatusUnauthorized, err)
-			}
-			authN := *p.authenticateSigninURL
-			q := authN.Query()
-			q.Set(urlutil.QueryCallbackURI, uri.String())
-			q.Set(urlutil.QueryRedirectURI, uri.String())              // final destination
-			q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
-			authN.RawQuery = q.Encode()
-			httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
+		original := p.getOriginalRequest(r, uri)
+		authorized, err := p.isAuthorized(original)
+		if err != nil {
+			return httputil.NewError(http.StatusBadRequest, err)
+		}
+
+		if authorized {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "Access to %s is allowed.", uri.Host)
 			return nil
 		}
 
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Access to %s is allowed.", uri.Host)
+		_, err = sessions.FromContext(r.Context())
+		hasSession := err == nil
+		if hasSession {
+			return httputil.NewError(http.StatusForbidden, errors.New("access denied"))
+		}
+
+		if verifyOnly {
+			return httputil.NewError(http.StatusUnauthorized, err)
+		}
+
+		// redirect to authenticate
+		authN := *p.authenticateSigninURL
+		q := authN.Query()
+		q.Set(urlutil.QueryCallbackURI, uri.String())
+		q.Set(urlutil.QueryRedirectURI, uri.String())              // final destination
+		q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
+		authN.RawQuery = q.Encode()
+		httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
 		return nil
 	})
+}
+
+func (p *Proxy) getOriginalRequest(r *http.Request, originalURL *url.URL) *http.Request {
+	originalRequest := r.Clone(r.Context())
+	originalRequest.Host = originalURL.Host
+	originalRequest.URL = originalURL
+	return originalRequest
 }

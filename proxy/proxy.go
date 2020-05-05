@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"github.com/gorilla/mux"
 
 	"github.com/pomerium/pomerium/config"
@@ -21,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
+	"github.com/pomerium/pomerium/internal/grpc"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -66,6 +68,7 @@ type Proxy struct {
 	SharedKey    string
 	sharedCipher cipher.AEAD
 
+	authorizeURL           *url.URL
 	authenticateURL        *url.URL
 	authenticateSigninURL  *url.URL
 	authenticateSignoutURL *url.URL
@@ -79,6 +82,7 @@ type Proxy struct {
 	sessionLoaders  []sessions.SessionLoader
 	templates       *template.Template
 	jwtClaimHeaders []string
+	authzClient     envoy_service_auth_v2.AuthorizationClient
 
 	currentRouter atomic.Value
 }
@@ -130,10 +134,25 @@ func New(opts config.Options) (*Proxy, error) {
 	}
 	p.currentRouter.Store(httputil.NewRouter())
 	// errors checked in ValidateOptions
+	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
 	p.authenticateURL, _ = urlutil.DeepCopy(opts.AuthenticateURL)
 	p.authenticateSigninURL = p.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	p.authenticateSignoutURL = p.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
 	p.authenticateRefreshURL = p.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
+
+	authzConn, err := grpc.NewGRPCClientConn(&grpc.Options{
+		Addr:                    p.authorizeURL,
+		OverrideCertificateName: opts.OverrideCertificateName,
+		CA:                      opts.CA,
+		CAFile:                  opts.CAFile,
+		RequestTimeout:          opts.GRPCClientTimeout,
+		ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
+		WithInsecure:            opts.GRPCInsecure,
+	})
+	if err != nil {
+		return nil, err
+	}
+	p.authzClient = envoy_service_auth_v2.NewAuthorizationClient(authzConn)
 
 	if err := p.UpdatePolicies(&opts); err != nil {
 		return nil, err

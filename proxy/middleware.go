@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
+	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
 
@@ -40,6 +43,48 @@ func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
 	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signinURL).String(), http.StatusFound)
 	p.sessionStore.ClearSession(w, r)
 	return nil
+}
+
+func (p *Proxy) isAuthorized(r *http.Request) (bool, error) {
+	tm, err := ptypes.TimestampProto(time.Now())
+	if err != nil {
+		return false, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error creating protobuf timestamp from current time: %w", err))
+	}
+
+	httpAttrs := &envoy_service_auth_v2.AttributeContext_HttpRequest{
+		Method:   "GET",
+		Headers:  map[string]string{},
+		Path:     r.URL.Path,
+		Host:     r.URL.Host,
+		Scheme:   r.URL.Scheme,
+		Fragment: r.URL.Fragment,
+	}
+	for k := range r.Header {
+		httpAttrs.Headers[k] = r.Header.Get(k)
+		if r.URL.RawQuery != "" {
+			// envoy expects the query string in the path
+			httpAttrs.Path += "?" + r.URL.RawQuery
+		}
+	}
+
+	res, err := p.authzClient.Check(r.Context(), &envoy_service_auth_v2.CheckRequest{
+		Attributes: &envoy_service_auth_v2.AttributeContext{
+			Request: &envoy_service_auth_v2.AttributeContext_Request{
+				Time: tm,
+				Http: httpAttrs,
+			},
+		},
+	})
+	if err != nil {
+		return false, httputil.NewError(http.StatusInternalServerError, err)
+	}
+
+	switch res.HttpResponse.(type) {
+	case *envoy_service_auth_v2.CheckResponse_OkResponse:
+		return true, nil
+	default:
+		return false, nil
+	}
 }
 
 // SetResponseHeaders sets a map of response headers.
