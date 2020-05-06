@@ -25,6 +25,10 @@ local PomeriumPolicy = function() std.flattenArrays([
       to: 'http://' + domain + '.default.svc.cluster.local',
       allow_public_unauthenticated_access: true,
     },
+    {
+      from: 'http://restricted-' + domain + '.localhost.pomerium.io',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+    },
   ]
   for domain in ['httpdetails', 'fa-httpdetails']
 ]);
@@ -226,6 +230,7 @@ local PomeriumIngress = function() {
     'forward-authenticate.localhost.pomerium.io',
     'httpecho.localhost.pomerium.io',
     'httpdetails.localhost.pomerium.io',
+    'restricted-httpdetails.localhost.pomerium.io',
   ],
 
   apiVersion: 'extensions/v1beta1',
