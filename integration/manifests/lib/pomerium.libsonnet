@@ -26,8 +26,20 @@ local PomeriumPolicy = function() std.flattenArrays([
       allow_public_unauthenticated_access: true,
     },
   ]
-  for domain in ['httpdetails', 'fa-httpdetails']
-]);
+  for domain in ['httpdetails', 'fa-httpdetails', 'ws-echo']
+]) + [
+  {
+    from: 'http://enabled-ws-echo.localhost.pomerium.io',
+    to: 'http://ws-echo.default.svc.cluster.local',
+    allow_public_unauthenticated_access: true,
+    allow_websockets: true,
+  },
+  {
+    from: 'http://disabled-ws-echo.localhost.pomerium.io',
+    to: 'http://ws-echo.default.svc.cluster.local',
+    allow_public_unauthenticated_access: true,
+  },
+];
 
 local PomeriumPolicyHash = std.base64(std.md5(std.manifestJsonEx(PomeriumPolicy(), '')));
 
@@ -226,6 +238,8 @@ local PomeriumIngress = function() {
     'forward-authenticate.localhost.pomerium.io',
     'httpecho.localhost.pomerium.io',
     'httpdetails.localhost.pomerium.io',
+    'enabled-ws-echo.localhost.pomerium.io',
+    'disabled-ws-echo.localhost.pomerium.io',
   ],
 
   apiVersion: 'extensions/v1beta1',
