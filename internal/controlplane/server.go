@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/log"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 type versionedOptions struct {
@@ -45,6 +47,7 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 	srv.GRPCServer = grpc.NewServer()
+	reflection.Register(srv.GRPCServer)
 	srv.registerXDSHandlers()
 	srv.registerAccessLogHandlers()
 
