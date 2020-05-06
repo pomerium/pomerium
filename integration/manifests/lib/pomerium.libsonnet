@@ -23,6 +23,18 @@ local PomeriumPolicy = function() std.flattenArrays([
     {
       from: 'http://' + domain + '.localhost.pomerium.io',
       to: 'http://' + domain + '.default.svc.cluster.local',
+      prefix: '/cors-enabled',
+      cors_allow_preflight: true,
+    },
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+      prefix: '/cors-disabled',
+      cors_allow_preflight: false,
+    },
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      to: 'http://' + domain + '.default.svc.cluster.local',
       allow_public_unauthenticated_access: true,
     },
   ]
