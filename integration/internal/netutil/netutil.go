@@ -1,3 +1,4 @@
+// Package netutil has helper types for working with network connections.
 package netutil
 
 import (
@@ -5,6 +6,7 @@ import (
 	"net"
 )
 
+// Dialer is a type that has a DialContext method for making a network connection.
 type Dialer = interface {
 	DialContext(ctx context.Context, network, addr string) (net.Conn, error)
 }
