@@ -6,6 +6,9 @@ authenticate_service_url: https://authenticate.localhost.pomerium.io
 # certificate settings:  https://www.pomerium.io/docs/reference/certificates.html
 autocert: true
 
+# REMOVE FOR PRODUCTION
+autocert_use_staging: true
+
 # identity provider settings : https://www.pomerium.io/docs/identity-providers.html
 idp_provider: google
 idp_client_id: REPLACE_ME

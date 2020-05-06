@@ -26,7 +26,21 @@ Create a [configuration file] (e.g `config.yaml`) for defining Pomerium's config
 
 Ensure the `docker-compose.yml` contains the correct path to your `config.yaml`.
 
-### Docker-compose
+### Autocert Docker-compose
+Ensure you have set up the requisite DNS and port forwarding in [TLS certificates]
+
+Download the following `docker-compose.yml` file and modify it to:
+
+- generate new secrets
+- mount your [TLS certificates]
+- mount your `config.yaml` [configuration file]
+- Set `autocert_use_staging` to `false` once you have finished testing
+
+<<< @/docs/configuration/examples/docker/autocert.docker-compose.yml
+
+Please note that you should use a persistent volume to store certificate data, or you may exhaust your domain quota on Let's Encrypt.
+
+### Wildcard Docker-compose
 
 Download the following `docker-compose.yml` file and modify it to:
 
