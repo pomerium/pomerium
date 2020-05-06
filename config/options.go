@@ -427,10 +427,10 @@ func (o *Options) Validate() error {
 		}
 		// and we can set the corresponding client
 		if o.AuthorizeURLString == "" {
-			o.AuthorizeURLString = "https://localhost" + DefaultAlternativeAddr
+			o.AuthorizeURLString = "http://localhost" + DefaultAlternativeAddr
 		}
 		if o.CacheURLString == "" {
-			o.CacheURLString = "https://localhost" + DefaultAlternativeAddr
+			o.CacheURLString = "http://localhost" + DefaultAlternativeAddr
 		}
 	}
 
