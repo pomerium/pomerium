@@ -6,6 +6,7 @@ import (
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes/any"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
@@ -34,70 +35,61 @@ func (srv *Server) buildGRPCRoutes() []*envoy_config_route_v3.Route {
 }
 
 func (srv *Server) buildPomeriumHTTPRoutes(options config.Options, domain string) []*envoy_config_route_v3.Route {
-	action := &envoy_config_route_v3.Route_Route{
-		Route: &envoy_config_route_v3.RouteAction{
-			ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-				Cluster: "pomerium-control-plane-http",
-			},
-		},
-	}
 	routes := []*envoy_config_route_v3.Route{
-		{
-			Name: "dot-pomerium-path",
-			Match: &envoy_config_route_v3.RouteMatch{
-				PathSpecifier: &envoy_config_route_v3.RouteMatch_Path{
-					Path: "/.pomerium",
-				},
-			},
-			Action: action,
-			TypedPerFilterConfig: map[string]*any.Any{
-				"envoy.filters.http.ext_authz": disableExtAuthz,
-			},
-		},
-		{
-			Name: "dot-pomerium-prefix",
-			Match: &envoy_config_route_v3.RouteMatch{
-				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{
-					Prefix: "/.pomerium/",
-				},
-			},
-			Action: action,
-			TypedPerFilterConfig: map[string]*any.Any{
-				"envoy.filters.http.ext_authz": disableExtAuthz,
-			},
-		},
+		srv.buildControlPlanePathRoute("/ping"),
+		srv.buildControlPlanePathRoute("/healthz"),
+		srv.buildControlPlanePathRoute("/.pomerium"),
+		srv.buildControlPlanePrefixRoute("/.pomerium/"),
 	}
 	// if we're handling authentication, add the oauth2 callback url
 	if config.IsAuthenticate(options.Services) && domain == urlutil.StripPort(options.AuthenticateURL.Host) {
-		routes = append(routes, &envoy_config_route_v3.Route{
-			Name: "pomerium-authenticate-oauth2-callback",
-			Match: &envoy_config_route_v3.RouteMatch{
-				PathSpecifier: &envoy_config_route_v3.RouteMatch_Path{
-					Path: options.AuthenticateCallbackPath,
-				},
-			},
-			Action: action,
-			TypedPerFilterConfig: map[string]*any.Any{
-				"envoy.filters.http.ext_authz": disableExtAuthz,
-			},
-		})
+		routes = append(routes,
+			srv.buildControlPlanePathRoute(options.AuthenticateCallbackPath))
 	}
 	// if we're the proxy and this is the forward-auth url
 	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && domain == urlutil.StripPort(options.ForwardAuthURL.Host) {
-		routes = append(routes, &envoy_config_route_v3.Route{
-			Name: "pomerium-forward-authenticate-verify",
-			Match: &envoy_config_route_v3.RouteMatch{
-				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{
-					Prefix: "/",
-				},
-			},
-			Action: action,
-			TypedPerFilterConfig: map[string]*any.Any{
-				"envoy.filters.http.ext_authz": disableExtAuthz,
-			},
-		})
+		routes = append(routes,
+			srv.buildControlPlanePrefixRoute("/"))
 	}
 	return routes
+}
+
+func (srv *Server) buildControlPlanePathRoute(path string) *envoy_config_route_v3.Route {
+	return &envoy_config_route_v3.Route{
+		Name: "pomerium-path-" + path,
+		Match: &envoy_config_route_v3.RouteMatch{
+			PathSpecifier: &envoy_config_route_v3.RouteMatch_Path{Path: path},
+		},
+		Action: &envoy_config_route_v3.Route_Route{
+			Route: &envoy_config_route_v3.RouteAction{
+				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+					Cluster: "pomerium-control-plane-http",
+				},
+			},
+		},
+		TypedPerFilterConfig: map[string]*any.Any{
+			"envoy.filters.http.ext_authz": disableExtAuthz,
+		},
+	}
+}
+
+func (srv *Server) buildControlPlanePrefixRoute(prefix string) *envoy_config_route_v3.Route {
+	return &envoy_config_route_v3.Route{
+		Name: "pomerium-prefix-" + prefix,
+		Match: &envoy_config_route_v3.RouteMatch{
+			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: prefix},
+		},
+		Action: &envoy_config_route_v3.Route_Route{
+			Route: &envoy_config_route_v3.RouteAction{
+				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+					Cluster: "pomerium-control-plane-http",
+				},
+			},
+		},
+		TypedPerFilterConfig: map[string]*any.Any{
+			"envoy.filters.http.ext_authz": disableExtAuthz,
+		},
+	}
 }
 
 func (srv *Server) buildPolicyRoutes(options config.Options, domain string) []*envoy_config_route_v3.Route {
