@@ -8,7 +8,7 @@
   "labels": [
     "dependency"
   ],
-  "postUpdateOptions": {
+  "postUpdateOptions": [{
     "gomodTidy": true
-  }
+  }]
 }
