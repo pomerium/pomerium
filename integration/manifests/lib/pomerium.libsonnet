@@ -20,6 +20,7 @@ local PomeriumPolicy = function() std.flattenArrays([
       to: 'http://' + domain + '.default.svc.cluster.local',
       allowed_groups: ['admin'],
     },
+    // cors_allow_preflight option
     {
       from: 'http://' + domain + '.localhost.pomerium.io',
       to: 'http://' + domain + '.default.svc.cluster.local',
@@ -32,10 +33,28 @@ local PomeriumPolicy = function() std.flattenArrays([
       prefix: '/cors-disabled',
       cors_allow_preflight: false,
     },
+    // preserve_host_header option
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+      path: '/preserve-host-header-enabled',
+      allow_public_unauthenticated_access: true,
+      preserve_host_header: true,
+    },
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+      path: '/preserve-host-header-disabled',
+      allow_public_unauthenticated_access: true,
+      preserve_host_header: false,
+    },
     {
       from: 'http://' + domain + '.localhost.pomerium.io',
       to: 'http://' + domain + '.default.svc.cluster.local',
       allow_public_unauthenticated_access: true,
+      set_request_headers: {
+        'X-Custom-Request-Header': 'custom-request-header-value',
+      },
     },
   ]
   for domain in ['httpdetails', 'fa-httpdetails', 'ws-echo']
