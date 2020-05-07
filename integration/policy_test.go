@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -52,6 +53,37 @@ func TestCORS(t *testing.T) {
 
 		assert.NotEqual(t, http.StatusOK, res.StatusCode, "unexpected status code")
 	})
+}
+
+func TestSetRequestHeaders(t *testing.T) {
+	ctx := mainCtx
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	client := testcluster.NewHTTPClient()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := client.Do(req)
+	if !assert.NoError(t, err, "unexpected http error") {
+		return
+	}
+	defer res.Body.Close()
+
+	var result struct {
+		Headers map[string]string `json:"headers"`
+	}
+	err = json.NewDecoder(res.Body).Decode(&result)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, "custom-request-header-value", result.Headers["x-custom-request-header"],
+		"expected custom request header to be sent upstream")
+
 }
 
 func TestWebsocket(t *testing.T) {

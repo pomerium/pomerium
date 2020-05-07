@@ -36,6 +36,9 @@ local PomeriumPolicy = function() std.flattenArrays([
       from: 'http://' + domain + '.localhost.pomerium.io',
       to: 'http://' + domain + '.default.svc.cluster.local',
       allow_public_unauthenticated_access: true,
+      set_request_headers: {
+        'X-Custom-Request-Header': 'custom-request-header-value',
+      },
     },
   ]
   for domain in ['httpdetails', 'fa-httpdetails', 'ws-echo']
