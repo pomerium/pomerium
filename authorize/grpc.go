@@ -41,21 +41,19 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 
 	hdrs := getCheckRequestHeaders(in)
 
-	//var requestHeaders []*envoy_api_v2_core.HeaderValueOption
+	var requestHeaders []*envoy_api_v2_core.HeaderValueOption
 	sess, sesserr := a.loadSessionFromCheckRequest(in)
 	if errors.Is(sesserr, sessions.ErrExpired) {
 		if newSession, err := a.refreshSession(ctx, sess); err != nil {
 			sess = newSession
+			requestHeaders, err = a.getEnvoyRequestHeaders(sess)
+			if err != nil {
+				log.Warn().Err(err).Msg("authorize: error generating new request headers")
+			}
 		} else {
 			log.Warn().Err(err).Msg("authorize: error refreshing session")
 		}
 	}
-
-	requestHeaders, err := a.getEnvoyRequestHeaders(sess)
-	if err != nil {
-		log.Warn().Err(err).Msg("authorize: error generating new request headers")
-	}
-
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
 		User:       string(sess),
