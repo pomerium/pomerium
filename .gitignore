@@ -19,7 +19,7 @@ _test
 # Architecture specific extensions/prefixes
 *.[568vq]
 [568vq].out
- 
+
 *.cgo1.go
 *.cgo2.c
 _cgo_defun.c
@@ -82,3 +82,5 @@ docs/.vuepress/dist/
 
 # autocert
 .pomerium/
+
+!.pre-commit-config.yaml

@@ -1,0 +1,20 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  - repo: https://github.com/syntaqx/git-hooks
+    rev: v0.0.16
+    hooks:
+      - id: go-mod-tidy
+  - repo: local
+    hooks:
+      - id: lint
+        name: lint
+        language: system
+        entry: make
+        args: ["lint"]
+        types: ["go"]
