@@ -102,11 +102,10 @@ func New(opts config.Options) (*Proxy, error) {
 		return nil, err
 	}
 
+	// shared secret is used to encrypt and sign data shared between services
 	sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(opts.SharedKey)
-	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
-
-	// used to load and verify JWT tokens signed by the authenticate service
-	encoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.AuthenticateURL.Host)
+	decodedSharedSecret, _ := base64.StdEncoding.DecodeString(opts.SharedKey)
+	encoder, err := jws.NewHS256Signer(decodedSharedSecret, opts.AuthenticateURL.Host)
 	if err != nil {
 		return nil, err
 	}
@@ -125,12 +124,11 @@ func New(opts config.Options) (*Proxy, error) {
 	}
 
 	p := &Proxy{
-		SharedKey:    opts.SharedKey,
-		sharedCipher: sharedCipher,
-		encoder:      encoder,
-
-		cookieSecret:           decodedCookieSecret,
+		SharedKey:              opts.SharedKey,
+		sharedCipher:           sharedCipher,
+		encoder:                encoder,
 		cookieOptions:          cookieOptions,
+		cookieSecret:           decodedSharedSecret,
 		defaultUpstreamTimeout: opts.DefaultUpstreamTimeout,
 		refreshCooldown:        opts.RefreshCooldown,
 		sessionStore:           cookieStore,

@@ -5,6 +5,8 @@ import data.shared_key
 
 default allow = false
 
+secret := base64.decode(shared_key)	
+
 # allow public
 allow {
 	route := first_allowed_route(input.url)
@@ -170,7 +172,7 @@ deny["user is not admin"]{
 token = {"payload": payload, "valid": valid} {
 	[valid, header, payload] := io.jwt.decode_verify(
 		input.user, {
-			"secret": shared_key,
+			"secret": secret,
 			"aud": input.host,
 		}
 	)

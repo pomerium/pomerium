@@ -103,14 +103,15 @@ func New(opts config.Options) (*Authenticate, error) {
 		return nil, err
 	}
 
-	// shared state encoder setup
+	// shared secret is used to encrypt and sign data shared between services
 	sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(opts.SharedKey)
-	signedEncoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.AuthenticateURL.Host)
+	decodedSharedSecret, _ := base64.StdEncoding.DecodeString(opts.SharedKey)
+	signedEncoder, err := jws.NewHS256Signer(decodedSharedSecret, opts.AuthenticateURL.Host)
 	if err != nil {
 		return nil, err
 	}
 
-	// private state encoder setup
+	// cookie secret is used to encrypt, and sign authenticate service payloads
 	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
 	cookieCipher, _ := cryptutil.NewAEADCipher(decodedCookieSecret)
 	encryptedEncoder := ecjson.New(cookieCipher)
