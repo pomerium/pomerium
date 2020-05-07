@@ -9,11 +9,13 @@ import (
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
+	envoy_extensions_filters_http_header_to_metadata_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_to_metadata/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
@@ -99,6 +101,24 @@ func (srv *Server) buildHTTPListener(options config.Options) *envoy_config_liste
 		},
 	})
 
+	removeSetCookieHeader, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_header_to_metadata_v3.Config{
+		RequestRules: []*envoy_extensions_filters_http_header_to_metadata_v3.Config_Rule{{
+			Header: "x-pomerium-set-cookie",
+			OnHeaderPresent: &envoy_extensions_filters_http_header_to_metadata_v3.Config_KeyValuePair{
+				MetadataNamespace: "envoy.lb",
+				Key:               "pomerium-set-cookie",
+				Type:              envoy_extensions_filters_http_header_to_metadata_v3.Config_STRING,
+			},
+			OnHeaderMissing: &envoy_extensions_filters_http_header_to_metadata_v3.Config_KeyValuePair{
+				MetadataNamespace: "envoy.lb",
+				Key:               "pomerium-set-cookie",
+				Value:             "",
+				Type:              envoy_extensions_filters_http_header_to_metadata_v3.Config_STRING,
+			},
+			Remove: true,
+		}},
+	})
+
 	tc, _ := ptypes.MarshalAny(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "ingress",
@@ -113,6 +133,12 @@ func (srv *Server) buildHTTPListener(options config.Options) *envoy_config_liste
 				Name: "envoy.filters.http.ext_authz",
 				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
 					TypedConfig: extAuthZ,
+				},
+			},
+			{
+				Name: "envoy.filters.http.header_to_metadata",
+				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+					TypedConfig: removeSetCookieHeader,
 				},
 			},
 			{

@@ -12,6 +12,8 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator/opa"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/encoding"
+	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -31,11 +33,24 @@ func (a *atomicOptions) Store(options config.Options) {
 	a.value.Store(options)
 }
 
+type atomicMarshalUnmarshaler struct {
+	value atomic.Value
+}
+
+func (a *atomicMarshalUnmarshaler) Load() encoding.MarshalUnmarshaler {
+	return a.value.Load().(encoding.MarshalUnmarshaler)
+}
+
+func (a *atomicMarshalUnmarshaler) Store(encoder encoding.MarshalUnmarshaler) {
+	a.value.Store(encoder)
+}
+
 // Authorize struct holds
 type Authorize struct {
 	pe evaluator.Evaluator
 
 	currentOptions atomicOptions
+	currentEncoder atomicMarshalUnmarshaler
 }
 
 // New validates and creates a new Authorize service from a set of config options.
@@ -44,8 +59,15 @@ func New(opts config.Options) (*Authorize, error) {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
 	}
 	var a Authorize
+
+	encoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.AuthenticateURL.Host)
+	if err != nil {
+		return nil, err
+	}
+	a.currentEncoder.Store(encoder)
+
 	a.currentOptions.Store(config.Options{})
-	err := a.UpdateOptions(opts)
+	err = a.UpdateOptions(opts)
 	if err != nil {
 		return nil, err
 	}

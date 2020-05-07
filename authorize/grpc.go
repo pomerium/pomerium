@@ -2,13 +2,18 @@ package authorize
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/encoding/jws"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
@@ -35,10 +40,25 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	hattrs := in.GetAttributes().GetRequest().GetHttp()
 
 	hdrs := getCheckRequestHeaders(in)
+
+	//var requestHeaders []*envoy_api_v2_core.HeaderValueOption
 	sess, sesserr := a.loadSessionFromCheckRequest(in)
+	if errors.Is(sesserr, sessions.ErrExpired) {
+		if newSession, err := a.refreshSession(ctx, sess); err != nil {
+			sess = newSession
+		} else {
+			log.Warn().Err(err).Msg("authorize: error refreshing session")
+		}
+	}
+
+	requestHeaders, err := a.getEnvoyRequestHeaders(sess)
+	if err != nil {
+		log.Warn().Err(err).Msg("authorize: error generating new request headers")
+	}
+
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
-		User:       sess,
+		User:       string(sess),
 		Header:     hdrs,
 		Host:       hattrs.GetHost(),
 		Method:     hattrs.GetMethod(),
@@ -68,8 +88,12 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 
 	if reply.Allow {
 		return &envoy_service_auth_v2.CheckResponse{
-			Status:       &status.Status{Code: int32(codes.OK), Message: "OK"},
-			HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{OkResponse: &envoy_service_auth_v2.OkHttpResponse{}},
+			Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
+			HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
+				OkResponse: &envoy_service_auth_v2.OkHttpResponse{
+					Headers: requestHeaders,
+				},
+			},
 		}, nil
 	}
 
@@ -135,14 +159,92 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	}, nil
 }
 
-func (a *Authorize) loadSessionFromCheckRequest(req *envoy_service_auth_v2.CheckRequest) (string, error) {
-	opts := a.currentOptions.Load()
-
-	// used to load and verify JWT tokens signed by the authenticate service
-	encoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.AuthenticateURL.Host)
+func (a *Authorize) getEnvoyRequestHeaders(rawSession []byte) ([]*envoy_api_v2_core.HeaderValueOption, error) {
+	cookieStore, err := a.getCookieStore()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+
+	recorder := httptest.NewRecorder()
+	err = cookieStore.SaveSession(recorder, nil /* unused by cookie store */, string(rawSession))
+	if err != nil {
+		return nil, fmt.Errorf("authorize: error saving cookie: %w", err)
+	}
+
+	var hvos []*envoy_api_v2_core.HeaderValueOption
+	for k, vs := range recorder.Header() {
+		for _, v := range vs {
+			hvos = append(hvos, &envoy_api_v2_core.HeaderValueOption{
+				Header: &envoy_api_v2_core.HeaderValue{
+					Key:   "x-pomerium-" + k,
+					Value: v,
+				},
+			})
+		}
+	}
+
+	return hvos, nil
+}
+
+func (a *Authorize) refreshSession(ctx context.Context, rawSession []byte) (newSession []byte, err error) {
+	options := a.currentOptions.Load()
+	encoder := a.currentEncoder.Load()
+
+	var state sessions.State
+	if err := encoder.Unmarshal(rawSession, &state); err != nil {
+		return nil, fmt.Errorf("error unmarshaling raw sessions: %w", err)
+	}
+
+	// 1 - build a signed url to call refresh on authenticate service
+	refreshURI := options.AuthenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/refresh"})
+	q := refreshURI.Query()
+	q.Set(urlutil.QueryAccessTokenID, state.AccessTokenID)          // hash value points to parent token
+	q.Set(urlutil.QueryAudience, strings.Join(state.Audience, ",")) // request's audience, this route
+	refreshURI.RawQuery = q.Encode()
+	signedRefreshURL := urlutil.NewSignedURL(options.SharedKey, refreshURI).String()
+
+	// 2 - http call to authenticate service
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, signedRefreshURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: refresh request: %w", err)
+	}
+	req.Header.Set("X-Requested-With", "XmlHttpRequest")
+	req.Header.Set("Accept", "application/json")
+
+	res, err := httputil.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: client err %s: %w", signedRefreshURL, err)
+	}
+	defer res.Body.Close()
+	newJwt, err := ioutil.ReadAll(io.LimitReader(res.Body, 4<<10))
+	if err != nil {
+		return nil, err
+	}
+	// auth couldn't refresh the session, delete the session and reload via 302
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("authorize: backend refresh failed: %s", newJwt)
+	}
+	return newJwt, nil
+}
+
+func (a *Authorize) loadSessionFromCheckRequest(req *envoy_service_auth_v2.CheckRequest) ([]byte, error) {
+	cookieStore, err := a.getCookieStore()
+	if err != nil {
+		return nil, err
+	}
+
+	sess, err := cookieStore.LoadSession(&http.Request{
+		Header: getCheckRequestHeaders(req),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return []byte(sess), nil
+}
+
+func (a *Authorize) getCookieStore() (sessions.SessionStore, error) {
+	opts := a.currentOptions.Load()
+	encoder := a.currentEncoder.Load()
 
 	cookieOptions := &cookie.Options{
 		Name:     opts.CookieName,
@@ -154,13 +256,9 @@ func (a *Authorize) loadSessionFromCheckRequest(req *envoy_service_auth_v2.Check
 
 	cookieStore, err := cookie.NewStore(cookieOptions, encoder)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	sess, err := cookieStore.LoadSession(&http.Request{
-		Header: http.Header(getCheckRequestHeaders(req)),
-	})
-	return sess, err
+	return cookieStore, nil
 }
 
 func getFullURL(rawurl, host string) string {

@@ -3,6 +3,7 @@ package controlplane
 import (
 	"fmt"
 
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes/any"
@@ -130,6 +131,12 @@ func (srv *Server) buildPolicyRoutes(options config.Options, domain string) []*e
 					},
 				},
 			},
+			ResponseHeadersToAdd: []*envoy_config_core_v3.HeaderValueOption{{
+				Header: &envoy_config_core_v3.HeaderValue{
+					Key:   "set-cookie",
+					Value: "%REQ(x-pomerium-set-cookie)%",
+				},
+			}},
 		})
 	}
 	return routes
