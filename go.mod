@@ -3,13 +3,14 @@ module github.com/pomerium/pomerium
 go 1.12
 
 require (
-	cloud.google.com/go v0.49.0 // indirect
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
+	github.com/caddyserver/certmagic v0.10.12
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/envoyproxy/go-control-plane v0.9.5
 	github.com/fsnotify/fsnotify v1.4.9
+	github.com/go-acme/lego/v3 v3.4.0
 	github.com/go-redis/redis/v7 v7.2.0
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 	github.com/golang/mock v1.4.3
@@ -19,6 +20,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/websocket v1.4.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/natefinch/atomic v0.0.0-20150920032501-a62ce929ffcc
@@ -31,7 +33,7 @@ require (
 	github.com/pomerium/autocache v0.0.0-20200309220911-227c9939d0ce
 	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
-	github.com/prometheus/client_golang v1.5.1
+	github.com/prometheus/client_golang v1.6.0
 	github.com/rakyll/statik v0.1.7
 	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563 // indirect
 	github.com/rs/cors v1.7.0
@@ -41,12 +43,12 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.6.3
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
 	github.com/uber/jaeger-client-go v2.20.1+incompatible // indirect
 	go.etcd.io/bbolt v1.3.4
 	go.opencensus.io v0.22.3
-	golang.org/x/crypto v0.0.0-20200427165652-729f1e841bcc
-	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa
+	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
+	golang.org/x/net v0.0.0-20200505041828-1ed23360d12c
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	google.golang.org/api v0.22.0
@@ -55,6 +57,6 @@ require (
 	google.golang.org/grpc v1.27.1
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
 	gopkg.in/ini.v1 v1.51.1 // indirect
-	gopkg.in/square/go-jose.v2 v2.5.0
+	gopkg.in/square/go-jose.v2 v2.5.1
 	gopkg.in/yaml.v2 v2.2.8
 )

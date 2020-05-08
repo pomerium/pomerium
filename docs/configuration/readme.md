@@ -80,7 +80,7 @@ Enabling the debug flag will result in sensitive information being logged!!!
 
 :::
 
-By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)>). In production, it's recommended to be set to `false`.
+By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)>>>). In production, it's recommended to be set to `false`.
 
 For example, if `true`
 
@@ -127,23 +127,76 @@ Pomerium should _never_ be exposed to the internet without TLS encryption.
 
 :::
 
-### Certificate
+### Autocert
 
-- Environmental Variable: either `CERTIFICATE` or `CERTIFICATE_FILE`
-- Config File Key: `certificate` or `certificate_file`
-- Type: [base64 encoded] `string` or relative file location
-- Required
+- Environmental Variable: `AUTOCERT`
+- Config File Key: `autocert`
+- Type: `bool`
+- Optional
 
-Certificate is the x509 _public-key_ used to establish secure HTTP and gRPC connections.
+Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] for each of your managed pomerium routes as well as for the authenticate service. This setting must be used in conjunction with `Certificate Folder` as Autocert must have a place to persist, and share certificate data between services. Provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
 
-### Certificate Key
+This setting can be useful in a situation where you do not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
 
-- Environmental Variable: either `CERTIFICATE_KEY` or `CERTIFICATE_KEY_FILE`
-- Config File Key: `certificate_key` or `certificate_key_file`
+:::warning
+
+By using autocert, you agree to the [Let's Encrypt Subscriber Agreement](https://letsencrypt.org/documents/LE-SA-v1.2-November-15-2017.pdf). There are [_strict_ usage limits](https://letsencrypt.org/docs/rate-limits/) per domain you should be aware of. Consider testing with `autocert_use_staging` first.
+
+:::
+
+:::warning
+
+Autocert requires that port `443` be accessible from the internet in order to complete a [TLS-ALPN-01 challenge](https://letsencrypt.org/docs/challenge-types/#tls-alpn-01).
+
+:::
+
+### Autocert Directory
+
+- Environmental Variable: either `AUTOCERT_DIR`
+- Config File Key: `autocert_dir`
+- Type: `string` pointing to the path of the directory
+- Required if using Autocert setting
+- Default:
+  - `/data/autocert` in published Pomerium docker images 
+  - [$XDG_DATA_HOME](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
+  - `$HOME/.local/share/pomerium`
+
+Autocert directory is path in which autocert will store x509 certificate data.
+
+### Autocert Use Staging
+
+- Environmental Variable: `AUTOCERT_USE_STAGING`
+- Config File Key: `autocert_use_staging`
+- Type: `bool`
+- Optional
+
+Let's Encrypt has strict [usage limits](https://letsencrypt.org/docs/rate-limits/). Enabling this setting allows you to use Let's Encrypt's [staging environment](https://letsencrypt.org/docs/staging-environment/) which has much more lax usage limits.
+
+### Certificates
+
+- Config File Key: `certificates` (not yet settable using environmental variables)
+- Config File Key: `certificate` / `certificate_key`
+- Config File Key: `certificate_file` / `certificate_key_file`
+- Environmental Variable: `CERTIFICATE` / `CERTIFICATE_KEY`
+- Environmental Variable: `CERTIFICATE_FILE` / `CERTIFICATE_KEY_FILE`
+- Type: array of relative file locations `string`
 - Type: [base64 encoded] `string`
-- Required
+- Type: certificate relative file location `string`
+- Required (if insecure not set)
 
-Certificate key is the x509 _private-key_ used to establish secure HTTP and gRPC connections.
+Certificates are the x509 _public-key_ and _private-key_ used to establish secure HTTP and gRPC connections. Any combination of the above can be used together, and are additive. Use in conjunction with `Autocert` to get OCSP stapling.
+
+For example, if specifying multiple certificates at once:
+
+```yaml
+certificates:
+  - cert: "$HOME/.acme.sh/authenticate.example.com_ecc/fullchain.cer"
+    key: "$HOME/.acme.sh/authenticate.example.com_ecc/authenticate.example.com.key"
+  - cert: "$HOME/.acme.sh/httpbin.example.com_ecc/fullchain.cer"
+    key: "$HOME/.acme.sh/httpbin.example.com_ecc/httpbin.example.com.key"
+  - cert: "$HOME/.acme.sh/prometheus.example.com_ecc/fullchain.cer"
+    key: "$HOME/.acme.sh/prometheus.example.com_ecc/prometheus.example.com.key"
+```
 
 ### Global Timeouts
 
@@ -321,62 +374,62 @@ Expose a prometheus format HTTP endpoint on the specified port. Disabled by defa
 
 **Metrics tracked**
 
-Name                                          | Type      | Description
---------------------------------------------- | --------- | -----------------------------------------------------------------------
-boltdb_free_alloc_size_bytes                  | Gauge     | Bytes allocated in free pages
-boltdb_free_page_n                            | Gauge     | Number of free pages on the freelist
-boltdb_freelist_inuse_size_bytes              | Gauge     | Bytes used by the freelist
-boltdb_open_txn                               | Gauge     | number of currently open read transactions
-boltdb_pending_page_n                         | Gauge     | Number of pending pages on the freelist
-boltdb_txn                                    | Gauge     | total number of started read transactions
-boltdb_txn_cursor_total                       | Counter   | Total number of cursors created
-boltdb_txn_node_deref_total                   | Counter   | Total number of node dereferences
-boltdb_txn_node_total                         | Counter   | Total number of node allocations
-boltdb_txn_page_alloc_size_bytes_total        | Counter   | Total bytes allocated
-boltdb_txn_page_total                         | Counter   | Total number of page allocations
-boltdb_txn_rebalance_duration_ms_total        | Counter   | Total time spent rebalancing
-boltdb_txn_rebalance_total                    | Counter   | Total number of node rebalances
-boltdb_txn_spill_duration_ms_total            | Counter   | Total time spent spilling
-boltdb_txn_spill_total                        | Counter   | Total number of nodes spilled
-boltdb_txn_split_total                        | Counter   | Total number of nodes split
-boltdb_txn_write_duration_ms_total            | Counter   | Total time spent writing to disk
-boltdb_txn_write_total                        | Counter   | Total number of writes performed
-groupcache_cache_hits_total                   | Counter   | Total cache hits in local or cluster cache
-groupcache_cache_hits_total                   | Counter   | Total cache hits in local or cluster cache
-groupcache_gets_total                         | Counter   | Total get request, including from peers
-groupcache_loads_deduped_total                | Counter   | gets without cache hits after duplicate suppression
-groupcache_loads_total                        | Counter   | Total gets without cache hits
-groupcache_local_load_errs_total              | Counter   | Total local load errors
-groupcache_local_loads_total                  | Counter   | Total good local loads
-groupcache_peer_errors_total                  | Counter   | Total errors from peers
-groupcache_peer_loads_total                   | Counter   | Total remote loads or cache hits without error
-groupcache_server_requests_total              | Counter   | Total gets from peers
-grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service
-grpc_client_request_size_bytes                | Histogram | GRPC client request size by service
-grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service
-grpc_client_response_size_bytes               | Histogram | GRPC client response size by service
-grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service
-grpc_server_request_size_bytes                | Histogram | GRPC server request size by service
-grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service
-grpc_server_response_size_bytes               | Histogram | GRPC server response size by service
-http_client_request_duration_ms               | Histogram | HTTP client request duration by service
-http_client_request_size_bytes                | Histogram | HTTP client request size by service
-http_client_requests_total                    | Counter   | Total HTTP client requests made by service
-http_client_response_size_bytes               | Histogram | HTTP client response size by service
-http_server_request_duration_ms               | Histogram | HTTP server request duration by service
-http_server_request_size_bytes                | Histogram | HTTP server request size by service
-http_server_requests_total                    | Counter   | Total HTTP server requests handled by service
-http_server_response_size_bytes               | Histogram | HTTP server response size by service
-pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion
-pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service
-pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service
-pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service
-redis_conns                                   | Gauge     | Number of total connections in the pool
-redis_hits_total                              | Counter   | Total number of times free connection was found in the pool
-redis_idle_conns                              | Gauge     | Number of idle connections in the pool
-redis_misses_total                            | Counter   | Total number of times free connection was NOT found in the pool
-redis_stale_conns_total                       | Counter   | Total number of stale connections removed from the pool
-redis_timeouts_total                          | Counter   | Total number of times a wait timeout occurred
+| Name                                          | Type      | Description                                                             |
+| --------------------------------------------- | --------- | ----------------------------------------------------------------------- |
+| boltdb_free_alloc_size_bytes                  | Gauge     | Bytes allocated in free pages                                           |
+| boltdb_free_page_n                            | Gauge     | Number of free pages on the freelist                                    |
+| boltdb_freelist_inuse_size_bytes              | Gauge     | Bytes used by the freelist                                              |
+| boltdb_open_txn                               | Gauge     | number of currently open read transactions                              |
+| boltdb_pending_page_n                         | Gauge     | Number of pending pages on the freelist                                 |
+| boltdb_txn                                    | Gauge     | total number of started read transactions                               |
+| boltdb_txn_cursor_total                       | Counter   | Total number of cursors created                                         |
+| boltdb_txn_node_deref_total                   | Counter   | Total number of node dereferences                                       |
+| boltdb_txn_node_total                         | Counter   | Total number of node allocations                                        |
+| boltdb_txn_page_alloc_size_bytes_total        | Counter   | Total bytes allocated                                                   |
+| boltdb_txn_page_total                         | Counter   | Total number of page allocations                                        |
+| boltdb_txn_rebalance_duration_ms_total        | Counter   | Total time spent rebalancing                                            |
+| boltdb_txn_rebalance_total                    | Counter   | Total number of node rebalances                                         |
+| boltdb_txn_spill_duration_ms_total            | Counter   | Total time spent spilling                                               |
+| boltdb_txn_spill_total                        | Counter   | Total number of nodes spilled                                           |
+| boltdb_txn_split_total                        | Counter   | Total number of nodes split                                             |
+| boltdb_txn_write_duration_ms_total            | Counter   | Total time spent writing to disk                                        |
+| boltdb_txn_write_total                        | Counter   | Total number of writes performed                                        |
+| groupcache_cache_hits_total                   | Counter   | Total cache hits in local or cluster cache                              |
+| groupcache_cache_hits_total                   | Counter   | Total cache hits in local or cluster cache                              |
+| groupcache_gets_total                         | Counter   | Total get request, including from peers                                 |
+| groupcache_loads_deduped_total                | Counter   | gets without cache hits after duplicate suppression                     |
+| groupcache_loads_total                        | Counter   | Total gets without cache hits                                           |
+| groupcache_local_load_errs_total              | Counter   | Total local load errors                                                 |
+| groupcache_local_loads_total                  | Counter   | Total good local loads                                                  |
+| groupcache_peer_errors_total                  | Counter   | Total errors from peers                                                 |
+| groupcache_peer_loads_total                   | Counter   | Total remote loads or cache hits without error                          |
+| groupcache_server_requests_total              | Counter   | Total gets from peers                                                   |
+| grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service                                 |
+| grpc_client_request_size_bytes                | Histogram | GRPC client request size by service                                     |
+| grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service                              |
+| grpc_client_response_size_bytes               | Histogram | GRPC client response size by service                                    |
+| grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service                                 |
+| grpc_server_request_size_bytes                | Histogram | GRPC server request size by service                                     |
+| grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service                              |
+| grpc_server_response_size_bytes               | Histogram | GRPC server response size by service                                    |
+| http_client_request_duration_ms               | Histogram | HTTP client request duration by service                                 |
+| http_client_request_size_bytes                | Histogram | HTTP client request size by service                                     |
+| http_client_requests_total                    | Counter   | Total HTTP client requests made by service                              |
+| http_client_response_size_bytes               | Histogram | HTTP client response size by service                                    |
+| http_server_request_duration_ms               | Histogram | HTTP server request duration by service                                 |
+| http_server_request_size_bytes                | Histogram | HTTP server request size by service                                     |
+| http_server_requests_total                    | Counter   | Total HTTP server requests handled by service                           |
+| http_server_response_size_bytes               | Histogram | HTTP server response size by service                                    |
+| pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion |
+| pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service                      |
+| pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service              |
+| pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service    |
+| redis_conns                                   | Gauge     | Number of total connections in the pool                                 |
+| redis_hits_total                              | Counter   | Total number of times free connection was found in the pool             |
+| redis_idle_conns                              | Gauge     | Number of idle connections in the pool                                  |
+| redis_misses_total                            | Counter   | Total number of times free connection was NOT found in the pool         |
+| redis_stale_conns_total                       | Counter   | Total number of stale connections removed from the pool                 |
+| redis_timeouts_total                          | Counter   | Total number of times a wait timeout occurred                           |
 
 ### Tracing
 
@@ -386,10 +439,10 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 #### Shared Tracing Settings
 
-Config Key       | Description                                                       | Required
-:--------------- | :---------------------------------------------------------------- | --------
-tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅
-tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌
+| Config Key       | Description                                                       | Required |
+| :--------------- | :---------------------------------------------------------------- | -------- |
+| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅        |
+| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌        |
 
 #### Jaeger
 
@@ -401,10 +454,10 @@ tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/samplin
 - Service dependency analysis
 - Performance / latency optimization
 
-Config Key                        | Description                                 | Required
-:-------------------------------- | :------------------------------------------ | --------
-tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅
-tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅
+| Config Key                        | Description                                 | Required |
+| :-------------------------------- | :------------------------------------------ | -------- |
+| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
+| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
 
 #### Example
 

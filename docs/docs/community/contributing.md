@@ -5,7 +5,6 @@ sidebarDepth: 0
 meta:
   - name: keywords
     content: pomerium community contributing pr code
-
 description: >-
   This document describes how you can find issues to work on, fix/add
   documentation, and how setup Pomerium for local development.
@@ -93,4 +92,4 @@ We use [Netlify](https://www.netlify.com) to build and host our docs. One of nic
 [httpbin]: https://httpbin.org/
 [identity provider]: ../identity-providers/readme.md
 [make]: https://en.wikipedia.org/wiki/Make_(software)
-[wild-card tls certificate]: ../reference/certificates.md
+[tls certificates]: ../reference/certificates.md
