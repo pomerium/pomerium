@@ -11,6 +11,16 @@ allow {
 	route_policies[route].AllowPublicUnauthenticatedAccess == true
 }
 
+# allow cors preflight
+allow {
+	route := first_allowed_route(input.url)
+	route_policies[route].CORSAllowPreflight == true
+	input.method == "OPTIONS"
+	count(object.get(input.headers, "Access-Control-Request-Method", [])) > 0
+	count(object.get(input.headers, "Origin", [])) > 0
+}
+
+
 # allow by email
 allow {
 	route := first_allowed_route(input.url)
@@ -62,7 +72,6 @@ allow {
 	token.valid
 	count(deny)==0
 }
-
 # allow pomerium urls
 allow {
 	contains(input.url, "/.pomerium/")
