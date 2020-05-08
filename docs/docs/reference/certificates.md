@@ -8,7 +8,9 @@ meta:
 
 # Certificates
 
-[Certificates](https://en.wikipedia.org/wiki/X.509) and [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) play a vital role in [zero-trust][principles] networks, and in Pomerium. This document covers how to generate and set up wild-card certificates suitable for working with pomerium.
+[Certificates](https://en.wikipedia.org/wiki/X.509) and [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) play a vital role in [zero-trust][principles] networks, and in Pomerium.
+
+This document covers a few options in how to generate and set up TLS certificates suitable for working with pomerium.
 
 This guide uses the following tools and resources:
 
@@ -16,13 +18,7 @@ This guide uses the following tools and resources:
 - [Google Domains](https://domains.google.com/) registrar will be used to set up our wildcard domain and certificate validation. But any registrar would do and some providers support [automatic renewal](https://github.com/Neilpang/acme.sh/wiki/dnsapi).
 - [acme.sh](https://github.com/Neilpang/acme.sh) will be used to retrieve the wild-card domain certificate. Any [LetsEncrypt client](https://letsencrypt.org/docs/client-options/) that supports wildcard domains would work.
 
-It should be noted that there are countless ways of building and managing [public-key infrastructure](https://en.wikipedia.org/wiki/Public_key_infrastructure). And although we hope this guide serves as a helpful baseline for generating and securing pomerium with certificates, these instructions should be modified to meet your own organization's tools, needs, and constraints.
-
-::: warning
-
-LetsEncrypt certificates must be renewed [every 90 days](https://letsencrypt.org/2015/11/09/why-90-days.html).
-
-:::
+It should be noted that there are countless ways of building and managing [public-key infrastructure](https://en.wikipedia.org/wiki/Public_key_infrastructure). And although we hope this guide serves as a helpful baseline for generating and securing pomerium with certificates, these instructions should be modified to meet your own organization's tools, needs, and constraints. In a production environment you will likely be using your corporate load balancer, or a key management system to manage your certificate authority infrastructure.
 
 ## Why
 
@@ -32,40 +28,41 @@ Since one of Pomerium's core [principles] is to treat internal and external traf
 - Pomerium's services **regardless** of if the network is "trusted"
 - Pomerium and the destination application
 
-## How
+## Setting up DNS
 
 First, you'll want to set a [CNAME](https://en.wikipedia.org/wiki/CNAME_record) record for wild-card domain name you will be using with Pomerium.
 
 ![pomerium add a text entry to your dns records](./img/certificate-wildcard-domain.png)
 
-Once you've setup your wildcard domain, we can use acme.sh to create a certificate-signing request with LetsEncrypt.
+## Certificates
+
+### Per-route automatic certificates
+
+Pomerium itself can be used to retrieve, manage, and renew certificates certificates for free using Let's Encrypt, the only requirement is that Pomerium is able to receive public traffic on ports `80`/`443`. This is probably the easiest option.
+
+```yaml
+autocert: true
+```
+
+### Self-signed wildcard certificate
+
+In production, we'd use a public certificate authority such as LetsEncrypt. But for a local proof of concept or for development, we can use [mkcert](https://mkcert.dev/) to make locally trusted development certificates with any names you'd like. The easiest, is probably to use `*.localhost.pomerium.io` which we've already pre-configured to point back to localhost.
 
 ```bash
-# Requires acme.sh @ https://github.com/Neilpang/acme.sh
-# Install (after reviewing, obviously) by running :
-# $ curl https://get.acme.sh | sh
-$HOME/.acme.sh/acme.sh \
-    --issue \
-    -k ec-256 \
-    -d '*.corp.example.com' \
-    --dns \
-    --yes-I-know-dns-manual-mode-enough-go-ahead-please
-
-Creating domain key
-The domain key is here: $HOME/.acme.sh/*.corp.example.com_ecc/*.corp.example.com.key
-Single domain='*.corp.example.com'
-Getting domain auth token for each domain
-Getting webroot for domain='*.corp.example.com'
-Add the following TXT record:
-Domain: '_acme-challenge.corp.example.com'
-TXT value: 'Yz0B1Uf2xjyUI7Cr9-k96P2PQnw3RIK32dMViuvT58s'
-Please be aware that you prepend _acme-challenge. before your domain
-so the resulting subdomain will be: _acme-challenge.corp.example.com
-Please add the TXT records to the domains, and re-run with --renew.
-Please check log file for more details: $HOME/.acme.sh/acme.sh.log
-Removing DNS records.
-Not Found domain api file:
+# Install mkcert.
+go get -u github.com/FiloSottile/mkcert
+# Bootstrap mkcert's root certificate into your operating system's trust store.
+mkcert -install
+# Create your wildcard domain.
+# *.localhost.pomerium.io is helper domain we've hard-coded to route to localhost
+mkcert "*.localhost.pomerium.io"
 ```
+
+### Manual DNS Let's Encrypt wildcard certificate
+
+Once you've setup your wildcard domain, we can use acme.sh to create a certificate-signing request with LetsEncrypt.
+
+<<< @/docs/docs/reference/sh/generate_wildcard_cert.sh
 
 LetsEncrypt will respond with the corresponding `TXT` record needed to verify our domain.
 
@@ -73,46 +70,24 @@ LetsEncrypt will respond with the corresponding `TXT` record needed to verify ou
 
 It may take a few minutes for the DNS records to propagate. Once it does, you can run the following command to complete the certificate request process.
 
-```bash
-# Complete the certificate request now that we have validated our domain
-$HOME/.acme.sh/acme.sh \
-    --renew \
-    --ecc \
-    -k ec-256 \
-    -d '*.corp.example.com' \
-    --dns \
-    --yes-I-know-dns-manual-mode-enough-go-ahead-please
-
-Renew: '*.corp.example.com'
-Single domain='*.corp.example.com'
-Getting domain auth token for each domain
-Verifying: *.corp.example.com
-Success
-Verify finished, start to sign.
-Cert success.
------BEGIN CERTIFICATE-----
-.... snip...
------END CERTIFICATE-----
-Your cert is in  $HOME/.acme.sh/*.corp.example.com_ecc/*.corp.example.com.cer
-Your cert key is in  $HOME/.acme.sh/*.corp.example.com_ecc/*.corp.example.com.key
-The intermediate CA cert is in  $HOME/.acme.sh/*.corp.example.com_ecc/ca.cer
-And the full chain certs is there:  $HOME/.acme.sh/*.corp.example.com_ecc/fullchain.cer
-```
-
 Here's how the above certificates signed by LetsEncrypt correspond to their respective Pomerium configuration settings:
 
-| Pomerium Config             | Certificate file                                               |
-| --------------------------- | -------------------------------------------------------------- |
-| [CERTIFICATE]               | `$HOME/.acme.sh/*.corp.example.com_ecc/fullchain.cer`          |
-| [CERTIFICATE_KEY]           | `$HOME/.acme.sh/*.corp.example.com_ecc/*.corp.example.com.key` |
-| [CERTIFICATE_AUTHORITY]     | `$HOME/.acme.sh/*.corp.example.com_ecc/ca.cer`                 |
-| [OVERRIDE_CERTIFICATE_NAME] | `*.corp.example.com`                                           |
+Pomerium Config                | Certificate file
+------------------------------ | --------------------------------------------------------------
+[CERTIFICATE]                  | `$HOME/.acme.sh/*.corp.example.com_ecc/fullchain.cer`
+[CERTIFICATE_KEY][certificate] | `$HOME/.acme.sh/*.corp.example.com_ecc/*.corp.example.com.key`
 
 Your end users will see a valid certificate for all domains delegated by Pomerium.
 
 ![pomerium valid certificate](./img/certificates-valid-secure-certificate.png)
 
 ![pomerium certificates A+ ssl labs rating](./img/certificates-ssl-report.png)
+
+::: warning
+
+LetsEncrypt certificates must be renewed [every 90 days](https://letsencrypt.org/2015/11/09/why-90-days.html).
+
+:::
 
 ## Resources
 
@@ -123,9 +98,9 @@ Certificates, TLS, and Public Key Cryptography is a vast subject we cannot adequ
 - [Use TLS](https://smallstep.com/blog/use-tls.html) covers why TLS should be used everywhere; not just for securing typical internet traffic but for securing service communication in both "trusted" and adversarial situations.
 - [Everything you should know about certificates and PKI but are too afraid to ask](https://smallstep.com/blog/everything-pki.html)
 
-[certificate]: ../../configuration/readme.md#certificate
+[certificate]: ../../configuration/readme.md#certificates
 [certificate_authority]: ../../configuration/readme.md#certificate-authority
-[certificate_key]: ../../configuration/readme.md#certificate-key
+[certificate_key]: ../../configuration/readme.md#certificates
 [override_certificate_name]: ../../configuration/readme.md#override-certificate-name
 [principles]: ../docs/#why
 [zero-trust]: ../docs/#why

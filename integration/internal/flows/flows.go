@@ -25,6 +25,7 @@ type authenticateConfig struct {
 	tokenExpiration time.Duration
 }
 
+// An AuthenticateOption is an option for authentication.
 type AuthenticateOption func(cfg *authenticateConfig)
 
 func getAuthenticateConfig(options ...AuthenticateOption) *authenticateConfig {
@@ -37,18 +38,21 @@ func getAuthenticateConfig(options ...AuthenticateOption) *authenticateConfig {
 	return cfg
 }
 
+// WithEmail sets the email to use.
 func WithEmail(email string) AuthenticateOption {
 	return func(cfg *authenticateConfig) {
 		cfg.email = email
 	}
 }
 
+// WithGroups sets the groups to use.
 func WithGroups(groups ...string) AuthenticateOption {
 	return func(cfg *authenticateConfig) {
 		cfg.groups = groups
 	}
 }
 
+// WithTokenExpiration sets the token expiration.
 func WithTokenExpiration(tokenExpiration time.Duration) AuthenticateOption {
 	return func(cfg *authenticateConfig) {
 		cfg.tokenExpiration = tokenExpiration

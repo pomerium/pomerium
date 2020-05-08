@@ -17,7 +17,7 @@ import (
 	"github.com/google/go-jsonnet"
 	"github.com/rs/zerolog/log"
 
-	"github.com/pomerium/pomerium/integration/internal/httputil"
+	"github.com/pomerium/pomerium/integration/internal/netutil"
 )
 
 var requiredDeployments = []string{
@@ -56,13 +56,14 @@ func (cluster *Cluster) Setup(ctx context.Context) error {
 		return err
 	}
 
-	cluster.transport = httputil.NewLocalRoundTripper(&http.Transport{
+	cluster.Transport = &http.Transport{
+		DialContext: netutil.NewLocalDialer((&net.Dialer{}), map[string]string{
+			"443": hostport,
+		}).DialContext,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
-	}, map[string]string{
-		"443": hostport,
-	})
+	}
 
 	return nil
 }

@@ -20,18 +20,61 @@ local PomeriumPolicy = function() std.flattenArrays([
       to: 'http://' + domain + '.default.svc.cluster.local',
       allowed_groups: ['admin'],
     },
+    // cors_allow_preflight option
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+      prefix: '/cors-enabled',
+      cors_allow_preflight: true,
+    },
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+      prefix: '/cors-disabled',
+      cors_allow_preflight: false,
+    },
+    // preserve_host_header option
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+      path: '/preserve-host-header-enabled',
+      allow_public_unauthenticated_access: true,
+      preserve_host_header: true,
+    },
+    {
+      from: 'http://' + domain + '.localhost.pomerium.io',
+      to: 'http://' + domain + '.default.svc.cluster.local',
+      path: '/preserve-host-header-disabled',
+      allow_public_unauthenticated_access: true,
+      preserve_host_header: false,
+    },
     {
       from: 'http://' + domain + '.localhost.pomerium.io',
       to: 'http://' + domain + '.default.svc.cluster.local',
       allow_public_unauthenticated_access: true,
+      set_request_headers: {
+        'X-Custom-Request-Header': 'custom-request-header-value',
+      },
     },
     {
       from: 'http://restricted-' + domain + '.localhost.pomerium.io',
       to: 'http://' + domain + '.default.svc.cluster.local',
     },
   ]
-  for domain in ['httpdetails', 'fa-httpdetails']
-]);
+  for domain in ['httpdetails', 'fa-httpdetails', 'ws-echo']
+]) + [
+  {
+    from: 'http://enabled-ws-echo.localhost.pomerium.io',
+    to: 'http://ws-echo.default.svc.cluster.local',
+    allow_public_unauthenticated_access: true,
+    allow_websockets: true,
+  },
+  {
+    from: 'http://disabled-ws-echo.localhost.pomerium.io',
+    to: 'http://ws-echo.default.svc.cluster.local',
+    allow_public_unauthenticated_access: true,
+  },
+];
 
 local PomeriumPolicyHash = std.base64(std.md5(std.manifestJsonEx(PomeriumPolicy(), '')));
 
@@ -232,6 +275,8 @@ local PomeriumIngress = function() {
     'httpecho.localhost.pomerium.io',
     'httpdetails.localhost.pomerium.io',
     'restricted-httpdetails.localhost.pomerium.io',
+    'enabled-ws-echo.localhost.pomerium.io',
+    'disabled-ws-echo.localhost.pomerium.io',
   ],
 
   apiVersion: 'extensions/v1beta1',

@@ -60,7 +60,11 @@ func New(opts config.Options) (*Authorize, error) {
 	}
 	var a Authorize
 
-	encoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.AuthenticateURL.Host)
+	var host string
+	if opts.AuthenticateURL != nil {
+		host = opts.AuthenticateURL.Host
+	}
+	encoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), host)
 	if err != nil {
 		return nil, err
 	}
