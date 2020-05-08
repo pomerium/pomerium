@@ -110,6 +110,36 @@ test_pomerium_denied {
 	}
 }
 
+test_cors_preflight_allowed {
+	allow with data.route_policies as [{
+		"source": "example.com",
+		"allowed_users": ["bob@example.com"],
+		"CORSAllowPreflight": true
+	}] with input as {
+		"url": "http://example.com/",
+		"host": "example.com",
+		"method": "OPTIONS",
+		"headers": {
+			"Origin": ["someorigin"],
+			"Access-Control-Request-Method": ["GET"]
+		}
+	}
+}
+test_cors_preflight_denied {
+	not allow with data.route_policies as [{
+		"source": "example.com",
+		"allowed_users": ["bob@example.com"]
+	}] with input as {
+		"url": "http://example.com/",
+		"host": "example.com",
+		"method": "OPTIONS",
+		"headers": {
+			"Origin": ["someorigin"],
+			"Access-Control-Request-Method": ["GET"]
+		}
+	}
+}
+
 test_parse_url {
 	url := parse_url("http://example.com/some/path?qs")
 	url.scheme == "http"
