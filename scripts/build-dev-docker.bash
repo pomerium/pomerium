@@ -40,11 +40,5 @@ ENTRYPOINT [ "/bin/pomerium" ]
 CMD ["-config","/pomerium/config.yaml"]
 EOF
   docker build --tag=pomerium/pomerium:dev .
-
-  # build for minikube
-  if command -v minikube >/dev/null 2>&1; then
-    eval "$(minikube docker-env --shell=bash)"
-    docker build --tag=pomerium/pomerium:dev .
-  fi
-
+  kind load docker-image pomerium/pomerium:dev
 )

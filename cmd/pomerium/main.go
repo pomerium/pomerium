@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
@@ -179,7 +180,11 @@ func setupMetrics(opt *config.Options, wg *sync.WaitGroup) error {
 		}
 		metrics.SetBuildInfo(opt.Services)
 		metrics.RegisterInfoMetrics()
-		serverOpts := &httputil.ServerOptions{Addr: opt.MetricsAddr}
+		serverOpts := &httputil.ServerOptions{
+			Addr:     opt.MetricsAddr,
+			Insecure: true,
+			Service:  "metrics",
+		}
 		srv, err := httputil.NewServer(serverOpts, handler, wg)
 		if err != nil {
 			return err
@@ -220,8 +225,20 @@ func setupTracing(opt *config.Options) error {
 
 func setupHTTPRedirectServer(opt *config.Options, wg *sync.WaitGroup) error {
 	if opt.HTTPRedirectAddr != "" {
-		serverOpts := httputil.ServerOptions{Addr: opt.HTTPRedirectAddr}
-		srv, err := httputil.NewServer(&serverOpts, httputil.RedirectHandler(), wg)
+		serverOpts := httputil.ServerOptions{
+			Addr:              opt.HTTPRedirectAddr,
+			Insecure:          true,
+			Service:           "HTTP->HTTPS Redirect",
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       5 * time.Second,
+			WriteTimeout:      5 * time.Second,
+			IdleTimeout:       5 * time.Second,
+		}
+		h := httputil.RedirectHandler()
+		if opt.AutoCert {
+			h = opt.AutoCertHandler(h)
+		}
+		srv, err := httputil.NewServer(&serverOpts, h, wg)
 		if err != nil {
 			return err
 		}
@@ -233,10 +250,12 @@ func setupHTTPRedirectServer(opt *config.Options, wg *sync.WaitGroup) error {
 func httpServerOptions(opt *config.Options) *httputil.ServerOptions {
 	return &httputil.ServerOptions{
 		Addr:              opt.Addr,
-		TLSCertificate:    opt.TLSCertificate,
+		TLSConfig:         opt.TLSConfig,
+		Insecure:          opt.InsecureServer,
 		ReadTimeout:       opt.ReadTimeout,
 		WriteTimeout:      opt.WriteTimeout,
 		ReadHeaderTimeout: opt.ReadHeaderTimeout,
 		IdleTimeout:       opt.IdleTimeout,
+		Service:           opt.Services,
 	}
 }
