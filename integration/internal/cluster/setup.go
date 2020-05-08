@@ -15,8 +15,9 @@ import (
 	"time"
 
 	"github.com/google/go-jsonnet"
-	"github.com/pomerium/pomerium/integration/internal/httputil"
 	"github.com/rs/zerolog/log"
+
+	"github.com/pomerium/pomerium/integration/internal/httputil"
 )
 
 var requiredDeployments = []string{

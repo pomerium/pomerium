@@ -12,7 +12,6 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/grpc/authorize"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -43,8 +42,23 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 
 	var requestHeaders []*envoy_api_v2_core.HeaderValueOption
 	sess, sesserr := a.loadSessionFromCheckRequest(in)
+	if a.isExpired(sess) {
+		log.Info().Msg("refreshing session")
+		if newSession, err := a.refreshSession(ctx, sess); err == nil {
+			sess = newSession
+			sesserr = nil
+			requestHeaders, err = a.getEnvoyRequestHeaders(sess)
+			if err != nil {
+				log.Warn().Err(err).Msg("authorize: error generating new request headers")
+			}
+		} else {
+			log.Warn().Err(err).Msg("authorize: error refreshing session")
+		}
+	}
+
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
+		User:       string(sess),
 		Header:     hdrs,
 		Host:       hattrs.GetHost(),
 		Method:     hattrs.GetMethod(),
@@ -52,29 +66,9 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 		RemoteAddr: in.GetAttributes().GetSource().GetAddress().String(),
 		URL:        requestURL.String(),
 	}
-	var reply *authorize.IsAuthorizedReply
-	for {
-		req.User = string(sess)
-
-		var err error
-		reply, err = a.pe.IsAuthorized(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-		if reply.SessionExpired {
-			if newSession, err := a.refreshSession(ctx, sess); err == nil {
-				sess = newSession
-				sesserr = nil
-				requestHeaders, err = a.getEnvoyRequestHeaders(sess)
-				if err != nil {
-					log.Warn().Err(err).Msg("authorize: error generating new request headers")
-				}
-				continue
-			} else {
-				log.Warn().Err(err).Msg("authorize: error refreshing session")
-			}
-		}
-		break
+	reply, err := a.pe.IsAuthorized(ctx, req)
+	if err != nil {
+		return nil, err
 	}
 
 	evt := log.Info().Str("service", "authorize")
@@ -90,6 +84,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	evt = evt.Strs("deny-reasons", reply.GetDenyReasons())
 	evt = evt.Str("email", reply.GetEmail())
 	evt = evt.Strs("groups", reply.GetGroups())
+	evt = evt.Str("session", string(sess))
 	evt.Msg("authorize check")
 
 	if reply.Allow {
@@ -103,27 +98,25 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 		}, nil
 	}
 
-	if !reply.SessionExpired {
-		switch sesserr {
-		case sessions.ErrExpired, sessions.ErrIssuedInTheFuture, sessions.ErrMalformed, sessions.ErrNoSessionFound, sessions.ErrNotValidYet:
-			// redirect to login
-		default:
-			var msg string
-			if sesserr != nil {
-				msg = sesserr.Error()
-			}
-			// all other errors
-			return &envoy_service_auth_v2.CheckResponse{
-				Status: &status.Status{Code: int32(codes.PermissionDenied), Message: msg},
-				HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-						Status: &envoy_type.HttpStatus{
-							Code: envoy_type.StatusCode_Forbidden,
-						},
+	switch sesserr {
+	case sessions.ErrExpired, sessions.ErrIssuedInTheFuture, sessions.ErrMalformed, sessions.ErrNoSessionFound, sessions.ErrNotValidYet:
+		// redirect to login
+	default:
+		var msg string
+		if sesserr != nil {
+			msg = sesserr.Error()
+		}
+		// all other errors
+		return &envoy_service_auth_v2.CheckResponse{
+			Status: &status.Status{Code: int32(codes.PermissionDenied), Message: msg},
+			HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
+				DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
+					Status: &envoy_type.HttpStatus{
+						Code: envoy_type.StatusCode_Forbidden,
 					},
 				},
-			}, nil
-		}
+			},
+		}, nil
 	}
 
 	// no redirect for forward auth, that's handled by a separate config setting
@@ -200,7 +193,7 @@ func (a *Authorize) refreshSession(ctx context.Context, rawSession []byte) (newS
 
 	var state sessions.State
 	if err := encoder.Unmarshal(rawSession, &state); err != nil {
-		return nil, fmt.Errorf("error unmarshaling raw sessions: %w", err)
+		return nil, fmt.Errorf("error unmarshaling raw session: %w", err)
 	}
 
 	// 1 - build a signed url to call refresh on authenticate service
@@ -249,6 +242,12 @@ func (a *Authorize) loadSessionFromCheckRequest(req *envoy_service_auth_v2.Check
 	}
 
 	return []byte(sess), nil
+}
+
+func (a *Authorize) isExpired(rawSession []byte) bool {
+	state := sessions.State{}
+	err := a.currentEncoder.Load().Unmarshal(rawSession, &state)
+	return err == nil && state.IsExpired()
 }
 
 func (a *Authorize) getCookieStore() (sessions.SessionStore, error) {
