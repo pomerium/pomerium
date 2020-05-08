@@ -3,6 +3,7 @@ package httputil
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	stdlog "log"
 	"net"
@@ -25,15 +26,24 @@ func NewServer(opt *ServerOptions, h http.Handler, wg *sync.WaitGroup) (*http.Se
 	} else {
 		opt.applyServerDefaults()
 	}
+	sublogger := log.With().
+		Str("service", opt.Service).
+		Bool("insecure", opt.Insecure).
+		Str("addr", opt.Addr).
+		Logger()
+
+	if !opt.Insecure && opt.TLSConfig == nil {
+		return nil, errors.New("internal/httputil: server must run in insecure mode or have a valid tls config")
+	}
 
 	ln, err := net.Listen("tcp", opt.Addr)
 	if err != nil {
 		return nil, err
 	}
-	if opt.TLSCertificate != nil {
-		ln = tls.NewListener(ln, newDefaultTLSConfig(opt.TLSCertificate))
+
+	if !opt.Insecure {
+		ln = tls.NewListener(ln, opt.TLSConfig)
 	}
-	sublogger := log.With().Str("addr", opt.Addr).Logger()
 
 	// Set up the main server.
 	srv := &http.Server{
@@ -54,38 +64,6 @@ func NewServer(opt *ServerOptions, h http.Handler, wg *sync.WaitGroup) (*http.Se
 	sublogger.Info().Msg("internal/httputil: http server started")
 
 	return srv, nil
-}
-
-// newDefaultTLSConfig creates a new TLS config based on the certificate files given.
-// See :
-// https://wiki.mozilla.org/Security/Server_Side_TLS#Recommended_configurations
-// https://blog.cloudflare.com/exposing-go-on-the-internet/
-// https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices
-// https://github.com/golang/go/blob/df91b8044dbe790c69c16058330f545be069cc1f/src/crypto/tls/common.go#L919
-func newDefaultTLSConfig(cert *tls.Certificate) *tls.Config {
-	tlsConfig := &tls.Config{
-		MinVersion: tls.VersionTLS12,
-		// Prioritize cipher suites sped up by AES-NI (AES-GCM)
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-		},
-		PreferServerCipherSuites: true,
-		// Use curves which have assembly implementations
-		CurvePreferences: []tls.CurveID{
-			tls.X25519,
-			tls.CurveP256,
-		},
-		Certificates: []tls.Certificate{*cert},
-		// HTTP/2 must be enabled manually when using http.Serve
-		NextProtos: []string{"h2"},
-	}
-	tlsConfig.BuildNameToCertificate()
-	return tlsConfig
 }
 
 // RedirectHandler takes an incoming request and redirects to its HTTPS counterpart

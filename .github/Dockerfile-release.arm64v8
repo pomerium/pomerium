@@ -2,6 +2,7 @@ FROM busybox:latest as build
 RUN touch /config.yaml
 
 FROM arm64v8/alpine
+ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
 COPY --from=multiarch/qemu-user-static /usr/bin/qemu-aarch64-static /usr/bin/
 RUN apk --no-cache add ca-certificates

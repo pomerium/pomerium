@@ -1,7 +1,7 @@
 package httputil
 
 import (
-	"encoding/base64"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -15,32 +15,13 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/pomerium/pomerium/internal/cryptutil"
 )
 
-const privKey = `-----BEGIN EC PRIVATE KEY-----
-MHcCAQEEIMQiDy26/R4ca/OdnjIf8OEDeHcw8yB5SDV9FD500CW5oAoGCCqGSM49
-AwEHoUQDQgAEFumdSrEe9dnPEUU3LuyC8l6MM6PefNgpSsRL4GrD22XITMjqDKFr
-jqJTf0Fo1ZWm4v+Eds6s88rsLzEC+cKLRQ==
------END EC PRIVATE KEY-----`
-const pubKey = `-----BEGIN CERTIFICATE-----
-MIIBeDCCAR+gAwIBAgIUUGE8w2S7XzpkVLbNq5QUxyVOwqEwCgYIKoZIzj0EAwIw
-ETEPMA0GA1UEAwwGdW51c2VkMCAXDTE5MDcxNTIzNDQyOVoYDzQ3NTcwNjExMjM0
-NDI5WjARMQ8wDQYDVQQDDAZ1bnVzZWQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
-AAQW6Z1KsR712c8RRTcu7ILyXowzo9582ClKxEvgasPbZchMyOoMoWuOolN/QWjV
-labi/4R2zqzzyuwvMQL5wotFo1MwUTAdBgNVHQ4EFgQURYdcaniRqBHXeaM79LtV
-pyJ4EwAwHwYDVR0jBBgwFoAURYdcaniRqBHXeaM79LtVpyJ4EwAwDwYDVR0TAQH/
-BAUwAwEB/zAKBggqhkjOPQQDAgNHADBEAiBHbhVnGbwXqaMZ1dB8eBAK56jyeWDZ
-2PWXmFMTu7+RywIgaZ7UwVNB2k7KjEEBiLm0PIRcpJmczI2cP9+ZMIkPHHw=
------END CERTIFICATE-----`
-
 func TestNewServer(t *testing.T) {
-	certb64, err := cryptutil.CertifcateFromBase64(
-		base64.StdEncoding.EncodeToString([]byte(pubKey)),
-		base64.StdEncoding.EncodeToString([]byte(privKey)))
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	// to support envs that won't let us use 443 without root
+	defaultServerOptions.Addr = ":0"
+
 	t.Parallel()
 	tests := []struct {
 		name        string
@@ -52,37 +33,51 @@ func TestNewServer(t *testing.T) {
 
 		{"good basic http handler",
 			&ServerOptions{
-				Addr:           "127.0.0.1:0",
-				TLSCertificate: certb64,
+				Addr:     ":0",
+				Insecure: true,
 			},
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
 			false},
-		// todo(bdd): fails travis-ci
-		// {"good no address",
-		// 	&ServerOptions{
-		// 		TLSCertificate: certb64,
-		// 	},
-		// 	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 		fmt.Fprintln(w, "Hello, http")
-		// 	}),
-		// 	false},
-		// todo(bdd): fails travis-ci
-		// {"empty handler",
-		// nil,
-		// http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 	fmt.Fprintln(w, "Hello, http")
-		// }),
-		// false},
+		{"bad neither insecure nor certs set",
+			&ServerOptions{
+				Addr: ":0",
+			},
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintln(w, "Hello, http")
+			}),
+			true},
+		{"good no address",
+			&ServerOptions{
+				Insecure: true,
+			},
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintln(w, "Hello, http")
+			}),
+			false},
+		{"empty handler",
+			nil,
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintln(w, "Hello, http")
+			}),
+			true},
 		{"bad port - invalid port range ",
 			&ServerOptions{
-				Addr:           "127.0.0.1:65536",
-				TLSCertificate: certb64,
+				Addr:     ":65536",
+				Insecure: true,
 			}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
 			true},
+		{"good tls set",
+			&ServerOptions{
+				TLSConfig: &tls.Config{},
+			},
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintln(w, "Hello, http")
+			}),
+			false},
 	}
 
 	for _, tt := range tests {
