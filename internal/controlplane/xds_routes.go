@@ -133,6 +133,9 @@ func (srv *Server) buildPolicyRoutes(options config.Options, domain string) []*e
 						UpgradeType: "websocket",
 						Enabled:     &wrappers.BoolValue{Value: policy.AllowWebsockets},
 					}},
+					HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
+						AutoHostRewrite: &wrappers.BoolValue{Value: !policy.PreserveHostHeader},
+					},
 				},
 			},
 		})
