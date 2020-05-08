@@ -116,7 +116,7 @@ function envoy_on_response(response_handle)
   local headers = response_handle:headers()
   local dynamic_meta = response_handle:streamInfo():dynamicMetadata()
   local tbl = dynamic_meta:get("envoy.filters.http.lua")
-  if tbl["pomerium_set_cookie"] ~= nil then
+  if tbl ~= nil and tbl["pomerium_set_cookie"] ~= nil then
     headers:add("set-cookie", tbl["pomerium_set_cookie"])
   end
 end
