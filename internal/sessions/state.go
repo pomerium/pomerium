@@ -72,7 +72,6 @@ func NewStateFromTokens(idToken *oidc.IDToken, accessToken *oauth2.Token, audien
 	s.Audience = []string{audience}
 	s.idToken = idToken
 	s.AccessToken = accessToken
-	s.Expiry = jwt.NewNumericDate(accessToken.Expiry)
 	s.AccessTokenID = s.accessTokenHash()
 	return s, nil
 }
