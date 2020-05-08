@@ -75,6 +75,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	// request
 	evt = evt.Str("request-id", hattrs.GetId())
 	evt = evt.Str("method", hattrs.GetMethod())
+	evt = evt.Interface("headers", hdrs)
 	evt = evt.Str("path", hattrs.GetPath())
 	evt = evt.Str("host", hattrs.GetHost())
 	evt = evt.Str("query", hattrs.GetQuery())
