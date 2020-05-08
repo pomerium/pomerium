@@ -6,6 +6,7 @@ import (
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes/wrappers"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -128,6 +129,10 @@ func (srv *Server) buildPolicyRoutes(options config.Options, domain string) []*e
 					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
 						Cluster: clusterName,
 					},
+					UpgradeConfigs: []*envoy_config_route_v3.RouteAction_UpgradeConfig{{
+						UpgradeType: "websocket",
+						Enabled:     &wrappers.BoolValue{Value: policy.AllowWebsockets},
+					}},
 				},
 			},
 		})
