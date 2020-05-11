@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pomerium/pomerium/integration/internal/forms"
 )
@@ -17,9 +19,50 @@ const (
 	pomeriumCallbackPath = "/.pomerium/callback/"
 )
 
+type authenticateConfig struct {
+	email           string
+	groups          []string
+	tokenExpiration time.Duration
+}
+
+// An AuthenticateOption is an option for authentication.
+type AuthenticateOption func(cfg *authenticateConfig)
+
+func getAuthenticateConfig(options ...AuthenticateOption) *authenticateConfig {
+	cfg := &authenticateConfig{
+		tokenExpiration: time.Hour * 24,
+	}
+	for _, option := range options {
+		option(cfg)
+	}
+	return cfg
+}
+
+// WithEmail sets the email to use.
+func WithEmail(email string) AuthenticateOption {
+	return func(cfg *authenticateConfig) {
+		cfg.email = email
+	}
+}
+
+// WithGroups sets the groups to use.
+func WithGroups(groups ...string) AuthenticateOption {
+	return func(cfg *authenticateConfig) {
+		cfg.groups = groups
+	}
+}
+
+// WithTokenExpiration sets the token expiration.
+func WithTokenExpiration(tokenExpiration time.Duration) AuthenticateOption {
+	return func(cfg *authenticateConfig) {
+		cfg.tokenExpiration = tokenExpiration
+	}
+}
+
 // Authenticate submits a request to a URL, expects a redirect to authenticate and then openid and logs in.
 // Finally it expects to redirect back to the original page.
-func Authenticate(ctx context.Context, client *http.Client, url *url.URL, email string, groups []string) (*http.Response, error) {
+func Authenticate(ctx context.Context, client *http.Client, url *url.URL, options ...AuthenticateOption) (*http.Response, error) {
+	cfg := getAuthenticateConfig(options...)
 	originalHostname := url.Hostname()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
@@ -68,8 +111,11 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, email 
 		forms := forms.Parse(res.Body)
 		if len(forms) > 0 {
 			f := forms[0]
-			f.Inputs["email"] = email
-			f.Inputs["groups"] = strings.Join(groups, ",")
+			f.Inputs["email"] = cfg.email
+			if len(cfg.groups) > 0 {
+				f.Inputs["groups"] = strings.Join(cfg.groups, ",")
+			}
+			f.Inputs["token_expiration"] = strconv.Itoa(int(cfg.tokenExpiration.Seconds()))
 			req, err = f.NewRequestWithContext(ctx, req.URL)
 			if err != nil {
 				return nil, err
