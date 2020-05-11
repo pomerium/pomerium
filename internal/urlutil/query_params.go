@@ -11,6 +11,7 @@ const (
 	QueryIsProgrammatic    = "pomerium_programmatic"
 	QueryForwardAuth       = "pomerium_forward_auth"
 	QueryPomeriumJWT       = "pomerium_jwt"
+	QuerySession           = "pomerium_session"
 	QuerySessionEncrypted  = "pomerium_session_encrypted"
 	QueryRedirectURI       = "pomerium_redirect_uri"
 	QueryRefreshToken      = "pomerium_refresh_token"

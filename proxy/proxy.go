@@ -127,7 +127,7 @@ func New(opts config.Options) (*Proxy, error) {
 		sessionStore:    cookieStore,
 		sessionLoaders: []sessions.SessionLoader{
 			cookieStore,
-			header.NewStore(encoder, "Pomerium"),
+			header.NewStore(encoder, httputil.AuthorizationTypePomerium),
 			queryparam.NewStore(encoder, "pomerium_session")},
 		templates:       template.Must(frontend.NewTemplates()),
 		jwtClaimHeaders: opts.JWTClaimsHeaders,

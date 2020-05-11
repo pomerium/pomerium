@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/grpc"
 	"github.com/pomerium/pomerium/internal/grpc/cache/client"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -151,7 +152,7 @@ func New(opts config.Options) (*Authenticate, error) {
 		WrappedStore: cookieStore})
 
 	qpStore := queryparam.NewStore(encryptedEncoder, "pomerium_programmatic_token")
-	headerStore := header.NewStore(encryptedEncoder, "Pomerium")
+	headerStore := header.NewStore(encryptedEncoder, httputil.AuthorizationTypePomerium)
 
 	redirectURL, _ := urlutil.DeepCopy(opts.AuthenticateURL)
 	redirectURL.Path = opts.AuthenticateCallbackPath
