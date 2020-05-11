@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strings"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 
@@ -37,11 +35,12 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	isForwardAuth := handleForwardAuth(opts, in)
 
 	hattrs := in.GetAttributes().GetRequest().GetHttp()
+	hreq := getHTTPRequestFromCheckRequest(in)
 
 	hdrs := getCheckRequestHeaders(in)
 
 	var requestHeaders []*envoy_api_v2_core.HeaderValueOption
-	sess, sesserr := a.loadSessionFromCheckRequest(in)
+	sess, sesserr := loadSession(hreq, a.currentOptions.Load(), a.currentEncoder.Load())
 	if a.isExpired(sess) {
 		log.Info().Msg("refreshing session")
 		if newSession, err := a.refreshSession(ctx, sess); err == nil {
@@ -162,27 +161,24 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 }
 
 func (a *Authorize) getEnvoyRequestHeaders(rawSession []byte) ([]*envoy_api_v2_core.HeaderValueOption, error) {
-	cookieStore, err := a.getCookieStore()
+	cookieStore, err := getCookieStore(a.currentOptions.Load(), a.currentEncoder.Load())
 	if err != nil {
 		return nil, err
 	}
 
-	recorder := httptest.NewRecorder()
-	err = cookieStore.SaveSession(recorder, nil /* unused by cookie store */, string(rawSession))
+	hdrs, err := getJWTSetCookieHeaders(cookieStore, rawSession)
 	if err != nil {
-		return nil, fmt.Errorf("authorize: error saving cookie: %w", err)
+		return nil, err
 	}
 
 	var hvos []*envoy_api_v2_core.HeaderValueOption
-	for k, vs := range recorder.Header() {
-		for _, v := range vs {
-			hvos = append(hvos, &envoy_api_v2_core.HeaderValueOption{
-				Header: &envoy_api_v2_core.HeaderValue{
-					Key:   "x-pomerium-" + k,
-					Value: v,
-				},
-			})
-		}
+	for k, v := range hdrs {
+		hvos = append(hvos, &envoy_api_v2_core.HeaderValueOption{
+			Header: &envoy_api_v2_core.HeaderValue{
+				Key:   "x-pomerium-" + k,
+				Value: v,
+			},
+		})
 	}
 
 	return hvos, nil
@@ -229,59 +225,22 @@ func (a *Authorize) refreshSession(ctx context.Context, rawSession []byte) (newS
 	return newJwt, nil
 }
 
-func (a *Authorize) loadSessionFromCheckRequest(req *envoy_service_auth_v2.CheckRequest) ([]byte, error) {
-	cookieStore, err := a.getCookieStore()
-	if err != nil {
-		return nil, err
-	}
-
-	sess, err := cookieStore.LoadSession(&http.Request{
-		Header: getCheckRequestHeaders(req),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(sess), nil
-}
-
 func (a *Authorize) isExpired(rawSession []byte) bool {
 	state := sessions.State{}
 	err := a.currentEncoder.Load().Unmarshal(rawSession, &state)
 	return err == nil && state.IsExpired()
 }
 
-func (a *Authorize) getCookieStore() (sessions.SessionStore, error) {
-	opts := a.currentOptions.Load()
-	encoder := a.currentEncoder.Load()
-
-	cookieOptions := &cookie.Options{
-		Name:     opts.CookieName,
-		Domain:   opts.CookieDomain,
-		Secure:   opts.CookieSecure,
-		HTTPOnly: opts.CookieHTTPOnly,
-		Expire:   opts.CookieExpire,
+func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v2.CheckRequest) *http.Request {
+	hattrs := req.GetAttributes().GetRequest().GetHttp()
+	return &http.Request{
+		Method:     hattrs.GetMethod(),
+		URL:        getCheckRequestURL(req),
+		Header:     getCheckRequestHeaders(req),
+		Body:       ioutil.NopCloser(strings.NewReader(hattrs.GetBody())),
+		Host:       hattrs.GetHost(),
+		RequestURI: hattrs.GetPath(),
 	}
-
-	cookieStore, err := cookie.NewStore(cookieOptions, encoder)
-	if err != nil {
-		return nil, err
-	}
-	return cookieStore, nil
-}
-
-func getFullURL(rawurl, host string) string {
-	u, err := url.Parse(rawurl)
-	if err != nil {
-		u = &url.URL{Path: rawurl}
-	}
-	if u.Host == "" {
-		u.Host = host
-	}
-	if u.Scheme == "" {
-		u.Scheme = "http"
-	}
-	return u.String()
 }
 
 func getCheckRequestHeaders(req *envoy_service_auth_v2.CheckRequest) map[string][]string {
