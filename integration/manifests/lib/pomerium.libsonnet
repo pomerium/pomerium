@@ -122,6 +122,7 @@ local PomeriumDeployment = function(svc) {
           ip: '10.96.1.1',
           hostnames: [
             'openid.localhost.pomerium.io',
+            'authenticate.localhost.pomerium.io'
           ],
         }],
         initContainers: [
