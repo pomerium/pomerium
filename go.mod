@@ -44,7 +44,7 @@ require (
 	go.etcd.io/bbolt v1.3.4
 	go.opencensus.io v0.22.3
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
-	golang.org/x/net v0.0.0-20200505041828-1ed23360d12c
+	golang.org/x/net v0.0.0-20200506145744-7e3656a0809f
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	google.golang.org/api v0.23.0
 	google.golang.org/appengine v1.6.5 // indirect
