@@ -43,6 +43,10 @@ type Options struct {
 	// Possible options are "info","warn", and "error". Defaults to "debug".
 	LogLevel string `mapstructure:"log_level" yaml:"log_level,omitempty"`
 
+	// ProxyLogLevel sets the log level for the proxy service.
+	// Possible options are "info","warn", and "error". Defaults to the value of `LogLevel`.
+	ProxyLogLevel string `mapstructure:"proxy_log_level" yaml:"proxy_log_level,omitempty"`
+
 	// SharedKey is the shared secret authorization key used to mutually authenticate
 	// requests between services.
 	SharedKey string `mapstructure:"shared_secret" yaml:"shared_secret,omitempty"`

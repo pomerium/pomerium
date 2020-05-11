@@ -56,7 +56,22 @@ func (srv *Server) buildDiscoveryResponse(version string, typeURL string, option
 	}
 }
 
-func (srv *Server) buildAccessLog() *envoy_config_accesslog_v3.AccessLog {
+func (srv *Server) buildAccessLogs(options config.Options) []*envoy_config_accesslog_v3.AccessLog {
+	lvl := options.ProxyLogLevel
+	if lvl == "" {
+		lvl = options.LogLevel
+	}
+	if lvl == "" {
+		lvl = "debug"
+	}
+
+	switch lvl {
+	case "trace", "debug", "info":
+	default:
+		// don't log access requests for levels > info
+		return nil
+	}
+
 	tc, _ := ptypes.MarshalAny(&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{
 		CommonConfig: &envoy_extensions_access_loggers_grpc_v3.CommonGrpcAccessLogConfig{
 			LogName: "ingress-http",
@@ -69,10 +84,10 @@ func (srv *Server) buildAccessLog() *envoy_config_accesslog_v3.AccessLog {
 			},
 		},
 	})
-	return &envoy_config_accesslog_v3.AccessLog{
+	return []*envoy_config_accesslog_v3.AccessLog{{
 		Name:       "envoy.access_loggers.http_grpc",
 		ConfigType: &envoy_config_accesslog_v3.AccessLog_TypedConfig{TypedConfig: tc},
-	}
+	}}
 }
 
 func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Address {
