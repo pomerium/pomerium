@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.8.0
+
+### Changes
+
+- integration-tests: set_request_headers and preserve_host_header options @calebdoxsey GH-668
+- pre-commit: add pre-commit configuration @calebdoxsey GH-666
+- integration-tests: add CORS test @calebdoxsey GH-662
+- renovate: Update Renovate option should be a list @calebdoxsey GH-665
+- renovate: Update Renovate to run go mod tidy @calebdoxsey GH-663
+- integration-tests: add websocket enabled/disabled test @calebdoxsey GH-661
+- ci: Switch integration tests from minikube to kind @travisgroth GH-656
+
+### New
+
+- cryptutil: add automatic certificate management @desimone GH-644
+
+### Documentation
+
+- deploy: autocert documentation and defaults @travisgroth GH-658
+
+### Dependency
+
+- Update module google.golang.org/api to v0.23.0 @renovate GH-681
+- Update module gorilla/websocket to v1.4.2 @renovate GH-682
+- Update module go-acme/lego/v3 to v3.7.0 @renovate GH-679
+- Update module golang/protobuf to v1.4.1 @renovate GH-680
+- Update golang.org/x/crypto commit hash to 06a226f @renovate GH-677
+- Update github.com/pomerium/autocache commit hash to 8c1cd65 @renovate GH-676
+- deps: go mod tidy @travisgroth GH-657
+
 ## v0.7.5
 
 ### Fixed
@@ -46,7 +76,7 @@ There were no changes in the v0.7.1 release, but we updated the build process sl
 
 ### New
 
-- \*: remove import path comments @desimone [GH-545]
+- *: remove import path comments @desimone [GH-545]
 - authenticate: make callback path configurable @desimone [GH-493]
 - authenticate: return 401 for some specific error codes @cuonglm [GH-561]
 - authorization: log audience claim failure @desimone [GH-553]
