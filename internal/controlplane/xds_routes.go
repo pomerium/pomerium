@@ -146,7 +146,7 @@ func (srv *Server) buildPolicyRoutes(options config.Options, domain string) []*e
 									StringValue: options.CookieName,
 								},
 							},
-							"remove_pomeruim_authorization": {
+							"remove_pomerium_authorization": {
 								Kind: &structpb.Value_BoolValue{
 									BoolValue: true,
 								},
