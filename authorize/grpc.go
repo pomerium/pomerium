@@ -231,20 +231,6 @@ func (a *Authorize) isExpired(rawSession []byte) bool {
 	return err == nil && state.IsExpired()
 }
 
-func getFullURL(rawurl, host string) string {
-	u, err := url.Parse(rawurl)
-	if err != nil {
-		u = &url.URL{Path: rawurl}
-	}
-	if u.Host == "" {
-		u.Host = host
-	}
-	if u.Scheme == "" {
-		u.Scheme = "http"
-	}
-	return u.String()
-}
-
 func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v2.CheckRequest) *http.Request {
 	hattrs := req.GetAttributes().GetRequest().GetHttp()
 	return &http.Request{
