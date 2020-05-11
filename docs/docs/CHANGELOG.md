@@ -2,33 +2,25 @@
 
 ## v0.8.0
 
-### Changes
-
-- integration-tests: set_request_headers and preserve_host_header options @calebdoxsey GH-668
-- pre-commit: add pre-commit configuration @calebdoxsey GH-666
-- integration-tests: add CORS test @calebdoxsey GH-662
-- renovate: Update Renovate option should be a list @calebdoxsey GH-665
-- renovate: Update Renovate to run go mod tidy @calebdoxsey GH-663
-- integration-tests: add websocket enabled/disabled test @calebdoxsey GH-661
-- ci: Switch integration tests from minikube to kind @travisgroth GH-656
+To see a complete list of changes [see the diff](https://github.com/pomerium/pomerium/compare/v0.7.0...v0.8.0).
 
 ### New
 
-- cryptutil: add automatic certificate management @desimone GH-644
+- cryptutil: add automatic certificate management @desimone [GH-644]
+- implement path-based route matching @calebdoxsey [GH-615]
+- internal/identity: implement github provider support @Lumexralph [GH-582]
+
+### Changes
+
+- integration-tests: set_request_headers and preserve_host_header options @calebdoxsey [GH-668]
+- pre-commit: add pre-commit configuration @calebdoxsey [GH-666]
+- integration-tests: add CORS test @calebdoxsey [GH-662]
+- integration-tests: add websocket enabled/disabled test @calebdoxsey [GH-661]
+- ci: Switch integration tests from minikube to kind @travisgroth [GH-656]
 
 ### Documentation
 
-- deploy: autocert documentation and defaults @travisgroth GH-658
-
-### Dependency
-
-- Update module google.golang.org/api to v0.23.0 @renovate GH-681
-- Update module gorilla/websocket to v1.4.2 @renovate GH-682
-- Update module go-acme/lego/v3 to v3.7.0 @renovate GH-679
-- Update module golang/protobuf to v1.4.1 @renovate GH-680
-- Update golang.org/x/crypto commit hash to 06a226f @renovate GH-677
-- Update github.com/pomerium/autocache commit hash to 8c1cd65 @renovate GH-676
-- deps: go mod tidy @travisgroth GH-657
+- deploy: autocert documentation and defaults @travisgroth [GH-658]
 
 ## v0.7.5
 
@@ -161,6 +153,7 @@ There were no changes in the v0.7.1 release, but we updated the build process sl
 - config: Remove CookieRefresh [GH-428] @u5surf [GH-436]
 - config: validate that `shared_key` does not contain whitespace @travisgroth [GH-427]
 - httputil : wrap handlers for additional context @desimone [GH-413]
+- forward-auth: validate using forwarded uri header @branchmispredictor [GH-600]
 
 ### Fixed
 
