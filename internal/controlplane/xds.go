@@ -86,12 +86,13 @@ func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Addres
 		port = defaultPort
 	}
 	if host == "" {
-		host = "0.0.0.0"
+		host = "::"
 	}
 	return &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{SocketAddress: &envoy_config_core_v3.SocketAddress{
 			Address:       host,
 			PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: uint32(port)},
+			Ipv4Compat:    true,
 		}},
 	}
 }
