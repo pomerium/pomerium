@@ -108,3 +108,31 @@ func TestLoadSession(t *testing.T) {
 		}
 	})
 }
+
+func TestGetJWTClaimHeaders(t *testing.T) {
+	options := config.NewDefaultOptions()
+	options.JWTClaimsHeaders = []string{"email", "groups", "user"}
+	encoder, err := jws.NewHS256Signer(nil, "example.com")
+	if !assert.NoError(t, err) {
+		return
+	}
+	state := &sessions.State{
+		Email:  "bob@example.com",
+		Groups: []string{"user", "wheel", "sudo"},
+		User:   "bob",
+	}
+	rawjwt, err := encoder.Marshal(state)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	hdrs, err := getJWTClaimHeaders(*options, encoder, rawjwt)
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.Equal(t, map[string]string{
+		"x-pomerium-claim-email":  "bob@example.com",
+		"x-pomerium-claim-groups": "user,wheel,sudo",
+		"x-pomerium-claim-user":   "bob",
+	}, hdrs)
+}
