@@ -1,6 +1,6 @@
 package httputil
 
-// For Authorization: Pomerium JWT... headers
+// AuthorizationTypePomerium is for Authorization: Pomerium JWT... headers
 const AuthorizationTypePomerium = "Pomerium"
 
 // Pomerium headers contain information added to a request.
