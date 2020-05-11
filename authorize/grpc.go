@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 
@@ -72,7 +73,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 
 	evt := log.Info().Str("service", "authorize")
 	// request
-	evt = evt.Str("request-id", hattrs.GetId())
+	evt = evt.Str("request-id", requestid.FromContext(ctx))
+	evt = evt.Strs("check-request-id", hdrs["X-Request-Id"])
 	evt = evt.Str("method", hattrs.GetMethod())
 	evt = evt.Interface("headers", hdrs)
 	evt = evt.Str("path", hattrs.GetPath())
@@ -96,6 +98,10 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 				},
 			},
 		}, nil
+	}
+
+	if reply.SessionExpired {
+		sesserr = sessions.ErrExpired
 	}
 
 	switch sesserr {

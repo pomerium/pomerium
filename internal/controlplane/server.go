@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 )
 
 type versionedOptions struct {
@@ -46,7 +47,10 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	srv.GRPCServer = grpc.NewServer()
+	srv.GRPCServer = grpc.NewServer(
+		grpc.UnaryInterceptor(requestid.UnaryServerInterceptor()),
+		grpc.StreamInterceptor(requestid.StreamServerInterceptor()),
+	)
 	reflection.Register(srv.GRPCServer)
 	srv.registerXDSHandlers()
 	srv.registerAccessLogHandlers()
