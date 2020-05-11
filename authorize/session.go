@@ -23,7 +23,7 @@ func loadSession(req *http.Request, options config.Options, encoder encoding.Mar
 	}
 	loaders = append(loaders,
 		cookieStore,
-		header.NewStore(encoder, "Pomerium"),
+		header.NewStore(encoder, AuthorizationTypePomerium),
 		queryparam.NewStore(encoder, urlutil.QuerySession),
 	)
 
@@ -61,8 +61,10 @@ func getJWTSetCookieHeaders(cookieStore sessions.SessionStore, rawjwt []byte) (m
 		return nil, fmt.Errorf("authorize: error saving cookie: %w", err)
 	}
 
+	res := recorder.Result()
+
 	hdrs := make(map[string]string)
-	for k, vs := range recorder.Header() {
+	for k, vs := range res.Header() {
 		for _, v := range vs {
 			hdrs[k] = v
 		}
