@@ -9,7 +9,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/go-acme/lego/v3 v3.4.0
+	github.com/go-acme/lego/v3 v3.7.0
 	github.com/go-redis/redis/v7 v7.2.0
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 	github.com/golang/mock v1.4.3
@@ -48,7 +48,6 @@ require (
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	google.golang.org/api v0.22.0
 	google.golang.org/appengine v1.6.5 // indirect
-	google.golang.org/genproto v0.0.0-20200204235621-fb4a7afc5178 // indirect
 	google.golang.org/grpc v1.27.1
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1
