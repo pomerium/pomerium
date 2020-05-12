@@ -110,6 +110,16 @@ If `false`
 
 Log level sets the global logging level for pomerium. Only logs of the desired level and above will be logged.
 
+### Proxy Log Level
+
+- Environmental Variable: `PROXY_LOG_LEVEL`
+- Config File Key: `proxy_log_level`
+- Type: `string`
+- Options: `debug` `info` `warn` `error`
+- Default: value of `log_level` or `debug` if both are unset
+
+Log level sets the logging level for the pomerium proxy service. Only logs of the desired level and above will be logged.
+
 ### Insecure Server
 
 - Environmental Variable: `INSECURE_SERVER`
@@ -157,7 +167,6 @@ Autocert requires that ports `80`/`443` be accessible from the internet in order
 - Type: `string` pointing to the path of the directory
 - Required if using [Autocert](./#autocert) setting
 - Default:
-
   - `/data/autocert` in published Pomerium docker images
   - [$XDG_DATA_HOME](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
   - `$HOME/.local/share/pomerium`

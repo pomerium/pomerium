@@ -7,8 +7,9 @@ import (
 	"fmt"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	"github.com/pomerium/pomerium/internal/log"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 func (srv *Server) registerXDSHandlers() {
@@ -91,7 +92,7 @@ func (srv *Server) streamAggregatedResourcesProcessStep(
 			return ctx.Err()
 		}
 
-		current := srv.currentConfig.Load().(versionedOptions)
+		current := srv.currentConfig.Load()
 		for typeURL, version := range versions {
 			// the versions are different, so the envoy config needs to be updated
 			if version != fmt.Sprint(current.version) {
