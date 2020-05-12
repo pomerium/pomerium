@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"sort"
 
-	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -149,7 +148,7 @@ end
 				Name: "envoy.filters.http.router",
 			},
 		},
-		AccessLog: []*envoy_config_accesslog_v3.AccessLog{srv.buildAccessLog()},
+		AccessLog: srv.buildAccessLogs(options),
 	})
 
 	li := &envoy_config_listener_v3.Listener{

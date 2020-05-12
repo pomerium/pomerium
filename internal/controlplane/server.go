@@ -21,6 +21,18 @@ type versionedOptions struct {
 	version int64
 }
 
+type atomicVersionedOptions struct {
+	value atomic.Value
+}
+
+func (avo *atomicVersionedOptions) Load() versionedOptions {
+	return avo.value.Load().(versionedOptions)
+}
+
+func (avo *atomicVersionedOptions) Store(options versionedOptions) {
+	avo.value.Store(options)
+}
+
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	GRPCListener net.Listener
@@ -28,7 +40,7 @@ type Server struct {
 	HTTPListener net.Listener
 	HTTPRouter   *mux.Router
 
-	currentConfig atomic.Value
+	currentConfig atomicVersionedOptions
 	configUpdated chan struct{}
 }
 
@@ -129,7 +141,7 @@ func (srv *Server) UpdateOptions(options config.Options) error {
 	case <-srv.configUpdated:
 	default:
 	}
-	prev := srv.currentConfig.Load().(versionedOptions)
+	prev := srv.currentConfig.Load()
 	srv.currentConfig.Store(versionedOptions{
 		Options: options,
 		version: prev.version + 1,
