@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -67,10 +66,6 @@ type Options struct {
 	// AutoCert enables fully automated certificate management including issuance
 	// and renewal from LetsEncrypt. Must be used in conjunction with AutoCertFolder.
 	AutoCert bool `mapstructure:"autocert" yaml:"autocert,omitempty"`
-
-	// AutoCertHandler is the HTTP challenge handler used in a http-01 acme
-	// https://letsencrypt.org/docs/challenge-types/#http-01-challenge
-	AutoCertHandler func(h http.Handler) http.Handler `hash:"ignore"`
 
 	// AutoCertFolder specifies the location to store, and load autocert managed
 	// TLS certificates.
@@ -555,16 +550,14 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad cert file %w", err)
 		}
 	}
-	if o.AutoCert {
-		o.TLSConfig, o.AutoCertHandler, err = cryptutil.NewAutocert(
-			o.TLSConfig,
-			o.sourceHostnames(),
-			o.AutoCertUseStaging,
-			o.AutoCertFolder)
-		if err != nil {
-			return fmt.Errorf("config: autocert failed %w", err)
-		}
+
+	RedirectAndAutocertServer.update(o)
+
+	o.TLSConfig, err = AutocertManager.update(o)
+	if err != nil {
+		return fmt.Errorf("config: failed to setup autocert: %w", err)
 	}
+
 	if !o.InsecureServer && o.TLSConfig == nil {
 		return fmt.Errorf("config: server must be run with `autocert`, " +
 			"`insecure_server` or manually provided certificates to start")

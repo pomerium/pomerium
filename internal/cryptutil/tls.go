@@ -3,6 +3,7 @@ package cryptutil
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 
@@ -100,4 +101,47 @@ func newTLSConfigIfEmpty(tlsConfig *tls.Config) *tls.Config {
 		// HTTP/2 must be enabled manually when using http.Serve
 		NextProtos: []string{"h2", "http/1.1"},
 	}
+}
+
+// GetCertificateForDomain returns the tls Certificate which matches the given domain name. It should handle both
+// exact matches and wildcard matches. If no certificates match the first one will be used. If there are no certificates
+// one will be generated.
+func GetCertificateForDomain(cfg *tls.Config, domain string) (*tls.Certificate, error) {
+	// first try a direct name match
+	for _, cert := range cfg.Certificates {
+		if matchesDomain(&cert, domain) {
+			return &cert, nil
+		}
+	}
+
+	// next use the first cert
+	if len(cfg.Certificates) > 0 {
+		return &cfg.Certificates[0], nil
+	}
+
+	// finally fall back to a generated, self-signed certificate
+	return GenerateSelfSignedCertificate(domain)
+}
+
+func matchesDomain(cert *tls.Certificate, domain string) bool {
+	if cert == nil || len(cert.Certificate) == 0 {
+		return false
+	}
+
+	xcert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return false
+	}
+
+	if certmagic.MatchWildcard(domain, xcert.Subject.CommonName) {
+		return true
+	}
+
+	for _, san := range xcert.DNSNames {
+		if certmagic.MatchWildcard(domain, san) {
+			return true
+		}
+	}
+
+	return false
 }

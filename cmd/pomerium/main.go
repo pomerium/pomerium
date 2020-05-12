@@ -5,8 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"os"
+	"os/signal"
 	"sync"
-	"time"
+	"syscall"
 
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
@@ -51,14 +53,10 @@ func run() error {
 
 	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
 
-	var wg sync.WaitGroup
-	if err := setupMetrics(opt, &wg); err != nil {
+	if err := setupMetrics(opt); err != nil {
 		return err
 	}
 	if err := setupTracing(opt); err != nil {
-		return err
-	}
-	if err := setupHTTPRedirectServer(opt, &wg); err != nil {
 		return err
 	}
 
@@ -104,12 +102,17 @@ func run() error {
 		opt = config.HandleConfigUpdate(*configFile, opt, optionsUpdaters)
 	})
 
+	ctx, cancel := context.WithCancel(ctx)
+	go func() {
+		ch := make(chan os.Signal, 2)
+		signal.Notify(ch, os.Interrupt)
+		signal.Notify(ch, syscall.SIGTERM)
+		<-ch
+		cancel()
+	}()
+
 	// run everything
 	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		wg.Wait()
-		return nil
-	})
 	eg.Go(func() error {
 		return controlPlane.Run(ctx)
 	})
@@ -172,7 +175,7 @@ func setupCache(opt *config.Options, controlPlane *controlplane.Server) error {
 	return nil
 }
 
-func setupMetrics(opt *config.Options, wg *sync.WaitGroup) error {
+func setupMetrics(opt *config.Options) error {
 	if opt.MetricsAddr != "" {
 		handler, err := metrics.PrometheusHandler()
 		if err != nil {
@@ -185,11 +188,11 @@ func setupMetrics(opt *config.Options, wg *sync.WaitGroup) error {
 			Insecure: true,
 			Service:  "metrics",
 		}
-		srv, err := httputil.NewServer(serverOpts, handler, wg)
+		var wg sync.WaitGroup
+		_, err = httputil.NewServer(serverOpts, handler, &wg)
 		if err != nil {
 			return err
 		}
-		go httputil.Shutdown(srv)
 	}
 	return nil
 }
@@ -219,30 +222,6 @@ func setupTracing(opt *config.Options) error {
 		if err := trace.RegisterTracing(tracingOpts); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func setupHTTPRedirectServer(opt *config.Options, wg *sync.WaitGroup) error {
-	if opt.HTTPRedirectAddr != "" {
-		serverOpts := httputil.ServerOptions{
-			Addr:              opt.HTTPRedirectAddr,
-			Insecure:          true,
-			Service:           "HTTP->HTTPS Redirect",
-			ReadHeaderTimeout: 5 * time.Second,
-			ReadTimeout:       5 * time.Second,
-			WriteTimeout:      5 * time.Second,
-			IdleTimeout:       5 * time.Second,
-		}
-		h := httputil.RedirectHandler()
-		if opt.AutoCert {
-			h = opt.AutoCertHandler(h)
-		}
-		srv, err := httputil.NewServer(&serverOpts, h, wg)
-		if err != nil {
-			return err
-		}
-		go httputil.Shutdown(srv)
 	}
 	return nil
 }

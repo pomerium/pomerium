@@ -3,8 +3,6 @@ package controlplane
 import (
 	"fmt"
 	"net"
-	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/pomerium/pomerium/config"
@@ -112,10 +110,10 @@ func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Addres
 	}
 }
 
-func getAbsoluteFilePath(filename string) string {
-	if filepath.IsAbs(filename) {
-		return filename
+func inlineBytes(bs []byte) *envoy_config_core_v3.DataSource {
+	return &envoy_config_core_v3.DataSource{
+		Specifier: &envoy_config_core_v3.DataSource_InlineBytes{
+			InlineBytes: bs,
+		},
 	}
-	wd, _ := os.Getwd()
-	return filepath.Join(wd, filename)
 }

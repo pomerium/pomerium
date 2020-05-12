@@ -4,12 +4,12 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 )
@@ -60,41 +60,9 @@ func Test_setupMetrics(t *testing.T) {
 			c := make(chan os.Signal, 1)
 			signal.Notify(c, syscall.SIGINT)
 			defer signal.Stop(c)
-			var wg sync.WaitGroup
-
-			setupMetrics(tt.opt, &wg)
+			setupMetrics(tt.opt)
 			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 			waitSig(t, c, syscall.SIGINT)
-
-		})
-	}
-}
-
-func Test_setupHTTPRedirectServer(t *testing.T) {
-	tests := []struct {
-		name    string
-		opt     *config.Options
-		wantErr bool
-	}{
-		{"dont register anything", &config.Options{}, false},
-		{"good redirect server", &config.Options{HTTPRedirectAddr: "localhost:0"}, false},
-		{"bad redirect server port", &config.Options{HTTPRedirectAddr: "localhost:-1"}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := make(chan os.Signal, 1)
-			var wg sync.WaitGroup
-
-			signal.Notify(c, syscall.SIGINT)
-			defer signal.Stop(c)
-			err := setupHTTPRedirectServer(tt.opt, &wg)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-			waitSig(t, c, syscall.SIGINT)
-
 		})
 	}
 }
