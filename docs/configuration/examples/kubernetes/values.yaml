@@ -1,0 +1,28 @@
+authenticate:
+  idp:
+    provider: "google"
+    clientID: YOUR_CLIENT_ID
+    clientSecret: YOUR_SECRET
+  service:
+    annotations:
+      cloud.google.com/app-protocols: '{"https":"HTTPS"}'
+
+proxy:
+  service:
+    annotations:
+      cloud.google.com/app-protocols: '{"https":"HTTPS"}'
+
+service:
+  type: NodePort
+
+config:
+  rootDomain: corp.beyondperimeter.com
+  policy:
+    - from: https://hello.corp.beyondperimeter.com
+      to: http://nginx.default.svc.cluster.local:80
+      allowed_domains:
+        - gmail.com
+
+ingress:
+  annotations:
+    kubernetes.io/ingress.allow-http: false

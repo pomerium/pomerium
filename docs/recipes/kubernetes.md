@@ -218,7 +218,7 @@ Pomerium is an identity-aware access proxy that can used to serve as an identity
 
 ### Configure
 
-Before installing, we will configure Pomerium's configuration settings in `config.yaml`. Other than the typical configuration settings covered in the quick-start guides, we will add a few settings that will make working with Kubernetes Dashboard easier.
+Before installing, we will configure Pomerium's configuration settings in `values.yaml`. Other than the typical configuration settings covered in the quick-start guides, we will add a few settings that will make working with Kubernetes Dashboard easier.
 
 We can retrieve the token to add to our proxied policy's authorization header as follows.
 
@@ -245,33 +245,43 @@ token:      eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.......
 The above token then needs to be assigned to our route configuration and policy.
 
 ```yaml
-# config.yaml
-forward_auth_url: https://forwardauth.domain.example
+# values.yaml
+authenticate:
+  idp:
+    provider: "google"
+    clientID: YOUR_CLIENT_ID
+    clientSecret: YOUR_SECRET
 
-policy:
-  # this route is directly proxied by pomerium & injects the authorization header
-  - from: https://dashboard-proxied.domain.example
-    to: https://helm-dashboard-kubernetes-dashboard
-    allowed_users:
-      - user@domain.example
-    tls_skip_verify: true # dashboard uses self-signed certificates in its default configuration
-    set_request_headers:
-      Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.....
+forwardAuth:
+  enabled: true
 
-  # this route is indirectly checked for access using forward-auth
-  - from: https://dashboard-forwardauth.domain.example
-    to: https://helm-dashboard-kubernetes-dashboard
-    allowed_users:
-      - user@domain.example
+config:
+  sharedSecret: YOUR_SHARED_SECRET
+  cookieSecret: YOUR_COOKIE_SECRET
+  rootDomain: domain.example
+
+  policy:
+    # this route is directly proxied by pomerium & injects the authorization header
+    - from: https://dashboard-proxied.domain.example
+      to: https://helm-dashboard-kubernetes-dashboard
+      allowed_users:
+        - user@domain.example
+      tls_skip_verify: true # dashboard uses self-signed certificates in its default configuration
+      set_request_headers:
+        Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.....
+
+    # this route is indirectly checked for access using forward-auth
+    - from: https://dashboard-forwardauth.domain.example
+      to: https://helm-dashboard-kubernetes-dashboard
+      allowed_users:
+        - user@domain.example
+ingress:
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/issuer: "letsencrypt-prod" # see `le.issuer.yaml`
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+  secretName: pomerium-ingress-tls
 ```
-
-We then add our configuration to Kubernetes as a [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/).
-
-```bash
-# add our pomerium policy to kubernetes as a configmap
-$ kubectl create configmap config --from-file="config.yaml"="config.yaml"
-```
-
 ### Install
 
 Finally, we get to install Pomerium! 🎉 Once again, we will use Helm to deploy Pomerium.
@@ -279,23 +289,13 @@ Finally, we get to install Pomerium! 🎉 Once again, we will use Helm to deploy
 ```bash
 helm install \
 	"helm-pomerium" \
-	stable/pomerium \
-	--set config.rootDomain="domain.example" \
-	--set config.existingConfig="config" \
-	--set authenticate.idp.provider="google" \
-	--set authenticate.idp.clientID="YOUR_CLIENT_ID" \
-	--set authenticate.idp.clientSecret="YOUR_SECRET"
+	pomerium/pomerium \
+  --values values.yaml
 ```
 
 ## Putting it all together
 
 Now we just need to tell external traffic how to route everything by deploying the following ingresses.
-
-```sh
-$kubectl apply -f docs/recipes/yml/pomerium.ingress.yaml
-```
-
-<<< @/docs/recipes/yml/pomerium.ingress.yaml
 
 ```sh
 $kubectl apply -f docs/recipes/yml/dashboard-forwardauth.ingress.yaml
