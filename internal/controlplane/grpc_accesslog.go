@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	envoy_service_accesslog_v2 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v2"
+
 	"github.com/pomerium/pomerium/internal/log"
 )
 
