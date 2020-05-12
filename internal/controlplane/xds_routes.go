@@ -8,6 +8,7 @@ import (
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -136,6 +137,24 @@ func (srv *Server) buildPolicyRoutes(options config.Options, domain string) []*e
 		routes = append(routes, &envoy_config_route_v3.Route{
 			Name:  fmt.Sprintf("policy-%d", i),
 			Match: match,
+			Metadata: &envoy_config_core_v3.Metadata{
+				FilterMetadata: map[string]*structpb.Struct{
+					"envoy.filters.http.lua": {
+						Fields: map[string]*structpb.Value{
+							"remove_pomerium_cookie": {
+								Kind: &structpb.Value_StringValue{
+									StringValue: options.CookieName,
+								},
+							},
+							"remove_pomerium_authorization": {
+								Kind: &structpb.Value_BoolValue{
+									BoolValue: true,
+								},
+							},
+						},
+					},
+				},
+			},
 			Action: &envoy_config_route_v3.Route_Route{
 				Route: &envoy_config_route_v3.RouteAction{
 					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{

@@ -53,6 +53,7 @@ require (
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20200204235621-fb4a7afc5178
 	google.golang.org/grpc v1.27.1
+	google.golang.org/protobuf v1.21.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.0
