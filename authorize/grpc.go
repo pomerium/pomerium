@@ -39,20 +39,22 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 
 	hdrs := getCheckRequestHeaders(in)
 
-	var requestHeaders []*envoy_api_v2_core.HeaderValueOption
+	isNewSession := false
 	sess, sesserr := loadSession(hreq, a.currentOptions.Load(), a.currentEncoder.Load())
 	if a.isExpired(sess) {
 		log.Info().Msg("refreshing session")
 		if newSession, err := a.refreshSession(ctx, sess); err == nil {
 			sess = newSession
 			sesserr = nil
-			requestHeaders, err = a.getEnvoyRequestHeaders(sess)
-			if err != nil {
-				log.Warn().Err(err).Msg("authorize: error generating new request headers")
-			}
+			isNewSession = true
 		} else {
 			log.Warn().Err(err).Msg("authorize: error refreshing session")
 		}
+	}
+
+	requestHeaders, err := a.getEnvoyRequestHeaders(sess, isNewSession)
+	if err != nil {
+		log.Warn().Err(err).Msg("authorize: error generating new request headers")
 	}
 
 	requestURL := getCheckRequestURL(in)
@@ -160,22 +162,37 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	}, nil
 }
 
-func (a *Authorize) getEnvoyRequestHeaders(rawSession []byte) ([]*envoy_api_v2_core.HeaderValueOption, error) {
-	cookieStore, err := getCookieStore(a.currentOptions.Load(), a.currentEncoder.Load())
-	if err != nil {
-		return nil, err
-	}
-
-	hdrs, err := getJWTSetCookieHeaders(cookieStore, rawSession)
-	if err != nil {
-		return nil, err
-	}
-
+func (a *Authorize) getEnvoyRequestHeaders(rawjwt []byte, isNewSession bool) ([]*envoy_api_v2_core.HeaderValueOption, error) {
 	var hvos []*envoy_api_v2_core.HeaderValueOption
+
+	if isNewSession {
+		cookieStore, err := getCookieStore(a.currentOptions.Load(), a.currentEncoder.Load())
+		if err != nil {
+			return nil, err
+		}
+
+		hdrs, err := getJWTSetCookieHeaders(cookieStore, rawjwt)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range hdrs {
+			hvos = append(hvos, &envoy_api_v2_core.HeaderValueOption{
+				Header: &envoy_api_v2_core.HeaderValue{
+					Key:   "x-pomerium-" + k,
+					Value: v,
+				},
+			})
+		}
+	}
+
+	hdrs, err := getJWTClaimHeaders(a.currentOptions.Load(), a.currentEncoder.Load(), rawjwt)
+	if err != nil {
+		return nil, err
+	}
 	for k, v := range hdrs {
 		hvos = append(hvos, &envoy_api_v2_core.HeaderValueOption{
 			Header: &envoy_api_v2_core.HeaderValue{
-				Key:   "x-pomerium-" + k,
+				Key:   k,
 				Value: v,
 			},
 		})
