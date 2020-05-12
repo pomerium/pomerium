@@ -4,6 +4,7 @@ package envoy
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -83,7 +84,11 @@ func (srv *Server) Run(ctx context.Context) error {
 
 	// make sure envoy is killed if we're killed
 	srv.cmd.SysProcAttr = sysProcAttr
-	return srv.cmd.Run()
+	err = srv.cmd.Run()
+	if err == nil {
+		return errors.New("envoy exited without error")
+	}
+	return fmt.Errorf("envoy exited: %w", err)
 }
 
 func (srv *Server) writeConfig() error {
