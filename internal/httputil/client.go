@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"go.opencensus.io/plugin/ochttp"
+
+	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 )
 
 // ErrTokenRevoked signifies a token revokation or expiration error
@@ -22,7 +24,7 @@ var ErrTokenRevoked = errors.New("token expired or revoked")
 var DefaultClient = &http.Client{
 	Timeout: 1 * time.Minute,
 	//todo(bdd): incorporate metrics.HTTPMetricsRoundTripper
-	Transport: &ochttp.Transport{},
+	Transport: requestid.NewRoundTripper(&ochttp.Transport{}),
 }
 
 // Client provides a simple helper interface to make HTTP requests
