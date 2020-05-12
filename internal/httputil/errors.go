@@ -7,6 +7,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 )
@@ -65,10 +66,7 @@ func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(e.Status)
 
 	log.FromRequest(r).Info().Err(e).Msg("httputil: ErrorResponse")
-	var requestID string
-	if id, ok := log.IDFromRequest(r); ok {
-		requestID = id
-	}
+	requestID := requestid.FromContext(r.Context())
 	response := errResponse{
 		Status:     e.Status,
 		StatusText: http.StatusText(e.Status),

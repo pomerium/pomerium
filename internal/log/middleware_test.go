@@ -14,6 +14,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/rs/zerolog"
+
+	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 )
 
 func TestGenerateUUID(t *testing.T) {
@@ -172,21 +174,19 @@ func TestRequestIDHandler(t *testing.T) {
 	out := &bytes.Buffer{}
 	r := &http.Request{
 		Header: http.Header{
-			"Referer": []string{"http://foo.com/bar"},
+			"X-Request-Id": []string{"1234"},
 		},
 	}
-	h := RequestIDHandler("id", "Request-Id")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id, ok := IDFromRequest(r)
-		if !ok {
-			t.Fatal("Missing id in request")
-		}
+	h := RequestIDHandler("request-id")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := requestid.FromContext(r.Context())
 		l := FromRequest(r)
 		l.Log().Msg("")
-		if want, got := fmt.Sprintf(`{"id":"%s"}`+"\n", id), decodeIfBinary(out); want != got {
+		if want, got := fmt.Sprintf(`{"request-id":"%s"}`+"\n", requestID), decodeIfBinary(out); want != got {
 			t.Errorf("Invalid log output, got: %s, want: %s", got, want)
 		}
 	}))
 	h = NewHandler(zerolog.New(out))(h)
+	h = requestid.HTTPMiddleware()(h)
 	h.ServeHTTP(httptest.NewRecorder(), r)
 }
 
