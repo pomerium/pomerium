@@ -1,10 +1,12 @@
 package authorize
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -72,4 +74,39 @@ func getJWTSetCookieHeaders(cookieStore sessions.SessionStore, rawjwt []byte) (m
 		}
 	}
 	return hdrs, nil
+}
+
+func getJWTClaimHeaders(options config.Options, encoder encoding.MarshalUnmarshaler, rawjwt []byte) (map[string]string, error) {
+	var claims map[string]jwtClaim
+	err := encoder.Unmarshal(rawjwt, &claims)
+	if err != nil {
+		return nil, err
+	}
+
+	hdrs := make(map[string]string)
+	for _, name := range options.JWTClaimsHeaders {
+		if claim, ok := claims[name]; ok {
+			hdrs["x-pomerium-claim-"+name] = strings.Join(claim, ",")
+		}
+	}
+	return hdrs, nil
+}
+
+type jwtClaim []string
+
+func (claim *jwtClaim) UnmarshalJSON(bs []byte) error {
+	var raw interface{}
+	err := json.Unmarshal(bs, &raw)
+	if err != nil {
+		return err
+	}
+	switch obj := raw.(type) {
+	case []interface{}:
+		for _, el := range obj {
+			*claim = append(*claim, fmt.Sprint(el))
+		}
+	default:
+		*claim = append(*claim, fmt.Sprint(obj))
+	}
+	return nil
 }
