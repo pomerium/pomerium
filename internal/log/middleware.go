@@ -1,15 +1,16 @@
 package log
 
 import (
-	"context"
 	"crypto/rand"
 	"fmt"
 	"net"
 	"net/http"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
 	"github.com/rs/zerolog"
+
+	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
+	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 )
 
 // NewHandler injects log into requests context.
@@ -115,44 +116,17 @@ func RefererHandler(fieldKey string) func(next http.Handler) http.Handler {
 	}
 }
 
-type idKey struct{}
-
-// IDFromRequest returns the unique id associated to the request if any.
-func IDFromRequest(r *http.Request) (id string, ok bool) {
-	if r == nil {
-		return
-	}
-	return IDFromCtx(r.Context())
-}
-
-// IDFromCtx returns the unique id associated to the context if any.
-func IDFromCtx(ctx context.Context) (id string, ok bool) {
-	id, ok = ctx.Value(idKey{}).(string)
-	return
-}
-
-// RequestIDHandler returns a handler setting a unique id to the request which can
-// be gathered using IDFromRequest(req). This generated id is added as a field to the
-// logger using the passed fieldKey as field name. The id is also added as a response
-// header if the headerName is not empty.
-func RequestIDHandler(fieldKey, headerName string) func(next http.Handler) http.Handler {
+// RequestIDHandler adds the request's id as a field to the context's logger
+// using fieldKey as field key.
+func RequestIDHandler(fieldKey string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			id, ok := IDFromRequest(r)
-			if !ok {
-				id = uuid()
-				ctx = context.WithValue(ctx, idKey{}, id)
-				r = r.WithContext(ctx)
-			}
-			if fieldKey != "" {
-				log := zerolog.Ctx(ctx)
+			requestID := requestid.FromContext(r.Context())
+			if requestID != "" {
+				log := zerolog.Ctx(r.Context())
 				log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-					return c.Str(fieldKey, id)
+					return c.Str(fieldKey, requestID)
 				})
-			}
-			if headerName != "" {
-				w.Header().Set(headerName, id)
 			}
 			next.ServeHTTP(w, r)
 		})

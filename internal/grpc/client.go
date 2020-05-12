@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 
 	"go.opencensus.io/plugin/ocgrpc"
 	"google.golang.org/grpc"
@@ -60,7 +61,12 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		connAddr = fmt.Sprintf("%s:%d", connAddr, defaultGRPCPort)
 	}
 	dialOptions := []grpc.DialOption{
-		grpc.WithChainUnaryInterceptor(metrics.GRPCClientInterceptor(opts.ServiceName), grpcTimeoutInterceptor(opts.RequestTimeout)),
+		grpc.WithChainUnaryInterceptor(
+			requestid.UnaryClientInterceptor(),
+			metrics.GRPCClientInterceptor(opts.ServiceName),
+			grpcTimeoutInterceptor(opts.RequestTimeout),
+		),
+		grpc.WithStreamInterceptor(requestid.StreamClientInterceptor()),
 		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
 		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
 	}
