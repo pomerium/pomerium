@@ -314,6 +314,35 @@ func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 	}
 }
 
+func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
+	envs := map[string]string{
+		"AUTOCERT":             "true",
+		"AUTOCERT_DIR":         "/test",
+		"AUTOCERT_MUST_STAPLE": "true",
+
+		"INSECURE_SERVER": "true",
+	}
+	for k, v := range envs {
+		os.Setenv(k, v)
+		defer os.Unsetenv(k)
+	}
+
+	o, err := NewOptionsFromConfig("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !o.AutocertOptions.Enable {
+		t.Error("o.AutocertOptions.Enable: want true, got false")
+	}
+	if !o.AutocertOptions.MustStaple {
+		t.Error("o.AutocertOptions.MustStaple: want true, got false")
+	}
+	if o.AutocertOptions.Folder != "/test" {
+		t.Errorf("o.AutocertOptions.Folder: want /test, got %s", o.AutocertOptions.Folder)
+	}
+
+}
+
 type mockService struct {
 	fail    bool
 	Updated bool

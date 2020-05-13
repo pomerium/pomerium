@@ -69,21 +69,6 @@ type Options struct {
 	// This should be used only for testing.
 	InsecureServer bool `mapstructure:"insecure_server" yaml:"insecure_server,omitempty"`
 
-	// AutoCert enables fully automated certificate management including issuance
-	// and renewal from LetsEncrypt. Must be used in conjunction with AutoCertFolder.
-	AutoCert bool `mapstructure:"autocert" yaml:"autocert,omitempty"`
-
-	// AutoCertFolder specifies the location to store, and load autocert managed
-	// TLS certificates.
-	// defaults to $XDG_DATA_HOME/pomerium
-	AutoCertFolder string `mapstructure:"autocert_dir" yaml:"autocert_dir,omitempty"`
-
-	// AutoCertUseStaging tells autocert to use Let's Encrypt's staging CA which
-	// has less strict usage limits then the (default) production CA.
-	//
-	// https://letsencrypt.org/docs/staging-environment/
-	AutoCertUseStaging bool `mapstructure:"autocert_use_staging" yaml:"autocert_use_staging,omitempty"`
-
 	CertificateFiles []certificateFilePair `mapstructure:"certificates" yaml:"certificates,omitempty"`
 
 	// Cert and Key is the x509 certificate used to create the HTTPS server.
@@ -245,6 +230,8 @@ type Options struct {
 	ClientCAFile string `mapstructure:"client_ca_file" yaml:"client_ca_file,omitempty"`
 
 	viper *viper.Viper
+
+	AutocertOptions `mapstructure:",squash" yaml:",inline"`
 }
 
 type certificateFilePair struct {
@@ -280,8 +267,11 @@ var defaultOptions = Options{
 	GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
 	CacheStore:                      "autocache",
 	AuthenticateCallbackPath:        "/oauth2/callback",
-	AutoCertFolder:                  dataDir(),
 	TracingSampleRate:               0.0001,
+
+	AutocertOptions: AutocertOptions{
+		Folder: dataDir(),
+	},
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -447,6 +437,16 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 	err = v.BindEnv("HeadersEnv", "HEADERS")
 	if err != nil {
 		return fmt.Errorf("failed to bind field 'HeadersEnv' to env var 'HEADERS': %w", err)
+	}
+	// autocert options
+	ao := reflect.TypeOf(o.AutocertOptions)
+	for i := 0; i < ao.NumField(); i++ {
+		field := ao.Field(i)
+		envName := field.Tag.Get(tagName)
+		err := v.BindEnv(envName)
+		if err != nil {
+			return fmt.Errorf("failed to bind field '%s' to env var '%s': %w", field.Name, envName, err)
+		}
 	}
 
 	return nil
