@@ -55,9 +55,9 @@ func TestCertifcateFromBase64(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := CertifcateFromBase64(tt.cert, tt.key)
+			_, err := CertificateFromBase64(tt.cert, tt.key)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CertifcateFromBase64() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("CertificateFromBase64() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 		})

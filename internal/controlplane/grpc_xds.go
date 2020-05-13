@@ -96,7 +96,7 @@ func (srv *Server) streamAggregatedResourcesProcessStep(
 		for typeURL, version := range versions {
 			// the versions are different, so the envoy config needs to be updated
 			if version != fmt.Sprint(current.version) {
-				res, err := srv.buildDiscoveryResponse(fmt.Sprint(current.version), typeURL, current.Options)
+				res, err := srv.buildDiscoveryResponse(fmt.Sprint(current.version), typeURL, &current.Options)
 				if err != nil {
 					return err
 				}

@@ -15,7 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-func (srv *Server) buildClusters(options config.Options) []*envoy_config_cluster_v3.Cluster {
+func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluster_v3.Cluster {
 	grpcURL := &url.URL{
 		Scheme: "grpc",
 		Host:   srv.GRPCListener.Addr().String(),
