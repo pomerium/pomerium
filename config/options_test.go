@@ -219,7 +219,7 @@ func TestOptionsFromViper(t *testing.T) {
 		wantErr     bool
 	}{
 		{"good",
-			[]byte(`{"autocert_dir":"","insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			[]byte(`{"autocert.folder":"", "insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
 				Policies:                        []Policy{{From: "https://from.example", To: "https://to.example"}},
 				CookieName:                      "_pomerium",
@@ -236,7 +236,7 @@ func TestOptionsFromViper(t *testing.T) {
 				}},
 			false},
 		{"good disable header",
-			[]byte(`{"autocert_dir":"","insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			[]byte(`{"autocert.folder":"","insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
 				Policies:                        []Policy{{From: "https://from.example", To: "https://to.example"}},
 				CookieName:                      "_pomerium",
@@ -337,10 +337,9 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 	if !o.AutocertOptions.MustStaple {
 		t.Error("o.AutocertOptions.MustStaple: want true, got false")
 	}
-	if o.AutocertOptions.Folder != "/test" {
-		t.Errorf("o.AutocertOptions.Folder: want /test, got %s", o.AutocertOptions.Folder)
+	if o.AutocertOptions.Dir != "/test" {
+		t.Errorf("o.AutocertOptions.Dir: want /test, got %s", o.AutocertOptions.Dir)
 	}
-
 }
 
 type mockService struct {

@@ -231,7 +231,11 @@ type Options struct {
 
 	viper *viper.Viper
 
-	AutocertOptions `mapstructure:",squash" yaml:",inline"`
+	AutocertEnabled `mapstructure:"autocert" yaml:"autocert"`
+
+	AutocertOptions `mapstructure:"autocert_options" yaml:"autocert_options"`
+
+	deprecatedAutoCertDir string `mapstructure:"autocert_dir" yaml:"autocert_dir"`
 }
 
 type certificateFilePair struct {
@@ -270,13 +274,14 @@ var defaultOptions = Options{
 	TracingSampleRate:               0.0001,
 
 	AutocertOptions: AutocertOptions{
-		Folder: dataDir(),
+		Dir: dataDir(),
 	},
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
 // responsibility to do a follow up Validate call.
 func NewDefaultOptions() *Options {
+	log.Info().Msg("NewDefaultOptions")
 	newOpts := defaultOptions
 	newOpts.viper = viper.New()
 	return &newOpts
@@ -366,7 +371,6 @@ func (o *Options) parsePolicy() error {
 // OnConfigChange starts a go routine and watches for any changes. If any are
 // detected, via an fsnotify event the provided function is run.
 func (o *Options) OnConfigChange(run func(in fsnotify.Event)) {
-	go o.viper.WatchConfig()
 	o.viper.OnConfigChange(run)
 }
 
@@ -442,10 +446,11 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 	ao := reflect.TypeOf(o.AutocertOptions)
 	for i := 0; i < ao.NumField(); i++ {
 		field := ao.Field(i)
-		envName := field.Tag.Get(tagName)
-		err := v.BindEnv(envName)
+		keyName := "autocert." + field.Tag.Get(tagName)
+		envName := "AUTOCERT_" + strings.ToUpper(field.Tag.Get(tagName))
+		err := v.BindEnv(keyName, envName)
 		if err != nil {
-			return fmt.Errorf("failed to bind field '%s' to env var '%s': %w", field.Name, envName, err)
+			return fmt.Errorf("failed to bind field '%s' to env var '%s': %w", keyName, envName, err)
 		}
 	}
 
