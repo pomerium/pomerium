@@ -44,6 +44,8 @@ Pomerium itself can be used to retrieve, manage, and renew certificates certific
 autocert: true
 ```
 
+See the [Autocert] and [Autocert Directory] settings for more details.
+
 ### Self-signed wildcard certificate
 
 In production, we'd use a public certificate authority such as LetsEncrypt. But for a local proof of concept or for development, we can use [mkcert](https://mkcert.dev/) to make locally trusted development certificates with any names you'd like. The easiest, is probably to use `*.localhost.pomerium.io` which we've already pre-configured to point back to localhost.
@@ -98,6 +100,8 @@ Certificates, TLS, and Public Key Cryptography is a vast subject we cannot adequ
 - [Use TLS](https://smallstep.com/blog/use-tls.html) covers why TLS should be used everywhere; not just for securing typical internet traffic but for securing service communication in both "trusted" and adversarial situations.
 - [Everything you should know about certificates and PKI but are too afraid to ask](https://smallstep.com/blog/everything-pki.html)
 
+[autocert]: ../../configuration/readme.md#autocert
+[autocert directory]: ../../configuration/readme.md#autocert-directory
 [certificate]: ../../configuration/readme.md#certificates
 [certificate_authority]: ../../configuration/readme.md#certificate-authority
 [certificate_key]: ../../configuration/readme.md#certificates
