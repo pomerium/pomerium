@@ -45,7 +45,7 @@ module.exports = {
       { text: "Configuration", link: "/configuration/" },
       { text: "Recipes", link: "/recipes/" },
       { text: "Enterprise", link: "/enterprise/" },
-
+      { text: "Jobs", link: "/jobs/" },
       {
         text: "v0.8.x", // current tagged version
         ariaLabel: "Version menu",
@@ -165,6 +165,15 @@ module.exports = {
       "/configuration/": [
         {
           title: "Configuration",
+          type: "group",
+          collapsable: false,
+          sidebarDepth: 1,
+          children: ["", "examples"],
+        },
+      ],
+      "/Jobs/": [
+        {
+          title: "Jobs",
           type: "group",
           collapsable: false,
           sidebarDepth: 1,
