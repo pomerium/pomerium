@@ -103,9 +103,9 @@ func newTLSConfigIfEmpty(tlsConfig *tls.Config) *tls.Config {
 	}
 }
 
-// GetCertificateForDomain returns the tls Certificate which matches the given domain name. It should handle both
-// exact matches and wildcard matches. If no certificates match the first one will be used. If there are no certificates
-// one will be generated.
+// GetCertificateForDomain returns the tls Certificate which matches the given domain name.
+// It should handle both exact matches and wildcard matches. If none of those match, the first certificate will be used.
+// Finally if there are no matching certificates one will be generated.
 func GetCertificateForDomain(cfg *tls.Config, domain string) (*tls.Certificate, error) {
 	// first try a direct name match
 	for _, cert := range cfg.Certificates {
