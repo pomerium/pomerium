@@ -2,17 +2,23 @@ package cryptutil
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
+	"net"
+	"time"
 )
 
-// CertifcateFromBase64 returns an X509 pair from a base64 encoded blob.
-func CertifcateFromBase64(cert, key string) (*tls.Certificate, error) {
+// CertificateFromBase64 returns an X509 pair from a base64 encoded blob.
+func CertificateFromBase64(cert, key string) (*tls.Certificate, error) {
 	decodedCert, err := base64.StdEncoding.DecodeString(cert)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode certificate cert %v: %w", decodedCert, err)
@@ -134,4 +140,60 @@ func EncodePrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
 	}
 
 	return pem.EncodeToMemory(keyBlock), nil
+}
+
+// GenerateSelfSignedCertificate generates a self-signed TLS certificate.
+//
+// mostly copied from https://golang.org/src/crypto/tls/generate_cert.go
+func GenerateSelfSignedCertificate(domain string) (*tls.Certificate, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, fmt.Errorf("failed to geneate private key: %w", err)
+	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate serial number: %w", err)
+	}
+
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{"Pomerium"},
+		},
+		NotBefore:             time.Now().Add(-time.Minute * 10),
+		NotAfter:              time.Now().Add(time.Hour * 24 * 365),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+	if ip := net.ParseIP(domain); ip != nil {
+		template.IPAddresses = append(template.IPAddresses, ip)
+	} else {
+		template.DNSNames = append(template.DNSNames, domain)
+	}
+
+	publicKeyBytes, err := x509.CreateCertificate(rand.Reader,
+		&template, &template,
+		privateKey.Public(), privateKey,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create certificate: %w", err)
+	}
+
+	privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal private key: %w", err)
+	}
+
+	cert, err := tls.X509KeyPair(
+		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: publicKeyBytes}),
+		pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKeyBytes}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert x509 bytes into tls certificate: %w", err)
+	}
+
+	return &cert, nil
 }
