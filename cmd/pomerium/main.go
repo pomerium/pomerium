@@ -33,12 +33,12 @@ var versionFlag = flag.Bool("version", false, "prints the version")
 var configFile = flag.String("config", "", "Specify configuration file location")
 
 func main() {
-	if err := run(); err != nil {
+	if err := run(context.Background()); err != nil {
 		log.Fatal().Err(err).Msg("cmd/pomerium")
 	}
 }
 
-func run() error {
+func run(ctx context.Context) error {
 	flag.Parse()
 	if *versionFlag {
 		fmt.Println(version.FullVersion())
@@ -58,8 +58,6 @@ func run() error {
 	if err := setupTracing(opt); err != nil {
 		return err
 	}
-
-	ctx := context.Background()
 
 	// setup the control plane
 	controlPlane, err := controlplane.NewServer()
@@ -96,7 +94,7 @@ func run() error {
 	}
 
 	// start the config change listener
-	config.WatchChanges(*configFile, opt, optionsUpdaters)
+	go config.WatchChanges(*configFile, opt, optionsUpdaters)
 
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {

@@ -441,7 +441,7 @@ func TestOptions_sourceHostnames(t *testing.T) {
 	}{
 		{"empty", []Policy{}, "", nil},
 		{"good no authN", []Policy{{From: "https://from.example", To: "https://to.example"}}, "", []string{"from.example"}},
-		{"good with authN", []Policy{{From: "https://from.example", To: "https://to.example"}}, "https://authn.example.com", []string{"from.example", "authn.example.com"}},
+		{"good with authN", []Policy{{From: "https://from.example", To: "https://to.example"}}, "https://authn.example.com", []string{"authn.example.com", "from.example"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

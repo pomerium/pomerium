@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -222,16 +223,11 @@ func Test_run(t *testing.T) {
 				t.Fatal(err)
 			}
 			configFile = &fn
-			proc, err := os.FindProcess(os.Getpid())
-			if err != nil {
-				t.Fatal(err)
-			}
-			go func() {
-				time.Sleep(time.Millisecond * 500)
-				proc.Signal(os.Interrupt)
-			}()
 
-			err = run()
+			ctx, clearTimeout := context.WithTimeout(context.Background(), 500*time.Millisecond)
+			defer clearTimeout()
+
+			err = run(ctx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}
