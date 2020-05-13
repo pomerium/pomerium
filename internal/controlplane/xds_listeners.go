@@ -16,6 +16,7 @@ import (
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
@@ -63,33 +64,56 @@ func (srv *Server) buildMainListener(options config.Options) *envoy_config_liste
 		}
 	}
 
+	tlsInspectorCfg, _ := ptypes.MarshalAny(new(emptypb.Empty))
 	li := &envoy_config_listener_v3.Listener{
 		Name:    "https-ingress",
 		Address: buildAddress(options.Addr, 443),
-	}
-
-	for _, domain := range srv.getAllRouteableDomains(options, options.Addr) {
-		filter := srv.buildMainHTTPConnectionManagerFilter(options, []string{domain})
-		filterChain := &envoy_config_listener_v3.FilterChain{
-			FilterChainMatch: &envoy_config_listener_v3.FilterChainMatch{
-				ServerNames: []string{domain},
+		ListenerFilters: []*envoy_config_listener_v3.ListenerFilter{{
+			Name: "envoy.filters.listener.tls_inspector",
+			ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
+				TypedConfig: tlsInspectorCfg,
 			},
-			Filters: []*envoy_config_listener_v3.Filter{filter},
-		}
-		tlsContext := srv.buildDownstreamTLSContext(options, domain)
-		if tlsContext != nil {
-			tlsConfig, _ := ptypes.MarshalAny(tlsContext)
-			filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
-				Name: "tls",
-				ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-					TypedConfig: tlsConfig,
-				},
-			}
-		}
-		li.FilterChains = append(li.FilterChains, filterChain)
+		}},
+		FilterChains: srv.buildFilterChains(options, options.Addr,
+			func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain {
+				filter := srv.buildMainHTTPConnectionManagerFilter(options, httpDomains)
+				filterChain := &envoy_config_listener_v3.FilterChain{
+					Filters: []*envoy_config_listener_v3.Filter{filter},
+				}
+				if tlsDomain != "*" {
+					filterChain.FilterChainMatch = &envoy_config_listener_v3.FilterChainMatch{
+						ServerNames: []string{tlsDomain},
+					}
+				}
+				tlsContext := srv.buildDownstreamTLSContext(options, tlsDomain)
+				if tlsContext != nil {
+					tlsConfig, _ := ptypes.MarshalAny(tlsContext)
+					filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
+						Name: "tls",
+						ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+							TypedConfig: tlsConfig,
+						},
+					}
+				}
+				return filterChain
+			}),
 	}
-
 	return li
+}
+
+func (srv *Server) buildFilterChains(
+	options config.Options, addr string,
+	callback func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain,
+) []*envoy_config_listener_v3.FilterChain {
+	allDomains := srv.getAllRouteableDomains(options, addr)
+	var chains []*envoy_config_listener_v3.FilterChain
+	for _, domain := range allDomains {
+		// first we match on SNI
+		chains = append(chains, callback(domain, []string{domain}))
+	}
+	// if there are no SNI matches we match on HTTP host
+	chains = append(chains, callback("*", allDomains))
+	return chains
 }
 
 func (srv *Server) buildMainHTTPConnectionManagerFilter(options config.Options, domains []string) *envoy_config_listener_v3.Filter {
@@ -201,31 +225,39 @@ func (srv *Server) buildGRPCListener(options config.Options) *envoy_config_liste
 		}
 	}
 
+	tlsInspectorCfg, _ := ptypes.MarshalAny(new(emptypb.Empty))
 	li := &envoy_config_listener_v3.Listener{
 		Name:    "grpc-ingress",
 		Address: buildAddress(options.GRPCAddr, 443),
-	}
-
-	for _, domain := range srv.getAllRouteableDomains(options, options.GRPCAddr) {
-		filterChain := &envoy_config_listener_v3.FilterChain{
-			FilterChainMatch: &envoy_config_listener_v3.FilterChainMatch{
-				ServerNames: []string{domain},
+		ListenerFilters: []*envoy_config_listener_v3.ListenerFilter{{
+			Name: "envoy.filters.listener.tls_inspector",
+			ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
+				TypedConfig: tlsInspectorCfg,
 			},
-			Filters: []*envoy_config_listener_v3.Filter{filter},
-		}
-		tlsContext := srv.buildDownstreamTLSContext(options, domain)
-		if tlsContext != nil {
-			tlsConfig, _ := ptypes.MarshalAny(tlsContext)
-			filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
-				Name: "tls",
-				ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-					TypedConfig: tlsConfig,
-				},
-			}
-		}
-		li.FilterChains = append(li.FilterChains, filterChain)
+		}},
+		FilterChains: srv.buildFilterChains(options, options.Addr,
+			func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain {
+				filterChain := &envoy_config_listener_v3.FilterChain{
+					Filters: []*envoy_config_listener_v3.Filter{filter},
+				}
+				if tlsDomain != "*" {
+					filterChain.FilterChainMatch = &envoy_config_listener_v3.FilterChainMatch{
+						ServerNames: []string{tlsDomain},
+					}
+				}
+				tlsContext := srv.buildDownstreamTLSContext(options, tlsDomain)
+				if tlsContext != nil {
+					tlsConfig, _ := ptypes.MarshalAny(tlsContext)
+					filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
+						Name: "tls",
+						ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+							TypedConfig: tlsConfig,
+						},
+					}
+				}
+				return filterChain
+			}),
 	}
-
 	return li
 }
 
