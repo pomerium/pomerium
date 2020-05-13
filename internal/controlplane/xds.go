@@ -3,8 +3,6 @@ package controlplane
 import (
 	"fmt"
 	"net"
-	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/pomerium/pomerium/config"
@@ -19,7 +17,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (srv *Server) buildDiscoveryResponse(version string, typeURL string, options config.Options) (*envoy_service_discovery_v3.DiscoveryResponse, error) {
+func (srv *Server) buildDiscoveryResponse(version string, typeURL string, options *config.Options) (*envoy_service_discovery_v3.DiscoveryResponse, error) {
 	switch typeURL {
 	case "type.googleapis.com/envoy.config.listener.v3.Listener":
 		listeners := srv.buildListeners(options)
@@ -56,7 +54,7 @@ func (srv *Server) buildDiscoveryResponse(version string, typeURL string, option
 	}
 }
 
-func (srv *Server) buildAccessLogs(options config.Options) []*envoy_config_accesslog_v3.AccessLog {
+func (srv *Server) buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.AccessLog {
 	lvl := options.ProxyLogLevel
 	if lvl == "" {
 		lvl = options.LogLevel
@@ -112,10 +110,10 @@ func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Addres
 	}
 }
 
-func getAbsoluteFilePath(filename string) string {
-	if filepath.IsAbs(filename) {
-		return filename
+func inlineBytes(bs []byte) *envoy_config_core_v3.DataSource {
+	return &envoy_config_core_v3.DataSource{
+		Specifier: &envoy_config_core_v3.DataSource_InlineBytes{
+			InlineBytes: bs,
+		},
 	}
-	wd, _ := os.Getwd()
-	return filepath.Join(wd, filename)
 }

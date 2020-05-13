@@ -15,8 +15,9 @@ import (
 	"strings"
 
 	"github.com/natefinch/atomic"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/rs/zerolog"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 const (
