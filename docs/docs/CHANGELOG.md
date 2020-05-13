@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.8.0
+
+To see a complete list of changes [see the diff](https://github.com/pomerium/pomerium/compare/v0.7.0...v0.8.0).
+
+### New
+
+- cryptutil: add automatic certificate management @desimone [GH-644]
+- implement path-based route matching @calebdoxsey [GH-615]
+- internal/identity: implement github provider support @Lumexralph [GH-582]
+- proxy: add configurable JWT claim headers @travisgroth (#596)
+- proxy: remove extra session unmarshalling @desimone (#592)
+
+### Changes
+
+- ci: Switch integration tests from minikube to kind @travisgroth [GH-656]
+- integration-tests: add CORS test @calebdoxsey [GH-662]
+- integration-tests: add websocket enabled/disabled test @calebdoxsey [GH-661]
+- integration-tests: set_request_headers and preserve_host_header options @calebdoxsey [GH-668]
+- pre-commit: add pre-commit configuration @calebdoxsey [GH-666]
+- proxy: improve JWT header behavior @travisgroth [GH-642]
+
+## Fixed
+
+- authorize: fix authorization check for allowed_domains to only match current route @calebdoxsey [GH-624]
+- authorize: fix unexpected panic on reload @travisgroth [GH-652]
+- site: fix site on mobile @desimone [GH-597]
+
+### Documentation
+
+- deploy: autocert documentation and defaults @travisgroth [GH-658]
+
 ## v0.7.5
 
 ### Fixed
@@ -46,7 +77,7 @@ There were no changes in the v0.7.1 release, but we updated the build process sl
 
 ### New
 
-- \*: remove import path comments @desimone [GH-545]
+- *: remove import path comments @desimone [GH-545]
 - authenticate: make callback path configurable @desimone [GH-493]
 - authenticate: return 401 for some specific error codes @cuonglm [GH-561]
 - authorization: log audience claim failure @desimone [GH-553]
@@ -131,6 +162,7 @@ There were no changes in the v0.7.1 release, but we updated the build process sl
 - config: Remove CookieRefresh [GH-428] @u5surf [GH-436]
 - config: validate that `shared_key` does not contain whitespace @travisgroth [GH-427]
 - httputil : wrap handlers for additional context @desimone [GH-413]
+- forward-auth: validate using forwarded uri header @branchmispredictor [GH-600]
 
 ### Fixed
 
