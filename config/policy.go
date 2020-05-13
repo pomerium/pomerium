@@ -115,7 +115,7 @@ func (p *Policy) Validate() error {
 	}
 
 	if p.TLSClientCert != "" && p.TLSClientKey != "" {
-		p.ClientCertificate, err = cryptutil.CertifcateFromBase64(p.TLSClientCert, p.TLSClientKey)
+		p.ClientCertificate, err = cryptutil.CertificateFromBase64(p.TLSClientCert, p.TLSClientKey)
 		if err != nil {
 			return fmt.Errorf("config: couldn't decode client cert %w", err)
 		}

@@ -416,7 +416,7 @@ func Test_HandleConfigUpdate(t *testing.T) {
 				os.Setenv(k, v)
 				defer os.Unsetenv(k)
 			}
-			HandleConfigUpdate("", oldOpts, []OptionsUpdater{tt.service})
+			handleConfigUpdate("", oldOpts, []OptionsUpdater{tt.service})
 			if tt.service.Updated != tt.wantUpdate {
 				t.Errorf("Failed to update config on service")
 			}
@@ -441,7 +441,7 @@ func TestOptions_sourceHostnames(t *testing.T) {
 	}{
 		{"empty", []Policy{}, "", nil},
 		{"good no authN", []Policy{{From: "https://from.example", To: "https://to.example"}}, "", []string{"from.example"}},
-		{"good with authN", []Policy{{From: "https://from.example", To: "https://to.example"}}, "https://authn.example.com", []string{"from.example", "authn.example.com"}},
+		{"good with authN", []Policy{{From: "https://from.example", To: "https://to.example"}}, "https://authn.example.com", []string{"authn.example.com", "from.example"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -457,5 +457,68 @@ func TestOptions_sourceHostnames(t *testing.T) {
 				t.Errorf("Options.sourceHostnames() = %v", diff)
 			}
 		})
+	}
+}
+
+func TestCompareByteSliceSlice(t *testing.T) {
+	type Bytes = [][]byte
+
+	tests := []struct {
+		expect int
+		a      Bytes
+		b      Bytes
+	}{
+		{
+			0,
+			Bytes{
+				{0, 1, 2, 3},
+			},
+			Bytes{
+				{0, 1, 2, 3},
+			},
+		},
+		{
+			-1,
+			Bytes{
+				{0, 1, 2, 3},
+			},
+			Bytes{
+				{0, 1, 2, 4},
+			},
+		},
+		{
+			1,
+			Bytes{
+				{0, 1, 2, 4},
+			},
+			Bytes{
+				{0, 1, 2, 3},
+			},
+		},
+		{-1,
+			Bytes{
+				{0, 1, 2, 3},
+			},
+			Bytes{
+				{0, 1, 2, 3},
+				{4, 5, 6, 7},
+			},
+		},
+		{1,
+			Bytes{
+				{0, 1, 2, 3},
+				{4, 5, 6, 7},
+			},
+			Bytes{
+				{0, 1, 2, 3},
+			},
+		},
+	}
+	for _, tt := range tests {
+		actual := compareByteSliceSlice(tt.a, tt.b)
+		if tt.expect != actual {
+			t.Errorf("expected compare(%v, %v) to be %v but got %v",
+				tt.a, tt.b, tt.expect, actual)
+		}
 	}
 }
