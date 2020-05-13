@@ -34,7 +34,7 @@ func init() {
 	})
 }
 
-func (srv *Server) buildListeners(options config.Options) []*envoy_config_listener_v3.Listener {
+func (srv *Server) buildListeners(options *config.Options) []*envoy_config_listener_v3.Listener {
 	var listeners []*envoy_config_listener_v3.Listener
 
 	if config.IsAuthenticate(options.Services) || config.IsProxy(options.Services) {
@@ -48,7 +48,7 @@ func (srv *Server) buildListeners(options config.Options) []*envoy_config_listen
 	return listeners
 }
 
-func (srv *Server) buildMainListener(options config.Options) *envoy_config_listener_v3.Listener {
+func (srv *Server) buildMainListener(options *config.Options) *envoy_config_listener_v3.Listener {
 	if options.InsecureServer {
 		filter := srv.buildMainHTTPConnectionManagerFilter(options,
 			srv.getAllRouteableDomains(options, options.Addr))
@@ -102,7 +102,7 @@ func (srv *Server) buildMainListener(options config.Options) *envoy_config_liste
 }
 
 func (srv *Server) buildFilterChains(
-	options config.Options, addr string,
+	options *config.Options, addr string,
 	callback func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain,
 ) []*envoy_config_listener_v3.FilterChain {
 	allDomains := srv.getAllRouteableDomains(options, addr)
@@ -116,7 +116,7 @@ func (srv *Server) buildFilterChains(
 	return chains
 }
 
-func (srv *Server) buildMainHTTPConnectionManagerFilter(options config.Options, domains []string) *envoy_config_listener_v3.Filter {
+func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options, domains []string) *envoy_config_listener_v3.Filter {
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, domain := range domains {
 		vh := &envoy_config_route_v3.VirtualHost{
@@ -210,7 +210,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options config.Options, 
 	}
 }
 
-func (srv *Server) buildGRPCListener(options config.Options) *envoy_config_listener_v3.Listener {
+func (srv *Server) buildGRPCListener(options *config.Options) *envoy_config_listener_v3.Listener {
 	filter := srv.buildGRPCHTTPConnectionManagerFilter()
 
 	if options.GRPCInsecure {
@@ -300,8 +300,8 @@ func (srv *Server) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener
 	}
 }
 
-func (srv *Server) buildDownstreamTLSContext(options config.Options, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
-	cert, err := cryptutil.GetCertificateForDomain(options.TLSConfig, domain)
+func (srv *Server) buildDownstreamTLSContext(options *config.Options, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
+	cert, err := cryptutil.GetCertificateForDomain(options.Certificates, domain)
 	if err != nil {
 		log.Warn().Str("domain", domain).Err(err).Msg("failed to get certificate for domain")
 		return nil
@@ -342,7 +342,7 @@ func (srv *Server) buildDownstreamTLSContext(options config.Options, domain stri
 	}
 }
 
-func (srv *Server) getAllRouteableDomains(options config.Options, addr string) []string {
+func (srv *Server) getAllRouteableDomains(options *config.Options, addr string) []string {
 	lookup := map[string]struct{}{}
 	if config.IsAuthenticate(options.Services) && addr == options.Addr {
 		lookup[urlutil.StripPort(options.AuthenticateURL.Host)] = struct{}{}

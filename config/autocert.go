@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"sync"
@@ -38,11 +37,9 @@ func (mgr *autocertManager) getConfig(options *Options) (*certmagic.Config, erro
 	cm.OnDemand = nil // disable on-demand
 	cm.Storage = &certmagic.FileStorage{Path: options.AutoCertFolder}
 	// add existing certs to the cache, and staple OCSP
-	if options.TLSConfig != nil {
-		for _, cert := range options.TLSConfig.Certificates {
-			if err := cm.CacheUnmanagedTLSCertificate(cert, nil); err != nil {
-				return nil, fmt.Errorf("config: failed caching cert: %w", err)
-			}
+	for _, cert := range options.Certificates {
+		if err := cm.CacheUnmanagedTLSCertificate(cert, nil); err != nil {
+			return nil, fmt.Errorf("config: failed caching cert: %w", err)
 		}
 	}
 	acmeMgr := certmagic.NewACMEManager(cm, certmagic.DefaultACME)
@@ -57,33 +54,41 @@ func (mgr *autocertManager) getConfig(options *Options) (*certmagic.Config, erro
 	return cm, nil
 }
 
-func (mgr *autocertManager) update(options *Options) (*tls.Config, error) {
+func (mgr *autocertManager) update(options *Options) error {
 	if !options.AutoCert {
-		return options.TLSConfig, nil
+		return nil
 	}
 
 	cm, err := mgr.getConfig(options)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	tlsConfig := newTLSConfigIfEmpty(options.TLSConfig).Clone()
 	for _, domain := range options.sourceHostnames() {
 		cert, err := cm.CacheManagedCertificate(domain)
 		if err != nil {
 			log.Info().Str("domain", domain).Msg("obtaining certificate")
 			err = cm.ObtainCert(context.Background(), domain, false)
 			if err != nil {
-				return nil, fmt.Errorf("config: failed to obtain client certificate: %w", err)
+				return fmt.Errorf("config: failed to obtain client certificate: %w", err)
+			}
+			cert, err = cm.CacheManagedCertificate(domain)
+		}
+		if err == nil && cert.NeedsRenewal(cm) {
+			log.Info().Str("domain", domain).Msg("renewing certificate")
+			err = cm.RenewCert(context.Background(), domain, false)
+			if err != nil {
+				return fmt.Errorf("config: failed to renew client certificate: %w", err)
 			}
 			cert, err = cm.CacheManagedCertificate(domain)
 		}
 		if err == nil {
-			tlsConfig.Certificates = append(tlsConfig.Certificates, cert.Certificate)
+			options.Certificates = append(options.Certificates, cert.Certificate)
+		} else {
+			log.Error().Err(err).Msg("config: failed to obtain client certificate")
 		}
 	}
-	tlsConfig.BuildNameToCertificate()
-	return tlsConfig, nil
+	return nil
 }
 
 func (mgr *autocertManager) HandleHTTPChallenge(w http.ResponseWriter, r *http.Request) bool {
@@ -94,36 +99,4 @@ func (mgr *autocertManager) HandleHTTPChallenge(w http.ResponseWriter, r *http.R
 		return false
 	}
 	return acmeMgr.HandleHTTPChallenge(w, r)
-}
-
-// newTLSConfigIfEmpty returns an opinionated TLS configuration if config is nil.
-// See :
-// https://wiki.mozilla.org/Security/Server_Side_TLS#Recommended_configurations
-// https://blog.cloudflare.com/exposing-go-on-the-internet/
-// https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices
-// https://github.com/golang/go/blob/df91b8044dbe790c69c16058330f545be069cc1f/src/crypto/tls/common.go#L919
-func newTLSConfigIfEmpty(tlsConfig *tls.Config) *tls.Config {
-	if tlsConfig != nil {
-		return tlsConfig
-	}
-	return &tls.Config{
-		MinVersion: tls.VersionTLS12,
-		// Prioritize cipher suites sped up by AES-NI (AES-GCM)
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-		},
-		PreferServerCipherSuites: true,
-		// Use curves which have assembly implementations
-		CurvePreferences: []tls.CurveID{
-			tls.X25519,
-			tls.CurveP256,
-		},
-		// HTTP/2 must be enabled manually when using http.Serve
-		NextProtos: []string{"h2", "http/1.1"},
-	}
 }

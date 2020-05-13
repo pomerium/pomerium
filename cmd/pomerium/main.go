@@ -26,7 +26,6 @@ import (
 	"github.com/pomerium/pomerium/proxy"
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
-	"github.com/fsnotify/fsnotify"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -97,10 +96,7 @@ func run() error {
 	}
 
 	// start the config change listener
-	opt.OnConfigChange(func(e fsnotify.Event) {
-		log.Info().Str("file", e.Name).Msg("cmd/pomerium: config file changed")
-		opt = config.HandleConfigUpdate(*configFile, opt, optionsUpdaters)
-	})
+	config.WatchChanges(*configFile, opt, optionsUpdaters)
 
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
@@ -224,17 +220,4 @@ func setupTracing(opt *config.Options) error {
 		}
 	}
 	return nil
-}
-
-func httpServerOptions(opt *config.Options) *httputil.ServerOptions {
-	return &httputil.ServerOptions{
-		Addr:              opt.Addr,
-		TLSConfig:         opt.TLSConfig,
-		Insecure:          opt.InsecureServer,
-		ReadTimeout:       opt.ReadTimeout,
-		WriteTimeout:      opt.WriteTimeout,
-		ReadHeaderTimeout: opt.ReadHeaderTimeout,
-		IdleTimeout:       opt.IdleTimeout,
-		Service:           opt.Services,
-	}
 }

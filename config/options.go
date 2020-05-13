@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -78,7 +80,7 @@ type Options struct {
 	// https://letsencrypt.org/docs/staging-environment/
 	AutoCertUseStaging bool `mapstructure:"autocert_use_staging" yaml:"autocert_use_staging,omitempty"`
 
-	Certificates []certificateFilePair `mapstructure:"certificates" yaml:"certificates,omitempty"`
+	CertificateFiles []certificateFilePair `mapstructure:"certificates" yaml:"certificates,omitempty"`
 
 	// Cert and Key is the x509 certificate used to create the HTTPS server.
 	Cert string `mapstructure:"certificate" yaml:"certificate,omitempty"`
@@ -88,7 +90,7 @@ type Options struct {
 	CertFile string `mapstructure:"certificate_file" yaml:"certificate_file,omitempty"`
 	KeyFile  string `mapstructure:"certificate_key_file" yaml:"certificate_key_file,omitempty"`
 
-	TLSConfig *tls.Config `hash:"ignore"`
+	Certificates []tls.Certificate `yaml:"-"`
 
 	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
 	// to HTTPS redirect server on. If empty, no redirect server is started.
@@ -529,36 +531,42 @@ func (o *Options) Validate() error {
 	}
 
 	if o.Cert != "" || o.Key != "" {
-		o.TLSConfig, err = cryptutil.TLSConfigFromBase64(o.TLSConfig, o.Cert, o.Key)
+		cert, err := cryptutil.CertificateFromBase64(o.Cert, o.Key)
 		if err != nil {
 			return fmt.Errorf("config: bad cert base64 %w", err)
 		}
+		o.Certificates = append(o.Certificates, *cert)
 	}
 
-	if len(o.Certificates) != 0 {
-		for _, c := range o.Certificates {
-			o.TLSConfig, err = cryptutil.TLSConfigFromFile(o.TLSConfig, c.CertFile, c.KeyFile)
-			if err != nil {
-				return fmt.Errorf("config: bad cert file %w", err)
-			}
-		}
-	}
-
-	if o.CertFile != "" || o.KeyFile != "" {
-		o.TLSConfig, err = cryptutil.TLSConfigFromFile(o.TLSConfig, o.CertFile, o.KeyFile)
+	for _, c := range o.CertificateFiles {
+		cert, err := cryptutil.CertificateFromFile(c.CertFile, c.KeyFile)
 		if err != nil {
 			return fmt.Errorf("config: bad cert file %w", err)
 		}
+		o.Certificates = append(o.Certificates, *cert)
+	}
+
+	if o.CertFile != "" || o.KeyFile != "" {
+		cert, err := cryptutil.CertificateFromFile(o.CertFile, o.KeyFile)
+		if err != nil {
+			return fmt.Errorf("config: bad cert file %w", err)
+		}
+		o.Certificates = append(o.Certificates, *cert)
 	}
 
 	RedirectAndAutocertServer.update(o)
 
-	o.TLSConfig, err = AutocertManager.update(o)
+	err = AutocertManager.update(o)
 	if err != nil {
 		return fmt.Errorf("config: failed to setup autocert: %w", err)
 	}
 
-	if !o.InsecureServer && o.TLSConfig == nil {
+	// sort the certificates so we get a consistent hash
+	sort.Slice(o.Certificates, func(i, j int) bool {
+		return compareByteSliceSlice(o.Certificates[i].Certificate, o.Certificates[j].Certificate) < 0
+	})
+
+	if !o.InsecureServer && len(o.Certificates) == 0 {
 		return fmt.Errorf("config: server must be run with `autocert`, " +
 			"`insecure_server` or manually provided certificates to start")
 	}
@@ -569,13 +577,21 @@ func (o *Options) sourceHostnames() []string {
 	if len(o.Policies) == 0 {
 		return nil
 	}
-	var h []string
+
+	dedupe := map[string]struct{}{}
 	for _, p := range o.Policies {
-		h = append(h, p.Source.Hostname())
+		dedupe[p.Source.Hostname()] = struct{}{}
 	}
 	if o.AuthenticateURL != nil {
-		h = append(h, o.AuthenticateURL.Hostname())
+		dedupe[o.AuthenticateURL.Hostname()] = struct{}{}
 	}
+
+	var h []string
+	for k := range dedupe {
+		h = append(h, k)
+	}
+	sort.Strings(h)
+
 	return h
 }
 
@@ -594,10 +610,37 @@ func (o *Options) Checksum() uint64 {
 	return hash
 }
 
-// HandleConfigUpdate takes configuration file, an existing options struct, and
+// WatchChanges takes a configuration file, an existing options struct, and
+// updates each service in the services slice OptionsUpdater with a new set
+// of options if any change is detected. It also periodically rechecks if
+// any computed properties have changed.
+func WatchChanges(configFile string, opt *Options, services []OptionsUpdater) {
+	onchange := make(chan struct{}, 1)
+	ticker := time.NewTicker(10 * time.Minute) // force check every 10 minutes
+	defer ticker.Stop()
+
+	opt.OnConfigChange(func(fs fsnotify.Event) {
+		log.Info().Str("file", fs.Name).Msg("config: file changed")
+		select {
+		case onchange <- struct{}{}:
+		default:
+		}
+	})
+
+	for {
+		select {
+		case <-onchange:
+		case <-ticker.C:
+		}
+
+		opt = handleConfigUpdate(configFile, opt, services)
+	}
+}
+
+// handleConfigUpdate takes configuration file, an existing options struct, and
 // updates each service in the services slice OptionsUpdater with a new set of
 // options if any change is detected.
-func HandleConfigUpdate(configFile string, opt *Options, services []OptionsUpdater) *Options {
+func handleConfigUpdate(configFile string, opt *Options, services []OptionsUpdater) *Options {
 	newOpt, err := NewOptionsFromConfig(configFile)
 	if err != nil {
 		log.Error().Err(err).Msg("config: could not reload configuration")
@@ -640,4 +683,32 @@ func dataDir() string {
 		baseDir = xdgData
 	}
 	return filepath.Join(baseDir, "pomerium")
+}
+
+func compareByteSliceSlice(a, b [][]byte) int {
+	sz := min(len(a), len(b))
+	for i := 0; i < sz; i++ {
+		switch bytes.Compare(a[i], b[i]) {
+		case -1:
+			return -1
+		case 1:
+			return 1
+		}
+	}
+
+	switch {
+	case len(a) < len(b):
+		return -1
+	case len(b) < len(a):
+		return 1
+	default:
+		return 0
+	}
+}
+
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
 }

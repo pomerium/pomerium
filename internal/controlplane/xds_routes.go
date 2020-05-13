@@ -37,7 +37,7 @@ func (srv *Server) buildGRPCRoutes() []*envoy_config_route_v3.Route {
 	}}
 }
 
-func (srv *Server) buildPomeriumHTTPRoutes(options config.Options, domain string) []*envoy_config_route_v3.Route {
+func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	routes := []*envoy_config_route_v3.Route{
 		srv.buildControlPlanePathRoute("/ping"),
 		srv.buildControlPlanePathRoute("/healthz"),
@@ -95,7 +95,7 @@ func (srv *Server) buildControlPlanePrefixRoute(prefix string) *envoy_config_rou
 	}
 }
 
-func (srv *Server) buildPolicyRoutes(options config.Options, domain string) []*envoy_config_route_v3.Route {
+func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	var routes []*envoy_config_route_v3.Route
 	for i, policy := range options.Policies {
 		if policy.Source.Hostname() != domain {

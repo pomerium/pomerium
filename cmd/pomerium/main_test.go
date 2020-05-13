@@ -8,28 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/httputil"
 )
-
-func Test_httpServerOptions(t *testing.T) {
-	tests := []struct {
-		name string
-		opt  *config.Options
-		want *httputil.ServerOptions
-	}{
-		{"simple convert", &config.Options{Addr: ":80"}, &httputil.ServerOptions{Addr: ":80"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if diff := cmp.Diff(httpServerOptions(tt.opt), tt.want); diff != "" {
-				t.Errorf("httpServerOptions() = \n %s", diff)
-			}
-		})
-	}
-}
 
 func Test_setupTracing(t *testing.T) {
 	tests := []struct {

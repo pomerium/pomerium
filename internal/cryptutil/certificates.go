@@ -17,8 +17,8 @@ import (
 	"time"
 )
 
-// CertifcateFromBase64 returns an X509 pair from a base64 encoded blob.
-func CertifcateFromBase64(cert, key string) (*tls.Certificate, error) {
+// CertificateFromBase64 returns an X509 pair from a base64 encoded blob.
+func CertificateFromBase64(cert, key string) (*tls.Certificate, error) {
 	decodedCert, err := base64.StdEncoding.DecodeString(cert)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode certificate cert %v: %w", decodedCert, err)

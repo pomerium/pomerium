@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (srv *Server) buildDiscoveryResponse(version string, typeURL string, options config.Options) (*envoy_service_discovery_v3.DiscoveryResponse, error) {
+func (srv *Server) buildDiscoveryResponse(version string, typeURL string, options *config.Options) (*envoy_service_discovery_v3.DiscoveryResponse, error) {
 	switch typeURL {
 	case "type.googleapis.com/envoy.config.listener.v3.Listener":
 		listeners := srv.buildListeners(options)
@@ -54,7 +54,7 @@ func (srv *Server) buildDiscoveryResponse(version string, typeURL string, option
 	}
 }
 
-func (srv *Server) buildAccessLogs(options config.Options) []*envoy_config_accesslog_v3.AccessLog {
+func (srv *Server) buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.AccessLog {
 	lvl := options.ProxyLogLevel
 	if lvl == "" {
 		lvl = options.LogLevel
