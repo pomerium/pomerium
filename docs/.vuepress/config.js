@@ -45,7 +45,6 @@ module.exports = {
       { text: "Configuration", link: "/configuration/" },
       { text: "Recipes", link: "/recipes/" },
       { text: "Enterprise", link: "/enterprise/" },
-
       {
         text: "v0.8.x", // current tagged version
         ariaLabel: "Version menu",

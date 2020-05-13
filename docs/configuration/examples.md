@@ -5,7 +5,6 @@ sidebarDepth: 2
 meta:
   - name: keywords
     content: pomerium community help bugs updates features
-
 description: >-
   This document describes how you users can stay up to date with pomerium,
   report issues, get help, and suggest new features.
@@ -86,15 +85,15 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 
 - Uses Google Kubernetes Engine's built-in ingress to do [HTTPS load balancing]
 
-<<< @/scripts/helm_gke.sh
+<<< @/docs/configuration/examples/helm/helm_gke.sh
 
 ### AWS ECS
 
 - Uses Amazon Elastic Container Service
 
-<<< @/scripts/helm_aws.sh
+<<< @/docs/configuration/examples/helm/helm_aws.sh
 
-## Kubernetes
+### Kubernetes
 
 - Uses Google Kubernetes Engine's built-in ingress to do [HTTPS load balancing]
 - HTTPS (TLS) between client, load balancer, and services
