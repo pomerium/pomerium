@@ -5,5 +5,6 @@ package envoy
 import "syscall"
 
 var sysProcAttr = &syscall.SysProcAttr{
+	Setpgid:   true,
 	Pdeathsig: syscall.SIGTERM,
 }
