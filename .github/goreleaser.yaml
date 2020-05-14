@@ -6,6 +6,10 @@ release:
     name: pomerium
   name_template: "v{{.Version}}"
 
+env:
+  - GO111MODULE=on
+  - CGO_ENABLED=0
+
 before:
   hooks:
     - go mod download
@@ -15,8 +19,6 @@ builds:
   - id: pomerium
     main: cmd/pomerium/main.go
     binary: pomerium
-    env:
-      - CGO_ENABLED=0
     goarch:
       - amd64
     goos:
@@ -32,13 +34,14 @@ builds:
       - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://wwww.pomerium.io
 
     hooks:
-      post: ./scripts/embed-envoy.bash {{ .Path }}
+      post:
+        - cmd: ./scripts/embed-envoy.bash {{ .Path }}
+          env:
+            - GOOS={{ .Target }}
 
   - id: pomerium-cli
     main: cmd/pomerium-cli/cli.go
     binary: pomerium-cli
-    env:
-      - CGO_ENABLED=0
     goarch:
       - amd64
       - arm
