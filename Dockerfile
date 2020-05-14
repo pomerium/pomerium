@@ -1,13 +1,17 @@
 FROM golang:latest as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
+RUN apt update \
+    && apt -y install zip
+
 # cache depedency downloads
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
 # build
-RUN make
+RUN make build-deps
+RUN make build
 RUN touch /config.yaml
 
 FROM gcr.io/distroless/base:debug
