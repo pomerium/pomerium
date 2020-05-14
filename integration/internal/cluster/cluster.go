@@ -24,15 +24,20 @@ func New(workingDir string) *Cluster {
 	}
 }
 
-// NewHTTPClient creates a new *http.Client, with a cookie jar, and a LocalRoundTripper
-// which routes traffic to the nginx ingress controller.
+// NewHTTPClient calls NewHTTPClientWithTransport with the default cluster transport.
 func (cluster *Cluster) NewHTTPClient() *http.Client {
+	return cluster.NewHTTPClientWithTransport(cluster.Transport)
+}
+
+// NewHTTPClientWithTransport creates a new *http.Client, with a cookie jar, and a LocalRoundTripper
+// which routes traffic to the nginx ingress controller.
+func (cluster *Cluster) NewHTTPClientWithTransport(transport http.RoundTripper) *http.Client {
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
 		panic(err)
 	}
 	return &http.Client{
-		Transport: &loggingRoundTripper{cluster.Transport},
+		Transport: &loggingRoundTripper{transport},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
