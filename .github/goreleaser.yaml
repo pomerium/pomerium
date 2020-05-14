@@ -9,6 +9,7 @@ release:
 before:
   hooks:
     - go mod download
+    - make build-deps
 
 builds:
   - id: pomerium
@@ -18,21 +19,9 @@ builds:
       - CGO_ENABLED=0
     goarch:
       - amd64
-      - arm
-      - arm64
     goos:
       - linux
       - darwin
-      - windows
-      - freebsd
-    goarm:
-      - 6
-      - 7
-    ignore:
-      - goos: freebsd
-        goarch: arm64
-      - goos: freebsd
-        goarch: arm
 
     ldflags:
       - -s -w
@@ -41,6 +30,9 @@ builds:
       - -X github.com/pomerium/pomerium/internal/version.BuildMeta={{.Timestamp}}
       - -X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium
       - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://wwww.pomerium.io
+
+    hooks:
+      post: ./scripts/embed-envoy.bash {{ .Path }}
 
   - id: pomerium-cli
     main: cmd/pomerium-cli/cli.go
@@ -94,60 +86,6 @@ dockers:
   - image_templates:
       - "pomerium/pomerium:{{ .Tag }}"
     dockerfile: .github/Dockerfile-release
-    binaries:
-      - pomerium
-      - pomerium-cli
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
-
-  - goarch: arm64
-    image_templates:
-      - "pomerium/pomerium:arm64v8-{{ .Tag }}"
-    dockerfile: .github/Dockerfile-release.arm64v8
-    binaries:
-      - pomerium
-      - pomerium-cli
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
-
-  - goarch: arm
-    goarm: 7
-    image_templates:
-      - "pomerium/pomerium:arm32v7-{{ .Tag }}"
-    dockerfile: .github/Dockerfile-release.arm32v7
-    binaries:
-      - pomerium
-      - pomerium-cli
-
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--label=repository=http://github.com/pomerium/pomerium"
-      - "--label=homepage=http://www.pomerium.io"
-
-  - goarch: arm
-    goarm: 6
-    image_templates:
-      - "pomerium/pomerium:arm32v6-{{ .Tag }}"
-    dockerfile: .github/Dockerfile-release.arm32v6
     binaries:
       - pomerium
       - pomerium-cli
