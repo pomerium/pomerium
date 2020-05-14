@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"net"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/pomerium/pomerium/integration/internal/netutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -181,158 +183,40 @@ func TestWebsocket(t *testing.T) {
 	})
 }
 
-func TestTLSSkipVerify(t *testing.T) {
+func TestSNIMismatch(t *testing.T) {
+	// Browsers will coalesce connections for the same IP address and TLS certificate
+	// even if the request was made to different domain names. We need to support this
+	// so this test makes a request with an incorrect TLS server name to make sure it
+	// gets routed properly
+
 	ctx := mainCtx
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
-	t.Run("enabled", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
+	hostport, err := testcluster.GetNodePortAddr(ctx, "default", "pomerium-proxy-nodeport")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-skip-verify-enabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
-
-		assert.Equal(t, http.StatusOK, res.StatusCode)
+	client := testcluster.NewHTTPClientWithTransport(&http.Transport{
+		DialContext: netutil.NewLocalDialer((&net.Dialer{}), map[string]string{
+			"443": hostport,
+		}).DialContext,
+		TLSClientConfig: &tls.Config{
+			ServerName: "ws-echo.localhost.pomerium.io",
+		},
 	})
-	t.Run("disabled", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
 
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-skip-verify-disabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/ping", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
+	res, err := client.Do(req)
+	if !assert.NoError(t, err, "unexpected http error") {
+		return
+	}
+	defer res.Body.Close()
 
-		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
-	})
-}
-
-func TestTLSServerName(t *testing.T) {
-	ctx := mainCtx
-	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
-	defer clearTimeout()
-
-	t.Run("enabled", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
-
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-server-name-enabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
-
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-	})
-	t.Run("disabled", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
-
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-server-name-disabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
-
-		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
-	})
-}
-
-func TestTLSCustomCA(t *testing.T) {
-	ctx := mainCtx
-	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
-	defer clearTimeout()
-
-	t.Run("enabled", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
-
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-custom-ca-enabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
-
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-	})
-	t.Run("disabled", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
-
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-custom-ca-disabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
-
-		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
-	})
-}
-
-func TestTLSClientCert(t *testing.T) {
-	ctx := mainCtx
-	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
-	defer clearTimeout()
-
-	t.Run("enabled", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
-
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-client-cert-enabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
-
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-	})
-	t.Run("disabled", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
-
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-client-cert-disabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
-
-		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
-	})
+	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
