@@ -109,7 +109,7 @@ func (srv *Server) buildFilterChains(
 	var chains []*envoy_config_listener_v3.FilterChain
 	for _, domain := range allDomains {
 		// first we match on SNI
-		chains = append(chains, callback(domain, []string{domain}))
+		chains = append(chains, callback(domain, allDomains))
 	}
 	// if there are no SNI matches we match on HTTP host
 	chains = append(chains, callback("*", allDomains))

@@ -51,7 +51,7 @@ func (cluster *Cluster) Setup(ctx context.Context) error {
 		return err
 	}
 
-	hostport, err := cluster.getNodeHTTPSAddr(ctx)
+	hostport, err := cluster.GetNodePortAddr(ctx, "ingress-nginx", "ingress-nginx-nodeport")
 	if err != nil {
 		return err
 	}
@@ -68,11 +68,12 @@ func (cluster *Cluster) Setup(ctx context.Context) error {
 	return nil
 }
 
-func (cluster *Cluster) getNodeHTTPSAddr(ctx context.Context) (hostport string, err error) {
+// GetNodePortAddr returns the node:port address for a NodePort kubernetes service.
+func (cluster *Cluster) GetNodePortAddr(ctx context.Context, namespace, svcName string) (hostport string, err error) {
 	var buf bytes.Buffer
 
-	args := []string{"get", "service", "--namespace", "ingress-nginx", "--output", "json",
-		"ingress-nginx-nodeport"}
+	args := []string{"get", "service", "--namespace", namespace, "--output", "json",
+		svcName}
 	err = run(ctx, "kubectl", withArgs(args...), withStdout(&buf))
 	if err != nil {
 		return "", fmt.Errorf("error getting service details with kubectl: %w", err)
@@ -94,7 +95,7 @@ func (cluster *Cluster) getNodeHTTPSAddr(ctx context.Context) (hostport string, 
 
 	buf.Reset()
 
-	args = []string{"get", "pods", "--namespace", "ingress-nginx", "--output", "json"}
+	args = []string{"get", "pods", "--namespace", namespace, "--output", "json"}
 	var sel []string
 	for k, v := range svcResult.Spec.Selector {
 		sel = append(sel, k+"="+v)
