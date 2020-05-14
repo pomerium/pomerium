@@ -5,6 +5,8 @@ BINARY=$1
 
 ENVOY_VERSION=1.14.1
 DIR=$(dirname "${BINARY}")
+GOOS=$(echo "${GOOS-}" | cut -d _ -f 1) # goreleaser is fine
+
 GOOS=$(go env GOOS)
 
 if [ "${GOOS}" == "darwin" ]; then
