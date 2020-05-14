@@ -27,9 +27,12 @@ CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.ProjectURL=$(PKG)
 GO_LDFLAGS=-ldflags "-s -w $(CTIMEVAR)"
 GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
+GOOS = $(shell go env GOOS)
+GOARCH= $(shell go env GOARCH)
 MISSPELL_VERSION = v0.3.4
 GOLANGCI_VERSION = v1.21.0
 OPA_VERSION = v0.19.1
+GETENVOY_VERSION = v0.1.8
 
 .PHONY: all
 all: clean build-deps test lint spellcheck build ## Runs a clean, build, fmt, lint, test, and vet.
@@ -41,6 +44,7 @@ build-deps: ## Install build dependencies
 	@cd /tmp; GO111MODULE=on go get github.com/client9/misspell/cmd/misspell@${MISSPELL_VERSION}
 	@cd /tmp; GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_VERSION}
 	@cd /tmp; GO111MODULE=on go get github.com/open-policy-agent/opa@${OPA_VERSION}
+	@cd /tmp; GO111MODULE=on go get github.com/tetratelabs/getenvoy/cmd/getenvoy@${GETENVOY_VERSION}
 
 .PHONY: docs
 docs: ## Start the vuepress docs development server
@@ -61,6 +65,7 @@ frontend: ## Runs go generate on the static assets package.
 build: ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
 	@CGO_ENABLED=0 GO111MODULE=on go build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+	./scripts/embed-envoy.bash $(BINDIR)/$(NAME)
 
 .PHONY: lint
 lint: ## Verifies `golint` passes.
@@ -96,33 +101,11 @@ clean: ## Cleanup any build binaries or packages.
 	$(RM) -r $(BINDIR)
 	$(RM) -r $(BUILDDIR)
 
-define buildpretty
-mkdir -p $(BUILDDIR)/$(1)/$(2);
-GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 GO111MODULE=on go build \
-	 -o $(BUILDDIR)/$(1)/$(2)/$(NAME) \
-	 ${GO_LDFLAGS_STATIC} ./cmd/$(NAME);
-md5sum $(BUILDDIR)/$(1)/$(2)/$(NAME) > $(BUILDDIR)/$(1)/$(2)/$(NAME).md5;
-sha256sum $(BUILDDIR)/$(1)/$(2)/$(NAME) > $(BUILDDIR)/$(1)/$(2)/$(NAME).sha256;
-endef
-
-.PHONY: cross
-cross: ## Builds the cross-compiled binaries, creating a clean directory structure (eg. GOOS/GOARCH/binary)
-	@echo "+ $@"
-	$(foreach GOOSARCH,$(GOOSARCHES), $(call buildpretty,$(subst /,,$(dir $(GOOSARCH))),$(notdir $(GOOSARCH))))
-
-define buildrelease
-GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 GO111MODULE=on go build ${GO_LDFLAGS} \
-	 -o $(BUILDDIR)/$(NAME)-$(1)-$(2) \
-	 ${GO_LDFLAGS_STATIC} ./cmd/$(NAME);
-GOOS=$(1) GOARCH=$(2) ./scripts/embed-envoy.bash "$(BUILDDIR)/$(NAME)-$(1)-$(2)" || true;
-md5sum $(BUILDDIR)/$(NAME)-$(1)-$(2) > $(BUILDDIR)/$(NAME)-$(1)-$(2).md5;
-sha256sum $(BUILDDIR)/$(NAME)-$(1)-$(2) > $(BUILDDIR)/$(NAME)-$(1)-$(2).sha256;
-endef
-
 .PHONY: release
-release: ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
+snapshot: ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
 	@echo "+ $@"
-	$(foreach GOOSARCH,$(GOOSARCHES), $(call buildrelease,$(subst /,,$(dir $(GOOSARCH))),$(notdir $(GOOSARCH))))
+	@cd /tmp; GO111MODULE=on go get github.com/goreleaser/goreleaser
+	goreleaser release --rm-dist -f .github/goreleaser.yaml --snapshot 
 
 .PHONY: help
 help:

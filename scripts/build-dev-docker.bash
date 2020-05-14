@@ -1,28 +1,12 @@
 #!/bin/bash
 set -euxo pipefail
 
-_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 _dir=/tmp/pomerium-dev-docker
 mkdir -p "$_dir"
 
 # build linux binary
-env GOOS=linux \
-  GOARCH=amd64 \
-  CGO_ENABLED=0 \
-  GO111MODULE=on \
-  go build \
-  -ldflags "-s -w" \
-  -o "$_dir/pomerium" \
-  ./cmd/pomerium
-
-# embed envoy
-(
-  cd "$_script_dir"
-  env GOOS=linux \
-    GOARCH=amd64 \
-    ./embed-envoy.bash \
-    "$_dir/pomerium"
-)
+env GOOS=linux make build-deps build
+cp bin/pomerium $_dir/
 
 # build docker image
 (
