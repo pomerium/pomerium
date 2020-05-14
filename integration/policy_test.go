@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"net"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/pomerium/pomerium/integration/internal/netutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -179,4 +181,42 @@ func TestWebsocket(t *testing.T) {
 		err = ws.ReadJSON(&msg)
 		assert.NoError(t, err, "expected no error when reading json from websocket")
 	})
+}
+
+func TestSNIMismatch(t *testing.T) {
+	// Browsers will coalesce connections for the same IP address and TLS certificate
+	// even if the request was made to different domain names. We need to support this
+	// so this test makes a request with an incorrect TLS server name to make sure it
+	// gets routed properly
+
+	ctx := mainCtx
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	hostport, err := testcluster.GetNodePortAddr(ctx, "default", "pomerium-proxy-nodeport")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := testcluster.NewHTTPClientWithTransport(&http.Transport{
+		DialContext: netutil.NewLocalDialer((&net.Dialer{}), map[string]string{
+			"443": hostport,
+		}).DialContext,
+		TLSClientConfig: &tls.Config{
+			ServerName: "ws-echo.localhost.pomerium.io",
+		},
+	})
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/ping", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := client.Do(req)
+	if !assert.NoError(t, err, "unexpected http error") {
+		return
+	}
+	defer res.Body.Close()
+
+	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
