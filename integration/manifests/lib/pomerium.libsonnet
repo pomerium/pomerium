@@ -178,7 +178,7 @@ local PomeriumDeployment = function(svc) {
           ip: '10.96.1.1',
           hostnames: [
             'openid.localhost.pomerium.io',
-            'authenticate.localhost.pomerium.io'
+            'authenticate.localhost.pomerium.io',
           ],
         }],
         initContainers: [{
@@ -265,6 +265,28 @@ local PomeriumService = function(svc) {
     ],
     selector: {
       app: 'pomerium-' + svc,
+    },
+  },
+};
+
+local PomeriumNodePortServce = function() {
+  apiVersion: 'v1',
+  kind: 'Service',
+  metadata: {
+    namespace: 'default',
+    name: 'pomerium-proxy-nodeport',
+    labels: {
+      app: 'pomerium-proxy',
+      'app.kubernetes.io/part-of': 'pomerium',
+    },
+  },
+  spec: {
+    type: 'NodePort',
+    ports: [
+      { name: 'https', port: 443, protocol: 'TCP', targetPort: 'https', nodePort: 31443 },
+    ],
+    selector: {
+      app: 'pomerium-proxy',
     },
   },
 };
@@ -392,6 +414,7 @@ local PomeriumForwardAuthIngress = function() {
     PomeriumDeployment('cache'),
     PomeriumService('proxy'),
     PomeriumDeployment('proxy'),
+    PomeriumNodePortServce(),
     PomeriumIngress(),
     PomeriumForwardAuthIngress(),
   ],
