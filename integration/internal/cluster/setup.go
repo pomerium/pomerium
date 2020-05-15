@@ -16,7 +16,6 @@ import (
 
 	"github.com/google/go-jsonnet"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/integration/internal/netutil"
 )
@@ -42,12 +41,12 @@ func (cluster *Cluster) Setup(ctx context.Context) error {
 		return err
 	}
 
-	resources, err := cluster.generateManifests()
+	jsonsrc, err := cluster.generateManifests()
 	if err != nil {
 		return err
 	}
 
-	err = applyManifests(ctx, resources)
+	err = applyManifests(ctx, jsonsrc)
 	if err != nil {
 		return err
 	}
@@ -139,10 +138,10 @@ func (cluster *Cluster) getNodeHTTPSAddr(ctx context.Context) (hostport string, 
 	return net.JoinHostPort(hostIP, port), nil
 }
 
-func (cluster *Cluster) generateManifests() ([]json.RawMessage, error) {
+func (cluster *Cluster) generateManifests() (string, error) {
 	src, err := ioutil.ReadFile(filepath.Join(cluster.workingDir, "manifests", "manifests.jsonnet"))
 	if err != nil {
-		return nil, fmt.Errorf("error reading manifest jsonnet src: %w", err)
+		return "", fmt.Errorf("error reading manifest jsonnet src: %w", err)
 	}
 
 	vm := jsonnet.MakeVM()
@@ -154,35 +153,16 @@ func (cluster *Cluster) generateManifests() ([]json.RawMessage, error) {
 	})
 	jsonsrc, err := vm.EvaluateSnippet("manifests.jsonnet", string(src))
 	if err != nil {
-		return nil, fmt.Errorf("error evaluating jsonnet (filename=manifests.jsonnet): %w", err)
+		return "", fmt.Errorf("error evaluating jsonnet (filename=manifests.jsonnet): %w", err)
 	}
 
-	var list struct {
-		Items []json.RawMessage `json:"items"`
-	}
-	err = json.NewDecoder(strings.NewReader(jsonsrc)).Decode(&list)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshaling jsonsrc: %w", err)
-	}
-
-	return list.Items, nil
+	return jsonsrc, nil
 }
 
-func applyManifests(ctx context.Context, resources []json.RawMessage) error {
-	eg, procctx := errgroup.WithContext(ctx)
-	for _, resource := range resources {
-		resource := resource
-		eg.Go(func() error {
-			err := run(procctx, "kubectl", withArgs("apply", "-f", "-"), withStdin(bytes.NewReader(resource)))
-			if err != nil {
-				return fmt.Errorf("error applying manifests: %w", err)
-			}
-			return nil
-		})
-	}
-	err := eg.Wait()
+func applyManifests(ctx context.Context, jsonsrc string) error {
+	err := run(ctx, "kubectl", withArgs("apply", "-f", "-"), withStdin(strings.NewReader(jsonsrc)))
 	if err != nil {
-		return err
+		return fmt.Errorf("error applying manifests: %w", err)
 	}
 
 	log.Info().Msg("waiting for deployments to come up")
