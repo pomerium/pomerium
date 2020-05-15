@@ -135,6 +135,8 @@ local backends = [
         configMap(backend.name, backend.files),
         service(backend.name, null),
         deployment(backend.name, null),
+        service(backend.name, 'wrongly-named'),
+        deployment(backend.name, 'wrongly-named'),
         service(backend.name, 'untrusted'),
         deployment(backend.name, 'untrusted'),
       ]

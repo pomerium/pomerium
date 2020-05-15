@@ -3,6 +3,7 @@ local tls = import './tls.libsonnet';
 local PomeriumPolicy = function() std.flattenArrays(
   [
     [
+      // tls_skip_verify
       {
         from: 'http://httpdetails.localhost.pomerium.io',
         to: 'https://untrusted-httpdetails.default.svc.cluster.local',
@@ -15,6 +16,20 @@ local PomeriumPolicy = function() std.flattenArrays(
         to: 'https://untrusted-httpdetails.default.svc.cluster.local',
         path: '/tls-skip-verify-disabled',
         tls_skip_verify: false,
+        allow_public_unauthenticated_access: true,
+      },
+      // tls_server_name
+      {
+        from: 'http://httpdetails.localhost.pomerium.io',
+        to: 'https://wrongly-named-httpdetails.default.svc.cluster.local',
+        path: '/tls-server-name-enabled',
+        tls_server_name: 'httpdetails.localhost.notpomerium.io',
+        allow_public_unauthenticated_access: true,
+      },
+      {
+        from: 'http://httpdetails.localhost.pomerium.io',
+        to: 'https://wrongly-named-httpdetails.default.svc.cluster.local',
+        path: '/tls-server-name-disabled',
         allow_public_unauthenticated_access: true,
       },
     ],
@@ -104,23 +119,9 @@ local PomeriumTLSSecret = function(name) {
     name: 'pomerium-' + name + '-tls',
   },
   data: {
+    'tls-ca.crt': std.base64(tls[name].ca),
     'tls.crt': std.base64(tls[name].cert),
     'tls.key': std.base64(tls[name].key),
-  },
-};
-
-local PomeriumCAsConfigMap = function() {
-  apiVersion: 'v1',
-  kind: 'ConfigMap',
-  metadata: {
-    namespace: 'default',
-    name: 'pomerium-cas',
-    labels: {
-      'app.kubernetes.io/part-of': 'pomerium',
-    },
-  },
-  data: {
-    'pomerium.crt': tls.trusted.ca,
   },
 };
 
@@ -199,17 +200,22 @@ local PomeriumDeployment = function(svc) {
         }],
         initContainers: [
           {
-            name: 'pomerium-' + svc + '-certs',
+            name: 'init',
             image: 'buildpack-deps:buster-curl',
             imagePullPolicy: 'IfNotPresent',
             command: ['sh', '-c', |||
-              cp /incoming-certs/* /usr/local/share/ca-certificates
+              cp /incoming-certs/trusted/tls-ca.crt /usr/local/share/ca-certificates/pomerium-trusted.crt
+              cp /incoming-certs/wrongly-named/tls-ca.crt /usr/local/share/ca-certificates/pomerium-wrongly-named.crt
               update-ca-certificates
             |||],
             volumeMounts: [
               {
-                name: 'incoming-certs',
-                mountPath: '/incoming-certs',
+                name: 'trusted-incoming-certs',
+                mountPath: '/incoming-certs/trusted',
+              },
+              {
+                name: 'wrongly-named-incoming-certs',
+                mountPath: '/incoming-certs/wrongly-named',
               },
               {
                 name: 'outgoing-certs',
@@ -253,9 +259,15 @@ local PomeriumDeployment = function(svc) {
         }],
         volumes: [
           {
-            name: 'incoming-certs',
-            configMap: {
-              name: 'pomerium-cas',
+            name: 'trusted-incoming-certs',
+            secret: {
+              secretName: 'pomerium-trusted-tls',
+            },
+          },
+          {
+            name: 'wrongly-named-incoming-certs',
+            secret: {
+              secretName: 'pomerium-wrongly-named-tls',
             },
           },
           {
@@ -410,7 +422,6 @@ local PomeriumForwardAuthIngress = function() {
   kind: 'List',
   items: [
     PomeriumConfigMap(),
-    PomeriumCAsConfigMap(),
     PomeriumTLSSecret('trusted'),
     PomeriumTLSSecret('untrusted'),
     PomeriumTLSSecret('wrongly-named'),
