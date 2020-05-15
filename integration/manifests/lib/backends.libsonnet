@@ -68,11 +68,11 @@ local deployment = function(name, tlsName, requireMutualAuth) {
             '-c',
             'cd /src && go run . ' +
             (if tlsName != null then
-               '-cert-file=/certs/tls.crt -key-file=/certs/tls.key'
+               ' -cert-file=/certs/tls.crt -key-file=/certs/tls.key'
              else
                '') +
             (if requireMutualAuth then
-               '-mutual-auth-ca-file=/certs/tls.ca'
+               ' -mutual-auth-ca-file=/certs/tls-ca.crt'
              else
                ''),
           ],
@@ -143,14 +143,17 @@ local backends = [
         configMap(backend.name, backend.files),
         service(backend.name, null, false),
         deployment(backend.name, null, false),
-        service(backend.name, null, true),
-        deployment(backend.name, null, true),
         service(backend.name, 'wrongly-named', false),
         deployment(backend.name, 'wrongly-named', false),
         service(backend.name, 'untrusted', false),
         deployment(backend.name, 'untrusted', false),
       ]
       for backend in backends
-    ]
+    ] + [
+      [
+        service('httpdetails', 'trusted', true),
+        deployment('httpdetails', 'trusted', true),
+      ],
+    ],
   ),
 }

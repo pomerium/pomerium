@@ -157,6 +157,8 @@ func (cluster *Cluster) generateManifests() (string, error) {
 		vm.ExtVar("tls-"+item.name+"-ca", string(item.certs.CA))
 		vm.ExtVar("tls-"+item.name+"-cert", string(item.certs.Cert))
 		vm.ExtVar("tls-"+item.name+"-key", string(item.certs.Key))
+		vm.ExtVar("tls-"+item.name+"-client-cert", string(item.certs.Client.Cert))
+		vm.ExtVar("tls-"+item.name+"-client-key", string(item.certs.Client.Key))
 	}
 	vm.Importer(&jsonnet.FileImporter{
 		JPaths: []string{filepath.Join(cluster.workingDir, "manifests")},

@@ -11,9 +11,13 @@ import (
 
 // TLSCerts holds the certificate authority, certificate and certificate key for a TLS connection.
 type TLSCerts struct {
-	CA   []byte
-	Cert []byte
-	Key  []byte
+	CA     []byte
+	Cert   []byte
+	Key    []byte
+	Client struct {
+		Cert []byte
+		Key  []byte
+	}
 }
 
 // TLSCertsBundle holds various TLSCerts.
@@ -87,10 +91,23 @@ func bootstrapCerts(ctx context.Context) (*TLSCertsBundle, error) {
 				filepath.Base(generator.caroot), err)
 		}
 
+		fp = filepath.Join(generator.caroot, strings.ReplaceAll(generator.name, "*", "_wildcard")+"-client.pem")
+		generator.certs.Client.Cert, err = ioutil.ReadFile(fp)
+		if err != nil {
+			return nil, fmt.Errorf("error reading %s client certificate: %w",
+				filepath.Base(generator.caroot), err)
+		}
+
 		fp = filepath.Join(generator.caroot, strings.ReplaceAll(generator.name, "*", "_wildcard")+"-key.pem")
 		generator.certs.Key, err = ioutil.ReadFile(fp)
 		if err != nil {
 			return nil, fmt.Errorf("error reading %s certificate key: %w",
+				filepath.Base(generator.caroot), err)
+		}
+		fp = filepath.Join(generator.caroot, strings.ReplaceAll(generator.name, "*", "_wildcard")+"-client-key.pem")
+		generator.certs.Client.Key, err = ioutil.ReadFile(fp)
+		if err != nil {
+			return nil, fmt.Errorf("error reading %s client certificate key: %w",
 				filepath.Base(generator.caroot), err)
 		}
 	}

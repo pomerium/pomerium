@@ -50,16 +50,16 @@ local PomeriumPolicy = function() std.flattenArrays(
       // tls_client_cert
       {
         from: 'http://httpdetails.localhost.pomerium.io',
-        to: 'https://untrusted-httpdetails.default.svc.cluster.local',
+        to: 'https://trusted-mtls-httpdetails.default.svc.cluster.local',
         path: '/tls-client-cert-enabled',
-        tls_client_cert: std.base64(tls.trusted.cert),
-        tls_client_key: std.base64(tls.trusted.key),
+        tls_client_cert: std.base64(tls.trusted.client.cert),
+        tls_client_key: std.base64(tls.trusted.client.key),
         tls_server_name: 'httpdetails.localhost.pomerium.io',
         allow_public_unauthenticated_access: true,
       },
       {
         from: 'http://httpdetails.localhost.pomerium.io',
-        to: 'https://untrusted-httpdetails.default.svc.cluster.local',
+        to: 'https://trusted-mtls-httpdetails.default.svc.cluster.local',
         path: '/tls-client-cert-disabled',
         allow_public_unauthenticated_access: true,
       },
@@ -153,6 +153,8 @@ local PomeriumTLSSecret = function(name) {
     'tls-ca.crt': std.base64(tls[name].ca),
     'tls.crt': std.base64(tls[name].cert),
     'tls.key': std.base64(tls[name].key),
+    'tls-client.crt': std.base64(tls[name].client.cert),
+    'tls-client.key': std.base64(tls[name].client.key),
   },
 };
 
