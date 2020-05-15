@@ -83,8 +83,8 @@ local PomeriumTLSSecret = function() {
     name: 'pomerium-tls',
   },
   data: {
-    'tls.crt': std.base64(tls.cert),
-    'tls.key': std.base64(tls.key),
+    'tls.crt': std.base64(tls.trusted.cert),
+    'tls.key': std.base64(tls.trusted.key),
   },
 };
 
@@ -99,7 +99,7 @@ local PomeriumCAsConfigMap = function() {
     },
   },
   data: {
-    'pomerium.crt': tls.ca,
+    'pomerium.crt': tls.trusted.ca,
   },
 };
 
@@ -129,8 +129,8 @@ local PomeriumConfigMap = function() {
     SHARED_SECRET: 'Wy+c0uSuIM0yGGXs82MBwTZwRiZ7Ki2T0LANnmzUtkI=',
     COOKIE_SECRET: 'eZ91a/j9fhgki9zPDU5zHdQWX4io89pJanChMVa5OoM=',
 
-    CERTIFICATE: std.base64(tls.cert),
-    CERTIFICATE_KEY: std.base64(tls.key),
+    CERTIFICATE: std.base64(tls.trusted.cert),
+    CERTIFICATE_KEY: std.base64(tls.trusted.key),
 
     IDP_PROVIDER: 'oidc',
     IDP_PROVIDER_URL: 'https://openid.localhost.pomerium.io',

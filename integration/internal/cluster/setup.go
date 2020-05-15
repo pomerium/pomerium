@@ -36,7 +36,7 @@ func (cluster *Cluster) Setup(ctx context.Context) error {
 		return fmt.Errorf("error running kubectl cluster-info: %w", err)
 	}
 
-	cluster.certs, err = bootstrapCerts(ctx)
+	cluster.certsBundle, err = bootstrapCerts(ctx)
 	if err != nil {
 		return err
 	}
@@ -145,9 +145,19 @@ func (cluster *Cluster) generateManifests() (string, error) {
 	}
 
 	vm := jsonnet.MakeVM()
-	vm.ExtVar("tls-ca", cluster.certs.CA)
-	vm.ExtVar("tls-cert", cluster.certs.Cert)
-	vm.ExtVar("tls-key", cluster.certs.Key)
+	for _, item := range []struct {
+		name  string
+		certs *TLSCerts
+	}{
+		{"trusted", &cluster.certsBundle.Trusted},
+		{"wrongly-named", &cluster.certsBundle.WronglyNamed},
+		{"untrusted", &cluster.certsBundle.Untrusted},
+	} {
+
+		vm.ExtVar("tls-"+item.name+"-ca", string(item.certs.CA))
+		vm.ExtVar("tls-"+item.name+"-cert", string(item.certs.Cert))
+		vm.ExtVar("tls-"+item.name+"-key", string(item.certs.Key))
+	}
 	vm.Importer(&jsonnet.FileImporter{
 		JPaths: []string{filepath.Join(cluster.workingDir, "manifests")},
 	})

@@ -13,8 +13,8 @@ import (
 type Cluster struct {
 	Transport *http.Transport
 
-	workingDir string
-	certs      *TLSCerts
+	workingDir  string
+	certsBundle *TLSCertsBundle
 }
 
 // New creates a new Cluster.
