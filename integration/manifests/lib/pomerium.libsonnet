@@ -1,105 +1,160 @@
 local tls = import './tls.libsonnet';
 
-local PomeriumPolicy = function() std.flattenArrays([
+local PomeriumPolicy = function() std.flattenArrays(
   [
-    {
-      from: 'http://' + domain + '.localhost.pomerium.io',
-      prefix: '/by-domain',
-      to: 'http://' + domain + '.default.svc.cluster.local',
-      allowed_domains: ['dogs.test'],
-    },
-    {
-      from: 'http://' + domain + '.localhost.pomerium.io',
-      prefix: '/by-user',
-      to: 'http://' + domain + '.default.svc.cluster.local',
-      allowed_users: ['bob@dogs.test'],
-    },
-    {
-      from: 'http://' + domain + '.localhost.pomerium.io',
-      prefix: '/by-group',
-      to: 'http://' + domain + '.default.svc.cluster.local',
-      allowed_groups: ['admin'],
-    },
-    // cors_allow_preflight option
-    {
-      from: 'http://' + domain + '.localhost.pomerium.io',
-      to: 'http://' + domain + '.default.svc.cluster.local',
-      prefix: '/cors-enabled',
-      cors_allow_preflight: true,
-    },
-    {
-      from: 'http://' + domain + '.localhost.pomerium.io',
-      to: 'http://' + domain + '.default.svc.cluster.local',
-      prefix: '/cors-disabled',
-      cors_allow_preflight: false,
-    },
-    // preserve_host_header option
-    {
-      from: 'http://' + domain + '.localhost.pomerium.io',
-      to: 'http://' + domain + '.default.svc.cluster.local',
-      path: '/preserve-host-header-enabled',
-      allow_public_unauthenticated_access: true,
-      preserve_host_header: true,
-    },
-    {
-      from: 'http://' + domain + '.localhost.pomerium.io',
-      to: 'http://' + domain + '.default.svc.cluster.local',
-      path: '/preserve-host-header-disabled',
-      allow_public_unauthenticated_access: true,
-      preserve_host_header: false,
-    },
-    {
-      from: 'http://' + domain + '.localhost.pomerium.io',
-      to: 'http://' + domain + '.default.svc.cluster.local',
-      allow_public_unauthenticated_access: true,
-      set_request_headers: {
-        'X-Custom-Request-Header': 'custom-request-header-value',
+    [
+      // tls_skip_verify
+      {
+        from: 'http://httpdetails.localhost.pomerium.io',
+        to: 'https://untrusted-httpdetails.default.svc.cluster.local',
+        path: '/tls-skip-verify-enabled',
+        tls_skip_verify: true,
+        allow_public_unauthenticated_access: true,
       },
-    },
+      {
+        from: 'http://httpdetails.localhost.pomerium.io',
+        to: 'https://untrusted-httpdetails.default.svc.cluster.local',
+        path: '/tls-skip-verify-disabled',
+        tls_skip_verify: false,
+        allow_public_unauthenticated_access: true,
+      },
+      // tls_server_name
+      {
+        from: 'http://httpdetails.localhost.pomerium.io',
+        to: 'https://wrongly-named-httpdetails.default.svc.cluster.local',
+        path: '/tls-server-name-enabled',
+        tls_server_name: 'httpdetails.localhost.notpomerium.io',
+        allow_public_unauthenticated_access: true,
+      },
+      {
+        from: 'http://httpdetails.localhost.pomerium.io',
+        to: 'https://wrongly-named-httpdetails.default.svc.cluster.local',
+        path: '/tls-server-name-disabled',
+        allow_public_unauthenticated_access: true,
+      },
+      // tls_custom_certificate_authority
+      {
+        from: 'http://httpdetails.localhost.pomerium.io',
+        to: 'https://untrusted-httpdetails.default.svc.cluster.local',
+        path: '/tls-custom-ca-enabled',
+        tls_custom_ca: std.base64(tls.untrusted.ca),
+        tls_server_name: 'httpdetails.localhost.pomerium.io',
+        allow_public_unauthenticated_access: true,
+      },
+      {
+        from: 'http://httpdetails.localhost.pomerium.io',
+        to: 'https://untrusted-httpdetails.default.svc.cluster.local',
+        path: '/tls-custom-ca-disabled',
+        allow_public_unauthenticated_access: true,
+      },
+      // tls_client_cert
+      {
+        from: 'http://httpdetails.localhost.pomerium.io',
+        to: 'https://trusted-mtls-httpdetails.default.svc.cluster.local',
+        path: '/tls-client-cert-enabled',
+        tls_client_cert: std.base64(tls.trusted.client.cert),
+        tls_client_key: std.base64(tls.trusted.client.key),
+        tls_server_name: 'httpdetails.localhost.pomerium.io',
+        allow_public_unauthenticated_access: true,
+      },
+      {
+        from: 'http://httpdetails.localhost.pomerium.io',
+        to: 'https://trusted-mtls-httpdetails.default.svc.cluster.local',
+        path: '/tls-client-cert-disabled',
+        allow_public_unauthenticated_access: true,
+      },
+    ],
+  ] + [
+    [
+      {
+        from: 'http://' + domain + '.localhost.pomerium.io',
+        prefix: '/by-domain',
+        to: 'http://' + domain + '.default.svc.cluster.local',
+        allowed_domains: ['dogs.test'],
+      },
+      {
+        from: 'http://' + domain + '.localhost.pomerium.io',
+        prefix: '/by-user',
+        to: 'http://' + domain + '.default.svc.cluster.local',
+        allowed_users: ['bob@dogs.test'],
+      },
+      {
+        from: 'http://' + domain + '.localhost.pomerium.io',
+        prefix: '/by-group',
+        to: 'http://' + domain + '.default.svc.cluster.local',
+        allowed_groups: ['admin'],
+      },
+      // cors_allow_preflight option
+      {
+        from: 'http://' + domain + '.localhost.pomerium.io',
+        to: 'http://' + domain + '.default.svc.cluster.local',
+        prefix: '/cors-enabled',
+        cors_allow_preflight: true,
+      },
+      {
+        from: 'http://' + domain + '.localhost.pomerium.io',
+        to: 'http://' + domain + '.default.svc.cluster.local',
+        prefix: '/cors-disabled',
+        cors_allow_preflight: false,
+      },
+      // preserve_host_header option
+      {
+        from: 'http://' + domain + '.localhost.pomerium.io',
+        to: 'http://' + domain + '.default.svc.cluster.local',
+        path: '/preserve-host-header-enabled',
+        allow_public_unauthenticated_access: true,
+        preserve_host_header: true,
+      },
+      {
+        from: 'http://' + domain + '.localhost.pomerium.io',
+        to: 'http://' + domain + '.default.svc.cluster.local',
+        path: '/preserve-host-header-disabled',
+        allow_public_unauthenticated_access: true,
+        preserve_host_header: false,
+      },
+      {
+        from: 'http://' + domain + '.localhost.pomerium.io',
+        to: 'http://' + domain + '.default.svc.cluster.local',
+        allow_public_unauthenticated_access: true,
+        set_request_headers: {
+          'X-Custom-Request-Header': 'custom-request-header-value',
+        },
+      },
+    ]
+    for domain in ['httpdetails', 'fa-httpdetails', 'ws-echo']
+  ] + [
+    [
+      {
+        from: 'http://enabled-ws-echo.localhost.pomerium.io',
+        to: 'http://ws-echo.default.svc.cluster.local',
+        allow_public_unauthenticated_access: true,
+        allow_websockets: true,
+      },
+      {
+        from: 'http://disabled-ws-echo.localhost.pomerium.io',
+        to: 'http://ws-echo.default.svc.cluster.local',
+        allow_public_unauthenticated_access: true,
+      },
+    ],
   ]
-  for domain in ['httpdetails', 'fa-httpdetails', 'ws-echo']
-]) + [
-  {
-    from: 'http://enabled-ws-echo.localhost.pomerium.io',
-    to: 'http://ws-echo.default.svc.cluster.local',
-    allow_public_unauthenticated_access: true,
-    allow_websockets: true,
-  },
-  {
-    from: 'http://disabled-ws-echo.localhost.pomerium.io',
-    to: 'http://ws-echo.default.svc.cluster.local',
-    allow_public_unauthenticated_access: true,
-  },
-];
+);
 
 local PomeriumPolicyHash = std.base64(std.md5(std.manifestJsonEx(PomeriumPolicy(), '')));
 
-local PomeriumTLSSecret = function() {
+local PomeriumTLSSecret = function(name) {
   apiVersion: 'v1',
   kind: 'Secret',
   type: 'kubernetes.io/tls',
   metadata: {
     namespace: 'default',
-    name: 'pomerium-tls',
+    name: 'pomerium-' + name + '-tls',
   },
   data: {
-    'tls.crt': std.base64(tls.cert),
-    'tls.key': std.base64(tls.key),
-  },
-};
-
-local PomeriumCAsConfigMap = function() {
-  apiVersion: 'v1',
-  kind: 'ConfigMap',
-  metadata: {
-    namespace: 'default',
-    name: 'pomerium-cas',
-    labels: {
-      'app.kubernetes.io/part-of': 'pomerium',
-    },
-  },
-  data: {
-    'pomerium.crt': tls.ca,
+    'tls-ca.crt': std.base64(tls[name].ca),
+    'tls.crt': std.base64(tls[name].cert),
+    'tls.key': std.base64(tls[name].key),
+    'tls-client.crt': std.base64(tls[name].client.cert),
+    'tls-client.key': std.base64(tls[name].client.key),
   },
 };
 
@@ -129,8 +184,8 @@ local PomeriumConfigMap = function() {
     SHARED_SECRET: 'Wy+c0uSuIM0yGGXs82MBwTZwRiZ7Ki2T0LANnmzUtkI=',
     COOKIE_SECRET: 'eZ91a/j9fhgki9zPDU5zHdQWX4io89pJanChMVa5OoM=',
 
-    CERTIFICATE: std.base64(tls.cert),
-    CERTIFICATE_KEY: std.base64(tls.key),
+    CERTIFICATE: std.base64(tls.trusted.cert),
+    CERTIFICATE_KEY: std.base64(tls.trusted.key),
 
     IDP_PROVIDER: 'oidc',
     IDP_PROVIDER_URL: 'https://openid.localhost.pomerium.io',
@@ -176,25 +231,43 @@ local PomeriumDeployment = function(svc) {
             'openid.localhost.pomerium.io',
           ],
         }],
-        initContainers: [{
-          name: 'pomerium-' + svc + '-certs',
-          image: 'buildpack-deps:buster-curl',
-          imagePullPolicy: 'Always',
-          command: ['sh', '-c', |||
-            cp /incoming-certs/* /usr/local/share/ca-certificates
-            update-ca-certificates
-          |||],
-          volumeMounts: [
-            {
-              name: 'incoming-certs',
-              mountPath: '/incoming-certs',
-            },
-            {
-              name: 'outgoing-certs',
-              mountPath: '/etc/ssl/certs',
-            },
-          ],
-        }],
+        initContainers: [
+          {
+            name: 'init',
+            image: 'buildpack-deps:buster-curl',
+            imagePullPolicy: 'IfNotPresent',
+            command: ['sh', '-c', |||
+              cp /incoming-certs/trusted/tls-ca.crt /usr/local/share/ca-certificates/pomerium-trusted.crt
+              cp /incoming-certs/wrongly-named/tls-ca.crt /usr/local/share/ca-certificates/pomerium-wrongly-named.crt
+              update-ca-certificates
+            |||],
+            volumeMounts: [
+              {
+                name: 'trusted-incoming-certs',
+                mountPath: '/incoming-certs/trusted',
+              },
+              {
+                name: 'wrongly-named-incoming-certs',
+                mountPath: '/incoming-certs/wrongly-named',
+              },
+              {
+                name: 'outgoing-certs',
+                mountPath: '/etc/ssl/certs',
+              },
+            ],
+          },
+        ] + if svc == 'authenticate' then [
+          {
+            name: 'wait-for-openid',
+            image: 'buildpack-deps:buster-curl',
+            imagePullPolicy: 'IfNotPresent',
+            command: ['sh', '-c', |||
+              while ! curl http://openid.default.svc.cluster.local/.well-known/openid-configuration ; do
+                sleep 5
+              done
+            |||],
+          },
+        ] else [],
         containers: [{
           name: 'pomerium-' + svc,
           image: 'pomerium/pomerium:dev',
@@ -219,9 +292,15 @@ local PomeriumDeployment = function(svc) {
         }],
         volumes: [
           {
-            name: 'incoming-certs',
-            configMap: {
-              name: 'pomerium-cas',
+            name: 'trusted-incoming-certs',
+            secret: {
+              secretName: 'pomerium-trusted-tls',
+            },
+          },
+          {
+            name: 'wrongly-named-incoming-certs',
+            secret: {
+              secretName: 'pomerium-wrongly-named-tls',
             },
           },
           {
@@ -290,7 +369,7 @@ local PomeriumIngress = function() {
         hosts: [
           'authenticate.localhost.pomerium.io',
         ] + proxyHosts,
-        secretName: 'pomerium-tls',
+        secretName: 'pomerium-trusted-tls',
       },
     ],
     rules: [
@@ -342,7 +421,7 @@ local PomeriumForwardAuthIngress = function() {
         hosts: [
           'fa-httpdetails.localhost.pomerium.io',
         ],
-        secretName: 'pomerium-tls',
+        secretName: 'pomerium-trusted-tls',
       },
     ],
     rules: [
@@ -376,8 +455,9 @@ local PomeriumForwardAuthIngress = function() {
   kind: 'List',
   items: [
     PomeriumConfigMap(),
-    PomeriumCAsConfigMap(),
-    PomeriumTLSSecret(),
+    PomeriumTLSSecret('trusted'),
+    PomeriumTLSSecret('untrusted'),
+    PomeriumTLSSecret('wrongly-named'),
     PomeriumService('authenticate'),
     PomeriumDeployment('authenticate'),
     PomeriumService('authorize'),

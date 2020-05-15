@@ -73,7 +73,7 @@ local Ingress = function() {
         hosts: [
           'openid.localhost.pomerium.io',
         ],
-        secretName: 'pomerium-tls',
+        secretName: 'pomerium-trusted-tls',
       },
     ],
     rules: [

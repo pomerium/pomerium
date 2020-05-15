@@ -11,16 +11,20 @@ local configMap = function(name, data) {
   data: data,
 };
 
-local service = function(name) {
+local service = function(name, tlsName, requireMutualAuth) {
+  local fullName = (if tlsName != null then tlsName + '-' else '') +
+                   (if requireMutualAuth then 'mtls-' else '') +
+                   name,
+
   apiVersion: 'v1',
   kind: 'Service',
   metadata: {
     namespace: 'default',
-    name: name,
-    labels: { app: name },
+    name: fullName,
+    labels: { app: fullName },
   },
   spec: {
-    selector: { app: name },
+    selector: { app: fullName },
     ports: [
       {
         name: 'http',
@@ -36,32 +40,41 @@ local service = function(name) {
   },
 };
 
-local deployment = function(name) {
+local deployment = function(name, tlsName, requireMutualAuth) {
+  local fullName = (if tlsName != null then tlsName + '-' else '') +
+                   (if requireMutualAuth then 'mtls-' else '') +
+                   name,
+
   apiVersion: 'apps/v1',
   kind: 'Deployment',
   metadata: {
     namespace: 'default',
-    name: name,
+    name: fullName,
   },
   spec: {
     replicas: 1,
-    selector: { matchLabels: { app: name } },
+    selector: { matchLabels: { app: fullName } },
     template: {
       metadata: {
-        labels: { app: name },
+        labels: { app: fullName },
       },
       spec: {
         containers: [{
-          name: name,
+          name: 'main',
           image: 'golang:buster',
           imagePullPolicy: 'IfNotPresent',
           args: [
             'bash',
             '-c',
-            |||
-              cd /src
-              go run .
-            |||,
+            'cd /src && go run . ' +
+            (if tlsName != null then
+               ' -cert-file=/certs/tls.crt -key-file=/certs/tls.key'
+             else
+               '') +
+            (if requireMutualAuth then
+               ' -mutual-auth-ca-file=/certs/tls-ca.crt'
+             else
+               ''),
           ],
           ports: [
             {
@@ -78,6 +91,10 @@ local deployment = function(name) {
               name: 'src',
               mountPath: '/src',
             },
+            {
+              name: 'certs',
+              mountPath: '/certs',
+            },
           ],
         }],
         volumes: [
@@ -87,29 +104,56 @@ local deployment = function(name) {
               name: name,
             },
           },
+        ] + if tlsName != null then [
+          {
+            name: 'certs',
+            secret: {
+              secretName: 'pomerium-' + tlsName + '-tls',
+            },
+          },
+        ] else [
+          {
+            name: 'certs',
+            emptyDir: {},
+          },
         ],
       },
     },
   },
 };
 
+local backends = [
+  { name: 'httpdetails', files: {
+    'main.go': importstr '../../backends/httpdetails/main.go',
+    'go.mod': importstr '../../backends/httpdetails/go.mod',
+  } },
+  { name: 'ws-echo', files: {
+    'main.go': importstr '../../backends/ws-echo/main.go',
+    'go.mod': importstr '../../backends/ws-echo/go.mod',
+    'go.sum': importstr '../../backends/ws-echo/go.sum',
+  } },
+];
+
 {
   apiVersion: 'v1',
   kind: 'List',
-  items: [
-    configMap('httpdetails', {
-      'main.go': importstr '../../backends/httpdetails/main.go',
-      'go.mod': importstr '../../backends/httpdetails/go.mod',
-    }),
-    service('httpdetails'),
-    deployment('httpdetails'),
-
-    configMap('ws-echo', {
-      'main.go': importstr '../../backends/ws-echo/main.go',
-      'go.mod': importstr '../../backends/ws-echo/go.mod',
-      'go.sum': importstr '../../backends/ws-echo/go.sum',
-    }),
-    service('ws-echo'),
-    deployment('ws-echo'),
-  ],
+  items: std.flattenArrays(
+    [
+      [
+        configMap(backend.name, backend.files),
+        service(backend.name, null, false),
+        deployment(backend.name, null, false),
+        service(backend.name, 'wrongly-named', false),
+        deployment(backend.name, 'wrongly-named', false),
+        service(backend.name, 'untrusted', false),
+        deployment(backend.name, 'untrusted', false),
+      ]
+      for backend in backends
+    ] + [
+      [
+        service('httpdetails', 'trusted', true),
+        deployment('httpdetails', 'trusted', true),
+      ],
+    ],
+  ),
 }
