@@ -21,12 +21,12 @@ import (
 )
 
 var requiredDeployments = []string{
+	"ingress-nginx/nginx-ingress-controller",
 	"default/httpdetails",
 	"default/openid",
 	"default/pomerium-authenticate",
 	"default/pomerium-authorize",
 	"default/pomerium-proxy",
-	"ingress-nginx/nginx-ingress-controller",
 }
 
 // Setup configures the test cluster so that it is ready for the integration tests.
