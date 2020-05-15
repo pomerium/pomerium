@@ -197,25 +197,38 @@ local PomeriumDeployment = function(svc) {
             'openid.localhost.pomerium.io',
           ],
         }],
-        initContainers: [{
-          name: 'pomerium-' + svc + '-certs',
-          image: 'buildpack-deps:buster-curl',
-          imagePullPolicy: 'Always',
-          command: ['sh', '-c', |||
-            cp /incoming-certs/* /usr/local/share/ca-certificates
-            update-ca-certificates
-          |||],
-          volumeMounts: [
-            {
-              name: 'incoming-certs',
-              mountPath: '/incoming-certs',
-            },
-            {
-              name: 'outgoing-certs',
-              mountPath: '/etc/ssl/certs',
-            },
-          ],
-        }],
+        initContainers: [
+          {
+            name: 'pomerium-' + svc + '-certs',
+            image: 'buildpack-deps:buster-curl',
+            imagePullPolicy: 'IfNotPresent',
+            command: ['sh', '-c', |||
+              cp /incoming-certs/* /usr/local/share/ca-certificates
+              update-ca-certificates
+            |||],
+            volumeMounts: [
+              {
+                name: 'incoming-certs',
+                mountPath: '/incoming-certs',
+              },
+              {
+                name: 'outgoing-certs',
+                mountPath: '/etc/ssl/certs',
+              },
+            ],
+          },
+        ] + if svc == 'authenticate' then [
+          {
+            name: 'wait-for-openid',
+            image: 'buildpack-deps:buster-curl',
+            imagePullPolicy: 'IfNotPresent',
+            command: ['sh', '-c', |||
+              while ! curl http://openid.default.svc.cluster.local/.well-known/openid-configuration ; do
+                sleep 5
+              done
+            |||],
+          },
+        ] else [],
         containers: [{
           name: 'pomerium-' + svc,
           image: 'pomerium/pomerium:dev',
