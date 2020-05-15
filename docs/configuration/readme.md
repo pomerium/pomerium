@@ -743,7 +743,9 @@ Default Upstream Timeout is the default timeout applied to a proxied route when 
 
 The JWT Claim Headers setting allows you to pass specific user session data down to downstream applications as HTTP request headers. Note, unlike the header `x-pomerium-jwt-assertion` these values are not signed by the authorization service.
 
-Any claim in the pomerium session JWT can be placed into a corresponding header for downstream consumption. This claim information is sourced from your Identity Provider (IdP) and Pomerium's own session metadata.
+Any claim in the pomerium session JWT can be placed into a corresponding header for downstream consumption. This claim information is sourced from your Identity Provider (IdP) and Pomerium's own session metadata. The header will have the following format:
+
+`X-Pomerium-Claim-{Name}` where `{Name}` is the name of the claim requested.
 
 Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}` for downstream authN/Z.
 
