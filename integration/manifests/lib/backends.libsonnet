@@ -29,7 +29,7 @@ local service = function(name) {
       },
       {
         name: 'https',
-        port: 80,
+        port: 443,
         targetPort: 'https',
       },
     ],
