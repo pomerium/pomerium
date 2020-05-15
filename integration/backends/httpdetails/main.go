@@ -1,36 +1,61 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 )
 
 func main() {
 	var (
-		certFile, keyFile, bindAddr string
+		certFile, keyFile, mutualAuthCAFile, bindAddr string
 	)
 
 	flag.StringVar(&certFile, "cert-file", "", "the tls cert file to use")
 	flag.StringVar(&keyFile, "key-file", "", "the tls key file to use")
+	flag.StringVar(&mutualAuthCAFile, "mutual-auth-ca-file", "", "if set, require a client cert signed via this ca file")
 	flag.StringVar(&bindAddr, "bind-addr", "", "the address to listen on")
 	flag.Parse()
+
+	srv := &http.Server{
+		Handler: http.HandlerFunc(handle),
+	}
+	if mutualAuthCAFile != "" {
+		caCert, err := ioutil.ReadFile(mutualAuthCAFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to read mutual-auth-ca-file: %v", err)
+			os.Exit(1)
+		}
+
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		srv.TLSConfig = &tls.Config{
+			ClientCAs:  caCertPool,
+			ClientAuth: tls.RequireAndVerifyClientCert,
+		}
+		srv.TLSConfig.BuildNameToCertificate()
+	}
 
 	var err error
 	if certFile != "" && keyFile != "" {
 		if bindAddr == "" {
 			bindAddr = ":5443"
 		}
+		srv.Addr = bindAddr
 		fmt.Println("starting server on", bindAddr)
-		err = http.ListenAndServeTLS(bindAddr, certFile, keyFile, http.HandlerFunc(handle))
+		err = srv.ListenAndServeTLS(certFile, keyFile)
 	} else {
 		if bindAddr == "" {
 			bindAddr = ":5080"
 		}
+		srv.Addr = bindAddr
 		fmt.Println("starting server on", bindAddr)
-		err = http.ListenAndServe(bindAddr, http.HandlerFunc(handle))
+		err = srv.ListenAndServe()
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to listen and serve: %v", err)

@@ -11,8 +11,10 @@ local configMap = function(name, data) {
   data: data,
 };
 
-local service = function(name, tlsName) {
-  local fullName = (if tlsName != null then tlsName + '-' else '') + name,
+local service = function(name, tlsName, requireMutualAuth) {
+  local fullName = (if tlsName != null then tlsName + '-' else '') +
+                   (if requireMutualAuth then 'mtls-' else '') +
+                   name,
 
   apiVersion: 'v1',
   kind: 'Service',
@@ -38,8 +40,10 @@ local service = function(name, tlsName) {
   },
 };
 
-local deployment = function(name, tlsName) {
-  local fullName = (if tlsName != null then tlsName + '-' else '') + name,
+local deployment = function(name, tlsName, requireMutualAuth) {
+  local fullName = (if tlsName != null then tlsName + '-' else '') +
+                   (if requireMutualAuth then 'mtls-' else '') +
+                   name,
 
   apiVersion: 'apps/v1',
   kind: 'Deployment',
@@ -63,10 +67,14 @@ local deployment = function(name, tlsName) {
             'bash',
             '-c',
             'cd /src && go run . ' +
-            if tlsName != null then
-              '-cert-file=/certs/tls.crt -key-file=/certs/tls.key'
-            else
-              '',
+            (if tlsName != null then
+               '-cert-file=/certs/tls.crt -key-file=/certs/tls.key'
+             else
+               '') +
+            (if requireMutualAuth then
+               '-mutual-auth-ca-file=/certs/tls.ca'
+             else
+               ''),
           ],
           ports: [
             {
@@ -133,12 +141,14 @@ local backends = [
     [
       [
         configMap(backend.name, backend.files),
-        service(backend.name, null),
-        deployment(backend.name, null),
-        service(backend.name, 'wrongly-named'),
-        deployment(backend.name, 'wrongly-named'),
-        service(backend.name, 'untrusted'),
-        deployment(backend.name, 'untrusted'),
+        service(backend.name, null, false),
+        deployment(backend.name, null, false),
+        service(backend.name, null, true),
+        deployment(backend.name, null, true),
+        service(backend.name, 'wrongly-named', false),
+        deployment(backend.name, 'wrongly-named', false),
+        service(backend.name, 'untrusted', false),
+        deployment(backend.name, 'untrusted', false),
       ]
       for backend in backends
     ]

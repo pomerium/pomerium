@@ -74,6 +74,11 @@ func bootstrapCerts(ctx context.Context) (*TLSCertsBundle, error) {
 			return nil, fmt.Errorf("error generating %s certificates: %w",
 				filepath.Base(generator.caroot), err)
 		}
+		err = run(ctx, "mkcert", withArgs("-client", generator.name), withWorkingDir(generator.caroot), withEnv(env...))
+		if err != nil {
+			return nil, fmt.Errorf("error generating %s client certificates: %w",
+				filepath.Base(generator.caroot), err)
+		}
 
 		fp = filepath.Join(generator.caroot, strings.ReplaceAll(generator.name, "*", "_wildcard")+".pem")
 		generator.certs.Cert, err = ioutil.ReadFile(fp)
