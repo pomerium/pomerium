@@ -75,15 +75,15 @@ func TestPreserveHostHeader(t *testing.T) {
 		defer res.Body.Close()
 
 		var result struct {
-			Headers map[string]string `json:"headers"`
+			Host string `json:"host"`
 		}
 		err = json.NewDecoder(res.Body).Decode(&result)
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		assert.Equal(t, "httpdetails.localhost.pomerium.io", result.Headers["host"],
-			"destination host should be preserved")
+		assert.Equal(t, "httpdetails.localhost.pomerium.io", result.Host,
+			"destination host should be preserved in %v", result)
 	})
 	t.Run("disabled", func(t *testing.T) {
 		client := testcluster.NewHTTPClient()
@@ -100,15 +100,15 @@ func TestPreserveHostHeader(t *testing.T) {
 		defer res.Body.Close()
 
 		var result struct {
-			Headers map[string]string `json:"headers"`
+			Host string `json:"host"`
 		}
 		err = json.NewDecoder(res.Body).Decode(&result)
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		assert.NotEqual(t, "httpdetails.localhost.pomerium.io", result.Headers["host"],
-			"destination host should not be preserved")
+		assert.NotEqual(t, "httpdetails.localhost.pomerium.io", result.Host,
+			"destination host should not be preserved in %v", result)
 	})
 
 }
@@ -139,7 +139,7 @@ func TestSetRequestHeaders(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, "custom-request-header-value", result.Headers["x-custom-request-header"],
+	assert.Equal(t, "custom-request-header-value", result.Headers["X-Custom-Request-Header"],
 		"expected custom request header to be sent upstream")
 
 }

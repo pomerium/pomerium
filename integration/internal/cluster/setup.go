@@ -16,17 +16,18 @@ import (
 
 	"github.com/google/go-jsonnet"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/integration/internal/netutil"
 )
 
 var requiredDeployments = []string{
+	"ingress-nginx/nginx-ingress-controller",
 	"default/httpdetails",
 	"default/openid",
 	"default/pomerium-authenticate",
 	"default/pomerium-authorize",
 	"default/pomerium-proxy",
-	"ingress-nginx/nginx-ingress-controller",
 }
 
 // Setup configures the test cluster so that it is ready for the integration tests.
@@ -41,12 +42,12 @@ func (cluster *Cluster) Setup(ctx context.Context) error {
 		return err
 	}
 
-	jsonsrc, err := cluster.generateManifests()
+	resources, err := cluster.generateManifests()
 	if err != nil {
 		return err
 	}
 
-	err = applyManifests(ctx, jsonsrc)
+	err = applyManifests(ctx, resources)
 	if err != nil {
 		return err
 	}
@@ -138,10 +139,10 @@ func (cluster *Cluster) getNodeHTTPSAddr(ctx context.Context) (hostport string, 
 	return net.JoinHostPort(hostIP, port), nil
 }
 
-func (cluster *Cluster) generateManifests() (string, error) {
+func (cluster *Cluster) generateManifests() ([]json.RawMessage, error) {
 	src, err := ioutil.ReadFile(filepath.Join(cluster.workingDir, "manifests", "manifests.jsonnet"))
 	if err != nil {
-		return "", fmt.Errorf("error reading manifest jsonnet src: %w", err)
+		return nil, fmt.Errorf("error reading manifest jsonnet src: %w", err)
 	}
 
 	vm := jsonnet.MakeVM()
@@ -153,16 +154,35 @@ func (cluster *Cluster) generateManifests() (string, error) {
 	})
 	jsonsrc, err := vm.EvaluateSnippet("manifests.jsonnet", string(src))
 	if err != nil {
-		return "", fmt.Errorf("error evaluating jsonnet (filename=manifests.jsonnet): %w", err)
+		return nil, fmt.Errorf("error evaluating jsonnet (filename=manifests.jsonnet): %w", err)
 	}
 
-	return jsonsrc, nil
+	var list struct {
+		Items []json.RawMessage `json:"items"`
+	}
+	err = json.NewDecoder(strings.NewReader(jsonsrc)).Decode(&list)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling jsonsrc: %w", err)
+	}
+
+	return list.Items, nil
 }
 
-func applyManifests(ctx context.Context, jsonsrc string) error {
-	err := run(ctx, "kubectl", withArgs("apply", "-f", "-"), withStdin(strings.NewReader(jsonsrc)))
+func applyManifests(ctx context.Context, resources []json.RawMessage) error {
+	eg, procctx := errgroup.WithContext(ctx)
+	for _, resource := range resources {
+		resource := resource
+		eg.Go(func() error {
+			err := run(procctx, "kubectl", withArgs("apply", "-f", "-"), withStdin(bytes.NewReader(resource)))
+			if err != nil {
+				return fmt.Errorf("error applying manifests: %w", err)
+			}
+			return nil
+		})
+	}
+	err := eg.Wait()
 	if err != nil {
-		return fmt.Errorf("error applying manifests: %w", err)
+		return err
 	}
 
 	log.Info().Msg("waiting for deployments to come up")

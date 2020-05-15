@@ -21,11 +21,18 @@ local service = function(name) {
   },
   spec: {
     selector: { app: name },
-    ports: [{
-      name: 'http',
-      port: 80,
-      targetPort: 'http',
-    }],
+    ports: [
+      {
+        name: 'http',
+        port: 80,
+        targetPort: 'http',
+      },
+      {
+        name: 'https',
+        port: 80,
+        targetPort: 'https',
+      },
+    ],
   },
 };
 
@@ -44,42 +51,43 @@ local deployment = function(name) {
         labels: { app: name },
       },
       spec: {
-        initContainers: [{
-          name: 'init',
-          image: 'node:14-stretch-slim',
-          imagePullPolicy: 'IfNotPresent',
-          args: ['bash', '-c', 'cp -rL /src/* /app/'],
-          volumeMounts: [{
-            name: 'src',
-            mountPath: '/src',
-          }, {
-            name: 'app',
-            mountPath: '/app',
-          }],
-        }],
         containers: [{
           name: name,
-          image: 'node:14-stretch-slim',
+          image: 'golang:buster',
           imagePullPolicy: 'IfNotPresent',
-          args: ['bash', '-c', 'cd /app && npm install && node index.js'],
-          ports: [{
-            name: 'http',
-            containerPort: 8080,
-          }],
-          volumeMounts: [{
-            name: 'app',
-            mountPath: '/app',
-          }],
+          args: [
+            'bash',
+            '-c',
+            |||
+              cd /src
+              go run .
+            |||,
+          ],
+          ports: [
+            {
+              name: 'http',
+              containerPort: 5080,
+            },
+            {
+              name: 'https',
+              containerPort: 5443,
+            },
+          ],
+          volumeMounts: [
+            {
+              name: 'src',
+              mountPath: '/src',
+            },
+          ],
         }],
-        volumes: [{
-          name: 'src',
-          configMap: {
-            name: name,
+        volumes: [
+          {
+            name: 'src',
+            configMap: {
+              name: name,
+            },
           },
-        }, {
-          name: 'app',
-          emptyDir: {},
-        }],
+        ],
       },
     },
   },
@@ -90,14 +98,16 @@ local deployment = function(name) {
   kind: 'List',
   items: [
     configMap('httpdetails', {
-      'index.js': importstr '../../backends/httpdetails/index.js',
+      'main.go': importstr '../../backends/httpdetails/main.go',
+      'go.mod': importstr '../../backends/httpdetails/go.mod',
     }),
     service('httpdetails'),
     deployment('httpdetails'),
 
     configMap('ws-echo', {
-      'package.json': importstr '../../backends/ws-echo/package.json',
-      'index.js': importstr '../../backends/ws-echo/index.js',
+      'main.go': importstr '../../backends/ws-echo/main.go',
+      'go.mod': importstr '../../backends/ws-echo/go.mod',
+      'go.sum': importstr '../../backends/ws-echo/go.sum',
     }),
     service('ws-echo'),
     deployment('ws-echo'),
