@@ -6,14 +6,13 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/pomerium/pomerium/internal/envoy"
-
-	"github.com/pomerium/pomerium/internal/urlutil"
-
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
-	log "github.com/pomerium/pomerium/internal/log"
 	prom "github.com/prometheus/client_golang/prometheus"
 	"go.opencensus.io/stats/view"
+
+	"github.com/pomerium/pomerium/internal/envoy"
+	log "github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 var envoyURL = envoy.EnvoyAdminURL
