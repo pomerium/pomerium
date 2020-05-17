@@ -132,13 +132,17 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 
 ## Istio
 
+[istio]: https://github.com/istio/istio
+[certmanager]: https://github.com/jetstack/cert-manager
+[grafana]: https://github.com/grafana/grafana
+
 - Istio provides mutual TLS via sidecars and to make Istio play well with Pomerium we need to disable TLS on the Pomerium side.
 - We need to provide Istio with information on how to route requests via Pomerium to their destinations.
-- The following example shows how to make Grafana's auth proxy work with Pomerium inside of an Istio mesh.
+- The following example shows how to make Grafana's [auth proxy](https://grafana.com/docs/grafana/latest/auth/auth-proxy) work with Pomerium inside of an Istio mesh.
 
 #### Gateway
 
-We are using the standard istio-ingressgateway that comes configured with Istio and attach a Gateway to it that deals with a subset of our ingress traffic based on the Host header (in this case `*.yourcompany.com`). This is the Gateway to which we will later attach VirtualServices for more granular routing decisions. Along with the Gateway, because we care about TLS, we are using Certmanager to provision a self-signed certificate (We are skipping the Certmanager setup here).
+We are using the standard istio-ingressgateway that comes configured with Istio and attach a Gateway to it that deals with a subset of our ingress traffic based on the Host header (in this case `*.yourcompany.com`). This is the Gateway to which we will later attach VirtualServices for more granular routing decisions. Along with the Gateway, because we care about TLS, we are using Certmanager to provision a self-signed certificate (see Certmanager [docs](https://cert-manager.io/docs) for setup instructions).
 
 <<< @/docs/configuration/examples/kubernetes/istio/gateway.yml
 
