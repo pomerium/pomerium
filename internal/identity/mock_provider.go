@@ -5,15 +5,13 @@ import (
 	"net/url"
 
 	"golang.org/x/oauth2"
-
-	"github.com/pomerium/pomerium/internal/sessions"
 )
 
 // MockProvider provides a mocked implementation of the providers interface.
 type MockProvider struct {
-	AuthenticateResponse sessions.State
+	AuthenticateResponse oauth2.Token
 	AuthenticateError    error
-	RefreshResponse      sessions.State
+	RefreshResponse      oauth2.Token
 	RefreshError         error
 	RevokeError          error
 	GetSignInURLResponse string
@@ -22,12 +20,12 @@ type MockProvider struct {
 }
 
 // Authenticate is a mocked providers function.
-func (mp MockProvider) Authenticate(ctx context.Context, code string) (*sessions.State, error) {
+func (mp MockProvider) Authenticate(context.Context, string, interface{}) (*oauth2.Token, error) {
 	return &mp.AuthenticateResponse, mp.AuthenticateError
 }
 
 // Refresh is a mocked providers function.
-func (mp MockProvider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
+func (mp MockProvider) Refresh(context.Context, *oauth2.Token, interface{}) (*oauth2.Token, error) {
 	return &mp.RefreshResponse, mp.RefreshError
 }
 

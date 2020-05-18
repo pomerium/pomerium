@@ -20,7 +20,6 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
 )
 
@@ -77,48 +76,36 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 
 // Authenticate creates an identity session with github from a authorization code, and follows up
 // call to the user and user group endpoint with the
-func (p *Provider) Authenticate(ctx context.Context, code string) (*sessions.State, error) {
-	resp, err := p.Oauth.Exchange(ctx, code)
+func (p *Provider) Authenticate(ctx context.Context, code string, v interface{}) (*oauth2.Token, error) {
+	oauth2Token, err := p.Oauth.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("github: token exchange failed %v", err)
 	}
 
-	s := &sessions.State{
-		AccessToken: &oauth2.Token{
-			AccessToken: resp.AccessToken,
-			TokenType:   resp.TokenType,
-		},
-		AccessTokenID: resp.AccessToken,
-	}
-
-	err = p.updateSessionState(ctx, s)
+	err = p.updateSessionState(ctx, oauth2Token, v)
 	if err != nil {
 		return nil, err
 	}
 
-	return s, nil
+	return oauth2Token, nil
 }
 
 // updateSessionState will get the user information from github and also retrieve the user's team(s)
 //
 // https://developer.github.com/v3/users/#get-the-authenticated-user
-func (p *Provider) updateSessionState(ctx context.Context, s *sessions.State) error {
-	if s == nil || s.AccessToken == nil {
-		return errors.New("github: user session cannot be empty")
-	}
-	accessToken := s.AccessToken.AccessToken
+func (p *Provider) updateSessionState(ctx context.Context, t *oauth2.Token, v interface{}) error {
 
-	err := p.userInfo(ctx, accessToken, s)
+	err := p.userInfo(ctx, t, v)
 	if err != nil {
 		return fmt.Errorf("github: could not retrieve user info %w", err)
 	}
 
-	err = p.userEmail(ctx, accessToken, s)
+	err = p.userEmail(ctx, t, v)
 	if err != nil {
 		return fmt.Errorf("github: could not retrieve user email %w", err)
 	}
 
-	err = p.userTeams(ctx, accessToken, s)
+	err = p.userTeams(ctx, t, v)
 	if err != nil {
 		return fmt.Errorf("github: could not retrieve groups %w", err)
 	}
@@ -127,14 +114,12 @@ func (p *Provider) updateSessionState(ctx context.Context, s *sessions.State) er
 }
 
 // Refresh renews a user's session by making a new userInfo request.
-func (p *Provider) Refresh(ctx context.Context, s *sessions.State) (*sessions.State, error) {
-	if s.AccessToken == nil {
-		return nil, errors.New("github: missing oauth2 access token")
-	}
-	if err := p.updateSessionState(ctx, s); err != nil {
+func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v interface{}) (*oauth2.Token, error) {
+	err := p.updateSessionState(ctx, t, v)
+	if err != nil {
 		return nil, err
 	}
-	return s, nil
+	return t, nil
 }
 
 // userTeams returns a slice of teams the user belongs by making a request
@@ -142,7 +127,7 @@ func (p *Provider) Refresh(ctx context.Context, s *sessions.State) (*sessions.St
 //
 // https://developer.github.com/v3/teams/#list-user-teams
 // https://developer.github.com/v3/auth/
-func (p *Provider) userTeams(ctx context.Context, at string, s *sessions.State) error {
+func (p *Provider) userTeams(ctx context.Context, t *oauth2.Token, v interface{}) error {
 
 	var response []struct {
 		ID          json.Number `json:"id"`
@@ -154,20 +139,24 @@ func (p *Provider) userTeams(ctx context.Context, at string, s *sessions.State) 
 		Privacy     string      `json:"privacy,omitempty"`
 	}
 
-	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", at)}
+	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", t.AccessToken)}
 	teamURL := githubAPIURL + teamPath
 	err := httputil.Client(ctx, http.MethodGet, teamURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return err
 	}
-
 	log.Debug().Interface("teams", response).Msg("github: user teams")
-	s.Groups = nil
-	for _, org := range response {
-		s.Groups = append(s.Groups, org.ID.String())
+	var out struct {
+		Groups []string `json:"groups"`
 	}
-
-	return nil
+	for _, org := range response {
+		out.Groups = append(out.Groups, org.ID.String())
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b, v)
 }
 
 // userEmail returns the primary email of the user by making
@@ -175,7 +164,7 @@ func (p *Provider) userTeams(ctx context.Context, at string, s *sessions.State) 
 //
 // https://developer.github.com/v3/users/emails/#list-email-addresses-for-a-user
 // https://developer.github.com/v3/auth/
-func (p *Provider) userEmail(ctx context.Context, at string, s *sessions.State) error {
+func (p *Provider) userEmail(ctx context.Context, t *oauth2.Token, v interface{}) error {
 	// response represents the github user email
 	// https://developer.github.com/v3/users/emails/#response
 	var response []struct {
@@ -184,48 +173,67 @@ func (p *Provider) userEmail(ctx context.Context, at string, s *sessions.State) 
 		Primary    bool   `json:"primary"`
 		Visibility string `json:"visibility"`
 	}
-	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", at)}
+	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", t.AccessToken)}
 	emailURL := githubAPIURL + emailPath
 	err := httputil.Client(ctx, http.MethodGet, emailURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return err
 	}
-
+	var out struct {
+		Email    string `json:"email"`
+		Verified bool   `json:"email_verified"`
+	}
 	log.Debug().Interface("emails", response).Msg("github: user emails")
 	for _, email := range response {
 		if email.Primary && email.Verified {
-			s.Email = email.Email
-			s.EmailVerified = true
-			return nil
+			out.Email = email.Email
+			out.Verified = true
+			break
 		}
 	}
-	return nil
+	b, err := json.Marshal(out)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b, v)
 }
 
-func (p *Provider) userInfo(ctx context.Context, at string, s *sessions.State) error {
+func (p *Provider) userInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
 	var response struct {
 		ID        int    `json:"id"`
 		Login     string `json:"login"`
 		Name      string `json:"name"`
-		Email     string `json:"email"`
 		AvatarURL string `json:"avatar_url,omitempty"`
 	}
 
 	headers := map[string]string{
-		"Authorization": fmt.Sprintf("token %s", at),
+		"Authorization": fmt.Sprintf("token %s", t.AccessToken),
 		"Accept":        "application/vnd.github.v3+json",
 	}
 	err := httputil.Client(ctx, http.MethodGet, p.userEndpoint, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return err
 	}
+	var out struct {
+		Subject string `json:"sub"`
+		Name    string `json:"name,omitempty"`
+		User    string `json:"user"`
+		Picture string `json:"picture,omitempty"`
+		// needs to be set manually
+		Expiry *jwt.NumericDate `json:"exp,omitempty"`
+	}
 
-	s.User = response.Login
-	s.Name = response.Name
-	s.Picture = response.AvatarURL
+	out.User = response.Login
+	out.Subject = response.Login
+	out.Name = response.Name
+	out.Picture = response.AvatarURL
 	// set the session expiry
-	s.Expiry = jwt.NewNumericDate(time.Now().Add(refreshDeadline))
-	return nil
+	out.Expiry = jwt.NewNumericDate(time.Now().Add(refreshDeadline))
+	b, err := json.Marshal(out)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b, v)
 }
 
 // Revoke method will remove all the github grants the user

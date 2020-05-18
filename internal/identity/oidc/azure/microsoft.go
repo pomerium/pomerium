@@ -5,7 +5,7 @@ package azure
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -16,7 +16,6 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
 )
 
@@ -60,10 +59,7 @@ func (p *Provider) GetSignInURL(state string) string {
 // `Directory.Read.All` is required.
 // https://docs.microsoft.com/en-us/graph/api/resources/directoryobject?view=graph-rest-1.0
 // https://docs.microsoft.com/en-us/graph/api/user-list-memberof?view=graph-rest-1.0
-func (p *Provider) UserGroups(ctx context.Context, s *sessions.State) ([]string, error) {
-	if s == nil || s.AccessToken == nil {
-		return nil, errors.New("identity/azure: session cannot be nil")
-	}
+func (p *Provider) UserGroups(ctx context.Context, t *oauth2.Token, v interface{}) error {
 	var response struct {
 		Groups []struct {
 			ID              string    `json:"id"`
@@ -73,15 +69,23 @@ func (p *Provider) UserGroups(ctx context.Context, s *sessions.State) ([]string,
 			GroupTypes      []string  `json:"groupTypes,omitempty"`
 		} `json:"value"`
 	}
-	headers := map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.AccessToken.AccessToken)}
+	headers := map[string]string{"Authorization": fmt.Sprintf("Bearer %s", t.AccessToken)}
 	err := httputil.Client(ctx, http.MethodGet, defaultGroupURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	var groups []string
+
+	log.Debug().Interface("response", response).Msg("microsoft: groups")
+	var out struct {
+		Groups []string `json:"groups"`
+	}
 	for _, group := range response.Groups {
-		log.Debug().Str("DisplayName", group.DisplayName).Str("ID", group.ID).Msg("microsoft: group")
-		groups = append(groups, group.ID)
+		out.Groups = append(out.Groups, group.ID)
 	}
-	return groups, nil
+	b, err := json.Marshal(out)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(b, v)
 }

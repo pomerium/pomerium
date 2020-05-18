@@ -38,6 +38,12 @@ GETENVOY_VERSION = v0.1.8
 all: clean build-deps test lint spellcheck build ## Runs a clean, build, fmt, lint, test, and vet.
 
 
+.PHONY: generate-mocks
+generate-mocks: ## Generate mocks
+	@echo "==> $@"
+	@go run github.com/golang/mock/mockgen -destination authorize/evaluator/mock_evaluator/mock.go github.com/pomerium/pomerium/authorize/evaluator Evaluator
+	@go run github.com/golang/mock/mockgen -destination internal/grpc/cache/mock/mock_cacher.go github.com/pomerium/pomerium/internal/grpc/cache Cacher
+
 .PHONY: build-deps
 build-deps: ## Install build dependencies
 	@echo "==> $@"

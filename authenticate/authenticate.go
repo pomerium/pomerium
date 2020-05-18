@@ -17,12 +17,12 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/grpc"
+	"github.com/pomerium/pomerium/internal/grpc/cache"
 	"github.com/pomerium/pomerium/internal/grpc/cache/client"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/sessions/cache"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/sessions/header"
 	"github.com/pomerium/pomerium/internal/sessions/queryparam"
@@ -93,7 +93,7 @@ type Authenticate struct {
 	provider identity.Authenticator
 
 	// cacheClient is the interface for setting and getting sessions from a cache
-	cacheClient client.Cacher
+	cacheClient cache.Cacher
 
 	templates *template.Template
 }
@@ -106,12 +106,12 @@ func New(opts config.Options) (*Authenticate, error) {
 
 	// shared state encoder setup
 	sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(opts.SharedKey)
-	signedEncoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.AuthenticateURL.Host)
+	sharedEncoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.AuthenticateURL.Host)
 	if err != nil {
 		return nil, err
 	}
 
-	// private state encoder setup
+	// private state encoder setup, used to encrypt oauth2 tokens
 	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
 	cookieCipher, _ := cryptutil.NewAEADCipher(decodedCookieSecret)
 	encryptedEncoder := ecjson.New(cookieCipher)
@@ -124,7 +124,7 @@ func New(opts config.Options) (*Authenticate, error) {
 		Expire:   opts.CookieExpire,
 	}
 
-	cookieStore, err := cookie.NewStore(cookieOptions, encryptedEncoder)
+	cookieStore, err := cookie.NewStore(cookieOptions, sharedEncoder)
 	if err != nil {
 		return nil, err
 	}
@@ -145,13 +145,7 @@ func New(opts config.Options) (*Authenticate, error) {
 
 	cacheClient := client.New(cacheConn)
 
-	cacheStore := cache.NewStore(&cache.Options{
-		Cache:        cacheClient,
-		Encoder:      encryptedEncoder,
-		QueryParam:   urlutil.QueryAccessTokenID,
-		WrappedStore: cookieStore})
-
-	qpStore := queryparam.NewStore(encryptedEncoder, "pomerium_programmatic_token")
+	qpStore := queryparam.NewStore(encryptedEncoder, urlutil.QueryProgrammaticToken)
 	headerStore := header.NewStore(encryptedEncoder, httputil.AuthorizationTypePomerium)
 
 	redirectURL, _ := urlutil.DeepCopy(opts.AuthenticateURL)
@@ -177,14 +171,14 @@ func New(opts config.Options) (*Authenticate, error) {
 		// shared state
 		sharedKey:     opts.SharedKey,
 		sharedCipher:  sharedCipher,
-		sharedEncoder: signedEncoder,
+		sharedEncoder: sharedEncoder,
 		// private state
 		cookieSecret:     decodedCookieSecret,
 		cookieCipher:     cookieCipher,
 		cookieOptions:    cookieOptions,
-		sessionStore:     cacheStore,
+		sessionStore:     cookieStore,
 		encryptedEncoder: encryptedEncoder,
-		sessionLoaders:   []sessions.SessionLoader{cacheStore, qpStore, headerStore, cookieStore},
+		sessionLoaders:   []sessions.SessionLoader{qpStore, headerStore, cookieStore},
 		// IdP
 		provider: provider,
 		// grpc client for cache
