@@ -37,6 +37,9 @@ type Store struct {
 	srv       *http.Server
 }
 
+// ErrCacheMiss is returned when the cache misses for a given key.
+var ErrCacheMiss = errors.New("cache miss")
+
 // Options represent autocache options.
 type Options struct {
 	Addr          string
@@ -60,7 +63,7 @@ var DefaultOptions = &Options{
 	GetterFn: func(ctx context.Context, id string, dest groupcache.Sink) error {
 		b := fromContext(ctx)
 		if len(b) == 0 {
-			return fmt.Errorf("autocache: empty ctx for id: %s", id)
+			return fmt.Errorf("autocache: id %s : %w", id, ErrCacheMiss)
 		}
 		if err := dest.SetBytes(b); err != nil {
 			return fmt.Errorf("autocache: sink error %w", err)

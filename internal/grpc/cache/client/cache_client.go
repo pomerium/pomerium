@@ -3,6 +3,7 @@ package client
 
 import (
 	"context"
+	"errors"
 
 	"github.com/pomerium/pomerium/internal/grpc/cache"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -10,12 +11,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Cacher specifies an interface for remote clients connecting to the cache service.
-type Cacher interface {
-	Get(ctx context.Context, key string) (keyExists bool, value []byte, err error)
-	Set(ctx context.Context, key string, value []byte) error
-	Close() error
-}
+var errKeyNotFound = errors.New("cache/client: key not found")
 
 // Client represents a gRPC cache service client.
 type Client struct {
@@ -29,15 +25,18 @@ func New(conn *grpc.ClientConn) (p *Client) {
 }
 
 // Get retrieves a value from the cache service.
-func (a *Client) Get(ctx context.Context, key string) (keyExists bool, value []byte, err error) {
+func (a *Client) Get(ctx context.Context, key string) (value []byte, err error) {
 	ctx, span := trace.StartSpan(ctx, "grpc.cache.client.Get")
 	defer span.End()
 
 	response, err := a.client.Get(ctx, &cache.GetRequest{Key: key})
 	if err != nil {
-		return false, nil, err
+		return nil, err
 	}
-	return response.GetExists(), response.GetValue(), nil
+	if !response.GetExists() {
+		return nil, errKeyNotFound
+	}
+	return response.GetValue(), nil
 }
 
 // Set stores a key value pair in the cache service.

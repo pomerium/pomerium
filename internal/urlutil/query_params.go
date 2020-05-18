@@ -17,6 +17,7 @@ const (
 	QueryRefreshToken      = "pomerium_refresh_token"
 	QueryAccessTokenID     = "pomerium_session_access_token_id"
 	QueryAudience          = "pomerium_session_audience"
+	QueryProgrammaticToken = "pomerium_programmatic_token"
 )
 
 // URL signature based query params used for verifying the authenticity of a URL.

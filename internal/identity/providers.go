@@ -17,25 +17,24 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oidc/google"
 	"github.com/pomerium/pomerium/internal/identity/oidc/okta"
 	"github.com/pomerium/pomerium/internal/identity/oidc/onelogin"
-	"github.com/pomerium/pomerium/internal/sessions"
 )
 
 var (
 	// compile time assertions that providers are satisfying the interface
 	_ Authenticator = &azure.Provider{}
-	_ Authenticator = &gitlab.Provider{}
 	_ Authenticator = &github.Provider{}
+	_ Authenticator = &gitlab.Provider{}
 	_ Authenticator = &google.Provider{}
+	_ Authenticator = &MockProvider{}
 	_ Authenticator = &oidc.Provider{}
 	_ Authenticator = &okta.Provider{}
 	_ Authenticator = &onelogin.Provider{}
-	_ Authenticator = &MockProvider{}
 )
 
 // Authenticator is an interface representing the ability to authenticate with an identity provider.
 type Authenticator interface {
-	Authenticate(context.Context, string) (*sessions.State, error)
-	Refresh(context.Context, *sessions.State) (*sessions.State, error)
+	Authenticate(context.Context, string, interface{}) (*oauth2.Token, error)
+	Refresh(context.Context, *oauth2.Token, interface{}) (*oauth2.Token, error)
 	Revoke(context.Context, *oauth2.Token) error
 	GetSignInURL(state string) string
 	LogOut() (*url.URL, error)

@@ -91,6 +91,10 @@ func TestNew(t *testing.T) {
 	badGRPCConn.CacheURL = nil
 	badGRPCConn.CookieName = "D"
 
+	emptyProviderURL := newTestOptions(t)
+	emptyProviderURL.Provider = "oidc"
+	emptyProviderURL.ProviderURL = ""
+
 	tests := []struct {
 		name string
 		opts *config.Options
@@ -103,6 +107,7 @@ func TestNew(t *testing.T) {
 		{"bad cookie name", badCookieName, true},
 		{"bad provider", badProvider, true},
 		{"bad cache url", badGRPCConn, true},
+		{"empty provider url", emptyProviderURL, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
