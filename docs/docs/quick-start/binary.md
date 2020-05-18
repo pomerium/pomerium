@@ -52,6 +52,6 @@ Browse to `external-httpbin.your.domain.example`. Connections between you and [h
 [download]: https://github.com/pomerium/pomerium/releases
 [environmental configuration variables]: https://12factor.net/config
 [httpbin]: https://httpbin.org/
-[identity provider]: ../docs/identity-providers/
+[identity provider]: ../identity-providers/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [tls certificates]: ../reference/certificates.md

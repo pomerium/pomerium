@@ -1,7 +1,6 @@
 ---
 title: Getting the user's identity
-description: >-
-  This article describes how to to get a user's identity with Pomerium.
+description: This article describes how to to get a user's identity with Pomerium.
 ---
 
 # Getting the user's identity
@@ -19,19 +18,19 @@ To secure your app with signed headers, you'll need the following:
 
 A JWT attesting to the authorization of a given request is added to the downstream HTTP request header `x-pomerium-jwt-assertion`. You should verify that the JWT contains at least the following claims:
 
-|  [JWT]   | description                                                                                            |
-| :------: | ------------------------------------------------------------------------------------------------------ |
-|  `exp`   | Expiration time in seconds since the UNIX epoch. Allow 1 minute for skew.                              |
-|  `iat`   | Issued-at time in seconds since the UNIX epoch. Allow 1 minute for skew.                               |
-|  `aud`   | The client's final domain e.g. `httpbin.corp.example.com`.                                             |
-|  `iss`   | Issuer must be the URL of your authentication domain e.g. `authenticate.corp.example`.                 |
-|  `sub`   | Subject is the user's id. Can be used instead of the `x-pomerium-authenticated-user-id` header.        |
-| `email`  | Email is the user's email. Can be used instead of the `x-pomerium-authenticated-user-email` header.    |
-| `groups` | Groups is the user's groups. Can be used instead of the `x-pomerium-authenticated-user-groups` header. |
+ [JWT]   | description
+:------: | ------------------------------------------------------------------------------------------------------
+ `exp`   | Expiration time in seconds since the UNIX epoch. Allow 1 minute for skew.
+ `iat`   | Issued-at time in seconds since the UNIX epoch. Allow 1 minute for skew.
+ `aud`   | The client's final domain e.g. `httpbin.corp.example.com`.
+ `iss`   | Issuer must be the URL of your authentication domain e.g. `authenticate.corp.example`.
+ `sub`   | Subject is the user's id. Can be used instead of the `x-pomerium-authenticated-user-id` header.
+`email`  | Email is the user's email. Can be used instead of the `x-pomerium-authenticated-user-email` header.
+`groups` | Groups is the user's groups. Can be used instead of the `x-pomerium-authenticated-user-groups` header.
 
 ### Manual verification
 
-Though you will very likely be verifying signed-headers programmatically in your application's middleware, and using a third-party JWT library, if you are new to JWT it may be helpful to show what manual verification looks like. The following guide assumes you are using the provided [docker-compose.yml] as a base and [httpbin]. Httpbin gives us a convenient way of inspecting client headers.
+Though you will very likely be verifying signed-headers programmatically in your application's middleware, and using a third-party JWT library, if you are new to JWT it may be helpful to show what manual verification looks like.
 
 1. Provide pomerium with a base64 encoded Elliptic Curve ([NIST P-256] aka [secp256r1] aka prime256v1) Private Key. In production, you'd likely want to get these from your KMS.
 
@@ -49,17 +48,17 @@ Copy the base64 encoded value of your private key to `pomerium-proxy`'s environm
 SIGNING_KEY=ZxqyyIPPX0oWrrOwsxXgl0hHnTx3mBVhQ2kvW1YB4MM=
 ```
 
-2. Reload `pomerium-proxy`. Navigate to httpbin (by default, `https://httpbin.corp.${YOUR-DOMAIN}.com`), and login as usual. Click **request inspection**. Select `/headers'. Click **try it out** and then **execute**. You should see something like the following.
+1. Reload `pomerium-proxy`. Navigate to httpbin (by default, `https://httpbin.corp.${YOUR-DOMAIN}.com`), and login as usual. Click **request inspection**. Select `/headers'. Click **try it out** and then **execute**. You should see something like the following.
 
 ![httpbin displaying jwt headers](./img/inspect-headers.png)
 
-3. `X-Pomerium-Jwt-Assertion` is the signature value. It's less scary than it looks and basically just a compressed, json blob as described above. Navigate to [jwt.io] which provides a helpful GUI to manually verify JWT values.
+1. `X-Pomerium-Jwt-Assertion` is the signature value. It's less scary than it looks and basically just a compressed, json blob as described above. Navigate to [jwt.io] which provides a helpful GUI to manually verify JWT values.
 
-4. Paste the value of `X-Pomerium-Jwt-Assertion` header token into the `Encoded` form. You should notice that the decoded values look much more familiar.
+2. Paste the value of `X-Pomerium-Jwt-Assertion` header token into the `Encoded` form. You should notice that the decoded values look much more familiar.
 
 ![httpbin displaying decoded jwt](./img/verifying-headers-1.png)
 
-5. Finally, we want to cryptographically verify the validity of the token. To do this, we will need the signer's public key. You can simply copy and past the output of `cat ec_public.pem`.
+1. Finally, we want to cryptographically verify the validity of the token. To do this, we will need the signer's public key. You can simply copy and past the output of `cat ec_public.pem`.
 
 ![httpbin displaying verified jwt](./img/verifying-headers-2.png)
 

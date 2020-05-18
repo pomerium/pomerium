@@ -19,15 +19,17 @@ This quick-start will show you how to deploy Pomerium with [Helm](https://helm.s
 - Install [helm](https://helm.sh/docs/using_helm/)
 - [TLS certificates]
 
-Though there are [many ways](https://kubernetes.io/docs/setup/pick-right-solution/) to work with Kubernetes, for the purpose of this guide, we will be using Google's [Kubernetes Engine](https://cloud.google.com/kubernetes-engine/). That said, most of the following steps should be very similar using any other provider.
+Though there are [many ways](https://unofficial-kubernetes.readthedocs.io/en/latest/setup/pick-right-solution/) to work with Kubernetes, for the purpose of this guide, we will be using Google's [Kubernetes Engine](https://cloud.google.com/kubernetes-engine/). That said, most of the following steps should be very similar using any other provider.
 
 In addition to sharing many of the same features as the Kubernetes quickstart guide, the default helm deployment script also includes a bootstrapped certificate authority enabling mutually authenticated and encrypted communication between services that does not depend on the external LetsEncrypt certificates. Having the external domain certificate de-coupled makes it easier to renew external certificates.
 
 ## Configure
 
-Download and modify the following [helm_gke.sh script][./scripts/helm_gke.sh] to match your [identity provider] and [TLS certificates] settings.
+Download and modify the following helm_gke.sh script and values file to match your [identity provider] and [TLS certificates] settings.
 
-<<<@/scripts/helm_gke.sh
+<<<@/docs/configuration/examples/helm/helm_gke.sh
+
+<<<@/docs/configuration/examples/kubernetes/values.yaml
 
 ## Run
 
