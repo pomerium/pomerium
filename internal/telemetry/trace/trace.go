@@ -16,6 +16,7 @@ import (
 const (
 	// JaegerTracingProviderName is the name of the tracing provider Jaeger.
 	JaegerTracingProviderName = "jaeger"
+	// ZipkinTracingProviderName is the name of the tracing provider Zipkin.
 	ZipkinTracingProviderName = "zipkin"
 )
 
