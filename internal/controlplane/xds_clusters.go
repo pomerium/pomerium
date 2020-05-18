@@ -130,7 +130,12 @@ func (srv *Server) buildPolicyValidationContext(policy *config.Policy) *envoy_ex
 	return validationContext
 }
 
-func (srv *Server) buildCluster(name string, endpoint *url.URL, transportSocket *envoy_config_core_v3.TransportSocket, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
+func (srv *Server) buildCluster(
+	name string,
+	endpoint *url.URL,
+	transportSocket *envoy_config_core_v3.TransportSocket,
+	forceHTTP2 bool,
+) *envoy_config_cluster_v3.Cluster {
 	defaultPort := 80
 	if transportSocket != nil && transportSocket.Name == "tls" {
 		defaultPort = 443

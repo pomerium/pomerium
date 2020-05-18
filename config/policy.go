@@ -2,9 +2,11 @@ package config
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/cespare/xxhash/v2"
@@ -124,6 +126,18 @@ func (p *Policy) Validate() error {
 		p.ClientCertificate, err = cryptutil.CertificateFromFile(p.TLSClientCertFile, p.TLSClientKeyFile)
 		if err != nil {
 			return fmt.Errorf("config: couldn't load client cert file %w", err)
+		}
+	}
+
+	if p.TLSCustomCA != "" {
+		_, err := base64.StdEncoding.DecodeString(p.TLSCustomCA)
+		if err != nil {
+			return fmt.Errorf("config: couldn't decode custom ca: %w", err)
+		}
+	} else if p.TLSCustomCAFile != "" {
+		_, err := os.Stat(p.TLSCustomCAFile)
+		if err != nil {
+			return fmt.Errorf("config: couldn't load client ca file: %w", err)
 		}
 	}
 
