@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"sort"
+	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
@@ -151,6 +152,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 		},
 		Services: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthz_GrpcService{
 			GrpcService: &envoy_config_core_v3.GrpcService{
+				Timeout: ptypes.DurationProto(time.Second * 30),
 				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
 					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
 						ClusterName: "pomerium-authz",

@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	oidc "github.com/coreos/go-oidc"
@@ -18,7 +19,6 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sessions"
 )
 
 const (
@@ -54,35 +54,34 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 		return nil, fmt.Errorf("%s: failed creating oidc provider: %w", Name, err)
 	}
 	p.Provider = genericOidc
-
-	// if service account set, configure admin sdk calls
-	if o.ServiceAccount != "" {
-		apiCreds, err := base64.StdEncoding.DecodeString(o.ServiceAccount)
-		if err != nil {
-			return nil, fmt.Errorf("google: could not decode service account json %w", err)
-		}
-		// Required scopes for groups api
-		// https://developers.google.com/admin-sdk/directory/v1/reference/groups/list
-		conf, err := google.JWTConfigFromJSON(apiCreds, admin.AdminDirectoryUserReadonlyScope, admin.AdminDirectoryGroupReadonlyScope)
-		if err != nil {
-			return nil, fmt.Errorf("google: failed making jwt config from json %w", err)
-		}
-		var credentialsFile struct {
-			ImpersonateUser string `json:"impersonate_user"`
-		}
-		if err := json.Unmarshal(apiCreds, &credentialsFile); err != nil {
-			return nil, err
-		}
-		conf.Subject = credentialsFile.ImpersonateUser
-		client := conf.Client(context.TODO())
-		p.apiClient, err = admin.New(client)
-		if err != nil {
-			return nil, fmt.Errorf("google: failed creating admin service %w", err)
-		}
-		p.UserGroupFn = p.UserGroups
-	} else {
-		log.Warn().Msg("google: no service account, cannot retrieve groups")
+	if o.ServiceAccount == "" {
+		log.Warn().Msg("google: no service account, will not fetch groups")
+		return &p, nil
 	}
+
+	apiCreds, err := base64.StdEncoding.DecodeString(o.ServiceAccount)
+	if err != nil {
+		return nil, fmt.Errorf("google: could not decode service account json %w", err)
+	}
+	// Required scopes for groups api
+	// https://developers.google.com/admin-sdk/directory/v1/reference/groups/list
+	conf, err := google.JWTConfigFromJSON(apiCreds, admin.AdminDirectoryUserReadonlyScope, admin.AdminDirectoryGroupReadonlyScope)
+	if err != nil {
+		return nil, fmt.Errorf("google: failed making jwt config from json %w", err)
+	}
+	var credentialsFile struct {
+		ImpersonateUser string `json:"impersonate_user"`
+	}
+	if err := json.Unmarshal(apiCreds, &credentialsFile); err != nil {
+		return nil, err
+	}
+	conf.Subject = credentialsFile.ImpersonateUser
+	client := conf.Client(context.TODO())
+	p.apiClient, err = admin.New(client)
+	if err != nil {
+		return nil, fmt.Errorf("google: failed creating admin service %w", err)
+	}
+	p.UserGroupFn = p.UserGroups
 
 	return &p, nil
 }
@@ -106,17 +105,34 @@ func (p *Provider) GetSignInURL(state string) string {
 // NOTE: groups via Directory API is limited to 1 QPS!
 // https://developers.google.com/admin-sdk/directory/v1/reference/groups/list
 // https://developers.google.com/admin-sdk/directory/v1/limits
-func (p *Provider) UserGroups(ctx context.Context, s *sessions.State) ([]string, error) {
-	var groups []string
-	if p.apiClient != nil {
-		req := p.apiClient.Groups.List().UserKey(s.Subject).MaxResults(100)
-		resp, err := req.Do()
-		if err != nil {
-			return nil, fmt.Errorf("google: group api request failed %w", err)
-		}
-		for _, group := range resp.Groups {
-			groups = append(groups, group.Email)
-		}
+func (p *Provider) UserGroups(ctx context.Context, t *oauth2.Token, v interface{}) error {
+	if p.apiClient == nil {
+		return errors.New("google: trying to fetch groups, but no api client")
 	}
-	return groups, nil
+	s, err := p.GetSubject(v)
+	if err != nil {
+		return err
+	}
+	var out struct {
+		Groups []string `json:"groups"`
+	}
+	req := p.apiClient.Groups.List().Context(ctx).UserKey(s)
+	err = req.Pages(ctx, func(resp *admin.Groups) error {
+		for _, group := range resp.Groups {
+			out.Groups = append(out.Groups, group.Email)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	_, err = req.Do()
+	if err != nil {
+		return fmt.Errorf("google: group api request failed %w", err)
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b, v)
 }

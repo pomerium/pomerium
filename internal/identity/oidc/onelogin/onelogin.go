@@ -5,17 +5,15 @@ package onelogin
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	oidc "github.com/coreos/go-oidc"
+	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
 )
 
@@ -55,24 +53,10 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 
 // UserGroups returns a slice of group names a given user is in.
 // https://developers.onelogin.com/openid-connect/api/user-info
-func (p *Provider) UserGroups(ctx context.Context, s *sessions.State) ([]string, error) {
-	if s == nil || s.AccessToken == nil {
-		return nil, errors.New("identity/onelogin: session cannot be nil")
+func (p *Provider) UserGroups(ctx context.Context, t *oauth2.Token, v interface{}) error {
+	if t == nil {
+		return pom_oidc.ErrMissingAccessToken
 	}
-	var response struct {
-		User              string    `json:"sub"`
-		Email             string    `json:"email"`
-		PreferredUsername string    `json:"preferred_username"`
-		Name              string    `json:"name"`
-		UpdatedAt         time.Time `json:"updated_at"`
-		GivenName         string    `json:"given_name"`
-		FamilyName        string    `json:"family_name"`
-		Groups            []string  `json:"groups"`
-	}
-	headers := map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.AccessToken.AccessToken)}
-	err := httputil.Client(ctx, http.MethodGet, defaultOneloginGroupURL, version.UserAgent(), headers, nil, &response)
-	if err != nil {
-		return nil, err
-	}
-	return response.Groups, nil
+	headers := map[string]string{"Authorization": fmt.Sprintf("Bearer %s", t.AccessToken)}
+	return httputil.Client(ctx, http.MethodGet, defaultOneloginGroupURL, version.UserAgent(), headers, nil, v)
 }
