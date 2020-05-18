@@ -183,6 +183,169 @@ func TestWebsocket(t *testing.T) {
 	})
 }
 
+func TestTLSSkipVerify(t *testing.T) {
+	t.SkipNow()
+
+	ctx := mainCtx
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	t.Run("enabled", func(t *testing.T) {
+		client := testcluster.NewHTTPClient()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-skip-verify-enabled", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+	})
+	t.Run("disabled", func(t *testing.T) {
+		client := testcluster.NewHTTPClient()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-skip-verify-disabled", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
+	})
+}
+
+func TestTLSServerName(t *testing.T) {
+	t.SkipNow()
+
+	ctx := mainCtx
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	t.Run("enabled", func(t *testing.T) {
+		client := testcluster.NewHTTPClient()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-server-name-enabled", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+	})
+	t.Run("disabled", func(t *testing.T) {
+		client := testcluster.NewHTTPClient()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-server-name-disabled", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
+	})
+}
+
+func TestTLSCustomCA(t *testing.T) {
+	t.SkipNow()
+
+	ctx := mainCtx
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	t.Run("enabled", func(t *testing.T) {
+		client := testcluster.NewHTTPClient()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-custom-ca-enabled", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+	})
+	t.Run("disabled", func(t *testing.T) {
+		client := testcluster.NewHTTPClient()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-custom-ca-disabled", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
+	})
+}
+
+func TestTLSClientCert(t *testing.T) {
+	t.SkipNow()
+
+	ctx := mainCtx
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+	t.Run("enabled", func(t *testing.T) {
+		client := testcluster.NewHTTPClient()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-client-cert-enabled", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+	})
+	t.Run("disabled", func(t *testing.T) {
+		client := testcluster.NewHTTPClient()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/tls-client-cert-disabled", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
+	})
+}
+
 func TestSNIMismatch(t *testing.T) {
 	// Browsers will coalesce connections for the same IP address and TLS certificate
 	// even if the request was made to different domain names. We need to support this
