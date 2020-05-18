@@ -121,7 +121,7 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) []*
 			match.PathSpecifier = &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"}
 		}
 
-		clusterName, _, _ := srv.getClusterDetails(policy.Destination)
+		clusterName := getPolicyName(&policy)
 
 		var requestHeadersToAdd []*envoy_config_core_v3.HeaderValueOption
 		for k, v := range policy.SetRequestHeaders {

@@ -43,7 +43,7 @@ func bootstrapCerts(ctx context.Context) (*TLSCertsBundle, error) {
 		name    string
 	}{
 		{&bundle.Trusted, filepath.Join(wd, "trusted"), true, "*.localhost.pomerium.io"},
-		{&bundle.WronglyNamed, filepath.Join(wd, "wrongly-named"), true, "*.localhost.notpomerium.io"},
+		{&bundle.WronglyNamed, filepath.Join(wd, "trusted"), true, "*.localhost.notpomerium.io"},
 		{&bundle.Untrusted, filepath.Join(wd, "untrusted"), false, "*.localhost.pomerium.io"},
 	}
 

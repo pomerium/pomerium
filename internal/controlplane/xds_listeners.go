@@ -1,9 +1,6 @@
 package controlplane
 
 import (
-	"bytes"
-	"crypto/x509"
-	"encoding/pem"
 	"sort"
 	"time"
 
@@ -309,33 +306,7 @@ func (srv *Server) buildDownstreamTLSContext(options *config.Options, domain str
 		return nil
 	}
 
-	envoyCert := &envoy_extensions_transport_sockets_tls_v3.TlsCertificate{}
-	var chain bytes.Buffer
-	for _, cbs := range cert.Certificate {
-		_ = pem.Encode(&chain, &pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: cbs,
-		})
-	}
-	envoyCert.CertificateChain = inlineBytes(chain.Bytes())
-	if cert.OCSPStaple != nil {
-		envoyCert.OcspStaple = inlineBytes(cert.OCSPStaple)
-	}
-	if bs, err := x509.MarshalPKCS8PrivateKey(cert.PrivateKey); err == nil {
-		envoyCert.PrivateKey = inlineBytes(pem.EncodeToMemory(
-			&pem.Block{
-				Type:  "PRIVATE KEY",
-				Bytes: bs,
-			},
-		))
-	} else {
-		log.Warn().Err(err).Msg("failed to marshal private key for tls config")
-	}
-	for _, scts := range cert.SignedCertificateTimestamps {
-		envoyCert.SignedCertificateTimestamp = append(envoyCert.SignedCertificateTimestamp,
-			inlineBytes(scts))
-	}
-
+	envoyCert := envoyTLSCertificateFromGoTLSCertificate(cert)
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsCertificates: []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{envoyCert},

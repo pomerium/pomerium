@@ -11,7 +11,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"time"
@@ -36,33 +35,6 @@ func CertificateFromBase64(cert, key string) (*tls.Certificate, error) {
 func CertificateFromFile(certFile, keyFile string) (*tls.Certificate, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	return &cert, err
-}
-
-// CertPoolFromBase64 takes a base64 encoded string and returns a new
-// X509 certificate pool.
-func CertPoolFromBase64(encPemCerts string) (*x509.CertPool, error) {
-	b, err := base64.StdEncoding.DecodeString(encPemCerts)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't decode pem %v: %w", b, err)
-	}
-	return bytesToCertPool(b)
-}
-
-// CertPoolFromFile reads a file and returns an X509 certificate pool.
-func CertPoolFromFile(pemFile string) (*x509.CertPool, error) {
-	b, err := ioutil.ReadFile(pemFile)
-	if err != nil {
-		return nil, err
-	}
-	return bytesToCertPool(b)
-}
-
-func bytesToCertPool(b []byte) (*x509.CertPool, error) {
-	certPool := x509.NewCertPool()
-	if ok := certPool.AppendCertsFromPEM(b); !ok {
-		return nil, fmt.Errorf("could append certs from PEM")
-	}
-	return certPool, nil
 }
 
 // DecodePublicKey decodes a PEM-encoded ECDSA public key.
