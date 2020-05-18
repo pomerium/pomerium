@@ -212,6 +212,7 @@ func setupTracing(opt *config.Options) error {
 			Debug:                   opt.TracingDebug,
 			JaegerAgentEndpoint:     opt.TracingJaegerAgentEndpoint,
 			JaegerCollectorEndpoint: opt.TracingJaegerCollectorEndpoint,
+			ZipkinEndpoint:          opt.ZipkinEndpoint,
 		}
 		if err := trace.RegisterTracing(tracingOpts); err != nil {
 			return err
