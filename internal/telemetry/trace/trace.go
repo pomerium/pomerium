@@ -4,16 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"contrib.go.opencensus.io/exporter/jaeger"
 	ocZipkin "contrib.go.opencensus.io/exporter/zipkin"
-
-	zipkinHTTP "github.com/openzipkin/zipkin-go/reporter/http"
-
 	"github.com/openzipkin/zipkin-go"
+	zipkinHTTP "github.com/openzipkin/zipkin-go/reporter/http"
+	"go.opencensus.io/trace"
 
 	"github.com/pomerium/pomerium/internal/log"
-
-	"contrib.go.opencensus.io/exporter/jaeger"
-	"go.opencensus.io/trace"
 )
 
 const (
