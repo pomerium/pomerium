@@ -5,7 +5,7 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
-# Since 0.7.0
+# Since 0.8.0
 
 ## Breaking
 
@@ -17,7 +17,6 @@ Although it's unlikely anyone ever used it, prior to 0.8.0 the policy configurat
 policy:
   - from: "https://example.com/some/path"
 ```
-
 The proxy and authorization server would simply ignore the path and route/authorize based on the host name.
 
 With the introduction of `prefix`, `path` and `regex` fields to the policy route configuration, we decided not to support using a path in the `from` url, since the behavior was somewhat ambiguous and better handled by the explicit fields.

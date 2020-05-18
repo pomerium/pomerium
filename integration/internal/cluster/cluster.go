@@ -11,10 +11,10 @@ import (
 
 // A Cluster is used to configure a kubernetes cluster.
 type Cluster struct {
-	Transport *http.Transport
+	workingDir string
 
-	workingDir  string
-	certsBundle *TLSCertsBundle
+	transport http.RoundTripper
+	certs     *TLSCerts
 }
 
 // New creates a new Cluster.
@@ -32,7 +32,7 @@ func (cluster *Cluster) NewHTTPClient() *http.Client {
 		panic(err)
 	}
 	return &http.Client{
-		Transport: &loggingRoundTripper{cluster.Transport},
+		Transport: &loggingRoundTripper{cluster.transport},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},

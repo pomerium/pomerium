@@ -1,116 +1,69 @@
 package cluster
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // TLSCerts holds the certificate authority, certificate and certificate key for a TLS connection.
 type TLSCerts struct {
-	CA     []byte
-	Cert   []byte
-	Key    []byte
-	Client struct {
-		Cert []byte
-		Key  []byte
-	}
+	CA   string
+	Cert string
+	Key  string
 }
 
-// TLSCertsBundle holds various TLSCerts.
-type TLSCertsBundle struct {
-	Trusted      TLSCerts
-	WronglyNamed TLSCerts
-	Untrusted    TLSCerts
-}
-
-func bootstrapCerts(ctx context.Context) (*TLSCertsBundle, error) {
-	wd := filepath.Join(os.TempDir(), "pomerium-integration-tests", "certs")
-	err := os.MkdirAll(wd, 0755)
+func bootstrapCerts(ctx context.Context) (*TLSCerts, error) {
+	err := run(ctx, "mkcert", withArgs("-install"))
 	if err != nil {
-		return nil, fmt.Errorf("error creating integration tests working directory: %w", err)
+		return nil, fmt.Errorf("error install root certificate: %w", err)
 	}
 
-	var bundle TLSCertsBundle
-
-	var generators = []struct {
-		certs   *TLSCerts
-		caroot  string
-		install bool
-		name    string
-	}{
-		{&bundle.Trusted, filepath.Join(wd, "trusted"), true, "*.localhost.pomerium.io"},
-		{&bundle.WronglyNamed, filepath.Join(wd, "wrongly-named"), true, "*.localhost.notpomerium.io"},
-		{&bundle.Untrusted, filepath.Join(wd, "untrusted"), false, "*.localhost.pomerium.io"},
+	var buf bytes.Buffer
+	err = run(ctx, "mkcert", withArgs("-CAROOT"), withStdout(&buf))
+	if err != nil {
+		return nil, fmt.Errorf("error running mkcert")
 	}
 
-	for _, generator := range generators {
-		err = os.MkdirAll(generator.caroot, 0755)
-		if err != nil {
-			return nil, fmt.Errorf("error creating integration tests %s working directory: %w",
-				filepath.Base(generator.caroot), err)
-		}
-
-		args := []string{"-install"}
-		env := []string{"CAROOT=" + generator.caroot}
-		if !generator.install {
-			env = append(env, "TRUST_STORES=xxx")
-		}
-		err = run(ctx, "mkcert", withArgs(args...), withEnv(env...))
-		if err != nil {
-			return nil, fmt.Errorf("error creating %s certificate authority: %w",
-				filepath.Base(generator.caroot), err)
-		}
-
-		fp := filepath.Join(generator.caroot, "rootCA.pem")
-		generator.certs.CA, err = ioutil.ReadFile(fp)
-		if err != nil {
-			return nil, fmt.Errorf("error reading %s root ca: %w",
-				filepath.Base(generator.caroot), err)
-		}
-
-		env = []string{"CAROOT=" + generator.caroot}
-		err = run(ctx, "mkcert", withArgs(generator.name), withWorkingDir(generator.caroot), withEnv(env...))
-		if err != nil {
-			return nil, fmt.Errorf("error generating %s certificates: %w",
-				filepath.Base(generator.caroot), err)
-		}
-		err = run(ctx, "mkcert", withArgs("-client", generator.name), withWorkingDir(generator.caroot), withEnv(env...))
-		if err != nil {
-			return nil, fmt.Errorf("error generating %s client certificates: %w",
-				filepath.Base(generator.caroot), err)
-		}
-
-		fp = filepath.Join(generator.caroot, strings.ReplaceAll(generator.name, "*", "_wildcard")+".pem")
-		generator.certs.Cert, err = ioutil.ReadFile(fp)
-		if err != nil {
-			return nil, fmt.Errorf("error reading %s certificate: %w",
-				filepath.Base(generator.caroot), err)
-		}
-
-		fp = filepath.Join(generator.caroot, strings.ReplaceAll(generator.name, "*", "_wildcard")+"-client.pem")
-		generator.certs.Client.Cert, err = ioutil.ReadFile(fp)
-		if err != nil {
-			return nil, fmt.Errorf("error reading %s client certificate: %w",
-				filepath.Base(generator.caroot), err)
-		}
-
-		fp = filepath.Join(generator.caroot, strings.ReplaceAll(generator.name, "*", "_wildcard")+"-key.pem")
-		generator.certs.Key, err = ioutil.ReadFile(fp)
-		if err != nil {
-			return nil, fmt.Errorf("error reading %s certificate key: %w",
-				filepath.Base(generator.caroot), err)
-		}
-		fp = filepath.Join(generator.caroot, strings.ReplaceAll(generator.name, "*", "_wildcard")+"-client-key.pem")
-		generator.certs.Client.Key, err = ioutil.ReadFile(fp)
-		if err != nil {
-			return nil, fmt.Errorf("error reading %s client certificate key: %w",
-				filepath.Base(generator.caroot), err)
-		}
+	caPath := strings.TrimSpace(buf.String())
+	ca, err := ioutil.ReadFile(filepath.Join(caPath, "rootCA.pem"))
+	if err != nil {
+		return nil, fmt.Errorf("error reading root ca: %w", err)
 	}
 
-	return &bundle, nil
+	wd := filepath.Join(os.TempDir(), uuid.New().String())
+	err = os.MkdirAll(wd, 0755)
+	if err != nil {
+		return nil, fmt.Errorf("error creating temporary directory: %w", err)
+	}
+	defer func() {
+		_ = os.RemoveAll(wd)
+	}()
+
+	err = run(ctx, "mkcert", withArgs("*.localhost.pomerium.io"), withWorkingDir(wd))
+	if err != nil {
+		return nil, fmt.Errorf("error generating certificates: %w", err)
+	}
+
+	cert, err := ioutil.ReadFile(filepath.Join(wd, "_wildcard.localhost.pomerium.io.pem"))
+	if err != nil {
+		return nil, fmt.Errorf("error reading certificate: %w", err)
+	}
+
+	key, err := ioutil.ReadFile(filepath.Join(wd, "_wildcard.localhost.pomerium.io-key.pem"))
+	if err != nil {
+		return nil, fmt.Errorf("error reading certificate key: %w", err)
+	}
+
+	return &TLSCerts{
+		CA:   string(ca),
+		Cert: string(cert),
+		Key:  string(key),
+	}, nil
 }

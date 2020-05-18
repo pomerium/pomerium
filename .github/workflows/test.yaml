@@ -89,32 +89,46 @@ jobs:
   integration-tests:
     runs-on: ubuntu-latest
     steps:
-      - name: install mkcert
+      - name: cache binaries
+        uses: actions/cache@v1
+        env:
+          cache-name: cache-binaries
+        with:
+          path: /opt/binaries/
+          key: ${{ runner.os }}-binaries
+      - name: install binaries
         run: |
           #!/bin/bash
+          sudo mkdir -p /usr/local/bin/
+          sudo mkdir -p /opt/minikube/bin/
+          cd /opt/minikube/bin
+
+          if [ ! -f minikube ]; then
+            echo "downloading minikube"
+            sudo curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+            sudo chmod +x minikube
+          fi
+          sudo install minikube /usr/local/bin/
+
           if [ ! -f mkcert ]; then
             echo "downloading mkcert"
             sudo curl -Lo mkcert https://github.com/FiloSottile/mkcert/releases/download/v1.4.1/mkcert-v1.4.1-linux-amd64
             sudo chmod +x mkcert
           fi
           sudo install mkcert /usr/local/bin/
-
-      - name: Create kind cluster
-        uses: helm/kind-action@v1.0.0-rc.1
-        with:
-          cluster_name: kind
+      - name: start minikube
+        run: |
+          minikube start --driver=docker
+          kubectl cluster-info
 
       - name: install go
         uses: actions/setup-go@v1
         with:
           go-version: 1.14.x
-
       - name: checkout code
         uses: actions/checkout@v2
-
       - name: build dev docker image
         run: |
           ./scripts/build-dev-docker.bash
-
       - name: test
         run: go test -v ./integration/...

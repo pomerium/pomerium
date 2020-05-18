@@ -116,7 +116,7 @@ func New(o *Options) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	serverOpts := &httputil.ServerOptions{Addr: o.Addr, Insecure: true, Service: Name}
+	serverOpts := &httputil.ServerOptions{Addr: o.Addr}
 	var wg sync.WaitGroup
 	s.srv, err = httputil.NewServer(serverOpts, metrics.HTTPMetricsHandler("groupcache")(QueryParamToCtx(s.cluster)), &wg)
 	if err != nil {

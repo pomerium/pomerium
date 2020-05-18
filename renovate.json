@@ -7,8 +7,5 @@
   "prHourlyLimit": 0,
   "labels": [
     "dependency"
-  ],
-  "postUpdateOptions": [{
-    "gomodTidy": true
-  }]
+  ]
 }
