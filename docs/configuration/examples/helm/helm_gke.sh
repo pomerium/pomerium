@@ -7,7 +7,7 @@
 # NOTE! If you are using gsuite, you should also set `authenticate.idp.serviceAccount`, see docs !
 
 echo "=> [GCE] creating cluster"
-gcloud container clusters create pomerium --region us-west2
+gcloud container clusters create pomerium --region us-west2 --num-nodes 1
 
 echo "=> [GCE] get cluster credentials so we can use kubctl locally"
 gcloud container clusters get-credentials pomerium --region us-west2
@@ -15,27 +15,26 @@ gcloud container clusters get-credentials pomerium --region us-west2
 echo "=> add pomerium's helm repo"
 helm repo add pomerium https://helm.pomerium.io
 
+echo "=> add bitnami's helm repo"
+helm repo add bitnami https://charts.bitnami.com/bitnami
+
+echo "=> install nginx as a sample hello world app"
+helm upgrade --install nginx bitnami/nginx --set service.type=ClusterIP
+
 echo "=> update helm"
 helm repo update
 
 echo "=> install pomerium with helm"
-echo "=> initiliaze a configmap setting from config.example.yaml"
-kubectl create configmap config --from-file="config.yaml"="docs/configuration/examples/kubernetes/kubernetes-config.yaml"
-
 helm install \
 	pomerium \
 	pomerium/pomerium \
 	--set service.type="NodePort" \
-	--set config.rootDomain="corp.beyondperimeter.com" \
-	--set config.existingConfig="config" \
 	--set config.sharedSecret=$(head -c32 /dev/urandom | base64) \
 	--set config.cookieSecret=$(head -c32 /dev/urandom | base64) \
 	--set ingress.secret.name="pomerium-tls" \
 	--set ingress.secret.cert=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer") \
 	--set ingress.secret.key=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key") \
-	--set-string ingress.annotations."kubernetes\.io/ingress\.allow-http"=false \
-	--set authenticate.service.annotations."cloud\.google\.com/app-protocols"='\{"https":"HTTPS"\}' \
-	--set proxy.service.annotations."cloud\.google\.com/app-protocols"='\{"https":"HTTPS"\}'
+	--values docs/configuration/examples/kubernetes/values.yaml
 
 # When done, clean up by deleting the cluster!
 # helm del $(helm ls --all --short) --purge # deletes all your helm instances

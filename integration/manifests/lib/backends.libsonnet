@@ -11,95 +11,149 @@ local configMap = function(name, data) {
   data: data,
 };
 
-local service = function(name) {
+local service = function(name, tlsName, requireMutualAuth) {
+  local fullName = (if tlsName != null then tlsName + '-' else '') +
+                   (if requireMutualAuth then 'mtls-' else '') +
+                   name,
+
   apiVersion: 'v1',
   kind: 'Service',
   metadata: {
     namespace: 'default',
-    name: name,
-    labels: { app: name },
+    name: fullName,
+    labels: { app: fullName },
   },
   spec: {
-    selector: { app: name },
-    ports: [{
-      name: 'http',
-      port: 80,
-      targetPort: 'http',
-    }],
+    selector: { app: fullName },
+    ports: [
+      {
+        name: 'http',
+        port: 80,
+        targetPort: 'http',
+      },
+      {
+        name: 'https',
+        port: 443,
+        targetPort: 'https',
+      },
+    ],
   },
 };
 
-local deployment = function(name) {
+local deployment = function(name, tlsName, requireMutualAuth) {
+  local fullName = (if tlsName != null then tlsName + '-' else '') +
+                   (if requireMutualAuth then 'mtls-' else '') +
+                   name,
+
   apiVersion: 'apps/v1',
   kind: 'Deployment',
   metadata: {
     namespace: 'default',
-    name: name,
+    name: fullName,
   },
   spec: {
     replicas: 1,
-    selector: { matchLabels: { app: name } },
+    selector: { matchLabels: { app: fullName } },
     template: {
       metadata: {
-        labels: { app: name },
+        labels: { app: fullName },
       },
       spec: {
-        initContainers: [{
-          name: 'init',
-          image: 'node:14-stretch-slim',
-          imagePullPolicy: 'IfNotPresent',
-          args: ['bash', '-c', 'cp -rL /src/* /app/'],
-          volumeMounts: [{
-            name: 'src',
-            mountPath: '/src',
-          }, {
-            name: 'app',
-            mountPath: '/app',
-          }],
-        }],
         containers: [{
-          name: name,
-          image: 'node:14-stretch-slim',
+          name: 'main',
+          image: 'golang:buster',
           imagePullPolicy: 'IfNotPresent',
-          args: ['bash', '-c', 'cd /app && npm install && node index.js'],
-          ports: [{
-            name: 'http',
-            containerPort: 8080,
-          }],
-          volumeMounts: [{
-            name: 'app',
-            mountPath: '/app',
-          }],
+          args: [
+            'bash',
+            '-c',
+            'cd /src && go run . ' +
+            (if tlsName != null then
+               ' -cert-file=/certs/tls.crt -key-file=/certs/tls.key'
+             else
+               '') +
+            (if requireMutualAuth then
+               ' -mutual-auth-ca-file=/certs/tls-ca.crt'
+             else
+               ''),
+          ],
+          ports: [
+            {
+              name: 'http',
+              containerPort: 5080,
+            },
+            {
+              name: 'https',
+              containerPort: 5443,
+            },
+          ],
+          volumeMounts: [
+            {
+              name: 'src',
+              mountPath: '/src',
+            },
+            {
+              name: 'certs',
+              mountPath: '/certs',
+            },
+          ],
         }],
-        volumes: [{
-          name: 'src',
-          configMap: {
-            name: name,
+        volumes: [
+          {
+            name: 'src',
+            configMap: {
+              name: name,
+            },
           },
-        }, {
-          name: 'app',
-          emptyDir: {},
-        }],
+        ] + if tlsName != null then [
+          {
+            name: 'certs',
+            secret: {
+              secretName: 'pomerium-' + tlsName + '-tls',
+            },
+          },
+        ] else [
+          {
+            name: 'certs',
+            emptyDir: {},
+          },
+        ],
       },
     },
   },
 };
 
+local backends = [
+  { name: 'httpdetails', files: {
+    'main.go': importstr '../../backends/httpdetails/main.go',
+    'go.mod': importstr '../../backends/httpdetails/go.mod',
+  } },
+  { name: 'ws-echo', files: {
+    'main.go': importstr '../../backends/ws-echo/main.go',
+    'go.mod': importstr '../../backends/ws-echo/go.mod',
+    'go.sum': importstr '../../backends/ws-echo/go.sum',
+  } },
+];
+
 {
   apiVersion: 'v1',
   kind: 'List',
-  items: [
-    configMap('httpdetails', {
-      'index.js': importstr '../../backends/httpdetails/index.js',
-    }),
-    service('httpdetails'),
-    deployment('httpdetails'),
-
-    configMap('ws-echo', {
-      'package.json': importstr '../../backends/ws-echo/package.json',
-      'index.js': importstr '../../backends/ws-echo/index.js',
-    }),
-    service('ws-echo'),
-    deployment('ws-echo'),
-  ],
+  items: std.flattenArrays(
+    [
+      [
+        configMap(backend.name, backend.files),
+        service(backend.name, null, false),
+        deployment(backend.name, null, false),
+        service(backend.name, 'wrongly-named', false),
+        deployment(backend.name, 'wrongly-named', false),
+        service(backend.name, 'untrusted', false),
+        deployment(backend.name, 'untrusted', false),
+      ]
+      for backend in backends
+    ] + [
+      [
+        service('httpdetails', 'trusted', true),
+        deployment('httpdetails', 'trusted', true),
+      ],
+    ],
+  ),
 }

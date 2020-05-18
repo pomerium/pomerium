@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 
 	"github.com/rs/zerolog/log"
@@ -15,6 +16,12 @@ type cmdOption func(*exec.Cmd)
 func withArgs(args ...string) cmdOption {
 	return func(cmd *exec.Cmd) {
 		cmd.Args = append([]string{"kubectl"}, args...)
+	}
+}
+
+func withEnv(env ...string) cmdOption {
+	return func(cmd *exec.Cmd) {
+		cmd.Env = append(os.Environ(), env...)
 	}
 }
 
