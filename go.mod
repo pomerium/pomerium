@@ -10,16 +10,16 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/envoyproxy/go-control-plane v0.9.5
 	github.com/fsnotify/fsnotify v1.4.9
+	github.com/go-acme/lego/v3 v3.7.0 // indirect
 	github.com/go-redis/redis/v7 v7.2.0
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 	github.com/golang/mock v1.4.3
-	github.com/golang/protobuf v1.4.0
-	github.com/google/go-cmp v0.4.0
+	github.com/golang/protobuf v1.4.2
+	github.com/google/go-cmp v0.4.1
 	github.com/google/go-jsonnet v0.15.0
-	github.com/google/uuid v1.1.1
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.4
-	github.com/gorilla/websocket v1.4.0
+	github.com/gorilla/websocket v1.4.2
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/lithammer/shortuuid/v3 v3.0.4
 	github.com/mitchellh/hashstructure v1.0.0
@@ -29,8 +29,7 @@ require (
 	github.com/onsi/gomega v1.8.1 // indirect
 	github.com/open-policy-agent/opa v0.19.2
 	github.com/pelletier/go-toml v1.6.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pomerium/autocache v0.0.0-20200309220911-227c9939d0ce
+	github.com/pomerium/autocache v0.0.0-20200505053831-8c1cd659f055
 	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v1.6.0
@@ -42,22 +41,20 @@ require (
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.6.3
+	github.com/spf13/viper v1.7.0
 	github.com/stretchr/testify v1.5.1
 	github.com/uber/jaeger-client-go v2.20.1+incompatible // indirect
 	go.etcd.io/bbolt v1.3.4
 	go.opencensus.io v0.22.3
-	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
-	golang.org/x/net v0.0.0-20200505041828-1ed23360d12c
+	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
+	golang.org/x/net v0.0.0-20200506145744-7e3656a0809f
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	google.golang.org/api v0.22.0
-	google.golang.org/appengine v1.6.5 // indirect
-	google.golang.org/genproto v0.0.0-20200204235621-fb4a7afc5178
-	google.golang.org/grpc v1.27.1
-	google.golang.org/protobuf v1.21.0
+	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
+	google.golang.org/api v0.23.0
+	google.golang.org/genproto v0.0.0-20200331122359-1ee6d9798940
+	google.golang.org/grpc v1.28.0
+	google.golang.org/protobuf v1.23.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
-	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1
 	gopkg.in/yaml.v2 v2.2.8
 )

@@ -1,0 +1,13 @@
+config:
+  insecure: true
+  policy:
+    - from: https://grafana.yourcompany.com
+      to: "http://prometheus-grafana.monitoring.svc.cluster.local"
+      timeout: 30s
+      allowed_domains:
+        - yourcompany.com
+ingress:
+  enabled: false
+
+extraEnv:
+  JWT_CLAIMS_HEADERS: email
