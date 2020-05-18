@@ -34,15 +34,20 @@ func main() {
 		err = http.ListenAndServe(bindAddr, http.HandlerFunc(handle))
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to listen and serve: %v", err)
+		fmt.Fprintf(os.Stderr, "failed to listen and serve: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
-	conn, err := websocket.Upgrade(w, r, nil, 1024, 1024)
+	conn, err := (&websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}).Upgrade(w, r, nil)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "error upgrading websocket connection: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	defer conn.Close()
 

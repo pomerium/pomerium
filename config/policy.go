@@ -2,11 +2,13 @@ package config
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
+
+	"github.com/cespare/xxhash/v2"
+	"github.com/mitchellh/hashstructure"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -21,8 +23,8 @@ type Policy struct {
 	AllowedGroups  []string `mapstructure:"allowed_groups" yaml:"allowed_groups,omitempty" json:"allowed_groups,omitempty"`
 	AllowedDomains []string `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 
-	Source      *StringURL `yaml:",omitempty" json:"source,omitempty"`
-	Destination *url.URL   `yaml:",omitempty" json:"destination,omitempty"`
+	Source      *StringURL `yaml:",omitempty" json:"source,omitempty" hash:"ignore"`
+	Destination *url.URL   `yaml:",omitempty" json:"destination,omitempty" hash:"ignore"`
 
 	// Additional route matching options
 	Prefix string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
@@ -60,9 +62,8 @@ type Policy struct {
 
 	// TLSCustomCA defines the  root certificate to use with a given
 	// route when verifying server certificates.
-	TLSCustomCA     string         `mapstructure:"tls_custom_ca" yaml:"tls_custom_ca,omitempty"`
-	TLSCustomCAFile string         `mapstructure:"tls_custom_ca_file" yaml:"tls_custom_ca_file,omitempty"`
-	RootCAs         *x509.CertPool `yaml:",omitempty"`
+	TLSCustomCA     string `mapstructure:"tls_custom_ca" yaml:"tls_custom_ca,omitempty"`
+	TLSCustomCAFile string `mapstructure:"tls_custom_ca_file" yaml:"tls_custom_ca_file,omitempty"`
 
 	// Contains the x.509 client certificate to present to the downstream
 	// host.
@@ -70,7 +71,7 @@ type Policy struct {
 	TLSClientKey      string           `mapstructure:"tls_client_key" yaml:"tls_client_key,omitempty"`
 	TLSClientCertFile string           `mapstructure:"tls_client_cert_file" yaml:"tls_client_cert_file,omitempty"`
 	TLSClientKeyFile  string           `mapstructure:"tls_client_key_file" yaml:"tls_client_key_file,omitempty"`
-	ClientCertificate *tls.Certificate `yaml:",omitempty"`
+	ClientCertificate *tls.Certificate `yaml:",omitempty" hash:"ignore"`
 
 	// SetRequestHeaders adds a collection of headers to the downstream request
 	// in the form of key value pairs. Note bene, this will overwrite the
@@ -126,18 +127,15 @@ func (p *Policy) Validate() error {
 		}
 	}
 
-	if p.TLSCustomCA != "" {
-		p.RootCAs, err = cryptutil.CertPoolFromBase64(p.TLSCustomCA)
-		if err != nil {
-			return fmt.Errorf("config: couldn't decode custom ca %w", err)
-		}
-	} else if p.TLSCustomCAFile != "" {
-		p.RootCAs, err = cryptutil.CertPoolFromFile(p.TLSCustomCAFile)
-		if err != nil {
-			return fmt.Errorf("config: couldn't load custom ca file %w", err)
-		}
-	}
 	return nil
+}
+
+// Checksum returns the xxhash hash for the policy.
+func (p *Policy) Checksum() uint64 {
+	cs, _ := hashstructure.Hash(p, &hashstructure.HashOptions{
+		Hasher: xxhash.New(),
+	})
+	return cs
 }
 
 func (p *Policy) String() string {

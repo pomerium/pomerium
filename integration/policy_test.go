@@ -185,8 +185,6 @@ func TestWebsocket(t *testing.T) {
 }
 
 func TestTLSSkipVerify(t *testing.T) {
-	t.SkipNow()
-
 	ctx := mainCtx
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -221,13 +219,11 @@ func TestTLSSkipVerify(t *testing.T) {
 		}
 		defer res.Body.Close()
 
-		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
+		assert.Contains(t, []int{http.StatusBadGateway, http.StatusServiceUnavailable}, res.StatusCode)
 	})
 }
 
 func TestTLSServerName(t *testing.T) {
-	t.SkipNow()
-
 	ctx := mainCtx
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -262,13 +258,11 @@ func TestTLSServerName(t *testing.T) {
 		}
 		defer res.Body.Close()
 
-		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
+		assert.Contains(t, []int{http.StatusBadGateway, http.StatusServiceUnavailable}, res.StatusCode)
 	})
 }
 
 func TestTLSCustomCA(t *testing.T) {
-	t.SkipNow()
-
 	ctx := mainCtx
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -303,13 +297,11 @@ func TestTLSCustomCA(t *testing.T) {
 		}
 		defer res.Body.Close()
 
-		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
+		assert.Contains(t, []int{http.StatusBadGateway, http.StatusServiceUnavailable}, res.StatusCode)
 	})
 }
 
 func TestTLSClientCert(t *testing.T) {
-	t.SkipNow()
-
 	ctx := mainCtx
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -343,7 +335,7 @@ func TestTLSClientCert(t *testing.T) {
 		}
 		defer res.Body.Close()
 
-		assert.Equal(t, http.StatusBadGateway, res.StatusCode)
+		assert.Contains(t, []int{http.StatusBadGateway, http.StatusServiceUnavailable}, res.StatusCode)
 	})
 }
 
