@@ -23,6 +23,8 @@ import (
 const (
 	workingDirectoryName = ".pomerium-envoy"
 	configFileName       = "envoy-config.yaml"
+	// EnvoyAdminURL indicates where the envoy control plane is listening
+	EnvoyAdminURL = "http://localhost:9901"
 )
 
 // A Server is a pomerium proxy implemented via envoy.
