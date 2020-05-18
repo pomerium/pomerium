@@ -451,7 +451,7 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 | Config Key       | Description                                                       | Required |
 | :--------------- | :---------------------------------------------------------------- | -------- |
-| tracing_provider | The name of the tracing provider. (e.g. jaeger)                   | ✅        |
+| tracing_provider | The name of the tracing provider. (e.g. jaeger, zipkin)           | ✅        |
 | tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌        |
 
 #### Jaeger (partial) 
