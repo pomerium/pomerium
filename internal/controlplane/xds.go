@@ -200,7 +200,9 @@ func envoyTLSCertificateFromGoTLSCertificate(cert *tls.Certificate) *envoy_exten
 	return envoyCert
 }
 
-func getRootCertificateAuthority() (string, error) {
+var rootCABundle string
+
+func init() {
 	// from https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ssl#arch-overview-ssl-enabling-verification
 	knownRootLocations := []string{
 		"/etc/ssl/certs/ca-certificates.crt",
@@ -210,12 +212,24 @@ func getRootCertificateAuthority() (string, error) {
 		"/usr/local/etc/ssl/cert.pem",
 		"/etc/ssl/cert.pem",
 	}
-
 	for _, path := range knownRootLocations {
 		if _, err := os.Stat(path); err == nil {
-			return path, nil
+			rootCABundle = path
+			break
 		}
 	}
+	if rootCABundle == "" {
+		log.Error().Strs("known-locations", knownRootLocations).
+			Msgf("no root certificates were found in any of the known locations")
+	} else {
 
-	return "", fmt.Errorf("root certificates not found")
+		log.Info().Msgf("using %s as the system root certificate authority bundle", rootCABundle)
+	}
+}
+
+func getRootCertificateAuthority() (string, error) {
+	if rootCABundle == "" {
+		return "", fmt.Errorf("root certificates not found")
+	}
+	return rootCABundle, nil
 }
