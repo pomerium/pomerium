@@ -185,6 +185,8 @@ func TestWebsocket(t *testing.T) {
 }
 
 func TestTLSSkipVerify(t *testing.T) {
+	t.SkipNow()
+
 	ctx := mainCtx
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -224,6 +226,8 @@ func TestTLSSkipVerify(t *testing.T) {
 }
 
 func TestTLSServerName(t *testing.T) {
+	t.SkipNow()
+
 	ctx := mainCtx
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -263,6 +267,8 @@ func TestTLSServerName(t *testing.T) {
 }
 
 func TestTLSCustomCA(t *testing.T) {
+	t.SkipNow()
+
 	ctx := mainCtx
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -302,6 +308,8 @@ func TestTLSCustomCA(t *testing.T) {
 }
 
 func TestTLSClientCert(t *testing.T) {
+	t.SkipNow()
+
 	ctx := mainCtx
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
