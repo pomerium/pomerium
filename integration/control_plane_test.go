@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -54,24 +55,36 @@ func TestHealth(t *testing.T) {
 	ctx := mainCtx
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
-
-	for _, endpoint := range []string{"healthz", "ping"} {
-		endpoint := endpoint
-		t.Run(endpoint, func(t *testing.T) {
-			client := testcluster.NewHTTPClient()
-
-			req, err := http.NewRequestWithContext(ctx, "GET", "https://restricted-httpdetails.localhost.pomerium.io/"+endpoint, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			res, err := client.Do(req)
-			if !assert.NoError(t, err, "unexpected http error") {
-				return
-			}
-			defer res.Body.Close()
-
-			assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code")
-		})
+	pomeriumRoutes := []string{
+		"authenticate.localhost.pomerium.io",
+		"authorize.default.svc.cluster.local:5080",
+		"cache.default.svc.cluster.local:5080",
+		"forward-authenticate.localhost.pomerium.io",
+		"restricted-httpdetails.localhost.pomerium.io",
+		"httpdetails.localhost.pomerium.io",
 	}
+	endpoints := []string{"healthz", "ping"}
+
+	for _, route := range pomeriumRoutes {
+		for _, endpoint := range endpoints {
+			endpoint := endpoint
+			t.Run(endpoint, func(t *testing.T) {
+				client := testcluster.NewHTTPClient()
+				routeToCheck := fmt.Sprintf("https://%s/%s", route, endpoint)
+				req, err := http.NewRequestWithContext(ctx, "GET", routeToCheck, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				res, err := client.Do(req)
+				if !assert.NoError(t, err, "unexpected http error") {
+					return
+				}
+				defer res.Body.Close()
+
+				assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code")
+			})
+		}
+	}
+
 }
