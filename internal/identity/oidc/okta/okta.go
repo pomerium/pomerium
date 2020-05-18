@@ -5,6 +5,7 @@ package okta
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,9 +14,9 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -64,7 +65,11 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 
 // UserGroups fetches the groups of which the user is a member
 // https://developer.okta.com/docs/reference/api/users/#get-user-s-groups
-func (p *Provider) UserGroups(ctx context.Context, s *sessions.State) ([]string, error) {
+func (p *Provider) UserGroups(ctx context.Context, t *oauth2.Token, v interface{}) error {
+	s, err := p.GetSubject(v)
+	if err != nil {
+		return err
+	}
 	var response []struct {
 		ID      string `json:"id"`
 		Profile struct {
@@ -74,15 +79,22 @@ func (p *Provider) UserGroups(ctx context.Context, s *sessions.State) ([]string,
 	}
 
 	headers := map[string]string{"Authorization": fmt.Sprintf("SSWS %s", p.serviceAccount)}
-	uri := fmt.Sprintf("%s/%s/groups", p.userAPI.String(), s.Subject)
-	err := httputil.Client(ctx, http.MethodGet, uri, version.UserAgent(), headers, nil, &response)
+	uri := fmt.Sprintf("%s/%s/groups", p.userAPI.String(), s)
+	err = httputil.Client(ctx, http.MethodGet, uri, version.UserAgent(), headers, nil, &response)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	var groups []string
+	log.Debug().Interface("response", response).Msg("okta: groups")
+	var out struct {
+		Groups []string `json:"groups"`
+	}
 	for _, group := range response {
-		log.Debug().Interface("group", group).Msg("okta: group")
-		groups = append(groups, group.ID)
+		out.Groups = append(out.Groups, group.ID)
 	}
-	return groups, nil
+	b, err := json.Marshal(out)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(b, v)
 }

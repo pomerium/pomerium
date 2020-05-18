@@ -1,5 +1,3 @@
-//go:generate mockgen -destination mock_evaluator/mock.go github.com/pomerium/pomerium/authorize/evaluator Evaluator
-
 // Package evaluator defines a Evaluator interfaces that can be implemented by
 // a policy evaluator framework.
 package evaluator

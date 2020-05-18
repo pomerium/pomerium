@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/grpc/cache"
@@ -48,11 +49,8 @@ func TestCache_Get_and_Set(t *testing.T) {
 			&cache.SetReply{},
 			&cache.GetRequest{Key: "key"},
 			&cache.GetReply{
-				Exists:               true,
-				Value:                []byte("hello"),
-				XXX_NoUnkeyedLiteral: struct{}{},
-				XXX_unrecognized:     nil,
-				XXX_sizecache:        0,
+				Exists: true,
+				Value:  []byte("hello"),
 			},
 			false,
 			false,
@@ -63,11 +61,8 @@ func TestCache_Get_and_Set(t *testing.T) {
 			&cache.SetReply{},
 			&cache.GetRequest{Key: "no-such-key"},
 			&cache.GetReply{
-				Exists:               false,
-				Value:                nil,
-				XXX_NoUnkeyedLiteral: struct{}{},
-				XXX_unrecognized:     nil,
-				XXX_sizecache:        0,
+				Exists: false,
+				Value:  nil,
 			},
 			false,
 			false,
@@ -78,11 +73,8 @@ func TestCache_Get_and_Set(t *testing.T) {
 			nil,
 			&cache.GetRequest{Key: hugeKey},
 			&cache.GetReply{
-				Exists:               false,
-				Value:                nil,
-				XXX_NoUnkeyedLiteral: struct{}{},
-				XXX_unrecognized:     nil,
-				XXX_sizecache:        0,
+				Exists: false,
+				Value:  nil,
 			},
 			true,
 			false,
@@ -96,7 +88,11 @@ func TestCache_Get_and_Set(t *testing.T) {
 				t.Errorf("Cache.Set() error = %v, wantSetError %v", err, tt.wantSetError)
 				return
 			}
-			if diff := cmp.Diff(setGot, tt.SetReply); diff != "" {
+			cmpOpts := []cmp.Option{
+				cmpopts.IgnoreUnexported(cache.SetReply{}, cache.GetReply{}),
+			}
+
+			if diff := cmp.Diff(setGot, tt.SetReply, cmpOpts...); diff != "" {
 				t.Errorf("Cache.Set() = %v", diff)
 			}
 			getGot, err := c.Get(tt.ctx, tt.GetRequest)
@@ -104,7 +100,7 @@ func TestCache_Get_and_Set(t *testing.T) {
 				t.Errorf("Cache.Get() error = %v, wantGetError %v", err, tt.wantGetError)
 				return
 			}
-			if diff := cmp.Diff(getGot, tt.GetReply); diff != "" {
+			if diff := cmp.Diff(getGot, tt.GetReply, cmpOpts...); diff != "" {
 				t.Errorf("Cache.Get() = %v", diff)
 			}
 		})

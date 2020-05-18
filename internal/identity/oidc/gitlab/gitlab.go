@@ -6,7 +6,6 @@ package gitlab
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -15,14 +14,14 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/version"
+	"golang.org/x/oauth2"
 )
 
-// Name identifies the GitLab identity provider
+// Name identifies the GitLab identity provider.
 const Name = "gitlab"
 
-var defaultScopes = []string{oidc.ScopeOpenID, "read_api", "read_user", "profile", "email"}
+var defaultScopes = []string{oidc.ScopeOpenID, "profile", "email", "api"}
 
 const (
 	defaultProviderURL = "https://gitlab.com"
@@ -64,11 +63,7 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 //
 // Returns 20 results at a time because the API results are paginated.
 // https://docs.gitlab.com/ee/api/groups.html#list-groups
-func (p *Provider) UserGroups(ctx context.Context, s *sessions.State) ([]string, error) {
-	if s == nil || s.AccessToken == nil {
-		return nil, errors.New("gitlab: user session cannot be empty")
-	}
-
+func (p *Provider) UserGroups(ctx context.Context, t *oauth2.Token, v interface{}) error {
 	var response []struct {
 		ID                             json.Number `json:"id"`
 		Name                           string      `json:"name,omitempty"`
@@ -81,17 +76,22 @@ func (p *Provider) UserGroups(ctx context.Context, s *sessions.State) ([]string,
 		FullName                       string      `json:"full_name,omitempty"`
 		FullPath                       string      `json:"full_path,omitempty"`
 	}
-	headers := map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.AccessToken.AccessToken)}
+	headers := map[string]string{"Authorization": fmt.Sprintf("Bearer %s", t.AccessToken)}
 	err := httputil.Client(ctx, http.MethodGet, p.userGroupURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	var groups []string
 	log.Debug().Interface("response", response).Msg("gitlab: groups")
+	var out struct {
+		Groups []string `json:"groups"`
+	}
 	for _, group := range response {
-		groups = append(groups, group.ID.String())
+		out.Groups = append(out.Groups, group.ID.String())
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		return err
 	}
 
-	return groups, nil
+	return json.Unmarshal(b, v)
 }
