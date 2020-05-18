@@ -1,7 +1,6 @@
 package grpc
 
 import (
-	"crypto/tls"
 	"encoding/base64"
 	"os"
 	"os/signal"
@@ -33,8 +32,6 @@ BAUwAwEB/zAKBggqhkjOPQQDAgNHADBEAiBHbhVnGbwXqaMZ1dB8eBAK56jyeWDZ
 -----END CERTIFICATE-----`
 
 func TestNewServer(t *testing.T) {
-	// to make friendly to testing environments where 443 requires root
-	defaultServerOptions.Addr = ":0"
 	certb64, err := cryptutil.CertifcateFromBase64(
 		base64.StdEncoding.EncodeToString([]byte(pubKey)),
 		base64.StdEncoding.EncodeToString([]byte(privKey)))
@@ -50,12 +47,10 @@ func TestNewServer(t *testing.T) {
 		wantNil        bool
 		wantErr        bool
 	}{
-		{"simple", &ServerOptions{Addr: ":0", InsecureServer: true}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
-		{"simple keepalive options", &ServerOptions{Addr: ":0", InsecureServer: true, KeepaliveParams: keepalive.ServerParameters{MaxConnectionAge: 5 * time.Minute}}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
+		{"simple", &ServerOptions{Addr: ":0"}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
+		{"simple keepalive options", &ServerOptions{Addr: ":0", KeepaliveParams: keepalive.ServerParameters{MaxConnectionAge: 5 * time.Minute}}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
 		{"bad tcp port", &ServerOptions{Addr: ":9999999"}, func(s *grpc.Server) {}, &sync.WaitGroup{}, true, true},
-		{"with cert", &ServerOptions{Addr: ":0", TLSCertificate: []tls.Certificate{*certb64}}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
-		{"with multiple certs", &ServerOptions{Addr: ":0", TLSCertificate: []tls.Certificate{*certb64, *certb64}}, func(s *grpc.Server) {}, &sync.WaitGroup{}, true, true},
-		{"with no certs or insecure", &ServerOptions{Addr: ":0", TLSCertificate: []tls.Certificate{}}, func(s *grpc.Server) {}, &sync.WaitGroup{}, true, true},
+		{"with certs", &ServerOptions{Addr: ":0", TLSCertificate: certb64}, func(s *grpc.Server) {}, &sync.WaitGroup{}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

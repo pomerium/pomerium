@@ -15,18 +15,17 @@ import (
 	"time"
 
 	"github.com/google/go-jsonnet"
+	"github.com/pomerium/pomerium/integration/internal/httputil"
 	"github.com/rs/zerolog/log"
-
-	"github.com/pomerium/pomerium/integration/internal/netutil"
 )
 
 var requiredDeployments = []string{
-	"ingress-nginx/nginx-ingress-controller",
 	"default/httpdetails",
 	"default/openid",
 	"default/pomerium-authenticate",
 	"default/pomerium-authorize",
 	"default/pomerium-proxy",
+	"ingress-nginx/nginx-ingress-controller",
 }
 
 // Setup configures the test cluster so that it is ready for the integration tests.
@@ -36,7 +35,7 @@ func (cluster *Cluster) Setup(ctx context.Context) error {
 		return fmt.Errorf("error running kubectl cluster-info: %w", err)
 	}
 
-	cluster.certsBundle, err = bootstrapCerts(ctx)
+	cluster.certs, err = bootstrapCerts(ctx)
 	if err != nil {
 		return err
 	}
@@ -56,14 +55,13 @@ func (cluster *Cluster) Setup(ctx context.Context) error {
 		return err
 	}
 
-	cluster.Transport = &http.Transport{
-		DialContext: netutil.NewLocalDialer((&net.Dialer{}), map[string]string{
-			"443": hostport,
-		}).DialContext,
+	cluster.transport = httputil.NewLocalRoundTripper(&http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
-	}
+	}, map[string]string{
+		"443": hostport,
+	})
 
 	return nil
 }
@@ -145,21 +143,9 @@ func (cluster *Cluster) generateManifests() (string, error) {
 	}
 
 	vm := jsonnet.MakeVM()
-	for _, item := range []struct {
-		name  string
-		certs *TLSCerts
-	}{
-		{"trusted", &cluster.certsBundle.Trusted},
-		{"wrongly-named", &cluster.certsBundle.WronglyNamed},
-		{"untrusted", &cluster.certsBundle.Untrusted},
-	} {
-
-		vm.ExtVar("tls-"+item.name+"-ca", string(item.certs.CA))
-		vm.ExtVar("tls-"+item.name+"-cert", string(item.certs.Cert))
-		vm.ExtVar("tls-"+item.name+"-key", string(item.certs.Key))
-		vm.ExtVar("tls-"+item.name+"-client-cert", string(item.certs.Client.Cert))
-		vm.ExtVar("tls-"+item.name+"-client-key", string(item.certs.Client.Key))
-	}
+	vm.ExtVar("tls-ca", cluster.certs.CA)
+	vm.ExtVar("tls-cert", cluster.certs.Cert)
+	vm.ExtVar("tls-key", cluster.certs.Key)
 	vm.Importer(&jsonnet.FileImporter{
 		JPaths: []string{filepath.Join(cluster.workingDir, "manifests")},
 	})
@@ -178,7 +164,7 @@ func applyManifests(ctx context.Context, jsonsrc string) error {
 	}
 
 	log.Info().Msg("waiting for deployments to come up")
-	ctx, clearTimeout := context.WithTimeout(ctx, 15*time.Minute)
+	ctx, clearTimeout := context.WithTimeout(ctx, 5*time.Minute)
 	defer clearTimeout()
 	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()

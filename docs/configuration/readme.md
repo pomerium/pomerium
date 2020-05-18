@@ -80,7 +80,7 @@ Enabling the debug flag will result in sensitive information being logged!!!
 
 :::
 
-By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)>>>). In production, it's recommended to be set to `false`.
+By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)>). In production, it's recommended to be set to `false`.
 
 For example, if `true`
 
@@ -127,77 +127,23 @@ Pomerium should _never_ be exposed to the internet without TLS encryption.
 
 :::
 
-### Autocert
+### Certificate
 
-- Environmental Variable: `AUTOCERT`
-- Config File Key: `autocert`
-- Type: `bool`
-- Optional
+- Environmental Variable: either `CERTIFICATE` or `CERTIFICATE_FILE`
+- Config File Key: `certificate` or `certificate_file`
+- Type: [base64 encoded] `string` or relative file location
+- Required
 
-Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] for each of your managed pomerium routes as well as for the authenticate service. This setting must be used in conjunction with [Autocert Directory](./#autocert-directory) as Autocert must have a place to persist, and share certificate data between services. Provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
+Certificate is the x509 _public-key_ used to establish secure HTTP and gRPC connections.
 
-This setting can be useful in a situation where you do not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
+### Certificate Key
 
-:::warning
-
-By using autocert, you agree to the [Let's Encrypt Subscriber Agreement](https://letsencrypt.org/documents/LE-SA-v1.2-November-15-2017.pdf). There are [_strict_ usage limits](https://letsencrypt.org/docs/rate-limits/) per domain you should be aware of. Consider testing with `autocert_use_staging` first.
-
-:::
-
-:::warning
-
-Autocert requires that ports `80`/`443` be accessible from the internet in order to complete a [TLS-ALPN-01 challenge](https://letsencrypt.org/docs/challenge-types/#tls-alpn-01).
-
-:::
-
-### Autocert Directory
-
-- Environmental Variable: either `AUTOCERT_DIR`
-- Config File Key: `autocert_dir`
-- Type: `string` pointing to the path of the directory
-- Required if using [Autocert](./#autocert) setting
-- Default:
-
-  - `/data/autocert` in published Pomerium docker images
-  - [$XDG_DATA_HOME](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
-  - `$HOME/.local/share/pomerium`
-
-Autocert directory is path in which autocert will store x509 certificate data.
-
-### Autocert Use Staging
-
-- Environmental Variable: `AUTOCERT_USE_STAGING`
-- Config File Key: `autocert_use_staging`
-- Type: `bool`
-- Optional
-
-Let's Encrypt has strict [usage limits](https://letsencrypt.org/docs/rate-limits/). Enabling this setting allows you to use Let's Encrypt's [staging environment](https://letsencrypt.org/docs/staging-environment/) which has much more lax usage limits.
-
-### Certificates
-
-- Config File Key: `certificates` (not yet settable using environmental variables)
-- Config File Key: `certificate` / `certificate_key`
-- Config File Key: `certificate_file` / `certificate_key_file`
-- Environmental Variable: `CERTIFICATE` / `CERTIFICATE_KEY`
-- Environmental Variable: `CERTIFICATE_FILE` / `CERTIFICATE_KEY_FILE`
-- Type: array of relative file locations `string`
+- Environmental Variable: either `CERTIFICATE_KEY` or `CERTIFICATE_KEY_FILE`
+- Config File Key: `certificate_key` or `certificate_key_file`
 - Type: [base64 encoded] `string`
-- Type: certificate relative file location `string`
-- Required (if insecure not set)
+- Required
 
-Certificates are the x509 _public-key_ and _private-key_ used to establish secure HTTP and gRPC connections. Any combination of the above can be used together, and are additive. Use in conjunction with `Autocert` to get OCSP stapling.
-
-For example, if specifying multiple certificates at once:
-
-```yaml
-certificates:
-  - cert: "$HOME/.acme.sh/authenticate.example.com_ecc/fullchain.cer"
-    key: "$HOME/.acme.sh/authenticate.example.com_ecc/authenticate.example.com.key"
-  - cert: "$HOME/.acme.sh/httpbin.example.com_ecc/fullchain.cer"
-    key: "$HOME/.acme.sh/httpbin.example.com_ecc/httpbin.example.com.key"
-  - cert: "$HOME/.acme.sh/prometheus.example.com_ecc/fullchain.cer"
-    key: "$HOME/.acme.sh/prometheus.example.com_ecc/prometheus.example.com.key"
-```
+Certificate key is the x509 _private-key_ used to establish secure HTTP and gRPC connections.
 
 ### Global Timeouts
 
@@ -967,7 +913,7 @@ Note: This setting will replace (not append) the system's trust store for a give
 - Type: [base64 encoded] `string` or relative file location
 - Optional
 
-Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/examples/tree/master/mutual-tls) and the [certificate docs](../docs/reference/certificates.md).
+Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/examples/tree/master/mutual-tls) and the [certificate docs](./certificates.md).
 
 ### Set Request Headers
 
@@ -1009,17 +955,16 @@ See [ProxyPreserveHost](http://httpd.apache.org/docs/2.0/mod/mod_proxy.html#prox
 - Type: [base64 encoded] `string`
 - Optional
 
-Signing key is the base64 encoded key used to sign outbound requests. For more information see the [signed headers] docs.
+Signing key is the base64 encoded key used to sign outbound requests. For more information see the [signed headers](./signed-headers.md) docs.
 
 If no certificate is specified, one will be generated for you and the base64'd public key will be added to the logs.
 
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
-[identity provider]: ../docs/identity-providers/
+[identity provider]: ./identity-providers.md
 [json]: https://en.wikipedia.org/wiki/JSON
 [letsencrypt]: https://letsencrypt.org/
 [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
-[signed headers]: ./signed-headers.md
 [toml]: https://en.wikipedia.org/wiki/TOML
 [yaml]: https://en.wikipedia.org/wiki/YAML

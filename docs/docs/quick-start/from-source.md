@@ -73,6 +73,6 @@ Browse to `httpbin.localhost.pomerium.io`. Connections between you and [httpbin]
 
 [configuration variables]: ../../configuration/readme.md
 [httpbin]: https://httpbin.org/
-[identity provider]: ../identity-providers/
+[identity provider]: ../docs/identity-providers/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
-[tls certificates]: ../reference/certificates.md
+[wild-card tls certificate]: ../reference/certificates.md

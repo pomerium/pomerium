@@ -13,7 +13,7 @@ This quickstart will cover how to deploy Pomerium with Kubernetes.
 ## Prerequisites
 
 - A configured [identity provider]
-- [TLS certificates]
+- A [wild-card TLS certificate]
 - A [Google Cloud Account](https://console.cloud.google.com/)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - [Google Cloud SDK](https://cloud.google.com/kubernetes-engine/docs/quickstart)
@@ -29,7 +29,7 @@ cd $HOME/pomerium/docs/configuration/examples/kubernetes
 
 ## Configure
 
-Edit [./kubernetes_gke.sh] making sure to change the identity provider secret value to match your [identity provider] and [TLS certificates] settings.
+Edit [./kubernetes_gke.sh] making sure to change the identity provider secret value to match your [identity provider] and [wild-card tls certificate] settings.
 
 <<<@/docs/configuration/examples/kubernetes/kubernetes_gke.sh
 
@@ -63,9 +63,9 @@ You can also navigate to the special pomerium endpoint `httpbin.your.domain.exam
 
 ![currently logged in user](./img/logged-in-as.png)
 
-[./kubernetes_gke.sh]: ../../configuration/examples.md#google-kubernetes-engine
-[example kubernetes files]: ../../configuration/examples.md#google-kubernetes-engine
+[./kubernetes_gke.sh]: ../reference/examples#google-kubernetes-engine
+[example kubernetes files]: ../reference/examples#google-kubernetes-engine
 [identity provider]: ../identity-providers/readme.md
 [letsencrypt]: https://letsencrypt.org/
 [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
-[tls certificates]: ../reference/certificates.md
+[wild-card tls certificate]: ../reference/certificates.md

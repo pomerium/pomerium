@@ -11,7 +11,6 @@ RUN make
 RUN touch /config.yaml
 
 FROM gcr.io/distroless/base:debug
-ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml

@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/cors"
-
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -22,11 +20,20 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
+
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 // Handler returns the authenticate service's handler chain.
 func (a *Authenticate) Handler() http.Handler {
 	r := httputil.NewRouter()
+	a.Mount(r)
+	return r
+}
+
+// Mount mounts the authenticate routes to the given router.
+func (a *Authenticate) Mount(r *mux.Router) {
 	r.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 	r.Use(csrf.Protect(
 		a.cookieSecret,
@@ -67,8 +74,6 @@ func (a *Authenticate) Handler() http.Handler {
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(sessions.RetrieveSession(a.sessionLoaders...))
 	api.Path("/v1/refresh").Handler(httputil.HandlerFunc(a.RefreshAPI))
-
-	return r
 }
 
 // VerifySession is the middleware used to enforce a valid authentication

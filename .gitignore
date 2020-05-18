@@ -19,7 +19,7 @@ _test
 # Architecture specific extensions/prefixes
 *.[568vq]
 [568vq].out
-
+ 
 *.cgo1.go
 *.cgo2.c
 _cgo_defun.c
@@ -79,8 +79,3 @@ i18n/*
 docs/.vuepress/dist/
 .firebase/
 .changes.md
-
-# autocert
-.pomerium/
-
-!.pre-commit-config.yaml
