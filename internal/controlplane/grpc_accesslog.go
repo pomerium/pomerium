@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	envoy_service_accesslog_v2 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v2"
+	"github.com/golang/protobuf/ptypes"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
@@ -32,6 +33,9 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v2.AccessLogS
 			evt = evt.Str("forwarded-for", entry.GetRequest().GetForwardedFor())
 			evt = evt.Str("request-id", entry.GetRequest().GetRequestId())
 			// response properties
+			dur, _ := ptypes.Duration(entry.CommonProperties.TimeToLastDownstreamTxByte)
+			evt = evt.Dur("duration", dur)
+			evt = evt.Uint64("size", entry.Response.ResponseBodyBytes)
 			evt = evt.Uint32("response-code", entry.GetResponse().GetResponseCode().GetValue())
 			evt = evt.Str("response-code-details", entry.GetResponse().GetResponseCodeDetails())
 			evt.Msg("http-request")
