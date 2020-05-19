@@ -1,4 +1,4 @@
-package main
+package pomerium
 
 import (
 	"context"
@@ -64,13 +64,11 @@ func Test_run(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name           string
-		versionFlag    bool
 		configFileFlag string
 		wantErr        bool
 	}{
-		{"simply print version", true, "", false},
-		{"nil configuration", false, "", true},
-		{"bad proxy no authenticate url", false, `
+		{"nil configuration", "", true},
+		{"bad proxy no authenticate url", `
 		{
 			"address": ":9433",
 			"grpc_address": ":9444",
@@ -82,7 +80,7 @@ func Test_run(t *testing.T) {
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
 		`, true},
-		{"bad authenticate no cookie secret", false, `
+		{"bad authenticate no cookie secret", `
 		{
 			"address": ":9433",
 			"grpc_address": ":9444",
@@ -93,7 +91,7 @@ func Test_run(t *testing.T) {
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
 		`, true},
-		{"bad authorize service bad shared key", false, `
+		{"bad authorize service bad shared key", `
 		{
 			"address": ":9433",
 			"grpc_address": ":9444",
@@ -105,7 +103,7 @@ func Test_run(t *testing.T) {
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
 		`, true},
-		{"bad http port", false, `
+		{"bad http port", `
 		{
 			"address": ":-1",
 			"grpc_address": ":9444",
@@ -119,7 +117,7 @@ func Test_run(t *testing.T) {
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
 		`, true},
-		{"bad redirect port", false, `
+		{"bad redirect port", `
 		{
 			"address": ":9433",
 			"http_redirect_addr":":-1",
@@ -134,7 +132,7 @@ func Test_run(t *testing.T) {
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
 		`, true},
-		{"bad metrics port ", false, `
+		{"bad metrics port ", `
 		{
 			"address": ":9433",
 			"metrics_address": ":-1",
@@ -148,7 +146,7 @@ func Test_run(t *testing.T) {
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
 		`, true},
-		{"malformed tracing provider", false, `
+		{"malformed tracing provider", `
 		{
 			"tracing_provider": "bad tracing provider",
 			"address": ":9433",
@@ -163,55 +161,9 @@ func Test_run(t *testing.T) {
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
 		`, true},
-		// {"simple cache", false, `
-		// {
-		// 	"address": ":9433",
-		// 	"grpc_address": ":9444",
-		// 	"grpc_insecure": false,
-		// 	"insecure_server": true,
-		// 	"cache_service_url": "https://authorize.corp.example",
-		// 	"authenticate_service_url": "https://authenticate.corp.example",
-		// 	"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
-		// 	"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
-		// 	"services": "cache",
-		// 	"cache_store": "bolt",
-		// 	"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		//   }
-		// `, false},
-		// {"malformed cache", false, `
-		// {
-		// 	"address": ":9433",
-		// 	"grpc_address": ":9444",
-		// 	"grpc_insecure": false,
-		// 	"insecure_server": true,
-		// 	"cache_service_url": "https://authorize.corp.example",
-		// 	"authenticate_service_url": "https://authenticate.corp.example",
-		// 	"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
-		// 	"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
-		// 	"services": "cache",
-		// 	"cache_store": "bad bolt",
-		// 	"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		//   }
-		// `, true},
-		// {"bad cache port", false, `
-		// {
-		// 	"address": ":9433",
-		// 	"grpc_address": ":9999999",
-		// 	"grpc_insecure": false,
-		// 	"insecure_server": true,
-		// 	"cache_service_url": "https://authorize.corp.example",
-		// 	"authenticate_service_url": "https://authenticate.corp.example",
-		// 	"shared_secret": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
-		// 	"cookie_secret": "zixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=",
-		// 	"services": "cache",
-		// 	"cache_store": "bolt",
-		// 	"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
-		//   }
-		// `, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			versionFlag = &tt.versionFlag
 			tmpFile, err := ioutil.TempFile(os.TempDir(), "*.json")
 			if err != nil {
 				t.Fatal("Cannot create temporary file", err)
@@ -222,12 +174,12 @@ func Test_run(t *testing.T) {
 				tmpFile.Close()
 				t.Fatal(err)
 			}
-			configFile = &fn
+			configFile := fn
 
 			ctx, clearTimeout := context.WithTimeout(context.Background(), 500*time.Millisecond)
 			defer clearTimeout()
 
-			err = run(ctx)
+			err = Run(ctx, configFile)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}

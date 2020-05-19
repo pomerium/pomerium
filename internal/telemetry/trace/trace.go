@@ -44,28 +44,34 @@ type TracingOptions struct {
 }
 
 // RegisterTracing creates a new trace exporter from TracingOptions.
-func RegisterTracing(opts *TracingOptions) error {
+func RegisterTracing(opts *TracingOptions) (trace.Exporter, error) {
+	var exporter trace.Exporter
 	var err error
 	switch opts.Provider {
 	case JaegerTracingProviderName:
-		err = registerJaeger(opts)
+		exporter, err = registerJaeger(opts)
 	case ZipkinTracingProviderName:
-		err = registerZipkin(opts)
+		exporter, err = registerZipkin(opts)
 	default:
-		return fmt.Errorf("telemetry/trace: provider %s unknown", opts.Provider)
+		return nil, fmt.Errorf("telemetry/trace: provider %s unknown", opts.Provider)
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if opts.Debug {
 		log.Debug().Msg("telemetry/trace: debug on, sample everything")
 		trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
 	}
 	log.Debug().Interface("Opts", opts).Msg("telemetry/trace: exporter created")
-	return nil
+	return exporter, nil
 }
 
-func registerJaeger(opts *TracingOptions) error {
+// UnregisterTracing unregisters a trace exporter.
+func UnregisterTracing(exporter trace.Exporter) {
+	trace.UnregisterExporter(exporter)
+}
+
+func registerJaeger(opts *TracingOptions) (trace.Exporter, error) {
 	jex, err := jaeger.NewExporter(
 		jaeger.Options{
 			AgentEndpoint:     opts.JaegerAgentEndpoint,
@@ -73,16 +79,16 @@ func registerJaeger(opts *TracingOptions) error {
 			ServiceName:       opts.Service,
 		})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	trace.RegisterExporter(jex)
-	return nil
+	return jex, nil
 }
 
-func registerZipkin(opts *TracingOptions) error {
+func registerZipkin(opts *TracingOptions) (trace.Exporter, error) {
 	localEndpoint, err := zipkin.NewEndpoint(opts.Service, "")
 	if err != nil {
-		return fmt.Errorf("telemetry/trace: could not create local endpoint: %w", err)
+		return nil, fmt.Errorf("telemetry/trace: could not create local endpoint: %w", err)
 	}
 
 	reporter := zipkinHTTP.NewReporter(opts.ZipkinEndpoint)
@@ -90,7 +96,7 @@ func registerZipkin(opts *TracingOptions) error {
 	exporter := ocZipkin.NewExporter(reporter, localEndpoint)
 	trace.RegisterExporter(exporter)
 
-	return nil
+	return exporter, nil
 }
 
 // StartSpan starts a new child span of the current span in the context. If
