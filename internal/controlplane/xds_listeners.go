@@ -217,6 +217,9 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 			MaxStreamDuration: maxStreamDuration,
 		},
 		RequestTimeout: ptypes.DurationProto(options.ReadTimeout),
+		Tracing: &envoy_http_connection_manager.HttpConnectionManager_Tracing{
+			RandomSampling: &envoy_type_v3.Percent{Value: options.TracingSampleRate * 100},
+		},
 	})
 
 	return &envoy_config_listener_v3.Filter{

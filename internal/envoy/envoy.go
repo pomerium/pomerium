@@ -2,6 +2,8 @@
 package envoy
 
 import (
+	"bytes"
+
 	"bufio"
 	"context"
 	"errors"
@@ -14,17 +16,25 @@ import (
 	"strconv"
 	"strings"
 
+	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	envoy_config_trace_v3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/natefinch/atomic"
 	"github.com/rs/zerolog"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/durationpb"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
 const (
 	workingDirectoryName = ".pomerium-envoy"
 	configFileName       = "envoy-config.yaml"
-	// EnvoyAdminURL indicates where the envoy control plane is listening
-	EnvoyAdminURL = "http://localhost:9901"
 )
 
 // A Server is a pomerium proxy implemented via envoy.
@@ -33,10 +43,11 @@ type Server struct {
 	cmd *exec.Cmd
 
 	grpcPort, httpPort string
+	opts               *config.Options
 }
 
 // NewServer creates a new server with traffic routed by envoy.
-func NewServer(grpcPort, httpPort string) (*Server, error) {
+func NewServer(opts *config.Options, grpcPort, httpPort string) (*Server, error) {
 	wd := filepath.Join(os.TempDir(), workingDirectoryName)
 	err := os.MkdirAll(wd, 0755)
 	if err != nil {
@@ -47,6 +58,7 @@ func NewServer(grpcPort, httpPort string) (*Server, error) {
 		wd:       wd,
 		grpcPort: grpcPort,
 		httpPort: httpPort,
+		opts:     opts,
 	}
 
 	err = srv.writeConfig()
@@ -96,40 +108,206 @@ func (srv *Server) Run(ctx context.Context) error {
 }
 
 func (srv *Server) writeConfig() error {
-	return atomic.WriteFile(filepath.Join(srv.wd, configFileName), strings.NewReader(`
-node:
-  id: pomerium-envoy
-  cluster: pomerium-envoy
+	confBytes, err := srv.buildBootstrapConfig()
+	if err != nil {
+		return err
+	}
 
-admin:
-  access_log_path: /tmp/admin_access.log
-  address:
-    socket_address: { address: 127.0.0.1, port_value: 9901 }
+	cfgPath := filepath.Join(srv.wd, configFileName)
+	log.WithLevel(zerolog.DebugLevel).Str("service", "envoy").Str("location", cfgPath).Msg("wrote config file to location")
 
-dynamic_resources:
-  cds_config:
-    ads: {}
-    resource_api_version: V3
-  lds_config:
-    ads: {}
-    resource_api_version: V3
-  ads_config:
-    api_type: GRPC
-    transport_api_version: V3
-    grpc_services:
-      - envoy_grpc:
-          cluster_name: pomerium-control-plane-grpc
-static_resources:
-  clusters:
-  - name: pomerium-control-plane-grpc
-    connect_timeout: { seconds: 5 }
-    type: STATIC
-    hosts:
-    - socket_address:
-        address: 127.0.0.1
-        port_value: `+srv.grpcPort+`
-    http2_protocol_options: {}
-`))
+	return atomic.WriteFile(cfgPath, bytes.NewReader(confBytes))
+}
+
+func (srv *Server) buildBootstrapConfig() ([]byte, error) {
+
+	nodeCfg := &envoy_config_core_v3.Node{
+		Id:      "proxy",
+		Cluster: "proxy",
+	}
+
+	adminCfg := &envoy_config_bootstrap_v3.Admin{
+		AccessLogPath: "/tmp/admin_access.log",
+		Address: &envoy_config_core_v3.Address{
+			Address: &envoy_config_core_v3.Address_SocketAddress{
+				SocketAddress: &envoy_config_core_v3.SocketAddress{
+					Address: "127.0.0.1",
+					PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+						PortValue: 9901,
+					},
+				},
+			},
+		},
+	}
+
+	dynamicCfg := &envoy_config_bootstrap_v3.Bootstrap_DynamicResources{
+		AdsConfig: &envoy_config_core_v3.ApiConfigSource{
+			ApiType:             envoy_config_core_v3.ApiConfigSource_ApiType(envoy_config_core_v3.ApiConfigSource_ApiType_value["GRPC"]),
+			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
+			GrpcServices: []*envoy_config_core_v3.GrpcService{
+				{
+					TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+						EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+							ClusterName: "pomerium-control-plane-grpc",
+						},
+					},
+				},
+			},
+		},
+		LdsConfig: &envoy_config_core_v3.ConfigSource{
+			ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
+			ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
+		},
+		CdsConfig: &envoy_config_core_v3.ConfigSource{
+			ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
+			ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
+		},
+	}
+
+	controlPlanePort, err := strconv.Atoi(srv.grpcPort)
+	if err != nil {
+		return nil, fmt.Errorf("invalid control plane port: %w", err)
+	}
+
+	controlPlaneEndpoint := &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
+		Endpoint: &envoy_config_endpoint_v3.Endpoint{
+			Address: &envoy_config_core_v3.Address{
+				Address: &envoy_config_core_v3.Address_SocketAddress{
+					SocketAddress: &envoy_config_core_v3.SocketAddress{
+						Address: "127.0.0.1",
+						PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+							PortValue: uint32(controlPlanePort),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	controlPlaneCluster := &envoy_config_cluster_v3.Cluster{
+		Name: "pomerium-control-plane-grpc",
+		ConnectTimeout: &durationpb.Duration{
+			Seconds: 5,
+		},
+		ClusterDiscoveryType: &envoy_config_cluster_v3.Cluster_Type{
+			Type: envoy_config_cluster_v3.Cluster_STATIC,
+		},
+		LbPolicy: envoy_config_cluster_v3.Cluster_ROUND_ROBIN,
+		LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
+			ClusterName: "pomerium-control-plane-grpc",
+			Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{
+				{
+					LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{
+						{
+							HostIdentifier: controlPlaneEndpoint,
+						},
+					},
+				},
+			},
+		},
+		Http2ProtocolOptions: &envoy_config_core_v3.Http2ProtocolOptions{},
+	}
+
+	staticCfg := &envoy_config_bootstrap_v3.Bootstrap_StaticResources{
+		Clusters: []*envoy_config_cluster_v3.Cluster{
+			controlPlaneCluster,
+		},
+	}
+
+	cfg := &envoy_config_bootstrap_v3.Bootstrap{
+		Node:             nodeCfg,
+		Admin:            adminCfg,
+		DynamicResources: dynamicCfg,
+		StaticResources:  staticCfg,
+	}
+
+	traceOpts, err := config.NewTracingOptions(srv.opts)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tracing config: %w", err)
+	}
+
+	if err := srv.addTraceConfig(traceOpts, cfg); err != nil {
+		return nil, fmt.Errorf("failed to add tracing config: %w", err)
+	}
+
+	jsonBytes, err := protojson.Marshal(proto.MessageV2(cfg))
+	if err != nil {
+		return nil, err
+	}
+	return jsonBytes, nil
+}
+
+func (srv *Server) addTraceConfig(traceOpts *config.TracingOptions, bootCfg *envoy_config_bootstrap_v3.Bootstrap) error {
+
+	if !traceOpts.Enabled() {
+		return nil
+	}
+
+	zipkinPort, err := strconv.Atoi(traceOpts.ZipkinEndpoint.Port())
+	if err != nil {
+		return fmt.Errorf("invalid port number: %w", err)
+	}
+	zipkinAddress := traceOpts.ZipkinEndpoint.Hostname()
+	const zipkinClusterName = "zipkin"
+
+	zipkinEndpoint := &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
+		Endpoint: &envoy_config_endpoint_v3.Endpoint{
+			Address: &envoy_config_core_v3.Address{
+				Address: &envoy_config_core_v3.Address_SocketAddress{
+					SocketAddress: &envoy_config_core_v3.SocketAddress{
+						Address: zipkinAddress,
+						PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+							PortValue: uint32(zipkinPort),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	zipkinCluster := &envoy_config_cluster_v3.Cluster{
+		Name: zipkinClusterName,
+		ConnectTimeout: &durationpb.Duration{
+			Seconds: 10,
+		},
+		ClusterDiscoveryType: &envoy_config_cluster_v3.Cluster_Type{
+			Type: envoy_config_cluster_v3.Cluster_STATIC,
+		},
+		LbPolicy: envoy_config_cluster_v3.Cluster_ROUND_ROBIN,
+		LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
+			ClusterName: zipkinClusterName,
+			Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{
+				{
+					LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{
+						{
+							HostIdentifier: zipkinEndpoint,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tracingTC, _ := ptypes.MarshalAny(
+		&envoy_config_trace_v3.ZipkinConfig{
+			CollectorCluster:         zipkinClusterName,
+			CollectorEndpoint:        traceOpts.ZipkinEndpoint.Path,
+			CollectorEndpointVersion: envoy_config_trace_v3.ZipkinConfig_HTTP_JSON,
+		},
+	)
+
+	tracingCfg := &envoy_config_trace_v3.Tracing{
+		Http: &envoy_config_trace_v3.Tracing_Http{
+			Name: "envoy.tracers.zipkin",
+			ConfigType: &envoy_config_trace_v3.Tracing_Http_TypedConfig{
+				TypedConfig: tracingTC,
+			},
+		},
+	}
+	bootCfg.StaticResources.Clusters = append(bootCfg.StaticResources.Clusters, zipkinCluster)
+	bootCfg.Tracing = tracingCfg
+
+	return nil
 }
 
 func (srv *Server) handleLogs(stdout io.ReadCloser) {

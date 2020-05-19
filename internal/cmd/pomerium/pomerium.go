@@ -62,9 +62,9 @@ func Run(ctx context.Context, configFile string) error {
 	_, httpPort, _ := net.SplitHostPort(controlPlane.HTTPListener.Addr().String())
 
 	// create envoy server
-	envoyServer, err := envoy.NewServer(grpcPort, httpPort)
+	envoyServer, err := envoy.NewServer(opt, grpcPort, httpPort)
 	if err != nil {
-		return fmt.Errorf("error creating envoy server")
+		return fmt.Errorf("error creating envoy server: %w", err)
 	}
 
 	// add services
@@ -165,7 +165,7 @@ func setupCache(opt *config.Options, controlPlane *controlplane.Server) error {
 
 func setupMetrics(ctx context.Context, opt *config.Options) error {
 	if opt.MetricsAddr != "" {
-		handler, err := metrics.PrometheusHandler()
+		handler, err := metrics.PrometheusHandler(config.EnvoyAdminURL)
 		if err != nil {
 			return err
 		}
@@ -203,16 +203,12 @@ func setupProxy(opt *config.Options, controlPlane *controlplane.Server) error {
 }
 
 func setupTracing(ctx context.Context, opt *config.Options) error {
-	if opt.TracingProvider != "" {
-		tracingOpts := &trace.TracingOptions{
-			Provider:                opt.TracingProvider,
-			Service:                 opt.Services,
-			Debug:                   opt.TracingDebug,
-			JaegerAgentEndpoint:     opt.TracingJaegerAgentEndpoint,
-			JaegerCollectorEndpoint: opt.TracingJaegerCollectorEndpoint,
-			ZipkinEndpoint:          opt.ZipkinEndpoint,
-		}
-		exporter, err := trace.RegisterTracing(tracingOpts)
+	traceOpts, err := config.NewTracingOptions(opt)
+	if err != nil {
+		return fmt.Errorf("error setting up tracing: %w", err)
+	}
+	if traceOpts.Enabled() {
+		exporter, err := trace.RegisterTracing(traceOpts)
 		if err != nil {
 			return err
 		}

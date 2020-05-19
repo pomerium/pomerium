@@ -449,10 +449,10 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 #### Shared Tracing Settings
 
-| Config Key       | Description                                                       | Required |
-| :--------------- | :---------------------------------------------------------------- | -------- |
-| tracing_provider | The name of the tracing provider. (e.g. jaeger, zipkin)           | ✅        |
-| tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌        |
+| Config Key          | Description                                                                           | Required |
+| :------------------ | :------------------------------------------------------------------------------------ | -------- |
+| tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                               | ✅        |
+| tracing_sample_rate | Percentage of requests to sample in decimal notation.  Default is `0.0001`, or `.01%` | ❌        |
 
 #### Jaeger (partial)
 

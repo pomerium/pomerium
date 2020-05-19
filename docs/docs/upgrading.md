@@ -11,7 +11,8 @@ description: >-
 
 ### Tracing
 
-Jaeger tracing support is no longer end-to-end in the proxy service.  We recommend updating to the Zipkin provider for proper tracing support.  Jaeger will continue to work but will not have coverage in the data plane.
+- Jaeger tracing support is no longer end-to-end in the proxy service. We recommend updating to the Zipkin provider for proper tracing support.  Jaeger will continue to work but will not have coverage in the data plane.
+- Option `tracing_debug` is no longer supported. Use `tracing_sampling_rate` instead. [Details](https://www.pomerium.io/configuration/#shared-tracing-settings).
 
 # Since 0.7.0
 

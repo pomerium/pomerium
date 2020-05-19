@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"testing"
 )
@@ -27,8 +28,8 @@ envoy_server_initialization_time_ms_bucket{le="1000"} 1
 	}
 }
 
-func getMetrics(t *testing.T) []byte {
-	h, err := PrometheusHandler()
+func getMetrics(t *testing.T, envoyURL *url.URL) []byte {
+	h, err := PrometheusHandler(envoyURL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +49,7 @@ func getMetrics(t *testing.T) []byte {
 func Test_PrometheusHandler(t *testing.T) {
 
 	t.Run("no envoy", func(t *testing.T) {
-		b := getMetrics(t)
+		b := getMetrics(t, &url.URL{})
 
 		if m, _ := regexp.Match(`(?m)^# HELP .*`, b); !m {
 			t.Errorf("Metrics endpoint did not contain any help messages: %s", b)
@@ -57,8 +58,8 @@ func Test_PrometheusHandler(t *testing.T) {
 
 	t.Run("with envoy", func(t *testing.T) {
 		fakeEnvoyMetricsServer := httptest.NewServer(newEnvoyMetricsHandler())
-		envoyURL = fakeEnvoyMetricsServer.URL
-		b := getMetrics(t)
+		envoyURL, _ := url.Parse(fakeEnvoyMetricsServer.URL)
+		b := getMetrics(t, envoyURL)
 
 		if m, _ := regexp.Match(`(?m)^go_.*`, b); !m {
 			t.Errorf("Metrics endpoint did not contain internal metrics: %s", b)

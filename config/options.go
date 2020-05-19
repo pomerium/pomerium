@@ -34,6 +34,9 @@ const DisableHeaderKey = "disable"
 // gRPC server, or is used for healthchecks (authorize only service)
 const DefaultAlternativeAddr = ":5443"
 
+// EnvoyAdminURL indicates where the envoy control plane is listening
+var EnvoyAdminURL = &url.URL{Host: "localhost:9901", Scheme: "http"}
+
 // Options are the global environmental flags used to set up pomerium's services.
 // Use NewXXXOptions() methods for a safely initialized data structure.
 type Options struct {
@@ -171,8 +174,8 @@ type Options struct {
 	MetricsAddr string `mapstructure:"metrics_address" yaml:"metrics_address,omitempty"`
 
 	// Tracing shared settings
-	TracingProvider string `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
-	TracingDebug    bool   `mapstructure:"tracing_debug" yaml:"tracing_debug,omitempty"`
+	TracingProvider   string  `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
+	TracingSampleRate float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
 
 	//  Jaeger
 	//
@@ -272,6 +275,7 @@ var defaultOptions = Options{
 	CacheStore:                      "autocache",
 	AuthenticateCallbackPath:        "/oauth2/callback",
 	AutoCertFolder:                  dataDir(),
+	TracingSampleRate:               0.0001,
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
