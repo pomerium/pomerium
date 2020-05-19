@@ -56,21 +56,20 @@ func TestHealth(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 	pomeriumRoutes := []string{
-		"authenticate.localhost.pomerium.io",
-		"authorize.default.svc.cluster.local:5080",
-		"cache.default.svc.cluster.local:5080",
-		"forward-authenticate.localhost.pomerium.io",
-		"restricted-httpdetails.localhost.pomerium.io",
-		"httpdetails.localhost.pomerium.io",
+		"https://authenticate.localhost.pomerium.io",
+		"https://forward-authenticate.localhost.pomerium.io",
+		"https://httpdetails.localhost.pomerium.io",
+		"https://restricted-httpdetails.localhost.pomerium.io",
 	}
 	endpoints := []string{"healthz", "ping"}
 
 	for _, route := range pomeriumRoutes {
+		route := route
 		for _, endpoint := range endpoints {
 			endpoint := endpoint
-			t.Run(endpoint, func(t *testing.T) {
+			routeToCheck := fmt.Sprintf("%s/%s", route, endpoint)
+			t.Run(routeToCheck, func(t *testing.T) {
 				client := testcluster.NewHTTPClient()
-				routeToCheck := fmt.Sprintf("https://%s/%s", route, endpoint)
 				req, err := http.NewRequestWithContext(ctx, "GET", routeToCheck, nil)
 				if err != nil {
 					t.Fatal(err)
