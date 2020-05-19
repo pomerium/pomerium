@@ -210,11 +210,11 @@ certificates:
 
 ### Global Timeouts
 
-- Environmental Variables: `TIMEOUT_READ` `TIMEOUT_WRITE` `TIMEOUT_READ_HEADER` `TIMEOUT_IDLE`
-- Config File Key: `timeout_read` `timeout_write` `timeout_read_header` `timeout_idle`
+- Environmental Variables: `TIMEOUT_READ` `TIMEOUT_WRITE` `TIMEOUT_IDLE`
+- Config File Key: `timeout_read` `timeout_write` `timeout_idle`
 - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
 - Example: `TIMEOUT_READ=30s`
-- Defaults: `TIMEOUT_READ_HEADER=10s` `TIMEOUT_READ=30s` `TIMEOUT_WRITE=0` `TIMEOUT_IDLE=5m`
+- Defaults: `TIMEOUT_READ=30s` `TIMEOUT_WRITE=0` `TIMEOUT_IDLE=5m`
 
 Timeouts set the global server timeouts. For route-specific timeouts, see [policy](./#policy).
 
@@ -454,7 +454,7 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 | tracing_provider | The name of the tracing provider. (e.g. jaeger, zipkin)           | ✅        |
 | tracing_debug    | Will disable [sampling](https://opencensus.io/tracing/sampling/). | ❌        |
 
-#### Jaeger (partial) 
+#### Jaeger (partial)
 
 **Warning** At this time, Jaeger protocol does not capture spans inside the proxy service.  Please
 use Zipkin protocol with Jaeger for full support.
@@ -474,9 +474,9 @@ use Zipkin protocol with Jaeger for full support.
 
 #### Zipkin
 
-Zipkin is an open source distributed tracing system and protocol.  
+Zipkin is an open source distributed tracing system and protocol.
 
-Many tracing backends support zipkin either directly or through intermediary agents, including Jaeger.  For full tracing support, we recommend using the Zipkin tracing protocol. 
+Many tracing backends support zipkin either directly or through intermediary agents, including Jaeger.  For full tracing support, we recommend using the Zipkin tracing protocol.
 
 | Config Key              | Description                      | Required |
 | :---------------------- | :------------------------------- | -------- |

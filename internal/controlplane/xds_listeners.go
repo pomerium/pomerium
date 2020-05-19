@@ -14,6 +14,7 @@ import (
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
@@ -166,6 +167,11 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 		InlineCode: luascripts.CleanUpstream,
 	})
 
+	var maxStreamDuration *durationpb.Duration
+	if options.WriteTimeout > 0 {
+		maxStreamDuration = ptypes.DurationProto(options.WriteTimeout)
+	}
+
 	tc, _ := ptypes.MarshalAny(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "ingress",
@@ -199,6 +205,11 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 			},
 		},
 		AccessLog: srv.buildAccessLogs(options),
+		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
+			IdleTimeout:       ptypes.DurationProto(options.IdleTimeout),
+			MaxStreamDuration: maxStreamDuration,
+		},
+		RequestTimeout: ptypes.DurationProto(options.ReadTimeout),
 	})
 
 	return &envoy_config_listener_v3.Filter{
