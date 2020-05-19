@@ -14,6 +14,7 @@ import (
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
@@ -143,13 +144,20 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 		}
 	}
 
+	var grpcClientTimeout *durationpb.Duration
+	if options.GRPCClientTimeout != 0 {
+		grpcClientTimeout = ptypes.DurationProto(options.GRPCClientTimeout)
+	} else {
+		grpcClientTimeout = ptypes.DurationProto(30 * time.Second)
+	}
+
 	extAuthZ, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthz{
 		StatusOnError: &envoy_type_v3.HttpStatus{
 			Code: envoy_type_v3.StatusCode_InternalServerError,
 		},
 		Services: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthz_GrpcService{
 			GrpcService: &envoy_config_core_v3.GrpcService{
-				Timeout: ptypes.DurationProto(time.Second * 30),
+				Timeout: grpcClientTimeout,
 				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
 					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
 						ClusterName: "pomerium-authz",
@@ -165,6 +173,11 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 	cleanUpstreamLua, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
 		InlineCode: luascripts.CleanUpstream,
 	})
+
+	var maxStreamDuration *durationpb.Duration
+	if options.WriteTimeout > 0 {
+		maxStreamDuration = ptypes.DurationProto(options.WriteTimeout)
+	}
 
 	tc, _ := ptypes.MarshalAny(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
@@ -199,6 +212,11 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 			},
 		},
 		AccessLog: srv.buildAccessLogs(options),
+		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
+			IdleTimeout:       ptypes.DurationProto(options.IdleTimeout),
+			MaxStreamDuration: maxStreamDuration,
+		},
+		RequestTimeout: ptypes.DurationProto(options.ReadTimeout),
 	})
 
 	return &envoy_config_listener_v3.Filter{

@@ -6,8 +6,10 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/config"
@@ -134,6 +136,18 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) []*
 			})
 		}
 
+		var routeTimeout *durationpb.Duration
+		if policy.AllowWebsockets {
+			// disable the route timeout for websocket support
+			routeTimeout = ptypes.DurationProto(0)
+		} else {
+			if policy.UpstreamTimeout != 0 {
+				routeTimeout = ptypes.DurationProto(policy.UpstreamTimeout)
+			} else {
+				routeTimeout = ptypes.DurationProto(options.DefaultUpstreamTimeout)
+			}
+		}
+
 		routes = append(routes, &envoy_config_route_v3.Route{
 			Name:  fmt.Sprintf("policy-%d", i),
 			Match: match,
@@ -167,6 +181,7 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) []*
 					HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
 						AutoHostRewrite: &wrappers.BoolValue{Value: !policy.PreserveHostHeader},
 					},
+					Timeout: routeTimeout,
 				},
 			},
 			RequestHeadersToAdd: requestHeadersToAdd,

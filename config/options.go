@@ -97,10 +97,9 @@ type Options struct {
 	HTTPRedirectAddr string `mapstructure:"http_redirect_addr" yaml:"http_redirect_addr,omitempty"`
 
 	// Timeout settings : https://github.com/pomerium/pomerium/issues/40
-	ReadTimeout       time.Duration `mapstructure:"timeout_read" yaml:"timeout_read,omitempty"`
-	WriteTimeout      time.Duration `mapstructure:"timeout_write" yaml:"timeout_write,omitempty"`
-	ReadHeaderTimeout time.Duration `mapstructure:"timeout_read_header" yaml:"timeout_read_header,omitempty"`
-	IdleTimeout       time.Duration `mapstructure:"timeout_idle" yaml:"timeout_idle,omitempty"`
+	ReadTimeout  time.Duration `mapstructure:"timeout_read" yaml:"timeout_read,omitempty"`
+	WriteTimeout time.Duration `mapstructure:"timeout_write" yaml:"timeout_write,omitempty"`
+	IdleTimeout  time.Duration `mapstructure:"timeout_idle" yaml:"timeout_idle,omitempty"`
 
 	// Policies define per-route configuration and access control policies.
 	Policies   []Policy `yaml:"policy,omitempty"`
@@ -261,7 +260,6 @@ var defaultOptions = Options{
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 	},
 	Addr:                            ":443",
-	ReadHeaderTimeout:               10 * time.Second,
 	ReadTimeout:                     30 * time.Second,
 	WriteTimeout:                    0, // support streaming by default
 	IdleTimeout:                     5 * time.Minute,
