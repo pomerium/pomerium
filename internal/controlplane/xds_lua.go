@@ -10,6 +10,7 @@ import (
 )
 
 //go:generate go run github.com/rakyll/statik -src=./luascripts -include=*.lua -p luascripts -ns luascripts
+//go:generate go fmt ./luascripts/statik.go
 
 var luascripts struct {
 	ExtAuthzSetCookie string
