@@ -207,10 +207,11 @@ func (srv *Server) buildCluster(
 		}
 	}
 
-	if net.ParseIP(urlutil.StripPort(endpoint.Host)) == nil {
-		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_LOGICAL_DNS}
-	} else {
+	// for IPs we use a static discovery type, otherwise we use DNS
+	if net.ParseIP(urlutil.StripPort(endpoint.Host)) != nil {
 		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STATIC}
+	} else {
+		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STRICT_DNS}
 	}
 
 	return cluster
