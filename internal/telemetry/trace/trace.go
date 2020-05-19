@@ -4,15 +4,20 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pomerium/pomerium/internal/log"
-
 	"contrib.go.opencensus.io/exporter/jaeger"
+	ocZipkin "contrib.go.opencensus.io/exporter/zipkin"
+	"github.com/openzipkin/zipkin-go"
+	zipkinHTTP "github.com/openzipkin/zipkin-go/reporter/http"
 	"go.opencensus.io/trace"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 const (
 	// JaegerTracingProviderName is the name of the tracing provider Jaeger.
 	JaegerTracingProviderName = "jaeger"
+	// ZipkinTracingProviderName is the name of the tracing provider Zipkin.
+	ZipkinTracingProviderName = "zipkin"
 )
 
 // TracingOptions contains the configurations settings for a http server.
@@ -30,6 +35,12 @@ type TracingOptions struct {
 	// AgentEndpoint instructs exporter to send spans to jaeger-agent at this address.
 	// For example, localhost:6831.
 	JaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint"`
+
+	// Zipkin
+
+	// ZipkinEndpoint configures the zipkin collector URI
+	// Example: http://zipkin:9411/api/v2/spans
+	ZipkinEndpoint string `mapstructure:"tracing_zipkin_endpoint"`
 }
 
 // RegisterTracing creates a new trace exporter from TracingOptions.
@@ -38,6 +49,8 @@ func RegisterTracing(opts *TracingOptions) error {
 	switch opts.Provider {
 	case JaegerTracingProviderName:
 		err = registerJaeger(opts)
+	case ZipkinTracingProviderName:
+		err = registerZipkin(opts)
 	default:
 		return fmt.Errorf("telemetry/trace: provider %s unknown", opts.Provider)
 	}
@@ -63,6 +76,20 @@ func registerJaeger(opts *TracingOptions) error {
 		return err
 	}
 	trace.RegisterExporter(jex)
+	return nil
+}
+
+func registerZipkin(opts *TracingOptions) error {
+	localEndpoint, err := zipkin.NewEndpoint(opts.Service, "")
+	if err != nil {
+		return fmt.Errorf("telemetry/trace: could not create local endpoint: %w", err)
+	}
+
+	reporter := zipkinHTTP.NewReporter(opts.ZipkinEndpoint)
+
+	exporter := ocZipkin.NewExporter(reporter, localEndpoint)
+	trace.RegisterExporter(exporter)
+
 	return nil
 }
 

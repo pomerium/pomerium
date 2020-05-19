@@ -5,6 +5,14 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.8.0
+
+## Breaking
+
+### Tracing
+
+Jaeger tracing support is no longer end-to-end in the proxy service.  We recommend updating to the Zipkin provider for proper tracing support.  Jaeger will continue to work but will not have coverage in the data plane.
+
 # Since 0.7.0
 
 ## Breaking
