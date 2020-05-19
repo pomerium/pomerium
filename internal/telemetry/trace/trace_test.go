@@ -15,7 +15,7 @@ func TestRegisterTracing(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := RegisterTracing(tt.opts); (err != nil) != tt.wantErr {
+			if _, err := RegisterTracing(tt.opts); (err != nil) != tt.wantErr {
 				t.Errorf("RegisterTracing() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
