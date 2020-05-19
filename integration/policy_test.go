@@ -384,3 +384,36 @@ func TestSNIMismatch(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
+
+func TestAttestationJWT(t *testing.T) {
+	ctx := mainCtx
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	client := testcluster.NewHTTPClient()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := client.Do(req)
+	if !assert.NoError(t, err, "unexpected http error") {
+		return
+	}
+	defer res.Body.Close()
+
+	var result struct {
+		Headers map[string]string `json:"headers"`
+	}
+	err = json.NewDecoder(res.Body).Decode(&result)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.NotEmpty(t,
+		"X-Pomerium-Jwt-Assertion-Value",
+		result.Headers["X-Pomerium-Jwt-Assertion"],
+		"Expected JWT assertion")
+
+}
