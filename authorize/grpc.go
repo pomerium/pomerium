@@ -91,6 +91,14 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	evt = evt.Str("session", string(sess))
 	evt.Msg("authorize check")
 
+	requestHeaders = append(requestHeaders,
+		&envoy_api_v2_core.HeaderValueOption{
+			Header: &envoy_api_v2_core.HeaderValue{
+				Key:   "x-pomerium-jwt-assertion",
+				Value: reply.SignedJwt,
+			},
+		})
+
 	if reply.Allow {
 		return &envoy_service_auth_v2.CheckResponse{
 			Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
