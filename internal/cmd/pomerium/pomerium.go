@@ -1,3 +1,5 @@
+// Package pomerium houses the main pomerium CLI command.
+//
 package pomerium
 
 import (
@@ -28,6 +30,7 @@ import (
 	"github.com/pomerium/pomerium/proxy"
 )
 
+// Run runs the main pomerium application.
 func Run(ctx context.Context, configFile string) error {
 	opt, err := config.NewOptionsFromConfig(configFile)
 	if err != nil {

@@ -23,7 +23,7 @@ func Test_setupTracing(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setupTracing(tt.opt)
+			setupTracing(context.Background(), tt.opt)
 		})
 	}
 }
@@ -41,7 +41,7 @@ func Test_setupMetrics(t *testing.T) {
 			c := make(chan os.Signal, 1)
 			signal.Notify(c, syscall.SIGINT)
 			defer signal.Stop(c)
-			setupMetrics(tt.opt)
+			setupMetrics(context.Background(), tt.opt)
 			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 			waitSig(t, c, syscall.SIGINT)
 		})
