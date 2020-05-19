@@ -174,15 +174,14 @@ local PomeriumConfigMap = function() {
   },
   data: {
     ADDRESS: ':443',
-    GRPC_ADDRESS: ':5080',
-    GRPC_INSECURE: 'true',
+    GRPC_ADDRESS: ':5443',
     DEBUG: 'true',
     LOG_LEVEL: 'debug',
 
     AUTHENTICATE_SERVICE_URL: 'https://authenticate.localhost.pomerium.io',
     AUTHENTICATE_CALLBACK_PATH: '/oauth2/callback',
-    AUTHORIZE_SERVICE_URL: 'http://authorize.default.svc.cluster.local:5080',
-    CACHE_SERVICE_URL: 'http://cache.default.svc.cluster.local:5080',
+    AUTHORIZE_SERVICE_URL: 'https://authorize.default.svc.cluster.local:5443',
+    CACHE_SERVICE_URL: 'https://cache.default.svc.cluster.local:5443',
     FORWARD_AUTH_URL: 'https://forward-authenticate.localhost.pomerium.io',
 
     SHARED_SECRET: 'Wy+c0uSuIM0yGGXs82MBwTZwRiZ7Ki2T0LANnmzUtkI=',
@@ -190,6 +189,8 @@ local PomeriumConfigMap = function() {
 
     CERTIFICATE: std.base64(tls.trusted.cert),
     CERTIFICATE_KEY: std.base64(tls.trusted.key),
+    CERTIFICATE_AUTHORITY: std.base64(tls.trusted.ca),
+    OVERRIDE_CERTIFICATE_NAME: 'pomerium.localhost.pomerium.io',
 
     IDP_PROVIDER: 'oidc',
     IDP_PROVIDER_URL: 'https://openid.localhost.pomerium.io',
@@ -286,7 +287,7 @@ local PomeriumDeployment = function(svc) {
           }],
           ports: [
             { name: 'https', containerPort: 443 },
-            { name: 'grpc', containerPort: 5080 },
+            { name: 'grpc', containerPort: 5443 },
           ],
           volumeMounts: [
             {
@@ -338,7 +339,7 @@ local PomeriumService = function(svc) {
       },
       {
         name: 'grpc',
-        port: 5080,
+        port: 5443,
         targetPort: 'grpc',
       },
     ],

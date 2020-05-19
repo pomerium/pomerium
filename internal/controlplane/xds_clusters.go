@@ -33,9 +33,12 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 	}
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
-		srv.buildInternalCluster("pomerium-control-plane-grpc", grpcURL, true),
-		srv.buildInternalCluster("pomerium-control-plane-http", httpURL, false),
-		srv.buildInternalCluster("pomerium-authz", authzURL, true),
+		srv.buildInternalCluster(options, "pomerium-control-plane-grpc", grpcURL, true),
+		srv.buildInternalCluster(options, "pomerium-control-plane-http", httpURL, false),
+	}
+
+	if !config.IsAuthorize(options.Services) {
+		clusters = append(clusters, srv.buildInternalCluster(options, "pomerium-authz", authzURL, true))
 	}
 
 	if config.IsProxy(options.Services) {
@@ -47,11 +50,51 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 	return clusters
 }
 
-func (srv *Server) buildInternalCluster(name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
+func (srv *Server) buildInternalCluster(options *config.Options, name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
 	var transportSocket *envoy_config_core_v3.TransportSocket
 	if endpoint.Scheme == "https" {
+		sni := endpoint.Hostname()
+		if options.OverrideCertificateName != "" {
+			sni = options.OverrideCertificateName
+		}
+		validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+			MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{{
+				MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
+					Exact: sni,
+				},
+			}},
+		}
+		if options.CAFile != "" {
+			validationContext.TrustedCa = inlineFilename(options.CAFile)
+		} else if options.CA != "" {
+			bs, err := base64.StdEncoding.DecodeString(options.CA)
+			if err != nil {
+				log.Error().Err(err).Msg("invalid custom CA certificate")
+			}
+			validationContext.TrustedCa = inlineBytesAsFilename("custom-ca.pem", bs)
+		} else {
+			rootCA, err := getRootCertificateAuthority()
+			if err != nil {
+				log.Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
+			} else {
+				validationContext.TrustedCa = inlineFilename(rootCA)
+			}
+		}
+		tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
+			CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
+				AlpnProtocols: []string{"h2", "http/1.1"},
+				ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+					ValidationContext: validationContext,
+				},
+			},
+			Sni: sni,
+		}
+		tlsConfig, _ := ptypes.MarshalAny(tlsContext)
 		transportSocket = &envoy_config_core_v3.TransportSocket{
 			Name: "tls",
+			ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+				TypedConfig: tlsConfig,
+			},
 		}
 	}
 	return srv.buildCluster(name, endpoint, transportSocket, forceHTTP2)
