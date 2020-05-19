@@ -144,13 +144,20 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 		}
 	}
 
+	var grpcClientTimeout *durationpb.Duration
+	if options.GRPCClientTimeout != 0 {
+		grpcClientTimeout = ptypes.DurationProto(options.GRPCClientTimeout)
+	} else {
+		grpcClientTimeout = ptypes.DurationProto(30 * time.Second)
+	}
+
 	extAuthZ, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthz{
 		StatusOnError: &envoy_type_v3.HttpStatus{
 			Code: envoy_type_v3.StatusCode_InternalServerError,
 		},
 		Services: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthz_GrpcService{
 			GrpcService: &envoy_config_core_v3.GrpcService{
-				Timeout: ptypes.DurationProto(time.Second * 30),
+				Timeout: grpcClientTimeout,
 				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
 					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
 						ClusterName: "pomerium-authz",
