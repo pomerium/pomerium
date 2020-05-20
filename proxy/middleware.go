@@ -45,7 +45,7 @@ func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (p *Proxy) isAuthorized(r *http.Request) (bool, error) {
+func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (bool, error) {
 	tm, err := ptypes.TimestampProto(time.Now())
 	if err != nil {
 		return false, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error creating protobuf timestamp from current time: %w", err))
@@ -81,6 +81,9 @@ func (p *Proxy) isAuthorized(r *http.Request) (bool, error) {
 
 	switch res.HttpResponse.(type) {
 	case *envoy_service_auth_v2.CheckResponse_OkResponse:
+		for _, hdr := range res.GetOkResponse().GetHeaders() {
+			w.Header().Set(hdr.GetHeader().GetKey(), hdr.GetHeader().GetValue())
+		}
 		return true, nil
 	default:
 		return false, nil
