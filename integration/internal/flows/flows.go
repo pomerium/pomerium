@@ -78,7 +78,6 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 	cfg := getAuthenticateConfig(options...)
 	originalHostname := url.Hostname()
 	var err error
-	req := new(http.Request)
 
 	if cfg.apiPath != "" {
 		apiLogin := url
@@ -87,7 +86,7 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 		apiLogin.RawQuery = q.Encode()
 
 		apiLogin.Path = cfg.apiPath
-		req, err = http.NewRequestWithContext(ctx, "GET", apiLogin.String(), nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", apiLogin.String(), nil)
 		req.Header.Set("Accept", "application/json")
 		if err != nil {
 			return nil, err
@@ -107,7 +106,7 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 		}
 	}
 
-	req, err = http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
 	if err != nil {
 		return nil, err
 	}
