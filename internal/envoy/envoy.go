@@ -3,6 +3,7 @@ package envoy
 
 import (
 	"bytes"
+	"strings"
 
 	"bufio"
 	"context"
@@ -14,7 +15,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"strings"
 
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
