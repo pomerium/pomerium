@@ -16,116 +16,127 @@ func TestAuthorization(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(mainCtx, time.Second*30)
 	defer clearTimeout()
 
-	t.Run("public", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
+	accessType := []string{"direct", "api"}
+	for _, at := range accessType {
+		t.Run(at, func(t *testing.T) {
+			var withAPI flows.AuthenticateOption
 
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+			if at == "api" {
+				withAPI = flows.WithAPI()
+			}
 
-		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
+			t.Run("public", func(t *testing.T) {
+				client := testcluster.NewHTTPClient()
 
-		assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code, headers=%v", res.Header)
-	})
-	t.Run("domains", func(t *testing.T) {
-		t.Run("allowed", func(t *testing.T) {
-			client := testcluster.NewHTTPClient()
-			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
-				flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
-			if assert.NoError(t, err) {
+				req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io", nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				res, err := client.Do(req)
+				if !assert.NoError(t, err, "unexpected http error") {
+					return
+				}
+				defer res.Body.Close()
+
+				assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code, headers=%v", res.Header)
+			})
+			t.Run("domains", func(t *testing.T) {
+				t.Run("allowed", func(t *testing.T) {
+					client := testcluster.NewHTTPClient()
+					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
+						withAPI, flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
+					if assert.NoError(t, err) {
+						assert.Equal(t, http.StatusOK, res.StatusCode, "expected OK for dogs.test")
+					}
+				})
+				t.Run("not allowed", func(t *testing.T) {
+					client := testcluster.NewHTTPClient()
+					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
+						withAPI, flows.WithEmail("joe@cats.test"), flows.WithGroups("user"))
+					if assert.NoError(t, err) {
+						assertDeniedAccess(t, res, "expected Forbidden for cats.test")
+					}
+				})
+			})
+			t.Run("users", func(t *testing.T) {
+				t.Run("allowed", func(t *testing.T) {
+					client := testcluster.NewHTTPClient()
+					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-user"),
+						withAPI, flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
+					if assert.NoError(t, err) {
+						assert.Equal(t, http.StatusOK, res.StatusCode, "expected OK for bob@dogs.test")
+					}
+				})
+				t.Run("not allowed", func(t *testing.T) {
+					client := testcluster.NewHTTPClient()
+					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-user"),
+						withAPI, flows.WithEmail("joe@cats.test"), flows.WithGroups("user"))
+					if assert.NoError(t, err) {
+						assertDeniedAccess(t, res, "expected Forbidden for joe@cats.test")
+					}
+				})
+			})
+			t.Run("groups", func(t *testing.T) {
+				t.Run("allowed", func(t *testing.T) {
+					client := testcluster.NewHTTPClient()
+					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-group"),
+						withAPI, flows.WithEmail("bob@dogs.test"), flows.WithGroups("admin", "user"))
+					if assert.NoError(t, err) {
+						assert.Equal(t, http.StatusOK, res.StatusCode, "expected OK for admin")
+					}
+				})
+				t.Run("not allowed", func(t *testing.T) {
+					client := testcluster.NewHTTPClient()
+					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-group"),
+						withAPI, flows.WithEmail("joe@cats.test"), flows.WithGroups("user"))
+					if assert.NoError(t, err) {
+						assertDeniedAccess(t, res, "expected Forbidden for user, but got %d", res.StatusCode)
+					}
+				})
+			})
+
+			t.Run("refresh", func(t *testing.T) {
+				client := testcluster.NewHTTPClient()
+				res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
+					withAPI, flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"), flows.WithTokenExpiration(time.Second))
+				if !assert.NoError(t, err) {
+					return
+				}
 				assert.Equal(t, http.StatusOK, res.StatusCode, "expected OK for dogs.test")
-			}
-		})
-		t.Run("not allowed", func(t *testing.T) {
-			client := testcluster.NewHTTPClient()
-			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
-				flows.WithEmail("joe@cats.test"), flows.WithGroups("user"))
-			if assert.NoError(t, err) {
-				assertDeniedAccess(t, res, "expected Forbidden for cats.test")
-			}
-		})
-	})
-	t.Run("users", func(t *testing.T) {
-		t.Run("allowed", func(t *testing.T) {
-			client := testcluster.NewHTTPClient()
-			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-user"),
-				flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
-			if assert.NoError(t, err) {
-				assert.Equal(t, http.StatusOK, res.StatusCode, "expected OK for bob@dogs.test")
-			}
-		})
-		t.Run("not allowed", func(t *testing.T) {
-			client := testcluster.NewHTTPClient()
-			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-user"),
-				flows.WithEmail("joe@cats.test"), flows.WithGroups("user"))
-			if assert.NoError(t, err) {
-				assertDeniedAccess(t, res, "expected Forbidden for joe@cats.test")
-			}
-		})
-	})
-	t.Run("groups", func(t *testing.T) {
-		t.Run("allowed", func(t *testing.T) {
-			client := testcluster.NewHTTPClient()
-			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-group"),
-				flows.WithEmail("bob@dogs.test"), flows.WithGroups("admin", "user"))
-			if assert.NoError(t, err) {
-				assert.Equal(t, http.StatusOK, res.StatusCode, "expected OK for admin")
-			}
-		})
-		t.Run("not allowed", func(t *testing.T) {
-			client := testcluster.NewHTTPClient()
-			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-group"),
-				flows.WithEmail("joe@cats.test"), flows.WithGroups("user"))
-			if assert.NoError(t, err) {
-				assertDeniedAccess(t, res, "expected Forbidden for user, but got %d", res.StatusCode)
-			}
-		})
-	})
+				res.Body.Close()
 
-	t.Run("refresh", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
-		res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
-			flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"), flows.WithTokenExpiration(time.Second))
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, http.StatusOK, res.StatusCode, "expected OK for dogs.test")
-		res.Body.Close()
+				// poll till we get a new cookie because of a refreshed session
+				ticker := time.NewTicker(time.Millisecond * 500)
+				defer ticker.Stop()
+				deadline := time.NewTimer(time.Second * 10)
+				defer deadline.Stop()
+				for i := 0; ; i++ {
+					select {
+					case <-ticker.C:
+					case <-deadline.C:
+						t.Fatal("timed out waiting for refreshed session")
+						return
+					case <-ctx.Done():
+						t.Fatal("timed out waiting for refreshed session")
+						return
+					}
 
-		// poll till we get a new cookie because of a refreshed session
-		ticker := time.NewTicker(time.Millisecond * 500)
-		defer ticker.Stop()
-		deadline := time.NewTimer(time.Second * 10)
-		defer deadline.Stop()
-		for i := 0; ; i++ {
-			select {
-			case <-ticker.C:
-			case <-deadline.C:
-				t.Fatal("timed out waiting for refreshed session")
-				return
-			case <-ctx.Done():
-				t.Fatal("timed out waiting for refreshed session")
-				return
-			}
-
-			res, err = client.Get(mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain").String())
-			if !assert.NoError(t, err) {
-				return
-			}
-			res.Body.Close()
-			if !assert.Equal(t, http.StatusOK, res.StatusCode, "failed after %d times", i+1) {
-				return
-			}
-			if res.Header.Get("Set-Cookie") != "" {
-				break
-			}
-		}
-	})
+					res, err = client.Get(mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain").String())
+					if !assert.NoError(t, err) {
+						return
+					}
+					res.Body.Close()
+					if !assert.Equal(t, http.StatusOK, res.StatusCode, "failed after %d times", i+1) {
+						return
+					}
+					if res.Header.Get("Set-Cookie") != "" {
+						break
+					}
+				}
+			})
+		})
+	}
 }
 
 func mustParseURL(str string) *url.URL {

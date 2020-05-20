@@ -4,6 +4,7 @@ package flows
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -11,18 +12,21 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/integration/internal/forms"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 const (
 	authenticateHostname = "authenticate.localhost.pomerium.io"
 	openidHostname       = "openid.localhost.pomerium.io"
 	pomeriumCallbackPath = "/.pomerium/callback/"
+	pomeriumAPIPath      = "/.pomerium/api/v1/login"
 )
 
 type authenticateConfig struct {
 	email           string
 	groups          []string
 	tokenExpiration time.Duration
+	apiPath         string
 }
 
 // An AuthenticateOption is an option for authentication.
@@ -33,7 +37,9 @@ func getAuthenticateConfig(options ...AuthenticateOption) *authenticateConfig {
 		tokenExpiration: time.Hour * 24,
 	}
 	for _, option := range options {
-		option(cfg)
+		if option != nil {
+			option(cfg)
+		}
 	}
 	return cfg
 }
@@ -59,11 +65,46 @@ func WithTokenExpiration(tokenExpiration time.Duration) AuthenticateOption {
 	}
 }
 
+// WithAPI tells authentication to use API authentication flow.
+func WithAPI() AuthenticateOption {
+	return func(cfg *authenticateConfig) {
+		cfg.apiPath = pomeriumAPIPath
+	}
+}
+
 // Authenticate submits a request to a URL, expects a redirect to authenticate and then openid and logs in.
 // Finally it expects to redirect back to the original page.
 func Authenticate(ctx context.Context, client *http.Client, url *url.URL, options ...AuthenticateOption) (*http.Response, error) {
 	cfg := getAuthenticateConfig(options...)
 	originalHostname := url.Hostname()
+	var err error
+
+	if cfg.apiPath != "" {
+		apiLogin := url
+		q := apiLogin.Query()
+		q.Set(urlutil.QueryRedirectURI, url.String())
+		apiLogin.RawQuery = q.Encode()
+
+		apiLogin.Path = cfg.apiPath
+		req, err := http.NewRequestWithContext(ctx, "GET", apiLogin.String(), nil)
+		req.Header.Set("Accept", "application/json")
+		if err != nil {
+			return nil, err
+		}
+		res, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		bodyBytes, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer res.Body.Close()
+		url, err = url.Parse(string(bodyBytes))
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
 	if err != nil {
