@@ -23,7 +23,7 @@ func TestAuthorize_IsAuthorized(t *testing.T) {
 		wantErr bool
 	}{
 		{"good", &authorize.IsAuthorizedReply{}, nil, context.TODO(), &authorize.IsAuthorizedRequest{UserToken: "good"}, &authorize.IsAuthorizedReply{}, false},
-		{"error", &authorize.IsAuthorizedReply{}, errors.New("error"), context.TODO(), &authorize.IsAuthorizedRequest{UserToken: "good"}, &authorize.IsAuthorizedReply{}, true},
+		{"error", &authorize.IsAuthorizedReply{}, errors.New("error"), context.TODO(), &authorize.IsAuthorizedRequest{UserToken: "good"}, nil, true},
 		{"headers", &authorize.IsAuthorizedReply{}, nil, context.TODO(), &authorize.IsAuthorizedRequest{UserToken: "good", RequestHeaders: nil}, &authorize.IsAuthorizedReply{}, false},
 	}
 	for _, tt := range tests {
