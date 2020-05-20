@@ -27,6 +27,9 @@ func (a *Authorize) IsAuthorized(ctx context.Context, in *authorize.IsAuthorized
 		URL:        getFullURL(in.GetRequestUrl(), in.GetRequestHost()),
 	}
 	reply, err := a.pe.IsAuthorized(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 	log.Info().
 		// request
 		Str("method", req.Method).
@@ -38,7 +41,7 @@ func (a *Authorize) IsAuthorized(ctx context.Context, in *authorize.IsAuthorized
 		Str("email", reply.Email).
 		Strs("groups", reply.Groups).
 		Msg("authorize.grpc.IsAuthorized")
-	return reply, err
+	return reply, nil
 }
 
 type protoHeader map[string]*authorize.IsAuthorizedRequest_Headers
