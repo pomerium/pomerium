@@ -117,7 +117,7 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		}
 
 		original := p.getOriginalRequest(r, uri)
-		authorized, err := p.isAuthorized(original)
+		authorized, err := p.isAuthorized(w, original)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
