@@ -68,8 +68,9 @@ func (srv *Server) Run(ctx context.Context) error {
 	srv.cmd = exec.CommandContext(ctx, envoyPath,
 		"-c", configFileName,
 		"--log-level", log.Logger.GetLevel().String(),
-		"--log-format", "%l--%n--%v",
+		"--log-format", "[LOG_FORMAT]%l--%n--%v",
 		"--log-format-escaped",
+		"--disable-hot-restart",
 	)
 	srv.cmd.Dir = srv.wd
 
@@ -132,35 +133,36 @@ static_resources:
 }
 
 func (srv *Server) handleLogs(stdout io.ReadCloser) {
-	fileNameAndNumberRE := regexp.MustCompile(`^(\[[^:]+:[0-9]+\])\s(.*)$`)
+	logFormatRE := regexp.MustCompile(`^[[]LOG_FORMAT[]](.*?)--(.*?)--(.*?)$`)
+	fileNameAndNumberRE := regexp.MustCompile(`^(\[[a-zA-Z0-9/-_.]+:[0-9]+])\s(.*)$`)
 
 	s := bufio.NewScanner(stdout)
 	for s.Scan() {
 		ln := s.Text()
 
-		// format: level--name--message
+		// format: [LOG_FORMAT]level--name--message
 		// message is c-escaped
 
-		lvl := zerolog.TraceLevel
-		if pos := strings.Index(ln, "--"); pos >= 0 {
-			lvlstr := ln[:pos]
-			ln = ln[pos+2:]
-			if x, err := zerolog.ParseLevel(lvlstr); err == nil {
+		lvl := zerolog.DebugLevel
+		name := "envoy"
+		msg := ln
+		parts := logFormatRE.FindStringSubmatch(ln)
+		if len(parts) == 4 {
+			if x, err := zerolog.ParseLevel(parts[1]); err == nil {
 				lvl = x
 			}
+			name = parts[2]
+			msg = parts[3]
 		}
 
-		name := ""
-		if pos := strings.Index(ln, "--"); pos >= 0 {
-			name = ln[:pos]
-			ln = ln[pos+2:]
-		}
-
-		msg := fileNameAndNumberRE.ReplaceAllString(ln, "\"$2\"")
+		msg = fileNameAndNumberRE.ReplaceAllString(msg, "\"$2\"")
 		if s, err := strconv.Unquote(msg); err == nil {
 			msg = s
 		}
 
-		log.WithLevel(lvl).Str("service", "envoy").Str("name", name).Msg(msg)
+		log.WithLevel(lvl).
+			Str("service", "envoy").
+			Str("name", name).
+			Msg(msg)
 	}
 }
