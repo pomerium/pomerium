@@ -3,7 +3,6 @@ package envoy
 
 import (
 	"bytes"
-	"strings"
 
 	"bufio"
 	"context"
