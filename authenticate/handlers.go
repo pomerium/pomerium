@@ -36,6 +36,7 @@ func (a *Authenticate) Handler() http.Handler {
 
 // Mount mounts the authenticate routes to the given router.
 func (a *Authenticate) Mount(r *mux.Router) {
+	r.StrictSlash(true)
 	r.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 	r.Use(csrf.Protect(
 		a.cookieSecret,
@@ -72,10 +73,53 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	v.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 	v.Path("/refresh").Handler(httputil.HandlerFunc(a.Refresh)).Methods(http.MethodGet)
 
+	wk := r.PathPrefix("/.well-known/pomerium").Subrouter()
+	wk.Path("/jwks.json").Handler(httputil.HandlerFunc(a.jwks)).Methods(http.MethodGet)
+	wk.Path("/").Handler(httputil.HandlerFunc(a.wellKnown)).Methods(http.MethodGet)
+
+	// https://www.googleapis.com/oauth2/v3/certs
+
 	// programmatic access api endpoint
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(sessions.RetrieveSession(a.sessionLoaders...))
 	api.Path("/v1/refresh").Handler(httputil.HandlerFunc(a.RefreshAPI))
+}
+
+// Well-Known Uniform Resource Identifiers (URIs)
+// https://en.wikipedia.org/wiki/List_of_/.well-known/_services_offered_by_webservers
+func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
+	wellKnownURLS := struct {
+		// URL string referencing the client's JSON Web Key (JWK) Set
+		// RFC7517 document, which contains the client's public keys.
+		JSONWebKeySetURL       string `json:"jwks_uri"`
+		OAuth2Callback         string `json:"authentication_callback_endpoint"`
+		ProgrammaticRefreshAPI string `json:"api_refresh_endpoint"`
+	}{
+		a.RedirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
+		a.RedirectURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
+		a.RedirectURL.ResolveReference(&url.URL{Path: "/api/v1/refresh"}).String(),
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	jBytes, err := json.Marshal(wellKnownURLS)
+	if err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "%s", jBytes)
+	return nil
+}
+
+func (a *Authenticate) jwks(w http.ResponseWriter, r *http.Request) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	jBytes, err := json.Marshal(a.jwk)
+	if err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "%s", jBytes)
+	return nil
 }
 
 // VerifySession is the middleware used to enforce a valid authentication

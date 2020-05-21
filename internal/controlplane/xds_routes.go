@@ -44,6 +44,8 @@ func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain strin
 		srv.buildControlPlanePathRoute("/healthz"),
 		srv.buildControlPlanePathRoute("/.pomerium"),
 		srv.buildControlPlanePrefixRoute("/.pomerium/"),
+		srv.buildControlPlanePathRoute("/.well-known/pomerium"),
+		srv.buildControlPlanePrefixRoute("/.well-known/pomerium/"),
 	}
 	// if we're handling authentication, add the oauth2 callback url
 	if config.IsAuthenticate(options.Services) && domain == options.AuthenticateURL.Host {
