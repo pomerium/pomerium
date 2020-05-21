@@ -14,11 +14,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/types"
 	"github.com/rakyll/statik/fs"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
@@ -42,6 +40,7 @@ type PolicyEvaluator struct {
 	mu           sync.RWMutex
 	store        storage.Store
 	isAuthorized rego.PreparedEvalQuery
+	clientCA     string
 }
 
 // Options represent OPA's evaluator configurations.
@@ -92,31 +91,6 @@ func (pe *PolicyEvaluator) UpdatePolicy(ctx context.Context, authz string) error
 		rego.Store(pe.store),
 		rego.Module("pomerium.authz", authz),
 		rego.Query("result = data.pomerium.authz"),
-		rego.Function2(
-			&rego.Function{
-				Name: "pomerium.is_valid_client_certificate",
-				Decl: types.NewFunction(types.Args(types.S, types.S), types.B),
-			},
-			func(_ rego.BuiltinContext, ca, cert *ast.Term) (*ast.Term, error) {
-				caStr, ok := ca.Value.(ast.String)
-				if !ok {
-					return nil, nil
-				}
-				certStr, ok := cert.Value.(ast.String)
-				if !ok {
-					return nil, nil
-				}
-
-				valid, err := isValidClientCertificate(
-					string(caStr),
-					string(certStr),
-				)
-				if err != nil {
-					return nil, err
-				}
-				return ast.BooleanTerm(valid), nil
-			},
-		),
 	)
 	pe.isAuthorized, err = r.PrepareForEval(ctx)
 	if err != nil {
@@ -126,10 +100,10 @@ func (pe *PolicyEvaluator) UpdatePolicy(ctx context.Context, authz string) error
 }
 
 // IsAuthorized determines if a given request input is authorized.
-func (pe *PolicyEvaluator) IsAuthorized(ctx context.Context, input interface{}) (*pb.IsAuthorizedReply, error) {
+func (pe *PolicyEvaluator) IsAuthorized(ctx context.Context, req *evaluator.Request) (*pb.IsAuthorizedReply, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.evaluator.opa.IsAuthorized")
 	defer span.End()
-	return pe.runBoolQuery(ctx, input, pe.isAuthorized)
+	return pe.runBoolQuery(ctx, req, pe.isAuthorized)
 }
 
 // PutData adds (or replaces if the mapping key is the same) contextual data
@@ -140,6 +114,11 @@ func (pe *PolicyEvaluator) PutData(ctx context.Context, data map[string]interfac
 
 	pe.mu.Lock()
 	defer pe.mu.Unlock()
+
+	if ca, ok := data["client_ca"].(string); ok {
+		pe.clientCA = ca
+	}
+
 	txn, err := pe.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		return fmt.Errorf("opa: bad transaction: %w", err)
@@ -226,9 +205,23 @@ func decisionFromInterface(i interface{}) (*pb.IsAuthorizedReply, error) {
 	return &d, nil
 }
 
-func (pe *PolicyEvaluator) runBoolQuery(ctx context.Context, input interface{}, q rego.PreparedEvalQuery) (*pb.IsAuthorizedReply, error) {
+func (pe *PolicyEvaluator) runBoolQuery(ctx context.Context, req *evaluator.Request, q rego.PreparedEvalQuery) (*pb.IsAuthorizedReply, error) {
 	pe.mu.RLock()
 	defer pe.mu.RUnlock()
+
+	// `opa test` doesn't support custom function, so we'll pre-compute is_valid_client_certificate
+	isValid, err := isValidClientCertificate(pe.clientCA, req.ClientCertificate)
+	if err != nil {
+		return nil, fmt.Errorf("certificate error: %w", err)
+	}
+	input := struct {
+		*evaluator.Request
+		IsValidClientCertificate bool `json:"is_valid_client_certificate"`
+	}{
+		Request:                  req,
+		IsValidClientCertificate: isValid,
+	}
+
 	rs, err := q.Eval(ctx, rego.EvalInput(input))
 	if err != nil {
 		return nil, fmt.Errorf("eval query: %w", err)

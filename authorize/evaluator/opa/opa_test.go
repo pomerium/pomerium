@@ -5,9 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/config"
 	"gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
+
+	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/config"
 )
 
 func Test_Eval(t *testing.T) {
@@ -89,11 +91,7 @@ func Test_Eval(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			req := struct {
-				Host string `json:"host,omitempty"`
-				URL  string `json:"url,omitempty"`
-				User string `json:"user,omitempty"`
-			}{
+			req := &evaluator.Request{
 				Host: tt.route,
 				URL:  "https://" + tt.route,
 				User: rawJWT,

@@ -10,7 +10,7 @@ import (
 
 // Evaluator specifies the interface for a policy engine.
 type Evaluator interface {
-	IsAuthorized(ctx context.Context, input interface{}) (*pb.IsAuthorizedReply, error)
+	IsAuthorized(ctx context.Context, req *Request) (*pb.IsAuthorizedReply, error)
 	PutData(ctx context.Context, data map[string]interface{}) error
 }
 
