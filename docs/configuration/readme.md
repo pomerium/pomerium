@@ -1057,7 +1057,7 @@ $ curl https://authenticate.int.example.com/.well-known/pomerium/jwks.json | jq
 }
 ```
 
-If no certificate is specified, one will be generated and the base64'd public key will be added to the logs. Note, hoever, that this key be unique to each service, ephemerial, and will not be accessible via the authenticate service's `jwks_uri` endpoint.
+If no certificate is specified, one will be generated and the base64'd public key will be added to the logs. Note, however, that this key be unique to each service, ephemeral, and will not be accessible via the authenticate service's `jwks_uri` endpoint.
 
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
