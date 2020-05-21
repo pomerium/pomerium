@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 )
 
@@ -60,6 +61,7 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 	srv.GRPCServer = grpc.NewServer(
+		grpc.StatsHandler(metrics.NewGRPCServerStatsHandler("control_plane")),
 		grpc.UnaryInterceptor(requestid.UnaryServerInterceptor()),
 		grpc.StreamInterceptor(requestid.StreamServerInterceptor()),
 	)
