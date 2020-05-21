@@ -41,6 +41,12 @@ func Test_NewTracingOptions(t *testing.T) {
 		},
 		{
 			"noprovider",
+			&Options{},
+			&TracingOptions{},
+			false,
+		},
+		{
+			"fakeprovider",
 			&Options{TracingProvider: "fake"},
 			nil,
 			true,
