@@ -20,7 +20,6 @@ import (
 
 	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
-	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 )
@@ -60,13 +59,14 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
-		User:       string(sess),
-		Header:     hdrs,
-		Host:       hattrs.GetHost(),
-		Method:     hattrs.GetMethod(),
-		RequestURI: requestURL.String(),
-		RemoteAddr: in.GetAttributes().GetSource().GetAddress().String(),
-		URL:        requestURL.String(),
+		User:              string(sess),
+		Header:            hdrs,
+		Host:              hattrs.GetHost(),
+		Method:            hattrs.GetMethod(),
+		RequestURI:        requestURL.String(),
+		RemoteAddr:        in.GetAttributes().GetSource().GetAddress().String(),
+		URL:               requestURL.String(),
+		ClientCertificate: getPeerCertificate(in),
 	}
 	reply, err := a.pe.IsAuthorized(ctx, req)
 	if err != nil {
@@ -88,7 +88,12 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	evt = evt.Strs("deny-reasons", reply.GetDenyReasons())
 	evt = evt.Str("email", reply.GetEmail())
 	evt = evt.Strs("groups", reply.GetGroups())
-	evt = evt.Str("session", string(sess))
+	if sess != nil {
+		evt = evt.Str("session", string(sess))
+	}
+	if reply.GetHttpStatus() != nil {
+		evt = evt.Interface("http_status", reply.GetHttpStatus())
+	}
 	evt.Msg("authorize check")
 
 	requestHeaders = append(requestHeaders,
@@ -98,6 +103,14 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 				Value: reply.SignedJwt,
 			},
 		})
+
+	if reply.GetHttpStatus().GetCode() > 0 && reply.GetHttpStatus().GetCode() != http.StatusOK {
+		return a.deniedResponse(in,
+			reply.GetHttpStatus().GetCode(),
+			reply.GetHttpStatus().GetMessage(),
+			reply.GetHttpStatus().GetHeaders(),
+		), nil
+	}
 
 	if reply.Allow {
 		return &envoy_service_auth_v2.CheckResponse{
@@ -123,30 +136,12 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 			msg = sesserr.Error()
 		}
 		// all other errors
-		return &envoy_service_auth_v2.CheckResponse{
-			Status: &status.Status{Code: int32(codes.PermissionDenied), Message: msg},
-			HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-				DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-					Status: &envoy_type.HttpStatus{
-						Code: envoy_type.StatusCode_Forbidden,
-					},
-				},
-			},
-		}, nil
+		return a.deniedResponse(in, http.StatusForbidden, msg, nil), nil
 	}
 
 	// no redirect for forward auth, that's handled by a separate config setting
 	if isForwardAuth {
-		return &envoy_service_auth_v2.CheckResponse{
-			Status: &status.Status{Code: int32(codes.Unauthenticated)},
-			HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-				DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-					Status: &envoy_type.HttpStatus{
-						Code: envoy_type.StatusCode_Unauthorized,
-					},
-				},
-			},
-		}, nil
+		return a.deniedResponse(in, http.StatusUnauthorized, "Unauthenticated", nil), nil
 	}
 
 	signinURL := opts.AuthenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_in"})
@@ -155,25 +150,9 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	signinURL.RawQuery = q.Encode()
 	redirectTo := urlutil.NewSignedURL(opts.SharedKey, signinURL).String()
 
-	return &envoy_service_auth_v2.CheckResponse{
-		Status: &status.Status{
-			Code:    int32(codes.Unauthenticated),
-			Message: "unauthenticated",
-		},
-		HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-			DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-				Status: &envoy_type.HttpStatus{
-					Code: envoy_type.StatusCode_Found,
-				},
-				Headers: []*envoy_api_v2_core.HeaderValueOption{{
-					Header: &envoy_api_v2_core.HeaderValue{
-						Key:   "Location",
-						Value: redirectTo,
-					},
-				}},
-			},
-		},
-	}, nil
+	return a.deniedResponse(in, http.StatusFound, "Login", map[string]string{
+		"Location": redirectTo,
+	}), nil
 }
 
 func (a *Authorize) getEnvoyRequestHeaders(rawjwt []byte, isNewSession bool) ([]*envoy_api_v2_core.HeaderValueOption, error) {
@@ -328,4 +307,11 @@ func handleForwardAuth(opts config.Options, req *envoy_service_auth_v2.CheckRequ
 	}
 
 	return false
+}
+
+// getPeerCertificate gets the PEM-encoded peer certificate from the check request
+func getPeerCertificate(in *envoy_service_auth_v2.CheckRequest) string {
+	// ignore the error as we will just return the empty string in that case
+	cert, _ := url.QueryUnescape(in.GetAttributes().GetSource().GetCertificate())
+	return cert
 }

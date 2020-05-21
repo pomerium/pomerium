@@ -2,10 +2,14 @@
 // if a given request should be authorized (AuthZ).
 package authorize
 
+//go:generate ../scripts/protoc -I ../internal/grpc/authorize/ --go_out=plugins=grpc:../internal/grpc/authorize/ ../internal/grpc/authorize/authorize.proto
+
 import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"html/template"
+	"io/ioutil"
 	"sync/atomic"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
@@ -14,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
+	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -51,6 +56,7 @@ type Authorize struct {
 
 	currentOptions atomicOptions
 	currentEncoder atomicMarshalUnmarshaler
+	templates      *template.Template
 }
 
 // New validates and creates a new Authorize service from a set of config options.
@@ -58,7 +64,9 @@ func New(opts config.Options) (*Authorize, error) {
 	if err := validateOptions(opts); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
 	}
-	var a Authorize
+	a := Authorize{
+		templates: template.Must(frontend.NewTemplates()),
+	}
 
 	var host string
 	if opts.AuthenticateURL != nil {
@@ -117,12 +125,28 @@ func newPolicyEvaluator(opts *config.Options) (evaluator.Evaluator, error) {
 		jwk.Key = keyBytes
 	}
 
+	var clientCA string
+	if opts.ClientCA != "" {
+		bs, err := base64.StdEncoding.DecodeString(opts.ClientCA)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: invalid client ca: %w", err)
+		}
+		clientCA = string(bs)
+	} else if opts.ClientCAFile != "" {
+		bs, err := ioutil.ReadFile(opts.ClientCAFile)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: invalid client ca file: %w", err)
+		}
+		clientCA = string(bs)
+	}
+
 	data := map[string]interface{}{
 		"shared_key":       opts.SharedKey,
 		"route_policies":   opts.Policies,
 		"admins":           opts.Administrators,
 		"signing_key":      jwk,
 		"authenticate_url": opts.AuthenticateURLString,
+		"client_ca":        clientCA,
 	}
 
 	return opa.New(ctx, &opa.Options{Data: data})

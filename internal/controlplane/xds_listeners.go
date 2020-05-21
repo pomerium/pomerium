@@ -1,6 +1,7 @@
 package controlplane
 
 import (
+	"encoding/base64"
 	"sort"
 	"time"
 
@@ -164,6 +165,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 				},
 			},
 		},
+		IncludePeerCertificate: true,
 	})
 
 	extAuthzSetCookieLua, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
@@ -326,11 +328,28 @@ func (srv *Server) buildDownstreamTLSContext(options *config.Options, domain str
 		return nil
 	}
 
+	var trustedCA *envoy_config_core_v3.DataSource
+	if options.ClientCA != "" {
+		bs, err := base64.StdEncoding.DecodeString(options.ClientCA)
+		if err != nil {
+			log.Warn().Msg("client_ca does not appear to be a base64 encoded string")
+		}
+		trustedCA = inlineBytesAsFilename("client-ca", bs)
+	} else if options.ClientCAFile != "" {
+		trustedCA = inlineFilename(options.ClientCAFile)
+	}
+
 	envoyCert := envoyTLSCertificateFromGoTLSCertificate(cert)
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsCertificates: []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{envoyCert},
 			AlpnProtocols:   []string{"h2", "http/1.1"},
+			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+				ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+					TrustedCa:              trustedCA,
+					TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED,
+				},
+			},
 		},
 	}
 }

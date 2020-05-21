@@ -5,6 +5,10 @@ import data.shared_key
 
 default allow = false
 
+http_status = [495, "invalid client certificate"]{
+	not input.is_valid_client_certificate
+}
+
 # allow public
 allow {
 	route := first_allowed_route(input.url)

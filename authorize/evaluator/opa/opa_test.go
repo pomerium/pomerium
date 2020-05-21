@@ -5,9 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/config"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
+
+	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/config"
 )
 
 func Test_Eval(t *testing.T) {
@@ -89,11 +92,7 @@ func Test_Eval(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			req := struct {
-				Host string `json:"host,omitempty"`
-				URL  string `json:"url,omitempty"`
-				User string `json:"user,omitempty"`
-			}{
+			req := &evaluator.Request{
 				Host: tt.route,
 				URL:  "https://" + tt.route,
 				User: rawJWT,
@@ -107,4 +106,18 @@ func Test_Eval(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_anyToInt(t *testing.T) {
+	assert.Equal(t, 5, anyToInt("5"))
+	assert.Equal(t, 7, anyToInt(7))
+	assert.Equal(t, 9, anyToInt(int8(9)))
+	assert.Equal(t, 9, anyToInt(int16(9)))
+	assert.Equal(t, 9, anyToInt(int32(9)))
+	assert.Equal(t, 9, anyToInt(int64(9)))
+	assert.Equal(t, 11, anyToInt(uint8(11)))
+	assert.Equal(t, 11, anyToInt(uint16(11)))
+	assert.Equal(t, 11, anyToInt(uint32(11)))
+	assert.Equal(t, 11, anyToInt(uint64(11)))
+	assert.Equal(t, 13, anyToInt(13.0))
 }

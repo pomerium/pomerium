@@ -10,7 +10,7 @@ import (
 
 // Evaluator specifies the interface for a policy engine.
 type Evaluator interface {
-	IsAuthorized(ctx context.Context, input interface{}) (*pb.IsAuthorizedReply, error)
+	IsAuthorized(ctx context.Context, req *Request) (*pb.IsAuthorizedReply, error)
 	PutData(ctx context.Context, data map[string]interface{}) error
 }
 
@@ -43,6 +43,11 @@ type Request struct {
 	// to a server. Usually the URL field should be used instead.
 	// It is an error to set this field in an HTTP client request.
 	RequestURI string `json:"request_uri,omitempty"`
+
+	// Connection context
+	//
+	// ClientCertificate is the PEM-encoded public certificate used for the user's TLS connection.
+	ClientCertificate string `json:"client_certificate"`
 
 	// Device context
 	//

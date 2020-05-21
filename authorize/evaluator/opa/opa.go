@@ -1,4 +1,5 @@
-//go:generate statik -src=./policy -include=*.rego -ns rego -p policy
+//go:generate go run github.com/rakyll/statik -src=./policy -include=*.rego -ns rego -p policy
+//go:generate go fmt ./policy/statik.go
 
 // Package opa implements the policy evaluator interface to make authorization
 // decisions.
@@ -6,9 +7,11 @@ package opa
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"sync"
 
 	"github.com/open-policy-agent/opa/rego"
@@ -37,6 +40,7 @@ type PolicyEvaluator struct {
 	mu           sync.RWMutex
 	store        storage.Store
 	isAuthorized rego.PreparedEvalQuery
+	clientCA     string
 }
 
 // Options represent OPA's evaluator configurations.
@@ -96,10 +100,10 @@ func (pe *PolicyEvaluator) UpdatePolicy(ctx context.Context, authz string) error
 }
 
 // IsAuthorized determines if a given request input is authorized.
-func (pe *PolicyEvaluator) IsAuthorized(ctx context.Context, input interface{}) (*pb.IsAuthorizedReply, error) {
+func (pe *PolicyEvaluator) IsAuthorized(ctx context.Context, req *evaluator.Request) (*pb.IsAuthorizedReply, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.evaluator.opa.IsAuthorized")
 	defer span.End()
-	return pe.runBoolQuery(ctx, input, pe.isAuthorized)
+	return pe.runBoolQuery(ctx, req, pe.isAuthorized)
 }
 
 // PutData adds (or replaces if the mapping key is the same) contextual data
@@ -110,6 +114,11 @@ func (pe *PolicyEvaluator) PutData(ctx context.Context, data map[string]interfac
 
 	pe.mu.Lock()
 	defer pe.mu.Unlock()
+
+	if ca, ok := data["client_ca"].(string); ok {
+		pe.clientCA = ca
+	}
+
 	txn, err := pe.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		return fmt.Errorf("opa: bad transaction: %w", err)
@@ -171,12 +180,48 @@ func decisionFromInterface(i interface{}) (*pb.IsAuthorizedReply, error) {
 	if v, ok := m["signed_jwt"].(string); ok {
 		d.SignedJwt = v
 	}
+
+	// http_status = [200, "OK", { "HEADER": "VALUE" }]
+	if v, ok := m["http_status"].([]interface{}); ok {
+		d.HttpStatus = new(pb.HTTPStatus)
+		if len(v) > 0 {
+			d.HttpStatus.Code = int32(anyToInt(v[0]))
+		}
+		if len(v) > 1 {
+			if msg, ok := v[1].(string); ok {
+				d.HttpStatus.Message = msg
+			}
+		}
+		if len(v) > 2 {
+			if headers, ok := v[2].(map[string]interface{}); ok {
+				d.HttpStatus.Headers = make(map[string]string)
+				for hk, hv := range headers {
+					d.HttpStatus.Headers[hk] = fmt.Sprint(hv)
+				}
+			}
+		}
+	}
+
 	return &d, nil
 }
 
-func (pe *PolicyEvaluator) runBoolQuery(ctx context.Context, input interface{}, q rego.PreparedEvalQuery) (*pb.IsAuthorizedReply, error) {
+func (pe *PolicyEvaluator) runBoolQuery(ctx context.Context, req *evaluator.Request, q rego.PreparedEvalQuery) (*pb.IsAuthorizedReply, error) {
 	pe.mu.RLock()
 	defer pe.mu.RUnlock()
+
+	// `opa test` doesn't support custom function, so we'll pre-compute is_valid_client_certificate
+	isValid, err := isValidClientCertificate(pe.clientCA, req.ClientCertificate)
+	if err != nil {
+		return nil, fmt.Errorf("certificate error: %w", err)
+	}
+	input := struct {
+		*evaluator.Request
+		IsValidClientCertificate bool `json:"is_valid_client_certificate"`
+	}{
+		Request:                  req,
+		IsValidClientCertificate: isValid,
+	}
+
 	rs, err := q.Eval(ctx, rego.EvalInput(input))
 	if err != nil {
 		return nil, fmt.Errorf("eval query: %w", err)
@@ -198,4 +243,36 @@ func readPolicy(fn string) ([]byte, error) {
 	}
 	defer r.Close()
 	return ioutil.ReadAll(r)
+}
+
+func anyToInt(obj interface{}) int {
+	switch v := obj.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case int32:
+		return int(v)
+	case int16:
+		return int(v)
+	case int8:
+		return int(v)
+	case uint64:
+		return int(v)
+	case uint32:
+		return int(v)
+	case uint16:
+		return int(v)
+	case uint8:
+		return int(v)
+	case json.Number:
+		i, _ := v.Int64()
+		return int(i)
+	case string:
+		i, _ := strconv.Atoi(v)
+		return i
+	default:
+		i, _ := strconv.Atoi(fmt.Sprint(v))
+		return i
+	}
 }
