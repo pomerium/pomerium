@@ -54,7 +54,7 @@ func NewTracingOptions(o *Options) (*TracingOptions, error) {
 		if o.TracingJaegerCollectorEndpoint != "" {
 			jaegerCollectorEndpoint, err := urlutil.ParseAndValidateURL(o.TracingJaegerCollectorEndpoint)
 			if err != nil {
-				return nil, fmt.Errorf("config: invalid zipkin endpoint url: %w", err)
+				return nil, fmt.Errorf("config: invalid jaeger endpoint url: %w", err)
 			}
 			tracingOpts.JaegerCollectorEndpoint = jaegerCollectorEndpoint
 			tracingOpts.JaegerAgentEndpoint = o.TracingJaegerAgentEndpoint
