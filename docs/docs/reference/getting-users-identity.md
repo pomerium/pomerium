@@ -16,7 +16,7 @@ To secure your app with signed headers, you'll need the following:
 
 ## Verification
 
-A JWT attesting to the authorization of a given request is added to the downstream HTTP request header `x-pomerium-jwt-assertion`. You should verify that the JWT contains at least the following claims:
+If the [signing key configuration setting] is set, A JWT attesting to the authorization of a given request is added to the downstream HTTP request header `x-pomerium-jwt-assertion`. You should verify that the JWT contains at least the following claims:
 
  [JWT]   | description
 :------: | ------------------------------------------------------------------------------------------------------
@@ -28,11 +28,32 @@ A JWT attesting to the authorization of a given request is added to the downstre
 `email`  | Email is the user's email. Can be used instead of the `x-pomerium-authenticated-user-email` header.
 `groups` | Groups is the user's groups. Can be used instead of the `x-pomerium-authenticated-user-groups` header.
 
+If set, the signing key's public key will can be consumed by hitting Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. A `jwks_uri` is useful when integrating with other systems like [istio](https://istio.io/docs/reference/config/security/istio.authentication.v1alpha1/). For example:
+
+```bash
+$ curl https://authenticate.int.example.com/.well-known/pomerium/jwks.json | jq
+```
+
+````json
+{
+  "keys": [
+    {
+      "use": "sig",
+      "kty": "EC",
+      "kid": "ccc5bc9d835ff3c8f7075ed4a7510159cf440fd7bf7b517b5caeb1fa419ee6a1",
+      "crv": "P-256",
+      "alg": "ES256",
+      "x": "QCN7adG2AmIK3UdHJvVJkldsUc6XeBRz83Z4rXX8Va4",
+      "y": "PI95b-ary66nrvA55TpaiWADq8b3O1CYIbvjqIHpXCY"
+    }
+  ]
+}
+
 ### Manual verification
 
 Though you will very likely be verifying signed-headers programmatically in your application's middleware, and using a third-party JWT library, if you are new to JWT it may be helpful to show what manual verification looks like.
 
-1. Provide pomerium with a base64 encoded Elliptic Curve ([NIST P-256] aka [secp256r1] aka prime256v1) Private Key. In production, you'd likely want to get these from your KMS.
+1\. Provide pomerium with a base64 encoded Elliptic Curve ([NIST P-256] aka [secp256r1] aka prime256v1) Private Key. In production, you'd likely want to get these from your KMS.
 
 ```bash
 # see ./scripts/generate_self_signed_signing_key.sh
@@ -40,7 +61,7 @@ openssl ecparam  -genkey  -name prime256v1  -noout  -out ec_private.pem
 openssl req  -x509  -new  -key ec_private.pem  -days 1000000  -out ec_public.pem  -subj "/CN=unused"
 # careful! this will output your private key in terminal
 cat ec_private.pem | base64
-```
+````
 
 Copy the base64 encoded value of your private key to `pomerium-proxy`'s environmental configuration variable `SIGNING_KEY`.
 
@@ -88,3 +109,4 @@ In the future, we will be adding example client implementations for:
 [key management service]: https://en.wikipedia.org/wiki/Key_management
 [nist p-256]: https://csrc.nist.gov/csrc/media/events/workshop-on-elliptic-curve-cryptography-standards/documents/papers/session6-adalier-mehmet.pdf
 [secp256r1]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations
+[signing key configuration setting]: ./../../configuration/readme.md#signing-key
