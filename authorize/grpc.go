@@ -88,7 +88,9 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	evt = evt.Strs("deny-reasons", reply.GetDenyReasons())
 	evt = evt.Str("email", reply.GetEmail())
 	evt = evt.Strs("groups", reply.GetGroups())
-	evt = evt.Str("session", string(sess))
+	if sess != nil {
+		evt = evt.Str("session", string(sess))
+	}
 	if reply.GetHttpStatus() != nil {
 		evt = evt.Interface("http_status", reply.GetHttpStatus())
 	}

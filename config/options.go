@@ -240,7 +240,7 @@ type Options struct {
 
 	// ClientCA is the base64-encoded certificate authority to validate client mTLS certificates against.
 	ClientCA string `mapstructure:"client_ca" yaml:"client_ca,omitempty"`
-	// ClientCAFile a file that contains the certificate authority to validate client mTLS certificates against.\
+	// ClientCAFile points to a file that contains the certificate authority to validate client mTLS certificates against.
 	ClientCAFile string `mapstructure:"client_ca_file" yaml:"client_ca_file,omitempty"`
 
 	viper *viper.Viper
@@ -565,6 +565,18 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad cert file %w", err)
 		}
 		o.Certificates = append(o.Certificates, *cert)
+	}
+
+	if o.ClientCA != "" {
+		if _, err := base64.StdEncoding.DecodeString(o.ClientCA); err != nil {
+			return fmt.Errorf("config: bad client ca base64: %w", err)
+		}
+	}
+
+	if o.ClientCAFile != "" {
+		if _, err := os.Stat(o.ClientCAFile); err != nil {
+			return fmt.Errorf("config: bad client ca file: %w", err)
+		}
 	}
 
 	RedirectAndAutocertServer.update(o)
