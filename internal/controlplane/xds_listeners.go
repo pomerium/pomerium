@@ -335,7 +335,7 @@ func (srv *Server) buildDownstreamTLSContext(options *config.Options, domain str
 			log.Warn().Msg("client_ca does not appear to be a base64 encoded string")
 		}
 		trustedCA = inlineBytesAsFilename("client-ca", bs)
-	} else {
+	} else if options.ClientCAFile != "" {
 		trustedCA = inlineFilename(options.ClientCAFile)
 	}
 
