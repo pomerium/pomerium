@@ -10,6 +10,8 @@ import (
 	"html/template"
 	"net/url"
 
+	"gopkg.in/square/go-jose.v2"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -95,6 +97,8 @@ type Authenticate struct {
 	// cacheClient is the interface for setting and getting sessions from a cache
 	cacheClient cache.Cacher
 
+	jwk *jose.JSONWebKeySet
+
 	templates *template.Template
 }
 
@@ -166,7 +170,7 @@ func New(opts config.Options) (*Authenticate, error) {
 		return nil, err
 	}
 
-	return &Authenticate{
+	a := &Authenticate{
 		RedirectURL: redirectURL,
 		// shared state
 		sharedKey:     opts.SharedKey,
@@ -183,7 +187,21 @@ func New(opts config.Options) (*Authenticate, error) {
 		provider: provider,
 		// grpc client for cache
 		cacheClient: cacheClient,
+		jwk:         &jose.JSONWebKeySet{},
+		templates:   template.Must(frontend.NewTemplates()),
+	}
 
-		templates: template.Must(frontend.NewTemplates()),
-	}, nil
+	if opts.SigningKey != "" {
+		decodedCert, err := base64.StdEncoding.DecodeString(opts.SigningKey)
+		if err != nil {
+			return nil, fmt.Errorf("authenticate: failed to decode signing key: %w", err)
+		}
+		jwk, err := cryptutil.PublicJWKFromBytes(decodedCert, jose.ES256)
+		if err != nil {
+			return nil, fmt.Errorf("authenticate: failed to convert jwks: %w", err)
+		}
+		a.jwk.Keys = append(a.jwk.Keys, *jwk)
+	}
+
+	return a, nil
 }
