@@ -11,6 +11,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var statsHandler = &ocgrpc.ServerHandler{}
+
 type testProto struct {
 	message string
 }
@@ -118,15 +120,17 @@ func Test_GRPCClientInterceptor(t *testing.T) {
 	}
 }
 
-func mockServerRPCHandle(statsHandler stats.Handler, method string, errorCode error) {
+func mockServerRPCHandle(metricsHandler *GRPCServerMetricsHandler, method string, errorCode error) {
 	message := "hello"
 	ctx := statsHandler.TagRPC(context.Background(), &stats.RPCTagInfo{FullMethodName: method})
+	ctx = metricsHandler.TagRPC(ctx, &stats.RPCTagInfo{FullMethodName: method})
+
 	statsHandler.HandleRPC(ctx, &stats.InPayload{Client: false, Length: len(message)})
 	statsHandler.HandleRPC(ctx, &stats.OutPayload{Client: false, Length: len(message)})
 	statsHandler.HandleRPC(ctx, &stats.End{Client: false, Error: errorCode})
 
 }
-func Test_GRPCServerStatsHandler(t *testing.T) {
+func Test_GRPCServerMetricsHandler(t *testing.T) {
 	tests := []struct {
 		name                          string
 		method                        string
@@ -171,8 +175,8 @@ func Test_GRPCServerStatsHandler(t *testing.T) {
 			view.Unregister(GRPCServerViews...)
 			view.Register(GRPCServerViews...)
 
-			statsHandler := NewGRPCServerStatsHandler("test_service")
-			mockServerRPCHandle(statsHandler, tt.method, tt.errorCode)
+			metricsHandler := NewGRPCServerMetricsHandler("test_service")
+			mockServerRPCHandle(metricsHandler, tt.method, tt.errorCode)
 
 			testDataRetrieval(GRPCServerResponseSizeView, t, tt.wantgrpcServerResponseSize)
 			testDataRetrieval(GRPCServerRequestDurationView, t, tt.wantgrpcServerRequestDuration)
