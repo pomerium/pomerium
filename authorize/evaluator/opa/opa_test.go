@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
 
@@ -105,4 +106,18 @@ func Test_Eval(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_anyToInt(t *testing.T) {
+	assert.Equal(t, 5, anyToInt("5"))
+	assert.Equal(t, 7, anyToInt(7))
+	assert.Equal(t, 9, anyToInt(int8(9)))
+	assert.Equal(t, 9, anyToInt(int16(9)))
+	assert.Equal(t, 9, anyToInt(int32(9)))
+	assert.Equal(t, 9, anyToInt(int64(9)))
+	assert.Equal(t, 11, anyToInt(uint8(11)))
+	assert.Equal(t, 11, anyToInt(uint16(11)))
+	assert.Equal(t, 11, anyToInt(uint32(11)))
+	assert.Equal(t, 11, anyToInt(uint64(11)))
+	assert.Equal(t, 13, anyToInt(13.0))
 }

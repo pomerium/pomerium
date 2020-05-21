@@ -272,6 +272,7 @@ func anyToInt(obj interface{}) int {
 		i, _ := strconv.Atoi(v)
 		return i
 	default:
-		return anyToInt(fmt.Sprint(v))
+		i, _ := strconv.Atoi(fmt.Sprint(v))
+		return i
 	}
 }
