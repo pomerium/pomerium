@@ -10,16 +10,12 @@ import (
 	prom "github.com/prometheus/client_golang/prometheus"
 	"go.opencensus.io/stats/view"
 
-	"github.com/pomerium/pomerium/internal/envoy"
 	log "github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/urlutil"
 )
-
-var envoyURL = envoy.EnvoyAdminURL
 
 // PrometheusHandler creates an exporter that exports stats to Prometheus
 // and returns a handler suitable for exporting metrics.
-func PrometheusHandler() (http.Handler, error) {
+func PrometheusHandler(envoyURL *url.URL) (http.Handler, error) {
 	if err := registerDefaultViews(); err != nil {
 		return nil, fmt.Errorf("telemetry/metrics: failed registering views")
 	}
@@ -35,7 +31,7 @@ func PrometheusHandler() (http.Handler, error) {
 	view.RegisterExporter(exporter)
 	mux := http.NewServeMux()
 
-	envoyMetricsURL, err := urlutil.ParseAndValidateURL(fmt.Sprintf("%s/stats/prometheus", envoyURL))
+	envoyMetricsURL, err := envoyURL.Parse("/stats/prometheus")
 	if err != nil {
 		return nil, fmt.Errorf("telemetry/metrics: invalid proxy URL: %w", err)
 	}
