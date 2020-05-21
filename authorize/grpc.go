@@ -102,7 +102,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 			},
 		})
 
-	if reply.GetHttpStatus().GetCode() > 0 && reply.GetHttpStatus().GetCode() != 200 {
+	if reply.GetHttpStatus().GetCode() > 0 && reply.GetHttpStatus().GetCode() != http.StatusOK {
 		return a.deniedResponse(in,
 			reply.GetHttpStatus().GetCode(),
 			reply.GetHttpStatus().GetMessage(),
