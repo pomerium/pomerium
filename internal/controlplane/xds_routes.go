@@ -13,7 +13,6 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 func (srv *Server) buildGRPCRoutes() []*envoy_config_route_v3.Route {
@@ -47,12 +46,12 @@ func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain strin
 		srv.buildControlPlanePrefixRoute("/.pomerium/"),
 	}
 	// if we're handling authentication, add the oauth2 callback url
-	if config.IsAuthenticate(options.Services) && domain == urlutil.StripPort(options.AuthenticateURL.Host) {
+	if config.IsAuthenticate(options.Services) && domain == options.AuthenticateURL.Host {
 		routes = append(routes,
 			srv.buildControlPlanePathRoute(options.AuthenticateCallbackPath))
 	}
 	// if we're the proxy and this is the forward-auth url
-	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && domain == urlutil.StripPort(options.ForwardAuthURL.Host) {
+	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && domain == options.ForwardAuthURL.Host {
 		routes = append(routes,
 			srv.buildControlPlanePrefixRoute("/"))
 	}

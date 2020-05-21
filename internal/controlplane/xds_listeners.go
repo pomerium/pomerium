@@ -20,7 +20,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 var disableExtAuthz *any.Any
@@ -125,8 +124,8 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 
 		if options.Addr == options.GRPCAddr {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && domain == urlutil.StripPort(options.AuthorizeURL.Host)) ||
-				(config.IsCache(options.Services) && domain == urlutil.StripPort(options.CacheURL.Host)) {
+			if (config.IsAuthorize(options.Services) && domain == options.AuthorizeURL.Host) ||
+				(config.IsCache(options.Services) && domain == options.CacheURL.Host) {
 				vh.Routes = append(vh.Routes, srv.buildGRPCRoutes()...)
 			}
 		}
