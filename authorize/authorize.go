@@ -2,6 +2,8 @@
 // if a given request should be authorized (AuthZ).
 package authorize
 
+//go:generate ../scripts/protoc -I ../internal/grpc/authorize/ --go_out=plugins=grpc:../internal/grpc/authorize/ ../internal/grpc/authorize/authorize.proto
+
 import (
 	"context"
 	"encoding/base64"
@@ -23,8 +25,6 @@ import (
 
 	"gopkg.in/square/go-jose.v2"
 )
-
-//go:generate ../scripts/protoc -I ../internal/grpc/authorize/ --go_out=plugins=grpc:../internal/grpc/authorize/ ../internal/grpc/authorize/authorize.proto
 
 type atomicOptions struct {
 	value atomic.Value
