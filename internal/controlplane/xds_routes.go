@@ -100,7 +100,7 @@ func (srv *Server) buildControlPlanePrefixRoute(prefix string) *envoy_config_rou
 func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	var routes []*envoy_config_route_v3.Route
 	for i, policy := range options.Policies {
-		if policy.Source.Hostname() != domain {
+		if policy.Source.Host != domain {
 			continue
 		}
 
@@ -122,7 +122,6 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) []*
 		default:
 			match.PathSpecifier = &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"}
 		}
-
 		clusterName := getPolicyName(&policy)
 
 		var requestHeadersToAdd []*envoy_config_core_v3.HeaderValueOption

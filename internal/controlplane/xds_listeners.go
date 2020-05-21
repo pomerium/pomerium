@@ -336,20 +336,20 @@ func (srv *Server) buildDownstreamTLSContext(options *config.Options, domain str
 func (srv *Server) getAllRouteableDomains(options *config.Options, addr string) []string {
 	lookup := map[string]struct{}{}
 	if config.IsAuthenticate(options.Services) && addr == options.Addr {
-		lookup[urlutil.StripPort(options.AuthenticateURL.Host)] = struct{}{}
+		lookup[options.AuthenticateURL.Host] = struct{}{}
 	}
 	if config.IsAuthorize(options.Services) && addr == options.GRPCAddr {
-		lookup[urlutil.StripPort(options.AuthorizeURL.Host)] = struct{}{}
+		lookup[options.AuthorizeURL.Host] = struct{}{}
 	}
 	if config.IsCache(options.Services) && addr == options.GRPCAddr {
-		lookup[urlutil.StripPort(options.CacheURL.Host)] = struct{}{}
+		lookup[options.CacheURL.Host] = struct{}{}
 	}
 	if config.IsProxy(options.Services) && addr == options.Addr {
 		for _, policy := range options.Policies {
-			lookup[urlutil.StripPort(policy.Source.Host)] = struct{}{}
+			lookup[policy.Source.Host] = struct{}{}
 		}
 		if options.ForwardAuthURL != nil {
-			lookup[urlutil.StripPort(options.ForwardAuthURL.Host)] = struct{}{}
+			lookup[options.ForwardAuthURL.Host] = struct{}{}
 		}
 	}
 
