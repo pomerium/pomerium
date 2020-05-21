@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+
 	"github.com/gorilla/mux"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -60,6 +62,7 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 	srv.GRPCServer = grpc.NewServer(
+		grpc.StatsHandler(metrics.NewGRPCServerStatsHandler("control_plane")),
 		grpc.UnaryInterceptor(requestid.UnaryServerInterceptor()),
 		grpc.StreamInterceptor(requestid.StreamServerInterceptor()),
 	)
