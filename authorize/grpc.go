@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/grpc/authorize"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -60,13 +61,14 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
-		User:       string(sess),
-		Header:     hdrs,
-		Host:       hattrs.GetHost(),
-		Method:     hattrs.GetMethod(),
-		RequestURI: requestURL.String(),
-		RemoteAddr: in.GetAttributes().GetSource().GetAddress().String(),
-		URL:        requestURL.String(),
+		User:              string(sess),
+		Header:            hdrs,
+		Host:              hattrs.GetHost(),
+		Method:            hattrs.GetMethod(),
+		RequestURI:        requestURL.String(),
+		RemoteAddr:        in.GetAttributes().GetSource().GetAddress().String(),
+		URL:               requestURL.String(),
+		ClientCertificate: getPeerCertificate(in),
 	}
 	reply, err := a.pe.IsAuthorized(ctx, req)
 	if err != nil {
@@ -89,6 +91,9 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	evt = evt.Str("email", reply.GetEmail())
 	evt = evt.Strs("groups", reply.GetGroups())
 	evt = evt.Str("session", string(sess))
+	if reply.GetHttpStatus() != nil {
+		evt = evt.Interface("http_status", reply.GetHttpStatus())
+	}
 	evt.Msg("authorize check")
 
 	requestHeaders = append(requestHeaders,
@@ -98,6 +103,10 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 				Value: reply.SignedJwt,
 			},
 		})
+
+	if reply.GetHttpStatus().GetCode() > 0 && reply.GetHttpStatus().GetCode() != 200 {
+		return httpStatusToCheckResponse(reply.GetHttpStatus()), nil
+	}
 
 	if reply.Allow {
 		return &envoy_service_auth_v2.CheckResponse{
@@ -328,4 +337,35 @@ func handleForwardAuth(opts config.Options, req *envoy_service_auth_v2.CheckRequ
 	}
 
 	return false
+}
+
+func httpStatusToCheckResponse(httpStatus *authorize.HTTPStatus) *envoy_service_auth_v2.CheckResponse {
+	var headers []*envoy_api_v2_core.HeaderValueOption
+	for k, v := range httpStatus.GetHeaders() {
+		headers = append(headers, &envoy_api_v2_core.HeaderValueOption{
+			Header: &envoy_api_v2_core.HeaderValue{
+				Key:   k,
+				Value: v,
+			},
+		})
+	}
+	return &envoy_service_auth_v2.CheckResponse{
+		Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
+		HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
+			DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
+				Status: &envoy_type.HttpStatus{
+					Code: envoy_type.StatusCode(httpStatus.GetCode()),
+				},
+				Headers: headers,
+				Body:    httpStatus.GetMessage(),
+			},
+		},
+	}
+}
+
+// getPeerCertificate gets the PEM-encoded peer certificate from the check request
+func getPeerCertificate(in *envoy_service_auth_v2.CheckRequest) string {
+	// ignore the error as we will just return the empty string in that case
+	cert, _ := url.QueryUnescape(in.GetAttributes().GetSource().GetCertificate())
+	return cert
 }

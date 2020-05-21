@@ -238,6 +238,11 @@ type Options struct {
 	// CacheStorePath is the path to use for a given cache store. e.g. /etc/bolt.db
 	CacheStorePath string `mapstructure:"cache_store_path" yaml:"cache_store_path,omitempty"`
 
+	// ClientCA is the base64-encoded certificate authority to validate client mTLS certificates against.
+	ClientCA string `mapstructure:"client_ca" yaml:"client_ca,omitempty"`
+	// ClientCAFile a file that contains the certificate authority to validate client mTLS certificates against.\
+	ClientCAFile string `mapstructure:"client_ca_file" yaml:"client_ca_file,omitempty"`
+
 	viper *viper.Viper
 }
 

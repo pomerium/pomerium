@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+_protoc_version="3.12.1"
+_protoc_path="/tmp/pomerium-protoc/protoc-$_protoc_version"
+_os="linux"
+if [ "$(uname -s)" == "Darwin" ]; then
+  _os="osx"
+fi
+
+if [ ! -f "$_protoc_path" ]; then
+  echo "downloading protoc"
+  mkdir -p "/tmp/pomerium-protoc"
+  curl -L \
+    -o protoc.zip \
+    "https://github.com/protocolbuffers/protobuf/releases/download/v$_protoc_version/protoc-$_protoc_version-$_os-x86_64.zip"
+  unzip -p protoc.zip bin/protoc >"$_protoc_path"
+fi
+chmod +x "$_protoc_path"
+
+exec "$_protoc_path" --plugin="protoc-gen-go=$_dir/protoc-gen-go" "$@"

@@ -44,6 +44,11 @@ type Request struct {
 	// It is an error to set this field in an HTTP client request.
 	RequestURI string `json:"request_uri,omitempty"`
 
+	// Connection context
+	//
+	// ClientCertificate is the PEM-encoded public certificate used for the user's TLS connection.
+	ClientCertificate string `json:"client_certificate"`
+
 	// Device context
 	//
 	// todo(bdd):  Use the peer TLS certificate to bind device state with a request

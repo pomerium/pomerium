@@ -164,6 +164,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 				},
 			},
 		},
+		IncludePeerCertificate: true,
 	})
 
 	extAuthzSetCookieLua, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
@@ -331,6 +332,11 @@ func (srv *Server) buildDownstreamTLSContext(options *config.Options, domain str
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsCertificates: []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{envoyCert},
 			AlpnProtocols:   []string{"h2", "http/1.1"},
+			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+				ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+					TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED,
+				},
+			},
 		},
 	}
 }

@@ -1,4 +1,4 @@
-//go:generate protoc -I ../internal/grpc/cache/ --go_out=plugins=grpc:../internal/grpc/cache/ ../internal/grpc/cache/cache.proto
+//go:generate ../scripts/protoc -I ../internal/grpc/cache/ --go_out=plugins=grpc:../internal/grpc/cache/ ../internal/grpc/cache/cache.proto
 
 package cache
 
@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/grpc/cache"

@@ -1,4 +1,5 @@
-//go:generate statik -src=./policy -include=*.rego -ns rego -p policy
+//go:generate go run github.com/rakyll/statik -src=./policy -include=*.rego -ns rego -p policy
+//go:generate go fmt ./policy/statik.go
 
 // Package opa implements the policy evaluator interface to make authorization
 // decisions.
@@ -6,14 +7,18 @@ package opa
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"sync"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/types"
 	"github.com/rakyll/statik/fs"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
@@ -87,6 +92,31 @@ func (pe *PolicyEvaluator) UpdatePolicy(ctx context.Context, authz string) error
 		rego.Store(pe.store),
 		rego.Module("pomerium.authz", authz),
 		rego.Query("result = data.pomerium.authz"),
+		rego.Function2(
+			&rego.Function{
+				Name: "pomerium.is_valid_client_certificate",
+				Decl: types.NewFunction(types.Args(types.S, types.S), types.B),
+			},
+			func(_ rego.BuiltinContext, ca, cert *ast.Term) (*ast.Term, error) {
+				caStr, ok := ca.Value.(ast.String)
+				if !ok {
+					return nil, nil
+				}
+				certStr, ok := cert.Value.(ast.String)
+				if !ok {
+					return nil, nil
+				}
+
+				valid, err := isValidClientCertificate(
+					string(caStr),
+					string(certStr),
+				)
+				if err != nil {
+					return nil, err
+				}
+				return ast.BooleanTerm(valid), nil
+			},
+		),
 	)
 	pe.isAuthorized, err = r.PrepareForEval(ctx)
 	if err != nil {
@@ -171,6 +201,28 @@ func decisionFromInterface(i interface{}) (*pb.IsAuthorizedReply, error) {
 	if v, ok := m["signed_jwt"].(string); ok {
 		d.SignedJwt = v
 	}
+
+	// http_status = [200, "OK", { "HEADER": "VALUE" }]
+	if v, ok := m["http_status"].([]interface{}); ok {
+		d.HttpStatus = new(pb.HTTPStatus)
+		if len(v) > 0 {
+			d.HttpStatus.Code = int32(anyToInt(v[0]))
+		}
+		if len(v) > 1 {
+			if msg, ok := v[0].(string); ok {
+				d.HttpStatus.Message = msg
+			}
+		}
+		if len(v) > 2 {
+			if headers, ok := v[0].(map[string]interface{}); ok {
+				d.HttpStatus.Headers = make(map[string]string)
+				for hk, hv := range headers {
+					d.HttpStatus.Headers[hk] = fmt.Sprint(hv)
+				}
+			}
+		}
+	}
+
 	return &d, nil
 }
 
@@ -198,4 +250,35 @@ func readPolicy(fn string) ([]byte, error) {
 	}
 	defer r.Close()
 	return ioutil.ReadAll(r)
+}
+
+func anyToInt(obj interface{}) int {
+	switch v := obj.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case int32:
+		return int(v)
+	case int16:
+		return int(v)
+	case int8:
+		return int(v)
+	case uint64:
+		return int(v)
+	case uint32:
+		return int(v)
+	case uint16:
+		return int(v)
+	case uint8:
+		return int(v)
+	case json.Number:
+		i, _ := v.Int64()
+		return int(i)
+	case string:
+		i, _ := strconv.Atoi(v)
+		return i
+	default:
+		return anyToInt(fmt.Sprint(v))
+	}
 }

@@ -5,6 +5,10 @@ import data.shared_key
 
 default allow = false
 
+http_status = [495, "invalid client certificate"]{
+	not pomerium.is_valid_client_certificate(data.client_ca, input.client_certificate)
+}
+
 # allow public
 allow {
 	route := first_allowed_route(input.url)
