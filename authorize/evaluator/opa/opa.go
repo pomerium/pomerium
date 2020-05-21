@@ -209,12 +209,12 @@ func decisionFromInterface(i interface{}) (*pb.IsAuthorizedReply, error) {
 			d.HttpStatus.Code = int32(anyToInt(v[0]))
 		}
 		if len(v) > 1 {
-			if msg, ok := v[0].(string); ok {
+			if msg, ok := v[1].(string); ok {
 				d.HttpStatus.Message = msg
 			}
 		}
 		if len(v) > 2 {
-			if headers, ok := v[0].(map[string]interface{}); ok {
+			if headers, ok := v[2].(map[string]interface{}); ok {
 				d.HttpStatus.Headers = make(map[string]string)
 				for hk, hv := range headers {
 					d.HttpStatus.Headers[hk] = fmt.Sprint(hv)

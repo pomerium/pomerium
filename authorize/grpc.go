@@ -11,7 +11,6 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/grpc/authorize"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -21,7 +20,6 @@ import (
 
 	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
-	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 )
@@ -105,7 +103,11 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 		})
 
 	if reply.GetHttpStatus().GetCode() > 0 && reply.GetHttpStatus().GetCode() != 200 {
-		return httpStatusToCheckResponse(reply.GetHttpStatus()), nil
+		return a.deniedResponse(in,
+			reply.GetHttpStatus().GetCode(),
+			reply.GetHttpStatus().GetMessage(),
+			reply.GetHttpStatus().GetHeaders(),
+		), nil
 	}
 
 	if reply.Allow {
@@ -132,30 +134,12 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 			msg = sesserr.Error()
 		}
 		// all other errors
-		return &envoy_service_auth_v2.CheckResponse{
-			Status: &status.Status{Code: int32(codes.PermissionDenied), Message: msg},
-			HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-				DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-					Status: &envoy_type.HttpStatus{
-						Code: envoy_type.StatusCode_Forbidden,
-					},
-				},
-			},
-		}, nil
+		return a.deniedResponse(in, http.StatusForbidden, msg, nil), nil
 	}
 
 	// no redirect for forward auth, that's handled by a separate config setting
 	if isForwardAuth {
-		return &envoy_service_auth_v2.CheckResponse{
-			Status: &status.Status{Code: int32(codes.Unauthenticated)},
-			HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-				DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-					Status: &envoy_type.HttpStatus{
-						Code: envoy_type.StatusCode_Unauthorized,
-					},
-				},
-			},
-		}, nil
+		return a.deniedResponse(in, http.StatusUnauthorized, "Unauthenticated", nil), nil
 	}
 
 	signinURL := opts.AuthenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_in"})
@@ -164,25 +148,9 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	signinURL.RawQuery = q.Encode()
 	redirectTo := urlutil.NewSignedURL(opts.SharedKey, signinURL).String()
 
-	return &envoy_service_auth_v2.CheckResponse{
-		Status: &status.Status{
-			Code:    int32(codes.Unauthenticated),
-			Message: "unauthenticated",
-		},
-		HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-			DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-				Status: &envoy_type.HttpStatus{
-					Code: envoy_type.StatusCode_Found,
-				},
-				Headers: []*envoy_api_v2_core.HeaderValueOption{{
-					Header: &envoy_api_v2_core.HeaderValue{
-						Key:   "Location",
-						Value: redirectTo,
-					},
-				}},
-			},
-		},
-	}, nil
+	return a.deniedResponse(in, http.StatusFound, "Login", map[string]string{
+		"Location": redirectTo,
+	}), nil
 }
 
 func (a *Authorize) getEnvoyRequestHeaders(rawjwt []byte, isNewSession bool) ([]*envoy_api_v2_core.HeaderValueOption, error) {
@@ -337,30 +305,6 @@ func handleForwardAuth(opts config.Options, req *envoy_service_auth_v2.CheckRequ
 	}
 
 	return false
-}
-
-func httpStatusToCheckResponse(httpStatus *authorize.HTTPStatus) *envoy_service_auth_v2.CheckResponse {
-	var headers []*envoy_api_v2_core.HeaderValueOption
-	for k, v := range httpStatus.GetHeaders() {
-		headers = append(headers, &envoy_api_v2_core.HeaderValueOption{
-			Header: &envoy_api_v2_core.HeaderValue{
-				Key:   k,
-				Value: v,
-			},
-		})
-	}
-	return &envoy_service_auth_v2.CheckResponse{
-		Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
-		HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-			DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-				Status: &envoy_type.HttpStatus{
-					Code: envoy_type.StatusCode(httpStatus.GetCode()),
-				},
-				Headers: headers,
-				Body:    httpStatus.GetMessage(),
-			},
-		},
-	}
 }
 
 // getPeerCertificate gets the PEM-encoded peer certificate from the check request

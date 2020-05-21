@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"sync/atomic"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
+	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -54,6 +56,7 @@ type Authorize struct {
 
 	currentOptions atomicOptions
 	currentEncoder atomicMarshalUnmarshaler
+	templates      *template.Template
 }
 
 // New validates and creates a new Authorize service from a set of config options.
@@ -61,7 +64,9 @@ func New(opts config.Options) (*Authorize, error) {
 	if err := validateOptions(opts); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
 	}
-	var a Authorize
+	a := Authorize{
+		templates: template.Must(frontend.NewTemplates()),
+	}
 
 	var host string
 	if opts.AuthenticateURL != nil {
