@@ -16,7 +16,7 @@ To secure your app with signed headers, you'll need the following:
 
 ## Verification
 
-If the [signing key configuration setting] is set, A JWT attesting to the authorization of a given request is added to the downstream HTTP request header `x-pomerium-jwt-assertion`. You should verify that the JWT contains at least the following claims:
+If a [signing key] is set, the user's associated identity information will be included in a signed attestation JWT that will be added to each requests's upstream header `x-pomerium-jwt-assertion`. You should verify that the JWT contains at least the following claims:
 
  [JWT]   | description
 :------: | ------------------------------------------------------------------------------------------------------
@@ -28,13 +28,13 @@ If the [signing key configuration setting] is set, A JWT attesting to the author
 `email`  | Email is the user's email. Can be used instead of the `x-pomerium-authenticated-user-email` header.
 `groups` | Groups is the user's groups. Can be used instead of the `x-pomerium-authenticated-user-groups` header.
 
-If set, the signing key's public key will can be consumed by hitting Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. A `jwks_uri` is useful when integrating with other systems like [istio](https://istio.io/docs/reference/config/security/istio.authentication.v1alpha1/). For example:
+The attestation JWT's signature can be verified using the public key which can be retrieved at Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. A `jwks_uri` is useful when integrating with other systems like [istio](https://istio.io/docs/reference/config/security/istio.authentication.v1alpha1/). For example:
 
 ```bash
 $ curl https://authenticate.int.example.com/.well-known/pomerium/jwks.json | jq
 ```
 
-````json
+```json
 {
   "keys": [
     {
@@ -48,6 +48,7 @@ $ curl https://authenticate.int.example.com/.well-known/pomerium/jwks.json | jq
     }
   ]
 }
+```
 
 ### Manual verification
 
@@ -61,7 +62,7 @@ openssl ecparam  -genkey  -name prime256v1  -noout  -out ec_private.pem
 openssl req  -x509  -new  -key ec_private.pem  -days 1000000  -out ec_public.pem  -subj "/CN=unused"
 # careful! this will output your private key in terminal
 cat ec_private.pem | base64
-````
+```
 
 Copy the base64 encoded value of your private key to `pomerium-proxy`'s environmental configuration variable `SIGNING_KEY`.
 
@@ -109,4 +110,4 @@ In the future, we will be adding example client implementations for:
 [key management service]: https://en.wikipedia.org/wiki/Key_management
 [nist p-256]: https://csrc.nist.gov/csrc/media/events/workshop-on-elliptic-curve-cryptography-standards/documents/papers/session6-adalier-mehmet.pdf
 [secp256r1]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations
-[signing key configuration setting]: ./../../configuration/readme.md#signing-key
+[signing key]: ./../../configuration/readme.md#signing-key
