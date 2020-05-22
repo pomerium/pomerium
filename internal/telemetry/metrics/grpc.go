@@ -4,12 +4,13 @@ import (
 	"context"
 	"strings"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 	"google.golang.org/grpc"
 	grpcstats "google.golang.org/grpc/stats"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // GRPC Views
@@ -110,6 +111,9 @@ var (
 
 // GRPCClientInterceptor creates a UnaryClientInterceptor which updates the RPC
 // context with metric tag metadata
+//
+// TODO: This handler will NOT currently propagate B3 headers to upstream servers.  See
+// GRPCServerStatsHandler for changes required
 func GRPCClientInterceptor(service string) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
@@ -147,17 +151,18 @@ func GRPCClientInterceptor(service string) grpc.UnaryClientInterceptor {
 
 }
 
-// GRPCServerStatsHandler provides a grpc stats.Handler for a pomerium service to add tags and track
-// metrics to server side calls
-type GRPCServerStatsHandler struct {
+// GRPCServerMetricsHandler implements a telemetry tagRPCHandler methods for metrics
+type GRPCServerMetricsHandler struct {
 	service string
-	grpcstats.Handler
 }
 
-// TagRPC implements grpc.stats.Handler and adds tags to the context of a given RPC
-func (h *GRPCServerStatsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.RPCTagInfo) context.Context {
+// NewGRPCServerMetricsHandler creates a new GRPCServerStatsHandler for a pomerium service
+func NewGRPCServerMetricsHandler(service string) *GRPCServerMetricsHandler {
+	return &GRPCServerMetricsHandler{service: service}
+}
 
-	handledCtx := h.Handler.TagRPC(ctx, tagInfo)
+// TagRPC handles adding any metrics related values to the incoming context
+func (h *GRPCServerMetricsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.RPCTagInfo) context.Context {
 
 	// Split the method into parts for better slicing
 	rpcInfo := strings.SplitN(tagInfo.FullMethodName, "/", 3)
@@ -169,21 +174,16 @@ func (h *GRPCServerStatsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.
 	}
 
 	taggedCtx, tagErr := tag.New(
-		handledCtx,
+		ctx,
 		tag.Upsert(TagKeyService, h.service),
 		tag.Upsert(TagKeyGRPCMethod, rpcMethod),
 		tag.Upsert(TagKeyGRPCService, rpcService),
 	)
 	if tagErr != nil {
 		log.Warn().Err(tagErr).Str("context", "GRPCServerStatsHandler").Msg("telemetry/metrics: failed to create context")
-		return handledCtx
+		return ctx
 
 	}
 
 	return taggedCtx
-}
-
-// NewGRPCServerStatsHandler creates a new GRPCServerStatsHandler for a pomerium service
-func NewGRPCServerStatsHandler(service string) grpcstats.Handler {
-	return &GRPCServerStatsHandler{service: service, Handler: &ocgrpc.ServerHandler{}}
 }

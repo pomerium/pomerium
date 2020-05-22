@@ -61,6 +61,9 @@ func Run(ctx context.Context, configFile string) error {
 	_, grpcPort, _ := net.SplitHostPort(controlPlane.GRPCListener.Addr().String())
 	_, httpPort, _ := net.SplitHostPort(controlPlane.HTTPListener.Addr().String())
 
+	log.Info().Str("port", grpcPort).Msg("gRPC server started")
+	log.Info().Str("port", httpPort).Msg("HTTP server started")
+
 	// create envoy server
 	envoyServer, err := envoy.NewServer(opt, grpcPort, httpPort)
 	if err != nil {
