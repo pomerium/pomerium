@@ -55,6 +55,9 @@ func newProxyMetricsHandler(promHandler http.Handler, envoyURL url.URL) http.Han
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer promHandler.ServeHTTP(w, r)
 
+		// Ensure we don't get entangled with compression from ocprom
+		r.Header.Del("Accept-Encoding")
+
 		r, err := http.NewRequestWithContext(r.Context(), "GET", envoyURL.String(), nil)
 		if err != nil {
 			log.Error().Err(err).Msg("telemetry/metrics: failed to create request for envoy")
