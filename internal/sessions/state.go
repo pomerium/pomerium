@@ -39,6 +39,7 @@ type State struct {
 	FamilyName    string `json:"family_name,omitempty"`    // google
 	Picture       string `json:"picture,omitempty"`        // google
 	EmailVerified bool   `json:"email_verified,omitempty"` // google
+	Nickname      string `json:"nickname,omitempty"`       // gitlab
 
 	// Impersonate-able fields
 	ImpersonateEmail  string   `json:"impersonate_email,omitempty"`
