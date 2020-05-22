@@ -242,68 +242,43 @@ func (srv *Server) addTraceConfig(traceOpts *config.TracingOptions, bootCfg *env
 		return nil
 	}
 
-	zipkinPort, err := strconv.Atoi(traceOpts.ZipkinEndpoint.Port())
-	if err != nil {
-		return fmt.Errorf("invalid port number: %w", err)
-	}
-	zipkinAddress := traceOpts.ZipkinEndpoint.Hostname()
-	const zipkinClusterName = "zipkin"
-
-	zipkinEndpoint := &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
-		Endpoint: &envoy_config_endpoint_v3.Endpoint{
-			Address: &envoy_config_core_v3.Address{
-				Address: &envoy_config_core_v3.Address_SocketAddress{
-					SocketAddress: &envoy_config_core_v3.SocketAddress{
-						Address: zipkinAddress,
-						PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
-							PortValue: uint32(zipkinPort),
-						},
-					},
-				},
-			},
-		},
+	// We only support zipkin in envoy currently
+	if traceOpts.Provider != config.ZipkinTracingProviderName {
+		return nil
 	}
 
-	zipkinCluster := &envoy_config_cluster_v3.Cluster{
-		Name: zipkinClusterName,
-		ConnectTimeout: &durationpb.Duration{
-			Seconds: 10,
-		},
-		ClusterDiscoveryType: &envoy_config_cluster_v3.Cluster_Type{
-			Type: envoy_config_cluster_v3.Cluster_STATIC,
-		},
-		LbPolicy: envoy_config_cluster_v3.Cluster_ROUND_ROBIN,
-		LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
-			ClusterName: zipkinClusterName,
-			Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{
-				{
-					LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{
-						{
-							HostIdentifier: zipkinEndpoint,
-						},
-					},
-				},
-			},
-		},
+	if traceOpts.ZipkinEndpoint.String() == "" {
+		return fmt.Errorf("missing zipkin url")
 	}
 
+	// TODO the outbound header list should be configurable when this moves to
+	// HTTPConnectionManager filters
 	tracingTC, _ := ptypes.MarshalAny(
-		&envoy_config_trace_v3.ZipkinConfig{
-			CollectorCluster:         zipkinClusterName,
-			CollectorEndpoint:        traceOpts.ZipkinEndpoint.Path,
-			CollectorEndpointVersion: envoy_config_trace_v3.ZipkinConfig_HTTP_JSON,
+		&envoy_config_trace_v3.OpenCensusConfig{
+			ZipkinExporterEnabled: true,
+			ZipkinUrl:             traceOpts.ZipkinEndpoint.String(),
+			IncomingTraceContext: []envoy_config_trace_v3.OpenCensusConfig_TraceContext{
+				envoy_config_trace_v3.OpenCensusConfig_B3,
+				envoy_config_trace_v3.OpenCensusConfig_TRACE_CONTEXT,
+				envoy_config_trace_v3.OpenCensusConfig_CLOUD_TRACE_CONTEXT,
+				envoy_config_trace_v3.OpenCensusConfig_GRPC_TRACE_BIN,
+			},
+			OutgoingTraceContext: []envoy_config_trace_v3.OpenCensusConfig_TraceContext{
+				envoy_config_trace_v3.OpenCensusConfig_B3,
+				envoy_config_trace_v3.OpenCensusConfig_TRACE_CONTEXT,
+				envoy_config_trace_v3.OpenCensusConfig_GRPC_TRACE_BIN,
+			},
 		},
 	)
 
 	tracingCfg := &envoy_config_trace_v3.Tracing{
 		Http: &envoy_config_trace_v3.Tracing_Http{
-			Name: "envoy.tracers.zipkin",
+			Name: "envoy.tracers.opencensus",
 			ConfigType: &envoy_config_trace_v3.Tracing_Http_TypedConfig{
 				TypedConfig: tracingTC,
 			},
 		},
 	}
-	bootCfg.StaticResources.Clusters = append(bootCfg.StaticResources.Clusters, zipkinCluster)
 	bootCfg.Tracing = tracingCfg
 
 	return nil
