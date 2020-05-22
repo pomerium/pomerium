@@ -3,6 +3,7 @@ package controlplane
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -191,6 +192,143 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 			}
 		}
 	`, route)
+}
+
+func Test_buildPolicyRoutes(t *testing.T) {
+	routes := buildPolicyRoutes(&config.Options{
+		CookieName:             "pomerium",
+		DefaultUpstreamTimeout: time.Second * 3,
+		Policies: []config.Policy{
+			{
+				Source: &config.StringURL{URL: mustParseURL("https://ignore.example.com")},
+			},
+			{
+				Source: &config.StringURL{URL: mustParseURL("https://example.com")},
+			},
+			{
+				Source:             &config.StringURL{URL: mustParseURL("https://example.com")},
+				Path:               "/some/path",
+				AllowWebsockets:    true,
+				PreserveHostHeader: true,
+			},
+			{
+				Source:            &config.StringURL{URL: mustParseURL("https://example.com")},
+				Prefix:            "/some/prefix/",
+				SetRequestHeaders: map[string]string{"HEADER-KEY": "HEADER-VALUE"},
+				UpstreamTimeout:   time.Minute,
+			},
+			{
+				Source: &config.StringURL{URL: mustParseURL("https://example.com")},
+				Regex:  `^/[a]+$`,
+			},
+		},
+	}, "example.com")
+	testutil.AssertProtoJSONEqual(t, `
+		[
+			{
+				"name": "policy-1",
+				"match": {
+					"prefix": "/"
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": true,
+					"cluster": "policy-d00072a199d7b614",
+					"timeout": "3s",
+					"upgradeConfigs": [{
+						"enabled": false,
+						"upgradeType": "websocket"
+					}]
+				}
+			},
+			{
+				"name": "policy-2",
+				"match": {
+					"path": "/some/path"
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": false,
+					"cluster": "policy-907a31075a413547",
+					"timeout": "0s",
+					"upgradeConfigs": [{
+						"enabled": true,
+						"upgradeType": "websocket"
+					}]
+				}
+			},
+			{
+				"name": "policy-3",
+				"match": {
+					"prefix": "/some/prefix/"
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": true,
+					"cluster": "policy-f05528f790686bc3",
+					"timeout": "60s",
+					"upgradeConfigs": [{
+						"enabled": false,
+						"upgradeType": "websocket"
+					}]
+				},
+				"requestHeadersToAdd": [{
+					"append": false,
+					"header": {
+						"key": "HEADER-KEY",
+						"value": "HEADER-VALUE"
+					}
+				}]
+			},
+			{
+				"name": "policy-4",
+				"match": {
+					"safeRegex": {
+						"googleRe2": {},
+						"regex": "^/[a]+$"
+					}
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": true,
+					"cluster": "policy-e5d3a05ff1f97659",
+					"timeout": "3s",
+					"upgradeConfigs": [{
+						"enabled": false,
+						"upgradeType": "websocket"
+					}]
+				}
+			}
+		]
+	`, routes)
 }
 
 func mustParseURL(str string) *url.URL {
