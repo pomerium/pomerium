@@ -17,15 +17,14 @@ type tagRPCHandler interface {
 type GRPCServerStatsHandler struct {
 	service        string
 	metricsHandler tagRPCHandler
-	traceHandler   tagRPCHandler
 	grpcstats.Handler
 }
 
 // TagRPC implements grpc.stats.Handler and adds metrics and tracing metadata to the context of a given RPC
 func (h *GRPCServerStatsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.RPCTagInfo) context.Context {
 
-	traceCtx := h.traceHandler.TagRPC(ctx, tagInfo)
-	handledCtx := h.Handler.TagRPC(traceCtx, tagInfo)
+	metricCtx := h.metricsHandler.TagRPC(ctx, tagInfo)
+	handledCtx := h.Handler.TagRPC(metricCtx, tagInfo)
 
 	return handledCtx
 }

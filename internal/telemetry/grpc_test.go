@@ -23,10 +23,8 @@ func (m *mockTagHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.RPCTagIn
 func Test_GRPCServerStatsHandler(t *testing.T) {
 
 	metricsHandler := &mockTagHandler{}
-	traceHandler := &mockTagHandler{}
 	h := &GRPCServerStatsHandler{
 		metricsHandler: metricsHandler,
-		traceHandler:   traceHandler,
 		Handler:        &ocgrpc.ServerHandler{},
 	}
 
@@ -34,7 +32,6 @@ func Test_GRPCServerStatsHandler(t *testing.T) {
 	ctx = h.TagRPC(ctx, &grpcstats.RPCTagInfo{})
 
 	assert.True(t, metricsHandler.called)
-	assert.True(t, traceHandler.called)
 	assert.Equal(t, ctx.Value(mockCtxTag("added")), "true")
 	assert.Equal(t, ctx.Value(mockCtxTag("original")), "true")
 }
