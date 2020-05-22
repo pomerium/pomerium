@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/config"
 )
 
 const certPEM = `
@@ -35,7 +36,7 @@ yE+vPxsiUkvQHdO2fojCkY8jg70jxM+gu59tPDNbw3Uh/2Ij310FgTHsnGQMyA==
 -----END CERTIFICATE-----`
 
 func Test_getEvaluatorRequest(t *testing.T) {
-	actual := getEvaluatorRequest(&envoy_service_auth_v2.CheckRequest{
+	actual := getEvaluatorRequestFromCheckRequest(&envoy_service_auth_v2.CheckRequest{
 		Attributes: &envoy_service_auth_v2.AttributeContext{
 			Source: &envoy_service_auth_v2.AttributeContext_Peer{
 				Certificate: url.QueryEscape(certPEM),
@@ -45,7 +46,8 @@ func Test_getEvaluatorRequest(t *testing.T) {
 					Id:     "id-1234",
 					Method: "GET",
 					Headers: map[string]string{
-						"Accept": "text/html",
+						"accept":            "text/html",
+						"x-forwarded-proto": "https",
 					},
 					Path:   "/some/path?qs=1",
 					Host:   "example.com",
@@ -58,13 +60,63 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	expect := &evaluator.Request{
 		User:   "HELLO WORLD",
 		Method: "GET",
-		URL:    "http://example.com/some/path?qs=1",
+		URL:    "https://example.com/some/path?qs=1",
 		Header: map[string][]string{
-			"Accept": {"text/html"},
+			"Accept":            {"text/html"},
+			"X-Forwarded-Proto": {"https"},
 		},
 		Host:              "example.com",
-		RequestURI:        "http://example.com/some/path?qs=1",
+		RequestURI:        "https://example.com/some/path?qs=1",
 		ClientCertificate: certPEM,
 	}
 	assert.Equal(t, expect, actual)
+}
+
+func Test_handleForwardAuth(t *testing.T) {
+	checkReq := &envoy_service_auth_v2.CheckRequest{
+		Attributes: &envoy_service_auth_v2.AttributeContext{
+			Source: &envoy_service_auth_v2.AttributeContext_Peer{
+				Certificate: url.QueryEscape(certPEM),
+			},
+			Request: &envoy_service_auth_v2.AttributeContext_Request{
+				Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+					Method: "GET",
+					Path:   "/verify?uri=" + url.QueryEscape("https://example.com/some/path?qs=1"),
+					Host:   "forward-auth.example.com",
+					Scheme: "https",
+				},
+			},
+		},
+	}
+
+	t.Run("enabled", func(t *testing.T) {
+		a := new(Authorize)
+		a.currentOptions.Store(config.Options{
+			ForwardAuthURL: mustParseURL("https://forward-auth.example.com"),
+		})
+		isForwardAuth := a.handleForwardAuth(checkReq)
+		assert.True(t, isForwardAuth)
+		assert.Equal(t, &envoy_service_auth_v2.AttributeContext_HttpRequest{
+			Method: "GET",
+			Path:   "/some/path?qs=1",
+			Host:   "example.com",
+			Scheme: "https",
+		}, checkReq.Attributes.Request.Http)
+	})
+	t.Run("disabled", func(t *testing.T) {
+		a := new(Authorize)
+		a.currentOptions.Store(config.Options{
+			ForwardAuthURL: nil,
+		})
+		isForwardAuth := a.handleForwardAuth(checkReq)
+		assert.False(t, isForwardAuth)
+	})
+}
+
+func mustParseURL(str string) *url.URL {
+	u, err := url.Parse(str)
+	if err != nil {
+		panic(err)
+	}
+	return u
 }

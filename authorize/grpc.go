@@ -45,7 +45,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 		}
 	}
 
-	req := getEvaluatorRequest(in, rawJWT)
+	req := getEvaluatorRequestFromCheckRequest(in, rawJWT)
 	reply, err := a.pe.IsAuthorized(ctx, req)
 	if err != nil {
 		return nil, err
@@ -192,6 +192,20 @@ func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) b
 	return false
 }
 
+func getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v2.CheckRequest, rawJWT []byte) *evaluator.Request {
+	requestURL := getCheckRequestURL(in)
+	req := &evaluator.Request{
+		User:              string(rawJWT),
+		Header:            getCheckRequestHeaders(in),
+		Host:              in.GetAttributes().GetRequest().GetHttp().GetHost(),
+		Method:            in.GetAttributes().GetRequest().GetHttp().GetMethod(),
+		RequestURI:        requestURL.String(),
+		URL:               requestURL.String(),
+		ClientCertificate: getPeerCertificate(in),
+	}
+	return req
+}
+
 func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v2.CheckRequest) *http.Request {
 	hattrs := req.GetAttributes().GetRequest().GetHttp()
 	return &http.Request{
@@ -234,20 +248,6 @@ func getCheckRequestURL(req *envoy_service_auth_v2.CheckRequest) *url.URL {
 		}
 	}
 	return u
-}
-
-func getEvaluatorRequest(in *envoy_service_auth_v2.CheckRequest, rawJWT []byte) *evaluator.Request {
-	requestURL := getCheckRequestURL(in)
-	req := &evaluator.Request{
-		User:              string(rawJWT),
-		Header:            getCheckRequestHeaders(in),
-		Host:              in.GetAttributes().GetRequest().GetHttp().GetHost(),
-		Method:            in.GetAttributes().GetRequest().GetHttp().GetMethod(),
-		RequestURI:        requestURL.String(),
-		URL:               requestURL.String(),
-		ClientCertificate: getPeerCertificate(in),
-	}
-	return req
 }
 
 // getPeerCertificate gets the PEM-encoded peer certificate from the check request
