@@ -29,15 +29,11 @@ type Request struct {
 	Method string `json:"method,omitempty"`
 	// URL specifies either the URI being requested.
 	URL string `json:"url,omitempty"`
-	// The protocol version for incoming server requests.
-	Proto string `json:"proto,omitempty"` // "HTTP/1.0"
 	// Header contains the request header fields either received
 	// by the server or to be sent by the client.
 	Header map[string][]string `json:"headers,omitempty"`
 	// Host specifies the host on which the URL is sought.
 	Host string `json:"host,omitempty"`
-	// RemoteAddr is the network address that sent the request.
-	RemoteAddr string `json:"remote_addr,omitempty"`
 	// RequestURI is the unmodified request-target of the
 	// Request-Line (RFC 7230, Section 3.1.1) as sent by the client
 	// to a server. Usually the URL field should be used instead.

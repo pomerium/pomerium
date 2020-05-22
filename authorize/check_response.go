@@ -3,6 +3,7 @@ package authorize
 import (
 	"bytes"
 	"net/http"
+	"net/url"
 	"strings"
 
 	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -11,12 +12,39 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 
+	"github.com/pomerium/pomerium/internal/grpc/authorize"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-func (a *Authorize) deniedResponse(in *envoy_service_auth_v2.CheckRequest,
-	code int32, reason string, headers map[string]string) *envoy_service_auth_v2.CheckResponse {
+func (a *Authorize) okResponse(
+	reply *authorize.IsAuthorizedReply,
+	rawSession []byte,
+	isNewSession bool,
+) *envoy_service_auth_v2.CheckResponse {
+
+	requestHeaders, err := a.getEnvoyRequestHeaders(rawSession, isNewSession)
+	if err != nil {
+		log.Warn().Err(err).Msg("authorize: error generating new request headers")
+	}
+	requestHeaders = append(requestHeaders,
+		mkHeader(httputil.HeaderPomeriumJWTAssertion, reply.SignedJwt))
+
+	return &envoy_service_auth_v2.CheckResponse{
+		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
+		HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
+			OkResponse: &envoy_service_auth_v2.OkHttpResponse{
+				Headers: requestHeaders,
+			},
+		},
+	}
+}
+
+func (a *Authorize) deniedResponse(
+	in *envoy_service_auth_v2.CheckRequest,
+	code int32, reason string, headers map[string]string,
+) *envoy_service_auth_v2.CheckResponse {
 
 	returnHTMLError := true
 	inHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
@@ -94,6 +122,20 @@ func (a *Authorize) plainTextDeniedResponse(code int32, reason string, headers m
 			},
 		},
 	}
+}
+
+func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) *envoy_service_auth_v2.CheckResponse {
+	opts := a.currentOptions.Load()
+
+	signinURL := opts.AuthenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_in"})
+	q := signinURL.Query()
+	q.Set(urlutil.QueryRedirectURI, getCheckRequestURL(in).String())
+	signinURL.RawQuery = q.Encode()
+	redirectTo := urlutil.NewSignedURL(opts.SharedKey, signinURL).String()
+
+	return a.deniedResponse(in, http.StatusFound, "Login", map[string]string{
+		"Location": redirectTo,
+	})
 }
 
 func mkHeader(k, v string) *envoy_api_v2_core.HeaderValueOption {
