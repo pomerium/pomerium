@@ -111,6 +111,9 @@ var (
 
 // GRPCClientInterceptor creates a UnaryClientInterceptor which updates the RPC
 // context with metric tag metadata
+//
+// TODO: This handler will NOT currently propagate B3 headers to upstream servers.  See
+// GRPCServerStatsHandler for changes required
 func GRPCClientInterceptor(service string) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
