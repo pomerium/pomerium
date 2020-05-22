@@ -132,11 +132,11 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 		}
 
 		// these routes match /.pomerium/... and similar paths
-		vh.Routes = append(vh.Routes, srv.buildPomeriumHTTPRoutes(options, domain)...)
+		vh.Routes = append(vh.Routes, buildPomeriumHTTPRoutes(options, domain)...)
 
 		// if we're the proxy, add all the policy routes
 		if config.IsProxy(options.Services) {
-			vh.Routes = append(vh.Routes, srv.buildPolicyRoutes(options, domain)...)
+			vh.Routes = append(vh.Routes, buildPolicyRoutes(options, domain)...)
 		}
 
 		if len(vh.Routes) > 0 {
