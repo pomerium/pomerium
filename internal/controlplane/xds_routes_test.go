@@ -3,16 +3,36 @@ package controlplane
 import (
 	"testing"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/encoding/protojson"
+	"github.com/pomerium/pomerium/internal/testutil"
 )
+
+func Test_buildGRPCRoutes(t *testing.T) {
+	routes := buildGRPCRoutes()
+	testutil.AssertProtoJSONEqual(t, `
+		[
+			{
+				"name": "pomerium-grpc",
+				"match": {
+					"grpc": {},
+					"prefix": "/"
+				},
+				"route": {
+					"cluster": "pomerium-control-plane-grpc"
+				},
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"disabled": true
+					}
+				}
+			}
+		]
+	`, routes)
+}
 
 func Test_buildControlPlanePathRoute(t *testing.T) {
 	route := buildControlPlanePathRoute("/hello/world")
-	bs, _ := protojson.Marshal(proto.MessageV2(route))
-
-	assert.JSONEq(t, `
+	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-path-/hello/world",
 			"match": {
@@ -27,14 +47,13 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 					"disabled": true
 				}
 			}
-		}`, string(bs))
+		}
+	`, route)
 }
 
 func Test_buildControlPlanePrefixRoute(t *testing.T) {
 	route := buildControlPlanePrefixRoute("/hello/world/")
-	bs, _ := protojson.Marshal(proto.MessageV2(route))
-
-	assert.JSONEq(t, `
+	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-prefix-/hello/world/",
 			"match": {
@@ -49,5 +68,6 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 					"disabled": true
 				}
 			}
-		}`, string(bs))
+		}
+	`, route)
 }

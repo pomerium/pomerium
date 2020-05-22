@@ -15,7 +15,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-func (srv *Server) buildGRPCRoutes() []*envoy_config_route_v3.Route {
+func buildGRPCRoutes() []*envoy_config_route_v3.Route {
 	action := &envoy_config_route_v3.Route_Route{
 		Route: &envoy_config_route_v3.RouteAction{
 			ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{

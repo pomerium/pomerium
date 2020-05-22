@@ -127,7 +127,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(options *config.Options,
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
 			if (config.IsAuthorize(options.Services) && domain == options.AuthorizeURL.Host) ||
 				(config.IsCache(options.Services) && domain == options.CacheURL.Host) {
-				vh.Routes = append(vh.Routes, srv.buildGRPCRoutes()...)
+				vh.Routes = append(vh.Routes, buildGRPCRoutes()...)
 			}
 		}
 
