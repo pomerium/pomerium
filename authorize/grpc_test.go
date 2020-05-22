@@ -1,7 +1,13 @@
 package authorize
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
@@ -111,6 +117,28 @@ func Test_handleForwardAuth(t *testing.T) {
 		isForwardAuth := a.handleForwardAuth(checkReq)
 		assert.False(t, isForwardAuth)
 	})
+}
+
+func Test_refreshSession(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(struct {
+			Authorization string
+		}{
+			Authorization: r.Header.Get("Authorization"),
+		})
+	}))
+	defer srv.Close()
+
+	sharedKey := make([]byte, 32)
+	a := new(Authorize)
+	a.currentOptions.Store(config.Options{
+		AuthenticateURL: mustParseURL(srv.URL),
+		SharedKey:       base64.StdEncoding.EncodeToString(sharedKey),
+	})
+
+	newSession, err := a.refreshSession(context.Background(), []byte("ABCD"))
+	assert.NoError(t, err)
+	assert.Equal(t, `{"Authorization":"Pomerium ABCD"}`, strings.TrimSpace(string(newSession)))
 }
 
 func mustParseURL(str string) *url.URL {

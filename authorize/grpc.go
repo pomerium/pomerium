@@ -42,6 +42,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 			isNewSession = true
 		} else {
 			log.Warn().Err(err).Msg("authorize: error refreshing session")
+			// set the error to expired so that we can force a new login
+			sessionErr = sessions.ErrExpired
 		}
 	}
 
@@ -121,12 +123,6 @@ func (a *Authorize) getEnvoyRequestHeaders(rawJWT []byte, isNewSession bool) ([]
 
 func (a *Authorize) refreshSession(ctx context.Context, rawJWT []byte) (newSession []byte, err error) {
 	options := a.currentOptions.Load()
-	encoder := a.currentEncoder.Load()
-
-	var state sessions.State
-	if err := encoder.Unmarshal(rawJWT, &state); err != nil {
-		return nil, fmt.Errorf("error unmarshaling raw session: %w", err)
-	}
 
 	// 1 - build a signed url to call refresh on authenticate service
 	refreshURI := options.AuthenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/refresh"})
