@@ -25,6 +25,7 @@ require (
 	github.com/lithammer/shortuuid/v3 v3.0.4
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/natefinch/atomic v0.0.0-20150920032501-a62ce929ffcc
+	github.com/nsf/jsondiff v0.0.0-20200515183724-f29ed568f4ce
 	github.com/onsi/ginkgo v1.11.0 // indirect
 	github.com/onsi/gocleanup v0.0.0-20140331211545-c1a5478700b5
 	github.com/onsi/gomega v1.8.1 // indirect
