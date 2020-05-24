@@ -2,6 +2,7 @@ package httputil
 
 import (
 	"encoding/json"
+	"errors"
 	"html/template"
 	"net/http"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 )
+
+var ErrRedirectOnly = errors.New("httputil: redirecting to authenticate service")
 
 var errorTemplate = template.Must(frontend.NewTemplates())
 var fullVersion = version.FullVersion()
@@ -60,11 +63,14 @@ type errResponse struct {
 // It does not otherwise end the request; the caller should ensure no further
 // writes are done to w.
 func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
+	log.FromRequest(r).Info().Err(e).Msg("httputil: ErrorResponse")
+	if errors.Is(e, ErrRedirectOnly) {
+		return
+	}
 	// indicate to clients that the error originates from Pomerium, not the app
 	w.Header().Set(HeaderPomeriumResponse, "true")
 	w.WriteHeader(e.Status)
 
-	log.FromRequest(r).Info().Err(e).Msg("httputil: ErrorResponse")
 	var requestID string
 	if id, ok := log.IDFromRequest(r); ok {
 		requestID = id
