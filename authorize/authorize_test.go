@@ -24,7 +24,10 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := config.Options{SharedKey: tt.SharedKey, Policies: tt.Policies}
+			o := config.Options{
+				AuthenticateURL: mustParseURL("https://authN.example.com"),
+				SharedKey:       tt.SharedKey,
+				Policies:        tt.Policies}
 			if tt.name == "empty options" {
 				o = config.Options{}
 			}
