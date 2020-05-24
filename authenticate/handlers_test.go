@@ -548,6 +548,7 @@ func TestAuthenticate_Refresh(t *testing.T) {
 				CookieName:               "pomerium",
 				Addr:                     ":0",
 				CacheURL:                 uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
+				AuthorizeURL:             uriParseHelper("https://authorize.corp.beyondperimeter.com"),
 			})
 			if err != nil {
 				t.Fatal(err)
