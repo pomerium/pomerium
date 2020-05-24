@@ -83,7 +83,7 @@ func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
 	log.FromRequest(r).Debug().Str("url", signinURL.String()).Msg("proxy: redirectToSignin")
 	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signinURL).String(), http.StatusFound)
 	p.sessionStore.ClearSession(w, r)
-	return nil
+	return httputil.ErrRedirectOnly
 }
 
 // AuthorizeSession is middleware to enforce a user is authorized for a request.
