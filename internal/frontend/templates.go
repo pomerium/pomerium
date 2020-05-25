@@ -5,11 +5,15 @@
 package frontend
 
 import (
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"mime"
 	"net/http"
 	"os"
+	"path"
+	"strings"
 
 	"github.com/rakyll/statik/fs"
 
@@ -20,11 +24,44 @@ const statikNamespace = "web"
 
 // NewTemplates loads pomerium's templates. Panics on failure.
 func NewTemplates() (*template.Template, error) {
-	t := template.New("pomerium-templates")
 	statikFS, err := fs.NewWithNamespace(statikNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("internal/frontend: error creating new file system: %w", err)
 	}
+
+	dataURLs := map[string]template.URL{}
+
+	err = fs.Walk(statikFS, "/", func(filePath string, fileInfo os.FileInfo, _ error) error {
+		if fileInfo.IsDir() {
+			return nil
+		}
+
+		file, err := statikFS.Open(filePath)
+		if err != nil {
+			return fmt.Errorf("internal/frontend: error opening %s: %w", filePath, err)
+		}
+		defer file.Close()
+
+		bs, err := ioutil.ReadAll(file)
+		if err != nil {
+			return fmt.Errorf("internal/frontend: error reading %s: %w", filePath, err)
+		}
+
+		encoded := base64.StdEncoding.EncodeToString(bs)
+		dataURLs[filePath] = template.URL(fmt.Sprintf(
+			"data:%s;base64,%s", mime.TypeByExtension(path.Ext(filePath)), encoded))
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	t := template.New("pomerium-templates").Funcs(map[string]interface{}{
+		"dataURL": func(p string) template.URL {
+			return dataURLs[strings.TrimPrefix(p, "/.pomerium/assets")]
+		},
+	})
 
 	err = fs.Walk(statikFS, "/html", func(filePath string, fileInfo os.FileInfo, err error) error {
 		if !fileInfo.IsDir() {
