@@ -130,7 +130,7 @@ func inlineBytes(bs []byte) *envoy_config_core_v3.DataSource {
 
 func inlineBytesAsFilename(name string, bs []byte) *envoy_config_core_v3.DataSource {
 	ext := filepath.Ext(name)
-	name = fmt.Sprintf("%s-%x%s", name[:len(ext)], xxhash.Sum64(bs), ext)
+	name = fmt.Sprintf("%s-%x%s", name[:len(name)-len(ext)], xxhash.Sum64(bs), ext)
 
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {

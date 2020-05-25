@@ -29,8 +29,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	}, "a.example.com")
 
 	cacheDir, _ := os.UserCacheDir()
-	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls--921a8294d2e2ec54.pem")
-	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls--d5cf35b1e8533e4a.pem")
+	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-921a8294d2e2ec54.pem")
+	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-d5cf35b1e8533e4a.pem")
 
 	testutil.AssertProtoJSONEqual(t, `{
 		"commonTlsContext": {

@@ -33,22 +33,22 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 	}
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
-		srv.buildInternalCluster(options, "pomerium-control-plane-grpc", grpcURL, true),
-		srv.buildInternalCluster(options, "pomerium-control-plane-http", httpURL, false),
+		buildInternalCluster(options, "pomerium-control-plane-grpc", grpcURL, true),
+		buildInternalCluster(options, "pomerium-control-plane-http", httpURL, false),
 	}
 
-	clusters = append(clusters, srv.buildInternalCluster(options, "pomerium-authz", authzURL, true))
+	clusters = append(clusters, buildInternalCluster(options, "pomerium-authz", authzURL, true))
 
 	if config.IsProxy(options.Services) {
 		for _, policy := range options.Policies {
-			clusters = append(clusters, srv.buildPolicyCluster(&policy))
+			clusters = append(clusters, buildPolicyCluster(&policy))
 		}
 	}
 
 	return clusters
 }
 
-func (srv *Server) buildInternalCluster(options *config.Options, name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
+func buildInternalCluster(options *config.Options, name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
 	var transportSocket *envoy_config_core_v3.TransportSocket
 	if endpoint.Scheme == "https" {
 		sni := endpoint.Hostname()
@@ -95,15 +95,15 @@ func (srv *Server) buildInternalCluster(options *config.Options, name string, en
 			},
 		}
 	}
-	return srv.buildCluster(name, endpoint, transportSocket, forceHTTP2)
+	return buildCluster(name, endpoint, transportSocket, forceHTTP2)
 }
 
-func (srv *Server) buildPolicyCluster(policy *config.Policy) *envoy_config_cluster_v3.Cluster {
+func buildPolicyCluster(policy *config.Policy) *envoy_config_cluster_v3.Cluster {
 	name := getPolicyName(policy)
-	return srv.buildCluster(name, policy.Destination, srv.buildPolicyTransportSocket(policy), false)
+	return buildCluster(name, policy.Destination, buildPolicyTransportSocket(policy), false)
 }
 
-func (srv *Server) buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.TransportSocket {
+func buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.TransportSocket {
 	if policy.Destination.Scheme != "https" {
 		return nil
 	}
@@ -116,7 +116,7 @@ func (srv *Server) buildPolicyTransportSocket(policy *config.Policy) *envoy_conf
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			AlpnProtocols: []string{"http/1.1"},
 			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-				ValidationContext: srv.buildPolicyValidationContext(policy),
+				ValidationContext: buildPolicyValidationContext(policy),
 			},
 		},
 		Sni: sni,
@@ -135,7 +135,7 @@ func (srv *Server) buildPolicyTransportSocket(policy *config.Policy) *envoy_conf
 	}
 }
 
-func (srv *Server) buildPolicyValidationContext(policy *config.Policy) *envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext {
+func buildPolicyValidationContext(policy *config.Policy) *envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext {
 	sni := policy.Destination.Hostname()
 	if policy.TLSServerName != "" {
 		sni = policy.TLSServerName
@@ -171,7 +171,7 @@ func (srv *Server) buildPolicyValidationContext(policy *config.Policy) *envoy_ex
 	return validationContext
 }
 
-func (srv *Server) buildCluster(
+func buildCluster(
 	name string,
 	endpoint *url.URL,
 	transportSocket *envoy_config_core_v3.TransportSocket,
