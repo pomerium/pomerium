@@ -33,77 +33,80 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 	}
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
-		srv.buildInternalCluster(options, "pomerium-control-plane-grpc", grpcURL, true),
-		srv.buildInternalCluster(options, "pomerium-control-plane-http", httpURL, false),
+		buildInternalCluster(options, "pomerium-control-plane-grpc", grpcURL, true),
+		buildInternalCluster(options, "pomerium-control-plane-http", httpURL, false),
 	}
 
-	clusters = append(clusters, srv.buildInternalCluster(options, "pomerium-authz", authzURL, true))
+	clusters = append(clusters, buildInternalCluster(options, "pomerium-authz", authzURL, true))
 
 	if config.IsProxy(options.Services) {
 		for _, policy := range options.Policies {
-			clusters = append(clusters, srv.buildPolicyCluster(&policy))
+			clusters = append(clusters, buildPolicyCluster(&policy))
 		}
 	}
 
 	return clusters
 }
 
-func (srv *Server) buildInternalCluster(options *config.Options, name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
-	var transportSocket *envoy_config_core_v3.TransportSocket
-	if endpoint.Scheme == "https" {
-		sni := endpoint.Hostname()
-		if options.OverrideCertificateName != "" {
-			sni = options.OverrideCertificateName
+func buildInternalCluster(options *config.Options, name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
+	return buildCluster(name, endpoint, buildInternalTransportSocket(options, endpoint), forceHTTP2)
+}
+
+func buildPolicyCluster(policy *config.Policy) *envoy_config_cluster_v3.Cluster {
+	name := getPolicyName(policy)
+	return buildCluster(name, policy.Destination, buildPolicyTransportSocket(policy), false)
+}
+
+func buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *envoy_config_core_v3.TransportSocket {
+	if endpoint.Scheme != "https" {
+		return nil
+	}
+	sni := endpoint.Hostname()
+	if options.OverrideCertificateName != "" {
+		sni = options.OverrideCertificateName
+	}
+	validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{{
+			MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
+				Exact: sni,
+			},
+		}},
+	}
+	if options.CAFile != "" {
+		validationContext.TrustedCa = inlineFilename(options.CAFile)
+	} else if options.CA != "" {
+		bs, err := base64.StdEncoding.DecodeString(options.CA)
+		if err != nil {
+			log.Error().Err(err).Msg("invalid custom CA certificate")
 		}
-		validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-			MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{{
-				MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
-					Exact: sni,
-				},
-			}},
-		}
-		if options.CAFile != "" {
-			validationContext.TrustedCa = inlineFilename(options.CAFile)
-		} else if options.CA != "" {
-			bs, err := base64.StdEncoding.DecodeString(options.CA)
-			if err != nil {
-				log.Error().Err(err).Msg("invalid custom CA certificate")
-			}
-			validationContext.TrustedCa = inlineBytesAsFilename("custom-ca.pem", bs)
+		validationContext.TrustedCa = inlineBytesAsFilename("custom-ca.pem", bs)
+	} else {
+		rootCA, err := getRootCertificateAuthority()
+		if err != nil {
+			log.Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 		} else {
-			rootCA, err := getRootCertificateAuthority()
-			if err != nil {
-				log.Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
-			} else {
-				validationContext.TrustedCa = inlineFilename(rootCA)
-			}
-		}
-		tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
-			CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
-				AlpnProtocols: []string{"h2", "http/1.1"},
-				ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-					ValidationContext: validationContext,
-				},
-			},
-			Sni: sni,
-		}
-		tlsConfig, _ := ptypes.MarshalAny(tlsContext)
-		transportSocket = &envoy_config_core_v3.TransportSocket{
-			Name: "tls",
-			ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-				TypedConfig: tlsConfig,
-			},
+			validationContext.TrustedCa = inlineFilename(rootCA)
 		}
 	}
-	return srv.buildCluster(name, endpoint, transportSocket, forceHTTP2)
+	tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
+		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
+			AlpnProtocols: []string{"h2", "http/1.1"},
+			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+				ValidationContext: validationContext,
+			},
+		},
+		Sni: sni,
+	}
+	tlsConfig, _ := ptypes.MarshalAny(tlsContext)
+	return &envoy_config_core_v3.TransportSocket{
+		Name: "tls",
+		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+			TypedConfig: tlsConfig,
+		},
+	}
 }
 
-func (srv *Server) buildPolicyCluster(policy *config.Policy) *envoy_config_cluster_v3.Cluster {
-	name := getPolicyName(policy)
-	return srv.buildCluster(name, policy.Destination, srv.buildPolicyTransportSocket(policy), false)
-}
-
-func (srv *Server) buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.TransportSocket {
+func buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.TransportSocket {
 	if policy.Destination.Scheme != "https" {
 		return nil
 	}
@@ -116,7 +119,7 @@ func (srv *Server) buildPolicyTransportSocket(policy *config.Policy) *envoy_conf
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			AlpnProtocols: []string{"http/1.1"},
 			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-				ValidationContext: srv.buildPolicyValidationContext(policy),
+				ValidationContext: buildPolicyValidationContext(policy),
 			},
 		},
 		Sni: sni,
@@ -135,7 +138,7 @@ func (srv *Server) buildPolicyTransportSocket(policy *config.Policy) *envoy_conf
 	}
 }
 
-func (srv *Server) buildPolicyValidationContext(policy *config.Policy) *envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext {
+func buildPolicyValidationContext(policy *config.Policy) *envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext {
 	sni := policy.Destination.Hostname()
 	if policy.TLSServerName != "" {
 		sni = policy.TLSServerName
@@ -171,7 +174,7 @@ func (srv *Server) buildPolicyValidationContext(policy *config.Policy) *envoy_ex
 	return validationContext
 }
 
-func (srv *Server) buildCluster(
+func buildCluster(
 	name string,
 	endpoint *url.URL,
 	transportSocket *envoy_config_core_v3.TransportSocket,

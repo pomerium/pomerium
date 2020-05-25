@@ -15,7 +15,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-func (srv *Server) buildGRPCRoutes() []*envoy_config_route_v3.Route {
+func buildGRPCRoutes() []*envoy_config_route_v3.Route {
 	action := &envoy_config_route_v3.Route_Route{
 		Route: &envoy_config_route_v3.RouteAction{
 			ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
@@ -38,29 +38,27 @@ func (srv *Server) buildGRPCRoutes() []*envoy_config_route_v3.Route {
 	}}
 }
 
-func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
+func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	routes := []*envoy_config_route_v3.Route{
-		srv.buildControlPlanePathRoute("/ping"),
-		srv.buildControlPlanePathRoute("/healthz"),
-		srv.buildControlPlanePathRoute("/.pomerium"),
-		srv.buildControlPlanePrefixRoute("/.pomerium/"),
-		srv.buildControlPlanePathRoute("/.well-known/pomerium"),
-		srv.buildControlPlanePrefixRoute("/.well-known/pomerium/"),
+		buildControlPlanePathRoute("/ping"),
+		buildControlPlanePathRoute("/healthz"),
+		buildControlPlanePathRoute("/.pomerium"),
+		buildControlPlanePrefixRoute("/.pomerium/"),
+		buildControlPlanePathRoute("/.well-known/pomerium"),
+		buildControlPlanePrefixRoute("/.well-known/pomerium/"),
 	}
 	// if we're handling authentication, add the oauth2 callback url
 	if config.IsAuthenticate(options.Services) && domain == options.AuthenticateURL.Host {
-		routes = append(routes,
-			srv.buildControlPlanePathRoute(options.AuthenticateCallbackPath))
+		routes = append(routes, buildControlPlanePathRoute(options.AuthenticateCallbackPath))
 	}
 	// if we're the proxy and this is the forward-auth url
 	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && domain == options.ForwardAuthURL.Host {
-		routes = append(routes,
-			srv.buildControlPlanePrefixRoute("/"))
+		routes = append(routes, buildControlPlanePrefixRoute("/"))
 	}
 	return routes
 }
 
-func (srv *Server) buildControlPlanePathRoute(path string) *envoy_config_route_v3.Route {
+func buildControlPlanePathRoute(path string) *envoy_config_route_v3.Route {
 	return &envoy_config_route_v3.Route{
 		Name: "pomerium-path-" + path,
 		Match: &envoy_config_route_v3.RouteMatch{
@@ -79,7 +77,7 @@ func (srv *Server) buildControlPlanePathRoute(path string) *envoy_config_route_v
 	}
 }
 
-func (srv *Server) buildControlPlanePrefixRoute(prefix string) *envoy_config_route_v3.Route {
+func buildControlPlanePrefixRoute(prefix string) *envoy_config_route_v3.Route {
 	return &envoy_config_route_v3.Route{
 		Name: "pomerium-prefix-" + prefix,
 		Match: &envoy_config_route_v3.RouteMatch{
@@ -98,7 +96,7 @@ func (srv *Server) buildControlPlanePrefixRoute(prefix string) *envoy_config_rou
 	}
 }
 
-func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
+func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	var routes []*envoy_config_route_v3.Route
 	for i, policy := range options.Policies {
 		if policy.Source.Host != domain {

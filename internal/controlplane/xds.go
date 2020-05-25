@@ -30,7 +30,7 @@ import (
 func (srv *Server) buildDiscoveryResponse(version string, typeURL string, options *config.Options) (*envoy_service_discovery_v3.DiscoveryResponse, error) {
 	switch typeURL {
 	case "type.googleapis.com/envoy.config.listener.v3.Listener":
-		listeners := srv.buildListeners(options)
+		listeners := buildListeners(options)
 		anys := make([]*any.Any, len(listeners))
 		for i, listener := range listeners {
 			a, err := ptypes.MarshalAny(listener)
@@ -64,7 +64,7 @@ func (srv *Server) buildDiscoveryResponse(version string, typeURL string, option
 	}
 }
 
-func (srv *Server) buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.AccessLog {
+func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.AccessLog {
 	lvl := options.ProxyLogLevel
 	if lvl == "" {
 		lvl = options.LogLevel
@@ -130,7 +130,7 @@ func inlineBytes(bs []byte) *envoy_config_core_v3.DataSource {
 
 func inlineBytesAsFilename(name string, bs []byte) *envoy_config_core_v3.DataSource {
 	ext := filepath.Ext(name)
-	name = fmt.Sprintf("%s-%x%s", name[:len(ext)], xxhash.Sum64(bs), ext)
+	name = fmt.Sprintf("%s-%x%s", name[:len(name)-len(ext)], xxhash.Sum64(bs), ext)
 
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
