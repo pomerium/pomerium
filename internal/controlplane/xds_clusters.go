@@ -49,58 +49,61 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 }
 
 func buildInternalCluster(options *config.Options, name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
-	var transportSocket *envoy_config_core_v3.TransportSocket
-	if endpoint.Scheme == "https" {
-		sni := endpoint.Hostname()
-		if options.OverrideCertificateName != "" {
-			sni = options.OverrideCertificateName
-		}
-		validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-			MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{{
-				MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
-					Exact: sni,
-				},
-			}},
-		}
-		if options.CAFile != "" {
-			validationContext.TrustedCa = inlineFilename(options.CAFile)
-		} else if options.CA != "" {
-			bs, err := base64.StdEncoding.DecodeString(options.CA)
-			if err != nil {
-				log.Error().Err(err).Msg("invalid custom CA certificate")
-			}
-			validationContext.TrustedCa = inlineBytesAsFilename("custom-ca.pem", bs)
-		} else {
-			rootCA, err := getRootCertificateAuthority()
-			if err != nil {
-				log.Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
-			} else {
-				validationContext.TrustedCa = inlineFilename(rootCA)
-			}
-		}
-		tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
-			CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
-				AlpnProtocols: []string{"h2", "http/1.1"},
-				ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-					ValidationContext: validationContext,
-				},
-			},
-			Sni: sni,
-		}
-		tlsConfig, _ := ptypes.MarshalAny(tlsContext)
-		transportSocket = &envoy_config_core_v3.TransportSocket{
-			Name: "tls",
-			ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-				TypedConfig: tlsConfig,
-			},
-		}
-	}
-	return buildCluster(name, endpoint, transportSocket, forceHTTP2)
+	return buildCluster(name, endpoint, buildInternalTransportSocket(options, endpoint), forceHTTP2)
 }
 
 func buildPolicyCluster(policy *config.Policy) *envoy_config_cluster_v3.Cluster {
 	name := getPolicyName(policy)
 	return buildCluster(name, policy.Destination, buildPolicyTransportSocket(policy), false)
+}
+
+func buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *envoy_config_core_v3.TransportSocket {
+	if endpoint.Scheme != "https" {
+		return nil
+	}
+	sni := endpoint.Hostname()
+	if options.OverrideCertificateName != "" {
+		sni = options.OverrideCertificateName
+	}
+	validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{{
+			MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
+				Exact: sni,
+			},
+		}},
+	}
+	if options.CAFile != "" {
+		validationContext.TrustedCa = inlineFilename(options.CAFile)
+	} else if options.CA != "" {
+		bs, err := base64.StdEncoding.DecodeString(options.CA)
+		if err != nil {
+			log.Error().Err(err).Msg("invalid custom CA certificate")
+		}
+		validationContext.TrustedCa = inlineBytesAsFilename("custom-ca.pem", bs)
+	} else {
+		rootCA, err := getRootCertificateAuthority()
+		if err != nil {
+			log.Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
+		} else {
+			validationContext.TrustedCa = inlineFilename(rootCA)
+		}
+	}
+	tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
+		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
+			AlpnProtocols: []string{"h2", "http/1.1"},
+			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+				ValidationContext: validationContext,
+			},
+		},
+		Sni: sni,
+	}
+	tlsConfig, _ := ptypes.MarshalAny(tlsContext)
+	return &envoy_config_core_v3.TransportSocket{
+		Name: "tls",
+		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+			TypedConfig: tlsConfig,
+		},
+	}
 }
 
 func buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.TransportSocket {

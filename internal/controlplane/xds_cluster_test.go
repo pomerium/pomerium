@@ -156,3 +156,119 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		}))
 	})
 }
+
+func Test_buildCluster(t *testing.T) {
+	rootCA, _ := getRootCertificateAuthority()
+	t.Run("insecure", func(t *testing.T) {
+		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"name": "example",
+				"type": "STRICT_DNS",
+				"connectTimeout": "10s",
+				"respectDnsTtl": true,
+				"http2ProtocolOptions": {
+					"allowConnect": true
+				},
+				"loadAssignment": {
+					"clusterName": "example",
+					"endpoints": [{
+						"lbEndpoints": [{
+							"endpoint": {
+								"address": {
+									"socketAddress": {
+										"address": "example.com",
+										"ipv4Compat": true,
+										"portValue": 80
+									}
+								}
+							}
+						}]
+					}]
+				}
+			}
+		`, cluster)
+	})
+	t.Run("secure", func(t *testing.T) {
+		u := mustParseURL("https://example.com")
+		transportSocket := buildPolicyTransportSocket(&config.Policy{
+			Destination: u,
+		})
+		cluster := buildCluster("example", u, transportSocket, true)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"name": "example",
+				"type": "STRICT_DNS",
+				"connectTimeout": "10s",
+				"respectDnsTtl": true,
+				"transportSocket": {
+					"name": "tls",
+					"typedConfig": {
+						"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
+						"commonTlsContext": {
+							"alpnProtocols": ["http/1.1"],
+							"validationContext": {
+								"matchSubjectAltNames": [{
+									"exact": "example.com"
+								}],
+								"trustedCa": {
+									"filename": "`+rootCA+`"
+								}
+							}
+						},
+						"sni": "example.com"
+					}
+				},
+				"http2ProtocolOptions": {
+					"allowConnect": true
+				},
+				"loadAssignment": {
+					"clusterName": "example",
+					"endpoints": [{
+						"lbEndpoints": [{
+							"endpoint": {
+								"address": {
+									"socketAddress": {
+										"address": "example.com",
+										"ipv4Compat": true,
+										"portValue": 443
+									}
+								}
+							}
+						}]
+					}]
+				}
+			}
+		`, cluster)
+	})
+	t.Run("ip address", func(t *testing.T) {
+		cluster := buildCluster("example", mustParseURL("http://127.0.0.1"), nil, true)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"name": "example",
+				"type": "STATIC",
+				"connectTimeout": "10s",
+				"respectDnsTtl": true,
+				"http2ProtocolOptions": {
+					"allowConnect": true
+				},
+				"loadAssignment": {
+					"clusterName": "example",
+					"endpoints": [{
+						"lbEndpoints": [{
+							"endpoint": {
+								"address": {
+									"socketAddress": {
+										"address": "127.0.0.1",
+										"ipv4Compat": true,
+										"portValue": 80
+									}
+								}
+							}
+						}]
+					}]
+				}
+			}
+		`, cluster)
+	})
+}
