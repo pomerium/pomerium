@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/testutil"
 )
 
@@ -118,6 +119,40 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		`, buildPolicyTransportSocket(&config.Policy{
 			Destination: mustParseURL("https://example.com"),
 			TLSCustomCA: base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
+		}))
+	})
+	t.Run("client certificate", func(t *testing.T) {
+		clientCert, _ := cryptutil.CertificateFromBase64(aExampleComCert, aExampleComKey)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"name": "tls",
+				"typedConfig": {
+					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
+					"commonTlsContext": {
+						"alpnProtocols": ["http/1.1"],
+						"tlsCertificates": [{
+							"certificateChain":{
+								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-921a8294d2e2ec54.pem")+`"
+							},
+							"privateKey": {
+								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-d5cf35b1e8533e4a.pem")+`"
+							}
+						}],
+						"validationContext": {
+							"matchSubjectAltNames": [{
+								"exact": "example.com"
+							}],
+							"trustedCa": {
+								"filename": "`+rootCA+`"
+							}
+						}
+					},
+					"sni": "example.com"
+				}
+			}
+		`, buildPolicyTransportSocket(&config.Policy{
+			Destination:       mustParseURL("https://example.com"),
+			ClientCertificate: clientCert,
 		}))
 	})
 }
