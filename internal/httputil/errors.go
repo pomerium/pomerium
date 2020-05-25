@@ -12,9 +12,9 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 )
 
-// ErrRedirectOnly is the error case when a user's session failed to be refresh
-// and the user should be redirected to the authenticate service but ensuring
-// that the current request does not continue to go through.
+// ErrRedirectOnly is the error used when a user's session failed to be refreshed.
+// The user should be redirected to the authorization service, and the original
+// request should not be permitted to hit the upstream service.
 var ErrRedirectOnly = errors.New("httputil: redirecting to authenticate service")
 
 var errorTemplate = template.Must(frontend.NewTemplates())
