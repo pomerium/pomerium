@@ -132,7 +132,7 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 				q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
 				authN.RawQuery = q.Encode()
 				httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
-				return nil
+				return httputil.ErrRedirectOnly
 			}
 			return err
 		}
