@@ -1,6 +1,7 @@
 package sessions
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -81,4 +82,23 @@ func (s *State) SetImpersonation(email, groups string) {
 	} else {
 		s.ImpersonateGroups = strings.Split(groups, ",")
 	}
+}
+
+// UnmarshalJSON returns a State struct from JSON. Additionally munges
+// a user's session by using by setting `user` claim to `sub` if empty.
+func (s *State) UnmarshalJSON(data []byte) error {
+	type StateAlias State
+	a := &struct {
+		*StateAlias
+	}{
+		StateAlias: (*StateAlias)(s),
+	}
+
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	if a.User == "" {
+		a.User = a.Subject
+	}
+	return nil
 }
