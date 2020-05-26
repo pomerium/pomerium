@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/internal/urlutil"
 
 	"gopkg.in/square/go-jose.v2"
 )
@@ -89,6 +90,9 @@ func New(opts config.Options) (*Authorize, error) {
 func validateOptions(o config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("bad shared_secret: %w", err)
+	}
+	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
+		return fmt.Errorf("invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
 	}
 	return nil
 }
