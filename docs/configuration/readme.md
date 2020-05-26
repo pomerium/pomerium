@@ -543,15 +543,22 @@ spec:
 
 #### Traefik docker-compose
 
+If the `forward_auth_url` is also handled by Traefik, you will need to configure Traefik to trust the `X-Forwarded-*`
+headers as described in [the documentation](https://docs.traefik.io/v2.2/routing/entrypoints/#forwarded-headers).
+
 ```yml
 version: "3"
 
 services:
   traefik:
-    # The official v2.0 Traefik docker image
-    image: traefik:v2.0
+    # The official v2.2 Traefik docker image
+    image: traefik:v2.2
     # Enables the web UI and tells Traefik to listen to docker
-    command: --api.insecure=true --providers.docker
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.forwardedheaders.insecure=true"
     ports:
       # The HTTP port
       - "80:80"
