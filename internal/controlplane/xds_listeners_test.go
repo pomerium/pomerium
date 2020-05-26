@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/config"
@@ -84,4 +85,12 @@ func Test_getAllRouteableDomains(t *testing.T) {
 		}
 		assert.Equal(t, expect, actual)
 	})
+}
+
+func Test_buildRouteConfiguration(t *testing.T) {
+	virtualHosts := make([]*envoy_config_route_v3.VirtualHost, 10)
+	routeConfig := buildRouteConfiguration("test-route-configuration", virtualHosts)
+	assert.Equal(t, "test-route-configuration", routeConfig.GetName())
+	assert.Equal(t, virtualHosts, routeConfig.GetVirtualHosts())
+	assert.False(t, routeConfig.GetValidateClusters().GetValue())
 }
