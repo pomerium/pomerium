@@ -186,7 +186,8 @@ func (s *State) UnmarshalJSON(b []byte) error {
 	if t.AccessToken == nil {
 		t.AccessToken = t.OldToken
 	}
-	*s = *(*State)(t.Alias)
-
+	if t.User == "" {
+		t.User = t.Subject
+	}
 	return nil
 }

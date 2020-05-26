@@ -1,6 +1,7 @@
 package sessions
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -140,6 +141,44 @@ func TestState_accessTokenHash(t *testing.T) {
 			s := &tt.state
 			if got := s.accessTokenHash(); got != tt.want {
 				t.Errorf("State.accessTokenHash() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestState_UnmarshalJSON(t *testing.T) {
+	fixedTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
+	timeNow = func() time.Time {
+		return fixedTime
+	}
+	defer func() { timeNow = time.Now }()
+	tests := []struct {
+		name    string
+		in      *State
+		want    State
+		wantErr bool
+	}{
+		{"good", &State{}, State{}, false},
+		{"with user", &State{User: "user"}, State{User: "user"}, false},
+		{"without", &State{Subject: "user"}, State{User: "user", Subject: "user"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			s := &State{}
+			if err := s.UnmarshalJSON(data); (err != nil) != tt.wantErr {
+				t.Errorf("State.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			got := *s
+			cmpOpts := []cmp.Option{
+				cmpopts.IgnoreUnexported(State{}),
+			}
+			if diff := cmp.Diff(got, tt.want, cmpOpts...); diff != "" {
+				t.Errorf("State.UnmarshalJSON() error = %v", diff)
 			}
 		})
 	}
