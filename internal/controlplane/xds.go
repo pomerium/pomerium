@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 
 	xxhash "github.com/cespare/xxhash/v2"
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
@@ -200,36 +201,38 @@ func envoyTLSCertificateFromGoTLSCertificate(cert *tls.Certificate) *envoy_exten
 	return envoyCert
 }
 
-var rootCABundle string
-
-func init() {
-	// from https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ssl#arch-overview-ssl-enabling-verification
-	knownRootLocations := []string{
-		"/etc/ssl/certs/ca-certificates.crt",
-		"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
-		"/etc/pki/tls/certs/ca-bundle.crt",
-		"/etc/ssl/ca-bundle.pem",
-		"/usr/local/etc/ssl/cert.pem",
-		"/etc/ssl/cert.pem",
-	}
-	for _, path := range knownRootLocations {
-		if _, err := os.Stat(path); err == nil {
-			rootCABundle = path
-			break
-		}
-	}
-	if rootCABundle == "" {
-		log.Error().Strs("known-locations", knownRootLocations).
-			Msgf("no root certificates were found in any of the known locations")
-	} else {
-
-		log.Info().Msgf("using %s as the system root certificate authority bundle", rootCABundle)
-	}
+var rootCABundle struct {
+	sync.Once
+	value string
 }
 
 func getRootCertificateAuthority() (string, error) {
-	if rootCABundle == "" {
+	rootCABundle.Do(func() {
+		// from https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ssl#arch-overview-ssl-enabling-verification
+		knownRootLocations := []string{
+			"/etc/ssl/certs/ca-certificates.crt",
+			"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
+			"/etc/pki/tls/certs/ca-bundle.crt",
+			"/etc/ssl/ca-bundle.pem",
+			"/usr/local/etc/ssl/cert.pem",
+			"/etc/ssl/cert.pem",
+		}
+		for _, path := range knownRootLocations {
+			if _, err := os.Stat(path); err == nil {
+				rootCABundle.value = path
+				break
+			}
+		}
+		if rootCABundle.value == "" {
+			log.Error().Strs("known-locations", knownRootLocations).
+				Msgf("no root certificates were found in any of the known locations")
+		} else {
+
+			log.Info().Msgf("using %s as the system root certificate authority bundle", rootCABundle.value)
+		}
+	})
+	if rootCABundle.value == "" {
 		return "", fmt.Errorf("root certificates not found")
 	}
-	return rootCABundle, nil
+	return rootCABundle.value, nil
 }
