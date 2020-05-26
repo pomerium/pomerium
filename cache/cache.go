@@ -68,7 +68,7 @@ func newCacheStore(name string, o *config.Options) (s kv.Store, err error) {
 		s, err = autocache.New(&autocache.Options{
 			SharedKey:     o.SharedKey,
 			Log:           stdlog.New(acLog, "", 0),
-			ClusterDomain: o.CacheURL.Hostname(),
+			ClusterDomain: o.GetCacheURL().Hostname(),
 		})
 	default:
 		return nil, fmt.Errorf("cache: unknown store: %s", name)

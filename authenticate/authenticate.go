@@ -110,7 +110,7 @@ func New(opts config.Options) (*Authenticate, error) {
 
 	// shared state encoder setup
 	sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(opts.SharedKey)
-	sharedEncoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.AuthenticateURL.Host)
+	sharedEncoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.GetAuthenticateURL().Host)
 	if err != nil {
 		return nil, err
 	}

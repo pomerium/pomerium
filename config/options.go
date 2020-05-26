@@ -620,6 +620,42 @@ func (o *Options) sourceHostnames() []string {
 	return h
 }
 
+// GetAuthenticateURL returns the AuthenticateURL in the options or localhost.
+func (o *Options) GetAuthenticateURL() *url.URL {
+	if o != nil && o.AuthenticateURL != nil {
+		return o.AuthenticateURL
+	}
+	u, _ := url.Parse("https://localhost")
+	return u
+}
+
+// GetAuthorizeURL returns the AuthorizeURL in the options or localhost:5443.
+func (o *Options) GetAuthorizeURL() *url.URL {
+	if o != nil && o.AuthorizeURL != nil {
+		return o.AuthorizeURL
+	}
+	u, _ := url.Parse("http://localhost" + DefaultAlternativeAddr)
+	return u
+}
+
+// GetCacheURL returns the CacheURL in the options or localhost:5443.
+func (o *Options) GetCacheURL() *url.URL {
+	if o != nil && o.CacheURL != nil {
+		return o.CacheURL
+	}
+	u, _ := url.Parse("http://localhost" + DefaultAlternativeAddr)
+	return u
+}
+
+// GetForwardAuthURL returns the ForwardAuthURL in the options or localhost.
+func (o *Options) GetForwardAuthURL() *url.URL {
+	if o != nil && o.ForwardAuthURL != nil {
+		return o.ForwardAuthURL
+	}
+	u, _ := url.Parse("https://localhost")
+	return u
+}
+
 // OptionsUpdater updates local state based on an Options struct
 type OptionsUpdater interface {
 	UpdateOptions(Options) error

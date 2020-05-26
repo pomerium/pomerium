@@ -28,8 +28,8 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 		Host:   srv.HTTPListener.Addr().String(),
 	}
 	authzURL := &url.URL{
-		Scheme: options.AuthorizeURL.Scheme,
-		Host:   options.AuthorizeURL.Host,
+		Scheme: options.GetAuthorizeURL().Scheme,
+		Host:   options.GetAuthorizeURL().Host,
 	}
 
 	clusters := []*envoy_config_cluster_v3.Cluster{

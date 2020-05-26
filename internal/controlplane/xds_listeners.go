@@ -125,8 +125,8 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 
 		if options.Addr == options.GRPCAddr {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && domain == options.AuthorizeURL.Host) ||
-				(config.IsCache(options.Services) && domain == options.CacheURL.Host) {
+			if (config.IsAuthorize(options.Services) && domain == options.GetAuthorizeURL().Host) ||
+				(config.IsCache(options.Services) && domain == options.GetCacheURL().Host) {
 				vh.Routes = append(vh.Routes, buildGRPCRoutes()...)
 			}
 		}
@@ -357,13 +357,13 @@ func buildDownstreamTLSContext(options *config.Options, domain string) *envoy_ex
 func getAllRouteableDomains(options *config.Options, addr string) []string {
 	lookup := map[string]struct{}{}
 	if config.IsAuthenticate(options.Services) && addr == options.Addr {
-		lookup[options.AuthenticateURL.Host] = struct{}{}
+		lookup[options.GetAuthenticateURL().Host] = struct{}{}
 	}
 	if config.IsAuthorize(options.Services) && addr == options.GRPCAddr {
-		lookup[options.AuthorizeURL.Host] = struct{}{}
+		lookup[options.GetAuthorizeURL().Host] = struct{}{}
 	}
 	if config.IsCache(options.Services) && addr == options.GRPCAddr {
-		lookup[options.CacheURL.Host] = struct{}{}
+		lookup[options.GetCacheURL().Host] = struct{}{}
 	}
 	if config.IsProxy(options.Services) && addr == options.Addr {
 		for _, policy := range options.Policies {

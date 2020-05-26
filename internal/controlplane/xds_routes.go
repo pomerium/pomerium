@@ -48,7 +48,7 @@ func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_co
 		buildControlPlanePrefixRoute("/.well-known/pomerium/"),
 	}
 	// if we're handling authentication, add the oauth2 callback url
-	if config.IsAuthenticate(options.Services) && domain == options.AuthenticateURL.Host {
+	if config.IsAuthenticate(options.Services) && domain == options.GetAuthenticateURL().Host {
 		routes = append(routes, buildControlPlanePathRoute(options.AuthenticateCallbackPath))
 	}
 	// if we're the proxy and this is the forward-auth url
