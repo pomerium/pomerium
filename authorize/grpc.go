@@ -125,7 +125,7 @@ func (a *Authorize) refreshSession(ctx context.Context, rawJWT []byte) (newSessi
 	options := a.currentOptions.Load()
 
 	// 1 - build a signed url to call refresh on authenticate service
-	refreshURI := options.AuthenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/refresh"})
+	refreshURI := options.GetAuthenticateURL().ResolveReference(&url.URL{Path: "/.pomerium/refresh"})
 	signedRefreshURL := urlutil.NewSignedURL(options.SharedKey, refreshURI).String()
 
 	// 2 - http call to authenticate service
@@ -167,7 +167,7 @@ func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) b
 	}
 
 	checkURL := getCheckRequestURL(req)
-	if urlutil.StripPort(checkURL.Host) == urlutil.StripPort(opts.ForwardAuthURL.Host) {
+	if urlutil.StripPort(checkURL.Host) == urlutil.StripPort(opts.GetForwardAuthURL().Host) {
 		if (checkURL.Path == "/" || checkURL.Path == "/verify") && checkURL.Query().Get("uri") != "" {
 			verifyURL, err := url.Parse(checkURL.Query().Get("uri"))
 			if err != nil {

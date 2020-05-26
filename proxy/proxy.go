@@ -98,7 +98,7 @@ func New(opts config.Options) (*Proxy, error) {
 	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
 
 	// used to load and verify JWT tokens signed by the authenticate service
-	encoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.AuthenticateURL.Host)
+	encoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.GetAuthenticateURL().Host)
 	if err != nil {
 		return nil, err
 	}
