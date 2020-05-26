@@ -43,6 +43,7 @@ type Server struct {
 
 	grpcPort, httpPort string
 	opts               *config.Options
+	logLevel           string
 }
 
 // NewServer creates a new server with traffic routed by envoy.
@@ -58,6 +59,12 @@ func NewServer(opts *config.Options, grpcPort, httpPort string) (*Server, error)
 		grpcPort: grpcPort,
 		httpPort: httpPort,
 		opts:     opts,
+	}
+
+	if srv.opts.ProxyLogLevel != "" {
+		srv.logLevel = srv.opts.ProxyLogLevel
+	} else {
+		srv.logLevel = srv.opts.LogLevel
 	}
 
 	err = srv.writeConfig()
@@ -78,7 +85,7 @@ func (srv *Server) Run(ctx context.Context) error {
 
 	srv.cmd = exec.CommandContext(ctx, envoyPath,
 		"-c", configFileName,
-		"--log-level", log.Logger.GetLevel().String(),
+		"--log-level", srv.logLevel,
 		"--log-format", "[LOG_FORMAT]%l--%n--%v",
 		"--log-format-escaped",
 		"--disable-hot-restart",
