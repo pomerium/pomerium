@@ -108,7 +108,9 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			if r.Header.Get(httputil.HeaderForwardedProto) == "" || r.Header.Get(httputil.HeaderForwardedHost) == "" {
 				return httputil.NewError(http.StatusBadRequest, errors.New("no uri to validate"))
 			}
-			uriString = r.Header.Get(httputil.HeaderForwardedProto) + "://" + r.Header.Get(httputil.HeaderForwardedHost)
+			uriString = r.Header.Get(httputil.HeaderForwardedProto) + "://" +
+				r.Header.Get(httputil.HeaderForwardedHost) +
+				r.Header.Get(httputil.HeaderForwardedURI)
 		}
 
 		uri, err := urlutil.ParseAndValidateURL(uriString)
