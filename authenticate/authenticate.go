@@ -135,7 +135,7 @@ func New(opts config.Options) (*Authenticate, error) {
 
 	cacheConn, err := grpc.NewGRPCClientConn(
 		&grpc.Options{
-			Addr:                    opts.GetCacheURL(),
+			Addr:                    opts.CacheURL,
 			OverrideCertificateName: opts.OverrideCertificateName,
 			CA:                      opts.CA,
 			CAFile:                  opts.CAFile,
