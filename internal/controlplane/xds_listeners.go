@@ -144,6 +144,11 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 			virtualHosts = append(virtualHosts, vh)
 		}
 	}
+	virtualHosts = append(virtualHosts, &envoy_config_route_v3.VirtualHost{
+		Name:    "catch-all",
+		Domains: []string{"*"},
+		Routes:  buildPomeriumHTTPRoutes(options, "*"),
+	})
 
 	var grpcClientTimeout *durationpb.Duration
 	if options.GRPCClientTimeout != 0 {
