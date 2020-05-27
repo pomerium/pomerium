@@ -77,6 +77,10 @@ func getJWTSetCookieHeaders(cookieStore sessions.SessionStore, rawjwt []byte) (m
 }
 
 func getJWTClaimHeaders(options config.Options, encoder encoding.MarshalUnmarshaler, rawjwt []byte) (map[string]string, error) {
+	if len(rawjwt) == 0 {
+		return make(map[string]string), nil
+	}
+
 	var claims map[string]jwtClaim
 	err := encoder.Unmarshal(rawjwt, &claims)
 	if err != nil {

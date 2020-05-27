@@ -23,7 +23,6 @@ func (a *Authorize) okResponse(
 	rawSession []byte,
 	isNewSession bool,
 ) *envoy_service_auth_v2.CheckResponse {
-
 	requestHeaders, err := a.getEnvoyRequestHeaders(rawSession, isNewSession)
 	if err != nil {
 		log.Warn().Err(err).Msg("authorize: error generating new request headers")
