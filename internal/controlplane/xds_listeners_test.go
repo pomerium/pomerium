@@ -274,7 +274,8 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 							}
 						]
 					}
-				]
+				],
+				"validateClusters": false
 			},
 			"statPrefix": "ingress",
 			"tracing": {
