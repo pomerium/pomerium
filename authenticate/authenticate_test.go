@@ -106,9 +106,6 @@ func TestNew(t *testing.T) {
 	badSigninKeyPublic := newTestOptions(t)
 	badSigninKeyPublic.SigningKey = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJFakNCdWdJSkFNWUdtVzhpYWd1TU1Bb0dDQ3FHU000OUJBTUNNQkV4RHpBTkJnTlZCQU1NQm5WdWRYTmwKWkRBZ0Z3MHlNREExTWpJeU1EUTFNalJhR0E4ME56VTRNRFF4T1RJd05EVXlORm93RVRFUE1BMEdBMVVFQXd3RwpkVzUxYzJWa01Ga3dFd1lIS29aSXpqMENBUVlJS29aSXpqMERBUWNEUWdBRVVHNXhDUDBKVFQxSDZJb2w4akt1ClRJUFZMTTA0Q2dXOVBsRXlwTlJtV2xvb0tFWFI5SFQzT2J6empLWWljemIwKzFLd1YyZk1URTE4dXcvNjFyVUMKQkRBS0JnZ3Foa2pPUFFRREFnTkhBREJFQWlBSFFDUFh2WG5oeHlDTGNhZ3N3eWt4RUM1NFV5RmdyUVJVRmVCYwpPUzVCSFFJZ1Y3T2FXY2pMeHdsRlIrWDZTQ2daZDI5bXBtOVZKNnpXQURhWGdEN3FURW89Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"
 
-	badAuthZ := newTestOptions(t)
-	badAuthZ.AuthorizeURL = nil
-
 	tests := []struct {
 		name string
 		opts *config.Options
@@ -125,7 +122,6 @@ func TestNew(t *testing.T) {
 		{"good signing key", goodSigningKey, false},
 		{"bad signing key", badSigningKey, true},
 		{"bad public signing key", badSigninKeyPublic, true},
-		{"nil autz url", badAuthZ, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
