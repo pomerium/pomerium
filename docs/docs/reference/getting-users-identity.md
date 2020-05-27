@@ -16,7 +16,7 @@ To secure your app with signed headers, you'll need the following:
 
 ## Verification
 
-If a [signing key] is set, the user's associated identity information will be included in a signed attestation JWT that will be added to each requests's upstream header `x-pomerium-jwt-assertion`. You should verify that the JWT contains at least the following claims:
+If a [signing key] is set, the user's associated identity information will be included in a signed attestation JWT that will be added to each requests's upstream header `X-Pomerium-Jwt-Assertion`. You should verify that the JWT contains at least the following claims:
 
  [JWT]   | description
 :------: | ------------------------------------------------------------------------------------------------------
@@ -24,9 +24,9 @@ If a [signing key] is set, the user's associated identity information will be in
  `iat`   | Issued-at time in seconds since the UNIX epoch. Allow 1 minute for skew.
  `aud`   | The client's final domain e.g. `httpbin.corp.example.com`.
  `iss`   | Issuer must be the URL of your authentication domain e.g. `authenticate.corp.example`.
- `sub`   | Subject is the user's id. Can be used instead of the `x-pomerium-authenticated-user-id` header.
-`email`  | Email is the user's email. Can be used instead of the `x-pomerium-authenticated-user-email` header.
-`groups` | Groups is the user's groups. Can be used instead of the `x-pomerium-authenticated-user-groups` header.
+ `sub`   | Subject is the user's id. Can be used instead of the `X-Pomerium-Claim-Sub` header.
+`email`  | Email is the user's email. Can be used instead of the `X-Pomerium-Claim-Email` header.
+`groups` | Groups is the user's groups. Can be used instead of the `X-Pomerium-Claim-Groups` header.
 
 The attestation JWT's signature can be verified using the public key which can be retrieved at Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. A `jwks_uri` is useful when integrating with other systems like [istio](https://istio.io/docs/reference/config/security/istio.authentication.v1alpha1/). For example:
 
