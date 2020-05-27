@@ -15,6 +15,7 @@ import (
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -184,10 +185,7 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "ingress",
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
-			RouteConfig: &envoy_config_route_v3.RouteConfiguration{
-				Name:         "main",
-				VirtualHosts: virtualHosts,
-			},
+			RouteConfig: buildRouteConfiguration("main", virtualHosts),
 		},
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
 			{
@@ -287,27 +285,24 @@ func buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "grpc_ingress",
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
-			RouteConfig: &envoy_config_route_v3.RouteConfiguration{
-				Name: "grpc",
-				VirtualHosts: []*envoy_config_route_v3.VirtualHost{{
-					Name:    "grpc",
-					Domains: []string{"*"},
-					Routes: []*envoy_config_route_v3.Route{{
-						Name: "grpc",
-						Match: &envoy_config_route_v3.RouteMatch{
-							PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"},
-							Grpc:          &envoy_config_route_v3.RouteMatch_GrpcRouteMatchOptions{},
-						},
-						Action: &envoy_config_route_v3.Route_Route{
-							Route: &envoy_config_route_v3.RouteAction{
-								ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-									Cluster: "pomerium-control-plane-grpc",
-								},
+			RouteConfig: buildRouteConfiguration("grpc", []*envoy_config_route_v3.VirtualHost{{
+				Name:    "grpc",
+				Domains: []string{"*"},
+				Routes: []*envoy_config_route_v3.Route{{
+					Name: "grpc",
+					Match: &envoy_config_route_v3.RouteMatch{
+						PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"},
+						Grpc:          &envoy_config_route_v3.RouteMatch_GrpcRouteMatchOptions{},
+					},
+					Action: &envoy_config_route_v3.Route_Route{
+						Route: &envoy_config_route_v3.RouteAction{
+							ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+								Cluster: "pomerium-control-plane-grpc",
 							},
 						},
-					}},
+					},
 				}},
-			},
+			}}),
 		},
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{{
 			Name: "envoy.filters.http.router",
@@ -318,6 +313,15 @@ func buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
 		ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
 			TypedConfig: tc,
 		},
+	}
+}
+
+func buildRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.VirtualHost) *envoy_config_route_v3.RouteConfiguration {
+	return &envoy_config_route_v3.RouteConfiguration{
+		Name:         name,
+		VirtualHosts: virtualHosts,
+		// disable cluster validation since the order of LDS/CDS updates isn't guaranteed
+		ValidateClusters: &wrappers.BoolValue{Value: false},
 	}
 }
 
