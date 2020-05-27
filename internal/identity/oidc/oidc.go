@@ -125,7 +125,7 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v interface{})
 //
 // https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
 func (p *Provider) updateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
-	userInfo, err := p.Provider.UserInfo(ctx, oauth2.StaticTokenSource(t))
+	userInfo, err := getUserInfo(ctx, p.Provider, oauth2.StaticTokenSource(t))
 	if err != nil {
 		return fmt.Errorf("identity/oidc: user info endpoint: %w", err)
 	}
