@@ -160,7 +160,6 @@ func setupCache(opt *config.Options, controlPlane *controlplane.Server) error {
 	if err != nil {
 		return fmt.Errorf("error creating config service: %w", err)
 	}
-	defer svc.Close()
 	pbCache.RegisterCacheServer(controlPlane.GRPCServer, svc)
 	log.Info().Msg("enabled cache service")
 	return nil
