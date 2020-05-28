@@ -2,6 +2,7 @@
 insecure_server: true
 grpc_insecure: true
 address: ":80"
+grpc_address: ":80"
 
 authenticate_service_url: https://authenticate.corp.beyondperimeter.com
 authorize_service_url: http://pomerium-authorize-service.default.svc.cluster.local
