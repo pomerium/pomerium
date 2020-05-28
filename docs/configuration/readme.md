@@ -1,7 +1,7 @@
 ---
 title: Settings
 lang: en-US
-sidebarDepth: 1
+sidebarDepth: 2
 meta:
   - name: keywords
     content: configuration options settings pomerium
