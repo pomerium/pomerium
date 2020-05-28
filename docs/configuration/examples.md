@@ -80,18 +80,14 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 - gRPC requests are routed behind the load balancer
 - Routes default to hosted version of httpbin.org
 - Includes installer script
+- Pomerium serves on HTTPS and your ingress controller may need an annotation to
+  connect properly
 
 ### GKE
 
 - Uses Google Kubernetes Engine's built-in ingress to do [HTTPS load balancing]
 
 <<< @/docs/configuration/examples/helm/helm_gke.sh
-
-### AWS ECS
-
-- Uses Amazon Elastic Container Service
-
-<<< @/docs/configuration/examples/helm/helm_aws.sh
 
 ### Kubernetes
 
@@ -120,6 +116,11 @@ Customize for your identity provider run `docker-compose up -f nginx.docker-comp
 #### pomerium-proxy.yml
 
 <<< @/docs/configuration/examples/kubernetes/pomerium-proxy.yml
+
+#### pomerium-cache.yml
+
+<<< @/docs/configuration/examples/kubernetes/pomerium-cache.yml
+
 
 #### ingress.yml
 

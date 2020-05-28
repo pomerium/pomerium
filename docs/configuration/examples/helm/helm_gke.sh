@@ -15,14 +15,14 @@ gcloud container clusters get-credentials pomerium --region us-west2
 echo "=> add pomerium's helm repo"
 helm repo add pomerium https://helm.pomerium.io
 
+echo "=> update helm"
+helm repo update
+
 echo "=> add bitnami's helm repo"
 helm repo add bitnami https://charts.bitnami.com/bitnami
 
 echo "=> install nginx as a sample hello world app"
 helm upgrade --install nginx bitnami/nginx --set service.type=ClusterIP
-
-echo "=> update helm"
-helm repo update
 
 echo "=> install pomerium with helm"
 helm install \
