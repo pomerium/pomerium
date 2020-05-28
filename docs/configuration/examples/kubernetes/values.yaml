@@ -25,4 +25,4 @@ config:
 
 ingress:
   annotations:
-    kubernetes.io/ingress.allow-http: false
+    kubernetes.io/ingress.allow-http: "false"
