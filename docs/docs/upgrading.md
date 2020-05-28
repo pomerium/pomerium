@@ -9,6 +9,10 @@ description: >-
 
 ## Breaking
 
+### Unsupported platforms
+
+- With this release we now use an embedded [envoy](https://www.envoyproxy.io/) binary as our proxy server. Due to this change we now only build and support Linux and MacOS binaries with the AMD64 architecture. We plan on supporting more platforms and architectures in future releases.
+
 ### Tracing
 
 - Jaeger tracing support is no longer end-to-end in the proxy service. We recommend updating to the Zipkin provider for proper tracing support.  Jaeger will continue to work but will not have coverage in the data plane.
