@@ -794,7 +794,7 @@ CacheStore is the name of session cache backend to use.
 
 ### Autocache
 
-[Autocache](https://github.com/pomerium/autocache) is the default session store. Autocache is based off of distributed version of [memecached](https://memcached.org/), called [groupcache](https://github.com/golang/groupcache) made by Google and used by many organizations like Twitter and Vimeo in production. Autocache is suitable for both small deployments, where it acts as a embedded cache, or larger scale, distributed installs.
+[Autocache](https://github.com/pomerium/autocache) is the default session store. Autocache is based off of distributed version of [memcached](https://memcached.org/), called [groupcache](https://github.com/golang/groupcache) made by Google and used by many organizations like Twitter and Vimeo in production. Autocache is suitable for both small deployments, where it acts as a embedded cache, or larger scale, distributed installs.
 
 When deployed in a distributed fashion, autocache uses [gossip](https://github.com/hashicorp/memberlist) based membership to manage its peers.
 
