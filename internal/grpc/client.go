@@ -8,8 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/url"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -22,7 +23,10 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-const defaultGRPCPort = 443
+const (
+	defaultGRPCSecurePort   = 443
+	defaultGRPCInsecurePort = 80
+)
 
 // Options contains options for connecting to a pomerium rpc service.
 type Options struct {
@@ -57,8 +61,12 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 	connAddr := opts.Addr.Host
 
 	// no colon exists in the connection string, assume one must be added manually
-	if !strings.Contains(connAddr, ":") {
-		connAddr = fmt.Sprintf("%s:%d", connAddr, defaultGRPCPort)
+	if _, _, err := net.SplitHostPort(connAddr); err != nil {
+		if opts.Addr.Scheme == "https" {
+			connAddr = net.JoinHostPort(connAddr, strconv.Itoa(defaultGRPCSecurePort))
+		} else {
+			connAddr = net.JoinHostPort(connAddr, strconv.Itoa(defaultGRPCInsecurePort))
+		}
 	}
 	dialOptions := []grpc.DialOption{
 		grpc.WithChainUnaryInterceptor(
