@@ -20,11 +20,11 @@ spec:
           - paths:
             backend:
               serviceName: pomerium-proxy-service
-              servicePort: https
+              servicePort: http
     - host: "authenticate.corp.beyondperimeter.com"
       http:
         paths:
           - paths:
             backend:
               serviceName: pomerium-authenticate-service
-              servicePort: https
+              servicePort: http

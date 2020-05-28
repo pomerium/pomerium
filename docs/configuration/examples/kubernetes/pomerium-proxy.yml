@@ -4,10 +4,10 @@ metadata:
   name: pomerium-proxy-service
 spec:
   ports:
-    - port: 443
+    - port: 80
       protocol: TCP
-      name: https
-      targetPort: https
+      name: http
+      targetPort: http
   selector:
     app: pomerium-proxy
   type: NodePort
@@ -34,8 +34,8 @@ spec:
           args:
             - --config=/etc/pomerium/config.yaml
           ports:
-            - containerPort: 443
-              name: https
+            - containerPort: 80
+              name: http
               protocol: TCP
           env:
             - name: SERVICES
@@ -53,12 +53,12 @@ spec:
           readinessProbe:
             httpGet:
               path: /ping
-              port: 443
+              port: 80
               scheme: HTTP
           livenessProbe:
             httpGet:
               path: /ping
-              port: 443
+              port: 80
               scheme: HTTP
             initialDelaySeconds: 10
             timeoutSeconds: 1

@@ -4,8 +4,8 @@ metadata:
   name: pomerium-authenticate-service
 spec:
   ports:
-    - port: 443
-      name: https
+    - port: 80
+      name: http
   selector:
     app: pomerium-authenticate
   type: NodePort
@@ -32,8 +32,8 @@ spec:
           args:
             - --config=/etc/pomerium/config.yaml
           ports:
-            - containerPort: 443
-              name: https
+            - containerPort: 80
+              name: http
               protocol: TCP
           env:
             - name: SERVICES
@@ -51,12 +51,12 @@ spec:
           readinessProbe:
             httpGet:
               path: /ping
-              port: 443
+              port: 80
               scheme: HTTP
           livenessProbe:
             httpGet:
               path: /ping
-              port: 443
+              port: 80
               scheme: HTTP
             initialDelaySeconds: 5
             timeoutSeconds: 1

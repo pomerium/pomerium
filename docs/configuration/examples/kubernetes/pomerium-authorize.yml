@@ -4,7 +4,7 @@ metadata:
   name: pomerium-authorize-service
 spec:
   ports:
-    - port: 443
+    - port: 80
       name: grpc
   selector:
     app: pomerium-authorize
@@ -32,7 +32,7 @@ spec:
           args:
             - --config=/etc/pomerium/config.yaml
           ports:
-            - containerPort: 443
+            - containerPort: 80
               name: grpc
               protocol: TCP
           env:
@@ -45,12 +45,12 @@ spec:
                   key: shared-secret
           readinessProbe:
             tcpSocket:
-              port: 443
+              port: 80
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             tcpSocket:
-              port: 443
+              port: 80
             initialDelaySeconds: 15
             periodSeconds: 20
 
