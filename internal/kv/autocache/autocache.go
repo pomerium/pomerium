@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/autocache"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/kv"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
@@ -121,7 +122,7 @@ func New(o *Options) (*Store, error) {
 	}
 	serverOpts := &httputil.ServerOptions{Addr: o.Addr, Insecure: true, Service: Name}
 	var wg sync.WaitGroup
-	s.srv, err = httputil.NewServer(serverOpts, metrics.HTTPMetricsHandler("groupcache")(QueryParamToCtx(s.cluster)), &wg)
+	s.srv, err = httputil.NewServer(serverOpts, telemetry.HTTPStatsHandler("groupcache")(QueryParamToCtx(s.cluster)), &wg)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +199,7 @@ func (s signedSession) RoundTrip(req *http.Request) (*http.Response, error) {
 	newReqURL.RawQuery = q.Encode()
 	newReq.URL = urlutil.NewSignedURL(s.sharedKey, &newReqURL).Sign()
 
-	tripper := metrics.HTTPMetricsRoundTripper("cache", "groupcache")(http.DefaultTransport)
+	tripper := telemetry.HTTPStatsRoundTripper("cache", "groupcache")(http.DefaultTransport)
 	return tripper.RoundTrip(newReq)
 }
 
