@@ -23,10 +23,10 @@ type GRPCServerStatsHandler struct {
 // TagRPC implements grpc.stats.Handler and adds metrics and tracing metadata to the context of a given RPC
 func (h *GRPCServerStatsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.RPCTagInfo) context.Context {
 
-	metricCtx := h.metricsHandler.TagRPC(ctx, tagInfo)
-	handledCtx := h.Handler.TagRPC(metricCtx, tagInfo)
+	handledCtx := h.Handler.TagRPC(ctx, tagInfo)
+	metricCtx := h.metricsHandler.TagRPC(handledCtx, tagInfo)
 
-	return handledCtx
+	return metricCtx
 }
 
 // NewGRPCServerStatsHandler creates a new GRPCServerStatsHandler for a pomerium service
