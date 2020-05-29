@@ -5,8 +5,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/testutil"
-
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	"github.com/golang/protobuf/proto"
 	"github.com/nsf/jsondiff"
@@ -14,6 +12,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/testutil"
 )
 
 func jsonDump(t *testing.T, m proto.GeneratedMessage) []byte {

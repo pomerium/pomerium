@@ -5,7 +5,6 @@ import (
 	"net/url"
 
 	"github.com/pomerium/pomerium/internal/telemetry"
-
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
