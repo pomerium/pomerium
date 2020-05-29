@@ -442,7 +442,7 @@ Expose a prometheus format HTTP endpoint on the specified port. Disabled by defa
 
 :::
 
-**Metrics tracked**
+#### Pomerium Metrics Tracked
 
 Name                                          | Type      | Description
 --------------------------------------------- | --------- | -----------------------------------------------------------------------
@@ -500,6 +500,14 @@ redis_idle_conns                              | Gauge     | Number of idle conne
 redis_misses_total                            | Counter   | Total number of times free connection was NOT found in the pool
 redis_stale_conns_total                       | Counter   | Total number of stale connections removed from the pool
 redis_timeouts_total                          | Counter   | Total number of times a wait timeout occurred
+
+#### Envoy Proxy Metrics
+
+As of `v0.9`, Pomerium uses [envoy Proxy]([https://](https://www.envoyproxy.io/) for the data plane. As such, proxy related metrics are sourced
+from envoy, and use envoy's internal [stats data model](https://www.envoyproxy.io/docs/envoy/latest/operations/stats_overview). Please see Envoy's documentation for information
+about specific metrics.
+
+All metrics coming from envoy will be labeled with `service="pomerium"` or `service="pomerium-proxy"`, depending if you're running all-in-one or distributed service mode.
 
 ### Proxy Log Level
 
