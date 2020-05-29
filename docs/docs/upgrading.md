@@ -13,10 +13,22 @@ description: >-
 
 - With this release we now use an embedded [envoy](https://www.envoyproxy.io/) binary as our proxy server. Due to this change we now only build and support Linux and MacOS binaries with the AMD64 architecture. We plan on supporting more platforms and architectures in future releases.
 
-### Tracing
+### Observability
+
+- The `service` label on metrics and tracing no longer reflects the `Services` configuration option directly.  `pomerium` will be used for all-in-one mode, and `pomerium-[service]` will
+  be used for distributed services
+
+#### Tracing
 
 - Jaeger tracing support is no longer end-to-end in the proxy service. We recommend updating to the Zipkin provider for proper tracing support.  Jaeger will continue to work but will not have coverage in the data plane.
 - Option `tracing_debug` is no longer supported. Use `tracing_sampling_rate` instead. [Details](https://www.pomerium.io/configuration/#shared-tracing-settings).
+
+#### Metrics
+
+With this release we now use an embedded [envoy](https://www.envoyproxy.io/) binary as our proxy server.  
+
+- Due to this change, data plane metric names and labels have changed to 
+  adopt envoy's internal data model.  [Details](https://www.pomerium.io/configuration/#envoy-proxy-metrics)
 
 # Since 0.7.0
 

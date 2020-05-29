@@ -157,7 +157,7 @@ func New(opts config.Options) (*Proxy, error) {
 	if err := p.UpdatePolicies(&opts); err != nil {
 		return nil, err
 	}
-	metrics.AddPolicyCountCallback("proxy", func() int64 {
+	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
 		return int64(len(opts.Policies))
 	})
 

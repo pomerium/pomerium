@@ -17,8 +17,8 @@ func Test_NewTracingOptions(t *testing.T) {
 	}{
 		{
 			"jaeger_good",
-			&Options{TracingProvider: "jaeger", TracingJaegerAgentEndpoint: "foo", TracingJaegerCollectorEndpoint: "http://foo"},
-			&TracingOptions{Provider: "jaeger", JaegerAgentEndpoint: "foo", JaegerCollectorEndpoint: &url.URL{Scheme: "http", Host: "foo"}},
+			&Options{TracingProvider: "jaeger", TracingJaegerAgentEndpoint: "foo", TracingJaegerCollectorEndpoint: "http://foo", Services: ServiceAll},
+			&TracingOptions{Provider: "jaeger", JaegerAgentEndpoint: "foo", JaegerCollectorEndpoint: &url.URL{Scheme: "http", Host: "foo"}, Service: "pomerium"},
 			false,
 		},
 		{
@@ -29,8 +29,8 @@ func Test_NewTracingOptions(t *testing.T) {
 		},
 		{
 			"zipkin_good",
-			&Options{TracingProvider: "zipkin", ZipkinEndpoint: "https://foo/api/v1/spans"},
-			&TracingOptions{Provider: "zipkin", ZipkinEndpoint: &url.URL{Scheme: "https", Host: "foo", Path: "/api/v1/spans"}},
+			&Options{TracingProvider: "zipkin", ZipkinEndpoint: "https://foo/api/v1/spans", Services: ServiceAuthorize},
+			&TracingOptions{Provider: "zipkin", ZipkinEndpoint: &url.URL{Scheme: "https", Host: "foo", Path: "/api/v1/spans"}, Service: "pomerium-authorize"},
 			false,
 		},
 		{

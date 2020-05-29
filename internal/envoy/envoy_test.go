@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/testutil"
 )
 
 func jsonDump(t *testing.T, m proto.GeneratedMessage) []byte {
@@ -64,6 +65,26 @@ func Test_addTraceConfig(t *testing.T) {
 
 			diff, diffStr := jsondiff.Compare([]byte(tt.want), jsonDump(t, baseCfg), &jsondiff.Options{})
 			assert.Equal(t, jsondiff.FullMatch, diff, fmt.Sprintf("%s: differences: %s", diff.String(), diffStr))
+		})
+	}
+}
+
+func Test_buildStatsConfig(t *testing.T) {
+	tests := []struct {
+		name string
+		opts *config.Options
+		want string
+	}{
+		{"all-in-one", &config.Options{Services: config.ServiceAll}, `{"statsTags":[{"tagName":"service","fixedValue":"pomerium"}]}`},
+		{"authorize", &config.Options{Services: config.ServiceAuthorize}, `{"statsTags":[{"tagName":"service","fixedValue":"pomerium-authorize"}]}`},
+		{"proxy", &config.Options{Services: config.ServiceProxy}, `{"statsTags":[{"tagName":"service","fixedValue":"pomerium-proxy"}]}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := &Server{opts: tt.opts}
+
+			statsCfg := srv.buildStatsConfig()
+			testutil.AssertProtoJSONEqual(t, tt.want, statsCfg)
 		})
 	}
 }

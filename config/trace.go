@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -44,7 +45,7 @@ type TracingOptions struct {
 func NewTracingOptions(o *Options) (*TracingOptions, error) {
 	tracingOpts := TracingOptions{
 		Provider:            o.TracingProvider,
-		Service:             o.Services,
+		Service:             telemetry.ServiceName(o.Services),
 		JaegerAgentEndpoint: o.TracingJaegerAgentEndpoint,
 		SampleRate:          o.TracingSampleRate,
 	}
@@ -66,6 +67,7 @@ func NewTracingOptions(o *Options) (*TracingOptions, error) {
 		}
 		tracingOpts.ZipkinEndpoint = zipkinEndpoint
 	case "":
+		return &TracingOptions{}, nil
 	default:
 		return nil, fmt.Errorf("config: provider %s unknown", o.TracingProvider)
 	}

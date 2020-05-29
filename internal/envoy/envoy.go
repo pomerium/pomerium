@@ -19,7 +19,9 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	envoy_config_metrics_v3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
 	envoy_config_trace_v3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/natefinch/atomic"
@@ -29,6 +31,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry"
 )
 
 const (
@@ -225,6 +228,7 @@ func (srv *Server) buildBootstrapConfig() ([]byte, error) {
 		Admin:            adminCfg,
 		DynamicResources: dynamicCfg,
 		StaticResources:  staticCfg,
+		StatsConfig:      srv.buildStatsConfig(),
 	}
 
 	traceOpts, err := config.NewTracingOptions(srv.opts)
@@ -241,6 +245,20 @@ func (srv *Server) buildBootstrapConfig() ([]byte, error) {
 		return nil, err
 	}
 	return jsonBytes, nil
+}
+
+func (srv *Server) buildStatsConfig() *envoy_config_metrics_v3.StatsConfig {
+	cfg := &envoy_config_metrics_v3.StatsConfig{}
+
+	cfg.StatsTags = []*envoy_config_metrics_v3.TagSpecifier{
+		{
+			TagName: "service",
+			TagValue: &envoy_config_metrics_v3.TagSpecifier_FixedValue{
+				FixedValue: telemetry.ServiceName(srv.opts.Services),
+			},
+		},
+	}
+	return cfg
 }
 
 func (srv *Server) addTraceConfig(traceOpts *config.TracingOptions, bootCfg *envoy_config_bootstrap_v3.Bootstrap) error {

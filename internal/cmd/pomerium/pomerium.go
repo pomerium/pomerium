@@ -11,6 +11,8 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/pomerium/pomerium/internal/telemetry"
+
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"golang.org/x/sync/errgroup"
 
@@ -166,12 +168,13 @@ func setupCache(opt *config.Options, controlPlane *controlplane.Server) error {
 }
 
 func setupMetrics(ctx context.Context, opt *config.Options) error {
+	serviceName := telemetry.ServiceName(opt.Services)
 	if opt.MetricsAddr != "" {
 		handler, err := metrics.PrometheusHandler(config.EnvoyAdminURL)
 		if err != nil {
 			return err
 		}
-		metrics.SetBuildInfo(opt.Services)
+		metrics.SetBuildInfo(serviceName)
 		metrics.RegisterInfoMetrics()
 		serverOpts := &httputil.ServerOptions{
 			Addr:     opt.MetricsAddr,

@@ -14,16 +14,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/metrics"
-	"github.com/pomerium/pomerium/internal/urlutil"
-
 	"github.com/cespare/xxhash/v2"
 	"github.com/fsnotify/fsnotify"
 	"github.com/mitchellh/hashstructure"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
+
+	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // DisableHeaderKey is the key used to check whether to disable setting header
@@ -304,11 +305,12 @@ func NewOptionsFromConfig(configFile string) (*Options, error) {
 	if o.LogLevel != "" {
 		log.SetLevel(o.LogLevel)
 	}
-	metrics.AddPolicyCountCallback(o.Services, func() int64 {
+	serviceName := telemetry.ServiceName(o.Services)
+	metrics.AddPolicyCountCallback(serviceName, func() int64 {
 		return int64(len(o.Policies))
 	})
 
-	metrics.SetConfigChecksum(o.Services, o.Checksum())
+	metrics.SetConfigChecksum(serviceName, o.Checksum())
 
 	return o, nil
 }
@@ -702,10 +704,12 @@ func WatchChanges(configFile string, opt *Options, services []OptionsUpdater) {
 // updates each service in the services slice OptionsUpdater with a new set of
 // options if any change is detected.
 func handleConfigUpdate(configFile string, opt *Options, services []OptionsUpdater) *Options {
+	serviceName := telemetry.ServiceName(opt.Services)
+
 	newOpt, err := NewOptionsFromConfig(configFile)
 	if err != nil {
 		log.Error().Err(err).Msg("config: could not reload configuration")
-		metrics.SetConfigInfo(opt.Services, false)
+		metrics.SetConfigInfo(serviceName, false)
 		return opt
 	}
 	optChecksum := opt.Checksum()
@@ -723,13 +727,13 @@ func handleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 		if err := service.UpdateOptions(*newOpt); err != nil {
 			log.Error().Err(err).Msg("config: could not update options")
 			updateFailed = true
-			metrics.SetConfigInfo(opt.Services, false)
+			metrics.SetConfigInfo(serviceName, false)
 		}
 	}
 
 	if !updateFailed {
-		metrics.SetConfigInfo(newOpt.Services, true)
-		metrics.SetConfigChecksum(newOpt.Services, newOptChecksum)
+		metrics.SetConfigInfo(serviceName, true)
+		metrics.SetConfigChecksum(serviceName, newOptChecksum)
 	}
 	return newOpt
 }
