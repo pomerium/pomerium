@@ -32,8 +32,8 @@ func (h *GRPCServerStatsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.
 // NewGRPCServerStatsHandler creates a new GRPCServerStatsHandler for a pomerium service
 func NewGRPCServerStatsHandler(service string) grpcstats.Handler {
 	return &GRPCServerStatsHandler{
-		service:        service,
+		service:        ServiceName(service),
 		Handler:        &ocgrpc.ServerHandler{},
-		metricsHandler: metrics.NewGRPCServerMetricsHandler(service),
+		metricsHandler: metrics.NewGRPCServerMetricsHandler(ServiceName(service)),
 	}
 }

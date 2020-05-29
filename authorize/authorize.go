@@ -99,7 +99,7 @@ func validateOptions(o config.Options) error {
 
 // newPolicyEvaluator returns an policy evaluator.
 func newPolicyEvaluator(opts *config.Options) (evaluator.Evaluator, error) {
-	metrics.AddPolicyCountCallback("authorize", func() int64 {
+	metrics.AddPolicyCountCallback("pomerium-authorize", func() int64 {
 		return int64(len(opts.Policies))
 	})
 	ctx := context.Background()
