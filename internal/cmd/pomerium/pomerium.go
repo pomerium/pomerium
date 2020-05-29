@@ -50,7 +50,7 @@ func Run(ctx context.Context, configFile string) error {
 	}
 
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer()
+	controlPlane, err := controlplane.NewServer(opt.Services)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}

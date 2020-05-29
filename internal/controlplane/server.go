@@ -47,7 +47,7 @@ type Server struct {
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
-func NewServer() (*Server, error) {
+func NewServer(name string) (*Server, error) {
 	srv := &Server{
 		configUpdated: make(chan struct{}, 1),
 	}
@@ -61,7 +61,7 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 	srv.GRPCServer = grpc.NewServer(
-		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler("control_plane")),
+		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(name)),
 		grpc.UnaryInterceptor(requestid.UnaryServerInterceptor()),
 		grpc.StreamInterceptor(requestid.StreamServerInterceptor()),
 	)
