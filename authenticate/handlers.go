@@ -221,10 +221,12 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	s, err := a.getSessionFromCtx(ctx)
 	if err != nil {
+		a.sessionStore.ClearSession(w, r)
 		return err
 	}
 	accessToken, err := a.getAccessToken(ctx, s)
 	if err != nil {
+		a.sessionStore.ClearSession(w, r)
 		return err
 	}
 	// user impersonation
