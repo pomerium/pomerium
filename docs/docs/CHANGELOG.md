@@ -1,5 +1,73 @@
 # Changelog
 
+## v0.9.0
+
+### New
+
+- proxy: envoy is now used to handle proxying
+- authenticate: add jwks and .well-known endpoint @desimone [GH-745]
+- authorize: add client mTLS support @calebdoxsey [GH-751]
+
+### Fixed
+
+- cache: fix closing too early @calebdoxsey [GH-791]
+- authenticate: fix insecure gRPC connection string default port @calebdoxsey [GH-795]
+- authenticate: fix user-info call for AWS cognito @calebdoxsey [GH-792]
+- authenticate: clear session if ctx fails @desimone [GH-806]
+- telemetry: fix autocache labels @travisgroth [GH-805]
+- telemetry: fix missing/incorrect grpc labels @travisgroth [GH-804]
+- authorize: fix authorization panic caused by logging a nil reference @desimone [[GH-704]]
+
+### Changes
+
+- authenticate: remove authorize url validate check @calebdoxsey [GH-790]
+- authorize: reduce log noise for empty jwt @calebdoxsey [GH-793]
+- authorize: refactor and add additional unit tests @calebdoxsey [GH-757]
+- envoy: add GRPC stats handler to control plane service @travisgroth [GH-744]
+- envoy: enable zipkin tracing @travisgroth [GH-737]
+- envoy: improvements to logging @calebdoxsey [GH-742]
+- envoy: remove 'accept-encoding' header from proxied metric requests @travisgroth [GH-750]
+- envoy: support ports in hosts for routing @calebdoxsey [GH-748]
+- forward-auth: support x-forwarded-uri @calebdoxsey [GH-780]
+- proxy/forward-auth: block expired request prior to 302 @desimone [GH-773]
+- sessions/state: add nickname claim @BenoitKnecht [GH-755]
+- state: infer user (`user`) from subject (`sub`) @desimone [GH-772]
+- telemetry: refactor GRPC Server Handler @travisgroth [GH-756]
+- telemetry: service label updates @travisgroth [GH-802]
+- xds: add catch-all for pomerium routes @calebdoxsey [GH-789]
+- xds: disable cluster validation to handle out-of-order updates @calebdoxsey [GH-783]
+
+### Documentation
+
+- docs: add mTLS recipe @calebdoxsey [GH-807]
+- docs: add argo recipe @calebdoxsey [GH-803]
+- docs: update dockerfiles for v0.9.0 @calebdoxsey [GH-801]
+- docs: typo on configuration doc @kintoandar [GH-800]
+- docs: docs regarding claim headers @strideynet [GH-782]
+- docs: update traefik example and add note about forwarded headers @calebdoxsey [GH-784]
+- docs: add note about unsupported platforms @calebdoxsey [GH-799]
+- docs: expose config parameters in sidebar @travisgroth [GH-797]
+- docs: update examples @travisgroth [GH-796]
+
+## v0.8.3
+
+### Changes
+
+- state: infer user (`user`) from subject (`sub`) @desimone GH-772
+- proxy/forward-auth: block expired request prior to 302 @desimone GH-773
+
+## v0.8.2
+
+### Security
+
+This release includes a fix for a bug that, under certain circumstances, could allow a user with a valid but expired session to resend a request to an upstream application. The repeated request would not return a response, but could reach the upstream application. Thank you to @selaux for reporting this issue! [GH-762]
+
+## v0.8.1
+
+### Fixed
+
+- authorize: fix authorization panic caused by logging a nil reference @desimone [GH-704]
+
 ## v0.8.0
 
 To see a complete list of changes [see the diff](https://github.com/pomerium/pomerium/compare/v0.7.0...v0.8.0).

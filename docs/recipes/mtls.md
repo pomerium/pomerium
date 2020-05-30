@@ -5,9 +5,12 @@ meta:
   - name: keywords
     content: pomerium identity-access-proxy mtls client-certificate
 description: >-
-  This guide covers how to use Pomerium to implement mutual authentication (mTLS) using client certificates with a custom certificate authority.
+  This guide covers how to use Pomerium to implement mutual authentication
+  (mTLS) using client certificates with a custom certificate authority.
 ---
+
 # Implementing mTLS With Pomerium
+
 Secure communication on the web typically refers to using signed server certificates with the TLS protocol. TLS connections are both private and authenticated, preventing eavesdropping and impersonation of the server.
 
 To authenticate clients (users), we typically use an identity provider (IDP). Clients must login before they can access a protected endpoint. However the TLS protocol also supports mutual authenticate (mTLS) via signed client certificates.
@@ -15,6 +18,7 @@ To authenticate clients (users), we typically use an identity provider (IDP). Cl
 As of version 0.9.0, Pomerium supports requiring signed client certificates with the `client_ca`/`client_ca_file` configuration options. This guide covers how to configure Pomerium to implement mutual authentication using client certificates with a custom certificate authority.
 
 ## Creating Certificates
+
 We will use the `mkcert` application to create the certificates. To install `mkcert` follow the instructions on [Github](https://github.com/FiloSottile/mkcert#installation).
 
 For this guide the `localhost.pomerium.io` domain will be our root domain (all subdomains on `localhost.pomerium.io` point to `localhost`). First create a trusted root certificate authority:
@@ -87,7 +91,7 @@ Before visiting the page in your browser we have one final step.
 
 Because `https://httpbin.localhost.pomerium.io:8443` now requires a client certificate to be accessed, we first need to install that client certificate in our browser. The following instructions are for Chrome, but client certificates are supported in all major browsers.
 
-Go to [chrome://settings/certificates](chrome://settings/certificates):
+Go to <chrome://settings/certificates>:
 
 ![chrome settings](./img/mtls/01-chrome-settings-certificates.png)
 
@@ -105,6 +109,6 @@ You should see the `org-mkcert development certificate` in the list of your cert
 
 ## Using the Client Certificate
 
-You can now visit **[https://httpbin.localhost.pomerium.io](https://httpbin.localhost.pomerium.io)** and you should be prompted to choose a client certificate:
+You can now visit **<https://httpbin.localhost.pomerium.io>** and you should be prompted to choose a client certificate:
 
 ![choose client certificate](./img/mtls/05-select-client-certificate.png)
