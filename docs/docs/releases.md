@@ -9,12 +9,13 @@ Official binaries for OSX, Windows, and Linux can be found on our [Github Releas
 Pomerium is also distributed as a [minimal](https://github.com/GoogleContainerTools/distroless) [docker container](https://www.docker.com/resources/what-container). You can find Pomerium's images on [dockerhub](https://hub.docker.com/r/pomerium/pomerium). Pomerium can be pulled in several flavors and architectures.
 
 - `:vX.Y.Z`: which will pull the a [specific tagged release](https://github.com/pomerium/pomerium/tags).
+
   ```bash
   $ docker run pomerium/pomerium:v0.1.0 --version
   v0.1.0+53bfa4e
   ```
 
-* `:latest`: which will pull the [most recent tagged release](https://github.com/pomerium/pomerium/releases).
+- `:latest`: which will pull the [most recent tagged release](https://github.com/pomerium/pomerium/releases).
 
   ```bash
   $ docker pull pomerium/pomerium:latest && docker run pomerium/pomerium:latest --version
@@ -55,6 +56,8 @@ To see difference between releases, please refer to the changelog and upgrading 
 For convenience, we maintain hosted documentation for each tagged release. The format for which is `https://{MAJOR}-{MINOR}-{PATCH}.docs.pomerium.io`. For example:
 
 - [github@master](https://master.docs.pomerium.io/)
+- [v0.9.0](https://0-9-0.docs.pomerium.io/)
+- [v0.8.0](https://0-8-0.docs.pomerium.io/)
 - [v0.7.0](https://0-7-0.docs.pomerium.io/)
 - [v0.6.0](https://0-6-0.docs.pomerium.io/)
 - [v0.5.0](https://0-5-0.docs.pomerium.io/)

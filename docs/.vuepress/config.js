@@ -46,10 +46,11 @@ module.exports = {
       { text: "Recipes", link: "/recipes/" },
       { text: "Enterprise", link: "/enterprise/" },
       {
-        text: "v0.8.x", // current tagged version
+        text: "v0.9.x", // current tagged version
         ariaLabel: "Version menu",
         items: [
           { text: "🚧Dev", link: "https://master.docs.pomerium.io/docs" },
+          { text: "v0.9.x", link: "https://0-9-0.docs.pomerium.io/docs" },
           { text: "v0.8.x", link: "https://0-8-0.docs.pomerium.io/docs" },
           { text: "v0.7.x", link: "https://0-7-0.docs.pomerium.io/docs" },
           { text: "v0.6.x", link: "https://0-6-0.docs.pomerium.io/docs" },
