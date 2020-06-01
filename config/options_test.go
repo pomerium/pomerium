@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 )
 
 var cmpOptIgnoreUnexported = cmpopts.IgnoreUnexported(Options{})
@@ -465,6 +466,14 @@ func TestOptions_sourceHostnames(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHTTPRedirectAddressStripQuotes(t *testing.T) {
+	o := NewDefaultOptions()
+	o.InsecureServer = true
+	o.HTTPRedirectAddr = `":80"`
+	assert.NoError(t, o.Validate())
+	assert.Equal(t, ":80", o.HTTPRedirectAddr)
 }
 
 func TestCompareByteSliceSlice(t *testing.T) {
