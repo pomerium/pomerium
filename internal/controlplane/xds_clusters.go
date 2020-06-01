@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -183,6 +184,13 @@ func buildCluster(
 	defaultPort := 80
 	if transportSocket != nil && transportSocket.Name == "tls" {
 		defaultPort = 443
+	}
+
+	if endpoint.Hostname() == "localhost" {
+		u := new(url.URL)
+		*u = *endpoint
+		u.Host = strings.Replace(endpoint.Host, "localhost", "127.0.0.1", -1)
+		endpoint = u
 	}
 
 	cluster := &envoy_config_cluster_v3.Cluster{
