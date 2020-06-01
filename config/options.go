@@ -581,6 +581,9 @@ func (o *Options) Validate() error {
 		}
 	}
 
+	// strip quotes from redirect address (#811)
+	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
+
 	RedirectAndAutocertServer.update(o)
 
 	err = AutocertManager.update(o)
