@@ -271,4 +271,34 @@ func Test_buildCluster(t *testing.T) {
 			}
 		`, cluster)
 	})
+	t.Run("localhost", func(t *testing.T) {
+		cluster := buildCluster("example", mustParseURL("http://localhost"), nil, true)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"name": "example",
+				"type": "STATIC",
+				"connectTimeout": "10s",
+				"respectDnsTtl": true,
+				"http2ProtocolOptions": {
+					"allowConnect": true
+				},
+				"loadAssignment": {
+					"clusterName": "example",
+					"endpoints": [{
+						"lbEndpoints": [{
+							"endpoint": {
+								"address": {
+									"socketAddress": {
+										"address": "127.0.0.1",
+										"ipv4Compat": true,
+										"portValue": 80
+									}
+								}
+							}
+						}]
+					}]
+				}
+			}
+		`, cluster)
+	})
 }
