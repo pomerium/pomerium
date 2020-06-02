@@ -119,6 +119,7 @@ local PomeriumPolicy = function() std.flattenArrays(
         set_request_headers: {
           'X-Custom-Request-Header': 'custom-request-header-value',
         },
+        remove_request_headers: ['X-Custom-Request-Header-To-Remove'],
       },
       {
         from: 'http://restricted-' + domain + '.localhost.pomerium.io',

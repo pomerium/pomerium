@@ -147,6 +147,38 @@ func TestSetRequestHeaders(t *testing.T) {
 
 }
 
+func TestRemoveRequestHeaders(t *testing.T) {
+	ctx := mainCtx
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	client := testcluster.NewHTTPClient()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("X-Custom-Request-Header-To-Remove", "foo")
+
+	res, err := client.Do(req)
+	if !assert.NoError(t, err, "unexpected http error") {
+		return
+	}
+	defer res.Body.Close()
+
+	var result struct {
+		Headers map[string]string `json:"headers"`
+	}
+	err = json.NewDecoder(res.Body).Decode(&result)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	_, exist := result.Headers["X-Custom-Request-Header-To-Remove"]
+	assert.False(t, exist, "expected X-Custom-Request-Header-To-Remove not to be present.")
+
+}
+
 func TestWebsocket(t *testing.T) {
 	ctx := mainCtx
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
