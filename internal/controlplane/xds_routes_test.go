@@ -221,8 +221,15 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				Source: &config.StringURL{URL: mustParseURL("https://example.com")},
 				Regex:  `^/[a]+$`,
 			},
+			{
+				Source:               &config.StringURL{URL: mustParseURL("https://example.com")},
+				Prefix:               "/some/prefix/",
+				RemoveRequestHeaders: []string{"HEADER-KEY"},
+				UpstreamTimeout:      time.Minute,
+			},
 		},
 	}, "example.com")
+
 	testutil.AssertProtoJSONEqual(t, `
 		[
 			{
@@ -240,7 +247,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-d00072a199d7b614",
+					"cluster": "policy-4e2763e591b22dc8",
 					"timeout": "3s",
 					"upgradeConfigs": [{
 						"enabled": false,
@@ -263,7 +270,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": false,
-					"cluster": "policy-907a31075a413547",
+					"cluster": "policy-e5d20435224ae9b",
 					"timeout": "0s",
 					"upgradeConfigs": [{
 						"enabled": true,
@@ -286,7 +293,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-f05528f790686bc3",
+					"cluster": "policy-6e7239b3980df01f",
 					"timeout": "60s",
 					"upgradeConfigs": [{
 						"enabled": false,
@@ -319,13 +326,37 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-e5d3a05ff1f97659",
+					"cluster": "policy-7bf4b11bf99ced85",
 					"timeout": "3s",
 					"upgradeConfigs": [{
 						"enabled": false,
 						"upgradeType": "websocket"
 					}]
 				}
+			},
+			{
+				"name": "policy-5",
+				"match": {
+					"prefix": "/some/prefix/"
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": true,
+					"cluster": "policy-6b5e934ff586365d",
+					"timeout": "60s",
+					"upgradeConfigs": [{
+						"enabled": false,
+						"upgradeType": "websocket"
+					}]
+				},
+				"requestHeadersToRemove": ["HEADER-KEY"]
 			}
 		]
 	`, routes)

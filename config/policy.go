@@ -80,6 +80,11 @@ type Policy struct {
 	// value of any existing value of a given header key.
 	SetRequestHeaders map[string]string `mapstructure:"set_request_headers" yaml:"set_request_headers,omitempty"`
 
+	// RemoveRequestHeaders removes a collection of headers from a downstream request.
+	// Note that this has lower priority than `SetRequestHeaders`, if you specify `X-Custom-Header` in both
+	// `SetRequestHeaders` and `RemoveRequestHeaders`, then the header won't be removed.
+	RemoveRequestHeaders []string `mapstructure:"remove_request_headers" yaml:"remove_request_headers,omitempty"`
+
 	// PreserveHostHeader disables host header rewriting.
 	//
 	// https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header

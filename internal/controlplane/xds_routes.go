@@ -182,7 +182,8 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 					Timeout: routeTimeout,
 				},
 			},
-			RequestHeadersToAdd: requestHeadersToAdd,
+			RequestHeadersToAdd:    requestHeadersToAdd,
+			RequestHeadersToRemove: policy.RemoveRequestHeaders,
 		})
 	}
 	return routes
