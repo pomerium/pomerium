@@ -21,6 +21,7 @@ import (
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+	"golang.org/x/net/nettest"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -110,7 +111,11 @@ func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Addres
 		port = defaultPort
 	}
 	if host == "" {
-		host = "::"
+		if nettest.SupportsIPv6() {
+			host = "::"
+		} else {
+			host = "0.0.0.0"
+		}
 	}
 	return &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{SocketAddress: &envoy_config_core_v3.SocketAddress{
