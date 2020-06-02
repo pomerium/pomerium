@@ -995,6 +995,24 @@ Set Request Headers allows you to set static values for given request headers. T
     X-Your-favorite-authenticating-Proxy: "Pomerium"
 ```
 
+### Remove Request Headers
+
+- Config File Key: `removet_request_headers`
+- Type: array of `strings`
+- Optional
+
+Remove Request Headers allows you to remove given request headers. This can be useful if you want to prevent privacy information from being passed to downstream applications. For example:
+
+```yaml
+- from: https://httpbin.corp.example.com
+  to: https://httpbin.org
+  allowed_users:
+    - bdd@pomerium.io
+  remove_request_headers:
+    - X-Email
+    - X-Username
+```
+
 ### To
 
 - `yaml`/`json` setting: `to`
