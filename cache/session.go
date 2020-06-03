@@ -70,6 +70,7 @@ func (srv *SessionServer) Sync(req *session.SyncRequest, stream session.SessionS
 			if err != nil {
 				return err
 			}
+			sessions = append(sessions, &s)
 		}
 
 		err = stream.Send(&session.SyncResponse{
