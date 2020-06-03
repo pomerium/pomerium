@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package session;
+option go_package = "github.com/pomerium/pomerium/internal/grpc/session";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+message OAuthToken {
+  string access_token = 1;
+  string token_type = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  string refresh_token = 4;
+}
+
+message Session {
+  uint64 version = 1;
+  string id = 2;
+  string user_id = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  google.protobuf.Timestamp issued_at = 5;
+  OAuthToken token = 6;
+}
+
+message AddRequest {
+  string session_id = 1;
+  string user_id = 2;
+  string access_token = 3;
+  string refresh_token = 4;
+}
+
+message SyncRequest { uint64 last_version_id = 1; }
+message SyncResponse { repeated Session sessions = 1; }
+
+service SessionService {
+  rpc Add(AddRequest) returns (google.protobuf.Empty);
+  rpc Sync(SyncRequest) returns (stream SyncResponse);
+}

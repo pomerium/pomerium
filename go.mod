@@ -15,8 +15,10 @@ require (
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
+	github.com/google/btree v1.0.0
 	github.com/google/go-cmp v0.4.1
 	github.com/google/go-jsonnet v0.16.0
+	github.com/google/uuid v1.1.1
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
