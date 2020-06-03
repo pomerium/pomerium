@@ -6,7 +6,7 @@ option go_package = "github.com/pomerium/pomerium/internal/grpc/user";
 import "google/protobuf/timestamp.proto";
 
 message User {
-  uint64 version = 1;
+  string version = 1;
   string id = 2;
   string name = 3;
   string email = 4;
@@ -16,7 +16,13 @@ message User {
   google.protobuf.Timestamp deleted_at = 8;
 }
 
-message SyncRequest { uint64 last_version_id = 1; }
-message SyncResponse { repeated User users = 1; }
+message SyncRequest {
+  string server_version = 1;
+  string record_version = 2;
+}
+message SyncResponse {
+  string server_version = 1;
+  repeated User users = 2;
+}
 
 service UserService { rpc Sync(SyncRequest) returns (stream SyncResponse); }
