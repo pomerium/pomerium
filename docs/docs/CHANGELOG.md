@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.0
+
+### New
+
+- config: add remove_request_headers @cuonglm [GH-702]
+
 ## v0.9.0
 
 ### New
