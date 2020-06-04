@@ -3,11 +3,12 @@ package identity
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/btree"
+	"github.com/mitchellh/hashstructure"
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.in/tomb.v2"
@@ -17,170 +18,12 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-var (
-	maxTime     = time.Unix(1<<63-62135596801, 999999999)
-	maxDuration = time.Duration(1<<63 - 1)
-)
-
-type managerConfig struct {
-	groupRefreshInterval      time.Duration
-	sessionRefreshGracePeriod time.Duration
-}
-
-func newManagerConfig(options ...ManagerOption) *managerConfig {
-	cfg := new(managerConfig)
-	WithGroupRefreshInterval(time.Minute * 10)(cfg)
-	WithSessionRefreshGracePeriod(time.Second * 30)(cfg)
-	for _, option := range options {
-		option(cfg)
-	}
-	return cfg
-}
-
-// A ManagerOption customizes the configuration used for the identity manager.
-type ManagerOption func(*managerConfig)
-
-// WithGroupRefreshInterval sets the group refresh interval used by the manager.
-func WithGroupRefreshInterval(interval time.Duration) ManagerOption {
-	return func(cfg *managerConfig) {
-		cfg.groupRefreshInterval = interval
-	}
-}
-
-// WithSessionRefreshGracePeriod sets the session refresh grace period used by the manager.
-func WithSessionRefreshGracePeriod(gracePeriod time.Duration) ManagerOption {
-	return func(cfg *managerConfig) {
-		cfg.sessionRefreshGracePeriod = gracePeriod
-	}
-}
-
-type managerItem struct {
-	session          *session.Session
-	user             *user.User
-	lastGroupRefresh time.Time
-
-	sessionRefreshGracePeriod, groupRefreshInterval time.Duration
-}
-
-func (item *managerItem) NeedsGroupRefresh(now time.Time) bool {
-	if item == nil || item.session == nil || item.session.OauthToken == nil {
-		return false
-	}
-
-	tm := item.lastGroupRefresh.Add(item.groupRefreshInterval)
-	if tm.After(now) {
-		return false
-	}
-
-	return true
-}
-
-func (item *managerItem) NeedsSessionRefresh(now time.Time) bool {
-	if item == nil || item.session == nil {
-		return false
-	}
-	tm, err := ptypes.Timestamp(item.session.GetExpiresAt())
-	if err != nil {
-		return false
-	}
-	tm = tm.Add(-item.sessionRefreshGracePeriod)
-	if tm.After(now) {
-		return false
-	}
-	return true
-}
-
-func (item *managerItem) NextProcessingTime() time.Time {
-	min := maxTime
-
-	if item != nil {
-		min = item.lastGroupRefresh.Add(item.groupRefreshInterval)
-
-		if item.session != nil {
-			expires, err := ptypes.Timestamp(item.session.GetExpiresAt())
-			if err == nil {
-				expires = expires.Add(-item.sessionRefreshGracePeriod)
-				if expires.Before(min) {
-					min = expires
-				}
-			}
-		}
-	}
-
-	return min
-}
-
-func (item *managerItem) SessionID() string {
-	if item.session == nil {
-		return ""
-	}
-	return item.session.GetId()
-}
-
-func (item *managerItem) UserID() string {
-	if item.user == nil {
-		return ""
-	}
-	return item.user.GetId()
-}
-
-type managerItemByTimestamp struct {
-	*managerItem
-}
-
-func (item managerItemByTimestamp) Less(than btree.Item) bool {
-	x := item
-	y := than.(managerItemByTimestamp)
-
-	xtm := x.NextProcessingTime()
-	ytm := y.NextProcessingTime()
-
-	// first sort by timestamp
-	switch {
-	case xtm.Before(ytm):
-		return true
-	case ytm.Before(xtm):
-		return false
-	}
-
-	// fallback to sorting by (user_id, session_id)
-	return managerItemByID(x).Less(managerItemByID(y))
-}
-
-type managerItemByID struct {
-	*managerItem
-}
-
-func (item managerItemByID) Less(than btree.Item) bool {
-	x := item
-	y := than.(managerItemByID)
-
-	switch {
-	case x.UserID() < y.UserID():
-		return true
-	case y.UserID() < x.UserID():
-		return false
-	}
-
-	switch {
-	case x.SessionID() < y.SessionID():
-		return true
-	case y.SessionID() < x.SessionID():
-		return false
-	}
-
-	return false
-}
-
 // A Manager refreshes identity information using session and user data.
 type Manager struct {
 	cfg           *managerConfig
 	authenticator Authenticator
 	sessionClient session.SessionServiceClient
 	userClient    user.UserServiceClient
-
-	closeOnce sync.Once
-	closed    chan struct{}
 
 	byID        *btree.BTree
 	byTimestamp *btree.BTree
@@ -207,7 +50,7 @@ func NewManager(
 	return mgr
 }
 
-// Run runs the manager. This method blocks until an error occurs or the given context is cancelled.
+// Run runs the manager. This method blocks until an error occurs or the given context is canceled.
 func (mgr *Manager) Run(ctx context.Context) error {
 	t, ctx := tomb.WithContext(ctx)
 
@@ -262,6 +105,8 @@ func (mgr *Manager) refreshLoop(
 
 			mgr.byID.Delete(managerItemByID(item))
 
+			currentSessionHash, currentUserHash := getHash(item.session), getHash(item.user)
+
 			item.managerItem = mgr.maybeRefreshSession(ctx, now, item.managerItem)
 			if item.managerItem == nil {
 				// session refresh failed, so drop
@@ -272,6 +117,16 @@ func (mgr *Manager) refreshLoop(
 			if item.managerItem == nil {
 				// group refresh failed, so drop
 				continue
+			}
+
+			newSessionHash, newUserHash := getHash(item.session), getHash(item.user)
+
+			if currentSessionHash != newSessionHash {
+				mgr.saveSession(ctx, item.session)
+			}
+
+			if currentUserHash != newUserHash {
+				mgr.saveUser(ctx, item.user)
 			}
 
 			// re-insert
@@ -290,42 +145,19 @@ func (mgr *Manager) maybeRefreshSession(ctx context.Context, now time.Time, item
 	}
 
 	currentToken := fromOAuthToken(item.session.GetOauthToken())
-	newToken, err := mgr.authenticator.Refresh(ctx, currentToken, item.session.IDTokenJSONFiller())
+	newToken, err := mgr.authenticator.Refresh(ctx, currentToken, item)
 	if err != nil {
 		log.Warn().Err(err).
-			Str("id", item.SessionID()).
+			Str("session_id", item.SessionID()).
+			Str("user_id", item.UserID()).
 			Msg("failed to refresh session")
 
-		// attempt to revoke the session so the user will be forced to log in again
-		err = mgr.authenticator.Revoke(ctx, currentToken)
-		if err != nil {
-			log.Warn().Err(err).
-				Str("id", item.SessionID()).
-				Msg("failed to revoke session")
-		}
-
-		_, err = mgr.sessionClient.Delete(ctx, &session.DeleteRequest{
-			Id: item.SessionID(),
-		})
-		if err != nil {
-			log.Warn().Err(err).
-				Str("id", item.SessionID()).
-				Msg("failed to delete session")
-		}
+		mgr.clearSession(ctx, item.session)
 
 		return nil
 	}
 
 	item.session.OauthToken = toOAuthToken(newToken)
-	_, err = mgr.sessionClient.Add(ctx, &session.AddRequest{
-		Session: item.session,
-	})
-	if err != nil {
-		log.Warn().Err(err).
-			Str("id", item.SessionID()).
-			Msg("failed to update session")
-		return nil
-	}
 
 	return item
 }
@@ -336,47 +168,65 @@ func (mgr *Manager) maybeRefreshGroups(ctx context.Context, now time.Time, item 
 	}
 
 	currentToken := fromOAuthToken(item.session.GetOauthToken())
-	err := mgr.authenticator.UpdateUserInfo(ctx, currentToken, nil)
+	err := mgr.authenticator.UpdateUserInfo(ctx, currentToken, item)
 	if err != nil {
 		log.Warn().Err(err).
 			Str("session_id", item.SessionID()).
 			Str("user_id", item.UserID()).
 			Msg("failed to refresh user groups")
 
-		// attempt to revoke the session so the user will be forced to log in again
-		err = mgr.authenticator.Revoke(ctx, currentToken)
-		if err != nil {
-			log.Warn().Err(err).
-				Str("session_id", item.SessionID()).
-				Str("user_id", item.UserID()).
-				Msg("failed to revoke session")
-		}
+		mgr.clearSession(ctx, item.session)
 
-		_, err = mgr.sessionClient.Delete(ctx, &session.DeleteRequest{
-			Id: item.SessionID(),
-		})
-		if err != nil {
-			log.Warn().Err(err).
-				Str("session_id", item.SessionID()).
-				Str("user_id", item.UserID()).
-				Msg("failed to delete session")
-		}
-
-		return nil
-	}
-
-	_, err = mgr.userClient.Add(ctx, &user.AddRequest{
-		User: item.user,
-	})
-	if err != nil {
-		log.Warn().Err(err).
-			Str("session_id", item.SessionID()).
-			Str("user_id", item.UserID()).
-			Msg("failed to update user")
 		return nil
 	}
 
 	return item
+}
+
+func (mgr *Manager) clearSession(ctx context.Context, s *session.Session) {
+	// attempt to revoke the session so the user will be forced to log in again
+	if s != nil && s.OauthToken != nil {
+		currentToken := fromOAuthToken(s.GetOauthToken())
+		err := mgr.authenticator.Revoke(ctx, currentToken)
+		if err != nil {
+			log.Warn().Err(err).
+				Str("session_id", s.GetId()).
+				Msg("failed to revoke session")
+		}
+	}
+
+	if s != nil {
+		_, err := mgr.sessionClient.Delete(ctx, &session.DeleteRequest{
+			Id: s.GetId(),
+		})
+		if err != nil {
+			log.Warn().Err(err).
+				Str("session_id", s.GetId()).
+				Msg("failed to delete session")
+		}
+	}
+}
+
+func (mgr *Manager) saveSession(ctx context.Context, s *session.Session) {
+	_, err := mgr.sessionClient.Add(ctx, &session.AddRequest{
+		Session: s,
+	})
+	if err != nil {
+		log.Warn().Err(err).
+			Str("session_id", s.GetId()).
+			Msg("failed to update session")
+	}
+}
+
+func (mgr *Manager) saveUser(ctx context.Context, u *user.User) {
+	_, err := mgr.userClient.Add(ctx, &user.AddRequest{
+		User: u,
+	})
+	if err != nil {
+		log.Warn().Err(err).
+			Str("user_id", u.GetId()).
+			Msg("failed to update user")
+	}
 }
 
 func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session) error {
@@ -501,4 +351,14 @@ func toOAuthToken(token *oauth2.Token) *session.OAuthToken {
 		RefreshToken: token.RefreshToken,
 		ExpiresAt:    expiry,
 	}
+}
+
+func getHash(v interface{}) uint64 {
+	if v == nil {
+		return 0
+	}
+	h, _ := hashstructure.Hash(v, &hashstructure.HashOptions{
+		Hasher: xxhash.New(),
+	})
+	return h
 }

@@ -12,7 +12,6 @@ message IDToken {
   string subject = 2;
   google.protobuf.Timestamp expires_at = 3;
   google.protobuf.Timestamp issued_at = 4;
-  map<string, google.protobuf.Any> claims = 5;
 }
 
 message OAuthToken {
@@ -29,6 +28,7 @@ message Session {
   google.protobuf.Timestamp expires_at = 4;
   IDToken id_token = 5;
   OAuthToken oauth_token = 6;
+  map<string, google.protobuf.Any> claims = 7;
 }
 
 message AddRequest { Session session = 1; }
