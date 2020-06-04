@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
@@ -16,10 +17,25 @@ type SessionServer struct {
 }
 
 // NewSessionServer creates a new SessionServer.
-func NewSessionServer(dataBrokerClient databroker.DataBrokerServiceClient) *SessionServer {
-	return &SessionServer{
+func NewSessionServer(grpcServer *grpc.Server, dataBrokerClient databroker.DataBrokerServiceClient) *SessionServer {
+	srv := &SessionServer{
 		dataBrokerClient: dataBrokerClient,
 	}
+	session.RegisterSessionServiceServer(grpcServer, srv)
+	return srv
+}
+
+// Delete deletes a session from the session server.
+func (srv *SessionServer) Delete(ctx context.Context, req *session.DeleteRequest) (*emptypb.Empty, error) {
+	data, err := ptypes.MarshalAny(new(session.Session))
+	if err != nil {
+		return nil, err
+	}
+
+	return srv.dataBrokerClient.Delete(ctx, &databroker.DeleteRequest{
+		Type: data.GetTypeUrl(),
+		Id:   req.GetId(),
+	})
 }
 
 // Add adds a session to the session server.

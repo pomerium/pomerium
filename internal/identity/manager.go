@@ -10,7 +10,6 @@ import (
 	"github.com/google/btree"
 	"github.com/mitchellh/hashstructure"
 	"golang.org/x/oauth2"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.in/tomb.v2"
 
 	"github.com/pomerium/pomerium/internal/grpc/session"
@@ -41,8 +40,6 @@ func NewManager(
 		authenticator: authenticator,
 		sessionClient: sessionClient,
 		userClient:    userClient,
-
-		closed: make(chan struct{}),
 
 		byID:        btree.New(8),
 		byTimestamp: btree.New(8),
@@ -131,7 +128,7 @@ func (mgr *Manager) refreshLoop(
 
 			// re-insert
 			mgr.byID.ReplaceOrInsert(managerItemByID(item))
-			mgr.byTimestamp.ReplaceOrInsert(managerItemByTimestamp(item))
+			mgr.byTimestamp.ReplaceOrInsert(item)
 			timer.Reset(item.NextProcessingTime().Sub(now))
 
 			break
@@ -230,6 +227,7 @@ func (mgr *Manager) saveUser(ctx context.Context, u *user.User) {
 }
 
 func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session) error {
+	log.Info().Str("service", "manager").Msg("syncing sessions")
 	client, err := mgr.sessionClient.Sync(ctx, &session.SyncRequest{})
 	if err != nil {
 		return fmt.Errorf("error syncing sessions: %w", err)
@@ -241,6 +239,7 @@ func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session
 		}
 
 		for _, session := range res.GetSessions() {
+			log.Info().Str("service", "manager").Interface("session", session).Msg("session update")
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -251,6 +250,7 @@ func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session
 }
 
 func (mgr *Manager) syncUsers(ctx context.Context, ch chan<- *user.User) error {
+	log.Info().Str("service", "manager").Msg("syncing users")
 	client, err := mgr.userClient.Sync(ctx, &user.SyncRequest{})
 	if err != nil {
 		return fmt.Errorf("error syncing users: %w", err)
@@ -262,6 +262,7 @@ func (mgr *Manager) syncUsers(ctx context.Context, ch chan<- *user.User) error {
 		}
 
 		for _, user := range res.GetUsers() {
+			log.Info().Str("service", "manager").Interface("user", user).Msg("user update")
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -317,20 +318,6 @@ func (mgr *Manager) updateByID(userID, sessionID string, f func(*managerItem)) {
 		mgr.byID.ReplaceOrInsert(item)
 		mgr.byTimestamp.ReplaceOrInsert(managerItemByTimestamp(item))
 	}
-}
-
-func minTimestamp(ts ...*timestamppb.Timestamp) time.Time {
-	var min time.Time
-	for _, t := range ts {
-		tm, _ := ptypes.Timestamp(t)
-		if tm.IsZero() {
-			continue
-		}
-		if min.IsZero() || tm.Before(min) {
-			min = tm
-		}
-	}
-	return min
 }
 
 func fromOAuthToken(token *session.OAuthToken) *oauth2.Token {
