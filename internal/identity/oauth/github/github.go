@@ -82,7 +82,7 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v interface{})
 		return nil, fmt.Errorf("github: token exchange failed %v", err)
 	}
 
-	err = p.updateSessionState(ctx, oauth2Token, v)
+	err = p.UpdateUserInfo(ctx, oauth2Token, v)
 	if err != nil {
 		return nil, err
 	}
@@ -90,10 +90,10 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v interface{})
 	return oauth2Token, nil
 }
 
-// updateSessionState will get the user information from github and also retrieve the user's team(s)
+// UpdateUserInfo will get the user information from github and also retrieve the user's team(s)
 //
 // https://developer.github.com/v3/users/#get-the-authenticated-user
-func (p *Provider) updateSessionState(ctx context.Context, t *oauth2.Token, v interface{}) error {
+func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
 
 	err := p.userInfo(ctx, t, v)
 	if err != nil {
@@ -113,12 +113,8 @@ func (p *Provider) updateSessionState(ctx context.Context, t *oauth2.Token, v in
 	return nil
 }
 
-// Refresh renews a user's session by making a new userInfo request.
+// Refresh is a no-op for github, because github sessions never expire.
 func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v interface{}) (*oauth2.Token, error) {
-	err := p.updateSessionState(ctx, t, v)
-	if err != nil {
-		return nil, err
-	}
 	return t, nil
 }
 

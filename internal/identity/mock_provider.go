@@ -17,6 +17,7 @@ type MockProvider struct {
 	GetSignInURLResponse string
 	LogOutResponse       url.URL
 	LogOutError          error
+	UpdateUserInfoError  error
 }
 
 // Authenticate is a mocked providers function.
@@ -39,3 +40,8 @@ func (mp MockProvider) GetSignInURL(s string) string { return mp.GetSignInURLRes
 
 // LogOut is a mocked providers function.
 func (mp MockProvider) LogOut() (*url.URL, error) { return &mp.LogOutResponse, mp.LogOutError }
+
+// UpdateUserInfo is a mocked providers function.
+func (mp MockProvider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
+	return mp.UpdateUserInfoError
+}
