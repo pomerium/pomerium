@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // Server implements the databroker service using an in memory database.
@@ -57,6 +58,12 @@ func New(options ...ServerOption) *Server {
 
 // Delete deletes a record from the in-memory list.
 func (srv *Server) Delete(ctx context.Context, req *databroker.DeleteRequest) (*empty.Empty, error) {
+	log.Info().
+		Str("service", "databroker").
+		Str("type", req.GetType()).
+		Str("id", req.GetId()).
+		Msg("delete")
+
 	defer srv.onchange.Broadcast()
 
 	srv.getDB(req.GetType()).Delete(req.GetId())
@@ -66,6 +73,12 @@ func (srv *Server) Delete(ctx context.Context, req *databroker.DeleteRequest) (*
 
 // Get gets a record from the in-memory list.
 func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
+	log.Info().
+		Str("service", "databroker").
+		Str("type", req.GetType()).
+		Str("id", req.GetId()).
+		Msg("get")
+
 	record := srv.getDB(req.GetType()).Get(req.GetId())
 	if record == nil {
 		return nil, status.Error(codes.NotFound, "record not found")
@@ -75,6 +88,12 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 
 // Set updates a record in the in-memory list, or adds a new one.
 func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databroker.SetResponse, error) {
+	log.Info().
+		Str("service", "databroker").
+		Str("type", req.GetType()).
+		Str("id", req.GetId()).
+		Msg("set")
+
 	defer srv.onchange.Broadcast()
 
 	db := srv.getDB(req.GetType())
@@ -88,6 +107,13 @@ func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databr
 
 // Sync streams updates for the given record type.
 func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBrokerService_SyncServer) error {
+	log.Info().
+		Str("service", "databroker").
+		Str("type", req.GetType()).
+		Str("server_version", req.GetServerVersion()).
+		Str("record_version", req.GetRecordVersion()).
+		Msg("sync")
+
 	recordVersion := req.GetRecordVersion()
 	// reset record version if the server versions don't match
 	if req.GetServerVersion() != srv.version {

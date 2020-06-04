@@ -9,6 +9,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/user"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // UserServer implements the user service interface for syncing users.
@@ -27,6 +28,11 @@ func NewUserServer(grpcServer *grpc.Server, dataBrokerClient databroker.DataBrok
 
 // Add adds a user to the user server.
 func (srv *UserServer) Add(ctx context.Context, req *user.AddRequest) (*emptypb.Empty, error) {
+	log.Info().
+		Str("service", "user").
+		Str("user_id", req.GetUser().GetId()).
+		Msg("add")
+
 	data, err := ptypes.MarshalAny(req.GetUser())
 	if err != nil {
 		return nil, err
@@ -46,6 +52,12 @@ func (srv *UserServer) Add(ctx context.Context, req *user.AddRequest) (*emptypb.
 
 // Sync syncs users from the UserServer.
 func (srv *UserServer) Sync(req *user.SyncRequest, stream user.UserService_SyncServer) error {
+	log.Info().
+		Str("service", "user").
+		Str("server_version", req.GetServerVersion()).
+		Str("record_version", req.GetRecordVersion()).
+		Msg("sync")
+
 	data, err := ptypes.MarshalAny(new(user.User))
 	if err != nil {
 		return err

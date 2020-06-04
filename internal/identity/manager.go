@@ -137,6 +137,12 @@ func (mgr *Manager) refreshLoop(
 }
 
 func (mgr *Manager) maybeRefreshSession(ctx context.Context, now time.Time, item *managerItem) *managerItem {
+	// if the session has expired, for a re-login
+	if item.IsSessionExpired(now) {
+		mgr.clearSession(ctx, item.session)
+		return nil
+	}
+
 	if !item.NeedsSessionRefresh(now) {
 		return item
 	}
@@ -150,7 +156,6 @@ func (mgr *Manager) maybeRefreshSession(ctx context.Context, now time.Time, item
 			Msg("failed to refresh session")
 
 		mgr.clearSession(ctx, item.session)
-
 		return nil
 	}
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/session"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // SessionServer implements the session service interface for adding and syncing sessions.
@@ -27,6 +28,11 @@ func NewSessionServer(grpcServer *grpc.Server, dataBrokerClient databroker.DataB
 
 // Delete deletes a session from the session server.
 func (srv *SessionServer) Delete(ctx context.Context, req *session.DeleteRequest) (*emptypb.Empty, error) {
+	log.Info().
+		Str("service", "session").
+		Str("session_id", req.GetId()).
+		Msg("delete")
+
 	data, err := ptypes.MarshalAny(new(session.Session))
 	if err != nil {
 		return nil, err
@@ -40,6 +46,11 @@ func (srv *SessionServer) Delete(ctx context.Context, req *session.DeleteRequest
 
 // Add adds a session to the session server.
 func (srv *SessionServer) Add(ctx context.Context, req *session.AddRequest) (*emptypb.Empty, error) {
+	log.Info().
+		Str("service", "session").
+		Str("session_id", req.GetSession().GetId()).
+		Msg("add")
+
 	data, err := ptypes.MarshalAny(req.GetSession())
 	if err != nil {
 		return nil, err
@@ -59,6 +70,12 @@ func (srv *SessionServer) Add(ctx context.Context, req *session.AddRequest) (*em
 
 // Sync sync sessions from the session server.
 func (srv *SessionServer) Sync(req *session.SyncRequest, stream session.SessionService_SyncServer) error {
+	log.Info().
+		Str("service", "session").
+		Str("server_version", req.GetServerVersion()).
+		Str("record_version", req.GetRecordVersion()).
+		Msg("sync")
+
 	data, err := ptypes.MarshalAny(new(session.Session))
 	if err != nil {
 		return err

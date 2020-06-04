@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/grpc"
 	"github.com/pomerium/pomerium/internal/grpc/cache"
 	"github.com/pomerium/pomerium/internal/grpc/cache/client"
+	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
@@ -97,6 +98,9 @@ type Authenticate struct {
 	// cacheClient is the interface for setting and getting sessions from a cache
 	cacheClient cache.Cacher
 
+	// sessionClient is used to create sessions
+	sessionClient session.SessionServiceClient
+
 	jwk *jose.JSONWebKeySet
 
 	templates *template.Template
@@ -148,6 +152,7 @@ func New(opts config.Options) (*Authenticate, error) {
 	}
 
 	cacheClient := client.New(cacheConn)
+	sessionClient := session.NewSessionServiceClient(cacheConn)
 
 	qpStore := queryparam.NewStore(encryptedEncoder, urlutil.QueryProgrammaticToken)
 	headerStore := header.NewStore(encryptedEncoder, httputil.AuthorizationTypePomerium)
@@ -186,9 +191,10 @@ func New(opts config.Options) (*Authenticate, error) {
 		// IdP
 		provider: provider,
 		// grpc client for cache
-		cacheClient: cacheClient,
-		jwk:         &jose.JSONWebKeySet{},
-		templates:   template.Must(frontend.NewTemplates()),
+		cacheClient:   cacheClient,
+		sessionClient: sessionClient,
+		jwk:           &jose.JSONWebKeySet{},
+		templates:     template.Must(frontend.NewTemplates()),
 	}
 
 	if opts.SigningKey != "" {

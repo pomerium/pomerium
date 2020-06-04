@@ -27,6 +27,17 @@ type managerItem struct {
 	sessionRefreshGracePeriod, groupRefreshInterval time.Duration
 }
 
+func (item *managerItem) IsSessionExpired(now time.Time) bool {
+	if item == nil || item.session == nil {
+		return false
+	}
+	expiresAt, err := ptypes.Timestamp(item.session.ExpiresAt)
+	if err != nil {
+		return false
+	}
+	return expiresAt.Before(now)
+}
+
 func (item *managerItem) NeedsGroupRefresh(now time.Time) bool {
 	if item == nil || item.session == nil || item.session.OauthToken == nil {
 		return false
@@ -60,6 +71,14 @@ func (item *managerItem) NextProcessingTime() time.Time {
 				expires = expires.Add(-item.sessionRefreshGracePeriod)
 				if expires.Before(min) {
 					min = expires
+				}
+			}
+
+			oauthExpires, err := ptypes.Timestamp(item.session.GetOauthToken().GetExpiresAt())
+			if err == nil {
+				oauthExpires = oauthExpires.Add(-item.sessionRefreshGracePeriod)
+				if oauthExpires.Before(min) {
+					min = oauthExpires
 				}
 			}
 		}

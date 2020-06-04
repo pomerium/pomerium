@@ -11,7 +11,6 @@ import (
 	"net"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
 	"gopkg.in/tomb.v2"
 
 	"github.com/pomerium/pomerium/config"
@@ -59,13 +58,13 @@ func New(opts config.Options) (*Cache, error) {
 		return nil, fmt.Errorf("cache: failed to create authenticator: %w", err)
 	}
 
-	localListener := new(bufconn.Listener)
+	localListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, err
+	}
 	localGRPCServer := grpc.NewServer()
-	localGRPCConnection, err := grpc.DialContext(context.Background(), "inmemory",
-		grpc.WithInsecure(),
-		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-			return localListener.Dial()
-		}))
+	localGRPCConnection, err := grpc.DialContext(context.Background(), localListener.Addr().String(),
+		grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
