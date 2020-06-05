@@ -290,6 +290,7 @@ func (mgr *Manager) onUpdateSession(ctx context.Context, pbSession *session.Sess
 	mgr.sessions.ReplaceOrInsert(s)
 	mgr.sessionScheduler.Add(s.NextRefresh(), toSessionSchedulerKey(pbSession.GetUserId(), pbSession.GetId()))
 
+	// create the user if it doesn't exist yet
 	if _, ok := mgr.users.Get(pbSession.GetUserId()); !ok {
 		mgr.createUser(ctx, pbSession)
 	}
@@ -304,6 +305,7 @@ func (mgr *Manager) onUpdateUser(ctx context.Context, pbUser *user.User) {
 
 	u, ok := mgr.users.Get(pbUser.GetId())
 	if ok {
+		// only reset the refresh time if this is an existing user
 		u.lastRefresh = time.Now()
 	}
 	u.refreshInterval = mgr.cfg.groupRefreshInterval
