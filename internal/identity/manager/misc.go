@@ -3,66 +3,15 @@ package manager
 import (
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/golang/protobuf/ptypes"
 	structpb "github.com/golang/protobuf/ptypes/struct"
-	"github.com/mitchellh/hashstructure"
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/internal/grpc/session"
 )
-
-var maxTime = time.Unix(1<<63-62135596801, 999999999)
-
-func getHash(v interface{}) uint64 {
-	if v == nil {
-		return 0
-	}
-	h, _ := hashstructure.Hash(v, &hashstructure.HashOptions{
-		Hasher: xxhash.New(),
-	})
-	return h
-}
-
-func getMinTime(tms ...time.Time) time.Time {
-	min := maxTime
-	for _, tm := range tms {
-		if tm.Before(min) {
-			min = tm
-		}
-	}
-	return min
-}
-
-func getStringClaim(claims map[string]*anypb.Any, key string) string {
-	if claims == nil {
-		return ""
-	}
-
-	var str wrapperspb.StringValue
-	_ = ptypes.UnmarshalAny(claims[key], &str)
-	return str.Value
-}
-
-func getStringsClaim(claims map[string]*anypb.Any, key string) []string {
-	if claims == nil {
-		return nil
-	}
-
-	var lst structpb.ListValue
-	_ = ptypes.UnmarshalAny(claims[key], &lst)
-	strs := make([]string, 0)
-	for _, value := range lst.GetValues() {
-		if _, ok := value.Kind.(*structpb.Value_StringValue); ok {
-			strs = append(strs, value.GetStringValue())
-		}
-	}
-	return strs
-}
 
 func toAny(value interface{}) (*anypb.Any, error) {
 	switch v := value.(type) {

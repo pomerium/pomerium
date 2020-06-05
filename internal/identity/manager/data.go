@@ -24,6 +24,7 @@ func (u User) NextRefresh() time.Time {
 	return u.lastRefresh.Add(u.refreshInterval)
 }
 
+// UnmarshalJSON unmarshals json data into the user object.
 func (u *User) UnmarshalJSON(data []byte) error {
 	if u.User == nil {
 		u.User = new(user.User)
@@ -102,6 +103,7 @@ func (s Session) NextRefresh() time.Time {
 	return tm
 }
 
+// UnmarshalJSON unmarshals json data into the session object.
 func (s *Session) UnmarshalJSON(data []byte) error {
 	if s.Session == nil {
 		s.Session = new(session.Session)

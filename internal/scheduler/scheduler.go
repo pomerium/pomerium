@@ -1,3 +1,4 @@
+// Package scheduler contains a priority queue based on time.
 package scheduler
 
 import (
@@ -9,18 +10,19 @@ import (
 
 var maxTime = time.Unix(1<<63-62135596801, 999999999)
 
-type item struct {
+type itemByKey struct {
 	time time.Time
 	key  string
 }
-
-type itemByKey item
 
 func (i itemByKey) Less(than btree.Item) bool {
 	return strings.Compare(i.key, than.(itemByKey).key) < 0
 }
 
-type itemByTime item
+type itemByTime struct {
+	time time.Time
+	key  string
+}
 
 func (i itemByTime) Less(than btree.Item) bool {
 	xTime, yTime := i.time, than.(itemByTime).time

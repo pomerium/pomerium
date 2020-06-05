@@ -1,3 +1,4 @@
+// Package manager contains an identity manager responsible for refreshing sessions and creating users.
 package manager
 
 import (
@@ -5,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/btree"
 	"golang.org/x/oauth2"
 	"gopkg.in/tomb.v2"
@@ -15,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/scheduler"
 )
 
+// Authenticator is an identity.Provider with only the methods needed by the manager.
 type Authenticator interface {
 	Refresh(context.Context, *oauth2.Token, interface{}) (*oauth2.Token, error)
 	Revoke(context.Context, *oauth2.Token) error
@@ -133,7 +136,7 @@ func (mgr *Manager) refreshLoop(
 			mgr.refreshUser(ctx, key)
 		}
 
-		timer.Reset(nextTime.Sub(time.Now()))
+		timer.Reset(time.Until(nextTime))
 	}
 }
 
@@ -149,6 +152,24 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("no session found for refresh")
+		return
+	}
+
+	expiry, err := ptypes.Timestamp(s.GetExpiresAt())
+	if err == nil && expiry.Before(time.Now()) {
+		log.Info().
+			Str("user_id", userID).
+			Str("session_id", sessionID).
+			Msg("deleting expired session")
+		s.DeletedAt, _ = ptypes.TimestampProto(time.Now())
+		_, err = mgr.sessionClient.Add(ctx, &session.AddRequest{Session: s.Session})
+		if err != nil {
+			log.Error().Err(err).
+				Str("user_id", s.GetUserId()).
+				Str("session_id", s.GetId()).
+				Msg("failed to delete session")
+			return
+		}
 		return
 	}
 
@@ -296,7 +317,7 @@ func (mgr *Manager) onUpdateSession(ctx context.Context, pbSession *session.Sess
 	}
 }
 
-func (mgr *Manager) onUpdateUser(ctx context.Context, pbUser *user.User) {
+func (mgr *Manager) onUpdateUser(_ context.Context, pbUser *user.User) {
 	if pbUser.DeletedAt != nil {
 		mgr.users.Delete(pbUser.GetId())
 		mgr.userScheduler.Remove(pbUser.GetId())
