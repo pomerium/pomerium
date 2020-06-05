@@ -80,13 +80,25 @@ func (mgr *Manager) refreshLoop(
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case session := <-updatedSession:
-			mgr.updateByID(session.GetUserId(), session.GetId(), func(item *managerItem) {
-				item.session = session
+		case s := <-updatedSession:
+			mgr.updateByID(s.GetUserId(), s.GetId(), func(item *managerItem) {
+				item.session = s
+				item.lastSessionRefresh = time.Now()
+				item.lastGroupRefresh = time.Now()
+
+				if item.user == nil {
+					item.user = new(user.User)
+				}
+				if item.user.Id == "" {
+					item.user.Id = item.session.GetUserId()
+				}
+				if email := getStringClaim(item.session.Claims, "email"); email != "" {
+					item.user.Email = email
+				}
 			})
-		case user := <-updatedUser:
-			mgr.updateByID(user.GetId(), "", func(item *managerItem) {
-				item.user = user
+		case u := <-updatedUser:
+			mgr.updateByID(u.GetId(), "", func(item *managerItem) {
+				item.user = u
 			})
 		case <-timer.C:
 		}
@@ -94,11 +106,13 @@ func (mgr *Manager) refreshLoop(
 		now := time.Now()
 
 		for {
-			item, ok := mgr.byTimestamp.DeleteMin().(managerItemByTimestamp)
-			if !ok {
+			if mgr.byTimestamp.Len() == 0 {
 				timer.Reset(maxDuration)
 				break
 			}
+
+			item := mgr.byTimestamp.DeleteMin().(managerItemByTimestamp)
+			log.Info().Interface("item", item).Msg("check")
 
 			mgr.byID.Delete(managerItemByID(item))
 
@@ -106,7 +120,7 @@ func (mgr *Manager) refreshLoop(
 
 			item.managerItem = mgr.maybeRefreshSession(ctx, now, item.managerItem)
 			if item.managerItem == nil {
-				// session refresh failed, so drop
+				// s refresh failed, so drop
 				continue
 			}
 
@@ -129,7 +143,8 @@ func (mgr *Manager) refreshLoop(
 			// re-insert
 			mgr.byID.ReplaceOrInsert(managerItemByID(item))
 			mgr.byTimestamp.ReplaceOrInsert(item)
-			timer.Reset(item.NextProcessingTime().Sub(now))
+			nextTime := minTime(item.NextSessionRefreshTime(), item.NextGroupRefreshTime())
+			timer.Reset(nextTime.Sub(now))
 
 			break
 		}
@@ -137,15 +152,20 @@ func (mgr *Manager) refreshLoop(
 }
 
 func (mgr *Manager) maybeRefreshSession(ctx context.Context, now time.Time, item *managerItem) *managerItem {
-	// if the session has expired, for a re-login
+	// if the session has expired, force a re-login
 	if item.IsSessionExpired(now) {
 		mgr.clearSession(ctx, item.session)
 		return nil
 	}
 
-	if !item.NeedsSessionRefresh(now) {
+	if item.NextSessionRefreshTime().After(now) {
 		return item
 	}
+
+	log.Info().
+		Str("session_id", item.SessionID()).
+		Str("user_id", item.UserID()).
+		Msg("refreshing session")
 
 	currentToken := fromOAuthToken(item.session.GetOauthToken())
 	newToken, err := mgr.authenticator.Refresh(ctx, currentToken, item)
@@ -160,12 +180,13 @@ func (mgr *Manager) maybeRefreshSession(ctx context.Context, now time.Time, item
 	}
 
 	item.session.OauthToken = toOAuthToken(newToken)
+	item.lastSessionRefresh = now
 
 	return item
 }
 
 func (mgr *Manager) maybeRefreshGroups(ctx context.Context, now time.Time, item *managerItem) *managerItem {
-	if !item.NeedsGroupRefresh(now) {
+	if item.NextGroupRefreshTime().After(now) {
 		return item
 	}
 
@@ -182,10 +203,17 @@ func (mgr *Manager) maybeRefreshGroups(ctx context.Context, now time.Time, item 
 		return nil
 	}
 
+	item.lastGroupRefresh = now
+
 	return item
 }
 
 func (mgr *Manager) clearSession(ctx context.Context, s *session.Session) {
+	log.Info().
+		Str("session_id", s.GetId()).
+		Str("user_id", s.GetUserId()).
+		Msg("clear session")
+
 	// attempt to revoke the session so the user will be forced to log in again
 	if s != nil && s.OauthToken != nil {
 		currentToken := fromOAuthToken(s.GetOauthToken())
@@ -312,16 +340,18 @@ func (mgr *Manager) updateByID(userID, sessionID string, f func(*managerItem)) {
 				user: &user.User{
 					Id: userID,
 				},
-				sessionRefreshGracePeriod: mgr.cfg.sessionRefreshGracePeriod,
-				groupRefreshInterval:      mgr.cfg.groupRefreshInterval,
+				sessionRefreshCoolOffDuration: mgr.cfg.sessionRefreshCoolOffDuration,
+				groupRefreshInterval:          mgr.cfg.groupRefreshInterval,
 			},
 		})
 	}
 
 	for _, item := range toUpdate {
 		f(item.managerItem)
-		mgr.byID.ReplaceOrInsert(item)
-		mgr.byTimestamp.ReplaceOrInsert(managerItemByTimestamp(item))
+		if item.session != nil && item.session.GetDeletedAt() == nil {
+			mgr.byID.ReplaceOrInsert(item)
+			mgr.byTimestamp.ReplaceOrInsert(managerItemByTimestamp(item))
+		}
 	}
 }
 
@@ -343,6 +373,26 @@ func toOAuthToken(token *oauth2.Token) *session.OAuthToken {
 		RefreshToken: token.RefreshToken,
 		ExpiresAt:    expiry,
 	}
+}
+
+func getMaxTime(tms ...time.Time) time.Time {
+	min := time.Time{}
+	for _, tm := range tms {
+		if tm.After(min) {
+			min = tm
+		}
+	}
+	return min
+}
+
+func minTime(tms ...time.Time) time.Time {
+	min := maxTime
+	for _, tm := range tms {
+		if tm.Before(min) {
+			min = tm
+		}
+	}
+	return min
 }
 
 func getHash(v interface{}) uint64 {

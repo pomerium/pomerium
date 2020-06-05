@@ -19,12 +19,58 @@ var (
 	maxDuration = time.Duration(1<<63 - 1)
 )
 
-type managerItem struct {
-	session          *session.Session
-	user             *user.User
-	lastGroupRefresh time.Time
+type managerSessionItem struct {
+	*session.Session
+	lastRefresh                   time.Time
+	sessionRefreshCoolOffDuration time.Duration
+}
 
-	sessionRefreshGracePeriod, groupRefreshInterval time.Duration
+func (item managerSessionItem) NextRefresh() time.Time {
+	min := maxTime
+
+	expires, err := ptypes.Timestamp(item.GetExpiresAt())
+	if err == nil {
+		if expires.Before(min) {
+			min = expires
+		}
+	}
+
+	oauthExpires, err := ptypes.Timestamp(item.GetExpiresAt())
+	if err == nil {
+		if oauthExpires.Before(min) {
+			min = oauthExpires
+		}
+	}
+
+	return getMaxTime(
+		item.lastRefresh.Add(item.sessionRefreshCoolOffDuration),
+		min,
+	)
+}
+
+type managerUserItem struct {
+	*user.User
+	lastRefresh          time.Time
+	groupRefreshInterval time.Duration
+}
+
+func (item managerUserItem) NextRefresh() time.Time {
+	min := maxTime
+	tm := item.lastRefresh.Add(item.groupRefreshInterval)
+	if tm.Before(min) {
+		min = tm
+	}
+	return min
+}
+
+type managerItem struct {
+	session            *session.Session
+	user               *user.User
+	lastSessionRefresh time.Time
+	lastGroupRefresh   time.Time
+
+	sessionRefreshCoolOffDuration time.Duration
+	groupRefreshInterval          time.Duration
 }
 
 func (item *managerItem) IsSessionExpired(now time.Time) bool {
@@ -38,53 +84,38 @@ func (item *managerItem) IsSessionExpired(now time.Time) bool {
 	return expiresAt.Before(now)
 }
 
-func (item *managerItem) NeedsGroupRefresh(now time.Time) bool {
-	if item == nil || item.session == nil || item.session.OauthToken == nil {
-		return false
-	}
-
-	tm := item.lastGroupRefresh.Add(item.groupRefreshInterval)
-	return !tm.After(now)
-}
-
-func (item *managerItem) NeedsSessionRefresh(now time.Time) bool {
-	if item == nil || item.session == nil {
-		return false
-	}
-	tm, err := ptypes.Timestamp(item.session.GetExpiresAt())
-	if err != nil {
-		return false
-	}
-	tm = tm.Add(-item.sessionRefreshGracePeriod)
-	return !tm.After(now)
-}
-
-func (item *managerItem) NextProcessingTime() time.Time {
+func (item *managerItem) NextGroupRefreshTime() time.Time {
 	min := maxTime
-
 	if item != nil {
-		min = item.lastGroupRefresh.Add(item.groupRefreshInterval)
+		tm := item.lastGroupRefresh.Add(item.groupRefreshInterval)
+		if tm.Before(min) {
+			min = tm
+		}
+	}
+	return min
+}
 
-		if item.session != nil {
-			expires, err := ptypes.Timestamp(item.session.GetExpiresAt())
-			if err == nil {
-				expires = expires.Add(-item.sessionRefreshGracePeriod)
-				if expires.Before(min) {
-					min = expires
-				}
+func (item *managerItem) NextSessionRefreshTime() time.Time {
+	min := maxTime
+	if item != nil && item.session != nil {
+		expires, err := ptypes.Timestamp(item.session.GetExpiresAt())
+		if err == nil {
+			if expires.Before(min) {
+				min = expires
 			}
+		}
 
-			oauthExpires, err := ptypes.Timestamp(item.session.GetOauthToken().GetExpiresAt())
-			if err == nil {
-				oauthExpires = oauthExpires.Add(-item.sessionRefreshGracePeriod)
-				if oauthExpires.Before(min) {
-					min = oauthExpires
-				}
+		oauthExpires, err := ptypes.Timestamp(item.session.GetExpiresAt())
+		if err == nil {
+			if oauthExpires.Before(min) {
+				min = oauthExpires
 			}
 		}
 	}
-
-	return min
+	return getMaxTime(
+		item.lastSessionRefresh.Add(item.sessionRefreshCoolOffDuration),
+		min,
+	)
 }
 
 func (item *managerItem) SessionID() string {
@@ -109,8 +140,8 @@ func (item managerItemByTimestamp) Less(than btree.Item) bool {
 	x := item
 	y := than.(managerItemByTimestamp)
 
-	xtm := x.NextProcessingTime()
-	ytm := y.NextProcessingTime()
+	xtm := minTime(x.NextSessionRefreshTime(), x.NextGroupRefreshTime())
+	ytm := minTime(y.NextSessionRefreshTime(), y.NextGroupRefreshTime())
 
 	// first sort by timestamp
 	switch {
@@ -242,4 +273,10 @@ func toAny(value interface{}) (*anypb.Any, error) {
 		return ptypes.MarshalAny(&wrapperspb.UInt64Value{Value: v})
 	}
 	return nil, fmt.Errorf("unknown type %T", value)
+}
+
+func getStringClaim(claims map[string]*anypb.Any, field string) string {
+	var str wrapperspb.StringValue
+	ptypes.UnmarshalAny(claims[field], &str)
+	return str.Value
 }

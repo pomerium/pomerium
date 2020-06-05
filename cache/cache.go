@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/identity"
+	"github.com/pomerium/pomerium/internal/identity/manager"
 	"github.com/pomerium/pomerium/internal/kv"
 	"github.com/pomerium/pomerium/internal/kv/autocache"
 	"github.com/pomerium/pomerium/internal/kv/bolt"
@@ -35,7 +36,7 @@ type Cache struct {
 	dataBrokerServer *DataBrokerServer
 	sessionServer    *SessionServer
 	userServer       *UserServer
-	manager          *identity.Manager
+	manager          *manager.Manager
 
 	localListener       net.Listener
 	localGRPCServer     *grpc.Server
@@ -76,7 +77,7 @@ func New(opts config.Options) (*Cache, error) {
 	userServer := NewUserServer(localGRPCServer, dataBrokerClient)
 	userClient := user.NewUserServiceClient(localGRPCConnection)
 
-	manager := identity.NewManager(authenticator, sessionClient, userClient)
+	manager := manager.New(authenticator, sessionClient, userClient)
 
 	return &Cache{
 		cache:            cache,

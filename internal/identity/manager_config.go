@@ -3,19 +3,19 @@ package identity
 import "time"
 
 var (
-	defaultGroupRefreshInterval      = 10 * time.Minute
-	defaultSessionRefreshGracePeriod = 30 * time.Second
+	defaultGroupRefreshInterval          = 10 * time.Minute
+	defaultSessionRefreshCoolOffDuration = 10 * time.Second
 )
 
 type managerConfig struct {
-	groupRefreshInterval      time.Duration
-	sessionRefreshGracePeriod time.Duration
+	groupRefreshInterval          time.Duration
+	sessionRefreshCoolOffDuration time.Duration
 }
 
 func newManagerConfig(options ...ManagerOption) *managerConfig {
 	cfg := new(managerConfig)
 	WithGroupRefreshInterval(defaultGroupRefreshInterval)(cfg)
-	WithSessionRefreshGracePeriod(defaultSessionRefreshGracePeriod)(cfg)
+	WithSessionRefreshCoolOffDuration(defaultSessionRefreshCoolOffDuration)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -32,9 +32,9 @@ func WithGroupRefreshInterval(interval time.Duration) ManagerOption {
 	}
 }
 
-// WithSessionRefreshGracePeriod sets the session refresh grace period used by the manager.
-func WithSessionRefreshGracePeriod(gracePeriod time.Duration) ManagerOption {
+// WithSessionRefreshCoolOffDuration sets the session refresh cool-off duration used by the manager.
+func WithSessionRefreshCoolOffDuration(gracePeriod time.Duration) ManagerOption {
 	return func(cfg *managerConfig) {
-		cfg.sessionRefreshGracePeriod = gracePeriod
+		cfg.sessionRefreshCoolOffDuration = gracePeriod
 	}
 }
