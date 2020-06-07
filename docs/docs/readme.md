@@ -68,7 +68,7 @@ To make this a bit more concrete, see the following short video which demonstrat
 2. The **unauthorized** user being blocked from a protected resource.
 3. The **unauthorized** user signing out from their session.
 4. An **authorized** user authenticating with their corporate single-sign-on provider.
-5. Pomerium delegating and grating access to the requested resource.
+5. Pomerium delegating and granting access to the requested resource.
 6. The **authorized** user inspecting their user details including group membership.
 
 <video autoplay="" loop="" muted="" playsinline="" width="100%" height="600" control=""><source src="/pomerium-in-action-800-600.mp4" type="video/mp4">
