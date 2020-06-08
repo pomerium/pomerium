@@ -94,6 +94,13 @@ func (s Session) NextRefresh() time.Time {
 		}
 	}
 
+	expiry, err = ptypes.Timestamp(s.GetExpiresAt())
+	if err == nil {
+		if tm.IsZero() || expiry.Before(tm) {
+			tm = expiry
+		}
+	}
+
 	// don't refresh any quicker than the cool-off duration
 	min := s.lastRefresh.Add(s.coolOffDuration)
 	if tm.Before(min) {
@@ -137,7 +144,7 @@ func (s *Session) UnmarshalJSON(data []byte) error {
 	if iat, ok := raw["iat"]; ok {
 		var secs int64
 		if err := json.Unmarshal(iat, &secs); err == nil {
-			s.Session.IdToken.ExpiresAt, _ = ptypes.TimestampProto(time.Unix(secs, 0))
+			s.Session.IdToken.IssuedAt, _ = ptypes.TimestampProto(time.Unix(secs, 0))
 		}
 		delete(raw, "iat")
 	}

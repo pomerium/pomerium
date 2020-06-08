@@ -156,7 +156,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 	}
 
 	expiry, err := ptypes.Timestamp(s.GetExpiresAt())
-	if err == nil && expiry.Before(time.Now()) {
+	if err == nil && !expiry.After(time.Now()) {
 		log.Info().
 			Str("user_id", userID).
 			Str("session_id", sessionID).
