@@ -12,19 +12,29 @@ import (
 	"net/url"
 	"time"
 
-	"go.opencensus.io/plugin/ochttp"
-
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/internal/tripper"
 )
 
 // ErrTokenRevoked signifies a token revokation or expiration error
 var ErrTokenRevoked = errors.New("token expired or revoked")
 
+type httpClient struct {
+	*http.Client
+	requestIDTripper http.RoundTripper
+}
+
+func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
+	tripperChain := tripper.NewChain(metrics.HTTPMetricsRoundTripper("idp_http_client", req.Host))
+	c.Client.Transport = tripperChain.Then(c.requestIDTripper)
+	return c.Client.Do(req)
+}
+
 // DefaultClient avoids leaks by setting an upper limit for timeouts.
-var DefaultClient = &http.Client{
-	Timeout: 1 * time.Minute,
-	//todo(bdd): incorporate metrics.HTTPMetricsRoundTripper
-	Transport: requestid.NewRoundTripper(&ochttp.Transport{}),
+var DefaultClient = &httpClient{
+	&http.Client{Timeout: 1 * time.Minute},
+	requestid.NewRoundTripper(http.DefaultTransport),
 }
 
 // Client provides a simple helper interface to make HTTP requests
