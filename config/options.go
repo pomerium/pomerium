@@ -333,7 +333,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 		}
 	}
 
-	if err := v.Unmarshal(&o); err != nil {
+	if err := v.Unmarshal(o); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
