@@ -3,6 +3,7 @@ package memory
 
 import (
 	"context"
+	"reflect"
 	"sort"
 	"sync"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/log"
@@ -139,6 +141,53 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 			if err != nil {
 				return err
 			}
+		}
+
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		case <-ch:
+		}
+	}
+}
+
+// GetTypes returns all the known record types.
+func (srv *Server) GetTypes(_ context.Context, _ *emptypb.Empty) (*databroker.GetTypesResponse, error) {
+	var recordTypes []string
+	srv.mu.RLock()
+	for recordType := range srv.byType {
+		recordTypes = append(recordTypes, recordType)
+	}
+	srv.mu.RUnlock()
+
+	sort.Strings(recordTypes)
+	return &databroker.GetTypesResponse{
+		Types: recordTypes,
+	}, nil
+}
+
+// SyncTypes synchronizes all the known record types.
+func (srv *Server) SyncTypes(req *emptypb.Empty, stream databroker.DataBrokerService_SyncTypesServer) error {
+	log.Info().
+		Str("service", "databroker").
+		Msg("sync types")
+
+	ch := srv.onchange.Bind()
+	defer srv.onchange.Unbind(ch)
+
+	var prev []string
+	for {
+		res, err := srv.GetTypes(stream.Context(), req)
+		if err != nil {
+			return err
+		}
+
+		if prev == nil || !reflect.DeepEqual(prev, res.Types) {
+			err := stream.Send(res)
+			if err != nil {
+				return err
+			}
+			prev = res.Types
 		}
 
 		select {

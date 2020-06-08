@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package directory;
+option go_package = "github.com/pomerium/pomerium/internal/grpc/directory";
+
+message DirectoryUser {
+  string version = 1;
+  string user_id = 2;
+  repeated string groups = 3;
+}

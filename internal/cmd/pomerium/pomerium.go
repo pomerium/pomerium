@@ -113,9 +113,11 @@ func Run(ctx context.Context, configFile string) error {
 	t.Go(func() error {
 		return envoyServer.Run(ctx)
 	})
-	t.Go(func() error {
-		return cacheSvc.Run(ctx)
-	})
+	if cacheSvc != nil {
+		t.Go(func() error {
+			return cacheSvc.Run(ctx)
+		})
+	}
 	return t.Wait()
 }
 
