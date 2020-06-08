@@ -1,11 +1,6 @@
 package pomerium.require_domain
 
 deny[status] {
-    status := [401, "user not logged in"]
-    not input.user
-}
-
-deny[status] {
     status := [403, "user has invalid domain"]
 
     allowed_domains := data.allowed_domains

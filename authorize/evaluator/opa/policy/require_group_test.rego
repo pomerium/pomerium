@@ -1,12 +1,5 @@
 package pomerium.require_group
 
-test_no_user {
-    denials := deny with
-        data.allowed_groups as ["a"] with
-        input.databroker_data as {}
-    denials == {[401, "user not logged in"]}
-}
-
 test_deny {
     denials := deny with
         data.allowed_groups as ["a", "b", "c"] with

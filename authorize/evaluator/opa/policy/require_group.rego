@@ -1,11 +1,6 @@
 package pomerium.require_group
 
 deny[status] {
-    status := [401, "user not logged in"]
-    not input.user
-}
-
-deny[status] {
     status := [403, "user not in required group"]
 
     allowed_groups := data.allowed_groups
