@@ -314,6 +314,9 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 					}
 				}
 			],
+			"tlsParams": {
+				"tlsMinimumProtocolVersion": "TLSv1_2"
+			},
 			"validationContext": {
 				"trustChainVerification": "ACCEPT_UNTRUSTED"
 			}
