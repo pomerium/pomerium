@@ -1,22 +1,19 @@
 package pomerium.authz
 
-import data.route_policies
-import data.shared_key
-
 default allow = false
 
-directory_user_data := object.get(data.databroker_data, "type.googleapis.com/directory.User", {})
+directory_user_data := object.get(input.databroker_data, "type.googleapis.com/directory.User", {})
 
 # allow public
 allow {
 	route := first_allowed_route(input.http.url)
-	route_policies[route].AllowPublicUnauthenticatedAccess == true
+	data.route_policies[route].AllowPublicUnauthenticatedAccess == true
 }
 
 # allow cors preflight
 allow {
 	route := first_allowed_route(input.http.url)
-	route_policies[route].CORSAllowPreflight == true
+	data.route_policies[route].CORSAllowPreflight == true
 	input.http.method == "OPTIONS"
 	count(object.get(input.http.headers, "Access-Control-Request-Method", [])) > 0
 	count(object.get(input.http.headers, "Origin", [])) > 0
@@ -25,7 +22,7 @@ allow {
 # allow by email
 allow {
 	route := first_allowed_route(input.http.url)
-	input.user.email = route_policies[route].allowed_users[_]
+	input.user.email = data.route_policies[route].allowed_users[_]
 }
 
 # allow group
@@ -35,34 +32,34 @@ allow {
 
 	some group
 	directory_groups[_] = group
-	route_policies[route].allowed_groups[_] = group
+	data.route_policies[route].allowed_groups[_] = group
 }
 
 # allow by impersonate email
 allow {
 	route := first_allowed_route(input.http.url)
-	input.impersonate_email = route_policies[route].allowed_users[_]
+	input.impersonate_email = data.route_policies[route].allowed_users[_]
 }
 
 # allow by impersonate group
 allow {
 	route := first_allowed_route(input.http.url)
 	some group
-	input.impersonate_groups[group] == route_policies[route].allowed_groups[_]
+	input.impersonate_groups[group] == data.route_policies[route].allowed_groups[_]
 }
 
 # allow by domain
 allow {
 	route := first_allowed_route(input.http.url)
 	some domain
-	email_in_domain(input.user.email, route_policies[route].allowed_domains[domain])
+	email_in_domain(input.user.email, data.route_policies[route].allowed_domains[domain])
 }
 
 # allow by impersonate domain
 allow {
 	route := first_allowed_route(input.http.url)
 	some domain
-	email_in_domain(input.impersonate_email, route_policies[route].allowed_domains[domain])
+	email_in_domain(input.impersonate_email, data.route_policies[route].allowed_domains[domain])
 }
 # allow pomerium urls
 allow {
@@ -91,7 +88,7 @@ deny[reason] {
 
 # returns the first matching route
 first_allowed_route(input_url) = route {
-	route := [route | some route ; allowed_route(input.http.url, route_policies[route])][0]
+	route := [route | some route ; allowed_route(input.http.url, data.route_policies[route])][0]
 }
 
 allowed_route(input_url, policy){
