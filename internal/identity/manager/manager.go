@@ -11,6 +11,7 @@ import (
 	"golang.org/x/oauth2"
 	"gopkg.in/tomb.v2"
 
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/log"
@@ -26,10 +27,11 @@ type Authenticator interface {
 
 // A Manager refreshes identity information using session and user data.
 type Manager struct {
-	cfg           *config
-	authenticator Authenticator
-	sessionClient session.SessionServiceClient
-	userClient    user.UserServiceClient
+	cfg              *config
+	authenticator    Authenticator
+	sessionClient    session.SessionServiceClient
+	userClient       user.UserServiceClient
+	dataBrokerClient databroker.DataBrokerServiceClient
 
 	sessions         sessionCollection
 	sessionScheduler *scheduler.Scheduler
@@ -42,13 +44,15 @@ func New(
 	authenticator Authenticator,
 	sessionClient session.SessionServiceClient,
 	userClient user.UserServiceClient,
+	dataBrokerClient databroker.DataBrokerServiceClient,
 	options ...Option,
 ) *Manager {
 	mgr := &Manager{
-		cfg:           newConfig(options...),
-		authenticator: authenticator,
-		sessionClient: sessionClient,
-		userClient:    userClient,
+		cfg:              newConfig(options...),
+		authenticator:    authenticator,
+		sessionClient:    sessionClient,
+		userClient:       userClient,
+		dataBrokerClient: dataBrokerClient,
 
 		sessions: sessionCollection{
 			BTree: btree.New(8),
@@ -250,7 +254,15 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 
 func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session) error {
 	log.Info().Str("service", "manager").Msg("syncing sessions")
-	client, err := mgr.sessionClient.Sync(ctx, &session.SyncRequest{})
+
+	any, err := ptypes.MarshalAny(new(session.Session))
+	if err != nil {
+		return err
+	}
+
+	client, err := mgr.dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
+		Type: any.GetTypeUrl(),
+	})
 	if err != nil {
 		return fmt.Errorf("error syncing sessions: %w", err)
 	}
@@ -260,12 +272,19 @@ func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session
 			return fmt.Errorf("error receiving sessions: %w", err)
 		}
 
-		for _, pbSession := range res.GetSessions() {
-			log.Info().Str("service", "manager").Interface("session", pbSession).Msg("session update")
+		for _, record := range res.GetRecords() {
+			log.Info().Str("service", "manager").Interface("session", record.GetData).Msg("session update")
+
+			var pbSession session.Session
+			err := ptypes.UnmarshalAny(record.GetData(), &pbSession)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling session: %w", err)
+			}
+
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case ch <- pbSession:
+			case ch <- &pbSession:
 			}
 		}
 	}
@@ -273,7 +292,15 @@ func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session
 
 func (mgr *Manager) syncUsers(ctx context.Context, ch chan<- *user.User) error {
 	log.Info().Str("service", "manager").Msg("syncing users")
-	client, err := mgr.userClient.Sync(ctx, &user.SyncRequest{})
+
+	any, err := ptypes.MarshalAny(new(user.User))
+	if err != nil {
+		return err
+	}
+
+	client, err := mgr.dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
+		Type: any.GetTypeUrl(),
+	})
 	if err != nil {
 		return fmt.Errorf("error syncing users: %w", err)
 	}
@@ -283,12 +310,19 @@ func (mgr *Manager) syncUsers(ctx context.Context, ch chan<- *user.User) error {
 			return fmt.Errorf("error receiving users: %w", err)
 		}
 
-		for _, pbUser := range res.GetUsers() {
-			log.Info().Str("service", "manager").Interface("user", pbUser).Msg("user update")
+		for _, record := range res.GetRecords() {
+			log.Info().Str("service", "manager").Interface("user", record).Msg("user update")
+
+			var pbUser user.User
+			err := ptypes.UnmarshalAny(record.GetData(), &pbUser)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling user: %w", err)
+			}
+
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case ch <- pbUser:
+			case ch <- &pbUser:
 			}
 		}
 	}

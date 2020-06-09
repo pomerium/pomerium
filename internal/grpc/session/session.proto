@@ -36,17 +36,7 @@ message AddRequest { Session session = 1; }
 
 message DeleteRequest { string id = 1; }
 
-message SyncRequest {
-  string server_version = 1;
-  string record_version = 2;
-}
-message SyncResponse {
-  string server_version = 1;
-  repeated Session sessions = 2;
-}
-
 service SessionService {
   rpc Add(AddRequest) returns (google.protobuf.Empty);
   rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
-  rpc Sync(SyncRequest) returns (stream SyncResponse);
 }

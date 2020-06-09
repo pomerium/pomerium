@@ -21,16 +21,4 @@ message User {
 
 message AddRequest { User user = 1; }
 
-message SyncRequest {
-  string server_version = 1;
-  string record_version = 2;
-}
-message SyncResponse {
-  string server_version = 1;
-  repeated User users = 2;
-}
-
-service UserService {
-  rpc Add(AddRequest) returns (google.protobuf.Empty);
-  rpc Sync(SyncRequest) returns (stream SyncResponse);
-}
+service UserService { rpc Add(AddRequest) returns (google.protobuf.Empty); }

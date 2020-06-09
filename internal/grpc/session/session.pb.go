@@ -371,116 +371,6 @@ func (x *DeleteRequest) GetId() string {
 	return ""
 }
 
-type SyncRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	ServerVersion string `protobuf:"bytes,1,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
-	RecordVersion string `protobuf:"bytes,2,opt,name=record_version,json=recordVersion,proto3" json:"record_version,omitempty"`
-}
-
-func (x *SyncRequest) Reset() {
-	*x = SyncRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_session_proto_msgTypes[5]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *SyncRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SyncRequest) ProtoMessage() {}
-
-func (x *SyncRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[5]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SyncRequest.ProtoReflect.Descriptor instead.
-func (*SyncRequest) Descriptor() ([]byte, []int) {
-	return file_session_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *SyncRequest) GetServerVersion() string {
-	if x != nil {
-		return x.ServerVersion
-	}
-	return ""
-}
-
-func (x *SyncRequest) GetRecordVersion() string {
-	if x != nil {
-		return x.RecordVersion
-	}
-	return ""
-}
-
-type SyncResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	ServerVersion string     `protobuf:"bytes,1,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
-	Sessions      []*Session `protobuf:"bytes,2,rep,name=sessions,proto3" json:"sessions,omitempty"`
-}
-
-func (x *SyncResponse) Reset() {
-	*x = SyncResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_session_proto_msgTypes[6]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *SyncResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SyncResponse) ProtoMessage() {}
-
-func (x *SyncResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_session_proto_msgTypes[6]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SyncResponse.ProtoReflect.Descriptor instead.
-func (*SyncResponse) Descriptor() ([]byte, []int) {
-	return file_session_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *SyncResponse) GetServerVersion() string {
-	if x != nil {
-		return x.ServerVersion
-	}
-	return ""
-}
-
-func (x *SyncResponse) GetSessions() []*Session {
-	if x != nil {
-		return x.Sessions
-	}
-	return nil
-}
-
 var File_session_proto protoreflect.FileDescriptor
 
 var file_session_proto_rawDesc = []byte{
@@ -545,35 +435,19 @@ var file_session_proto_rawDesc = []byte{
 	0x28, 0x0b, 0x32, 0x10, 0x2e, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x2e, 0x53, 0x65, 0x73,
 	0x73, 0x69, 0x6f, 0x6e, 0x52, 0x07, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x1f, 0x0a,
 	0x0d, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x0e,
-	0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0x5b,
-	0x0a, 0x0b, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x25, 0x0a,
-	0x0e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x56, 0x65, 0x72,
-	0x73, 0x69, 0x6f, 0x6e, 0x12, 0x25, 0x0a, 0x0e, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x5f, 0x76,
-	0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x72, 0x65,
-	0x63, 0x6f, 0x72, 0x64, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x63, 0x0a, 0x0c, 0x53,
-	0x79, 0x6e, 0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x25, 0x0a, 0x0e, 0x73,
-	0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x0d, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x56, 0x65, 0x72, 0x73, 0x69,
-	0x6f, 0x6e, 0x12, 0x2c, 0x0a, 0x08, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0x02,
-	0x20, 0x03, 0x28, 0x0b, 0x32, 0x10, 0x2e, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x2e, 0x53,
-	0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x52, 0x08, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x73,
-	0x32, 0xb5, 0x01, 0x0a, 0x0e, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x53, 0x65, 0x72, 0x76,
-	0x69, 0x63, 0x65, 0x12, 0x32, 0x0a, 0x03, 0x41, 0x64, 0x64, 0x12, 0x13, 0x2e, 0x73, 0x65, 0x73,
-	0x73, 0x69, 0x6f, 0x6e, 0x2e, 0x41, 0x64, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
-	0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x12, 0x38, 0x0a, 0x06, 0x44, 0x65, 0x6c, 0x65, 0x74,
-	0x65, 0x12, 0x16, 0x2e, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x2e, 0x44, 0x65, 0x6c, 0x65,
-	0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67,
-	0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74,
-	0x79, 0x12, 0x35, 0x0a, 0x04, 0x53, 0x79, 0x6e, 0x63, 0x12, 0x14, 0x2e, 0x73, 0x65, 0x73, 0x73,
-	0x69, 0x6f, 0x6e, 0x2e, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x15, 0x2e, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x2e, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x30, 0x01, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x68,
-	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f,
-	0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61,
-	0x6c, 0x2f, 0x67, 0x72, 0x70, 0x63, 0x2f, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x32, 0x7e,
+	0x0a, 0x0e, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
+	0x12, 0x32, 0x0a, 0x03, 0x41, 0x64, 0x64, 0x12, 0x13, 0x2e, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f,
+	0x6e, 0x2e, 0x41, 0x64, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x16, 0x2e, 0x67,
+	0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45,
+	0x6d, 0x70, 0x74, 0x79, 0x12, 0x38, 0x0a, 0x06, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x12, 0x16,
+	0x2e, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x42, 0x34,
+	0x5a, 0x32, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d,
+	0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x69,
+	0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x2f, 0x67, 0x72, 0x70, 0x63, 0x2f, 0x73, 0x65, 0x73,
+	0x73, 0x69, 0x6f, 0x6e, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -588,43 +462,38 @@ func file_session_proto_rawDescGZIP() []byte {
 	return file_session_proto_rawDescData
 }
 
-var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_session_proto_goTypes = []interface{}{
 	(*IDToken)(nil),             // 0: session.IDToken
 	(*OAuthToken)(nil),          // 1: session.OAuthToken
 	(*Session)(nil),             // 2: session.Session
 	(*AddRequest)(nil),          // 3: session.AddRequest
 	(*DeleteRequest)(nil),       // 4: session.DeleteRequest
-	(*SyncRequest)(nil),         // 5: session.SyncRequest
-	(*SyncResponse)(nil),        // 6: session.SyncResponse
-	nil,                         // 7: session.Session.ClaimsEntry
-	(*timestamp.Timestamp)(nil), // 8: google.protobuf.Timestamp
-	(*any.Any)(nil),             // 9: google.protobuf.Any
-	(*empty.Empty)(nil),         // 10: google.protobuf.Empty
+	nil,                         // 5: session.Session.ClaimsEntry
+	(*timestamp.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*any.Any)(nil),             // 7: google.protobuf.Any
+	(*empty.Empty)(nil),         // 8: google.protobuf.Empty
 }
 var file_session_proto_depIdxs = []int32{
-	8,  // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
-	8,  // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
-	8,  // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
-	8,  // 3: session.Session.expires_at:type_name -> google.protobuf.Timestamp
-	8,  // 4: session.Session.deleted_at:type_name -> google.protobuf.Timestamp
+	6,  // 0: session.IDToken.expires_at:type_name -> google.protobuf.Timestamp
+	6,  // 1: session.IDToken.issued_at:type_name -> google.protobuf.Timestamp
+	6,  // 2: session.OAuthToken.expires_at:type_name -> google.protobuf.Timestamp
+	6,  // 3: session.Session.expires_at:type_name -> google.protobuf.Timestamp
+	6,  // 4: session.Session.deleted_at:type_name -> google.protobuf.Timestamp
 	0,  // 5: session.Session.id_token:type_name -> session.IDToken
 	1,  // 6: session.Session.oauth_token:type_name -> session.OAuthToken
-	7,  // 7: session.Session.claims:type_name -> session.Session.ClaimsEntry
+	5,  // 7: session.Session.claims:type_name -> session.Session.ClaimsEntry
 	2,  // 8: session.AddRequest.session:type_name -> session.Session
-	2,  // 9: session.SyncResponse.sessions:type_name -> session.Session
-	9,  // 10: session.Session.ClaimsEntry.value:type_name -> google.protobuf.Any
-	3,  // 11: session.SessionService.Add:input_type -> session.AddRequest
-	4,  // 12: session.SessionService.Delete:input_type -> session.DeleteRequest
-	5,  // 13: session.SessionService.Sync:input_type -> session.SyncRequest
-	10, // 14: session.SessionService.Add:output_type -> google.protobuf.Empty
-	10, // 15: session.SessionService.Delete:output_type -> google.protobuf.Empty
-	6,  // 16: session.SessionService.Sync:output_type -> session.SyncResponse
-	14, // [14:17] is the sub-list for method output_type
-	11, // [11:14] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	7,  // 9: session.Session.ClaimsEntry.value:type_name -> google.protobuf.Any
+	3,  // 10: session.SessionService.Add:input_type -> session.AddRequest
+	4,  // 11: session.SessionService.Delete:input_type -> session.DeleteRequest
+	8,  // 12: session.SessionService.Add:output_type -> google.protobuf.Empty
+	8,  // 13: session.SessionService.Delete:output_type -> google.protobuf.Empty
+	12, // [12:14] is the sub-list for method output_type
+	10, // [10:12] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_session_proto_init() }
@@ -693,30 +562,6 @@ func file_session_proto_init() {
 				return nil
 			}
 		}
-		file_session_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SyncRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_session_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SyncResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -724,7 +569,7 @@ func file_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_session_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
@@ -752,7 +597,6 @@ const _ = grpc.SupportPackageIsVersion6
 type SessionServiceClient interface {
 	Add(ctx context.Context, in *AddRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*empty.Empty, error)
-	Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (SessionService_SyncClient, error)
 }
 
 type sessionServiceClient struct {
@@ -781,43 +625,10 @@ func (c *sessionServiceClient) Delete(ctx context.Context, in *DeleteRequest, op
 	return out, nil
 }
 
-func (c *sessionServiceClient) Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (SessionService_SyncClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_SessionService_serviceDesc.Streams[0], "/session.SessionService/Sync", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &sessionServiceSyncClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type SessionService_SyncClient interface {
-	Recv() (*SyncResponse, error)
-	grpc.ClientStream
-}
-
-type sessionServiceSyncClient struct {
-	grpc.ClientStream
-}
-
-func (x *sessionServiceSyncClient) Recv() (*SyncResponse, error) {
-	m := new(SyncResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 // SessionServiceServer is the server API for SessionService service.
 type SessionServiceServer interface {
 	Add(context.Context, *AddRequest) (*empty.Empty, error)
 	Delete(context.Context, *DeleteRequest) (*empty.Empty, error)
-	Sync(*SyncRequest, SessionService_SyncServer) error
 }
 
 // UnimplementedSessionServiceServer can be embedded to have forward compatible implementations.
@@ -829,9 +640,6 @@ func (*UnimplementedSessionServiceServer) Add(context.Context, *AddRequest) (*em
 }
 func (*UnimplementedSessionServiceServer) Delete(context.Context, *DeleteRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
-}
-func (*UnimplementedSessionServiceServer) Sync(*SyncRequest, SessionService_SyncServer) error {
-	return status.Errorf(codes.Unimplemented, "method Sync not implemented")
 }
 
 func RegisterSessionServiceServer(s *grpc.Server, srv SessionServiceServer) {
@@ -874,27 +682,6 @@ func _SessionService_Delete_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SessionService_Sync_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(SyncRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(SessionServiceServer).Sync(m, &sessionServiceSyncServer{stream})
-}
-
-type SessionService_SyncServer interface {
-	Send(*SyncResponse) error
-	grpc.ServerStream
-}
-
-type sessionServiceSyncServer struct {
-	grpc.ServerStream
-}
-
-func (x *sessionServiceSyncServer) Send(m *SyncResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
 var _SessionService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "session.SessionService",
 	HandlerType: (*SessionServiceServer)(nil),
@@ -908,12 +695,6 @@ var _SessionService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _SessionService_Delete_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "Sync",
-			Handler:       _SessionService_Sync_Handler,
-			ServerStreams: true,
-		},
-	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "session.proto",
 }
