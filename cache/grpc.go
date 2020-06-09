@@ -1,6 +1,6 @@
-//go:generate ../scripts/protoc -I ../internal/grpc/cache/ --go_out=plugins=grpc:../internal/grpc/cache/ ../internal/grpc/cache/cache.proto
-
 package cache
+
+//go:generate ../scripts/protoc -I ../internal/grpc/cache/ --go_out=plugins=grpc:../internal/grpc/cache/ ../internal/grpc/cache/cache.proto
 
 import (
 	"context"
