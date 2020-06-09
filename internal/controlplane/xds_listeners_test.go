@@ -313,10 +313,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 						"filename": "`+keyFileName+`"
 					}
 				}
-			],
-			"validationContext": {
-				"trustChainVerification": "ACCEPT_UNTRUSTED"
-			}
+			]
 		}
 	}`, downstreamTLSContext)
 }
