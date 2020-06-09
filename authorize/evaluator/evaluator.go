@@ -4,48 +4,70 @@ package evaluator
 
 import (
 	"context"
+	"fmt"
 
-	pb "github.com/pomerium/pomerium/internal/grpc/authorize"
+	"github.com/open-policy-agent/opa/rego"
+
+	"github.com/pomerium/pomerium/config"
 )
 
 // Evaluator specifies the interface for a policy engine.
-type Evaluator interface {
-	IsAuthorized(ctx context.Context, req *Request) (*pb.IsAuthorizedReply, error)
-	PutData(ctx context.Context, data map[string]interface{}) error
+type Evaluator struct {
+	rego *rego.Rego
+}
+
+// NewEvaluator creates a new Evaluator.
+func NewEvaluator(options *config.Options) *Evaluator {
+	return &Evaluator{}
+}
+
+// Evaluate evaluates the policy agains the request.
+func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error) {
+	query, err := e.rego.PrepareForEval(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error preparing rego query: %w", err)
+	}
+
+	res, err := query.Eval(ctx, rego.EvalInput(req))
+	if err != nil {
+		return nil, fmt.Errorf("error evaluating rego policy: %w", err)
+	}
+
+	return nil, fmt.Errorf("not implemented")
+}
+
+type input struct {
+	User                     *User        `json:"user"`
+	HTTP                     *HTTPDetails `json:"http"`
+	IsValidClientCertificate bool         `json:"is_valid_client_certificate"`
 }
 
 // A Request represents an evaluable request with an associated user, device,
 // and request context.
 type Request struct {
-	// User context
-	//
-	// User contains the associated user's JWT created by the authenticate
-	// service
-	User string `json:"user,omitempty"`
-
-	// Request context
-	//
-	// Method specifies the HTTP method (GET, POST, PUT, etc.).
-	Method string `json:"method,omitempty"`
-	// URL specifies either the URI being requested.
-	URL string `json:"url,omitempty"`
-	// Header contains the request header fields either received
-	// by the server or to be sent by the client.
-	Header map[string][]string `json:"headers,omitempty"`
-	// Host specifies the host on which the URL is sought.
-	Host string `json:"host,omitempty"`
-	// RequestURI is the unmodified request-target of the
-	// Request-Line (RFC 7230, Section 3.1.1) as sent by the client
-	// to a server. Usually the URL field should be used instead.
-	// It is an error to set this field in an HTTP client request.
-	RequestURI string `json:"request_uri,omitempty"`
-
-	// Connection context
-	//
+	// User contains the user details.
+	User *User `json:"user"`
+	// HTTP contains the http request details.
+	HTTP *HTTPDetails `json:"http"`
 	// ClientCertificate is the PEM-encoded public certificate used for the user's TLS connection.
 	ClientCertificate string `json:"client_certificate"`
+}
 
-	// Device context
-	//
-	// todo(bdd):  Use the peer TLS certificate to bind device state with a request
+// The HTTPDetails are the http request details needed for policy decisions.
+type HTTPDetails struct {
+	Method  string
+	URL     string
+	Headers map[string]string
+}
+
+// User is the user making the request.
+type User struct {
+	ID    string
+	Email string
+}
+
+// Result is the result of evaluation.
+type Result struct {
+	Status  int
+	Message string
 }
