@@ -361,6 +361,9 @@ func buildDownstreamTLSContext(options *config.Options, domain string) *envoy_ex
 	envoyCert := envoyTLSCertificateFromGoTLSCertificate(cert)
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
+			TlsParams: &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
+				TlsMinimumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_2,
+			},
 			TlsCertificates:       []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{envoyCert},
 			AlpnProtocols:         []string{"h2", "http/1.1"},
 			ValidationContextType: validationContext,

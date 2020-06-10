@@ -303,6 +303,9 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 
 	testutil.AssertProtoJSONEqual(t, `{
 		"commonTlsContext": {
+			"tlsParams": {
+				"tlsMinimumProtocolVersion": "TLSv1_2"
+			},
 			"alpnProtocols": ["h2", "http/1.1"],
 			"tlsCertificates": [
 				{
