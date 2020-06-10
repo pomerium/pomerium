@@ -87,6 +87,16 @@ func (db *DB) Get(id string) *databroker.Record {
 	return record.Record
 }
 
+// GetAll gets all the records in the db.
+func (db *DB) GetAll() []*databroker.Record {
+	var records []*databroker.Record
+	db.byID.Ascend(func(item btree.Item) bool {
+		records = append(records, item.(byIDRecord).Record)
+		return true
+	})
+	return records
+}
+
 // List lists all the changes since the given version.
 func (db *DB) List(sinceVersion string) []*databroker.Record {
 	var records []*databroker.Record

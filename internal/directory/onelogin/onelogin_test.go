@@ -15,7 +15,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pomerium/pomerium/internal/directory"
+	"github.com/pomerium/pomerium/internal/grpc/directory"
 )
 
 type M = map[string]interface{}

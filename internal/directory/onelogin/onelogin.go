@@ -11,9 +11,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 
-	"github.com/pomerium/pomerium/internal/directory"
+	"github.com/pomerium/pomerium/internal/grpc/directory"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 type config struct {
@@ -73,6 +75,7 @@ func getConfig(options ...Option) *config {
 // The Provider retrieves users and groups from onelogin.
 type Provider struct {
 	cfg *config
+	log zerolog.Logger
 
 	mu    sync.RWMutex
 	token *oauth2.Token
@@ -83,6 +86,7 @@ func New(options ...Option) *Provider {
 	cfg := getConfig(options...)
 	return &Provider{
 		cfg: cfg,
+		log: log.With().Str("service", "directory").Str("provider", "onelogin").Logger(),
 	}
 }
 
@@ -108,6 +112,8 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 		for _, groupID := range groupIDs {
 			if groupName, ok := groupIDToName[groupID]; ok {
 				userEmailToGroupNames[email] = append(userEmailToGroupNames[email], groupName)
+			} else {
+				userEmailToGroupNames[email] = append(userEmailToGroupNames[email], "NOGROUP")
 			}
 		}
 	}
@@ -163,7 +169,7 @@ func (p *Provider) getUserEmailToGroupIDs(ctx context.Context, token *oauth2.Tok
 	for apiURL != "" {
 		var result []struct {
 			Email   string `json:"email"`
-			GroupID int    `json:"group_id"`
+			GroupID *int   `json:"group_id"`
 		}
 		nextLink, err := p.apiGet(ctx, token, apiURL, &result)
 		if err != nil {
@@ -171,7 +177,11 @@ func (p *Provider) getUserEmailToGroupIDs(ctx context.Context, token *oauth2.Tok
 		}
 
 		for _, r := range result {
-			userEmailToGroupIDs[r.Email] = append(userEmailToGroupIDs[r.Email], r.GroupID)
+			groupID := 0
+			if r.GroupID != nil {
+				groupID = *r.GroupID
+			}
+			userEmailToGroupIDs[r.Email] = append(userEmailToGroupIDs[r.Email], groupID)
 		}
 
 		apiURL = nextLink
@@ -208,6 +218,11 @@ func (p *Provider) apiGet(ctx context.Context, token *oauth2.Token, uri string, 
 	if err != nil {
 		return "", err
 	}
+
+	p.log.Info().
+		Str("url", uri).
+		Interface("result", result).
+		Msg("api request")
 
 	err = json.Unmarshal(result.Data, out)
 	if err != nil {

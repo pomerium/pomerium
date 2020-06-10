@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -22,6 +23,7 @@ import (
 type Server struct {
 	version string
 	cfg     *serverConfig
+	log     zerolog.Logger
 
 	mu       sync.RWMutex
 	byType   map[string]*DB
@@ -34,6 +36,7 @@ func New(options ...ServerOption) *Server {
 	srv := &Server{
 		version: uuid.New().String(),
 		cfg:     cfg,
+		log:     log.With().Str("service", "databroker").Logger(),
 
 		byType:   make(map[string]*DB),
 		onchange: NewSignal(),
@@ -60,8 +63,7 @@ func New(options ...ServerOption) *Server {
 
 // Delete deletes a record from the in-memory list.
 func (srv *Server) Delete(ctx context.Context, req *databroker.DeleteRequest) (*empty.Empty, error) {
-	log.Info().
-		Str("service", "databroker").
+	srv.log.Info().
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
 		Msg("delete")
@@ -75,8 +77,7 @@ func (srv *Server) Delete(ctx context.Context, req *databroker.DeleteRequest) (*
 
 // Get gets a record from the in-memory list.
 func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
-	log.Info().
-		Str("service", "databroker").
+	srv.log.Info().
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
 		Msg("get")
@@ -88,10 +89,29 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 	return &databroker.GetResponse{Record: record}, nil
 }
 
+// GetAll gets all the records from the in-memory list.
+func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*databroker.GetAllResponse, error) {
+	srv.log.Info().
+		Str("type", req.GetType()).
+		Msg("get all")
+
+	records := srv.getDB(req.GetType()).GetAll()
+	var recordVersion string
+	for _, record := range records {
+		if record.GetVersion() > recordVersion {
+			recordVersion = record.GetVersion()
+		}
+	}
+	return &databroker.GetAllResponse{
+		ServerVersion: srv.version,
+		RecordVersion: recordVersion,
+		Records:       records,
+	}, nil
+}
+
 // Set updates a record in the in-memory list, or adds a new one.
 func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databroker.SetResponse, error) {
-	log.Info().
-		Str("service", "databroker").
+	srv.log.Info().
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
 		Msg("set")
@@ -109,8 +129,7 @@ func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databr
 
 // Sync streams updates for the given record type.
 func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBrokerService_SyncServer) error {
-	log.Info().
-		Str("service", "databroker").
+	srv.log.Info().
 		Str("type", req.GetType()).
 		Str("server_version", req.GetServerVersion()).
 		Str("record_version", req.GetRecordVersion()).
@@ -168,8 +187,7 @@ func (srv *Server) GetTypes(_ context.Context, _ *emptypb.Empty) (*databroker.Ge
 
 // SyncTypes synchronizes all the known record types.
 func (srv *Server) SyncTypes(req *emptypb.Empty, stream databroker.DataBrokerService_SyncTypesServer) error {
-	log.Info().
-		Str("service", "databroker").
+	srv.log.Info().
 		Msg("sync types")
 
 	ch := srv.onchange.Bind()
