@@ -23,6 +23,7 @@ func TestCache_Get_and_Set(t *testing.T) {
 		log.Fatal(err)
 	}
 	c, err := New(config.Options{
+		Provider:       "google",
 		CacheStorePath: dir + "/bolt.db", CacheStore: "bolt",
 		SharedKey: cryptutil.NewBase64Key(),
 		CacheURL:  &url.URL{Scheme: "http", Host: "example"}})

@@ -38,6 +38,7 @@ type Authenticator interface {
 	Revoke(context.Context, *oauth2.Token) error
 	GetSignInURL(state string) string
 	LogOut() (*url.URL, error)
+	UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error
 }
 
 // NewAuthenticator returns a new identity provider based on its name.
