@@ -21,6 +21,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -659,6 +660,21 @@ func (o *Options) GetForwardAuthURL() *url.URL {
 	}
 	u, _ := url.Parse("https://localhost")
 	return u
+}
+
+// GetOauthOptions gets the oauth.Options for the given config options.
+func (o *Options) GetOauthOptions() oauth.Options {
+	redirectURL := o.GetAuthenticateURL()
+	redirectURL.Path = o.AuthenticateCallbackPath
+	return oauth.Options{
+		RedirectURL:    redirectURL,
+		ProviderName:   o.Provider,
+		ProviderURL:    o.ProviderURL,
+		ClientID:       o.ClientID,
+		ClientSecret:   o.ClientSecret,
+		Scopes:         o.Scopes,
+		ServiceAccount: o.ServiceAccount,
+	}
 }
 
 // OptionsUpdater updates local state based on an Options struct

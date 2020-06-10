@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package user;
+option go_package = "github.com/pomerium/pomerium/internal/grpc/user";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+message User {
+  string version = 1;
+  string id = 2;
+  string name = 3;
+  string email = 4;
+  repeated string groups = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp modified_at = 7;
+  google.protobuf.Timestamp deleted_at = 8;
+  map<string, google.protobuf.Any> claims = 9;
+}
+
+message AddRequest { User user = 1; }
+
+service UserService { rpc Add(AddRequest) returns (google.protobuf.Empty); }
