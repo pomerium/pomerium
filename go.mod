@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
-	contrib.go.opencensus.io/exporter/prometheus v0.1.0
+	contrib.go.opencensus.io/exporter/prometheus v0.2.0
 	contrib.go.opencensus.io/exporter/zipkin v0.1.1
 	github.com/caddyserver/certmagic v0.11.1
 	github.com/cespare/xxhash/v2 v2.1.1
