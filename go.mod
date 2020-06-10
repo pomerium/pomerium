@@ -54,7 +54,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	google.golang.org/api v0.25.0
-	google.golang.org/genproto v0.0.0-20200601130524-0f60399e6634
+	google.golang.org/genproto v0.0.0-20200610104632-a5b850bcf112
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.24.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
