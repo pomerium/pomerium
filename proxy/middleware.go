@@ -7,6 +7,7 @@ import (
 	"time"
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
@@ -45,10 +46,10 @@ func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (bool, error) {
+func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (bool, bool, error) {
 	tm, err := ptypes.TimestampProto(time.Now())
 	if err != nil {
-		return false, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error creating protobuf timestamp from current time: %w", err))
+		return false, false, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error creating protobuf timestamp from current time: %w", err))
 	}
 
 	httpAttrs := &envoy_service_auth_v2.AttributeContext_HttpRequest{
@@ -76,7 +77,7 @@ func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (bool, erro
 		},
 	})
 	if err != nil {
-		return false, httputil.NewError(http.StatusInternalServerError, err)
+		return false, false, httputil.NewError(http.StatusInternalServerError, err)
 	}
 
 	switch res.HttpResponse.(type) {
@@ -84,9 +85,11 @@ func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (bool, erro
 		for _, hdr := range res.GetOkResponse().GetHeaders() {
 			w.Header().Set(hdr.GetHeader().GetKey(), hdr.GetHeader().GetValue())
 		}
-		return true, nil
+		return true, false, nil
 	default:
-		return false, nil
+		res := res.GetDeniedResponse()
+
+		return false, res.GetStatus().GetCode() == envoy_type.StatusCode_Unauthorized, nil
 	}
 }
 
