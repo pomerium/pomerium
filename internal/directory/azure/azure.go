@@ -74,7 +74,7 @@ func getConfig(options ...Option) *config {
 	WithLoginURL(&url.URL{
 		Scheme: "https",
 		Host:   defaultLoginHost,
-	})
+	})(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -225,7 +225,7 @@ func (p *Provider) getToken(ctx context.Context) (*oauth2.Token, error) {
 	}
 
 	tokenURL := p.cfg.loginURL.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/%s/oauth2/v2.0/token", p.cfg.serviceAccount.Tenant),
+		Path: fmt.Sprintf("/%s/oauth2/v2.0/token", p.cfg.serviceAccount.DirectoryID),
 	})
 
 	req, err := http.NewRequestWithContext(ctx, "POST", tokenURL.String(), strings.NewReader(url.Values{
@@ -261,7 +261,7 @@ func (p *Provider) getToken(ctx context.Context) (*oauth2.Token, error) {
 type ServiceAccount struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
-	Tenant       string `json:"tenant"`
+	DirectoryID  string `json:"directory_id"`
 }
 
 // ParseServiceAccount parses the service account in the config options.
@@ -283,8 +283,8 @@ func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
 	if serviceAccount.ClientSecret == "" {
 		return nil, fmt.Errorf("client_secret is required")
 	}
-	if serviceAccount.Tenant == "" {
-		return nil, fmt.Errorf("tenant is required")
+	if serviceAccount.DirectoryID == "" {
+		return nil, fmt.Errorf("directory_id is required")
 	}
 
 	return &serviceAccount, nil
