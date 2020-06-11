@@ -231,11 +231,11 @@ type Options struct {
 
 	viper *viper.Viper
 
-	AutocertEnabled `mapstructure:"autocert" yaml:"autocert"`
+	AutocertEnabled bool `mapstructure:"autocert" yaml:"autocert,omitempty"`
 
 	AutocertOptions `mapstructure:"autocert_options" yaml:"autocert_options"`
 
-	deprecatedAutoCertDir string `mapstructure:"autocert_dir" yaml:"autocert_dir"`
+	deprecatedAutoCertDir string `yaml:"autocert_dir"`
 }
 
 type certificateFilePair struct {
@@ -426,6 +426,12 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		envName := field.Tag.Get(tagName)
+		// We bind environment variable to specific AutocertOptions field, but
+		// do not bind AUTOCERT_OPTIONS, to avoid a race condition somewhere
+		// between viper and mapstructure.
+		if envName == "autocert_options" {
+			continue
+		}
 		err := v.BindEnv(envName)
 		if err != nil {
 			return fmt.Errorf("failed to bind field '%s' to env var '%s': %w", field.Name, envName, err)
@@ -446,7 +452,7 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 	ao := reflect.TypeOf(o.AutocertOptions)
 	for i := 0; i < ao.NumField(); i++ {
 		field := ao.Field(i)
-		keyName := "autocert." + field.Tag.Get(tagName)
+		keyName := "autocert_options." + field.Tag.Get(tagName)
 		envName := "AUTOCERT_" + strings.ToUpper(field.Tag.Get(tagName))
 		err := v.BindEnv(keyName, envName)
 		if err != nil {

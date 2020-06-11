@@ -331,8 +331,8 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !o.AutocertOptions.Enable {
-		t.Error("o.AutocertOptions.Enable: want true, got false")
+	if !o.AutocertEnabled {
+		t.Error("o.AutocertEnabled: want true, got false")
 	}
 	if !o.AutocertOptions.MustStaple {
 		t.Error("o.AutocertOptions.MustStaple: want true, got false")

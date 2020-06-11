@@ -23,7 +23,7 @@ type AutocertOptions struct {
 	// status_request extension. This will allow the TLS client (the browser)
 	// to fail immediately if Pomerium failed to get an OCSP staple.
 	// See also https://tools.ietf.org/html/rfc7633
-	// Only used when Enable is true.
+	// Only used when AutocertEnabled is true.
 	MustStaple bool `mapstructure:"must_staple" yaml:"must_staple,omitempty"`
 
 	// Dir specifies the location to store, and load autocert managed
@@ -85,7 +85,7 @@ func (mgr *autocertManager) getConfig(options *Options) (*certmagic.Config, erro
 }
 
 func (mgr *autocertManager) update(options *Options) error {
-	if !options.AutocertOptions.Enable {
+	if !options.AutocertEnabled {
 		return nil
 	}
 
