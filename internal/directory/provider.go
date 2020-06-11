@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/directory/google"
 	"github.com/pomerium/pomerium/internal/directory/onelogin"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/log"
@@ -24,6 +25,10 @@ type Provider interface {
 // GetProvider gets the provider for the given options.
 func GetProvider(options *config.Options) Provider {
 	switch options.Provider {
+	case "google":
+		if options.ServiceAccount != "" {
+			return google.New(google.WithServiceAccount(options.ServiceAccount))
+		}
 	case "onelogin":
 		creds, err := getOneLoginCredentials(options.ServiceAccount)
 		if err == nil {

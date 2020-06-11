@@ -92,6 +92,8 @@ func New(options ...Option) *Provider {
 
 // UserGroups gets the directory user groups for onelogin.
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+	p.log.Info().Msg("getting user groups")
+
 	token, err := p.getToken(ctx)
 	if err != nil {
 		return nil, err

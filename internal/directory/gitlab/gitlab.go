@@ -9,9 +9,11 @@ import (
 	"net/url"
 	"sort"
 
+	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
 
 	"github.com/pomerium/pomerium/internal/directory"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 var (
@@ -64,17 +66,21 @@ func getConfig(options ...Option) *config {
 // The Provider retrieves users and groups from gitlab.
 type Provider struct {
 	cfg *config
+	log zerolog.Logger
 }
 
 // New creates a new Provider.
 func New(options ...Option) *Provider {
 	return &Provider{
 		cfg: getConfig(options...),
+		log: log.With().Str("service", "directory").Str("provider", "gitlab").Logger(),
 	}
 }
 
 // UserGroups gets the directory user groups for gitlab.
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+	p.log.Info().Msg("getting user groups")
+
 	groupIDs, err := p.getGroups(ctx)
 	if err != nil {
 		return nil, err

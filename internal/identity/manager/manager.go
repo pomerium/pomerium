@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
@@ -186,6 +187,9 @@ func (mgr *Manager) refreshLoop(
 func (mgr *Manager) refreshDirectoryUsers(ctx context.Context) {
 	mgr.log.Info().Msg("refreshing directory users")
 
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Minute)
+	defer clearTimeout()
+
 	directoryUsers, err := mgr.directory.UserGroups(ctx)
 	if err != nil {
 		mgr.log.Warn().Err(err).Msg("failed to refresh directory users and groups")
@@ -199,7 +203,7 @@ func (mgr *Manager) refreshDirectoryUsers(ctx context.Context) {
 
 	for userID, newDU := range lookup {
 		curDU, ok := mgr.directoryUsers[userID]
-		if !ok || getHash(curDU) != getHash(newDU) {
+		if !ok || !proto.Equal(newDU, curDU) {
 			any, err := ptypes.MarshalAny(newDU)
 			if err != nil {
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory user")
@@ -346,7 +350,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 }
 
 func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session) error {
-	mgr.log.Info().Str("service", "manager").Msg("syncing sessions")
+	mgr.log.Info().Msg("syncing sessions")
 
 	any, err := ptypes.MarshalAny(new(session.Session))
 	if err != nil {
@@ -366,7 +370,7 @@ func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session
 		}
 
 		for _, record := range res.GetRecords() {
-			mgr.log.Info().Str("service", "manager").Interface("session", record.GetData).Msg("session update")
+			mgr.log.Info().Interface("session", record.GetData).Msg("session update")
 
 			var pbSession session.Session
 			err := ptypes.UnmarshalAny(record.GetData(), &pbSession)
@@ -384,7 +388,7 @@ func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session
 }
 
 func (mgr *Manager) syncUsers(ctx context.Context, ch chan<- *user.User) error {
-	mgr.log.Info().Str("service", "manager").Msg("syncing users")
+	mgr.log.Info().Msg("syncing users")
 
 	any, err := ptypes.MarshalAny(new(user.User))
 	if err != nil {
@@ -404,7 +408,7 @@ func (mgr *Manager) syncUsers(ctx context.Context, ch chan<- *user.User) error {
 		}
 
 		for _, record := range res.GetRecords() {
-			mgr.log.Info().Str("service", "manager").Interface("user", record).Msg("user update")
+			mgr.log.Info().Interface("user", record).Msg("user update")
 
 			var pbUser user.User
 			err := ptypes.UnmarshalAny(record.GetData(), &pbUser)
@@ -422,7 +426,7 @@ func (mgr *Manager) syncUsers(ctx context.Context, ch chan<- *user.User) error {
 }
 
 func (mgr *Manager) initDirectoryUsers(ctx context.Context) error {
-	mgr.log.Info().Str("service", "manager").Msg("initializing directory users")
+	mgr.log.Info().Msg("initializing directory users")
 
 	any, err := ptypes.MarshalAny(new(directory.User))
 	if err != nil {
@@ -438,8 +442,6 @@ func (mgr *Manager) initDirectoryUsers(ctx context.Context) error {
 
 	mgr.directoryUsers = map[string]*directory.User{}
 	for _, record := range res.GetRecords() {
-		mgr.log.Info().Str("service", "manager").Interface("directory_user", record).Msg("directory user update")
-
 		var pbDirectoryUser directory.User
 		err := ptypes.UnmarshalAny(record.GetData(), &pbDirectoryUser)
 		if err != nil {
@@ -455,7 +457,7 @@ func (mgr *Manager) initDirectoryUsers(ctx context.Context) error {
 }
 
 func (mgr *Manager) syncDirectoryUsers(ctx context.Context, ch chan<- *directory.User) error {
-	mgr.log.Info().Str("service", "manager").Msg("syncing directory users")
+	mgr.log.Info().Msg("syncing directory users")
 
 	any, err := ptypes.MarshalAny(new(directory.User))
 	if err != nil {
@@ -477,7 +479,7 @@ func (mgr *Manager) syncDirectoryUsers(ctx context.Context, ch chan<- *directory
 		}
 
 		for _, record := range res.GetRecords() {
-			mgr.log.Info().Str("service", "manager").Interface("directory_user", record).Msg("directory user update")
+			mgr.log.Info().Interface("directory_user", record).Msg("directory user update")
 
 			var pbDirectoryUser directory.User
 			err := ptypes.UnmarshalAny(record.GetData(), &pbDirectoryUser)

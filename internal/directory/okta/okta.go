@@ -9,7 +9,10 @@ import (
 	"net/url"
 	"sort"
 
+	"github.com/rs/zerolog"
+
 	"github.com/pomerium/pomerium/internal/directory"
+	"github.com/pomerium/pomerium/internal/log"
 
 	"github.com/tomnomnom/linkheader"
 )
@@ -65,18 +68,22 @@ func getConfig(options ...Option) *config {
 // A Provider is an Okta user group directory provider.
 type Provider struct {
 	cfg *config
+	log zerolog.Logger
 }
 
 // New creates a new Provider.
 func New(options ...Option) *Provider {
 	return &Provider{
 		cfg: getConfig(options...),
+		log: log.With().Str("service", "directory").Str("provider", "okta").Logger(),
 	}
 }
 
 // UserGroups fetches the groups of which the user is a member
 // https://developer.okta.com/docs/reference/api/users/#get-user-s-groups
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+	p.log.Info().Msg("getting user groups")
+
 	if p.cfg.apiToken == "" {
 		return nil, fmt.Errorf("okta: api token not defined")
 	}

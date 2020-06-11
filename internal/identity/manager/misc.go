@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/golang/protobuf/ptypes"
 	structpb "github.com/golang/protobuf/ptypes/struct"
-	"github.com/mitchellh/hashstructure"
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -120,11 +118,4 @@ func toOAuthToken(token *oauth2.Token) *session.OAuthToken {
 		RefreshToken: token.RefreshToken,
 		ExpiresAt:    expiry,
 	}
-}
-
-func getHash(i interface{}) uint64 {
-	v, _ := hashstructure.Hash(i, &hashstructure.HashOptions{
-		Hasher: xxhash.New(),
-	})
-	return v
 }
