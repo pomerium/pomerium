@@ -67,10 +67,7 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
-// SignOut redirects the request to the sign out url. It's the responsibility
-// of the authenticate service to revoke the remote session and clear
-// the local session state.
-func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) signedSignOutURL(r *http.Request) string {
 	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/"}
 	if uri, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI)); err == nil && uri.String() != "" {
 		redirectURL = uri
@@ -81,8 +78,15 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
 	signoutURL.RawQuery = q.Encode()
 
+	return urlutil.NewSignedURL(p.SharedKey, &signoutURL).String()
+}
+
+// SignOut redirects the request to the sign out url. It's the responsibility
+// of the authenticate service to revoke the remote session and clear
+// the local session state.
+func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	p.sessionStore.ClearSession(w, r)
-	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signoutURL).String(), http.StatusFound)
+	httputil.Redirect(w, r, p.signedSignOutURL(r), http.StatusFound)
 }
 
 // UserDashboard lets users investigate, and refresh their current session.
@@ -99,14 +103,19 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	p.templates.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
+	signOutURL := signoutURL
+	if r.Host == p.authenticateURL.Host {
+		signOutURL = p.signedSignOutURL(r)
+	}
+
+	return p.templates.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
 		"Session":           s,
 		"csrfField":         csrf.TemplateField(r),
 		"ImpersonateAction": urlutil.QueryImpersonateAction,
 		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
 		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
+		"SignOutURL":        signOutURL,
 	})
-	return nil
 }
 
 // Impersonate takes the result of a form and adds user impersonation details

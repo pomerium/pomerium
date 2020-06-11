@@ -77,12 +77,14 @@ func TestProxy_UserDashboard(t *testing.T) {
 		session    sessions.SessionStore
 		authorizer client.Authorizer
 
-		wantAdminForm bool
-		wantStatus    int
+		wantSignedSignoutURL bool
+		wantAdminForm        bool
+		wantStatus           int
 	}{
-		{"good", nil, opts, http.MethodGet, &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, true, http.StatusOK},
-		{"session context error", errors.New("error"), opts, http.MethodGet, &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, false, http.StatusInternalServerError},
-		{"bad encoder unmarshal", nil, opts, http.MethodGet, &mock.Encoder{UnmarshalError: errors.New("err")}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, false, http.StatusBadRequest},
+		{"good", nil, opts, http.MethodGet, &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, false, true, http.StatusOK},
+		{"render dashboard from authenticate service", nil, opts, http.MethodGet, &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, true, true, http.StatusOK},
+		{"session context error", errors.New("error"), opts, http.MethodGet, &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, false, false, http.StatusInternalServerError},
+		{"bad encoder unmarshal", nil, opts, http.MethodGet, &mock.Encoder{UnmarshalError: errors.New("err")}, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, false, false, http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
@@ -94,7 +96,11 @@ func TestProxy_UserDashboard(t *testing.T) {
 			p.encoder = tt.cipher
 			p.sessionStore = tt.session
 
-			r := httptest.NewRequest(tt.method, "/", nil)
+			target := "/"
+			if tt.wantSignedSignoutURL {
+				target = p.authenticateURL.String() + "/.pomerium"
+			}
+			r := httptest.NewRequest(tt.method, target, nil)
 			state, _ := tt.session.LoadSession(r)
 			ctx := r.Context()
 			ctx = sessions.NewContext(ctx, state, tt.ctxError)
@@ -112,6 +118,10 @@ func TestProxy_UserDashboard(t *testing.T) {
 			}
 			if adminForm := strings.Contains(w.Body.String(), "impersonate"); adminForm != tt.wantAdminForm {
 				t.Errorf("wanted admin form  got %v want %v", adminForm, tt.wantAdminForm)
+				t.Errorf("\n%+v", w.Body.String())
+			}
+			if signedSignoutURL := strings.Contains(w.Body.String(), "pomerium_signature="); signedSignoutURL != tt.wantSignedSignoutURL {
+				t.Errorf("wanted signed signout URL got %v want %v", signedSignoutURL, tt.wantSignedSignoutURL)
 				t.Errorf("\n%+v", w.Body.String())
 			}
 		})
