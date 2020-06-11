@@ -219,7 +219,7 @@ func TestOptionsFromViper(t *testing.T) {
 		wantErr     bool
 	}{
 		{"good",
-			[]byte(`{"autocert.folder":"", "insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			[]byte(`{"autocert_options.dir":"", "insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
 				Policies:                        []Policy{{From: "https://from.example", To: "https://to.example"}},
 				CookieName:                      "_pomerium",
@@ -236,7 +236,7 @@ func TestOptionsFromViper(t *testing.T) {
 				}},
 			false},
 		{"good disable header",
-			[]byte(`{"autocert.folder":"","insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			[]byte(`{"autocert_options.dir":"","insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
 				Policies:                        []Policy{{From: "https://from.example", To: "https://to.example"}},
 				CookieName:                      "_pomerium",
