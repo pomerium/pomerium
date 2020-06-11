@@ -318,26 +318,31 @@ func NewOptionsFromConfig(configFile string) (*Options, error) {
 func optionsFromViper(configFile string) (*Options, error) {
 	// start a copy of the default options
 	o := NewDefaultOptions()
+	v := o.viper
 	// Load up config
-	err := bindEnvs(o, o.viper)
+	err := bindEnvs(o, v)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind options to env vars: %w", err)
 	}
 
 	if configFile != "" {
-		o.viper.SetConfigFile(configFile)
-		if err := o.viper.ReadInConfig(); err != nil {
+		v.SetConfigFile(configFile)
+		if err := v.ReadInConfig(); err != nil {
 			return nil, fmt.Errorf("failed to read config: %w", err)
 		}
 	}
 
-	if err := o.viper.Unmarshal(o); err != nil {
+	if err := v.Unmarshal(o); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
 	if err := o.Validate(); err != nil {
 		return nil, fmt.Errorf("validation error %w", err)
 	}
+
+	// This is necessary because v.Unmarshal will overwrite .viper field.
+	o.viper = v
+
 	return o, nil
 }
 
