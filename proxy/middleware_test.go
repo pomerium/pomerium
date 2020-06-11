@@ -59,7 +59,7 @@ func TestProxy_AuthenticateSession(t *testing.T) {
 				SharedKey:              "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
 				cookieSecret:           []byte("80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="),
 				authenticateURL:        uriParseHelper("https://authenticate.corp.example"),
-				authenticateSigninURL:  uriParseHelper("https://authenticate.corp.example/sign_in"),
+				authenticateSigninURL:  uriParseHelper("https://authenticate.corp.example/signin"),
 				authenticateRefreshURL: uriParseHelper(rURL),
 				sessionStore:           tt.session,
 				encoder:                tt.encoder,

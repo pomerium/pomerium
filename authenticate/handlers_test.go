@@ -83,7 +83,7 @@ func TestAuthenticate_Handler(t *testing.T) {
 	}
 
 	// cors preflight
-	req = httptest.NewRequest(http.MethodOptions, "/.pomerium/sign_in", nil)
+	req = httptest.NewRequest(http.MethodOptions, "/.pomerium/signin", nil)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Access-Control-Request-Method", "GET")
 	req.Header.Set("Access-Control-Request-Headers", "X-Requested-With")

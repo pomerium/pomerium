@@ -69,8 +69,8 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	v.Use(middleware.ValidateSignature(a.sharedKey))
 	v.Use(sessions.RetrieveSession(a.sessionLoaders...))
 	v.Use(a.VerifySession)
-	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
-	v.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
+	v.Path("/signin").Handler(httputil.HandlerFunc(a.SignIn))
+	v.Path("/signout").Handler(httputil.HandlerFunc(a.SignOut))
 	v.Path("/refresh").Handler(httputil.HandlerFunc(a.Refresh)).Methods(http.MethodGet)
 
 	wk := r.PathPrefix("/.well-known/pomerium").Subrouter()

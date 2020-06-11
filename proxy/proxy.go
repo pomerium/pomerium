@@ -36,8 +36,8 @@ import (
 const (
 	// authenticate urls
 	dashboardURL = "/.pomerium"
-	signinURL    = "/.pomerium/sign_in"
-	signoutURL   = "/.pomerium/sign_out"
+	signinURL    = "/.pomerium/signin"
+	signoutURL   = "/.pomerium/signout"
 	refreshURL   = "/.pomerium/refresh"
 )
 

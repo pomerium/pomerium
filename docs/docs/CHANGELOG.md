@@ -6,6 +6,14 @@
 
 - config: add remove_request_headers @cuonglm [GH-702]
 
+### Fixed
+
+- authenticate: fix "Sign Out" button does not work if render user's dashboard in authenticate service @cuonglm [GH-874]
+
+### Changes
+
+- authenticate: change signin/signout endpoints @cuonglm [GH-874]
+
 ## v0.9.0
 
 ### New
