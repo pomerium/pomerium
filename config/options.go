@@ -336,13 +336,12 @@ func optionsFromViper(configFile string) (*Options, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	if err := o.Validate(); err != nil {
-		return nil, fmt.Errorf("validation error %w", err)
-	}
-
 	// This is necessary because v.Unmarshal will overwrite .viper field.
 	o.viper = v
 
+	if err := o.Validate(); err != nil {
+		return nil, fmt.Errorf("validation error %w", err)
+	}
 	return o, nil
 }
 
