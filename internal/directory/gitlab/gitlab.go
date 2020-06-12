@@ -89,13 +89,13 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 
 	userIDToGroupIDs := map[int][]int{}
 	for _, groupID := range groupIDs {
-		userIDs, err := p.getGroupMembers(ctx, groupID)
+		userIDs, err := p.listGroupMemberIDs(ctx, groupID)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, userID := range userIDs {
-			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], groupIDs...)
+			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], groupID)
 		}
 	}
 
@@ -135,7 +135,7 @@ func (p *Provider) listGroupIDs(ctx context.Context) (groupIDs []int, err error)
 	return groupIDs, nil
 }
 
-func (p *Provider) getGroupMembers(ctx context.Context, groupID int) (userIDs []int, err error) {
+func (p *Provider) listGroupMemberIDs(ctx context.Context, groupID int) (userIDs []int, err error) {
 	nextURL := p.cfg.url.ResolveReference(&url.URL{
 		Path: fmt.Sprintf("/api/v4/groups/%d/members", groupID),
 	}).String()
