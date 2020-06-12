@@ -3,6 +3,7 @@ package gitlab
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
 
-	"github.com/pomerium/pomerium/internal/directory"
+	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -24,18 +25,18 @@ var (
 )
 
 type config struct {
-	url          *url.URL
-	privateToken string
-	httpClient   *http.Client
+	httpClient     *http.Client
+	serviceAccount *ServiceAccount
+	url            *url.URL
 }
 
 // An Option updates the gitlab configuration.
 type Option func(cfg *config)
 
-// WithPrivateToken sets the private token in the config.
-func WithPrivateToken(privateToken string) Option {
+// WithServiceAccount sets the service account in the config.
+func WithServiceAccount(serviceAccount *ServiceAccount) Option {
 	return func(cfg *config) {
-		cfg.privateToken = privateToken
+		cfg.serviceAccount = serviceAccount
 	}
 }
 
@@ -81,7 +82,7 @@ func New(options ...Option) *Provider {
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	p.log.Info().Msg("getting user groups")
 
-	groupIDs, err := p.getGroups(ctx)
+	groupIDs, err := p.listGroupIDs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -112,9 +113,9 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	return users, nil
 }
 
-func (p *Provider) getGroups(ctx context.Context) (groupIDs []int, err error) {
+func (p *Provider) listGroupIDs(ctx context.Context) (groupIDs []int, err error) {
 	nextURL := p.cfg.url.ResolveReference(&url.URL{
-		Path: "/groups",
+		Path: "/api/v4/groups",
 	}).String()
 	for nextURL != "" {
 		var result []struct {
@@ -136,7 +137,7 @@ func (p *Provider) getGroups(ctx context.Context) (groupIDs []int, err error) {
 
 func (p *Provider) getGroupMembers(ctx context.Context, groupID int) (userIDs []int, err error) {
 	nextURL := p.cfg.url.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/groups/%d/members", groupID),
+		Path: fmt.Sprintf("/api/v4/groups/%d/members", groupID),
 	}).String()
 	for nextURL != "" {
 		var result []struct {
@@ -163,7 +164,7 @@ func (p *Provider) apiGet(ctx context.Context, uri string, out interface{}) (htt
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("PRIVATE-TOKEN", p.cfg.privateToken)
+	req.Header.Set("PRIVATE-TOKEN", p.cfg.serviceAccount.PrivateToken)
 
 	res, err := p.cfg.httpClient.Do(req)
 	if err != nil {
@@ -190,4 +191,29 @@ func getNextLink(hdrs http.Header) string {
 		}
 	}
 	return ""
+}
+
+// A ServiceAccount is used by the Gitlab provider to query the Gitlab API.
+type ServiceAccount struct {
+	PrivateToken string `json:"private_token"`
+}
+
+// ParseServiceAccount parses the service account in the config options.
+func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
+	bs, err := base64.StdEncoding.DecodeString(rawServiceAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	var serviceAccount ServiceAccount
+	err = json.Unmarshal(bs, &serviceAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	if serviceAccount.PrivateToken == "" {
+		return nil, fmt.Errorf("private_token is required")
+	}
+
+	return &serviceAccount, nil
 }

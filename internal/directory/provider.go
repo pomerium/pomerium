@@ -9,6 +9,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/directory/azure"
+	"github.com/pomerium/pomerium/internal/directory/gitlab"
 	"github.com/pomerium/pomerium/internal/directory/google"
 	"github.com/pomerium/pomerium/internal/directory/onelogin"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
@@ -37,7 +38,16 @@ func GetProvider(options *config.Options) Provider {
 			Str("provider", options.Provider).
 			Err(err).
 			Msg("invalid service account for azure directory provider")
-
+	case "gitlab":
+		serviceAccount, err := gitlab.ParseServiceAccount(options.ServiceAccount)
+		if err == nil {
+			return gitlab.New(gitlab.WithServiceAccount(serviceAccount))
+		}
+		log.Warn().
+			Str("service", "directory").
+			Str("provider", options.Provider).
+			Err(err).
+			Msg("invalid service account for gitlab directory provider")
 	case "google":
 		if options.ServiceAccount != "" {
 			return google.New(google.WithServiceAccount(options.ServiceAccount))
