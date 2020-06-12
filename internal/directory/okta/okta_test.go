@@ -112,7 +112,7 @@ func TestProvider_UserGroups(t *testing.T) {
 	})
 
 	p := New(
-		WithAPIToken("APITOKEN"),
+		WithServiceAccount(&ServiceAccount{APIKey: "APITOKEN"}),
 		WithProviderURL(mustParseURL(srv.URL)),
 	)
 	users, err := p.UserGroups(context.Background())

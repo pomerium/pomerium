@@ -141,7 +141,10 @@ func TestProvider_UserGroups(t *testing.T) {
 	})
 
 	p := New(
-		WithCredentials("CLIENTID", "CLIENTSECRET"),
+		WithServiceAccount(&ServiceAccount{
+			ClientID:     "CLIENTID",
+			ClientSecret: "CLIENTSECRET",
+		}),
 		WithURL(mustParseURL(srv.URL)),
 	)
 	users, err := p.UserGroups(context.Background())
