@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/directory"
 	pbCache "github.com/pomerium/pomerium/internal/grpc/cache"
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/session"
@@ -59,6 +60,8 @@ func New(opts config.Options) (*Cache, error) {
 		return nil, fmt.Errorf("cache: failed to create authenticator: %w", err)
 	}
 
+	directoryProvider := directory.GetProvider(&opts)
+
 	localListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -77,7 +80,7 @@ func New(opts config.Options) (*Cache, error) {
 	userServer := NewUserServer(localGRPCServer, dataBrokerClient)
 	userClient := user.NewUserServiceClient(localGRPCConnection)
 
-	manager := manager.New(authenticator, sessionClient, userClient, dataBrokerClient)
+	manager := manager.New(authenticator, directoryProvider, sessionClient, userClient, dataBrokerClient)
 
 	return &Cache{
 		cache:            cache,

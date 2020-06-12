@@ -12,11 +12,10 @@ message User {
   string id = 2;
   string name = 3;
   string email = 4;
-  repeated string groups = 5;
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp modified_at = 7;
-  google.protobuf.Timestamp deleted_at = 8;
-  map<string, google.protobuf.Any> claims = 9;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp modified_at = 6;
+  google.protobuf.Timestamp deleted_at = 7;
+  map<string, google.protobuf.Any> claims = 8;
 }
 
 message AddRequest { User user = 1; }

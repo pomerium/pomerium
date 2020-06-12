@@ -45,10 +45,6 @@ type Provider struct {
 	// providers that doesn't implement the revocation endpoint but a logout session.
 	// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
 	EndSessionURL string `json:"end_session_endpoint,omitempty"`
-
-	// UserGroupFn is, if set, used to return a slice of group IDs the
-	// user is a member of
-	UserGroupFn func(context.Context, *oauth2.Token, interface{}) error
 }
 
 // New creates a new instance of a generic OpenID Connect provider.
@@ -131,11 +127,6 @@ func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interf
 	}
 	if err := userInfo.Claims(v); err != nil {
 		return fmt.Errorf("identity/oidc: failed parsing user info endpoint claims: %w", err)
-	}
-	if p.UserGroupFn != nil {
-		if err := p.UserGroupFn(ctx, t, v); err != nil {
-			return fmt.Errorf("identity/oidc: could not retrieve groups: %w", err)
-		}
 	}
 	return nil
 }

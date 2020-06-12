@@ -44,10 +44,6 @@ func (u *User) UnmarshalJSON(data []byte) error {
 		_ = json.Unmarshal(email, &u.User.Email)
 		delete(raw, "email")
 	}
-	if groups, ok := raw["groups"]; ok {
-		_ = json.Unmarshal(groups, &u.User.Groups)
-		delete(raw, "groups")
-	}
 
 	u.User.Claims = make(map[string]*anypb.Any)
 	for k, rawv := range raw {

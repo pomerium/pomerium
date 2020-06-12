@@ -22,7 +22,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/envoy"
-	pbCache "github.com/pomerium/pomerium/internal/grpc/cache"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -79,7 +78,8 @@ func Run(ctx context.Context, configFile string) error {
 	if err := setupAuthorize(opt, controlPlane, &optionsUpdaters); err != nil {
 		return err
 	}
-	if err := setupCache(opt, controlPlane); err != nil {
+	cacheServer, err := setupCache(opt, controlPlane)
+	if err != nil {
 		return err
 	}
 	if err := setupProxy(opt, controlPlane); err != nil {
@@ -112,6 +112,11 @@ func Run(ctx context.Context, configFile string) error {
 	eg.Go(func() error {
 		return envoyServer.Run(ctx)
 	})
+	if cacheServer != nil {
+		eg.Go(func() error {
+			return cacheServer.Run(ctx)
+		})
+	}
 	return eg.Wait()
 }
 
@@ -153,18 +158,18 @@ func setupAuthorize(opt *config.Options, controlPlane *controlplane.Server, opti
 	return nil
 }
 
-func setupCache(opt *config.Options, controlPlane *controlplane.Server) error {
+func setupCache(opt *config.Options, controlPlane *controlplane.Server) (*cache.Cache, error) {
 	if !config.IsCache(opt.Services) {
-		return nil
+		return nil, nil
 	}
 
 	svc, err := cache.New(*opt)
 	if err != nil {
-		return fmt.Errorf("error creating config service: %w", err)
+		return nil, fmt.Errorf("error creating config service: %w", err)
 	}
-	pbCache.RegisterCacheServer(controlPlane.GRPCServer, svc)
+	svc.Register(controlPlane.GRPCServer)
 	log.Info().Msg("enabled cache service")
-	return nil
+	return svc, nil
 }
 
 func setupMetrics(ctx context.Context, opt *config.Options) error {

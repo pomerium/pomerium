@@ -19,14 +19,12 @@ func TestUser_UnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal([]byte(`{
 		"name": "joe",
 		"email": "joe@test.com",
-		"groups": ["a","b","c"],
 		"some-other-claim": "xyz"
 	}`), &u)
 	assert.NoError(t, err)
 	assert.NotNil(t, u.User)
 	assert.Equal(t, "joe", u.User.Name)
 	assert.Equal(t, "joe@test.com", u.User.Email)
-	assert.Equal(t, []string{"a", "b", "c"}, u.User.Groups)
 	anyv, _ := ptypes.MarshalAny(&wrapperspb.StringValue{Value: "xyz"})
 	assert.Equal(t, map[string]*anypb.Any{
 		"some-other-claim": anyv,
