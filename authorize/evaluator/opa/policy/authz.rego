@@ -1,11 +1,11 @@
 package pomerium.authz
 
-import data.route_policies
-import data.shared_key
-
 default allow = false
 
 route := first_allowed_route(input.url)
+databroker_session_data := object.get(input.databroker_data, "type.googleapis.com/session.Session")
+databroker_user_data := object.get(input.databroker_data, "type.googleapis.com/user.User")
+databroker_directory_user_data := object.get(input.databroker_data, "type.googleapis.com/directory.User")
 
 http_status = [495, "invalid client certificate"]{
 	not input.is_valid_client_certificate

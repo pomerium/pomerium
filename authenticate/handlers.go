@@ -11,8 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
+	"github.com/google/uuid"
 	"github.com/pomerium/csrf"
+
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
@@ -390,6 +394,35 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	accessToken, err := a.provider.Authenticate(ctx, code, &s)
 	if err != nil {
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
+	}
+
+	{
+		sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
+		idTokenExpiry, _ := ptypes.TimestampProto(s.Expiry.Time())
+		idTokenIssuedAt, _ := ptypes.TimestampProto(s.IssuedAt.Time())
+		oauthTokenExpiry, _ := ptypes.TimestampProto(accessToken.Expiry)
+		_, err := a.sessionClient.Add(r.Context(), &session.AddRequest{
+			Session: &session.Session{
+				Id:        uuid.New().String(),
+				UserId:    s.Issuer + "/" + s.Subject,
+				ExpiresAt: sessionExpiry,
+				IdToken: &session.IDToken{
+					Issuer:    s.Issuer,
+					Subject:   s.Subject,
+					ExpiresAt: idTokenExpiry,
+					IssuedAt:  idTokenIssuedAt,
+				},
+				OauthToken: &session.OAuthToken{
+					AccessToken:  accessToken.AccessToken,
+					TokenType:    accessToken.TokenType,
+					ExpiresAt:    oauthTokenExpiry,
+					RefreshToken: accessToken.RefreshToken,
+				},
+			},
+		})
+		if err != nil {
+			return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error saving session: %w", err))
+		}
 	}
 
 	newState := sessions.NewSession(

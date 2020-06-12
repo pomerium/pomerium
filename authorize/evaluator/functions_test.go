@@ -1,4 +1,4 @@
-package opa
+package evaluator
 
 import (
 	"testing"
