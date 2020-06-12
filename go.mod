@@ -1,17 +1,17 @@
 module github.com/pomerium/pomerium
 
-go 1.12
+go 1.14
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
-	contrib.go.opencensus.io/exporter/prometheus v0.1.0
+	contrib.go.opencensus.io/exporter/prometheus v0.2.0
 	contrib.go.opencensus.io/exporter/zipkin v0.1.1
-	github.com/caddyserver/certmagic v0.11.0
+	github.com/caddyserver/certmagic v0.11.1
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/envoyproxy/go-control-plane v0.9.5
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/go-redis/redis/v7 v7.3.0
+	github.com/go-redis/redis/v7 v7.4.0
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
@@ -31,7 +31,7 @@ require (
 	github.com/onsi/ginkgo v1.11.0 // indirect
 	github.com/onsi/gocleanup v0.0.0-20140331211545-c1a5478700b5
 	github.com/onsi/gomega v1.8.1 // indirect
-	github.com/open-policy-agent/opa v0.20.4
+	github.com/open-policy-agent/opa v0.20.5
 	github.com/openzipkin/zipkin-go v0.2.2
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pomerium/autocache v0.0.0-20200505053831-8c1cd659f055
@@ -41,22 +41,22 @@ require (
 	github.com/rakyll/statik v0.1.7
 	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563 // indirect
 	github.com/rs/cors v1.7.0
-	github.com/rs/zerolog v1.18.0
+	github.com/rs/zerolog v1.19.0
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.7.0
-	github.com/stretchr/testify v1.6.0
+	github.com/stretchr/testify v1.6.1
 	github.com/uber/jaeger-client-go v2.20.1+incompatible // indirect
 	go.etcd.io/bbolt v1.3.4
 	go.opencensus.io v0.22.3
-	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
-	golang.org/x/net v0.0.0-20200528225125-3c3fba18258b
+	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9
+	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
-	google.golang.org/api v0.25.0
-	google.golang.org/genproto v0.0.0-20200601130524-0f60399e6634
+	google.golang.org/api v0.26.0
+	google.golang.org/genproto v0.0.0-20200610104632-a5b850bcf112
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.24.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d

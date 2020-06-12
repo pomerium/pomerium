@@ -1,6 +1,8 @@
 *.db
 .*.yml
 .*.yaml
+.*.json
+.*.rego
 pem
 env
 coverage.txt

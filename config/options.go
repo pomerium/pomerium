@@ -95,7 +95,7 @@ type Options struct {
 	CertFile string `mapstructure:"certificate_file" yaml:"certificate_file,omitempty"`
 	KeyFile  string `mapstructure:"certificate_key_file" yaml:"certificate_key_file,omitempty"`
 
-	Certificates []tls.Certificate `yaml:"-"`
+	Certificates []tls.Certificate `mapstructure:"-" yaml:"-"`
 
 	// HttpRedirectAddr, if set, specifies the host and port to run the HTTP
 	// to HTTPS redirect server on. If empty, no redirect server is started.
@@ -319,8 +319,7 @@ func NewOptionsFromConfig(configFile string) (*Options, error) {
 func optionsFromViper(configFile string) (*Options, error) {
 	// start a copy of the default options
 	o := NewDefaultOptions()
-	// New viper instance to save into Options later
-	v := viper.New()
+	v := o.viper
 	// Load up config
 	err := bindEnvs(o, v)
 	if err != nil {
@@ -338,6 +337,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
+	// This is necessary because v.Unmarshal will overwrite .viper field.
 	o.viper = v
 
 	if err := o.Validate(); err != nil {

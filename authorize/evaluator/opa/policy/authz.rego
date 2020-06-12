@@ -5,19 +5,19 @@ import data.shared_key
 
 default allow = false
 
+route := first_allowed_route(input.url)
+
 http_status = [495, "invalid client certificate"]{
 	not input.is_valid_client_certificate
 }
 
 # allow public
 allow {
-	route := first_allowed_route(input.url)
 	route_policies[route].AllowPublicUnauthenticatedAccess == true
 }
 
 # allow cors preflight
 allow {
-	route := first_allowed_route(input.url)
 	route_policies[route].CORSAllowPreflight == true
 	input.method == "OPTIONS"
 	count(object.get(input.headers, "Access-Control-Request-Method", [])) > 0
@@ -27,7 +27,6 @@ allow {
 
 # allow by email
 allow {
-	route := first_allowed_route(input.url)
 	token.payload.email = route_policies[route].allowed_users[_]
 	token.valid
 	count(deny)==0
@@ -35,7 +34,6 @@ allow {
 
 # allow group
 allow {
-	route := first_allowed_route(input.url)
 	some group
 	token.payload.groups[group] == route_policies[route].allowed_groups[_]
 	token.valid
@@ -44,7 +42,6 @@ allow {
 
 # allow by impersonate email
 allow {
-	route := first_allowed_route(input.url)
 	token.payload.impersonate_email = route_policies[route].allowed_users[_]
 	token.valid
 	count(deny)==0
@@ -52,7 +49,6 @@ allow {
 
 # allow by impersonate group
 allow {
-	route := first_allowed_route(input.url)
 	some group
 	token.payload.impersonate_groups[group] == route_policies[route].allowed_groups[_]
 	token.valid
@@ -61,7 +57,6 @@ allow {
 
 # allow by domain
 allow {
-	route := first_allowed_route(input.url)
 	some domain
 	email_in_domain(token.payload.email, route_policies[route].allowed_domains[domain])
 	token.valid
@@ -70,7 +65,6 @@ allow {
 
 # allow by impersonate domain
 allow {
-	route := first_allowed_route(input.url)
 	some domain
 	email_in_domain(token.payload.impersonate_email, route_policies[route].allowed_domains[domain])
 	token.valid
@@ -152,17 +146,15 @@ default expired = false
 
 expired {
 	now_seconds:=time.now_ns()/1e9
-	[header, payload, _] := io.jwt.decode(input.user)
-	payload.exp < now_seconds
+	expiry < now_seconds
 }
 
 deny["token is expired (exp)"]{
 	expired
 }
 
-deny[sprintf("token has bad audience (aud): %s not in %+v",[input.host,payload.aud])]{
-	[header, payload, _] := io.jwt.decode(input.user)
-	not element_in_list(payload.aud,input.host)
+deny[sprintf("token has bad audience (aud): %s not in %+v",[input.host,audiences])]{
+	not element_in_list(audiences,input.host)
 }
 
 # allow user is admin
@@ -192,6 +184,8 @@ token = {"payload": payload, "valid": valid} {
 user:=token.payload.user
 email:=token.payload.email
 groups:=token.payload.groups
+audiences:=token.payload.aud
+expiry:=token.payload.exp
 signed_jwt:=io.jwt.encode_sign({"alg": "ES256"}, token.payload, data.signing_key)
 
 
