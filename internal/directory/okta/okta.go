@@ -3,6 +3,7 @@ package okta
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,29 +11,21 @@ import (
 	"sort"
 
 	"github.com/rs/zerolog"
-
-	"github.com/pomerium/pomerium/internal/directory"
-	"github.com/pomerium/pomerium/internal/log"
-
 	"github.com/tomnomnom/linkheader"
+
+	"github.com/pomerium/pomerium/internal/grpc/directory"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 type config struct {
-	apiToken    string
-	httpClient  *http.Client
-	providerURL *url.URL
-	batchSize   int
+	batchSize      int
+	httpClient     *http.Client
+	providerURL    *url.URL
+	serviceAccount *ServiceAccount
 }
 
 // An Option configures the Okta Provider.
 type Option func(cfg *config)
-
-// WithAPIToken sets the api token option.
-func WithAPIToken(apiToken string) Option {
-	return func(cfg *config) {
-		cfg.apiToken = apiToken
-	}
-}
 
 // WithBatchSize sets the batch size option.
 func WithBatchSize(batchSize int) Option {
@@ -52,6 +45,13 @@ func WithHTTPClient(httpClient *http.Client) Option {
 func WithProviderURL(uri *url.URL) Option {
 	return func(cfg *config) {
 		cfg.providerURL = uri
+	}
+}
+
+// WithServiceAccount sets the service account option.
+func WithServiceAccount(serviceAccount *ServiceAccount) Option {
+	return func(cfg *config) {
+		cfg.serviceAccount = serviceAccount
 	}
 }
 
@@ -82,11 +82,12 @@ func New(options ...Option) *Provider {
 // UserGroups fetches the groups of which the user is a member
 // https://developer.okta.com/docs/reference/api/users/#get-user-s-groups
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+	if p.cfg.serviceAccount == nil {
+		return nil, fmt.Errorf("okta: service account not defined")
+	}
+
 	p.log.Info().Msg("getting user groups")
 
-	if p.cfg.apiToken == "" {
-		return nil, fmt.Errorf("okta: api token not defined")
-	}
 	if p.cfg.providerURL == nil {
 		return nil, fmt.Errorf("okta: provider url not defined")
 	}
@@ -186,7 +187,7 @@ func (p *Provider) apiGet(ctx context.Context, uri string, out interface{}) (htt
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "SSWS "+p.cfg.apiToken)
+	req.Header.Set("Authorization", "SSWS "+p.cfg.serviceAccount.APIKey)
 
 	res, err := p.cfg.httpClient.Do(req)
 	if err != nil {
@@ -213,4 +214,29 @@ func getNextLink(hdrs http.Header) string {
 		}
 	}
 	return ""
+}
+
+// A ServiceAccount is used by the Okta provider to query the API.
+type ServiceAccount struct {
+	APIKey string `json:"api_key"`
+}
+
+// ParseServiceAccount parses the service account in the config options.
+func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
+	bs, err := base64.StdEncoding.DecodeString(rawServiceAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	var serviceAccount ServiceAccount
+	err = json.Unmarshal(bs, &serviceAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	if serviceAccount.APIKey == "" {
+		return nil, fmt.Errorf("api_key is required")
+	}
+
+	return &serviceAccount, nil
 }

@@ -3,6 +3,7 @@ package onelogin
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -19,11 +20,10 @@ import (
 )
 
 type config struct {
-	apiURL       *url.URL
-	batchSize    int
-	clientID     string
-	clientSecret string
-	httpClient   *http.Client
+	apiURL         *url.URL
+	batchSize      int
+	serviceAccount *ServiceAccount
+	httpClient     *http.Client
 }
 
 // An Option updates the onelogin configuration.
@@ -36,18 +36,17 @@ func WithBatchSize(batchSize int) Option {
 	}
 }
 
-// WithCredentials sets the credentials in the config.
-func WithCredentials(clientID, clientSecret string) Option {
-	return func(cfg *config) {
-		cfg.clientID = clientID
-		cfg.clientSecret = clientSecret
-	}
-}
-
 // WithHTTPClient sets the http client option.
 func WithHTTPClient(httpClient *http.Client) Option {
 	return func(cfg *config) {
 		cfg.httpClient = httpClient
+	}
+}
+
+// WithServiceAccount sets the service account in the config.
+func WithServiceAccount(serviceAccount *ServiceAccount) Option {
+	return func(cfg *config) {
+		cfg.serviceAccount = serviceAccount
 	}
 }
 
@@ -92,6 +91,10 @@ func New(options ...Option) *Provider {
 
 // UserGroups gets the directory user groups for onelogin.
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+	if p.cfg.serviceAccount == nil {
+		return nil, fmt.Errorf("onelogin: service account not defined")
+	}
+
 	p.log.Info().Msg("getting user groups")
 
 	token, err := p.getToken(ctx)
@@ -259,7 +262,8 @@ func (p *Provider) getToken(ctx context.Context) (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("client_id:%s, client_secret:%s", p.cfg.clientID, p.cfg.clientSecret))
+	req.Header.Set("Authorization", fmt.Sprintf("client_id:%s, client_secret:%s",
+		p.cfg.serviceAccount.ClientID, p.cfg.serviceAccount.ClientSecret))
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := p.cfg.httpClient.Do(req)
@@ -278,4 +282,33 @@ func (p *Provider) getToken(ctx context.Context) (*oauth2.Token, error) {
 	p.token = token
 
 	return p.token, nil
+}
+
+// A ServiceAccount is used by the OneLogin provider to query the API.
+type ServiceAccount struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+}
+
+// ParseServiceAccount parses the service account in the config options.
+func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
+	bs, err := base64.StdEncoding.DecodeString(rawServiceAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	var serviceAccount ServiceAccount
+	err = json.Unmarshal(bs, &serviceAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	if serviceAccount.ClientID == "" {
+		return nil, fmt.Errorf("client_id is required")
+	}
+	if serviceAccount.ClientSecret == "" {
+		return nil, fmt.Errorf("client_secret is required")
+	}
+
+	return &serviceAccount, nil
 }

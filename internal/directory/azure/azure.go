@@ -98,6 +98,10 @@ func New(options ...Option) *Provider {
 
 // UserGroups returns the directory users in azure active directory.
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+	if p.cfg.serviceAccount == nil {
+		return nil, fmt.Errorf("azure: service account not defined")
+	}
+
 	groupIDs, err := p.listGroups(ctx)
 	if err != nil {
 		return nil, err

@@ -80,6 +80,10 @@ func New(options ...Option) *Provider {
 
 // UserGroups gets the directory user groups for gitlab.
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+	if p.cfg.serviceAccount == nil {
+		return nil, fmt.Errorf("gitlab: service account not defined")
+	}
+
 	p.log.Info().Msg("getting user groups")
 
 	groupIDs, err := p.listGroupIDs(ctx)

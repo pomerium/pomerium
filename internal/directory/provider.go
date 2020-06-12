@@ -3,14 +3,13 @@ package directory
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
+	"net/url"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/directory/azure"
 	"github.com/pomerium/pomerium/internal/directory/gitlab"
 	"github.com/pomerium/pomerium/internal/directory/google"
+	"github.com/pomerium/pomerium/internal/directory/okta"
 	"github.com/pomerium/pomerium/internal/directory/onelogin"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/log"
@@ -52,12 +51,24 @@ func GetProvider(options *config.Options) Provider {
 		if options.ServiceAccount != "" {
 			return google.New(google.WithServiceAccount(options.ServiceAccount))
 		}
-	case "onelogin":
-		creds, err := getOneLoginCredentials(options.ServiceAccount)
+	case "okta":
+		providerURL, _ := url.Parse(options.ProviderURL)
+		serviceAccount, err := okta.ParseServiceAccount(options.ServiceAccount)
 		if err == nil {
-			return onelogin.New(onelogin.WithCredentials(creds.ClientID, creds.ClientSecret))
+			return okta.New(
+				okta.WithProviderURL(providerURL),
+				okta.WithServiceAccount(serviceAccount))
 		}
-
+		log.Warn().
+			Str("service", "directory").
+			Str("provider", options.Provider).
+			Err(err).
+			Msg("invalid service account for okta directory provider")
+	case "onelogin":
+		serviceAccount, err := onelogin.ParseServiceAccount(options.ServiceAccount)
+		if err == nil {
+			return onelogin.New(onelogin.WithServiceAccount(serviceAccount))
+		}
 		log.Warn().
 			Str("service", "directory").
 			Str("provider", options.Provider).
@@ -75,31 +86,4 @@ type nullProvider struct{}
 
 func (nullProvider) UserGroups(ctx context.Context) ([]*User, error) {
 	return nil, nil
-}
-
-type oneLoginCredentials struct {
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
-}
-
-func getOneLoginCredentials(serviceAcount string) (*oneLoginCredentials, error) {
-	bs, err := base64.StdEncoding.DecodeString(serviceAcount)
-	if err != nil {
-		return nil, err
-	}
-
-	var creds oneLoginCredentials
-	err = json.Unmarshal(bs, &creds)
-	if err != nil {
-		return nil, err
-	}
-
-	if creds.ClientID == "" {
-		return nil, fmt.Errorf("onelogin: client_id is required in service account")
-	}
-	if creds.ClientSecret == "" {
-		return nil, fmt.Errorf("onelogin: client_secret is required in service account")
-	}
-
-	return &creds, nil
 }
