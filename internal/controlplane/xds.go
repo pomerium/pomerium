@@ -183,7 +183,6 @@ func envoyTLSCertificateFromGoTLSCertificate(cert *tls.Certificate) *envoy_exten
 			Type:  "CERTIFICATE",
 			Bytes: cbs,
 		})
-		break
 	}
 	envoyCert.CertificateChain = inlineBytesAsFilename("tls-crt.pem", chain.Bytes())
 	if cert.OCSPStaple != nil {
