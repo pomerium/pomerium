@@ -68,6 +68,10 @@ func (a *Authorize) htmlDeniedResponse(code int32, reason string, headers map[st
 		details = reason
 	}
 
+	if reason == "" {
+		reason = http.StatusText(int(code))
+	}
+
 	var buf bytes.Buffer
 	err := a.templates.ExecuteTemplate(&buf, "error.html", map[string]interface{}{
 		"Status":     code,
