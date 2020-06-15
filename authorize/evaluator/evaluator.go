@@ -31,7 +31,9 @@ import (
 
 // Evaluator specifies the interface for a policy engine.
 type Evaluator struct {
-	rego             *rego.Rego
+	rego  *rego.Rego
+	query rego.PreparedEvalQuery
+
 	clientCA         string
 	authenticateHost string
 	jwk              interface{}
@@ -89,22 +91,22 @@ func New(options *config.Options) (*Evaluator, error) {
 		rego.Query("result = data.pomerium.authz"),
 	)
 
+	e.query, err = e.rego.PrepareForEval(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("error preparing rego query: %w", err)
+	}
+
 	return e, nil
 }
 
 // Evaluate evaluates the policy against the request.
 func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error) {
-	query, err := e.rego.PrepareForEval(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error preparing rego query: %w", err)
-	}
-
 	isValid, err := isValidClientCertificate(e.clientCA, req.HTTP.ClientCertificate)
 	if err != nil {
 		return nil, fmt.Errorf("error validating client certificate: %w", err)
 	}
 
-	res, err := query.Eval(ctx, rego.EvalInput(e.newInput(req, isValid)))
+	res, err := e.query.Eval(ctx, rego.EvalInput(e.newInput(req, isValid)))
 	if err != nil {
 		return nil, fmt.Errorf("error evaluating rego policy: %w", err)
 	}
