@@ -5,6 +5,14 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.10.0
+
+## Breaking
+
+### Default log level
+
+With this release, default log level has been changed to INFO.
+
 # Since 0.8.0
 
 ## Breaking
