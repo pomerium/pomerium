@@ -4,9 +4,12 @@ package evaluator
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/golang/protobuf/proto"
@@ -15,21 +18,30 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/anypb"
+	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
+	"github.com/pomerium/pomerium/internal/grpc/session"
+	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
 // Evaluator specifies the interface for a policy engine.
 type Evaluator struct {
-	rego     *rego.Rego
-	clientCA string
+	rego             *rego.Rego
+	clientCA         string
+	authenticateHost string
+	jwk              interface{}
 }
 
 // New creates a new Evaluator.
 func New(options *config.Options) (*Evaluator, error) {
-	e := &Evaluator{}
+	e := &Evaluator{
+		authenticateHost: options.AuthenticateURL.Host,
+	}
 	if options.ClientCA != "" {
 		e.clientCA = options.ClientCA
 	} else if options.ClientCAFile != "" {
@@ -38,6 +50,29 @@ func New(options *config.Options) (*Evaluator, error) {
 			return nil, err
 		}
 		e.clientCA = string(bs)
+	}
+
+	if options.SigningKey == "" {
+		key, err := cryptutil.NewSigningKey()
+		if err != nil {
+			return nil, fmt.Errorf("authorize: couldn't generate signing key: %w", err)
+		}
+		e.jwk = key
+		pubKeyBytes, err := cryptutil.EncodePublicKey(&key.PublicKey)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: encode public key: %w", err)
+		}
+		log.Info().Interface("PublicKey", pubKeyBytes).Msg("authorize: ecdsa public key")
+	} else {
+		decodedCert, err := base64.StdEncoding.DecodeString(options.SigningKey)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: failed to decode certificate cert %v: %w", decodedCert, err)
+		}
+		keyBytes, err := cryptutil.DecodePrivateKey((decodedCert))
+		if err != nil {
+			return nil, fmt.Errorf("authorize: couldn't generate signing key: %w", err)
+		}
+		e.jwk = keyBytes
 	}
 
 	authzPolicy, err := readPolicy("/authz.rego")
@@ -69,14 +104,21 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return nil, fmt.Errorf("error validating client certificate: %w", err)
 	}
 
-	res, err := query.Eval(ctx, rego.EvalInput(newInput(req, isValid)))
+	res, err := query.Eval(ctx, rego.EvalInput(e.newInput(req, isValid)))
 	if err != nil {
 		return nil, fmt.Errorf("error evaluating rego policy: %w", err)
+	}
+
+	signedJWT, err := e.getSignedJWT(req)
+	if err != nil {
+		return nil, fmt.Errorf("error signing JWT: %w", err)
 	}
 
 	log.Info().
 		Interface("session", req.Session).
 		Interface("databroker_data", req.DataBrokerData).
+		Interface("result", res[0].Bindings.WithoutWildcards()).
+		Interface("signed_jwt", signedJWT).
 		Msg("EVALUATE")
 
 	deny := getDenyVar(res[0].Bindings.WithoutWildcards())
@@ -87,22 +129,69 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	allow := getAllowVar(res[0].Bindings.WithoutWildcards())
 	if allow {
 		return &Result{
-			Status:  http.StatusOK,
-			Message: "OK",
+			Status:    http.StatusOK,
+			Message:   "OK",
+			SignedJWT: signedJWT,
 		}, nil
 	}
 
 	if req.Session.ID == "" {
 		return &Result{
-			Status:  http.StatusUnauthorized,
-			Message: "login required",
+			Status:    http.StatusUnauthorized,
+			Message:   "login required",
+			SignedJWT: signedJWT,
 		}, nil
 	}
 
 	return &Result{
-		Status:  http.StatusForbidden,
-		Message: "forbidden",
+		Status:    http.StatusForbidden,
+		Message:   "forbidden",
+		SignedJWT: signedJWT,
 	}, nil
+}
+
+func (e *Evaluator) getSignedJWT(req *Request) (string, error) {
+	signer, err := jose.NewSigner(jose.SigningKey{
+		Algorithm: jose.ES256,
+		Key:       e.jwk,
+	}, nil)
+	if err != nil {
+		return "", err
+	}
+
+	payload := map[string]interface{}{
+		"iss": e.authenticateHost,
+	}
+	if u, err := url.Parse(req.HTTP.URL); err == nil {
+		payload["aud"] = u.Hostname()
+	}
+	if s, ok := req.DataBrokerData.Get("type.googleapis.com/session.Session", req.Session.ID).(*session.Session); ok {
+		if tm, err := ptypes.Timestamp(s.GetIdToken().GetExpiresAt()); err == nil {
+			payload["exp"] = tm.Unix()
+		}
+		if tm, err := ptypes.Timestamp(s.GetIdToken().GetIssuedAt()); err == nil {
+			payload["iat"] = tm.Unix()
+		}
+		if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", s.GetUserId()).(*user.User); ok {
+			payload["sub"] = u.GetId()
+			payload["email"] = u.GetEmail()
+		}
+		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", s.GetUserId()).(*directory.User); ok {
+			payload["groups"] = du.GetGroups()
+		}
+	}
+
+	bs, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+
+	jws, err := signer.Sign(bs)
+	if err != nil {
+		return "", err
+	}
+
+	return jws.CompactSerialize()
 }
 
 type input struct {
@@ -112,7 +201,7 @@ type input struct {
 	IsValidClientCertificate bool           `json:"is_valid_client_certificate"`
 }
 
-func newInput(req *Request, isValidClientCertificate bool) *input {
+func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input {
 	i := new(input)
 	i.DataBrokerData = req.DataBrokerData
 	i.HTTP = req.HTTP
@@ -147,8 +236,9 @@ type (
 
 // Result is the result of evaluation.
 type Result struct {
-	Status  int
-	Message string
+	Status    int
+	Message   string
+	SignedJWT string
 }
 
 func getAllowVar(vars rego.Vars) bool {
@@ -198,6 +288,15 @@ func getDenyVar(vars rego.Vars) []Result {
 
 // DataBrokerData stores the data broker data by type => id => record
 type DataBrokerData map[string]map[string]interface{}
+
+// Get gets a record from the DataBrokerData.
+func (dbd DataBrokerData) Get(typeURL, id string) interface{} {
+	m, ok := dbd[typeURL]
+	if !ok {
+		return nil
+	}
+	return m[id]
+}
 
 // Update updates a record in the DataBrokerData.
 func (dbd DataBrokerData) Update(record *databroker.Record) {

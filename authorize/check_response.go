@@ -26,8 +26,8 @@ func (a *Authorize) okResponse(
 	if err != nil {
 		log.Warn().Err(err).Msg("authorize: error generating new request headers")
 	}
-	//requestHeaders = append(requestHeaders,
-	//	mkHeader(httputil.HeaderPomeriumJWTAssertion, reply.SignedJwt))
+	requestHeaders = append(requestHeaders,
+		mkHeader(httputil.HeaderPomeriumJWTAssertion, reply.SignedJWT))
 
 	return &envoy_service_auth_v2.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
