@@ -18,6 +18,8 @@ var (
 // metricRegistry holds the non-view metrics and handles safe
 // initialization and updates.  Behavior without using newMetricRegistry()
 // is undefined.
+//
+// It is not safe to use metricRegistry concurrently.
 type metricRegistry struct {
 	registry       *metric.Registry
 	buildInfo      *metric.Int64Gauge

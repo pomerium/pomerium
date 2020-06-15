@@ -11,8 +11,6 @@ import (
 )
 
 func Test_AddGroupCacheMetrics(t *testing.T) {
-	t.Parallel()
-
 	gc := &groupcache.Group{}
 	AddGroupCacheMetrics(gc)
 
@@ -40,8 +38,6 @@ func Test_AddGroupCacheMetrics(t *testing.T) {
 }
 
 func Test_AddBoltDBMetrics(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name string
 		stat bbolt.Stats
@@ -68,8 +64,6 @@ func Test_AddBoltDBMetrics(t *testing.T) {
 }
 
 func Test_AddRedisMetrics(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name string
 		stat *redis.PoolStats
