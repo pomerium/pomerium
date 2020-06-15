@@ -45,7 +45,7 @@ type Options struct {
 	Debug bool `mapstructure:"pomerium_debug" yaml:"pomerium_debug,omitempty"`
 
 	// LogLevel sets the global override for log level. All Loggers will use at least this value.
-	// Possible options are "info","warn", and "error". Defaults to "debug".
+	// Possible options are "info","warn","debug" and "error". Defaults to "info".
 	LogLevel string `mapstructure:"log_level" yaml:"log_level,omitempty"`
 
 	// ProxyLogLevel sets the log level for the proxy service.
@@ -256,7 +256,7 @@ type certificateFilePair struct {
 // DefaultOptions are the default configuration options for pomerium
 var defaultOptions = Options{
 	Debug:                  false,
-	LogLevel:               "debug",
+	LogLevel:               "info",
 	Services:               "all",
 	CookieHTTPOnly:         true,
 	CookieSecure:           true,

@@ -5,6 +5,7 @@
 ### New
 
 - config: add remove_request_headers @cuonglm [GH-702]
+- config: change default log level to INFO  @cuonglm [GH-902]
 
 ## v0.9.1
 
