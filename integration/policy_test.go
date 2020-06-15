@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"testing"
@@ -13,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/integration/internal/netutil"
-	"github.com/pomerium/pomerium/internal/httputil"
 )
 
 func TestCORS(t *testing.T) {
@@ -472,13 +472,9 @@ func TestPassIdentityHeaders(t *testing.T) {
 				return
 			}
 
-			for _, header := range []string{httputil.HeaderPomeriumJWTAssertion} {
+			for _, header := range []string{"X-Pomerium-Jwt-Assertion", "X-Pomerium-Claim-Email", "X-Pomerium-Claim-User"} {
 				_, exist := result.Headers[header]
-				msg := "expected " + header + " to be present."
-				if tc.wantExist {
-					msg = "expected " + header + " not to be present."
-				}
-				assert.True(t, exist == tc.wantExist, msg)
+				assert.True(t, exist == tc.wantExist, fmt.Sprintf("Header %s, expected: %v, got: %v", header, tc.wantExist, exist))
 			}
 		})
 	}
