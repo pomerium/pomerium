@@ -114,13 +114,6 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return nil, fmt.Errorf("error signing JWT: %w", err)
 	}
 
-	log.Info().
-		Interface("session", req.Session).
-		Interface("databroker_data", req.DataBrokerData).
-		Interface("result", res[0].Bindings.WithoutWildcards()).
-		Interface("signed_jwt", signedJWT).
-		Msg("EVALUATE")
-
 	deny := getDenyVar(res[0].Bindings.WithoutWildcards())
 	if len(deny) > 0 {
 		return &deny[0], nil
