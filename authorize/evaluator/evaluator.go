@@ -9,12 +9,16 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // Evaluator specifies the interface for a policy engine.
@@ -65,13 +69,15 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return nil, fmt.Errorf("error validating client certificate: %w", err)
 	}
 
-	res, err := query.Eval(ctx, rego.EvalInput(&input{
-		Request:                  req,
-		IsValidClientCertificate: isValid,
-	}))
+	res, err := query.Eval(ctx, rego.EvalInput(newInput(req, isValid)))
 	if err != nil {
 		return nil, fmt.Errorf("error evaluating rego policy: %w", err)
 	}
+
+	log.Info().
+		Interface("session", req.Session).
+		Interface("databroker_data", req.DataBrokerData).
+		Msg("EVALUATE")
 
 	deny := getDenyVar(res[0].Bindings.WithoutWildcards())
 	if len(deny) > 0 {
@@ -95,13 +101,24 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 
 	return &Result{
 		Status:  http.StatusForbidden,
-		Message: "unauthorized",
+		Message: "forbidden",
 	}, nil
 }
 
 type input struct {
-	*Request
-	IsValidClientCertificate bool `json:"is_valid_client_certificate"`
+	DataBrokerData           DataBrokerData `json:"databroker_data"`
+	HTTP                     RequestHTTP    `json:"http"`
+	Session                  RequestSession `json:"session"`
+	IsValidClientCertificate bool           `json:"is_valid_client_certificate"`
+}
+
+func newInput(req *Request, isValidClientCertificate bool) *input {
+	i := new(input)
+	i.DataBrokerData = req.DataBrokerData
+	i.HTTP = req.HTTP
+	i.Session = req.Session
+	i.IsValidClientCertificate = isValidClientCertificate
+	return i
 }
 
 type (
@@ -180,19 +197,33 @@ func getDenyVar(vars rego.Vars) []Result {
 }
 
 // DataBrokerData stores the data broker data by type => id => record
-type DataBrokerData map[string]map[string]*anypb.Any
+type DataBrokerData map[string]map[string]interface{}
 
 // Update updates a record in the DataBrokerData.
 func (dbd DataBrokerData) Update(record *databroker.Record) {
 	db, ok := dbd[record.GetType()]
 	if !ok {
-		db = make(map[string]*anypb.Any)
+		db = make(map[string]interface{})
 		dbd[record.GetType()] = db
 	}
 
 	if record.GetDeletedAt() != nil {
 		delete(db, record.GetId())
 	} else {
-		db[record.GetId()] = record.GetData()
+		if obj, err := unmarshalAny(record.GetData()); err == nil {
+			db[record.GetId()] = obj
+		} else {
+			log.Warn().Err(err).Msg("failed to unmarshal unknown any type")
+			delete(db, record.GetId())
+		}
 	}
+}
+
+func unmarshalAny(any *anypb.Any) (proto.Message, error) {
+	messageType, err := protoregistry.GlobalTypes.FindMessageByURL(any.GetTypeUrl())
+	if err != nil {
+		return nil, err
+	}
+	msg := proto.MessageV1(messageType.New())
+	return msg, ptypes.UnmarshalAny(any, msg)
 }

@@ -395,15 +395,16 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
+	s.ID = uuid.New().String()
 
-	{
+	if a.sessionClient != nil {
 		sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
 		idTokenExpiry, _ := ptypes.TimestampProto(s.Expiry.Time())
 		idTokenIssuedAt, _ := ptypes.TimestampProto(s.IssuedAt.Time())
 		oauthTokenExpiry, _ := ptypes.TimestampProto(accessToken.Expiry)
 		_, err := a.sessionClient.Add(r.Context(), &session.AddRequest{
 			Session: &session.Session{
-				Id:        uuid.New().String(),
+				Id:        s.ID,
 				UserId:    s.Issuer + "/" + s.Subject,
 				ExpiresAt: sessionExpiry,
 				IdToken: &session.IDToken{

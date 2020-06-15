@@ -23,6 +23,9 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
 	defer span.End()
 
+	a.dataBrokerDataLock.RLock()
+	defer a.dataBrokerDataLock.RUnlock()
+
 	// maybe rewrite http request for forward auth
 	isForwardAuth := a.handleForwardAuth(in)
 	hreq := getHTTPRequestFromCheckRequest(in)
@@ -32,6 +35,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	req := a.getEvaluatorRequestFromCheckRequest(in, rawJWT)
 	reply, err := a.pe.Evaluate(ctx, req)
 	if err != nil {
+		log.Error().Err(err).Msg("error during OPA evaluation")
 		return nil, err
 	}
 	logAuthorizeCheck(ctx, in, reply, rawJWT)
@@ -60,12 +64,6 @@ func (a *Authorize) getEnvoyRequestHeaders(rawJWT []byte) ([]*envoy_api_v2_core.
 	}
 
 	return hvos, nil
-}
-
-func (a *Authorize) isExpired(rawSession []byte) bool {
-	state := sessions.State{}
-	err := a.currentEncoder.Load().Unmarshal(rawSession, &state)
-	return err == nil && state.IsExpired()
 }
 
 func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) bool {
@@ -100,6 +98,7 @@ func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) b
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v2.CheckRequest, rawJWT []byte) *evaluator.Request {
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
+		DataBrokerData: a.dataBrokerData,
 		HTTP: evaluator.RequestHTTP{
 			Method:            in.GetAttributes().GetRequest().GetHttp().GetMethod(),
 			URL:               requestURL.String(),
@@ -115,6 +114,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v
 		req.Session.ImpersonateEmail = state.ImpersonateEmail
 		req.Session.ImpersonateGroups = state.ImpersonateGroups
 	}
+	log.Info().Err(err).Interface("state", state).Send()
 
 	return req
 }

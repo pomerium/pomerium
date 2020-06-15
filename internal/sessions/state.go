@@ -6,9 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/hashutil"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2/jwt"
+
+	"github.com/pomerium/pomerium/internal/hashutil"
 )
 
 // timeNow is time.Now but pulled out as a variable for tests.

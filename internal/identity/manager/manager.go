@@ -370,7 +370,7 @@ func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session
 		}
 
 		for _, record := range res.GetRecords() {
-			mgr.log.Info().Interface("session", record.GetData).Msg("session update")
+			mgr.log.Info().Interface("session", record.GetData()).Msg("session update")
 
 			var pbSession session.Session
 			err := ptypes.UnmarshalAny(record.GetData(), &pbSession)
@@ -408,7 +408,7 @@ func (mgr *Manager) syncUsers(ctx context.Context, ch chan<- *user.User) error {
 		}
 
 		for _, record := range res.GetRecords() {
-			mgr.log.Info().Interface("user", record).Msg("user update")
+			mgr.log.Info().Interface("user", record.GetData()).Msg("user update")
 
 			var pbUser user.User
 			err := ptypes.UnmarshalAny(record.GetData(), &pbUser)

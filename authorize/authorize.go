@@ -123,7 +123,7 @@ func newPolicyEvaluator(opts *config.Options) (*evaluator.Evaluator, error) {
 		return int64(len(opts.Policies))
 	})
 	ctx := context.Background()
-	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
+	_, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
 	return evaluator.New(opts)
 }
