@@ -12,7 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pomerium/pomerium/integration/internal/flows"
 	"github.com/pomerium/pomerium/integration/internal/netutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 )
@@ -452,10 +451,14 @@ func TestPassIdentityHeaders(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			var withAPI flows.AuthenticateOption
 			client := testcluster.NewHTTPClient()
-			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io"+tc.path),
-				withAPI, flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
+
+			req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io"+tc.path, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := client.Do(req)
 			if !assert.NoError(t, err, "unexpected http error") {
 				return
 			}

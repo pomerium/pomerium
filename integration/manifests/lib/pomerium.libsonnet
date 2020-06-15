@@ -126,14 +126,12 @@ local PomeriumPolicy = function() std.flattenArrays(
         from: 'http://' + domain + '.localhost.pomerium.io',
         prefix: '/pass-identity-headers-enabled',
         to: 'http://' + domain + '.default.svc.cluster.local',
-        allowed_users: ['bob@dogs.test'],
         pass_identity_headers: true,
       },
       {
         from: 'http://' + domain + '.localhost.pomerium.io',
         prefix: '/pass-identity-headers-disabled',
         to: 'http://' + domain + '.default.svc.cluster.local',
-        allowed_users: ['bob@dogs.test'],
         pass_identity_headers: false,
       },
       {
