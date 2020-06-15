@@ -157,6 +157,22 @@ func (p *Policy) Checksum() uint64 {
 	return cs
 }
 
+// RouteID returns a unique identifier for a route
+func (p *Policy) RouteID() uint64 {
+	id := routeID{
+		Source:      p.Source,
+		Destination: p.Destination,
+		Prefix:      p.Prefix,
+		Path:        p.Path,
+		Regex:       p.Regex,
+	}
+
+	cs, _ := hashstructure.Hash(id, &hashstructure.HashOptions{
+		Hasher: xxhash.New(),
+	})
+	return cs
+}
+
 func (p *Policy) String() string {
 	if p.Source == nil || p.Destination == nil {
 		return fmt.Sprintf("%s → %s", p.From, p.To)
@@ -172,4 +188,12 @@ type StringURL struct {
 // MarshalJSON returns the URLs host as json.
 func (u *StringURL) MarshalJSON() ([]byte, error) {
 	return json.Marshal(u.String())
+}
+
+type routeID struct {
+	Source      *StringURL
+	Destination *url.URL
+	Prefix      string
+	Path        string
+	Regex       string
 }

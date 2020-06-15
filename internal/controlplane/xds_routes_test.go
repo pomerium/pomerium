@@ -247,7 +247,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-4e2763e591b22dc8",
+					"cluster": "policy-701142725541ce1f",
 					"timeout": "3s",
 					"upgradeConfigs": [{
 						"enabled": false,
@@ -270,7 +270,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": false,
-					"cluster": "policy-e5d20435224ae9b",
+					"cluster": "policy-35b6cce9d52d36ed",
 					"timeout": "0s",
 					"upgradeConfigs": [{
 						"enabled": true,
@@ -293,7 +293,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-6e7239b3980df01f",
+					"cluster": "policy-8935ca8067709cf7",
 					"timeout": "60s",
 					"upgradeConfigs": [{
 						"enabled": false,
@@ -326,7 +326,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-7bf4b11bf99ced85",
+					"cluster": "policy-45c2908c3d6f0e52",
 					"timeout": "3s",
 					"upgradeConfigs": [{
 						"enabled": false,
@@ -349,7 +349,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-6b5e934ff586365d",
+					"cluster": "policy-8935ca8067709cf7",
 					"timeout": "60s",
 					"upgradeConfigs": [{
 						"enabled": false,
