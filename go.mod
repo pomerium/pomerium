@@ -6,7 +6,7 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	contrib.go.opencensus.io/exporter/prometheus v0.2.0
 	contrib.go.opencensus.io/exporter/zipkin v0.1.1
-	github.com/caddyserver/certmagic v0.11.1
+	github.com/caddyserver/certmagic v0.11.2
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/envoyproxy/go-control-plane v0.9.5
