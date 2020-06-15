@@ -61,7 +61,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				},
 			},
 		},
-	}, []byte("HELLO WORLD"))
+	}, nil)
 	expect := &evaluator.Request{
 		Session: evaluator.RequestSession{},
 		HTTP: evaluator.RequestHTTP{
