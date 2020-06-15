@@ -5,7 +5,7 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
-# Since 0.10.0
+# Since 0.9.0
 
 ## Breaking
 
