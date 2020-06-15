@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/httputil"
 )
 
 func buildGRPCRoutes() []*envoy_config_route_v3.Route {
@@ -133,6 +134,14 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 			requestHeadersToAdd = append(requestHeadersToAdd, mkEnvoyHeader(k, v))
 		}
 
+		requestHeadersToRemove := policy.RemoveRequestHeaders
+		if !policy.PassIdentityHeaders {
+			requestHeadersToRemove = append(requestHeadersToRemove, httputil.HeaderPomeriumJWTAssertion)
+			for _, claim := range options.JWTClaimsHeaders {
+				requestHeadersToRemove = append(requestHeadersToRemove, httputil.PomeriumJWTHeaderName(claim))
+			}
+		}
+
 		var routeTimeout *durationpb.Duration
 		if policy.AllowWebsockets {
 			// disable the route timeout for websocket support
@@ -182,7 +191,7 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 				},
 			},
 			RequestHeadersToAdd:    requestHeadersToAdd,
-			RequestHeadersToRemove: policy.RemoveRequestHeaders,
+			RequestHeadersToRemove: requestHeadersToRemove,
 			ResponseHeadersToAdd:   responseHeadersToAdd,
 		})
 	}

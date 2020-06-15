@@ -121,6 +121,21 @@ local PomeriumPolicy = function() std.flattenArrays(
         },
         remove_request_headers: ['X-Custom-Request-Header-To-Remove'],
       },
+      // pass_identity_headers option
+      {
+        from: 'http://' + domain + '.localhost.pomerium.io',
+        prefix: '/pass-identity-headers-enabled',
+        to: 'http://' + domain + '.default.svc.cluster.local',
+        allowed_users: ['bob@dogs.test'],
+        pass_identity_headers: true,
+      },
+      {
+        from: 'http://' + domain + '.localhost.pomerium.io',
+        prefix: '/pass-identity-headers-disabled',
+        to: 'http://' + domain + '.default.svc.cluster.local',
+        allowed_users: ['bob@dogs.test'],
+        pass_identity_headers: false,
+      },
       {
         from: 'http://restricted-' + domain + '.localhost.pomerium.io',
         to: 'http://' + domain + '.default.svc.cluster.local',

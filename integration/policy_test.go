@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/integration/internal/flows"
 	"github.com/pomerium/pomerium/integration/internal/netutil"
+	"github.com/pomerium/pomerium/internal/httputil"
 )
 
 func TestCORS(t *testing.T) {
@@ -432,4 +433,50 @@ func TestAttestationJWT(t *testing.T) {
 	}
 
 	assert.NotEmpty(t, result.Headers["X-Pomerium-Jwt-Assertion"], "Expected JWT assertion")
+}
+
+func TestPassIdentityHeaders(t *testing.T) {
+	ctx := mainCtx
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	tests := []struct {
+		name      string
+		path      string
+		wantExist bool
+	}{
+		{"enabled", "/pass-identity-headers-enabled", true},
+		{"disabled", "/pass-identity-headers-disabled", false},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			var withAPI flows.AuthenticateOption
+			client := testcluster.NewHTTPClient()
+			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io"+tc.path),
+				withAPI, flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
+			if !assert.NoError(t, err, "unexpected http error") {
+				return
+			}
+			defer res.Body.Close()
+
+			var result struct {
+				Headers map[string]string `json:"headers"`
+			}
+			err = json.NewDecoder(res.Body).Decode(&result)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			for _, header := range []string{httputil.HeaderPomeriumJWTAssertion} {
+				_, exist := result.Headers[header]
+				msg := "expected " + header + " to be present."
+				if tc.wantExist {
+					msg = "expected " + header + " not to be present."
+				}
+				assert.True(t, exist == tc.wantExist, msg)
+			}
+		})
+	}
 }

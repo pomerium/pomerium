@@ -200,32 +200,38 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		DefaultUpstreamTimeout: time.Second * 3,
 		Policies: []config.Policy{
 			{
-				Source: &config.StringURL{URL: mustParseURL("https://ignore.example.com")},
+				Source:              &config.StringURL{URL: mustParseURL("https://ignore.example.com")},
+				PassIdentityHeaders: true,
 			},
 			{
-				Source: &config.StringURL{URL: mustParseURL("https://example.com")},
+				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
+				PassIdentityHeaders: true,
 			},
 			{
-				Source:             &config.StringURL{URL: mustParseURL("https://example.com")},
-				Path:               "/some/path",
-				AllowWebsockets:    true,
-				PreserveHostHeader: true,
+				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
+				Path:                "/some/path",
+				AllowWebsockets:     true,
+				PreserveHostHeader:  true,
+				PassIdentityHeaders: true,
 			},
 			{
-				Source:            &config.StringURL{URL: mustParseURL("https://example.com")},
-				Prefix:            "/some/prefix/",
-				SetRequestHeaders: map[string]string{"HEADER-KEY": "HEADER-VALUE"},
-				UpstreamTimeout:   time.Minute,
+				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
+				Prefix:              "/some/prefix/",
+				SetRequestHeaders:   map[string]string{"HEADER-KEY": "HEADER-VALUE"},
+				UpstreamTimeout:     time.Minute,
+				PassIdentityHeaders: true,
 			},
 			{
-				Source: &config.StringURL{URL: mustParseURL("https://example.com")},
-				Regex:  `^/[a]+$`,
+				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
+				Regex:               `^/[a]+$`,
+				PassIdentityHeaders: true,
 			},
 			{
 				Source:               &config.StringURL{URL: mustParseURL("https://example.com")},
 				Prefix:               "/some/prefix/",
 				RemoveRequestHeaders: []string{"HEADER-KEY"},
 				UpstreamTimeout:      time.Minute,
+				PassIdentityHeaders:  true,
 			},
 		},
 	}, "example.com")
@@ -370,7 +376,8 @@ func TestAddOptionsHeadersToResponse(t *testing.T) {
 		DefaultUpstreamTimeout: time.Second * 3,
 		Policies: []config.Policy{
 			{
-				Source: &config.StringURL{URL: mustParseURL("https://example.com")},
+				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
+				PassIdentityHeaders: true,
 			},
 		},
 		Headers: map[string]string{"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"},

@@ -90,7 +90,7 @@ func getJWTClaimHeaders(options config.Options, encoder encoding.MarshalUnmarsha
 	hdrs := make(map[string]string)
 	for _, name := range options.JWTClaimsHeaders {
 		if claim, ok := claims[name]; ok {
-			hdrs["x-pomerium-claim-"+name] = strings.Join(claim, ",")
+			hdrs[httputil.PomeriumJWTHeaderName(name)] = strings.Join(claim, ",")
 		}
 	}
 	return hdrs, nil
