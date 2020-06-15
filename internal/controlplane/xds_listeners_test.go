@@ -303,6 +303,17 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 
 	testutil.AssertProtoJSONEqual(t, `{
 		"commonTlsContext": {
+			"tlsParams": {
+				"cipherSuites": [
+					"ECDHE-ECDSA-AES256-GCM-SHA384",
+					"ECDHE-RSA-AES256-GCM-SHA384",
+					"ECDHE-ECDSA-AES128-GCM-SHA256",
+					"ECDHE-RSA-AES128-GCM-SHA256",
+					"ECDHE-ECDSA-CHACHA20-POLY1305",
+					"ECDHE-RSA-CHACHA20-POLY1305"
+				],
+				"tlsMinimumProtocolVersion": "TLSv1_2"
+			},
 			"alpnProtocols": ["h2", "http/1.1"],
 			"tlsCertificates": [
 				{
