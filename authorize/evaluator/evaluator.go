@@ -143,6 +143,14 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		}, nil
 	}
 
+	if req.DataBrokerData.Get("type.googleapis.com/session.Session", req.Session.ID) == nil {
+		return &Result{
+			Status:    http.StatusUnauthorized,
+			Message:   "login required",
+			SignedJWT: signedJWT,
+		}, nil
+	}
+
 	return &Result{
 		Status:    http.StatusForbidden,
 		Message:   "forbidden",

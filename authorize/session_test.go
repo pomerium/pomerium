@@ -35,7 +35,7 @@ func TestLoadSession(t *testing.T) {
 				},
 			},
 		})
-		raw, err := loadSession(req, opts, encoder)
+		raw, err := loadRawSession(req, opts, encoder)
 		if err != nil {
 			return nil, err
 		}
