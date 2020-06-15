@@ -90,7 +90,7 @@ func Run(ctx context.Context, configFile string) error {
 	go config.WatchChanges(configFile, opt, optionsUpdaters)
 
 	ctx, cancel := context.WithCancel(ctx)
-	go func() {
+	go func(ctx context.Context) {
 		ch := make(chan os.Signal, 2)
 		defer signal.Stop(ch)
 
@@ -102,7 +102,7 @@ func Run(ctx context.Context, configFile string) error {
 		case <-ctx.Done():
 		}
 		cancel()
-	}()
+	}(ctx)
 
 	// run everything
 	eg, ctx := errgroup.WithContext(ctx)
