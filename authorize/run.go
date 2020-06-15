@@ -33,6 +33,7 @@ func (a *Authorize) Run(ctx context.Context) error {
 
 func (a *Authorize) runTypesSyncer(ctx context.Context, updateTypes chan<- []string) error {
 	log.Info().Msg("starting type sync")
+
 	client, err := a.dataBrokerClient.SyncTypes(ctx, new(emptypb.Empty))
 	if err != nil {
 		return err
@@ -58,6 +59,7 @@ func (a *Authorize) runDataSyncer(ctx context.Context, updateTypes <-chan []stri
 		for {
 			select {
 			case <-ctx.Done():
+				return ctx.Err()
 			case types := <-updateTypes:
 				for _, dataType := range types {
 					dataType := dataType
@@ -104,6 +106,7 @@ func (a *Authorize) runDataUpdater(ctx context.Context, updateRecord <-chan *dat
 	log.Info().Msg("starting data updater")
 	for {
 		var record *databroker.Record
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
