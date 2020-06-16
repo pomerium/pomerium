@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -44,7 +45,9 @@ func (a *Authorize) runTypesSyncer(ctx context.Context, updateTypes chan<- []str
 
 		for {
 			res, err := stream.Recv()
-			if err != nil {
+			if err == io.EOF {
+				return nil
+			} else if err != nil {
 				return err
 			}
 
@@ -98,7 +101,9 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string, updat
 
 		for {
 			res, err := stream.Recv()
-			if err != nil {
+			if err == io.EOF {
+				return nil
+			} else if err != nil {
 				return err
 			}
 
@@ -142,7 +147,9 @@ func tryForever(ctx context.Context, callback func(onSuccess interface{ Reset() 
 	backoff := backoff.NewExponentialBackOff()
 	for {
 		err := callback(backoff)
-		log.Warn().Err(err).Msg("sync error")
+		if err != nil {
+			log.Warn().Err(err).Msg("sync error")
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
