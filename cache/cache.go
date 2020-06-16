@@ -16,7 +16,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/directory"
-	pbCache "github.com/pomerium/pomerium/internal/grpc/cache"
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/grpc/user"
@@ -97,7 +96,6 @@ func New(opts config.Options) (*Cache, error) {
 
 // Register registers all the gRPC services with the given server.
 func (c *Cache) Register(grpcServer *grpc.Server) {
-	pbCache.RegisterCacheServer(grpcServer, c)
 	databroker.RegisterDataBrokerServiceServer(grpcServer, c.dataBrokerServer)
 	session.RegisterSessionServiceServer(grpcServer, c.sessionServer)
 	user.RegisterUserServiceServer(grpcServer, c.userServer)
