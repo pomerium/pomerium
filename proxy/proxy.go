@@ -158,7 +158,7 @@ func New(opts config.Options) (*Proxy, error) {
 	p.authzClient = envoy_service_auth_v2.NewAuthorizationClient(authzConn)
 
 	cacheConn, err := grpc.NewGRPCClientConn(&grpc.Options{
-		Addr:                    opts.CacheURL,
+		Addr:                    opts.DataBrokerURL,
 		OverrideCertificateName: opts.OverrideCertificateName,
 		CA:                      opts.CA,
 		CAFile:                  opts.CAFile,

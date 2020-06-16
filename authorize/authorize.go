@@ -69,9 +69,9 @@ func New(opts config.Options) (*Authorize, error) {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
 	}
 
-	cacheConn, err := grpc.NewGRPCClientConn(
+	dataBrokerConn, err := grpc.NewGRPCClientConn(
 		&grpc.Options{
-			Addr:                    opts.CacheURL,
+			Addr:                    opts.DataBrokerURL,
 			OverrideCertificateName: opts.OverrideCertificateName,
 			CA:                      opts.CA,
 			CAFile:                  opts.CAFile,
@@ -85,7 +85,7 @@ func New(opts config.Options) (*Authorize, error) {
 
 	a := Authorize{
 		templates:        template.Must(frontend.NewTemplates()),
-		dataBrokerClient: databroker.NewDataBrokerServiceClient(cacheConn),
+		dataBrokerClient: databroker.NewDataBrokerServiceClient(dataBrokerConn),
 		dataBrokerData:   make(evaluator.DataBrokerData),
 	}
 

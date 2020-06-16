@@ -26,7 +26,7 @@ func TestNew(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			o := config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
-				CacheURL:        mustParseURL("https://cache.example.com"),
+				DataBrokerURL:   mustParseURL("https://cache.example.com"),
 				SharedKey:       tt.SharedKey,
 				Policies:        tt.Policies}
 			if tt.name == "empty options" {

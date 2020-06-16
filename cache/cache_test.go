@@ -23,10 +23,10 @@ func TestNew(t *testing.T) {
 		opts    config.Options
 		wantErr bool
 	}{
-		{"good - autocache", config.Options{CacheStore: "autocache", SharedKey: cryptutil.NewBase64Key(), CacheURL: &url.URL{Scheme: "http", Host: "example"}}, false},
-		{"bad shared secret", config.Options{CacheStorePath: dir + "/bolt.db", CacheStore: "bolt", SharedKey: string([]byte(cryptutil.NewBase64Key())[:31]), CacheURL: &url.URL{Scheme: "http", Host: "example"}}, true},
-		{"bad cache url", config.Options{SharedKey: cryptutil.NewBase64Key(), CacheURL: &url.URL{}}, true},
-		{"good - bolt", config.Options{CacheStorePath: dir + "/bolt.db", CacheStore: "bolt", SharedKey: cryptutil.NewBase64Key(), CacheURL: &url.URL{Scheme: "http", Host: "example"}}, false},
+		{"good - autocache", config.Options{CacheStore: "autocache", SharedKey: cryptutil.NewBase64Key(), DataBrokerURL: &url.URL{Scheme: "http", Host: "example"}}, false},
+		{"bad shared secret", config.Options{CacheStorePath: dir + "/bolt.db", CacheStore: "bolt", SharedKey: string([]byte(cryptutil.NewBase64Key())[:31]), DataBrokerURL: &url.URL{Scheme: "http", Host: "example"}}, true},
+		{"bad cache url", config.Options{SharedKey: cryptutil.NewBase64Key(), DataBrokerURL: &url.URL{}}, true},
+		{"good - bolt", config.Options{CacheStorePath: dir + "/bolt.db", CacheStore: "bolt", SharedKey: cryptutil.NewBase64Key(), DataBrokerURL: &url.URL{Scheme: "http", Host: "example"}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

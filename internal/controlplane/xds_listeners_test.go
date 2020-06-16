@@ -336,7 +336,7 @@ func Test_getAllRouteableDomains(t *testing.T) {
 		Services:        "all",
 		AuthenticateURL: mustParseURL("https://authenticate.example.com"),
 		AuthorizeURL:    mustParseURL("https://authorize.example.com:9001"),
-		CacheURL:        mustParseURL("https://cache.example.com:9001"),
+		DataBrokerURL:   mustParseURL("https://cache.example.com:9001"),
 		Policies: []config.Policy{
 			{Source: &config.StringURL{URL: mustParseURL("https://a.example.com")}},
 			{Source: &config.StringURL{URL: mustParseURL("https://b.example.com")}},
