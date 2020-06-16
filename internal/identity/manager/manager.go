@@ -494,7 +494,15 @@ func (mgr *Manager) onUpdateSession(ctx context.Context, pbSession *session.Sess
 	mgr.sessionScheduler.Remove(toSessionSchedulerKey(pbSession.GetUserId(), pbSession.GetId()))
 
 	if pbSession.GetDeletedAt() != nil {
+		// remove from local store
 		mgr.sessions.Delete(pbSession.GetUserId(), pbSession.GetId())
+		// permanently delete
+		_, err := mgr.sessionClient.Delete(ctx, &session.DeleteRequest{
+			Id: pbSession.GetId(),
+		})
+		if err != nil {
+			mgr.log.Warn().Err(err).Msg("failed to permanently delete session")
+		}
 		return
 	}
 
