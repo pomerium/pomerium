@@ -98,6 +98,11 @@ func buildControlPlanePrefixRoute(prefix string) *envoy_config_route_v3.Route {
 
 func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	var routes []*envoy_config_route_v3.Route
+	responseHeadersToAdd := make([]*envoy_config_core_v3.HeaderValueOption, 0, len(options.Headers))
+	for k, v := range options.Headers {
+		responseHeadersToAdd = append(responseHeadersToAdd, mkEnvoyHeader(k, v))
+	}
+
 	for i, policy := range options.Policies {
 		if policy.Source.Host != domain {
 			continue
@@ -123,15 +128,9 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 		}
 		clusterName := getPolicyName(&policy)
 
-		var requestHeadersToAdd []*envoy_config_core_v3.HeaderValueOption
+		requestHeadersToAdd := make([]*envoy_config_core_v3.HeaderValueOption, 0, len(policy.SetRequestHeaders))
 		for k, v := range policy.SetRequestHeaders {
-			requestHeadersToAdd = append(requestHeadersToAdd, &envoy_config_core_v3.HeaderValueOption{
-				Header: &envoy_config_core_v3.HeaderValue{
-					Key:   k,
-					Value: v,
-				},
-				Append: &wrappers.BoolValue{Value: false},
-			})
+			requestHeadersToAdd = append(requestHeadersToAdd, mkEnvoyHeader(k, v))
 		}
 
 		var routeTimeout *durationpb.Duration
@@ -184,7 +183,18 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 			},
 			RequestHeadersToAdd:    requestHeadersToAdd,
 			RequestHeadersToRemove: policy.RemoveRequestHeaders,
+			ResponseHeadersToAdd:   responseHeadersToAdd,
 		})
 	}
 	return routes
+}
+
+func mkEnvoyHeader(k, v string) *envoy_config_core_v3.HeaderValueOption {
+	return &envoy_config_core_v3.HeaderValueOption{
+		Header: &envoy_config_core_v3.HeaderValue{
+			Key:   k,
+			Value: v,
+		},
+		Append: &wrappers.BoolValue{Value: false},
+	}
 }
