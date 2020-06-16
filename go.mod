@@ -36,7 +36,6 @@ require (
 	github.com/open-policy-agent/opa v0.20.5
 	github.com/openzipkin/zipkin-go v0.2.2
 	github.com/pelletier/go-toml v1.6.0 // indirect
-	github.com/pomerium/autocache v0.0.0-20200505053831-8c1cd659f055
 	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v1.6.0
