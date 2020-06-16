@@ -232,6 +232,10 @@ type Options struct {
 	CacheURLString string   `mapstructure:"cache_service_url" yaml:"cache_service_url,omitempty"`
 	CacheURL       *url.URL `yaml:",omitempty"`
 
+	// DataBrokerURL is the routable destination of the databroker service's gRPC endpiont.
+	DataBrokerURLString string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
+	DataBrokerURL       *url.URL `yaml:",omitempty"`
+
 	// CacheStoreAddr specifies the host and port on which the cache store
 	// should connect to. e.g. (localhost:6379)
 	CacheStoreAddr string `mapstructure:"cache_store_address" yaml:"cache_store_address,omitempty"`
@@ -481,6 +485,10 @@ func (o *Options) Validate() error {
 		}
 	}
 
+	if o.DataBrokerURLString == "" {
+		o.DataBrokerURLString = o.CacheURLString
+	}
+
 	if IsAuthorize(o.Services) || IsCache(o.Services) {
 		// if authorize is set, we don't really need a http server
 		// but we'll still set one up incase the user wants to use
@@ -521,6 +529,14 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad cache service url %s : %w", o.CacheURLString, err)
 		}
 		o.CacheURL = u
+	}
+
+	if o.DataBrokerURLString != "" {
+		u, err := urlutil.ParseAndValidateURL(o.DataBrokerURLString)
+		if err != nil {
+			return fmt.Errorf("config: bad cache service url %s : %w", o.DataBrokerURLString, err)
+		}
+		o.DataBrokerURL = u
 	}
 
 	if o.ForwardAuthURLString != "" {
@@ -644,10 +660,10 @@ func (o *Options) GetAuthorizeURL() *url.URL {
 	return u
 }
 
-// GetCacheURL returns the CacheURL in the options or localhost:5443.
-func (o *Options) GetCacheURL() *url.URL {
-	if o != nil && o.CacheURL != nil {
-		return o.CacheURL
+// GetDataBrokerURL returns the DataBrokerURL in the options or localhost:5443.
+func (o *Options) GetDataBrokerURL() *url.URL {
+	if o != nil && o.DataBrokerURL != nil {
+		return o.DataBrokerURL
 	}
 	u, _ := url.Parse("http://localhost" + DefaultAlternativeAddr)
 	return u

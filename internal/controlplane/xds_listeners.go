@@ -127,7 +127,7 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		if options.Addr == options.GRPCAddr {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
 			if (config.IsAuthorize(options.Services) && domain == options.GetAuthorizeURL().Host) ||
-				(config.IsCache(options.Services) && domain == options.GetCacheURL().Host) {
+				(config.IsCache(options.Services) && domain == options.GetDataBrokerURL().Host) {
 				vh.Routes = append(vh.Routes, buildGRPCRoutes()...)
 			}
 		}
@@ -392,7 +392,7 @@ func getAllRouteableDomains(options *config.Options, addr string) []string {
 		lookup[options.GetAuthorizeURL().Host] = struct{}{}
 	}
 	if config.IsCache(options.Services) && addr == options.GRPCAddr {
-		lookup[options.GetCacheURL().Host] = struct{}{}
+		lookup[options.GetDataBrokerURL().Host] = struct{}{}
 	}
 	if config.IsProxy(options.Services) && addr == options.Addr {
 		for _, policy := range options.Policies {
