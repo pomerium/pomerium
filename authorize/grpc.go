@@ -45,7 +45,10 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	sessionState, _ := loadSession(a.currentEncoder.Load(), rawJWT)
 
 	if sessionState != nil {
-		a.waitForSessionAndUser(time.Second*3, sessionState.ID)
+		waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*3)
+		defer waitCancel()
+
+		a.waitForSessionAndUser(waitCtx, sessionState.ID)
 	}
 
 	a.dataBrokerDataLock.RLock()
@@ -71,10 +74,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	return a.deniedResponse(in, int32(reply.Status), reply.Message, nil), nil
 }
 
-func (a *Authorize) waitForSessionAndUser(timeout time.Duration, sessionID string) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), timeout)
-	defer clearTimeout()
-
+func (a *Authorize) waitForSessionAndUser(ctx context.Context, sessionID string) {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
