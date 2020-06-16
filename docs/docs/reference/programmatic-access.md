@@ -29,27 +29,6 @@ It is the script or application's responsibility to create a HTTP callback handl
 
 See the python script below for example of how to start a callback server, and store the session payload.
 
-### Refresh API
-
-The Refresh API allows for a valid refresh token enabled session, using an `Authorization: Pomerium` bearer token, to refresh the current user session and return a new user session (`jwt`) and refresh token (`refresh_token`). If successfully, a new updated refresh token and identity session are returned as a json response.
-
-```bash
-$ curl \
-	-H "Accept: application/json" \
-	-H "Authorization: Pomerium $(cat cred-from-above-step.json | jq -r .refresh_token)" \
-	https://authenticate.example.com/api/v1/refresh
-
-{
-  "jwt":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refresh_token":"fXiWCF_z1NWKU3yZ...."
-}
-
-```
-
-:::tip
-Note that the Authorization refresh token is set to Authorization `Pomerium` _not_ `Bearer`.
-:::
-
 ## Handling expiration and revocation
 
 Your application should handle token expiration. If the session expires before work is done, the identity provider issued `refresh_token` can be used to create a new valid session.
@@ -68,7 +47,6 @@ The application interacting with Pomerium must manage the following workflow. Co
 1. Pomerium's proxy service and makes a callback request to the original `redirect_uri` with the user session and refresh token as arguments.
 1. The script or application is responsible for handling that http callback request, and securely handling the callback session (`pomerium_jwt`) and refresh token (`pomerium_refresh_token`) queryparams.
 1. The script or application can now make any requests as normal, by setting the `Authorization: Pomerium ${pomerium_jwt}` header.
-1. If the script or application encounters a `401` error or token expiration error, the script or application can make a request the authenticate service's refresh api endpoint (e.g. `https://authenticate.corp.domain.example/api/v1/refresh`) with the `Authorization: Pomerium ${pomerium_refresh_token}` header. Note that the refresh token is used, not the user session jwt. If successful, a new user session jwt and refresh token will be returned and requests can continue as before.
 
 ## Example Code
 
@@ -76,8 +54,7 @@ Please consider see the following minimal but complete python example.
 
 ```bash
 python3 scripts/programmatic_access.py \
-	--dst https://httpbin.example.com/headers \
-	--refresh-endpoint https://authenticate.example.com/api/v1/refresh
+	--dst https://httpbin.example.com/headers
 ```
 
 <<< @/scripts/programmatic_access.py
