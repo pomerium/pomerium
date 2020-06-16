@@ -304,6 +304,10 @@ func buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
 							ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
 								Cluster: "pomerium-control-plane-grpc",
 							},
+							// disable the timeout to support grpc streaming
+							Timeout: &durationpb.Duration{
+								Seconds: 0,
+							},
 						},
 					},
 				}},
