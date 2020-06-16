@@ -94,7 +94,7 @@ type Policy struct {
 	// These includes:
 	//
 	//  - X-Pomerium-Jwt-Assertion
-	//  - X-Pomerium-Claims-*
+	//  - X-Pomerium-Claim-*
 	//
 	PassIdentityHeaders bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers,omitempty"`
 }
