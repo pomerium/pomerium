@@ -260,7 +260,7 @@ func getDenyVar(vars rego.Vars) []Result {
 		return nil
 	}
 
-	var results []Result
+	results := make([]Result, 0, len(denials))
 	for _, denial := range denials {
 		denial, ok := denial.([]interface{})
 		if !ok || len(denial) != 2 {
