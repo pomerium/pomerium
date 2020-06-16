@@ -263,7 +263,7 @@ func getDenyVar(vars rego.Vars) []Result {
 	var results []Result
 	for _, denial := range denials {
 		denial, ok := denial.([]interface{})
-		if !ok || len(denial) < 2 {
+		if !ok || len(denial) != 2 {
 			continue
 		}
 
