@@ -60,7 +60,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 		log.Error().Err(err).Msg("error during OPA evaluation")
 		return nil, err
 	}
-	logAuthorizeCheck(ctx, in, reply, sessionState)
+	logAuthorizeCheck(ctx, in, reply)
 
 	switch {
 	case reply.Status == http.StatusOK:
@@ -243,7 +243,6 @@ func logAuthorizeCheck(
 	ctx context.Context,
 	in *envoy_service_auth_v2.CheckRequest,
 	reply *evaluator.Result,
-	sessionState *sessions.State,
 ) {
 	hdrs := getCheckRequestHeaders(in)
 	hattrs := in.GetAttributes().GetRequest().GetHttp()
@@ -261,9 +260,6 @@ func logAuthorizeCheck(
 		evt = evt.Bool("allow", reply.Status == http.StatusOK)
 		evt = evt.Int("status", reply.Status)
 		evt = evt.Str("message", reply.Message)
-	}
-	if sessionState != nil {
-		evt = evt.Interface("session", sessionState)
 	}
 	evt.Msg("authorize check")
 }

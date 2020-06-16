@@ -370,8 +370,6 @@ func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- *session.Session
 		}
 
 		for _, record := range res.GetRecords() {
-			mgr.log.Info().Interface("session", record.GetData()).Msg("session update")
-
 			var pbSession session.Session
 			err := ptypes.UnmarshalAny(record.GetData(), &pbSession)
 			if err != nil {
@@ -408,8 +406,6 @@ func (mgr *Manager) syncUsers(ctx context.Context, ch chan<- *user.User) error {
 		}
 
 		for _, record := range res.GetRecords() {
-			mgr.log.Info().Interface("user", record.GetData()).Msg("user update")
-
 			var pbUser user.User
 			err := ptypes.UnmarshalAny(record.GetData(), &pbUser)
 			if err != nil {
@@ -479,8 +475,6 @@ func (mgr *Manager) syncDirectoryUsers(ctx context.Context, ch chan<- *directory
 		}
 
 		for _, record := range res.GetRecords() {
-			mgr.log.Info().Interface("directory_user", record).Msg("directory user update")
-
 			var pbDirectoryUser directory.User
 			err := ptypes.UnmarshalAny(record.GetData(), &pbDirectoryUser)
 			if err != nil {
