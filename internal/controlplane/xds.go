@@ -172,7 +172,7 @@ func inlineFilename(name string) *envoy_config_core_v3.DataSource {
 }
 
 func getPolicyName(policy *config.Policy) string {
-	return fmt.Sprintf("policy-%x", policy.Checksum())
+	return fmt.Sprintf("policy-%x", policy.RouteID())
 }
 
 func envoyTLSCertificateFromGoTLSCertificate(cert *tls.Certificate) *envoy_extensions_transport_sockets_tls_v3.TlsCertificate {
