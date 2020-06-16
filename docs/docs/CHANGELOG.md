@@ -1,12 +1,20 @@
 # Changelog
 
-## v0.10.0
-
-### New
-
-- config: add remove_request_headers @cuonglm [GH-702]
-
 ## v0.9.1
+
+## Changes
+- Remove unnecessary viper.New() @yegle GH-849
+- authorize: reduce duplicate evaluations in opa policy @travisgroth GH-882
+- envoy: bump envoy to 1.14.2 @desimone GH-894
+- policy: Add consistent route identifier @travisgroth GH-905
+
+## Fixed
+- xds: use ipv4 address when ipv6 is disabled @calebdoxsey GH-823
+- proxy: only set validation context if trusted_ca is used @calebdoxsey GH-863
+- config: ensure viper ignores `certificates` config field @travisgroth GH-876
+- controlplane: use previous preferred cipher suite @desimone GH-889
+- controlplane: fix missing full cert chain @desimone GH-888
+- internal/controlplane: make sure options.Headers are set for response @cuonglm GH-907
 
 ### Security
 
