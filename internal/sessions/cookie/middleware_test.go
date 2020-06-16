@@ -11,9 +11,10 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 
 	"github.com/google/go-cmp/cmp"
+	"gopkg.in/square/go-jose.v2/jwt"
+
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding/ecjson"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 func testAuthorizer(next http.Handler) http.Handler {
@@ -41,7 +42,7 @@ func TestVerifier(t *testing.T) {
 		wantBody   string
 		wantStatus int
 	}{
-		{"good cookie session", sessions.State{Email: "user@pomerium.io", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}, http.StatusText(http.StatusOK), http.StatusOK},
+		{"good cookie session", sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}, http.StatusText(http.StatusOK), http.StatusOK},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

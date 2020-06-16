@@ -26,7 +26,7 @@ func TestNewContext(t *testing.T) {
 		err  error
 		want context.Context
 	}{
-		{"simple", context.Background(), &sessions.State{Email: "bdd@pomerium.io"}, nil, nil},
+		{"simple", context.Background(), &sessions.State{}, nil, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -44,9 +44,6 @@ func TestNewContext(t *testing.T) {
 			err = signer.Unmarshal([]byte(out), &stateOut)
 			if err != nil {
 				t.Fatal(err)
-			}
-			if diff := cmp.Diff(tt.t.Email, stateOut.Email); diff != "" {
-				t.Errorf("NewContext() = %s", diff)
 			}
 			if diff := cmp.Diff(tt.err, errOut); diff != "" {
 				t.Errorf("NewContext() = %s", diff)

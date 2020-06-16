@@ -17,7 +17,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/grpc/session"
-	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
@@ -420,10 +419,6 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	return redirectURL, nil
 }
 
-func (a *Authenticate) timestampedHash(s string) string {
-	return fmt.Sprintf("%x-%v", hashutil.Hash(s), time.Now().Truncate(time.Minute).Unix())
-}
-
 func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, error) {
 	jwt, err := sessions.FromContext(ctx)
 	if err != nil {
@@ -437,6 +432,10 @@ func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, 
 }
 
 func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) error {
+	if a.sessionClient == nil {
+		return nil
+	}
+
 	_, err := a.sessionClient.Add(ctx, &session.AddRequest{
 		Session: &session.Session{
 			Id:        sessionID,

@@ -1,3 +1,4 @@
+// Package user contains protobuf types for users.
 package user
 
 import (

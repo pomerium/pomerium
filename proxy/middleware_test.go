@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"gopkg.in/square/go-jose.v2/jwt"
+
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 func TestProxy_AuthenticateSession(t *testing.T) {
@@ -39,9 +40,9 @@ func TestProxy_AuthenticateSession(t *testing.T) {
 
 		wantStatus int
 	}{
-		{"good", 200, false, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}}, nil, identity.MockProvider{}, &mock.Encoder{}, "", http.StatusOK},
-		{"invalid session", 200, false, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}}, errors.New("hi"), identity.MockProvider{}, &mock.Encoder{}, "", http.StatusFound},
-		{"expired", 200, false, &mstore.Store{Session: &sessions.State{Email: "user@test.example", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, sessions.ErrExpired, identity.MockProvider{}, &mock.Encoder{}, "", http.StatusFound},
+		{"good", 200, false, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}}, nil, identity.MockProvider{}, &mock.Encoder{}, "", http.StatusOK},
+		{"invalid session", 200, false, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}}, errors.New("hi"), identity.MockProvider{}, &mock.Encoder{}, "", http.StatusFound},
+		{"expired", 200, false, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, sessions.ErrExpired, identity.MockProvider{}, &mock.Encoder{}, "", http.StatusFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -82,12 +83,10 @@ func TestProxy_AuthenticateSession(t *testing.T) {
 }
 
 func Test_jwtClaimMiddleware(t *testing.T) {
-	email := "test@pomerium.example"
-	groups := []string{"foo", "bar"}
 	claimHeaders := []string{"email", "groups", "missing"}
 	sharedKey := "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 
-	session := &sessions.State{Email: email, Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second)), Groups: groups}
+	session := &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Second))}
 	encoder, _ := jws.NewHS256Signer([]byte(sharedKey), "https://authenticate.pomerium.example")
 	state, err := encoder.Marshal(session)
 
@@ -113,27 +112,6 @@ func Test_jwtClaimMiddleware(t *testing.T) {
 	w := httptest.NewRecorder()
 	proxyHandler := a.jwtClaimMiddleware(true)(handler)
 	proxyHandler.ServeHTTP(w, r)
-
-	t.Run("email claim", func(t *testing.T) {
-		emailHeader := r.Header.Get("x-pomerium-claim-email")
-		if emailHeader != email {
-			t.Errorf("did not find claim email, want=%q, got=%q", email, emailHeader)
-		}
-	})
-
-	t.Run("groups claim", func(t *testing.T) {
-		groupsHeader := r.Header.Get("x-pomerium-claim-groups")
-		if groupsHeader != strings.Join(groups, ",") {
-			t.Errorf("did not find claim groups, want=%q, got=%q", groups, groupsHeader)
-		}
-	})
-
-	t.Run("email response claim", func(t *testing.T) {
-		emailHeader := w.Header().Get("x-pomerium-claim-email")
-		if emailHeader != email {
-			t.Errorf("did not find claim email in response, want=%q, got=%q", email, emailHeader)
-		}
-	})
 
 	t.Run("missing claim", func(t *testing.T) {
 		absentHeader := r.Header.Get("x-pomerium-claim-missing")

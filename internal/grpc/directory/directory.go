@@ -1,3 +1,4 @@
+// Package directory contains protobuf types for directory users.
 package directory
 
 import (

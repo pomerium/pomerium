@@ -1,3 +1,4 @@
+// Package protoutil contains helper functions for protobufs.
 package protoutil
 
 import (
@@ -18,39 +19,39 @@ func AnyToInterface(any *anypb.Any) interface{} {
 	switch any.GetTypeUrl() {
 	case "type.googleapis.com/google.protobuf.BoolValue":
 		var v wrapperspb.BoolValue
-		ptypes.UnmarshalAny(any, &v)
+		_ = ptypes.UnmarshalAny(any, &v)
 		return v.GetValue()
 	case "type.googleapis.com/google.protobuf.BytesValue":
 		var v wrapperspb.BytesValue
-		ptypes.UnmarshalAny(any, &v)
+		_ = ptypes.UnmarshalAny(any, &v)
 		return v.GetValue()
 	case "type.googleapis.com/google.protobuf.DoubleValue":
 		var v wrapperspb.DoubleValue
-		ptypes.UnmarshalAny(any, &v)
+		_ = ptypes.UnmarshalAny(any, &v)
 		return v.GetValue()
 	case "type.googleapis.com/google.protobuf.FloatValue":
 		var v wrapperspb.FloatValue
-		ptypes.UnmarshalAny(any, &v)
+		_ = ptypes.UnmarshalAny(any, &v)
 		return v.GetValue()
 	case "type.googleapis.com/google.protobuf.Int32Value":
 		var v wrapperspb.Int32Value
-		ptypes.UnmarshalAny(any, &v)
+		_ = ptypes.UnmarshalAny(any, &v)
 		return v.GetValue()
 	case "type.googleapis.com/google.protobuf.Int64Value":
 		var v wrapperspb.Int64Value
-		ptypes.UnmarshalAny(any, &v)
+		_ = ptypes.UnmarshalAny(any, &v)
 		return v.GetValue()
 	case "type.googleapis.com/google.protobuf.StringValue":
 		var v wrapperspb.StringValue
-		ptypes.UnmarshalAny(any, &v)
+		_ = ptypes.UnmarshalAny(any, &v)
 		return v.GetValue()
 	case "type.googleapis.com/google.protobuf.UInt32Value":
 		var v wrapperspb.UInt32Value
-		ptypes.UnmarshalAny(any, &v)
+		_ = ptypes.UnmarshalAny(any, &v)
 		return v.GetValue()
 	case "type.googleapis.com/google.protobuf.UInt64Value":
 		var v wrapperspb.UInt64Value
-		ptypes.UnmarshalAny(any, &v)
+		_ = ptypes.UnmarshalAny(any, &v)
 		return v.GetValue()
 	}
 

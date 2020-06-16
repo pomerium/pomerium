@@ -1,3 +1,4 @@
+// Package session contains protobuf types for sessions.
 package session
 
 import (
