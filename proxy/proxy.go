@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/grpc"
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -83,6 +84,8 @@ type Proxy struct {
 	templates       *template.Template
 	jwtClaimHeaders []string
 	authzClient     envoy_service_auth_v2.AuthorizationClient
+
+	dataBrokerClient databroker.DataBrokerServiceClient
 
 	currentRouter atomic.Value
 }
@@ -153,6 +156,20 @@ func New(opts config.Options) (*Proxy, error) {
 		return nil, err
 	}
 	p.authzClient = envoy_service_auth_v2.NewAuthorizationClient(authzConn)
+
+	cacheConn, err := grpc.NewGRPCClientConn(&grpc.Options{
+		Addr:                    opts.CacheURL,
+		OverrideCertificateName: opts.OverrideCertificateName,
+		CA:                      opts.CA,
+		CAFile:                  opts.CAFile,
+		RequestTimeout:          opts.GRPCClientTimeout,
+		ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
+		WithInsecure:            opts.GRPCInsecure,
+	})
+	if err != nil {
+		return nil, err
+	}
+	p.dataBrokerClient = databroker.NewDataBrokerServiceClient(cacheConn)
 
 	if err := p.UpdatePolicies(&opts); err != nil {
 		return nil, err
