@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/pomerium/pomerium/integration/internal/flows"
 	"github.com/pomerium/pomerium/integration/internal/netutil"
 )
 
@@ -444,21 +445,16 @@ func TestPassIdentityHeaders(t *testing.T) {
 		path      string
 		wantExist bool
 	}{
-		{"enabled", "/pass-identity-headers-enabled", true},
-		{"disabled", "/pass-identity-headers-disabled", false},
+		{"enabled", "/by-user", true},
+		{"disabled", "/by-domain", false},
 	}
 
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			client := testcluster.NewHTTPClient()
-
-			req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io"+tc.path, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			res, err := client.Do(req)
+			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io"+tc.path),
+				nil, flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
 			if !assert.NoError(t, err, "unexpected http error") {
 				return
 			}
@@ -472,7 +468,7 @@ func TestPassIdentityHeaders(t *testing.T) {
 				return
 			}
 
-			for _, header := range []string{"X-Pomerium-Jwt-Assertion", "X-Pomerium-Claim-Email", "X-Pomerium-Claim-User"} {
+			for _, header := range []string{"X-Pomerium-Jwt-Assertion", "X-Pomerium-Claim-Email"} {
 				_, exist := result.Headers[header]
 				assert.True(t, exist == tc.wantExist, fmt.Sprintf("Header %s, expected: %v, got: %v", header, tc.wantExist, exist))
 			}
