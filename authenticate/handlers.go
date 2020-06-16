@@ -16,7 +16,6 @@ import (
 	"github.com/pomerium/csrf"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
-	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -204,7 +203,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	if r.FormValue(urlutil.QueryIsProgrammatic) == "true" {
 		newSession.Programmatic = true
 
-		pbSession, err := a.getSessionFromDataBroker(ctx, s.ID)
+		pbSession, err := session.Get(ctx, a.dataBrokerClient, s.ID)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
@@ -243,8 +242,16 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 // SignOut signs the user out and attempts to revoke the user's identity session
 // Handles both GET and POST.
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
-	_, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
+	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
 	defer span.End()
+
+	sessionState, err := a.getSessionFromCtx(ctx)
+	if err == nil {
+		err = a.deleteSession(ctx, sessionState.ID)
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to delete session from session store")
+		}
+	}
 
 	// no matter what happens, we want to clear the session store
 	a.sessionStore.ClearSession(w, r)
@@ -429,21 +436,12 @@ func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, 
 	return &s, nil
 }
 
-func (a *Authenticate) getSessionFromDataBroker(ctx context.Context, sessionID string) (*session.Session, error) {
-	any, _ := ptypes.MarshalAny(new(session.Session))
-
-	res, err := a.dataBrokerClient.Get(ctx, &databroker.GetRequest{
-		Type: any.GetTypeUrl(),
-		Id:   sessionID,
+func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) error {
+	_, err := a.sessionClient.Add(ctx, &session.AddRequest{
+		Session: &session.Session{
+			Id:        sessionID,
+			DeletedAt: ptypes.TimestampNow(),
+		},
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	var s session.Session
-	err = ptypes.UnmarshalAny(res.GetRecord().GetData(), &s)
-	if err != nil {
-		return nil, err
-	}
-	return &s, nil
+	return err
 }
