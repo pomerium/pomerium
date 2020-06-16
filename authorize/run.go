@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"gopkg.in/tomb.v2"
 
 	"github.com/cenkalti/backoff"
 
@@ -15,23 +15,23 @@ import (
 
 // Run runs the authorize server.
 func (a *Authorize) Run(ctx context.Context) error {
-	t, ctx := tomb.WithContext(ctx)
+	eg, ctx := errgroup.WithContext(ctx)
 
 	updateTypes := make(chan []string)
-	t.Go(func() error {
+	eg.Go(func() error {
 		return a.runTypesSyncer(ctx, updateTypes)
 	})
 
 	updateRecord := make(chan *databroker.Record)
-	t.Go(func() error {
+	eg.Go(func() error {
 		return a.runDataSyncer(ctx, updateTypes, updateRecord)
 	})
 
-	t.Go(func() error {
+	eg.Go(func() error {
 		return a.runDataUpdater(ctx, updateRecord)
 	})
 
-	return t.Wait()
+	return eg.Wait()
 }
 
 func (a *Authorize) runTypesSyncer(ctx context.Context, updateTypes chan<- []string) error {
@@ -60,8 +60,8 @@ func (a *Authorize) runTypesSyncer(ctx context.Context, updateTypes chan<- []str
 }
 
 func (a *Authorize) runDataSyncer(ctx context.Context, updateTypes <-chan []string, updateRecord chan<- *databroker.Record) error {
-	t, ctx := tomb.WithContext(ctx)
-	t.Go(func() error {
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
 		seen := map[string]struct{}{}
 		for {
 			select {
@@ -71,7 +71,7 @@ func (a *Authorize) runDataSyncer(ctx context.Context, updateTypes <-chan []stri
 				for _, dataType := range types {
 					dataType := dataType
 					if _, ok := seen[dataType]; !ok {
-						t.Go(func() error {
+						eg.Go(func() error {
 							return a.runDataTypeSyncer(ctx, dataType, updateRecord)
 						})
 						seen[dataType] = struct{}{}
@@ -80,7 +80,7 @@ func (a *Authorize) runDataSyncer(ctx context.Context, updateTypes <-chan []stri
 			}
 		}
 	})
-	return t.Wait()
+	return eg.Wait()
 }
 
 func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string, updateRecord chan<- *databroker.Record) error {
