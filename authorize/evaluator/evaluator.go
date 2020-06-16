@@ -111,14 +111,14 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return nil, fmt.Errorf("error evaluating rego policy: %w", err)
 	}
 
-	signedJWT, err := e.getSignedJWT(req)
-	if err != nil {
-		return nil, fmt.Errorf("error signing JWT: %w", err)
-	}
-
 	deny := getDenyVar(res[0].Bindings.WithoutWildcards())
 	if len(deny) > 0 {
 		return &deny[0], nil
+	}
+
+	signedJWT, err := e.getSignedJWT(req)
+	if err != nil {
+		return nil, fmt.Errorf("error signing JWT: %w", err)
 	}
 
 	allow := getAllowVar(res[0].Bindings.WithoutWildcards())
