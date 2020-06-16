@@ -121,7 +121,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return nil, fmt.Errorf("error signing JWT: %w", err)
 	}
 
-	allow := getAllowVar(res[0].Bindings.WithoutWildcards())
+	allow := allowed(res[0].Bindings.WithoutWildcards())
 	if allow {
 		return &Result{
 			Status:    http.StatusOK,
@@ -236,7 +236,7 @@ type Result struct {
 	SignedJWT string
 }
 
-func getAllowVar(vars rego.Vars) bool {
+func allowed(vars rego.Vars) bool {
 	result, ok := vars["result"].(map[string]interface{})
 	if !ok {
 		return false
