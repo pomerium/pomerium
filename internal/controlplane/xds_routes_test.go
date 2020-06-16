@@ -331,6 +331,56 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	`, routes)
 }
 
+// Make sure default Headers are set for response.
+// See also https://github.com/pomerium/pomerium/issues/901
+func TestAddOptionsHeadersToResponse(t *testing.T) {
+	routes := buildPolicyRoutes(&config.Options{
+		CookieName:             "pomerium",
+		DefaultUpstreamTimeout: time.Second * 3,
+		Policies: []config.Policy{
+			{
+				Source: &config.StringURL{URL: mustParseURL("https://example.com")},
+			},
+		},
+		Headers: map[string]string{"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"},
+	}, "example.com")
+
+	testutil.AssertProtoJSONEqual(t, `
+		[
+			{
+				"name": "policy-0",
+				"match": {
+					"prefix": "/"
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": true,
+					"cluster": "policy-701142725541ce1f",
+					"timeout": "3s",
+					"upgradeConfigs": [{
+						"enabled": false,
+						"upgradeType": "websocket"
+					}]
+				},
+				"responseHeadersToAdd": [{
+					"append": false,
+					"header": {
+						"key": "Strict-Transport-Security",
+						"value": "max-age=31536000; includeSubDomains; preload"
+					}
+				}]
+			}
+		]
+	`, routes)
+}
+
 func mustParseURL(str string) *url.URL {
 	u, err := url.Parse(str)
 	if err != nil {
