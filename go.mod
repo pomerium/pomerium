@@ -25,6 +25,7 @@ require (
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/hashicorp/memberlist v0.1.3
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/lithammer/shortuuid/v3 v3.0.4
 	github.com/mitchellh/hashstructure v1.0.0
