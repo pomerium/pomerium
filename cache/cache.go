@@ -91,6 +91,9 @@ func (c *Cache) Register(grpcServer *grpc.Server) {
 func (c *Cache) Run(ctx context.Context) error {
 	t, ctx := tomb.WithContext(ctx)
 	t.Go(func() error {
+		return c.runMemberList(ctx)
+	})
+	t.Go(func() error {
 		return c.localGRPCServer.Serve(c.localListener)
 	})
 	t.Go(func() error {
