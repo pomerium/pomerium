@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/pomerium/pomerium/integration/internal/flows"
 	"github.com/pomerium/pomerium/integration/internal/netutil"
 )
 
@@ -415,13 +416,8 @@ func TestAttestationJWT(t *testing.T) {
 	defer clearTimeout()
 
 	client := testcluster.NewHTTPClient()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	res, err := client.Do(req)
+	res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-user"),
+		nil, flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
 	if !assert.NoError(t, err, "unexpected http error") {
 		return
 	}
@@ -435,9 +431,5 @@ func TestAttestationJWT(t *testing.T) {
 		return
 	}
 
-	assert.NotEmpty(t,
-		"X-Pomerium-Jwt-Assertion-Value",
-		result.Headers["X-Pomerium-Jwt-Assertion"],
-		"Expected JWT assertion")
-
+	assert.NotEmpty(t, result.Headers["X-Pomerium-Jwt-Assertion"], "Expected JWT assertion")
 }
