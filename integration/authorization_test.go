@@ -77,64 +77,6 @@ func TestAuthorization(t *testing.T) {
 					}
 				})
 			})
-			t.Run("groups", func(t *testing.T) {
-				t.Run("allowed", func(t *testing.T) {
-					client := testcluster.NewHTTPClient()
-					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-group"),
-						withAPI, flows.WithEmail("bob@dogs.test"), flows.WithGroups("admin", "user"))
-					if assert.NoError(t, err) {
-						assert.Equal(t, http.StatusOK, res.StatusCode, "expected OK for admin")
-					}
-				})
-				t.Run("not allowed", func(t *testing.T) {
-					client := testcluster.NewHTTPClient()
-					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-group"),
-						withAPI, flows.WithEmail("joe@cats.test"), flows.WithGroups("user"))
-					if assert.NoError(t, err) {
-						assertDeniedAccess(t, res, "expected Forbidden for user, but got %d", res.StatusCode)
-					}
-				})
-			})
-
-			t.Run("refresh", func(t *testing.T) {
-				client := testcluster.NewHTTPClient()
-				res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
-					withAPI, flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"), flows.WithTokenExpiration(time.Second))
-				if !assert.NoError(t, err) {
-					return
-				}
-				assert.Equal(t, http.StatusOK, res.StatusCode, "expected OK for dogs.test")
-				res.Body.Close()
-
-				// poll till we get a new cookie because of a refreshed session
-				ticker := time.NewTicker(time.Millisecond * 500)
-				defer ticker.Stop()
-				deadline := time.NewTimer(time.Second * 10)
-				defer deadline.Stop()
-				for i := 0; ; i++ {
-					select {
-					case <-ticker.C:
-					case <-deadline.C:
-						t.Fatal("timed out waiting for refreshed session")
-						return
-					case <-ctx.Done():
-						t.Fatal("timed out waiting for refreshed session")
-						return
-					}
-
-					res, err = client.Get(mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain").String())
-					if !assert.NoError(t, err) {
-						return
-					}
-					res.Body.Close()
-					if !assert.Equal(t, http.StatusOK, res.StatusCode, "failed after %d times", i+1) {
-						return
-					}
-					if res.Header.Get("Set-Cookie") != "" {
-						break
-					}
-				}
-			})
 		})
 	}
 }
