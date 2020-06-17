@@ -114,6 +114,9 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 		sort.Strings(user.Groups)
 		users = append(users, user)
 	}
+	sort.Slice(users, func(i, j int) bool {
+		return users[i].GetId() < users[j].GetId()
+	})
 	return users, nil
 }
 

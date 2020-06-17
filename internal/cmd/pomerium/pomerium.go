@@ -75,12 +75,19 @@ func Run(ctx context.Context, configFile string) error {
 	if err := setupAuthenticate(opt, controlPlane); err != nil {
 		return err
 	}
-	if err := setupAuthorize(opt, controlPlane, &optionsUpdaters); err != nil {
-		return err
+	var authorizeServer *authorize.Authorize
+	if config.IsAuthorize(opt.Services) {
+		authorizeServer, err = setupAuthorize(opt, controlPlane, &optionsUpdaters)
+		if err != nil {
+			return err
+		}
 	}
-	cacheServer, err := setupCache(opt, controlPlane)
-	if err != nil {
-		return err
+	var cacheServer *cache.Cache
+	if config.IsCache(opt.Services) {
+		cacheServer, err = setupCache(opt, controlPlane)
+		if err != nil {
+			return err
+		}
 	}
 	if err := setupProxy(opt, controlPlane); err != nil {
 		return err
@@ -112,6 +119,11 @@ func Run(ctx context.Context, configFile string) error {
 	eg.Go(func() error {
 		return envoyServer.Run(ctx)
 	})
+	if authorizeServer != nil {
+		eg.Go(func() error {
+			return authorizeServer.Run(ctx)
+		})
+	}
 	if cacheServer != nil {
 		eg.Go(func() error {
 			return cacheServer.Run(ctx)
@@ -137,14 +149,10 @@ func setupAuthenticate(opt *config.Options, controlPlane *controlplane.Server) e
 	return nil
 }
 
-func setupAuthorize(opt *config.Options, controlPlane *controlplane.Server, optionsUpdaters *[]config.OptionsUpdater) error {
-	if !config.IsAuthorize(opt.Services) {
-		return nil
-	}
-
+func setupAuthorize(opt *config.Options, controlPlane *controlplane.Server, optionsUpdaters *[]config.OptionsUpdater) (*authorize.Authorize, error) {
 	svc, err := authorize.New(*opt)
 	if err != nil {
-		return fmt.Errorf("error creating authorize service: %w", err)
+		return nil, fmt.Errorf("error creating authorize service: %w", err)
 	}
 	envoy_service_auth_v2.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
 
@@ -153,16 +161,12 @@ func setupAuthorize(opt *config.Options, controlPlane *controlplane.Server, opti
 	*optionsUpdaters = append(*optionsUpdaters, svc)
 	err = svc.UpdateOptions(*opt)
 	if err != nil {
-		return fmt.Errorf("error updating authorize options: %w", err)
+		return nil, fmt.Errorf("error updating authorize options: %w", err)
 	}
-	return nil
+	return svc, nil
 }
 
 func setupCache(opt *config.Options, controlPlane *controlplane.Server) (*cache.Cache, error) {
-	if !config.IsCache(opt.Services) {
-		return nil, nil
-	}
-
 	svc, err := cache.New(*opt)
 	if err != nil {
 		return nil, fmt.Errorf("error creating config service: %w", err)

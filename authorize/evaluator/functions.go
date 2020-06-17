@@ -1,11 +1,15 @@
-package opa
+package evaluator
 
 import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/rakyll/statik/fs"
+
+	_ "github.com/pomerium/pomerium/authorize/evaluator/opa/policy" // load static assets
 )
 
 var isValidClientCertificateCache, _ = lru.New2Q(100)
@@ -55,4 +59,19 @@ func parseCertificate(pemStr string) (*x509.Certificate, error) {
 		return nil, fmt.Errorf("unknown PEM type: %s", block.Type)
 	}
 	return x509.ParseCertificate(block.Bytes)
+}
+
+const statikNamespace = "rego"
+
+func readPolicy(fn string) ([]byte, error) {
+	statikFS, err := fs.NewWithNamespace(statikNamespace)
+	if err != nil {
+		return nil, err
+	}
+	r, err := statikFS.Open(fn)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return ioutil.ReadAll(r)
 }
