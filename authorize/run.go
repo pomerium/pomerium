@@ -5,10 +5,9 @@ import (
 	"io"
 	"time"
 
+	backoff "github.com/cenkalti/backoff/v4"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/emptypb"
-
-	"github.com/cenkalti/backoff"
 
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/log"
