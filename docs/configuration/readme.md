@@ -756,6 +756,24 @@ Refresh cooldown is the minimum amount of time between allowed manually refreshe
 
 The cache service is used for storing user session data.
 
+### Data Broker Service URL
+
+- Environmental Variable: `DATABROKER_SERVICE_URL`
+- Config File Key: `databroker_service_url`
+- Type: `URL`
+- Example: `https://cache.corp.example.com`
+- Default: in all-in-one mode, `http://localhost:5443`
+
+The data broker service URL points to a data broker which is responsible for storing sessions, users and user groups. The `cache` service implements a basic in-memory databroker, so the legacy option `cache_service_url` will be used if this option is not configured.
+
+To create your own data broker, implement the following gRPC interface:
+
+- [internal/grpc/databroker/databroker.proto](https://github.com/pomerium/pomerium/blob/master/internal/grpc/databroker/databroker.proto)
+
+For an example implementation, the in-memory database used by the cache service can be found here:
+
+- [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/master/internal/databroker/memory)
+
 ## Policy
 
 - Environmental Variable: `POLICY`
