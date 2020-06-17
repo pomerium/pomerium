@@ -67,6 +67,24 @@ Autocert requires that ports `80`/`443` be accessible from the internet in order
 
 :::
 
+### Autocert Must-Staple
+
+- Environmental Variable: `AUTOCERT_MUST_STAPLE`
+- Config File Key: `autocert_must_staple`
+- Type: `bool`
+- Optional
+
+If true, cause autocert to request a certificate with `status_request`
+extension (commonly called `Must-Staple`). This allows the TLS client
+(the browser) to fail immediately if the TLS handshake doesn't include
+OCSP stapling information. Only used when [Autocert](./#autocert) is
+true.
+
+NOTE: this only takes effect the next time Pomerium renews your
+certificates.
+
+See also https://tools.ietf.org/html/rfc7633 for more context.
+
 ### Autocert Directory
 
 - Environmental Variable: either `AUTOCERT_DIR`
