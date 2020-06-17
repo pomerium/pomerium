@@ -16,7 +16,7 @@ With this release, default log level has been changed to INFO.
 ### Identity headers
 
 With this release, pomerium will not insert identity headers (X-Pomerium-Jwt-Asserttion/X-Pomerium-Claim-*) by default. To get pre 0.9.0 behavior, you
-can set `pass_identity_headers` to true per-policy basis.
+can set `pass_identity_headers` to true on a per-policy basis.
 
 # Since 0.8.0
 
