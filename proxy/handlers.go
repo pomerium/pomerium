@@ -87,10 +87,14 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 
 // UserDashboard redirects to the authenticate dasbhoard.
 func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
-	redirectURL := urlutil.GetAbsoluteURL(r)
+	redirectURL := urlutil.GetAbsoluteURL(r).String()
+	if ref := r.Header.Get(httputil.HeaderReferrer); ref != "" {
+		redirectURL = ref
+	}
+
 	url := p.authenticateDashboardURL.ResolveReference(&url.URL{
 		RawQuery: url.Values{
-			urlutil.QueryRedirectURI: {redirectURL.String()},
+			urlutil.QueryRedirectURI: {redirectURL},
 		}.Encode(),
 	})
 	httputil.Redirect(w, r, url.String(), http.StatusFound)

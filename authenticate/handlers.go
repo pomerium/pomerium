@@ -448,8 +448,6 @@ func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) erro
 
 // Dashboard renders the /.pomerium/ user dashboard.
 func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
-	log.Info().Msg("DASHBOARD!!!")
-
 	s, err := a.getSessionFromCtx(r.Context())
 	if err != nil {
 		s.ID = uuid.New().String()
@@ -483,7 +481,16 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 		"ImpersonateAction": urlutil.QueryImpersonateAction,
 		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
 		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
-		"RedirectURI":       r.URL.Query().Get(urlutil.QueryRedirectURI),
+		"RedirectURL":       r.URL.Query().Get(urlutil.QueryRedirectURI),
+	}
+
+	if redirectURL, err := url.Parse(r.URL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
+		input["RedirectURL"] = redirectURL.String()
+		signOutURL := redirectURL.ResolveReference(new(url.URL))
+		signOutURL.Path = "/.pomerium/sign_out"
+		input["SignOutURL"] = signOutURL.String()
+	} else {
+		input["SignOutURL"] = "/.pomerium/sign_out"
 	}
 
 	err = a.templates.ExecuteTemplate(w, "dashboard.html", input)
