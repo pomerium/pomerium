@@ -66,58 +66,6 @@ func TestProxy_Signout(t *testing.T) {
 	}
 }
 
-func TestProxy_UserDashboard(t *testing.T) {
-	opts := testOptions(t)
-	tests := []struct {
-		name       string
-		ctxError   error
-		options    config.Options
-		method     string
-		cipher     encoding.MarshalUnmarshaler
-		session    sessions.SessionStore
-		authorizer client.Authorizer
-
-		wantAdminForm bool
-		wantStatus    int
-	}{
-		{"good", nil, opts, http.MethodGet, &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, true, http.StatusOK},
-		{"session context error", errors.New("error"), opts, http.MethodGet, &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, false, http.StatusInternalServerError},
-		{"bad encoder unmarshal", nil, opts, http.MethodGet, &mock.Encoder{UnmarshalError: errors.New("err")}, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, client.MockAuthorize{}, false, http.StatusBadRequest},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(tt.options)
-			if err != nil {
-				t.Fatal(err)
-			}
-			p.encoder = tt.cipher
-			p.sessionStore = tt.session
-
-			r := httptest.NewRequest(tt.method, "/", nil)
-			state, _ := tt.session.LoadSession(r)
-			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
-			r = r.WithContext(ctx)
-
-			r.Header.Set("Accept", "application/json")
-
-			w := httptest.NewRecorder()
-			httputil.HandlerFunc(p.UserDashboard).ServeHTTP(w, r)
-			if status := w.Code; status != tt.wantStatus {
-				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
-				t.Errorf("\n%+v", opts)
-				t.Errorf("\n%+v", w.Body.String())
-
-			}
-			if adminForm := strings.Contains(w.Body.String(), "impersonate"); adminForm != tt.wantAdminForm {
-				t.Errorf("wanted admin form  got %v want %v", adminForm, tt.wantAdminForm)
-				t.Errorf("\n%+v", w.Body.String())
-			}
-		})
-	}
-}
-
 func TestProxy_Impersonate(t *testing.T) {
 	t.Parallel()
 	opts := testOptions(t)
