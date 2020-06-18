@@ -33,10 +33,14 @@ message Session {
 }
 
 message AddRequest { Session session = 1; }
+message AddResponse {
+  Session session = 1;
+  string server_version = 2;
+}
 
 message DeleteRequest { string id = 1; }
 
 service SessionService {
-  rpc Add(AddRequest) returns (google.protobuf.Empty);
+  rpc Add(AddRequest) returns (AddResponse);
   rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
 }

@@ -40,7 +40,10 @@ message SetRequest {
   string id = 2;
   google.protobuf.Any data = 3;
 }
-message SetResponse { Record record = 1; }
+message SetResponse {
+  Record record = 1;
+  string server_version = 2;
+}
 
 message SyncRequest {
   string server_version = 1;

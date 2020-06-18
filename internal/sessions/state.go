@@ -25,6 +25,7 @@ type State struct {
 	NotBefore *jwt.NumericDate `json:"nbf,omitempty"`
 	IssuedAt  *jwt.NumericDate `json:"iat,omitempty"`
 	ID        string           `json:"jti,omitempty"`
+	Version   string           `json:"ver,omitempty"`
 
 	// Impersonate-able fields
 	ImpersonateEmail  string   `json:"impersonate_email,omitempty"`

@@ -129,8 +129,8 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		ctx, span := trace.StartSpan(r.Context(), "authenticate.VerifySession")
 		defer span.End()
-		_, err := a.getSessionFromCtx(ctx)
-		if err != nil {
+		sessionState, err := a.getSessionFromCtx(ctx)
+		if err != nil || sessionState.Version == "" {
 			log.FromRequest(r).Info().Err(err).Msg("authenticate: session load error")
 			return a.reauthenticateOrFail(w, r, err)
 		}
@@ -351,7 +351,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		idTokenExpiry, _ := ptypes.TimestampProto(s.Expiry.Time())
 		idTokenIssuedAt, _ := ptypes.TimestampProto(s.IssuedAt.Time())
 		oauthTokenExpiry, _ := ptypes.TimestampProto(accessToken.Expiry)
-		_, err := a.sessionClient.Add(r.Context(), &session.AddRequest{
+		res, err := a.sessionClient.Add(r.Context(), &session.AddRequest{
 			Session: &session.Session{
 				Id:        s.ID,
 				UserId:    s.Issuer + "/" + s.Subject,
@@ -373,6 +373,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error saving session: %w", err))
 		}
+		s.Version = res.GetServerVersion()
 	}
 
 	newState := sessions.NewSession(

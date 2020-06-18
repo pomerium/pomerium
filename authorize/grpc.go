@@ -44,6 +44,15 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), a.currentEncoder.Load())
 	sessionState, _ := loadSession(a.currentEncoder.Load(), rawJWT)
 
+	// only accept sessions whose databroker server versions match
+	if sessionState != nil {
+		a.dataBrokerDataLock.RLock()
+		if a.dataBrokerSessionServerVersion != sessionState.Version {
+			sessionState = nil
+		}
+		a.dataBrokerDataLock.RUnlock()
+	}
+
 	if sessionState != nil {
 		waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*3)
 		defer waitCancel()

@@ -123,7 +123,8 @@ func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databr
 	record := db.Get(req.GetId())
 
 	return &databroker.SetResponse{
-		Record: record,
+		Record:        record,
+		ServerVersion: srv.version,
 	}, nil
 }
 
