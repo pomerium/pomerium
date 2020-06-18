@@ -2,9 +2,8 @@
 package envoy
 
 import (
-	"bytes"
-
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -309,13 +309,23 @@ func (srv *Server) addTraceConfig(traceOpts *config.TracingOptions, bootCfg *env
 	return nil
 }
 
-func (srv *Server) handleLogs(stdout io.ReadCloser) {
+func (srv *Server) handleLogs(rc io.ReadCloser) {
+	defer rc.Close()
+
 	logFormatRE := regexp.MustCompile(`^[[]LOG_FORMAT[]](.*?)--(.*?)--(.*?)$`)
 	fileNameAndNumberRE := regexp.MustCompile(`^(\[[a-zA-Z0-9/-_.]+:[0-9]+])\s(.*)$`)
 
-	s := bufio.NewScanner(stdout)
-	for s.Scan() {
-		ln := s.Text()
+	s := bufio.NewReader(rc)
+	for {
+		ln, err := s.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Error().Err(err).Msg("failed to read log")
+			continue
+		}
+		ln = strings.TrimRight(ln, "\r\n")
 
 		// format: [LOG_FORMAT]level--name--message
 		// message is c-escaped
