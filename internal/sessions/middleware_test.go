@@ -26,7 +26,7 @@ func TestNewContext(t *testing.T) {
 		err  error
 		want context.Context
 	}{
-		{"simple", context.Background(), &sessions.State{}, nil, nil},
+		{"simple", context.Background(), &sessions.State{Version: "v1", ID: "xyz"}, nil, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -76,9 +76,24 @@ func TestVerifier(t *testing.T) {
 		state      sessions.State
 		wantStatus int
 	}{
-		{"empty session", mock.Store{LoadError: sessions.ErrNoSessionFound}, sessions.State{}, 401},
-		{"simple good load", mock.Store{Session: &sessions.State{Subject: "hi", Expiry: jwt.NewNumericDate(time.Now().Add(time.Second))}}, sessions.State{}, 200},
-		{"session error", mock.Store{LoadError: errors.New("err")}, sessions.State{}, 401},
+		{
+			"empty session",
+			mock.Store{LoadError: sessions.ErrNoSessionFound},
+			sessions.State{Version: "v1", ID: "xyz"},
+			401,
+		},
+		{
+			"simple good load",
+			mock.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Subject: "hi", Expiry: jwt.NewNumericDate(time.Now().Add(time.Second))}},
+			sessions.State{Version: "v1", ID: "xyz"},
+			200,
+		},
+		{
+			"session error",
+			mock.Store{LoadError: errors.New("err")},
+			sessions.State{Version: "v1", ID: "xyz"},
+			401,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

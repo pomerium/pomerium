@@ -86,8 +86,44 @@ func (a *Authorize) runDataSyncer(ctx context.Context, updateTypes <-chan []stri
 }
 
 func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string, updateRecord chan<- *databroker.Record) error {
-	log.Info().Str("type_url", typeURL).Msg("starting data syncer")
 	var serverVersion, recordVersion string
+
+	log.Info().Str("type_url", typeURL).Msg("starting data initial load")
+	backoff := backoff.NewExponentialBackOff()
+	for {
+		res, err := a.dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
+			Type: typeURL,
+		})
+		if err != nil {
+			log.Warn().Err(err).Str("type_url", typeURL).Msg("error getting data")
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(backoff.NextBackOff()):
+			}
+			continue
+		}
+
+		serverVersion = res.GetServerVersion()
+		if typeURL == sessionTypeURL {
+			a.dataBrokerDataLock.Lock()
+			a.dataBrokerSessionServerVersion = serverVersion
+			a.dataBrokerDataLock.Unlock()
+		}
+		recordVersion = res.GetRecordVersion()
+
+		for _, record := range res.GetRecords() {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case updateRecord <- record:
+			}
+		}
+
+		break
+	}
+
+	log.Info().Str("type_url", typeURL).Msg("starting data syncer")
 	return tryForever(ctx, func(backoff interface{ Reset() }) error {
 		stream, err := a.dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
 			ServerVersion: serverVersion,

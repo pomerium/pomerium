@@ -375,12 +375,54 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 
 		wantStatus int
 	}{
-		{"good", nil, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, nil, identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}}, http.StatusOK},
-		{"invalid session", nil, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, errors.New("hi"), identity.MockProvider{}, http.StatusFound},
-		{"good refresh expired", nil, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, nil, identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}}, http.StatusOK},
-		{"expired,refresh error", nil, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, sessions.ErrExpired, identity.MockProvider{RefreshError: errors.New("error")}, http.StatusFound},
-		{"expired,save error", nil, &mstore.Store{SaveError: errors.New("error"), Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, sessions.ErrExpired, identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}}, http.StatusFound},
-		{"expired XHR,refresh error", map[string]string{"X-Requested-With": "XmlHttpRequest"}, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}}, sessions.ErrExpired, identity.MockProvider{RefreshError: errors.New("error")}, http.StatusUnauthorized},
+		{
+			"good",
+			nil,
+			&mstore.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			nil,
+			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
+			http.StatusOK,
+		},
+		{
+			"invalid session",
+			nil,
+			&mstore.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			errors.New("hi"),
+			identity.MockProvider{},
+			http.StatusFound,
+		},
+		{
+			"good refresh expired",
+			nil,
+			&mstore.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}},
+			nil,
+			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
+			http.StatusOK,
+		},
+		{
+			"expired,refresh error",
+			nil,
+			&mstore.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}},
+			sessions.ErrExpired,
+			identity.MockProvider{RefreshError: errors.New("error")},
+			http.StatusFound,
+		},
+		{
+			"expired,save error",
+			nil,
+			&mstore.Store{SaveError: errors.New("error"), Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}},
+			sessions.ErrExpired,
+			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
+			http.StatusFound,
+		},
+		{
+			"expired XHR,refresh error",
+			map[string]string{"X-Requested-With": "XmlHttpRequest"},
+			&mstore.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}},
+			sessions.ErrExpired,
+			identity.MockProvider{RefreshError: errors.New("error")},
+			http.StatusUnauthorized,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -403,7 +445,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				provider:         tt.provider,
 				cookieCipher:     aead,
 				encryptedEncoder: signer,
-				sharedEncoder:    mock.Encoder{},
+				sharedEncoder:    signer,
 			}
 			r := httptest.NewRequest("GET", "/", nil)
 			state, err := tt.session.LoadSession(r)
@@ -425,7 +467,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			got := a.VerifySession(fn)
 			got.ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantStatus {
-				t.Errorf("VerifySession() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantStatus, w.Body.String())
+				t.Errorf("VerifySession() error = %v, wantErr %v\n%v\n%v", w.Result().StatusCode, tt.wantStatus, w.Header(), w.Body.String())
 			}
 		})
 	}

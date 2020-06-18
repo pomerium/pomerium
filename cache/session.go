@@ -45,7 +45,7 @@ func (srv *SessionServer) Delete(ctx context.Context, req *session.DeleteRequest
 }
 
 // Add adds a session to the session server.
-func (srv *SessionServer) Add(ctx context.Context, req *session.AddRequest) (*emptypb.Empty, error) {
+func (srv *SessionServer) Add(ctx context.Context, req *session.AddRequest) (*session.AddResponse, error) {
 	log.Info().
 		Str("service", "session").
 		Str("session_id", req.GetSession().GetId()).
@@ -56,7 +56,7 @@ func (srv *SessionServer) Add(ctx context.Context, req *session.AddRequest) (*em
 		return nil, err
 	}
 
-	_, err = srv.dataBrokerClient.Set(ctx, &databroker.SetRequest{
+	res, err := srv.dataBrokerClient.Set(ctx, &databroker.SetRequest{
 		Type: data.GetTypeUrl(),
 		Id:   req.GetSession().GetId(),
 		Data: data,
@@ -65,5 +65,8 @@ func (srv *SessionServer) Add(ctx context.Context, req *session.AddRequest) (*em
 		return nil, err
 	}
 
-	return new(emptypb.Empty), nil
+	return &session.AddResponse{
+		Session:       req.Session,
+		ServerVersion: res.GetServerVersion(),
+	}, nil
 }

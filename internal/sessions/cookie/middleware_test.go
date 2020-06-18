@@ -42,7 +42,12 @@ func TestVerifier(t *testing.T) {
 		wantBody   string
 		wantStatus int
 	}{
-		{"good cookie session", sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}, http.StatusText(http.StatusOK), http.StatusOK},
+		{
+			"good cookie session",
+			sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))},
+			http.StatusText(http.StatusOK),
+			http.StatusOK,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
