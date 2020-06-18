@@ -309,12 +309,22 @@ func (srv *Server) addTraceConfig(traceOpts *config.TracingOptions, bootCfg *env
 	return nil
 }
 
+var fileNameAndNumberRE = regexp.MustCompile(`^(\[[a-zA-Z0-9/-_.]+:[0-9]+])\s(.*)$`)
+
+func (srv *Server) parseLog(line string) (name string, logLevel string, msg string) {
+	// format: [LOG_FORMAT]level--name--message
+	// message is c-escaped
+	parts := strings.SplitN(line, "--", 3)
+	if len(parts) == 3 {
+		logLevel = strings.TrimPrefix(parts[0], "[LOG_FORMAT]")
+		name = parts[1]
+		msg = parts[2]
+	}
+	return
+}
+
 func (srv *Server) handleLogs(rc io.ReadCloser) {
 	defer rc.Close()
-
-	logFormatRE := regexp.MustCompile(`^[[]LOG_FORMAT[]](.*?)--(.*?)--(.*?)$`)
-	fileNameAndNumberRE := regexp.MustCompile(`^(\[[a-zA-Z0-9/-_.]+:[0-9]+])\s(.*)$`)
-
 	s := bufio.NewReader(rc)
 	for {
 		ln, err := s.ReadString('\n')
@@ -327,19 +337,16 @@ func (srv *Server) handleLogs(rc io.ReadCloser) {
 		}
 		ln = strings.TrimRight(ln, "\r\n")
 
-		// format: [LOG_FORMAT]level--name--message
-		// message is c-escaped
-
+		name, logLevel, msg := srv.parseLog(ln)
+		if name == "" {
+			name = "envoy"
+		}
 		lvl := zerolog.DebugLevel
-		name := "envoy"
-		msg := ln
-		parts := logFormatRE.FindStringSubmatch(ln)
-		if len(parts) == 4 {
-			if x, err := zerolog.ParseLevel(parts[1]); err == nil {
-				lvl = x
-			}
-			name = parts[2]
-			msg = parts[3]
+		if x, err := zerolog.ParseLevel(logLevel); err == nil {
+			lvl = x
+		}
+		if msg == "" {
+			msg = ln
 		}
 
 		msg = fileNameAndNumberRE.ReplaceAllString(msg, "\"$2\"")
