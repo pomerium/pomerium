@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/grpc"
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/session"
+	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
@@ -100,6 +101,9 @@ type Authenticate struct {
 	// sessionClient is used to create sessions
 	sessionClient session.SessionServiceClient
 
+	// userClient is used to update users
+	userClient user.UserServiceClient
+
 	jwk *jose.JSONWebKeySet
 
 	templates *template.Template
@@ -152,6 +156,7 @@ func New(opts config.Options) (*Authenticate, error) {
 
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(dataBrokerConn)
 	sessionClient := session.NewSessionServiceClient(dataBrokerConn)
+	userClient := user.NewUserServiceClient(dataBrokerConn)
 
 	qpStore := queryparam.NewStore(encryptedEncoder, urlutil.QueryProgrammaticToken)
 	headerStore := header.NewStore(encryptedEncoder, httputil.AuthorizationTypePomerium)
@@ -192,6 +197,7 @@ func New(opts config.Options) (*Authenticate, error) {
 		// grpc client for cache
 		dataBrokerClient: dataBrokerClient,
 		sessionClient:    sessionClient,
+		userClient:       userClient,
 		jwk:              &jose.JSONWebKeySet{},
 		templates:        template.Must(frontend.NewTemplates()),
 	}
