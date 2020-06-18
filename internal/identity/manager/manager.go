@@ -494,6 +494,7 @@ func (mgr *Manager) onUpdateSession(ctx context.Context, pbSession *session.Sess
 	mgr.sessionScheduler.Remove(toSessionSchedulerKey(pbSession.GetUserId(), pbSession.GetId()))
 
 	if pbSession.GetDeletedAt() != nil {
+		// remove from local store
 		mgr.sessions.Delete(pbSession.GetUserId(), pbSession.GetId())
 		return
 	}

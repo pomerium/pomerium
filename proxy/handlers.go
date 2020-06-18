@@ -10,7 +10,11 @@ import (
 	"github.com/pomerium/csrf"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/grpc/directory"
+	"github.com/pomerium/pomerium/internal/grpc/session"
+	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -99,13 +103,40 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	p.templates.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Session":           s,
+	pbSession, err := session.Get(r.Context(), p.dataBrokerClient, s.ID)
+	if err != nil {
+		pbSession = &session.Session{
+			Id: s.ID,
+		}
+	}
+	pbUser, err := user.Get(r.Context(), p.dataBrokerClient, pbSession.GetUserId())
+	if err != nil {
+		pbUser = &user.User{
+			Id: pbSession.GetUserId(),
+		}
+	}
+	pbDirectoryUser, err := directory.Get(r.Context(), p.dataBrokerClient, pbSession.GetUserId())
+	if err != nil {
+		pbDirectoryUser = &directory.User{
+			Id: pbSession.GetUserId(),
+		}
+	}
+
+	input := map[string]interface{}{
+		"State":             s,
+		"Session":           pbSession,
+		"User":              pbUser,
+		"DirectoryUser":     pbDirectoryUser,
 		"csrfField":         csrf.TemplateField(r),
 		"ImpersonateAction": urlutil.QueryImpersonateAction,
 		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
 		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
-	})
+	}
+
+	err = p.templates.ExecuteTemplate(w, "dashboard.html", input)
+	if err != nil {
+		log.Warn().Err(err).Interface("input", input).Msg("proxy: error rendering dashboard")
+	}
 	return nil
 }
 

@@ -19,8 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/grpc"
-	"github.com/pomerium/pomerium/internal/grpc/cache"
-	"github.com/pomerium/pomerium/internal/grpc/cache/client"
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
@@ -95,8 +94,8 @@ type Authenticate struct {
 	// provider is the interface to interacting with the identity provider (IdP)
 	provider identity.Authenticator
 
-	// cacheClient is the interface for setting and getting sessions from a cache
-	cacheClient cache.Cacher
+	// dataBrokerClient is used to retrieve sessions
+	dataBrokerClient databroker.DataBrokerServiceClient
 
 	// sessionClient is used to create sessions
 	sessionClient session.SessionServiceClient
@@ -151,7 +150,7 @@ func New(opts config.Options) (*Authenticate, error) {
 		return nil, err
 	}
 
-	cacheClient := client.New(cacheConn)
+	dataBrokerClient := databroker.NewDataBrokerServiceClient(cacheConn)
 	sessionClient := session.NewSessionServiceClient(cacheConn)
 
 	qpStore := queryparam.NewStore(encryptedEncoder, urlutil.QueryProgrammaticToken)
@@ -191,10 +190,10 @@ func New(opts config.Options) (*Authenticate, error) {
 		// IdP
 		provider: provider,
 		// grpc client for cache
-		cacheClient:   cacheClient,
-		sessionClient: sessionClient,
-		jwk:           &jose.JSONWebKeySet{},
-		templates:     template.Must(frontend.NewTemplates()),
+		dataBrokerClient: dataBrokerClient,
+		sessionClient:    sessionClient,
+		jwk:              &jose.JSONWebKeySet{},
+		templates:        template.Must(frontend.NewTemplates()),
 	}
 
 	if opts.SigningKey != "" {

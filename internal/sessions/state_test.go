@@ -15,25 +15,20 @@ func TestState_Impersonating(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name               string
-		Email              string
-		Groups             []string
 		ImpersonateEmail   string
 		ImpersonateGroups  []string
 		want               bool
 		wantResponseEmail  string
 		wantResponseGroups string
 	}{
-		{"impersonating", "actual@user.com", []string{"actual-group"}, "impersonating@user.com", []string{"impersonating-group"}, true, "impersonating@user.com", "impersonating-group"},
-		{"not impersonating", "actual@user.com", []string{"actual-group"}, "", []string{}, false, "actual@user.com", "actual-group"},
-		{"impersonating user only", "actual@user.com", []string{"actual-group"}, "impersonating@user.com", []string{}, true, "impersonating@user.com", "actual-group"},
-		{"impersonating group only", "actual@user.com", []string{"actual-group"}, "", []string{"impersonating-group"}, true, "actual@user.com", "impersonating-group"},
+		{"impersonating", "impersonating@user.com", []string{"impersonating-group"}, true, "impersonating@user.com", "impersonating-group"},
+		{"not impersonating", "", []string{}, false, "actual@user.com", "actual-group"},
+		{"impersonating user only", "impersonating@user.com", []string{}, true, "impersonating@user.com", "actual-group"},
+		{"impersonating group only", "", []string{"impersonating-group"}, true, "actual@user.com", "impersonating-group"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &State{
-				Email:  tt.Email,
-				Groups: tt.Groups,
-			}
+			s := &State{}
 			s.SetImpersonation(tt.ImpersonateEmail, strings.Join(tt.ImpersonateGroups, ","))
 			if got := s.Impersonating(); got != tt.want {
 				t.Errorf("State.Impersonating() = %v, want %v", got, tt.want)
@@ -85,9 +80,9 @@ func TestState_UnmarshalJSON(t *testing.T) {
 		want    State
 		wantErr bool
 	}{
-		{"good", &State{}, State{NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime), AccessTokenHash: "bbd82197d215198f"}, false},
-		{"with user", &State{User: "user"}, State{User: "user", NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime), AccessTokenHash: "bbd82197d215198f"}, false},
-		{"without", &State{Subject: "user"}, State{User: "user", Subject: "user", NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime), AccessTokenHash: "bbd82197d215198f"}, false},
+		{"good", &State{}, State{NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)}, false},
+		{"with user", &State{}, State{NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)}, false},
+		{"without", &State{Subject: "user"}, State{Subject: "user", NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -96,7 +91,7 @@ func TestState_UnmarshalJSON(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			s := NewSession(&State{}, "", nil, &oauth2.Token{})
+			s := NewSession(&State{}, "", nil)
 			if err := s.UnmarshalJSON(data); (err != nil) != tt.wantErr {
 				t.Errorf("State.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 			}
