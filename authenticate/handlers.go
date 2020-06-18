@@ -130,8 +130,12 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		ctx, span := trace.StartSpan(r.Context(), "authenticate.VerifySession")
 		defer span.End()
 		sessionState, err := a.getSessionFromCtx(ctx)
-		if err != nil || sessionState.Version == "" {
+		if err != nil {
 			log.FromRequest(r).Info().Err(err).Msg("authenticate: session load error")
+			return a.reauthenticateOrFail(w, r, err)
+		}
+		if sessionState.Version == "" {
+			log.FromRequest(r).Info().Err(err).Msg("authenticate: session missing version")
 			return a.reauthenticateOrFail(w, r, err)
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
