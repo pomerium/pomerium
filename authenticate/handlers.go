@@ -499,17 +499,3 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 	}
 	return nil
 }
-
-func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) error {
-	if a.sessionClient == nil {
-		return nil
-	}
-
-	_, err := a.sessionClient.Add(ctx, &session.AddRequest{
-		Session: &session.Session{
-			Id:        sessionID,
-			DeletedAt: ptypes.TimestampNow(),
-		},
-	})
-	return err
-}
