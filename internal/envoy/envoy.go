@@ -319,6 +319,9 @@ func (srv *Server) handleLogs(rc io.ReadCloser) {
 	for {
 		ln, err := s.ReadString('\n')
 		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			log.Error().Err(err).Msg("failed to read log")
 			continue
 		}
