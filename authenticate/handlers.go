@@ -13,10 +13,14 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/pomerium/csrf"
+	"github.com/rs/cors"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/grpc/session"
+	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
@@ -24,9 +28,6 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
-
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 )
 
 // Handler returns the authenticate service's handler chain.
@@ -68,9 +69,9 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		AllowedHeaders:   []string{"*"},
 	})
 	v.Use(c.Handler)
-	v.Use(middleware.ValidateSignature(a.sharedKey))
 	v.Use(sessions.RetrieveSession(a.sessionLoaders...))
 	v.Use(a.VerifySession)
+	v.Path("/").Handler(httputil.HandlerFunc(a.Dashboard))
 	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	v.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 
@@ -443,4 +444,58 @@ func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) erro
 		},
 	})
 	return err
+}
+
+// Dashboard renders the /.pomerium/ user dashboard.
+func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
+	s, err := a.getSessionFromCtx(r.Context())
+	if err != nil {
+		s.ID = uuid.New().String()
+	}
+
+	pbSession, err := session.Get(r.Context(), a.dataBrokerClient, s.ID)
+	if err != nil {
+		pbSession = &session.Session{
+			Id: s.ID,
+		}
+	}
+	pbUser, err := user.Get(r.Context(), a.dataBrokerClient, pbSession.GetUserId())
+	if err != nil {
+		pbUser = &user.User{
+			Id: pbSession.GetUserId(),
+		}
+	}
+	pbDirectoryUser, err := directory.Get(r.Context(), a.dataBrokerClient, pbSession.GetUserId())
+	if err != nil {
+		pbDirectoryUser = &directory.User{
+			Id: pbSession.GetUserId(),
+		}
+	}
+
+	input := map[string]interface{}{
+		"State":             s,
+		"Session":           pbSession,
+		"User":              pbUser,
+		"DirectoryUser":     pbDirectoryUser,
+		"csrfField":         csrf.TemplateField(r),
+		"ImpersonateAction": urlutil.QueryImpersonateAction,
+		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
+		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
+		"RedirectURL":       r.URL.Query().Get(urlutil.QueryRedirectURI),
+	}
+
+	if redirectURL, err := url.Parse(r.URL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
+		input["RedirectURL"] = redirectURL.String()
+		signOutURL := redirectURL.ResolveReference(new(url.URL))
+		signOutURL.Path = "/.pomerium/sign_out"
+		input["SignOutURL"] = signOutURL.String()
+	} else {
+		input["SignOutURL"] = "/.pomerium/sign_out"
+	}
+
+	err = a.templates.ExecuteTemplate(w, "dashboard.html", input)
+	if err != nil {
+		log.Warn().Err(err).Interface("input", input).Msg("proxy: error rendering dashboard")
+	}
+	return nil
 }

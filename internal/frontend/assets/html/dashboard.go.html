@@ -23,10 +23,15 @@
             {{end}}
           </div>
 
-          <form method="POST" action="/.pomerium/sign_out">
+          <form method="GET" action="{{.SignOutURL}}">
             <section>
               <p class="message">Your current session details.</p>
               <fieldset>
+                <label>
+                  <span>URL</span>
+                  <a href="{{.RedirectURL}}">{{.RedirectURL}}</a>
+                </label>
+
                 {{if .User.Name}}
                 <label>
                   <span>Name</span>
@@ -158,7 +163,6 @@
               </fieldset>
             </section>
             <div class="flex">
-              {{ .csrfField }}
               <button class="button full" type="submit">Sign Out</button>
             </div>
           </form>

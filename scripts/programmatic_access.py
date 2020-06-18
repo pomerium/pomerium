@@ -16,9 +16,6 @@ parser.add_argument("--login", action="store_true")
 parser.add_argument(
     "--dst", default="https://httpbin.example.com/headers",
 )
-parser.add_argument(
-    "--refresh-endpoint", default="https://authenticate.example.com/api/v1/refresh",
-)
 parser.add_argument("--server", default="localhost", type=str)
 parser.add_argument("--port", default=8000, type=int)
 parser.add_argument(
@@ -111,27 +108,6 @@ def main():
             args.dst, response.status_code, response.text
         )
     )
-    # if response.status_code == 200:
-    if response.status_code == 401:
-        # user our refresh token to get a new cred
-        print("==> got a 401, let's try to refresh that credential")
-        response = requests.get(
-            args.refresh_endpoint,
-            headers={
-                "Authorization": "Pomerium {}".format(cred.refresh_token),
-                "Content-type": "application/json",
-                "Accept": "application/json",
-            },
-        )
-        print(
-            "==>request\n{}\n ==> response.status_code\n{}\nresponse.text==>\n{}\n".format(
-                args.refresh_endpoint, response.status_code, response.text
-            )
-        )
-        # update our cred!
-        with open(args.cred, "w", encoding="utf-8") as f:
-            f.write(response.text)
-            print("=> pomerium json credential saved to:\n{}".format(f.name))
 
 
 if __name__ == "__main__":

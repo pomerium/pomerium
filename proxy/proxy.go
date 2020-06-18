@@ -23,7 +23,6 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/grpc"
-	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -36,10 +35,10 @@ import (
 
 const (
 	// authenticate urls
-	dashboardURL = "/.pomerium"
-	signinURL    = "/.pomerium/sign_in"
-	signoutURL   = "/.pomerium/sign_out"
-	refreshURL   = "/.pomerium/refresh"
+	dashboardPath = "/.pomerium"
+	signinURL     = "/.pomerium/sign_in"
+	signoutURL    = "/.pomerium/sign_out"
+	refreshURL    = "/.pomerium/refresh"
 )
 
 // ValidateOptions checks that proper configuration settings are set to create
@@ -69,11 +68,12 @@ type Proxy struct {
 	SharedKey    string
 	sharedCipher cipher.AEAD
 
-	authorizeURL           *url.URL
-	authenticateURL        *url.URL
-	authenticateSigninURL  *url.URL
-	authenticateSignoutURL *url.URL
-	authenticateRefreshURL *url.URL
+	authorizeURL             *url.URL
+	authenticateURL          *url.URL
+	authenticateDashboardURL *url.URL
+	authenticateSigninURL    *url.URL
+	authenticateSignoutURL   *url.URL
+	authenticateRefreshURL   *url.URL
 
 	encoder         encoding.Unmarshaler
 	cookieOptions   *cookie.Options
@@ -84,8 +84,6 @@ type Proxy struct {
 	templates       *template.Template
 	jwtClaimHeaders []string
 	authzClient     envoy_service_auth_v2.AuthorizationClient
-
-	dataBrokerClient databroker.DataBrokerServiceClient
 
 	currentRouter atomic.Value
 }
@@ -139,6 +137,7 @@ func New(opts config.Options) (*Proxy, error) {
 	// errors checked in ValidateOptions
 	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
 	p.authenticateURL, _ = urlutil.DeepCopy(opts.AuthenticateURL)
+	p.authenticateDashboardURL = p.authenticateURL.ResolveReference(&url.URL{Path: dashboardPath})
 	p.authenticateSigninURL = p.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	p.authenticateSignoutURL = p.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
 	p.authenticateRefreshURL = p.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
@@ -156,20 +155,6 @@ func New(opts config.Options) (*Proxy, error) {
 		return nil, err
 	}
 	p.authzClient = envoy_service_auth_v2.NewAuthorizationClient(authzConn)
-
-	cacheConn, err := grpc.NewGRPCClientConn(&grpc.Options{
-		Addr:                    opts.CacheURL,
-		OverrideCertificateName: opts.OverrideCertificateName,
-		CA:                      opts.CA,
-		CAFile:                  opts.CAFile,
-		RequestTimeout:          opts.GRPCClientTimeout,
-		ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
-		WithInsecure:            opts.GRPCInsecure,
-	})
-	if err != nil {
-		return nil, err
-	}
-	p.dataBrokerClient = databroker.NewDataBrokerServiceClient(cacheConn)
 
 	if err := p.UpdatePolicies(&opts); err != nil {
 		return nil, err

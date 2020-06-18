@@ -446,34 +446,6 @@ Expose a prometheus format HTTP endpoint on the specified port. Disabled by defa
 
 Name                                          | Type      | Description
 --------------------------------------------- | --------- | -----------------------------------------------------------------------
-boltdb_free_alloc_size_bytes                  | Gauge     | Bytes allocated in free pages
-boltdb_free_page_n                            | Gauge     | Number of free pages on the freelist
-boltdb_freelist_inuse_size_bytes              | Gauge     | Bytes used by the freelist
-boltdb_open_txn                               | Gauge     | number of currently open read transactions
-boltdb_pending_page_n                         | Gauge     | Number of pending pages on the freelist
-boltdb_txn                                    | Gauge     | total number of started read transactions
-boltdb_txn_cursor_total                       | Counter   | Total number of cursors created
-boltdb_txn_node_deref_total                   | Counter   | Total number of node dereferences
-boltdb_txn_node_total                         | Counter   | Total number of node allocations
-boltdb_txn_page_alloc_size_bytes_total        | Counter   | Total bytes allocated
-boltdb_txn_page_total                         | Counter   | Total number of page allocations
-boltdb_txn_rebalance_duration_ms_total        | Counter   | Total time spent rebalancing
-boltdb_txn_rebalance_total                    | Counter   | Total number of node rebalances
-boltdb_txn_spill_duration_ms_total            | Counter   | Total time spent spilling
-boltdb_txn_spill_total                        | Counter   | Total number of nodes spilled
-boltdb_txn_split_total                        | Counter   | Total number of nodes split
-boltdb_txn_write_duration_ms_total            | Counter   | Total time spent writing to disk
-boltdb_txn_write_total                        | Counter   | Total number of writes performed
-groupcache_cache_hits_total                   | Counter   | Total cache hits in local or cluster cache
-groupcache_cache_hits_total                   | Counter   | Total cache hits in local or cluster cache
-groupcache_gets_total                         | Counter   | Total get request, including from peers
-groupcache_loads_deduped_total                | Counter   | gets without cache hits after duplicate suppression
-groupcache_loads_total                        | Counter   | Total gets without cache hits
-groupcache_local_load_errs_total              | Counter   | Total local load errors
-groupcache_local_loads_total                  | Counter   | Total good local loads
-groupcache_peer_errors_total                  | Counter   | Total errors from peers
-groupcache_peer_loads_total                   | Counter   | Total remote loads or cache hits without error
-groupcache_server_requests_total              | Counter   | Total gets from peers
 grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service
 grpc_client_request_size_bytes                | Histogram | GRPC client request size by service
 grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service
@@ -494,12 +466,6 @@ pomerium_build_info                           | Gauge     | Pomerium build metad
 pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service
 pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service
 pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service
-redis_conns                                   | Gauge     | Number of total connections in the pool
-redis_hits_total                              | Counter   | Total number of times free connection was found in the pool
-redis_idle_conns                              | Gauge     | Number of idle connections in the pool
-redis_misses_total                            | Counter   | Total number of times free connection was NOT found in the pool
-redis_stale_conns_total                       | Counter   | Total number of stale connections removed from the pool
-redis_timeouts_total                          | Counter   | Total number of times a wait timeout occurred
 
 #### Envoy Proxy Metrics
 
@@ -790,59 +756,23 @@ Refresh cooldown is the minimum amount of time between allowed manually refreshe
 
 The cache service is used for storing user session data.
 
-### Cache Store
+### Data Broker Service URL
 
-- Environmental Variable: `CACHE_STORE`
-- Config File Key: `cache_store`
-- Type: `string`
-- Default: `autocache`
-- Options: `autocache` `bolt` or `redis`. Other contributions are welcome.
+- Environmental Variable: `DATABROKER_SERVICE_URL`
+- Config File Key: `databroker_service_url`
+- Type: `URL`
+- Example: `https://cache.corp.example.com`
+- Default: in all-in-one mode, `http://localhost:5443`
 
-CacheStore is the name of session cache backend to use.
+The data broker service URL points to a data broker which is responsible for storing sessions, users and user groups. The `cache` service implements a basic in-memory databroker, so the legacy option `cache_service_url` will be used if this option is not configured.
 
-### Autocache
+To create your own data broker, implement the following gRPC interface:
 
-[Autocache](https://github.com/pomerium/autocache) is the default session store. Autocache is based off of distributed version of [memcached](https://memcached.org/), called [groupcache](https://github.com/golang/groupcache) made by Google and used by many organizations like Twitter and Vimeo in production. Autocache is suitable for both small deployments, where it acts as a embedded cache, or larger scale, distributed installs.
+- [internal/grpc/databroker/databroker.proto](https://github.com/pomerium/pomerium/blob/master/internal/grpc/databroker/databroker.proto)
 
-When deployed in a distributed fashion, autocache uses [gossip](https://github.com/hashicorp/memberlist) based membership to manage its peers.
+For an example implementation, the in-memory database used by the cache service can be found here:
 
-Autocache does not require any additional settings but does require that the cache url setting returns name records that correspond to a [list of peers](https://kubernetes.io/docs/concepts/services-networking/service/#headless-services).
-
-### [Bolt](https://godoc.org/go.etcd.io/bbolt/)
-
-Bolt is a simple, lightweight, low level key value store and is the underlying storage mechanism in projects like [etcd](https://etcd.io/). Bolt persists data to a file, and has no built in eviction mechanism.
-
-Bolt is suitable for all-in-one deployments that do not require concurrent / distributed writes.
-
-#### Bolt Path
-
-- Environmental Variable: `CACHE_STORE_PATH`
-- Config File Key: `cache_store_path`
-- Type: `string`
-- Example: `/etc/bolt.db`
-
-CacheStorePath is the path to save bolt's database file.
-
-### [Redis](https://redis.io/)
-
-Redis, when used as a [LRU cache](https://redis.io/topics/lru-cache), functions in a very similar way to autocache. Redis store support allows you to leverage existing infrastructure, and to persist session data if that is a requirement.
-
-#### Redis Address
-
-- Environmental Variable: `CACHE_STORE_ADDRESS`
-- Config File Key: `cache_store_address`
-- Type: `string`
-- Example: `localhost:6379`
-
-CacheStoreAddr specifies the host and port on which the cache store should connect to redis.
-
-#### Redis Password
-
-- Environmental Variable: `CACHE_STORE_PASSWORD`
-- Config File Key: `cache_store_password`
-- Type: `string`
-
-CacheStoreAddr is the password used to connect to redis.
+- [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/master/internal/databroker/memory)
 
 ## Policy
 

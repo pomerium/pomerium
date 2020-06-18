@@ -25,6 +25,7 @@ require (
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/hashicorp/memberlist v0.1.3
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/lithammer/shortuuid/v3 v3.0.4
 	github.com/mitchellh/hashstructure v1.0.0
@@ -36,7 +37,6 @@ require (
 	github.com/open-policy-agent/opa v0.20.5
 	github.com/openzipkin/zipkin-go v0.2.2
 	github.com/pelletier/go-toml v1.6.0 // indirect
-	github.com/pomerium/autocache v0.0.0-20200505053831-8c1cd659f055
 	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v1.6.0

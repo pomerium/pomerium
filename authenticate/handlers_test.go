@@ -19,7 +19,6 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/frontend"
-	mock_cache "github.com/pomerium/pomerium/internal/grpc/cache/mock"
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -143,8 +142,6 @@ func TestAuthenticate_SignIn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			mc := mock_cache.NewMockCacher(ctrl)
-			mc.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte("hi"), nil).AnyTimes()
 
 			a := &Authenticate{
 				sessionStore:     tt.session,
@@ -233,8 +230,6 @@ func TestAuthenticate_SignOut(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			mc := mock_cache.NewMockCacher(ctrl)
-			mc.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte("hi"), nil).AnyTimes()
 			a := &Authenticate{
 				sessionStore:     tt.sessionStore,
 				provider:         tt.provider,
@@ -313,9 +308,6 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			mc := mock_cache.NewMockCacher(ctrl)
-			mc.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte("hi"), nil).AnyTimes()
-			mc.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
 			if err != nil {
 				t.Fatal(err)
@@ -394,9 +386,6 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			mc := mock_cache.NewMockCacher(ctrl)
-			mc.EXPECT().Get(gomock.Any(), gomock.Any()).Return([]byte("hi"), nil).AnyTimes()
-			mc.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 			aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
 			if err != nil {

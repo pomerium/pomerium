@@ -136,9 +136,9 @@ func New(opts config.Options) (*Authenticate, error) {
 		return nil, err
 	}
 
-	cacheConn, err := grpc.NewGRPCClientConn(
+	dataBrokerConn, err := grpc.NewGRPCClientConn(
 		&grpc.Options{
-			Addr:                    opts.CacheURL,
+			Addr:                    opts.DataBrokerURL,
 			OverrideCertificateName: opts.OverrideCertificateName,
 			CA:                      opts.CA,
 			CAFile:                  opts.CAFile,
@@ -150,8 +150,8 @@ func New(opts config.Options) (*Authenticate, error) {
 		return nil, err
 	}
 
-	dataBrokerClient := databroker.NewDataBrokerServiceClient(cacheConn)
-	sessionClient := session.NewSessionServiceClient(cacheConn)
+	dataBrokerClient := databroker.NewDataBrokerServiceClient(dataBrokerConn)
+	sessionClient := session.NewSessionServiceClient(dataBrokerConn)
 
 	qpStore := queryparam.NewStore(encryptedEncoder, urlutil.QueryProgrammaticToken)
 	headerStore := header.NewStore(encryptedEncoder, httputil.AuthorizationTypePomerium)
