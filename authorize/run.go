@@ -2,7 +2,6 @@ package authorize
 
 import (
 	"context"
-	"errors"
 	"io"
 	"time"
 
@@ -95,9 +94,8 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string, updat
 		res, err := a.dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
 			Type: typeURL,
 		})
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return err
-		} else if err != nil {
+		if err != nil {
+			log.Warn().Err(err).Str("type_url", typeURL).Msg("error getting data")
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
