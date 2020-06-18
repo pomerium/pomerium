@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/golang/protobuf/ptypes"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/log"
@@ -48,16 +48,17 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	if sessionState != nil {
 		a.dataBrokerDataLock.RLock()
 		if a.dataBrokerSessionServerVersion != sessionState.Version {
+			log.Warn().
+				Str("server_version", a.dataBrokerSessionServerVersion).
+				Str("session_version", sessionState.Version).
+				Msg("clearing session due to invalid version")
 			sessionState = nil
 		}
 		a.dataBrokerDataLock.RUnlock()
 	}
 
 	if sessionState != nil {
-		waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*3)
-		defer waitCancel()
-
-		a.waitForSessionAndUser(waitCtx, sessionState.ID)
+		a.forceSync(ctx, sessionState.ID)
 	}
 
 	a.dataBrokerDataLock.RLock()
@@ -83,50 +84,66 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	return a.deniedResponse(in, int32(reply.Status), reply.Message, nil), nil
 }
 
-func (a *Authorize) waitForSessionAndUser(ctx context.Context, sessionID string) {
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
+func (a *Authorize) forceSync(ctx context.Context, sessionID string) {
+	s := a.forceSyncSession(ctx, sessionID)
+	if s == nil {
+		return
+	}
+	a.forceSyncUser(ctx, s.GetUserId())
+}
 
-	var userID string
-
-	for {
-		a.dataBrokerDataLock.RLock()
-		s, ok := a.dataBrokerData.Get(sessionTypeURL, sessionID).(*session.Session)
-		a.dataBrokerDataLock.RUnlock()
-
-		if ok {
-			if s.GetDeletedAt() != nil {
-				return
-			} else if s.GetUserId() != "" {
-				userID = s.GetUserId()
-				break
-			} else {
-				return
-			}
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
+func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) *session.Session {
+	a.dataBrokerDataLock.RLock()
+	s, ok := a.dataBrokerData.Get(sessionTypeURL, sessionID).(*session.Session)
+	a.dataBrokerDataLock.RUnlock()
+	if ok {
+		return s
 	}
 
-	for {
-		a.dataBrokerDataLock.RLock()
-		_, ok := a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
-		a.dataBrokerDataLock.RUnlock()
-
-		if ok {
-			return
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
+	res, err := a.dataBrokerClient.Get(ctx, &databroker.GetRequest{
+		Type: sessionTypeURL,
+		Id:   sessionID,
+	})
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to get session from databroker")
+		return nil
 	}
+
+	a.dataBrokerDataLock.Lock()
+	if current := a.dataBrokerData.Get(sessionTypeURL, sessionID); current == nil {
+		a.dataBrokerData.Update(res.GetRecord())
+	}
+	s, _ = a.dataBrokerData.Get(sessionTypeURL, sessionID).(*session.Session)
+	a.dataBrokerDataLock.Unlock()
+
+	return s
+}
+
+func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User {
+	a.dataBrokerDataLock.RLock()
+	s, ok := a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
+	a.dataBrokerDataLock.RUnlock()
+	if ok {
+		return s
+	}
+
+	res, err := a.dataBrokerClient.Get(ctx, &databroker.GetRequest{
+		Type: userTypeURL,
+		Id:   userID,
+	})
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to get user from databroker")
+		return nil
+	}
+
+	a.dataBrokerDataLock.Lock()
+	if current := a.dataBrokerData.Get(userTypeURL, userID); current == nil {
+		a.dataBrokerData.Update(res.GetRecord())
+	}
+	s, _ = a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
+	a.dataBrokerDataLock.Unlock()
+
+	return s
 }
 
 func (a *Authorize) getEnvoyRequestHeaders(rawJWT []byte) ([]*envoy_api_v2_core.HeaderValueOption, error) {

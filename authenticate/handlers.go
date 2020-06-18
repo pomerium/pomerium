@@ -16,12 +16,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pomerium/csrf"
 	"github.com/rs/cors"
+	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/identity/manager"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -134,10 +136,15 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			log.FromRequest(r).Info().Err(err).Msg("authenticate: session load error")
 			return a.reauthenticateOrFail(w, r, err)
 		}
-		if sessionState.Version == "" {
-			log.FromRequest(r).Info().Err(err).Msg("authenticate: session missing version")
-			return a.reauthenticateOrFail(w, r, err)
+
+		if a.sessionClient != nil {
+			_, err = session.Get(r.Context(), a.dataBrokerClient, sessionState.ID)
+			if err != nil {
+				log.FromRequest(r).Info().Err(err).Str("id", sessionState.ID).Msg("authenticate: session not found in databroker")
+				return a.reauthenticateOrFail(w, r, err)
+			}
 		}
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 		return nil
 	})
@@ -350,34 +357,9 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
-	if a.sessionClient != nil {
-		sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
-		idTokenExpiry, _ := ptypes.TimestampProto(s.Expiry.Time())
-		idTokenIssuedAt, _ := ptypes.TimestampProto(s.IssuedAt.Time())
-		oauthTokenExpiry, _ := ptypes.TimestampProto(accessToken.Expiry)
-		res, err := a.sessionClient.Add(r.Context(), &session.AddRequest{
-			Session: &session.Session{
-				Id:        s.ID,
-				UserId:    s.Issuer + "/" + s.Subject,
-				ExpiresAt: sessionExpiry,
-				IdToken: &session.IDToken{
-					Issuer:    s.Issuer,
-					Subject:   s.Subject,
-					ExpiresAt: idTokenExpiry,
-					IssuedAt:  idTokenIssuedAt,
-				},
-				OauthToken: &session.OAuthToken{
-					AccessToken:  accessToken.AccessToken,
-					TokenType:    accessToken.TokenType,
-					ExpiresAt:    oauthTokenExpiry,
-					RefreshToken: accessToken.RefreshToken,
-				},
-			},
-		})
-		if err != nil {
-			return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error saving session: %w", err))
-		}
-		s.Version = res.GetServerVersion()
+	err = a.saveSessionToDataBroker(r.Context(), &s, accessToken)
+	if err != nil {
+		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
 
 	newState := sessions.NewSession(
@@ -501,5 +483,64 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		log.Warn().Err(err).Interface("input", input).Msg("proxy: error rendering dashboard")
 	}
+	return nil
+}
+
+func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState *sessions.State, accessToken *oauth2.Token) error {
+	if a.sessionClient == nil || a.userClient == nil {
+		return nil
+	}
+
+	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
+	idTokenExpiry, _ := ptypes.TimestampProto(sessionState.Expiry.Time())
+	idTokenIssuedAt, _ := ptypes.TimestampProto(sessionState.IssuedAt.Time())
+	oauthTokenExpiry, _ := ptypes.TimestampProto(accessToken.Expiry)
+
+	s := &session.Session{
+		Id:        sessionState.ID,
+		UserId:    sessionState.Issuer + "/" + sessionState.Subject,
+		ExpiresAt: sessionExpiry,
+		IdToken: &session.IDToken{
+			Issuer:    sessionState.Issuer,
+			Subject:   sessionState.Subject,
+			ExpiresAt: idTokenExpiry,
+			IssuedAt:  idTokenIssuedAt,
+		},
+		OauthToken: &session.OAuthToken{
+			AccessToken:  accessToken.AccessToken,
+			TokenType:    accessToken.TokenType,
+			ExpiresAt:    oauthTokenExpiry,
+			RefreshToken: accessToken.RefreshToken,
+		},
+	}
+
+	// if no user exists yet, create a new one
+	currentUser, _ := user.Get(ctx, a.dataBrokerClient, s.GetUserId())
+	if currentUser == nil {
+		mu := manager.User{
+			User: &user.User{
+				Id: s.GetUserId(),
+			},
+		}
+		err := a.provider.UpdateUserInfo(ctx, accessToken, &mu)
+		if err != nil {
+			return fmt.Errorf("authenticate: error retrieving uesr info: %w", err)
+		}
+		_, err = a.userClient.Add(ctx, &user.AddRequest{
+			User: mu.User,
+		})
+		if err != nil {
+			return fmt.Errorf("authenticate: error saving user: %w", err)
+		}
+	}
+
+	res, err := a.sessionClient.Add(ctx, &session.AddRequest{
+		Session: s,
+	})
+	if err != nil {
+		return fmt.Errorf("authenticate: error saving session: %w", err)
+	}
+	sessionState.Version = res.GetServerVersion()
+
 	return nil
 }
