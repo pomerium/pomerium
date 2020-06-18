@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/google/uuid"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/grpc/session"
@@ -180,10 +179,6 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v
 			ID:                sessionState.ID,
 			ImpersonateEmail:  sessionState.ImpersonateEmail,
 			ImpersonateGroups: sessionState.ImpersonateGroups,
-		}
-		// if a user comes in with a session that has no id (jti), we will default it to a new UUID to prevent redirect loops.
-		if req.Session.ID == "" {
-			req.Session.ID = uuid.New().String()
 		}
 	}
 	return req

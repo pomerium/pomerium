@@ -80,9 +80,30 @@ func TestState_UnmarshalJSON(t *testing.T) {
 		want    State
 		wantErr bool
 	}{
-		{"good", &State{}, State{NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)}, false},
-		{"with user", &State{}, State{NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)}, false},
-		{"without", &State{Subject: "user"}, State{Subject: "user", NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)}, false},
+		{
+			"good",
+			&State{ID: "xyz"},
+			State{ID: "xyz", NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)},
+			false,
+		},
+		{
+			"with user",
+			&State{ID: "xyz"},
+			State{ID: "xyz", NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)},
+			false,
+		},
+		{
+			"without",
+			&State{ID: "xyz", Subject: "user"},
+			State{ID: "xyz", Subject: "user", NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)},
+			false,
+		},
+		{
+			"missing id",
+			&State{},
+			State{NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)},
+			true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -95,7 +116,7 @@ func TestState_UnmarshalJSON(t *testing.T) {
 			if err := s.UnmarshalJSON(data); (err != nil) != tt.wantErr {
 				t.Errorf("State.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if diff := cmp.Diff(s, tt.want); diff != "" {
+			if diff := cmp.Diff(tt.want, s); diff != "" {
 				t.Errorf("State.UnmarshalJSON() error = %v", diff)
 			}
 		})

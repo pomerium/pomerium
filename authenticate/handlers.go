@@ -340,12 +340,11 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	// Successful Authentication Response: rfc6749#section-4.1.2 & OIDC#3.1.2.5
 	//
 	// Exchange the supplied Authorization Code for a valid user session.
-	var s sessions.State
+	s := sessions.State{ID: uuid.New().String()}
 	accessToken, err := a.provider.Authenticate(ctx, code, &s)
 	if err != nil {
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
-	s.ID = uuid.New().String()
 
 	if a.sessionClient != nil {
 		sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))

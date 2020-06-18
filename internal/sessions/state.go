@@ -2,11 +2,15 @@ package sessions
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
 	"gopkg.in/square/go-jose.v2/jwt"
 )
+
+// ErrMissingID is the error for a session state that has no ID set.
+var ErrMissingID = errors.New("invalid session: missing id")
 
 // timeNow is time.Now but pulled out as a variable for tests.
 var timeNow = time.Now
@@ -75,5 +79,10 @@ func (s *State) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &a); err != nil {
 		return err
 	}
+
+	if s.ID == "" {
+		return ErrMissingID
+	}
+
 	return nil
 }
