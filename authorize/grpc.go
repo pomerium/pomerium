@@ -2,17 +2,17 @@ package authorize
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/golang/protobuf/ptypes"
+
 	"github.com/pomerium/pomerium/authorize/evaluator"
-	"github.com/pomerium/pomerium/internal/grpc/authorize"
-	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
+	"github.com/pomerium/pomerium/internal/grpc/session"
+	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
@@ -23,6 +23,16 @@ import (
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 )
 
+var sessionTypeURL, userTypeURL string
+
+func init() {
+	any, _ := ptypes.MarshalAny(new(session.Session))
+	sessionTypeURL = any.GetTypeUrl()
+
+	any, _ = ptypes.MarshalAny(new(user.User))
+	userTypeURL = any.GetTypeUrl()
+}
+
 // Check implements the envoy auth server gRPC endpoint.
 func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRequest) (*envoy_service_auth_v2.CheckResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
@@ -31,84 +41,113 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	// maybe rewrite http request for forward auth
 	isForwardAuth := a.handleForwardAuth(in)
 	hreq := getHTTPRequestFromCheckRequest(in)
+	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), a.currentEncoder.Load())
+	sessionState, _ := loadSession(a.currentEncoder.Load(), rawJWT)
 
-	isNewSession := false
-	rawJWT, sessionErr := loadSession(hreq, a.currentOptions.Load(), a.currentEncoder.Load())
-	if a.isExpired(rawJWT) {
-		log.Info().Msg("refreshing session")
-		if newRawJWT, err := a.refreshSession(ctx, rawJWT); err == nil {
-			rawJWT = newRawJWT
-			sessionErr = nil
-			isNewSession = true
-		} else {
-			log.Warn().Err(err).Msg("authorize: error refreshing session")
-			// set the error to expired so that we can force a new login
-			sessionErr = sessions.ErrExpired
+	// only accept sessions whose databroker server versions match
+	if sessionState != nil {
+		a.dataBrokerDataLock.RLock()
+		if a.dataBrokerSessionServerVersion != sessionState.Version {
+			log.Warn().
+				Str("server_version", a.dataBrokerSessionServerVersion).
+				Str("session_version", sessionState.Version).
+				Msg("clearing session due to invalid version")
+			sessionState = nil
 		}
+		a.dataBrokerDataLock.RUnlock()
 	}
 
-	req := getEvaluatorRequestFromCheckRequest(in, rawJWT)
-	reply, err := a.pe.IsAuthorized(ctx, req)
+	if sessionState != nil {
+		a.forceSync(ctx, sessionState.ID)
+	}
+
+	a.dataBrokerDataLock.RLock()
+	defer a.dataBrokerDataLock.RUnlock()
+
+	req := a.getEvaluatorRequestFromCheckRequest(in, sessionState)
+	reply, err := a.pe.Evaluate(ctx, req)
 	if err != nil {
+		log.Error().Err(err).Msg("error during OPA evaluation")
 		return nil, err
 	}
-	logAuthorizeCheck(ctx, in, reply, rawJWT)
+	logAuthorizeCheck(ctx, in, reply)
 
 	switch {
-	case reply.GetHttpStatus().GetCode() > 0 && reply.GetHttpStatus().GetCode() != http.StatusOK:
-		// custom error from the IsAuthorized call
-		return a.deniedResponse(in,
-			reply.GetHttpStatus().GetCode(),
-			reply.GetHttpStatus().GetMessage(),
-			reply.GetHttpStatus().GetHeaders(),
-		), nil
-
-	case reply.Allow:
-		// ok!
-		return a.okResponse(reply, rawJWT, isNewSession), nil
-
-	case reply.SessionExpired,
-		errors.Is(sessionErr, sessions.ErrExpired),
-		errors.Is(sessionErr, sessions.ErrIssuedInTheFuture),
-		errors.Is(sessionErr, sessions.ErrMalformed),
-		errors.Is(sessionErr, sessions.ErrNoSessionFound),
-		errors.Is(sessionErr, sessions.ErrNotValidYet):
-		// redirect to login
-
-		// no redirect for forward auth, that's handled by a separate config setting
+	case reply.Status == http.StatusOK:
+		return a.okResponse(reply, rawJWT), nil
+	case reply.Status == http.StatusUnauthorized:
 		if isForwardAuth {
 			return a.deniedResponse(in, http.StatusUnauthorized, "Unauthenticated", nil), nil
 		}
-
 		return a.redirectResponse(in), nil
-
-	default:
-		// all other errors
-		var msg string
-		if sessionErr != nil {
-			msg = sessionErr.Error()
-		}
-		return a.deniedResponse(in, http.StatusForbidden, msg, nil), nil
 	}
+	return a.deniedResponse(in, int32(reply.Status), reply.Message, nil), nil
 }
 
-func (a *Authorize) getEnvoyRequestHeaders(rawJWT []byte, isNewSession bool) ([]*envoy_api_v2_core.HeaderValueOption, error) {
-	var hvos []*envoy_api_v2_core.HeaderValueOption
-
-	if isNewSession {
-		cookieStore, err := getCookieStore(a.currentOptions.Load(), a.currentEncoder.Load())
-		if err != nil {
-			return nil, err
-		}
-
-		hdrs, err := getJWTSetCookieHeaders(cookieStore, rawJWT)
-		if err != nil {
-			return nil, err
-		}
-		for k, v := range hdrs {
-			hvos = append(hvos, mkHeader("x-pomerium-"+k, v))
-		}
+func (a *Authorize) forceSync(ctx context.Context, sessionID string) {
+	s := a.forceSyncSession(ctx, sessionID)
+	if s == nil {
+		return
 	}
+	a.forceSyncUser(ctx, s.GetUserId())
+}
+
+func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) *session.Session {
+	a.dataBrokerDataLock.RLock()
+	s, ok := a.dataBrokerData.Get(sessionTypeURL, sessionID).(*session.Session)
+	a.dataBrokerDataLock.RUnlock()
+	if ok {
+		return s
+	}
+
+	res, err := a.dataBrokerClient.Get(ctx, &databroker.GetRequest{
+		Type: sessionTypeURL,
+		Id:   sessionID,
+	})
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to get session from databroker")
+		return nil
+	}
+
+	a.dataBrokerDataLock.Lock()
+	if current := a.dataBrokerData.Get(sessionTypeURL, sessionID); current == nil {
+		a.dataBrokerData.Update(res.GetRecord())
+	}
+	s, _ = a.dataBrokerData.Get(sessionTypeURL, sessionID).(*session.Session)
+	a.dataBrokerDataLock.Unlock()
+
+	return s
+}
+
+func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User {
+	a.dataBrokerDataLock.RLock()
+	s, ok := a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
+	a.dataBrokerDataLock.RUnlock()
+	if ok {
+		return s
+	}
+
+	res, err := a.dataBrokerClient.Get(ctx, &databroker.GetRequest{
+		Type: userTypeURL,
+		Id:   userID,
+	})
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to get user from databroker")
+		return nil
+	}
+
+	a.dataBrokerDataLock.Lock()
+	if current := a.dataBrokerData.Get(userTypeURL, userID); current == nil {
+		a.dataBrokerData.Update(res.GetRecord())
+	}
+	s, _ = a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
+	a.dataBrokerDataLock.Unlock()
+
+	return s
+}
+
+func (a *Authorize) getEnvoyRequestHeaders(rawJWT []byte) ([]*envoy_api_v2_core.HeaderValueOption, error) {
+	var hvos []*envoy_api_v2_core.HeaderValueOption
 
 	hdrs, err := getJWTClaimHeaders(a.currentOptions.Load(), a.currentEncoder.Load(), rawJWT)
 	if err != nil {
@@ -119,44 +158,6 @@ func (a *Authorize) getEnvoyRequestHeaders(rawJWT []byte, isNewSession bool) ([]
 	}
 
 	return hvos, nil
-}
-
-func (a *Authorize) refreshSession(ctx context.Context, rawJWT []byte) (newSession []byte, err error) {
-	options := a.currentOptions.Load()
-
-	// 1 - build a signed url to call refresh on authenticate service
-	refreshURI := options.GetAuthenticateURL().ResolveReference(&url.URL{Path: "/.pomerium/refresh"})
-	signedRefreshURL := urlutil.NewSignedURL(options.SharedKey, refreshURI).String()
-
-	// 2 - http call to authenticate service
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, signedRefreshURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("authorize: refresh request: %w", err)
-	}
-	req.Header.Set("Authorization", fmt.Sprintf("Pomerium %s", rawJWT))
-	req.Header.Set("X-Requested-With", "XmlHttpRequest")
-	req.Header.Set("Accept", "application/json")
-
-	res, err := httputil.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("authorize: client err %s: %w", signedRefreshURL, err)
-	}
-	defer res.Body.Close()
-	newJwt, err := ioutil.ReadAll(io.LimitReader(res.Body, 4<<10))
-	if err != nil {
-		return nil, err
-	}
-	// auth couldn't refresh the session, delete the session and reload via 302
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("authorize: backend refresh failed: %s", newJwt)
-	}
-	return newJwt, nil
-}
-
-func (a *Authorize) isExpired(rawSession []byte) bool {
-	state := sessions.State{}
-	err := a.currentEncoder.Load().Unmarshal(rawSession, &state)
-	return err == nil && state.IsExpired()
 }
 
 func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) bool {
@@ -188,39 +189,50 @@ func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) b
 	return false
 }
 
-func getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v2.CheckRequest, rawJWT []byte) *evaluator.Request {
+func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v2.CheckRequest, sessionState *sessions.State) *evaluator.Request {
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
-		User:              string(rawJWT),
-		Header:            getCheckRequestHeaders(in),
-		Host:              in.GetAttributes().GetRequest().GetHttp().GetHost(),
-		Method:            in.GetAttributes().GetRequest().GetHttp().GetMethod(),
-		RequestURI:        requestURL.String(),
-		URL:               requestURL.String(),
-		ClientCertificate: getPeerCertificate(in),
+		DataBrokerData: a.dataBrokerData,
+		HTTP: evaluator.RequestHTTP{
+			Method:            in.GetAttributes().GetRequest().GetHttp().GetMethod(),
+			URL:               requestURL.String(),
+			Headers:           getCheckRequestHeaders(in),
+			ClientCertificate: getPeerCertificate(in),
+		},
+	}
+	if sessionState != nil {
+		req.Session = evaluator.RequestSession{
+			ID:                sessionState.ID,
+			ImpersonateEmail:  sessionState.ImpersonateEmail,
+			ImpersonateGroups: sessionState.ImpersonateGroups,
+		}
 	}
 	return req
 }
 
 func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v2.CheckRequest) *http.Request {
 	hattrs := req.GetAttributes().GetRequest().GetHttp()
-	return &http.Request{
+	hreq := &http.Request{
 		Method:     hattrs.GetMethod(),
 		URL:        getCheckRequestURL(req),
-		Header:     getCheckRequestHeaders(req),
+		Header:     make(http.Header),
 		Body:       ioutil.NopCloser(strings.NewReader(hattrs.GetBody())),
 		Host:       hattrs.GetHost(),
 		RequestURI: hattrs.GetPath(),
 	}
+	for k, v := range getCheckRequestHeaders(req) {
+		hreq.Header.Set(k, v)
+	}
+	return hreq
 }
 
-func getCheckRequestHeaders(req *envoy_service_auth_v2.CheckRequest) map[string][]string {
-	h := make(map[string][]string)
+func getCheckRequestHeaders(req *envoy_service_auth_v2.CheckRequest) map[string]string {
+	hdrs := make(map[string]string)
 	ch := req.GetAttributes().GetRequest().GetHttp().GetHeaders()
 	for k, v := range ch {
-		h[http.CanonicalHeaderKey(k)] = []string{v}
+		hdrs[http.CanonicalHeaderKey(k)] = v
 	}
-	return h
+	return hdrs
 }
 
 func getCheckRequestURL(req *envoy_service_auth_v2.CheckRequest) *url.URL {
@@ -256,31 +268,24 @@ func getPeerCertificate(in *envoy_service_auth_v2.CheckRequest) string {
 func logAuthorizeCheck(
 	ctx context.Context,
 	in *envoy_service_auth_v2.CheckRequest,
-	reply *authorize.IsAuthorizedReply,
-	rawJWT []byte,
+	reply *evaluator.Result,
 ) {
 	hdrs := getCheckRequestHeaders(in)
 	hattrs := in.GetAttributes().GetRequest().GetHttp()
 	evt := log.Info().Str("service", "authorize")
 	// request
 	evt = evt.Str("request-id", requestid.FromContext(ctx))
-	evt = evt.Strs("check-request-id", hdrs["X-Request-Id"])
+	evt = evt.Str("check-request-id", hdrs["X-Request-Id"])
 	evt = evt.Str("method", hattrs.GetMethod())
 	evt = evt.Interface("headers", hdrs)
 	evt = evt.Str("path", hattrs.GetPath())
 	evt = evt.Str("host", hattrs.GetHost())
 	evt = evt.Str("query", hattrs.GetQuery())
 	// reply
-	evt = evt.Bool("allow", reply.GetAllow())
-	evt = evt.Bool("session-expired", reply.GetSessionExpired())
-	evt = evt.Strs("deny-reasons", reply.GetDenyReasons())
-	evt = evt.Str("email", reply.GetEmail())
-	evt = evt.Strs("groups", reply.GetGroups())
-	if rawJWT != nil {
-		evt = evt.Str("session", string(rawJWT))
-	}
-	if reply.GetHttpStatus() != nil {
-		evt = evt.Interface("http_status", reply.GetHttpStatus())
+	if reply != nil {
+		evt = evt.Bool("allow", reply.Status == http.StatusOK)
+		evt = evt.Int("status", reply.Status)
+		evt = evt.Str("message", reply.Message)
 	}
 	evt.Msg("authorize check")
 }

@@ -106,11 +106,11 @@ func TestStore_SaveSession(t *testing.T) {
 		wantErr     bool
 		wantLoadErr bool
 	}{
-		{"good", &sessions.State{Email: "user@domain.com", User: "user"}, ecjson.New(c), ecjson.New(c), false, false},
-		{"bad cipher", &sessions.State{Email: "user@domain.com", User: "user"}, nil, nil, true, true},
-		{"huge cookie", &sessions.State{Subject: fmt.Sprintf("%x", hugeString), Email: "user@domain.com", User: "user"}, ecjson.New(c), ecjson.New(c), false, false},
-		{"marshal error", &sessions.State{Email: "user@domain.com", User: "user"}, mock.Encoder{MarshalError: errors.New("error")}, ecjson.New(c), true, true},
-		{"nil encoder cannot save non string type", &sessions.State{Email: "user@domain.com", User: "user"}, nil, ecjson.New(c), true, true},
+		{"good", &sessions.State{Version: "v1", ID: "xyz"}, ecjson.New(c), ecjson.New(c), false, false},
+		{"bad cipher", &sessions.State{Version: "v1", ID: "xyz"}, nil, nil, true, true},
+		{"huge cookie", &sessions.State{Version: "v1", ID: "xyz", Subject: fmt.Sprintf("%x", hugeString)}, ecjson.New(c), ecjson.New(c), false, false},
+		{"marshal error", &sessions.State{Version: "v1", ID: "xyz"}, mock.Encoder{MarshalError: errors.New("error")}, ecjson.New(c), true, true},
+		{"nil encoder cannot save non string type", &sessions.State{Version: "v1", ID: "xyz"}, nil, ecjson.New(c), true, true},
 		{"good marshal string directly", cryptutil.NewBase64Key(), nil, ecjson.New(c), false, true},
 		{"good marshal bytes directly", cryptutil.NewKey(), nil, ecjson.New(c), false, true},
 	}

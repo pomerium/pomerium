@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/pomerium/pomerium/internal/sessions"
 )
 
@@ -23,7 +24,7 @@ func TestStore(t *testing.T) {
 				SaveError:       nil,
 				LoadError:       nil,
 			},
-			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IiIsInByb2dyYW1hdGljIjpmYWxzZSwic3ViIjoiMDEwMSJ9.u0dzrEkbt-Bec7Rq85E8pbglE61D7UqGN33MFtfoCCM",
+			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcm9ncmFtYXRpYyI6ZmFsc2UsInN1YiI6IjAxMDEifQ.xQQPXGN3q3j_CHbz6p9D-vZ1DaiPWwKdQhNxNHoYzvM",
 			&sessions.State{Subject: "0101"},
 			false,
 			false},

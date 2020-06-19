@@ -35,10 +35,10 @@ import (
 
 const (
 	// authenticate urls
-	dashboardURL = "/.pomerium"
-	signinURL    = "/.pomerium/sign_in"
-	signoutURL   = "/.pomerium/sign_out"
-	refreshURL   = "/.pomerium/refresh"
+	dashboardPath = "/.pomerium"
+	signinURL     = "/.pomerium/sign_in"
+	signoutURL    = "/.pomerium/sign_out"
+	refreshURL    = "/.pomerium/refresh"
 )
 
 // ValidateOptions checks that proper configuration settings are set to create
@@ -68,11 +68,12 @@ type Proxy struct {
 	SharedKey    string
 	sharedCipher cipher.AEAD
 
-	authorizeURL           *url.URL
-	authenticateURL        *url.URL
-	authenticateSigninURL  *url.URL
-	authenticateSignoutURL *url.URL
-	authenticateRefreshURL *url.URL
+	authorizeURL             *url.URL
+	authenticateURL          *url.URL
+	authenticateDashboardURL *url.URL
+	authenticateSigninURL    *url.URL
+	authenticateSignoutURL   *url.URL
+	authenticateRefreshURL   *url.URL
 
 	encoder         encoding.Unmarshaler
 	cookieOptions   *cookie.Options
@@ -136,6 +137,7 @@ func New(opts config.Options) (*Proxy, error) {
 	// errors checked in ValidateOptions
 	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
 	p.authenticateURL, _ = urlutil.DeepCopy(opts.AuthenticateURL)
+	p.authenticateDashboardURL = p.authenticateURL.ResolveReference(&url.URL{Path: dashboardPath})
 	p.authenticateSigninURL = p.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	p.authenticateSignoutURL = p.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
 	p.authenticateRefreshURL = p.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})

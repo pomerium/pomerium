@@ -12,23 +12,22 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 
-	"github.com/pomerium/pomerium/internal/grpc/authorize"
+	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 func (a *Authorize) okResponse(
-	reply *authorize.IsAuthorizedReply,
+	reply *evaluator.Result,
 	rawSession []byte,
-	isNewSession bool,
 ) *envoy_service_auth_v2.CheckResponse {
-	requestHeaders, err := a.getEnvoyRequestHeaders(rawSession, isNewSession)
+	requestHeaders, err := a.getEnvoyRequestHeaders(rawSession)
 	if err != nil {
 		log.Warn().Err(err).Msg("authorize: error generating new request headers")
 	}
 	requestHeaders = append(requestHeaders,
-		mkHeader(httputil.HeaderPomeriumJWTAssertion, reply.SignedJwt))
+		mkHeader(httputil.HeaderPomeriumJWTAssertion, reply.SignedJWT))
 
 	return &envoy_service_auth_v2.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},

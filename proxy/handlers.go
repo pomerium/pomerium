@@ -18,7 +18,7 @@ import (
 
 // registerDashboardHandlers returns the proxy service's ServeMux
 func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
-	h := r.PathPrefix(dashboardURL).Subrouter()
+	h := r.PathPrefix(dashboardPath).Subrouter()
 	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 	// 1. Retrieve the user session and add it to the request context
 	h.Use(sessions.RetrieveSession(p.sessionStore))
@@ -32,7 +32,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 		csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
 	))
 	// dashboard endpoints can be used by user's to view, or modify their session
-	h.Path("/").Handler(httputil.HandlerFunc(p.UserDashboard)).Methods(http.MethodGet)
+	h.Path("/").HandlerFunc(p.UserDashboard).Methods(http.MethodGet)
 	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
 	// admin endpoints authorization is also delegated to authorizer service
 	admin := h.PathPrefix("/admin").Subrouter()
@@ -41,7 +41,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	// Authenticate service callback handlers and middleware
 	// callback used to set route-scoped session and redirect back to destination
 	// only accept signed requests (hmac) from other trusted pomerium services
-	c := r.PathPrefix(dashboardURL + "/callback").Subrouter()
+	c := r.PathPrefix(dashboardPath + "/callback").Subrouter()
 	c.Use(middleware.ValidateSignature(p.SharedKey))
 
 	c.Path("/").
@@ -51,7 +51,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 
 	c.Path("/").Handler(httputil.HandlerFunc(p.Callback)).Methods(http.MethodGet)
 	// Programmatic API handlers and middleware
-	a := r.PathPrefix(dashboardURL + "/api").Subrouter()
+	a := r.PathPrefix(dashboardPath + "/api").Subrouter()
 	// login api handler generates a user-navigable login url to authenticate
 	a.Path("/v1/login").Handler(httputil.HandlerFunc(p.ProgrammaticLogin)).
 		Queries(urlutil.QueryRedirectURI, "").
@@ -85,28 +85,19 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signoutURL).String(), http.StatusFound)
 }
 
-// UserDashboard lets users investigate, and refresh their current session.
-// It also contains certain administrative actions like user impersonation.
-//
-// Nota bene: This endpoint does authentication, not authorization.
-func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
-	jwt, err := sessions.FromContext(r.Context())
-	if err != nil {
-		return err
-	}
-	var s sessions.State
-	if err := p.encoder.Unmarshal([]byte(jwt), &s); err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
+// UserDashboard redirects to the authenticate dasbhoard.
+func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
+	redirectURL := urlutil.GetAbsoluteURL(r).String()
+	if ref := r.Header.Get(httputil.HeaderReferrer); ref != "" {
+		redirectURL = ref
 	}
 
-	p.templates.ExecuteTemplate(w, "dashboard.html", map[string]interface{}{
-		"Session":           s,
-		"csrfField":         csrf.TemplateField(r),
-		"ImpersonateAction": urlutil.QueryImpersonateAction,
-		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
-		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
+	url := p.authenticateDashboardURL.ResolveReference(&url.URL{
+		RawQuery: url.Values{
+			urlutil.QueryRedirectURI: {redirectURL},
+		}.Encode(),
 	})
-	return nil
+	httputil.Redirect(w, r, url.String(), http.StatusFound)
 }
 
 // Impersonate takes the result of a form and adds user impersonation details
@@ -114,7 +105,7 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
 // administrative user. Requests are redirected back to the user dashboard.
 func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) error {
 	redirectURL := urlutil.GetAbsoluteURL(r)
-	redirectURL.Path = dashboardURL // redirect back to the dashboard
+	redirectURL.Path = dashboardPath // redirect back to the dashboard
 	signinURL := *p.authenticateSigninURL
 	q := signinURL.Query()
 	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
@@ -168,7 +159,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	}
 	signinURL := *p.authenticateSigninURL
 	callbackURI := urlutil.GetAbsoluteURL(r)
-	callbackURI.Path = dashboardURL + "/callback/"
+	callbackURI.Path = dashboardPath + "/callback/"
 	q := signinURL.Query()
 	q.Set(urlutil.QueryCallbackURI, callbackURI.String())
 	q.Set(urlutil.QueryRedirectURI, redirectURI.String())

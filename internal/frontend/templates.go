@@ -74,7 +74,10 @@ func NewTemplates() (*template.Template, error) {
 			if err != nil {
 				return fmt.Errorf("internal/frontend: error reading %s: %w", filePath, err)
 			}
-			t.Parse(string(buf))
+			_, err = t.Parse(string(buf))
+			if err != nil {
+				return fmt.Errorf("internal/frontend: error parsing template %s: %w", filePath, err)
+			}
 		}
 		return nil
 	})

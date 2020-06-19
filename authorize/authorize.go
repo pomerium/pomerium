@@ -6,25 +6,23 @@ package authorize
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"html/template"
-	"io/ioutil"
+	"sync"
 	"sync/atomic"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
-	"github.com/pomerium/pomerium/authorize/evaluator/opa"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
+	"github.com/pomerium/pomerium/internal/grpc"
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
-
-	"gopkg.in/square/go-jose.v2"
 )
 
 type atomicOptions struct {
@@ -53,11 +51,17 @@ func (a *atomicMarshalUnmarshaler) Store(encoder encoding.MarshalUnmarshaler) {
 
 // Authorize struct holds
 type Authorize struct {
-	pe evaluator.Evaluator
+	pe *evaluator.Evaluator
 
 	currentOptions atomicOptions
 	currentEncoder atomicMarshalUnmarshaler
 	templates      *template.Template
+
+	dataBrokerClient databroker.DataBrokerServiceClient
+
+	dataBrokerDataLock             sync.RWMutex
+	dataBrokerData                 evaluator.DataBrokerData
+	dataBrokerSessionServerVersion string
 }
 
 // New validates and creates a new Authorize service from a set of config options.
@@ -65,8 +69,25 @@ func New(opts config.Options) (*Authorize, error) {
 	if err := validateOptions(opts); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
 	}
+
+	dataBrokerConn, err := grpc.NewGRPCClientConn(
+		&grpc.Options{
+			Addr:                    opts.DataBrokerURL,
+			OverrideCertificateName: opts.OverrideCertificateName,
+			CA:                      opts.CA,
+			CAFile:                  opts.CAFile,
+			RequestTimeout:          opts.GRPCClientTimeout,
+			ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
+			WithInsecure:            opts.GRPCInsecure,
+		})
+	if err != nil {
+		return nil, fmt.Errorf("authorize: error creating cache connection: %w", err)
+	}
+
 	a := Authorize{
-		templates: template.Must(frontend.NewTemplates()),
+		templates:        template.Must(frontend.NewTemplates()),
+		dataBrokerClient: databroker.NewDataBrokerServiceClient(dataBrokerConn),
+		dataBrokerData:   make(evaluator.DataBrokerData),
 	}
 
 	var host string
@@ -98,62 +119,14 @@ func validateOptions(o config.Options) error {
 }
 
 // newPolicyEvaluator returns an policy evaluator.
-func newPolicyEvaluator(opts *config.Options) (evaluator.Evaluator, error) {
+func newPolicyEvaluator(opts *config.Options) (*evaluator.Evaluator, error) {
 	metrics.AddPolicyCountCallback("pomerium-authorize", func() int64 {
 		return int64(len(opts.Policies))
 	})
 	ctx := context.Background()
-	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
+	_, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
-	var jwk jose.JSONWebKey
-	if opts.SigningKey == "" {
-		key, err := cryptutil.NewSigningKey()
-		if err != nil {
-			return nil, fmt.Errorf("authorize: couldn't generate signing key: %w", err)
-		}
-		jwk.Key = key
-		pubKeyBytes, err := cryptutil.EncodePublicKey(&key.PublicKey)
-		if err != nil {
-			return nil, fmt.Errorf("authorize: encode public key: %w", err)
-		}
-		log.Info().Interface("PublicKey", pubKeyBytes).Msg("authorize: ecdsa public key")
-	} else {
-		decodedCert, err := base64.StdEncoding.DecodeString(opts.SigningKey)
-		if err != nil {
-			return nil, fmt.Errorf("authorize: failed to decode certificate cert %v: %w", decodedCert, err)
-		}
-		keyBytes, err := cryptutil.DecodePrivateKey((decodedCert))
-		if err != nil {
-			return nil, fmt.Errorf("authorize: couldn't generate signing key: %w", err)
-		}
-		jwk.Key = keyBytes
-	}
-
-	var clientCA string
-	if opts.ClientCA != "" {
-		bs, err := base64.StdEncoding.DecodeString(opts.ClientCA)
-		if err != nil {
-			return nil, fmt.Errorf("authorize: invalid client ca: %w", err)
-		}
-		clientCA = string(bs)
-	} else if opts.ClientCAFile != "" {
-		bs, err := ioutil.ReadFile(opts.ClientCAFile)
-		if err != nil {
-			return nil, fmt.Errorf("authorize: invalid client ca file: %w", err)
-		}
-		clientCA = string(bs)
-	}
-
-	data := map[string]interface{}{
-		"shared_key":       opts.SharedKey,
-		"route_policies":   opts.Policies,
-		"admins":           opts.Administrators,
-		"signing_key":      jwk,
-		"authenticate_url": opts.AuthenticateURLString,
-		"client_ca":        clientCA,
-	}
-
-	return opa.New(ctx, &opa.Options{Data: data})
+	return evaluator.New(opts)
 }
 
 // UpdateOptions implements the OptionsUpdater interface and updates internal

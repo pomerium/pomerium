@@ -45,10 +45,6 @@ type Provider struct {
 	// providers that doesn't implement the revocation endpoint but a logout session.
 	// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
 	EndSessionURL string `json:"end_session_endpoint,omitempty"`
-
-	// UserGroupFn is, if set, used to return a slice of group IDs the
-	// user is a member of
-	UserGroupFn func(context.Context, *oauth2.Token, interface{}) error
 }
 
 // New creates a new instance of a generic OpenID Connect provider.
@@ -113,29 +109,24 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v interface{})
 		return nil, fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
 	}
 
-	if err := p.updateUserInfo(ctx, oauth2Token, v); err != nil {
+	if err := p.UpdateUserInfo(ctx, oauth2Token, v); err != nil {
 		return nil, fmt.Errorf("identity/oidc: couldn't update user info %w", err)
 	}
 
 	return oauth2Token, nil
 }
 
-// updateUserInfo calls the OIDC (spec required) UserInfo Endpoint as well as any
+// UpdateUserInfo calls the OIDC (spec required) UserInfo Endpoint as well as any
 // groups endpoint (non-spec) to populate the rest of the user's information.
 //
 // https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
-func (p *Provider) updateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
+func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
 	userInfo, err := getUserInfo(ctx, p.Provider, oauth2.StaticTokenSource(t))
 	if err != nil {
 		return fmt.Errorf("identity/oidc: user info endpoint: %w", err)
 	}
 	if err := userInfo.Claims(v); err != nil {
 		return fmt.Errorf("identity/oidc: failed parsing user info endpoint claims: %w", err)
-	}
-	if p.UserGroupFn != nil {
-		if err := p.UserGroupFn(ctx, t, v); err != nil {
-			return fmt.Errorf("identity/oidc: could not retrieve groups: %w", err)
-		}
 	}
 	return nil
 }
@@ -163,9 +154,6 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v interface{}) 
 		if err := idToken.Claims(v); err != nil {
 			return nil, fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
 		}
-	}
-	if err := p.updateUserInfo(ctx, newToken, v); err != nil {
-		return nil, fmt.Errorf("identity/oidc: couldn't update user info %w", err)
 	}
 	return newToken, nil
 }
