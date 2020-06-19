@@ -3,6 +3,11 @@ package httputil
 // AuthorizationTypePomerium is for Authorization: Pomerium JWT... headers
 const AuthorizationTypePomerium = "Pomerium"
 
+// Standard headers
+const (
+	HeaderReferrer = "Referer"
+)
+
 // Pomerium headers contain information added to a request.
 const (
 	// HeaderPomeriumResponse is set when pomerium itself creates a response,

@@ -19,9 +19,7 @@ func TestLoadSession(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	state := &sessions.State{
-		Email: "bob@example.com",
-	}
+	state := &sessions.State{ID: "xyz", Version: "v1"}
 	rawjwt, err := encoder.Marshal(state)
 	if !assert.NoError(t, err) {
 		return
@@ -35,7 +33,7 @@ func TestLoadSession(t *testing.T) {
 				},
 			},
 		})
-		raw, err := loadSession(req, opts, encoder)
+		raw, err := loadRawSession(req, opts, encoder)
 		if err != nil {
 			return nil, err
 		}
@@ -70,9 +68,7 @@ func TestLoadSession(t *testing.T) {
 		}
 		sess, err := load(t, hattrs)
 		assert.NoError(t, err)
-		if assert.NotNil(t, sess) {
-			assert.Equal(t, "bob@example.com", sess.Email)
-		}
+		assert.NotNil(t, sess)
 	})
 	t.Run("header", func(t *testing.T) {
 		hattrs := &envoy_service_auth_v2.AttributeContext_HttpRequest{
@@ -87,9 +83,7 @@ func TestLoadSession(t *testing.T) {
 		}
 		sess, err := load(t, hattrs)
 		assert.NoError(t, err)
-		if assert.NotNil(t, sess) {
-			assert.Equal(t, "bob@example.com", sess.Email)
-		}
+		assert.NotNil(t, sess)
 	})
 	t.Run("query param", func(t *testing.T) {
 		hattrs := &envoy_service_auth_v2.AttributeContext_HttpRequest{
@@ -103,36 +97,6 @@ func TestLoadSession(t *testing.T) {
 		}
 		sess, err := load(t, hattrs)
 		assert.NoError(t, err)
-		if assert.NotNil(t, sess) {
-			assert.Equal(t, "bob@example.com", sess.Email)
-		}
+		assert.NotNil(t, sess)
 	})
-}
-
-func TestGetJWTClaimHeaders(t *testing.T) {
-	options := config.NewDefaultOptions()
-	options.JWTClaimsHeaders = []string{"email", "groups", "user"}
-	encoder, err := jws.NewHS256Signer(nil, "example.com")
-	if !assert.NoError(t, err) {
-		return
-	}
-	state := &sessions.State{
-		Email:  "bob@example.com",
-		Groups: []string{"user", "wheel", "sudo"},
-		User:   "bob",
-	}
-	rawjwt, err := encoder.Marshal(state)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	hdrs, err := getJWTClaimHeaders(*options, encoder, rawjwt)
-	if !assert.NoError(t, err) {
-		return
-	}
-	assert.Equal(t, map[string]string{
-		"x-pomerium-claim-email":  "bob@example.com",
-		"x-pomerium-claim-groups": "user,wheel,sudo",
-		"x-pomerium-claim-user":   "bob",
-	}, hdrs)
 }

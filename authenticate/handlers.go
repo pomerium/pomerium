@@ -11,20 +11,25 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/pomerium/csrf"
+	"github.com/rs/cors"
+	"golang.org/x/oauth2"
+
 	"github.com/pomerium/pomerium/internal/cryptutil"
-	"github.com/pomerium/pomerium/internal/hashutil"
+	"github.com/pomerium/pomerium/internal/grpc/directory"
+	"github.com/pomerium/pomerium/internal/grpc/session"
+	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/identity/manager"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
-
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
-	"golang.org/x/oauth2"
 )
 
 // Handler returns the authenticate service's handler chain.
@@ -66,12 +71,11 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		AllowedHeaders:   []string{"*"},
 	})
 	v.Use(c.Handler)
-	v.Use(middleware.ValidateSignature(a.sharedKey))
 	v.Use(sessions.RetrieveSession(a.sessionLoaders...))
 	v.Use(a.VerifySession)
+	v.Path("/").Handler(httputil.HandlerFunc(a.Dashboard))
 	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	v.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
-	v.Path("/refresh").Handler(httputil.HandlerFunc(a.Refresh)).Methods(http.MethodGet)
 
 	wk := r.PathPrefix("/.well-known/pomerium").Subrouter()
 	wk.Path("/jwks.json").Handler(httputil.HandlerFunc(a.jwks)).Methods(http.MethodGet)
@@ -82,7 +86,6 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	// programmatic access api endpoint
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(sessions.RetrieveSession(a.sessionLoaders...))
-	api.Path("/v1/refresh").Handler(httputil.HandlerFunc(a.RefreshAPI))
 }
 
 // Well-Known Uniform Resource Identifiers (URIs)
@@ -128,56 +131,23 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		ctx, span := trace.StartSpan(r.Context(), "authenticate.VerifySession")
 		defer span.End()
-		s, err := a.getSessionFromCtx(ctx)
+		sessionState, err := a.getSessionFromCtx(ctx)
 		if err != nil {
 			log.FromRequest(r).Info().Err(err).Msg("authenticate: session load error")
 			return a.reauthenticateOrFail(w, r, err)
 		}
-		if s.IsExpired() {
-			ctx, err = a.refresh(w, r, s)
+
+		if a.sessionClient != nil {
+			_, err = session.Get(r.Context(), a.dataBrokerClient, sessionState.ID)
 			if err != nil {
-				log.FromRequest(r).Info().Err(err).Msg("authenticate: verify session, refresh")
+				log.FromRequest(r).Info().Err(err).Str("id", sessionState.ID).Msg("authenticate: session not found in databroker")
 				return a.reauthenticateOrFail(w, r, err)
 			}
 		}
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 		return nil
 	})
-}
-
-func (a *Authenticate) refresh(w http.ResponseWriter, r *http.Request, s *sessions.State) (context.Context, error) {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.VerifySession/refresh")
-	defer span.End()
-	accessToken, err := a.getAccessToken(ctx, s)
-	if err != nil {
-		return nil, err
-	}
-
-	// we are going to keep the same audiences for the refreshed token
-	// otherwise this will be rewritten to be the ClientID of the provider
-	oldAudience := s.Audience
-
-	newAccessToken, err := a.provider.Refresh(ctx, accessToken, s)
-	if err != nil {
-		return nil, fmt.Errorf("authenticate: refresh failed: %w", err)
-	}
-
-	newSession := sessions.NewSession(s, a.RedirectURL.Hostname(), oldAudience, newAccessToken)
-
-	encSession, err := a.sharedEncoder.Marshal(newSession)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := a.sessionStore.SaveSession(w, r, newSession); err != nil {
-		return nil, fmt.Errorf("authenticate: error saving new session: %w", err)
-	}
-
-	if err := a.setAccessToken(ctx, newAccessToken); err != nil {
-		return nil, fmt.Errorf("authenticate: error saving refreshed access token: %w", err)
-	}
-	// return the new session and add it to the current request context
-	return sessions.NewContext(ctx, string(encSession), err), nil
 }
 
 // RobotsTxt handles the /robots.txt route.
@@ -224,7 +194,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		a.sessionStore.ClearSession(w, r)
 		return err
 	}
-	accessToken, err := a.getAccessToken(ctx, s)
 	if err != nil {
 		a.sessionStore.ClearSession(w, r)
 		return err
@@ -233,7 +202,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	if impersonate := r.FormValue(urlutil.QueryImpersonateAction); impersonate != "" {
 		s.SetImpersonation(r.FormValue(urlutil.QueryImpersonateEmail), r.FormValue(urlutil.QueryImpersonateGroups))
 	}
-	newSession := sessions.NewSession(s, a.RedirectURL.Host, jwtAudience, accessToken)
+	newSession := sessions.NewSession(s, a.RedirectURL.Host, jwtAudience)
 
 	// re-persist the session, useful when session was evicted from session
 	if err := a.sessionStore.SaveSession(w, r, s); err != nil {
@@ -244,7 +213,13 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	if r.FormValue(urlutil.QueryIsProgrammatic) == "true" {
 		newSession.Programmatic = true
-		encSession, err := a.encryptedEncoder.Marshal(accessToken)
+
+		pbSession, err := session.Get(ctx, a.dataBrokerClient, s.ID)
+		if err != nil {
+			return httputil.NewError(http.StatusBadRequest, err)
+		}
+
+		encSession, err := a.encryptedEncoder.Marshal(pbSession.GetOauthToken())
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
@@ -281,6 +256,14 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
 	defer span.End()
 
+	sessionState, err := a.getSessionFromCtx(ctx)
+	if err == nil {
+		err = a.deleteSession(ctx, sessionState.ID)
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to delete session from session store")
+		}
+	}
+
 	// no matter what happens, we want to clear the session store
 	a.sessionStore.ClearSession(w, r)
 	redirectString := r.FormValue(urlutil.QueryRedirectURI)
@@ -296,24 +279,6 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	httputil.Redirect(w, r, redirectString, http.StatusFound)
 
-	s, err := a.getSessionFromCtx(ctx)
-	if err != nil {
-		log.Warn().Err(err).Msg("authenticate.SignOut: failed getting session")
-		return nil
-	}
-
-	accessToken, err := a.getAccessToken(ctx, s)
-	if err != nil {
-		log.Warn().Err(err).Msg("authenticate.SignOut: failed getting access token")
-		return nil
-	}
-
-	// first, try to revoke the session if implemented
-	err = a.provider.Revoke(ctx, accessToken)
-	if err != nil && !errors.Is(err, oidc.ErrRevokeNotImplemented) {
-		log.Warn().Err(err).Msg("authenticate.SignOut: failed revoking token")
-		return nil
-	}
 	return nil
 }
 
@@ -386,17 +351,21 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	// Successful Authentication Response: rfc6749#section-4.1.2 & OIDC#3.1.2.5
 	//
 	// Exchange the supplied Authorization Code for a valid user session.
-	var s sessions.State
+	s := sessions.State{ID: uuid.New().String()}
 	accessToken, err := a.provider.Authenticate(ctx, code, &s)
 	if err != nil {
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
+	err = a.saveSessionToDataBroker(r.Context(), &s, accessToken)
+	if err != nil {
+		return nil, httputil.NewError(http.StatusInternalServerError, err)
+	}
+
 	newState := sessions.NewSession(
 		&s,
 		a.RedirectURL.Hostname(),
-		[]string{a.RedirectURL.Hostname()},
-		accessToken)
+		[]string{a.RedirectURL.Hostname()})
 
 	// state includes a csrf nonce (validated by middleware) and redirect uri
 	bytes, err := base64.URLEncoding.DecodeString(r.FormValue("state"))
@@ -430,133 +399,11 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	// Ok -- We've got a valid session here. Let's now persist the access
-	// token to cache ...
-	if err := a.setAccessToken(ctx, accessToken); err != nil {
-		return nil, fmt.Errorf("failed saving access token: %w", err)
-	}
 	// ...  and the user state to local storage.
 	if err := a.sessionStore.SaveSession(w, r, &newState); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 	return redirectURL, nil
-}
-
-// RefreshAPI loads a global state, and attempts to refresh the session's access
-// tokens and state with the identity provider. If successful, a new signed JWT
-// and refresh token (`refresh_token`) are returned as JSON
-func (a *Authenticate) RefreshAPI(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.RefreshAPI")
-	defer span.End()
-
-	s, err := a.getSessionFromCtx(ctx)
-	if err != nil {
-		return err
-	}
-
-	accessToken, err := a.getAccessToken(ctx, s)
-	if err != nil {
-		return err
-	}
-
-	newAccessToken, err := a.provider.Refresh(ctx, accessToken, s)
-	if err != nil {
-		return err
-	}
-
-	routeNewSession := sessions.NewSession(s, a.RedirectURL.Hostname(), s.Audience, newAccessToken)
-
-	encSession, err := a.encryptedEncoder.Marshal(accessToken)
-	if err != nil {
-		return err
-	}
-
-	signedJWT, err := a.sharedEncoder.Marshal(routeNewSession)
-	if err != nil {
-		return err
-	}
-	var response struct {
-		JWT          string `json:"jwt"`
-		RefreshToken string `json:"refresh_token"`
-	}
-	response.RefreshToken = string(encSession)
-	response.JWT = string(signedJWT)
-
-	jsonResponse, err := json.Marshal(&response)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(jsonResponse)
-	return nil
-}
-
-// Refresh is called by the proxy service to handle backend session refresh.
-//
-// NOTE: The actual refresh is handled as part of the "VerifySession"
-// middleware. This handler is simply responsible for returning that jwt.
-func (a *Authenticate) Refresh(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.Refresh")
-	defer span.End()
-	jwt, err := sessions.FromContext(ctx)
-	if err != nil {
-		return fmt.Errorf("authenticate.Refresh: %w", err)
-	}
-	w.Header().Set("Content-Type", "application/jwt") // RFC 7519 : 10.3.1
-	fmt.Fprint(w, jwt)
-	return nil
-}
-
-// getAccessToken gets an associated oauth2 access token from a session state
-func (a *Authenticate) getAccessToken(ctx context.Context, s *sessions.State) (*oauth2.Token, error) {
-	ctx, span := trace.StartSpan(ctx, "authenticate.getAccessToken")
-	defer span.End()
-
-	var accessToken oauth2.Token
-	tokenBytes, err := a.cacheClient.Get(ctx, s.AccessTokenHash)
-	if err != nil {
-		return nil, err
-	}
-	if err := a.encryptedEncoder.Unmarshal(tokenBytes, &accessToken); err != nil {
-		return nil, err
-	}
-	if accessToken.Valid() {
-		return &accessToken, nil // this token is still valid, use it!
-	}
-	tokenBytes, err = a.cacheClient.Get(ctx, a.timestampedHash(accessToken.RefreshToken))
-	if err == nil {
-		// we found another possibly newer access token associated with the
-		// existing refresh token so let's try that.
-		if err := a.encryptedEncoder.Unmarshal(tokenBytes, &accessToken); err != nil {
-			return nil, err
-		}
-	}
-
-	return &accessToken, nil
-}
-
-func (a *Authenticate) setAccessToken(ctx context.Context, accessToken *oauth2.Token) error {
-	encToken, err := a.encryptedEncoder.Marshal(accessToken)
-	if err != nil {
-		return err
-	}
-	// set this specific access token
-	key := fmt.Sprintf("%x", hashutil.Hash(accessToken))
-	if err := a.cacheClient.Set(ctx, key, encToken); err != nil {
-		return fmt.Errorf("authenticate: setAccessToken failed key: %s :%w", key, err)
-	}
-
-	// set this as the "latest" token for this access token
-	key = a.timestampedHash(accessToken.RefreshToken)
-	if err := a.cacheClient.Set(ctx, key, encToken); err != nil {
-		return fmt.Errorf("authenticate: setAccessToken failed key: %s :%w", key, err)
-	}
-
-	return nil
-}
-
-func (a *Authenticate) timestampedHash(s string) string {
-	return fmt.Sprintf("%x-%v", hashutil.Hash(s), time.Now().Truncate(time.Minute).Unix())
 }
 
 func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, error) {
@@ -569,4 +416,131 @@ func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, 
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
 	return &s, nil
+}
+
+func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) error {
+	if a.sessionClient == nil {
+		return nil
+	}
+
+	_, err := a.sessionClient.Add(ctx, &session.AddRequest{
+		Session: &session.Session{
+			Id:        sessionID,
+			DeletedAt: ptypes.TimestampNow(),
+		},
+	})
+	return err
+}
+
+// Dashboard renders the /.pomerium/ user dashboard.
+func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
+	s, err := a.getSessionFromCtx(r.Context())
+	if err != nil {
+		s.ID = uuid.New().String()
+	}
+
+	pbSession, err := session.Get(r.Context(), a.dataBrokerClient, s.ID)
+	if err != nil {
+		pbSession = &session.Session{
+			Id: s.ID,
+		}
+	}
+	pbUser, err := user.Get(r.Context(), a.dataBrokerClient, pbSession.GetUserId())
+	if err != nil {
+		pbUser = &user.User{
+			Id: pbSession.GetUserId(),
+		}
+	}
+	pbDirectoryUser, err := directory.Get(r.Context(), a.dataBrokerClient, pbSession.GetUserId())
+	if err != nil {
+		pbDirectoryUser = &directory.User{
+			Id: pbSession.GetUserId(),
+		}
+	}
+
+	input := map[string]interface{}{
+		"State":             s,
+		"Session":           pbSession,
+		"User":              pbUser,
+		"DirectoryUser":     pbDirectoryUser,
+		"csrfField":         csrf.TemplateField(r),
+		"ImpersonateAction": urlutil.QueryImpersonateAction,
+		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
+		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
+		"RedirectURL":       r.URL.Query().Get(urlutil.QueryRedirectURI),
+	}
+
+	if redirectURL, err := url.Parse(r.URL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
+		input["RedirectURL"] = redirectURL.String()
+		signOutURL := redirectURL.ResolveReference(new(url.URL))
+		signOutURL.Path = "/.pomerium/sign_out"
+		input["SignOutURL"] = signOutURL.String()
+	} else {
+		input["SignOutURL"] = "/.pomerium/sign_out"
+	}
+
+	err = a.templates.ExecuteTemplate(w, "dashboard.html", input)
+	if err != nil {
+		log.Warn().Err(err).Interface("input", input).Msg("proxy: error rendering dashboard")
+	}
+	return nil
+}
+
+func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState *sessions.State, accessToken *oauth2.Token) error {
+	if a.sessionClient == nil || a.userClient == nil {
+		return nil
+	}
+
+	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
+	idTokenExpiry, _ := ptypes.TimestampProto(sessionState.Expiry.Time())
+	idTokenIssuedAt, _ := ptypes.TimestampProto(sessionState.IssuedAt.Time())
+	oauthTokenExpiry, _ := ptypes.TimestampProto(accessToken.Expiry)
+
+	s := &session.Session{
+		Id:        sessionState.ID,
+		UserId:    sessionState.Issuer + "/" + sessionState.Subject,
+		ExpiresAt: sessionExpiry,
+		IdToken: &session.IDToken{
+			Issuer:    sessionState.Issuer,
+			Subject:   sessionState.Subject,
+			ExpiresAt: idTokenExpiry,
+			IssuedAt:  idTokenIssuedAt,
+		},
+		OauthToken: &session.OAuthToken{
+			AccessToken:  accessToken.AccessToken,
+			TokenType:    accessToken.TokenType,
+			ExpiresAt:    oauthTokenExpiry,
+			RefreshToken: accessToken.RefreshToken,
+		},
+	}
+
+	// if no user exists yet, create a new one
+	currentUser, _ := user.Get(ctx, a.dataBrokerClient, s.GetUserId())
+	if currentUser == nil {
+		mu := manager.User{
+			User: &user.User{
+				Id: s.GetUserId(),
+			},
+		}
+		err := a.provider.UpdateUserInfo(ctx, accessToken, &mu)
+		if err != nil {
+			return fmt.Errorf("authenticate: error retrieving uesr info: %w", err)
+		}
+		_, err = a.userClient.Add(ctx, &user.AddRequest{
+			User: mu.User,
+		})
+		if err != nil {
+			return fmt.Errorf("authenticate: error saving user: %w", err)
+		}
+	}
+
+	res, err := a.sessionClient.Add(ctx, &session.AddRequest{
+		Session: s,
+	})
+	if err != nil {
+		return fmt.Errorf("authenticate: error saving session: %w", err)
+	}
+	sessionState.Version = res.GetServerVersion()
+
+	return nil
 }

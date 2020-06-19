@@ -2,14 +2,15 @@ package sessions
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"strings"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/hashutil"
-	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
+
+// ErrMissingID is the error for a session state that has no ID set.
+var ErrMissingID = errors.New("invalid session: missing id")
 
 // timeNow is time.Now but pulled out as a variable for tests.
 var timeNow = time.Now
@@ -24,23 +25,7 @@ type State struct {
 	NotBefore *jwt.NumericDate `json:"nbf,omitempty"`
 	IssuedAt  *jwt.NumericDate `json:"iat,omitempty"`
 	ID        string           `json:"jti,omitempty"`
-	// At_hash is an OPTIONAL Access Token hash value
-	// https://ldapwiki.com/wiki/At_hash
-	AccessTokenHash string `json:"at_hash,omitempty"`
-
-	// core pomerium identity claims ; not standard to RFC 7519
-	Email  string   `json:"email"`
-	Groups []string `json:"groups,omitempty"`
-	User   string   `json:"user,omitempty"` // google
-
-	// commonly supported IdP information
-	// https://www.iana.org/assignments/jwt/jwt.xhtml#claims
-	Name          string `json:"name,omitempty"`           // google
-	GivenName     string `json:"given_name,omitempty"`     // google
-	FamilyName    string `json:"family_name,omitempty"`    // google
-	Picture       string `json:"picture,omitempty"`        // google
-	EmailVerified bool   `json:"email_verified,omitempty"` // google
-	Nickname      string `json:"nickname,omitempty"`       // gitlab
+	Version   string           `json:"ver,omitempty"`
 
 	// Impersonate-able fields
 	ImpersonateEmail  string   `json:"impersonate_email,omitempty"`
@@ -53,14 +38,12 @@ type State struct {
 
 // NewSession updates issuer, audience, and issuance timestamps but keeps
 // parent expiry.
-func NewSession(s *State, issuer string, audience []string, accessToken *oauth2.Token) State {
+func NewSession(s *State, issuer string, audience []string) State {
 	newState := *s
 	newState.IssuedAt = jwt.NewNumericDate(timeNow())
 	newState.NotBefore = newState.IssuedAt
 	newState.Audience = audience
 	newState.Issuer = issuer
-	newState.AccessTokenHash = fmt.Sprintf("%x", hashutil.Hash(accessToken))
-	newState.Expiry = jwt.NewNumericDate(accessToken.Expiry)
 	return newState
 }
 
@@ -97,8 +80,10 @@ func (s *State) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &a); err != nil {
 		return err
 	}
-	if a.User == "" {
-		a.User = a.Subject
+
+	if s.ID == "" {
+		return ErrMissingID
 	}
+
 	return nil
 }

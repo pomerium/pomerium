@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -23,8 +24,8 @@ func TestNewQueryParamStore(t *testing.T) {
 		wantErr bool
 		wantURL *url.URL
 	}{
-		{"simple good", &sessions.State{Email: "user@domain.com", User: "user"}, mock.Encoder{MarshalResponse: []byte("ok")}, "", false, &url.URL{Path: "/", RawQuery: "pomerium_session=ok"}},
-		{"marshall error", &sessions.State{Email: "user@domain.com", User: "user"}, mock.Encoder{MarshalError: errors.New("error")}, "", true, &url.URL{Path: "/"}},
+		{"simple good", &sessions.State{}, mock.Encoder{MarshalResponse: []byte("ok")}, "", false, &url.URL{Path: "/", RawQuery: "pomerium_session=ok"}},
+		{"marshall error", &sessions.State{}, mock.Encoder{MarshalError: errors.New("error")}, "", true, &url.URL{Path: "/"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

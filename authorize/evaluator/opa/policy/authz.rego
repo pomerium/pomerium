@@ -1,84 +1,91 @@
 package pomerium.authz
 
-import data.route_policies
-import data.shared_key
-
 default allow = false
 
-route := first_allowed_route(input.url)
 
-http_status = [495, "invalid client certificate"]{
-	not input.is_valid_client_certificate
-}
+route := first_allowed_route(input.http.url)
+session := input.databroker_data["type.googleapis.com/session.Session"][input.session.id]
+user := input.databroker_data["type.googleapis.com/user.User"][session.user_id]
+directory_user := input.databroker_data["type.googleapis.com/directory.User"][session.user_id]
+
 
 # allow public
 allow {
-	route_policies[route].AllowPublicUnauthenticatedAccess == true
+	data.route_policies[route].AllowPublicUnauthenticatedAccess == true
 }
 
 # allow cors preflight
 allow {
-	route_policies[route].CORSAllowPreflight == true
-	input.method == "OPTIONS"
-	count(object.get(input.headers, "Access-Control-Request-Method", [])) > 0
-	count(object.get(input.headers, "Origin", [])) > 0
+	data.route_policies[route].CORSAllowPreflight == true
+	input.http.method == "OPTIONS"
+	count(object.get(input.http.headers, "Access-Control-Request-Method", [])) > 0
+	count(object.get(input.http.headers, "Origin", [])) > 0
 }
-
 
 # allow by email
 allow {
-	token.payload.email = route_policies[route].allowed_users[_]
-	token.valid
-	count(deny)==0
+	user.email == data.route_policies[route].allowed_users[_]
 }
 
 # allow group
 allow {
 	some group
-	token.payload.groups[group] == route_policies[route].allowed_groups[_]
-	token.valid
-	count(deny)==0
+	directory_user.groups[_] = group
+	data.route_policies[route].allowed_groups[_] = group
 }
 
 # allow by impersonate email
 allow {
-	token.payload.impersonate_email = route_policies[route].allowed_users[_]
-	token.valid
-	count(deny)==0
+	data.route_policies[route].allowed_users[_] = input.session.impersonate_email
 }
 
 # allow by impersonate group
 allow {
 	some group
-	token.payload.impersonate_groups[group] == route_policies[route].allowed_groups[_]
-	token.valid
-	count(deny)==0
+	input.session.impersonate_groups[_] = group
+	data.route_policies[route].allowed_groups[_] = group
 }
 
 # allow by domain
 allow {
 	some domain
-	email_in_domain(token.payload.email, route_policies[route].allowed_domains[domain])
-	token.valid
-	count(deny)==0
+	email_in_domain(user.email, data.route_policies[route].allowed_domains[domain])
 }
 
 # allow by impersonate domain
 allow {
 	some domain
-	email_in_domain(token.payload.impersonate_email, route_policies[route].allowed_domains[domain])
-	token.valid
-	count(deny)==0
+	email_in_domain(input.session.impersonate_email, data.route_policies[route].allowed_domains[domain])
 }
+
 # allow pomerium urls
 allow {
-	contains(input.url, "/.pomerium/")
-	not contains(input.url,"/.pomerium/admin")
+	contains(input.http.url, "/.pomerium/")
+	not contains(input.http.url, "/.pomerium/admin")
+}
+
+# allow user is admin
+allow {
+	element_in_list(data.admins, input.user.email)
+	contains(input.http.url, ".pomerium/admin")
+}
+
+# deny non-admin users from accesing admin routes
+deny[reason] {
+	reason = [403, "user is not admin"]
+	not element_in_list(data.admins, user.email)
+	contains(input.http.url,".pomerium/admin")
+}
+
+deny[reason] {
+	reason = [495, "invalid client certificate"]
+	is_boolean(input.is_valid_client_certificate)
+	not input.is_valid_client_certificate
 }
 
 # returns the first matching route
 first_allowed_route(input_url) = route {
-	route := [route | some route ; allowed_route(input.url, route_policies[route])][0]
+	route := [route | some route ; allowed_route(input.http.url, data.route_policies[route])][0]
 }
 
 allowed_route(input_url, policy){
@@ -141,53 +148,6 @@ email_in_domain(email, domain) {
 	count(x) == 2
 	x[1] == domain
 }
-
-default expired = false
-
-expired {
-	now_seconds:=time.now_ns()/1e9
-	expiry < now_seconds
-}
-
-deny["token is expired (exp)"]{
-	expired
-}
-
-deny[sprintf("token has bad audience (aud): %s not in %+v",[input.host,audiences])]{
-	not element_in_list(audiences,input.host)
-}
-
-# allow user is admin
-allow {
-	element_in_list(data.admins, token.payload.email)
-	token.valid
-	count(deny)==0
-	contains(input.url,".pomerium/admin")
-}
-
-
-# deny non-admin users from accesing admin routes
-deny["user is not admin"]{
-	not element_in_list(data.admins, token.payload.email)
-	contains(input.url,".pomerium/admin")
-}
-
-token = {"payload": payload, "valid": valid} {
-	[valid, header, payload] := io.jwt.decode_verify(
-		input.user, {
-			"secret": shared_key,
-			"aud": input.host,
-		}
-	)
-}
-
-user:=token.payload.user
-email:=token.payload.email
-groups:=token.payload.groups
-audiences:=token.payload.aud
-expiry:=token.payload.exp
-signed_jwt:=io.jwt.encode_sign({"alg": "ES256"}, token.payload, data.signing_key)
-
 
 element_in_list(list, elem) {
   list[_] = elem

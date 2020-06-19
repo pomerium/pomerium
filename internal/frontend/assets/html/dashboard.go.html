@@ -12,8 +12,8 @@
         <div class="card">
           <div class="card-header">
             <h2>Current user</h2>
-            {{if .Session.Picture }}
-            <img class="icon" src="{{.Session.Picture}}" alt="user image" />
+            {{if .User.Claims.picture }}
+            <img class="icon" src="{{.User.GetClaim "picture"}}" alt="user image" />
             {{else}}
             <img
               class="icon"
@@ -23,77 +23,71 @@
             {{end}}
           </div>
 
-          <form method="POST" action="/.pomerium/sign_out">
+          <form method="GET" action="{{.SignOutURL}}">
             <section>
               <p class="message">Your current session details.</p>
               <fieldset>
-                {{if .Session.Name}}
+                <label>
+                  <span>URL</span>
+                  <a href="{{.RedirectURL}}">{{.RedirectURL}}</a>
+                </label>
+
+                {{if .User.Name}}
                 <label>
                   <span>Name</span>
                   <input
                     type="text"
                     class="field"
-                    value="{{.Session.Name}}"
-                    title="{{.Session.Name}}"
+                    value="{{.User.Name}}"
+                    title="{{.User.Name}}"
                     disabled
                   />
                 </label>
-                {{else}} {{if .Session.GivenName}}
+                {{else}} {{if .User.Claims.given_name}}
                 <label>
                   <span>Given Name</span>
                   <input
                     type="text"
                     class="field"
-                    value="{{.Session.GivenName}}"
-                    title="{{.Session.GivenName}}"
+                    value="{{.User.GetClaim "given_name"}}"
+                    title="{{.User.GetClaim "given_name"}}"
                     disabled
                   />
                 </label>
-                {{end}} {{if .Session.FamilyName}}
+                {{end}} {{if .User.Claims.family_name}}
                 <label>
                   <span>Family Name</span>
                   <input
                     type="text"
                     class="field"
-                    value="{{.Session.FamilyName}}"
-                    title="{{.Session.FamilyName}}"
+                    value="{{.User.GetClaim "family_name"}}"
+                    title="{{.User.GetClaim "family_name"}}"
                     disabled
                   />
                 </label>
-                {{end}} {{end}} {{if .Session.Subject}}
+                {{end}} {{end}} {{if .User.Id}}
                 <label>
                   <span>UserID</span>
                   <input
                     type="text"
                     class="field"
-                    value="{{.Session.Subject}}"
-                    title="{{.Session.Subject}}"
+                    value="{{.User.Id}}"
+                    title="{{.User.Id}}"
                     disabled
                   />
                 </label>
-                {{end}} {{if .Session.Email}}
+                {{end}} {{if .User.Email}}
                 <label>
                   <span>Email</span>
                   <input
                     type="email"
                     class="field"
-                    value="{{.Session.Email}}"
-                    title="{{.Session.Email}}"
+                    value="{{.User.Email}}"
+                    title="{{.User.Email}}"
                     disabled
                   />
                 </label>
-                {{end}} {{if .Session.User}}
-                <label>
-                  <span>User</span>
-                  <input
-                    type="text"
-                    class="field"
-                    value="{{.Session.User}}"
-                    title="{{.Session.User}}"
-                    disabled
-                  />
-                </label>
-                {{end}} {{range $i,$_:= .Session.Groups}}
+                {{end}} {{range $i,$_:= .DirectoryUser.Groups}}
                 <label>
                   {{if eq $i 0}}
                   <span>Group</span>
@@ -108,65 +102,47 @@
                     disabled
                   />
                 </label>
-                {{end}} {{if .Session.Expiry}}
+                {{end}}
+                {{with .Session.IdToken}}
+                {{with .ExpiresAt}}
                 <label>
-                  <span>Expiry</span>
+                  <span>Expires At</span>
                   <input
                     type="text"
                     class="field"
-                    value="{{.Session.Expiry.Time}}"
-                    title="{{.Session.Expiry.Time}}"
+                    value="{{.}}"
+                    title="{{.}}"
                     disabled
                   />
                 </label>
-                {{end}} {{if .Session.IssuedAt}}
+                {{end}}
+                {{with .IssuedAt}}
                 <label>
-                  <span>Issued</span>
+                  <span>Issued At</span>
                   <input
                     type="text"
                     class="field"
-                    value="{{.Session.IssuedAt.Time}}"
-                    title="{{.Session.IssuedAt.Time}}"
+                    value="{{.}}"
+                    title="{{.}}"
                     disabled
                   />
                 </label>
-                {{end}} {{if .Session.Issuer}}
-                <label>
-                  <span>Issuer</span>
-                  <input
-                    type="text"
-                    class="field"
-                    value="{{ .Session.Issuer}}"
-                    title="{{ .Session.Issuer}}"
-                    disabled
-                  />
-                </label>
-                {{end}} {{range $i, $_:= .Session.Audience}}
-                <label>
-                  {{if eq $i 0}}
-                  <span>Audience</span>
-                  {{else}}
-                  <span></span>
-                  {{end}}
-                  <input
-                    type="text"
-                    class="field"
-                    title="{{ . }}"
-                    value="{{ . }}"
-                    disabled
-                  />
-                </label>
-                {{end}} {{if .Session.ImpersonateEmail}}
+                {{end}}
+                {{end}}
+
+                {{with .State}}
+                {{with .ImpersonateEmail}}
                 <label>
                   <span>Impersonating Email</span>
                   <input
                     type="text"
                     class="field"
-                    value="{{.Session.ImpersonateEmail}}"
+                    value="{{.}}"
                     disabled
                   />
                 </label>
-                {{end}} {{range $i,$_:= .Session.ImpersonateGroups}}
+                {{end}}
+                {{range $i,$_:= .ImpersonateGroups}}
                 <label>
                   {{if eq $i 0}}
                   <span>Impersonating Group</span>
@@ -182,10 +158,11 @@
                   />
                 </label>
                 {{end}}
+                {{end}}
+
               </fieldset>
             </section>
             <div class="flex">
-              {{ .csrfField }}
               <button class="button full" type="submit">Sign Out</button>
             </div>
           </form>
