@@ -15,7 +15,7 @@ With this release, default log level has been changed to INFO.
 
 ### HTTP 1.0
 
-HTTP 1.0 is not supported anymore, if you relied on it, make sure to upgrade to HTTP 1.1 or higher.
+HTTP 1.0 is not supported anymore. If you relied on it make sure to upgrade to HTTP 1.1 or higher.
 
 Example for HAProxy health check, in pre `0.9.0`:
 
