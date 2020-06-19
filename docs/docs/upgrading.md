@@ -5,6 +5,15 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.10.0
+
+## Breaking
+
+### Identity headers
+
+With this release, pomerium will not insert identity headers (X-Pomerium-Jwt-Asserttion/X-Pomerium-Claim-*) by default. To get pre 0.9.0 behavior, you
+can set `pass_identity_headers` to true on a per-policy basis.
+
 # Since 0.9.0
 
 ## Breaking
@@ -13,10 +22,23 @@ description: >-
 
 With this release, default log level has been changed to INFO.
 
-### Identity headers
+### HTTP 1.0
 
-With this release, pomerium will not insert identity headers (X-Pomerium-Jwt-Asserttion/X-Pomerium-Claim-*) by default. To get pre 0.9.0 behavior, you
-can set `pass_identity_headers` to true on a per-policy basis.
+HTTP 1.0 is not supported anymore. If you relied on it make sure to upgrade to HTTP 1.1 or higher.
+
+Example for HAProxy health check, in pre `0.9.0`:
+
+```shell script
+option httpchk GET /ping
+```
+
+In `0.9.0`:
+
+```shell script
+
+option httpchk GET /ping HTTP/1.1\r\nHost:pomerium
+```
+>>>>>>> c29807c3915b2e61d1a53dd007a8871b6494c3c6
 
 # Since 0.8.0
 
