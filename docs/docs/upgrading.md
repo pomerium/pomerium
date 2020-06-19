@@ -13,6 +13,23 @@ description: >-
 
 With this release, default log level has been changed to INFO.
 
+### HTTP 1.0
+
+HTTP 1.0 is not supported anymore, if you relied on it, make sure to upgrade to HTTP 1.1 or higher.
+
+Example for HAProxy health check, in pre `0.9.0`:
+
+```shell script
+option httpchk GET /ping
+```
+
+In `0.9.0`:
+
+```shell script
+
+option httpchk GET /ping HTTP/1.1\r\nHost:pomerium
+```
+
 # Since 0.8.0
 
 ## Breaking
