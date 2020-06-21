@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
@@ -277,7 +278,6 @@ func logAuthorizeCheck(
 	evt = evt.Str("request-id", requestid.FromContext(ctx))
 	evt = evt.Str("check-request-id", hdrs["X-Request-Id"])
 	evt = evt.Str("method", hattrs.GetMethod())
-	evt = evt.Interface("headers", hdrs)
 	evt = evt.Str("path", hattrs.GetPath())
 	evt = evt.Str("host", hattrs.GetHost())
 	evt = evt.Str("query", hattrs.GetQuery())
@@ -287,5 +287,11 @@ func logAuthorizeCheck(
 		evt = evt.Int("status", reply.Status)
 		evt = evt.Str("message", reply.Message)
 	}
+
+	// potentially sensitive, only log if debug mode
+	if zerolog.GlobalLevel() <= zerolog.DebugLevel {
+		evt = evt.Interface("headers", hdrs)
+	}
+
 	evt.Msg("authorize check")
 }
