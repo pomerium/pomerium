@@ -81,8 +81,6 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	wk.Path("/jwks.json").Handler(httputil.HandlerFunc(a.jwks)).Methods(http.MethodGet)
 	wk.Path("/").Handler(httputil.HandlerFunc(a.wellKnown)).Methods(http.MethodGet)
 
-	// https://www.googleapis.com/oauth2/v3/certs
-
 	// programmatic access api endpoint
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(sessions.RetrieveSession(a.sessionLoaders...))
@@ -138,7 +136,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		}
 
 		if a.sessionClient != nil {
-			_, err = session.Get(r.Context(), a.dataBrokerClient, sessionState.ID)
+			_, err = session.Get(ctx, a.dataBrokerClient, sessionState.ID)
 			if err != nil {
 				log.FromRequest(r).Info().Err(err).Str("id", sessionState.ID).Msg("authenticate: session not found in databroker")
 				return a.reauthenticateOrFail(w, r, err)
@@ -524,7 +522,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 		}
 		err := a.provider.UpdateUserInfo(ctx, accessToken, &mu)
 		if err != nil {
-			return fmt.Errorf("authenticate: error retrieving uesr info: %w", err)
+			return fmt.Errorf("authenticate: error retrieving user info: %w", err)
 		}
 		_, err = a.userClient.Add(ctx, &user.AddRequest{
 			User: mu.User,
