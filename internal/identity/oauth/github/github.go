@@ -30,7 +30,6 @@ const (
 	defaultProviderURL = "https://github.com"
 	githubAPIURL       = "https://api.github.com"
 	userPath           = "/user"
-	teamPath           = "/user/teams"
 	revokePath         = "/applications/%s/grant"
 	emailPath          = "/user/emails"
 	// https://developer.github.com/apps/building-oauth-apps/authorizing-oauth-apps
@@ -40,6 +39,8 @@ const (
 	// since github doesn't implement oidc, we need this to refresh the user session
 	refreshDeadline = time.Minute * 60
 )
+
+var maxTime = time.Unix(1<<63-1, 0)
 
 // https://developer.github.com/apps/building-oauth-apps/understanding-scopes-for-oauth-apps/
 var defaultScopes = []string{"user:email", "read:org"}
@@ -82,6 +83,9 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v interface{})
 		return nil, fmt.Errorf("github: token exchange failed %v", err)
 	}
 
+	// github tokens never expire
+	oauth2Token.Expiry = maxTime
+
 	err = p.UpdateUserInfo(ctx, oauth2Token, v)
 	if err != nil {
 		return nil, err
@@ -94,7 +98,6 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v interface{})
 //
 // https://developer.github.com/v3/users/#get-the-authenticated-user
 func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
-
 	err := p.userInfo(ctx, t, v)
 	if err != nil {
 		return fmt.Errorf("github: could not retrieve user info %w", err)
@@ -105,54 +108,13 @@ func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interf
 		return fmt.Errorf("github: could not retrieve user email %w", err)
 	}
 
-	err = p.userTeams(ctx, t, v)
-	if err != nil {
-		return fmt.Errorf("github: could not retrieve groups %w", err)
-	}
-
 	return nil
 }
 
 // Refresh is a no-op for github, because github sessions never expire.
 func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v interface{}) (*oauth2.Token, error) {
+	t.Expiry = time.Now().Add(refreshDeadline)
 	return t, nil
-}
-
-// userTeams returns a slice of teams the user belongs by making a request
-// to github API
-//
-// https://developer.github.com/v3/teams/#list-user-teams
-// https://developer.github.com/v3/auth/
-func (p *Provider) userTeams(ctx context.Context, t *oauth2.Token, v interface{}) error {
-
-	var response []struct {
-		ID          json.Number `json:"id"`
-		Name        string      `json:"name,omitempty"`
-		URL         string      `json:"url,omitempty"`
-		Slug        string      `json:"slug"`
-		Description string      `json:"description,omitempty"`
-		ReposURL    string      `json:"repos_url,omitempty"`
-		Privacy     string      `json:"privacy,omitempty"`
-	}
-
-	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", t.AccessToken)}
-	teamURL := githubAPIURL + teamPath
-	err := httputil.Client(ctx, http.MethodGet, teamURL, version.UserAgent(), headers, nil, &response)
-	if err != nil {
-		return err
-	}
-	log.Debug().Interface("teams", response).Msg("github: user teams")
-	var out struct {
-		Groups []string `json:"groups"`
-	}
-	for _, org := range response {
-		out.Groups = append(out.Groups, org.ID.String())
-	}
-	b, err := json.Marshal(out)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(b, v)
 }
 
 // userEmail returns the primary email of the user by making
@@ -216,15 +178,19 @@ func (p *Provider) userInfo(ctx context.Context, t *oauth2.Token, v interface{})
 		User    string `json:"user"`
 		Picture string `json:"picture,omitempty"`
 		// needs to be set manually
-		Expiry *jwt.NumericDate `json:"exp,omitempty"`
+		Expiry    *jwt.NumericDate `json:"exp,omitempty"`
+		NotBefore *jwt.NumericDate `json:"nbf,omitempty"`
+		IssuedAt  *jwt.NumericDate `json:"iat,omitempty"`
 	}
+
+	out.Expiry = jwt.NewNumericDate(time.Now().Add(refreshDeadline))
+	out.NotBefore = jwt.NewNumericDate(time.Now())
+	out.IssuedAt = jwt.NewNumericDate(time.Now())
 
 	out.User = response.Login
 	out.Subject = response.Login
 	out.Name = response.Name
 	out.Picture = response.AvatarURL
-	// set the session expiry
-	out.Expiry = jwt.NewNumericDate(time.Now().Add(refreshDeadline))
 	b, err := json.Marshal(out)
 	if err != nil {
 		return err
