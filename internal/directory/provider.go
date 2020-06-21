@@ -26,7 +26,7 @@ type Provider interface {
 // GetProvider gets the provider for the given options.
 func GetProvider(options *config.Options) Provider {
 	switch options.Provider {
-	case "azure":
+	case azure.Name:
 		serviceAccount, err := azure.ParseServiceAccount(options.ServiceAccount)
 		if err == nil {
 			return azure.New(azure.WithServiceAccount(serviceAccount))
@@ -37,7 +37,7 @@ func GetProvider(options *config.Options) Provider {
 			Str("provider", options.Provider).
 			Err(err).
 			Msg("invalid service account for azure directory provider")
-	case "gitlab":
+	case gitlab.Name:
 		serviceAccount, err := gitlab.ParseServiceAccount(options.ServiceAccount)
 		if err == nil {
 			return gitlab.New(gitlab.WithServiceAccount(serviceAccount))
@@ -47,11 +47,11 @@ func GetProvider(options *config.Options) Provider {
 			Str("provider", options.Provider).
 			Err(err).
 			Msg("invalid service account for gitlab directory provider")
-	case "google":
+	case google.Name:
 		if options.ServiceAccount != "" {
 			return google.New(google.WithServiceAccount(options.ServiceAccount))
 		}
-	case "okta":
+	case okta.Name:
 		providerURL, _ := url.Parse(options.ProviderURL)
 		serviceAccount, err := okta.ParseServiceAccount(options.ServiceAccount)
 		if err == nil {
@@ -64,7 +64,7 @@ func GetProvider(options *config.Options) Provider {
 			Str("provider", options.Provider).
 			Err(err).
 			Msg("invalid service account for okta directory provider")
-	case "onelogin":
+	case onelogin.Name:
 		serviceAccount, err := onelogin.ParseServiceAccount(options.ServiceAccount)
 		if err == nil {
 			return onelogin.New(onelogin.WithServiceAccount(serviceAccount))

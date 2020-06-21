@@ -93,7 +93,8 @@ type Authenticate struct {
 	sessionLoaders []sessions.SessionLoader
 
 	// provider is the interface to interacting with the identity provider (IdP)
-	provider identity.Authenticator
+	provider     identity.Authenticator
+	providerName string
 
 	// dataBrokerClient is used to retrieve sessions
 	dataBrokerClient databroker.DataBrokerServiceClient
@@ -193,7 +194,8 @@ func New(opts config.Options) (*Authenticate, error) {
 		encryptedEncoder: encryptedEncoder,
 		sessionLoaders:   []sessions.SessionLoader{qpStore, headerStore, cookieStore},
 		// IdP
-		provider: provider,
+		provider:     provider,
+		providerName: opts.Provider,
 		// grpc client for cache
 		dataBrokerClient: dataBrokerClient,
 		sessionClient:    sessionClient,

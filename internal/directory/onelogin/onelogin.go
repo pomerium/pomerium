@@ -15,9 +15,13 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/log"
 )
+
+// Name is the provider name.
+const Name = "onelogin"
 
 type config struct {
 	apiURL         *url.URL
@@ -127,7 +131,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	for userEmail, groups := range userEmailToGroupNames {
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:     userEmail,
+			Id:     databroker.GetUserID(Name, userEmail),
 			Groups: groups,
 		})
 	}

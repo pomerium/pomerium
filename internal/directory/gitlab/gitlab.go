@@ -13,9 +13,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
 
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/log"
 )
+
+// Name is the provider name.
+const Name = "gitlab"
 
 var (
 	defaultURL = &url.URL{
@@ -106,7 +110,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	var users []*directory.User
 	for userID, groupIDs := range userIDToGroupIDs {
 		user := &directory.User{
-			Id: fmt.Sprint(userID),
+			Id: databroker.GetUserID(Name, fmt.Sprint(userID)),
 		}
 		for _, groupID := range groupIDs {
 			user.Groups = append(user.Groups, fmt.Sprint(groupID))
