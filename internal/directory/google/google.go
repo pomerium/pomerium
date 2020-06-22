@@ -27,7 +27,7 @@ const (
 )
 
 type config struct {
-	serviceAccount string
+	serviceAccount *ServiceAccount
 	url            string
 }
 
@@ -35,7 +35,7 @@ type config struct {
 type Option func(cfg *config)
 
 // WithServiceAccount sets the service account in the Google configuration.
-func WithServiceAccount(serviceAccount string) Option {
+func WithServiceAccount(serviceAccount *ServiceAccount) Option {
 	return func(cfg *config) {
 		cfg.serviceAccount = serviceAccount
 	}
@@ -146,21 +146,16 @@ func (p *Provider) getAPIClient(ctx context.Context) (*admin.Service, error) {
 		return p.apiClient, nil
 	}
 
-	apiCreds, err := base64.StdEncoding.DecodeString(p.cfg.serviceAccount)
+	apiCreds, err := json.Marshal(p.cfg.serviceAccount)
 	if err != nil {
-		return nil, fmt.Errorf("google: could not decode service account json %w", err)
+		return nil, fmt.Errorf("google: could not marshal service account json %w", err)
 	}
-
-	var additionalFields struct {
-		ImpersonateUser string `json:"impersonate_user"`
-	}
-	_ = json.Unmarshal(apiCreds, &additionalFields)
 
 	config, err := google.JWTConfigFromJSON(apiCreds, apiScopes...)
 	if err != nil {
 		return nil, fmt.Errorf("google: error reading jwt config: %w", err)
 	}
-	config.Subject = additionalFields.ImpersonateUser
+	config.Subject = p.cfg.serviceAccount.ImpersonateUser
 
 	ts := config.TokenSource(ctx)
 
@@ -169,4 +164,47 @@ func (p *Provider) getAPIClient(ctx context.Context) (*admin.Service, error) {
 		return nil, fmt.Errorf("google: failed creating admin service %w", err)
 	}
 	return p.apiClient, nil
+}
+
+// A ServiceAccount is used to authenticate with the Google APIs.
+//
+// Google oauth fields are from https://github.com/golang/oauth2/blob/master/google/google.go#L99
+type ServiceAccount struct {
+	Type string `json:"type"` // serviceAccountKey or userCredentialsKey
+
+	// Service Account fields
+	ClientEmail  string `json:"client_email"`
+	PrivateKeyID string `json:"private_key_id"`
+	PrivateKey   string `json:"private_key"`
+	TokenURL     string `json:"token_uri"`
+	ProjectID    string `json:"project_id"`
+
+	// User Credential fields
+	// (These typically come from gcloud auth.)
+	ClientSecret string `json:"client_secret"`
+	ClientID     string `json:"client_id"`
+	RefreshToken string `json:"refresh_token"`
+
+	// The User to use for Admin Directory API calls
+	ImpersonateUser string `json:"impersonate_user"`
+}
+
+// ParseServiceAccount parses the service account in the config options.
+func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
+	bs, err := base64.StdEncoding.DecodeString(rawServiceAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	var serviceAccount ServiceAccount
+	err = json.Unmarshal(bs, &serviceAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	if serviceAccount.ImpersonateUser == "" {
+		return nil, fmt.Errorf("impersonate_user is required")
+	}
+
+	return &serviceAccount, nil
 }
