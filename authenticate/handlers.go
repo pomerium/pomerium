@@ -194,10 +194,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		a.sessionStore.ClearSession(w, r)
 		return err
 	}
-	if err != nil {
-		a.sessionStore.ClearSession(w, r)
-		return err
-	}
+
 	// user impersonation
 	if impersonate := r.FormValue(urlutil.QueryImpersonateAction); impersonate != "" {
 		s.SetImpersonation(r.FormValue(urlutil.QueryImpersonateEmail), r.FormValue(urlutil.QueryImpersonateGroups))
