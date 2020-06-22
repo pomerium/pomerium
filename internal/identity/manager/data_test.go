@@ -48,17 +48,10 @@ func TestSession_NextRefresh(t *testing.T) {
 	}
 	assert.Equal(t, tm2.Add(-time.Second*10), s.NextRefresh())
 
-	tm3 := time.Date(2020, 6, 5, 12, 30, 0, 0, time.UTC)
+	tm3 := time.Date(2020, 6, 5, 12, 15, 0, 0, time.UTC)
 	pbtm3, _ := ptypes.TimestampProto(tm3)
-	s.IdToken = &session.IDToken{
-		ExpiresAt: pbtm3,
-	}
-	assert.Equal(t, tm3.Add(-time.Second*10), s.NextRefresh())
-
-	tm4 := time.Date(2020, 6, 5, 12, 15, 0, 0, time.UTC)
-	pbtm4, _ := ptypes.TimestampProto(tm4)
-	s.ExpiresAt = pbtm4
-	assert.Equal(t, tm4, s.NextRefresh())
+	s.ExpiresAt = pbtm3
+	assert.Equal(t, tm3, s.NextRefresh())
 }
 
 func TestSession_UnmarshalJSON(t *testing.T) {

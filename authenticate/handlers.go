@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/csrf"
 	"github.com/rs/cors"
 	"golang.org/x/oauth2"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
@@ -491,7 +492,10 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 	}
 
 	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
-	idTokenExpiry, _ := ptypes.TimestampProto(sessionState.Expiry.Time())
+	var idTokenExpiry *timestamppb.Timestamp
+	if sessionState.Expiry != nil {
+		idTokenExpiry, _ = ptypes.TimestampProto(sessionState.Expiry.Time())
+	}
 	idTokenIssuedAt, _ := ptypes.TimestampProto(sessionState.IssuedAt.Time())
 	oauthTokenExpiry, _ := ptypes.TimestampProto(accessToken.Expiry)
 

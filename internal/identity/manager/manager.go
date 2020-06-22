@@ -3,6 +3,7 @@ package manager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -262,15 +263,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("deleting expired session")
-		s.DeletedAt, _ = ptypes.TimestampProto(time.Now())
-		_, err = mgr.sessionClient.Add(ctx, &session.AddRequest{Session: s.Session})
-		if err != nil {
-			mgr.log.Error().Err(err).
-				Str("user_id", s.GetUserId()).
-				Str("session_id", s.GetId()).
-				Msg("failed to delete session")
-			return
-		}
+		mgr.deleteSession(ctx, s.Session)
 		return
 	}
 
@@ -283,11 +276,18 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 	}
 
 	newToken, err := mgr.authenticator.Refresh(ctx, fromOAuthToken(s.OauthToken), &s)
-	if err != nil {
+	if isTemporaryError(err) {
 		mgr.log.Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to refresh oauth2 token")
+		return
+	} else if err != nil {
+		mgr.log.Error().Err(err).
+			Str("user_id", s.GetUserId()).
+			Str("session_id", s.GetId()).
+			Msg("failed to refresh oauth2 token, deleting session")
+		mgr.deleteSession(ctx, s.Session)
 		return
 	}
 	s.OauthToken = toOAuthToken(newToken)
@@ -328,11 +328,18 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 		}
 
 		err := mgr.authenticator.UpdateUserInfo(ctx, fromOAuthToken(s.OauthToken), &u)
-		if err != nil {
+		if isTemporaryError(err) {
 			mgr.log.Error().Err(err).
 				Str("user_id", s.GetUserId()).
 				Str("session_id", s.GetId()).
 				Msg("failed to update user info")
+			return
+		} else if err != nil {
+			mgr.log.Error().Err(err).
+				Str("user_id", s.GetUserId()).
+				Str("session_id", s.GetId()).
+				Msg("failed to update user info, deleting session")
+			mgr.deleteSession(ctx, s.Session)
 			continue
 		}
 
@@ -550,4 +557,27 @@ func (mgr *Manager) createUser(ctx context.Context, pbSession *session.Session) 
 			Str("session_id", pbSession.GetId()).
 			Msg("failed to create user")
 	}
+}
+
+func (mgr *Manager) deleteSession(ctx context.Context, pbSession *session.Session) {
+	pbSession.DeletedAt = ptypes.TimestampNow()
+	_, err := mgr.sessionClient.Add(ctx, &session.AddRequest{Session: pbSession})
+	if err != nil {
+		mgr.log.Error().Err(err).
+			Str("session_id", pbSession.GetId()).
+			Msg("failed to delete session")
+	}
+}
+
+func isTemporaryError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
+	}
+	if e, ok := err.(interface{ Temporary() bool }); ok && e.Temporary() {
+		return true
+	}
+	return false
 }

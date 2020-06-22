@@ -74,26 +74,22 @@ type Session struct {
 func (s Session) NextRefresh() time.Time {
 	var tm time.Time
 
-	expiry, err := ptypes.Timestamp(s.GetOauthToken().GetExpiresAt())
-	if err == nil {
-		expiry = expiry.Add(-s.gracePeriod)
-		if tm.IsZero() || expiry.Before(tm) {
-			tm = expiry
+	if s.GetOauthToken().GetExpiresAt() != nil {
+		expiry, err := ptypes.Timestamp(s.GetOauthToken().GetExpiresAt())
+		if err == nil && !expiry.IsZero() {
+			expiry = expiry.Add(-s.gracePeriod)
+			if tm.IsZero() || expiry.Before(tm) {
+				tm = expiry
+			}
 		}
 	}
 
-	expiry, err = ptypes.Timestamp(s.GetIdToken().GetExpiresAt())
-	if err == nil {
-		expiry = expiry.Add(-s.gracePeriod)
-		if tm.IsZero() || expiry.Before(tm) {
-			tm = expiry
-		}
-	}
-
-	expiry, err = ptypes.Timestamp(s.GetExpiresAt())
-	if err == nil {
-		if tm.IsZero() || expiry.Before(tm) {
-			tm = expiry
+	if s.GetExpiresAt() != nil {
+		expiry, err := ptypes.Timestamp(s.GetExpiresAt())
+		if err == nil && !expiry.IsZero() {
+			if tm.IsZero() || expiry.Before(tm) {
+				tm = expiry
+			}
 		}
 	}
 

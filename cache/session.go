@@ -51,14 +51,32 @@ func (srv *SessionServer) Add(ctx context.Context, req *session.AddRequest) (*se
 		Str("session_id", req.GetSession().GetId()).
 		Msg("add")
 
-	data, err := ptypes.MarshalAny(req.GetSession())
+	s := req.GetSession()
+
+	data, err := ptypes.MarshalAny(s)
 	if err != nil {
 		return nil, err
 	}
 
 	res, err := srv.dataBrokerClient.Set(ctx, &databroker.SetRequest{
 		Type: data.GetTypeUrl(),
-		Id:   req.GetSession().GetId(),
+		Id:   s.GetId(),
+		Data: data,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	s.Version = res.GetServerVersion()
+
+	data, err = ptypes.MarshalAny(s)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err = srv.dataBrokerClient.Set(ctx, &databroker.SetRequest{
+		Type: data.GetTypeUrl(),
+		Id:   s.GetId(),
 		Data: data,
 	})
 	if err != nil {
