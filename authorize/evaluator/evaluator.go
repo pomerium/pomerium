@@ -4,6 +4,7 @@ package evaluator
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -116,7 +117,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return &deny[0], nil
 	}
 
-	signedJWT, err := e.getSignedJWT(req)
+	signedJWT, err := e.SignedJWT(req)
 	if err != nil {
 		return nil, fmt.Errorf("error signing JWT: %w", err)
 	}
@@ -145,7 +146,17 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	}, nil
 }
 
-func (e *Evaluator) getSignedJWT(req *Request) (string, error) {
+// ParseSignedJWT parses the input signature and return its payload.
+func (e *Evaluator) ParseSignedJWT(signature string) ([]byte, error) {
+	object, err := jose.ParseSigned(signature)
+	if err != nil {
+		return nil, err
+	}
+	return object.Verify(&(e.jwk.(*ecdsa.PrivateKey).PublicKey))
+}
+
+// SignedJWT returns the signature of given request.
+func (e *Evaluator) SignedJWT(req *Request) (string, error) {
 	signer, err := jose.NewSigner(jose.SigningKey{
 		Algorithm: jose.ES256,
 		Key:       e.jwk,
@@ -169,6 +180,7 @@ func (e *Evaluator) getSignedJWT(req *Request) (string, error) {
 		}
 		if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", s.GetUserId()).(*user.User); ok {
 			payload["sub"] = u.GetId()
+			payload["user"] = u.GetId()
 			payload["email"] = u.GetEmail()
 		}
 		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", s.GetUserId()).(*directory.User); ok {
