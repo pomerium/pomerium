@@ -100,7 +100,8 @@ func fromSessionSchedulerKey(key string) (userID, sessionID string) {
 	return userID, sessionID
 }
 
-func fromOAuthToken(token *session.OAuthToken) *oauth2.Token {
+// FromOAuthToken converts a session oauth token to oauth2.Token.
+func FromOAuthToken(token *session.OAuthToken) *oauth2.Token {
 	expiry, _ := ptypes.Timestamp(token.GetExpiresAt())
 	return &oauth2.Token{
 		AccessToken:  token.GetAccessToken(),
@@ -110,7 +111,8 @@ func fromOAuthToken(token *session.OAuthToken) *oauth2.Token {
 	}
 }
 
-func toOAuthToken(token *oauth2.Token) *session.OAuthToken {
+// ToOAuthToken converts an oauth2.Token to a session oauth token.
+func ToOAuthToken(token *oauth2.Token) *session.OAuthToken {
 	expiry, _ := ptypes.TimestampProto(token.Expiry)
 	return &session.OAuthToken{
 		AccessToken:  token.AccessToken,

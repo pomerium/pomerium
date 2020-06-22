@@ -255,6 +255,11 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	sessionState, err := a.getSessionFromCtx(ctx)
 	if err == nil {
+		if s, _ := session.Get(ctx, a.dataBrokerClient, sessionState.ID); s != nil {
+			if err := a.provider.Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
+				log.Warn().Err(err).Msg("failed to revoke access token")
+			}
+		}
 		err = a.deleteSession(ctx, sessionState.ID)
 		if err != nil {
 			log.Warn().Err(err).Msg("failed to delete session from session store")
@@ -494,7 +499,6 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 		idTokenExpiry, _ = ptypes.TimestampProto(sessionState.Expiry.Time())
 	}
 	idTokenIssuedAt, _ := ptypes.TimestampProto(sessionState.IssuedAt.Time())
-	oauthTokenExpiry, _ := ptypes.TimestampProto(accessToken.Expiry)
 
 	s := &session.Session{
 		Id:        sessionState.ID,
@@ -506,12 +510,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 			ExpiresAt: idTokenExpiry,
 			IssuedAt:  idTokenIssuedAt,
 		},
-		OauthToken: &session.OAuthToken{
-			AccessToken:  accessToken.AccessToken,
-			TokenType:    accessToken.TokenType,
-			ExpiresAt:    oauthTokenExpiry,
-			RefreshToken: accessToken.RefreshToken,
-		},
+		OauthToken: manager.ToOAuthToken(accessToken),
 	}
 
 	// if no user exists yet, create a new one
