@@ -146,7 +146,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	}, nil
 }
 
-// ParsedSignedJWT parses the input signature and return its payload.
+// ParseSignedJWT parses the input signature and return its payload.
 func (e *Evaluator) ParseSignedJWT(signature string) ([]byte, error) {
 	object, err := jose.ParseSigned(signature)
 	if err != nil {
