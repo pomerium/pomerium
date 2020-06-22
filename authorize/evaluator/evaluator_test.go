@@ -2,10 +2,14 @@ package evaluator
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
 )
 
@@ -64,4 +68,32 @@ func TestJSONMarshal(t *testing.T) {
 		},
 		"is_valid_client_certificate": true
 	}`, string(bs))
+}
+
+func TestEvaluator_SignedJWT(t *testing.T) {
+	opt := config.NewDefaultOptions()
+	opt.AuthenticateURL = mustParseURL("https://authenticate.example.com")
+	e, err := New(opt)
+	require.NoError(t, err)
+	req := &Request{
+		HTTP: RequestHTTP{
+			Method: http.MethodGet,
+			URL:    "https://example.com",
+		},
+	}
+	signedJWT, err := e.SignedJWT(req)
+	require.NoError(t, err)
+	assert.NotEmpty(t, signedJWT)
+
+	payload, err := e.ParseSignedJWT(signedJWT)
+	require.NoError(t, err)
+	assert.NotEmpty(t, payload)
+}
+
+func mustParseURL(str string) *url.URL {
+	u, err := url.Parse(str)
+	if err != nil {
+		panic(err)
+	}
+	return u
 }

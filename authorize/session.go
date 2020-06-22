@@ -85,41 +85,38 @@ func getJWTSetCookieHeaders(cookieStore sessions.SessionStore, rawjwt []byte) (m
 	return hdrs, nil
 }
 
-func getJWTClaimHeaders(options config.Options, encoder encoding.MarshalUnmarshaler, rawjwt []byte) (map[string]string, error) {
-	if len(rawjwt) == 0 {
+func (a *Authorize) getJWTClaimHeaders(options config.Options, signedJWT string) (map[string]string, error) {
+	if len(signedJWT) == 0 {
 		return make(map[string]string), nil
 	}
 
-	var claims map[string]jwtClaim
-	err := encoder.Unmarshal(rawjwt, &claims)
+	var claims map[string]interface{}
+	payload, err := a.pe.ParseSignedJWT(signedJWT)
 	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
 		return nil, err
 	}
 
 	hdrs := make(map[string]string)
 	for _, name := range options.JWTClaimsHeaders {
 		if claim, ok := claims[name]; ok {
-			hdrs[httputil.PomeriumJWTHeaderName(name)] = strings.Join(claim, ",")
+			switch value := claim.(type) {
+			case string:
+				hdrs["x-pomerium-claim-"+name] = value
+			case []interface{}:
+				hdrs["x-pomerium-claim-"+name] = strings.Join(toSliceStrings(value), ",")
+			}
 		}
 	}
 	return hdrs, nil
 }
 
-type jwtClaim []string
-
-func (claim *jwtClaim) UnmarshalJSON(bs []byte) error {
-	var raw interface{}
-	err := json.Unmarshal(bs, &raw)
-	if err != nil {
-		return err
+func toSliceStrings(sliceIfaces []interface{}) []string {
+	sliceStrings := make([]string, 0, len(sliceIfaces))
+	for _, e := range sliceIfaces {
+		sliceStrings = append(sliceStrings, fmt.Sprint(e))
 	}
-	switch obj := raw.(type) {
-	case []interface{}:
-		for _, el := range obj {
-			*claim = append(*claim, fmt.Sprint(el))
-		}
-	default:
-		*claim = append(*claim, fmt.Sprint(obj))
-	}
-	return nil
+	return sliceStrings
 }

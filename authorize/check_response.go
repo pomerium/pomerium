@@ -18,14 +18,12 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-func (a *Authorize) okResponse(
-	reply *evaluator.Result,
-	rawSession []byte,
-) *envoy_service_auth_v2.CheckResponse {
-	requestHeaders, err := a.getEnvoyRequestHeaders(rawSession)
+func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.CheckResponse {
+	requestHeaders, err := a.getEnvoyRequestHeaders(reply.SignedJWT)
 	if err != nil {
 		log.Warn().Err(err).Msg("authorize: error generating new request headers")
 	}
+
 	requestHeaders = append(requestHeaders,
 		mkHeader(httputil.HeaderPomeriumJWTAssertion, reply.SignedJWT))
 
