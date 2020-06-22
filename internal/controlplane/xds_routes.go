@@ -41,6 +41,7 @@ func buildGRPCRoutes() []*envoy_config_route_v3.Route {
 
 func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	routes := []*envoy_config_route_v3.Route{
+		buildControlPlanePathRoute("/robots.txt"),
 		buildControlPlanePathRoute("/ping"),
 		buildControlPlanePathRoute("/healthz"),
 		buildControlPlanePathRoute("/.pomerium"),
