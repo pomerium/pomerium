@@ -44,6 +44,21 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 	testutil.AssertProtoJSONEqual(t, `
 		[
 			{
+				"name": "pomerium-path-/robots.txt",
+				"match": {
+					"path": "/robots.txt"
+				},
+				"route": {
+					"cluster": "pomerium-control-plane-http"
+				},
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"disabled": true
+					}
+				}
+			},
+			{
 				"name": "pomerium-path-/ping",
 				"match": {
 					"path": "/ping"
