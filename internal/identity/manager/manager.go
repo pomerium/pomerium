@@ -275,7 +275,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 		return
 	}
 
-	newToken, err := mgr.authenticator.Refresh(ctx, fromOAuthToken(s.OauthToken), &s)
+	newToken, err := mgr.authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), &s)
 	if isTemporaryError(err) {
 		mgr.log.Error().Err(err).
 			Str("user_id", s.GetUserId()).
@@ -290,7 +290,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 		mgr.deleteSession(ctx, s.Session)
 		return
 	}
-	s.OauthToken = toOAuthToken(newToken)
+	s.OauthToken = ToOAuthToken(newToken)
 
 	_, err = mgr.sessionClient.Add(ctx, &session.AddRequest{Session: s.Session})
 	if err != nil {
@@ -327,7 +327,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 			continue
 		}
 
-		err := mgr.authenticator.UpdateUserInfo(ctx, fromOAuthToken(s.OauthToken), &u)
+		err := mgr.authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &u)
 		if isTemporaryError(err) {
 			mgr.log.Error().Err(err).
 				Str("user_id", s.GetUserId()).

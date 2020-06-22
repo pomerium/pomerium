@@ -236,6 +236,25 @@ func TestAuthenticate_SignOut(t *testing.T) {
 				encryptedEncoder: mock.Encoder{},
 				templates:        template.Must(frontend.NewTemplates()),
 				sharedEncoder:    mock.Encoder{},
+				dataBrokerClient: mockDataBrokerServiceClient{
+					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+						data, err := ptypes.MarshalAny(&session.Session{
+							Id: "SESSION_ID",
+						})
+						if err != nil {
+							return nil, err
+						}
+
+						return &databroker.GetResponse{
+							Record: &databroker.Record{
+								Version: "0001",
+								Type:    data.GetTypeUrl(),
+								Id:      "SESSION_ID",
+								Data:    data,
+							},
+						}, nil
+					},
+				},
 			}
 			u, _ := url.Parse("/sign_out")
 			params, _ := url.ParseQuery(u.RawQuery)
