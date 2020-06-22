@@ -38,7 +38,6 @@ In `0.9.0`:
 
 option httpchk GET /ping HTTP/1.1\r\nHost:pomerium
 ```
->>>>>>> c29807c3915b2e61d1a53dd007a8871b6494c3c6
 
 # Since 0.8.0
 
