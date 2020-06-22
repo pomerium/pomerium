@@ -94,7 +94,24 @@ https://login.microsoftonline.com/0303f438-3c5c-4190-9854-08d3eb31bd9f/v2.0/.wel
 https://login.microsoftonline.com/0303f438-3c5c-4190-9854-08d3eb31bd9f/v2.0
 ```
 
-**Configure Pomerium**
+## Service Account
+
+To use `allowed_groups` in a policy an `idp_service_account` needs to be set in the Pomerium configuration. The service account for Azure AD uses the same client ID and client secret configured above, as well as the directory (tenant) ID:
+
+![Personal Access Token](./img/azure-ids.png)
+
+
+The format of the `idp_service_account` for Azure AD is a base64-encoded JSON document:
+
+```json
+{
+  "client_id": "...",
+  "client_secret": "...",
+  "directory_id": "..."
+}
+```
+
+## Pomerium Configuration
 
 Finally, configure Pomerium with the identity provider settings retrieved in the previous steps. Your [environmental variables] should look something like:
 
