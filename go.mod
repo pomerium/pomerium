@@ -13,8 +13,6 @@ require (
 	github.com/envoyproxy/go-control-plane v0.9.5
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-chi/chi v4.1.2+incompatible
-	github.com/go-redis/redis/v7 v7.4.0
-	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
 	github.com/google/btree v1.0.0
@@ -52,7 +50,6 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80
 	github.com/uber/jaeger-client-go v2.20.1+incompatible // indirect
-	go.etcd.io/bbolt v1.3.4
 	go.opencensus.io v0.22.3
 	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
