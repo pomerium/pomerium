@@ -206,28 +206,17 @@ type Options struct {
 	ForwardAuthURLString string   `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
 	ForwardAuthURL       *url.URL `yaml:",omitempty"`
 
-	// CacheStore is the name of session cache backend to use.
-	// Options are : "bolt", "redis", and "autocache".
-	// Default is "autocache".
-	CacheStore string `mapstructure:"cache_store" yaml:"cache_store,omitempty"`
-
 	// CacheURL is the routable destination of the cache service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
+	//
+	// TODO(BDD): Deprecate and remove in 0.11.0
 	CacheURLString string   `mapstructure:"cache_service_url" yaml:"cache_service_url,omitempty"`
 	CacheURL       *url.URL `yaml:",omitempty"`
 
 	// DataBrokerURL is the routable destination of the databroker service's gRPC endpiont.
 	DataBrokerURLString string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
 	DataBrokerURL       *url.URL `yaml:",omitempty"`
-
-	// CacheStoreAddr specifies the host and port on which the cache store
-	// should connect to. e.g. (localhost:6379)
-	CacheStoreAddr string `mapstructure:"cache_store_address" yaml:"cache_store_address,omitempty"`
-	// CacheStorePassword is the password used to connect to the cache store.
-	CacheStorePassword string `mapstructure:"cache_store_password" yaml:"cache_store_password,omitempty"`
-	// CacheStorePath is the path to use for a given cache store. e.g. /etc/bolt.db
-	CacheStorePath string `mapstructure:"cache_store_path" yaml:"cache_store_path,omitempty"`
 
 	// ClientCA is the base64-encoded certificate authority to validate client mTLS certificates against.
 	ClientCA string `mapstructure:"client_ca" yaml:"client_ca,omitempty"`
@@ -270,7 +259,6 @@ var defaultOptions = Options{
 	GRPCClientDNSRoundRobin:         true,
 	GRPCServerMaxConnectionAge:      5 * time.Minute,
 	GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
-	CacheStore:                      "autocache",
 	AuthenticateCallbackPath:        "/oauth2/callback",
 	TracingSampleRate:               0.0001,
 
@@ -486,6 +474,7 @@ func (o *Options) Validate() error {
 	}
 
 	if o.DataBrokerURLString == "" {
+		log.Warn().Msg("config: cache url will be deprecated in v0.11.0")
 		o.DataBrokerURLString = o.CacheURLString
 	}
 
@@ -521,14 +510,6 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad authorize-url %s : %w", o.AuthorizeURLString, err)
 		}
 		o.AuthorizeURL = u
-	}
-
-	if o.CacheURLString != "" {
-		u, err := urlutil.ParseAndValidateURL(o.CacheURLString)
-		if err != nil {
-			return fmt.Errorf("config: bad cache service url %s : %w", o.CacheURLString, err)
-		}
-		o.CacheURL = u
 	}
 
 	if o.DataBrokerURLString != "" {
