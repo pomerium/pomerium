@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.9.2
+
+### Fixed
+- internal/envoy: fix handleLogs causes envoy hang forever @cuonglm GH-927
+
 ## v0.9.1
 
 ### Changes
