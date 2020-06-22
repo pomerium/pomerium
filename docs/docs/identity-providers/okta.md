@@ -43,7 +43,15 @@ Next, we'll create API token so that Pomerium can retrieve and establish group m
 
 ![Okta api token](./img/okta-api-token.png)
 
-Set this token in pomerium as your `IDP_SERVICE_ACCOUNT`. [Group ID](https://developer.okta.com/docs/reference/api/groups/) will be used to affirm group membership.
+The format of the `idp_service_account` for Okta is a base64-encoded JSON document containing the generated API token:
+
+```json
+{
+  "api_token": "..."
+}
+```
+
+[Group ID](https://developer.okta.com/docs/reference/api/groups/) will be used to affirm group membership.
 
 Finally, configure Pomerium with the identity provider settings retrieved in the previous steps. Your [environmental variables] should look something like this.
 
@@ -52,7 +60,7 @@ IDP_PROVIDER="okta"
 IDP_PROVIDER_URL="https://dev-108295-admin.oktapreview.com/"
 IDP_CLIENT_ID="REPLACE_ME"
 IDP_CLIENT_SECRET="REPLACE_ME"
-IDP_SERVICE_ACCOUNT="REPLACE_ME" # api token
+IDP_SERVICE_ACCOUNT="REPLACE_ME" # service account
 ```
 
 [client id]: ../../configuration/readme.md#identity-provider-client-id
