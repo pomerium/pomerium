@@ -9,6 +9,25 @@ description: >-
 
 ## Breaking
 
+### Service Accounts and `allowed_groups`
+
+With this release we now query group information asynchronously using a service account. This was already the behavior
+for Google, but for all other providers a `idp_service_account` configuration will need to be supplied. The format of
+this field varies and is specified in each identity provider's documentation.
+
+If no `idp_service_account` is supplied, the `allowed_groups` policy configuration will not work.
+
+### Cache Service
+
+The cache service now stores user and session data in-memory (rather than in a browser cookie). As a consequence running
+more than one instance of the cache service is no longer supported, and restarting the cache service will result in all
+users having to re-login.
+
+If high availability or persistence is needed, there's a new
+[databroker gRPC interface](https://github.com/pomerium/pomerium/blob/master/internal/grpc/databroker/databroker.proto)
+and `databroker_url` configuration option. For an example implementation, the in-memory database used by the cache
+service can be found here: [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/master/internal/databroker/memory).
+
 ### Identity headers
 
 With this release, pomerium will not insert identity headers (X-Pomerium-Jwt-Asserttion/X-Pomerium-Claim-*) by default. To get pre 0.9.0 behavior, you
