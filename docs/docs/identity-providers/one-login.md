@@ -28,9 +28,22 @@ Under **Token Timeout settings** set **Refresh Token** to 60 minutes (or whateve
 
 ![One Login SSO settings](./img/one-login-sso-settings.png)
 
-## Groups
+## Service Account
 
-Group membership will be fetched using a follow up HTTP API call using your `CLIENT_ID` and `CLIENT_SECRET` as credentials. A [Group's ID](https://developers.onelogin.com/openid-connect/api/user-info) will be used to affirm user group membership.
+To use `allowed_groups` in a policy an `idp_service_account` needs to be set in the Pomerium configuration. The service account for OneLogin uses a **different** client ID and client secret from the one configured above. It can be created with "Read users" access under Developers/API Credentials:
+
+![API Access](./img/one-login-api-access.png)
+
+
+The format of the `idp_service_account` for OneLogin is a base64-encoded JSON document:
+
+```json
+{
+  "client_id": "...",
+  "client_secret": "..."
+}
+```
+A [Group's ID](https://developers.onelogin.com/openid-connect/api/user-info) will be used to affirm user group membership.
 
 ## Pomerium Configuration
 
