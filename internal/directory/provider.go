@@ -59,9 +59,15 @@ func GetProvider(options *config.Options) Provider {
 			Err(err).
 			Msg("invalid service account for gitlab directory provider")
 	case google.Name:
-		if options.ServiceAccount != "" {
-			return google.New(google.WithServiceAccount(options.ServiceAccount))
+		serviceAccount, err := google.ParseServiceAccount(options.ServiceAccount)
+		if err == nil {
+			return google.New(google.WithServiceAccount(serviceAccount))
 		}
+		log.Warn().
+			Str("service", "directory").
+			Str("provider", options.Provider).
+			Err(err).
+			Msg("invalid service account for google directory provider")
 	case okta.Name:
 		providerURL, _ := url.Parse(options.ProviderURL)
 		serviceAccount, err := okta.ParseServiceAccount(options.ServiceAccount)
