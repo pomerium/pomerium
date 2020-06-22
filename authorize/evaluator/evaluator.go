@@ -146,6 +146,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	}, nil
 }
 
+// ParsedSignedJWT parses the input signature and return its payload.
 func (e *Evaluator) ParseSignedJWT(signature string) ([]byte, error) {
 	object, err := jose.ParseSigned(signature)
 	if err != nil {
@@ -154,6 +155,7 @@ func (e *Evaluator) ParseSignedJWT(signature string) ([]byte, error) {
 	return object.Verify(&(e.jwk.(*ecdsa.PrivateKey).PublicKey))
 }
 
+// SignedJWT returns the signature of given request.
 func (e *Evaluator) SignedJWT(req *Request) (string, error) {
 	signer, err := jose.NewSigner(jose.SigningKey{
 		Algorithm: jose.ES256,
