@@ -255,7 +255,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	sessionState, err := a.getSessionFromCtx(ctx)
 	if err == nil {
-		if s, _ := session.Get(ctx, a.dataBrokerClient, sessionState.ID); s != nil {
+		if s, _ := session.Get(ctx, a.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
 			if err := a.provider.Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
 				log.Warn().Err(err).Msg("failed to revoke access token")
 			}
