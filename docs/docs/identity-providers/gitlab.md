@@ -35,14 +35,31 @@ Your `Client ID` and `Client Secret` will be displayed like below:
 
 4. Set `Client ID` and `Client Secret` in Pomerium's settings.
 
+## Service Account
 
-Your configuration should look like the following example: 
+To use `allowed_groups` in a policy an `idp_service_account` needs to be set in the Pomerium configuration. The service account for Gitlab uses a personal access token generated at: [gitlab.com/profile/personal_access_tokens](https://gitlab.com/profile/personal_access_tokens) with `read_api` access:
+
+![Gitlab Personal Access Token](./img/gitlab/gitlab-personal-access-token.png)
+
+
+The format of the `idp_service_account` for Gitlab is a base64-encoded JSON document:
+
+```json
+{
+  "private_token": "..."
+}
+```
+
+## Pomerium Configuration
+
+Your configuration should look like the following example:
 
 ```bash
 authenticate_service_url: https://authenticate.localhost.pomerium.io
 idp_provider: "gitlab"
 idp_client_id: "REDACTED"   // gitlab application ID
 idp_client_secret: "REDACTED"   // gitlab application secret
+idp_service_account: "REDACTED"   // gitlab service account
 ```
 
 When a user first uses pomerium to login, they will be presented with an authorization screen similar to the following depending on the scope parameters setup:
