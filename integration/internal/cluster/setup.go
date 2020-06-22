@@ -230,7 +230,7 @@ func applyManifests(ctx context.Context, jsonsrc string) error {
 		}
 		<-ticker.C
 	}
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Minute)
 	log.Info().Msg("all deployments are ready")
 
 	return nil
