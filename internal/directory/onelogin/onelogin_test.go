@@ -151,15 +151,15 @@ func TestProvider_UserGroups(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:     "a@example.com",
+			Id:     "onelogin/a@example.com",
 			Groups: []string{"admin"},
 		},
 		{
-			Id:     "b@example.com",
+			Id:     "onelogin/b@example.com",
 			Groups: []string{"test"},
 		},
 		{
-			Id:     "c@example.com",
+			Id:     "onelogin/c@example.com",
 			Groups: []string{"user"},
 		},
 	}, users)

@@ -15,10 +15,14 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
 )
 
-var (
+// Name is the provider name.
+const Name = "azure"
+
+const (
 	defaultGraphHost = "graph.microsoft.com"
 
 	defaultLoginHost      = "login.microsoftonline.com"
@@ -122,7 +126,10 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	var users []*directory.User
 	for userID, groupIDs := range userIDToGroupIDs {
 		sort.Strings(groupIDs)
-		users = append(users, &directory.User{Id: userID, Groups: groupIDs})
+		users = append(users, &directory.User{
+			Id:     databroker.GetUserID(Name, userID),
+			Groups: groupIDs,
+		})
 	}
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].GetId() < users[j].GetId()

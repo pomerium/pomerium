@@ -89,15 +89,15 @@ func Test(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:     "user-1",
+			Id:     "azure/user-1",
 			Groups: []string{"admin"},
 		},
 		{
-			Id:     "user-2",
+			Id:     "azure/user-2",
 			Groups: []string{"test"},
 		},
 		{
-			Id:     "user-3",
+			Id:     "azure/user-3",
 			Groups: []string{"test"},
 		},
 	}, users)

@@ -14,9 +14,13 @@ import (
 	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/option"
 
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/log"
 )
+
+// Name is the provider name.
+const Name = "google"
 
 const (
 	defaultProviderURL = "https://accounts.google.com"
@@ -118,7 +122,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	for userEmail, groups := range userEmailToGroups {
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:     userEmail,
+			Id:     databroker.GetUserID(Name, userEmail),
 			Groups: groups,
 		})
 	}

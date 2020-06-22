@@ -19,6 +19,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/grpc/user"
@@ -496,7 +497,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 
 	s := &session.Session{
 		Id:        sessionState.ID,
-		UserId:    sessionState.Issuer + "/" + sessionState.Subject,
+		UserId:    databroker.GetUserID(a.providerName, sessionState.Subject),
 		ExpiresAt: sessionExpiry,
 		IdToken: &session.IDToken{
 			Issuer:    sessionState.Issuer,

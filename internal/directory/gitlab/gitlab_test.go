@@ -69,9 +69,9 @@ func Test(t *testing.T) {
 	users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "11", "groups": ["1"] },
-		{ "id": "12", "groups": ["2"] },
-		{ "id": "13", "groups": ["2"] }
+		{ "id": "gitlab/11", "groups": ["1"] },
+		{ "id": "gitlab/12", "groups": ["2"] },
+		{ "id": "gitlab/13", "groups": ["2"] }
 	]`, users)
 }
 

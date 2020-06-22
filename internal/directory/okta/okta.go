@@ -13,9 +13,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
 
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/log"
 )
+
+// Name is the provider name.
+const Name = "okta"
 
 type config struct {
 	batchSize      int
@@ -112,7 +116,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	for userEmail, groups := range userEmailToGroups {
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:     userEmail,
+			Id:     databroker.GetUserID(Name, userEmail),
 			Groups: groups,
 		})
 	}
