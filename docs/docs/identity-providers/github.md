@@ -12,7 +12,7 @@ meta:
 This document describes the use of GitHub as an identity provider for Pomerium.
 
 Before we proceed, please be aware that [GitHub API] does not support [OpenID Connect], just [OAuth 2.0].
-For this reason, it was challenging to implement revocation of a user's **Access Token** (a string representing the granted permissions) when they sign out from Pomerium's dashboard. 
+For this reason, it was challenging to implement revocation of a user's **Access Token** (a string representing the granted permissions) when they sign out from Pomerium's dashboard.
 
 In addition, the teams of the organization(s) a user belongs to, will be used as groups on Pomerium.
 
@@ -22,7 +22,7 @@ In addition, the teams of the organization(s) a user belongs to, will be used as
 
 2. Navigate to your profile using the avatar on the navigation bar.
 
-3. Go to your settings. 
+3. Go to your settings.
 
 ![GitHub settings](./img/github/github-user-profile.png)
 
@@ -41,6 +41,19 @@ Authorization callback URL  | `https://${authenticate_service_url}/oauth2/callba
 
 After the application had been created, you will have access to the credentials, the **Client ID** and **Client Secret**.
 
+## Service Account
+To use `allowed_groups` in a policy an `idp_service_account` needs to be set in the Pomerium configuration. The Service Account for GitHub should be a personal access token, which can be created at [github.com/settings/tokens/new](https://github.com/settings/tokens/new).
+
+![Personal Access Token](./img/github/github-personal-access-token.png)
+
+The format of the `idp_service_account` for GitHub is a base64-encoded JSON document:
+
+```json
+{
+  "username": "YOUR_GITHUB_USERNAME",
+  "personal_access_token": "GENERATED_GITHUB_ACCESS_TOKEN"
+}
+```
 
 ## Pomerium Configuration
 
@@ -51,6 +64,7 @@ authenticate_service_url: https://authenticate.localhost.pomerium.io
 idp_provider: "github"
 idp_client_id: "REDACTED"   // github application ID
 idp_client_secret: "REDACTED"   // github application secret
+idp_service_account: "REDACTED" // github service account (personal access token)
 ```
 
 Whenever a user tries to access  your application integrated with Pomerium, they will be presented with a sign-on page as below:
