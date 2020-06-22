@@ -71,8 +71,8 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 				},
 			},
 		}
-		orgID := chi.URLParam(r, "orgID")
-		teamID := chi.URLParam(r, "teamID")
+		orgID := chi.URLParam(r, "org_id")
+		teamID := chi.URLParam(r, "team_id")
 		json.NewEncoder(w).Encode(members[orgID][teamID])
 	})
 	return r

@@ -185,7 +185,6 @@ func (p *Provider) listTeamMembers(ctx context.Context, orgSlug, teamSlug string
 
 	for nextURL != "" {
 		var results []struct {
-			ID    int    `json:"id"`
 			Login string `json:"login"`
 		}
 		hdrs, err := p.api(ctx, "GET", nextURL, nil, &results)
