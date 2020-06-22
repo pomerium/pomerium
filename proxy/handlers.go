@@ -34,9 +34,6 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	// dashboard endpoints can be used by user's to view, or modify their session
 	h.Path("/").HandlerFunc(p.UserDashboard).Methods(http.MethodGet)
 	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
-	// admin endpoints authorization is also delegated to authorizer service
-	admin := h.PathPrefix("/admin").Subrouter()
-	admin.Path("/impersonate").Handler(httputil.HandlerFunc(p.Impersonate)).Methods(http.MethodPost)
 
 	// Authenticate service callback handlers and middleware
 	// callback used to set route-scoped session and redirect back to destination
@@ -98,23 +95,6 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 		}.Encode(),
 	})
 	httputil.Redirect(w, r, url.String(), http.StatusFound)
-}
-
-// Impersonate takes the result of a form and adds user impersonation details
-// to the user's current user sessions state if the user is currently an
-// administrative user. Requests are redirected back to the user dashboard.
-func (p *Proxy) Impersonate(w http.ResponseWriter, r *http.Request) error {
-	redirectURL := urlutil.GetAbsoluteURL(r)
-	redirectURL.Path = dashboardPath // redirect back to the dashboard
-	signinURL := *p.authenticateSigninURL
-	q := signinURL.Query()
-	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
-	q.Set(urlutil.QueryImpersonateAction, r.FormValue(urlutil.QueryImpersonateAction))
-	q.Set(urlutil.QueryImpersonateEmail, r.FormValue(urlutil.QueryImpersonateEmail))
-	q.Set(urlutil.QueryImpersonateGroups, r.FormValue(urlutil.QueryImpersonateGroups))
-	signinURL.RawQuery = q.Encode()
-	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signinURL).String(), http.StatusFound)
-	return nil
 }
 
 // Callback handles the result of a successful call to the authenticate service

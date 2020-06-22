@@ -66,57 +66,6 @@ func TestProxy_Signout(t *testing.T) {
 	}
 }
 
-func TestProxy_Impersonate(t *testing.T) {
-	t.Parallel()
-	opts := testOptions(t)
-	tests := []struct {
-		name         string
-		malformed    bool
-		options      config.Options
-		ctxError     error
-		method       string
-		email        string
-		groups       string
-		csrf         string
-		cipher       encoding.MarshalUnmarshaler
-		sessionStore sessions.SessionStore
-		authorizer   client.Authorizer
-		wantStatus   int
-	}{
-		{"good", false, opts, nil, http.MethodPost, "user@blah.com", "", "", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{}}, client.MockAuthorize{IsAdminResponse: true}, http.StatusFound},
-		{"bad session state", false, opts, errors.New("error"), http.MethodPost, "user@blah.com", "", "", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{}}, client.MockAuthorize{IsAdminResponse: true}, http.StatusFound},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(tt.options)
-			if err != nil {
-				t.Fatal(err)
-			}
-			p.encoder = tt.cipher
-			p.sessionStore = tt.sessionStore
-			postForm := url.Values{}
-			postForm.Add("email", tt.email)
-			postForm.Add("group", tt.groups)
-			postForm.Set("csrf", tt.csrf)
-			uri := &url.URL{Path: "/"}
-
-			r := httptest.NewRequest(tt.method, uri.String(), bytes.NewBufferString(postForm.Encode()))
-			state, _ := tt.sessionStore.LoadSession(r)
-			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
-			r = r.WithContext(ctx)
-
-			r.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
-			w := httptest.NewRecorder()
-			httputil.HandlerFunc(p.Impersonate).ServeHTTP(w, r)
-			if status := w.Code; status != tt.wantStatus {
-				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
-				t.Errorf("\n%+v", opts)
-			}
-		})
-	}
-}
-
 func TestProxy_SignOut(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

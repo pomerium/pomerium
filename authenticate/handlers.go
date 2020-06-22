@@ -78,6 +78,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	v.Path("/").Handler(httputil.HandlerFunc(a.Dashboard))
 	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	v.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
+	v.Path("/admin/impersonate").Handler(httputil.HandlerFunc(a.Impersonate)).Methods(http.MethodPost)
 
 	wk := r.PathPrefix("/.well-known/pomerium").Subrouter()
 	wk.Path("/jwks.json").Handler(httputil.HandlerFunc(a.jwks)).Methods(http.MethodGet)
@@ -276,6 +277,29 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	httputil.Redirect(w, r, redirectString, http.StatusFound)
 
+	return nil
+}
+
+// Impersonate takes the result of a form and adds user impersonation details
+// to the user's current user sessions state if the user is currently an
+// administrative user. Requests are redirected back to the user dashboard.
+func (a *Authenticate) Impersonate(w http.ResponseWriter, r *http.Request) error {
+	redirectURL := urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{
+		Path: "/.pomerium",
+	})
+	if u, err := url.Parse(r.FormValue(urlutil.QueryRedirectURI)); err == nil {
+		redirectURL = u
+	}
+	signinURL := urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{
+		Path: "/.pomerium/sign_in",
+	})
+	q := signinURL.Query()
+	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
+	q.Set(urlutil.QueryImpersonateAction, r.FormValue(urlutil.QueryImpersonateAction))
+	q.Set(urlutil.QueryImpersonateEmail, r.FormValue(urlutil.QueryImpersonateEmail))
+	q.Set(urlutil.QueryImpersonateGroups, r.FormValue(urlutil.QueryImpersonateGroups))
+	signinURL.RawQuery = q.Encode()
+	httputil.Redirect(w, r, urlutil.NewSignedURL(a.sharedKey, signinURL).String(), http.StatusFound)
 	return nil
 }
 
