@@ -181,6 +181,7 @@
           </div>
 
           <form method="POST" action="/.pomerium/admin/impersonate">
+            <input type="hidden" value="{{.RedirectURL}}" name="pomerium_redirect_uri">
             <section>
               <p class="message">
                 Administrators can temporarily impersonate another user.
