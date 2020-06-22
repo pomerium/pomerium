@@ -150,6 +150,7 @@ func New(opts config.Options) (*Authenticate, error) {
 			RequestTimeout:          opts.GRPCClientTimeout,
 			ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
 			WithInsecure:            opts.GRPCInsecure,
+			ServiceName:             opts.Services,
 		})
 	if err != nil {
 		return nil, err

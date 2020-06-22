@@ -13,14 +13,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/metrics"
-	"github.com/pomerium/pomerium/internal/telemetry/requestid"
-
-	"go.opencensus.io/plugin/ocgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 )
 
 const (
@@ -68,16 +67,18 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 			connAddr = net.JoinHostPort(connAddr, strconv.Itoa(defaultGRPCInsecurePort))
 		}
 	}
+
 	dialOptions := []grpc.DialOption{
 		grpc.WithChainUnaryInterceptor(
 			requestid.UnaryClientInterceptor(),
-			metrics.GRPCClientInterceptor(opts.ServiceName),
 			grpcTimeoutInterceptor(opts.RequestTimeout),
 		),
 		grpc.WithStreamInterceptor(requestid.StreamClientInterceptor()),
-		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
 		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
 	}
+
+	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.ServiceName)
+	dialOptions = clientStatsHandler.DialOptions(dialOptions...)
 
 	if opts.WithInsecure {
 		log.Info().Str("addr", connAddr).Msg("internal/grpc: grpc with insecure")
