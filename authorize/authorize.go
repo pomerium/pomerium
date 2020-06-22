@@ -79,6 +79,7 @@ func New(opts config.Options) (*Authorize, error) {
 			RequestTimeout:          opts.GRPCClientTimeout,
 			ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
 			WithInsecure:            opts.GRPCInsecure,
+			ServiceName:             opts.Services,
 		})
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error creating cache connection: %w", err)

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"go.opencensus.io/plugin/ocgrpc"
+	"google.golang.org/grpc"
 	grpcstats "google.golang.org/grpc/stats"
 
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -36,4 +37,31 @@ func NewGRPCServerStatsHandler(service string) grpcstats.Handler {
 		Handler:        &ocgrpc.ServerHandler{},
 		metricsHandler: metrics.NewGRPCServerMetricsHandler(ServiceName(service)),
 	}
+}
+
+// GRPCClientStatsHandler provides DialOptions for grpc clients to instrument network calls with
+// both metrics and tracing
+type GRPCClientStatsHandler struct {
+	UnaryInterceptor grpc.UnaryClientInterceptor
+	// TODO: we should have a streaming interceptor too
+	grpcstats.Handler
+}
+
+// NewGRPCClientStatsHandler returns a new GRPCClientStatsHandler used to create
+// telemetry related client DialOptions
+func NewGRPCClientStatsHandler(service string) *GRPCClientStatsHandler {
+	return &GRPCClientStatsHandler{
+		Handler:          &ocgrpc.ClientHandler{},
+		UnaryInterceptor: metrics.GRPCClientInterceptor(ServiceName(service)),
+	}
+}
+
+// DialOptions returns telemetry related DialOptions appended to an optional existing list
+// of DialOptions
+func (h *GRPCClientStatsHandler) DialOptions(o ...grpc.DialOption) []grpc.DialOption {
+	o = append(o,
+		grpc.WithUnaryInterceptor(h.UnaryInterceptor),
+		grpc.WithStatsHandler(h.Handler),
+	)
+	return o
 }

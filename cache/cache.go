@@ -19,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/manager"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -52,9 +53,19 @@ func New(opts config.Options) (*Cache, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// No metrics handler because we have one in the control plane.  Add one
+	// if we no longer register with that grpc Server
 	localGRPCServer := grpc.NewServer()
-	localGRPCConnection, err := grpc.DialContext(context.Background(), localListener.Addr().String(),
-		grpc.WithInsecure())
+
+	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.Services)
+	clientDialOptions := clientStatsHandler.DialOptions(grpc.WithInsecure())
+
+	localGRPCConnection, err := grpc.DialContext(
+		context.Background(),
+		localListener.Addr().String(),
+		clientDialOptions...,
+	)
 	if err != nil {
 		return nil, err
 	}
