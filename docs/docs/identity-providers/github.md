@@ -42,7 +42,7 @@ Authorization callback URL  | `https://${authenticate_service_url}/oauth2/callba
 After the application had been created, you will have access to the credentials, the **Client ID** and **Client Secret**.
 
 ## Service Account
-To use `allowed_groups` in a policy an `idp_service_account` needs to be set in the Pomerium configuration. The Service Account for GitHub should be a personal access token, which can be created at [github.com/settings/tokens/new](https://github.com/settings/tokens/new).
+To use `allowed_groups` in a policy an `idp_service_account` needs to be set in the Pomerium configuration. The Service Account for GitHub should be a personal access token with `read:org` permissions, which can be created at [github.com/settings/tokens/new](https://github.com/settings/tokens/new).
 
 ![Personal Access Token](./img/github/github-personal-access-token.png)
 
