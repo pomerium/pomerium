@@ -1014,6 +1014,18 @@ If set, enables proxying of websocket connections.
 
 **Use with caution:** By definition, websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced. Allowing websocket connections to the proxy could result in abuse via [DOS attacks](https://www.cloudflare.com/learning/ddos/ddos-attack-tools/slowloris/).
 
+### Pass Identity Headers
+
+- `yaml`/`json` setting: `pass_identity_headers`
+- Type: `bool`
+- Optional
+- Default: `false`
+
+When enabled, this option will pass the identity headers to the downstream application. These headers include:
+
+ - X-Pomerium-Jwt-Assertion
+ - X-Pomerium-Claim-*
+
 ## Authorize Service
 
 ### Authenticate Service URL

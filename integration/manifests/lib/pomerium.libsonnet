@@ -71,12 +71,14 @@ local PomeriumPolicy = function() std.flattenArrays(
         prefix: '/by-domain',
         to: 'http://' + domain + '.default.svc.cluster.local',
         allowed_domains: ['dogs.test'],
+        pass_identity_headers: false,
       },
       {
         from: 'http://' + domain + '.localhost.pomerium.io',
         prefix: '/by-user',
         to: 'http://' + domain + '.default.svc.cluster.local',
         allowed_users: ['bob@dogs.test'],
+        pass_identity_headers: true,
       },
       {
         from: 'http://' + domain + '.localhost.pomerium.io',
@@ -185,6 +187,7 @@ local PomeriumConfigMap = function() {
     CACHE_SERVICE_URL: 'https://cache.default.svc.cluster.local:5443',
     FORWARD_AUTH_URL: 'https://forward-authenticate.localhost.pomerium.io',
     HEADERS: 'X-Frame-Options:SAMEORIGIN',
+    JWT_CLAIMS_HEADERS: 'email',
 
     SHARED_SECRET: 'Wy+c0uSuIM0yGGXs82MBwTZwRiZ7Ki2T0LANnmzUtkI=',
     COOKIE_SECRET: 'eZ91a/j9fhgki9zPDU5zHdQWX4io89pJanChMVa5OoM=',

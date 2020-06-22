@@ -66,3 +66,8 @@ var HeadersXForwarded = []string{
 	HeaderRealIP,
 	HeaderSentFrom,
 }
+
+// PomeriumJWTHeaderName returns the header name set by pomerium for given JWT claim field.
+func PomeriumJWTHeaderName(claim string) string {
+	return "x-pomerium-claim-" + claim
+}

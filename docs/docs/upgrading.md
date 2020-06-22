@@ -5,6 +5,15 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.10.0
+
+## Breaking
+
+### Identity headers
+
+With this release, pomerium will not insert identity headers (X-Pomerium-Jwt-Asserttion/X-Pomerium-Claim-*) by default. To get pre 0.9.0 behavior, you
+can set `pass_identity_headers` to true on a per-policy basis.
+
 # Since 0.9.0
 
 ## Breaking
@@ -29,6 +38,7 @@ In `0.9.0`:
 
 option httpchk GET /ping HTTP/1.1\r\nHost:pomerium
 ```
+>>>>>>> c29807c3915b2e61d1a53dd007a8871b6494c3c6
 
 # Since 0.8.0
 

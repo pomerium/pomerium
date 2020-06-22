@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"testing"
@@ -432,4 +433,45 @@ func TestAttestationJWT(t *testing.T) {
 	}
 
 	assert.NotEmpty(t, result.Headers["X-Pomerium-Jwt-Assertion"], "Expected JWT assertion")
+}
+
+func TestPassIdentityHeaders(t *testing.T) {
+	ctx := mainCtx
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	tests := []struct {
+		name      string
+		path      string
+		wantExist bool
+	}{
+		{"enabled", "/by-user", true},
+		{"disabled", "/by-domain", false},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			client := testcluster.NewHTTPClient()
+			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io"+tc.path),
+				nil, flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
+			if !assert.NoError(t, err, "unexpected http error") {
+				return
+			}
+			defer res.Body.Close()
+
+			var result struct {
+				Headers map[string]string `json:"headers"`
+			}
+			err = json.NewDecoder(res.Body).Decode(&result)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			for _, header := range []string{"X-Pomerium-Jwt-Assertion", "X-Pomerium-Claim-Email"} {
+				_, exist := result.Headers[header]
+				assert.True(t, exist == tc.wantExist, fmt.Sprintf("Header %s, expected: %v, got: %v", header, tc.wantExist, exist))
+			}
+		})
+	}
 }

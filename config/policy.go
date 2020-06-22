@@ -89,6 +89,14 @@ type Policy struct {
 	//
 	// https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header
 	PreserveHostHeader bool `mapstructure:"preserve_host_header" yaml:"preserve_host_header,omitempty"`
+
+	// PassIdentityHeaders controls whether to add a user's identity headers to the downstream request.
+	// These includes:
+	//
+	//  - X-Pomerium-Jwt-Assertion
+	//  - X-Pomerium-Claim-*
+	//
+	PassIdentityHeaders bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers,omitempty"`
 }
 
 // Validate checks the validity of a policy.
