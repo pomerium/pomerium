@@ -75,7 +75,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 
 	switch {
 	case reply.Status == http.StatusOK:
-		return a.okResponse(reply, rawJWT), nil
+		return a.okResponse(reply), nil
 	case reply.Status == http.StatusUnauthorized:
 		if isForwardAuth {
 			return a.deniedResponse(in, http.StatusUnauthorized, "Unauthenticated", nil), nil
@@ -147,10 +147,10 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 	return s
 }
 
-func (a *Authorize) getEnvoyRequestHeaders(rawJWT []byte) ([]*envoy_api_v2_core.HeaderValueOption, error) {
+func (a *Authorize) getEnvoyRequestHeaders(signedJWT string) ([]*envoy_api_v2_core.HeaderValueOption, error) {
 	var hvos []*envoy_api_v2_core.HeaderValueOption
 
-	hdrs, err := getJWTClaimHeaders(a.currentOptions.Load(), a.currentEncoder.Load(), rawJWT)
+	hdrs, err := a.getJWTClaimHeaders(a.currentOptions.Load(), signedJWT)
 	if err != nil {
 		return nil, err
 	}
