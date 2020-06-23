@@ -458,6 +458,11 @@ func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) erro
 	return err
 }
 
+func (a *Authenticate) isAdmin(user string) bool {
+	_, ok := a.administrator[user]
+	return ok
+}
+
 // Dashboard renders the /.pomerium/ user dashboard.
 func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 	s, err := a.getSessionFromCtx(r.Context())
@@ -494,6 +499,7 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
 		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
 		"RedirectURL":       r.URL.Query().Get(urlutil.QueryRedirectURI),
+		"IsAdmin":           a.isAdmin(pbUser.Email),
 	}
 
 	if redirectURL, err := url.Parse(r.URL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
