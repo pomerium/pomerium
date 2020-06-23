@@ -105,6 +105,9 @@ type Authenticate struct {
 	// userClient is used to update users
 	userClient user.UserServiceClient
 
+	// administrators keeps track of administrator users.
+	administrator map[string]struct{}
+
 	jwk *jose.JSONWebKeySet
 
 	templates *template.Template
@@ -181,6 +184,10 @@ func New(opts config.Options) (*Authenticate, error) {
 		return nil, err
 	}
 
+	administrator := make(map[string]struct{}, len(opts.Administrators))
+	for _, admin := range opts.Administrators {
+		administrator[admin] = struct{}{}
+	}
 	a := &Authenticate{
 		RedirectURL: redirectURL,
 		// shared state
@@ -201,6 +208,7 @@ func New(opts config.Options) (*Authenticate, error) {
 		dataBrokerClient: dataBrokerClient,
 		sessionClient:    sessionClient,
 		userClient:       userClient,
+		administrator:    administrator,
 		jwk:              &jose.JSONWebKeySet{},
 		templates:        template.Must(frontend.NewTemplates()),
 	}
