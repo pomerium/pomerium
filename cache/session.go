@@ -10,6 +10,7 @@ import (
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 // SessionServer implements the session service interface for adding and syncing sessions.
@@ -28,6 +29,8 @@ func NewSessionServer(grpcServer *grpc.Server, dataBrokerClient databroker.DataB
 
 // Delete deletes a session from the session server.
 func (srv *SessionServer) Delete(ctx context.Context, req *session.DeleteRequest) (*emptypb.Empty, error) {
+	ctx, span := trace.StartSpan(ctx, "session.grpc.Delete")
+	defer span.End()
 	log.Info().
 		Str("service", "session").
 		Str("session_id", req.GetId()).
@@ -46,6 +49,8 @@ func (srv *SessionServer) Delete(ctx context.Context, req *session.DeleteRequest
 
 // Add adds a session to the session server.
 func (srv *SessionServer) Add(ctx context.Context, req *session.AddRequest) (*session.AddResponse, error) {
+	ctx, span := trace.StartSpan(ctx, "session.grpc.Add")
+	defer span.End()
 	log.Info().
 		Str("service", "session").
 		Str("session_id", req.GetSession().GetId()).

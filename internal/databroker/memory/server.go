@@ -17,6 +17,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 // Server implements the databroker service using an in memory database.
@@ -63,6 +64,8 @@ func New(options ...ServerOption) *Server {
 
 // Delete deletes a record from the in-memory list.
 func (srv *Server) Delete(ctx context.Context, req *databroker.DeleteRequest) (*empty.Empty, error) {
+	_, span := trace.StartSpan(ctx, "databroker.grpc.Delete")
+	defer span.End()
 	srv.log.Info().
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
@@ -77,6 +80,8 @@ func (srv *Server) Delete(ctx context.Context, req *databroker.DeleteRequest) (*
 
 // Get gets a record from the in-memory list.
 func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
+	_, span := trace.StartSpan(ctx, "databroker.grpc.Get")
+	defer span.End()
 	srv.log.Info().
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
@@ -91,6 +96,8 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 
 // GetAll gets all the records from the in-memory list.
 func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*databroker.GetAllResponse, error) {
+	_, span := trace.StartSpan(ctx, "databroker.grpc.GetAll")
+	defer span.End()
 	srv.log.Info().
 		Str("type", req.GetType()).
 		Msg("get all")
@@ -111,6 +118,8 @@ func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*
 
 // Set updates a record in the in-memory list, or adds a new one.
 func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databroker.SetResponse, error) {
+	_, span := trace.StartSpan(ctx, "databroker.grpc.Set")
+	defer span.End()
 	srv.log.Info().
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
@@ -130,6 +139,8 @@ func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databr
 
 // Sync streams updates for the given record type.
 func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBrokerService_SyncServer) error {
+	_, span := trace.StartSpan(stream.Context(), "databroker.grpc.Sync")
+	defer span.End()
 	srv.log.Info().
 		Str("type", req.GetType()).
 		Str("server_version", req.GetServerVersion()).
@@ -172,7 +183,9 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 }
 
 // GetTypes returns all the known record types.
-func (srv *Server) GetTypes(_ context.Context, _ *emptypb.Empty) (*databroker.GetTypesResponse, error) {
+func (srv *Server) GetTypes(ctx context.Context, _ *emptypb.Empty) (*databroker.GetTypesResponse, error) {
+	_, span := trace.StartSpan(ctx, "databroker.grpc.GetTypes")
+	defer span.End()
 	var recordTypes []string
 	srv.mu.RLock()
 	for recordType := range srv.byType {
@@ -188,6 +201,8 @@ func (srv *Server) GetTypes(_ context.Context, _ *emptypb.Empty) (*databroker.Ge
 
 // SyncTypes synchronizes all the known record types.
 func (srv *Server) SyncTypes(req *emptypb.Empty, stream databroker.DataBrokerService_SyncTypesServer) error {
+	_, span := trace.StartSpan(stream.Context(), "databroker.grpc.SyncTypes")
+	defer span.End()
 	srv.log.Info().
 		Msg("sync types")
 

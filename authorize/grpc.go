@@ -86,6 +86,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 }
 
 func (a *Authorize) forceSync(ctx context.Context, sessionID string) {
+	ctx, span := trace.StartSpan(ctx, "authorize.forceSync")
+	defer span.End()
 	s := a.forceSyncSession(ctx, sessionID)
 	if s == nil {
 		return
@@ -94,6 +96,9 @@ func (a *Authorize) forceSync(ctx context.Context, sessionID string) {
 }
 
 func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) *session.Session {
+	ctx, span := trace.StartSpan(ctx, "authorize.forceSyncSession")
+	defer span.End()
+
 	a.dataBrokerDataLock.RLock()
 	s, ok := a.dataBrokerData.Get(sessionTypeURL, sessionID).(*session.Session)
 	a.dataBrokerDataLock.RUnlock()
@@ -121,6 +126,9 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) *ses
 }
 
 func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User {
+	ctx, span := trace.StartSpan(ctx, "authorize.forceSyncUser")
+	defer span.End()
+
 	a.dataBrokerDataLock.RLock()
 	s, ok := a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
 	a.dataBrokerDataLock.RUnlock()
