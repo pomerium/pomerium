@@ -156,6 +156,7 @@ func TestIsAdmin(t *testing.T) {
 			opts := newTestOptions(t)
 			opts.Administrators = tc.admins
 			a, err := New(*opts)
+			assert.NoError(t, a.UpdateOptions(*opts))
 			require.NoError(t, err)
 			assert.True(t, a.isAdmin(tc.user) == tc.isAdmin)
 		})

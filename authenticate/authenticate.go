@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/url"
+	"sync"
 
 	"gopkg.in/square/go-jose.v2"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/sessions/header"
@@ -105,6 +107,8 @@ type Authenticate struct {
 	// userClient is used to update users
 	userClient user.UserServiceClient
 
+	// guard administrator below.
+	administratorMu sync.Mutex
 	// administrators keeps track of administrator users.
 	administrator map[string]struct{}
 
@@ -184,10 +188,6 @@ func New(opts config.Options) (*Authenticate, error) {
 		return nil, err
 	}
 
-	administrator := make(map[string]struct{}, len(opts.Administrators))
-	for _, admin := range opts.Administrators {
-		administrator[admin] = struct{}{}
-	}
 	a := &Authenticate{
 		RedirectURL: redirectURL,
 		// shared state
@@ -208,7 +208,6 @@ func New(opts config.Options) (*Authenticate, error) {
 		dataBrokerClient: dataBrokerClient,
 		sessionClient:    sessionClient,
 		userClient:       userClient,
-		administrator:    administrator,
 		jwk:              &jose.JSONWebKeySet{},
 		templates:        template.Must(frontend.NewTemplates()),
 	}
@@ -226,4 +225,27 @@ func New(opts config.Options) (*Authenticate, error) {
 	}
 
 	return a, nil
+}
+
+func (a *Authenticate) setAdminUsers(opts *config.Options) {
+	a.administratorMu.Lock()
+	defer a.administratorMu.Unlock()
+
+	a.administrator = make(map[string]struct{}, len(opts.Administrators))
+	for _, admin := range opts.Administrators {
+		a.administrator[admin] = struct{}{}
+	}
+}
+
+// UpdateOptions implements the OptionsUpdater interface and updates internal
+// structures based on config.Options
+func (a *Authenticate) UpdateOptions(opts config.Options) error {
+	if a == nil {
+		return nil
+	}
+
+	log.Info().Str("checksum", fmt.Sprintf("%x", opts.Checksum())).Msg("authenticate: updating options")
+	a.setAdminUsers(&opts)
+
+	return nil
 }

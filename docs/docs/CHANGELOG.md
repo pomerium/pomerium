@@ -4,13 +4,14 @@
 
 ### New
 
-- config: add remove_request_headers @cuonglm [GH-702]
+- config: add remove_request_headers @cuonglm [GH-822]
 - config: change default log level to INFO  @cuonglm [GH-902]
 - config: add pass_identity_headers @cuonglm [GH-903]
+- authenticate: allow hot reloaded admin users config @cuonglm [GH-984]
 
 ### Changes
 
-- proxy: do not set X-Pomerium-Jwt-Assertion/X-Pomerium-Claim-* headers by default [GH-903]
+- proxy: do not set X-Pomerium-Jwt-Assertion/X-Pomerium-Claim-* headers by default @cuonglm [GH-903]
 
 ## v0.9.1
 
