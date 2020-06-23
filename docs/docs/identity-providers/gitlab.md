@@ -25,9 +25,9 @@ Field        | Description
 ------------ | --------------------------------------------
 Name         | The name of your web app
 Redirect URI | `https://${authenticate_service_url}/oauth2/callback`
-Scopes       | **Must** select **openid**, **read_user** and **read_api**
+Scopes       | **Must** select the same as **[identity scopes]** option
 
-If no scopes are set, we will use the following scopes: `openid`, `read_api`, `read_user`, `profile`, `email`.
+If no scopes are set, you **must** select **openid**, **api**, **profile** and **email**.
 
 Your `Client ID` and `Client Secret` will be displayed like below:
 
@@ -67,3 +67,5 @@ When a user first uses pomerium to login, they will be presented with an authori
 ![gitlab access authorization screen](./img/gitlab/gitlab-verify-access.png)
 
 Please be aware that [Group ID](https://docs.gitlab.com/ee/api/groups.html#details-of-a-group) will be used to affirm group(s) a user belongs to.
+
+[identity scopes]: ../../configuration/readme.md#identity-provider-scopes
