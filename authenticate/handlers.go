@@ -459,6 +459,9 @@ func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) erro
 }
 
 func (a *Authenticate) isAdmin(user string) bool {
+	a.administratorMu.Lock()
+	defer a.administratorMu.Unlock()
+
 	_, ok := a.administrator[user]
 	return ok
 }

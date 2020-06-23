@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/url"
+	"sync"
 
 	"gopkg.in/square/go-jose.v2"
 
@@ -106,6 +107,8 @@ type Authenticate struct {
 	// userClient is used to update users
 	userClient user.UserServiceClient
 
+	// guard administrator below.
+	administratorMu sync.Mutex
 	// administrators keeps track of administrator users.
 	administrator map[string]struct{}
 
@@ -225,6 +228,9 @@ func New(opts config.Options) (*Authenticate, error) {
 }
 
 func (a *Authenticate) setAdminUsers(opts *config.Options) {
+	a.administratorMu.Lock()
+	defer a.administratorMu.Unlock()
+
 	a.administrator = make(map[string]struct{}, len(opts.Administrators))
 	for _, admin := range opts.Administrators {
 		a.administrator[admin] = struct{}{}
