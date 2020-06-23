@@ -20,7 +20,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/cryptutil"
-	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/grpc/user"
@@ -526,7 +525,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 
 	s := &session.Session{
 		Id:        sessionState.ID,
-		UserId:    databroker.GetUserID(a.providerName, sessionState.Subject),
+		UserId:    sessionState.UserID(a.providerName),
 		ExpiresAt: sessionExpiry,
 		IdToken: &session.IDToken{
 			Issuer:    sessionState.Issuer,

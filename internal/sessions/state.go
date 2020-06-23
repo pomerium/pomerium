@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"gopkg.in/square/go-jose.v2/jwt"
+
+	"github.com/pomerium/pomerium/internal/grpc/databroker"
 )
 
 // ErrMissingID is the error for a session state that has no ID set.
@@ -26,6 +28,9 @@ type State struct {
 	IssuedAt  *jwt.NumericDate `json:"iat,omitempty"`
 	ID        string           `json:"jti,omitempty"`
 	Version   string           `json:"ver,omitempty"`
+
+	// Azure returns OID which should be used instead of subject.
+	OID string `json:"oid,omitempty"`
 
 	// Impersonate-able fields
 	ImpersonateEmail  string   `json:"impersonate_email,omitempty"`
@@ -55,6 +60,14 @@ func (s *State) IsExpired() bool {
 // Impersonating returns if the request is impersonating.
 func (s *State) Impersonating() bool {
 	return s.ImpersonateEmail != "" || len(s.ImpersonateGroups) != 0
+}
+
+// UserID returns the corresponding user ID for a session.
+func (s *State) UserID(provider string) string {
+	if s.OID != "" {
+		return databroker.GetUserID(provider, s.OID)
+	}
+	return databroker.GetUserID(provider, s.Subject)
 }
 
 // SetImpersonation sets impersonation user and groups.
