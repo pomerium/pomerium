@@ -5,6 +5,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
+
 	backoff "github.com/cenkalti/backoff/v4"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -37,6 +39,8 @@ func (a *Authorize) Run(ctx context.Context) error {
 func (a *Authorize) runTypesSyncer(ctx context.Context, updateTypes chan<- []string) error {
 	log.Info().Msg("starting type sync")
 	return tryForever(ctx, func(backoff interface{ Reset() }) error {
+		ctx, span := trace.StartSpan(ctx, "authorize.dataBrokerClient.Sync")
+		defer span.End()
 		stream, err := a.dataBrokerClient.SyncTypes(ctx, new(emptypb.Empty))
 		if err != nil {
 			return err
@@ -89,6 +93,7 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string, updat
 	var serverVersion, recordVersion string
 
 	log.Info().Str("type_url", typeURL).Msg("starting data initial load")
+	ctx, span := trace.StartSpan(ctx, "authorize.dataBrokerClient.GetAll")
 	backoff := backoff.NewExponentialBackOff()
 	for {
 		res, err := a.dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
@@ -122,9 +127,12 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string, updat
 
 		break
 	}
+	span.End()
 
 	log.Info().Str("type_url", typeURL).Msg("starting data syncer")
 	return tryForever(ctx, func(backoff interface{ Reset() }) error {
+		ctx, span := trace.StartSpan(ctx, "authorize.dataBrokerClient.Sync")
+		defer span.End()
 		stream, err := a.dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
 			ServerVersion: serverVersion,
 			RecordVersion: recordVersion,

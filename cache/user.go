@@ -10,6 +10,7 @@ import (
 	"github.com/pomerium/pomerium/internal/grpc/databroker"
 	"github.com/pomerium/pomerium/internal/grpc/user"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 // UserServer implements the user service interface for syncing users.
@@ -28,6 +29,8 @@ func NewUserServer(grpcServer *grpc.Server, dataBrokerClient databroker.DataBrok
 
 // Add adds a user to the user server.
 func (srv *UserServer) Add(ctx context.Context, req *user.AddRequest) (*emptypb.Empty, error) {
+	ctx, span := trace.StartSpan(ctx, "user.grpc.Add")
+	defer span.End()
 	log.Info().
 		Str("service", "user").
 		Str("user_id", req.GetUser().GetId()).
