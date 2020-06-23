@@ -72,7 +72,7 @@ func Run(ctx context.Context, configFile string) error {
 	}
 
 	// add services
-	if err := setupAuthenticate(opt, controlPlane); err != nil {
+	if err := setupAuthenticate(opt, controlPlane, &optionsUpdaters); err != nil {
 		return err
 	}
 	var authorizeServer *authorize.Authorize
@@ -132,7 +132,7 @@ func Run(ctx context.Context, configFile string) error {
 	return eg.Wait()
 }
 
-func setupAuthenticate(opt *config.Options, controlPlane *controlplane.Server) error {
+func setupAuthenticate(opt *config.Options, controlPlane *controlplane.Server, optionsUpdaters *[]config.OptionsUpdater) error {
 	if !config.IsAuthenticate(opt.Services) {
 		return nil
 	}
@@ -140,6 +140,11 @@ func setupAuthenticate(opt *config.Options, controlPlane *controlplane.Server) e
 	svc, err := authenticate.New(*opt)
 	if err != nil {
 		return fmt.Errorf("error creating authenticate service: %w", err)
+	}
+	*optionsUpdaters = append(*optionsUpdaters, svc)
+	err = svc.UpdateOptions(*opt)
+	if err != nil {
+		return fmt.Errorf("error updating authenticate options: %w", err)
 	}
 	host := urlutil.StripPort(opt.GetAuthenticateURL().Host)
 	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
