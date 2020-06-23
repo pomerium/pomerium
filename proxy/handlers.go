@@ -85,6 +85,11 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signoutURL).String(), http.StatusFound)
 }
 
+func (p *Proxy) isAdmin(user string) bool {
+	_, ok := p.administrator[user]
+	return ok
+}
+
 // UserDashboard lets users investigate, and refresh their current session.
 // It also contains certain administrative actions like user impersonation.
 //
@@ -94,8 +99,10 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
 	var s sessions.State
 	if err := p.encoder.Unmarshal([]byte(jwt), &s); err != nil {
+		fmt.Println(err)
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
@@ -105,6 +112,7 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
 		"ImpersonateAction": urlutil.QueryImpersonateAction,
 		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
 		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
+		"IsAdmin":           p.isAdmin(s.Email),
 	})
 	return nil
 }

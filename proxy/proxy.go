@@ -83,6 +83,8 @@ type Proxy struct {
 	templates       *template.Template
 	jwtClaimHeaders []string
 	authzClient     envoy_service_auth_v2.AuthorizationClient
+	// administrators keeps track of administrator users.
+	administrator map[string]struct{}
 
 	currentRouter atomic.Value
 }
@@ -116,6 +118,11 @@ func New(opts config.Options) (*Proxy, error) {
 		return nil, err
 	}
 
+	administrator := make(map[string]struct{}, len(opts.Administrators))
+	for _, admin := range opts.Administrators {
+		administrator[admin] = struct{}{}
+	}
+
 	p := &Proxy{
 		SharedKey:    opts.SharedKey,
 		sharedCipher: sharedCipher,
@@ -131,6 +138,7 @@ func New(opts config.Options) (*Proxy, error) {
 			queryparam.NewStore(encoder, "pomerium_session")},
 		templates:       template.Must(frontend.NewTemplates()),
 		jwtClaimHeaders: opts.JWTClaimsHeaders,
+		administrator:   administrator,
 	}
 	p.currentRouter.Store(httputil.NewRouter())
 	// errors checked in ValidateOptions
