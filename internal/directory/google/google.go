@@ -102,14 +102,14 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 		return nil, fmt.Errorf("google: error getting groups: %w", err)
 	}
 
-	userEmailToGroups := map[string][]string{}
+	userIDToGroups := map[string][]string{}
 	for _, group := range groups {
 		group := group
 		err = apiClient.Members.List(group).
 			Context(ctx).
 			Pages(ctx, func(res *admin.Members) error {
 				for _, member := range res.Members {
-					userEmailToGroups[member.Email] = append(userEmailToGroups[member.Email], group)
+					userIDToGroups[member.Id] = append(userIDToGroups[member.Id], group)
 				}
 				return nil
 			})
@@ -119,10 +119,10 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	}
 
 	var users []*directory.User
-	for userEmail, groups := range userEmailToGroups {
+	for userID, groups := range userIDToGroups {
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:     databroker.GetUserID(Name, userEmail),
+			Id:     databroker.GetUserID(Name, userID),
 			Groups: groups,
 		})
 	}
