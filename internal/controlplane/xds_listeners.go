@@ -308,6 +308,9 @@ func buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
 							Timeout: &durationpb.Duration{
 								Seconds: 0,
 							},
+							IdleTimeout: &durationpb.Duration{
+								Seconds: 0,
+							},
 						},
 					},
 				}},
