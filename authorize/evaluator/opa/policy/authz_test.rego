@@ -7,15 +7,11 @@ test_email_allowed {
 			"allowed_users": ["x@example.com"]
 		}] with
 		input.databroker_data as {
-			"type.googleapis.com/session.Session": {
-				"session1": {
-					"user_id": "user1"
-				}
-			},
-			"type.googleapis.com/user.User": {
-				"user1": {
-					"email": "x@example.com"
-				}
+			"session": {
+                "user_id": "user1"
+            },
+			"user": {
+				"email": "x@example.com"
 			}
 		} with
 		input.http as { "url": "http://example.com" } with

@@ -4,9 +4,9 @@ default allow = false
 
 
 route := first_allowed_route(input.http.url)
-session := input.databroker_data["type.googleapis.com/session.Session"][input.session.id]
-user := input.databroker_data["type.googleapis.com/user.User"][session.user_id]
-directory_user := input.databroker_data["type.googleapis.com/directory.User"][session.user_id]
+session := input.databroker_data.session
+user := input.databroker_data.user
+directory_user := input.databroker_data.directory_user
 
 
 # allow public
