@@ -20,9 +20,9 @@ import (
 
 type M = map[string]interface{}
 
-func newMockAPI(srv *httptest.Server, userEmailToGroupName map[string]string) http.Handler {
+func newMockAPI(srv *httptest.Server, userIDToGroupName map[int]string) http.Handler {
 	lookup := map[string]struct{}{}
-	for _, group := range userEmailToGroupName {
+	for _, group := range userIDToGroupName {
 		lookup[group] = struct{}{}
 	}
 	var allGroups []string
@@ -31,11 +31,11 @@ func newMockAPI(srv *httptest.Server, userEmailToGroupName map[string]string) ht
 	}
 	sort.Strings(allGroups)
 
-	var allEmails []string
-	for email := range userEmailToGroupName {
-		allEmails = append(allEmails, email)
+	var allUserIDs []int
+	for userID := range userIDToGroupName {
+		allUserIDs = append(allUserIDs, userID)
 	}
-	sort.Strings(allEmails)
+	sort.Ints(allUserIDs)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -103,21 +103,21 @@ func newMockAPI(srv *httptest.Server, userEmailToGroupName map[string]string) ht
 			_ = json.NewEncoder(w).Encode(result)
 		})
 		r.Get("/users", func(w http.ResponseWriter, r *http.Request) {
-			userEmailToGroupID := map[string]int{}
-			for email, groupName := range userEmailToGroupName {
+			userIDToGroupID := map[int]int{}
+			for userID, groupName := range userIDToGroupName {
 				for id, n := range allGroups {
 					if groupName == n {
-						userEmailToGroupID[email] = id
+						userIDToGroupID[userID] = id
 					}
 				}
 			}
 
 			var result []M
-			for i, email := range allEmails {
+			for _, userID := range allUserIDs {
 				result = append(result, M{
-					"id":       i,
-					"email":    email,
-					"group_id": userEmailToGroupID[email],
+					"id":       userID,
+					"email":    userIDToGroupName[userID] + "@example.com",
+					"group_id": userIDToGroupID[userID],
 				})
 			}
 			_ = json.NewEncoder(w).Encode(M{
@@ -134,10 +134,10 @@ func TestProvider_UserGroups(t *testing.T) {
 		mockAPI.ServeHTTP(w, r)
 	}))
 	defer srv.Close()
-	mockAPI = newMockAPI(srv, map[string]string{
-		"a@example.com": "admin",
-		"b@example.com": "test",
-		"c@example.com": "user",
+	mockAPI = newMockAPI(srv, map[int]string{
+		111: "admin",
+		222: "test",
+		333: "user",
 	})
 
 	p := New(
@@ -151,15 +151,15 @@ func TestProvider_UserGroups(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:     "onelogin/a@example.com",
+			Id:     "onelogin/111",
 			Groups: []string{"admin"},
 		},
 		{
-			Id:     "onelogin/b@example.com",
+			Id:     "onelogin/222",
 			Groups: []string{"test"},
 		},
 		{
-			Id:     "onelogin/c@example.com",
+			Id:     "onelogin/333",
 			Groups: []string{"user"},
 		},
 	}, users)
