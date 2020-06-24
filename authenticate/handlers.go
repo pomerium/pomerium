@@ -571,7 +571,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving session: %w", err)
 	}
-	sessionState.Version = res.GetServerVersion()
+	sessionState.Version = sessions.Version(res.GetServerVersion())
 
 	return nil
 }

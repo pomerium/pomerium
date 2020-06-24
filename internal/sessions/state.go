@@ -3,6 +3,7 @@ package sessions
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -17,6 +18,34 @@ var ErrMissingID = errors.New("invalid session: missing id")
 // timeNow is time.Now but pulled out as a variable for tests.
 var timeNow = time.Now
 
+// Version represents "ver" field in JWT public claims.
+//
+// The field is not specified by RFC 7519, so providers can
+// return either string or number (like okta).
+type Version string
+
+// String implements fmt.Stringer interface.
+func (v *Version) String() string {
+	return string(*v)
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (v *Version) UnmarshalJSON(b []byte) error {
+	var tmp interface{}
+	if err := json.Unmarshal(b, &tmp); err != nil {
+		return err
+	}
+	switch val := tmp.(type) {
+	case string:
+		*v = Version(val)
+	case float64:
+		*v = Version(fmt.Sprintf("%g", val))
+	default:
+		return errors.New("invalid type for Version")
+	}
+	return nil
+}
+
 // State is our object that keeps track of a user's session state
 type State struct {
 	// Public claim values (as specified in RFC 7519).
@@ -27,7 +56,9 @@ type State struct {
 	NotBefore *jwt.NumericDate `json:"nbf,omitempty"`
 	IssuedAt  *jwt.NumericDate `json:"iat,omitempty"`
 	ID        string           `json:"jti,omitempty"`
-	Version   string           `json:"ver,omitempty"`
+
+	// "ver" field is not standard, but is supported by most providers.
+	Version Version `json:"ver,omitempty"`
 
 	// Azure returns OID which should be used instead of subject.
 	OID string `json:"oid,omitempty"`

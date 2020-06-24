@@ -48,10 +48,10 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	// only accept sessions whose databroker server versions match
 	if sessionState != nil {
 		a.dataBrokerDataLock.RLock()
-		if a.dataBrokerSessionServerVersion != sessionState.Version {
+		if a.dataBrokerSessionServerVersion != sessionState.Version.String() {
 			log.Warn().
 				Str("server_version", a.dataBrokerSessionServerVersion).
-				Str("session_version", sessionState.Version).
+				Str("session_version", sessionState.Version.String()).
 				Msg("clearing session due to invalid version")
 			sessionState = nil
 		}
