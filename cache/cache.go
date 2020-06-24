@@ -31,9 +31,10 @@ type Cache struct {
 	userServer       *UserServer
 	manager          *manager.Manager
 
-	localListener       net.Listener
-	localGRPCServer     *grpc.Server
-	localGRPCConnection *grpc.ClientConn
+	localListener                net.Listener
+	localGRPCServer              *grpc.Server
+	localGRPCConnection          *grpc.ClientConn
+	deprecatedCacheClusterDomain string //TODO: remove in v0.11
 }
 
 // New creates a new cache service.
@@ -85,9 +86,10 @@ func New(opts config.Options) (*Cache, error) {
 		userServer:       userServer,
 		manager:          manager,
 
-		localListener:       localListener,
-		localGRPCServer:     localGRPCServer,
-		localGRPCConnection: localGRPCConnection,
+		localListener:                localListener,
+		localGRPCServer:              localGRPCServer,
+		localGRPCConnection:          localGRPCConnection,
+		deprecatedCacheClusterDomain: opts.GetDataBrokerURL().Hostname(),
 	}, nil
 }
 
