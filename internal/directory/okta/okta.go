@@ -101,22 +101,22 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 		return nil, err
 	}
 
-	userEmailToGroups := map[string][]string{}
+	userIDToGroups := map[string][]string{}
 	for groupID, groupName := range groupIDToName {
-		emails, err := p.getGroupMemberEmails(ctx, groupID)
+		ids, err := p.getGroupMemberIDs(ctx, groupID)
 		if err != nil {
 			return nil, err
 		}
-		for _, email := range emails {
-			userEmailToGroups[email] = append(userEmailToGroups[email], groupName)
+		for _, id := range ids {
+			userIDToGroups[id] = append(userIDToGroups[id], groupName)
 		}
 	}
 
 	var users []*directory.User
-	for userEmail, groups := range userEmailToGroups {
+	for userID, groups := range userIDToGroups {
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:     databroker.GetUserID(Name, userEmail),
+			Id:     databroker.GetUserID(Name, userID),
 			Groups: groups,
 		})
 	}
@@ -155,7 +155,7 @@ func (p *Provider) getGroups(ctx context.Context) (map[string]string, error) {
 	return groups, nil
 }
 
-func (p *Provider) getGroupMemberEmails(ctx context.Context, groupID string) ([]string, error) {
+func (p *Provider) getGroupMemberIDs(ctx context.Context, groupID string) ([]string, error) {
 	var emails []string
 
 	usersURL := p.cfg.providerURL.ResolveReference(&url.URL{
@@ -164,10 +164,7 @@ func (p *Provider) getGroupMemberEmails(ctx context.Context, groupID string) ([]
 	}).String()
 	for usersURL != "" {
 		var out []struct {
-			ID      string `json:"id"`
-			Profile struct {
-				Email string `json:"email"`
-			} `json:"profile"`
+			ID string `json:"id"`
 		}
 		hdrs, err := p.apiGet(ctx, usersURL, &out)
 		if err != nil {
@@ -175,7 +172,7 @@ func (p *Provider) getGroupMemberEmails(ctx context.Context, groupID string) ([]
 		}
 
 		for _, el := range out {
-			emails = append(emails, el.Profile.Email)
+			emails = append(emails, el.ID)
 		}
 
 		usersURL = getNextLink(hdrs)
