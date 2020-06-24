@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -111,30 +112,31 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 		return nil, err
 	}
 
-	userEmailToGroupIDs, err := p.getUserEmailToGroupIDs(ctx, token)
+	userIDToGroupIDs, err := p.getUserIDToGroupIDs(ctx, token)
 	if err != nil {
 		return nil, err
 	}
 
-	userEmailToGroupNames := map[string][]string{}
-	for email, groupIDs := range userEmailToGroupIDs {
+	userIDToGroupNames := map[int][]string{}
+	for userID, groupIDs := range userIDToGroupIDs {
 		for _, groupID := range groupIDs {
 			if groupName, ok := groupIDToName[groupID]; ok {
-				userEmailToGroupNames[email] = append(userEmailToGroupNames[email], groupName)
+				userIDToGroupNames[userID] = append(userIDToGroupNames[userID], groupName)
 			} else {
-				userEmailToGroupNames[email] = append(userEmailToGroupNames[email], "NOGROUP")
+				userIDToGroupNames[userID] = append(userIDToGroupNames[userID], "NOGROUP")
 			}
 		}
 	}
 
 	var users []*directory.User
-	for userEmail, groups := range userEmailToGroupNames {
+	for userID, groups := range userIDToGroupNames {
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:     databroker.GetUserID(Name, userEmail),
+			Id:     databroker.GetUserID(Name, strconv.Itoa(userID)),
 			Groups: groups,
 		})
 	}
+
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].Id < users[j].Id
 	})
@@ -168,8 +170,8 @@ func (p *Provider) getGroupIDToName(ctx context.Context, token *oauth2.Token) (m
 	return groupIDToName, nil
 }
 
-func (p *Provider) getUserEmailToGroupIDs(ctx context.Context, token *oauth2.Token) (map[string][]int, error) {
-	userEmailToGroupIDs := map[string][]int{}
+func (p *Provider) getUserIDToGroupIDs(ctx context.Context, token *oauth2.Token) (map[int][]int, error) {
+	userIDToGroupIDs := map[int][]int{}
 
 	apiURL := p.cfg.apiURL.ResolveReference(&url.URL{
 		Path:     "/api/1/users",
@@ -177,8 +179,8 @@ func (p *Provider) getUserEmailToGroupIDs(ctx context.Context, token *oauth2.Tok
 	}).String()
 	for apiURL != "" {
 		var result []struct {
-			Email   string `json:"email"`
-			GroupID *int   `json:"group_id"`
+			ID      int  `json:"id"`
+			GroupID *int `json:"group_id"`
 		}
 		nextLink, err := p.apiGet(ctx, token, apiURL, &result)
 		if err != nil {
@@ -190,13 +192,13 @@ func (p *Provider) getUserEmailToGroupIDs(ctx context.Context, token *oauth2.Tok
 			if r.GroupID != nil {
 				groupID = *r.GroupID
 			}
-			userEmailToGroupIDs[r.Email] = append(userEmailToGroupIDs[r.Email], groupID)
+			userIDToGroupIDs[r.ID] = append(userIDToGroupIDs[r.ID], groupID)
 		}
 
 		apiURL = nextLink
 	}
 
-	return userEmailToGroupIDs, nil
+	return userIDToGroupIDs, nil
 }
 
 func (p *Provider) apiGet(ctx context.Context, token *oauth2.Token, uri string, out interface{}) (nextLink string, err error) {
