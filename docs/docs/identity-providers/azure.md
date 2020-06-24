@@ -121,6 +121,7 @@ IDP_PROVIDER="azure"
 IDP_PROVIDER_URL="https://login.microsoftonline.com/{REPLACE-ME-SEE-ABOVE}/v2.0"
 IDP_CLIENT_ID="REPLACE-ME"
 IDP_CLIENT_SECRET="REPLACE-ME"
+IDP_SERVICE_ACCOUNT="REPLACE-ME-SEE-ABOVE"
 ```
 
 [client id]: ../../configuration/readme.md#identity-provider-client-id

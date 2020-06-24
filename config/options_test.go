@@ -250,8 +250,8 @@ func TestOptionsFromViper(t *testing.T) {
 			false},
 		{"bad url", []byte(`{"policy":[{"from": "https://","to":"https://to.example"}]}`), nil, true},
 		{"bad policy", []byte(`{"policy":[{"allow_public_unauthenticated_access": "dog","to":"https://to.example"}]}`), nil, true},
-
 		{"bad file", []byte(`{''''}`), nil, true},
+		{"allowed_groups without idp_service_account should fail", []byte(`{"autocert_dir":"","insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example","allowed_groups": "['group1']"}]}`), nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

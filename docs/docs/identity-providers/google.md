@@ -86,7 +86,7 @@ IDP_PROVIDER="google"
 IDP_PROVIDER_URL="https://accounts.google.com"
 IDP_CLIENT_ID="yyyy.apps.googleusercontent.com"
 IDP_CLIENT_SECRET="xxxxxx"
-IDP_SERVICE_ACCOUNT="zzzz" # output of `cat service-account-key.json | base64`
+IDP_SERVICE_ACCOUNT="zzzz" # output of `base64 -i service-account-key.json`
 ```
 
 [client id]: ../../configuration/readme.md#identity-provider-client-id
