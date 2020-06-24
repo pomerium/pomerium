@@ -30,6 +30,12 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 )
 
+const (
+	sessionTypeURL       = "type.googleapis.com/session.Session"
+	userTypeURL          = "type.googleapis.com/user.User"
+	directoryUserTypeURL = "type.googleapis.com/directory.User"
+)
+
 // Evaluator specifies the interface for a policy engine.
 type Evaluator struct {
 	rego  *rego.Rego
@@ -202,15 +208,25 @@ func (e *Evaluator) SignedJWT(req *Request) (string, error) {
 }
 
 type input struct {
-	DataBrokerData           DataBrokerData `json:"databroker_data"`
-	HTTP                     RequestHTTP    `json:"http"`
-	Session                  RequestSession `json:"session"`
-	IsValidClientCertificate bool           `json:"is_valid_client_certificate"`
+	DataBrokerData           dataBrokerDataInput `json:"databroker_data"`
+	HTTP                     RequestHTTP         `json:"http"`
+	Session                  RequestSession      `json:"session"`
+	IsValidClientCertificate bool                `json:"is_valid_client_certificate"`
+}
+
+type dataBrokerDataInput struct {
+	Session       interface{} `json:"session,omitempty"`
+	User          interface{} `json:"user,omitempty"`
+	DirectoryUser interface{} `json:"directory_user,omitempty"`
 }
 
 func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input {
 	i := new(input)
-	i.DataBrokerData = req.DataBrokerData
+	i.DataBrokerData.Session = req.DataBrokerData.Get(sessionTypeURL, req.Session.ID)
+	if obj, ok := i.DataBrokerData.Session.(interface{ GetUserId() string }); ok {
+		i.DataBrokerData.User = req.DataBrokerData.Get(userTypeURL, obj.GetUserId())
+		i.DataBrokerData.DirectoryUser = req.DataBrokerData.Get(directoryUserTypeURL, obj.GetUserId())
+	}
 	i.HTTP = req.HTTP
 	i.Session = req.Session
 	i.IsValidClientCertificate = isValidClientCertificate
