@@ -74,16 +74,11 @@ Autocert requires that ports `80`/`443` be accessible from the internet in order
 - Type: `bool`
 - Optional
 
-If true, cause autocert to request a certificate with `status_request`
-extension (commonly called `Must-Staple`). This allows the TLS client
-(the browser) to fail immediately if the TLS handshake doesn't include
-OCSP stapling information. Only used when [Autocert](./#autocert) is
-true.
+If true, cause autocert to request a certificate with `status_request` extension (commonly called `Must-Staple`). This allows the TLS client (the browser) to fail immediately if the TLS handshake doesn't include OCSP stapling information. Only used when [Autocert](./#autocert) is true.
 
-NOTE: this only takes effect the next time Pomerium renews your
-certificates.
+NOTE: this only takes effect the next time Pomerium renews your certificates.
 
-See also https://tools.ietf.org/html/rfc7633 for more context.
+See also <https://tools.ietf.org/html/rfc7633> for more context.
 
 ### Autocert Directory
 
@@ -294,8 +289,7 @@ spec:
 
 #### Traefik docker-compose
 
-If the `forward_auth_url` is also handled by Traefik, you will need to configure Traefik to trust the `X-Forwarded-*`
-headers as described in [the documentation](https://docs.traefik.io/v2.2/routing/entrypoints/#forwarded-headers).
+If the `forward_auth_url` is also handled by Traefik, you will need to configure Traefik to trust the `X-Forwarded-*` headers as described in [the documentation](https://docs.traefik.io/v2.2/routing/entrypoints/#forwarded-headers).
 
 ```yml
 version: "3"
@@ -487,9 +481,7 @@ pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the
 
 #### Envoy Proxy Metrics
 
-As of `v0.9`, Pomerium uses [envoy Proxy]([https://](https://www.envoyproxy.io/) for the data plane. As such, proxy related metrics are sourced
-from envoy, and use envoy's internal [stats data model](https://www.envoyproxy.io/docs/envoy/latest/operations/stats_overview). Please see Envoy's documentation for information
-about specific metrics.
+As of `v0.9`, Pomerium uses [envoy Proxy]([https://](https://www.envoyproxy.io/) for the data plane. As such, proxy related metrics are sourced from envoy, and use envoy's internal [stats data model](https://www.envoyproxy.io/docs/envoy/latest/operations/stats_overview). Please see Envoy's documentation for information about specific metrics.
 
 All metrics coming from envoy will be labeled with `service="pomerium"` or `service="pomerium-proxy"`, depending if you're running all-in-one or distributed service mode.
 
@@ -657,6 +649,22 @@ Identity Provider Service Account is field used to configure any additional user
 - Required, depending on provider
 
 Provider URL is the base path to an identity provider's [OpenID connect discovery document](https://openid.net/specs/openid-connect-discovery-1_0.html). For example, google's URL would be `https://accounts.google.com` for [their discover document](https://accounts.google.com/.well-known/openid-configuration).
+
+### Identity Provider Request Params
+
+- Environmental Variable: `IDP_REQUEST_PARAMS`
+- Config File Key: `idp_request_params`
+- Type: map of `strings` key value pairs
+- Optional
+
+Request parameters to be added as part of a signin request using OAuth2 code flow.
+
+For more information see:
+
+- [OIDC Request Parameters](https://openid.net/specs/openid-connect-basic-1_0.html#RequestParameters)
+- [IANA OAuth Parameters](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml)
+- [Microsoft Azure Request params](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow#request-an-authorization-code) 
+- [Google Authentication URI parameters](https://developers.google.com/identity/protocols/oauth2/openid-connect)
 
 ## Proxy Service
 
@@ -1023,8 +1031,8 @@ If set, enables proxying of websocket connections.
 
 When enabled, this option will pass the identity headers to the downstream application. These headers include:
 
- - X-Pomerium-Jwt-Assertion
- - X-Pomerium-Claim-*
+- X-Pomerium-Jwt-Assertion
+- X-Pomerium-Claim-*
 
 ## Authorize Service
 

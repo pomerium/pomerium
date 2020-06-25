@@ -7,8 +7,6 @@ import (
 	"context"
 	"fmt"
 
-	"golang.org/x/oauth2"
-
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
 )
@@ -20,6 +18,9 @@ const Name = "azure"
 // account and a work or school account from Azure Active Directory (Azure AD)
 // an sign in to the application.
 const defaultProviderURL = "https://login.microsoftonline.com/common"
+
+// https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow#request-an-authorization-code
+var defaultAuthCodeOptions = map[string]string{"prompt": "select_account"}
 
 // Provider is an Azure implementation of the Authenticator interface.
 type Provider struct {
@@ -38,11 +39,11 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 		return nil, fmt.Errorf("%s: failed creating oidc provider: %w", Name, err)
 	}
 	p.Provider = genericOidc
-	return &p, nil
-}
 
-// GetSignInURL returns the sign in url with typical oauth parameters
-// https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-implicit-grant-flow
-func (p *Provider) GetSignInURL(state string) string {
-	return p.Oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account"))
+	p.AuthCodeOptions = defaultAuthCodeOptions
+	if len(o.AuthCodeOptions) != 0 {
+		p.AuthCodeOptions = o.AuthCodeOptions
+	}
+
+	return &p, nil
 }
