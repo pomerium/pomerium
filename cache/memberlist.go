@@ -70,7 +70,7 @@ func (mh *memberlistHandler) NotifyJoin(node *memberlist.Node) {
 	mh.log.Debug().Interface("node", node).Msg("node joined")
 
 	go func() {
-		if mh.memberlist != nil && len(mh.memberlist.Members()) > 1 {
+		if mh.memberlist != nil && mh.memberlist.NumMembers() > 1 {
 			mh.log.Error().Msg("detected multiple cache servers, which is not supported")
 		}
 	}()
