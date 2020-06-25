@@ -54,8 +54,8 @@ func (c *Cache) runMemberList(ctx context.Context) error {
 		return fmt.Errorf("memberlist: failed to join cluster: %w", err)
 	}
 
-	mh.log.Info().Int("joined", joined).Interface("members", mh.memberlist.Members()).Msg("joined nodes")
-	if joined > 1 {
+	mh.log.Info().Int("contacted", joined).Interface("members", mh.memberlist.Members()).Msg("contacted nodes")
+	if mh.memberlist.NumMembers() > 1 {
 		mh.log.Error().Msg("multiple cache servers not supported")
 	}
 	<-ctx.Done()
