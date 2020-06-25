@@ -3,6 +3,9 @@ authenticate:
     provider: "google"
     clientID: YOUR_CLIENT_ID
     clientSecret: YOUR_SECRET
+    # Required for group data
+    # https://www.pomerium.com/configuration/#identity-provider-service-account
+    serviceAccount: YOUR_SERVICE_ACCOUNT 
   service:
     annotations:
       cloud.google.com/app-protocols: '{"https":"HTTPS"}'

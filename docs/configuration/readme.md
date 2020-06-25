@@ -456,28 +456,28 @@ Expose a prometheus format HTTP endpoint on the specified port. Disabled by defa
 
 #### Pomerium Metrics Tracked
 
-Name                                          | Type      | Description
---------------------------------------------- | --------- | -----------------------------------------------------------------------
-grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service
-grpc_client_request_size_bytes                | Histogram | GRPC client request size by service
-grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service
-grpc_client_response_size_bytes               | Histogram | GRPC client response size by service
-grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service
-grpc_server_request_size_bytes                | Histogram | GRPC server request size by service
-grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service
-grpc_server_response_size_bytes               | Histogram | GRPC server response size by service
-http_client_request_duration_ms               | Histogram | HTTP client request duration by service
-http_client_request_size_bytes                | Histogram | HTTP client request size by service
-http_client_requests_total                    | Counter   | Total HTTP client requests made by service
-http_client_response_size_bytes               | Histogram | HTTP client response size by service
-http_server_request_duration_ms               | Histogram | HTTP server request duration by service
-http_server_request_size_bytes                | Histogram | HTTP server request size by service
-http_server_requests_total                    | Counter   | Total HTTP server requests handled by service
-http_server_response_size_bytes               | Histogram | HTTP server response size by service
-pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion
-pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service
-pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service
-pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service
+| Name                                          | Type      | Description                                                             |
+| --------------------------------------------- | --------- | ----------------------------------------------------------------------- |
+| grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service                                 |
+| grpc_client_request_size_bytes                | Histogram | GRPC client request size by service                                     |
+| grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service                              |
+| grpc_client_response_size_bytes               | Histogram | GRPC client response size by service                                    |
+| grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service                                 |
+| grpc_server_request_size_bytes                | Histogram | GRPC server request size by service                                     |
+| grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service                              |
+| grpc_server_response_size_bytes               | Histogram | GRPC server response size by service                                    |
+| http_client_request_duration_ms               | Histogram | HTTP client request duration by service                                 |
+| http_client_request_size_bytes                | Histogram | HTTP client request size by service                                     |
+| http_client_requests_total                    | Counter   | Total HTTP client requests made by service                              |
+| http_client_response_size_bytes               | Histogram | HTTP client response size by service                                    |
+| http_server_request_duration_ms               | Histogram | HTTP server request duration by service                                 |
+| http_server_request_size_bytes                | Histogram | HTTP server request size by service                                     |
+| http_server_requests_total                    | Counter   | Total HTTP server requests handled by service                           |
+| http_server_response_size_bytes               | Histogram | HTTP server response size by service                                    |
+| pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion |
+| pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service                      |
+| pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service              |
+| pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service    |
 
 #### Envoy Proxy Metrics
 
@@ -526,10 +526,10 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 #### Shared Tracing Settings
 
-Config Key          | Description                                                                          | Required
-:------------------ | :----------------------------------------------------------------------------------- | --------
-tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅
-tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌
+| Config Key          | Description                                                                          | Required |
+| :------------------ | :----------------------------------------------------------------------------------- | -------- |
+| tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅        |
+| tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌        |
 
 #### Jaeger (partial)
 
@@ -543,10 +543,10 @@ tracing_sample_rate | Percentage of requests to sample in decimal notation. Defa
 - Service dependency analysis
 - Performance / latency optimization
 
-Config Key                        | Description                                 | Required
-:-------------------------------- | :------------------------------------------ | --------
-tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅
-tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅
+| Config Key                        | Description                                 | Required |
+| :-------------------------------- | :------------------------------------------ | -------- |
+| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
+| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
 
 #### Zipkin
 
@@ -554,9 +554,9 @@ Zipkin is an open source distributed tracing system and protocol.
 
 Many tracing backends support zipkin either directly or through intermediary agents, including Jaeger. For full tracing support, we recommend using the Zipkin tracing protocol.
 
-Config Key              | Description                      | Required
-:---------------------- | :------------------------------- | --------
-tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
+| Config Key              | Description                      | Required |
+| :---------------------- | :------------------------------- | -------- |
+| tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅        |
 
 #### Example
 
@@ -637,9 +637,11 @@ Identity provider scopes correspond to access privilege scopes as defined in Sec
 - Environmental Variable: `IDP_SERVICE_ACCOUNT`
 - Config File Key: `idp_service_account`
 - Type: `string`
-- Required, depending on provider
+- Required for group based policies
 
-Identity Provider Service Account is field used to configure any additional user account or access-token that may be required for querying additional user information during authentication. For a concrete example, Google an additional service account and to make a follow-up request to query a user's group membership. For more information, refer to the [identity provider] docs to see if your provider requires this setting.
+Identity Provider Service Account is field used to configure any additional user account or access-token that may be required for querying additional user information during authentication. 
+
+**All group membership from an IdP is queried via service account.**
 
 ### Identity Provider URL
 

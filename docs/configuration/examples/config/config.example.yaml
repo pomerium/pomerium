@@ -64,6 +64,9 @@ authenticate_service_url: https://authenticate.corp.beyondperimeter.com
 
 # scope: "openid email" # generally, you want the default OIDC scopes
 
+# For Group data you must set an IDP_SERVICE_ACCOUNT
+# idp_service_account: YOUR_SERVICE_ACCOUNT
+
 # Proxied routes and per-route policies are defined in a policy block
 policy:
   - from: https://httpbin.corp.beyondperimeter.com
