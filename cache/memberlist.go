@@ -46,16 +46,30 @@ func (c *Cache) runMemberList(ctx context.Context) error {
 		return errors.New("memberlist: can't find self")
 	}
 
+	mh.log.Info().Str("cluster_url", c.deprecatedCacheClusterDomain).Msg("checking for existing cluster members")
+
+	joined, err := mh.memberlist.Join([]string{c.deprecatedCacheClusterDomain, mh.memberlist.Members()[0].Addr.String()})
+	if err != nil {
+		return fmt.Errorf("memberlist: failed to join cluster: %w", err)
+	}
+
+	mh.log.Info().Int("joined", joined).Interface("members", mh.memberlist.Members()).Msg("joined nodes")
+	if joined > 1 {
+		mh.log.Error().Msg("multiple cache servers not supported")
+	}
 	<-ctx.Done()
+	mh.memberlist.Leave()
 	return mh.memberlist.Shutdown()
 }
 
 func (mh *memberlistHandler) NotifyJoin(node *memberlist.Node) {
 	mh.log.Debug().Interface("node", node).Msg("node joined")
 
-	if mh.memberlist != nil && len(mh.memberlist.Members()) > 1 {
-		mh.log.Error().Msg("detected multiple cache servers, which is not supported")
-	}
+	go func() {
+		if mh.memberlist != nil && len(mh.memberlist.Members()) > 1 {
+			mh.log.Error().Msg("detected multiple cache servers, which is not supported")
+		}
+	}()
 }
 
 func (mh *memberlistHandler) NotifyLeave(node *memberlist.Node) {
