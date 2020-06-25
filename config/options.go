@@ -579,6 +579,16 @@ func (o *Options) Validate() error {
 		}
 	}
 
+	// if no service account was defined, there should not be any policies that
+	// assert group membership
+	if o.ServiceAccount == "" {
+		for _, p := range o.Policies {
+			if len(p.AllowedGroups) != 0 {
+				return fmt.Errorf("config: `allowed_groups` requires `idp_service_account`")
+			}
+		}
+	}
+
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 

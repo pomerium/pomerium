@@ -17,6 +17,7 @@ In this guide we'll cover how to do the following for each identity provider:
 1. Set a **[Redirect URL](https://www.oauth.com/oauth2-servers/redirect-uris/)** pointing back to Pomerium. For example, `https://${authenticate_service_url}/oauth2/callback`.
 2. Generate a **[Client ID]** and **[Client Secret]**.
 3. Configure Pomerium to use the **[Client ID]** and **[Client Secret]** keys.
+4. Configure Pomerium to synchronize directory data from your identity provider (e.g. groups membership), by setting a service account. 
 
 [client id]: ../../configuration/readme.md#identity-provider-client-id
 [client secret]: ../../configuration/readme.md#identity-provider-client-secret

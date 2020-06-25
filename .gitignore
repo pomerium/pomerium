@@ -86,3 +86,5 @@ docs/.vuepress/dist/
 .pomerium/
 
 !.pre-commit-config.yaml
+
+.service-accounts
