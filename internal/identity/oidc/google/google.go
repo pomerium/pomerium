@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	oidc "github.com/coreos/go-oidc"
-	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
@@ -23,6 +22,9 @@ const (
 )
 
 var defaultScopes = []string{oidc.ScopeOpenID, "profile", "email"}
+
+// https://developers.google.com/identity/protocols/oauth2/openid-connect#authenticationuriparameters
+var defaultAuthCodeOptions = map[string]string{"prompt": "select_account consent"}
 
 // Provider is a Google implementation of the Authenticator interface.
 type Provider struct {
@@ -45,20 +47,9 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 	}
 	p.Provider = genericOidc
 
+	p.AuthCodeOptions = defaultAuthCodeOptions
+	if len(o.AuthCodeOptions) != 0 {
+		p.AuthCodeOptions = o.AuthCodeOptions
+	}
 	return &p, nil
-}
-
-// GetSignInURL returns a URL to OAuth 2.0 provider's consent page that asks for permissions for
-// the required scopes explicitly.
-// Google requires an additional access scope for offline access which is a requirement for any
-// application that needs to access a Google API when the user is not present.
-// Support for this scope differs between OpenID Connect providers. For instance
-// Google rejects it, favoring appending "access_type=offline" as part of the
-// authorization request instead.
-// Google only provide refresh_token on the first authorization from the user. If user clears
-// cookies, re-authorization will not bring back refresh_token. A work around to this is to add
-// prompt=consent to the OAuth redirect URL and will always return a refresh_token.
-// https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess
-func (p *Provider) GetSignInURL(state string) string {
-	return p.Oauth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account consent"))
 }

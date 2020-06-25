@@ -29,4 +29,8 @@ type Options struct {
 	// ServiceAccount can be set for those providers that require additional
 	// credentials or tokens to do follow up API calls (e.g. Google)
 	ServiceAccount string
+
+	// AuthCodeOptions specifies additional key value pairs query params to add
+	// to the request flow signin url.
+	AuthCodeOptions map[string]string
 }

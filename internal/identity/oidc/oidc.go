@@ -25,6 +25,8 @@ const Name = "oidc"
 
 var defaultScopes = []string{go_oidc.ScopeOpenID, "profile", "email", "offline_access"}
 
+var defaultAuthCodeOptions = []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
+
 // Provider provides a standard, OpenID Connect implementation
 // of an authorization identity provider.
 // https://openid.net/specs/openid-connect-core-1_0.html
@@ -45,6 +47,10 @@ type Provider struct {
 	// providers that doesn't implement the revocation endpoint but a logout session.
 	// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
 	EndSessionURL string `json:"end_session_endpoint,omitempty"`
+
+	// AuthCodeOptions specifies additional key value pairs query params to add
+	// to the request flow signin url.
+	AuthCodeOptions map[string]string
 }
 
 // New creates a new instance of a generic OpenID Connect provider.
@@ -71,6 +77,10 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 		RedirectURL:  o.RedirectURL.String(),
 	}
 
+	if len(o.AuthCodeOptions) != 0 {
+		p.AuthCodeOptions = o.AuthCodeOptions
+	}
+
 	// add non-standard claims like end-session, revoke, and user info
 	if err := p.Provider.Claims(&p); err != nil {
 		return nil, fmt.Errorf("identity/oidc: could not retrieve additional claims: %w", err)
@@ -86,7 +96,11 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 // the state query parameter on your redirect callback.
 // See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
 func (p *Provider) GetSignInURL(state string) string {
-	return p.Oauth.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	opts := defaultAuthCodeOptions
+	for k, v := range p.AuthCodeOptions {
+		opts = append(opts, oauth2.SetAuthURLParam(k, v))
+	}
+	return p.Oauth.AuthCodeURL(state, opts...)
 }
 
 // Authenticate converts an authorization code returned from the identity

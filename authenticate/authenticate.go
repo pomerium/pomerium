@@ -175,13 +175,14 @@ func New(opts config.Options) (*Authenticate, error) {
 	// configure our identity provider
 	provider, err := identity.NewAuthenticator(
 		oauth.Options{
-			RedirectURL:    redirectURL,
-			ProviderName:   opts.Provider,
-			ProviderURL:    opts.ProviderURL,
-			ClientID:       opts.ClientID,
-			ClientSecret:   opts.ClientSecret,
-			Scopes:         opts.Scopes,
-			ServiceAccount: opts.ServiceAccount,
+			RedirectURL:     redirectURL,
+			ProviderName:    opts.Provider,
+			ProviderURL:     opts.ProviderURL,
+			ClientID:        opts.ClientID,
+			ClientSecret:    opts.ClientSecret,
+			Scopes:          opts.Scopes,
+			ServiceAccount:  opts.ServiceAccount,
+			AuthCodeOptions: opts.RequestParams,
 		})
 
 	if err != nil {

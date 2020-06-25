@@ -125,6 +125,13 @@ type Options struct {
 	Scopes         []string `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
 	ServiceAccount string   `mapstructure:"idp_service_account" yaml:"idp_service_account,omitempty"`
 
+	// RequestParams are custom request params added to the signin request as
+	// part of an Oauth2 code flow.
+	//
+	// https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml
+	// https://openid.net/specs/openid-connect-basic-1_0.html#RequestParameters
+	RequestParams map[string]string `mapstructure:"idp_request_params" yaml:"idp_request_params,omitempty"`
+
 	// Administrators contains a set of emails with users who have super user
 	// (sudo) access including the ability to impersonate other users' access
 	Administrators []string `mapstructure:"administrators" yaml:"administrators,omitempty"`
@@ -154,7 +161,6 @@ type Options struct {
 	// RefreshCooldown limits the rate a user can refresh her session
 	RefreshCooldown time.Duration `mapstructure:"refresh_cooldown" yaml:"refresh_cooldown,omitempty"`
 
-	//Routes                 map[string]string `mapstructure:"routes" yaml:"routes,omitempty"`
 	DefaultUpstreamTimeout time.Duration `mapstructure:"default_upstream_timeout" yaml:"default_upstream_timeout,omitempty"`
 
 	// Address/Port to bind to for prometheus metrics
