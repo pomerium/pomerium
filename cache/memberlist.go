@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	stdlog "log"
+	"strings"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/rs/zerolog"
@@ -66,8 +67,12 @@ func (mh *memberlistHandler) NotifyUpdate(node *memberlist.Node) {
 }
 
 func (mh *memberlistHandler) runLogHandler(r io.Reader) {
-	s := bufio.NewScanner(r)
-	for s.Scan() {
-		mh.log.Debug().Msg(s.Text())
+	br := bufio.NewReader(r)
+	for {
+		str, err := br.ReadString('\n')
+		if err != nil {
+			break
+		}
+		mh.log.Debug().Msg(strings.TrimSpace(str))
 	}
 }
