@@ -289,6 +289,10 @@ func buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
 	tc, _ := ptypes.MarshalAny(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "grpc_ingress",
+		// limit request first byte to last byte time
+		RequestTimeout: &durationpb.Duration{
+			Seconds: 15,
+		},
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
 			RouteConfig: buildRouteConfiguration("grpc", []*envoy_config_route_v3.VirtualHost{{
 				Name:    "grpc",
