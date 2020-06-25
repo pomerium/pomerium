@@ -3,7 +3,7 @@ package pomerium.authz
 default allow = false
 
 
-route := first_allowed_route(input.http.url)
+route_policy := first_allowed_route_policy(input.http.url)
 session := input.databroker_data.session
 user := input.databroker_data.user
 directory_user := input.databroker_data.directory_user
@@ -11,12 +11,12 @@ directory_user := input.databroker_data.directory_user
 
 # allow public
 allow {
-	data.route_policies[route].AllowPublicUnauthenticatedAccess == true
+	route_policy.AllowPublicUnauthenticatedAccess == true
 }
 
 # allow cors preflight
 allow {
-	data.route_policies[route].CORSAllowPreflight == true
+	route_policy.CORSAllowPreflight == true
 	input.http.method == "OPTIONS"
 	count(object.get(input.http.headers, "Access-Control-Request-Method", [])) > 0
 	count(object.get(input.http.headers, "Origin", [])) > 0
@@ -24,38 +24,38 @@ allow {
 
 # allow by email
 allow {
-	user.email == data.route_policies[route].allowed_users[_]
+	user.email == route_policy.allowed_users[_]
 }
 
 # allow group
 allow {
 	some group
 	directory_user.groups[_] = group
-	data.route_policies[route].allowed_groups[_] = group
+	route_policy.allowed_groups[_] = group
 }
 
 # allow by impersonate email
 allow {
-	data.route_policies[route].allowed_users[_] = input.session.impersonate_email
+	route_policy.allowed_users[_] = input.session.impersonate_email
 }
 
 # allow by impersonate group
 allow {
 	some group
 	input.session.impersonate_groups[_] = group
-	data.route_policies[route].allowed_groups[_] = group
+	route_policy.allowed_groups[_] = group
 }
 
 # allow by domain
 allow {
 	some domain
-	email_in_domain(user.email, data.route_policies[route].allowed_domains[domain])
+	email_in_domain(user.email, route_policy.allowed_domains[domain])
 }
 
 # allow by impersonate domain
 allow {
 	some domain
-	email_in_domain(input.session.impersonate_email, data.route_policies[route].allowed_domains[domain])
+	email_in_domain(input.session.impersonate_email, route_policy.allowed_domains[domain])
 }
 
 # allow pomerium urls
@@ -84,8 +84,8 @@ deny[reason] {
 }
 
 # returns the first matching route
-first_allowed_route(input_url) = route {
-	route := [route | some route ; allowed_route(input.http.url, data.route_policies[route])][0]
+first_allowed_route_policy(input_url) = first_policy {
+	first_policy := [policy | some i, policy; policy = data.route_policies[i]; allowed_route(input.http.url, policy)][0]
 }
 
 allowed_route(input_url, policy){
