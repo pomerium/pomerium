@@ -8,6 +8,7 @@ import (
 	"io"
 	stdlog "log"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/rs/zerolog"
@@ -58,7 +59,10 @@ func (c *Cache) runMemberList(ctx context.Context) error {
 		mh.log.Error().Msg("multiple cache servers not supported")
 	}
 	<-ctx.Done()
-	mh.memberlist.Leave()
+	err = mh.memberlist.Leave(1 * time.Second)
+	if err != nil {
+		mh.log.Error().Err(err).Msg("failed to leave cluster")
+	}
 	return mh.memberlist.Shutdown()
 }
 
