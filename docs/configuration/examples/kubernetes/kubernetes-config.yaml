@@ -13,6 +13,9 @@ override_certificate_name: "*.corp.beyondperimeter.com"
 idp_provider: google
 idp_client_id: REPLACE_ME.apps.googleusercontent.com
 idp_client_secret: "REPLACE_ME"
+# Required for group data
+# https://www.pomerium.com/configuration/#identity-provider-service-account
+idp_service_account: YOUR_SERVICE_ACCOUNT
 
 policy:
   - from: https://httpbin.corp.beyondperimeter.com
