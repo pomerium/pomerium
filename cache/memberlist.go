@@ -8,6 +8,7 @@ import (
 	"io"
 	stdlog "log"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/rs/zerolog"
@@ -53,12 +54,15 @@ func (c *Cache) runMemberList(ctx context.Context) error {
 		return fmt.Errorf("memberlist: failed to join cluster: %w", err)
 	}
 
-	mh.log.Info().Int("joined", joined).Interface("members", mh.memberlist.Members()).Msg("joined nodes")
-	if joined > 1 {
+	mh.log.Info().Int("contacted", joined).Interface("members", mh.memberlist.Members()).Msg("contacted nodes")
+	if mh.memberlist.NumMembers() > 1 {
 		mh.log.Error().Msg("multiple cache servers not supported")
 	}
 	<-ctx.Done()
-	mh.memberlist.Leave()
+	err = mh.memberlist.Leave(1 * time.Second)
+	if err != nil {
+		mh.log.Error().Err(err).Msg("failed to leave cluster")
+	}
 	return mh.memberlist.Shutdown()
 }
 
@@ -66,7 +70,7 @@ func (mh *memberlistHandler) NotifyJoin(node *memberlist.Node) {
 	mh.log.Debug().Interface("node", node).Msg("node joined")
 
 	go func() {
-		if mh.memberlist != nil && len(mh.memberlist.Members()) > 1 {
+		if mh.memberlist != nil && mh.memberlist.NumMembers() > 1 {
 			mh.log.Error().Msg("detected multiple cache servers, which is not supported")
 		}
 	}()
