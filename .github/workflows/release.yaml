@@ -38,11 +38,11 @@ jobs:
       - name: Find latest tag
         id: latestTag
         run: |
-          LATEST_TAG=$(git tag | sort --version-sort | tail -1)
+          LATEST_TAG=$(git tag | grep -v 'rc' | sort --version-sort | tail -1)
           echo "::set-env name=LATEST_TAG::$LATEST_TAG"
 
       - name: Publish latest tag
-        if: "env.LATEST_TAG == steps.tagName.outputs.tag AND !contains(steps.tagName.outputs.tag, 'rc')"
+        if: "env.LATEST_TAG == steps.tagName.outputs.tag"
         run: |
           docker tag pomerium/pomerium:${{ env.LATEST_TAG }} pomerium/pomerium:latest
           docker push pomerium/pomerium:latest
