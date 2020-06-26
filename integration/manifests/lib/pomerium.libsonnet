@@ -201,6 +201,7 @@ local PomeriumConfigMap = function() {
     IDP_PROVIDER_URL: 'https://openid.localhost.pomerium.io',
     IDP_CLIENT_ID: 'pomerium-authenticate',
     IDP_CLIENT_SECRET: 'pomerium-authenticate-secret',
+    IDP_SERVICE_ACCOUNT: 'pomerium-service-account',
 
     POLICY: std.base64(std.manifestYamlDoc(PomeriumPolicy())),
   },
