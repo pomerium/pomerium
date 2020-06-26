@@ -18,3 +18,4 @@ repos:
         entry: make
         args: ["lint"]
         types: ["go"]
+        pass_filenames: false

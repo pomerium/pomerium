@@ -12,8 +12,8 @@ import (
 	"github.com/pomerium/pomerium/internal/directory/google"
 	"github.com/pomerium/pomerium/internal/directory/okta"
 	"github.com/pomerium/pomerium/internal/directory/onelogin"
-	"github.com/pomerium/pomerium/internal/grpc/directory"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
 // A User is a directory User.

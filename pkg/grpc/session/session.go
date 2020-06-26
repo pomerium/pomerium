@@ -6,7 +6,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 
-	"github.com/pomerium/pomerium/internal/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 // Get gets a session from the databroker.

@@ -639,7 +639,7 @@ Identity provider scopes correspond to access privilege scopes as defined in Sec
 - Type: `string`
 - Required for group based policies
 
-Identity Provider Service Account is field used to configure any additional user account or access-token that may be required for querying additional user information during authentication. 
+Identity Provider Service Account is field used to configure any additional user account or access-token that may be required for querying additional user information during authentication.
 
 **All group membership from an IdP is queried via service account.**
 
@@ -665,7 +665,7 @@ For more information see:
 
 - [OIDC Request Parameters](https://openid.net/specs/openid-connect-basic-1_0.html#RequestParameters)
 - [IANA OAuth Parameters](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml)
-- [Microsoft Azure Request params](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow#request-an-authorization-code) 
+- [Microsoft Azure Request params](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow#request-an-authorization-code)
 - [Google Authentication URI parameters](https://developers.google.com/identity/protocols/oauth2/openid-connect)
 
 ## Proxy Service
@@ -796,11 +796,11 @@ The data broker service URL points to a data broker which is responsible for sto
 
 To create your own data broker, implement the following gRPC interface:
 
-- [internal/grpc/databroker/databroker.proto](https://github.com/pomerium/pomerium/blob/master/internal/grpc/databroker/databroker.proto)
+- [pkg/grpc/databroker/databroker.proto](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
 
 For an example implementation, the in-memory database used by the cache service can be found here:
 
-- [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/master/internal/databroker/memory)
+- [pkg/databroker/memory](https://github.com/pomerium/pomerium/tree/master/pkg/databroker/memory)
 
 ## Policy
 

@@ -24,7 +24,7 @@ more than one instance of the cache service is no longer supported, and restarti
 users having to re-login.
 
 If high availability or persistence is needed, there's a new
-[databroker gRPC interface](https://github.com/pomerium/pomerium/blob/master/internal/grpc/databroker/databroker.proto)
+[databroker gRPC interface](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
 and `databroker_url` configuration option. For an example implementation, the in-memory database used by the cache
 service can be found here: [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/master/internal/databroker/memory).
 

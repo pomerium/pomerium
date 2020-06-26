@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/tomnomnom/linkheader"
 
-	"github.com/pomerium/pomerium/internal/grpc/directory"
+	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
 type M = map[string]interface{}
