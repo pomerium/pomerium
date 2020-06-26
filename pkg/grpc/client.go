@@ -74,13 +74,12 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 			grpcTimeoutInterceptor(opts.RequestTimeout),
 		),
 		grpc.WithStreamInterceptor(requestid.StreamClientInterceptor()),
-		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(false)}...),
+		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
 	}
 
 	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.ServiceName)
 	dialOptions = clientStatsHandler.DialOptions(dialOptions...)
 
-	log.Info().Str("addr", connAddr).Msg("<<<ADDR>>>")
 	if opts.WithInsecure {
 		log.Info().Str("addr", connAddr).Msg("internal/grpc: grpc with insecure")
 		dialOptions = append(dialOptions, grpc.WithInsecure())
