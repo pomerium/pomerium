@@ -12,6 +12,8 @@ spec:
     - route:
         - destination:
             host: pomerium-proxy
+            port:
+              number: 80
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -27,4 +29,6 @@ spec:
     - route:
         - destination:
             host: pomerium-authenticate
+            port:
+              number: 80
 ---
