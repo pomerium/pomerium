@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/pomerium/pomerium/internal/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 type byIDRecord struct {

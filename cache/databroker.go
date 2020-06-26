@@ -4,7 +4,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/databroker/memory"
-	"github.com/pomerium/pomerium/internal/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 // A DataBrokerServer implements the data broker service interface.

@@ -8,8 +8,8 @@ import (
 	"github.com/google/btree"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/pomerium/pomerium/internal/grpc/session"
-	"github.com/pomerium/pomerium/internal/grpc/user"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 // A User is a user managed by the Manager.

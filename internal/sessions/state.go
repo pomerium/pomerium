@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/square/go-jose.v2/jwt"
 
-	"github.com/pomerium/pomerium/internal/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 // ErrMissingID is the error for a session state that has no ID set.

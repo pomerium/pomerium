@@ -19,8 +19,6 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/frontend"
-	"github.com/pomerium/pomerium/internal/grpc/databroker"
-	"github.com/pomerium/pomerium/internal/grpc/session"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
@@ -28,6 +26,8 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/ptypes"

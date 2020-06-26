@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/pomerium/pomerium/internal/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func toAny(value interface{}) (*anypb.Any, error) {
