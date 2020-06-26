@@ -36,7 +36,6 @@ _testmain.go
 
 # Other dirs
 /bin/
-/pkg/
 
 # Without this, the *.[568vq] above ignores this folder.
 !**/graphrbac/1.6

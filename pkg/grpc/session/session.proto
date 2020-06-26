@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package session;
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/session";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+message IDToken {
+  string issuer = 1;
+  string subject = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  google.protobuf.Timestamp issued_at = 4;
+}
+
+message OAuthToken {
+  string access_token = 1;
+  string token_type = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  string refresh_token = 4;
+}
+
+message Session {
+  string version = 1;
+  string id = 2;
+  string user_id = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  google.protobuf.Timestamp deleted_at = 5;
+  IDToken id_token = 6;
+  OAuthToken oauth_token = 7;
+  map<string, google.protobuf.Any> claims = 8;
+}
+
+message AddRequest { Session session = 1; }
+message AddResponse {
+  Session session = 1;
+  string server_version = 2;
+}
+
+message DeleteRequest { string id = 1; }
+
+service SessionService {
+  rpc Add(AddRequest) returns (AddResponse);
+  rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
+}

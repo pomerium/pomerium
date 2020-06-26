@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package databroker;
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+message Record {
+  string version = 1;
+  string type = 2;
+  string id = 3;
+  google.protobuf.Any data = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp modified_at = 6;
+  google.protobuf.Timestamp deleted_at = 7;
+}
+
+message DeleteRequest {
+  string type = 1;
+  string id = 2;
+}
+
+message GetRequest {
+  string type = 1;
+  string id = 2;
+}
+message GetResponse { Record record = 1; }
+
+message GetAllRequest { string type = 1; }
+message GetAllResponse {
+  repeated Record records = 1;
+  string server_version = 2;
+  string record_version = 3;
+}
+
+message SetRequest {
+  string type = 1;
+  string id = 2;
+  google.protobuf.Any data = 3;
+}
+message SetResponse {
+  Record record = 1;
+  string server_version = 2;
+}
+
+message SyncRequest {
+  string server_version = 1;
+  string record_version = 2;
+  string type = 3;
+}
+message SyncResponse {
+  string server_version = 1;
+  repeated Record records = 2;
+}
+
+message GetTypesResponse { repeated string types = 1; }
+
+service DataBrokerService {
+  rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc GetAll(GetAllRequest) returns (GetAllResponse);
+  rpc Set(SetRequest) returns (SetResponse);
+  rpc Sync(SyncRequest) returns (stream SyncResponse);
+
+  rpc GetTypes(google.protobuf.Empty) returns (GetTypesResponse);
+  rpc SyncTypes(google.protobuf.Empty) returns (stream GetTypesResponse);
+}
