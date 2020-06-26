@@ -7,7 +7,6 @@ import (
 	"time"
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
-	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
@@ -18,6 +17,11 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
+
+type authorizeResponse struct {
+	authorized bool
+	statusCode int
+}
 
 // AuthenticateSession is middleware to enforce a valid authentication
 // session state is retrieved from the users's request context.
@@ -46,10 +50,15 @@ func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (bool, bool, error) {
+func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorizeResponse, error) {
+	response := authorizeResponse{
+		authorized: false,
+		statusCode: http.StatusInternalServerError,
+	}
+
 	tm, err := ptypes.TimestampProto(time.Now())
 	if err != nil {
-		return false, false, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error creating protobuf timestamp from current time: %w", err))
+		return &response, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error creating protobuf timestamp from current time: %w", err))
 	}
 
 	httpAttrs := &envoy_service_auth_v2.AttributeContext_HttpRequest{
@@ -77,7 +86,7 @@ func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (bool, bool
 		},
 	})
 	if err != nil {
-		return false, false, httputil.NewError(http.StatusInternalServerError, err)
+		return &response, httputil.NewError(http.StatusInternalServerError, err)
 	}
 
 	switch res.HttpResponse.(type) {
@@ -85,11 +94,14 @@ func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (bool, bool
 		for _, hdr := range res.GetOkResponse().GetHeaders() {
 			w.Header().Set(hdr.GetHeader().GetKey(), hdr.GetHeader().GetValue())
 		}
-		return true, false, nil
+		response.authorized = true
+		response.statusCode = http.StatusOK
+		return &response, nil
 	default:
 		res := res.GetDeniedResponse()
+		response.statusCode = int(res.GetStatus().GetCode())
 
-		return false, res.GetStatus().GetCode() == envoy_type.StatusCode_Unauthorized, nil
+		return &response, nil
 	}
 }
 
