@@ -252,6 +252,7 @@ type (
 	RequestHTTP struct {
 		Method            string            `json:"method"`
 		URL               string            `json:"url"`
+		Path              string            `json:"path"`
 		Headers           map[string]string `json:"headers"`
 		ClientCertificate string            `json:"client_certificate"`
 	}

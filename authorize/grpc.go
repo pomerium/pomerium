@@ -214,6 +214,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v
 		HTTP: evaluator.RequestHTTP{
 			Method:            in.GetAttributes().GetRequest().GetHttp().GetMethod(),
 			URL:               requestURL.String(),
+			Path:              requestURL.Path,
 			Headers:           getCheckRequestHeaders(in),
 			ClientCertificate: getPeerCertificate(in),
 		},

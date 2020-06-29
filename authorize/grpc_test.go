@@ -67,6 +67,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 		HTTP: evaluator.RequestHTTP{
 			Method: "GET",
 			URL:    "https://example.com/some/path?qs=1",
+			Path:   "/some/path",
 			Headers: map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",

@@ -60,21 +60,21 @@ allow {
 
 # allow pomerium urls
 allow {
-	contains(input.http.url, "/.pomerium/")
-	not contains(input.http.url, "/.pomerium/admin")
+	startswith(input.http.path, "/.pomerium")
+	not startswith(input.http.path, "/.pomerium/admin")
 }
 
 # allow user is admin
 allow {
 	element_in_list(data.admins, input.user.email)
-	contains(input.http.url, ".pomerium/admin")
+	startswith(input.http.path, "/.pomerium/admin")
 }
 
 # deny non-admin users from accesing admin routes
 deny[reason] {
 	reason = [403, "user is not admin"]
 	not element_in_list(data.admins, user.email)
-	contains(input.http.url,".pomerium/admin")
+	startswith(input.http.path,"/.pomerium/admin")
 }
 
 deny[reason] {

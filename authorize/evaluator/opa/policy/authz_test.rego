@@ -78,7 +78,7 @@ test_pomerium_allowed {
 			"source": "example.com",
 			"allowed_users": ["bob@example.com"]
 		}] with
-		input.http as { "url": "http://example.com/.pomerium/" }
+		input.http as { "url": "http://example.com/.pomerium/", "path": "/.pomerium/" }
 }
 test_pomerium_denied {
 	not allow with

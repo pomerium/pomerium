@@ -38,6 +38,7 @@ func TestJSONMarshal(t *testing.T) {
 		HTTP: RequestHTTP{
 			Method: "GET",
 			URL:    "https://example.com",
+			Path:   "/",
 			Headers: map[string]string{
 				"Accept": "application/json",
 			},
@@ -58,7 +59,8 @@ func TestJSONMarshal(t *testing.T) {
 				"Accept": "application/json"
 			},
 			"method": "GET",
-			"url": "https://example.com"
+			"url": "https://example.com",
+			"path": "/"
 		},
 		"session": {
 			"id": "SESSION_ID",
