@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/pomerium/pomerium/internal/log"
-
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/rakyll/statik/fs"
 
 	_ "github.com/pomerium/pomerium/authorize/evaluator/opa/policy" // load static assets
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 var isValidClientCertificateCache, _ = lru.New2Q(100)
