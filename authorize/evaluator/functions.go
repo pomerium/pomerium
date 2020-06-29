@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/pomerium/pomerium/internal/log"
+
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/rakyll/statik/fs"
 
@@ -46,9 +48,13 @@ func isValidClientCertificate(ca, cert string) (bool, error) {
 	})
 	valid := verifyErr == nil
 
+	if verifyErr != nil {
+		log.Debug().Err(verifyErr).Msg("client certificate failed verification: %w")
+	}
+
 	isValidClientCertificateCache.Add(cacheKey, valid)
 
-	return valid, verifyErr
+	return valid, nil
 }
 
 func parseCertificate(pemStr string) (*x509.Certificate, error) {
