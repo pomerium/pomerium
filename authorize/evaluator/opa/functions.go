@@ -7,7 +7,6 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 
-	_ "github.com/pomerium/pomerium/authorize/evaluator/opa/policy" // load static assets
 	"github.com/pomerium/pomerium/internal/log"
 )
 
