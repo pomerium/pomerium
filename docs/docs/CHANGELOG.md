@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.9.3
+
+### Fixed
+- authorize/evaluator/opa: set client tls cert usage explicitly @travisgroth GH-1026
+
 ## v0.9.2
 
 ### Fixed
