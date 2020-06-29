@@ -10,6 +10,7 @@ import (
 	"github.com/rakyll/statik/fs"
 
 	_ "github.com/pomerium/pomerium/authorize/evaluator/opa/policy" // load static assets
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 var isValidClientCertificateCache, _ = lru.New2Q(100)
@@ -41,9 +42,14 @@ func isValidClientCertificate(ca, cert string) (bool, error) {
 	}
 
 	_, verifyErr := xcert.Verify(x509.VerifyOptions{
-		Roots: roots,
+		Roots:     roots,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	})
 	valid := verifyErr == nil
+
+	if verifyErr != nil {
+		log.Debug().Err(verifyErr).Msg("client certificate failed verification: %w")
+	}
 
 	isValidClientCertificateCache.Add(cacheKey, valid)
 
