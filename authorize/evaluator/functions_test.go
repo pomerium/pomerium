@@ -111,7 +111,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 	})
 	t.Run("unsigned cert", func(t *testing.T) {
 		valid, err := isValidClientCertificate(testCA, testUnsignedCert)
-		assert.NoError(t, err, "should not return an error")
+		assert.Error(t, err, "should return an error")
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("not a cert", func(t *testing.T) {

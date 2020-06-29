@@ -41,13 +41,14 @@ func isValidClientCertificate(ca, cert string) (bool, error) {
 	}
 
 	_, verifyErr := xcert.Verify(x509.VerifyOptions{
-		Roots: roots,
+		Roots:     roots,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	})
 	valid := verifyErr == nil
 
 	isValidClientCertificateCache.Add(cacheKey, valid)
 
-	return valid, nil
+	return valid, verifyErr
 }
 
 func parseCertificate(pemStr string) (*x509.Certificate, error) {
