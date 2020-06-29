@@ -312,7 +312,8 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 				"randomSampling": {
 					"value": 0.01
 				}
-			}
+			},
+			"useRemoteAddress": true
 		}
 	}`, filter)
 }
