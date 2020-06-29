@@ -224,6 +224,9 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		Tracing: &envoy_http_connection_manager.HttpConnectionManager_Tracing{
 			RandomSampling: &envoy_type_v3.Percent{Value: options.TracingSampleRate * 100},
 		},
+		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
+		UseRemoteAddress: &wrappers.BoolValue{Value: true},
+		SkipXffAppend:    false,
 	})
 
 	return &envoy_config_listener_v3.Filter{
