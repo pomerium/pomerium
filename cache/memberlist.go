@@ -69,11 +69,11 @@ func (c *Cache) runMemberList(ctx context.Context) error {
 func (mh *memberlistHandler) NotifyJoin(node *memberlist.Node) {
 	mh.log.Debug().Interface("node", node).Msg("node joined")
 
-	go func() {
-		if mh.memberlist != nil && mh.memberlist.NumMembers() > 1 {
+	go func(memberListNotNil bool) {
+		if memberListNotNil && mh.memberlist.NumMembers() > 1 {
 			mh.log.Error().Msg("detected multiple cache servers, which is not supported")
 		}
-	}()
+	}(mh.memberlist != nil)
 }
 
 func (mh *memberlistHandler) NotifyLeave(node *memberlist.Node) {
