@@ -58,6 +58,14 @@ In `0.9.0`:
 option httpchk GET /ping HTTP/1.1\r\nHost:pomerium
 ```
 
+### preserve_host_header option
+
+With this release, Pomerium uses an embedded envoy proxy instead hand-written one. Thus, we defer the preserve host header
+functionality to [envoy's auto_host_rewrite](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#envoy-v3-api-field-config-route-v3-routeaction-auto-host-rewrite),
+which does not affect if the policy routes to a static IP.
+
+To preserve 0.8.x behavior, you can use the `set_request_headers` option to explicitly set the Host header.
+
 # Since 0.8.0
 
 ## Breaking
