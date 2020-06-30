@@ -20,8 +20,8 @@ func NewRandomToken() (tok Token) {
 
 // TokenFromString parses a base58-encoded string into a token.
 func TokenFromString(rawstr string) (tok Token, ok bool) {
-	result, _, err := base58.CheckDecode(rawstr)
-	if err != nil || len(result) != TokenLength {
+	result := base58.Decode(rawstr)
+	if len(result) != TokenLength {
 		return tok, false
 	}
 	copy(tok[:], result[:TokenLength])
@@ -50,8 +50,8 @@ type SecretToken struct {
 
 // SecretTokenFromString parses a base58-encoded string into a secret token.
 func SecretTokenFromString(rawstr string) (tok SecretToken, ok bool) {
-	result, _, err := base58.CheckDecode(rawstr)
-	if err != nil || len(result) != TokenLength*2 {
+	result := base58.Decode(rawstr)
+	if len(result) != TokenLength*2 {
 		return tok, false
 	}
 	copy(tok.ID[:], result[:TokenLength])
