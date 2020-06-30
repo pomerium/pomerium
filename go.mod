@@ -59,7 +59,7 @@ require (
 	google.golang.org/api v0.28.0
 	google.golang.org/genproto v0.0.0-20200626011028-ee7919e894b5
 	google.golang.org/grpc v1.30.0
-	google.golang.org/protobuf v1.24.0
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
 	gopkg.in/square/go-jose.v2 v2.5.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
