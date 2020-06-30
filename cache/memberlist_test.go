@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 func TestCache_runMemberList(t *testing.T) {

@@ -14,7 +14,6 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
@@ -26,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 

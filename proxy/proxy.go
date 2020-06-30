@@ -18,7 +18,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
@@ -30,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/queryparam"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 )
 

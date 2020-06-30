@@ -9,11 +9,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pomerium/csrf"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // registerDashboardHandlers returns the proxy service's ServeMux

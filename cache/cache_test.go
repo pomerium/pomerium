@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 func TestNew(t *testing.T) {
