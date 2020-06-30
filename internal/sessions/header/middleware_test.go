@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding/ecjson"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 
 	"github.com/google/go-cmp/cmp"
 	"gopkg.in/square/go-jose.v2/jwt"

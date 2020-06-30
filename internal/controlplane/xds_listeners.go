@@ -20,8 +20,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 var disableExtAuthz *any.Any

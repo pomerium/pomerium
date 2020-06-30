@@ -12,8 +12,8 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"github.com/mitchellh/hashstructure"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // Policy contains route specific configuration and access settings.

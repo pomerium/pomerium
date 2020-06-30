@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"

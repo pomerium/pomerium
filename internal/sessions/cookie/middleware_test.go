@@ -13,8 +13,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"gopkg.in/square/go-jose.v2/jwt"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding/ecjson"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 func testAuthorizer(next http.Handler) http.Handler {

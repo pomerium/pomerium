@@ -12,10 +12,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"gopkg.in/square/go-jose.v2/jwt"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/mock"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 func TestNewContext(t *testing.T) {

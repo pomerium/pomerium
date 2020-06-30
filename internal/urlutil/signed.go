@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // SignedURL is a shared-key HMAC wrapped URL.

@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/pomerium/pomerium/internal/cryptutil"
 	"github.com/pomerium/pomerium/internal/encoding"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // EncryptedCompressedJSON implements SecureEncoder for JSON using an AEAD cipher.
