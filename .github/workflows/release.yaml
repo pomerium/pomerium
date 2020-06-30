@@ -38,7 +38,7 @@ jobs:
       - name: Find latest tag
         id: latestTag
         run: |
-          LATEST_TAG=$(git tag | sort --version-sort | tail -1)
+          LATEST_TAG=$(git tag | grep -vi 'rc' | sort --version-sort | tail -1)
           echo "::set-env name=LATEST_TAG::$LATEST_TAG"
 
       - name: Publish latest tag
