@@ -177,25 +177,33 @@ func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) b
 	}
 
 	checkURL := getCheckRequestURL(req)
-	if urlutil.StripPort(checkURL.Host) == urlutil.StripPort(opts.GetForwardAuthURL().Host) {
-		if (checkURL.Path == "/" || checkURL.Path == "/verify") && checkURL.Query().Get("uri") != "" {
-			verifyURL, err := url.Parse(checkURL.Query().Get("uri"))
-			if err != nil {
-				log.Warn().Str("uri", checkURL.Query().Get("uri")).Err(err).Msg("failed to parse uri for forward authentication")
-				return false
-			}
-			req.Attributes.Request.Http.Scheme = verifyURL.Scheme
-			req.Attributes.Request.Http.Host = verifyURL.Host
-			req.Attributes.Request.Http.Path = verifyURL.Path
-			// envoy sends the query string as part of the path
-			if verifyURL.RawQuery != "" {
-				req.Attributes.Request.Http.Path += "?" + verifyURL.RawQuery
-			}
-			return true
-		}
+	if urlutil.StripPort(checkURL.Host) != urlutil.StripPort(opts.GetForwardAuthURL().Host) {
+		return false
 	}
 
-	return false
+	uriQuery := checkURL.Query().Get("uri")
+	if (checkURL.Path != "/" && checkURL.Path != "/verify") || uriQuery == "" {
+		return false
+	}
+	verifyURL, err := url.Parse(uriQuery)
+	if err != nil {
+		log.Warn().Str("uri", checkURL.Query().Get("uri")).Err(err).Msg("failed to parse uri for forward authentication")
+		return false
+	}
+
+	req.Attributes.Request.Http.Scheme = verifyURL.Scheme
+	req.Attributes.Request.Http.Host = verifyURL.Host
+	req.Attributes.Request.Http.Path = verifyURL.Path
+	if headers := req.GetAttributes().GetRequest().GetHttp().GetHeaders(); headers != nil {
+		if xfu := headers[http.CanonicalHeaderKey("x-forwarded-uri")]; xfu != "" {
+			req.Attributes.Request.Http.Path += xfu
+		}
+	}
+	// envoy sends the query string as part of the path
+	if verifyURL.RawQuery != "" {
+		req.Attributes.Request.Http.Path += "?" + verifyURL.RawQuery
+	}
+	return true
 }
 
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v2.CheckRequest, sessionState *sessions.State) *evaluator.Request {
