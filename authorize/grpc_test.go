@@ -78,44 +78,175 @@ func Test_getEvaluatorRequest(t *testing.T) {
 }
 
 func Test_handleForwardAuth(t *testing.T) {
-	checkReq := &envoy_service_auth_v2.CheckRequest{
-		Attributes: &envoy_service_auth_v2.AttributeContext{
-			Source: &envoy_service_auth_v2.AttributeContext_Peer{
-				Certificate: url.QueryEscape(certPEM),
-			},
-			Request: &envoy_service_auth_v2.AttributeContext_Request{
-				Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
-					Method: "GET",
-					Path:   "/verify?uri=" + url.QueryEscape("https://example.com/some/path?qs=1"),
-					Host:   "forward-auth.example.com",
-					Scheme: "https",
+	tests := []struct {
+		name           string
+		checkReq       *envoy_service_auth_v2.CheckRequest
+		attrCtxHTTPReq *envoy_service_auth_v2.AttributeContext_HttpRequest
+		forwardAuthURL string
+		isForwardAuth  bool
+	}{
+		{
+			name: "enabled",
+			checkReq: &envoy_service_auth_v2.CheckRequest{
+				Attributes: &envoy_service_auth_v2.AttributeContext{
+					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+						Certificate: url.QueryEscape(certPEM),
+					},
+					Request: &envoy_service_auth_v2.AttributeContext_Request{
+						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+							Method: "GET",
+							Path:   "/verify?uri=" + url.QueryEscape("https://example.com/some/path?qs=1"),
+							Host:   "forward-auth.example.com",
+							Scheme: "https",
+						},
+					},
 				},
 			},
+			attrCtxHTTPReq: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+				Method: "GET",
+				Path:   "/some/path?qs=1",
+				Host:   "example.com",
+				Scheme: "https",
+			},
+			forwardAuthURL: "https://forward-auth.example.com",
+			isForwardAuth:  true,
+		},
+		{
+			name:           "disabled",
+			checkReq:       nil,
+			attrCtxHTTPReq: nil,
+			forwardAuthURL: "",
+			isForwardAuth:  false,
+		},
+		{
+			name: "honor x-forwarded-uri set",
+			checkReq: &envoy_service_auth_v2.CheckRequest{
+				Attributes: &envoy_service_auth_v2.AttributeContext{
+					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+						Certificate: url.QueryEscape(certPEM),
+					},
+					Request: &envoy_service_auth_v2.AttributeContext_Request{
+						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+							Method:  "GET",
+							Path:    "/verify?uri=" + url.QueryEscape("https://example.com?q=foo"),
+							Host:    "forward-auth.example.com",
+							Scheme:  "https",
+							Headers: map[string]string{"X-Forwarded-Uri": "/foo/bar"},
+						},
+					},
+				},
+			},
+			attrCtxHTTPReq: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+				Method:  "GET",
+				Path:    "/foo/bar?q=foo",
+				Host:    "example.com",
+				Scheme:  "https",
+				Headers: map[string]string{"X-Forwarded-Uri": "/foo/bar"},
+			},
+			forwardAuthURL: "https://forward-auth.example.com",
+			isForwardAuth:  true,
+		},
+		{
+			name: "request with invalid forward auth url",
+			checkReq: &envoy_service_auth_v2.CheckRequest{
+				Attributes: &envoy_service_auth_v2.AttributeContext{
+					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+						Certificate: url.QueryEscape(certPEM),
+					},
+					Request: &envoy_service_auth_v2.AttributeContext_Request{
+						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+							Method: "GET",
+							Path:   "/verify?uri=" + url.QueryEscape("https://example.com?q=foo"),
+							Host:   "fake-forward-auth.example.com",
+							Scheme: "https",
+						},
+					},
+				},
+			},
+			attrCtxHTTPReq: nil,
+			forwardAuthURL: "https://forward-auth.example.com",
+			isForwardAuth:  false,
+		},
+		{
+			name: "request with invalid path",
+			checkReq: &envoy_service_auth_v2.CheckRequest{
+				Attributes: &envoy_service_auth_v2.AttributeContext{
+					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+						Certificate: url.QueryEscape(certPEM),
+					},
+					Request: &envoy_service_auth_v2.AttributeContext_Request{
+						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+							Method: "GET",
+							Path:   "/foo?uri=" + url.QueryEscape("https://example.com?q=foo"),
+							Host:   "forward-auth.example.com",
+							Scheme: "https",
+						},
+					},
+				},
+			},
+			attrCtxHTTPReq: nil,
+			forwardAuthURL: "https://forward-auth.example.com",
+			isForwardAuth:  false,
+		},
+		{
+			name: "request with empty uri",
+			checkReq: &envoy_service_auth_v2.CheckRequest{
+				Attributes: &envoy_service_auth_v2.AttributeContext{
+					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+						Certificate: url.QueryEscape(certPEM),
+					},
+					Request: &envoy_service_auth_v2.AttributeContext_Request{
+						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+							Method: "GET",
+							Path:   "/verify?uri=",
+							Host:   "forward-auth.example.com",
+							Scheme: "https",
+						},
+					},
+				},
+			},
+			attrCtxHTTPReq: nil,
+			forwardAuthURL: "https://forward-auth.example.com",
+			isForwardAuth:  false,
+		},
+		{
+			name: "request with invalid uri",
+			checkReq: &envoy_service_auth_v2.CheckRequest{
+				Attributes: &envoy_service_auth_v2.AttributeContext{
+					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+						Certificate: url.QueryEscape(certPEM),
+					},
+					Request: &envoy_service_auth_v2.AttributeContext_Request{
+						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+							Method: "GET",
+							Path:   "/verify?uri= http://example.com/foo",
+							Host:   "forward-auth.example.com",
+							Scheme: "https",
+						},
+					},
+				},
+			},
+			attrCtxHTTPReq: nil,
+			forwardAuthURL: "https://forward-auth.example.com",
+			isForwardAuth:  false,
 		},
 	}
 
-	t.Run("enabled", func(t *testing.T) {
-		a := new(Authorize)
-		a.currentOptions.Store(config.Options{
-			ForwardAuthURL: mustParseURL("https://forward-auth.example.com"),
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			a := new(Authorize)
+			fau := new(url.URL)
+			if tc.forwardAuthURL != "" {
+				fau = mustParseURL(tc.forwardAuthURL)
+			}
+			a.currentOptions.Store(config.Options{ForwardAuthURL: fau})
+			assert.Equal(t, tc.isForwardAuth, a.handleForwardAuth(tc.checkReq))
+			if tc.attrCtxHTTPReq != nil {
+				assert.Equal(t, tc.attrCtxHTTPReq, tc.checkReq.Attributes.Request.Http)
+			}
 		})
-		isForwardAuth := a.handleForwardAuth(checkReq)
-		assert.True(t, isForwardAuth)
-		assert.Equal(t, &envoy_service_auth_v2.AttributeContext_HttpRequest{
-			Method: "GET",
-			Path:   "/some/path?qs=1",
-			Host:   "example.com",
-			Scheme: "https",
-		}, checkReq.Attributes.Request.Http)
-	})
-	t.Run("disabled", func(t *testing.T) {
-		a := new(Authorize)
-		a.currentOptions.Store(config.Options{
-			ForwardAuthURL: nil,
-		})
-		isForwardAuth := a.handleForwardAuth(checkReq)
-		assert.False(t, isForwardAuth)
-	})
+	}
 }
 
 func mustParseURL(str string) *url.URL {
