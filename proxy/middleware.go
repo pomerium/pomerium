@@ -55,16 +55,16 @@ func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (bool, erro
 		Method:   "GET",
 		Headers:  map[string]string{},
 		Path:     r.URL.Path,
-		Host:     r.URL.Host,
+		Host:     r.Host,
 		Scheme:   r.URL.Scheme,
 		Fragment: r.URL.Fragment,
 	}
 	for k := range r.Header {
 		httpAttrs.Headers[k] = r.Header.Get(k)
-		if r.URL.RawQuery != "" {
-			// envoy expects the query string in the path
-			httpAttrs.Path += "?" + r.URL.RawQuery
-		}
+	}
+	if r.URL.RawQuery != "" {
+		// envoy expects the query string in the path
+		httpAttrs.Path += "?" + r.URL.RawQuery
 	}
 
 	res, err := p.authzClient.Check(r.Context(), &envoy_service_auth_v2.CheckRequest{

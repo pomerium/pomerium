@@ -185,7 +185,7 @@ func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) b
 	req.Attributes.Request.Http.Host = verifyURL.Host
 	req.Attributes.Request.Http.Path = verifyURL.Path
 	if headers := req.GetAttributes().GetRequest().GetHttp().GetHeaders(); headers != nil {
-		if xfu := headers[http.CanonicalHeaderKey("x-forwarded-uri")]; xfu != "" {
+		if xfu := headers[http.CanonicalHeaderKey(httputil.HeaderForwardedURI)]; xfu != "" {
 			req.Attributes.Request.Http.Path += xfu
 		}
 	}

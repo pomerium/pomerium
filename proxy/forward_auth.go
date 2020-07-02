@@ -118,8 +118,7 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
 
-		original := p.getOriginalRequest(r, uri)
-		authorized, err := p.isAuthorized(w, original)
+		authorized, err := p.isAuthorized(w, r)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
@@ -151,11 +150,4 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
 		return nil
 	})
-}
-
-func (p *Proxy) getOriginalRequest(r *http.Request, originalURL *url.URL) *http.Request {
-	originalRequest := r.Clone(r.Context())
-	originalRequest.Host = originalURL.Host
-	originalRequest.URL = originalURL
-	return originalRequest
 }
