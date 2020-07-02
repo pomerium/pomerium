@@ -155,7 +155,23 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 			}
 		}
 
-		routes = append(routes, &envoy_config_route_v3.Route{
+		routeAction := &envoy_config_route_v3.RouteAction{
+			ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+				Cluster: clusterName,
+			},
+			UpgradeConfigs: []*envoy_config_route_v3.RouteAction_UpgradeConfig{{
+				UpgradeType: "websocket",
+				Enabled:     &wrappers.BoolValue{Value: policy.AllowWebsockets},
+			}},
+			HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
+				AutoHostRewrite: &wrappers.BoolValue{Value: !policy.PreserveHostHeader},
+			},
+			Timeout: routeTimeout,
+		}
+		if policy.Destination != nil && policy.Destination.Path != "" {
+			routeAction.PrefixRewrite = policy.Destination.Path
+		}
+		route := &envoy_config_route_v3.Route{
 			Name:  fmt.Sprintf("policy-%d", i),
 			Match: match,
 			Metadata: &envoy_config_core_v3.Metadata{
@@ -176,25 +192,12 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 					},
 				},
 			},
-			Action: &envoy_config_route_v3.Route_Route{
-				Route: &envoy_config_route_v3.RouteAction{
-					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-						Cluster: clusterName,
-					},
-					UpgradeConfigs: []*envoy_config_route_v3.RouteAction_UpgradeConfig{{
-						UpgradeType: "websocket",
-						Enabled:     &wrappers.BoolValue{Value: policy.AllowWebsockets},
-					}},
-					HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
-						AutoHostRewrite: &wrappers.BoolValue{Value: !policy.PreserveHostHeader},
-					},
-					Timeout: routeTimeout,
-				},
-			},
+			Action:                 &envoy_config_route_v3.Route_Route{Route: routeAction},
 			RequestHeadersToAdd:    requestHeadersToAdd,
 			RequestHeadersToRemove: requestHeadersToRemove,
 			ResponseHeadersToAdd:   responseHeadersToAdd,
-		})
+		}
+		routes = append(routes, route)
 	}
 	return routes
 }
