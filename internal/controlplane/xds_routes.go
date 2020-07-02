@@ -107,12 +107,12 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 			continue
 		}
 
-		match := mkRouteMatch(policy)
+		match := mkRouteMatch(&policy)
 		clusterName := getPolicyName(&policy)
 		requestHeadersToAdd := toEnvoyHeaders(policy.SetRequestHeaders)
-		requestHeadersToRemove := getRequestHeadersToRemove(options, policy)
-		routeTimeout := getRouteTimeout(options, policy)
-		prefixRewrite := getPrefixRewrite(policy)
+		requestHeadersToRemove := getRequestHeadersToRemove(options, &policy)
+		routeTimeout := getRouteTimeout(options, &policy)
+		prefixRewrite := getPrefixRewrite(&policy)
 
 		routes = append(routes, &envoy_config_route_v3.Route{
 			Name:  fmt.Sprintf("policy-%d", i),
@@ -177,7 +177,7 @@ func toEnvoyHeaders(headers map[string]string) []*envoy_config_core_v3.HeaderVal
 	return envoyHeaders
 }
 
-func mkRouteMatch(policy config.Policy) *envoy_config_route_v3.RouteMatch {
+func mkRouteMatch(policy *config.Policy) *envoy_config_route_v3.RouteMatch {
 	match := &envoy_config_route_v3.RouteMatch{}
 	switch {
 	case policy.Regex != "":
@@ -199,7 +199,7 @@ func mkRouteMatch(policy config.Policy) *envoy_config_route_v3.RouteMatch {
 	return match
 }
 
-func getRequestHeadersToRemove(options *config.Options, policy config.Policy) []string {
+func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) []string {
 	requestHeadersToRemove := policy.RemoveRequestHeaders
 	if !policy.PassIdentityHeaders {
 		requestHeadersToRemove = append(requestHeadersToRemove, httputil.HeaderPomeriumJWTAssertion)
@@ -210,7 +210,7 @@ func getRequestHeadersToRemove(options *config.Options, policy config.Policy) []
 	return requestHeadersToRemove
 }
 
-func getRouteTimeout(options *config.Options, policy config.Policy) *durationpb.Duration {
+func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb.Duration {
 	var routeTimeout *durationpb.Duration
 	if policy.AllowWebsockets {
 		// disable the route timeout for websocket support
@@ -225,7 +225,7 @@ func getRouteTimeout(options *config.Options, policy config.Policy) *durationpb.
 	return routeTimeout
 }
 
-func getPrefixRewrite(policy config.Policy) string {
+func getPrefixRewrite(policy *config.Policy) string {
 	prefixRewrite := ""
 	if policy.Destination != nil && policy.Destination.Path != "" {
 		prefixRewrite = policy.Destination.Path
