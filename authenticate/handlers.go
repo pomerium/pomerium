@@ -159,7 +159,7 @@ func (a *Authenticate) RobotsTxt(w http.ResponseWriter, r *http.Request) {
 
 // SignIn handles authenticating a user.
 func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
+	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignIn")
 	defer span.End()
 
 	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
