@@ -140,6 +140,11 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusUnauthorized, err)
 		}
 
+		// Traefik set the uri in the header, we must add it to redirect uri if present. Otherwise, request like
+		// https://example.com/foo will be redirected to https://example.com after authentication.
+		if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "" {
+			uri.Path += xfu
+		}
 		// redirect to authenticate
 		authN := *p.authenticateSigninURL
 		q := authN.Query()
