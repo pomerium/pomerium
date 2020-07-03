@@ -381,6 +381,48 @@ func TestAddOptionsHeadersToResponse(t *testing.T) {
 	`, routes)
 }
 
+func Test_buildPolicyRoutesWithDestinationPath(t *testing.T) {
+	routes := buildPolicyRoutes(&config.Options{
+		CookieName:             "pomerium",
+		DefaultUpstreamTimeout: time.Second * 3,
+		Policies: []config.Policy{
+			{
+				Source:      &config.StringURL{URL: mustParseURL("https://example.com")},
+				Destination: mustParseURL("https://foo.example.com/bar"),
+			},
+		},
+	}, "example.com")
+
+	testutil.AssertProtoJSONEqual(t, `
+		[
+			{
+				"name": "policy-0",
+				"match": {
+					"prefix": "/"
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": true,
+					"prefixRewrite": "/bar",
+					"cluster": "policy-605b7be39724cb4f",
+					"timeout": "3s",
+					"upgradeConfigs": [{
+						"enabled": false,
+						"upgradeType": "websocket"
+					}]
+				}
+			}
+		]
+	`, routes)
+}
+
 func mustParseURL(str string) *url.URL {
 	u, err := url.Parse(str)
 	if err != nil {
