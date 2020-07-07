@@ -17,7 +17,7 @@ You can use the same below configs for other supported [identity provider].
 version: "3"
 services:
   pomerium:
-    image: pomerium/pomerium:master
+    image: pomerium/pomerium:latest
     environment:
       # Generate new secret keys. e.g. `head -c32 /dev/urandom | base64`
       - COOKIE_SECRET=<reducted>
