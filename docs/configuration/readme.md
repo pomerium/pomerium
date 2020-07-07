@@ -976,9 +976,33 @@ Remove Request Headers allows you to remove given request headers. This can be u
 - `yaml`/`json` setting: `to`
 - Type: `URL` (must contain a scheme and hostname)
 - Required
-- Example: `http://httpbin` , `https://192.1.20.12:8080`, `http://neverssl.com`
+- Example: `http://httpbin` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://httpbin.org/anything/`
 
 `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
+
+Be careful with trailing slash.
+
+With rule:
+ 
+```yaml
+- from: https://httpbin.corp.example.com
+  to: https://httpbin.org/anything
+```
+
+Requests to `https://httpbin.corp.example.com` will be forwarded to `https://httpbin.org/anything`, while requests to
+`https://httpbin.corp.example.com/foo` will be forwarded to `https://httpbin.org/anythingfoo`.To make the request forwarded to
+`https://httbin.org/anything/foo`, you can use double slashes in your request `https://httbin.corp.example.com//foo`.
+
+While with rule:
+
+```yaml
+- from: https://httpbin.corp.example.com
+  to: https://httpbin.org/anything/
+```
+
+All requests to `https://httpbin.corp.example.com/*` will be forwarded to `https://httpbin.org/anything/*`. That means accessing to
+`https://httpbin.corp.example.com` will be forwarded to `https://httpbin.org/anything/`. That said, if your application does not handle
+trailing slash, the request will end up with 404 not found.
 
 ### TLS Skip Verification
 
