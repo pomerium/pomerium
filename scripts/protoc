@@ -2,7 +2,7 @@
 set -euo pipefail
 
 _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-_protoc_version="3.12.1"
+_protoc_version="3.12.3"
 _protoc_path="/tmp/pomerium-protoc/protoc-$_protoc_version"
 _os="linux"
 if [ "$(uname -s)" == "Darwin" ]; then
