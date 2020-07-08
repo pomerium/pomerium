@@ -44,6 +44,7 @@ type Evaluator struct {
 	clientCA         string
 	authenticateHost string
 	jwk              interface{}
+	kid              string
 }
 
 // New creates a new Evaluator.
@@ -77,11 +78,16 @@ func New(options *config.Options) (*Evaluator, error) {
 		if err != nil {
 			return nil, fmt.Errorf("authorize: failed to decode certificate cert %v: %w", decodedCert, err)
 		}
-		keyBytes, err := cryptutil.DecodePrivateKey((decodedCert))
+		key, err := cryptutil.DecodePrivateKey(decodedCert)
 		if err != nil {
 			return nil, fmt.Errorf("authorize: couldn't generate signing key: %w", err)
 		}
-		e.jwk = keyBytes
+		e.jwk = key
+		jwk, err := cryptutil.PublicJWKFromBytes(decodedCert, jose.ES256)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: failed to convert jwk: %w", err)
+		}
+		e.kid = jwk.KeyID
 	}
 
 	authzPolicy, err := readPolicy("/authz.rego")
@@ -163,10 +169,11 @@ func (e *Evaluator) ParseSignedJWT(signature string) ([]byte, error) {
 
 // SignedJWT returns the signature of given request.
 func (e *Evaluator) SignedJWT(req *Request) (string, error) {
+	signerOpt := &jose.SignerOptions{}
 	signer, err := jose.NewSigner(jose.SigningKey{
 		Algorithm: jose.ES256,
 		Key:       e.jwk,
-	}, nil)
+	}, signerOpt.WithHeader("kid", e.kid))
 	if err != nil {
 		return "", err
 	}
