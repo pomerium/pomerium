@@ -173,7 +173,7 @@ func (a *Authorize) getEnvoyRequestHeaders(signedJWT string) ([]*envoy_api_v2_co
 		return nil, err
 	}
 	for k, v := range hdrs {
-		hvos = append(hvos, mkHeader(k, v))
+		hvos = append(hvos, mkHeader(k, v, false))
 	}
 
 	return hvos, nil

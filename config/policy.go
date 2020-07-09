@@ -100,6 +100,9 @@ type Policy struct {
 	//  - X-Pomerium-Claim-*
 	//
 	PassIdentityHeaders bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers,omitempty"`
+
+	// KubernetesServiceAccountToken is the kubernetes token to use for upstream requests.
+	KubernetesServiceAccountToken string `mapstructure:"kubernetes_service_account_token" yaml:"kubernetes_service_account_token,omitempty"`
 }
 
 // Validate checks the validity of a policy.

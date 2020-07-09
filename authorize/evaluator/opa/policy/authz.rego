@@ -3,7 +3,8 @@ package pomerium.authz
 default allow = false
 
 
-route_policy := first_allowed_route_policy(input.http.url)
+route_policy_idx := first_allowed_route_policy_idx(input.http.url)
+route_policy := data.route_policies[route_policy_idx]
 session := input.databroker_data.session
 user := input.databroker_data.user
 directory_user := input.databroker_data.directory_user
@@ -84,8 +85,8 @@ deny[reason] {
 }
 
 # returns the first matching route
-first_allowed_route_policy(input_url) = first_policy {
-	first_policy := [policy | some i, policy; policy = data.route_policies[i]; allowed_route(input.http.url, policy)][0]
+first_allowed_route_policy_idx(input_url) = first_policy_idx {
+	first_policy_idx := [idx | some idx, policy; policy = data.route_policies[idx]; allowed_route(input.http.url, policy)][0]
 }
 
 allowed_route(input_url, policy){
