@@ -154,6 +154,7 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 			RequestHeadersToAdd:    requestHeadersToAdd,
 			RequestHeadersToRemove: requestHeadersToRemove,
 			ResponseHeadersToAdd:   responseHeadersToAdd,
+			TypedPerFilterConfig:   map[string]*any.Any{},
 		})
 	}
 	return routes
