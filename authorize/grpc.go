@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"context"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -59,8 +60,9 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 		a.dataBrokerDataLock.RUnlock()
 	}
 
-	if sessionState != nil {
-		a.forceSync(ctx, sessionState.ID)
+	if err := a.forceSync(ctx, sessionState); err != nil {
+		log.Warn().Err(err).Msg("clearing session due to force sync failed")
+		sessionState = nil
 	}
 
 	a.dataBrokerDataLock.RLock()
@@ -86,14 +88,21 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	return a.deniedResponse(in, int32(reply.Status), reply.Message, nil), nil
 }
 
-func (a *Authorize) forceSync(ctx context.Context, sessionID string) {
+func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) error {
 	ctx, span := trace.StartSpan(ctx, "authorize.forceSync")
 	defer span.End()
-	s := a.forceSyncSession(ctx, sessionID)
+	if ss == nil {
+		return nil
+	}
+	s := a.forceSyncSession(ctx, ss.ID)
 	if s == nil {
-		return
+		return nil
+	}
+	if s.DeletedAt != nil {
+		return errors.New("session was deleted")
 	}
 	a.forceSyncUser(ctx, s.GetUserId())
+	return nil
 }
 
 func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) *session.Session {
