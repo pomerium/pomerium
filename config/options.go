@@ -558,9 +558,12 @@ func (o *Options) Validate() error {
 	}
 
 	for _, c := range o.CertificateFiles {
-		cert, err := cryptutil.CertificateFromFile(c.CertFile, c.KeyFile)
+		cert, err := cryptutil.CertificateFromBase64(c.CertFile, c.KeyFile)
 		if err != nil {
-			return fmt.Errorf("config: bad cert file %w", err)
+			cert, err = cryptutil.CertificateFromFile(c.CertFile, c.KeyFile)
+		}
+		if err != nil {
+			return fmt.Errorf("config: bad cert entry, base64 or file reference invalid. %w", err)
 		}
 		o.Certificates = append(o.Certificates, *cert)
 	}
