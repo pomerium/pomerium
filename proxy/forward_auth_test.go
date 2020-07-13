@@ -10,7 +10,9 @@ import (
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/pomerium/pomerium/config"
@@ -37,6 +39,7 @@ func TestProxy_ForwardAuth(t *testing.T) {
 
 	allowClient := &mockCheckClient{
 		response: &envoy_service_auth_v2.CheckResponse{
+			Status:       &status.Status{Code: int32(codes.OK), Message: "OK"},
 			HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{},
 		},
 	}

@@ -101,38 +101,31 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
 		}
 
-		// the route to validate will be pulled from the uri queryparam
-		// or inferred from forwarding headers
-		uriString := r.FormValue("uri")
-		if uriString == "" {
-			if r.Header.Get(httputil.HeaderForwardedProto) == "" || r.Header.Get(httputil.HeaderForwardedHost) == "" {
-				return httputil.NewError(http.StatusBadRequest, errors.New("no uri to validate"))
-			}
-			uriString = r.Header.Get(httputil.HeaderForwardedProto) + "://" +
-				r.Header.Get(httputil.HeaderForwardedHost) +
-				r.Header.Get(httputil.HeaderForwardedURI)
-		}
-
-		uri, err := urlutil.ParseAndValidateURL(uriString)
+		uri, err := getURIStringFromRequest(r)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
 
-		authorized, err := p.isAuthorized(w, r)
+		ar, err := p.isAuthorized(w, r)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
 
-		if authorized {
+		if ar.authorized {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, "Access to %s is allowed.", uri.Host)
 			return nil
 		}
 
+		unAuthenticated := ar.statusCode == http.StatusUnauthorized
+		if unAuthenticated {
+			p.sessionStore.ClearSession(w, r)
+		}
+
 		_, err = sessions.FromContext(r.Context())
 		hasSession := err == nil
-		if hasSession {
+		if hasSession && !unAuthenticated {
 			return httputil.NewError(http.StatusForbidden, errors.New("access denied"))
 		}
 
@@ -140,19 +133,46 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusUnauthorized, err)
 		}
 
-		// Traefik set the uri in the header, we must add it to redirect uri if present. Otherwise, request like
-		// https://example.com/foo will be redirected to https://example.com after authentication.
-		if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "" {
-			uri.Path += xfu
-		}
-		// redirect to authenticate
-		authN := *p.authenticateSigninURL
-		q := authN.Query()
-		q.Set(urlutil.QueryCallbackURI, uri.String())
-		q.Set(urlutil.QueryRedirectURI, uri.String())              // final destination
-		q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
-		authN.RawQuery = q.Encode()
-		httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
+		p.forwardAuthRedirectToSignInWithURI(w, r, uri)
 		return nil
 	})
+}
+
+// forwardAuthRedirectToSignInWithURI redirects request to authenticate signin url,
+// with all necessary information extracted from given input uri.
+func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *http.Request, uri *url.URL) {
+	// Traefik set the uri in the header, we must add it to redirect uri if present. Otherwise, request like
+	// https://example.com/foo will be redirected to https://example.com after authentication.
+	if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "" {
+		uri.Path += xfu
+	}
+
+	// redirect to authenticate
+	authN := *p.authenticateSigninURL
+	q := authN.Query()
+	q.Set(urlutil.QueryCallbackURI, uri.String())
+	q.Set(urlutil.QueryRedirectURI, uri.String())              // final destination
+	q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
+	authN.RawQuery = q.Encode()
+	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
+}
+
+func getURIStringFromRequest(r *http.Request) (*url.URL, error) {
+	// the route to validate will be pulled from the uri queryparam
+	// or inferred from forwarding headers
+	uriString := r.FormValue("uri")
+	if uriString == "" {
+		if r.Header.Get(httputil.HeaderForwardedProto) == "" || r.Header.Get(httputil.HeaderForwardedHost) == "" {
+			return nil, errors.New("no uri to validate")
+		}
+		uriString = r.Header.Get(httputil.HeaderForwardedProto) + "://" +
+			r.Header.Get(httputil.HeaderForwardedHost) +
+			r.Header.Get(httputil.HeaderForwardedURI)
+	}
+
+	uri, err := urlutil.ParseAndValidateURL(uriString)
+	if err != nil {
+		return nil, err
+	}
+	return uri, nil
 }
