@@ -28,17 +28,7 @@ func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.C
 	requestHeaders = append(requestHeaders,
 		mkHeader(httputil.HeaderPomeriumJWTAssertion, reply.SignedJWT, false))
 
-	if reply.MatchingPolicy != nil && reply.MatchingPolicy.KubernetesServiceAccountToken != "" {
-		requestHeaders = append(requestHeaders,
-			mkHeader("Authorization", "Bearer "+reply.MatchingPolicy.KubernetesServiceAccountToken, false))
-
-		if reply.UserEmail != "" {
-			requestHeaders = append(requestHeaders, mkHeader("Impersonate-User", reply.UserEmail, false))
-		}
-		for _, group := range reply.UserGroups {
-			requestHeaders = append(requestHeaders, mkHeader("Impersonate-Group", group, true))
-		}
-	}
+	requestHeaders = append(requestHeaders, getKubernetesHeaders(reply)...)
 
 	return &envoy_service_auth_v2.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
@@ -149,6 +139,22 @@ func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) *en
 	return a.deniedResponse(in, http.StatusFound, "Login", map[string]string{
 		"Location": redirectTo,
 	})
+}
+
+func getKubernetesHeaders(reply *evaluator.Result) []*envoy_api_v2_core.HeaderValueOption {
+	var requestHeaders []*envoy_api_v2_core.HeaderValueOption
+	if reply.MatchingPolicy != nil && reply.MatchingPolicy.KubernetesServiceAccountToken != "" {
+		requestHeaders = append(requestHeaders,
+			mkHeader("Authorization", "Bearer "+reply.MatchingPolicy.KubernetesServiceAccountToken, false))
+
+		if reply.UserEmail != "" {
+			requestHeaders = append(requestHeaders, mkHeader("Impersonate-User", reply.UserEmail, false))
+		}
+		for _, group := range reply.UserGroups {
+			requestHeaders = append(requestHeaders, mkHeader("Impersonate-Group", group, true))
+		}
+	}
+	return requestHeaders
 }
 
 func mkHeader(k, v string, shouldAppend bool) *envoy_api_v2_core.HeaderValueOption {
