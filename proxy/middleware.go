@@ -18,6 +18,11 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
+type authorizeResponse struct {
+	authorized bool
+	statusCode int32
+}
+
 // AuthenticateSession is middleware to enforce a valid authentication
 // session state is retrieved from the users's request context.
 func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
@@ -45,10 +50,10 @@ func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (bool, error) {
+func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorizeResponse, error) {
 	tm, err := ptypes.TimestampProto(time.Now())
 	if err != nil {
-		return false, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error creating protobuf timestamp from current time: %w", err))
+		return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error creating protobuf timestamp from current time: %w", err))
 	}
 
 	httpAttrs := &envoy_service_auth_v2.AttributeContext_HttpRequest{
@@ -76,18 +81,23 @@ func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (bool, erro
 		},
 	})
 	if err != nil {
-		return false, httputil.NewError(http.StatusInternalServerError, err)
+		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
 
+	ar := &authorizeResponse{}
 	switch res.HttpResponse.(type) {
 	case *envoy_service_auth_v2.CheckResponse_OkResponse:
 		for _, hdr := range res.GetOkResponse().GetHeaders() {
 			w.Header().Set(hdr.GetHeader().GetKey(), hdr.GetHeader().GetValue())
 		}
-		return true, nil
+		ar.authorized = true
+		ar.statusCode = res.GetStatus().Code
+	case *envoy_service_auth_v2.CheckResponse_DeniedResponse:
+		ar.statusCode = int32(res.GetDeniedResponse().GetStatus().Code)
 	default:
-		return false, nil
+		ar.statusCode = http.StatusInternalServerError
 	}
+	return ar, nil
 }
 
 // SetResponseHeaders sets a map of response headers.
