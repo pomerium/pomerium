@@ -5,16 +5,14 @@ BINARY=$1
 
 ENVOY_VERSION=1.14.2
 DIR=$(dirname "${BINARY}")
-GOOS=$(echo "${GOOS-}" | cut -d _ -f 1) # goreleaser is fine
+TARGET="${TARGET:-"$(go env GOOS)_$(go env GOARCH)"}"
 
-GOOS=$(go env GOOS)
-
-if [ "${GOOS}" == "darwin" ]; then
+if [[ "${TARGET}" == darwin_* ]]; then
   ENVOY_PLATFORM="darwin"
-elif [ "${GOOS}" == "linux" ]; then
+elif [[ "${TARGET}" == linux_* ]]; then
   ENVOY_PLATFORM="linux_glibc"
 else
-  echo "unsupported"
+  echo "unsupported TARGET: ${TARGET}"
   exit 1
 fi
 
@@ -22,9 +20,15 @@ fi
 ## https://godoc.org/github.com/tetratelabs/getenvoy/pkg/binary/envoy
 ## https://golang.org/pkg/archive/zip/#Writer.SetOffset
 export PATH=$PATH:$(go env GOPATH)/bin
-HOME=${DIR} getenvoy fetch standard:${ENVOY_VERSION}/${ENVOY_PLATFORM}
-ENVOY_PATH=${DIR}/.getenvoy/builds/standard/${ENVOY_VERSION}/${ENVOY_PLATFORM}/bin
-ARCHIVE=${ENVOY_PATH}/envoy.zip
+if [ "$TARGET" == "linux_arm64" ]; then
+  ENVOY_PATH="$DIR/$TARGET"
+  mkdir -p "$ENVOY_PATH"
+  curl -L -o "$ENVOY_PATH/envoy" https://github.com/pomerium/envoy-binaries/releases/download/v0.1.0/envoy-linux-arm64
+else
+  env HOME="${DIR}" getenvoy fetch standard:${ENVOY_VERSION}/${ENVOY_PLATFORM}
+  ENVOY_PATH=${DIR}/.getenvoy/builds/standard/${ENVOY_VERSION}/${ENVOY_PLATFORM}/bin
+fi
+ARCHIVE="${ENVOY_PATH}/envoy.zip"
 
 (
   cd "${ENVOY_PATH}"
