@@ -3,14 +3,15 @@ package main
 import (
 	"bufio"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/encoding/jws"
+	"github.com/spf13/cobra"
 	"gopkg.in/square/go-jose.v2/jwt"
+
+	"github.com/pomerium/pomerium/internal/encoding/jws"
 )
 
 type stringSlice []string
@@ -29,6 +30,10 @@ func (i *stringSlice) Set(value string) error {
 	return nil
 }
 
+func (i *stringSlice) Type() string {
+	return "slice"
+}
+
 type serviceAccount struct {
 	// Standard claims (as specified in RFC 7519).
 	jwt.Claims
@@ -40,104 +45,74 @@ type serviceAccount struct {
 	ImpersonateGroups []string `json:"impersonate_groups,omitempty"`
 }
 
-func main() {
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "\n⛔️%s\n\n", err)
-		printHelp(flags)
-		os.Exit(1)
-	}
-	os.Exit(0)
+var serviceAccountOptions struct {
+	aud               stringSlice
+	groups            stringSlice
+	impersonateGroups stringSlice
+	expiry            time.Duration
+	serviceAccount    serviceAccount
 }
 
-var flags *flag.FlagSet
-
-func run() error {
-	var sa serviceAccount
-
-	// temporary variables we will use to hydrate our service account
-	// struct from basic types pulled in from our flags
-	var (
-		aud               stringSlice
-		groups            stringSlice
-		impersonateGroups stringSlice
-		expiry            time.Duration
-	)
-
-	flags = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	flags.StringVar(&sa.Email, "email", "", "Email")
-	flags.StringVar(&sa.ImpersonateEmail, "impersonate_email", "", "Impersonation Email (optional)")
-	flags.StringVar(&sa.Issuer, "iss", "", "Issuing Server (e.g authenticate.int.pomerium.io)")
-	flags.StringVar(&sa.Subject, "sub", "", "Subject (typically User's GUID)")
-	flags.StringVar(&sa.User, "user", "", "User (typically User's GUID)")
-	flags.Var(&aud, "aud", "Audience (e.g. httpbin.int.pomerium.io,prometheus.int.pomerium.io)")
-	flags.Var(&groups, "groups", "Groups (e.g. admins@pomerium.io,users@pomerium.io)")
-	flags.Var(&impersonateGroups, "impersonate_groups", "Impersonation Groups (optional)")
-	flags.DurationVar(&expiry, "expiry", time.Hour, "Expiry")
-	if err := flags.Parse(os.Args[1:]); err != nil {
-		return err
-	}
-
-	// hydrate our session
-	sa.Audience = jwt.Audience(aud)
-	sa.Groups = []string(groups)
-	sa.ImpersonateGroups = []string(impersonateGroups)
-	sa.Expiry = jwt.NewNumericDate(time.Now().Add(expiry))
-	sa.IssuedAt = jwt.NewNumericDate(time.Now())
-	sa.NotBefore = jwt.NewNumericDate(time.Now())
-
-	var sharedKey string
-	args := flags.Args()
-	if len(args) == 1 {
-		sharedKey = args[0]
-	} else {
-		fmt.Print("Enter base64 encoded shared key >")
-		scanner := bufio.NewScanner(os.Stdin)
-		scanner.Scan()
-		sharedKey = scanner.Text()
-	}
-
-	if sharedKey == "" {
-		return errors.New("shared key required")
-	}
-
-	if sa.Email == "" {
-		return errors.New("email is required")
-	}
-
-	if len(sa.Audience) == 0 {
-		return errors.New("aud is required")
-	}
-
-	if sa.Issuer == "" {
-		return errors.New("iss is required")
-	}
-	encoder, err := jws.NewHS256Signer([]byte(sharedKey), sa.Issuer)
-	if err != nil {
-		return fmt.Errorf("bad shared key: %w", err)
-	}
-	raw, err := encoder.Marshal(sa)
-	if err != nil {
-		return fmt.Errorf("bad encode: %w", err)
-	}
-	fmt.Fprintf(os.Stdout, "%s", raw)
-	return nil
+func init() {
+	flags := serviceAccountCmd.PersistentFlags()
+	flags.StringVar(&serviceAccountOptions.serviceAccount.Email, "email", "", "Email")
+	flags.StringVar(&serviceAccountOptions.serviceAccount.ImpersonateEmail, "impersonate_email", "", "Impersonation Email (optional)")
+	flags.StringVar(&serviceAccountOptions.serviceAccount.Issuer, "iss", "", "Issuing Server (e.g authenticate.int.pomerium.io)")
+	flags.StringVar(&serviceAccountOptions.serviceAccount.Subject, "sub", "", "Subject (typically User's GUID)")
+	flags.StringVar(&serviceAccountOptions.serviceAccount.User, "user", "", "User (typically User's GUID)")
+	flags.Var(&serviceAccountOptions.aud, "aud", "Audience (e.g. httpbin.int.pomerium.io,prometheus.int.pomerium.io)")
+	flags.Var(&serviceAccountOptions.groups, "groups", "Groups (e.g. admins@pomerium.io,users@pomerium.io)")
+	flags.Var(&serviceAccountOptions.impersonateGroups, "impersonate_groups", "Impersonation Groups (optional)")
+	flags.DurationVar(&serviceAccountOptions.expiry, "expiry", time.Hour, "Expiry")
+	rootCmd.AddCommand(serviceAccountCmd)
 }
 
-func printHelp(fs *flag.FlagSet) {
-	fmt.Fprintf(os.Stderr, strings.TrimSpace(help)+"\n\n", os.Args[0])
-	fs.PrintDefaults()
+var serviceAccountCmd = &cobra.Command{
+	Use:   "service-account",
+	Short: "generates a pomerium service account from a shared key.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// hydrate our session
+		serviceAccountOptions.serviceAccount.Audience = jwt.Audience(serviceAccountOptions.aud)
+		serviceAccountOptions.serviceAccount.Groups = []string(serviceAccountOptions.groups)
+		serviceAccountOptions.serviceAccount.ImpersonateGroups = []string(serviceAccountOptions.impersonateGroups)
+		serviceAccountOptions.serviceAccount.Expiry = jwt.NewNumericDate(time.Now().Add(serviceAccountOptions.expiry))
+		serviceAccountOptions.serviceAccount.IssuedAt = jwt.NewNumericDate(time.Now())
+		serviceAccountOptions.serviceAccount.NotBefore = jwt.NewNumericDate(time.Now())
+
+		var sharedKey string
+		if len(args) == 1 {
+			sharedKey = args[0]
+		} else {
+			fmt.Print("Enter base64 encoded shared key >")
+			scanner := bufio.NewScanner(os.Stdin)
+			scanner.Scan()
+			sharedKey = scanner.Text()
+		}
+
+		if sharedKey == "" {
+			return errors.New("shared key required")
+		}
+
+		if serviceAccountOptions.serviceAccount.Email == "" {
+			return errors.New("email is required")
+		}
+
+		if len(serviceAccountOptions.serviceAccount.Audience) == 0 {
+			return errors.New("aud is required")
+		}
+
+		if serviceAccountOptions.serviceAccount.Issuer == "" {
+			return errors.New("iss is required")
+		}
+		encoder, err := jws.NewHS256Signer([]byte(sharedKey), serviceAccountOptions.serviceAccount.Issuer)
+		if err != nil {
+			return fmt.Errorf("bad shared key: %w", err)
+		}
+		raw, err := encoder.Marshal(serviceAccountOptions.serviceAccount)
+		if err != nil {
+			return fmt.Errorf("bad encode: %w", err)
+		}
+		fmt.Fprintf(os.Stdout, "%s", raw)
+		return nil
+	},
 }
-
-const help = `
-pomerium-cli generates a pomerium service account from a shared key.
-
-Usage: %[1]s [flags] [base64'd shared secret setting]
-
-For additional help see:
-
-	https://www.pomerium.io
-	https://jwt.io/
-
-Flags:
-
-`
