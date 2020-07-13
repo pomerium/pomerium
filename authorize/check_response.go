@@ -2,7 +2,6 @@ package authorize
 
 import (
 	"bytes"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -40,8 +39,6 @@ func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.C
 			requestHeaders = append(requestHeaders, mkHeader("Impersonate-Group", group, true))
 		}
 	}
-
-	fmt.Println("ADDING HEADERS", requestHeaders, reply.MatchingPolicy)
 
 	return &envoy_service_auth_v2.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
