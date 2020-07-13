@@ -131,14 +131,16 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return &deny[0], nil
 	}
 
-	evalResult := &Result{
-		MatchingPolicy: getMatchingPolicy(res[0].Bindings.WithoutWildcards(), e.policies),
-	}
-
-	err = e.FillResult(evalResult, req)
+	signedJWT, err := e.SignedJWT(req)
 	if err != nil {
 		return nil, fmt.Errorf("error signing JWT: %w", err)
 	}
+
+	evalResult := &Result{
+		MatchingPolicy: getMatchingPolicy(res[0].Bindings.WithoutWildcards(), e.policies),
+		SignedJWT:      signedJWT,
+	}
+	evalResult.UserEmail, evalResult.UserGroups = e.UserInfo(req)
 
 	allow := allowed(res[0].Bindings.WithoutWildcards())
 	if allow {
@@ -167,15 +169,28 @@ func (e *Evaluator) ParseSignedJWT(signature string) ([]byte, error) {
 	return object.Verify(&(e.jwk.(*ecdsa.PrivateKey).PublicKey))
 }
 
-// FillResult fills the result.
-func (e *Evaluator) FillResult(res *Result, req *Request) error {
+// UserInfo returns the user email and groups.
+func (e *Evaluator) UserInfo(req *Request) (email string, groups []string) {
+	if s, ok := req.DataBrokerData.Get("type.googleapis.com/session.Session", req.Session.ID).(*session.Session); ok {
+		if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", s.GetUserId()).(*user.User); ok {
+			email = u.GetEmail()
+		}
+		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", s.GetUserId()).(*directory.User); ok {
+			groups = du.GetGroups()
+		}
+	}
+	return email, groups
+}
+
+// SignedJWT returns the signature of given request.
+func (e *Evaluator) SignedJWT(req *Request) (string, error) {
 	signerOpt := &jose.SignerOptions{}
 	signer, err := jose.NewSigner(jose.SigningKey{
 		Algorithm: jose.ES256,
 		Key:       e.jwk,
 	}, signerOpt.WithHeader("kid", e.kid))
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	payload := map[string]interface{}{
@@ -192,29 +207,26 @@ func (e *Evaluator) FillResult(res *Result, req *Request) error {
 			payload["iat"] = tm.Unix()
 		}
 		if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", s.GetUserId()).(*user.User); ok {
-			res.UserEmail = u.GetEmail()
 			payload["sub"] = u.GetId()
 			payload["user"] = u.GetId()
 			payload["email"] = u.GetEmail()
 		}
 		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", s.GetUserId()).(*directory.User); ok {
-			res.UserGroups = du.GetGroups()
 			payload["groups"] = du.GetGroups()
 		}
 	}
 
 	bs, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	jws, err := signer.Sign(bs)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	res.SignedJWT, err = jws.CompactSerialize()
-	return err
+	return jws.CompactSerialize()
 }
 
 type input struct {

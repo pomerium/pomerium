@@ -151,14 +151,14 @@ func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) *en
 	})
 }
 
-func mkHeader(k, v string, append bool) *envoy_api_v2_core.HeaderValueOption {
+func mkHeader(k, v string, shouldAppend bool) *envoy_api_v2_core.HeaderValueOption {
 	return &envoy_api_v2_core.HeaderValueOption{
 		Header: &envoy_api_v2_core.HeaderValue{
 			Key:   k,
 			Value: v,
 		},
 		Append: &wrappers.BoolValue{
-			Value: append,
+			Value: shouldAppend,
 		},
 	}
 }
