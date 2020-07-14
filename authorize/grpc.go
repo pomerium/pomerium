@@ -78,7 +78,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 
 	switch {
 	case reply.Status == http.StatusOK:
-		return a.okResponse(reply), nil
+		return a.okResponse(ctx, reply), nil
 	case reply.Status == http.StatusUnauthorized:
 		if isForwardAuth {
 			return a.deniedResponse(in, http.StatusUnauthorized, "Unauthenticated", nil), nil

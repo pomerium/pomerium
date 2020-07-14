@@ -229,6 +229,10 @@ type Options struct {
 	// ClientCAFile points to a file that contains the certificate authority to validate client mTLS certificates against.
 	ClientCAFile string `mapstructure:"client_ca_file" yaml:"client_ca_file,omitempty"`
 
+	// GoogleCloudServerlessAuthenticationServiceAccount is the service account to use for GCP serverless authentication.
+	// If unset, the GCP metadata server will be used to query for identity tokens.
+	GoogleCloudServerlessAuthenticationServiceAccount string `mapstructure:"google_cloud_serverless_authentication_service_account" yaml:"google_cloud_serverless_authentication_service_account,omitempty"`
+
 	viper *viper.Viper
 
 	AutocertOptions `mapstructure:",squash" yaml:",inline"`
