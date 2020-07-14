@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -68,13 +69,28 @@ func loadCachedCredential(serverURL string) *ExecCredential {
 func saveCachedCredential(serverURL string, creds *ExecCredential) {
 	fn := cachedCredentialPath(serverURL)
 
-	_ = os.MkdirAll(filepath.Dir(fn), 0755)
+	err := os.MkdirAll(filepath.Dir(fn), 0755)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create cache directory: %v", err)
+		return
+	}
 
 	f, err := os.Create(fn)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create cache file: %v", err)
 		return
 	}
-	defer f.Close()
 
-	_ = json.NewEncoder(f).Encode(creds)
+	err = json.NewEncoder(f).Encode(creds)
+	if err != nil {
+		_ = f.Close()
+		fmt.Fprintf(os.Stderr, "failed to encode credentials to cache file: %v", err)
+		return
+	}
+
+	err = f.Close()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to close cache file: %v", err)
+		return
+	}
 }
