@@ -25,7 +25,7 @@ func init() {
 }
 
 var kubernetesCmd = &cobra.Command{
-	Use: "kubernetes",
+	Use: "k8s",
 }
 
 var kubernetesExecCredentialCmd = &cobra.Command{
