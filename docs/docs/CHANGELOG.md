@@ -1,10 +1,18 @@
 # Changelog
 
-## v0.8.3
+## v0.8.4
 
 ### Security
 
 - Addresses vulnerabilities fixed in go version [1.14.5](https://groups.google.com/g/golang-announce/c/XZNfaiwgt2w/m/E6gHDs32AQAJ). This update includes security fixes for a data race in ReverseProxy (CVE-2020-15586) and a situation where X.509 verification ignores provided EKUs on Windows (CVE-2020-15586).  
+
+
+## v0.8.3
+
+## Changes
+
+- state: infer user (`user`) from subject (`sub`) @desimone GH-772
+- proxy/forward-auth: block expired request prior to 302 @desimone GH-773
 
 ## v0.8.2
 
