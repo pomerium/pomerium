@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.9.4
+
+### Security
+
+- This release addresses vulnerabilities fixed in go version [1.14.5](https://groups.google.com/g/golang-announce/c/XZNfaiwgt2w/m/E6gHDs32AQAJ). This update includes security fixes for a data race in ReverseProxy (CVE-2020-15586) and a situation where X.509 verification ignores provided EKUs on Windows (CVE-2020-15586). 
+
+
 ## v0.9.3
 
 ### Fixed
