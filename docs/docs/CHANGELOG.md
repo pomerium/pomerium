@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.8.3
+
+### Security
+
+- Addresses vulnerabilities fixed in go version [1.14.5](https://groups.google.com/g/golang-announce/c/XZNfaiwgt2w/m/E6gHDs32AQAJ). This update includes security fixes for a data race in ReverseProxy (CVE-2020-15586) and a situation where X.509 verification ignores provided EKUs on Windows (CVE-2020-15586).  
+
+## v0.8.2
+
+### Security
+
+This release includes a fix for a bug that, under certain circumstances, could allow a user with a valid but expired session to resend a request to an upstream application. The repeated request would not return a response, but could reach the upstream application. Thank you to @selaux for reporting this issue!  [GH-762] 
+
+## v0.8.1
+
+### Fixed
+
+- authorize: fix authorization panic caused by logging a nil reference @desimone [GH-704]
+
 ## v0.8.0
 
 To see a complete list of changes [see the diff](https://github.com/pomerium/pomerium/compare/v0.7.0...v0.8.0).
