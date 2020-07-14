@@ -3,7 +3,7 @@ package cache
 import (
 	"google.golang.org/grpc"
 
-	"github.com/pomerium/pomerium/internal/databroker/memory"
+	internal_databroker "github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -14,10 +14,7 @@ type DataBrokerServer struct {
 
 // NewDataBrokerServer creates a new databroker service server.
 func NewDataBrokerServer(grpcServer *grpc.Server) *DataBrokerServer {
-	srv := &DataBrokerServer{
-		// just wrap the in-memory data broker server
-		DataBrokerServiceServer: memory.New(),
-	}
+	srv := &DataBrokerServer{DataBrokerServiceServer: internal_databroker.New()}
 	databroker.RegisterDataBrokerServiceServer(grpcServer, srv)
 	return srv
 }
