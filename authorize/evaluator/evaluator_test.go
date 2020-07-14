@@ -80,7 +80,7 @@ func TestEvaluator_SignedJWT(t *testing.T) {
 			URL:    "https://example.com",
 		},
 	}
-	signedJWT, err := e.SignedJWT(req)
+	signedJWT, err := e.SignedJWT(e.JWTPayload(req))
 	require.NoError(t, err)
 	assert.NotEmpty(t, signedJWT)
 
@@ -101,7 +101,7 @@ func TestEvaluator_JWTWithKID(t *testing.T) {
 			URL:    "https://example.com",
 		},
 	}
-	signedJWT, err := e.SignedJWT(req)
+	signedJWT, err := e.SignedJWT(e.JWTPayload(req))
 	require.NoError(t, err)
 	assert.NotEmpty(t, signedJWT)
 

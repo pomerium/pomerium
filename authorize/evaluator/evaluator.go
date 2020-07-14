@@ -38,8 +38,9 @@ const (
 
 // Evaluator specifies the interface for a policy engine.
 type Evaluator struct {
-	rego  *rego.Rego
-	query rego.PreparedEvalQuery
+	rego     *rego.Rego
+	query    rego.PreparedEvalQuery
+	policies []config.Policy
 
 	clientCA         string
 	authenticateHost string
@@ -51,6 +52,7 @@ type Evaluator struct {
 func New(options *config.Options) (*Evaluator, error) {
 	e := &Evaluator{
 		authenticateHost: options.AuthenticateURL.Host,
+		policies:         options.Policies,
 	}
 	if options.ClientCA != "" {
 		e.clientCA = options.ClientCA
@@ -129,33 +131,40 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return &deny[0], nil
 	}
 
-	signedJWT, err := e.SignedJWT(req)
+	payload := e.JWTPayload(req)
+
+	signedJWT, err := e.SignedJWT(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error signing JWT: %w", err)
 	}
 
+	evalResult := &Result{
+		MatchingPolicy: getMatchingPolicy(res[0].Bindings.WithoutWildcards(), e.policies),
+		SignedJWT:      signedJWT,
+	}
+	if e, ok := payload["email"].(string); ok {
+		evalResult.UserEmail = e
+	}
+	if gs, ok := payload["groups"].([]string); ok {
+		evalResult.UserGroups = gs
+	}
+
 	allow := allowed(res[0].Bindings.WithoutWildcards())
 	if allow {
-		return &Result{
-			Status:    http.StatusOK,
-			Message:   "OK",
-			SignedJWT: signedJWT,
-		}, nil
+		evalResult.Status = http.StatusOK
+		evalResult.Message = "OK"
+		return evalResult, nil
 	}
 
 	if req.Session.ID == "" {
-		return &Result{
-			Status:    http.StatusUnauthorized,
-			Message:   "login required",
-			SignedJWT: signedJWT,
-		}, nil
+		evalResult.Status = http.StatusUnauthorized
+		evalResult.Message = "login required"
+		return evalResult, nil
 	}
 
-	return &Result{
-		Status:    http.StatusForbidden,
-		Message:   "forbidden",
-		SignedJWT: signedJWT,
-	}, nil
+	evalResult.Status = http.StatusForbidden
+	evalResult.Message = "forbidden"
+	return evalResult, nil
 }
 
 // ParseSignedJWT parses the input signature and return its payload.
@@ -167,17 +176,8 @@ func (e *Evaluator) ParseSignedJWT(signature string) ([]byte, error) {
 	return object.Verify(&(e.jwk.(*ecdsa.PrivateKey).PublicKey))
 }
 
-// SignedJWT returns the signature of given request.
-func (e *Evaluator) SignedJWT(req *Request) (string, error) {
-	signerOpt := &jose.SignerOptions{}
-	signer, err := jose.NewSigner(jose.SigningKey{
-		Algorithm: jose.ES256,
-		Key:       e.jwk,
-	}, signerOpt.WithHeader("kid", e.kid))
-	if err != nil {
-		return "", err
-	}
-
+// JWTPayload returns the JWT payload for a request.
+func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 	payload := map[string]interface{}{
 		"iss": e.authenticateHost,
 	}
@@ -199,6 +199,19 @@ func (e *Evaluator) SignedJWT(req *Request) (string, error) {
 		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", s.GetUserId()).(*directory.User); ok {
 			payload["groups"] = du.GetGroups()
 		}
+	}
+	return payload
+}
+
+// SignedJWT returns the signature of given request.
+func (e *Evaluator) SignedJWT(payload map[string]interface{}) (string, error) {
+	signerOpt := &jose.SignerOptions{}
+	signer, err := jose.NewSigner(jose.SigningKey{
+		Algorithm: jose.ES256,
+		Key:       e.jwk,
+	}, signerOpt.WithHeader("kid", e.kid))
+	if err != nil {
+		return "", err
 	}
 
 	bs, err := json.Marshal(payload)
@@ -266,9 +279,31 @@ type (
 
 // Result is the result of evaluation.
 type Result struct {
-	Status    int
-	Message   string
-	SignedJWT string
+	Status         int
+	Message        string
+	SignedJWT      string
+	MatchingPolicy *config.Policy
+
+	UserEmail  string
+	UserGroups []string
+}
+
+func getMatchingPolicy(vars rego.Vars, policies []config.Policy) *config.Policy {
+	result, ok := vars["result"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	idx, err := strconv.Atoi(fmt.Sprint(result["route_policy_idx"]))
+	if err != nil {
+		return nil
+	}
+
+	if idx >= len(policies) {
+		return nil
+	}
+
+	return &policies[idx]
 }
 
 func allowed(vars rego.Vars) bool {

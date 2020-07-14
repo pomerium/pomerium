@@ -9,6 +9,7 @@ import (
 	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 
@@ -25,7 +26,9 @@ func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.C
 	}
 
 	requestHeaders = append(requestHeaders,
-		mkHeader(httputil.HeaderPomeriumJWTAssertion, reply.SignedJWT))
+		mkHeader(httputil.HeaderPomeriumJWTAssertion, reply.SignedJWT, false))
+
+	requestHeaders = append(requestHeaders, getKubernetesHeaders(reply)...)
 
 	return &envoy_service_auth_v2.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
@@ -82,10 +85,10 @@ func (a *Authorize) htmlDeniedResponse(code int32, reason string, headers map[st
 	}
 
 	envoyHeaders := []*envoy_api_v2_core.HeaderValueOption{
-		mkHeader("Content-Type", "text/html"),
+		mkHeader("Content-Type", "text/html", false),
 	}
 	for k, v := range headers {
-		envoyHeaders = append(envoyHeaders, mkHeader(k, v))
+		envoyHeaders = append(envoyHeaders, mkHeader(k, v, false))
 	}
 
 	return &envoy_service_auth_v2.CheckResponse{
@@ -104,10 +107,10 @@ func (a *Authorize) htmlDeniedResponse(code int32, reason string, headers map[st
 
 func (a *Authorize) plainTextDeniedResponse(code int32, reason string, headers map[string]string) *envoy_service_auth_v2.CheckResponse {
 	envoyHeaders := []*envoy_api_v2_core.HeaderValueOption{
-		mkHeader("Content-Type", "text/plain"),
+		mkHeader("Content-Type", "text/plain", false),
 	}
 	for k, v := range headers {
-		envoyHeaders = append(envoyHeaders, mkHeader(k, v))
+		envoyHeaders = append(envoyHeaders, mkHeader(k, v, false))
 	}
 
 	return &envoy_service_auth_v2.CheckResponse{
@@ -138,11 +141,30 @@ func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) *en
 	})
 }
 
-func mkHeader(k, v string) *envoy_api_v2_core.HeaderValueOption {
+func getKubernetesHeaders(reply *evaluator.Result) []*envoy_api_v2_core.HeaderValueOption {
+	var requestHeaders []*envoy_api_v2_core.HeaderValueOption
+	if reply.MatchingPolicy != nil && reply.MatchingPolicy.KubernetesServiceAccountToken != "" {
+		requestHeaders = append(requestHeaders,
+			mkHeader("Authorization", "Bearer "+reply.MatchingPolicy.KubernetesServiceAccountToken, false))
+
+		if reply.UserEmail != "" {
+			requestHeaders = append(requestHeaders, mkHeader("Impersonate-User", reply.UserEmail, false))
+		}
+		for _, group := range reply.UserGroups {
+			requestHeaders = append(requestHeaders, mkHeader("Impersonate-Group", group, true))
+		}
+	}
+	return requestHeaders
+}
+
+func mkHeader(k, v string, shouldAppend bool) *envoy_api_v2_core.HeaderValueOption {
 	return &envoy_api_v2_core.HeaderValueOption{
 		Header: &envoy_api_v2_core.HeaderValue{
 			Key:   k,
 			Value: v,
+		},
+		Append: &wrappers.BoolValue{
+			Value: shouldAppend,
 		},
 	}
 }

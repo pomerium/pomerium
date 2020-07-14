@@ -54,9 +54,17 @@ func (as *Store) LoadSession(r *http.Request) (string, error) {
 // request, header key, and authentication type.
 func TokenFromHeader(r *http.Request, authHeader, authType string) string {
 	bearer := r.Header.Get(authHeader)
-	atSize := len(authType)
-	if len(bearer) > atSize && strings.EqualFold(bearer[0:atSize], authType) {
-		return bearer[atSize+1:]
+	// Authorization: Pomerium <JWT>
+	prefix := authType + " "
+	if strings.HasPrefix(bearer, prefix) {
+		return bearer[len(prefix):]
 	}
+
+	// Authorization: Bearer Pomerium-<JWT>
+	prefix = "Bearer " + authType + "-"
+	if strings.HasPrefix(bearer, prefix) {
+		return bearer[len(prefix):]
+	}
+
 	return ""
 }
