@@ -131,7 +131,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return &deny[0], nil
 	}
 
-	signedJWT, err := e.SignedJWT(req)
+	payload := e.JWTPayload(req)
+
+	signedJWT, err := e.SignedJWT(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error signing JWT: %w", err)
 	}
@@ -140,7 +142,12 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		MatchingPolicy: getMatchingPolicy(res[0].Bindings.WithoutWildcards(), e.policies),
 		SignedJWT:      signedJWT,
 	}
-	evalResult.UserEmail, evalResult.UserGroups = e.UserInfo(req)
+	if e, ok := payload["email"].(string); ok {
+		evalResult.UserEmail = e
+	}
+	if gs, ok := payload["groups"].([]string); ok {
+		evalResult.UserGroups = gs
+	}
 
 	allow := allowed(res[0].Bindings.WithoutWildcards())
 	if allow {
@@ -169,30 +176,8 @@ func (e *Evaluator) ParseSignedJWT(signature string) ([]byte, error) {
 	return object.Verify(&(e.jwk.(*ecdsa.PrivateKey).PublicKey))
 }
 
-// UserInfo returns the user email and groups.
-func (e *Evaluator) UserInfo(req *Request) (email string, groups []string) {
-	if s, ok := req.DataBrokerData.Get("type.googleapis.com/session.Session", req.Session.ID).(*session.Session); ok {
-		if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", s.GetUserId()).(*user.User); ok {
-			email = u.GetEmail()
-		}
-		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", s.GetUserId()).(*directory.User); ok {
-			groups = du.GetGroups()
-		}
-	}
-	return email, groups
-}
-
-// SignedJWT returns the signature of given request.
-func (e *Evaluator) SignedJWT(req *Request) (string, error) {
-	signerOpt := &jose.SignerOptions{}
-	signer, err := jose.NewSigner(jose.SigningKey{
-		Algorithm: jose.ES256,
-		Key:       e.jwk,
-	}, signerOpt.WithHeader("kid", e.kid))
-	if err != nil {
-		return "", err
-	}
-
+// JWTPayload returns the JWT payload for a request.
+func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 	payload := map[string]interface{}{
 		"iss": e.authenticateHost,
 	}
@@ -214,6 +199,19 @@ func (e *Evaluator) SignedJWT(req *Request) (string, error) {
 		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", s.GetUserId()).(*directory.User); ok {
 			payload["groups"] = du.GetGroups()
 		}
+	}
+	return payload
+}
+
+// SignedJWT returns the signature of given request.
+func (e *Evaluator) SignedJWT(payload map[string]interface{}) (string, error) {
+	signerOpt := &jose.SignerOptions{}
+	signer, err := jose.NewSigner(jose.SigningKey{
+		Algorithm: jose.ES256,
+		Key:       e.jwk,
+	}, signerOpt.WithHeader("kid", e.kid))
+	if err != nil {
+		return "", err
 	}
 
 	bs, err := json.Marshal(payload)
