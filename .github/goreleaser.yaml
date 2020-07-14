@@ -21,9 +21,13 @@ builds:
     binary: pomerium
     goarch:
       - amd64
+      - arm64
     goos:
       - linux
       - darwin
+    ignore:
+      - goos: darwin
+        goarch: arm64
 
     ldflags:
       - -s -w
@@ -36,8 +40,8 @@ builds:
     hooks:
       post:
         - cmd: ./scripts/embed-envoy.bash {{ .Path }}
-          env:
-            - GOOS={{ .Target }}
+          env: # e.g. darwin_amd64
+            - TARGET={{ .Target }}
 
   - id: pomerium-cli
     main: cmd/pomerium-cli/cli.go
