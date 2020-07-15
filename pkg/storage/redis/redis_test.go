@@ -15,7 +15,7 @@ import (
 
 func TestDB(t *testing.T) {
 	ctx := context.Background()
-	db, err := New(":6379")
+	db, err := New("localhost:6379")
 	require.NoError(t, err)
 	ids := []string{"a", "b", "c"}
 	id := ids[0]
