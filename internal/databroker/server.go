@@ -1,5 +1,5 @@
-// Package memory contains an in-memory data broker implementation.
-package memory
+// Package databroker contains a data broker implementation.
+package databroker
 
 import (
 	"context"
@@ -18,6 +18,8 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/storage"
+	"github.com/pomerium/pomerium/pkg/storage/inmemory"
 )
 
 // Server implements the databroker service using an in memory database.
@@ -27,7 +29,7 @@ type Server struct {
 	log     zerolog.Logger
 
 	mu       sync.RWMutex
-	byType   map[string]*DB
+	byType   map[string]storage.Backend
 	onchange *Signal
 }
 
@@ -39,7 +41,7 @@ func New(options ...ServerOption) *Server {
 		cfg:     cfg,
 		log:     log.With().Str("service", "databroker").Logger(),
 
-		byType:   make(map[string]*DB),
+		byType:   make(map[string]storage.Backend),
 		onchange: NewSignal(),
 	}
 	go func() {
@@ -55,7 +57,7 @@ func New(options ...ServerOption) *Server {
 			srv.mu.RUnlock()
 
 			for _, recordType := range recordTypes {
-				srv.getDB(recordType).ClearDeleted(time.Now().Add(-cfg.deletePermanentlyAfter))
+				srv.getDB(recordType).ClearDeleted(context.Background(), time.Now().Add(-cfg.deletePermanentlyAfter))
 			}
 		}
 	}()
@@ -73,7 +75,9 @@ func (srv *Server) Delete(ctx context.Context, req *databroker.DeleteRequest) (*
 
 	defer srv.onchange.Broadcast()
 
-	srv.getDB(req.GetType()).Delete(req.GetId())
+	if err := srv.getDB(req.GetType()).Delete(ctx, req.GetId()); err != nil {
+		return nil, err
+	}
 
 	return new(empty.Empty), nil
 }
@@ -87,7 +91,7 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 		Str("id", req.GetId()).
 		Msg("get")
 
-	record := srv.getDB(req.GetType()).Get(req.GetId())
+	record := srv.getDB(req.GetType()).Get(ctx, req.GetId())
 	if record == nil {
 		return nil, status.Error(codes.NotFound, "record not found")
 	}
@@ -102,7 +106,7 @@ func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*
 		Str("type", req.GetType()).
 		Msg("get all")
 
-	records := srv.getDB(req.GetType()).GetAll()
+	records := srv.getDB(req.GetType()).GetAll(ctx)
 	var recordVersion string
 	for _, record := range records {
 		if record.GetVersion() > recordVersion {
@@ -128,8 +132,10 @@ func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databr
 	defer srv.onchange.Broadcast()
 
 	db := srv.getDB(req.GetType())
-	db.Set(req.GetId(), req.GetData())
-	record := db.Get(req.GetId())
+	if err := db.Put(ctx, req.GetId(), req.GetData()); err != nil {
+		return nil, err
+	}
+	record := db.Get(ctx, req.GetId())
 
 	return &databroker.SetResponse{
 		Record:        record,
@@ -158,7 +164,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	ch := srv.onchange.Bind()
 	defer srv.onchange.Unbind(ch)
 	for {
-		updated := db.List(recordVersion)
+		updated := db.List(context.Background(), recordVersion)
 
 		if len(updated) > 0 {
 			sort.Slice(updated, func(i, j int) bool {
@@ -232,7 +238,7 @@ func (srv *Server) SyncTypes(req *emptypb.Empty, stream databroker.DataBrokerSer
 	}
 }
 
-func (srv *Server) getDB(recordType string) *DB {
+func (srv *Server) getDB(recordType string) storage.Backend {
 	// double-checked locking:
 	// first try the read lock, then re-try with the write lock, and finally create a new db if nil
 	srv.mu.RLock()
@@ -242,7 +248,7 @@ func (srv *Server) getDB(recordType string) *DB {
 		srv.mu.Lock()
 		db = srv.byType[recordType]
 		if db == nil {
-			db = NewDB(recordType, srv.cfg.btreeDegree)
+			db = inmemory.NewDB(recordType, srv.cfg.btreeDegree)
 			srv.byType[recordType] = db
 		}
 		srv.mu.Unlock()

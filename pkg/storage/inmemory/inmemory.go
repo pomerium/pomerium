@@ -1,6 +1,7 @@
-package memory
+package inmemory
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -12,7 +13,10 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
+
+var _ storage.Backend = (*DB)(nil)
 
 type byIDRecord struct {
 	*databroker.Record
@@ -52,7 +56,7 @@ func NewDB(recordType string, btreeDegree int) *DB {
 }
 
 // ClearDeleted clears all the currently deleted records older than the given cutoff.
-func (db *DB) ClearDeleted(cutoff time.Time) {
+func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
@@ -71,15 +75,16 @@ func (db *DB) ClearDeleted(cutoff time.Time) {
 }
 
 // Delete marks a record as deleted.
-func (db *DB) Delete(id string) {
+func (db *DB) Delete(_ context.Context, id string) error {
 	db.replaceOrInsert(id, func(record *databroker.Record) {
 		record.DeletedAt = ptypes.TimestampNow()
 		db.deletedIDs = append(db.deletedIDs, id)
 	})
+	return nil
 }
 
 // Get gets a record from the db.
-func (db *DB) Get(id string) *databroker.Record {
+func (db *DB) Get(_ context.Context, id string) *databroker.Record {
 	record, ok := db.byID.Get(byIDRecord{Record: &databroker.Record{Id: id}}).(byIDRecord)
 	if !ok {
 		return nil
@@ -88,7 +93,7 @@ func (db *DB) Get(id string) *databroker.Record {
 }
 
 // GetAll gets all the records in the db.
-func (db *DB) GetAll() []*databroker.Record {
+func (db *DB) GetAll(_ context.Context) []*databroker.Record {
 	var records []*databroker.Record
 	db.byID.Ascend(func(item btree.Item) bool {
 		records = append(records, item.(byIDRecord).Record)
@@ -98,7 +103,7 @@ func (db *DB) GetAll() []*databroker.Record {
 }
 
 // List lists all the changes since the given version.
-func (db *DB) List(sinceVersion string) []*databroker.Record {
+func (db *DB) List(_ context.Context, sinceVersion string) []*databroker.Record {
 	var records []*databroker.Record
 	db.byVersion.AscendGreaterOrEqual(byVersionRecord{Record: &databroker.Record{Version: sinceVersion}}, func(i btree.Item) bool {
 		record := i.(byVersionRecord)
@@ -110,11 +115,12 @@ func (db *DB) List(sinceVersion string) []*databroker.Record {
 	return records
 }
 
-// Set replaces or inserts a record in the db.
-func (db *DB) Set(id string, data *anypb.Any) {
+// Put replaces or inserts a record in the db.
+func (db *DB) Put(_ context.Context, id string, data *anypb.Any) error {
 	db.replaceOrInsert(id, func(record *databroker.Record) {
 		record.Data = data
 	})
+	return nil
 }
 
 func (db *DB) replaceOrInsert(id string, f func(record *databroker.Record)) {
