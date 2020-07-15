@@ -107,7 +107,7 @@ func (a *Authorize) getGoogleCloudServerlessAuthenticationHeaders(
 		panic("custom service account not implemented")
 	}
 
-	audience := fmt.Sprintf("https://%s", reply.MatchingPolicy.Source.Hostname())
+	audience := fmt.Sprintf("https://%s", reply.MatchingPolicy.Destination.Hostname())
 
 	tok, err := gcpIdentityTokenSource.Get(ctx, audience)
 	if err != nil {
