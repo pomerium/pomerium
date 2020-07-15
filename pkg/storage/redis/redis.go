@@ -82,7 +82,8 @@ func (db *DB) Put(ctx context.Context, id string, data *anypb.Any) error {
 	return nil
 }
 
-func (db *DB) Get(ctx context.Context, id string) *databroker.Record {
+// Get retrieves a record from redis.
+func (db *DB) Get(_ context.Context, id string) *databroker.Record {
 	c := db.pool.Get()
 	defer c.Close()
 
@@ -99,16 +100,19 @@ func (db *DB) Get(ctx context.Context, id string) *databroker.Record {
 	return record
 }
 
+// GetAll retrieves all records from redis.
 func (db *DB) GetAll(ctx context.Context) []*databroker.Record {
 	return db.getAll(ctx, func(record *databroker.Record) bool { return true })
 }
 
+// List retrieves all records since given version.
 func (db *DB) List(ctx context.Context, sinceVersion string) []*databroker.Record {
 	return db.getAll(ctx, func(record *databroker.Record) bool {
 		return record.Version > sinceVersion
 	})
 }
 
+// Delete sets a record DeletedAt field and set its TTL.
 func (db *DB) Delete(ctx context.Context, id string) error {
 	c := db.pool.Get()
 	defer c.Close()
@@ -128,11 +132,13 @@ func (db *DB) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (db *DB) ClearDeleted(ctx context.Context, cutoff time.Time) {
+// ClearDeleted is a no-op, it exists for satisfying storage.Backend interface only.
+// Delete methods already set the record TTL, so record will be deleted from redis after TTL.
+func (db *DB) ClearDeleted(_ context.Context, _ time.Time) {
 	return
 }
 
-func (db *DB) getAll(ctx context.Context, filter func(record *databroker.Record) bool) []*databroker.Record {
+func (db *DB) getAll(_ context.Context, filter func(record *databroker.Record) bool) []*databroker.Record {
 	c := db.pool.Get()
 	defer c.Close()
 	iter := 0
