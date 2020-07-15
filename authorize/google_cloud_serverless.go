@@ -21,6 +21,7 @@ var (
 	gcpIdentityTokenGracePeriod = time.Minute * 10
 	gcpIdentityDocURL           = "http://metadata/computeMetadata/v1/instance/service-accounts/default/identity"
 	gcpIdentityTokenSource      = NewGCPIdentityTokenSource()
+	gcpIdentityNow              = time.Now
 )
 
 // A GCPIdentityToken is an identity token for a service account.
@@ -53,7 +54,7 @@ func (src *GCPIdentityTokenSource) Get(ctx context.Context, audience string) (st
 		tok, ok := src.tokens[audience]
 		src.mu.Unlock()
 
-		if ok && tok.Expires.Add(-gcpIdentityTokenGracePeriod).After(time.Now()) {
+		if ok && tok.Expires.Add(-gcpIdentityTokenGracePeriod).After(gcpIdentityNow()) {
 			return tok, nil
 		}
 
@@ -80,7 +81,7 @@ func (src *GCPIdentityTokenSource) Get(ctx context.Context, audience string) (st
 		tok = GCPIdentityToken{
 			Audience: audience,
 			Token:    strings.TrimSpace(string(bs)),
-			Expires:  time.Now().Add(gpcIdentityTokenExpiration),
+			Expires:  gcpIdentityNow().Add(gpcIdentityTokenExpiration),
 		}
 		src.mu.Lock()
 		src.tokens[audience] = tok
