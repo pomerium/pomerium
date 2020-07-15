@@ -2,7 +2,9 @@ package authorize
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -11,56 +13,30 @@ import (
 	"time"
 
 	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"golang.org/x/oauth2"
 	"golang.org/x/sync/singleflight"
+	"google.golang.org/api/idtoken"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 )
 
 var (
-	gpcIdentityTokenExpiration  = time.Hour // tokens expire after one hour according to the GCP docs
-	gcpIdentityTokenGracePeriod = time.Minute * 10
-	gcpIdentityDocURL           = "http://metadata/computeMetadata/v1/instance/service-accounts/default/identity"
-	gcpIdentityTokenSource      = NewGCPIdentityTokenSource()
-	gcpIdentityNow              = time.Now
+	gpcIdentityTokenExpiration       = time.Minute * 45 // tokens expire after one hour according to the GCP docs
+	gcpIdentityDocURL                = "http://metadata/computeMetadata/v1/instance/service-accounts/default/identity"
+	gcpIdentityNow                   = time.Now
+	gcpIdentityMaxBodySize     int64 = 1024 * 1024 * 10
 )
 
-// A GCPIdentityToken is an identity token for a service account.
-type GCPIdentityToken struct {
-	Audience string
-	Token    string
-	Expires  time.Time
+type gcpIdentityTokenSource struct {
+	audience     string
+	singleflight singleflight.Group
 }
 
-// The GCPIdentityTokenSource retrieves identity tokens for service accounts. It single-flights requests and caches
-// tokens.
-type GCPIdentityTokenSource struct {
-	singleflight.Group
-
-	mu     sync.Mutex
-	tokens map[string]GCPIdentityToken
-}
-
-// NewGCPIdentityTokenSource creates a new GCPIdentityTokenSource.
-func NewGCPIdentityTokenSource() *GCPIdentityTokenSource {
-	return &GCPIdentityTokenSource{
-		tokens: make(map[string]GCPIdentityToken),
-	}
-}
-
-// Get gets an identity token.
-func (src *GCPIdentityTokenSource) Get(ctx context.Context, audience string) (string, error) {
-	v, err, _ := src.Do(audience, func() (interface{}, error) {
-		src.mu.Lock()
-		tok, ok := src.tokens[audience]
-		src.mu.Unlock()
-
-		if ok && tok.Expires.Add(-gcpIdentityTokenGracePeriod).After(gcpIdentityNow()) {
-			return tok, nil
-		}
-
-		req, err := http.NewRequestWithContext(ctx, "GET", gcpIdentityDocURL+"?"+url.Values{
+func (src *gcpIdentityTokenSource) Token() (*oauth2.Token, error) {
+	res, err, _ := src.singleflight.Do("", func() (interface{}, error) {
+		req, err := http.NewRequestWithContext(context.Background(), "GET", gcpIdentityDocURL+"?"+url.Values{
 			"format":   {"full"},
-			"audience": {audience},
+			"audience": {src.audience},
 		}.Encode(), nil)
 		if err != nil {
 			return nil, err
@@ -71,51 +47,100 @@ func (src *GCPIdentityTokenSource) Get(ctx context.Context, audience string) (st
 		if err != nil {
 			return nil, err
 		}
-		defer res.Body.Close()
+		defer func() { _ = res.Body.Close() }()
 
-		bs, err := ioutil.ReadAll(res.Body)
+		bs, err := ioutil.ReadAll(io.LimitReader(res.Body, gcpIdentityMaxBodySize))
 		if err != nil {
 			return nil, err
 		}
-
-		tok = GCPIdentityToken{
-			Audience: audience,
-			Token:    strings.TrimSpace(string(bs)),
-			Expires:  gcpIdentityNow().Add(gpcIdentityTokenExpiration),
-		}
-		src.mu.Lock()
-		src.tokens[audience] = tok
-		src.mu.Unlock()
-
-		return tok, nil
+		return string(bs), nil
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return v.(GCPIdentityToken).Token, nil
+
+	return &oauth2.Token{
+		AccessToken: strings.TrimSpace(res.(string)),
+		TokenType:   "bearer",
+		Expiry:      gcpIdentityNow().Add(gpcIdentityTokenExpiration),
+	}, nil
 }
 
-func (a *Authorize) getGoogleCloudServerlessAuthenticationHeaders(
-	ctx context.Context,
-	reply *evaluator.Result,
-) ([]*envoy_api_v2_core.HeaderValueOption, error) {
+type gcpTokenSourceKey struct {
+	serviceAccount string
+	audience       string
+}
+
+var (
+	gcpTokenSources = struct {
+		sync.Mutex
+		m map[gcpTokenSourceKey]oauth2.TokenSource
+	}{
+		m: make(map[gcpTokenSourceKey]oauth2.TokenSource),
+	}
+)
+
+func getGoogleCloudServerlessTokenSource(serviceAccount, audience string) (oauth2.TokenSource, error) {
+	key := gcpTokenSourceKey{
+		serviceAccount: serviceAccount,
+		audience:       audience,
+	}
+
+	gcpTokenSources.Lock()
+	defer gcpTokenSources.Unlock()
+
+	src, ok := gcpTokenSources.m[key]
+	if ok {
+		return src, nil
+	}
+
+	if serviceAccount == "" {
+		src = oauth2.ReuseTokenSource(new(oauth2.Token), &gcpIdentityTokenSource{
+			audience: audience,
+		})
+	} else {
+		serviceAccount = strings.TrimSpace(serviceAccount)
+
+		// the service account can be base64 encoded
+		if !strings.HasPrefix(serviceAccount, "{") {
+			bs, err := base64.StdEncoding.DecodeString(serviceAccount)
+			if err != nil {
+				return nil, err
+			}
+			serviceAccount = string(bs)
+		}
+
+		var err error
+		src, err = idtoken.NewTokenSource(context.Background(), audience, idtoken.WithCredentialsJSON([]byte(serviceAccount)))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	gcpTokenSources.m[key] = src
+
+	return src, nil
+}
+
+func (a *Authorize) getGoogleCloudServerlessAuthenticationHeaders(reply *evaluator.Result) ([]*envoy_api_v2_core.HeaderValueOption, error) {
 	if reply.MatchingPolicy == nil || !reply.MatchingPolicy.EnableGoogleCloudServerlessAuthentication {
 		return nil, nil
 	}
 
-	svcAccount := a.currentOptions.Load().GoogleCloudServerlessAuthenticationServiceAccount
-	if svcAccount != "" {
-		panic("custom service account not implemented")
-	}
-
+	serviceAccount := a.currentOptions.Load().GoogleCloudServerlessAuthenticationServiceAccount
 	audience := fmt.Sprintf("https://%s", reply.MatchingPolicy.Destination.Hostname())
 
-	tok, err := gcpIdentityTokenSource.Get(ctx, audience)
+	src, err := getGoogleCloudServerlessTokenSource(serviceAccount, audience)
+	if err != nil {
+		return nil, err
+	}
+
+	tok, err := src.Token()
 	if err != nil {
 		return nil, err
 	}
 
 	return []*envoy_api_v2_core.HeaderValueOption{
-		mkHeader("Authorization", "Bearer "+tok, false),
+		mkHeader("Authorization", "Bearer "+tok.AccessToken, false),
 	}, nil
 }

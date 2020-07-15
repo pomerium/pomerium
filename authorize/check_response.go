@@ -2,7 +2,6 @@ package authorize
 
 import (
 	"bytes"
-	"context"
 	"net/http"
 	"net/url"
 	"strings"
@@ -20,7 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-func (a *Authorize) okResponse(ctx context.Context, reply *evaluator.Result) *envoy_service_auth_v2.CheckResponse {
+func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.CheckResponse {
 	requestHeaders, err := a.getEnvoyRequestHeaders(reply.SignedJWT)
 	if err != nil {
 		log.Warn().Err(err).Msg("authorize: error generating new request headers")
@@ -31,7 +30,7 @@ func (a *Authorize) okResponse(ctx context.Context, reply *evaluator.Result) *en
 
 	requestHeaders = append(requestHeaders, getKubernetesHeaders(reply)...)
 
-	if hdrs, err := a.getGoogleCloudServerlessAuthenticationHeaders(ctx, reply); err == nil {
+	if hdrs, err := a.getGoogleCloudServerlessAuthenticationHeaders(reply); err == nil {
 		requestHeaders = append(requestHeaders, hdrs...)
 	} else {
 		log.Warn().Err(err).Msg("error getting google cloud serverless authentication headers")

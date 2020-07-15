@@ -1,7 +1,6 @@
 package authorize
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -32,17 +31,10 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 
 	gcpIdentityDocURL = srv.URL
 
-	token, err := gcpIdentityTokenSource.Get(context.Background(), "example")
+	src, err := getGoogleCloudServerlessTokenSource("", "example")
 	assert.NoError(t, err)
-	assert.Equal(t, "2020-01-01T01:00:00-07:00", token)
 
-	now = time.Date(2020, 1, 1, 1, 49, 0, 0, time.Local)
-	token, err = gcpIdentityTokenSource.Get(context.Background(), "example")
+	token, err := src.Token()
 	assert.NoError(t, err)
-	assert.Equal(t, "2020-01-01T01:00:00-07:00", token)
-
-	now = time.Date(2020, 1, 1, 1, 51, 0, 0, time.Local)
-	token, err = gcpIdentityTokenSource.Get(context.Background(), "example")
-	assert.NoError(t, err)
-	assert.Equal(t, "2020-01-01T01:51:00-07:00", token)
+	assert.Equal(t, "2020-01-01T01:00:00-07:00", token.AccessToken)
 }
