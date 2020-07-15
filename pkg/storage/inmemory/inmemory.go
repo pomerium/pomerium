@@ -1,3 +1,4 @@
+// Package inmemory is the in-memory database using b-trees.
 package inmemory
 
 import (
