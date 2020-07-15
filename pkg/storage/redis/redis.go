@@ -57,16 +57,17 @@ func New(address string) (*DB, error) {
 	return db, nil
 }
 
+// Put sets new record for given id with input data.
 func (db *DB) Put(ctx context.Context, id string, data *anypb.Any) error {
 	c := db.pool.Get()
 	defer c.Close()
-	exists, _ := redis.Bool(c.Do("EXISTS", id))
-
-	record := new(databroker.Record)
-	record.Data = data
-	if !exists {
+	record := db.Get(ctx, id)
+	if record == nil {
+		record = new(databroker.Record)
 		record.CreatedAt = ptypes.TimestampNow()
 	}
+
+	record.Data = data
 	record.ModifiedAt = ptypes.TimestampNow()
 	record.Type = db.recordType
 	record.Id = id
