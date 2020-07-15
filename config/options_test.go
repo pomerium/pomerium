@@ -505,6 +505,42 @@ func TestHTTPRedirectAddressStripQuotes(t *testing.T) {
 	assert.Equal(t, ":80", o.HTTPRedirectAddr)
 }
 
+func TestCertificatesArrayParsing(t *testing.T) {
+	t.Parallel()
+
+	testCertFileRef := "./testdata/example-cert.pem"
+	testKeyFileRef := "./testdata/example-key.pem"
+	testCertFile, _ := ioutil.ReadFile(testCertFileRef)
+	testKeyFile, _ := ioutil.ReadFile(testKeyFileRef)
+	testCertAsBase64 := base64.StdEncoding.EncodeToString(testCertFile)
+	testKeyAsBase64 := base64.StdEncoding.EncodeToString(testKeyFile)
+
+	tests := []struct {
+		name             string
+		certificateFiles []certificateFilePair
+		wantErr          bool
+	}{
+		{"Handles base64 string as params", []certificateFilePair{{KeyFile: testKeyAsBase64, CertFile: testCertAsBase64}}, false},
+		{"Handles file reference as params", []certificateFilePair{{KeyFile: testKeyFileRef, CertFile: testCertFileRef}}, false},
+		{"Returns an error otherwise", []certificateFilePair{{KeyFile: "abc", CertFile: "abc"}}, true},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			o := NewDefaultOptions()
+			o.CertificateFiles = tt.certificateFiles
+			err := o.Validate()
+
+			if err != nil && tt.wantErr == false {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestCompareByteSliceSlice(t *testing.T) {
 	type Bytes = [][]byte
 
