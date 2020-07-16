@@ -142,3 +142,5 @@ jobs:
 
       - name: test
         run: go test -v -tags redis ./pkg/storage/redis/...
+        env:
+          REDIS_URL: "redis:6379"

@@ -5,6 +5,7 @@ package redis
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/gomodule/redigo/redis"
@@ -15,7 +16,11 @@ import (
 
 func TestDB(t *testing.T) {
 	ctx := context.Background()
-	db, err := New("127.0.0.1:6379")
+	address := ":6379"
+	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
+		address = redisURL
+	}
+	db, err := New(address)
 	require.NoError(t, err)
 	ids := []string{"a", "b", "c"}
 	id := ids[0]

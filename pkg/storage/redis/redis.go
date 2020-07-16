@@ -1,3 +1,4 @@
+// Package redis is the redis database, implements storage.Backend interface.
 package redis
 
 import (
@@ -134,9 +135,7 @@ func (db *DB) Delete(ctx context.Context, id string) error {
 
 // ClearDeleted is a no-op, it exists for satisfying storage.Backend interface only.
 // Delete methods already set the record TTL, so record will be deleted from redis after TTL.
-func (db *DB) ClearDeleted(_ context.Context, _ time.Time) {
-	return
-}
+func (db *DB) ClearDeleted(_ context.Context, _ time.Time) {}
 
 func (db *DB) getAll(_ context.Context, filter func(record *databroker.Record) bool) []*databroker.Record {
 	c := db.pool.Get()
