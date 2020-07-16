@@ -71,7 +71,7 @@ func TestOptions_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateOptions(*tt.o); (err != nil) != tt.wantErr {
+			if err := ValidateOptions(tt.o); (err != nil) != tt.wantErr {
 				t.Errorf("Options.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -128,7 +128,7 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(*tt.opts)
+			_, err := New(tt.opts)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -155,8 +155,8 @@ func TestIsAdmin(t *testing.T) {
 			t.Parallel()
 			opts := newTestOptions(t)
 			opts.Administrators = tc.admins
-			a, err := New(*opts)
-			assert.NoError(t, a.UpdateOptions(*opts))
+			a, err := New(opts)
+			a.OnConfigChange(&config.Config{Options: opts})
 			require.NoError(t, err)
 			assert.True(t, a.isAdmin(tc.user) == tc.isAdmin)
 		})

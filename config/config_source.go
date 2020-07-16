@@ -69,7 +69,7 @@ type FileOrEnvironmentConfigSource struct {
 
 // NewFileOrEnvironmentConfigSource creates a new FileOrEnvironmentConfigSource.
 func NewFileOrEnvironmentConfigSource(configFile string) (*FileOrEnvironmentConfigSource, error) {
-	options, err := NewOptionsFromConfig(configFile)
+	options, err := newOptionsFromConfig(configFile)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func NewFileOrEnvironmentConfigSource(configFile string) (*FileOrEnvironmentConf
 
 func (src *FileOrEnvironmentConfigSource) onConfigChange(evt fsnotify.Event) {
 	src.mu.Lock()
-	newOptions := handleConfigUpdate(src.configFile, src.config.Options, nil)
+	newOptions := handleConfigUpdate(src.configFile, src.config.Options)
 	cfg := &Config{Options: newOptions}
 	src.config = cfg
 	src.mu.Unlock()

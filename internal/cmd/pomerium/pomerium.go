@@ -45,15 +45,6 @@ func Run(ctx context.Context, configFile string) error {
 		return err
 	}
 
-	var optionsUpdaters []config.OptionsUpdater
-	src.OnConfigChange(func(cfg *config.Config) {
-		for _, u := range optionsUpdaters {
-			err := u.UpdateOptions(*cfg.Options)
-			if err != nil {
-				log.Warn().Err(err).Msg("failed to update config options")
-			}
-		}
-	})
 	cfg := src.GetConfig()
 
 	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
@@ -70,11 +61,8 @@ func Run(ctx context.Context, configFile string) error {
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
-	optionsUpdaters = append(optionsUpdaters, controlPlane)
-	err = controlPlane.UpdateOptions(*cfg.Options)
-	if err != nil {
-		return fmt.Errorf("error updating control plane options: %w", err)
-	}
+	src.OnConfigChange(controlPlane.OnConfigChange)
+	controlPlane.OnConfigChange(cfg)
 
 	_, grpcPort, _ := net.SplitHostPort(controlPlane.GRPCListener.Addr().String())
 	_, httpPort, _ := net.SplitHostPort(controlPlane.HTTPListener.Addr().String())
@@ -89,12 +77,12 @@ func Run(ctx context.Context, configFile string) error {
 	}
 
 	// add services
-	if err := setupAuthenticate(cfg.Options, controlPlane, &optionsUpdaters); err != nil {
+	if err := setupAuthenticate(src, cfg, controlPlane); err != nil {
 		return err
 	}
 	var authorizeServer *authorize.Authorize
 	if config.IsAuthorize(cfg.Options.Services) {
-		authorizeServer, err = setupAuthorize(cfg.Options, controlPlane, &optionsUpdaters)
+		authorizeServer, err = setupAuthorize(src, cfg, controlPlane)
 		if err != nil {
 			return err
 		}
@@ -146,21 +134,21 @@ func Run(ctx context.Context, configFile string) error {
 	return eg.Wait()
 }
 
-func setupAuthenticate(opt *config.Options, controlPlane *controlplane.Server, optionsUpdaters *[]config.OptionsUpdater) error {
-	if !config.IsAuthenticate(opt.Services) {
+func setupAuthenticate(src config.ConfigSource, cfg *config.Config, controlPlane *controlplane.Server) error {
+	if !config.IsAuthenticate(cfg.Options.Services) {
 		return nil
 	}
 
-	svc, err := authenticate.New(*opt)
+	svc, err := authenticate.New(cfg.Options)
 	if err != nil {
 		return fmt.Errorf("error creating authenticate service: %w", err)
 	}
-	*optionsUpdaters = append(*optionsUpdaters, svc)
-	err = svc.UpdateOptions(*opt)
+	src.OnConfigChange(svc.OnConfigChange)
+	svc.OnConfigChange(cfg)
 	if err != nil {
 		return fmt.Errorf("error updating authenticate options: %w", err)
 	}
-	host := urlutil.StripPort(opt.GetAuthenticateURL().Host)
+	host := urlutil.StripPort(cfg.Options.GetAuthenticateURL().Host)
 	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
 	svc.Mount(sr)
 	log.Info().Str("host", host).Msg("enabled authenticate service")
@@ -168,20 +156,16 @@ func setupAuthenticate(opt *config.Options, controlPlane *controlplane.Server, o
 	return nil
 }
 
-func setupAuthorize(opt *config.Options, controlPlane *controlplane.Server, optionsUpdaters *[]config.OptionsUpdater) (*authorize.Authorize, error) {
-	svc, err := authorize.New(*opt)
+func setupAuthorize(src config.ConfigSource, cfg *config.Config, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
+	svc, err := authorize.New(cfg.Options)
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)
 	}
 	envoy_service_auth_v2.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
 
 	log.Info().Msg("enabled authorize service")
-
-	*optionsUpdaters = append(*optionsUpdaters, svc)
-	err = svc.UpdateOptions(*opt)
-	if err != nil {
-		return nil, fmt.Errorf("error updating authorize options: %w", err)
-	}
+	src.OnConfigChange(svc.OnConfigChange)
+	svc.OnConfigChange(cfg)
 	return svc, nil
 }
 

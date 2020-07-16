@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash/v2"
-	"github.com/fsnotify/fsnotify"
 	"github.com/mitchellh/hashstructure"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
@@ -285,9 +284,9 @@ func NewDefaultOptions() *Options {
 	return &newOpts
 }
 
-// NewOptionsFromConfig builds the main binary's configuration options by parsing
+// newOptionsFromConfig builds the main binary's configuration options by parsing
 // environmental variables and config file
-func NewOptionsFromConfig(configFile string) (*Options, error) {
+func newOptionsFromConfig(configFile string) (*Options, error) {
 	o, err := optionsFromViper(configFile)
 	if err != nil {
 		return nil, fmt.Errorf("config: options from config file %w", err)
@@ -364,13 +363,6 @@ func (o *Options) parsePolicy() error {
 		}
 	}
 	return nil
-}
-
-// OnConfigChange starts a go routine and watches for any changes. If any are
-// detected, via an fsnotify event the provided function is run.
-func (o *Options) OnConfigChange(run func(in fsnotify.Event)) {
-	go o.viper.WatchConfig()
-	o.viper.OnConfigChange(run)
 }
 
 func (o *Options) viperUnmarshalKey(key string, rawVal interface{}) error {
@@ -615,28 +607,6 @@ func (o *Options) Validate() error {
 	return nil
 }
 
-func (o *Options) sourceHostnames() []string {
-	if len(o.Policies) == 0 {
-		return nil
-	}
-
-	dedupe := map[string]struct{}{}
-	for _, p := range o.Policies {
-		dedupe[p.Source.Hostname()] = struct{}{}
-	}
-	if o.AuthenticateURL != nil {
-		dedupe[o.AuthenticateURL.Hostname()] = struct{}{}
-	}
-
-	var h []string
-	for k := range dedupe {
-		h = append(h, k)
-	}
-	sort.Strings(h)
-
-	return h
-}
-
 // GetAuthenticateURL returns the AuthenticateURL in the options or localhost.
 func (o *Options) GetAuthenticateURL() *url.URL {
 	if o != nil && o.AuthenticateURL != nil {
@@ -688,11 +658,6 @@ func (o *Options) GetOauthOptions() oauth.Options {
 	}
 }
 
-// OptionsUpdater updates local state based on an Options struct
-type OptionsUpdater interface {
-	UpdateOptions(Options) error
-}
-
 // Checksum returns the checksum of the current options struct
 func (o *Options) Checksum() uint64 {
 	hash, err := hashstructure.Hash(o, &hashstructure.HashOptions{Hasher: xxhash.New()})
@@ -706,10 +671,10 @@ func (o *Options) Checksum() uint64 {
 // handleConfigUpdate takes configuration file, an existing options struct, and
 // updates each service in the services slice OptionsUpdater with a new set of
 // options if any change is detected.
-func handleConfigUpdate(configFile string, opt *Options, services []OptionsUpdater) *Options {
+func handleConfigUpdate(configFile string, opt *Options) *Options {
 	serviceName := telemetry.ServiceName(opt.Services)
 
-	newOpt, err := NewOptionsFromConfig(configFile)
+	newOpt, err := newOptionsFromConfig(configFile)
 	if err != nil {
 		log.Error().Err(err).Msg("config: could not reload configuration")
 		metrics.SetConfigInfo(serviceName, false)
@@ -725,19 +690,6 @@ func handleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 		return opt
 	}
 
-	var updateFailed bool
-	for _, service := range services {
-		if err := service.UpdateOptions(*newOpt); err != nil {
-			log.Error().Err(err).Msg("config: could not update options")
-			updateFailed = true
-			metrics.SetConfigInfo(serviceName, false)
-		}
-	}
-
-	if !updateFailed {
-		metrics.SetConfigInfo(serviceName, true)
-		metrics.SetConfigChecksum(serviceName, newOptChecksum)
-	}
 	return newOpt
 }
 
