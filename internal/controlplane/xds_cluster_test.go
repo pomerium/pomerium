@@ -160,7 +160,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 func Test_buildCluster(t *testing.T) {
 	rootCA, _ := getRootCertificateAuthority()
 	t.Run("insecure", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true)
+		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true, true)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -170,6 +170,7 @@ func Test_buildCluster(t *testing.T) {
 				"http2ProtocolOptions": {
 					"allowConnect": true
 				},
+				"dnsLookupFamily": "V4_ONLY",
 				"loadAssignment": {
 					"clusterName": "example",
 					"endpoints": [{
@@ -194,7 +195,7 @@ func Test_buildCluster(t *testing.T) {
 		transportSocket := buildPolicyTransportSocket(&config.Policy{
 			Destination: u,
 		})
-		cluster := buildCluster("example", u, transportSocket, true)
+		cluster := buildCluster("example", u, transportSocket, true, false)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -242,7 +243,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("ip address", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://127.0.0.1"), nil, true)
+		cluster := buildCluster("example", mustParseURL("http://127.0.0.1"), nil, true, false)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -272,7 +273,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("localhost", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://localhost"), nil, true)
+		cluster := buildCluster("example", mustParseURL("http://localhost"), nil, true, false)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
