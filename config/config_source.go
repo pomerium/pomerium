@@ -1,9 +1,12 @@
 package config
 
 import (
+	"reflect"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/mitchellh/copystructure"
+	"github.com/spf13/viper"
 )
 
 // Config holds pomerium configuration options.
@@ -11,12 +14,43 @@ type Config struct {
 	Options *Options
 }
 
+// Clone creates a deep clone of the config.
+func (cfg *Config) Clone() *Config {
+	return copystructure.Must(copystructure.Config{
+		Copiers: map[reflect.Type]copystructure.CopierFunc{
+			reflect.TypeOf((*viper.Viper)(nil)): func(i interface{}) (interface{}, error) {
+				return i, nil
+			},
+		},
+	}.Copy(cfg)).(*Config)
+}
+
 // A ConfigChangeListener is called when configuration changes.
 type ConfigChangeListener = func(*Config)
 
+type ConfigChangeDispatcher struct {
+	sync.Mutex
+	onConfigChangeListeners []ConfigChangeListener
+}
+
+func (dispatcher *ConfigChangeDispatcher) Trigger(cfg *Config) {
+	dispatcher.Lock()
+	defer dispatcher.Unlock()
+
+	for _, li := range dispatcher.onConfigChangeListeners {
+		li(cfg)
+	}
+}
+
+func (dispatcher *ConfigChangeDispatcher) OnConfigChange(li ConfigChangeListener) {
+	dispatcher.Lock()
+	defer dispatcher.Unlock()
+	dispatcher.onConfigChangeListeners = append(dispatcher.onConfigChangeListeners, li)
+}
+
 // A ConfigSource gets configuration.
 type ConfigSource interface {
-	GetConfig() (*Config, error)
+	GetConfig() *Config
 	OnConfigChange(ConfigChangeListener)
 }
 
@@ -24,9 +58,10 @@ type ConfigSource interface {
 type FileOrEnvironmentConfigSource struct {
 	configFile string
 
-	mu                      sync.RWMutex
-	config                  *Config
-	onConfigChangeListeners []ConfigChangeListener
+	mu     sync.RWMutex
+	config *Config
+
+	ConfigChangeDispatcher
 }
 
 // NewFileOrEnvironmentConfigSource creates a new FileOrEnvironmentConfigSource.
@@ -53,22 +88,13 @@ func (src *FileOrEnvironmentConfigSource) onConfigChange(evt fsnotify.Event) {
 	src.config = cfg
 	src.mu.Unlock()
 
-	for _, li := range src.onConfigChangeListeners {
-		li(cfg)
-	}
+	src.Trigger(cfg)
 }
 
 // GetConfig gets the config.
-func (src *FileOrEnvironmentConfigSource) GetConfig() (*Config, error) {
+func (src *FileOrEnvironmentConfigSource) GetConfig() *Config {
 	src.mu.RLock()
 	defer src.mu.RUnlock()
 
-	return src.config, nil
-}
-
-// OnConfigChange registers a listener for config changes.
-func (src *FileOrEnvironmentConfigSource) OnConfigChange(li ConfigChangeListener) {
-	src.mu.Lock()
-	src.onConfigChangeListeners = append(src.onConfigChangeListeners, li)
-	src.mu.Unlock()
+	return src.config
 }

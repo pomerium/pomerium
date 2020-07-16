@@ -45,10 +45,7 @@ func Run(ctx context.Context, configFile string) error {
 			}
 		}
 	})
-	cfg, err := src.GetConfig()
-	if err != nil {
-		return err
-	}
+	cfg := src.GetConfig()
 
 	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
 
