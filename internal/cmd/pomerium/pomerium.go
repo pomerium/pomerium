@@ -33,9 +33,9 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, configFile string) error {
-	var src config.ConfigSource
+	var src config.Source
 
-	src, err := config.NewFileOrEnvironmentConfigSource(configFile)
+	src, err := config.NewFileOrEnvironmentSource(configFile)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func Run(ctx context.Context, configFile string) error {
 	return eg.Wait()
 }
 
-func setupAuthenticate(src config.ConfigSource, cfg *config.Config, controlPlane *controlplane.Server) error {
+func setupAuthenticate(src config.Source, cfg *config.Config, controlPlane *controlplane.Server) error {
 	if !config.IsAuthenticate(cfg.Options.Services) {
 		return nil
 	}
@@ -156,7 +156,7 @@ func setupAuthenticate(src config.ConfigSource, cfg *config.Config, controlPlane
 	return nil
 }
 
-func setupAuthorize(src config.ConfigSource, cfg *config.Config, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
+func setupAuthorize(src config.Source, cfg *config.Config, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
 	svc, err := authorize.New(cfg.Options)
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)

@@ -25,17 +25,17 @@ func (cfg *Config) Clone() *Config {
 	}.Copy(cfg)).(*Config)
 }
 
-// A ConfigChangeListener is called when configuration changes.
-type ConfigChangeListener = func(*Config)
+// A ChangeListener is called when configuration changes.
+type ChangeListener = func(*Config)
 
-// A ConfigChangeDispatcher manages listeners on config changes.
-type ConfigChangeDispatcher struct {
+// A ChangeDispatcher manages listeners on config changes.
+type ChangeDispatcher struct {
 	sync.Mutex
-	onConfigChangeListeners []ConfigChangeListener
+	onConfigChangeListeners []ChangeListener
 }
 
 // Trigger triggers a change.
-func (dispatcher *ConfigChangeDispatcher) Trigger(cfg *Config) {
+func (dispatcher *ChangeDispatcher) Trigger(cfg *Config) {
 	dispatcher.Lock()
 	defer dispatcher.Unlock()
 
@@ -45,36 +45,36 @@ func (dispatcher *ConfigChangeDispatcher) Trigger(cfg *Config) {
 }
 
 // OnConfigChange adds a listener.
-func (dispatcher *ConfigChangeDispatcher) OnConfigChange(li ConfigChangeListener) {
+func (dispatcher *ChangeDispatcher) OnConfigChange(li ChangeListener) {
 	dispatcher.Lock()
 	defer dispatcher.Unlock()
 	dispatcher.onConfigChangeListeners = append(dispatcher.onConfigChangeListeners, li)
 }
 
-// A ConfigSource gets configuration.
-type ConfigSource interface {
+// A Source gets configuration.
+type Source interface {
 	GetConfig() *Config
-	OnConfigChange(ConfigChangeListener)
+	OnConfigChange(ChangeListener)
 }
 
-// A FileOrEnvironmentConfigSource retrieves config options from a file or the environment.
-type FileOrEnvironmentConfigSource struct {
+// A FileOrEnvironmentSource retrieves config options from a file or the environment.
+type FileOrEnvironmentSource struct {
 	configFile string
 
 	mu     sync.RWMutex
 	config *Config
 
-	ConfigChangeDispatcher
+	ChangeDispatcher
 }
 
-// NewFileOrEnvironmentConfigSource creates a new FileOrEnvironmentConfigSource.
-func NewFileOrEnvironmentConfigSource(configFile string) (*FileOrEnvironmentConfigSource, error) {
+// NewFileOrEnvironmentSource creates a new FileOrEnvironmentSource.
+func NewFileOrEnvironmentSource(configFile string) (*FileOrEnvironmentSource, error) {
 	options, err := newOptionsFromConfig(configFile)
 	if err != nil {
 		return nil, err
 	}
 
-	src := &FileOrEnvironmentConfigSource{
+	src := &FileOrEnvironmentSource{
 		configFile: configFile,
 		config:     &Config{Options: options},
 	}
@@ -84,7 +84,7 @@ func NewFileOrEnvironmentConfigSource(configFile string) (*FileOrEnvironmentConf
 	return src, nil
 }
 
-func (src *FileOrEnvironmentConfigSource) onConfigChange(evt fsnotify.Event) {
+func (src *FileOrEnvironmentSource) onConfigChange(evt fsnotify.Event) {
 	src.mu.Lock()
 	newOptions := handleConfigUpdate(src.configFile, src.config.Options)
 	cfg := &Config{Options: newOptions}
@@ -95,7 +95,7 @@ func (src *FileOrEnvironmentConfigSource) onConfigChange(evt fsnotify.Event) {
 }
 
 // GetConfig gets the config.
-func (src *FileOrEnvironmentConfigSource) GetConfig() *Config {
+func (src *FileOrEnvironmentSource) GetConfig() *Config {
 	src.mu.RLock()
 	defer src.mu.RUnlock()
 

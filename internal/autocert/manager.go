@@ -17,7 +17,7 @@ import (
 
 // Manager manages TLS certificates.
 type Manager struct {
-	src config.ConfigSource
+	src config.Source
 
 	mu        sync.RWMutex
 	config    *config.Config
@@ -25,11 +25,11 @@ type Manager struct {
 	acmeMgr   *certmagic.ACMEManager
 	srv       *http.Server
 
-	config.ConfigChangeDispatcher
+	config.ChangeDispatcher
 }
 
 // New creates a new autocert manager.
-func New(src config.ConfigSource) (*Manager, error) {
+func New(src config.Source) (*Manager, error) {
 	mgr := &Manager{
 		src:       src,
 		certmagic: certmagic.NewDefault(),
