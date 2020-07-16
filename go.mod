@@ -28,7 +28,6 @@ require (
 	github.com/hashicorp/memberlist v0.2.2
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/lithammer/shortuuid/v3 v3.0.4
-	github.com/mitchellh/copystructure v1.0.0
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
 	github.com/nsf/jsondiff v0.0.0-20200515183724-f29ed568f4ce
