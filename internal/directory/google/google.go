@@ -94,7 +94,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 		Customer("my_customer").
 		Pages(ctx, func(res *admin.Groups) error {
 			for _, g := range res.Groups {
-				groups = append(groups, g.Id)
+				groups = append(groups, g.Id, g.Email)
 			}
 			return nil
 		})
