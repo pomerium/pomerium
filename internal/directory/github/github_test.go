@@ -38,12 +38,12 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 	r.Get("/orgs/{org_id}/teams", func(w http.ResponseWriter, r *http.Request) {
 		teams := map[string][]M{
 			"org1": {
-				{"slug": "team1"},
-				{"slug": "team2"},
+				{"slug": "team1", "id": 1},
+				{"slug": "team2", "id": 2},
 			},
 			"org2": {
-				{"slug": "team3"},
-				{"slug": "team4"},
+				{"slug": "team3", "id": 3},
+				{"slug": "team4", "id": 4},
 			},
 		}
 		orgID := chi.URLParam(r, "org_id")
@@ -96,10 +96,10 @@ func Test(t *testing.T) {
 	users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "github/user1", "groups": ["team1", "team2", "team3"] },
-		{ "id": "github/user2", "groups": ["team1", "team3"] },
-		{ "id": "github/user3", "groups": ["team3"] },
-		{ "id": "github/user4", "groups": ["team4"] }
+		{ "id": "github/user1", "groups": ["1", "2", "3", "team1", "team2", "team3"] },
+		{ "id": "github/user2", "groups": ["1", "3", "team1", "team3"] },
+		{ "id": "github/user3", "groups": ["3", "team3"] },
+		{ "id": "github/user4", "groups": ["4", "team4"] }
 	]`, users)
 }
 

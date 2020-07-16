@@ -103,6 +103,10 @@ type Policy struct {
 
 	// KubernetesServiceAccountToken is the kubernetes token to use for upstream requests.
 	KubernetesServiceAccountToken string `mapstructure:"kubernetes_service_account_token" yaml:"kubernetes_service_account_token,omitempty"`
+
+	// EnableGoogleCloudServerlessAuthentication adds "Authorization: Bearer ID_TOKEN" headers
+	// to upstream requests.
+	EnableGoogleCloudServerlessAuthentication bool `mapstructure:"enable_google_cloud_serverless_authentication" yaml:"enable_google_cloud_serverless_authentication,omitempty"` //nolint
 }
 
 // Validate checks the validity of a policy.

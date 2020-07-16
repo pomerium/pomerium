@@ -229,6 +229,10 @@ type Options struct {
 	// ClientCAFile points to a file that contains the certificate authority to validate client mTLS certificates against.
 	ClientCAFile string `mapstructure:"client_ca_file" yaml:"client_ca_file,omitempty"`
 
+	// GoogleCloudServerlessAuthenticationServiceAccount is the service account to use for GCP serverless authentication.
+	// If unset, the GCP metadata server will be used to query for identity tokens.
+	GoogleCloudServerlessAuthenticationServiceAccount string `mapstructure:"google_cloud_serverless_authentication_service_account" yaml:"google_cloud_serverless_authentication_service_account,omitempty"` //nolint
+
 	viper *viper.Viper
 
 	AutocertOptions `mapstructure:",squash" yaml:",inline"`
@@ -558,9 +562,12 @@ func (o *Options) Validate() error {
 	}
 
 	for _, c := range o.CertificateFiles {
-		cert, err := cryptutil.CertificateFromFile(c.CertFile, c.KeyFile)
+		cert, err := cryptutil.CertificateFromBase64(c.CertFile, c.KeyFile)
 		if err != nil {
-			return fmt.Errorf("config: bad cert file %w", err)
+			cert, err = cryptutil.CertificateFromFile(c.CertFile, c.KeyFile)
+		}
+		if err != nil {
+			return fmt.Errorf("config: bad cert entry, base64 or file reference invalid. %w", err)
 		}
 		o.Certificates = append(o.Certificates, *cert)
 	}

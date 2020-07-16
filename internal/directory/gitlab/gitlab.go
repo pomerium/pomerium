@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
@@ -90,31 +91,31 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 
 	p.log.Info().Msg("getting user groups")
 
-	groupIDs, err := p.listGroupIDs(ctx)
+	groups, err := p.listGroups(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	userIDToGroupIDs := map[int][]int{}
-	for _, groupID := range groupIDs {
+	userIDToGroupIDs := map[int][]string{}
+	for groupID, groupName := range groups {
 		userIDs, err := p.listGroupMemberIDs(ctx, groupID)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, userID := range userIDs {
-			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], groupID)
+			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], strconv.Itoa(groupID), groupName)
 		}
 	}
 
 	var users []*directory.User
-	for userID, groupIDs := range userIDToGroupIDs {
+	for userID, groups := range userIDToGroupIDs {
 		user := &directory.User{
 			Id: databroker.GetUserID(Name, fmt.Sprint(userID)),
 		}
-		for _, groupID := range groupIDs {
-			user.Groups = append(user.Groups, fmt.Sprint(groupID))
-		}
+
+		user.Groups = append(user.Groups, groups...)
+
 		sort.Strings(user.Groups)
 		users = append(users, user)
 	}
@@ -124,13 +125,16 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	return users, nil
 }
 
-func (p *Provider) listGroupIDs(ctx context.Context) (groupIDs []int, err error) {
+// listGroups returns a map, with key is group ID, element is group name.
+func (p *Provider) listGroups(ctx context.Context) (map[int]string, error) {
 	nextURL := p.cfg.url.ResolveReference(&url.URL{
 		Path: "/api/v4/groups",
 	}).String()
+	groups := make(map[int]string)
 	for nextURL != "" {
 		var result []struct {
-			ID int `json:"id"`
+			ID   int    `json:"id"`
+			Name string `json:"name"`
 		}
 		hdrs, err := p.apiGet(ctx, nextURL, &result)
 		if err != nil {
@@ -138,12 +142,12 @@ func (p *Provider) listGroupIDs(ctx context.Context) (groupIDs []int, err error)
 		}
 
 		for _, r := range result {
-			groupIDs = append(groupIDs, r.ID)
+			groups[r.ID] = r.Name
 		}
 
 		nextURL = getNextLink(hdrs)
 	}
-	return groupIDs, nil
+	return groups, nil
 }
 
 func (p *Provider) listGroupMemberIDs(ctx context.Context, groupID int) (userIDs []int, err error) {

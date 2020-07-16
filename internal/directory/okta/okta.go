@@ -108,7 +108,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 			return nil, err
 		}
 		for _, id := range ids {
-			userIDToGroups[id] = append(userIDToGroups[id], groupName)
+			userIDToGroups[id] = append(userIDToGroups[id], groupID, groupName)
 		}
 	}
 

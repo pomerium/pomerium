@@ -30,6 +30,12 @@ func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.C
 
 	requestHeaders = append(requestHeaders, getKubernetesHeaders(reply)...)
 
+	if hdrs, err := a.getGoogleCloudServerlessAuthenticationHeaders(reply); err == nil {
+		requestHeaders = append(requestHeaders, hdrs...)
+	} else {
+		log.Warn().Err(err).Msg("error getting google cloud serverless authentication headers")
+	}
+
 	return &envoy_service_auth_v2.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
 		HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
@@ -132,7 +138,12 @@ func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) *en
 
 	signinURL := opts.GetAuthenticateURL().ResolveReference(&url.URL{Path: "/.pomerium/sign_in"})
 	q := signinURL.Query()
-	q.Set(urlutil.QueryRedirectURI, getCheckRequestURL(in).String())
+
+	// always assume https scheme
+	url := getCheckRequestURL(in)
+	url.Scheme = "https"
+
+	q.Set(urlutil.QueryRedirectURI, url.String())
 	signinURL.RawQuery = q.Encode()
 	redirectTo := urlutil.NewSignedURL(opts.SharedKey, signinURL).String()
 
