@@ -141,17 +141,16 @@ func (srv *Server) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-// UpdateOptions updates the pomerium config options.
-func (srv *Server) UpdateOptions(options config.Options) error {
+// OnConfigChange updates the pomerium config options.
+func (srv *Server) OnConfigChange(cfg *config.Config) {
 	select {
 	case <-srv.configUpdated:
 	default:
 	}
 	prev := srv.currentConfig.Load()
 	srv.currentConfig.Store(versionedOptions{
-		Options: options,
+		Options: *cfg.Options,
 		version: prev.version + 1,
 	})
 	srv.configUpdated <- struct{}{}
-	return nil
 }

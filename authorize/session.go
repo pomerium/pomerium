@@ -18,7 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-func loadRawSession(req *http.Request, options config.Options, encoder encoding.MarshalUnmarshaler) ([]byte, error) {
+func loadRawSession(req *http.Request, options *config.Options, encoder encoding.MarshalUnmarshaler) ([]byte, error) {
 	var loaders []sessions.SessionLoader
 	cookieStore, err := getCookieStore(options, encoder)
 	if err != nil {
@@ -51,7 +51,7 @@ func loadSession(encoder encoding.MarshalUnmarshaler, rawJWT []byte) (*sessions.
 	return &s, nil
 }
 
-func getCookieStore(options config.Options, encoder encoding.MarshalUnmarshaler) (sessions.SessionStore, error) {
+func getCookieStore(options *config.Options, encoder encoding.MarshalUnmarshaler) (sessions.SessionStore, error) {
 	cookieOptions := &cookie.Options{
 		Name:     options.CookieName,
 		Domain:   options.CookieDomain,
@@ -85,7 +85,7 @@ func getJWTSetCookieHeaders(cookieStore sessions.SessionStore, rawjwt []byte) (m
 	return hdrs, nil
 }
 
-func (a *Authorize) getJWTClaimHeaders(options config.Options, signedJWT string) (map[string]string, error) {
+func (a *Authorize) getJWTClaimHeaders(options *config.Options, signedJWT string) (map[string]string, error) {
 	if len(signedJWT) == 0 {
 		return make(map[string]string), nil
 	}

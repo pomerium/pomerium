@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash/v2"
-	"github.com/fsnotify/fsnotify"
 	"github.com/mitchellh/hashstructure"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
@@ -285,9 +284,9 @@ func NewDefaultOptions() *Options {
 	return &newOpts
 }
 
-// NewOptionsFromConfig builds the main binary's configuration options by parsing
+// newOptionsFromConfig builds the main binary's configuration options by parsing
 // environmental variables and config file
-func NewOptionsFromConfig(configFile string) (*Options, error) {
+func newOptionsFromConfig(configFile string) (*Options, error) {
 	o, err := optionsFromViper(configFile)
 	if err != nil {
 		return nil, fmt.Errorf("config: options from config file %w", err)
@@ -364,13 +363,6 @@ func (o *Options) parsePolicy() error {
 		}
 	}
 	return nil
-}
-
-// OnConfigChange starts a go routine and watches for any changes. If any are
-// detected, via an fsnotify event the provided function is run.
-func (o *Options) OnConfigChange(run func(in fsnotify.Event)) {
-	go o.viper.WatchConfig()
-	o.viper.OnConfigChange(run)
 }
 
 func (o *Options) viperUnmarshalKey(key string, rawVal interface{}) error {
@@ -457,8 +449,6 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 
 // Validate ensures the Options fields are valid, and hydrated.
 func (o *Options) Validate() error {
-	var err error
-
 	if !IsValidService(o.Services) {
 		return fmt.Errorf("config: %s is an invalid service type", o.Services)
 	}
@@ -605,45 +595,16 @@ func (o *Options) Validate() error {
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
-	RedirectAndAutocertServer.update(o)
-
-	err = AutocertManager.update(o)
-	if err != nil {
-		return fmt.Errorf("config: failed to setup autocert: %w", err)
-	}
-
 	// sort the certificates so we get a consistent hash
 	sort.Slice(o.Certificates, func(i, j int) bool {
 		return compareByteSliceSlice(o.Certificates[i].Certificate, o.Certificates[j].Certificate) < 0
 	})
 
-	if !o.InsecureServer && len(o.Certificates) == 0 {
+	if !o.InsecureServer && len(o.Certificates) == 0 && !o.AutocertOptions.Enable {
 		return fmt.Errorf("config: server must be run with `autocert`, " +
 			"`insecure_server` or manually provided certificates to start")
 	}
 	return nil
-}
-
-func (o *Options) sourceHostnames() []string {
-	if len(o.Policies) == 0 {
-		return nil
-	}
-
-	dedupe := map[string]struct{}{}
-	for _, p := range o.Policies {
-		dedupe[p.Source.Hostname()] = struct{}{}
-	}
-	if o.AuthenticateURL != nil {
-		dedupe[o.AuthenticateURL.Hostname()] = struct{}{}
-	}
-
-	var h []string
-	for k := range dedupe {
-		h = append(h, k)
-	}
-	sort.Strings(h)
-
-	return h
 }
 
 // GetAuthenticateURL returns the AuthenticateURL in the options or localhost.
@@ -697,11 +658,6 @@ func (o *Options) GetOauthOptions() oauth.Options {
 	}
 }
 
-// OptionsUpdater updates local state based on an Options struct
-type OptionsUpdater interface {
-	UpdateOptions(Options) error
-}
-
 // Checksum returns the checksum of the current options struct
 func (o *Options) Checksum() uint64 {
 	hash, err := hashstructure.Hash(o, &hashstructure.HashOptions{Hasher: xxhash.New()})
@@ -712,40 +668,13 @@ func (o *Options) Checksum() uint64 {
 	return hash
 }
 
-// WatchChanges takes a configuration file, an existing options struct, and
-// updates each service in the services slice OptionsUpdater with a new set
-// of options if any change is detected. It also periodically rechecks if
-// any computed properties have changed.
-func WatchChanges(configFile string, opt *Options, services []OptionsUpdater) {
-	onchange := make(chan struct{}, 1)
-	ticker := time.NewTicker(10 * time.Minute) // force check every 10 minutes
-	defer ticker.Stop()
-
-	opt.OnConfigChange(func(fs fsnotify.Event) {
-		log.Info().Str("file", fs.Name).Msg("config: file changed")
-		select {
-		case onchange <- struct{}{}:
-		default:
-		}
-	})
-
-	for {
-		select {
-		case <-onchange:
-		case <-ticker.C:
-		}
-
-		opt = handleConfigUpdate(configFile, opt, services)
-	}
-}
-
 // handleConfigUpdate takes configuration file, an existing options struct, and
 // updates each service in the services slice OptionsUpdater with a new set of
 // options if any change is detected.
-func handleConfigUpdate(configFile string, opt *Options, services []OptionsUpdater) *Options {
+func handleConfigUpdate(configFile string, opt *Options) *Options {
 	serviceName := telemetry.ServiceName(opt.Services)
 
-	newOpt, err := NewOptionsFromConfig(configFile)
+	newOpt, err := newOptionsFromConfig(configFile)
 	if err != nil {
 		log.Error().Err(err).Msg("config: could not reload configuration")
 		metrics.SetConfigInfo(serviceName, false)
@@ -761,19 +690,6 @@ func handleConfigUpdate(configFile string, opt *Options, services []OptionsUpdat
 		return opt
 	}
 
-	var updateFailed bool
-	for _, service := range services {
-		if err := service.UpdateOptions(*newOpt); err != nil {
-			log.Error().Err(err).Msg("config: could not update options")
-			updateFailed = true
-			metrics.SetConfigInfo(serviceName, false)
-		}
-	}
-
-	if !updateFailed {
-		metrics.SetConfigInfo(serviceName, true)
-		metrics.SetConfigChecksum(serviceName, newOptChecksum)
-	}
 	return newOpt
 }
 
