@@ -600,7 +600,7 @@ func (o *Options) Validate() error {
 		return compareByteSliceSlice(o.Certificates[i].Certificate, o.Certificates[j].Certificate) < 0
 	})
 
-	if !o.InsecureServer && len(o.Certificates) == 0 {
+	if !o.InsecureServer && len(o.Certificates) == 0 && !o.AutocertOptions.Enable {
 		return fmt.Errorf("config: server must be run with `autocert`, " +
 			"`insecure_server` or manually provided certificates to start")
 	}
