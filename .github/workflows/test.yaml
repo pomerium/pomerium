@@ -131,6 +131,11 @@ jobs:
     services:
       redis:
         image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: install go
         uses: actions/setup-go@v1
@@ -144,3 +149,5 @@ jobs:
         run: go test -v -tags redis ./pkg/storage/redis/...
         env:
           REDIS_URL: "redis:6379"
+          REDIS_HOST: redis
+          REDIS_PORT: 6379
