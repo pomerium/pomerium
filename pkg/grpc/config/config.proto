@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package pomerium.config;
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
+
+import "google/protobuf/duration.proto";
+
+message Config {
+  string name = 1;
+  repeated Policy policies = 2;
+}
+
+message Policy {
+  string name = 1;
+
+  string from = 2;
+  string to = 3;
+
+  repeated string allowed_users = 4;
+  repeated string allowed_groups = 5;
+  repeated string allowed_domains = 6;
+
+  string prefix = 7;
+  string path = 8;
+  string regex = 9;
+
+  bool cors_allow_preflight = 10;
+  bool allow_public_unauthenticated_access = 11;
+  google.protobuf.Duration timeout = 12;
+  bool allow_websockets = 13;
+
+  bool tls_skip_verify = 14;
+  string tls_server_name = 15;
+  string tls_custom_ca = 16;
+  string tls_custom_ca_file = 17;
+
+  string tls_client_cert = 18;
+  string tls_client_key = 19;
+  string tls_client_cert_file = 20;
+  string tls_client_key_file = 21;
+
+  map<string, string> set_request_headers = 22;
+  repeated string remove_request_headers = 23;
+
+  bool preserve_host_header = 24;
+  bool pass_identity_headers = 25;
+
+  string kubernetes_service_account_token = 26;
+}

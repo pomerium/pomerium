@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/autocert"
 	"github.com/pomerium/pomerium/internal/controlplane"
+	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/envoy"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -46,6 +47,11 @@ func Run(ctx context.Context, configFile string) error {
 	}
 
 	cfg := src.GetConfig()
+
+	if config.IsAuthorize(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
+		src = databroker.NewConfigSource(src)
+		cfg = src.GetConfig()
+	}
 
 	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
 

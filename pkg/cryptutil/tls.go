@@ -5,6 +5,8 @@ import (
 	"crypto/x509"
 
 	"github.com/caddyserver/certmagic"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // GetCertificateForDomain returns the tls Certificate which matches the given domain name.
@@ -22,6 +24,8 @@ func GetCertificateForDomain(certificates []tls.Certificate, domain string) (*tl
 	if len(certificates) > 0 {
 		return &certificates[0], nil
 	}
+
+	log.Warn().Str("domain", domain).Msg("using generated self-signed certificate")
 
 	// finally fall back to a generated, self-signed certificate
 	return GenerateSelfSignedCertificate(domain)
