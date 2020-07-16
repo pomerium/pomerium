@@ -1,3 +1,4 @@
+// Package autocert implements automatic management of TLS certificates.
 package autocert
 
 import (
@@ -10,9 +11,11 @@ import (
 	"github.com/caddyserver/certmagic"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
+// Manager manages TLS certificates.
 type Manager struct {
 	src config.ConfigSource
 
@@ -20,6 +23,7 @@ type Manager struct {
 	config    *config.Config
 	certmagic *certmagic.Config
 	acmeMgr   *certmagic.ACMEManager
+	srv       *http.Server
 
 	config.ConfigChangeDispatcher
 }
@@ -46,7 +50,7 @@ func New(src config.ConfigSource) (*Manager, error) {
 	return mgr, nil
 }
 
-func (mgr *Manager) getConfig(options *config.Options) (*certmagic.Config, error) {
+func (mgr *Manager) getCertMagicConfig(options *config.Options) (*certmagic.Config, error) {
 	mgr.certmagic.MustStaple = options.AutocertOptions.MustStaple
 	mgr.certmagic.OnDemand = nil // disable on-demand
 	mgr.certmagic.Storage = &certmagic.FileStorage{Path: options.AutocertOptions.Folder}
@@ -75,11 +79,16 @@ func (mgr *Manager) update(cfg *config.Config) error {
 	defer mgr.mu.Unlock()
 	defer func() { mgr.config = cfg }()
 
+	mgr.updateServer(cfg)
+	return mgr.updateAutocert(cfg)
+}
+
+func (mgr *Manager) updateAutocert(cfg *config.Config) error {
 	if !cfg.Options.AutocertOptions.Enable {
 		return nil
 	}
 
-	cm, err := mgr.getConfig(cfg.Options)
+	cm, err := mgr.getCertMagicConfig(cfg.Options)
 	if err != nil {
 		return err
 	}
@@ -112,7 +121,43 @@ func (mgr *Manager) update(cfg *config.Config) error {
 	return nil
 }
 
-func (mgr *Manager) HandleHTTPChallenge(w http.ResponseWriter, r *http.Request) bool {
+func (mgr *Manager) updateServer(cfg *config.Config) {
+	if mgr.srv != nil {
+		// nothing to do if the address hasn't changed
+		if mgr.srv.Addr == cfg.Options.HTTPRedirectAddr {
+			return
+		}
+		// close immediately, don't care about the error
+		_ = mgr.srv.Close()
+		mgr.srv = nil
+	}
+
+	if cfg.Options.HTTPRedirectAddr == "" {
+		return
+	}
+
+	redirect := httputil.RedirectHandler()
+
+	hsrv := &http.Server{
+		Addr: cfg.Options.HTTPRedirectAddr,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if mgr.handleHTTPChallenge(w, r) {
+				return
+			}
+			redirect.ServeHTTP(w, r)
+		}),
+	}
+	go func() {
+		log.Info().Str("addr", hsrv.Addr).Msg("starting http redirect server")
+		err := hsrv.ListenAndServe()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to run http redirect server")
+		}
+	}()
+	mgr.srv = hsrv
+}
+
+func (mgr *Manager) handleHTTPChallenge(w http.ResponseWriter, r *http.Request) bool {
 	mgr.mu.RLock()
 	acmeMgr := mgr.acmeMgr
 	mgr.mu.RUnlock()
@@ -122,6 +167,7 @@ func (mgr *Manager) HandleHTTPChallenge(w http.ResponseWriter, r *http.Request) 
 	return acmeMgr.HandleHTTPChallenge(w, r)
 }
 
+// GetConfig gets the config.
 func (mgr *Manager) GetConfig() *config.Config {
 	mgr.mu.RLock()
 	defer mgr.mu.RUnlock()

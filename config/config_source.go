@@ -28,11 +28,13 @@ func (cfg *Config) Clone() *Config {
 // A ConfigChangeListener is called when configuration changes.
 type ConfigChangeListener = func(*Config)
 
+// A ConfigChangeDispatcher manages listeners on config changes.
 type ConfigChangeDispatcher struct {
 	sync.Mutex
 	onConfigChangeListeners []ConfigChangeListener
 }
 
+// Trigger triggers a change.
 func (dispatcher *ConfigChangeDispatcher) Trigger(cfg *Config) {
 	dispatcher.Lock()
 	defer dispatcher.Unlock()
@@ -42,6 +44,7 @@ func (dispatcher *ConfigChangeDispatcher) Trigger(cfg *Config) {
 	}
 }
 
+// OnConfigChange adds a listener.
 func (dispatcher *ConfigChangeDispatcher) OnConfigChange(li ConfigChangeListener) {
 	dispatcher.Lock()
 	defer dispatcher.Unlock()

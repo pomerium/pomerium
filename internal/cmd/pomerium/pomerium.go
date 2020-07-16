@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/cache"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/autocert"
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/envoy"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -32,10 +33,18 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, configFile string) error {
+	var src config.ConfigSource
+
 	src, err := config.NewFileOrEnvironmentConfigSource(configFile)
 	if err != nil {
 		return err
 	}
+
+	src, err = autocert.New(src)
+	if err != nil {
+		return err
+	}
+
 	var optionsUpdaters []config.OptionsUpdater
 	src.OnConfigChange(func(cfg *config.Config) {
 		for _, u := range optionsUpdaters {

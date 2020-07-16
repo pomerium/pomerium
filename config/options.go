@@ -457,8 +457,6 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 
 // Validate ensures the Options fields are valid, and hydrated.
 func (o *Options) Validate() error {
-	var err error
-
 	if !IsValidService(o.Services) {
 		return fmt.Errorf("config: %s is an invalid service type", o.Services)
 	}
@@ -604,13 +602,6 @@ func (o *Options) Validate() error {
 
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
-
-	RedirectAndAutocertServer.update(o)
-
-	err = AutocertManager.update(o)
-	if err != nil {
-		return fmt.Errorf("config: failed to setup autocert: %w", err)
-	}
 
 	// sort the certificates so we get a consistent hash
 	sort.Slice(o.Certificates, func(i, j int) bool {
