@@ -712,33 +712,6 @@ func (o *Options) Checksum() uint64 {
 	return hash
 }
 
-// WatchChanges takes a configuration file, an existing options struct, and
-// updates each service in the services slice OptionsUpdater with a new set
-// of options if any change is detected. It also periodically rechecks if
-// any computed properties have changed.
-func WatchChanges(configFile string, opt *Options, services []OptionsUpdater) {
-	onchange := make(chan struct{}, 1)
-	ticker := time.NewTicker(10 * time.Minute) // force check every 10 minutes
-	defer ticker.Stop()
-
-	opt.OnConfigChange(func(fs fsnotify.Event) {
-		log.Info().Str("file", fs.Name).Msg("config: file changed")
-		select {
-		case onchange <- struct{}{}:
-		default:
-		}
-	})
-
-	for {
-		select {
-		case <-onchange:
-		case <-ticker.C:
-		}
-
-		opt = handleConfigUpdate(configFile, opt, services)
-	}
-}
-
 // handleConfigUpdate takes configuration file, an existing options struct, and
 // updates each service in the services slice OptionsUpdater with a new set of
 // options if any change is detected.

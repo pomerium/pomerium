@@ -11,8 +11,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/pomerium/pomerium/internal/telemetry"
-
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"golang.org/x/sync/errgroup"
 
@@ -24,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/envoy"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -33,28 +32,40 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, configFile string) error {
-	opt, err := config.NewOptionsFromConfig(configFile)
+	src, err := config.NewFileOrEnvironmentConfigSource(configFile)
 	if err != nil {
 		return err
 	}
 	var optionsUpdaters []config.OptionsUpdater
+	src.OnConfigChange(func(cfg *config.Config) {
+		for _, u := range optionsUpdaters {
+			err := u.UpdateOptions(*cfg.Options)
+			if err != nil {
+				log.Warn().Err(err).Msg("failed to update config options")
+			}
+		}
+	})
+	cfg, err := src.GetConfig()
+	if err != nil {
+		return err
+	}
 
 	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
 
-	if err := setupMetrics(ctx, opt); err != nil {
+	if err := setupMetrics(ctx, cfg.Options); err != nil {
 		return err
 	}
-	if err := setupTracing(ctx, opt); err != nil {
+	if err := setupTracing(ctx, cfg.Options); err != nil {
 		return err
 	}
 
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(opt.Services)
+	controlPlane, err := controlplane.NewServer(cfg.Options.Services)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
 	optionsUpdaters = append(optionsUpdaters, controlPlane)
-	err = controlPlane.UpdateOptions(*opt)
+	err = controlPlane.UpdateOptions(*cfg.Options)
 	if err != nil {
 		return fmt.Errorf("error updating control plane options: %w", err)
 	}
@@ -66,35 +77,32 @@ func Run(ctx context.Context, configFile string) error {
 	log.Info().Str("port", httpPort).Msg("HTTP server started")
 
 	// create envoy server
-	envoyServer, err := envoy.NewServer(opt, grpcPort, httpPort)
+	envoyServer, err := envoy.NewServer(cfg.Options, grpcPort, httpPort)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
 	}
 
 	// add services
-	if err := setupAuthenticate(opt, controlPlane, &optionsUpdaters); err != nil {
+	if err := setupAuthenticate(cfg.Options, controlPlane, &optionsUpdaters); err != nil {
 		return err
 	}
 	var authorizeServer *authorize.Authorize
-	if config.IsAuthorize(opt.Services) {
-		authorizeServer, err = setupAuthorize(opt, controlPlane, &optionsUpdaters)
+	if config.IsAuthorize(cfg.Options.Services) {
+		authorizeServer, err = setupAuthorize(cfg.Options, controlPlane, &optionsUpdaters)
 		if err != nil {
 			return err
 		}
 	}
 	var cacheServer *cache.Cache
-	if config.IsCache(opt.Services) {
-		cacheServer, err = setupCache(opt, controlPlane)
+	if config.IsCache(cfg.Options.Services) {
+		cacheServer, err = setupCache(cfg.Options, controlPlane)
 		if err != nil {
 			return err
 		}
 	}
-	if err := setupProxy(opt, controlPlane); err != nil {
+	if err := setupProxy(cfg.Options, controlPlane); err != nil {
 		return err
 	}
-
-	// start the config change listener
-	go config.WatchChanges(configFile, opt, optionsUpdaters)
 
 	ctx, cancel := context.WithCancel(ctx)
 	go func(ctx context.Context) {
