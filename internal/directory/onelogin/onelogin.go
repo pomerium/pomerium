@@ -121,7 +121,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	for userID, groupIDs := range userIDToGroupIDs {
 		for _, groupID := range groupIDs {
 			if groupName, ok := groupIDToName[groupID]; ok {
-				userIDToGroupNames[userID] = append(userIDToGroupNames[userID], groupName)
+				userIDToGroupNames[userID] = append(userIDToGroupNames[userID], strconv.Itoa(groupID), groupName)
 			} else {
 				userIDToGroupNames[userID] = append(userIDToGroupNames[userID], "NOGROUP")
 			}
