@@ -16,7 +16,7 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 		gcpIdentityNow = time.Now
 	}()
 
-	now := time.Date(2020, 1, 1, 1, 0, 0, 0, time.Local)
+	now := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
 	gcpIdentityNow = func() time.Time {
 		return now
 	}
@@ -36,5 +36,5 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 
 	token, err := src.Token()
 	assert.NoError(t, err)
-	assert.Equal(t, "2020-01-01T01:00:00-07:00", token.AccessToken)
+	assert.Equal(t, "2020-01-01T01:00:00Z", token.AccessToken)
 }
