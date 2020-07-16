@@ -112,14 +112,14 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	}
 
 	userIDToGroupIDs := map[string][]string{}
-	for _, groupID := range groupIDs {
+	for groupID, groupName := range groupIDs {
 		userIDs, err := p.listGroupMembers(ctx, groupID)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, userID := range userIDs {
-			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], groupID)
+			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], groupID, groupName)
 		}
 	}
 
@@ -137,15 +137,18 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	return users, nil
 }
 
-func (p *Provider) listGroups(ctx context.Context) (groupIDs []string, err error) {
+// listGroups returns a map, with key is group ID, element is group name.
+func (p *Provider) listGroups(ctx context.Context) (map[string]string, error) {
 	nextURL := p.cfg.graphURL.ResolveReference(&url.URL{
 		Path: "/v1.0/groups",
 	}).String()
 
+	groups := make(map[string]string)
 	for nextURL != "" {
 		var result struct {
 			Value []struct {
-				ID string `json:"id"`
+				ID   string `json:"id"`
+				Name string `json:"name"`
 			} `json:"value"`
 			NextLink string `json:"@odata.nextLink"`
 		}
@@ -154,12 +157,12 @@ func (p *Provider) listGroups(ctx context.Context) (groupIDs []string, err error
 			return nil, err
 		}
 		for _, v := range result.Value {
-			groupIDs = append(groupIDs, v.ID)
+			groups[v.ID] = v.Name
 		}
 		nextURL = result.NextLink
 	}
 
-	return groupIDs, nil
+	return groups, nil
 }
 
 func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (userIDs []string, err error) {

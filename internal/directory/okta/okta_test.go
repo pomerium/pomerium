@@ -53,7 +53,7 @@ func newMockOkta(srv *httptest.Server, userEmailToGroups map[string][]string) ht
 				result = append(result, M{
 					"id": groups[i],
 					"profile": M{
-						"name": groups[i],
+						"name": groups[i] + "-name",
 					},
 				})
 				break
@@ -120,15 +120,15 @@ func TestProvider_UserGroups(t *testing.T) {
 	assert.Equal(t, []*directory.User{
 		{
 			Id:     "okta/a@example.com",
-			Groups: []string{"admin", "user"},
+			Groups: []string{"admin", "admin-name", "user", "user-name"},
 		},
 		{
 			Id:     "okta/b@example.com",
-			Groups: []string{"test", "user"},
+			Groups: []string{"test", "test-name", "user", "user-name"},
 		},
 		{
 			Id:     "okta/c@example.com",
-			Groups: []string{"user"},
+			Groups: []string{"user", "user-name"},
 		},
 	}, users)
 }
