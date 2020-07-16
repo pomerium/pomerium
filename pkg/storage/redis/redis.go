@@ -3,12 +3,12 @@ package redis
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/gomodule/redigo/redis"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -73,7 +73,7 @@ func (db *DB) Put(ctx context.Context, id string, data *anypb.Any) error {
 	record.Type = db.recordType
 	record.Id = id
 	record.Version = fmt.Sprintf("%012X", atomic.AddUint64(&db.lastVersion, 1))
-	b, err := json.Marshal(record)
+	b, err := proto.Marshal(record)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (db *DB) Get(_ context.Context, id string) *databroker.Record {
 	}
 
 	record := &databroker.Record{}
-	err = json.Unmarshal(b, record)
+	err = proto.Unmarshal(b, record)
 	if err != nil {
 		return nil
 	}
@@ -123,7 +123,7 @@ func (db *DB) Delete(ctx context.Context, id string) error {
 		return errors.New("not found")
 	}
 	r.DeletedAt = ptypes.TimestampNow()
-	b, err := json.Marshal(r)
+	b, err := proto.Marshal(r)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (db *DB) getAll(_ context.Context, filter func(record *databroker.Record) b
 			}
 
 			record := &databroker.Record{}
-			if err := json.Unmarshal(b, record); err != nil {
+			if err := proto.Unmarshal(b, record); err != nil {
 				return nil
 			}
 			if filter(record) {
