@@ -9,6 +9,7 @@
 - config: add pass_identity_headers @cuonglm [GH-903]
 - authenticate: allow hot reloaded admin users config @cuonglm [GH-984]
 - authorize: include "kid" in JWT headers @cuonglm [GH-1046]
+- config: both base64 and file reference can be used for "certificates" @dmitrif [GH-1055]
 
 ### Changes
 
