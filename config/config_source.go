@@ -1,12 +1,9 @@
 package config
 
 import (
-	"reflect"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/mitchellh/copystructure"
-	"github.com/spf13/viper"
 )
 
 // Config holds pomerium configuration options.
@@ -14,15 +11,13 @@ type Config struct {
 	Options *Options
 }
 
-// Clone creates a deep clone of the config.
+// Clone creates a clone of the config.
 func (cfg *Config) Clone() *Config {
-	return copystructure.Must(copystructure.Config{
-		Copiers: map[reflect.Type]copystructure.CopierFunc{
-			reflect.TypeOf((*viper.Viper)(nil)): func(i interface{}) (interface{}, error) {
-				return i, nil
-			},
-		},
-	}.Copy(cfg)).(*Config)
+	newOptions := new(Options)
+	*newOptions = *cfg.Options
+	return &Config{
+		Options: newOptions,
+	}
 }
 
 // A ChangeListener is called when configuration changes.
