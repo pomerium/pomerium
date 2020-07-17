@@ -44,7 +44,7 @@ builds:
             - TARGET={{ .Target }}
 
   - id: pomerium-cli
-    main: cmd/pomerium-cli/cli.go
+    main: cmd/pomerium-cli/main.go
     binary: pomerium-cli
     goarch:
       - amd64
