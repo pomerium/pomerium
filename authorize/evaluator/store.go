@@ -94,12 +94,22 @@ func (s *Store) write(rawPath string, value interface{}) {
 	}
 
 	err := storage.Txn(context.Background(), s.opaStore, storage.WriteParams, func(txn storage.Transaction) error {
-		err := storage.MakeDir(context.Background(), s.opaStore, txn, p)
-		if err != nil {
+		if len(p) > 1 {
+			err := storage.MakeDir(context.Background(), s.opaStore, txn, p[:len(p)-1])
+			if err != nil {
+				return err
+			}
+		}
+
+		var op storage.PatchOp = storage.ReplaceOp
+		_, err := s.opaStore.Read(context.Background(), txn, p)
+		if storage.IsNotFound(err) {
+			op = storage.AddOp
+		} else if err != nil {
 			return err
 		}
 
-		return s.opaStore.Write(context.Background(), txn, storage.ReplaceOp, p, value)
+		return s.opaStore.Write(context.Background(), txn, op, p, value)
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("opa-store: error writing data")
