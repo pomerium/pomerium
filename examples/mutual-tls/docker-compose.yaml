@@ -1,0 +1,23 @@
+version: "3"
+services:
+  pomerium:
+    image: pomerium/pomerium:latest
+    environment:
+      - CERTIFICATE
+      - CERTIFICATE_KEY
+      - COOKIE_SECRET
+    volumes:
+      # Mount your config file : https://www.pomerium.io/reference/
+      # be sure to change the default values :)
+      - ./example.config.yaml:/pomerium/config.yaml:ro
+    ports:
+      - 443:443
+
+  mtls:
+    image: pomerium/examples:mtls
+    environment:
+      - TLS_CERT
+      - TLS_KEY
+      - CLIENT_CA
+    ports:
+      - 8443:8443
