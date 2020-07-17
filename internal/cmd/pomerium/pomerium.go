@@ -34,6 +34,8 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, configFile string) error {
+	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
+
 	var src config.Source
 
 	src, err := config.NewFileOrEnvironmentSource(configFile)
@@ -46,14 +48,9 @@ func Run(ctx context.Context, configFile string) error {
 		return err
 	}
 
+	src = databroker.NewConfigSource(src)
+
 	cfg := src.GetConfig()
-
-	if config.IsAuthorize(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
-		src = databroker.NewConfigSource(src)
-		cfg = src.GetConfig()
-	}
-
-	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
 
 	if err := setupMetrics(ctx, cfg.Options); err != nil {
 		return err
@@ -151,9 +148,6 @@ func setupAuthenticate(src config.Source, cfg *config.Config, controlPlane *cont
 	}
 	src.OnConfigChange(svc.OnConfigChange)
 	svc.OnConfigChange(cfg)
-	if err != nil {
-		return fmt.Errorf("error updating authenticate options: %w", err)
-	}
 	host := urlutil.StripPort(cfg.Options.GetAuthenticateURL().Host)
 	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
 	svc.Mount(sr)
