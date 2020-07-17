@@ -10,6 +10,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
+	"github.com/pomerium/pomerium/internal/httputil"
 )
 
 const certPEM = `
@@ -127,21 +128,29 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 					Request: &envoy_service_auth_v2.AttributeContext_Request{
 						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
-							Method:  "GET",
-							Path:    "/verify?uri=" + url.QueryEscape("https://example.com?q=foo"),
-							Host:    "forward-auth.example.com",
-							Scheme:  "https",
-							Headers: map[string]string{"X-Forwarded-Uri": "/foo/bar"},
+							Method: "GET",
+							Path:   "/",
+							Host:   "forward-auth.example.com",
+							Scheme: "https",
+							Headers: map[string]string{
+								httputil.HeaderForwardedURI:   "/foo/bar",
+								httputil.HeaderForwardedProto: "https",
+								httputil.HeaderForwardedHost:  "example.com",
+							},
 						},
 					},
 				},
 			},
 			attrCtxHTTPReq: &envoy_service_auth_v2.AttributeContext_HttpRequest{
-				Method:  "GET",
-				Path:    "/foo/bar?q=foo",
-				Host:    "example.com",
-				Scheme:  "https",
-				Headers: map[string]string{"X-Forwarded-Uri": "/foo/bar"},
+				Method: "GET",
+				Path:   "/foo/bar",
+				Host:   "example.com",
+				Scheme: "https",
+				Headers: map[string]string{
+					httputil.HeaderForwardedURI:   "/foo/bar",
+					httputil.HeaderForwardedProto: "https",
+					httputil.HeaderForwardedHost:  "example.com",
+				},
 			},
 			forwardAuthURL: "https://forward-auth.example.com",
 			isForwardAuth:  true,
