@@ -123,6 +123,9 @@ type Options struct {
 	ProviderURL    string   `mapstructure:"idp_provider_url" yaml:"idp_provider_url,omitempty"`
 	Scopes         []string `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
 	ServiceAccount string   `mapstructure:"idp_service_account" yaml:"idp_service_account,omitempty"`
+	// Identity provider refresh directory interval/timeout settings.
+	RefreshDirectoryTimeout  time.Duration `mapstructure:"idp_refresh_directory_timeout" yaml:"idp_refresh_directory_timeout,omitempty"`
+	RefreshDirectoryInterval time.Duration `mapstructure:"idp_refresh_directory_interval" yaml:"idp_refresh_directory_interval,omitempty"`
 
 	// RequestParams are custom request params added to the signin request as
 	// part of an Oauth2 code flow.
@@ -270,6 +273,8 @@ var defaultOptions = Options{
 	GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
 	AuthenticateCallbackPath:        "/oauth2/callback",
 	TracingSampleRate:               0.0001,
+	RefreshDirectoryInterval:        10 * time.Minute,
+	RefreshDirectoryTimeout:         1 * time.Minute,
 
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),

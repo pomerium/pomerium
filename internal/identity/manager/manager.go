@@ -188,7 +188,7 @@ func (mgr *Manager) refreshLoop(
 func (mgr *Manager) refreshDirectoryUsers(ctx context.Context) {
 	mgr.log.Info().Msg("refreshing directory users")
 
-	ctx, clearTimeout := context.WithTimeout(ctx, time.Minute)
+	ctx, clearTimeout := context.WithTimeout(ctx, mgr.cfg.groupRefreshTimeout)
 	defer clearTimeout()
 
 	directoryUsers, err := mgr.directory.UserGroups(ctx)
