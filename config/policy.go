@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash/v2"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/mitchellh/hashstructure"
 
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // Policy contains route specific configuration and access settings.
@@ -107,6 +109,73 @@ type Policy struct {
 	// EnableGoogleCloudServerlessAuthentication adds "Authorization: Bearer ID_TOKEN" headers
 	// to upstream requests.
 	EnableGoogleCloudServerlessAuthentication bool `mapstructure:"enable_google_cloud_serverless_authentication" yaml:"enable_google_cloud_serverless_authentication,omitempty"` //nolint
+}
+
+// NewPolicyFromProto creates a new Policy from a protobuf policy config route.
+func NewPolicyFromProto(pb *configpb.Policy) (*Policy, error) {
+	timeout, _ := ptypes.Duration(pb.GetTimeout())
+
+	p := &Policy{
+		From:                             pb.GetFrom(),
+		To:                               pb.GetTo(),
+		AllowedUsers:                     pb.GetAllowedUsers(),
+		AllowedGroups:                    pb.GetAllowedGroups(),
+		AllowedDomains:                   pb.GetAllowedDomains(),
+		Prefix:                           pb.GetPrefix(),
+		Path:                             pb.GetPath(),
+		Regex:                            pb.GetRegex(),
+		CORSAllowPreflight:               pb.GetCorsAllowPreflight(),
+		AllowPublicUnauthenticatedAccess: pb.GetAllowPublicUnauthenticatedAccess(),
+		UpstreamTimeout:                  timeout,
+		AllowWebsockets:                  pb.GetAllowWebsockets(),
+		TLSSkipVerify:                    pb.GetTlsSkipVerify(),
+		TLSServerName:                    pb.GetTlsServerName(),
+		TLSCustomCA:                      pb.GetTlsCustomCa(),
+		TLSCustomCAFile:                  pb.GetTlsCustomCaFile(),
+		TLSClientCert:                    pb.GetTlsClientCert(),
+		TLSClientKey:                     pb.GetTlsClientKey(),
+		TLSClientCertFile:                pb.GetTlsClientCertFile(),
+		TLSClientKeyFile:                 pb.GetTlsClientKeyFile(),
+		SetRequestHeaders:                pb.GetSetRequestHeaders(),
+		RemoveRequestHeaders:             pb.GetRemoveRequestHeaders(),
+		PreserveHostHeader:               pb.GetPreserveHostHeader(),
+		PassIdentityHeaders:              pb.GetPassIdentityHeaders(),
+		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
+	}
+	return p, p.Validate()
+}
+
+// ToProto converts the policy to a protobuf type.
+func (p *Policy) ToProto() *configpb.Policy {
+	timeout := ptypes.DurationProto(p.UpstreamTimeout)
+	return &configpb.Policy{
+		Name:                             fmt.Sprint(p.RouteID()),
+		From:                             p.From,
+		To:                               p.To,
+		AllowedUsers:                     p.AllowedUsers,
+		AllowedGroups:                    p.AllowedGroups,
+		AllowedDomains:                   p.AllowedDomains,
+		Prefix:                           p.Prefix,
+		Path:                             p.Path,
+		Regex:                            p.Regex,
+		CorsAllowPreflight:               p.CORSAllowPreflight,
+		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
+		Timeout:                          timeout,
+		AllowWebsockets:                  p.AllowWebsockets,
+		TlsSkipVerify:                    p.TLSSkipVerify,
+		TlsServerName:                    p.TLSServerName,
+		TlsCustomCa:                      p.TLSCustomCA,
+		TlsCustomCaFile:                  p.TLSCustomCAFile,
+		TlsClientCert:                    p.TLSClientCert,
+		TlsClientKey:                     p.TLSClientKey,
+		TlsClientCertFile:                p.TLSClientCertFile,
+		TlsClientKeyFile:                 p.TLSClientKeyFile,
+		SetRequestHeaders:                p.SetRequestHeaders,
+		RemoveRequestHeaders:             p.RemoveRequestHeaders,
+		PreserveHostHeader:               p.PreserveHostHeader,
+		PassIdentityHeaders:              p.PassIdentityHeaders,
+		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
+	}
 }
 
 // Validate checks the validity of a policy.

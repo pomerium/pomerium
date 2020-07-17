@@ -52,6 +52,24 @@ type Source interface {
 	OnConfigChange(ChangeListener)
 }
 
+// A StaticSource always returns the same config. Useful for testing.
+type StaticSource struct {
+	cfg *Config
+}
+
+// NewStaticSource creates a new StaticSource.
+func NewStaticSource(cfg *Config) *StaticSource {
+	return &StaticSource{cfg: cfg}
+}
+
+// GetConfig gets the config.
+func (src *StaticSource) GetConfig() *Config {
+	return src.cfg
+}
+
+// OnConfigChange is ignored for the StaticSource.
+func (src *StaticSource) OnConfigChange(ChangeListener) {}
+
 // A FileOrEnvironmentSource retrieves config options from a file or the environment.
 type FileOrEnvironmentSource struct {
 	configFile string

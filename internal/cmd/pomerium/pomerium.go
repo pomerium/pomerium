@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/autocert"
 	"github.com/pomerium/pomerium/internal/controlplane"
+	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/envoy"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -33,6 +34,8 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, configFile string) error {
+	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
+
 	var src config.Source
 
 	src, err := config.NewFileOrEnvironmentSource(configFile)
@@ -45,9 +48,9 @@ func Run(ctx context.Context, configFile string) error {
 		return err
 	}
 
-	cfg := src.GetConfig()
+	src = databroker.NewConfigSource(src)
 
-	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
+	cfg := src.GetConfig()
 
 	if err := setupMetrics(ctx, cfg.Options); err != nil {
 		return err
@@ -145,9 +148,6 @@ func setupAuthenticate(src config.Source, cfg *config.Config, controlPlane *cont
 	}
 	src.OnConfigChange(svc.OnConfigChange)
 	svc.OnConfigChange(cfg)
-	if err != nil {
-		return fmt.Errorf("error updating authenticate options: %w", err)
-	}
 	host := urlutil.StripPort(cfg.Options.GetAuthenticateURL().Host)
 	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
 	svc.Mount(sr)

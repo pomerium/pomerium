@@ -45,7 +45,8 @@ func New(src config.Source) (*Manager, error) {
 			return
 		}
 
-		mgr.Trigger(mgr.GetConfig())
+		cfg = mgr.GetConfig()
+		mgr.Trigger(cfg)
 	})
 	return mgr, nil
 }
@@ -112,6 +113,7 @@ func (mgr *Manager) updateAutocert(cfg *config.Config) error {
 			cert, err = cm.CacheManagedCertificate(domain)
 		}
 		if err == nil {
+			log.Info().Strs("names", cert.Names).Msg("autocert: added certificate")
 			cfg.Options.Certificates = append(cfg.Options.Certificates, cert.Certificate)
 		} else {
 			log.Error().Err(err).Msg("autocert: failed to obtain client certificate")
