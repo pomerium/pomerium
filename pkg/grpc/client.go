@@ -50,8 +50,6 @@ type Options struct {
 
 	// ServiceName specifies the service name for telemetry exposition
 	ServiceName string
-
-	DisableWaitForReady bool
 }
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.

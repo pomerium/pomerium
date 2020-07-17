@@ -46,7 +46,6 @@ func New(src config.Source) (*Manager, error) {
 		}
 
 		cfg = mgr.GetConfig()
-		log.Info().Uint64("checksum", cfg.Options.Checksum()).Msg("autocert: updated config")
 		mgr.Trigger(cfg)
 	})
 	return mgr, nil

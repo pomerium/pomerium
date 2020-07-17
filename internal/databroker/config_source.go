@@ -77,7 +77,6 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 	defer func() {
 		src.computedConfig = cfg
 		if !firstTime {
-			log.Info().Uint64("checksum", cfg.Options.Checksum()).Msg("databroker: updated config")
 			src.Trigger(cfg)
 		}
 	}()
@@ -97,6 +96,13 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 			if err != nil {
 				log.Warn().Err(err).Msg("databroker: error converting protobuf into policy")
 				continue
+			}
+
+			err = policy.Validate()
+			if err != nil {
+				log.Warn().Err(err).
+					Str("policy", policy.String()).
+					Msg("databroker: invalid policy, ignoring")
 			}
 
 			routeID := policy.RouteID()
