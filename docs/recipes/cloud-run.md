@@ -33,7 +33,7 @@ This guide assumes you have Editor access to a Google Cloud project which can be
 
 ## Set Up
 
-To deploy Pomerium to Cloud Run securely and easily, a special image is maintained at `gcr.io/pomerium-io/pomerium-[version]-cloudrun.  It allows sourcing configuration from GCP Secrets Manager, and sets some defaults for Cloud Run to keep configuration minimal.  We will be leveraging it in this example to store IdP credentials.
+To deploy Pomerium to Cloud Run securely and easily, a special image is maintained at `gcr.io/pomerium-io/pomerium-[version]-cloudrun`.  It allows sourcing configuration from GCP Secrets Manager, and sets some defaults for Cloud Run to keep configuration minimal.  We will be leveraging it in this example to store IdP credentials.
 
 
 ### Config
