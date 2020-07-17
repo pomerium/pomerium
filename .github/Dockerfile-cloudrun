@@ -1,0 +1,18 @@
+FROM pomerium/vals-entrypoint as entrypoint
+
+FROM busybox:latest as build
+RUN touch /config.yaml
+
+FROM gcr.io/distroless/base
+ENV AUTOCERT_DIR /data/autocert
+WORKDIR /pomerium
+COPY pomerium* /bin/
+COPY --from=build /config.yaml /pomerium/config.yaml
+COPY --from=entrypoint /bin/vals-entrypoint /bin/vals-entrypoint
+
+ENV ADDRESS ":8080"
+ENV GRPC_INSECURE true
+ENV INSECURE_SERVER true
+
+ENTRYPOINT ["/bin/vals-entrypoint"]
+CMD ["exec","--","/bin/pomerium","-config","/pomerium/config.yaml"]
