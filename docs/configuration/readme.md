@@ -668,6 +668,17 @@ For more information see:
 - [Microsoft Azure Request params](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow#request-an-authorization-code)
 - [Google Authentication URI parameters](https://developers.google.com/identity/protocols/oauth2/openid-connect)
 
+### Identity Provider Refresh Directory Settings
+
+- Environmental Variables: `IDP_REFRESH_DIRECTORY_INTERVAL` `IDP_REFRESH_DIRECTORY_TIMEOUT`
+- Config File Key: `idp_refresh_directory_interval` `idp_refresh_directory_timeout`
+- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
+- Example: `IDP_REFRESH_DIRECTORY_INTERVAL=30m`
+- Defaults: `IDP_REFRESH_DIRECTORY_INTERVAL=10m` `IDP_REFRESH_DIRECTORY_TIMEOUT=1m`
+
+Refresh directory interval is the time that pomerium will sync your IDP diretory, while refresh directory timeout is the
+maximum time allow each run. Use it at your ownn risk, if you set a too low value, you may reach IDP API rate limit.
+
 ## Proxy Service
 
 ### Authenticate Service URL
