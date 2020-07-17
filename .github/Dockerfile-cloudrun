@@ -10,7 +10,7 @@ COPY pomerium* /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
 COPY --from=entrypoint /bin/vals-entrypoint /bin/vals-entrypoint
 
-ENV ADDRESS ":80"
+ENV ADDRESS ":8080"
 ENV GRPC_INSECURE true
 ENV INSECURE_SERVER true
 
