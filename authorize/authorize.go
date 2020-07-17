@@ -49,7 +49,8 @@ func (a *atomicMarshalUnmarshaler) Store(encoder encoding.MarshalUnmarshaler) {
 
 // Authorize struct holds
 type Authorize struct {
-	pe *evaluator.Evaluator
+	pe    *evaluator.Evaluator
+	store *evaluator.Store
 
 	currentOptions atomicOptions
 	currentEncoder atomicMarshalUnmarshaler
@@ -84,6 +85,7 @@ func New(opts *config.Options) (*Authorize, error) {
 	}
 
 	a := Authorize{
+		store:            evaluator.NewStore(),
 		templates:        template.Must(frontend.NewTemplates()),
 		dataBrokerClient: databroker.NewDataBrokerServiceClient(dataBrokerConn),
 		dataBrokerData:   make(evaluator.DataBrokerData),
@@ -113,14 +115,14 @@ func validateOptions(o *config.Options) error {
 }
 
 // newPolicyEvaluator returns an policy evaluator.
-func newPolicyEvaluator(opts *config.Options) (*evaluator.Evaluator, error) {
+func newPolicyEvaluator(opts *config.Options, store *evaluator.Store) (*evaluator.Evaluator, error) {
 	metrics.AddPolicyCountCallback("pomerium-authorize", func() int64 {
 		return int64(len(opts.Policies))
 	})
 	ctx := context.Background()
 	_, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
-	return evaluator.New(opts)
+	return evaluator.New(opts, store)
 }
 
 // OnConfigChange implements the OptionsUpdater interface and updates internal
@@ -134,7 +136,7 @@ func (a *Authorize) OnConfigChange(cfg *config.Config) {
 	a.currentOptions.Store(cfg.Options)
 
 	var err error
-	if a.pe, err = newPolicyEvaluator(cfg.Options); err != nil {
+	if a.pe, err = newPolicyEvaluator(cfg.Options, a.store); err != nil {
 		log.Error().Err(err).Msg("authorize: failed to update policy with options")
 		return
 	}
