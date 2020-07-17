@@ -42,9 +42,12 @@ type ConfigSource struct {
 }
 
 // NewConfigSource creates a new ConfigSource.
-func NewConfigSource(underlying config.Source) *ConfigSource {
+func NewConfigSource(underlying config.Source, listeners ...config.ChangeListener) *ConfigSource {
 	src := &ConfigSource{
 		dbConfigs: map[string]*configpb.Config{},
+	}
+	for _, li := range listeners {
+		src.OnConfigChange(li)
 	}
 	underlying.OnConfigChange(func(cfg *config.Config) {
 		src.mu.Lock()
@@ -82,6 +85,11 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 	// start the updater
 	src.runUpdater(cfg)
 
+	seen := map[uint64]struct{}{}
+	for _, policy := range cfg.Options.Policies {
+		seen[policy.RouteID()] = struct{}{}
+	}
+
 	// add all the config policies to the list
 	for _, cfgpb := range src.dbConfigs {
 		for _, policypb := range cfgpb.GetPolicies() {
@@ -90,6 +98,17 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 				log.Warn().Err(err).Msg("databroker: error converting protobuf into policy")
 				continue
 			}
+
+			routeID := policy.RouteID()
+
+			if _, ok := seen[routeID]; ok {
+				log.Warn().Err(err).
+					Str("policy", policy.String()).
+					Msg("databroker: duplicate policy detected, ignoring")
+				continue
+			}
+			seen[routeID] = struct{}{}
+
 			cfg.Options.Policies = append(cfg.Options.Policies, *policy)
 		}
 	}
