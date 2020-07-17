@@ -8,14 +8,167 @@ test_email_allowed {
 		}] with
 		input.databroker_data as {
 			"session": {
-                "user_id": "user1"
-            },
+				"user_id": "user1"
+			},
 			"user": {
 				"email": "x@example.com"
 			}
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1" }
+		input.session as { "id": "session1", "impersonate_email": "" }
+}
+
+test_impersonate_email_not_allowed {
+	not allow with
+		data.route_policies as [{
+			"source": "example.com",
+			"allowed_users": ["x@example.com"]
+		}] with
+		input.databroker_data as {
+			"session": {
+				"user_id": "user1"
+			},
+			"user": {
+				"email": "x@example.com"
+			}
+		} with
+		input.http as { "url": "http://example.com" } with
+		input.session as { "id": "session1", "impersonate_email": "y@example.com" }
+}
+
+test_impersonate_email_allowed {
+	allow with
+		data.route_policies as [{
+			"source": "example.com",
+			"allowed_users": ["y@example.com"]
+		}] with
+		input.databroker_data as {
+			"session": {
+				"user_id": "user1"
+			},
+			"user": {
+				"email": "x@example.com"
+			}
+		} with
+		input.http as { "url": "http://example.com" } with
+		input.session as { "id": "session1", "impersonate_email": "y@example.com" }
+}
+
+test_group_allowed {
+	allow with
+		data.route_policies as [{
+			"source": "example.com",
+			"allowed_groups": ["1"]
+		}] with
+		input.databroker_data as {
+			"session": {
+				"user_id": "user1"
+			},
+			"user": {
+				"email": "x@example.com",
+			},
+			"directory_user": {
+			    "groups": ["1"]
+			}
+		} with
+		input.http as { "url": "http://example.com" } with
+		input.session as { "id": "session1", "impersonate_groups": null }
+}
+
+test_impersonate_groups_not_allowed {
+	not allow with
+		data.route_policies as [{
+			"source": "example.com",
+			"allowed_groups": ["1"]
+		}] with
+		input.databroker_data as {
+			"session": {
+				"user_id": "user1"
+			},
+			"user": {
+				"email": "x@example.com"
+			},
+			"directory_user": {
+			    "groups": ["1"]
+			}
+		} with
+		input.http as { "url": "http://example.com" } with
+		input.session as { "id": "session1", "impersonate_groups": ["2"] }
+}
+
+test_impersonate_groups_allowed {
+	allow with
+		data.route_policies as [{
+			"source": "example.com",
+			"allowed_groups": ["2"]
+		}] with
+		input.databroker_data as {
+			"session": {
+				"user_id": "user1"
+			},
+			"user": {
+				"email": "x@example.com"
+			},
+			"directory_user": {
+			    "groups": ["1"]
+			}
+		} with
+		input.http as { "url": "http://example.com" } with
+		input.session as { "id": "session1", "impersonate_groups": ["2"] }
+}
+
+test_domain_allowed {
+	allow with
+		data.route_policies as [{
+			"source": "example.com",
+			"allowed_domains": ["example.com"]
+		}] with
+		input.databroker_data as {
+			"session": {
+				"user_id": "user1"
+			},
+			"user": {
+				"email": "x@example.com"
+			}
+		} with
+		input.http as { "url": "http://example.com" } with
+		input.session as { "id": "session1", "impersonate_email": "" }
+}
+
+test_impersonate_domain_not_allowed {
+	not allow with
+		data.route_policies as [{
+			"source": "example.com",
+			"allowed_domains": ["example.com"]
+		}] with
+		input.databroker_data as {
+			"session": {
+				"user_id": "user1"
+			},
+			"user": {
+				"email": "x@example.com"
+			}
+		} with
+		input.http as { "url": "http://example.com" } with
+		input.session as { "id": "session1", "impersonate_email": "y@example1.com" }
+}
+
+test_impersonate_domain_allowed {
+	allow with
+		data.route_policies as [{
+			"source": "example.com",
+			"allowed_domains": ["example1.com"]
+		}] with
+		input.databroker_data as {
+			"session": {
+				"user_id": "user1"
+			},
+			"user": {
+				"email": "x@example.com"
+			}
+		} with
+		input.http as { "url": "http://example.com" } with
+		input.session as { "id": "session1", "impersonate_email": "y@example1.com" }
 }
 
 test_example {
