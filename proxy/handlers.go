@@ -102,7 +102,6 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) error {
 
 	var s sessions.State
 	if err := p.encoder.Unmarshal([]byte(jwt), &s); err != nil {
-		fmt.Println(err)
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
