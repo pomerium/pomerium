@@ -3,7 +3,7 @@
 Run this demo with gcloud command line configured for your project.  The commands assume 
 all resources (Cloud Run, Cloud DNS, and Secret Manager) are in a single project.  
 
-We recommend dedicated project that is easy to clean up.
+We recommend a dedicated project that is easy to clean up.
 
 ## Note
 When deployed to Cloud Run, your protected application must authenticate requests from Pomerium
