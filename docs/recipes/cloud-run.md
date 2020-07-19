@@ -14,7 +14,7 @@ This recipe's sources can be found [on github](https://github.com/pomerium/pomer
 
 ## Background
 
-Services on Cloud Run and other Google Cloud serverless products can be restricted to only permit access with a properly signed [bearer token](https://cloud.google.com/run/docs/authenticating/service-to-service).  This allows requests from other services running in GCP or elsewhere to be securely authorized despite the endpoints being public.
+Services on [Cloud Run](https://cloud.google.com/run) and other Google Cloud serverless products can be restricted to only permit access with a properly signed [bearer token](https://cloud.google.com/run/docs/authenticating/service-to-service).  This allows requests from other services running in GCP or elsewhere to be securely authorized despite the endpoints being public.
 
 These bearer tokens are not easily set in a browser session and must be refreshed on a regular basis, preventing them from being useful for end user authorization.  Pomerium, however, can generate compatible tokens on behalf of end users and proxy the request to these services.  
 

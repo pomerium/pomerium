@@ -6,7 +6,7 @@ all resources (Cloud Run, Cloud DNS, and Secret Manager) are in a single project
 We recommend a dedicated project that is easy to clean up.
 
 ## Note
-When deployed to Cloud Run, your protected application must authenticate requests from Pomerium
+When deployed to [Cloud Run](https://cloud.google.com/run), your protected application must authenticate requests from Pomerium
 by either inspecting the [X-Pomerium-Jwt-Assertion](https://www.pomerium.com/docs/reference/getting-users-identity.html),
 or [GCP Serverless Authorization](https://cloud.google.com/run/docs/authenticating/service-to-service) header.
 
