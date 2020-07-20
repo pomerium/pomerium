@@ -83,11 +83,10 @@ func (db *DB) Put(ctx context.Context, id string, data *anypb.Any) error {
 	if err != nil {
 		return err
 	}
-	cmds := map[string][]interface{}{
-		"MULTI": nil,
-		"HSET":  {db.recordType, id, string(b)},
-		"ZADD":  {db.versionSet, db.lastVersion, id},
-	}
+	cmds := []map[string][]interface{}{{"MULTI": nil,
+		"HSET": {db.recordType, id, string(b)},
+		"ZADD": {db.versionSet, db.lastVersion, id},
+	}}
 	if _, err := db.tx(c, cmds); err != nil {
 		return err
 	}
@@ -154,11 +153,11 @@ func (db *DB) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	cmds := map[string][]interface{}{
+	cmds := []map[string][]interface{}{{
 		"MULTI": nil,
 		"HSET":  {db.recordType, id, string(b)},
 		"SADD":  {db.deletedSet, id},
-	}
+	}}
 	if _, err := db.tx(c, cmds); err != nil {
 		return err
 	}
@@ -180,12 +179,12 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 
 		ts, _ := ptypes.Timestamp(record.DeletedAt)
 		if ts.Before(cutoff) {
-			cmds := map[string][]interface{}{
+			cmds := []map[string][]interface{}{{
 				"MULTI": nil,
 				"HDEL":  {db.recordType, id},
 				"ZREM":  {db.versionSet, id},
 				"SREM":  {db.deletedSet, id},
-			}
+			}}
 			_, _ = db.tx(c, cmds)
 		}
 	}
@@ -231,11 +230,14 @@ func (db *DB) toPbRecord(b []byte) *databroker.Record {
 	return record
 }
 
-func (db *DB) tx(c redis.Conn, commands map[string][]interface{}) (interface{}, error) {
-	for cmd, args := range commands {
-		if err := c.Send(cmd, args...); err != nil {
-			return nil, err
+func (db *DB) tx(c redis.Conn, commands []map[string][]interface{}) (interface{}, error) {
+	for _, m := range commands {
+		for cmd, args := range m {
+			if err := c.Send(cmd, args...); err != nil {
+				return nil, err
+			}
 		}
 	}
+
 	return c.Do("EXEC")
 }
