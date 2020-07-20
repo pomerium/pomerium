@@ -141,10 +141,10 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 // forwardAuthRedirectToSignInWithURI redirects request to authenticate signin url,
 // with all necessary information extracted from given input uri.
 func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *http.Request, uri *url.URL) {
-	// Traefik set the uri in the header, we must add it to redirect uri if present. Otherwise, request like
+	// Traefik set the uri in the header, we must set it in redirect uri if present. Otherwise, request like
 	// https://example.com/foo will be redirected to https://example.com after authentication.
-	if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "" {
-		uri.Path += xfu
+	if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "/" {
+		uri.Path = xfu
 	}
 
 	// redirect to authenticate
