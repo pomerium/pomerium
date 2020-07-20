@@ -877,6 +877,18 @@ Allowed users is a collection of whitelisted users to authorize for a given rout
 
 Allow unauthenticated HTTP OPTIONS requests as [per the CORS spec](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests).
 
+
+### Enable Google Cloud Serverless Authentication
+
+- Environmental Variable: `ENABLE_GOOGLE_CLOUD_SERVERLESS_AUTHENTICATION`
+- Config File Key: `enable_google_cloud_serverless_authentication`
+- Type: `bool`
+- Default: `false`
+
+Enable sending a signed [Authorization Header](https://cloud.google.com/run/docs/authenticating/service-to-service) to upstream GCP services.
+
+Requires setting [Google Cloud Serverless Authentication Service Account](./#google-cloud-serverless-authentication-service-account) or running Pomerium in an environment with a GCP service account present in default locations.
+
 ### From
 
 - `yaml`/`json` setting: `from`
@@ -1083,6 +1095,17 @@ When enabled, this option will pass the identity headers to the downstream appli
 
 Authenticate Service URL is the externally accessible URL for the authenticate service.
 
+### Google Cloud Serverless Authentication Service Account
+
+- Environmental Variable: `GOOGLE_CLOUD_SERVERLESS_AUTHENTICATION_SERVICE_ACCOUNT`
+- Config File Key: `google_cloud_serverless_authentication_service_account`
+- Type: [base64 encoded] `string`
+- Optional
+
+Manually specify the service account credentials to support GCP's [Authorization Header](https://cloud.google.com/run/docs/authenticating/service-to-service) format.
+
+If unspecified, will default to ambient credentials in the default locations searched by the Google SDK.  This includes GCE metadata server tokens.
+
 ### Signing Key
 
 - Environmental Variable: `SIGNING_KEY`
@@ -1126,3 +1149,4 @@ If no certificate is specified, one will be generated and the base64'd public ke
 [signed headers]: ./signed-headers.md
 [toml]: https://en.wikipedia.org/wiki/TOML
 [yaml]: https://en.wikipedia.org/wiki/YAML
+
