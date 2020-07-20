@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
@@ -14,19 +15,29 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+func cleanup(c redis.Conn, db *DB, t *testing.T) {
+	require.NoError(t, c.Send("MULTI"))
+	require.NoError(t, c.Send("DEL", db.recordType))
+	require.NoError(t, c.Send("DEL", db.versionSet))
+	require.NoError(t, c.Send("DEL", db.deletedSet))
+	_, err := c.Do("EXEC")
+	require.NoError(t, err)
+}
+
 func TestDB(t *testing.T) {
 	ctx := context.Background()
 	address := ":6379"
 	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
 		address = redisURL
 	}
-	db, err := New(address)
+	db, err := New(address, "record_type")
 	require.NoError(t, err)
 	ids := []string{"a", "b", "c"}
 	id := ids[0]
 	c := db.pool.Get()
 	defer c.Close()
-	_, _ = c.Do("DEL", id)
+
+	cleanup(c, db, t)
 
 	t.Run("get missing record", func(t *testing.T) {
 		assert.Nil(t, db.Get(ctx, id))
@@ -47,15 +58,15 @@ func TestDB(t *testing.T) {
 	t.Run("delete record", func(t *testing.T) {
 		assert.NoError(t, db.Delete(ctx, id))
 		record := db.Get(ctx, id)
-		if assert.NotNil(t, record) {
-			assert.NotNil(t, record.DeletedAt)
-		}
-		ttl, err := redis.Int64(c.Do("TTL", id))
-		assert.NoError(t, err)
-		assert.Greater(t, ttl, int64(0))
+		require.NotNil(t, record)
+		assert.NotNil(t, record.DeletedAt)
+	})
+	t.Run("clear deleted", func(t *testing.T) {
+		db.ClearDeleted(ctx, time.Now().Add(time.Second))
+		assert.Nil(t, db.Get(ctx, id))
 	})
 	t.Run("get all", func(t *testing.T) {
-		assert.Len(t, db.GetAll(ctx), 1)
+		assert.Len(t, db.GetAll(ctx), 0)
 		data := new(anypb.Any)
 
 		for _, id := range ids {
@@ -67,6 +78,7 @@ func TestDB(t *testing.T) {
 		}
 	})
 	t.Run("list", func(t *testing.T) {
+		cleanup(c, db, t)
 		ids := make([]string, 0, 10)
 		for i := 0; i < 10; i++ {
 			id := fmt.Sprintf("%02d", i)
