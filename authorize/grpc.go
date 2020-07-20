@@ -172,9 +172,17 @@ func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) b
 	}
 
 	uriQuery := checkURL.Query().Get("uri")
+	if headers := req.GetAttributes().GetRequest().GetHttp().GetHeaders(); uriQuery == "" && headers != nil {
+		uriQuery = headers[http.CanonicalHeaderKey(httputil.HeaderForwardedProto)] + "://" +
+			headers[http.CanonicalHeaderKey(httputil.HeaderForwardedHost)]
+		if xfu := headers[http.CanonicalHeaderKey(httputil.HeaderForwardedURI)]; xfu != "/" {
+			uriQuery += xfu
+		}
+	}
 	if (checkURL.Path != "/" && checkURL.Path != "/verify") || uriQuery == "" {
 		return false
 	}
+
 	verifyURL, err := url.Parse(uriQuery)
 	if err != nil {
 		log.Warn().Str("uri", checkURL.Query().Get("uri")).Err(err).Msg("failed to parse uri for forward authentication")
@@ -184,11 +192,7 @@ func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) b
 	req.Attributes.Request.Http.Scheme = verifyURL.Scheme
 	req.Attributes.Request.Http.Host = verifyURL.Host
 	req.Attributes.Request.Http.Path = verifyURL.Path
-	if headers := req.GetAttributes().GetRequest().GetHttp().GetHeaders(); headers != nil {
-		if xfu := headers[http.CanonicalHeaderKey(httputil.HeaderForwardedURI)]; xfu != "" {
-			req.Attributes.Request.Http.Path += xfu
-		}
-	}
+
 	// envoy sends the query string as part of the path
 	if verifyURL.RawQuery != "" {
 		req.Attributes.Request.Http.Path += "?" + verifyURL.RawQuery

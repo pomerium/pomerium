@@ -151,3 +151,49 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 		return nil
 	})
 }
+
+func (p *Proxy) getOriginalRequest(r *http.Request, originalURL *url.URL) *http.Request {
+	originalRequest := r.Clone(r.Context())
+	originalRequest.Host = originalURL.Host
+	originalRequest.URL = originalURL
+	return originalRequest
+}
+
+// forwardAuthRedirectToSignInWithURI redirects request to authenticate signin url,
+// with all necessary information extracted from given input uri.
+func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *http.Request, uri *url.URL) {
+	// Traefik set the uri in the header, we must set it in redirect uri if present. Otherwise, request like
+	// https://example.com/foo will be redirected to https://example.com after authentication.
+	if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "/" {
+		uri.Path = xfu
+	}
+
+	// redirect to authenticate
+	authN := *p.authenticateSigninURL
+	q := authN.Query()
+	q.Set(urlutil.QueryCallbackURI, uri.String())
+	q.Set(urlutil.QueryRedirectURI, uri.String())              // final destination
+	q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
+	authN.RawQuery = q.Encode()
+	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
+}
+
+func getURIStringFromRequest(r *http.Request) (*url.URL, error) {
+	// the route to validate will be pulled from the uri queryparam
+	// or inferred from forwarding headers
+	uriString := r.FormValue("uri")
+	if uriString == "" {
+		if r.Header.Get(httputil.HeaderForwardedProto) == "" || r.Header.Get(httputil.HeaderForwardedHost) == "" {
+			return nil, errors.New("no uri to validate")
+		}
+		uriString = r.Header.Get(httputil.HeaderForwardedProto) + "://" +
+			r.Header.Get(httputil.HeaderForwardedHost) +
+			r.Header.Get(httputil.HeaderForwardedURI)
+	}
+
+	uri, err := urlutil.ParseAndValidateURL(uriString)
+	if err != nil {
+		return nil, err
+	}
+	return uri, nil
+}
