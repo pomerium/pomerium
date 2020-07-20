@@ -86,7 +86,7 @@ Here are the domain mappings set up:
 
 ### Direct Access
 
-Let's verify we can't access the main application directly by visiting [https://hello-direct.cloudrun.pomerium.io](https://hello-direct.cloudrun.pomerium.io)
+Let's verify we cannot access the main application directly by visiting [https://hello-direct.cloudrun.pomerium.io](https://hello-direct.cloudrun.pomerium.io)
 
 ![Hello Direct Access](./img/cloud-run/hello-direct.png)
 
