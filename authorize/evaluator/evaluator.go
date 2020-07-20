@@ -255,15 +255,15 @@ func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input
 	if obj, ok := i.DataBrokerData.Session.(interface{ GetUserId() string }); ok {
 		i.DataBrokerData.User = req.DataBrokerData.Get(userTypeURL, obj.GetUserId())
 
-		groupIDs, ok := req.DataBrokerData.Get(directoryUserTypeURL, obj.GetUserId()).([]string)
+		user, ok := req.DataBrokerData.Get(directoryUserTypeURL, obj.GetUserId()).(*directory.User)
 		if ok {
 			var groups []string
-			for _, groupID := range groupIDs {
+			for _, groupID := range user.GetGroupIds() {
 				if dg, ok := req.DataBrokerData.Get(directoryGroupTypeURL, groupID).(*directory.Group); ok {
 					groups = append(groups, dg.Name)
 				}
 			}
-			groups = append(groups, groupIDs...)
+			groups = append(groups, user.GetGroupIds()...)
 			i.DataBrokerData.Groups = groups
 		}
 	}

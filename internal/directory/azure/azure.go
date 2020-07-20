@@ -147,8 +147,8 @@ func (p *Provider) listGroups(ctx context.Context) ([]*directory.Group, error) {
 	for nextURL != "" {
 		var result struct {
 			Value []struct {
-				ID   string `json:"id"`
-				Name string `json:"name"`
+				ID          string `json:"id"`
+				DisplayName string `json:"displayName"`
 			} `json:"value"`
 			NextLink string `json:"@odata.nextLink"`
 		}
@@ -159,7 +159,7 @@ func (p *Provider) listGroups(ctx context.Context) ([]*directory.Group, error) {
 		for _, v := range result.Value {
 			groups = append(groups, &directory.Group{
 				Id:   v.ID,
-				Name: v.Name,
+				Name: v.DisplayName,
 			})
 		}
 		nextURL = result.NextLink

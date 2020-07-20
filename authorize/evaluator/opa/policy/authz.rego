@@ -32,7 +32,7 @@ allow {
 # allow group
 allow {
 	some group
-	groups.groups[_] = group
+	groups[_] = group
 	route_policy.allowed_groups[_] = group
 	input.session.impersonate_groups == null
 }
