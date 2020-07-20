@@ -30,7 +30,7 @@ func TestDB(t *testing.T) {
 	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
 		address = redisURL
 	}
-	db, err := New(address, "record_type")
+	db, err := New(address, "record_type", int64(time.Hour.Seconds()))
 	require.NoError(t, err)
 	ids := []string{"a", "b", "c"}
 	id := ids[0]

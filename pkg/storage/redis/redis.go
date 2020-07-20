@@ -14,7 +14,6 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	internal_databroker "github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -32,7 +31,7 @@ type DB struct {
 }
 
 // New returns new DB instance.
-func New(address, recordType string) (*DB, error) {
+func New(address, recordType string, deletePermanentAfter int64) (*DB, error) {
 	db := &DB{
 		pool: &redis.Pool{
 			Wait: true,
@@ -56,7 +55,7 @@ func New(address, recordType string) (*DB, error) {
 				return nil
 			},
 		},
-		deletePermanentlyAfter: int64(internal_databroker.DefaultDeletePermanentlyAfter.Seconds()),
+		deletePermanentlyAfter: deletePermanentAfter,
 		recordType:             recordType,
 		versionSet:             "version_set",
 		deletedSet:             "deleted_set",
