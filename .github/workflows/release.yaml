@@ -30,7 +30,6 @@ jobs:
         with:
           project_id: pomerium-io
           service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          export_default_credentials: true
 
       - name: Gcloud login
         run: gcloud auth configure-docker
