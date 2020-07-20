@@ -72,7 +72,7 @@ func TestJSONMarshal(t *testing.T) {
 func TestEvaluator_SignedJWT(t *testing.T) {
 	opt := config.NewDefaultOptions()
 	opt.AuthenticateURL = mustParseURL("https://authenticate.example.com")
-	e, err := New(opt)
+	e, err := New(opt, NewStore())
 	require.NoError(t, err)
 	req := &Request{
 		HTTP: RequestHTTP{
@@ -93,7 +93,7 @@ func TestEvaluator_JWTWithKID(t *testing.T) {
 	opt := config.NewDefaultOptions()
 	opt.AuthenticateURL = mustParseURL("https://authenticate.example.com")
 	opt.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUpCMFZkbko1VjEvbVlpYUlIWHhnd2Q0Yzd5YWRTeXMxb3Y0bzA1b0F3ekdvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFVUc1eENQMEpUVDFINklvbDhqS3VUSVBWTE0wNENnVzlQbEV5cE5SbVdsb29LRVhSOUhUMwpPYnp6aktZaWN6YjArMUt3VjJmTVRFMTh1dy82MXJVQ0JBPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
-	e, err := New(opt)
+	e, err := New(opt, NewStore())
 	require.NoError(t, err)
 	req := &Request{
 		HTTP: RequestHTTP{
@@ -122,7 +122,7 @@ func mustParseURL(str string) *url.URL {
 func BenchmarkEvaluator_Evaluate(b *testing.B) {
 	e, err := New(&config.Options{
 		AuthenticateURL: mustParseURL("https://authn.example.com"),
-	})
+	}, NewStore())
 	if !assert.NoError(b, err) {
 		return
 	}

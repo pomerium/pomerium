@@ -180,6 +180,8 @@ func (a *Authorize) runDataUpdater(ctx context.Context, updateRecord <-chan *dat
 		case record = <-updateRecord:
 		}
 
+		a.store.UpdateRecord(record)
+
 		a.dataBrokerDataLock.Lock()
 		a.dataBrokerData.Update(record)
 		a.dataBrokerDataLock.Unlock()

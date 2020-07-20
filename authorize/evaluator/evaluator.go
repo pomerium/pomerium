@@ -16,7 +16,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/storage/inmem"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/anypb"
 	"gopkg.in/square/go-jose.v2"
@@ -49,7 +48,7 @@ type Evaluator struct {
 }
 
 // New creates a new Evaluator.
-func New(options *config.Options) (*Evaluator, error) {
+func New(options *config.Options, store *Store) (*Evaluator, error) {
 	e := &Evaluator{
 		authenticateHost: options.AuthenticateURL.Host,
 		policies:         options.Policies,
@@ -97,11 +96,11 @@ func New(options *config.Options) (*Evaluator, error) {
 		return nil, fmt.Errorf("error loading rego policy: %w", err)
 	}
 
+	store.UpdateAdmins(options.Administrators)
+	store.UpdateRoutePolicies(options.Policies)
+
 	e.rego = rego.New(
-		rego.Store(inmem.NewFromObject(map[string]interface{}{
-			"admins":         options.Administrators,
-			"route_policies": options.Policies,
-		})),
+		rego.Store(store.opaStore),
 		rego.Module("pomerium.authz", string(authzPolicy)),
 		rego.Query("result = data.pomerium.authz"),
 	)
