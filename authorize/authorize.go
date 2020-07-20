@@ -27,11 +27,11 @@ type atomicOptions struct {
 	value atomic.Value
 }
 
-func (a *atomicOptions) Load() config.Options {
-	return a.value.Load().(config.Options)
+func (a *atomicOptions) Load() *config.Options {
+	return a.value.Load().(*config.Options)
 }
 
-func (a *atomicOptions) Store(options config.Options) {
+func (a *atomicOptions) Store(options *config.Options) {
 	a.value.Store(options)
 }
 
@@ -63,7 +63,7 @@ type Authorize struct {
 }
 
 // New validates and creates a new Authorize service from a set of config options.
-func New(opts config.Options) (*Authorize, error) {
+func New(opts *config.Options) (*Authorize, error) {
 	if err := validateOptions(opts); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
 	}
@@ -98,16 +98,11 @@ func New(opts config.Options) (*Authorize, error) {
 		return nil, err
 	}
 	a.currentEncoder.Store(encoder)
-
-	a.currentOptions.Store(config.Options{})
-	err = a.UpdateOptions(opts)
-	if err != nil {
-		return nil, err
-	}
+	a.currentOptions.Store(new(config.Options))
 	return &a, nil
 }
 
-func validateOptions(o config.Options) error {
+func validateOptions(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("bad shared_secret: %w", err)
 	}
@@ -128,19 +123,19 @@ func newPolicyEvaluator(opts *config.Options) (*evaluator.Evaluator, error) {
 	return evaluator.New(opts)
 }
 
-// UpdateOptions implements the OptionsUpdater interface and updates internal
+// OnConfigChange implements the OptionsUpdater interface and updates internal
 // structures based on config.Options
-func (a *Authorize) UpdateOptions(opts config.Options) error {
+func (a *Authorize) OnConfigChange(cfg *config.Config) {
 	if a == nil {
-		return nil
+		return
 	}
 
-	log.Info().Str("checksum", fmt.Sprintf("%x", opts.Checksum())).Msg("authorize: updating options")
-	a.currentOptions.Store(opts)
+	log.Info().Str("checksum", fmt.Sprintf("%x", cfg.Options.Checksum())).Msg("authorize: updating options")
+	a.currentOptions.Store(cfg.Options)
 
 	var err error
-	if a.pe, err = newPolicyEvaluator(&opts); err != nil {
-		return err
+	if a.pe, err = newPolicyEvaluator(cfg.Options); err != nil {
+		log.Error().Err(err).Msg("authorize: failed to update policy with options")
+		return
 	}
-	return nil
 }

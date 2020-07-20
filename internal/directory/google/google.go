@@ -88,13 +88,20 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 		return nil, fmt.Errorf("google: error getting API client: %w", err)
 	}
 
+	groupIDToEmails := map[string]string{}
 	var groups []string
 	err = apiClient.Groups.List().
 		Context(ctx).
+		Fields("id", "email", "directMembersCount").
 		Customer("my_customer").
 		Pages(ctx, func(res *admin.Groups) error {
 			for _, g := range res.Groups {
+				// Skip group without member.
+				if g.DirectMembersCount == 0 {
+					continue
+				}
 				groups = append(groups, g.Id)
+				groupIDToEmails[g.Id] = g.Email
 			}
 			return nil
 		})
@@ -107,9 +114,10 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 		group := group
 		err = apiClient.Members.List(group).
 			Context(ctx).
+			Fields("id").
 			Pages(ctx, func(res *admin.Members) error {
 				for _, member := range res.Members {
-					userIDToGroups[member.Id] = append(userIDToGroups[member.Id], group)
+					userIDToGroups[member.Id] = append(userIDToGroups[member.Id], group, groupIDToEmails[group])
 				}
 				return nil
 			})

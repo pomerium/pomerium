@@ -78,7 +78,15 @@ func New(opts config.Options) (*Cache, error) {
 	userServer := NewUserServer(localGRPCServer, dataBrokerClient)
 	userClient := user.NewUserServiceClient(localGRPCConnection)
 
-	manager := manager.New(authenticator, directoryProvider, sessionClient, userClient, dataBrokerClient)
+	manager := manager.New(
+		authenticator,
+		directoryProvider,
+		sessionClient,
+		userClient,
+		dataBrokerClient,
+		manager.WithGroupRefreshInterval(opts.RefreshDirectoryInterval),
+		manager.WithGroupRefreshTimeout(opts.RefreshDirectoryTimeout),
+	)
 
 	return &Cache{
 		dataBrokerServer: dataBrokerServer,

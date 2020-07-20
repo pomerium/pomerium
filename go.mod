@@ -35,7 +35,7 @@ require (
 	github.com/onsi/ginkgo v1.11.0 // indirect
 	github.com/onsi/gocleanup v0.0.0-20140331211545-c1a5478700b5
 	github.com/onsi/gomega v1.8.1 // indirect
-	github.com/open-policy-agent/opa v0.21.1
+	github.com/open-policy-agent/opa v0.22.0
 	github.com/openzipkin/zipkin-go v0.2.2
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
@@ -45,11 +45,14 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.19.0
+	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
+	github.com/spf13/cobra v1.0.0
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.7.0
+	github.com/square/go-jose v2.5.1+incompatible
 	github.com/stretchr/testify v1.6.1
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80
 	github.com/uber/jaeger-client-go v2.20.1+incompatible // indirect
@@ -59,7 +62,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	google.golang.org/api v0.29.0
-	google.golang.org/genproto v0.0.0-20200711021454-869866162049
+	google.golang.org/genproto v0.0.0-20200715011427-11fb19a81f2c
 	google.golang.org/grpc v1.30.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d

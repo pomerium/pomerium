@@ -26,6 +26,7 @@ allow {
 # allow by email
 allow {
 	user.email == route_policy.allowed_users[_]
+	input.session.impersonate_email == ""
 }
 
 # allow group
@@ -33,6 +34,7 @@ allow {
 	some group
 	directory_user.groups[_] = group
 	route_policy.allowed_groups[_] = group
+	input.session.impersonate_groups == null
 }
 
 # allow by impersonate email
@@ -51,6 +53,7 @@ allow {
 allow {
 	some domain
 	email_in_domain(user.email, route_policy.allowed_domains[domain])
+	input.session.impersonate_email == ""
 }
 
 # allow by impersonate domain

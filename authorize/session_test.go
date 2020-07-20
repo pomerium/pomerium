@@ -14,7 +14,7 @@ import (
 )
 
 func TestLoadSession(t *testing.T) {
-	opts := *config.NewDefaultOptions()
+	opts := config.NewDefaultOptions()
 	encoder, err := jws.NewHS256Signer(nil, "example.com")
 	if !assert.NoError(t, err) {
 		return

@@ -240,7 +240,7 @@ func Test_handleForwardAuth(t *testing.T) {
 			if tc.forwardAuthURL != "" {
 				fau = mustParseURL(tc.forwardAuthURL)
 			}
-			a.currentOptions.Store(config.Options{ForwardAuthURL: fau})
+			a.currentOptions.Store(&config.Options{ForwardAuthURL: fau})
 			assert.Equal(t, tc.isForwardAuth, a.handleForwardAuth(tc.checkReq))
 			if tc.attrCtxHTTPReq != nil {
 				assert.Equal(t, tc.attrCtxHTTPReq, tc.checkReq.Attributes.Request.Http)

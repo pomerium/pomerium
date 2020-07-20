@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
@@ -103,14 +104,14 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 			return nil, err
 		}
 
-		for _, teamSlug := range teamSlugs {
+		for teamSlug, teamID := range teamSlugs {
 			userLogins, err := p.listTeamMembers(ctx, orgSlug, teamSlug)
 			if err != nil {
 				return nil, err
 			}
 
 			for _, userLogin := range userLogins {
-				userLoginToGroups[userLogin] = append(userLoginToGroups[userLogin], teamSlug)
+				userLoginToGroups[userLogin] = append(userLoginToGroups[userLogin], teamSlug, strconv.Itoa(teamID))
 			}
 		}
 	}
@@ -154,13 +155,15 @@ func (p *Provider) listOrgs(ctx context.Context) (orgSlugs []string, err error) 
 	return orgSlugs, nil
 }
 
-func (p *Provider) listTeams(ctx context.Context, orgSlug string) (teamSlugs []string, err error) {
+func (p *Provider) listTeams(ctx context.Context, orgSlug string) (map[string]int, error) {
 	nextURL := p.cfg.url.ResolveReference(&url.URL{
 		Path: fmt.Sprintf("/orgs/%s/teams", orgSlug),
 	}).String()
 
+	teamSlugs := make(map[string]int)
 	for nextURL != "" {
 		var results []struct {
+			ID   int    `json:"id"`
 			Slug string `json:"slug"`
 		}
 		hdrs, err := p.api(ctx, "GET", nextURL, nil, &results)
@@ -169,7 +172,7 @@ func (p *Provider) listTeams(ctx context.Context, orgSlug string) (teamSlugs []s
 		}
 
 		for _, result := range results {
-			teamSlugs = append(teamSlugs, result.Slug)
+			teamSlugs[result.Slug] = result.ID
 		}
 
 		nextURL = getNextLink(hdrs)

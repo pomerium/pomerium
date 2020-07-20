@@ -45,8 +45,8 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 		r.Get("/groups", func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(M{
 				"value": []M{
-					{"id": "admin"},
-					{"id": "test"},
+					{"id": "admin", "name": "Admin Group"},
+					{"id": "test", "name": "Test Group"},
 				},
 			})
 		})
@@ -90,15 +90,15 @@ func Test(t *testing.T) {
 	assert.Equal(t, []*directory.User{
 		{
 			Id:     "azure/user-1",
-			Groups: []string{"admin"},
+			Groups: []string{"Admin Group", "admin"},
 		},
 		{
 			Id:     "azure/user-2",
-			Groups: []string{"test"},
+			Groups: []string{"Test Group", "test"},
 		},
 		{
 			Id:     "azure/user-3",
-			Groups: []string{"test"},
+			Groups: []string{"Test Group", "test"},
 		},
 	}, users)
 }

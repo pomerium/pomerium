@@ -44,7 +44,7 @@ builds:
             - TARGET={{ .Target }}
 
   - id: pomerium-cli
-    main: cmd/pomerium-cli/cli.go
+    main: cmd/pomerium-cli/main.go
     binary: pomerium-cli
     goarch:
       - amd64
@@ -96,6 +96,21 @@ dockers:
     binaries:
       - pomerium
       - pomerium-cli
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--label=repository=http://github.com/pomerium/pomerium"
+      - "--label=homepage=http://www.pomerium.io"
+
+  - image_templates:
+      - "gcr.io/pomerium-io/pomerium:{{ .Tag }}-cloudrun"
+    dockerfile: .github/Dockerfile-cloudrun
+    binaries:
+      - pomerium
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"

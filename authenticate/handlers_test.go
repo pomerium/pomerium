@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -511,7 +512,7 @@ func TestWellKnownEndpoint(t *testing.T) {
 func TestJwksEndpoint(t *testing.T) {
 	o := newTestOptions(t)
 	o.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUpCMFZkbko1VjEvbVlpYUlIWHhnd2Q0Yzd5YWRTeXMxb3Y0bzA1b0F3ekdvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFVUc1eENQMEpUVDFINklvbDhqS3VUSVBWTE0wNENnVzlQbEV5cE5SbVdsb29LRVhSOUhUMwpPYnp6aktZaWN6YjArMUt3VjJmTVRFMTh1dy82MXJVQ0JBPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
-	auth, err := New(*o)
+	auth, err := New(o)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -526,6 +527,81 @@ func TestJwksEndpoint(t *testing.T) {
 	body := rr.Body.String()
 	expected := `{"keys":[{"use":"sig","kty":"EC","kid":"5b419ade1895fec2d2def6cd33b1b9a018df60db231dc5ecb85cbed6d942813c","crv":"P-256","alg":"ES256","x":"UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo","y":"KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ"}]}`
 	assert.Equal(t, body, expected)
+}
+func TestAuthenticate_Dashboard(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	pbNow, _ := ptypes.TimestampProto(now)
+	nowStr := now.UTC().Format("2006-01-02 15:04:05.999999999")
+	tests := []struct {
+		name         string
+		method       string
+		sessionStore sessions.SessionStore
+		wantCode     int
+		wantBody     string
+	}{
+		{"good", http.MethodGet, &mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}}, http.StatusOK, ""},
+		{"good with expected timestamp format", http.MethodGet, &mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}}, http.StatusOK, nowStr},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			signer, err := jws.NewHS256Signer(nil, "mock")
+			if err != nil {
+				t.Fatal(err)
+			}
+			a := &Authenticate{
+				sessionStore:     tt.sessionStore,
+				encryptedEncoder: signer,
+				sharedEncoder:    signer,
+				templates:        template.Must(frontend.NewTemplates()),
+				dataBrokerClient: mockDataBrokerServiceClient{
+					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+						data, err := ptypes.MarshalAny(&session.Session{
+							Id:      "SESSION_ID",
+							UserId:  "USER_ID",
+							IdToken: &session.IDToken{IssuedAt: pbNow},
+						})
+						if err != nil {
+							return nil, err
+						}
+
+						return &databroker.GetResponse{
+							Record: &databroker.Record{
+								Version: "0001",
+								Type:    data.GetTypeUrl(),
+								Id:      "SESSION_ID",
+								Data:    data,
+							},
+						}, nil
+					},
+				},
+			}
+			u, _ := url.Parse("/")
+			r := httptest.NewRequest(tt.method, u.String(), nil)
+			state, err := tt.sessionStore.LoadSession(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := r.Context()
+			ctx = sessions.NewContext(ctx, state, nil)
+			r = r.WithContext(ctx)
+			r.Header.Set("Accept", "application/json")
+
+			w := httptest.NewRecorder()
+			httputil.HandlerFunc(a.Dashboard).ServeHTTP(w, r)
+			if status := w.Code; status != tt.wantCode {
+				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
+			}
+			body := w.Body.String()
+			if !strings.Contains(body, tt.wantBody) {
+				t.Errorf("Unexpected body, contains: %s, got: %s", tt.wantBody, body)
+			}
+		})
+	}
 }
 
 type mockDataBrokerServiceClient struct {

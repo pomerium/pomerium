@@ -30,6 +30,12 @@ func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.C
 
 	requestHeaders = append(requestHeaders, getKubernetesHeaders(reply)...)
 
+	if hdrs, err := a.getGoogleCloudServerlessAuthenticationHeaders(reply); err == nil {
+		requestHeaders = append(requestHeaders, hdrs...)
+	} else {
+		log.Warn().Err(err).Msg("error getting google cloud serverless authentication headers")
+	}
+
 	return &envoy_service_auth_v2.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
 		HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{

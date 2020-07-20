@@ -36,7 +36,7 @@ import (
 
 // ValidateOptions checks that configuration are complete and valid.
 // Returns on first error found.
-func ValidateOptions(o config.Options) error {
+func ValidateOptions(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("authenticate: 'SHARED_SECRET' invalid: %w", err)
 	}
@@ -118,7 +118,7 @@ type Authenticate struct {
 }
 
 // New validates and creates a new authenticate service from a set of Options.
-func New(opts config.Options) (*Authenticate, error) {
+func New(opts *config.Options) (*Authenticate, error) {
 	if err := ValidateOptions(opts); err != nil {
 		return nil, err
 	}
@@ -238,15 +238,13 @@ func (a *Authenticate) setAdminUsers(opts *config.Options) {
 	}
 }
 
-// UpdateOptions implements the OptionsUpdater interface and updates internal
+// OnConfigChange implements the OptionsUpdater interface and updates internal
 // structures based on config.Options
-func (a *Authenticate) UpdateOptions(opts config.Options) error {
+func (a *Authenticate) OnConfigChange(cfg *config.Config) {
 	if a == nil {
-		return nil
+		return
 	}
 
-	log.Info().Str("checksum", fmt.Sprintf("%x", opts.Checksum())).Msg("authenticate: updating options")
-	a.setAdminUsers(&opts)
-
-	return nil
+	log.Info().Str("checksum", fmt.Sprintf("%x", cfg.Options.Checksum())).Msg("authenticate: updating options")
+	a.setAdminUsers(cfg.Options)
 }

@@ -32,8 +32,8 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 		})
 		r.Get("/groups", func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode([]M{
-				{"id": 1},
-				{"id": 2},
+				{"id": 1, "name": "Group 1"},
+				{"id": 2, "name": "Group 2"},
 			})
 		})
 		r.Get("/groups/{group_name}/members", func(w http.ResponseWriter, r *http.Request) {
@@ -69,9 +69,9 @@ func Test(t *testing.T) {
 	users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "gitlab/11", "groups": ["1"] },
-		{ "id": "gitlab/12", "groups": ["2"] },
-		{ "id": "gitlab/13", "groups": ["2"] }
+		{ "id": "gitlab/11", "groups": ["1", "Group 1"] },
+		{ "id": "gitlab/12", "groups": ["2", "Group 2"] },
+		{ "id": "gitlab/13", "groups": ["2", "Group 2"] }
 	]`, users)
 }
 

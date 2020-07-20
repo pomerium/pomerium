@@ -233,7 +233,10 @@ func TestOptionsFromViper(t *testing.T) {
 					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 					"X-Frame-Options":           "SAMEORIGIN",
 					"X-XSS-Protection":          "1; mode=block",
-				}},
+				},
+				RefreshDirectoryTimeout:  1 * time.Minute,
+				RefreshDirectoryInterval: 10 * time.Minute,
+			},
 			false},
 		{"good disable header",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
@@ -246,7 +249,10 @@ func TestOptionsFromViper(t *testing.T) {
 				InsecureServer:                  true,
 				GRPCServerMaxConnectionAge:      5 * time.Minute,
 				GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
-				Headers:                         map[string]string{}},
+				Headers:                         map[string]string{},
+				RefreshDirectoryTimeout:         1 * time.Minute,
+				RefreshDirectoryInterval:        10 * time.Minute,
+			},
 			false},
 		{"bad url", []byte(`{"policy":[{"from": "https://","to":"https://to.example"}]}`), nil, true},
 		{"bad policy", []byte(`{"policy":[{"allow_public_unauthenticated_access": "dog","to":"https://to.example"}]}`), nil, true},
@@ -265,7 +271,7 @@ func TestOptionsFromViper(t *testing.T) {
 				return
 			}
 			if diff := cmp.Diff(got, tt.want, opts...); diff != "" {
-				t.Errorf("NewOptionsFromConfig() = %s", diff)
+				t.Errorf("newOptionsFromConfig() = %s", diff)
 			}
 		})
 	}
@@ -305,9 +311,9 @@ func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 				os.Setenv(k, v)
 				defer os.Unsetenv(k)
 			}
-			_, err := NewOptionsFromConfig("")
+			_, err := newOptionsFromConfig("")
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NewOptionsFromConfig() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("newOptionsFromConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 		})
@@ -327,7 +333,7 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 		defer os.Unsetenv(k)
 	}
 
-	o, err := NewOptionsFromConfig("")
+	o, err := newOptionsFromConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -343,166 +349,48 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 
 }
 
-type mockService struct {
-	fail    bool
-	Updated bool
-}
-
-func (m *mockService) UpdateOptions(o Options) error {
-
-	m.Updated = true
-	if m.fail {
-		return fmt.Errorf("failed")
-	}
-	return nil
-}
-
-func Test_HandleConfigUpdate(t *testing.T) {
-	tests := []struct {
-		name           string
-		oldEnvKeyPairs map[string]string
-		newEnvKeyPairs map[string]string
-		service        *mockService
-		wantUpdate     bool
-	}{
-		{"good",
-			map[string]string{
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			map[string]string{
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			&mockService{fail: false},
-			true},
-		{"good set debug",
-			map[string]string{
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			map[string]string{
-				"POMERIUM_DEBUG":           "true",
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			&mockService{fail: false},
-			true},
-		{"bad",
-			map[string]string{
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			map[string]string{
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			&mockService{fail: true},
-			true},
-		{"bad policy file unmarshal error",
-			map[string]string{
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			map[string]string{
-				"POLICY":                   base64.StdEncoding.EncodeToString([]byte("{json:}")),
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			&mockService{fail: false},
-			false},
-		{"bad header key",
-			map[string]string{
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			map[string]string{
-				"SERVICES":                 "error",
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			&mockService{fail: false},
-			false},
-		{"bad header header value",
-			map[string]string{
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			map[string]string{
-				"HEADERS":                  "x;y;z",
-				"INSECURE_SERVER":          "true",
-				"AUTHENTICATE_SERVICE_URL": "https://authenticate.example",
-				"AUTHORIZE_SERVICE_URL":    "https://authorize.example"},
-			&mockService{fail: false},
-			false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			for k, v := range tt.oldEnvKeyPairs {
-				os.Setenv(k, v)
-			}
-			oldOpts, err := NewOptionsFromConfig("")
-			if err != nil {
-				t.Fatal(err)
-			}
-			for k := range tt.oldEnvKeyPairs {
-				os.Unsetenv(k)
-			}
-			for k, v := range tt.newEnvKeyPairs {
-				os.Setenv(k, v)
-				defer os.Unsetenv(k)
-			}
-			handleConfigUpdate("", oldOpts, []OptionsUpdater{tt.service})
-			if tt.service.Updated != tt.wantUpdate {
-				t.Errorf("Failed to update config on service")
-			}
-		})
-	}
-}
-
-func TestOptions_sourceHostnames(t *testing.T) {
-	t.Parallel()
-	testOptions := func() *Options {
-		o := NewDefaultOptions()
-		o.SharedKey = "test"
-		o.Services = "all"
-		o.InsecureServer = true
-		return o
-	}
-	tests := []struct {
-		name            string
-		policies        []Policy
-		authenticateURL string
-		want            []string
-	}{
-		{"empty", []Policy{}, "", nil},
-		{"good no authN", []Policy{{From: "https://from.example", To: "https://to.example"}}, "", []string{"from.example"}},
-		{"good with authN", []Policy{{From: "https://from.example", To: "https://to.example"}}, "https://authn.example.com", []string{"authn.example.com", "from.example"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			o := testOptions()
-			o.Policies = tt.policies
-			o.AuthenticateURLString = tt.authenticateURL
-			err := o.Validate()
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := o.sourceHostnames()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Options.sourceHostnames() = %v", diff)
-			}
-		})
-	}
-}
-
 func TestHTTPRedirectAddressStripQuotes(t *testing.T) {
 	o := NewDefaultOptions()
 	o.InsecureServer = true
 	o.HTTPRedirectAddr = `":80"`
 	assert.NoError(t, o.Validate())
 	assert.Equal(t, ":80", o.HTTPRedirectAddr)
+}
+
+func TestCertificatesArrayParsing(t *testing.T) {
+	t.Parallel()
+
+	testCertFileRef := "./testdata/example-cert.pem"
+	testKeyFileRef := "./testdata/example-key.pem"
+	testCertFile, _ := ioutil.ReadFile(testCertFileRef)
+	testKeyFile, _ := ioutil.ReadFile(testKeyFileRef)
+	testCertAsBase64 := base64.StdEncoding.EncodeToString(testCertFile)
+	testKeyAsBase64 := base64.StdEncoding.EncodeToString(testKeyFile)
+
+	tests := []struct {
+		name             string
+		certificateFiles []certificateFilePair
+		wantErr          bool
+	}{
+		{"Handles base64 string as params", []certificateFilePair{{KeyFile: testKeyAsBase64, CertFile: testCertAsBase64}}, false},
+		{"Handles file reference as params", []certificateFilePair{{KeyFile: testKeyFileRef, CertFile: testCertFileRef}}, false},
+		{"Returns an error otherwise", []certificateFilePair{{KeyFile: "abc", CertFile: "abc"}}, true},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			o := NewDefaultOptions()
+			o.CertificateFiles = tt.certificateFiles
+			err := o.Validate()
+
+			if err != nil && tt.wantErr == false {
+				t.Fatal(err)
+			}
+		})
+	}
 }
 
 func TestCompareByteSliceSlice(t *testing.T) {
