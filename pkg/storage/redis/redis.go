@@ -148,6 +148,7 @@ func (db *DB) Delete(ctx context.Context, id string) error {
 		return errors.New("not found")
 	}
 	r.DeletedAt = ptypes.TimestampNow()
+	r.Version = fmt.Sprintf("%012X", atomic.AddUint64(&db.lastVersion, 1))
 	b, err := proto.Marshal(r)
 	if err != nil {
 		return err
@@ -156,6 +157,7 @@ func (db *DB) Delete(ctx context.Context, id string) error {
 		"MULTI": nil,
 		"HSET":  {db.recordType, id, string(b)},
 		"SADD":  {db.deletedSet, id},
+		"ZADD":  {db.versionSet, db.lastVersion, id},
 	}}
 	if _, err := db.tx(c, cmds); err != nil {
 		return err

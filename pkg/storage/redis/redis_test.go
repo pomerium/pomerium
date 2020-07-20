@@ -88,7 +88,7 @@ func TestDB(t *testing.T) {
 		}
 
 		assert.Len(t, db.List(ctx, ""), 10)
-		assert.Len(t, db.List(ctx, "00000000000A"), 4)
+		assert.Len(t, db.List(ctx, "00000000000A"), 5)
 		assert.Len(t, db.List(ctx, "00000000000F"), 0)
 
 		for _, id := range ids {
