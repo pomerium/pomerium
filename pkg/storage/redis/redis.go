@@ -87,15 +87,9 @@ func (db *DB) Put(ctx context.Context, id string, data *anypb.Any) error {
 		"HSET":  {db.recordType, id, string(b)},
 		"ZADD":  {db.versionSet, db.lastVersion, id},
 	}
-	for cmd, args := range cmds {
-		if err := c.Send(cmd, args...); err != nil {
-			return err
-		}
-	}
-	if _, err := c.Do("EXEC"); err != nil {
+	if _, err := db.tx(c, cmds); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -164,12 +158,7 @@ func (db *DB) Delete(ctx context.Context, id string) error {
 		"HSET":  {db.recordType, id, string(b)},
 		"SADD":  {db.deletedSet, id},
 	}
-	for cmd, args := range cmds {
-		if err := c.Send(cmd, args...); err != nil {
-			return err
-		}
-	}
-	if _, err := c.Do("EXEC"); err != nil {
+	if _, err := db.tx(c, cmds); err != nil {
 		return err
 	}
 	return nil
@@ -196,10 +185,7 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 				"ZREM":  {db.versionSet, id},
 				"SREM":  {db.deletedSet, id},
 			}
-			for cmd, args := range cmds {
-				_ = c.Send(cmd, args...)
-			}
-			_, _ = c.Do("EXEC")
+			_, _ = db.tx(c, cmds)
 		}
 	}
 }
@@ -242,4 +228,13 @@ func (db *DB) toPbRecord(b []byte) *databroker.Record {
 		return nil
 	}
 	return record
+}
+
+func (db *DB) tx(c redis.Conn, commands map[string][]interface{}) (interface{}, error) {
+	for cmd, args := range commands {
+		if err := c.Send(cmd, args...); err != nil {
+			return nil, err
+		}
+	}
+	return c.Do("EXEC")
 }
