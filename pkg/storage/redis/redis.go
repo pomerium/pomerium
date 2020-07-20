@@ -57,6 +57,7 @@ func New(address, recordType string) (*DB, error) {
 			},
 		},
 		deletePermanentlyAfter: int64(internal_databroker.DefaultDeletePermanentlyAfter.Seconds()),
+		recordType:             recordType,
 		versionSet:             "version_set",
 		deletedSet:             "deleted_set",
 	}
