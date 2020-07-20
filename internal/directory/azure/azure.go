@@ -101,25 +101,25 @@ func New(options ...Option) *Provider {
 }
 
 // UserGroups returns the directory users in azure active directory.
-func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
 	if p.cfg.serviceAccount == nil {
-		return nil, fmt.Errorf("azure: service account not defined")
+		return nil, nil, fmt.Errorf("azure: service account not defined")
 	}
 
-	groupIDs, err := p.listGroups(ctx)
+	groups, err := p.listGroups(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	userIDToGroupIDs := map[string][]string{}
-	for groupID, groupName := range groupIDs {
-		userIDs, err := p.listGroupMembers(ctx, groupID)
+	for _, group := range groups {
+		userIDs, err := p.listGroupMembers(ctx, group.Id)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		for _, userID := range userIDs {
-			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], groupID, groupName)
+			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], group.Id)
 		}
 	}
 
@@ -127,23 +127,23 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	for userID, groupIDs := range userIDToGroupIDs {
 		sort.Strings(groupIDs)
 		users = append(users, &directory.User{
-			Id:     databroker.GetUserID(Name, userID),
-			Groups: groupIDs,
+			Id:       databroker.GetUserID(Name, userID),
+			GroupIds: groupIDs,
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].GetId() < users[j].GetId()
 	})
-	return users, nil
+	return groups, users, nil
 }
 
 // listGroups returns a map, with key is group ID, element is group name.
-func (p *Provider) listGroups(ctx context.Context) (map[string]string, error) {
+func (p *Provider) listGroups(ctx context.Context) ([]*directory.Group, error) {
 	nextURL := p.cfg.graphURL.ResolveReference(&url.URL{
 		Path: "/v1.0/groups",
 	}).String()
 
-	groups := make(map[string]string)
+	var groups []*directory.Group
 	for nextURL != "" {
 		var result struct {
 			Value []struct {
@@ -157,7 +157,10 @@ func (p *Provider) listGroups(ctx context.Context) (map[string]string, error) {
 			return nil, err
 		}
 		for _, v := range result.Value {
-			groups[v.ID] = v.Name
+			groups = append(groups, &directory.Group{
+				Id:   v.ID,
+				Name: v.Name,
+			})
 		}
 		nextURL = result.NextLink
 	}

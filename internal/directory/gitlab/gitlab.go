@@ -84,27 +84,27 @@ func New(options ...Option) *Provider {
 }
 
 // UserGroups gets the directory user groups for gitlab.
-func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
 	if p.cfg.serviceAccount == nil {
-		return nil, fmt.Errorf("gitlab: service account not defined")
+		return nil, nil, fmt.Errorf("gitlab: service account not defined")
 	}
 
 	p.log.Info().Msg("getting user groups")
 
 	groups, err := p.listGroups(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	userIDToGroupIDs := map[int][]string{}
-	for groupID, groupName := range groups {
-		userIDs, err := p.listGroupMemberIDs(ctx, groupID)
+	for _, group := range groups {
+		userIDs, err := p.listGroupMemberIDs(ctx, group.Id)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		for _, userID := range userIDs {
-			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], strconv.Itoa(groupID), groupName)
+			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], group.Id)
 		}
 	}
 
@@ -114,23 +114,23 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 			Id: databroker.GetUserID(Name, fmt.Sprint(userID)),
 		}
 
-		user.Groups = append(user.Groups, groups...)
+		user.GroupIds = append(user.GroupIds, groups...)
 
-		sort.Strings(user.Groups)
+		sort.Strings(user.GroupIds)
 		users = append(users, user)
 	}
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].GetId() < users[j].GetId()
 	})
-	return users, nil
+	return groups, users, nil
 }
 
 // listGroups returns a map, with key is group ID, element is group name.
-func (p *Provider) listGroups(ctx context.Context) (map[int]string, error) {
+func (p *Provider) listGroups(ctx context.Context) ([]*directory.Group, error) {
 	nextURL := p.cfg.url.ResolveReference(&url.URL{
 		Path: "/api/v4/groups",
 	}).String()
-	groups := make(map[int]string)
+	var groups []*directory.Group
 	for nextURL != "" {
 		var result []struct {
 			ID   int    `json:"id"`
@@ -142,7 +142,10 @@ func (p *Provider) listGroups(ctx context.Context) (map[int]string, error) {
 		}
 
 		for _, r := range result {
-			groups[r.ID] = r.Name
+			groups = append(groups, &directory.Group{
+				Id:   strconv.Itoa(r.ID),
+				Name: r.Name,
+			})
 		}
 
 		nextURL = getNextLink(hdrs)
@@ -150,9 +153,9 @@ func (p *Provider) listGroups(ctx context.Context) (map[int]string, error) {
 	return groups, nil
 }
 
-func (p *Provider) listGroupMemberIDs(ctx context.Context, groupID int) (userIDs []int, err error) {
+func (p *Provider) listGroupMemberIDs(ctx context.Context, groupID string) (userIDs []int, err error) {
 	nextURL := p.cfg.url.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/api/v4/groups/%d/members", groupID),
+		Path: fmt.Sprintf("/api/v4/groups/%s/members", groupID),
 	}).String()
 	for nextURL != "" {
 		var result []struct {

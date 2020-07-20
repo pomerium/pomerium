@@ -85,22 +85,26 @@ func Test(t *testing.T) {
 			DirectoryID:  "DIRECTORY_ID",
 		}),
 	)
-	users, err := p.UserGroups(context.Background())
+	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:     "azure/user-1",
-			Groups: []string{"Admin Group", "admin"},
+			Id:       "azure/user-1",
+			GroupIds: []string{"admin"},
 		},
 		{
-			Id:     "azure/user-2",
-			Groups: []string{"Test Group", "test"},
+			Id:       "azure/user-2",
+			GroupIds: []string{"test"},
 		},
 		{
-			Id:     "azure/user-3",
-			Groups: []string{"Test Group", "test"},
+			Id:       "azure/user-3",
+			GroupIds: []string{"test"},
 		},
 	}, users)
+	assert.Equal(t, []*directory.Group{
+		{Id: "admin", Name: "Admin Group"},
+		{Id: "test", Name: "Test Group"},
+	}, groups)
 }
 
 func mustParseURL(rawurl string) *url.URL {

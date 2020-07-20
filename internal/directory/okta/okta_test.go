@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/tomnomnom/linkheader"
 
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -115,22 +116,27 @@ func TestProvider_UserGroups(t *testing.T) {
 		WithServiceAccount(&ServiceAccount{APIKey: "APITOKEN"}),
 		WithProviderURL(mustParseURL(srv.URL)),
 	)
-	users, err := p.UserGroups(context.Background())
+	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:     "okta/a@example.com",
-			Groups: []string{"admin", "admin-name", "user", "user-name"},
+			Id:       "okta/a@example.com",
+			GroupIds: []string{"admin", "user"},
 		},
 		{
-			Id:     "okta/b@example.com",
-			Groups: []string{"test", "test-name", "user", "user-name"},
+			Id:       "okta/b@example.com",
+			GroupIds: []string{"test", "user"},
 		},
 		{
-			Id:     "okta/c@example.com",
-			Groups: []string{"user", "user-name"},
+			Id:       "okta/c@example.com",
+			GroupIds: []string{"user"},
 		},
 	}, users)
+	testutil.AssertProtoJSONEqual(t, `[
+		{ "id": "admin", "name": "admin-name" },
+		{ "id": "test", "name": "test-name" },
+		{ "id": "user", "name": "user-name" }
+	]`, groups)
 }
 
 func mustParseURL(rawurl string) *url.URL {

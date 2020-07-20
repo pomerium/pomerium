@@ -30,9 +30,10 @@ import (
 )
 
 const (
-	sessionTypeURL       = "type.googleapis.com/session.Session"
-	userTypeURL          = "type.googleapis.com/user.User"
-	directoryUserTypeURL = "type.googleapis.com/directory.User"
+	sessionTypeURL        = "type.googleapis.com/session.Session"
+	userTypeURL           = "type.googleapis.com/user.User"
+	directoryUserTypeURL  = "type.googleapis.com/directory.User"
+	directoryGroupTypeURL = "type.googleapis.com/directory.Group"
 )
 
 // Evaluator specifies the interface for a policy engine.
@@ -196,7 +197,16 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 			payload["email"] = u.GetEmail()
 		}
 		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", s.GetUserId()).(*directory.User); ok {
-			payload["groups"] = du.GetGroups()
+			var groupNames []string
+			for _, groupID := range du.GetGroupIds() {
+				if dg, ok := req.DataBrokerData.Get("type.googleapis.com/directory.Group", groupID).(*directory.Group); ok {
+					groupNames = append(groupNames, dg.Name)
+				}
+			}
+			var groups []string
+			groups = append(groups, du.GetGroupIds()...)
+			groups = append(groups, groupNames...)
+			payload["groups"] = groups
 		}
 	}
 	return payload
@@ -234,9 +244,9 @@ type input struct {
 }
 
 type dataBrokerDataInput struct {
-	Session       interface{} `json:"session,omitempty"`
-	User          interface{} `json:"user,omitempty"`
-	DirectoryUser interface{} `json:"directory_user,omitempty"`
+	Session interface{} `json:"session,omitempty"`
+	User    interface{} `json:"user,omitempty"`
+	Groups  interface{} `json:"groups,omitempty"`
 }
 
 func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input {
@@ -244,7 +254,18 @@ func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input
 	i.DataBrokerData.Session = req.DataBrokerData.Get(sessionTypeURL, req.Session.ID)
 	if obj, ok := i.DataBrokerData.Session.(interface{ GetUserId() string }); ok {
 		i.DataBrokerData.User = req.DataBrokerData.Get(userTypeURL, obj.GetUserId())
-		i.DataBrokerData.DirectoryUser = req.DataBrokerData.Get(directoryUserTypeURL, obj.GetUserId())
+
+		groupIDs, ok := req.DataBrokerData.Get(directoryUserTypeURL, obj.GetUserId()).([]string)
+		if ok {
+			var groups []string
+			for _, groupID := range groupIDs {
+				if dg, ok := req.DataBrokerData.Get(directoryGroupTypeURL, groupID).(*directory.Group); ok {
+					groups = append(groups, dg.Name)
+				}
+			}
+			groups = append(groups, groupIDs...)
+			i.DataBrokerData.Groups = groups
+		}
 	}
 	i.HTTP = req.HTTP
 	i.Session = req.Session

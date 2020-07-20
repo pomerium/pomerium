@@ -15,7 +15,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pomerium/pomerium/pkg/grpc/directory"
+	"github.com/pomerium/pomerium/internal/testutil"
 )
 
 type M = map[string]interface{}
@@ -147,22 +147,18 @@ func TestProvider_UserGroups(t *testing.T) {
 		}),
 		WithURL(mustParseURL(srv.URL)),
 	)
-	users, err := p.UserGroups(context.Background())
+	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
-	assert.Equal(t, []*directory.User{
-		{
-			Id:     "onelogin/111",
-			Groups: []string{"0", "admin"},
-		},
-		{
-			Id:     "onelogin/222",
-			Groups: []string{"1", "test"},
-		},
-		{
-			Id:     "onelogin/333",
-			Groups: []string{"2", "user"},
-		},
-	}, users)
+	testutil.AssertProtoJSONEqual(t, `[
+		{ "id": "onelogin/111", "groupIds": ["0"] },
+		{ "id": "onelogin/222", "groupIds": ["1"] },
+		{ "id": "onelogin/333", "groupIds": ["2"] }
+	]`, users)
+	testutil.AssertProtoJSONEqual(t, `[
+		{ "id": "0", "name": "admin" },
+		{ "id": "1", "name": "test" },
+		{ "id": "2", "name": "user" }
+	]`, groups)
 }
 
 func mustParseURL(rawurl string) *url.URL {

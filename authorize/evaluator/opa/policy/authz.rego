@@ -7,7 +7,7 @@ route_policy_idx := first_allowed_route_policy_idx(input.http.url)
 route_policy := data.route_policies[route_policy_idx]
 session := input.databroker_data.session
 user := input.databroker_data.user
-directory_user := input.databroker_data.directory_user
+groups := input.databroker_data.groups
 
 
 # allow public
@@ -32,7 +32,7 @@ allow {
 # allow group
 allow {
 	some group
-	directory_user.groups[_] = group
+	groups.groups[_] = group
 	route_policy.allowed_groups[_] = group
 	input.session.impersonate_groups == null
 }

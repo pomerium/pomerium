@@ -86,49 +86,52 @@ func New(options ...Option) *Provider {
 }
 
 // UserGroups gets the directory user groups for github.
-func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
 	if p.cfg.serviceAccount == nil {
-		return nil, fmt.Errorf("github: service account not defined")
+		return nil, nil, fmt.Errorf("github: service account not defined")
 	}
 
 	orgSlugs, err := p.listOrgs(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	userLoginToGroups := map[string][]string{}
 
+	var allGroups []*directory.Group
 	for _, orgSlug := range orgSlugs {
-		teamSlugs, err := p.listTeams(ctx, orgSlug)
+		groups, err := p.listGroups(ctx, orgSlug)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		for teamSlug, teamID := range teamSlugs {
-			userLogins, err := p.listTeamMembers(ctx, orgSlug, teamSlug)
+		for _, group := range groups {
+			userLogins, err := p.listTeamMembers(ctx, orgSlug, group.Name)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			for _, userLogin := range userLogins {
-				userLoginToGroups[userLogin] = append(userLoginToGroups[userLogin], teamSlug, strconv.Itoa(teamID))
+				userLoginToGroups[userLogin] = append(userLoginToGroups[userLogin], group.Id)
 			}
 		}
+
+		allGroups = append(allGroups, groups...)
 	}
 
 	var users []*directory.User
 	for userLogin, groups := range userLoginToGroups {
 		user := &directory.User{
-			Id:     databroker.GetUserID(Name, userLogin),
-			Groups: groups,
+			Id:       databroker.GetUserID(Name, userLogin),
+			GroupIds: groups,
 		}
-		sort.Strings(user.Groups)
+		sort.Strings(user.GroupIds)
 		users = append(users, user)
 	}
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].GetId() < users[j].GetId()
 	})
-	return users, nil
+	return allGroups, users, nil
 }
 
 func (p *Provider) listOrgs(ctx context.Context) (orgSlugs []string, err error) {
@@ -155,12 +158,12 @@ func (p *Provider) listOrgs(ctx context.Context) (orgSlugs []string, err error) 
 	return orgSlugs, nil
 }
 
-func (p *Provider) listTeams(ctx context.Context, orgSlug string) (map[string]int, error) {
+func (p *Provider) listGroups(ctx context.Context, orgSlug string) ([]*directory.Group, error) {
 	nextURL := p.cfg.url.ResolveReference(&url.URL{
 		Path: fmt.Sprintf("/orgs/%s/teams", orgSlug),
 	}).String()
 
-	teamSlugs := make(map[string]int)
+	var groups []*directory.Group
 	for nextURL != "" {
 		var results []struct {
 			ID   int    `json:"id"`
@@ -172,13 +175,16 @@ func (p *Provider) listTeams(ctx context.Context, orgSlug string) (map[string]in
 		}
 
 		for _, result := range results {
-			teamSlugs[result.Slug] = result.ID
+			groups = append(groups, &directory.Group{
+				Id:   strconv.Itoa(result.ID),
+				Name: result.Slug,
+			})
 		}
 
 		nextURL = getNextLink(hdrs)
 	}
 
-	return teamSlugs, nil
+	return groups, nil
 }
 
 func (p *Provider) listTeamMembers(ctx context.Context, orgSlug, teamSlug string) (userLogins []string, err error) {

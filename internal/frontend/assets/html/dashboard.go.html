@@ -87,10 +87,10 @@
                     disabled
                   />
                 </label>
-                {{end}} {{range $i,$_:= .DirectoryUser.Groups}}
+                {{end}} {{range $i,$_:= .DirectoryUser.GroupIds}}
                 <label>
                   {{if eq $i 0}}
-                  <span>Group</span>
+                  <span>Group ID</span>
                   {{else}}
                   <span></span>
                   {{end}}

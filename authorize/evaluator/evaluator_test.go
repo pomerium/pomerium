@@ -25,8 +25,8 @@ func TestJSONMarshal(t *testing.T) {
 	dbd := DataBrokerData{
 		"type.googleapis.com/directory.User": map[string]interface{}{
 			"user1": &directory.User{
-				Id:     "user1",
-				Groups: []string{"group1", "group2"},
+				Id:       "user1",
+				GroupIds: []string{"group1", "group2"},
 			},
 		},
 		"type.googleapis.com/session.Session": map[string]interface{}{},

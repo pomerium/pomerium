@@ -95,57 +95,45 @@ func New(options ...Option) *Provider {
 }
 
 // UserGroups gets the directory user groups for onelogin.
-func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
 	if p.cfg.serviceAccount == nil {
-		return nil, fmt.Errorf("onelogin: service account not defined")
+		return nil, nil, fmt.Errorf("onelogin: service account not defined")
 	}
 
 	p.log.Info().Msg("getting user groups")
 
 	token, err := p.getToken(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	groupIDToName, err := p.getGroupIDToName(ctx, token)
+	groups, err := p.listGroups(ctx, token)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	userIDToGroupIDs, err := p.getUserIDToGroupIDs(ctx, token)
 	if err != nil {
-		return nil, err
-	}
-
-	userIDToGroupNames := map[int][]string{}
-	for userID, groupIDs := range userIDToGroupIDs {
-		for _, groupID := range groupIDs {
-			if groupName, ok := groupIDToName[groupID]; ok {
-				userIDToGroupNames[userID] = append(userIDToGroupNames[userID], strconv.Itoa(groupID), groupName)
-			} else {
-				userIDToGroupNames[userID] = append(userIDToGroupNames[userID], "NOGROUP")
-			}
-		}
+		return nil, nil, err
 	}
 
 	var users []*directory.User
-	for userID, groups := range userIDToGroupNames {
-		sort.Strings(groups)
+	for userID, groupIDs := range userIDToGroupIDs {
+		sort.Strings(groupIDs)
 		users = append(users, &directory.User{
-			Id:     databroker.GetUserID(Name, strconv.Itoa(userID)),
-			Groups: groups,
+			Id:       databroker.GetUserID(Name, strconv.Itoa(userID)),
+			GroupIds: groupIDs,
 		})
 	}
 
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].Id < users[j].Id
 	})
-	return users, nil
+	return groups, users, nil
 }
 
-func (p *Provider) getGroupIDToName(ctx context.Context, token *oauth2.Token) (map[int]string, error) {
-	groupIDToName := map[int]string{}
-
+func (p *Provider) listGroups(ctx context.Context, token *oauth2.Token) ([]*directory.Group, error) {
+	var groups []*directory.Group
 	apiURL := p.cfg.apiURL.ResolveReference(&url.URL{
 		Path:     "/api/1/groups",
 		RawQuery: fmt.Sprintf("limit=%d", p.cfg.batchSize),
@@ -161,17 +149,19 @@ func (p *Provider) getGroupIDToName(ctx context.Context, token *oauth2.Token) (m
 		}
 
 		for _, r := range result {
-			groupIDToName[r.ID] = r.Name
+			groups = append(groups, &directory.Group{
+				Id:   strconv.Itoa(r.ID),
+				Name: r.Name,
+			})
 		}
 
 		apiURL = nextLink
 	}
-
-	return groupIDToName, nil
+	return groups, nil
 }
 
-func (p *Provider) getUserIDToGroupIDs(ctx context.Context, token *oauth2.Token) (map[int][]int, error) {
-	userIDToGroupIDs := map[int][]int{}
+func (p *Provider) getUserIDToGroupIDs(ctx context.Context, token *oauth2.Token) (map[int][]string, error) {
+	userIDToGroupIDs := map[int][]string{}
 
 	apiURL := p.cfg.apiURL.ResolveReference(&url.URL{
 		Path:     "/api/1/users",
@@ -192,7 +182,7 @@ func (p *Provider) getUserIDToGroupIDs(ctx context.Context, token *oauth2.Token)
 			if r.GroupID != nil {
 				groupID = *r.GroupID
 			}
-			userIDToGroupIDs[r.ID] = append(userIDToGroupIDs[r.ID], groupID)
+			userIDToGroupIDs[r.ID] = append(userIDToGroupIDs[r.ID], strconv.Itoa(groupID))
 		}
 
 		apiURL = nextLink

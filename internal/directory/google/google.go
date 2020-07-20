@@ -82,14 +82,13 @@ func New(options ...Option) *Provider {
 // NOTE: groups via Directory API is limited to 1 QPS!
 // https://developers.google.com/admin-sdk/directory/v1/reference/groups/list
 // https://developers.google.com/admin-sdk/directory/v1/limits
-func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
 	apiClient, err := p.getAPIClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("google: error getting API client: %w", err)
+		return nil, nil, fmt.Errorf("google: error getting API client: %w", err)
 	}
 
-	groupIDToEmails := map[string]string{}
-	var groups []string
+	var groups []*directory.Group
 	err = apiClient.Groups.List().
 		Context(ctx).
 		Fields("id", "email", "directMembersCount").
@@ -100,29 +99,32 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 				if g.DirectMembersCount == 0 {
 					continue
 				}
-				groups = append(groups, g.Id)
-				groupIDToEmails[g.Id] = g.Email
+				groups = append(groups, &directory.Group{
+					Id:    g.Id,
+					Name:  g.Name,
+					Email: g.Email,
+				})
 			}
 			return nil
 		})
 	if err != nil {
-		return nil, fmt.Errorf("google: error getting groups: %w", err)
+		return nil, nil, fmt.Errorf("google: error getting groups: %w", err)
 	}
 
 	userIDToGroups := map[string][]string{}
 	for _, group := range groups {
 		group := group
-		err = apiClient.Members.List(group).
+		err = apiClient.Members.List(group.Id).
 			Context(ctx).
 			Fields("id").
 			Pages(ctx, func(res *admin.Members) error {
 				for _, member := range res.Members {
-					userIDToGroups[member.Id] = append(userIDToGroups[member.Id], group, groupIDToEmails[group])
+					userIDToGroups[member.Id] = append(userIDToGroups[member.Id], group.Id)
 				}
 				return nil
 			})
 		if err != nil {
-			return nil, fmt.Errorf("google: error getting group members: %w", err)
+			return nil, nil, fmt.Errorf("google: error getting group members: %w", err)
 		}
 	}
 
@@ -130,14 +132,14 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	for userID, groups := range userIDToGroups {
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:     databroker.GetUserID(Name, userID),
-			Groups: groups,
+			Id:       databroker.GetUserID(Name, userID),
+			GroupIds: groups,
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].Id < users[j].Id
 	})
-	return users, nil
+	return groups, users, nil
 }
 
 func (p *Provider) getAPIClient(ctx context.Context) (*admin.Service, error) {
