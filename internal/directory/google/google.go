@@ -91,7 +91,6 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	var groups []*directory.Group
 	err = apiClient.Groups.List().
 		Context(ctx).
-		Fields("id", "email", "directMembersCount").
 		Customer("my_customer").
 		Pages(ctx, func(res *admin.Groups) error {
 			for _, g := range res.Groups {
@@ -116,7 +115,6 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		group := group
 		err = apiClient.Members.List(group.Id).
 			Context(ctx).
-			Fields("id").
 			Pages(ctx, func(res *admin.Members) error {
 				for _, member := range res.Members {
 					userIDToGroups[member.Id] = append(userIDToGroups[member.Id], group.Id)
