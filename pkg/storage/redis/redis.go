@@ -82,10 +82,11 @@ func (db *DB) Put(ctx context.Context, id string, data *anypb.Any) error {
 	if err != nil {
 		return err
 	}
-	cmds := []map[string][]interface{}{{"MULTI": nil,
-		"HSET": {db.recordType, id, string(b)},
-		"ZADD": {db.versionSet, db.lastVersion, id},
-	}}
+	cmds := []map[string][]interface{}{
+		{"MULTI": nil},
+		{"HSET": {db.recordType, id, string(b)}},
+		{"ZADD": {db.versionSet, db.lastVersion, id}},
+	}
 	if err := db.tx(c, cmds); err != nil {
 		return err
 	}
@@ -153,12 +154,12 @@ func (db *DB) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	cmds := []map[string][]interface{}{{
-		"MULTI": nil,
-		"HSET":  {db.recordType, id, string(b)},
-		"SADD":  {db.deletedSet, id},
-		"ZADD":  {db.versionSet, db.lastVersion, id},
-	}}
+	cmds := []map[string][]interface{}{
+		{"MULTI": nil},
+		{"HSET": {db.recordType, id, string(b)}},
+		{"SADD": {db.deletedSet, id}},
+		{"ZADD": {db.versionSet, db.lastVersion, id}},
+	}
 	if err := db.tx(c, cmds); err != nil {
 		return err
 	}
@@ -180,12 +181,12 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 
 		ts, _ := ptypes.Timestamp(record.DeletedAt)
 		if ts.Before(cutoff) {
-			cmds := []map[string][]interface{}{{
-				"MULTI": nil,
-				"HDEL":  {db.recordType, id},
-				"ZREM":  {db.versionSet, id},
-				"SREM":  {db.deletedSet, id},
-			}}
+			cmds := []map[string][]interface{}{
+				{"MULTI": nil},
+				{"HDEL": {db.recordType, id}},
+				{"ZREM": {db.versionSet, id}},
+				{"SREM": {db.deletedSet, id}},
+			}
 			_ = db.tx(c, cmds)
 		}
 	}
