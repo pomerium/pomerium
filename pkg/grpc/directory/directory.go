@@ -9,8 +9,28 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-// Get gets a directory user from the databroker.
-func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID string) (*User, error) {
+// GetGroup gets a directory group from the databroker.
+func GetGroup(ctx context.Context, client databroker.DataBrokerServiceClient, groupID string) (*Group, error) {
+	any, _ := ptypes.MarshalAny(new(Group))
+
+	res, err := client.Get(ctx, &databroker.GetRequest{
+		Type: any.GetTypeUrl(),
+		Id:   groupID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var g Group
+	err = ptypes.UnmarshalAny(res.GetRecord().GetData(), &g)
+	if err != nil {
+		return nil, err
+	}
+	return &g, nil
+}
+
+// GetUser gets a directory user from the databroker.
+func GetUser(ctx context.Context, client databroker.DataBrokerServiceClient, userID string) (*User, error) {
 	any, _ := ptypes.MarshalAny(new(User))
 
 	res, err := client.Get(ctx, &databroker.GetRequest{
