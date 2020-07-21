@@ -3,7 +3,7 @@ set -euo pipefail
 
 BINARY=$1
 
-ENVOY_VERSION=1.14.4
+ENVOY_VERSION=1.15.0
 DIR=$(dirname "${BINARY}")
 TARGET="${TARGET:-"$(go env GOOS)_$(go env GOARCH)"}"
 
