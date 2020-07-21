@@ -41,6 +41,14 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	a := new(Authorize)
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
 	a.currentEncoder.Store(encoder)
+	a.currentOptions.Store(&config.Options{
+		Policies: []config.Policy{{
+			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			SubPolicies: []config.SubPolicy{{
+				Rego: []string{"allow = true"},
+			}},
+		}},
+	})
 
 	actual := a.getEvaluatorRequestFromCheckRequest(&envoy_service_auth_v2.CheckRequest{
 		Attributes: &envoy_service_auth_v2.AttributeContext{
@@ -74,6 +82,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 			},
 			ClientCertificate: certPEM,
 		},
+		CustomPolicies: []string{"allow = true"},
 	}
 	assert.Equal(t, expect, actual)
 }
