@@ -260,7 +260,12 @@ func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input
 			var groups []string
 			for _, groupID := range user.GetGroupIds() {
 				if dg, ok := req.DataBrokerData.Get(directoryGroupTypeURL, groupID).(*directory.Group); ok {
-					groups = append(groups, dg.Name)
+					if dg.Name != "" {
+						groups = append(groups, dg.Name)
+					}
+					if dg.Email != "" {
+						groups = append(groups, dg.Email)
+					}
 				}
 			}
 			groups = append(groups, user.GetGroupIds()...)
