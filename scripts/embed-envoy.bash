@@ -3,7 +3,7 @@ set -euo pipefail
 
 BINARY=$1
 
-ENVOY_VERSION=1.14.2
+ENVOY_VERSION=1.14.4
 DIR=$(dirname "${BINARY}")
 GOOS=$(echo "${GOOS-}" | cut -d _ -f 1) # goreleaser is fine
 
