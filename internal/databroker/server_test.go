@@ -4,10 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -44,7 +46,9 @@ func TestServer_initVersion(t *testing.T) {
 		assert.Equal(t, srvVersion, srv.version)
 		r = db.Get(ctx, serverVersionKey)
 		assert.NotNil(t, r)
-		assert.Equal(t, srv.version, string(r.Data.Value))
+		var sv databroker.ServerVersion
+		assert.NoError(t, ptypes.UnmarshalAny(r.GetData(), &sv))
+		assert.Equal(t, srv.version, sv.Version)
 	})
 	t.Run("init version twice should get the same version", func(t *testing.T) {
 		srv := newServer(cfg)
@@ -58,7 +62,9 @@ func TestServer_initVersion(t *testing.T) {
 		assert.Equal(t, srvVersion, srv.version)
 		r = db.Get(ctx, serverVersionKey)
 		assert.NotNil(t, r)
-		assert.Equal(t, srv.version, string(r.Data.Value))
+		var sv databroker.ServerVersion
+		assert.NoError(t, ptypes.UnmarshalAny(r.GetData(), &sv))
+		assert.Equal(t, srv.version, sv.Version)
 
 		// re-init version should get the same value as above
 		srv.initVersion()

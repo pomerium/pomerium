@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -80,14 +80,15 @@ func (srv *Server) initVersion() {
 
 	// Get version from storage first.
 	if r := dbServerVersion.Get(context.Background(), serverVersionKey); r != nil {
-		srvVersion := string(r.Data.Value)
-		srv.log.Debug().Str("server_version", srvVersion).Msg("got db version from DB")
-		srv.version = srvVersion
+		var sv databroker.ServerVersion
+		if err := ptypes.UnmarshalAny(r.GetData(), &sv); err != nil {
+			srv.log.Debug().Str("server_version", sv.Version).Msg("got db version from DB")
+			srv.version = sv.Version
+		}
 		return
 	}
 
-	data := new(anypb.Any)
-	data.Value = []byte(srv.version)
+	data, _ := ptypes.MarshalAny(&databroker.ServerVersion{Version: srv.version})
 	if err := dbServerVersion.Put(context.Background(), serverVersionKey, data); err != nil {
 		srv.log.Warn().Err(err).Msg("failed to save server version.")
 	}
