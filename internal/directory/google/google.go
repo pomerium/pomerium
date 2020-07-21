@@ -100,7 +100,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 				}
 				groups = append(groups, &directory.Group{
 					Id:    g.Id,
-					Name:  g.Name,
+					Name:  g.Email,
 					Email: g.Email,
 				})
 			}
