@@ -37,6 +37,7 @@ const (
 
 // Evaluator specifies the interface for a policy engine.
 type Evaluator struct {
+	custom   *CustomEvaluator
 	rego     *rego.Rego
 	query    rego.PreparedEvalQuery
 	policies []config.Policy
@@ -50,6 +51,7 @@ type Evaluator struct {
 // New creates a new Evaluator.
 func New(options *config.Options, store *Store) (*Evaluator, error) {
 	e := &Evaluator{
+		custom:           NewCustomEvaluator(store.opaStore),
 		authenticateHost: options.AuthenticateURL.Host,
 		policies:         options.Policies,
 	}
