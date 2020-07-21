@@ -36,7 +36,7 @@ const DisableHeaderKey = "disable"
 const DefaultAlternativeAddr = ":5443"
 
 // EnvoyAdminURL indicates where the envoy control plane is listening
-var EnvoyAdminURL = &url.URL{Host: "localhost:9901", Scheme: "http"}
+var EnvoyAdminURL = &url.URL{Host: "127.0.0.1:9901", Scheme: "http"}
 
 // Options are the global environmental flags used to set up pomerium's services.
 // Use NewXXXOptions() methods for a safely initialized data structure.
@@ -473,10 +473,10 @@ func (o *Options) Validate() error {
 		}
 		// and we can set the corresponding client
 		if o.AuthorizeURLString == "" {
-			o.AuthorizeURLString = "http://localhost" + DefaultAlternativeAddr
+			o.AuthorizeURLString = "http://127.0.0.1" + DefaultAlternativeAddr
 		}
 		if o.CacheURLString == "" {
-			o.CacheURLString = "http://localhost" + DefaultAlternativeAddr
+			o.CacheURLString = "http://127.0.0.1" + DefaultAlternativeAddr
 		}
 	}
 
@@ -622,39 +622,39 @@ func (o *Options) sourceHostnames() []string {
 	return h
 }
 
-// GetAuthenticateURL returns the AuthenticateURL in the options or localhost.
+// GetAuthenticateURL returns the AuthenticateURL in the options or 127.0.0.1.
 func (o *Options) GetAuthenticateURL() *url.URL {
 	if o != nil && o.AuthenticateURL != nil {
 		return o.AuthenticateURL
 	}
-	u, _ := url.Parse("https://localhost")
+	u, _ := url.Parse("https://127.0.0.1")
 	return u
 }
 
-// GetAuthorizeURL returns the AuthorizeURL in the options or localhost:5443.
+// GetAuthorizeURL returns the AuthorizeURL in the options or 127.0.0.1:5443.
 func (o *Options) GetAuthorizeURL() *url.URL {
 	if o != nil && o.AuthorizeURL != nil {
 		return o.AuthorizeURL
 	}
-	u, _ := url.Parse("http://localhost" + DefaultAlternativeAddr)
+	u, _ := url.Parse("http://127.0.0.1" + DefaultAlternativeAddr)
 	return u
 }
 
-// GetCacheURL returns the CacheURL in the options or localhost:5443.
+// GetCacheURL returns the CacheURL in the options or 127.0.0.1:5443.
 func (o *Options) GetCacheURL() *url.URL {
 	if o != nil && o.CacheURL != nil {
 		return o.CacheURL
 	}
-	u, _ := url.Parse("http://localhost" + DefaultAlternativeAddr)
+	u, _ := url.Parse("http://127.0.0.1" + DefaultAlternativeAddr)
 	return u
 }
 
-// GetForwardAuthURL returns the ForwardAuthURL in the options or localhost.
+// GetForwardAuthURL returns the ForwardAuthURL in the options or 127.0.0.1.
 func (o *Options) GetForwardAuthURL() *url.URL {
 	if o != nil && o.ForwardAuthURL != nil {
 		return o.ForwardAuthURL
 	}
-	u, _ := url.Parse("https://localhost")
+	u, _ := url.Parse("https://127.0.0.1")
 	return u
 }
 
