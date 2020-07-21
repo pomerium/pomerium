@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -20,6 +21,11 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
+)
+
+const (
+	recordTypeServerVersion = "server_version"
+	serverVersionKey        = "version"
 )
 
 // Server implements the databroker service using an in memory database.
@@ -44,6 +50,8 @@ func New(options ...ServerOption) *Server {
 		byType:   make(map[string]storage.Backend),
 		onchange: NewSignal(),
 	}
+	srv.initVersion()
+
 	go func() {
 		ticker := time.NewTicker(cfg.deletePermanentlyAfter / 2)
 		defer ticker.Stop()
@@ -62,6 +70,28 @@ func New(options ...ServerOption) *Server {
 		}
 	}()
 	return srv
+}
+
+func (srv *Server) initVersion() {
+	dbServerVersion := srv.getDB(recordTypeServerVersion)
+	if dbServerVersion == nil {
+		return
+	}
+
+	// Get version from storage first.
+	if r := dbServerVersion.Get(context.Background(), serverVersionKey); r != nil {
+		var sv databroker.ServerVersion
+		if err := ptypes.UnmarshalAny(r.GetData(), &sv); err != nil {
+			srv.log.Debug().Str("server_version", sv.Version).Msg("got db version from DB")
+			srv.version = sv.Version
+		}
+		return
+	}
+
+	data, _ := ptypes.MarshalAny(&databroker.ServerVersion{Version: srv.version})
+	if err := dbServerVersion.Put(context.Background(), serverVersionKey, data); err != nil {
+		srv.log.Warn().Err(err).Msg("failed to save server version.")
+	}
 }
 
 // Delete deletes a record from the in-memory list.
