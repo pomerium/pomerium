@@ -48,7 +48,7 @@ func TestServer_initVersion(t *testing.T) {
 		assert.NotNil(t, r)
 		var sv databroker.ServerVersion
 		assert.NoError(t, ptypes.UnmarshalAny(r.GetData(), &sv))
-		assert.Equal(t, srv.version, sv.Version)
+		assert.Equal(t, srvVersion, sv.Version)
 	})
 	t.Run("init version twice should get the same version", func(t *testing.T) {
 		srv := newServer(cfg)
@@ -56,17 +56,18 @@ func TestServer_initVersion(t *testing.T) {
 		db := srv.getDB(recordTypeServerVersion)
 		r := db.Get(ctx, serverVersionKey)
 		assert.Nil(t, r)
-		srvVersion := uuid.New().String()
-		srv.version = srvVersion
+
 		srv.initVersion()
-		assert.Equal(t, srvVersion, srv.version)
+		srvVersion := srv.version
+
 		r = db.Get(ctx, serverVersionKey)
 		assert.NotNil(t, r)
 		var sv databroker.ServerVersion
 		assert.NoError(t, ptypes.UnmarshalAny(r.GetData(), &sv))
-		assert.Equal(t, srv.version, sv.Version)
+		assert.Equal(t, srvVersion, sv.Version)
 
 		// re-init version should get the same value as above
+		srv.version = "foo"
 		srv.initVersion()
 		assert.Equal(t, srvVersion, srv.version)
 	})

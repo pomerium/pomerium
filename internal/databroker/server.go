@@ -81,7 +81,7 @@ func (srv *Server) initVersion() {
 	// Get version from storage first.
 	if r := dbServerVersion.Get(context.Background(), serverVersionKey); r != nil {
 		var sv databroker.ServerVersion
-		if err := ptypes.UnmarshalAny(r.GetData(), &sv); err != nil {
+		if err := ptypes.UnmarshalAny(r.GetData(), &sv); err == nil {
 			srv.log.Debug().Str("server_version", sv.Version).Msg("got db version from DB")
 			srv.version = sv.Version
 		}
