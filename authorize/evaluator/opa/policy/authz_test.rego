@@ -67,9 +67,7 @@ test_group_allowed {
 			"user": {
 				"email": "x@example.com",
 			},
-			"directory_user": {
-			    "groups": ["1"]
-			}
+			"groups": ["1"]
 		} with
 		input.http as { "url": "http://example.com" } with
 		input.session as { "id": "session1", "impersonate_groups": null }
