@@ -56,8 +56,8 @@ func WithStorageType(typ string) ServerOption {
 	}
 }
 
-// WithStorageDSN sets the DSN for storage.
-func WithStorageDSN(dsn string) ServerOption {
+// WithStorageConnectionString sets the DSN for storage.
+func WithStorageConnectionString(dsn string) ServerOption {
 	return func(cfg *serverConfig) {
 		cfg.storageDSN = dsn
 	}

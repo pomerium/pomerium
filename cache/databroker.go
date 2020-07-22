@@ -17,7 +17,7 @@ type DataBrokerServer struct {
 func NewDataBrokerServer(grpcServer *grpc.Server, opts config.Options) *DataBrokerServer {
 	internalSrv := internal_databroker.New(
 		internal_databroker.WithStorageType(opts.DataBrokerBackendStorageType),
-		internal_databroker.WithStorageDSN(opts.DataBrokerBackendStorageConnectionString),
+		internal_databroker.WithStorageConnectionString(opts.DataBrokerBackendStorageConnectionString),
 	)
 	srv := &DataBrokerServer{DataBrokerServiceServer: internalSrv}
 	databroker.RegisterDataBrokerServiceServer(grpcServer, srv)
