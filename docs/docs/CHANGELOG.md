@@ -10,6 +10,7 @@
 - authenticate: allow hot reloaded admin users config @cuonglm [GH-984]
 - authorize: include "kid" in JWT headers @cuonglm [GH-1046]
 - config: both base64 and file reference can be used for "certificates" @dmitrif [GH-1055]
+- envoy: enable strip host port matching @cuonglm [GH-1126]
 
 ### Changes
 
