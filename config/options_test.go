@@ -41,9 +41,9 @@ func Test_Validate(t *testing.T) {
 	badPolicyFile := testOptions()
 	badPolicyFile.PolicyFile = "file"
 	invalidStorageType := testOptions()
-	invalidStorageType.DataBrokerBackendStorageType = "foo"
+	invalidStorageType.DataBrokerStorageType = "foo"
 	missingStorageDSN := testOptions()
-	missingStorageDSN.DataBrokerBackendStorageType = "redis"
+	missingStorageDSN.DataBrokerStorageType = "redis"
 
 	tests := []struct {
 		name     string
@@ -240,9 +240,9 @@ func TestOptionsFromViper(t *testing.T) {
 					"X-Frame-Options":           "SAMEORIGIN",
 					"X-XSS-Protection":          "1; mode=block",
 				},
-				RefreshDirectoryTimeout:      1 * time.Minute,
-				RefreshDirectoryInterval:     10 * time.Minute,
-				DataBrokerBackendStorageType: "memory",
+				RefreshDirectoryTimeout:  1 * time.Minute,
+				RefreshDirectoryInterval: 10 * time.Minute,
+				DataBrokerStorageType:    "memory",
 			},
 			false},
 		{"good disable header",
@@ -259,7 +259,7 @@ func TestOptionsFromViper(t *testing.T) {
 				Headers:                         map[string]string{},
 				RefreshDirectoryTimeout:         1 * time.Minute,
 				RefreshDirectoryInterval:        10 * time.Minute,
-				DataBrokerBackendStorageType:    "memory",
+				DataBrokerStorageType:           "memory",
 			},
 			false},
 		{"bad url", []byte(`{"policy":[{"from": "https://","to":"https://to.example"}]}`), nil, true},

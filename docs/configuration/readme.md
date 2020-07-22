@@ -813,10 +813,10 @@ For an example implementation, the in-memory database used by the cache service 
 
 - [pkg/databroker/memory](https://github.com/pomerium/pomerium/tree/master/pkg/databroker/memory)
 
-### Data Broker Storage Backend Type
+### Data Broker Storage Type
 
-- Environmental Variable: `DATABROKER_BACKEND_STORAGE_TYPE`
-- Config File Key: `databroker_backend_storage_type`
+- Environmental Variable: `DATABROKER_STORAGE_TYPE`
+- Config File Key: `databroker_storage_type`
 - Type: `string`
 - Optional
 - Example: `redis`
@@ -824,10 +824,10 @@ For an example implementation, the in-memory database used by the cache service 
 
 The backend storage that databroker server will use, available types: `memory`, `redis`.
 
-### Data Broker Storage Backend Connection String
+### Data Broker Storage Connection String
 
-- Environmental Variable: `DATABROKER_BACKEND_STORAGE_CONNECTION_STRING`
-- Config File Key: `databroker_backend_storage_connection_string`
+- Environmental Variable: `DATABROKER_STORAGE_CONNECTION_STRING`
+- Config File Key: `databroker_storage_connection_string`
 - Type: `string`
 - **Required** when storage type is `redis`
 - Example: `":6379"`

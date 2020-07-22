@@ -227,11 +227,11 @@ type Options struct {
 	// DataBrokerURL is the routable destination of the databroker service's gRPC endpiont.
 	DataBrokerURLString string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
 	DataBrokerURL       *url.URL `yaml:",omitempty"`
-	// DataBrokerBackendStorageType is the storage backend type that databroker will use.
+	// DataBrokerStorageType is the storage backend type that databroker will use.
 	// Supported type: memory, redis
-	DataBrokerBackendStorageType string `mapstructure:"databroker_backend_storage_type" yaml:"databroker_backend_storage_type,omitempty"`
-	// DataBrokerBackendStorageConnectionString is the data source name for storage backend.
-	DataBrokerBackendStorageConnectionString string `mapstructure:"databroker_backend_storage_connection_string" yaml:"databroker_backend_storage_connection_string,omitempty"`
+	DataBrokerStorageType string `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitempty"`
+	// DataBrokerStorageConnectionString is the data source name for storage backend.
+	DataBrokerStorageConnectionString string `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitempty"`
 
 	// ClientCA is the base64-encoded certificate authority to validate client mTLS certificates against.
 	ClientCA string `mapstructure:"client_ca" yaml:"client_ca,omitempty"`
@@ -286,7 +286,7 @@ var defaultOptions = Options{
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
 	},
-	DataBrokerBackendStorageType: "memory",
+	DataBrokerStorageType: "memory",
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -490,10 +490,10 @@ func (o *Options) Validate() error {
 		log.Warn().Msg("config: cache url will be deprecated in v0.11.0")
 		o.DataBrokerURLString = o.CacheURLString
 	}
-	switch o.DataBrokerBackendStorageType {
+	switch o.DataBrokerStorageType {
 	case inmemory.Name:
 	case redis.Name:
-		if o.DataBrokerBackendStorageConnectionString == "" {
+		if o.DataBrokerStorageConnectionString == "" {
 			return errors.New("config: missing databroker storage backend dsn")
 		}
 	default:
