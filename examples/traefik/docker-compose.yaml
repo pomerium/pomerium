@@ -22,7 +22,7 @@ services:
     image: kennethreitz/httpbin:latest
     labels:
       - "traefik.http.middlewares.pomerium.forwardauth.authResponseHeaders=X-Pomerium-Authenticated-User-Email,x-pomerium-authenticated-user-id,x-pomerium-authenticated-user-groups,x-pomerium-jwt-assertion"
-      - "traefik.http.middlewares.pomerium.forwardauth.address=https://a6acdabcde358bd08f3537f4de7df7eb.m.pipedream.net"
+      - "traefik.http.middlewares.pomerium.forwardauth.address=http://pomerium/?uri=https://httpbin.localhost.pomerium.io"
       - "traefik.http.middlewares.pomerium.forwardauth.trustForwardHeader=true"
 
       - "traefik.http.routers.httpbin.middlewares=pomerium@docker"
