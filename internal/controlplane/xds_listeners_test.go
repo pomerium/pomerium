@@ -308,6 +308,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 				"validateClusters": false
 			},
 			"statPrefix": "ingress",
+			"stripMatchingHostPort": true,
 			"tracing": {
 				"randomSampling": {
 					"value": 0.01
