@@ -40,6 +40,10 @@ func Test_Validate(t *testing.T) {
 
 	badPolicyFile := testOptions()
 	badPolicyFile.PolicyFile = "file"
+	invalidStorageType := testOptions()
+	invalidStorageType.DataBrokerBackendStorageType = "foo"
+	missingStorageDSN := testOptions()
+	missingStorageDSN.DataBrokerBackendStorageType = "redis"
 
 	tests := []struct {
 		name     string
@@ -51,6 +55,8 @@ func Test_Validate(t *testing.T) {
 		{"missing shared secret", badSecret, true},
 		{"missing shared secret but all service", badSecretAllServices, false},
 		{"policy file specified", badPolicyFile, true},
+		{"invalid databroker storage type", invalidStorageType, true},
+		{"missing databroker storage dsn", missingStorageDSN, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -234,8 +240,9 @@ func TestOptionsFromViper(t *testing.T) {
 					"X-Frame-Options":           "SAMEORIGIN",
 					"X-XSS-Protection":          "1; mode=block",
 				},
-				RefreshDirectoryTimeout:  1 * time.Minute,
-				RefreshDirectoryInterval: 10 * time.Minute,
+				RefreshDirectoryTimeout:      1 * time.Minute,
+				RefreshDirectoryInterval:     10 * time.Minute,
+				DataBrokerBackendStorageType: "memory",
 			},
 			false},
 		{"good disable header",
@@ -252,6 +259,7 @@ func TestOptionsFromViper(t *testing.T) {
 				Headers:                         map[string]string{},
 				RefreshDirectoryTimeout:         1 * time.Minute,
 				RefreshDirectoryInterval:        10 * time.Minute,
+				DataBrokerBackendStorageType:    "memory",
 			},
 			false},
 		{"bad url", []byte(`{"policy":[{"from": "https://","to":"https://to.example"}]}`), nil, true},

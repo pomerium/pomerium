@@ -225,6 +225,11 @@ type Options struct {
 	// DataBrokerURL is the routable destination of the databroker service's gRPC endpiont.
 	DataBrokerURLString string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
 	DataBrokerURL       *url.URL `yaml:",omitempty"`
+	// DataBrokerBackendStorageType is the storage backend type that databroker will use.
+	// Supported type: memory, redis
+	DataBrokerBackendStorageType string `mapstructure:"databroker_backend_storage_type" yaml:"databroker_backend_storage_type,omitempty"`
+	// DataBrokerBackendStorageDSN is the data source name for storage backend.
+	DataBrokerBackendStorageDSN string `mapstructure:"databroker_backend_storage_dsn" yaml:"databroker_backend_storage_dsn,omitempty"`
 
 	// ClientCA is the base64-encoded certificate authority to validate client mTLS certificates against.
 	ClientCA string `mapstructure:"client_ca" yaml:"client_ca,omitempty"`
@@ -279,6 +284,7 @@ var defaultOptions = Options{
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
 	},
+	DataBrokerBackendStorageType: "memory",
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -481,6 +487,15 @@ func (o *Options) Validate() error {
 	if o.DataBrokerURLString == "" {
 		log.Warn().Msg("config: cache url will be deprecated in v0.11.0")
 		o.DataBrokerURLString = o.CacheURLString
+	}
+	switch o.DataBrokerBackendStorageType {
+	case "memory":
+	case "redis":
+		if o.DataBrokerBackendStorageDSN == "" {
+			return errors.New("config: missing databroker storage backend dsn")
+		}
+	default:
+		return errors.New("config: unknown databroker storage backend type")
 	}
 
 	if IsAuthorize(o.Services) || IsCache(o.Services) {
