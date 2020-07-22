@@ -13,10 +13,10 @@ var (
 )
 
 type serverConfig struct {
-	deletePermanentlyAfter time.Duration
-	btreeDegree            int
-	storageType            string
-	storageDSN             string
+	deletePermanentlyAfter  time.Duration
+	btreeDegree             int
+	storageType             string
+	storageConnectionString string
 }
 
 func newServerConfig(options ...ServerOption) *serverConfig {
@@ -57,8 +57,8 @@ func WithStorageType(typ string) ServerOption {
 }
 
 // WithStorageConnectionString sets the DSN for storage.
-func WithStorageConnectionString(dsn string) ServerOption {
+func WithStorageConnectionString(connStr string) ServerOption {
 	return func(cfg *serverConfig) {
-		cfg.storageDSN = dsn
+		cfg.storageConnectionString = connStr
 	}
 }

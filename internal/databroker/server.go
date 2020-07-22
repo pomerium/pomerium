@@ -292,7 +292,7 @@ func (srv *Server) newDB(recordType string) storage.Backend {
 	case inmemory.Name:
 		return inmemory.NewDB(recordType, srv.cfg.btreeDegree)
 	case redis.Name:
-		db, err := redis.New(srv.cfg.storageDSN, recordType, int64(srv.cfg.deletePermanentlyAfter.Seconds()))
+		db, err := redis.New(srv.cfg.storageConnectionString, recordType, int64(srv.cfg.deletePermanentlyAfter.Seconds()))
 		if err != nil {
 			srv.log.Error().Err(err).Msg("failed to create new redis storage")
 			return nil

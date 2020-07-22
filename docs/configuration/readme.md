@@ -827,7 +827,7 @@ The backend storage that databroker server will use, available types: `memory`, 
 ### Data Broker Storage Backend Connection String
 
 - Environmental Variable: `DATABROKER_BACKEND_STORAGE_CONNECTION_STRING`
-- Config File Key: `databroker_backend_storage_connection_strinng`
+- Config File Key: `databroker_backend_storage_connection_string`
 - Type: `string`
 - **Required** when storage type is `redis`
 - Example: `":6379"`
