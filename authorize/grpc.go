@@ -6,12 +6,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -192,6 +194,14 @@ func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) b
 	}
 
 	uriQuery := checkURL.Query().Get("uri")
+	if headers := req.GetAttributes().GetRequest().GetHttp().GetHeaders(); uriQuery == "" && headers != nil {
+		uriQuery = headers[http.CanonicalHeaderKey(httputil.HeaderForwardedProto)] + "://" +
+			headers[http.CanonicalHeaderKey(httputil.HeaderForwardedHost)]
+		if xfu := headers[http.CanonicalHeaderKey(httputil.HeaderForwardedURI)]; xfu != "/" {
+			uriQuery += xfu
+		}
+	}
+
 	if (checkURL.Path != "/" && checkURL.Path != "/verify") || uriQuery == "" {
 		return false
 	}
@@ -204,11 +214,7 @@ func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) b
 	req.Attributes.Request.Http.Scheme = verifyURL.Scheme
 	req.Attributes.Request.Http.Host = verifyURL.Host
 	req.Attributes.Request.Http.Path = verifyURL.Path
-	if headers := req.GetAttributes().GetRequest().GetHttp().GetHeaders(); headers != nil {
-		if xfu := headers[http.CanonicalHeaderKey(httputil.HeaderForwardedURI)]; xfu != "" {
-			req.Attributes.Request.Http.Path += xfu
-		}
-	}
+
 	// envoy sends the query string as part of the path
 	if verifyURL.RawQuery != "" {
 		req.Attributes.Request.Http.Path += "?" + verifyURL.RawQuery
@@ -234,7 +240,50 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v
 			ImpersonateGroups: sessionState.ImpersonateGroups,
 		}
 	}
+	p := a.getMatchingPolicy(requestURL)
+	if p != nil {
+		for _, sp := range p.SubPolicies {
+			req.CustomPolicies = append(req.CustomPolicies, sp.Rego...)
+		}
+	}
 	return req
+}
+
+func (a *Authorize) getMatchingPolicy(requestURL *url.URL) *config.Policy {
+	options := a.currentOptions.Load()
+
+	for _, p := range options.Policies {
+		if p.Source == nil {
+			continue
+		}
+
+		if p.Source.Host != requestURL.Host {
+			continue
+		}
+
+		if p.Prefix != "" {
+			if !strings.HasPrefix(requestURL.Path, p.Prefix) {
+				continue
+			}
+		}
+
+		if p.Path != "" {
+			if requestURL.Path != p.Path {
+				continue
+			}
+		}
+
+		if p.Regex != "" {
+			re, err := regexp.Compile(p.Regex)
+			if err == nil && !re.MatchString(requestURL.String()) {
+				continue
+			}
+		}
+
+		return &p
+	}
+
+	return nil
 }
 
 func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v2.CheckRequest) *http.Request {

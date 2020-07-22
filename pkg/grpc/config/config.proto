@@ -7,18 +7,18 @@ import "google/protobuf/duration.proto";
 
 message Config {
   string name = 1;
-  repeated Policy policies = 2;
+  repeated Route routes = 2;
 }
 
-message Policy {
+message Route {
   string name = 1;
 
   string from = 2;
   string to = 3;
 
-  repeated string allowed_users = 4;
-  repeated string allowed_groups = 5;
-  repeated string allowed_domains = 6;
+  repeated string allowed_users = 4 [deprecated = true];
+  repeated string allowed_groups = 5 [deprecated = true];
+  repeated string allowed_domains = 6 [deprecated = true];
 
   string prefix = 7;
   string path = 8;
@@ -46,4 +46,16 @@ message Policy {
   bool pass_identity_headers = 25;
 
   string kubernetes_service_account_token = 26;
+
+  repeated Policy policies = 27;
+  string id = 28;
+}
+
+message Policy {
+  string id = 1;
+  string name = 2;
+  repeated string allowed_users = 3;
+  repeated string allowed_groups = 4;
+  repeated string allowed_domains = 5;
+  repeated string rego = 6;
 }

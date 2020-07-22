@@ -109,10 +109,22 @@ type Policy struct {
 	// EnableGoogleCloudServerlessAuthentication adds "Authorization: Bearer ID_TOKEN" headers
 	// to upstream requests.
 	EnableGoogleCloudServerlessAuthentication bool `mapstructure:"enable_google_cloud_serverless_authentication" yaml:"enable_google_cloud_serverless_authentication,omitempty"` //nolint
+
+	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies" json:"sub_policies"`
+}
+
+// A SubPolicy is a protobuf Policy within a protobuf Route.
+type SubPolicy struct {
+	ID             string   `mapstructure:"id" yaml:"id" json:"id"`
+	Name           string   `mapstructure:"name" yaml:"name" json:"name"`
+	AllowedUsers   []string `mapstructure:"allowed_users" yaml:"allowed_users,omitempty" json:"allowed_users,omitempty"`
+	AllowedGroups  []string `mapstructure:"allowed_groups" yaml:"allowed_groups,omitempty" json:"allowed_groups,omitempty"`
+	AllowedDomains []string `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
+	Rego           []string `mapstructure:"rego" yaml:"rego" json:"rego,omitempty"`
 }
 
 // NewPolicyFromProto creates a new Policy from a protobuf policy config route.
-func NewPolicyFromProto(pb *configpb.Policy) (*Policy, error) {
+func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	timeout, _ := ptypes.Duration(pb.GetTimeout())
 
 	p := &Policy{
@@ -142,13 +154,34 @@ func NewPolicyFromProto(pb *configpb.Policy) (*Policy, error) {
 		PassIdentityHeaders:              pb.GetPassIdentityHeaders(),
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
 	}
+	for _, sp := range pb.GetPolicies() {
+		p.SubPolicies = append(p.SubPolicies, SubPolicy{
+			ID:             sp.GetId(),
+			Name:           sp.GetName(),
+			AllowedUsers:   sp.GetAllowedUsers(),
+			AllowedGroups:  sp.GetAllowedGroups(),
+			AllowedDomains: sp.GetAllowedDomains(),
+			Rego:           sp.GetRego(),
+		})
+	}
 	return p, p.Validate()
 }
 
 // ToProto converts the policy to a protobuf type.
-func (p *Policy) ToProto() *configpb.Policy {
+func (p *Policy) ToProto() *configpb.Route {
 	timeout := ptypes.DurationProto(p.UpstreamTimeout)
-	return &configpb.Policy{
+	sps := make([]*configpb.Policy, 0, len(p.SubPolicies))
+	for _, sp := range p.SubPolicies {
+		sps = append(sps, &configpb.Policy{
+			Id:             sp.ID,
+			Name:           sp.Name,
+			AllowedUsers:   sp.AllowedUsers,
+			AllowedGroups:  sp.AllowedGroups,
+			AllowedDomains: sp.AllowedDomains,
+			Rego:           sp.Rego,
+		})
+	}
+	return &configpb.Route{
 		Name:                             fmt.Sprint(p.RouteID()),
 		From:                             p.From,
 		To:                               p.To,
@@ -175,6 +208,7 @@ func (p *Policy) ToProto() *configpb.Policy {
 		PreserveHostHeader:               p.PreserveHostHeader,
 		PassIdentityHeaders:              p.PassIdentityHeaders,
 		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
+		Policies:                         sps,
 	}
 }
 

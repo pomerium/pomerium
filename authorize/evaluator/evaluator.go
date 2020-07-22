@@ -38,6 +38,7 @@ const (
 
 // Evaluator specifies the interface for a policy engine.
 type Evaluator struct {
+	custom   *CustomEvaluator
 	rego     *rego.Rego
 	query    rego.PreparedEvalQuery
 	policies []config.Policy
@@ -51,6 +52,7 @@ type Evaluator struct {
 // New creates a new Evaluator.
 func New(options *config.Options, store *Store) (*Evaluator, error) {
 	e := &Evaluator{
+		custom:           NewCustomEvaluator(store.opaStore),
 		authenticateHost: options.AuthenticateURL.Host,
 		policies:         options.Policies,
 	}
@@ -150,6 +152,23 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	}
 
 	allow := allowed(res[0].Bindings.WithoutWildcards())
+	// evaluate any custom policies
+	if allow {
+		for _, src := range req.CustomPolicies {
+			cres, err := e.custom.Evaluate(ctx, &CustomEvaluatorRequest{
+				RegoPolicy: src,
+				HTTP:       req.HTTP,
+				Session:    req.Session,
+			})
+			if err != nil {
+				return nil, err
+			}
+			allow = allow && (!cres.Allowed || cres.Denied)
+			if cres.Reason != "" {
+				evalResult.Message = cres.Reason
+			}
+		}
+	}
 	if allow {
 		evalResult.Status = http.StatusOK
 		evalResult.Message = "OK"
@@ -163,7 +182,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	}
 
 	evalResult.Status = http.StatusForbidden
-	evalResult.Message = "forbidden"
+	if evalResult.Message == "" {
+		evalResult.Message = "forbidden"
+	}
 	return evalResult, nil
 }
 
@@ -284,6 +305,7 @@ type (
 		DataBrokerData DataBrokerData `json:"databroker_data"`
 		HTTP           RequestHTTP    `json:"http"`
 		Session        RequestSession `json:"session"`
+		CustomPolicies []string
 	}
 
 	// RequestHTTP is the HTTP field in the request.

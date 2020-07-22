@@ -310,3 +310,37 @@ test_allowed_route_regex {
 	allowed_route("http://example.com/admin/somepath", {"regex": "/admin/.*"})
 	not allowed_route("http://example.com", {"regex": "[xyz]"})
 }
+
+test_sub_policy {
+	x := get_allowed_users({
+        "source": "example.com",
+        "allowed_users": ["u1", "u2"],
+        "sub_policies": [
+            { "allowed_users": ["u1", "u3"] },
+            { "allowed_users": ["u2", "u4"] }
+        ]
+    })
+	x == {"u1", "u2", "u3", "u4"}
+
+
+	y := get_allowed_domains({
+        "source": "example.com",
+        "allowed_domains": ["d1", "d2"],
+        "sub_policies": [
+            { "allowed_domains": ["d1", "d3"] },
+            { "allowed_domains": ["d2", "d4"] }
+        ]
+    })
+	y == {"d1", "d2", "d3", "d4"}
+
+
+	z := get_allowed_groups({
+        "source": "example.com",
+        "allowed_groups": ["g1", "g2"],
+        "sub_policies": [
+            { "allowed_groups": ["g1", "g3"] },
+            { "allowed_groups": ["g2", "g4"] }
+        ]
+    })
+	z == {"g1", "g2", "g3", "g4"}
+}

@@ -9,6 +9,9 @@ session := input.databroker_data.session
 user := input.databroker_data.user
 groups := input.databroker_data.groups
 
+all_allowed_domains := get_allowed_domains(route_policy)
+all_allowed_groups := get_allowed_groups(route_policy)
+all_allowed_users := get_allowed_users(route_policy)
 
 # allow public
 allow {
@@ -25,7 +28,7 @@ allow {
 
 # allow by email
 allow {
-	user.email == route_policy.allowed_users[_]
+	user.email == all_allowed_users[_]
 	input.session.impersonate_email == ""
 }
 
@@ -33,33 +36,33 @@ allow {
 allow {
 	some group
 	groups[_] = group
-	route_policy.allowed_groups[_] = group
+	all_allowed_groups[_] = group
 	input.session.impersonate_groups == null
 }
 
 # allow by impersonate email
 allow {
-	route_policy.allowed_users[_] = input.session.impersonate_email
+	all_allowed_users[_] = input.session.impersonate_email
 }
 
 # allow by impersonate group
 allow {
 	some group
 	input.session.impersonate_groups[_] = group
-	route_policy.allowed_groups[_] = group
+	all_allowed_groups[_] = group
 }
 
 # allow by domain
 allow {
 	some domain
-	email_in_domain(user.email, route_policy.allowed_domains[domain])
+	email_in_domain(user.email, all_allowed_domains[domain])
 	input.session.impersonate_email == ""
 }
 
 # allow by impersonate domain
 allow {
 	some domain
-	email_in_domain(input.session.impersonate_email, route_policy.allowed_domains[domain])
+	email_in_domain(input.session.impersonate_email, all_allowed_domains[domain])
 }
 
 # allow pomerium urls

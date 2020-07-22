@@ -91,8 +91,8 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 
 	// add all the config policies to the list
 	for _, cfgpb := range src.dbConfigs {
-		for _, policypb := range cfgpb.GetPolicies() {
-			policy, err := config.NewPolicyFromProto(policypb)
+		for _, routepb := range cfgpb.GetRoutes() {
+			policy, err := config.NewPolicyFromProto(routepb)
 			if err != nil {
 				log.Warn().Err(err).Msg("databroker: error converting protobuf into policy")
 				continue
