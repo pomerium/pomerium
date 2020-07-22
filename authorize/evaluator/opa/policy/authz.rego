@@ -9,6 +9,9 @@ session := input.databroker_data.session
 user := input.databroker_data.user
 directory_user := input.databroker_data.directory_user
 
+all_allowed_domains := get_allowed_domains(route_policy)
+all_allowed_groups := get_allowed_groups(route_policy)
+all_allowed_users := get_allowed_users(route_policy)
 
 # allow public
 allow {
@@ -25,7 +28,7 @@ allow {
 
 # allow by email
 allow {
-	user.email == route_policy.allowed_users[_]
+	user.email == all_allowed_users[_]
 	input.session.impersonate_email == ""
 }
 
@@ -33,33 +36,33 @@ allow {
 allow {
 	some group
 	directory_user.groups[_] = group
-	route_policy.allowed_groups[_] = group
+	all_allowed_groups[_] = group
 	input.session.impersonate_groups == null
 }
 
 # allow by impersonate email
 allow {
-	route_policy.allowed_users[_] = input.session.impersonate_email
+	all_allowed_users[_] = input.session.impersonate_email
 }
 
 # allow by impersonate group
 allow {
 	some group
 	input.session.impersonate_groups[_] = group
-	route_policy.allowed_groups[_] = group
+	all_allowed_groups[_] = group
 }
 
 # allow by domain
 allow {
 	some domain
-	email_in_domain(user.email, route_policy.allowed_domains[domain])
+	email_in_domain(user.email, all_allowed_domains[domain])
 	input.session.impersonate_email == ""
 }
 
 # allow by impersonate domain
 allow {
 	some domain
-	email_in_domain(input.session.impersonate_email, route_policy.allowed_domains[domain])
+	email_in_domain(input.session.impersonate_email, all_allowed_domains[domain])
 }
 
 # allow pomerium urls
@@ -155,4 +158,26 @@ email_in_domain(email, domain) {
 
 element_in_list(list, elem) {
   list[_] = elem
+}
+
+get_allowed_users(policy) = v {
+    sub_allowed_users = [sp.allowed_users | sp := policy.sub_policies[_]]
+    v := { x | x = array.concat(
+        policy.allowed_users,
+        [u | u := policy.sub_policies[_].allowed_users[_]]
+    )[_] }
+}
+
+get_allowed_domains(policy) = v {
+    v := { x | x = array.concat(
+        policy.allowed_domains,
+        [u | u := policy.sub_policies[_].allowed_domains[_]]
+    )[_] }
+}
+
+get_allowed_groups(policy) = v {
+    v := { x | x = array.concat(
+        policy.allowed_groups,
+        [u | u := policy.sub_policies[_].allowed_groups[_]]
+    )[_] }
 }

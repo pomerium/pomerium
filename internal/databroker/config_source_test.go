@@ -45,7 +45,7 @@ func TestConfigSource(t *testing.T) {
 
 	data, _ := ptypes.MarshalAny(&configpb.Config{
 		Name: "config",
-		Policies: []*configpb.Policy{
+		Routes: []*configpb.Route{
 			{
 				From: "https://from.example.com",
 				To:   "https://to.example.com",
