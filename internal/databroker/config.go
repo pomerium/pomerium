@@ -8,17 +8,22 @@ var (
 	DefaultDeletePermanentlyAfter = time.Hour
 	// DefaultBTreeDegree is the default number of items to store in each node of the BTree.
 	DefaultBTreeDegree = 8
+	// DefaultStorageType is the default storage type that Server use
+	DefaultStorageType = "memory"
 )
 
 type serverConfig struct {
 	deletePermanentlyAfter time.Duration
 	btreeDegree            int
+	storageType            string
+	storageDSN             string
 }
 
 func newServerConfig(options ...ServerOption) *serverConfig {
 	cfg := new(serverConfig)
 	WithDeletePermanentlyAfter(DefaultDeletePermanentlyAfter)(cfg)
 	WithBTreeDegree(DefaultBTreeDegree)(cfg)
+	WithStorageType(DefaultStorageType)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -41,5 +46,19 @@ func WithBTreeDegree(degree int) ServerOption {
 func WithDeletePermanentlyAfter(dur time.Duration) ServerOption {
 	return func(cfg *serverConfig) {
 		cfg.deletePermanentlyAfter = dur
+	}
+}
+
+// WithStorageType sets the storage type.
+func WithStorageType(typ string) ServerOption {
+	return func(cfg *serverConfig) {
+		cfg.storageType = typ
+	}
+}
+
+// WithStorageDSN sets the DSN for storage.
+func WithStorageDSN(dsn string) ServerOption {
+	return func(cfg *serverConfig) {
+		cfg.storageDSN = dsn
 	}
 }
