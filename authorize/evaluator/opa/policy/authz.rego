@@ -159,3 +159,25 @@ email_in_domain(email, domain) {
 element_in_list(list, elem) {
   list[_] = elem
 }
+
+get_allowed_users(policy) = v {
+    sub_allowed_users = [sp.allowed_users | sp := policy.sub_policies[_]]
+    v := { x | x = array.concat(
+        policy.allowed_users,
+        [u | u := policy.sub_policies[_].allowed_users[_]]
+    )[_] }
+}
+
+get_allowed_domains(policy) = v {
+    v := { x | x = array.concat(
+        policy.allowed_domains,
+        [u | u := policy.sub_policies[_].allowed_domains[_]]
+    )[_] }
+}
+
+get_allowed_groups(policy) = v {
+    v := { x | x = array.concat(
+        policy.allowed_groups,
+        [u | u := policy.sub_policies[_].allowed_groups[_]]
+    )[_] }
+}
