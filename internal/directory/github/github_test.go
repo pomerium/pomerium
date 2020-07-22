@@ -93,14 +93,20 @@ func Test(t *testing.T) {
 			PersonalAccessToken: "xyz",
 		}),
 	)
-	users, err := p.UserGroups(context.Background())
+	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "github/user1", "groups": ["1", "2", "3", "team1", "team2", "team3"] },
-		{ "id": "github/user2", "groups": ["1", "3", "team1", "team3"] },
-		{ "id": "github/user3", "groups": ["3", "team3"] },
-		{ "id": "github/user4", "groups": ["4", "team4"] }
+		{ "id": "github/user1", "groupIds": ["1", "2", "3"] },
+		{ "id": "github/user2", "groupIds": ["1", "3"] },
+		{ "id": "github/user3", "groupIds": ["3"] },
+		{ "id": "github/user4", "groupIds": ["4"] }
 	]`, users)
+	testutil.AssertProtoJSONEqual(t, `[
+		{ "id": "1", "name": "team1" },
+		{ "id": "2", "name": "team2" },
+		{ "id": "3", "name": "team3" },
+		{ "id": "4", "name": "team4" }
+	]`, groups)
 }
 
 func mustParseURL(rawurl string) *url.URL {

@@ -6,5 +6,12 @@ option go_package = "github.com/pomerium/pomerium/pkg/grpc/directory";
 message User {
   string version = 1;
   string id = 2;
-  repeated string groups = 3;
+  repeated string group_ids = 3;
+}
+
+message Group {
+  string version = 1;
+  string id = 2;
+  string name = 3;
+  string email = 4;
 }

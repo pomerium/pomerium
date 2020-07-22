@@ -87,7 +87,7 @@
                     disabled
                   />
                 </label>
-                {{end}} {{range $i,$_:= .DirectoryUser.Groups}}
+                {{end}} {{range $i,$_:= .DirectoryGroups}}
                 <label>
                   {{if eq $i 0}}
                   <span>Group</span>
@@ -97,8 +97,8 @@
                   <input
                     type="text"
                     class="field"
-                    value="{{.}}"
-                    title="{{.}}"
+                    value="{{.Name}}"
+                    title="{{.Id}}"
                     disabled
                   />
                 </label>

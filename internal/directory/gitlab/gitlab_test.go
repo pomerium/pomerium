@@ -66,13 +66,17 @@ func Test(t *testing.T) {
 			PrivateToken: "PRIVATE_TOKEN",
 		}),
 	)
-	users, err := p.UserGroups(context.Background())
+	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "gitlab/11", "groups": ["1", "Group 1"] },
-		{ "id": "gitlab/12", "groups": ["2", "Group 2"] },
-		{ "id": "gitlab/13", "groups": ["2", "Group 2"] }
+		{ "id": "gitlab/11", "groupIds": ["1"] },
+		{ "id": "gitlab/12", "groupIds": ["2"] },
+		{ "id": "gitlab/13", "groupIds": ["2"] }
 	]`, users)
+	testutil.AssertProtoJSONEqual(t, `[
+		{ "id": "1", "name": "Group 1" },
+		{ "id": "2", "name": "Group 2" }
+	]`, groups)
 }
 
 func mustParseURL(rawurl string) *url.URL {

@@ -16,12 +16,15 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
+// A Group is a directory Group.
+type Group = directory.Group
+
 // A User is a directory User.
 type User = directory.User
 
 // A Provider provides user group directory information.
 type Provider interface {
-	UserGroups(ctx context.Context) ([]*User, error)
+	UserGroups(ctx context.Context) ([]*Group, []*User, error)
 }
 
 // GetProvider gets the provider for the given options.
@@ -101,6 +104,6 @@ func GetProvider(options *config.Options) Provider {
 
 type nullProvider struct{}
 
-func (nullProvider) UserGroups(ctx context.Context) ([]*User, error) {
-	return nil, nil
+func (nullProvider) UserGroups(ctx context.Context) ([]*Group, []*User, error) {
+	return nil, nil, nil
 }

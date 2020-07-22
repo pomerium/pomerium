@@ -85,30 +85,30 @@ func New(options ...Option) *Provider {
 
 // UserGroups fetches the groups of which the user is a member
 // https://developer.okta.com/docs/reference/api/users/#get-user-s-groups
-func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
+func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
 	if p.cfg.serviceAccount == nil {
-		return nil, fmt.Errorf("okta: service account not defined")
+		return nil, nil, fmt.Errorf("okta: service account not defined")
 	}
 
 	p.log.Info().Msg("getting user groups")
 
 	if p.cfg.providerURL == nil {
-		return nil, fmt.Errorf("okta: provider url not defined")
+		return nil, nil, fmt.Errorf("okta: provider url not defined")
 	}
 
-	groupIDToName, err := p.getGroups(ctx)
+	groups, err := p.getGroups(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	userIDToGroups := map[string][]string{}
-	for groupID, groupName := range groupIDToName {
-		ids, err := p.getGroupMemberIDs(ctx, groupID)
+	for _, group := range groups {
+		ids, err := p.getGroupMemberIDs(ctx, group.Id)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for _, id := range ids {
-			userIDToGroups[id] = append(userIDToGroups[id], groupID, groupName)
+			userIDToGroups[id] = append(userIDToGroups[id], group.Id)
 		}
 	}
 
@@ -116,19 +116,18 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.User, error) {
 	for userID, groups := range userIDToGroups {
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:     databroker.GetUserID(Name, userID),
-			Groups: groups,
+			Id:       databroker.GetUserID(Name, userID),
+			GroupIds: groups,
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].Id < users[j].Id
 	})
-	return users, nil
+	return groups, users, nil
 }
 
-func (p *Provider) getGroups(ctx context.Context) (map[string]string, error) {
-	groups := map[string]string{}
-
+func (p *Provider) getGroups(ctx context.Context) ([]*directory.Group, error) {
+	var groups []*directory.Group
 	groupURL := p.cfg.providerURL.ResolveReference(&url.URL{
 		Path:     "/api/v1/groups",
 		RawQuery: fmt.Sprintf("limit=%d", p.cfg.batchSize),
@@ -146,12 +145,14 @@ func (p *Provider) getGroups(ctx context.Context) (map[string]string, error) {
 		}
 
 		for _, el := range out {
-			groups[el.ID] = el.Profile.Name
+			groups = append(groups, &directory.Group{
+				Id:   el.ID,
+				Name: el.Profile.Name,
+			})
 		}
 
 		groupURL = getNextLink(hdrs)
 	}
-
 	return groups, nil
 }
 

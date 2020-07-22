@@ -484,17 +484,30 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 			Id: pbSession.GetUserId(),
 		}
 	}
-	pbDirectoryUser, err := directory.Get(r.Context(), a.dataBrokerClient, pbSession.GetUserId())
+	pbDirectoryUser, err := directory.GetUser(r.Context(), a.dataBrokerClient, pbSession.GetUserId())
 	if err != nil {
 		pbDirectoryUser = &directory.User{
 			Id: pbSession.GetUserId(),
 		}
+	}
+	var groups []*directory.Group
+	for _, groupID := range pbDirectoryUser.GetGroupIds() {
+		pbDirectoryGroup, err := directory.GetGroup(r.Context(), a.dataBrokerClient, groupID)
+		if err != nil {
+			pbDirectoryGroup = &directory.Group{
+				Id:    groupID,
+				Name:  groupID,
+				Email: groupID,
+			}
+		}
+		groups = append(groups, pbDirectoryGroup)
 	}
 
 	input := map[string]interface{}{
 		"State":             s,
 		"Session":           pbSession,
 		"User":              pbUser,
+		"DirectoryGroups":   groups,
 		"DirectoryUser":     pbDirectoryUser,
 		"csrfField":         csrf.TemplateField(r),
 		"ImpersonateAction": urlutil.QueryImpersonateAction,
