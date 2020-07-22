@@ -25,6 +25,8 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/storage/inmemory"
+	"github.com/pomerium/pomerium/pkg/storage/redis"
 )
 
 // DisableHeaderKey is the key used to check whether to disable setting header
@@ -228,8 +230,8 @@ type Options struct {
 	// DataBrokerBackendStorageType is the storage backend type that databroker will use.
 	// Supported type: memory, redis
 	DataBrokerBackendStorageType string `mapstructure:"databroker_backend_storage_type" yaml:"databroker_backend_storage_type,omitempty"`
-	// DataBrokerBackendStorageDSN is the data source name for storage backend.
-	DataBrokerBackendStorageDSN string `mapstructure:"databroker_backend_storage_dsn" yaml:"databroker_backend_storage_dsn,omitempty"`
+	// DataBrokerBackendStorageConnectionString is the data source name for storage backend.
+	DataBrokerBackendStorageConnectionString string `mapstructure:"databroker_backend_storage_connection_string" yaml:"databroker_backend_storage_connection_string,omitempty"`
 
 	// ClientCA is the base64-encoded certificate authority to validate client mTLS certificates against.
 	ClientCA string `mapstructure:"client_ca" yaml:"client_ca,omitempty"`
@@ -489,9 +491,9 @@ func (o *Options) Validate() error {
 		o.DataBrokerURLString = o.CacheURLString
 	}
 	switch o.DataBrokerBackendStorageType {
-	case "memory":
-	case "redis":
-		if o.DataBrokerBackendStorageDSN == "" {
+	case inmemory.Name:
+	case redis.Name:
+		if o.DataBrokerBackendStorageConnectionString == "" {
 			return errors.New("config: missing databroker storage backend dsn")
 		}
 	default:

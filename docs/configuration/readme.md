@@ -824,15 +824,15 @@ For an example implementation, the in-memory database used by the cache service 
 
 The backend storage that databroker server will use, available types: `memory`, `redis`.
 
-### Data Broker Storage Backend DSN
+### Data Broker Storage Backend Connection String
 
-- Environmental Variable: `DATABROKER_BACKEND_STORAGE_DSN`
-- Config File Key: `databroker_backend_storage_dsn`
+- Environmental Variable: `DATABROKER_BACKEND_STORAGE_CONNECTION_STRING`
+- Config File Key: `databroker_backend_storage_connection_strinng`
 - Type: `string`
 - **Required** when storage type is `redis`
 - Example: `":6379"`
 
-The data source name that server will use to connect to storage backend.
+The connection string that server will use to connect to storage backend.
 
 ## Policy
 
