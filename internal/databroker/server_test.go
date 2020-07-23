@@ -7,6 +7,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -37,7 +38,8 @@ func TestServer_initVersion(t *testing.T) {
 	t.Run("new server with random version", func(t *testing.T) {
 		srv := newServer(cfg)
 		ctx := context.Background()
-		db := srv.getDB(recordTypeServerVersion)
+		db, err := srv.getDB(recordTypeServerVersion)
+		require.NoError(t, err)
 		r := db.Get(ctx, serverVersionKey)
 		assert.Nil(t, r)
 		srvVersion := uuid.New().String()
@@ -53,7 +55,8 @@ func TestServer_initVersion(t *testing.T) {
 	t.Run("init version twice should get the same version", func(t *testing.T) {
 		srv := newServer(cfg)
 		ctx := context.Background()
-		db := srv.getDB(recordTypeServerVersion)
+		db, err := srv.getDB(recordTypeServerVersion)
+		require.NoError(t, err)
 		r := db.Get(ctx, serverVersionKey)
 		assert.Nil(t, r)
 
