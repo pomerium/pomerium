@@ -3,6 +3,7 @@ package databroker
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sort"
 	"sync"
@@ -66,7 +67,11 @@ func New(options ...ServerOption) *Server {
 			srv.mu.RUnlock()
 
 			for _, recordType := range recordTypes {
-				srv.getDB(recordType).ClearDeleted(context.Background(), time.Now().Add(-cfg.deletePermanentlyAfter))
+				db, err := srv.getDB(recordType)
+				if err != nil {
+					continue
+				}
+				db.ClearDeleted(context.Background(), time.Now().Add(-cfg.deletePermanentlyAfter))
 			}
 		}
 	}()
@@ -74,8 +79,9 @@ func New(options ...ServerOption) *Server {
 }
 
 func (srv *Server) initVersion() {
-	dbServerVersion := srv.getDB(recordTypeServerVersion)
-	if dbServerVersion == nil {
+	dbServerVersion, err := srv.getDB(recordTypeServerVersion)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to init server version")
 		return
 	}
 
@@ -106,7 +112,12 @@ func (srv *Server) Delete(ctx context.Context, req *databroker.DeleteRequest) (*
 
 	defer srv.onchange.Broadcast()
 
-	if err := srv.getDB(req.GetType()).Delete(ctx, req.GetId()); err != nil {
+	db, err := srv.getDB(req.GetType())
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.Delete(ctx, req.GetId()); err != nil {
 		return nil, err
 	}
 
@@ -122,7 +133,11 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 		Str("id", req.GetId()).
 		Msg("get")
 
-	record := srv.getDB(req.GetType()).Get(ctx, req.GetId())
+	db, err := srv.getDB(req.GetType())
+	if err != nil {
+		return nil, err
+	}
+	record := db.Get(ctx, req.GetId())
 	if record == nil {
 		return nil, status.Error(codes.NotFound, "record not found")
 	}
@@ -137,7 +152,11 @@ func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*
 		Str("type", req.GetType()).
 		Msg("get all")
 
-	records := srv.getDB(req.GetType()).GetAll(ctx)
+	db, err := srv.getDB(req.GetType())
+	if err != nil {
+		return nil, err
+	}
+	records := db.GetAll(ctx)
 	var recordVersion string
 	for _, record := range records {
 		if record.GetVersion() > recordVersion {
@@ -162,7 +181,10 @@ func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databr
 
 	defer srv.onchange.Broadcast()
 
-	db := srv.getDB(req.GetType())
+	db, err := srv.getDB(req.GetType())
+	if err != nil {
+		return nil, err
+	}
 	if err := db.Put(ctx, req.GetId(), req.GetData()); err != nil {
 		return nil, err
 	}
@@ -190,7 +212,10 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 		recordVersion = ""
 	}
 
-	db := srv.getDB(req.GetType())
+	db, err := srv.getDB(req.GetType())
+	if err != nil {
+		return err
+	}
 
 	ch := srv.onchange.Bind()
 	defer srv.onchange.Unbind(ch)
@@ -269,7 +294,7 @@ func (srv *Server) SyncTypes(req *emptypb.Empty, stream databroker.DataBrokerSer
 	}
 }
 
-func (srv *Server) getDB(recordType string) storage.Backend {
+func (srv *Server) getDB(recordType string) (storage.Backend, error) {
 	// double-checked locking:
 	// first try the read lock, then re-try with the write lock, and finally create a new db if nil
 	srv.mu.RLock()
@@ -278,27 +303,30 @@ func (srv *Server) getDB(recordType string) storage.Backend {
 	if db == nil {
 		srv.mu.Lock()
 		db = srv.byType[recordType]
+		var err error
 		if db == nil {
-			db = srv.newDB(recordType)
+			db, err = srv.newDB(recordType)
 			srv.byType[recordType] = db
 		}
 		srv.mu.Unlock()
+		if err != nil {
+			return nil, err
+		}
 	}
-	return db
+	return db, nil
 }
 
-func (srv *Server) newDB(recordType string) storage.Backend {
+func (srv *Server) newDB(recordType string) (storage.Backend, error) {
 	switch srv.cfg.storageType {
 	case inmemory.Name:
-		return inmemory.NewDB(recordType, srv.cfg.btreeDegree)
+		return inmemory.NewDB(recordType, srv.cfg.btreeDegree), nil
 	case redis.Name:
 		db, err := redis.New(srv.cfg.storageConnectionString, recordType, int64(srv.cfg.deletePermanentlyAfter.Seconds()))
 		if err != nil {
-			srv.log.Error().Err(err).Msg("failed to create new redis storage")
-			return nil
+			return nil, fmt.Errorf("failed to create new redis storage: %w", err)
 		}
-		return db
+		return db, nil
 	default:
-		return nil
+		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)
 	}
 }
