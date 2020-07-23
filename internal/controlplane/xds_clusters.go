@@ -37,7 +37,7 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 		buildInternalCluster(options, "pomerium-control-plane-http", httpURL, false),
 	}
 
-	clusters = append(clusters, buildInternalCluster(options, "pomerium-authz", authzURL, true))
+	clusters = append(clusters, buildInternalCluster(options, authzURL.Host, authzURL, true))
 
 	if config.IsProxy(options.Services) {
 		for _, policy := range options.Policies {
