@@ -40,12 +40,15 @@ func TestDB(t *testing.T) {
 	cleanup(c, db, t)
 
 	t.Run("get missing record", func(t *testing.T) {
-		assert.Nil(t, db.Get(ctx, id))
+		record, err := db.Get(ctx, id)
+		assert.Error(t, err)
+		assert.Nil(t, record)
 	})
 	t.Run("get record", func(t *testing.T) {
 		data := new(anypb.Any)
 		assert.NoError(t, db.Put(ctx, id, data))
-		record := db.Get(ctx, id)
+		record, err := db.Get(ctx, id)
+		require.NoError(t, err)
 		if assert.NotNil(t, record) {
 			assert.NotNil(t, record.CreatedAt)
 			assert.Equal(t, data, record.Data)
@@ -57,22 +60,29 @@ func TestDB(t *testing.T) {
 	})
 	t.Run("delete record", func(t *testing.T) {
 		assert.NoError(t, db.Delete(ctx, id))
-		record := db.Get(ctx, id)
+		record, err := db.Get(ctx, id)
+		require.NoError(t, err)
 		require.NotNil(t, record)
 		assert.NotNil(t, record.DeletedAt)
 	})
 	t.Run("clear deleted", func(t *testing.T) {
 		db.ClearDeleted(ctx, time.Now().Add(time.Second))
-		assert.Nil(t, db.Get(ctx, id))
+		record, err := db.Get(ctx, id)
+		assert.Error(t, err)
+		assert.Nil(t, record)
 	})
 	t.Run("get all", func(t *testing.T) {
-		assert.Len(t, db.GetAll(ctx), 0)
+		records, err := db.GetAll(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, records, 0)
 		data := new(anypb.Any)
 
 		for _, id := range ids {
 			assert.NoError(t, db.Put(ctx, id, data))
 		}
-		assert.Len(t, db.GetAll(ctx), len(ids))
+		records, err = db.GetAll(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, records, len(ids))
 		for _, id := range ids {
 			_, _ = c.Do("DEL", id)
 		}
@@ -87,12 +97,14 @@ func TestDB(t *testing.T) {
 			assert.NoError(t, db.Put(ctx, id, data))
 		}
 
-		assert.Len(t, db.List(ctx, ""), 10)
-		assert.Len(t, db.List(ctx, "00000000000A"), 5)
-		assert.Len(t, db.List(ctx, "00000000000F"), 0)
-
-		for _, id := range ids {
-			_, _ = c.Do("DEL", id)
-		}
+		records, err := db.List(ctx, "")
+		assert.NoError(t, err)
+		assert.Len(t, records, 10)
+		records, err = db.List(ctx, "00000000000A")
+		assert.NoError(t, err)
+		assert.Len(t, records, 5)
+		records, err = db.List(ctx, "00000000000F")
+		assert.NoError(t, err)
+		assert.Len(t, records, 0)
 	})
 }
