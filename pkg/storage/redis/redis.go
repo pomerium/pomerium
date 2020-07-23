@@ -18,6 +18,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
+// Name is the storage type name for redis backend.
+const Name = "redis"
+
 var _ storage.Backend = (*DB)(nil)
 
 // DB wraps redis conn to interact with redis server.

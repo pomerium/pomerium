@@ -17,6 +17,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
+// Name is the storage type name for inmemory backend.
+const Name = "memory"
+
 var _ storage.Backend = (*DB)(nil)
 
 type byIDRecord struct {

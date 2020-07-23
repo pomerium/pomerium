@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
+	"github.com/pomerium/pomerium/pkg/storage/redis"
 )
 
 const (
@@ -278,10 +279,26 @@ func (srv *Server) getDB(recordType string) storage.Backend {
 		srv.mu.Lock()
 		db = srv.byType[recordType]
 		if db == nil {
-			db = inmemory.NewDB(recordType, srv.cfg.btreeDegree)
+			db = srv.newDB(recordType)
 			srv.byType[recordType] = db
 		}
 		srv.mu.Unlock()
 	}
 	return db
+}
+
+func (srv *Server) newDB(recordType string) storage.Backend {
+	switch srv.cfg.storageType {
+	case inmemory.Name:
+		return inmemory.NewDB(recordType, srv.cfg.btreeDegree)
+	case redis.Name:
+		db, err := redis.New(srv.cfg.storageConnectionString, recordType, int64(srv.cfg.deletePermanentlyAfter.Seconds()))
+		if err != nil {
+			srv.log.Error().Err(err).Msg("failed to create new redis storage")
+			return nil
+		}
+		return db
+	default:
+		return nil
+	}
 }

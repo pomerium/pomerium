@@ -71,7 +71,7 @@ func New(opts config.Options) (*Cache, error) {
 		return nil, err
 	}
 
-	dataBrokerServer := NewDataBrokerServer(localGRPCServer)
+	dataBrokerServer := NewDataBrokerServer(localGRPCServer, opts)
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(localGRPCConnection)
 	sessionServer := NewSessionServer(localGRPCServer, dataBrokerClient)
 	sessionClient := session.NewSessionServiceClient(localGRPCConnection)
