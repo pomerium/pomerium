@@ -166,7 +166,7 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 				Timeout: grpcClientTimeout,
 				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
 					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-						ClusterName: "pomerium-authz",
+						ClusterName: options.GetAuthorizeURL().Host,
 					},
 				},
 			},
