@@ -40,13 +40,15 @@ func TestServer_initVersion(t *testing.T) {
 		ctx := context.Background()
 		db, err := srv.getDB(recordTypeServerVersion)
 		require.NoError(t, err)
-		r := db.Get(ctx, serverVersionKey)
+		r, err := db.Get(ctx, serverVersionKey)
+		assert.Error(t, err)
 		assert.Nil(t, r)
 		srvVersion := uuid.New().String()
 		srv.version = srvVersion
 		srv.initVersion()
 		assert.Equal(t, srvVersion, srv.version)
-		r = db.Get(ctx, serverVersionKey)
+		r, err = db.Get(ctx, serverVersionKey)
+		require.NoError(t, err)
 		assert.NotNil(t, r)
 		var sv databroker.ServerVersion
 		assert.NoError(t, ptypes.UnmarshalAny(r.GetData(), &sv))
@@ -57,13 +59,15 @@ func TestServer_initVersion(t *testing.T) {
 		ctx := context.Background()
 		db, err := srv.getDB(recordTypeServerVersion)
 		require.NoError(t, err)
-		r := db.Get(ctx, serverVersionKey)
+		r, err := db.Get(ctx, serverVersionKey)
+		assert.Error(t, err)
 		assert.Nil(t, r)
 
 		srv.initVersion()
 		srvVersion := srv.version
 
-		r = db.Get(ctx, serverVersionKey)
+		r, err = db.Get(ctx, serverVersionKey)
+		require.NoError(t, err)
 		assert.NotNil(t, r)
 		var sv databroker.ServerVersion
 		assert.NoError(t, ptypes.UnmarshalAny(r.GetData(), &sv))
