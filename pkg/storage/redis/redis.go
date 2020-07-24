@@ -210,6 +210,24 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 	}
 }
 
+func doNotify(ctx context.Context, psc *redis.PubSubConn, ch chan struct{}) {
+	switch v := psc.ReceiveWithTimeout(time.Second).(type) {
+	case redis.Message:
+		log.Debug().Str("action", string(v.Data)).Msg("Got redis message")
+		if string(v.Data) != watchAction {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			log.Warn().Err(ctx.Err()).Msg("unable to notify channel")
+			return
+		case ch <- struct{}{}:
+		}
+	case error:
+		log.Debug().Err(v).Msg("redis subscribe error")
+	}
+}
+
 // Sync returns a channel to the caller, when there is a change to the version set,
 // sending message to the channel to notify the caller.
 func (db *DB) Sync(ctx context.Context) chan struct{} {
@@ -238,21 +256,7 @@ func (db *DB) Sync(ctx context.Context) chan struct{} {
 				log.Error().Err(ctx.Err()).Msg("stop subscribing to version set channel")
 				return
 			default:
-			}
-
-			switch v := psc.ReceiveWithTimeout(time.Second).(type) {
-			case redis.Message:
-				log.Debug().Str("action", string(v.Data)).Msg("Got redis message")
-				if string(v.Data) == watchAction {
-					select {
-					case <-ctx.Done():
-						log.Warn().Err(ctx.Err()).Msg("unable to notify channel")
-						return
-					case ch <- struct{}{}:
-					}
-				}
-			case error:
-				log.Debug().Err(v).Msg("redis subscribe error")
+				doNotify(ctx, &psc, ch)
 			}
 		}
 	}()
