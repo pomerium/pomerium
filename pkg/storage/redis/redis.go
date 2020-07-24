@@ -4,9 +4,11 @@ package redis
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/gomodule/redigo/redis"
@@ -210,22 +212,24 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 	}
 }
 
-func doNotify(ctx context.Context, psc *redis.PubSubConn, ch chan struct{}) {
+func doNotify(ctx context.Context, psc *redis.PubSubConn, ch chan struct{}) error {
 	switch v := psc.ReceiveWithTimeout(time.Second).(type) {
 	case redis.Message:
 		log.Debug().Str("action", string(v.Data)).Msg("Got redis message")
 		if string(v.Data) != watchAction {
-			return
+			return nil
 		}
 		select {
 		case <-ctx.Done():
 			log.Warn().Err(ctx.Err()).Msg("unable to notify channel")
-			return
+			return ctx.Err()
 		case ch <- struct{}{}:
 		}
 	case error:
 		log.Debug().Err(v).Msg("redis subscribe error")
+		return v
 	}
+	return nil
 }
 
 // Watch returns a channel to the caller, when there is a change to the version set,
@@ -250,13 +254,27 @@ func (db *DB) Watch(ctx context.Context) chan struct{} {
 			log.Error().Err(err).Msg("failed to subscribe to version set channel")
 			return
 		}
+		eb := backoff.NewExponentialBackOff()
 		for {
 			select {
 			case <-ctx.Done():
 				log.Error().Err(ctx.Err()).Msg("stop subscribing to version set channel")
 				return
 			default:
-				doNotify(ctx, &psc, ch)
+				err := doNotify(ctx, &psc, ch)
+				if err == nil {
+					continue
+				}
+				if err, ok := err.(net.Error); ok && err.Timeout() {
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(eb.NextBackOff()):
+					}
+					continue
+				}
+				log.Error().Err(ctx.Err()).Msg("failed to notify channel")
+				return
 			}
 		}
 	}()

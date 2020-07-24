@@ -113,11 +113,11 @@ func TestDB(t *testing.T) {
 		assert.Len(t, records, 0)
 	})
 
-	expecetedNumEvents := 14
+	expectedNumEvents := 14
 	actualNumEvents := 0
 	for range ch {
 		actualNumEvents++
-		if actualNumEvents == expecetedNumEvents {
+		if actualNumEvents == expectedNumEvents {
 			cancelFunc()
 		}
 	}
