@@ -215,7 +215,7 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 func doNotify(ctx context.Context, psc *redis.PubSubConn, ch chan struct{}) error {
 	switch v := psc.ReceiveWithTimeout(time.Second).(type) {
 	case redis.Message:
-		log.Debug().Str("action", string(v.Data)).Msg("Got redis message")
+		log.Debug().Str("action", string(v.Data)).Msg("got redis message")
 		if string(v.Data) != watchAction {
 			return nil
 		}
