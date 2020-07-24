@@ -243,7 +243,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 		return err
 	}
 
-	ch := db.Sync(ctx)
+	ch := db.Watch(ctx)
 
 	for range ch {
 		if err := srv.doSync(ctx, &recordVersion, db, stream); err != nil {

@@ -30,6 +30,8 @@ type Backend interface {
 	// ClearDeleted is used clear marked delete records.
 	ClearDeleted(ctx context.Context, cutoff time.Time)
 
-	// Sync is used to notify about changes happen in storage.
-	Sync(ctx context.Context) chan struct{}
+	// Watch returns a channel to the caller. The channel is used to notify
+	// about changes happen in storage. When ctx is finish, Watch will close
+	// the channel.
+	Watch(ctx context.Context) chan struct{}
 }
