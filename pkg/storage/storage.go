@@ -16,13 +16,13 @@ type Backend interface {
 	Put(ctx context.Context, id string, data *anypb.Any) error
 
 	// Get is used to retrieve a record.
-	Get(ctx context.Context, id string) *databroker.Record
+	Get(ctx context.Context, id string) (*databroker.Record, error)
 
 	// GetAll is used to retrieve all the records.
-	GetAll(ctx context.Context) []*databroker.Record
+	GetAll(ctx context.Context) ([]*databroker.Record, error)
 
 	// List is used to retrieve all the records since a version.
-	List(ctx context.Context, sinceVersion string) []*databroker.Record
+	List(ctx context.Context, sinceVersion string) ([]*databroker.Record, error)
 
 	// Delete is used to mark a record as deleted.
 	Delete(ctx context.Context, id string) error

@@ -86,7 +86,7 @@ func (srv *Server) initVersion() {
 	}
 
 	// Get version from storage first.
-	if r := dbServerVersion.Get(context.Background(), serverVersionKey); r != nil {
+	if r, _ := dbServerVersion.Get(context.Background(), serverVersionKey); r != nil {
 		var sv databroker.ServerVersion
 		if err := ptypes.UnmarshalAny(r.GetData(), &sv); err == nil {
 			srv.log.Debug().Str("server_version", sv.Version).Msg("got db version from DB")
@@ -137,8 +137,8 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 	if err != nil {
 		return nil, err
 	}
-	record := db.Get(ctx, req.GetId())
-	if record == nil {
+	record, err := db.Get(ctx, req.GetId())
+	if err != nil {
 		return nil, status.Error(codes.NotFound, "record not found")
 	}
 	return &databroker.GetResponse{Record: record}, nil
@@ -156,7 +156,10 @@ func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	records := db.GetAll(ctx)
+	records, err := db.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var recordVersion string
 	for _, record := range records {
 		if record.GetVersion() > recordVersion {
@@ -188,8 +191,10 @@ func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databr
 	if err := db.Put(ctx, req.GetId(), req.GetData()); err != nil {
 		return nil, err
 	}
-	record := db.Get(ctx, req.GetId())
-
+	record, err := db.Get(ctx, req.GetId())
+	if err != nil {
+		return nil, err
+	}
 	return &databroker.SetResponse{
 		Record:        record,
 		ServerVersion: srv.version,
@@ -220,8 +225,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	ch := srv.onchange.Bind()
 	defer srv.onchange.Unbind(ch)
 	for {
-		updated := db.List(context.Background(), recordVersion)
-
+		updated, _ := db.List(context.Background(), recordVersion)
 		if len(updated) > 0 {
 			sort.Slice(updated, func(i, j int) bool {
 				return updated[i].Version < updated[j].Version

@@ -3,6 +3,7 @@ package inmemory
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -88,26 +89,26 @@ func (db *DB) Delete(_ context.Context, id string) error {
 }
 
 // Get gets a record from the db.
-func (db *DB) Get(_ context.Context, id string) *databroker.Record {
+func (db *DB) Get(_ context.Context, id string) (*databroker.Record, error) {
 	record, ok := db.byID.Get(byIDRecord{Record: &databroker.Record{Id: id}}).(byIDRecord)
 	if !ok {
-		return nil
+		return nil, errors.New("not found")
 	}
-	return record.Record
+	return record.Record, nil
 }
 
 // GetAll gets all the records in the db.
-func (db *DB) GetAll(_ context.Context) []*databroker.Record {
+func (db *DB) GetAll(_ context.Context) ([]*databroker.Record, error) {
 	var records []*databroker.Record
 	db.byID.Ascend(func(item btree.Item) bool {
 		records = append(records, item.(byIDRecord).Record)
 		return true
 	})
-	return records
+	return records, nil
 }
 
 // List lists all the changes since the given version.
-func (db *DB) List(_ context.Context, sinceVersion string) []*databroker.Record {
+func (db *DB) List(_ context.Context, sinceVersion string) ([]*databroker.Record, error) {
 	var records []*databroker.Record
 	db.byVersion.AscendGreaterOrEqual(byVersionRecord{Record: &databroker.Record{Version: sinceVersion}}, func(i btree.Item) bool {
 		record := i.(byVersionRecord)
@@ -116,7 +117,7 @@ func (db *DB) List(_ context.Context, sinceVersion string) []*databroker.Record 
 		}
 		return true
 	})
-	return records
+	return records, nil
 }
 
 // Put replaces or inserts a record in the db.

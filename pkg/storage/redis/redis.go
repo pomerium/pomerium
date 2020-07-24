@@ -3,7 +3,6 @@ package redis
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"sync/atomic"
@@ -70,8 +69,8 @@ func New(address, recordType string, deletePermanentAfter int64) (*DB, error) {
 func (db *DB) Put(ctx context.Context, id string, data *anypb.Any) error {
 	c := db.pool.Get()
 	defer c.Close()
-	record := db.Get(ctx, id)
-	if record == nil {
+	record, err := db.Get(ctx, id)
+	if err != nil {
 		record = new(databroker.Record)
 		record.CreatedAt = ptypes.TimestampNow()
 	}
@@ -97,27 +96,27 @@ func (db *DB) Put(ctx context.Context, id string, data *anypb.Any) error {
 }
 
 // Get retrieves a record from redis.
-func (db *DB) Get(_ context.Context, id string) *databroker.Record {
+func (db *DB) Get(_ context.Context, id string) (*databroker.Record, error) {
 	c := db.pool.Get()
 	defer c.Close()
 
 	b, err := redis.Bytes(c.Do("HGET", db.recordType, id))
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	return db.toPbRecord(b)
 }
 
 // GetAll retrieves all records from redis.
-func (db *DB) GetAll(ctx context.Context) []*databroker.Record {
+func (db *DB) GetAll(ctx context.Context) ([]*databroker.Record, error) {
 	return db.getAll(ctx, func(record *databroker.Record) bool { return true })
 }
 
 // List retrieves all records since given version.
 //
 // "version" is in hex format, invalid version will be treated as 0.
-func (db *DB) List(ctx context.Context, sinceVersion string) []*databroker.Record {
+func (db *DB) List(ctx context.Context, sinceVersion string) ([]*databroker.Record, error) {
 	c := db.pool.Get()
 	defer c.Close()
 
@@ -128,18 +127,22 @@ func (db *DB) List(ctx context.Context, sinceVersion string) []*databroker.Recor
 
 	ids, err := redis.Strings(c.Do("ZRANGEBYSCORE", db.versionSet, fmt.Sprintf("(%d", v), "+inf"))
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	records := make([]*databroker.Record, 0, len(ids))
+	pbRecords := make([]*databroker.Record, 0, len(ids))
 	for _, id := range ids {
 		b, err := redis.Bytes(c.Do("HGET", db.recordType, id))
 		if err != nil {
-			continue
+			return nil, err
 		}
-		records = append(records, db.toPbRecord(b))
+		pbRecord, err := db.toPbRecord(b)
+		if err != nil {
+			return nil, err
+		}
+		pbRecords = append(pbRecords, pbRecord)
 	}
-	return records
+	return pbRecords, nil
 }
 
 // Delete sets a record DeletedAt field and set its TTL.
@@ -147,9 +150,9 @@ func (db *DB) Delete(ctx context.Context, id string) error {
 	c := db.pool.Get()
 	defer c.Close()
 
-	r := db.Get(ctx, id)
-	if r == nil {
-		return errors.New("not found")
+	r, err := db.Get(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to get record: %w", err)
 	}
 	r.DeletedAt = ptypes.TimestampNow()
 	r.Version = fmt.Sprintf("%012X", atomic.AddUint64(&db.lastVersion, 1))
@@ -177,8 +180,8 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 	ids, _ := redis.Strings(c.Do("SMEMBERS", db.deletedSet))
 	for _, id := range ids {
 		b, _ := redis.Bytes(c.Do("HGET", db.recordType, id))
-		record := db.toPbRecord(b)
-		if record == nil {
+		record, err := db.toPbRecord(b)
+		if err != nil {
 			continue
 		}
 
@@ -195,7 +198,7 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 	}
 }
 
-func (db *DB) getAll(_ context.Context, filter func(record *databroker.Record) bool) []*databroker.Record {
+func (db *DB) getAll(_ context.Context, filter func(record *databroker.Record) bool) ([]*databroker.Record, error) {
 	c := db.pool.Get()
 	defer c.Close()
 	iter := 0
@@ -203,16 +206,16 @@ func (db *DB) getAll(_ context.Context, filter func(record *databroker.Record) b
 	for {
 		arr, err := redis.Values(c.Do("HSCAN", db.recordType, iter, "MATCH", "*"))
 		if err != nil {
-			return nil
+			return nil, err
 		}
 
 		iter, _ = redis.Int(arr[0], nil)
 		pairs, _ := redis.StringMap(arr[1], nil)
 
 		for _, v := range pairs {
-			record := db.toPbRecord([]byte(v))
-			if record == nil {
-				continue
+			record, err := db.toPbRecord([]byte(v))
+			if err != nil {
+				return nil, err
 			}
 			if filter(record) {
 				records = append(records, record)
@@ -224,15 +227,15 @@ func (db *DB) getAll(_ context.Context, filter func(record *databroker.Record) b
 		}
 	}
 
-	return records
+	return records, nil
 }
 
-func (db *DB) toPbRecord(b []byte) *databroker.Record {
+func (db *DB) toPbRecord(b []byte) (*databroker.Record, error) {
 	record := &databroker.Record{}
 	if err := proto.Unmarshal(b, record); err != nil {
-		return nil
+		return nil, err
 	}
-	return record
+	return record, nil
 }
 
 func (db *DB) tx(c redis.Conn, commands []map[string][]interface{}) error {
