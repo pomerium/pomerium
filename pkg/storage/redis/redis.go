@@ -262,25 +262,18 @@ func (db *DB) Watch(ctx context.Context) chan struct{} {
 		}
 
 		for {
-			select {
-			case <-ctx.Done():
-				log.Error().Err(ctx.Err()).Msg("stop subscribing to version set channel")
-				return
-			default:
-				err := doNotify(ctx, &psc, ch)
-				if err == nil {
-					continue
-				}
-				if err, ok := err.(net.Error); ok && err.Timeout() {
-					select {
-					case <-ctx.Done():
-						return
-					case <-time.After(eb.NextBackOff()):
-					}
-					goto top
-				}
+			err, ok := doNotify(ctx, &psc, ch).(net.Error)
+			if !ok && err != nil {
 				log.Error().Err(ctx.Err()).Msg("failed to notify channel")
 				return
+			}
+			if ok && err.Timeout() {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(eb.NextBackOff()):
+				}
+				goto top
 			}
 		}
 	}()
