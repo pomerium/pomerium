@@ -232,7 +232,8 @@ func doNotify(ctx context.Context, psc *redis.PubSubConn, ch chan struct{}) erro
 	return nil
 }
 
-func (db *DB) watchLoop(ctx context.Context, ch chan struct{}, eb *backoff.ExponentialBackOff) {
+func (db *DB) watchLoop(ctx context.Context, ch chan struct{}) {
+	eb := backoff.NewExponentialBackOff()
 top:
 	psConn := db.pool.Get()
 	defer psConn.Close()
@@ -275,10 +276,9 @@ func (db *DB) Watch(ctx context.Context) chan struct{} {
 			c.Close()
 			return
 		}
-
 		c.Close()
-		eb := backoff.NewExponentialBackOff()
-		db.watchLoop(ctx, ch, eb)
+
+		db.watchLoop(ctx, ch)
 	}()
 
 	return ch
