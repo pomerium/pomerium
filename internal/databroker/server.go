@@ -225,7 +225,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	for range ch {
 		updated, err := db.List(ctx, recordVersion)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		if len(updated) > 0 {
 			sort.Slice(updated, func(i, j int) bool {
