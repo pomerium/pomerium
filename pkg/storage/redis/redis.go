@@ -232,6 +232,33 @@ func doNotify(ctx context.Context, psc *redis.PubSubConn, ch chan struct{}) erro
 	return nil
 }
 
+func (db *DB) watchLoop(ctx context.Context, ch chan struct{}, eb *backoff.ExponentialBackOff) {
+top:
+	psConn := db.pool.Get()
+	defer psConn.Close()
+	psc := redis.PubSubConn{Conn: psConn}
+	if err := psc.PSubscribe("__keyspace*__:" + db.versionSet); err != nil {
+		log.Error().Err(err).Msg("failed to subscribe to version set channel")
+		return
+	}
+
+	for {
+		err, ok := doNotify(ctx, &psc, ch).(net.Error)
+		if !ok && err != nil {
+			log.Error().Err(ctx.Err()).Msg("failed to notify channel")
+			return
+		}
+		if ok && err.Timeout() {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(eb.NextBackOff()):
+			}
+			goto top
+		}
+	}
+}
+
 // Watch returns a channel to the caller, when there is a change to the version set,
 // sending message to the channel to notify the caller.
 func (db *DB) Watch(ctx context.Context) chan struct{} {
@@ -251,31 +278,7 @@ func (db *DB) Watch(ctx context.Context) chan struct{} {
 
 		c.Close()
 		eb := backoff.NewExponentialBackOff()
-
-	top:
-		psConn := db.pool.Get()
-		defer psConn.Close()
-		psc := redis.PubSubConn{Conn: psConn}
-		if err := psc.PSubscribe("__keyspace*__:" + db.versionSet); err != nil {
-			log.Error().Err(err).Msg("failed to subscribe to version set channel")
-			return
-		}
-
-		for {
-			err, ok := doNotify(ctx, &psc, ch).(net.Error)
-			if !ok && err != nil {
-				log.Error().Err(ctx.Err()).Msg("failed to notify channel")
-				return
-			}
-			if ok && err.Timeout() {
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(eb.NextBackOff()):
-				}
-				goto top
-			}
-		}
+		db.watchLoop(ctx, ch, eb)
 	}()
 
 	return ch
