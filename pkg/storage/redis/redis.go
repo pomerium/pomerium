@@ -12,12 +12,14 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 // Name is the storage type name for redis backend.
 const Name = "redis"
+const watchAction = "zadd"
 
 var _ storage.Backend = (*DB)(nil)
 
@@ -58,8 +60,8 @@ func New(address, recordType string, deletePermanentAfter int64) (*DB, error) {
 		},
 		deletePermanentlyAfter: deletePermanentAfter,
 		recordType:             recordType,
-		versionSet:             "version_set",
-		deletedSet:             "deleted_set",
+		versionSet:             recordType + "_version_set",
+		deletedSet:             recordType + "_deleted_set",
 		lastVersionKey:         recordType + "_last_version",
 	}
 	return db, nil
@@ -206,6 +208,50 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 			_ = db.tx(c, cmds)
 		}
 	}
+}
+
+// Sync returns a channel to the caller, when there is a change to the version set,
+// sending message to the channel to notify the caller.
+func (db *DB) Sync(ctx context.Context) chan struct{} {
+	ch := make(chan struct{})
+	go func() {
+		c := db.pool.Get()
+		defer func() {
+			c.Close()
+			close(ch)
+		}()
+
+		// Setup notifications, we only care about changes to db.version_set.
+		if _, err := c.Do("CONFIG", "SET", "notify-keyspace-events", "Kz"); err != nil {
+			log.Error().Err(err).Msg("failed to setup redis notification")
+			return
+		}
+
+		psc := redis.PubSubConn{Conn: c}
+		if err := psc.PSubscribe("__keyspace*__:" + db.versionSet); err != nil {
+			log.Error().Err(err).Msg("failed to subscribe to version set channel")
+			return
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				log.Error().Err(ctx.Err()).Msg("stop subscribing to version set channel")
+				return
+			default:
+			}
+			switch v := psc.Receive().(type) {
+			case redis.Message:
+				log.Debug().Str("action", string(v.Data)).Msg("Got redis message")
+				if string(v.Data) == watchAction {
+					ch <- struct{}{}
+				}
+			case error:
+				log.Error().Err(v).Msg("db.Sync: error occurred")
+			}
+		}
+	}()
+
+	return ch
 }
 
 func (db *DB) getAll(_ context.Context, filter func(record *databroker.Record) bool) ([]*databroker.Record, error) {

@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -49,14 +50,19 @@ type DB struct {
 	byID       *btree.BTree
 	byVersion  *btree.BTree
 	deletedIDs []string
+	onchange   *signal.Signal
+	syncCh     chan struct{}
 }
 
 // NewDB creates a new in-memory database for the given record type.
 func NewDB(recordType string, btreeDegree int) *DB {
+	s := signal.New()
 	return &DB{
 		recordType: recordType,
 		byID:       btree.New(btreeDegree),
 		byVersion:  btree.New(btreeDegree),
+		onchange:   s,
+		syncCh:     s.Bind(),
 	}
 }
 
@@ -81,6 +87,7 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 
 // Delete marks a record as deleted.
 func (db *DB) Delete(_ context.Context, id string) error {
+	defer db.onchange.Broadcast()
 	db.replaceOrInsert(id, func(record *databroker.Record) {
 		record.DeletedAt = ptypes.TimestampNow()
 		db.deletedIDs = append(db.deletedIDs, id)
@@ -122,10 +129,22 @@ func (db *DB) List(_ context.Context, sinceVersion string) ([]*databroker.Record
 
 // Put replaces or inserts a record in the db.
 func (db *DB) Put(_ context.Context, id string, data *anypb.Any) error {
+	defer db.onchange.Broadcast()
 	db.replaceOrInsert(id, func(record *databroker.Record) {
 		record.Data = data
 	})
 	return nil
+}
+
+// Sync returns the underlying signal.Signal binding channel to the caller.
+// Then the caller can listen to the channel for detecting changes.
+func (db *DB) Sync(ctx context.Context) chan struct{} {
+	go func() {
+		defer db.onchange.Unbind(db.syncCh)
+		<-ctx.Done()
+	}()
+
+	return db.syncCh
 }
 
 func (db *DB) replaceOrInsert(id string, f func(record *databroker.Record)) {

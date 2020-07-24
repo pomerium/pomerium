@@ -29,4 +29,7 @@ type Backend interface {
 
 	// ClearDeleted is used clear marked delete records.
 	ClearDeleted(ctx context.Context, cutoff time.Time)
+
+	// Sync is used to notify about changes happen in storage.
+	Sync(ctx context.Context) chan struct{}
 }

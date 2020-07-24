@@ -25,7 +25,8 @@ func cleanup(c redis.Conn, db *DB, t *testing.T) {
 }
 
 func TestDB(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 	address := ":6379"
 	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
 		address = redisURL
@@ -40,6 +41,8 @@ func TestDB(t *testing.T) {
 	cleanup(c, db, t)
 	_, err = c.Do("DEL", db.lastVersionKey)
 	require.NoError(t, err)
+
+	ch := db.Sync(ctx)
 
 	t.Run("get missing record", func(t *testing.T) {
 		record, err := db.Get(ctx, id)
@@ -109,4 +112,13 @@ func TestDB(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, records, 0)
 	})
+
+	expecetedNumEvents := 14
+	actualNumEvents := 0
+	for range ch {
+		actualNumEvents++
+		if actualNumEvents == expecetedNumEvents {
+			cancelFunc()
+		}
+	}
 }

@@ -26,9 +26,9 @@ func TestConfigSource(t *testing.T) {
 	}
 	defer li.Close()
 
-	db := New()
+	dataBrokerServer := newTestServer()
 	srv := grpc.NewServer()
-	databroker.RegisterDataBrokerServiceServer(srv, db)
+	databroker.RegisterDataBrokerServiceServer(srv, dataBrokerServer)
 	go func() { _ = srv.Serve(li) }()
 
 	cfgs := make(chan *config.Config, 10)
@@ -52,7 +52,7 @@ func TestConfigSource(t *testing.T) {
 			},
 		},
 	})
-	_, _ = db.Set(ctx, &databroker.SetRequest{
+	_, _ = dataBrokerServer.Set(ctx, &databroker.SetRequest{
 		Type: configTypeURL,
 		Id:   "1",
 		Data: data,
