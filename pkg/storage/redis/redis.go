@@ -239,22 +239,29 @@ func (db *DB) Watch(ctx context.Context) chan struct{} {
 	go func() {
 		c := db.pool.Get()
 		defer func() {
-			c.Close()
 			close(ch)
 		}()
 
 		// Setup notifications, we only care about changes to db.version_set.
 		if _, err := c.Do("CONFIG", "SET", "notify-keyspace-events", "Kz"); err != nil {
 			log.Error().Err(err).Msg("failed to setup redis notification")
+			c.Close()
 			return
 		}
 
-		psc := redis.PubSubConn{Conn: c}
+		c.Close()
+		eb := backoff.NewExponentialBackOff()
+
+	top:
+		psConn := db.pool.Get()
+		defer psConn.Close()
+		psc := redis.PubSubConn{Conn: psConn}
+		defer psc.Conn.Close()
 		if err := psc.PSubscribe("__keyspace*__:" + db.versionSet); err != nil {
 			log.Error().Err(err).Msg("failed to subscribe to version set channel")
 			return
 		}
-		eb := backoff.NewExponentialBackOff()
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -271,7 +278,7 @@ func (db *DB) Watch(ctx context.Context) chan struct{} {
 						return
 					case <-time.After(eb.NextBackOff()):
 					}
-					continue
+					goto top
 				}
 				log.Error().Err(ctx.Err()).Msg("failed to notify channel")
 				return
