@@ -256,7 +256,6 @@ func (db *DB) Watch(ctx context.Context) chan struct{} {
 		psConn := db.pool.Get()
 		defer psConn.Close()
 		psc := redis.PubSubConn{Conn: psConn}
-		defer psc.Conn.Close()
 		if err := psc.PSubscribe("__keyspace*__:" + db.versionSet); err != nil {
 			log.Error().Err(err).Msg("failed to subscribe to version set channel")
 			return
