@@ -51,7 +51,6 @@ type DB struct {
 	byVersion  *btree.BTree
 	deletedIDs []string
 	onchange   *signal.Signal
-	syncCh     chan struct{}
 }
 
 // NewDB creates a new in-memory database for the given record type.
@@ -62,7 +61,6 @@ func NewDB(recordType string, btreeDegree int) *DB {
 		byID:       btree.New(btreeDegree),
 		byVersion:  btree.New(btreeDegree),
 		onchange:   s,
-		syncCh:     s.Bind(),
 	}
 }
 
@@ -139,12 +137,8 @@ func (db *DB) Put(_ context.Context, id string, data *anypb.Any) error {
 // Sync returns the underlying signal.Signal binding channel to the caller.
 // Then the caller can listen to the channel for detecting changes.
 func (db *DB) Sync(ctx context.Context) chan struct{} {
-	go func() {
-		defer db.onchange.Unbind(db.syncCh)
-		<-ctx.Done()
-	}()
-
-	return db.syncCh
+	ch := db.onchange.Bind()
+	return ch
 }
 
 func (db *DB) replaceOrInsert(id string, f func(record *databroker.Record)) {
