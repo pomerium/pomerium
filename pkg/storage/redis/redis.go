@@ -239,14 +239,20 @@ func (db *DB) Sync(ctx context.Context) chan struct{} {
 				return
 			default:
 			}
-			switch v := psc.Receive().(type) {
+
+			switch v := psc.ReceiveWithTimeout(time.Second).(type) {
 			case redis.Message:
 				log.Debug().Str("action", string(v.Data)).Msg("Got redis message")
 				if string(v.Data) == watchAction {
-					ch <- struct{}{}
+					select {
+					case <-ctx.Done():
+						log.Warn().Err(ctx.Err()).Msg("unable to notify channel")
+						return
+					case ch <- struct{}{}:
+					}
 				}
 			case error:
-				log.Error().Err(v).Msg("db.Sync: error occurred")
+				log.Debug().Err(v).Msg("redis subscribe error")
 			}
 		}
 	}()
