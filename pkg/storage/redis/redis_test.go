@@ -38,6 +38,8 @@ func TestDB(t *testing.T) {
 	defer c.Close()
 
 	cleanup(c, db, t)
+	_, err = c.Do("DEL", db.lastVersionKey)
+	require.NoError(t, err)
 
 	t.Run("get missing record", func(t *testing.T) {
 		record, err := db.Get(ctx, id)
