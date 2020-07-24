@@ -138,6 +138,11 @@ func (db *DB) Put(_ context.Context, id string, data *anypb.Any) error {
 // Then the caller can listen to the channel for detecting changes.
 func (db *DB) Sync(ctx context.Context) chan struct{} {
 	ch := db.onchange.Bind()
+	go func() {
+		<-ctx.Done()
+		close(ch)
+		db.onchange.Unbind(ch)
+	}()
 	return ch
 }
 

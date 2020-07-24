@@ -198,8 +198,8 @@ func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databr
 	}, nil
 }
 
-func (srv *Server) doSync(ctx context.Context, recordVersion string, db storage.Backend, stream databroker.DataBrokerService_SyncServer) error {
-	updated, err := db.List(ctx, recordVersion)
+func (srv *Server) doSync(ctx context.Context, recordVersion *string, db storage.Backend, stream databroker.DataBrokerService_SyncServer) error {
+	updated, err := db.List(ctx, *recordVersion)
 	if err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func (srv *Server) doSync(ctx context.Context, recordVersion string, db storage.
 	sort.Slice(updated, func(i, j int) bool {
 		return updated[i].Version < updated[j].Version
 	})
-	recordVersion = updated[len(updated)-1].Version
+	*recordVersion = updated[len(updated)-1].Version
 	return stream.Send(&databroker.SyncResponse{
 		ServerVersion: srv.version,
 		Records:       updated,
@@ -238,16 +238,15 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	}
 
 	ctx := stream.Context()
-
 	// Do first sync, so we won't missed anything.
-	if err := srv.doSync(ctx, recordVersion, db, stream); err != nil {
+	if err := srv.doSync(ctx, &recordVersion, db, stream); err != nil {
 		return err
 	}
 
 	ch := db.Sync(ctx)
 
 	for range ch {
-		if err := srv.doSync(ctx, recordVersion, db, stream); err != nil {
+		if err := srv.doSync(ctx, &recordVersion, db, stream); err != nil {
 			return err
 		}
 	}
