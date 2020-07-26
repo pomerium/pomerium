@@ -212,6 +212,7 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 	}
 }
 
+// doNotify receives event from redis and signal the channel that something happenned.
 func doNotify(ctx context.Context, psc *redis.PubSubConn, ch chan struct{}) error {
 	switch v := psc.ReceiveWithTimeout(time.Second).(type) {
 	case redis.Message:
@@ -232,6 +233,11 @@ func doNotify(ctx context.Context, psc *redis.PubSubConn, ch chan struct{}) erro
 	return nil
 }
 
+// doNotifyLoop tries to run doNotify forever.
+//
+// Because redis.PubSubConn does not support context, so it will block until it receives event, we can not use
+// context to signal it stops. We mitigate this case by using PubSubConn.ReceiveWithTimeout. In case of timeout
+// occurred, we return a nil error, so the caller of doNotifyLoop will re-create new connection to start new loop.
 func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}, psc *redis.PubSubConn, eb *backoff.ExponentialBackOff) error {
 	for {
 		err, ok := doNotify(ctx, psc, ch).(net.Error)
@@ -250,6 +256,9 @@ func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}, psc *redis.Pub
 	}
 }
 
+// watchLoop runs the doNotifyLoop forever.
+//
+// If doNotifyLoop returns a nil error, watchLoop re-create the PubSubConn and start new iteration.
 func (db *DB) watchLoop(ctx context.Context, ch chan struct{}) {
 	var psConn redis.Conn
 	eb := backoff.NewExponentialBackOff()

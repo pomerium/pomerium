@@ -31,7 +31,7 @@ type Backend interface {
 	ClearDeleted(ctx context.Context, cutoff time.Time)
 
 	// Watch returns a channel to the caller. The channel is used to notify
-	// about changes happen in storage. When ctx is finish, Watch will close
+	// about changes that happen in storage. When ctx is finished, Watch will close
 	// the channel.
 	Watch(ctx context.Context) chan struct{}
 }
