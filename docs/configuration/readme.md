@@ -156,6 +156,7 @@ The name of the session cookie sent to clients.
 - Environmental Variable: `COOKIE_SECRET`
 - Config File Key: `cookie_secret`
 - Type: [base64 encoded] `string`
+- Required
 
 Secret used to encrypt and sign session cookies. You can generate a random key with `head -c32 /dev/urandom | base64`.
 
