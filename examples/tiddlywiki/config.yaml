@@ -1,0 +1,16 @@
+authenticate_service_url: https://authenticate.localhost.pomerium.io
+autocert: true
+autocert_use_staging: true
+idp_provider: google
+idp_client_id: REPLACEME
+idp_client_secret: REPLACEME
+
+cookie_secret: REPLACEME
+jwt_claims_headers: email
+
+policy:
+  - from: https://wiki.localhost.pomerium.io
+    to: http://tiddlywiki:8080
+    allowed_users:
+      - writer1@example.com
+      - reader1@example.com
