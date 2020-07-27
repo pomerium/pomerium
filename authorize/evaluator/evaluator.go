@@ -402,6 +402,11 @@ func getDenyVar(vars rego.Vars) []Result {
 // DataBrokerData stores the data broker data by type => id => record
 type DataBrokerData map[string]map[string]interface{}
 
+// Clear removes all the data for the given type URL from the databroekr data.
+func (dbd DataBrokerData) Clear(typeURL string) {
+	delete(dbd, typeURL)
+}
+
 // Get gets a record from the DataBrokerData.
 func (dbd DataBrokerData) Get(typeURL, id string) interface{} {
 	m, ok := dbd[typeURL]
