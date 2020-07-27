@@ -4,20 +4,24 @@ package redis
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/gomodule/redigo/redis"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 // Name is the storage type name for redis backend.
 const Name = "redis"
+const watchAction = "zadd"
 
 var _ storage.Backend = (*DB)(nil)
 
@@ -58,8 +62,8 @@ func New(address, recordType string, deletePermanentAfter int64) (*DB, error) {
 		},
 		deletePermanentlyAfter: deletePermanentAfter,
 		recordType:             recordType,
-		versionSet:             "version_set",
-		deletedSet:             "deleted_set",
+		versionSet:             recordType + "_version_set",
+		deletedSet:             recordType + "_deleted_set",
 		lastVersionKey:         recordType + "_last_version",
 	}
 	return db, nil
@@ -206,6 +210,94 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 			_ = db.tx(c, cmds)
 		}
 	}
+}
+
+// doNotify receives event from redis and signal the channel that something happenned.
+func doNotify(ctx context.Context, psc *redis.PubSubConn, ch chan struct{}) error {
+	switch v := psc.ReceiveWithTimeout(time.Second).(type) {
+	case redis.Message:
+		log.Debug().Str("action", string(v.Data)).Msg("got redis message")
+		if string(v.Data) != watchAction {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			log.Warn().Err(ctx.Err()).Msg("unable to notify channel")
+			return ctx.Err()
+		case ch <- struct{}{}:
+		}
+	case error:
+		log.Debug().Err(v).Msg("redis subscribe error")
+		return v
+	}
+	return nil
+}
+
+// doNotifyLoop tries to run doNotify forever.
+//
+// Because redis.PubSubConn does not support context, so it will block until it receives event, we can not use
+// context to signal it stops. We mitigate this case by using PubSubConn.ReceiveWithTimeout. In case of timeout
+// occurred, we return a nil error, so the caller of doNotifyLoop will re-create new connection to start new loop.
+func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}, psc *redis.PubSubConn, eb *backoff.ExponentialBackOff) error {
+	for {
+		err, ok := doNotify(ctx, psc, ch).(net.Error)
+		if !ok && err != nil {
+			log.Error().Err(ctx.Err()).Msg("failed to notify channel")
+			return err
+		}
+		if ok && err.Timeout() {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(eb.NextBackOff()):
+			}
+			return nil
+		}
+	}
+}
+
+// watchLoop runs the doNotifyLoop forever.
+//
+// If doNotifyLoop returns a nil error, watchLoop re-create the PubSubConn and start new iteration.
+func (db *DB) watchLoop(ctx context.Context, ch chan struct{}) {
+	var psConn redis.Conn
+	eb := backoff.NewExponentialBackOff()
+	for {
+		psConn = db.pool.Get()
+		psc := redis.PubSubConn{Conn: psConn}
+		if err := psc.PSubscribe("__keyspace*__:" + db.versionSet); err != nil {
+			log.Error().Err(err).Msg("failed to subscribe to version set channel")
+			psConn.Close()
+			return
+		}
+		if err := db.doNotifyLoop(ctx, ch, &psc, eb); err != nil {
+			psConn.Close()
+			return
+		}
+	}
+}
+
+// Watch returns a channel to the caller, when there is a change to the version set,
+// sending message to the channel to notify the caller.
+func (db *DB) Watch(ctx context.Context) chan struct{} {
+	ch := make(chan struct{})
+	go func() {
+		c := db.pool.Get()
+		defer func() {
+			close(ch)
+		}()
+
+		// Setup notifications, we only care about changes to db.version_set.
+		if _, err := c.Do("CONFIG", "SET", "notify-keyspace-events", "Kz"); err != nil {
+			log.Error().Err(err).Msg("failed to setup redis notification")
+			c.Close()
+			return
+		}
+		c.Close()
+		db.watchLoop(ctx, ch)
+	}()
+
+	return ch
 }
 
 func (db *DB) getAll(_ context.Context, filter func(record *databroker.Record) bool) ([]*databroker.Record, error) {

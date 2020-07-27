@@ -1,6 +1,9 @@
-package databroker
+// Package signal provides mechanism for notifying multiple listeners when something happened.
+package signal
 
-import "sync"
+import (
+	"sync"
+)
 
 // A Signal is used to let multiple listeners know when something happened.
 type Signal struct {
@@ -8,8 +11,8 @@ type Signal struct {
 	chs map[chan struct{}]struct{}
 }
 
-// NewSignal creates a new Signal.
-func NewSignal() *Signal {
+// New creates a new Signal.
+func New() *Signal {
 	return &Signal{
 		chs: make(map[chan struct{}]struct{}),
 	}

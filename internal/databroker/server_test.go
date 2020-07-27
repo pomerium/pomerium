@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -20,8 +21,8 @@ func newServer(cfg *serverConfig) *Server {
 		cfg:     cfg,
 		log:     log.With().Str("service", "databroker").Logger(),
 
-		byType:   make(map[string]storage.Backend),
-		onchange: NewSignal(),
+		byType:       make(map[string]storage.Backend),
+		onTypechange: signal.New(),
 	}
 }
 

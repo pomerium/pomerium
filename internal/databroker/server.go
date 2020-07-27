@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -36,9 +37,9 @@ type Server struct {
 	cfg     *serverConfig
 	log     zerolog.Logger
 
-	mu       sync.RWMutex
-	byType   map[string]storage.Backend
-	onchange *Signal
+	mu           sync.RWMutex
+	byType       map[string]storage.Backend
+	onTypechange *signal.Signal
 }
 
 // New creates a new server.
@@ -49,8 +50,8 @@ func New(options ...ServerOption) *Server {
 		cfg:     cfg,
 		log:     log.With().Str("service", "databroker").Logger(),
 
-		byType:   make(map[string]storage.Backend),
-		onchange: NewSignal(),
+		byType:       make(map[string]storage.Backend),
+		onTypechange: signal.New(),
 	}
 	srv.initVersion()
 
@@ -109,8 +110,6 @@ func (srv *Server) Delete(ctx context.Context, req *databroker.DeleteRequest) (*
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
 		Msg("delete")
-
-	defer srv.onchange.Broadcast()
 
 	db, err := srv.getDB(req.GetType())
 	if err != nil {
@@ -182,8 +181,6 @@ func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databr
 		Str("id", req.GetId()).
 		Msg("set")
 
-	defer srv.onchange.Broadcast()
-
 	db, err := srv.getDB(req.GetType())
 	if err != nil {
 		return nil, err
@@ -199,6 +196,24 @@ func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databr
 		Record:        record,
 		ServerVersion: srv.version,
 	}, nil
+}
+
+func (srv *Server) doSync(ctx context.Context, recordVersion *string, db storage.Backend, stream databroker.DataBrokerService_SyncServer) error {
+	updated, err := db.List(ctx, *recordVersion)
+	if err != nil {
+		return err
+	}
+	if len(updated) == 0 {
+		return nil
+	}
+	sort.Slice(updated, func(i, j int) bool {
+		return updated[i].Version < updated[j].Version
+	})
+	*recordVersion = updated[len(updated)-1].Version
+	return stream.Send(&databroker.SyncResponse{
+		ServerVersion: srv.version,
+		Records:       updated,
+	})
 }
 
 // Sync streams updates for the given record type.
@@ -222,30 +237,20 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 		return err
 	}
 
-	ch := srv.onchange.Bind()
-	defer srv.onchange.Unbind(ch)
-	for {
-		updated, _ := db.List(context.Background(), recordVersion)
-		if len(updated) > 0 {
-			sort.Slice(updated, func(i, j int) bool {
-				return updated[i].Version < updated[j].Version
-			})
-			recordVersion = updated[len(updated)-1].Version
-			err := stream.Send(&databroker.SyncResponse{
-				ServerVersion: srv.version,
-				Records:       updated,
-			})
-			if err != nil {
-				return err
-			}
-		}
+	ctx := stream.Context()
+	ch := db.Watch(ctx)
 
-		select {
-		case <-stream.Context().Done():
-			return stream.Context().Err()
-		case <-ch:
+	// Do first sync, so we won't missed anything.
+	if err := srv.doSync(ctx, &recordVersion, db, stream); err != nil {
+		return err
+	}
+
+	for range ch {
+		if err := srv.doSync(ctx, &recordVersion, db, stream); err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
 // GetTypes returns all the known record types.
@@ -272,8 +277,8 @@ func (srv *Server) SyncTypes(req *emptypb.Empty, stream databroker.DataBrokerSer
 	srv.log.Info().
 		Msg("sync types")
 
-	ch := srv.onchange.Bind()
-	defer srv.onchange.Unbind(ch)
+	ch := srv.onTypechange.Bind()
+	defer srv.onTypechange.Unbind(ch)
 
 	var prev []string
 	for {
