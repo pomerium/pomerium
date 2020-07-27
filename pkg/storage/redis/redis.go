@@ -212,7 +212,7 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 	}
 }
 
-// doNotify receives event from redis and signal the channel that something happenned.
+// doNotify receives event from redis and signal the channel that something happened.
 func doNotify(ctx context.Context, psc *redis.PubSubConn, ch chan struct{}) error {
 	switch v := psc.ReceiveWithTimeout(time.Second).(type) {
 	case redis.Message:
