@@ -212,28 +212,40 @@ env GO111MODULE=on GOBIN=$HOME/bin go get github.com/pomerium/pomerium/cmd/pomer
 
 Make sure `$HOME/bin` is on your path.
 
-To use the Pomerium Kubernetes exec-credential provider, update your kubectl config (`$HOME/.kube/config`) in 3 places:
+To use the Pomerium Kubernetes exec-credential provider, update your kubectl config:
 
-1. Add a cluster:
+   ```shell
+   # Add Cluster
+   kubectl config set-cluster via-pomerium --server=https://k8s.localhost.pomerium.io:30443
+   # Add Context
+   kubectl config set-context via-pomerium --user=via-pomerium --cluster=via-pomerium
+   # Add credentials command
+   kubectl config set-credentials via-pomerium --exec-command=pomerium-cli --exec-args=k8s,exec-credential,https://k8s.localhost.pomerium.io:30443
+  ```
 
-   ```clusters:
-   - cluster:
-       server: https://k8s.localhost.pomerium.io:30443
-     name: via-pomerium
-   ```
+Here's the resulting configuration:
 
-2. Add a context:
+1. Cluster:
+    ```yaml
+    clusters:
+    - cluster:
+        server: https://k8s.localhost.pomerium.io:30443
+      name: via-pomerium
+    ```
 
-   ```contexts:
+2. Context:
+
+   ```yaml
+   contexts:
    - context:
        cluster: via-pomerium
        user: via-pomerium
      name: via-pomerium
    ```
 
-3. Add a user:
+3. User:
 
-   ```
+   ```yaml
    - name: via-pomerium
      user:
        exec:
