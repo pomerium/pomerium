@@ -137,7 +137,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
-		if a.sessionClient != nil {
+		if a.dataBrokerClient != nil {
 			_, err = session.Get(ctx, a.dataBrokerClient, sessionState.ID)
 			if err != nil {
 				log.FromRequest(r).Info().Err(err).Str("id", sessionState.ID).Msg("authenticate: session not found in databroker")
