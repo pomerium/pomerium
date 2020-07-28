@@ -2,6 +2,8 @@ package controlplane
 
 import (
 	"encoding/base64"
+	"net"
+	"net/url"
 	"sort"
 	"time"
 
@@ -126,8 +128,8 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 
 		if options.Addr == options.GRPCAddr {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && domain == options.GetAuthorizeURL().Host) ||
-				(config.IsCache(options.Services) && domain == options.GetCacheURL().Host) {
+			if (config.IsAuthorize(options.Services) && hostMatchesDomain(options.GetAuthorizeURL(), domain)) ||
+				(config.IsCache(options.Services) && hostMatchesDomain(options.GetCacheURL(), domain)) {
 				vh.Routes = append(vh.Routes, buildGRPCRoutes()...)
 			}
 		}
@@ -382,20 +384,30 @@ func buildDownstreamTLSContext(options *config.Options, domain string) *envoy_ex
 func getAllRouteableDomains(options *config.Options, addr string) []string {
 	lookup := map[string]struct{}{}
 	if config.IsAuthenticate(options.Services) && addr == options.Addr {
-		lookup[options.GetAuthenticateURL().Host] = struct{}{}
+		for _, h := range getDomainsForURL(options.GetAuthenticateURL()) {
+			lookup[h] = struct{}{}
+		}
 	}
 	if config.IsAuthorize(options.Services) && addr == options.GRPCAddr {
-		lookup[options.GetAuthorizeURL().Host] = struct{}{}
+		for _, h := range getDomainsForURL(options.GetAuthorizeURL()) {
+			lookup[h] = struct{}{}
+		}
 	}
 	if config.IsCache(options.Services) && addr == options.GRPCAddr {
-		lookup[options.GetCacheURL().Host] = struct{}{}
+		for _, h := range getDomainsForURL(options.GetCacheURL()) {
+			lookup[h] = struct{}{}
+		}
 	}
 	if config.IsProxy(options.Services) && addr == options.Addr {
 		for _, policy := range options.Policies {
-			lookup[policy.Source.Host] = struct{}{}
+			for _, h := range getDomainsForURL(policy.Source.URL) {
+				lookup[h] = struct{}{}
+			}
 		}
 		if options.ForwardAuthURL != nil {
-			lookup[options.ForwardAuthURL.Host] = struct{}{}
+			for _, h := range getDomainsForURL(options.GetForwardAuthURL()) {
+				lookup[h] = struct{}{}
+			}
 		}
 	}
 
@@ -406,4 +418,46 @@ func getAllRouteableDomains(options *config.Options, addr string) []string {
 	sort.Strings(domains)
 
 	return domains
+}
+
+func getDomainsForURL(u *url.URL) []string {
+	var defaultPort string
+	if u.Scheme == "http" {
+		defaultPort = "80"
+	} else {
+		defaultPort = "443"
+	}
+
+	// for hosts like 'example.com:1234' we only return one route
+	if _, p, err := net.SplitHostPort(u.Host); err == nil {
+		if p != defaultPort {
+			return []string{u.Host}
+		}
+	}
+
+	// for everything else we return two routes: 'example.com' and 'example.com:443'
+	return []string{u.Hostname(), net.JoinHostPort(u.Hostname(), defaultPort)}
+}
+
+func hostMatchesDomain(u *url.URL, host string) bool {
+	var defaultPort string
+	if u.Scheme == "http" {
+		defaultPort = "80"
+	} else {
+		defaultPort = "443"
+	}
+
+	h1, p1, err := net.SplitHostPort(u.Host)
+	if err != nil {
+		h1 = u.Host
+		p1 = defaultPort
+	}
+
+	h2, p2, err := net.SplitHostPort(host)
+	if err != nil {
+		h2 = host
+		p2 = defaultPort
+	}
+
+	return h1 == h2 && p1 == p2
 }
