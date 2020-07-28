@@ -138,6 +138,11 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error
 
 			backoff.Reset()
 			if res.GetServerVersion() != serverVersion {
+				log.Info().
+					Str("old_version", serverVersion).
+					Str("new_version", res.GetServerVersion()).
+					Str("type_url", typeURL).
+					Msg("detected new server version, clearing data")
 				serverVersion = res.GetServerVersion()
 				recordVersion = ""
 				a.clearRecords(typeURL)
