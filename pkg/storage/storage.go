@@ -10,6 +10,12 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
+// RedisName is the name of the redis storage backend
+const RedisName = "redis"
+
+// InMemoryName is the name of the in-memory storage backend
+const InMemoryName = "memory"
+
 // Backend is the interface required for a storage backend.
 type Backend interface {
 	// Put is used to insert or update a record.

@@ -479,6 +479,11 @@ Expose a prometheus format HTTP endpoint on the specified port. Disabled by defa
 | pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service                      |
 | pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service              |
 | pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service    |
+| redis_conns                                   | Gauge     | Number of total connections in the pool                                 |
+| redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool             |
+| redis_wait_count_total                        | Counter   | Total number of connections waited for                                  |
+| redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections                                |
+| storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service    |
 
 #### Envoy Proxy Metrics
 
