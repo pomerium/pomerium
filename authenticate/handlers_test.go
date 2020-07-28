@@ -466,6 +466,25 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				cookieCipher:     aead,
 				encryptedEncoder: signer,
 				sharedEncoder:    signer,
+				dataBrokerClient: mockDataBrokerServiceClient{
+					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+						data, err := ptypes.MarshalAny(&session.Session{
+							Id: "SESSION_ID",
+						})
+						if err != nil {
+							return nil, err
+						}
+
+						return &databroker.GetResponse{
+							Record: &databroker.Record{
+								Version: "0001",
+								Type:    data.GetTypeUrl(),
+								Id:      "SESSION_ID",
+								Data:    data,
+							},
+						}, nil
+					},
+				},
 			}
 			r := httptest.NewRequest("GET", "/", nil)
 			state, err := tt.session.LoadSession(r)
