@@ -308,7 +308,6 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 				"validateClusters": false
 			},
 			"statPrefix": "ingress",
-			"stripMatchingHostPort": true,
 			"tracing": {
 				"randomSampling": {
 					"value": 0.01
@@ -370,7 +369,7 @@ func Test_getAllRouteableDomains(t *testing.T) {
 		AuthorizeURL:    mustParseURL("https://authorize.example.com:9001"),
 		DataBrokerURL:   mustParseURL("https://cache.example.com:9001"),
 		Policies: []config.Policy{
-			{Source: &config.StringURL{URL: mustParseURL("https://a.example.com")}},
+			{Source: &config.StringURL{URL: mustParseURL("http://a.example.com")}},
 			{Source: &config.StringURL{URL: mustParseURL("https://b.example.com")}},
 			{Source: &config.StringURL{URL: mustParseURL("https://c.example.com")}},
 		},
@@ -379,9 +378,13 @@ func Test_getAllRouteableDomains(t *testing.T) {
 		actual := getAllRouteableDomains(options, "127.0.0.1:9000")
 		expect := []string{
 			"a.example.com",
+			"a.example.com:80",
 			"authenticate.example.com",
+			"authenticate.example.com:443",
 			"b.example.com",
+			"b.example.com:443",
 			"c.example.com",
+			"c.example.com:443",
 		}
 		assert.Equal(t, expect, actual)
 	})
@@ -393,6 +396,16 @@ func Test_getAllRouteableDomains(t *testing.T) {
 		}
 		assert.Equal(t, expect, actual)
 	})
+}
+
+func Test_hostMatchesDomain(t *testing.T) {
+	assert.True(t, hostMatchesDomain(mustParseURL("http://example.com"), "example.com"))
+	assert.True(t, hostMatchesDomain(mustParseURL("http://example.com"), "example.com:80"))
+	assert.True(t, hostMatchesDomain(mustParseURL("https://example.com"), "example.com:443"))
+	assert.True(t, hostMatchesDomain(mustParseURL("https://example.com:443"), "example.com:443"))
+	assert.True(t, hostMatchesDomain(mustParseURL("https://example.com:443"), "example.com"))
+	assert.False(t, hostMatchesDomain(mustParseURL("http://example.com:81"), "example.com"))
+	assert.False(t, hostMatchesDomain(mustParseURL("http://example.com:81"), "example.com:80"))
 }
 
 func Test_buildRouteConfiguration(t *testing.T) {

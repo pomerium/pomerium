@@ -50,11 +50,11 @@ func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_co
 		buildControlPlanePrefixRoute("/.well-known/pomerium/"),
 	}
 	// if we're handling authentication, add the oauth2 callback url
-	if config.IsAuthenticate(options.Services) && domain == options.GetAuthenticateURL().Host {
+	if config.IsAuthenticate(options.Services) && hostMatchesDomain(options.GetAuthenticateURL(), domain) {
 		routes = append(routes, buildControlPlanePathRoute(options.AuthenticateCallbackPath))
 	}
 	// if we're the proxy and this is the forward-auth url
-	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && domain == options.ForwardAuthURL.Host {
+	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {
 		routes = append(routes, buildControlPlanePrefixRoute("/"))
 	}
 	return routes
@@ -103,7 +103,7 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 	responseHeadersToAdd := toEnvoyHeaders(options.Headers)
 
 	for i, policy := range options.Policies {
-		if policy.Source.Host != domain {
+		if !hostMatchesDomain(policy.Source.URL, domain) {
 			continue
 		}
 
