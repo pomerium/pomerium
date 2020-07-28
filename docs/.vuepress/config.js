@@ -150,7 +150,7 @@ module.exports = {
 
           collapsable: false,
           sidebarDepth: 1,
-          children: ["", "ad-guard", "cloud-run", "vs-code-server", "kubernetes", "argo", "mtls"],
+          children: ["", "ad-guard", "cloud-run", "vs-code-server", "kubernetes", "argo", "mtls", "local-oidc"],
         },
       ],
       "/enterprise/": [
