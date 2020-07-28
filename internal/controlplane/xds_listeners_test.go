@@ -398,6 +398,16 @@ func Test_getAllRouteableDomains(t *testing.T) {
 	})
 }
 
+func Test_hostMatchesDomain(t *testing.T) {
+	assert.True(t, hostMatchesDomain(mustParseURL("http://example.com"), "example.com"))
+	assert.True(t, hostMatchesDomain(mustParseURL("http://example.com"), "example.com:80"))
+	assert.True(t, hostMatchesDomain(mustParseURL("https://example.com"), "example.com:443"))
+	assert.True(t, hostMatchesDomain(mustParseURL("https://example.com:443"), "example.com:443"))
+	assert.True(t, hostMatchesDomain(mustParseURL("https://example.com:443"), "example.com"))
+	assert.False(t, hostMatchesDomain(mustParseURL("http://example.com:81"), "example.com"))
+	assert.False(t, hostMatchesDomain(mustParseURL("http://example.com:81"), "example.com:80"))
+}
+
 func Test_buildRouteConfiguration(t *testing.T) {
 	virtualHosts := make([]*envoy_config_route_v3.VirtualHost, 10)
 	routeConfig := buildRouteConfiguration("test-route-configuration", virtualHosts)

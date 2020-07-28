@@ -128,8 +128,8 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 
 		if options.Addr == options.GRPCAddr {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && domain == options.GetAuthorizeURL().Host) ||
-				(config.IsCache(options.Services) && domain == options.GetDataBrokerURL().Host) {
+			if (config.IsAuthorize(options.Services) && hostMatchesDomain(options.GetAuthorizeURL(), domain)) ||
+				(config.IsCache(options.Services) && hostMatchesDomain(options.GetDataBrokerURL(), domain)) {
 				vh.Routes = append(vh.Routes, buildGRPCRoutes()...)
 			}
 		}
@@ -451,4 +451,27 @@ func getDomainsForURL(u *url.URL) []string {
 
 	// for everything else we return two routes: 'example.com' and 'example.com:443'
 	return []string{u.Hostname(), net.JoinHostPort(u.Hostname(), defaultPort)}
+}
+
+func hostMatchesDomain(u *url.URL, host string) bool {
+	var defaultPort string
+	if u.Scheme == "http" {
+		defaultPort = "80"
+	} else {
+		defaultPort = "443"
+	}
+
+	h1, p1, err := net.SplitHostPort(u.Host)
+	if err != nil {
+		h1 = u.Host
+		p1 = defaultPort
+	}
+
+	h2, p2, err := net.SplitHostPort(host)
+	if err != nil {
+		h2 = host
+		p2 = defaultPort
+	}
+
+	return h1 == h2 && p1 == p2
 }
