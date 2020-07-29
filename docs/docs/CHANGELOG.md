@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.9.6
+
+This is a bug fix release.  
+
+Issues addressed include Istio support and non-standard port handling.
+
+### Fixed
+
+- Set ExtAuthz Cluster name to URL Host @travisgroth GH-1133
+- handle example.com and example.com:443 @calebdoxsey GH-1153
+
+## v0.9.5
+
+### Changes
+
+- proxy: remove debug line @cuonglm GH-1095
+- authorize,proxy: allow traefik forward auth without uri query @cuonglm GH-1103
+- Set loopback address by ipv4 IP @travisgroth GH-1122
+
+### Fixed
+
+- Force redirect scheme to https @travisgroth GH-1077
+- authenticate: hide impersonation form from non-admin users @cuonglm GH-1093
+
+### Dependency
+
+- deps: update envoy to 1.14.4 @desimone GH-1120
+
 ## v0.9.4
 
 ### Security
