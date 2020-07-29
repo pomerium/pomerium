@@ -27,7 +27,7 @@ func cleanup(c redis.Conn, db *DB, t *testing.T) {
 func TestDB(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
-	address := ":6379"
+	address := "redis://localhost/6379/0"
 	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
 		address = redisURL
 	}

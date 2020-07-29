@@ -36,14 +36,12 @@ type DB struct {
 }
 
 // New returns new DB instance.
-func New(address, recordType string, deletePermanentAfter int64) (*DB, error) {
+func New(rawURL, recordType string, deletePermanentAfter int64) (*DB, error) {
 	db := &DB{
 		pool: &redis.Pool{
 			Wait: true,
-			DialContext: func(ctx context.Context) (redis.Conn, error) {
-				ctx, cancelFn := context.WithTimeout(ctx, 5*time.Second)
-				defer cancelFn()
-				c, err := redis.DialContext(ctx, "tcp", address)
+			Dial: func() (redis.Conn, error) {
+				c, err := redis.DialURL(rawURL)
 				if err != nil {
 					return nil, fmt.Errorf(`redis.DialURL(): %w`, err)
 				}

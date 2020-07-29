@@ -831,7 +831,7 @@ The backend storage that databroker server will use, available types: `memory`, 
 - Config File Key: `databroker_storage_connection_string`
 - Type: `string`
 - **Required** when storage type is `redis`
-- Example: `":6379"`
+- Example: `"redis://localhost/6379/0"`
 
 The connection string that server will use to connect to storage backend.
 
