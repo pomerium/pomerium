@@ -9,7 +9,7 @@ import (
 )
 
 func newTestServer() *Server {
-	address := ":6379"
+	address := "redis://localhost:6379/0"
 	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
 		address = redisURL
 	}
