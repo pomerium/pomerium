@@ -87,9 +87,6 @@ func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) error {
 	if s == nil {
 		return errors.New("session not found")
 	}
-	if s.DeletedAt != nil {
-		return errors.New("session was deleted")
-	}
 	a.forceSyncUser(ctx, s.GetUserId())
 	return nil
 }

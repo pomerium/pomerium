@@ -30,8 +30,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 // ValidateOptions checks that configuration are complete and valid.
@@ -101,12 +99,6 @@ type Authenticate struct {
 	// dataBrokerClient is used to retrieve sessions
 	dataBrokerClient databroker.DataBrokerServiceClient
 
-	// sessionClient is used to create sessions
-	sessionClient session.SessionServiceClient
-
-	// userClient is used to update users
-	userClient user.UserServiceClient
-
 	// guard administrator below.
 	administratorMu sync.Mutex
 	// administrators keeps track of administrator users.
@@ -164,8 +156,6 @@ func New(opts *config.Options) (*Authenticate, error) {
 	}
 
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(dataBrokerConn)
-	sessionClient := session.NewSessionServiceClient(dataBrokerConn)
-	userClient := user.NewUserServiceClient(dataBrokerConn)
 
 	qpStore := queryparam.NewStore(encryptedEncoder, urlutil.QueryProgrammaticToken)
 	headerStore := header.NewStore(encryptedEncoder, httputil.AuthorizationTypePomerium)
@@ -207,8 +197,6 @@ func New(opts *config.Options) (*Authenticate, error) {
 		providerName: opts.Provider,
 		// grpc client for cache
 		dataBrokerClient: dataBrokerClient,
-		sessionClient:    sessionClient,
-		userClient:       userClient,
 		jwk:              &jose.JSONWebKeySet{},
 		templates:        template.Must(frontend.NewTemplates()),
 	}

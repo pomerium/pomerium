@@ -138,7 +138,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		}
 
 		if a.dataBrokerClient != nil {
-			_, err = session.Get(ctx, a.dataBrokerClient, sessionState.ID)
+			_, err := session.Get(ctx, a.dataBrokerClient, sessionState.ID)
 			if err != nil {
 				log.FromRequest(r).Info().Err(err).Str("id", sessionState.ID).Msg("authenticate: session not found in databroker")
 				return a.reauthenticateOrFail(w, r, err)
@@ -444,16 +444,10 @@ func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, 
 }
 
 func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) error {
-	if a.sessionClient == nil {
+	if a.dataBrokerClient == nil {
 		return nil
 	}
-
-	_, err := a.sessionClient.Add(ctx, &session.AddRequest{
-		Session: &session.Session{
-			Id:        sessionID,
-			DeletedAt: ptypes.TimestampNow(),
-		},
-	})
+	err := session.Delete(ctx, a.dataBrokerClient, sessionID)
 	return err
 }
 
@@ -534,11 +528,11 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState *sessions.State, accessToken *oauth2.Token) error {
-	if a.sessionClient == nil || a.userClient == nil {
+	if a.dataBrokerClient == nil {
 		return nil
 	}
 
-	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(time.Hour))
+	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(time.Hour * 24 * 365))
 	var idTokenExpiry *timestamppb.Timestamp
 	if sessionState.Expiry != nil {
 		idTokenExpiry, _ = ptypes.TimestampProto(sessionState.Expiry.Time())
@@ -570,17 +564,13 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 		if err != nil {
 			return fmt.Errorf("authenticate: error retrieving user info: %w", err)
 		}
-		_, err = a.userClient.Add(ctx, &user.AddRequest{
-			User: mu.User,
-		})
+		_, err = user.Set(ctx, a.dataBrokerClient, mu.User)
 		if err != nil {
 			return fmt.Errorf("authenticate: error saving user: %w", err)
 		}
 	}
 
-	res, err := a.sessionClient.Add(ctx, &session.AddRequest{
-		Session: s,
-	})
+	res, err := session.Set(ctx, a.dataBrokerClient, s)
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving session: %w", err)
 	}

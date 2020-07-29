@@ -8,10 +8,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -78,5 +82,60 @@ func TestServer_initVersion(t *testing.T) {
 		srv.version = "foo"
 		srv.initVersion()
 		assert.Equal(t, srvVersion, srv.version)
+	})
+}
+
+func TestServer_Get(t *testing.T) {
+	cfg := newServerConfig()
+	t.Run("ignore deleted", func(t *testing.T) {
+		srv := newServer(cfg)
+
+		s := new(session.Session)
+		s.Id = "1"
+		any, err := anypb.New(s)
+		assert.NoError(t, err)
+
+		srv.Set(context.Background(), &databroker.SetRequest{
+			Type: any.TypeUrl,
+			Id:   s.Id,
+			Data: any,
+		})
+		srv.Delete(context.Background(), &databroker.DeleteRequest{
+			Type: any.TypeUrl,
+			Id:   s.Id,
+		})
+		_, err = srv.Get(context.Background(), &databroker.GetRequest{
+			Type: any.TypeUrl,
+			Id:   s.Id,
+		})
+		assert.Error(t, err)
+		assert.Equal(t, codes.NotFound, status.Code(err))
+	})
+}
+
+func TestServer_GetAll(t *testing.T) {
+	cfg := newServerConfig()
+	t.Run("ignore deleted", func(t *testing.T) {
+		srv := newServer(cfg)
+
+		s := new(session.Session)
+		s.Id = "1"
+		any, err := anypb.New(s)
+		assert.NoError(t, err)
+
+		srv.Set(context.Background(), &databroker.SetRequest{
+			Type: any.TypeUrl,
+			Id:   s.Id,
+			Data: any,
+		})
+		srv.Delete(context.Background(), &databroker.DeleteRequest{
+			Type: any.TypeUrl,
+			Id:   s.Id,
+		})
+		res, err := srv.GetAll(context.Background(), &databroker.GetAllRequest{
+			Type: any.TypeUrl,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, res.GetRecords(), 0)
 	})
 }

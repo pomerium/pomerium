@@ -137,7 +137,7 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 		return nil, err
 	}
 	record, err := db.Get(ctx, req.GetId())
-	if err != nil {
+	if err != nil || record.DeletedAt != nil {
 		return nil, status.Error(codes.NotFound, "record not found")
 	}
 	return &databroker.GetResponse{Record: record}, nil
@@ -155,10 +155,17 @@ func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	records, err := db.GetAll(ctx)
+	all, err := db.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
+	records := make([]*databroker.Record, 0, len(all))
+	for _, record := range all {
+		if record.DeletedAt == nil {
+			records = append(records, record)
+		}
+	}
+
 	var recordVersion string
 	for _, record := range records {
 		if record.GetVersion() > recordVersion {

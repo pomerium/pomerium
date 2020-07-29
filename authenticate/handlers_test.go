@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -238,6 +239,9 @@ func TestAuthenticate_SignOut(t *testing.T) {
 				templates:        template.Must(frontend.NewTemplates()),
 				sharedEncoder:    mock.Encoder{},
 				dataBrokerClient: mockDataBrokerServiceClient{
+					delete: func(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+						return nil, nil
+					},
 					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 						data, err := ptypes.MarshalAny(&session.Session{
 							Id: "SESSION_ID",
@@ -626,7 +630,12 @@ func TestAuthenticate_Dashboard(t *testing.T) {
 type mockDataBrokerServiceClient struct {
 	databroker.DataBrokerServiceClient
 
-	get func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error)
+	delete func(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	get    func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error)
+}
+
+func (m mockDataBrokerServiceClient) Delete(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	return m.delete(ctx, in, opts...)
 }
 
 func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {

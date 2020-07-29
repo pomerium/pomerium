@@ -5,6 +5,7 @@ import (
 	context "context"
 
 	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/internal/protoutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -33,4 +34,18 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID 
 // GetClaim gets a claim.
 func (user *User) GetClaim(claim string) interface{} {
 	return protoutil.AnyToInterface(user.GetClaims()[claim])
+}
+
+// Set sets a user in the databroker.
+func Set(ctx context.Context, client databroker.DataBrokerServiceClient, u *User) (*databroker.Record, error) {
+	any, _ := anypb.New(u)
+	res, err := client.Set(ctx, &databroker.SetRequest{
+		Type: any.GetTypeUrl(),
+		Id:   u.Id,
+		Data: any,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res.GetRecord(), nil
 }
