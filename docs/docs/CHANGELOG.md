@@ -4,7 +4,7 @@
 
 This is a bug fix release.  
 
-Issues addressed include Istio support and non-standard port handling.
+Issues addressed include [Istio support](https://github.com/pomerium/pomerium/issues/983) and non-standard port handling.
 
 ### Fixed
 
