@@ -4,6 +4,7 @@ package redis
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"time"
 
@@ -227,6 +228,9 @@ func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}, psc *redis.Pub
 			}
 		case error:
 			log.Error().Err(v).Msg("failed to receive from redis channel")
+			if _, ok := v.(net.Error); ok {
+				return
+			}
 		}
 	}
 }
