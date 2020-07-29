@@ -49,19 +49,6 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), a.currentEncoder.Load())
 	sessionState, _ := loadSession(a.currentEncoder.Load(), rawJWT)
 
-	// only accept sessions whose databroker server versions match
-	if sessionState != nil {
-		a.dataBrokerDataLock.RLock()
-		if a.dataBrokerSessionServerVersion != sessionState.Version.String() {
-			log.Warn().
-				Str("server_version", a.dataBrokerSessionServerVersion).
-				Str("session_version", sessionState.Version.String()).
-				Msg("clearing session due to invalid version")
-			sessionState = nil
-		}
-		a.dataBrokerDataLock.RUnlock()
-	}
-
 	if err := a.forceSync(ctx, sessionState); err != nil {
 		log.Warn().Err(err).Msg("clearing session due to force sync failed")
 		sessionState = nil
@@ -98,7 +85,7 @@ func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) error {
 	}
 	s := a.forceSyncSession(ctx, ss.ID)
 	if s == nil {
-		return nil
+		return errors.New("session not found")
 	}
 	if s.DeletedAt != nil {
 		return errors.New("session was deleted")

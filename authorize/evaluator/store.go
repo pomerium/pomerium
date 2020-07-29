@@ -24,6 +24,12 @@ func NewStore() *Store {
 	}
 }
 
+// ClearRecords removes all the records from the store.
+func (s *Store) ClearRecords(typeURL string) {
+	rawPath := fmt.Sprintf("/databroker_data/%s", typeURL)
+	s.delete(rawPath)
+}
+
 // UpdateAdmins updates the admins in the store.
 func (s *Store) UpdateAdmins(admins []string) {
 	s.write("/admins", admins)

@@ -24,13 +24,8 @@ func (a *Authorize) Run(ctx context.Context) error {
 		return a.runTypesSyncer(ctx, updateTypes)
 	})
 
-	updateRecord := make(chan *databroker.Record)
 	eg.Go(func() error {
-		return a.runDataSyncer(ctx, updateTypes, updateRecord)
-	})
-
-	eg.Go(func() error {
-		return a.runDataUpdater(ctx, updateRecord)
+		return a.runDataSyncer(ctx, updateTypes)
 	})
 
 	return eg.Wait()
@@ -65,7 +60,7 @@ func (a *Authorize) runTypesSyncer(ctx context.Context, updateTypes chan<- []str
 	})
 }
 
-func (a *Authorize) runDataSyncer(ctx context.Context, updateTypes <-chan []string, updateRecord chan<- *databroker.Record) error {
+func (a *Authorize) runDataSyncer(ctx context.Context, updateTypes <-chan []string) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		seen := map[string]struct{}{}
@@ -78,7 +73,7 @@ func (a *Authorize) runDataSyncer(ctx context.Context, updateTypes <-chan []stri
 					dataType := dataType
 					if _, ok := seen[dataType]; !ok {
 						eg.Go(func() error {
-							return a.runDataTypeSyncer(ctx, dataType, updateRecord)
+							return a.runDataTypeSyncer(ctx, dataType)
 						})
 						seen[dataType] = struct{}{}
 					}
@@ -89,7 +84,7 @@ func (a *Authorize) runDataSyncer(ctx context.Context, updateTypes <-chan []stri
 	return eg.Wait()
 }
 
-func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string, updateRecord chan<- *databroker.Record) error {
+func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error {
 	var serverVersion, recordVersion string
 
 	log.Info().Str("type_url", typeURL).Msg("starting data initial load")
@@ -110,19 +105,10 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string, updat
 		}
 
 		serverVersion = res.GetServerVersion()
-		if typeURL == sessionTypeURL {
-			a.dataBrokerDataLock.Lock()
-			a.dataBrokerSessionServerVersion = serverVersion
-			a.dataBrokerDataLock.Unlock()
-		}
 		recordVersion = res.GetRecordVersion()
 
 		for _, record := range res.GetRecords() {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case updateRecord <- record:
-			}
+			a.updateRecord(record)
 		}
 
 		break
@@ -151,7 +137,16 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string, updat
 			}
 
 			backoff.Reset()
-			serverVersion = res.GetServerVersion()
+			if res.GetServerVersion() != serverVersion {
+				log.Info().
+					Str("old_version", serverVersion).
+					Str("new_version", res.GetServerVersion()).
+					Str("type_url", typeURL).
+					Msg("detected new server version, clearing data")
+				serverVersion = res.GetServerVersion()
+				recordVersion = ""
+				a.clearRecords(typeURL)
+			}
 			for _, record := range res.GetRecords() {
 				if record.GetVersion() > recordVersion {
 					recordVersion = record.GetVersion()
@@ -159,33 +154,24 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string, updat
 			}
 
 			for _, record := range res.GetRecords() {
-				select {
-				case <-stream.Context().Done():
-					return stream.Context().Err()
-				case updateRecord <- record:
-				}
+				a.updateRecord(record)
 			}
 		}
 	})
 }
 
-func (a *Authorize) runDataUpdater(ctx context.Context, updateRecord <-chan *databroker.Record) error {
-	log.Info().Msg("starting data updater")
-	for {
-		var record *databroker.Record
+func (a *Authorize) clearRecords(typeURL string) {
+	a.store.ClearRecords(typeURL)
+	a.dataBrokerDataLock.Lock()
+	a.dataBrokerData.Clear(typeURL)
+	a.dataBrokerDataLock.Unlock()
+}
 
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case record = <-updateRecord:
-		}
-
-		a.store.UpdateRecord(record)
-
-		a.dataBrokerDataLock.Lock()
-		a.dataBrokerData.Update(record)
-		a.dataBrokerDataLock.Unlock()
-	}
+func (a *Authorize) updateRecord(record *databroker.Record) {
+	a.store.UpdateRecord(record)
+	a.dataBrokerDataLock.Lock()
+	a.dataBrokerData.Update(record)
+	a.dataBrokerDataLock.Unlock()
 }
 
 func tryForever(ctx context.Context, callback func(onSuccess interface{ Reset() }) error) error {

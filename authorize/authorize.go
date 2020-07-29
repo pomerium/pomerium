@@ -58,9 +58,8 @@ type Authorize struct {
 
 	dataBrokerClient databroker.DataBrokerServiceClient
 
-	dataBrokerDataLock             sync.RWMutex
-	dataBrokerData                 evaluator.DataBrokerData
-	dataBrokerSessionServerVersion string
+	dataBrokerDataLock sync.RWMutex
+	dataBrokerData     evaluator.DataBrokerData
 }
 
 // New validates and creates a new Authorize service from a set of config options.

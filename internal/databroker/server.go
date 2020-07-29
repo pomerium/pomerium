@@ -230,6 +230,13 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	// reset record version if the server versions don't match
 	if req.GetServerVersion() != srv.version {
 		recordVersion = ""
+		// send the new server version to the client
+		err := stream.Send(&databroker.SyncResponse{
+			ServerVersion: srv.version,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	db, err := srv.getDB(req.GetType())
