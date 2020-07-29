@@ -178,10 +178,11 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 			}
 			onSuccess()
 
-			src.onSync(res.GetRecords())
-
-			for _, record := range res.GetRecords() {
-				recordVersion = record.GetVersion()
+			if len(res.GetRecords()) > 0 {
+				src.onSync(res.GetRecords())
+				for _, record := range res.GetRecords() {
+					recordVersion = record.GetVersion()
+				}
 			}
 
 			src.mu.Lock()
