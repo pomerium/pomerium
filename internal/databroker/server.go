@@ -155,23 +155,27 @@ func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*
 	if err != nil {
 		return nil, err
 	}
+
 	all, err := db.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	if len(all) == 0 {
+		return &databroker.GetAllResponse{ServerVersion: srv.version}, nil
+	}
+
+	var recordVersion string
 	records := make([]*databroker.Record, 0, len(all))
 	for _, record := range all {
+		if record.GetVersion() > recordVersion {
+			recordVersion = record.GetVersion()
+		}
 		if record.DeletedAt == nil {
 			records = append(records, record)
 		}
 	}
 
-	var recordVersion string
-	for _, record := range records {
-		if record.GetVersion() > recordVersion {
-			recordVersion = record.GetVersion()
-		}
-	}
 	return &databroker.GetAllResponse{
 		ServerVersion: srv.version,
 		RecordVersion: recordVersion,
