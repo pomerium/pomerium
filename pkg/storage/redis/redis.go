@@ -209,7 +209,9 @@ func (db *DB) ClearDeleted(ctx context.Context, cutoff time.Time) {
 	_, span := trace.StartSpan(ctx, "databroker.redis.ClearDeleted")
 	defer span.End()
 	var opErr error
-	defer recordOperation(ctx, time.Now(), "clear_deleted", opErr)
+	defer func(startTime time.Time) {
+		recordOperation(ctx, startTime, "clear_deleted", opErr)
+	}(time.Now())
 	defer c.Close()
 
 	ids, _ := redis.Strings(c.Do("SMEMBERS", db.deletedSet))
