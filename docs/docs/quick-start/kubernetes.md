@@ -31,7 +31,7 @@ cd $HOME/pomerium/docs/configuration/examples/kubernetes
 
 Edit [./kubernetes_gke.sh] making sure to change the identity provider secret value to match your [identity provider] and [TLS certificates] settings.
 
-<<<@/docs/configuration/examples/kubernetes/kubernetes_gke.sh
+<<<@/examples/kubernetes/kubernetes_gke.sh
 
 ## Run
 

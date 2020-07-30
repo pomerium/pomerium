@@ -844,7 +844,7 @@ The connection string that server will use to connect to storage backend.
 
 Policy contains route specific settings, and access control details. If you are configuring via POLICY environment variable, just the contents of the policy needs to be passed. If you are configuring via file, the policy should be present under the policy key. For example,
 
-<<< @/docs/configuration/examples/config/policy.example.yaml
+<<< @/examples/config/policy.example.yaml
 
 Policy routes are checked in the order they appear in the policy, so more specific routes should appear before less specific routes. For example:
 

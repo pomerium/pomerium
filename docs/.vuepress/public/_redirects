@@ -2,6 +2,9 @@
 /docs/reference/reference.html		/configuration/
 /docs/configuration/				/configuration/
 
+/configuration/						/reference/
+
+
 /community/							/docs/community/
 /community/index.html				/docs/community/
 /community/contributing				/docs/community/contributing.html
@@ -13,7 +16,6 @@
 
 /docs/reference/examples.html		/configuration/examples.html
 
-/reference/				/docs/reference/reference.html
 /guide/					/docs/quick-start/
 /guide/kubernetes.html	/docs/quick-start/kubernetes.html
 /guide/kubernetes		/docs/quick-start/kubernetes.html
@@ -21,3 +23,13 @@
 /guide/synology.html	/docs/quick-start/synology.html
 /docs/examples.html		/recipes/
 /docs/examples			/recipes/
+
+/recipes/ 						/guides/
+/recipes/ad-guard.html 			/guides/ad-guard.html
+/recipes/argo.html 				/guides/argo.html
+/recipes/cloud-run.html			/guides/cloud-run.html
+/recipes/istio.html				/guides/istio.html
+/recipes/kubernetes.html		/guides/kubernetes.html
+/recipes/local-oidc.html		/guides/local-oidc.html
+/recipes/mtls.html				/guides/mtls.html
+/recipes/vs-code-server.html	/guides/vs-code-server.html
