@@ -6,6 +6,8 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -83,6 +85,9 @@ func runWithRedisDockerImage(repo, tag string, env []string, withTLS bool, testF
 }
 
 func TestDB(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
 	redisTLSEnv := []string{
 		"ALLOW_EMPTY_PASSWORD=yes",
 		"REDIS_TLS_ENABLED=yes",
