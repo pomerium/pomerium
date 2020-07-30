@@ -18,7 +18,10 @@ func Delete(ctx context.Context, client databroker.DataBrokerServiceClient, sess
 		Type: any.GetTypeUrl(),
 		Id:   sessionID,
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("error deleting session: %w", err)
+	}
+	return nil
 }
 
 // Get gets a session from the databroker.

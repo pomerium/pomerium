@@ -137,7 +137,10 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 		return nil, err
 	}
 	record, err := db.Get(ctx, req.GetId())
-	if err != nil || record.DeletedAt != nil {
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "record not found")
+	}
+	if record.DeletedAt != nil {
 		return nil, status.Error(codes.NotFound, "record not found")
 	}
 	return &databroker.GetResponse{Record: record}, nil
