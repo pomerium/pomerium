@@ -169,10 +169,9 @@ func testDB(t *testing.T) {
 	})
 	t.Run("list", func(t *testing.T) {
 		cleanup(c, db, t)
-		ids := make([]string, 0, 10)
+
 		for i := 0; i < 10; i++ {
 			id := fmt.Sprintf("%02d", i)
-			ids = append(ids, id)
 			data := new(anypb.Any)
 			assert.NoError(t, db.Put(ctx, id, data))
 		}
