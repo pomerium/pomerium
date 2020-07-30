@@ -346,17 +346,23 @@ func (srv *Server) getDB(recordType string) (storage.Backend, error) {
 	return db, nil
 }
 
-func (srv *Server) newDB(recordType string) (storage.Backend, error) {
+func (srv *Server) newDB(recordType string) (db storage.Backend, err error) {
 	switch srv.cfg.storageType {
 	case inmemory.Name:
-		return inmemory.NewDB(recordType, srv.cfg.btreeDegree), nil
+		db = inmemory.NewDB(recordType, srv.cfg.btreeDegree)
 	case redis.Name:
-		db, err := redis.New(srv.cfg.storageConnectionString, recordType, int64(srv.cfg.deletePermanentlyAfter.Seconds()))
+		db, err = redis.New(srv.cfg.storageConnectionString, recordType, int64(srv.cfg.deletePermanentlyAfter.Seconds()))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create new redis storage: %w", err)
 		}
-		return db, nil
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)
 	}
+	if srv.cfg.secret != nil {
+		db, err = storage.NewEncryptedBackend(srv.cfg.secret, db)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return db, nil
 }

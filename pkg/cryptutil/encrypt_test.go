@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeAndDecodeAccessToken(t *testing.T) {
@@ -58,6 +60,22 @@ func TestNewAEADCipher(t *testing.T) {
 				return
 			}
 		})
+	}
+}
+
+func BenchmarkAEADCipher(b *testing.B) {
+	plaintext := []byte("my plain text value")
+
+	key := NewKey()
+	c, err := NewAEADCipher(key)
+	if !assert.NoError(b, err) {
+		return
+	}
+
+	ciphertext := Encrypt(c, plaintext, nil)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Decrypt(c, ciphertext, nil)
 	}
 }
 

@@ -15,6 +15,7 @@ var (
 type serverConfig struct {
 	deletePermanentlyAfter  time.Duration
 	btreeDegree             int
+	secret                  []byte
 	storageType             string
 	storageConnectionString string
 }
@@ -46,6 +47,13 @@ func WithBTreeDegree(degree int) ServerOption {
 func WithDeletePermanentlyAfter(dur time.Duration) ServerOption {
 	return func(cfg *serverConfig) {
 		cfg.deletePermanentlyAfter = dur
+	}
+}
+
+// WithSecret sets the secret in the config.
+func WithSecret(secret []byte) ServerOption {
+	return func(cfg *serverConfig) {
+		cfg.secret = secret
 	}
 }
 
