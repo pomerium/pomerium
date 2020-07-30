@@ -29,3 +29,26 @@ func SessionIDFromGRPCRequest(ctx context.Context) (sessionID string, ok bool) {
 
 	return sessionIDs[0], true
 }
+
+// JWTMetadataKey is the key in the metadata.
+const JWTMetadataKey = "jwt"
+
+// WithOutgoingJWT appends a metadata header for the JWT to a context.
+func WithOutgoingJWT(ctx context.Context, rawjwt string) context.Context {
+	return metadata.AppendToOutgoingContext(ctx, JWTMetadataKey, rawjwt)
+}
+
+// JWTFromGRPCRequest returns the JWT from the gRPC request.
+func JWTFromGRPCRequest(ctx context.Context) (rawjwt string, ok bool) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return "", false
+	}
+
+	rawjwts := md.Get(JWTMetadataKey)
+	if len(rawjwts) == 0 {
+		return "", false
+	}
+
+	return rawjwts[0], true
+}
