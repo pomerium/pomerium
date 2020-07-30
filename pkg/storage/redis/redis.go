@@ -13,6 +13,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -21,7 +22,7 @@ import (
 )
 
 // Name is the storage type name for redis backend.
-const Name = storage.RedisName
+const Name = config.StorageRedisName
 const watchAction = "zadd"
 
 var _ storage.Backend = (*DB)(nil)

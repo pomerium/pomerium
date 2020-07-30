@@ -14,13 +14,14 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 // Name is the storage type name for inmemory backend.
-const Name = "memory"
+const Name = config.StorageInMemoryName
 
 var _ storage.Backend = (*DB)(nil)
 
