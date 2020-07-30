@@ -22,7 +22,7 @@ In the following quick-start, we'll create a minimal but complete environment fo
 
 Create a [configuration file] (e.g `config.yaml`) for defining Pomerium's configuration settings, routes, and access-policies. Consider the following example:
 
-<<< @/docs/configuration/examples/config/config.minimal.yaml
+<<< @/examples/config/config.minimal.yaml
 
 Ensure the `docker-compose.yml` contains the correct path to your `config.yaml`.
 
@@ -36,7 +36,7 @@ Download the following `docker-compose.yml` file and modify it to:
 - mount your `config.yaml` [configuration file]
 - Set `autocert_use_staging` to `false` once you have finished testing
 
-<<< @/docs/configuration/examples/docker/autocert.docker-compose.yml
+<<< @/examples/docker/autocert.docker-compose.yml
 
 Please note that you should use a persistent volume to store certificate data, or you may exhaust your domain quota on Let's Encrypt.
 
@@ -48,7 +48,7 @@ Download the following `docker-compose.yml` file and modify it to:
 - mount your [TLS certificates]
 - mount your `config.yaml` [configuration file]
 
-<<< @/docs/configuration/examples/docker/basic.docker-compose.yml
+<<< @/examples/docker/basic.docker-compose.yml
 
 ## Run
 

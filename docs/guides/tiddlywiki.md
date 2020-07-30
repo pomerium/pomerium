@@ -14,7 +14,7 @@ This guide covers using Pomerium to add authentication and authorization to an i
 
 ## What is TiddlyWiki on Node.js
 
-TiddlyWiki is a personal wiki and a non-linear notebook for organising and sharing complex information. It is available in two forms:
+TiddlyWiki is a personal wiki and a non-linear notebook for organizing and sharing complex information. It is available in two forms:
 
 - a single HTML page
 - [a Node.js application](https://www.npmjs.com/package/tiddlywiki)

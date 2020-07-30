@@ -42,8 +42,8 @@ module.exports = {
     lastUpdated: "Last Updated",
     nav: [
       { text: "Documentation", link: "/docs/" },
-      { text: "Configuration", link: "/configuration/" },
-      { text: "Recipes", link: "/recipes/" },
+      { text: "Reference", link: "/reference/" },
+      { text: "Guides", link: "/guides/" },
       { text: "Enterprise", link: "/enterprise/" },
       {
         text: "v0.9.x", // current tagged version
@@ -143,14 +143,25 @@ module.exports = {
           ],
         },
       ],
-      "/recipes/": [
+      "/guides/": [
         {
-          title: "Recipes",
+          title: "Guides",
           type: "group",
 
           collapsable: false,
           sidebarDepth: 1,
-          children: ["", "ad-guard", "cloud-run", "vs-code-server", "kubernetes", "argo", "mtls", "local-oidc", "tiddlywiki"],
+          children: [
+            "",
+            "ad-guard",
+            "argo",
+            "cloud-run",
+            "istio",
+            "kubernetes",
+            "local-oidc",
+            "mtls",
+            "tiddlywiki",
+            "vs-code-server",
+          ],
         },
       ],
       "/enterprise/": [
@@ -162,13 +173,13 @@ module.exports = {
           children: [""],
         },
       ],
-      "/configuration/": [
+      "/reference/": [
         {
-          title: "Configuration",
+          title: "",
           type: "group",
           collapsable: false,
           sidebarDepth: 1,
-          children: ["", "examples"],
+          children: [""],
         },
       ],
     },

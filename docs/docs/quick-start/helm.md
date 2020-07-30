@@ -27,9 +27,9 @@ In addition to sharing many of the same features as the Kubernetes quickstart gu
 
 Download and modify the following helm_gke.sh script and values file to match your [identity provider] and [TLS certificates] settings.
 
-<<<@/docs/configuration/examples/helm/helm_gke.sh
+<<<@/examples/helm/helm_gke.sh
 
-<<<@/docs/configuration/examples/kubernetes/values.yaml
+<<<@/examples/kubernetes/values.yaml
 
 ## Run
 
