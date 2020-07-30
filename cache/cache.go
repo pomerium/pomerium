@@ -19,16 +19,12 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 // Cache represents the cache service. The cache service is a simple interface
 // for storing keyed blobs (bytes) of unstructured data.
 type Cache struct {
 	dataBrokerServer *DataBrokerServer
-	sessionServer    *SessionServer
-	userServer       *UserServer
 	manager          *manager.Manager
 
 	localListener                net.Listener
@@ -73,16 +69,10 @@ func New(opts config.Options) (*Cache, error) {
 
 	dataBrokerServer := NewDataBrokerServer(localGRPCServer, opts)
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(localGRPCConnection)
-	sessionServer := NewSessionServer(localGRPCServer, dataBrokerClient)
-	sessionClient := session.NewSessionServiceClient(localGRPCConnection)
-	userServer := NewUserServer(localGRPCServer, dataBrokerClient)
-	userClient := user.NewUserServiceClient(localGRPCConnection)
 
 	manager := manager.New(
 		authenticator,
 		directoryProvider,
-		sessionClient,
-		userClient,
 		dataBrokerClient,
 		manager.WithGroupRefreshInterval(opts.RefreshDirectoryInterval),
 		manager.WithGroupRefreshTimeout(opts.RefreshDirectoryTimeout),
@@ -90,8 +80,6 @@ func New(opts config.Options) (*Cache, error) {
 
 	return &Cache{
 		dataBrokerServer: dataBrokerServer,
-		sessionServer:    sessionServer,
-		userServer:       userServer,
 		manager:          manager,
 
 		localListener:                localListener,
@@ -104,8 +92,6 @@ func New(opts config.Options) (*Cache, error) {
 // Register registers all the gRPC services with the given server.
 func (c *Cache) Register(grpcServer *grpc.Server) {
 	databroker.RegisterDataBrokerServiceServer(grpcServer, c.dataBrokerServer)
-	session.RegisterSessionServiceServer(grpcServer, c.sessionServer)
-	user.RegisterUserServiceServer(grpcServer, c.userServer)
 }
 
 // Run runs the cache components.
