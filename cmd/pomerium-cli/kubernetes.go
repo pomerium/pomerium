@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,7 +22,20 @@ import (
 	jose "gopkg.in/square/go-jose.v2"
 )
 
+var kubernetesExecCredentialOption struct {
+	disableTLSVerification bool
+	alternateCAPath        string
+	caCert                 string
+}
+
 func init() {
+	flags := kubernetesExecCredentialCmd.Flags()
+	flags.BoolVar(&kubernetesExecCredentialOption.disableTLSVerification, "disable-tls-verification", false,
+		"disables TLS verification")
+	flags.StringVar(&kubernetesExecCredentialOption.alternateCAPath, "alternate-ca-path", "",
+		"path to CA certificate to use for HTTP requests")
+	flags.StringVar(&kubernetesExecCredentialOption.caCert, "ca-cert", "",
+		"base64-encoded CA TLS certificate to use for HTTP requests")
 	kubernetesCmd.AddCommand(kubernetesExecCredentialCmd)
 	rootCmd.AddCommand(kubernetesCmd)
 }
@@ -125,7 +141,34 @@ func runOpenBrowser(ctx context.Context, li net.Listener, serverURL *url.URL) er
 		return err
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{},
+	}
+	if kubernetesExecCredentialOption.disableTLSVerification {
+		transport.TLSClientConfig.InsecureSkipVerify = true
+	}
+	if kubernetesExecCredentialOption.alternateCAPath != "" {
+		data, err := ioutil.ReadFile(kubernetesExecCredentialOption.alternateCAPath)
+		if err != nil {
+			return fmt.Errorf("error reading CA certificate: %w", err)
+		}
+		transport.TLSClientConfig.RootCAs = x509.NewCertPool()
+		transport.TLSClientConfig.RootCAs.AppendCertsFromPEM(data)
+	}
+	if kubernetesExecCredentialOption.caCert != "" {
+		data, err := base64.StdEncoding.DecodeString(kubernetesExecCredentialOption.caCert)
+		if err != nil {
+			return fmt.Errorf("error reading CA certificate: %w", err)
+		}
+		transport.TLSClientConfig.RootCAs = x509.NewCertPool()
+		transport.TLSClientConfig.RootCAs.AppendCertsFromPEM(data)
+	}
+
+	client := &http.Client{
+		Transport: transport,
+	}
+
+	res, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to get login url: %w", err)
 	}
