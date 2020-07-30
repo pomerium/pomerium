@@ -97,6 +97,11 @@ func runHTTPServer(ctx context.Context, li net.Listener, incomingJWT chan string
 			go func() { _ = srv.Shutdown(ctx) }()
 		}),
 	}
+	// shutdown the server when ctx is done.
+	go func() {
+		<-ctx.Done()
+		_ = srv.Shutdown(ctx)
+	}()
 	err := srv.Serve(li)
 	if err == http.ErrServerClosed {
 		err = nil
@@ -111,6 +116,9 @@ func runOpenBrowser(ctx context.Context, li net.Listener, serverURL *url.URL) er
 			"pomerium_redirect_uri": {fmt.Sprintf("http://%s", li.Addr().String())},
 		}.Encode(),
 	})
+
+	ctx, clearTimeout := context.WithTimeout(ctx, 10*time.Second)
+	defer clearTimeout()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", dst.String(), nil)
 	if err != nil {
