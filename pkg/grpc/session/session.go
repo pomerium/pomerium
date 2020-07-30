@@ -3,6 +3,7 @@ package session
 
 import (
 	context "context"
+	"fmt"
 
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -29,13 +30,13 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, session
 		Id:   sessionID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting session from databroker: %w", err)
 	}
 
 	var s Session
 	err = ptypes.UnmarshalAny(res.GetRecord().GetData(), &s)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error unmarshaling session from databroker: %w", err)
 	}
 	return &s, nil
 }
@@ -49,7 +50,7 @@ func Set(ctx context.Context, client databroker.DataBrokerServiceClient, s *Sess
 		Data: any,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error setting session in databroker: %w", err)
 	}
 	return res, nil
 }

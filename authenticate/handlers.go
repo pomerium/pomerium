@@ -532,7 +532,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 		return nil
 	}
 
-	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(time.Hour * 24 * 365))
+	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(a.cookieOptions.Expire))
 	var idTokenExpiry *timestamppb.Timestamp
 	if sessionState.Expiry != nil {
 		idTokenExpiry, _ = ptypes.TimestampProto(sessionState.Expiry.Time())

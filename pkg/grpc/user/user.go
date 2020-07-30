@@ -3,6 +3,7 @@ package user
 
 import (
 	context "context"
+	"fmt"
 
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -20,13 +21,13 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID 
 		Id:   userID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting user from databroker: %w", err)
 	}
 
 	var u User
 	err = ptypes.UnmarshalAny(res.GetRecord().GetData(), &u)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error unmarshaling user from databroker: %w", err)
 	}
 	return &u, nil
 }
@@ -45,7 +46,7 @@ func Set(ctx context.Context, client databroker.DataBrokerServiceClient, u *User
 		Data: any,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error setting user in databroker: %w", err)
 	}
 	return res.GetRecord(), nil
 }
