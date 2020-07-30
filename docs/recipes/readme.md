@@ -9,3 +9,4 @@ This section contains applications, and scenario specific guides for Pomerium.
 - The [argo](./argo.md) guide demonstrates how pomerium can be used to add access control to [Argo](https://argoproj.github.io/projects/argo).
 - The [mTLS](./mtls.md) guide demonstrates how pomerium can be used to add mutual authentication using client certificates and a custom certificate authority.
 - The [local OIDC](./local-oidc.md) guide demonstrates how pomerium can be used with local OIDC server for dev/testing.
+- The [TiddlyWiki](./tiddlywiki.md) guide demonstrates how pomerium can be used to add authentication and authorization to web application using authenticated header.
