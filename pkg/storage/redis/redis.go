@@ -13,13 +13,16 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 // Name is the storage type name for redis backend.
-const Name = "redis"
+const Name = config.StorageRedisName
 const watchAction = "zadd"
 
 var _ storage.Backend = (*DB)(nil)
@@ -63,13 +66,18 @@ func New(rawURL, recordType string, deletePermanentAfter int64) (*DB, error) {
 		deletedSet:             recordType + "_deleted_set",
 		lastVersionKey:         recordType + "_last_version",
 	}
+	metrics.AddRedisMetrics(db.pool.Stats)
 	return db, nil
 }
 
 // Put sets new record for given id with input data.
-func (db *DB) Put(ctx context.Context, id string, data *anypb.Any) error {
+func (db *DB) Put(ctx context.Context, id string, data *anypb.Any) (err error) {
 	c := db.pool.Get()
+	_, span := trace.StartSpan(ctx, "databroker.redis.Put")
+	defer span.End()
+	defer recordOperation(ctx, time.Now(), "put", err)
 	defer c.Close()
+
 	record, err := db.Get(ctx, id)
 	if err != nil {
 		record = new(databroker.Record)
@@ -101,8 +109,11 @@ func (db *DB) Put(ctx context.Context, id string, data *anypb.Any) error {
 }
 
 // Get retrieves a record from redis.
-func (db *DB) Get(_ context.Context, id string) (*databroker.Record, error) {
+func (db *DB) Get(ctx context.Context, id string) (rec *databroker.Record, err error) {
 	c := db.pool.Get()
+	_, span := trace.StartSpan(ctx, "databroker.redis.Get")
+	defer span.End()
+	defer recordOperation(ctx, time.Now(), "get", err)
 	defer c.Close()
 
 	b, err := redis.Bytes(c.Do("HGET", db.recordType, id))
@@ -114,15 +125,21 @@ func (db *DB) Get(_ context.Context, id string) (*databroker.Record, error) {
 }
 
 // GetAll retrieves all records from redis.
-func (db *DB) GetAll(ctx context.Context) ([]*databroker.Record, error) {
+func (db *DB) GetAll(ctx context.Context) (recs []*databroker.Record, err error) {
+	_, span := trace.StartSpan(ctx, "databroker.redis.GetAll")
+	defer span.End()
+	defer recordOperation(ctx, time.Now(), "get_all", err)
 	return db.getAll(ctx, func(record *databroker.Record) bool { return true })
 }
 
 // List retrieves all records since given version.
 //
 // "version" is in hex format, invalid version will be treated as 0.
-func (db *DB) List(ctx context.Context, sinceVersion string) ([]*databroker.Record, error) {
+func (db *DB) List(ctx context.Context, sinceVersion string) (rec []*databroker.Record, err error) {
 	c := db.pool.Get()
+	_, span := trace.StartSpan(ctx, "databroker.redis.List")
+	defer span.End()
+	defer recordOperation(ctx, time.Now(), "list", err)
 	defer c.Close()
 
 	v, err := strconv.ParseUint(sinceVersion, 16, 64)
@@ -151,8 +168,11 @@ func (db *DB) List(ctx context.Context, sinceVersion string) ([]*databroker.Reco
 }
 
 // Delete sets a record DeletedAt field and set its TTL.
-func (db *DB) Delete(ctx context.Context, id string) error {
+func (db *DB) Delete(ctx context.Context, id string) (err error) {
 	c := db.pool.Get()
+	_, span := trace.StartSpan(ctx, "databroker.redis.Delete")
+	defer span.End()
+	defer recordOperation(ctx, time.Now(), "delete", err)
 	defer c.Close()
 
 	r, err := db.Get(ctx, id)
@@ -184,8 +204,12 @@ func (db *DB) Delete(ctx context.Context, id string) error {
 }
 
 // ClearDeleted clears all the currently deleted records older than the given cutoff.
-func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
+func (db *DB) ClearDeleted(ctx context.Context, cutoff time.Time) {
 	c := db.pool.Get()
+	_, span := trace.StartSpan(ctx, "databroker.redis.ClearDeleted")
+	defer span.End()
+	var opErr error
+	defer recordOperation(ctx, time.Now(), "clear_deleted", opErr)
 	defer c.Close()
 
 	ids, _ := redis.Strings(c.Do("SMEMBERS", db.deletedSet))
@@ -204,7 +228,7 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 				{"ZREM": {db.versionSet, id}},
 				{"SREM": {db.deletedSet, id}},
 			}
-			_ = db.tx(c, cmds)
+			opErr = db.tx(c, cmds)
 		}
 	}
 }
@@ -328,4 +352,12 @@ func (db *DB) tx(c redis.Conn, commands []map[string][]interface{}) error {
 
 	_, err := c.Do("EXEC")
 	return err
+}
+
+func recordOperation(ctx context.Context, startTime time.Time, operation string, err error) {
+	metrics.RecordStorageOperation(ctx, &metrics.StorageOperationTags{
+		Operation: operation,
+		Error:     err,
+		Backend:   Name,
+	}, time.Since(startTime))
 }

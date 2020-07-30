@@ -14,6 +14,10 @@ var (
 	TagKeyGRPCMethod  = tag.MustNewKey("grpc_method")
 	TagKeyHost        = tag.MustNewKey("host")
 	TagKeyDestination = tag.MustNewKey("destination")
+
+	TagKeyStorageOperation = tag.MustNewKey("operation")
+	TagKeyStorageResult    = tag.MustNewKey("result")
+	TagKeyStorageBackend   = tag.MustNewKey("backend")
 )
 
 // Default distributions used by views in this package.
@@ -39,5 +43,6 @@ var (
 		HTTPClientViews,
 		HTTPServerViews,
 		InfoViews,
+		StorageViews,
 	}
 )

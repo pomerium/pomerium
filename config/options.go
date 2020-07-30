@@ -25,8 +25,6 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/storage/inmemory"
-	"github.com/pomerium/pomerium/pkg/storage/redis"
 )
 
 // DisableHeaderKey is the key used to check whether to disable setting header
@@ -491,8 +489,8 @@ func (o *Options) Validate() error {
 		o.DataBrokerURLString = o.CacheURLString
 	}
 	switch o.DataBrokerStorageType {
-	case inmemory.Name:
-	case redis.Name:
+	case StorageInMemoryName:
+	case StorageRedisName:
 		if o.DataBrokerStorageConnectionString == "" {
 			return errors.New("config: missing databroker storage backend dsn")
 		}

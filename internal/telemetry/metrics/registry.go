@@ -106,3 +106,33 @@ func (r *metricRegistry) setConfigChecksum(service string, checksum uint64) {
 	}
 	m.Set(float64(checksum))
 }
+
+func (r *metricRegistry) addInt64DerivedGaugeMetric(name string, desc string, service string, f func() int64) {
+
+	m, err := r.registry.AddInt64DerivedGauge(name, metric.WithDescription(desc), metric.WithLabelKeys("service"))
+	if err != nil {
+		log.Error().Err(err).Str("service", service).Msg("telemetry/metrics: failed to register metric")
+		return
+	}
+
+	err = m.UpsertEntry(f, metricdata.NewLabelValue(service))
+	if err != nil {
+		log.Error().Err(err).Str("service", service).Msg("telemetry/metrics: failed to update metric")
+		return
+	}
+}
+
+func (r *metricRegistry) addInt64DerivedCumulativeMetric(name string, desc string, service string, f func() int64) {
+
+	m, err := r.registry.AddInt64DerivedCumulative(name, metric.WithDescription(desc), metric.WithLabelKeys("service"))
+	if err != nil {
+		log.Error().Err(err).Str("service", service).Msg("telemetry/metrics: failed to register metric")
+		return
+	}
+
+	err = m.UpsertEntry(f, metricdata.NewLabelValue(service))
+	if err != nil {
+		log.Error().Err(err).Str("service", service).Msg("telemetry/metrics: failed to update metric")
+		return
+	}
+}

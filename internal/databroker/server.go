@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -348,9 +349,9 @@ func (srv *Server) getDB(recordType string) (storage.Backend, error) {
 
 func (srv *Server) newDB(recordType string) (db storage.Backend, err error) {
 	switch srv.cfg.storageType {
-	case inmemory.Name:
+	case config.StorageInMemoryName:
 		db = inmemory.NewDB(recordType, srv.cfg.btreeDegree)
-	case redis.Name:
+	case config.StorageRedisName:
 		db, err = redis.New(srv.cfg.storageConnectionString, recordType, int64(srv.cfg.deletePermanentlyAfter.Seconds()))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create new redis storage: %w", err)
