@@ -3,9 +3,11 @@ package redis
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -35,38 +37,44 @@ type DB struct {
 	lastVersionKey         string
 	versionSet             string
 	deletedSet             string
+	tlsConfig              *tls.Config
 }
 
 // New returns new DB instance.
-func New(rawURL, recordType string, deletePermanentAfter int64) (*DB, error) {
+func New(rawURL, recordType string, deletePermanentAfter int64, opts ...Option) (*DB, error) {
 	db := &DB{
-		pool: &redis.Pool{
-			Wait: true,
-			Dial: func() (redis.Conn, error) {
-				c, err := redis.DialURL(rawURL)
-				if err != nil {
-					return nil, fmt.Errorf(`redis.DialURL(): %w`, err)
-				}
-				return c, nil
-			},
-			TestOnBorrow: func(c redis.Conn, t time.Time) error {
-				if time.Since(t) < time.Minute {
-					return nil
-				}
-				_, err := c.Do("PING")
-				if err != nil {
-					return fmt.Errorf(`c.Do("PING"): %w`, err)
-				}
-				return nil
-			},
-		},
 		deletePermanentlyAfter: deletePermanentAfter,
 		recordType:             recordType,
 		versionSet:             recordType + "_version_set",
 		deletedSet:             recordType + "_deleted_set",
 		lastVersionKey:         recordType + "_last_version",
 	}
+
 	metrics.AddRedisMetrics(db.pool.Stats)
+	for _, o := range opts {
+		o(db)
+	}
+	db.pool = &redis.Pool{
+		Wait: true,
+		Dial: func() (redis.Conn, error) {
+			c, err := redis.DialURL(rawURL, redis.DialTLSConfig(db.tlsConfig))
+			if err != nil {
+				return nil, fmt.Errorf(`redis.DialURL(): %w`, err)
+			}
+			return c, nil
+		},
+		TestOnBorrow: func(c redis.Conn, t time.Time) error {
+			if time.Since(t) < time.Minute {
+				return nil
+			}
+			_, err := c.Do("PING")
+			if err != nil {
+				return fmt.Errorf(`c.Do("PING"): %w`, err)
+			}
+			return nil
+		},
+	}
+
 	return db, nil
 }
 
@@ -251,6 +259,9 @@ func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}, psc *redis.Pub
 		case error:
 			log.Error().Err(v).Msg("failed to receive from redis channel")
 			if _, ok := v.(net.Error); ok {
+				return
+			}
+			if strings.HasPrefix(v.Error(), "redigo: connection closed") {
 				return
 			}
 		}
