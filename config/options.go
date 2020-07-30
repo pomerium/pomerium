@@ -614,6 +614,13 @@ func (o *Options) Validate() error {
 		}
 	}
 
+	// if we are using google provider, default to using ServiceAccount for
+	// GoogleCloudServerlessAuthenticationServiceAccount
+	if o.Provider == "google" && o.GoogleCloudServerlessAuthenticationServiceAccount == "" {
+		o.GoogleCloudServerlessAuthenticationServiceAccount = o.ServiceAccount
+		log.Info().Msg("defaulting to idp_service_account for google_cloud_serverless_authentication_service_account")
+	}
+
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
