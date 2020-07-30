@@ -155,7 +155,7 @@ Now that cert-manager is installed, we need to make one more configuration to be
 $ kubectl apply -f docs/recipes/yml/letsencrypt-prod.yaml
 ```
 
-<<< @/docs/recipes/yml/letsencrypt-prod.yaml
+<<< @/examples/yml/letsencrypt-prod.yaml
 
 And confirm your issuer is set up correctly.
 
@@ -301,13 +301,13 @@ Now we just need to tell external traffic how to route everything by deploying t
 $kubectl apply -f docs/recipes/yml/dashboard-forwardauth.ingress.yaml
 ```
 
-<<< @/docs/recipes/yml/dashboard-forwardauth.ingress.yaml
+<<< @/examples/yml/dashboard-forwardauth.ingress.yaml
 
 ```sh
 $kubectl apply -f docs/recipes/yml/dashboard-proxied.ingress.yaml
 ```
 
-<<< @/docs/recipes/yml/dashboard-proxied.ingress.yaml
+<<< @/examples/yml/dashboard-proxied.ingress.yaml
 
 And finally, check that the ingresses are up and running.
 
