@@ -35,10 +35,12 @@ func NewDataBrokerServer(grpcServer *grpc.Server, opts config.Options) (*DataBro
 		log.Warn().Err(err).Msg("failed to read databroker CA file")
 	}
 	tlsConfig := &tls.Config{
-		RootCAs:      caCertPool,
-		Certificates: []tls.Certificate{*opts.DataBrokerCertificate},
+		RootCAs: caCertPool,
 		// nolint: gosec
 		InsecureSkipVerify: opts.DataBrokerStorageCertSkipVerify,
+	}
+	if opts.DataBrokerCertificate != nil {
+		tlsConfig.Certificates = []tls.Certificate{*opts.DataBrokerCertificate}
 	}
 
 	internalSrv := internal_databroker.New(
