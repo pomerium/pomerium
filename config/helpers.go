@@ -11,11 +11,9 @@ const (
 	ServiceAuthenticate = "authenticate"
 	// ServiceCache represents running the cache service component
 	ServiceCache = "cache"
-
-	// RedisName is the name of the redis storage backend
+	// StorageRedisName is the name of the redis storage backend
 	StorageRedisName = "redis"
-
-	// InMemoryName is the name of the in-memory storage backend
+	// StorageInMemoryName is the name of the in-memory storage backend
 	StorageInMemoryName = "memory"
 )
 
