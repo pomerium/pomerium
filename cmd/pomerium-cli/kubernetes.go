@@ -14,9 +14,9 @@ import (
 
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
-	jose "github.com/square/go-jose/v3"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sync/errgroup"
+	jose "gopkg.in/square/go-jose.v2"
 )
 
 func init() {
