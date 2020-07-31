@@ -120,3 +120,20 @@ dockers:
       - "--label=org.opencontainers.image.source={{.GitURL}}"
       - "--label=repository=http://github.com/pomerium/pomerium"
       - "--label=homepage=http://www.pomerium.io"
+
+  - goarch: arm64
+    image_templates:
+      - "pomerium/pomerium:arm64v8-{{ .Tag }}"
+    dockerfile: .github/Dockerfile-release.arm64v8
+    binaries:
+      - pomerium
+      - pomerium-cli
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--label=repository=http://github.com/pomerium/pomerium"
+      - "--label=homepage=http://www.pomerium.io"
