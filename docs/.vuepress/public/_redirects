@@ -14,8 +14,6 @@
 /community/security					/docs/community/security.html		
 /community/security.html			/docs/community/security.html		
 
-/docs/reference/examples.html		/configuration/examples.html
-
 /guide/					/docs/quick-start/
 /guide/kubernetes.html	/docs/quick-start/kubernetes.html
 /guide/kubernetes		/docs/quick-start/kubernetes.html
@@ -33,3 +31,15 @@
 /recipes/local-oidc.html		/guides/local-oidc.html
 /recipes/mtls.html				/guides/mtls.html
 /recipes/vs-code-server.html	/guides/vs-code-server.html
+
+
+/docs/reference/								/docs/topics/
+/docs/reference/readme.html						/docs/topics/readme.html	
+/docs/reference/certificates.html				/docs/topics/certificates.html
+/docs/reference/data-storage.html				/docs/topics/data-storage.html
+/docs/reference/getting-users-identity.html		/docs/topics/getting-users-identity.html
+/docs/reference/impersonation.html				/docs/topics/impersonation.html
+/docs/reference/production-deployment.html		/docs/topics/production-deployment.html	
+/docs/reference/programmatic-access.html		/docs/topics/programmatic-access.html
+
+/docs/reference/examples.html				/configuration/examples.html
