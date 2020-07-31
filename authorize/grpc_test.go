@@ -267,6 +267,56 @@ func Test_handleForwardAuth(t *testing.T) {
 	}
 }
 
+func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
+	a := new(Authorize)
+	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
+	a.currentEncoder.Store(encoder)
+	a.currentOptions.Store(&config.Options{
+		Policies: []config.Policy{{
+			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			SubPolicies: []config.SubPolicy{{
+				Rego: []string{"allow = true"},
+			}},
+		}},
+	})
+
+	actual := a.getEvaluatorRequestFromCheckRequest(&envoy_service_auth_v2.CheckRequest{
+		Attributes: &envoy_service_auth_v2.AttributeContext{
+			Source: &envoy_service_auth_v2.AttributeContext_Peer{
+				Certificate: url.QueryEscape(certPEM),
+			},
+			Request: &envoy_service_auth_v2.AttributeContext_Request{
+				Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+					Id:     "id-1234",
+					Method: "GET",
+					Headers: map[string]string{
+						"accept":            "text/html",
+						"x-forwarded-proto": "https",
+					},
+					Path:   "/some/path?qs=1",
+					Host:   "example.com:80",
+					Scheme: "http",
+					Body:   "BODY",
+				},
+			},
+		},
+	}, nil)
+	expect := &evaluator.Request{
+		Session: evaluator.RequestSession{},
+		HTTP: evaluator.RequestHTTP{
+			Method: "GET",
+			URL:    "https://example.com/some/path?qs=1",
+			Headers: map[string]string{
+				"Accept":            "text/html",
+				"X-Forwarded-Proto": "https",
+			},
+			ClientCertificate: certPEM,
+		},
+		CustomPolicies: []string{"allow = true"},
+	}
+	assert.Equal(t, expect, actual)
+}
+
 func mustParseURL(str string) *url.URL {
 	u, err := url.Parse(str)
 	if err != nil {
