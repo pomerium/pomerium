@@ -136,6 +136,7 @@ module.exports = {
           sidebarDepth: 1,
           children: [
             "reference/certificates",
+            "reference/data-storage",
             "reference/impersonation",
             "reference/programmatic-access",
             "reference/getting-users-identity",
