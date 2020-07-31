@@ -27,21 +27,20 @@ func NewDataBrokerServer(grpcServer *grpc.Server, opts config.Options) (*DataBro
 	if err != nil || len(key) != cryptutil.DefaultKeySize {
 		return nil, fmt.Errorf("shared key is required and must be %d bytes long", cryptutil.DefaultKeySize)
 	}
-	var tlsConfig *tls.Config
-	if opts.DataBrokerCertificate != nil {
-		caCertPool := x509.NewCertPool()
-		if caCert, err := ioutil.ReadFile(opts.DataBrokerStorageCAFile); err == nil {
-			caCertPool.AppendCertsFromPEM(caCert)
-		} else {
-			log.Warn().Err(err).Msg("failed to read databroker CA file")
-		}
-		tlsConfig = &tls.Config{
-			RootCAs:      caCertPool,
-			Certificates: []tls.Certificate{*opts.DataBrokerCertificate},
-			// nolint: gosec
-			InsecureSkipVerify: opts.DataBrokerStorageCertSkipVerify,
-		}
+
+	caCertPool := x509.NewCertPool()
+	if caCert, err := ioutil.ReadFile(opts.DataBrokerStorageCAFile); err == nil {
+		caCertPool.AppendCertsFromPEM(caCert)
+	} else {
+		log.Warn().Err(err).Msg("failed to read databroker CA file")
 	}
+	tlsConfig := &tls.Config{
+		RootCAs:      caCertPool,
+		Certificates: []tls.Certificate{*opts.DataBrokerCertificate},
+		// nolint: gosec
+		InsecureSkipVerify: opts.DataBrokerStorageCertSkipVerify,
+	}
+
 	internalSrv := internal_databroker.New(
 		internal_databroker.WithSecret(key),
 		internal_databroker.WithStorageType(opts.DataBrokerStorageType),

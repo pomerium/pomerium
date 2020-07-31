@@ -836,9 +836,45 @@ The backend storage that databroker server will use, available types: `memory`, 
 - Config File Key: `databroker_storage_connection_string`
 - Type: `string`
 - **Required** when storage type is `redis`
-- Example: `"redis://localhost:6379/0"`
+- Example: `"redis://localhost:6379/0"`, `"rediss://localhost:6379/0"`
 
 The connection string that server will use to connect to storage backend.
+
+### Data Broker Storage Certificate File
+
+- Environment Variable: `DATABROKER_STORAGE_CERT_FILE`
+- Config File Key: `databroker_storage_cert_file`
+- Type: relative file location
+- Optional
+
+The certificate uses to connect to storage backend.
+
+### Data Broker Storage Certificate Key File
+
+- Environment Variable: `DATABROKER_STORAGE_KEY_FILE`
+- Config File Key: `databroker_storage_key_file`
+- Type: relative file location
+- Optional
+
+The certificate key uses to connect to storage backend.
+
+### Data Broker Storage Certificate Authority
+
+- Environment Variable: `DATABROKER_STORAGE_CA_FILE`
+- Config File Key: `databroker_storage_ca_file`
+- Type: relative file location
+- Optional
+
+The Broker Storage Certificate Authority defines the set of root certificate authorities that are use when verifying storage server certificates.
+
+### Data Broker Storage TLS Skip Verify
+
+- Environment Variable: `DATABROKER_STORAGE_TLS_SKIP_VERIFY`
+- Config File Key: `databroker_storage_tls_skip_verify`
+- Type: relative file location
+- Optional
+
+If set, TLS connection to storage backend will not be verified.
 
 ## Policy
 
