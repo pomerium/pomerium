@@ -1,5 +1,6 @@
 ---
 title: Data Storage
+sidebarDepth: 3
 description: >-
   This article describes Pomerium's data storage requirements
   and backends
@@ -43,7 +44,8 @@ easy deployment semantics but is not persistent or highly available.  Running mo
 
 ### Redis
 
-The Redis based backend supports multiple `cache` instances and persistence across restarts.  We recommend a dedicated redis instance for Pomerium to make 
+The Redis based backend supports multiple `cache` instances and persistence across restarts.  We recommend a dedicated redis instance for Pomerium to provide the strongest security and 
+performance guarantees.
 
 #### HA
 Redis is expected to provide high availability via [replication](https://redis.io/topics/replication) and address failover.
