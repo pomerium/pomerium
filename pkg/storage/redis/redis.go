@@ -260,12 +260,12 @@ func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}, psc *redis.Pub
 			case ch <- struct{}{}:
 			}
 		case error:
-			log.Debug().Err(v).Msg("failed to receive from redis channel")
+			log.Warn().Err(v).Msg("failed to receive from redis channel")
 			if _, ok := v.(net.Error); ok {
 				return
 			}
 			time.Sleep(eb.NextBackOff())
-			log.Debug().Msg("retry with new connection")
+			log.Warn().Msg("retry with new connection")
 			_ = psc.Conn.Close()
 			psc.Conn = db.pool.Get()
 			_ = db.subscribeRedisChannel(psc)
