@@ -23,6 +23,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -398,28 +399,28 @@ func buildDownstreamTLSContext(options *config.Options, domain string) *envoy_ex
 func getAllRouteableDomains(options *config.Options, addr string) []string {
 	lookup := map[string]struct{}{}
 	if config.IsAuthenticate(options.Services) && addr == options.Addr {
-		for _, h := range getDomainsForURL(options.GetAuthenticateURL()) {
+		for _, h := range urlutil.GetDomainsForURL(options.GetAuthenticateURL()) {
 			lookup[h] = struct{}{}
 		}
 	}
 	if config.IsAuthorize(options.Services) && addr == options.GRPCAddr {
-		for _, h := range getDomainsForURL(options.GetAuthorizeURL()) {
+		for _, h := range urlutil.GetDomainsForURL(options.GetAuthorizeURL()) {
 			lookup[h] = struct{}{}
 		}
 	}
 	if config.IsCache(options.Services) && addr == options.GRPCAddr {
-		for _, h := range getDomainsForURL(options.GetDataBrokerURL()) {
+		for _, h := range urlutil.GetDomainsForURL(options.GetDataBrokerURL()) {
 			lookup[h] = struct{}{}
 		}
 	}
 	if config.IsProxy(options.Services) && addr == options.Addr {
 		for _, policy := range options.Policies {
-			for _, h := range getDomainsForURL(policy.Source.URL) {
+			for _, h := range urlutil.GetDomainsForURL(policy.Source.URL) {
 				lookup[h] = struct{}{}
 			}
 		}
 		if options.ForwardAuthURL != nil {
-			for _, h := range getDomainsForURL(options.GetForwardAuthURL()) {
+			for _, h := range urlutil.GetDomainsForURL(options.GetForwardAuthURL()) {
 				lookup[h] = struct{}{}
 			}
 		}
@@ -432,25 +433,6 @@ func getAllRouteableDomains(options *config.Options, addr string) []string {
 	sort.Strings(domains)
 
 	return domains
-}
-
-func getDomainsForURL(u *url.URL) []string {
-	var defaultPort string
-	if u.Scheme == "http" {
-		defaultPort = "80"
-	} else {
-		defaultPort = "443"
-	}
-
-	// for hosts like 'example.com:1234' we only return one route
-	if _, p, err := net.SplitHostPort(u.Host); err == nil {
-		if p != defaultPort {
-			return []string{u.Host}
-		}
-	}
-
-	// for everything else we return two routes: 'example.com' and 'example.com:443'
-	return []string{u.Hostname(), net.JoinHostPort(u.Hostname(), defaultPort)}
 }
 
 func hostMatchesDomain(u *url.URL, host string) bool {

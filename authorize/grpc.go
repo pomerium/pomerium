@@ -301,7 +301,7 @@ func getCheckRequestURL(req *envoy_service_auth_v2.CheckRequest) *url.URL {
 		Scheme: h.GetScheme(),
 		Host:   h.GetHost(),
 	}
-
+	u.Host = urlutil.GetDomainsForURL(u)[0]
 	// envoy sends the query string as part of the path
 	path := h.GetPath()
 	if idx := strings.Index(path, "?"); idx != -1 {

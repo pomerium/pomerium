@@ -3,6 +3,7 @@ package urlutil
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -76,4 +77,27 @@ func GetAbsoluteURL(r *http.Request) *url.URL {
 	u.Scheme = "https"
 	u.Host = r.Host
 	return u
+}
+
+// GetDomainsForURL returns the available domains for given url.
+//
+// For standard HTTP (80)/HTTPS (443) ports, it returns `example.com` and `example.com:<port>`.
+// Otherwise, return the URL.Host value.
+func GetDomainsForURL(u *url.URL) []string {
+	var defaultPort string
+	if u.Scheme == "http" {
+		defaultPort = "80"
+	} else {
+		defaultPort = "443"
+	}
+
+	// for hosts like 'example.com:1234' we only return one route
+	if _, p, err := net.SplitHostPort(u.Host); err == nil {
+		if p != defaultPort {
+			return []string{u.Host}
+		}
+	}
+
+	// for everything else we return two routes: 'example.com' and 'example.com:443'
+	return []string{u.Hostname(), net.JoinHostPort(u.Hostname(), defaultPort)}
 }
