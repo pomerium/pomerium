@@ -1,6 +1,7 @@
 project_name: pomerium
 
 release:
+  prerelease: auto
   github:
     owner: pomerium
     name: pomerium
