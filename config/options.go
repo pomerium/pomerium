@@ -230,6 +230,12 @@ type Options struct {
 	DataBrokerStorageType string `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitempty"`
 	// DataBrokerStorageConnectionString is the data source name for storage backend.
 	DataBrokerStorageConnectionString string `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitempty"`
+	DataBrokerStorageCertFile         string `mapstructure:"databroker_storage_cert_file" yaml:"databroker_storage_cert_file,omitempty"`
+	DataBrokerStorageCertKeyFile      string `mapstructure:"databroker_storage_key_file" yaml:"databroker_storage_key_file,omitempty"`
+	DataBrokerStorageCAFile           string `mapstructure:"databroker_storage_ca_file" yaml:"databroker_storage_ca_file,omitempty"`
+	DataBrokerStorageCertSkipVerify   bool   `mapstructure:"databroker_storage_tls_skip_verify" yaml:"databroker_storage_tls_skip_verify,omitempty"`
+
+	DataBrokerCertificate *tls.Certificate `mapstructure:"-" yaml:"-"`
 
 	// ClientCA is the base64-encoded certificate authority to validate client mTLS certificates against.
 	ClientCA string `mapstructure:"client_ca" yaml:"client_ca,omitempty"`
@@ -588,6 +594,20 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad cert file %w", err)
 		}
 		o.Certificates = append(o.Certificates, *cert)
+	}
+
+	if o.DataBrokerStorageCertFile != "" || o.DataBrokerStorageCertKeyFile != "" {
+		cert, err := cryptutil.CertificateFromFile(o.CertFile, o.KeyFile)
+		if err != nil {
+			return fmt.Errorf("config: bad databroker cert file %w", err)
+		}
+		o.DataBrokerCertificate = cert
+	}
+
+	if o.DataBrokerStorageCAFile != "" {
+		if _, err := os.Stat(o.DataBrokerStorageCAFile); err != nil {
+			return fmt.Errorf("config: bad databroker ca file: %w", err)
+		}
 	}
 
 	if o.ClientCA != "" {

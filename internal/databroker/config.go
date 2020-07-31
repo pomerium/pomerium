@@ -1,6 +1,9 @@
 package databroker
 
-import "time"
+import (
+	"crypto/tls"
+	"time"
+)
 
 var (
 	// DefaultDeletePermanentlyAfter is the default amount of time to wait before deleting
@@ -18,6 +21,7 @@ type serverConfig struct {
 	secret                  []byte
 	storageType             string
 	storageConnectionString string
+	storageTLSConfig        *tls.Config
 }
 
 func newServerConfig(options ...ServerOption) *serverConfig {
@@ -68,5 +72,12 @@ func WithStorageType(typ string) ServerOption {
 func WithStorageConnectionString(connStr string) ServerOption {
 	return func(cfg *serverConfig) {
 		cfg.storageConnectionString = connStr
+	}
+}
+
+// WithStorageTLSConfig sets the tls config for connection to storage.
+func WithStorageTLSConfig(tlsConfig *tls.Config) ServerOption {
+	return func(cfg *serverConfig) {
+		cfg.storageTLSConfig = tlsConfig
 	}
 }

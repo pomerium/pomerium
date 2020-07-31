@@ -26,7 +26,7 @@ func TestConfigSource(t *testing.T) {
 	}
 	defer li.Close()
 
-	dataBrokerServer := newTestServer()
+	dataBrokerServer := New()
 	srv := grpc.NewServer()
 	databroker.RegisterDataBrokerServiceServer(srv, dataBrokerServer)
 	go func() { _ = srv.Serve(li) }()
