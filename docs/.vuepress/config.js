@@ -158,6 +158,7 @@ module.exports = {
             "cloud-run",
             "istio",
             "kubernetes",
+            "kubernetes-dashboard",
             "local-oidc",
             "mtls",
             "tiddlywiki",
