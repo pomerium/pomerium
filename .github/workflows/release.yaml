@@ -58,11 +58,5 @@ jobs:
           docker tag pomerium/pomerium:${{ env.LATEST_TAG }} pomerium/pomerium:latest
           docker push pomerium/pomerium:latest
 
-          docker tag pomerium/pomerium:arm32v7-${{ env.LATEST_TAG }} pomerium/pomerium:arm32v7-latest
-          docker push pomerium/pomerium:arm32v7-latest
-
-          docker tag pomerium/pomerium:arm32v6-${{ env.LATEST_TAG }} pomerium/pomerium:arm32v6-latest
-          docker push pomerium/pomerium:arm32v6-latest
-
           docker tag pomerium/pomerium:arm64v8-${{ env.LATEST_TAG }} pomerium/pomerium:arm64v8-latest
           docker push pomerium/pomerium:arm64v8-latest
