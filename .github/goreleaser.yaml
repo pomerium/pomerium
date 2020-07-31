@@ -78,6 +78,7 @@ archives:
     id: pomerium
     builds:
       - pomerium
+      - pomerium-cli
     files:
       - none*
     format_overrides:
