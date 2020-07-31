@@ -1131,7 +1131,10 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 
 Manually specify the service account credentials to support GCP's [Authorization Header](https://cloud.google.com/run/docs/authenticating/service-to-service) format.
 
-If unspecified, will default to ambient credentials in the default locations searched by the Google SDK.  This includes GCE metadata server tokens.
+If unspecified: 
+
+- If [Identity Provider Name](#identity-provider-name) is set to `google`, will default to [Identity Provider Service Account](#identity-provider-service-account) 
+- Otherwise, will default to ambient credentials in the default locations searched by the Google SDK.  This includes GCE metadata server tokens.
 
 ### Signing Key
 
