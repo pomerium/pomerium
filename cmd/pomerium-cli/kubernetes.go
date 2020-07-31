@@ -14,9 +14,9 @@ import (
 
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
-	"github.com/square/go-jose/jwt"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sync/errgroup"
+	jose "gopkg.in/square/go-jose.v2"
 )
 
 func init() {
@@ -155,22 +155,22 @@ func runHandleJWT(ctx context.Context, serverURL *url.URL, incomingJWT chan stri
 }
 
 func parseToken(rawjwt string) (*ExecCredential, error) {
-	tok, err := jwt.ParseSigned(rawjwt)
+	tok, err := jose.ParseSigned(rawjwt)
 	if err != nil {
 		return nil, err
 	}
 
 	var claims struct {
-		Exp int64 `json:"exp"`
+		Expiry int64 `json:"exp"`
 	}
-	err = tok.UnsafeClaimsWithoutVerification(&claims)
+	err = json.Unmarshal(tok.UnsafePayloadWithoutVerification(), &claims)
 	if err != nil {
 		return nil, err
 	}
 
-	expiresAt := time.Unix(claims.Exp, 0)
+	expiresAt := time.Unix(claims.Expiry, 0)
 	if expiresAt.IsZero() {
-		expiresAt = time.Now().Add(time.Minute)
+		expiresAt = time.Now().Add(time.Hour)
 	}
 
 	return &ExecCredential{
@@ -179,7 +179,7 @@ func parseToken(rawjwt string) (*ExecCredential, error) {
 			Kind:       "ExecCredential",
 		},
 		Status: &ExecCredentialStatus{
-			ExpirationTimestamp: time.Now().Add(time.Second * 10),
+			ExpirationTimestamp: expiresAt,
 			Token:               "Pomerium-" + rawjwt,
 		},
 	}, nil
