@@ -19,14 +19,18 @@ If no `idp_service_account` is supplied, the `allowed_groups` policy configurati
 
 ### Cache Service
 
-The cache service now stores user and session data in-memory (rather than in a browser cookie). As a consequence running
-more than one instance of the cache service is no longer supported, and restarting the cache service will result in all
-users having to re-login.
+The cache service now stores user and session data in storage backend (rather than in a browser cookie). There are two storage
+backend types supported, `memory` or `redis`.
 
-If high availability or persistence is needed, there's a new
-[databroker gRPC interface](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
-and `databroker_url` configuration option. For an example implementation, the in-memory database used by the cache
+As a consequence running more than one instance of the cache service is no longer supported.
+
+For `memory` storage, restarting the cache service will result in all users having to re-login. The in-memory database used by the cache
 service can be found here: [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/master/internal/databroker/memory).
+
+The `redis` storage can be used for persistent data, you can see all [storage backend configuration here].
+
+You can see the new [databroker gRPC interface](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
+for reference to implement you own one.
 
 ### Identity headers
 
@@ -364,3 +368,4 @@ The configuration variable [Authenticate Internal Service URL] must now be a val
 [cache service docs]: ../configuration/readme.md#cache-service
 [policy]: ../configuration/readme.md#policy
 [split service example]: ../configuration/examples.md#distinct-services
+[storage backend configuration here]: ../reference/readme.md#cache-service
