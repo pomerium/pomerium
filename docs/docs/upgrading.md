@@ -22,15 +22,19 @@ If no `idp_service_account` is supplied, the `allowed_groups` policy configurati
 The cache service now stores user and session data in storage backend (rather than in a browser cookie). There are two storage
 backend types supported, `memory` or `redis`.
 
-As a consequence running more than one instance of the cache service is no longer supported.
+Running more than one instance of the `memory` type cache service is not supported.
 
 For `memory` storage, restarting the cache service will result in all users having to re-login. The in-memory database used by the cache
 service can be found here: [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/master/internal/databroker/memory).
 
 The `redis` storage can be used for persistent data, you can see all [storage backend configuration here].
 
-You can see the new [databroker gRPC interface](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
-for reference to implement you own one.
+You can see:
+
+ - [databroker gRPC interface](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
+ - [storage backend interface](https://github.com/pomerium/pomerium/blob/master/pkg/storage/storage.go)
+ 
+for reference to implement your own one.
 
 ### Identity headers
 
