@@ -133,3 +133,27 @@ func TestGetAbsoluteURL(t *testing.T) {
 		})
 	}
 }
+
+func TestGetDomainsForURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		u    *url.URL
+		want []string
+	}{
+		{"http", &url.URL{Scheme: "http", Host: "example.com"}, []string{"example.com", "example.com:80"}},
+		{"http scheme with host contain 443", &url.URL{Scheme: "http", Host: "example.com:443"}, []string{"example.com:443"}},
+		{"https", &url.URL{Scheme: "https", Host: "example.com"}, []string{"example.com", "example.com:443"}},
+		{"Host contains other port", &url.URL{Scheme: "https", Host: "example.com:1234"}, []string{"example.com:1234"}},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := GetDomainsForURL(tc.u)
+			if diff := cmp.Diff(got, tc.want); diff != "" {
+				t.Errorf("GetDomainsForURL() = %v", diff)
+			}
+		})
+	}
+}
