@@ -1,5 +1,5 @@
 ---
-title: Kubernetes
+title: Kubernetes API / Kubectl
 lang: en-US
 meta:
   - name: keywords
@@ -35,7 +35,7 @@ kind create cluster --config=./kind-config.yaml
 
 ### Pomerium Service Account
 
-Pomerium uses a single service account and user impersonatation headers to authenticate and authorize users in Kubernetes. To create the Pomerium service account use the following config: (`pomerium-k8s.yaml`)
+Pomerium uses a single service account and user impersonation headers to authenticate and authorize users in Kubernetes. To create the Pomerium service account use the following config: (`pomerium-k8s.yaml`)
 
 ```yaml
 # pomerium-k8s.yaml
@@ -265,3 +265,6 @@ kubectl --context=via-pomerium cluster-info
 ```
 
 You should be prompted to login and see the resulting cluster info.
+
+
+[kubernetes]: https://kubernetes.io

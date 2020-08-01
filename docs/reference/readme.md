@@ -1122,7 +1122,7 @@ Note: This setting will replace (not append) the system's trust store for a give
 - Type: [base64 encoded] `string` or relative file location
 - Optional
 
-Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/examples/tree/master/mutual-tls) and the [certificate docs](../docs/reference/certificates.md).
+Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/examples/tree/master/mutual-tls) and the [certificate docs](../docs/topics/certificates.md).
 
 ### Websocket Connections
 

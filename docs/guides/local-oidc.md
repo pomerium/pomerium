@@ -1,5 +1,5 @@
 ---
-title: local oidc
+title: Local OIDC Provider
 lang: en-US
 meta:
   - name: keywords

@@ -64,7 +64,7 @@ mkcert "*.localhost.pomerium.io"
 
 Once you've setup your wildcard domain, we can use acme.sh to create a certificate-signing request with LetsEncrypt.
 
-<<< @/docs/docs/reference/sh/generate_wildcard_cert.sh
+<<< @/examples/sh/generate_wildcard_cert.sh
 
 LetsEncrypt will respond with the corresponding `TXT` record needed to verify our domain.
 
