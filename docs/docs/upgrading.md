@@ -27,14 +27,14 @@ Running more than one instance of the `memory` type cache service is not support
 For `memory` storage, restarting the cache service will result in all users having to re-login. The in-memory database used by the cache
 service can be found here: [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/master/internal/databroker/memory).
 
-The `redis` storage can be used for persistent data, you can see all [storage backend configuration here].
+The `redis` storage can be used for persistent data, you can see the existing [storage backend configuration here].
 
 You can see:
 
  - [databroker gRPC interface](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
  - [storage backend interface](https://github.com/pomerium/pomerium/blob/master/pkg/storage/storage.go)
  
-for reference to implement your own one.
+for reference to implement your own.
 
 ### Identity headers
 
