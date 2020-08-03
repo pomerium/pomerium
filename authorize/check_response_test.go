@@ -89,6 +89,33 @@ func TestAuthorize_okResponse(t *testing.T) {
 			},
 		},
 		{
+			"ok reply with k8s svc impersonate",
+			&evaluator.Result{
+				Status:    0,
+				Message:   "ok",
+				SignedJWT: "valid-signed-jwt",
+				MatchingPolicy: &config.Policy{
+					KubernetesServiceAccountToken: "k8s-svc-account",
+				},
+				UserEmail:  "foo@example.com",
+				UserGroups: []string{"admin", "test"},
+			},
+			&envoy_service_auth_v2.CheckResponse{
+				Status: &status.Status{Code: 0, Message: "ok"},
+				HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
+					OkResponse: &envoy_service_auth_v2.OkHttpResponse{
+						Headers: []*envoy_api_v2_core.HeaderValueOption{
+							mkHeader("x-pomerium-jwt-assertion", "valid-signed-jwt", false),
+							mkHeader("Authorization", "Bearer k8s-svc-account", false),
+							mkHeader("Impersonate-User", "foo@example.com", false),
+							mkHeader("Impersonate-Group", "admin", true),
+							mkHeader("Impersonate-Group", "test", true),
+						},
+					},
+				},
+			},
+		},
+		{
 			"ok reply with google cloud serverless",
 			&evaluator.Result{
 				Status:    0,
