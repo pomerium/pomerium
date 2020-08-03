@@ -5,7 +5,7 @@ go 1.14
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
 	contrib.go.opencensus.io/exporter/prometheus v0.2.0
-	contrib.go.opencensus.io/exporter/zipkin v0.1.1
+	contrib.go.opencensus.io/exporter/zipkin v0.1.2
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/caddyserver/certmagic v0.11.2
 	github.com/cenkalti/backoff/v4 v4.0.2
