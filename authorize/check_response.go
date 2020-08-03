@@ -37,7 +37,7 @@ func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.C
 	}
 
 	return &envoy_service_auth_v2.CheckResponse{
-		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
+		Status: &status.Status{Code: int32(codes.OK), Message: reply.Message},
 		HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
 			OkResponse: &envoy_service_auth_v2.OkHttpResponse{
 				Headers: requestHeaders,
