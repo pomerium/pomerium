@@ -47,10 +47,6 @@ var kubernetesCmd = &cobra.Command{
 var kubernetesExecCredentialCmd = &cobra.Command{
 	Use: "exec-credential",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return fmt.Errorf("only interactive sessions are supported")
-		}
-
 		if len(args) < 1 {
 			return fmt.Errorf("server url is required")
 		}
@@ -64,6 +60,11 @@ var kubernetesExecCredentialCmd = &cobra.Command{
 		if creds != nil {
 			printCreds(creds)
 			return nil
+		}
+
+		// require interactive session to handle login
+		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
+			return fmt.Errorf("only interactive sessions are supported")
 		}
 
 		li, err := net.Listen("tcp", "127.0.0.1:0")
