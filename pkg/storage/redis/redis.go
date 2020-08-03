@@ -50,7 +50,6 @@ func New(rawURL, recordType string, deletePermanentAfter int64, opts ...Option) 
 		lastVersionKey:         recordType + "_last_version",
 	}
 
-	metrics.AddRedisMetrics(db.pool.Stats)
 	for _, o := range opts {
 		o(db)
 	}
@@ -74,7 +73,7 @@ func New(rawURL, recordType string, deletePermanentAfter int64, opts ...Option) 
 			return nil
 		},
 	}
-
+	metrics.AddRedisMetrics(db.pool.Stats)
 	return db, nil
 }
 
