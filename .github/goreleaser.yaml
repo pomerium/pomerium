@@ -151,7 +151,7 @@ dockers:
 
 brews:
   - # Name template of the recipe
-    name: pomerium
+    name: pomerium-cli
 
     # IDs of the archives to use.
     ids:
@@ -175,3 +175,5 @@ brews:
       email: apparitor@users.noreply.github.com
 
     folder: Formula
+    install: |
+      bin.install "pomerium-cli"
