@@ -478,10 +478,10 @@ func TestAddOptionsHeadersToResponse(t *testing.T) {
 					"autoHostRewrite": true,
 					"cluster": "policy-701142725541ce1f",
 					"timeout": "3s",
-					"upgradeConfigs": [{
-						"enabled": false,
-						"upgradeType": "websocket"
-					}]
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
 				},
 				"responseHeadersToAdd": [{
 					"append": false,
@@ -528,10 +528,10 @@ func Test_buildPolicyRoutesWithDestinationPath(t *testing.T) {
 					"prefixRewrite": "/bar",
 					"cluster": "policy-605b7be39724cb4f",
 					"timeout": "3s",
-					"upgradeConfigs": [{
-						"enabled": false,
-						"upgradeType": "websocket"
-					}]
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
 				}
 			}
 		]
