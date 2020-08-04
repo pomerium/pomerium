@@ -157,9 +157,6 @@ func New(opts config.Options) (*Proxy, error) {
 	}
 	p.authzClient = envoy_service_auth_v2.NewAuthorizationClient(authzConn)
 
-	if err := p.UpdatePolicies(&opts); err != nil {
-		return nil, err
-	}
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
 		return int64(len(opts.Policies))
 	})
