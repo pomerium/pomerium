@@ -163,7 +163,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 			if err != nil {
 				return nil, err
 			}
-			allow = allow && (!cres.Allowed || cres.Denied)
+			allow = allow && (cres.Allowed && !cres.Denied)
 			if cres.Reason != "" {
 				evalResult.Message = cres.Reason
 			}
