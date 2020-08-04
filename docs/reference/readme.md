@@ -1134,16 +1134,6 @@ Note: This setting will replace (not append) the system's trust store for a give
 
 Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/examples/tree/master/mutual-tls) and the [certificate docs](../docs/topics/certificates.md).
 
-### Websocket Connections
-
-- Config File Key: `allow_websockets`
-- Type: `bool`
-- Default: `false`
-
-If set, enables proxying of websocket connections.
-
-**Use with caution:** By definition, websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced. Allowing websocket connections to the proxy could result in abuse via [DOS attacks](https://www.cloudflare.com/learning/ddos/ddos-attack-tools/slowloris/).
-
 ### Pass Identity Headers
 
 - `yaml`/`json` setting: `pass_identity_headers`
@@ -1155,6 +1145,24 @@ When enabled, this option will pass the identity headers to the downstream appli
 
 - X-Pomerium-Jwt-Assertion
 - X-Pomerium-Claim-*
+
+### SPDY
+
+- Config File Key: `allow_spdy`
+- Type: `bool`
+- Default: `false`
+
+If set, enables proxying of SPDY protocol upgrades.  
+
+### Websocket Connections
+
+- Config File Key: `allow_websockets`
+- Type: `bool`
+- Default: `false`
+
+If set, enables proxying of websocket connections.
+
+**Use with caution:** By definition, websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced. Allowing websocket connections to the proxy could result in abuse via [DOS attacks](https://www.cloudflare.com/learning/ddos/ddos-attack-tools/slowloris/).
 
 ## Authorize Service
 
