@@ -140,10 +140,16 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
 						Cluster: clusterName,
 					},
-					UpgradeConfigs: []*envoy_config_route_v3.RouteAction_UpgradeConfig{{
-						UpgradeType: "websocket",
-						Enabled:     &wrappers.BoolValue{Value: policy.AllowWebsockets},
-					}},
+					UpgradeConfigs: []*envoy_config_route_v3.RouteAction_UpgradeConfig{
+						{
+							UpgradeType: "websocket",
+							Enabled:     &wrappers.BoolValue{Value: policy.AllowWebsockets},
+						},
+						{
+							UpgradeType: "spdy/3.1",
+							Enabled:     &wrappers.BoolValue{Value: policy.AllowSPDY},
+						},
+					},
 					HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
 						AutoHostRewrite: &wrappers.BoolValue{Value: !policy.PreserveHostHeader},
 					},

@@ -51,6 +51,9 @@ type Policy struct {
 	// Caution: Enabling this feature could result in abuse via DOS attacks.
 	AllowWebsockets bool `mapstructure:"allow_websockets"  yaml:"allow_websockets,omitempty"`
 
+	// AllowSPDY enables proxying of SPDY upgrade requests
+	AllowSPDY bool `mapstructure:"allow_spdy" yaml:"allow_spdy,omitempty"`
+
 	// TLSSkipVerify controls whether a client verifies the server's certificate
 	// chain and host name.
 	// If TLSSkipVerify is true, TLS accepts any certificate presented by the

@@ -193,6 +193,7 @@ The policy should be a base64-encoded block of yaml:
 - from: https://k8s.localhost.pomerium.io:30443
   to: https://kubernetes.default.svc
   tls_skip_verify: true
+  allow_spdy: true
   allowed_domains:
     - pomerium.com
   kubernetes_service_account_token: "..." #$(kubectl get secret/"$(kubectl get serviceaccount/pomerium -o json | jq -r '.secrets[0].name')" -o json | jq -r .data.token | base64 -d)

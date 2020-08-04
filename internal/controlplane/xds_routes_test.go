@@ -248,6 +248,21 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				UpstreamTimeout:      time.Minute,
 				PassIdentityHeaders:  true,
 			},
+			{
+				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
+				Path:                "/some/path",
+				AllowSPDY:           true,
+				PreserveHostHeader:  true,
+				PassIdentityHeaders: true,
+			},
+			{
+				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
+				Path:                "/some/path",
+				AllowSPDY:           true,
+				AllowWebsockets:     true,
+				PreserveHostHeader:  true,
+				PassIdentityHeaders: true,
+			},
 		},
 	}, "example.com")
 
@@ -270,10 +285,10 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"autoHostRewrite": true,
 					"cluster": "policy-701142725541ce1f",
 					"timeout": "3s",
-					"upgradeConfigs": [{
-						"enabled": false,
-						"upgradeType": "websocket"
-					}]
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
 				}
 			},
 			{
@@ -293,10 +308,10 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"autoHostRewrite": false,
 					"cluster": "policy-35b6cce9d52d36ed",
 					"timeout": "0s",
-					"upgradeConfigs": [{
-						"enabled": true,
-						"upgradeType": "websocket"
-					}]
+					"upgradeConfigs": [
+						{ "enabled": true, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
 				}
 			},
 			{
@@ -316,10 +331,10 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"autoHostRewrite": true,
 					"cluster": "policy-8935ca8067709cf7",
 					"timeout": "60s",
-					"upgradeConfigs": [{
-						"enabled": false,
-						"upgradeType": "websocket"
-					}]
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
 				},
 				"requestHeadersToAdd": [{
 					"append": false,
@@ -349,10 +364,10 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"autoHostRewrite": true,
 					"cluster": "policy-45c2908c3d6f0e52",
 					"timeout": "3s",
-					"upgradeConfigs": [{
-						"enabled": false,
-						"upgradeType": "websocket"
-					}]
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
 				}
 			},
 			{
@@ -372,12 +387,58 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"autoHostRewrite": true,
 					"cluster": "policy-8935ca8067709cf7",
 					"timeout": "60s",
-					"upgradeConfigs": [{
-						"enabled": false,
-						"upgradeType": "websocket"
-					}]
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
 				},
 				"requestHeadersToRemove": ["HEADER-KEY"]
+			},
+			{
+				"name": "policy-6",
+				"match": {
+					"path": "/some/path"
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": false,
+					"cluster": "policy-35b6cce9d52d36ed",
+					"timeout": "3s",
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": true, "upgradeType": "spdy/3.1"}
+					]
+				}
+			},		
+			{
+				"name": "policy-7",
+				"match": {
+					"path": "/some/path"
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": false,
+					"cluster": "policy-35b6cce9d52d36ed",
+					"timeout": "0s",
+					"upgradeConfigs": [
+						{ "enabled": true, "upgradeType": "websocket"},
+						{ "enabled": true, "upgradeType": "spdy/3.1"}
+					]
+				}
 			}
 		]
 	`, routes)
@@ -417,10 +478,10 @@ func TestAddOptionsHeadersToResponse(t *testing.T) {
 					"autoHostRewrite": true,
 					"cluster": "policy-701142725541ce1f",
 					"timeout": "3s",
-					"upgradeConfigs": [{
-						"enabled": false,
-						"upgradeType": "websocket"
-					}]
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
 				},
 				"responseHeadersToAdd": [{
 					"append": false,
@@ -467,10 +528,10 @@ func Test_buildPolicyRoutesWithDestinationPath(t *testing.T) {
 					"prefixRewrite": "/bar",
 					"cluster": "policy-605b7be39724cb4f",
 					"timeout": "3s",
-					"upgradeConfigs": [{
-						"enabled": false,
-						"upgradeType": "websocket"
-					}]
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
 				}
 			}
 		]
