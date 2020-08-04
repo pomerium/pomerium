@@ -90,11 +90,6 @@ func TestNew(t *testing.T) {
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
 	badCookie := testOptions(t)
 	badCookie.CookieName = ""
-	badPolicyURL := config.Policy{To: "http://", From: "http://bar.example"}
-	badNewPolicy := testOptions(t)
-	badNewPolicy.Policies = []config.Policy{
-		badPolicyURL,
-	}
 
 	tests := []struct {
 		name      string
@@ -106,7 +101,6 @@ func TestNew(t *testing.T) {
 		{"empty options", config.Options{}, false, true},
 		{"short secret/validate sanity check", shortCookieLength, false, true},
 		{"invalid cookie name, empty", badCookie, false, true},
-		{"bad policy, bad policy url", badNewPolicy, false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
