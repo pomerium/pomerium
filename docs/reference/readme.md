@@ -961,6 +961,16 @@ Requires setting [Google Cloud Serverless Authentication Service Account](./#goo
 
 `From` is externally accessible source of the proxied request.
 
+### Kubernetes Service Account Token
+- `yaml`/`json` setting: `kubernetes_service_account_token` / `kubernetes_service_account_token_file`
+- Type: `string` or relative file location containing a Kubernetes bearer token
+- Optional
+- Example: `eyJ0eXAiOiJKV1QiLCJhbGciOiJ...` or `/var/run/secrets/kubernetes.io/serviceaccount/token`
+
+Use this token to authenticate requests to a Kubernetes API server.  
+
+Pomerium will [https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation](impersonate) the Pomerium user's identity, and Kubernetes RBAC can be applied to IdP user and groups.
+
 ### Path
 
 - `yaml`/`json` setting: `path`

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"time"
@@ -105,6 +106,8 @@ type Policy struct {
 
 	// KubernetesServiceAccountToken is the kubernetes token to use for upstream requests.
 	KubernetesServiceAccountToken string `mapstructure:"kubernetes_service_account_token" yaml:"kubernetes_service_account_token,omitempty"`
+	// KubernetesServiceAccountTokenFile contains the kubernetes token to use for upstream requests.
+	KubernetesServiceAccountTokenFile string `mapstructure:"kubernetes_service_account_token_file" yaml:"kubernetes_service_account_token_file,omitempty"`
 
 	// EnableGoogleCloudServerlessAuthentication adds "Authorization: Bearer ID_TOKEN" headers
 	// to upstream requests.
@@ -265,6 +268,18 @@ func (p *Policy) Validate() error {
 		if err != nil {
 			return fmt.Errorf("config: couldn't load client ca file: %w", err)
 		}
+	}
+
+	if p.KubernetesServiceAccountTokenFile != "" {
+		if p.KubernetesServiceAccountToken != "" {
+			return fmt.Errorf("config: specified both `kubernetes_service_account_token_file` and `kubernetes_service_account_token`")
+		}
+
+		token, err := ioutil.ReadFile(p.KubernetesServiceAccountTokenFile)
+		if err != nil {
+			return fmt.Errorf("config: failed to load kubernetes service account token: %w", err)
+		}
+		p.KubernetesServiceAccountToken = string(token)
 	}
 
 	return nil
