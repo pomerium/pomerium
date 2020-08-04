@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,12 +10,15 @@ import (
 
 	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/grpc/codes"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
+	"github.com/pomerium/pomerium/internal/frontend"
 )
 
 func TestAuthorize_okResponse(t *testing.T) {
@@ -141,12 +145,96 @@ func TestAuthorize_okResponse(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			got := a.okResponse(tc.reply)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
 			assert.Equal(t, tc.want.GetOkResponse().GetHeaders(), got.GetOkResponse().GetHeaders())
+		})
+	}
+}
+
+func TestAuthorize_deniedResponse(t *testing.T) {
+	a := new(Authorize)
+	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
+	a.currentEncoder.Store(encoder)
+	a.currentOptions.Store(&config.Options{
+		Policies: []config.Policy{{
+			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			SubPolicies: []config.SubPolicy{{
+				Rego: []string{"allow = true"},
+			}},
+		}},
+	})
+	a.templates = template.Must(frontend.NewTemplates())
+
+	tests := []struct {
+		name    string
+		in      *envoy_service_auth_v2.CheckRequest
+		code    int32
+		reason  string
+		headers map[string]string
+		want    *envoy_service_auth_v2.CheckResponse
+	}{
+		{
+			"html denied",
+			nil,
+			http.StatusBadRequest,
+			"Access Denied",
+			nil,
+			&envoy_service_auth_v2.CheckResponse{
+				Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
+				HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
+					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
+						Status: &envoy_type.HttpStatus{
+							Code: envoy_type.StatusCode(codes.InvalidArgument),
+						},
+						Headers: []*envoy_api_v2_core.HeaderValueOption{
+							mkHeader("Content-Type", "text/html", false),
+						},
+						Body: "Access Denied",
+					},
+				},
+			},
+		},
+		{
+			"plain text denied",
+			&envoy_service_auth_v2.CheckRequest{
+				Attributes: &envoy_service_auth_v2.AttributeContext{
+					Request: &envoy_service_auth_v2.AttributeContext_Request{
+						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+							Headers: map[string]string{},
+						},
+					},
+				},
+			},
+			http.StatusBadRequest,
+			"Access Denied",
+			map[string]string{},
+			&envoy_service_auth_v2.CheckResponse{
+				Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
+				HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
+					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
+						Status: &envoy_type.HttpStatus{
+							Code: envoy_type.StatusCode(codes.InvalidArgument),
+						},
+						Headers: []*envoy_api_v2_core.HeaderValueOption{
+							mkHeader("Content-Type", "text/plain", false),
+						},
+						Body: "Access Denied",
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := a.deniedResponse(tc.in, tc.code, tc.reason, tc.headers)
+			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
+			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
+			assert.Equal(t, tc.want.GetDeniedResponse().GetHeaders(), got.GetDeniedResponse().GetHeaders())
 		})
 	}
 }
