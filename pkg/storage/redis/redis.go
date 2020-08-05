@@ -269,13 +269,20 @@ func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}) {
 			if string(v.Data) != watchAction {
 				continue
 			}
+
 			select {
 			case <-ctx.Done():
 				log.Warn().Err(ctx.Err()).Msg("context done, stop receive from redis channel")
 				return
 			default:
 				db.notifyChMu.Lock()
-				ch <- struct{}{}
+				select {
+				case <-ctx.Done():
+					db.notifyChMu.Unlock()
+					log.Warn().Err(ctx.Err()).Msg("context done while holding notify lock, stop receive from redis channel")
+					return
+				case ch <- struct{}{}:
+				}
 				db.notifyChMu.Unlock()
 			}
 		case error:
