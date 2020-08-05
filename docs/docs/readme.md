@@ -18,35 +18,51 @@ Pomerium can be used to:
 - provide a **single-sign-on gateway** to internal applications.
 - enforce **dynamic access policy** based on **context**, **identity**, and **device state**.
 - aggregate access logs and telemetry data.
-- a **VPN alternative**.
+- perform delegated user authorization for service-based authorization systems:
+  - [Istio](/guides/istio.html)
+  - [Google Cloud](/guides/cloud-run.html)
+- provide unified identity attestation for upstream services:
+  - [Kubernetes](/guides/kubernetes.html)
+  - [Grafana](/guides/istio.html#pomerium-configuration)
+  - [Custom applications](/docs/topics/getting-users-identity.html)
+- provide a **VPN alternative**.
 
 ## Architecture
 
 ### System Level
 
-Pomerium sits between end users and services which require strong authentication. After verifying identity with your identity provider (IdP), Pomerium uses a configurable policy to decide how to route your user's request and if they are authorized to the service.
+Pomerium sits between end users and services requiring strong authentication. After verifying identity with your identity provider (IdP), Pomerium uses a configurable policy to decide how to route your user's request and if they are authorized to access the service.
 
 <img alt="pomerium architecture diagram" src="/pomerium-system-context.svg" width="65%">
 
 ### Component Level
 
-Pomerium is composed of 3 logical components:
+Pomerium is composed of 4 logical components:
 
 - Proxy Service
   - All user traffic flows through the proxy
-  - Initiates authentication flow to Authentication service as needed
   - Verifies all requests with Authentication service
+  - Directs users to Authentication service to establish session identity
   - Processes policy to determine external/internal route mappings
 - Authentication Service
   - Handles authentication flow to your IdP as needed
   - Handles identity verification after initial Authentication
+  - Establishes user session cookie
+  - Stores user OIDC tokens in cache service
 - Authorization Service
   - Processes policy to determine permissions for each service
   - Handles authorization check for all user sessions
+  - Directs Proxy service to initiate Authentication flow as required
+  - Provides additional security releated headers for upstream services to consume
+- Cache Service
+  - Retrieves identity provider related data such as group membership
+  - Stores and refreshes identity provider access and refresh tokens
+  - Provides streaming authoritative session and identity data to Authorize service
+  - Stores session and identity data in persistent storage
 
 In production deployments, it is recommended that you deploy each component separately. This allows you to limit external attack surface, as well as scale and manage the services independently.
 
-In test deployments, all three components may run from a single binary and configuration.
+In test deployments, all four components may run from a single binary and configuration.
 
 <img alt="pomerium architecture diagram" src="/pomerium-container-context.svg" width="65%">
 
@@ -54,7 +70,7 @@ In test deployments, all three components may run from a single binary and confi
 
 Pomerium's internal and external component interactions during full authentication from a fresh user are diagramed below.
 
-After initial authentication to provide a session token, only the authorization interactions occur.
+After initial authentication to provide a session token, only the authorization check interactions occur.
 
 <a href="/pomerium-auth-flow.svg">
 <img alt="pomerium architecture diagram" src="/pomerium-auth-flow.svg">
