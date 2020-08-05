@@ -18,7 +18,11 @@ Pomerium can be configured using a configuration file ([YAML]/[JSON]/[TOML]) or 
 
 Using both [environmental variables] and config file keys is allowed and encouraged (for instance, secret keys are probably best set as environmental variables). However, if duplicate configuration keys are found, environment variables take precedence.
 
-Pomerium will automatically reload the configuration file if it is changed.
+:::tip
+
+Pomerium can hot-reload route configuration details, certificates, and other proxy settings.
+
+:::
 
 ## Shared Settings
 
@@ -42,7 +46,7 @@ Address specifies the host and port to serve HTTP requests from. If empty, `:443
 - Type: slice of `string`
 - Example: `"admin@example.com,admin2@example.com"`
 
-Administrative users are [super users](https://en.wikipedia.org/wiki/Superuser) that can sign in as another user or group. User impersonation allows administrators to temporarily impersonate a different user.
+Administrative users are [super users](https://en.wikipedia.org/wiki/Superuser) that can sign-in as another user or group. User impersonation allows administrators to temporarily impersonate a different user.
 
 ### Autocert
 
