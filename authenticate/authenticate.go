@@ -226,8 +226,7 @@ func (a *Authenticate) setAdminUsers(opts *config.Options) {
 	}
 }
 
-// OnConfigChange implements the OptionsUpdater interface and updates internal
-// structures based on config.Options
+// OnConfigChange updates internal structures based on config.Options
 func (a *Authenticate) OnConfigChange(cfg *config.Config) {
 	if a == nil {
 		return
