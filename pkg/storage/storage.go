@@ -33,5 +33,5 @@ type Backend interface {
 	// Watch returns a channel to the caller. The channel is used to notify
 	// about changes that happen in storage. When ctx is finished, Watch will close
 	// the channel.
-	Watch(ctx context.Context) chan struct{}
+	Watch(ctx context.Context) <-chan struct{}
 }
