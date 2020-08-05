@@ -597,7 +597,7 @@ func (o *Options) Validate() error {
 	}
 
 	if o.DataBrokerStorageCertFile != "" || o.DataBrokerStorageCertKeyFile != "" {
-		cert, err := cryptutil.CertificateFromFile(o.CertFile, o.KeyFile)
+		cert, err := cryptutil.CertificateFromFile(o.DataBrokerStorageCertFile, o.DataBrokerStorageCertKeyFile)
 		if err != nil {
 			return fmt.Errorf("config: bad databroker cert file %w", err)
 		}
