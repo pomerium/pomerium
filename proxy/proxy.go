@@ -156,6 +156,7 @@ func New(opts config.Options) (*Proxy, error) {
 		return nil, err
 	}
 	p.authzClient = envoy_service_auth_v2.NewAuthorizationClient(authzConn)
+	p.setupDashboardHandler(&opts)
 
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
 		return int64(len(opts.Policies))
@@ -171,14 +172,17 @@ func (p *Proxy) UpdateOptions(o config.Options) error {
 		return nil
 	}
 	log.Info().Str("checksum", fmt.Sprintf("%x", o.Checksum())).Msg("proxy: updating options")
-	return p.UpdatePolicies(&o)
+	for _, policy := range o.Policies {
+		if err := policy.Validate(); err != nil {
+			return fmt.Errorf("proxy: invalid policy %w", err)
+		}
+	}
+	p.setupDashboardHandler(&o)
+	return nil
 }
 
-// UpdatePolicies updates the H basedon the configured policies
-func (p *Proxy) UpdatePolicies(opts *config.Options) error {
-	if len(opts.Policies) == 0 {
-		log.Warn().Msg("proxy: configuration has no policies")
-	}
+// setupDashboardHandler setup dashboard handler for all routes.
+func (p *Proxy) setupDashboardHandler(opts *config.Options) {
 	r := httputil.NewRouter()
 	r.NotFoundHandler = httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusNotFound, fmt.Errorf("%s route unknown", r.Host))
@@ -194,16 +198,7 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		h := r.Host(opts.ForwardAuthURL.Hostname()).Subrouter()
 		h.PathPrefix("/").Handler(p.registerFwdAuthHandlers())
 	}
-
-	for _, policy := range opts.Policies {
-		if err := policy.Validate(); err != nil {
-			return fmt.Errorf("proxy: invalid policy %w", err)
-		}
-	}
-
 	p.currentRouter.Store(r)
-
-	return nil
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
