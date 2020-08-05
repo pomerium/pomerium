@@ -577,7 +577,7 @@ tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
 - Default: `/oauth2/callback`
 - Optional
 
-The authenticate callback path is the path the authenticate service that will receive the callback response from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client.
+Authenticate callback path sets the path at which the authenticate service receives callback responses from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client.
 
 This value is referred to as the `redirect_url` in the [OpenIDConnect][oidc rfc] and OAuth2 specs.
 
