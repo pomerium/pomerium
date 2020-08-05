@@ -15,7 +15,7 @@ type mockBackend struct {
 	list         func(ctx context.Context, sinceVersion string) ([]*databroker.Record, error)
 	delete       func(ctx context.Context, id string) error
 	clearDeleted func(ctx context.Context, cutoff time.Time)
-	watch        func(ctx context.Context) chan struct{}
+	watch        func(ctx context.Context) <-chan struct{}
 }
 
 func (m *mockBackend) Put(ctx context.Context, id string, data *anypb.Any) error {
@@ -42,6 +42,6 @@ func (m *mockBackend) ClearDeleted(ctx context.Context, cutoff time.Time) {
 	m.clearDeleted(ctx, cutoff)
 }
 
-func (m *mockBackend) Watch(ctx context.Context) chan struct{} {
+func (m *mockBackend) Watch(ctx context.Context) <-chan struct{} {
 	return m.watch(ctx)
 }

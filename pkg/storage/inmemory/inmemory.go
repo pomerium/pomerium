@@ -137,7 +137,7 @@ func (db *DB) Put(_ context.Context, id string, data *anypb.Any) error {
 
 // Watch returns the underlying signal.Signal binding channel to the caller.
 // Then the caller can listen to the channel for detecting changes.
-func (db *DB) Watch(ctx context.Context) chan struct{} {
+func (db *DB) Watch(ctx context.Context) <-chan struct{} {
 	ch := db.onchange.Bind()
 	go func() {
 		<-ctx.Done()

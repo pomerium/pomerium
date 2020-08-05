@@ -304,7 +304,7 @@ func (db *DB) subscribeRedisChannel(psc *redis.PubSubConn) error {
 
 // Watch returns a channel to the caller, when there is a change to the version set,
 // sending message to the channel to notify the caller.
-func (db *DB) Watch(ctx context.Context) chan struct{} {
+func (db *DB) Watch(ctx context.Context) <-chan struct{} {
 	ch := make(chan struct{})
 	go func() {
 		c := db.pool.Get()
