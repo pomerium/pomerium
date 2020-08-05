@@ -22,7 +22,7 @@ Pomerium will automatically reload the configuration file if it is changed.
 
 ## Shared Settings
 
-These are configuration variables are shared by all services, in all service modes.
+These configuration variables are shared by all services, in all service modes.
 
 ### Address
 
