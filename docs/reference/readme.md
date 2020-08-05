@@ -74,7 +74,7 @@ Autocert requires that ports `80`/`443` be accessible from the internet in order
 - Type: `bool`
 - Optional
 
-If true, force autocert to request a certificate with the `status_request` extension (commonly called `Must-Staple`). This allows the TLS client (*id est* the browser) to fail immediately if the TLS handshake doesn't include OCSP stapling information. This setting is only used when [Autocert](./#autocert) is true.
+If true, force autocert to request a certificate with the `status_request` extension (commonly called `Must-Staple`). This allows the TLS client (_id est_ the browser) to fail immediately if the TLS handshake doesn't include OCSP stapling information. This setting is only used when [Autocert](./#autocert) is true.
 
 :::tip
 
@@ -158,7 +158,7 @@ The name of the session cookie sent to clients.
 - Environmental Variable: `COOKIE_SECRET`
 - Config File Key: `cookie_secret`
 - Type: [base64 encoded] `string`
-- Required for proxy service 
+- Required for proxy service
 
 Secret used to encrypt and sign session cookies. You can generate a random key with `head -c32 /dev/urandom | base64`.
 
@@ -170,7 +170,7 @@ Secret used to encrypt and sign session cookies. You can generate a random key w
 - Example: `corp.beyondperimeter.com`
 - Optional
 
-The scope of session cookies issued by Pomerium. 
+The scope of session cookies issued by Pomerium.
 
 #### HTTPS only
 
@@ -209,7 +209,7 @@ Setting this to false enables hostile javascript to steal session cookies and im
 - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
 - Default: `14h`
 
-Sets the lifetime of session cookies. After this interval, users must reauthenticate. 
+Sets the lifetime of session cookies. After this interval, users must reauthenticate.
 
 ### Debug
 
@@ -350,7 +350,7 @@ Timeouts set the global server timeouts. For route-specific timeouts, see [polic
 - Example: `:443`, `:8443`
 - Default: `:443` or `:5443` if in all-in-one mode
 
-gRPC Address specifies the host and port to serve gRPC requests from. 
+gRPC Address specifies the host and port to serve gRPC requests from.
 
 #### GRPC Insecure
 
@@ -456,33 +456,33 @@ Expose a prometheus endpoint on the specified port.
 
 #### Pomerium Metrics Tracked
 
-| Name                                          | Type      | Description                                                             |
-| --------------------------------------------- | --------- | ----------------------------------------------------------------------- |
-| grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service                                 |
-| grpc_client_request_size_bytes                | Histogram | GRPC client request size by service                                     |
-| grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service                              |
-| grpc_client_response_size_bytes               | Histogram | GRPC client response size by service                                    |
-| grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service                                 |
-| grpc_server_request_size_bytes                | Histogram | GRPC server request size by service                                     |
-| grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service                              |
-| grpc_server_response_size_bytes               | Histogram | GRPC server response size by service                                    |
-| http_client_request_duration_ms               | Histogram | HTTP client request duration by service                                 |
-| http_client_request_size_bytes                | Histogram | HTTP client request size by service                                     |
-| http_client_requests_total                    | Counter   | Total HTTP client requests made by service                              |
-| http_client_response_size_bytes               | Histogram | HTTP client response size by service                                    |
-| http_server_request_duration_ms               | Histogram | HTTP server request duration by service                                 |
-| http_server_request_size_bytes                | Histogram | HTTP server request size by service                                     |
-| http_server_requests_total                    | Counter   | Total HTTP server requests handled by service                           |
-| http_server_response_size_bytes               | Histogram | HTTP server response size by service                                    |
-| pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion |
-| pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service                      |
-| pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service              |
-| pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service    |
-| redis_conns                                   | Gauge     | Number of total connections in the pool                                 |
-| redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool             |
-| redis_wait_count_total                        | Counter   | Total number of connections waited for                                  |
-| redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections                                |
-| storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service    |
+Name                                          | Type      | Description
+--------------------------------------------- | --------- | -----------------------------------------------------------------------
+grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service
+grpc_client_request_size_bytes                | Histogram | GRPC client request size by service
+grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service
+grpc_client_response_size_bytes               | Histogram | GRPC client response size by service
+grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service
+grpc_server_request_size_bytes                | Histogram | GRPC server request size by service
+grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service
+grpc_server_response_size_bytes               | Histogram | GRPC server response size by service
+http_client_request_duration_ms               | Histogram | HTTP client request duration by service
+http_client_request_size_bytes                | Histogram | HTTP client request size by service
+http_client_requests_total                    | Counter   | Total HTTP client requests made by service
+http_client_response_size_bytes               | Histogram | HTTP client response size by service
+http_server_request_duration_ms               | Histogram | HTTP server request duration by service
+http_server_request_size_bytes                | Histogram | HTTP server request size by service
+http_server_requests_total                    | Counter   | Total HTTP server requests handled by service
+http_server_response_size_bytes               | Histogram | HTTP server response size by service
+pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion
+pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service
+pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service
+pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service
+redis_conns                                   | Gauge     | Number of total connections in the pool
+redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool
+redis_wait_count_total                        | Counter   | Total number of connections waited for
+redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections
+storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service
 
 #### Envoy Proxy Metrics
 
@@ -531,10 +531,10 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 #### Shared Tracing Settings
 
-| Config Key          | Description                                                                          | Required |
-| :------------------ | :----------------------------------------------------------------------------------- | -------- |
-| tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅        |
-| tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌        |
+Config Key          | Description                                                                          | Required
+:------------------ | :----------------------------------------------------------------------------------- | --------
+tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅
+tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌
 
 #### Jaeger (partial)
 
@@ -548,10 +548,10 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 - Service dependency analysis
 - Performance / latency optimization
 
-| Config Key                        | Description                                 | Required |
-| :-------------------------------- | :------------------------------------------ | -------- |
-| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
-| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
+Config Key                        | Description                                 | Required
+:-------------------------------- | :------------------------------------------ | --------
+tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅
+tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅
 
 #### Zipkin
 
@@ -559,9 +559,9 @@ Zipkin is an open source distributed tracing system and protocol.
 
 Many tracing backends support zipkin either directly or through intermediary agents, including Jaeger. For full tracing support, we recommend using the Zipkin tracing protocol.
 
-| Config Key              | Description                      | Required |
-| :---------------------- | :------------------------------- | -------- |
-| tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅        |
+Config Key              | Description                      | Required
+:---------------------- | :------------------------------- | --------
+tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
 
 #### Example
 
@@ -635,7 +635,7 @@ See [identity provider] for details.
 - Default: `oidc`,`profile`, `email`, `offline_access` (typically)
 - Optional for built-in identity providers.
 
-Identity provider scopes correspond to access privilege scopes as defined in Section 3.3 of OAuth 2.0 RFC6749\. The scopes associated with Access Tokens determine what resources will be available when they are used to access OAuth 2.0 protected endpoints. 
+Identity provider scopes correspond to access privilege scopes as defined in Section 3.3 of OAuth 2.0 RFC6749\. The scopes associated with Access Tokens determine what resources will be available when they are used to access OAuth 2.0 protected endpoints.
 
 :::warning
 
@@ -650,7 +650,7 @@ If you are using a built-in provider, you probably don't want to set customized 
 - Type: `string`
 - **Required** for group based policies (most configurations)
 
-The identity provider service account setting is used to query associated identity information from your identity provider. 
+The identity provider service account setting is used to query associated identity information from your identity provider.
 
 :::warning
 
@@ -691,7 +691,7 @@ For more information see:
 - Example: `IDP_REFRESH_DIRECTORY_INTERVAL=30m`
 - Defaults: `IDP_REFRESH_DIRECTORY_INTERVAL=10m` `IDP_REFRESH_DIRECTORY_TIMEOUT=1m`
 
-Refresh directory interval is the time that pomerium will sync your IDP diretory, while refresh directory timeout is the maximum time allowed each run. 
+Refresh directory interval is the time that pomerium will sync your IDP diretory, while refresh directory timeout is the maximum time allowed each run.
 
 :::warning
 
@@ -737,8 +737,6 @@ Certificate Authority is set when behind-the-ingress service communication uses 
 Be sure to include the intermediary certificate.
 
 :::
-
-
 
 ### Default Upstream Timeout
 
@@ -964,7 +962,6 @@ Allowed users is a collection of whitelisted users to authorize for a given rout
 
 Allow unauthenticated HTTP OPTIONS requests as [per the CORS spec](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests).
 
-
 ### Enable Google Cloud Serverless Authentication
 
 - Environmental Variable: `ENABLE_GOOGLE_CLOUD_SERVERLESS_AUTHENTICATION`
@@ -986,12 +983,13 @@ Requires setting [Google Cloud Serverless Authentication Service Account](./#goo
 `From` is the externally accessible source of the proxied request.
 
 ### Kubernetes Service Account Token
+
 - `yaml`/`json` setting: `kubernetes_service_account_token` / `kubernetes_service_account_token_file`
 - Type: `string` or relative file location containing a Kubernetes bearer token
 - Optional
 - Example: `eyJ0eXAiOiJKV1QiLCJhbGciOiJ...` or `/var/run/secrets/kubernetes.io/serviceaccount/token`
 
-Use this token to authenticate requests to a Kubernetes API server.  
+Use this token to authenticate requests to a Kubernetes API server.
 
 Pomerium will [https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation](impersonate) the Pomerium user's identity, and Kubernetes RBAC can be applied to IdP user and groups.
 
@@ -1100,8 +1098,6 @@ Remove Request Headers allows you to remove given request headers. This can be u
 
 `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
 
-
-
 :::warning
 
 Be careful with trailing slash.
@@ -1178,7 +1174,7 @@ When enabled, this option will pass identity headers to upstream applications. T
 - Type: `bool`
 - Default: `false`
 
-If set, enables proxying of SPDY protocol upgrades.  
+If set, enables proxying of SPDY protocol upgrades.
 
 ### Websocket Connections
 
@@ -1188,15 +1184,11 @@ If set, enables proxying of SPDY protocol upgrades.
 
 If set, enables proxying of websocket connections.
 
-
-
 :::warning
 
 **Use with caution:** websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced. Allowing websocket connections to the proxy could result in abuse via [DOS attacks](https://www.cloudflare.com/learning/ddos/ddos-attack-tools/slowloris/).
 
 :::
-
-
 
 ## Authorize Service
 
@@ -1219,10 +1211,10 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 
 Manually specify the service account credentials to support GCP's [Authorization Header](https://cloud.google.com/run/docs/authenticating/service-to-service) format.
 
-If unspecified: 
+If unspecified:
 
-- If [Identity Provider Name](#identity-provider-name) is set to `google`, will default to [Identity Provider Service Account](#identity-provider-service-account) 
-- Otherwise, will default to ambient credentials in the default locations searched by the Google SDK.  This includes GCE metadata server tokens.
+- If [Identity Provider Name](#identity-provider-name) is set to `google`, will default to [Identity Provider Service Account](#identity-provider-service-account)
+- Otherwise, will default to ambient credentials in the default locations searched by the Google SDK. This includes GCE metadata server tokens.
 
 ### Signing Key
 
