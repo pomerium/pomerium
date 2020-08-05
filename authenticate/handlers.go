@@ -17,7 +17,7 @@ import (
 	"github.com/pomerium/csrf"
 	"github.com/rs/cors"
 	"golang.org/x/oauth2"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/manager"
@@ -533,10 +533,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 	}
 
 	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(a.cookieOptions.Expire))
-	var idTokenExpiry *timestamppb.Timestamp
-	if sessionState.Expiry != nil {
-		idTokenExpiry, _ = ptypes.TimestampProto(sessionState.Expiry.Time())
-	}
+	sessionState.Expiry = jwt.NewNumericDate(sessionExpiry.AsTime())
 	idTokenIssuedAt, _ := ptypes.TimestampProto(sessionState.IssuedAt.Time())
 
 	s := &session.Session{
@@ -546,7 +543,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 		IdToken: &session.IDToken{
 			Issuer:    sessionState.Issuer,
 			Subject:   sessionState.Subject,
-			ExpiresAt: idTokenExpiry,
+			ExpiresAt: sessionExpiry,
 			IssuedAt:  idTokenIssuedAt,
 		},
 		OauthToken: manager.ToOAuthToken(accessToken),
