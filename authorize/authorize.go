@@ -124,19 +124,14 @@ func newPolicyEvaluator(opts *config.Options, store *evaluator.Store) (*evaluato
 	return evaluator.New(opts, store)
 }
 
-// OnConfigChange implements the OptionsUpdater interface and updates internal
-// structures based on config.Options
+// OnConfigChange updates internal structures based on config.Options
 func (a *Authorize) OnConfigChange(cfg *config.Config) {
-	if a == nil {
-		return
-	}
-
 	log.Info().Str("checksum", fmt.Sprintf("%x", cfg.Options.Checksum())).Msg("authorize: updating options")
 	a.currentOptions.Store(cfg.Options)
-
-	var err error
-	if a.pe, err = newPolicyEvaluator(cfg.Options, a.store); err != nil {
+	pe, err := newPolicyEvaluator(cfg.Options, a.store)
+	if err != nil {
 		log.Error().Err(err).Msg("authorize: failed to update policy with options")
 		return
 	}
+	a.pe = pe
 }
