@@ -50,7 +50,6 @@ func New(rawURL, recordType string, deletePermanentAfter int64, opts ...Option) 
 		lastVersionKey:         recordType + "_last_version",
 	}
 
-	metrics.AddRedisMetrics(db.pool.Stats)
 	for _, o := range opts {
 		o(db)
 	}
@@ -74,7 +73,7 @@ func New(rawURL, recordType string, deletePermanentAfter int64, opts ...Option) 
 			return nil
 		},
 	}
-
+	metrics.AddRedisMetrics(db.pool.Stats)
 	return db, nil
 }
 
@@ -250,6 +249,7 @@ func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}, psc *redis.Pub
 		switch v := psc.Receive().(type) {
 		case redis.Message:
 			log.Debug().Str("action", string(v.Data)).Msg("got redis message")
+			recordOperation(ctx, time.Now(), "sub_received", nil)
 			if string(v.Data) != watchAction {
 				continue
 			}
@@ -261,6 +261,7 @@ func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}, psc *redis.Pub
 			}
 		case error:
 			log.Warn().Err(v).Msg("failed to receive from redis channel")
+			recordOperation(ctx, time.Now(), "sub_received", v)
 			if _, ok := v.(net.Error); ok {
 				return
 			}
