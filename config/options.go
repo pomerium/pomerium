@@ -716,8 +716,8 @@ func (o *Options) Checksum() uint64 {
 }
 
 // handleConfigUpdate takes configuration file, an existing options struct, and
-// updates each service in the services slice OptionsUpdater with a new set of
-// options if any change is detected.
+// returns new options if any change is detected. If no change was detected, the
+// existing option will be returned.
 func handleConfigUpdate(configFile string, opt *Options) *Options {
 	serviceName := telemetry.ServiceName(opt.Services)
 

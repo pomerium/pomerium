@@ -169,8 +169,7 @@ func New(opts config.Options) (*Proxy, error) {
 	return p, nil
 }
 
-// UpdateOptions implements the OptionsUpdater interface and updates internal
-// structures based on config.Options
+// UpdateOptions updates internal structures based on config.Options
 func (p *Proxy) UpdateOptions(o config.Options) error {
 	if p == nil {
 		return nil
