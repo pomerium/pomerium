@@ -1197,9 +1197,11 @@ If unspecified:
 - Type: [base64 encoded] `string`
 - Optional
 
-Signing Key is the key used to sign a user's attestation JWT which can be consumed by upstream applications to pass along identifying user information like username, id, and groups.
+Signing Key is the [Elliptic Curve] private key used to sign a user's attestation JWT which can be consumed by upstream applications to pass along identifying user information like username, id, and groups.
 
-If set, the signing key's public key will can retrieved by hitting Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. For example:
+If set, the signing key's public key will can retrieved by hitting Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. (If running the authentication service separately, this option must also be set there.)
+
+For example:
 
 ```bash
 $ curl https://authenticate.int.example.com/.well-known/pomerium/jwks.json | jq
@@ -1233,3 +1235,4 @@ If no certificate is specified, one will be generated and the base64'd public ke
 [signed headers]: ./signed-headers.md
 [toml]: https://en.wikipedia.org/wiki/TOML
 [yaml]: https://en.wikipedia.org/wiki/YAML
+[Elliptic Curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters
