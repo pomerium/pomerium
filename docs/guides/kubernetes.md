@@ -221,7 +221,7 @@ To use the Pomerium Kubernetes exec-credential provider, update your kubectl con
    # Add Context
    kubectl config set-context via-pomerium --user=via-pomerium --cluster=via-pomerium
    # Add credentials command
-   kubectl config set-credentials via-pomerium --exec-command=pomerium-cli --exec-args=k8s,exec-credential,https://k8s.localhost.pomerium.io:30443
+   kubectl config set-credentials via-pomerium --exec-command=pomerium-cli --exec-arg=k8s,exec-credential,https://k8s.localhost.pomerium.io:30443
   ```
 
 Here's the resulting configuration:

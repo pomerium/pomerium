@@ -566,7 +566,7 @@ Many tracing backends support zipkin either directly or through intermediary age
 
 #### Example
 
-![jaeger example trace](./img/jaeger.png) pomerium_config_last_reload_success_timestamp | Gauge | The timestamp of the last successful configuration reload by service pomerium_build_info | Gauge | Pomerium build metadata by git revision, service, version and goversion
+![jaeger example trace](./img/jaeger.png)
 
 ## Authenticate Service
 
