@@ -508,7 +508,7 @@ Log level sets the logging level for the pomerium proxy service. Only logs of th
 - Default: `all`
 - Options: `all` `authenticate` `authorize` `cache` or `proxy`
 
-Service mode sets what service(s) to run. If testing, you may want to set to `all` and run pomerium in "all-in-one mode." In production, you'll likely want to spin up several instances of each service mode for high availability.
+Service mode sets which service(s) to run. If testing, you may want to set to `all` and run pomerium in "all-in-one mode." In production, you'll likely want to spin up several instances of each service mode for high availability.
 
 ### Shared Secret
 
