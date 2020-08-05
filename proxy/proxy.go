@@ -157,6 +157,11 @@ func New(opts config.Options) (*Proxy, error) {
 	}
 	p.authzClient = envoy_service_auth_v2.NewAuthorizationClient(authzConn)
 
+	err = p.UpdateOptions(opts)
+	if err != nil {
+		return nil, err
+	}
+
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
 		return int64(len(opts.Policies))
 	})
@@ -171,11 +176,11 @@ func (p *Proxy) UpdateOptions(o config.Options) error {
 		return nil
 	}
 	log.Info().Str("checksum", fmt.Sprintf("%x", o.Checksum())).Msg("proxy: updating options")
-	return p.UpdatePolicies(&o)
+	p.setHandlers(&o)
+	return nil
 }
 
-// UpdatePolicies updates the H basedon the configured policies
-func (p *Proxy) UpdatePolicies(opts *config.Options) error {
+func (p *Proxy) setHandlers(opts *config.Options) {
 	if len(opts.Policies) == 0 {
 		log.Warn().Msg("proxy: configuration has no policies")
 	}
@@ -195,15 +200,7 @@ func (p *Proxy) UpdatePolicies(opts *config.Options) error {
 		h.PathPrefix("/").Handler(p.registerFwdAuthHandlers())
 	}
 
-	for _, policy := range opts.Policies {
-		if err := policy.Validate(); err != nil {
-			return fmt.Errorf("proxy: invalid policy %w", err)
-		}
-	}
-
 	p.currentRouter.Store(r)
-
-	return nil
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
