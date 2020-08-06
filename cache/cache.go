@@ -30,6 +30,7 @@ type Cache struct {
 	localListener                net.Listener
 	localGRPCServer              *grpc.Server
 	localGRPCConnection          *grpc.ClientConn
+	dataBrokerStorageType        string //TODO remove in v0.11
 	deprecatedCacheClusterDomain string //TODO: remove in v0.11
 }
 
@@ -89,6 +90,7 @@ func New(opts config.Options) (*Cache, error) {
 		localGRPCServer:              localGRPCServer,
 		localGRPCConnection:          localGRPCConnection,
 		deprecatedCacheClusterDomain: opts.GetDataBrokerURL().Hostname(),
+		dataBrokerStorageType:        opts.DataBrokerStorageType,
 	}, nil
 }
 
@@ -100,9 +102,11 @@ func (c *Cache) Register(grpcServer *grpc.Server) {
 // Run runs the cache components.
 func (c *Cache) Run(ctx context.Context) error {
 	t, ctx := tomb.WithContext(ctx)
-	t.Go(func() error {
-		return c.runMemberList(ctx)
-	})
+	if c.dataBrokerStorageType == config.StorageInMemoryName {
+		t.Go(func() error {
+			return c.runMemberList(ctx)
+		})
+	}
 	t.Go(func() error {
 		return c.localGRPCServer.Serve(c.localListener)
 	})
