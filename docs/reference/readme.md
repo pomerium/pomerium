@@ -18,11 +18,15 @@ Pomerium can be configured using a configuration file ([YAML]/[JSON]/[TOML]) or 
 
 Using both [environmental variables] and config file keys is allowed and encouraged (for instance, secret keys are probably best set as environmental variables). However, if duplicate configuration keys are found, environment variables take precedence.
 
-Pomerium will automatically reload the configuration file if it is changed. At this time, only policy is re-configured when this reload occurs, but additional options may be added in the future. It is suggested that your policy is stored in a configuration file so that you can take advantage of this feature.
+:::tip
+
+Pomerium can hot-reload route configuration details, authorization policy, certificates, and other proxy settings.
+
+:::
 
 ## Shared Settings
 
-These are configuration variables shared by all services, in all service modes.
+These configuration variables are shared by all services, in all service modes.
 
 ### Address
 
@@ -42,7 +46,7 @@ Address specifies the host and port to serve HTTP requests from. If empty, `:443
 - Type: slice of `string`
 - Example: `"admin@example.com,admin2@example.com"`
 
-Administrative users are [super user](https://en.wikipedia.org/wiki/Superuser) that can sign in as another user or group. User impersonation allows administrators to temporarily impersonate a different user.
+Administrative users are [super users](https://en.wikipedia.org/wiki/Superuser) that can sign-in as another user or group. User impersonation allows administrators to temporarily impersonate a different user.
 
 ### Autocert
 
@@ -51,9 +55,9 @@ Administrative users are [super user](https://en.wikipedia.org/wiki/Superuser) t
 - Type: `bool`
 - Optional
 
-Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] for each of your managed pomerium routes as well as for the authenticate service. This setting must be used in conjunction with [Autocert Directory](./#autocert-directory) as Autocert must have a place to persist, and share certificate data between services. Provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
+Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] for each of your managed routes as well as for the authenticate service. This setting must be used in conjunction with [Autocert Directory](./#autocert-directory) as Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
 
-This setting can be useful in a situation where you do not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
+This setting can be useful in situations where you may not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
 
 :::warning
 
@@ -74,11 +78,15 @@ Autocert requires that ports `80`/`443` be accessible from the internet in order
 - Type: `bool`
 - Optional
 
-If true, cause autocert to request a certificate with `status_request` extension (commonly called `Must-Staple`). This allows the TLS client (the browser) to fail immediately if the TLS handshake doesn't include OCSP stapling information. Only used when [Autocert](./#autocert) is true.
+If true, force autocert to request a certificate with the `status_request` extension (commonly called `Must-Staple`). This allows the TLS client (_id est_ the browser) to fail immediately if the TLS handshake doesn't include OCSP stapling information. This setting is only used when [Autocert](./#autocert) is true.
 
-NOTE: this only takes effect the next time Pomerium renews your certificates.
+:::tip
 
-See also <https://tools.ietf.org/html/rfc7633> for more context.
+This setting will only take effect when you request or renew your certificates.
+
+:::
+
+For more details, please see [RFC7633](https://tools.ietf.org/html/rfc7633) .
 
 ### Autocert Directory
 
@@ -92,7 +100,7 @@ See also <https://tools.ietf.org/html/rfc7633> for more context.
   - [$XDG_DATA_HOME](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
   - `$HOME/.local/share/pomerium`
 
-Autocert directory is path in which autocert will store x509 certificate data.
+Autocert directory is the path which autocert will store x509 certificate data.
 
 ### Autocert Use Staging
 
@@ -115,7 +123,7 @@ Let's Encrypt has strict [usage limits](https://letsencrypt.org/docs/rate-limits
 - Type: certificate relative file location `string`
 - Required (if insecure not set)
 
-Certificates are the x509 _public-key_ and _private-key_ used to establish secure HTTP and gRPC connections. Any combination of the above can be used together, and are additive. Use in conjunction with `Autocert` to get OCSP stapling.
+Certificates are the x509 _public-key_ and _private-key_ used to establish secure HTTP and gRPC connections. Any combination of the above can be used together, and are additive. You can also use any of these settings in conjunction with `Autocert` to get OCSP stapling.
 
 For example, if specifying multiple certificates at once:
 
@@ -140,8 +148,6 @@ The Client Certificate Authority is the x509 _public-key_ used to validate [mTLS
 
 ### Cookie options
 
-These settings control the Pomerium session cookies sent to users's browsers.
-
 #### Cookie name
 
 - Environmental Variable: `COOKIE_NAME`
@@ -156,7 +162,7 @@ The name of the session cookie sent to clients.
 - Environmental Variable: `COOKIE_SECRET`
 - Config File Key: `cookie_secret`
 - Type: [base64 encoded] `string`
-- Required for proxy service 
+- Required for proxy service
 
 Secret used to encrypt and sign session cookies. You can generate a random key with `head -c32 /dev/urandom | base64`.
 
@@ -168,7 +174,7 @@ Secret used to encrypt and sign session cookies. You can generate a random key w
 - Example: `corp.beyondperimeter.com`
 - Optional
 
-The scope of session cookies issued by Pomerium. Session cookies will be shared by all subdomains of the domain specified here.
+The scope of session cookies issued by Pomerium.
 
 #### HTTPS only
 
@@ -207,7 +213,7 @@ Setting this to false enables hostile javascript to steal session cookies and im
 - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
 - Default: `14h`
 
-Sets the lifetime of session cookies. After this interval, users will be forced to go through the OAuth login flow again to get a new cookie.
+Sets the lifetime of session cookies. After this interval, users must reauthenticate.
 
 ### Debug
 
@@ -218,11 +224,11 @@ Sets the lifetime of session cookies. After this interval, users will be forced 
 
 ::: danger
 
-Enabling the debug flag will result in sensitive information being logged!!!
+Enabling the debug flag could result in sensitive information being logged!!!
 
 :::
 
-By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)>>>). In production, it's recommended to be set to `false`.
+By default, JSON encoded logs are produced. Debug enables colored, human-readable logs to be streamed to [standard out](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout)>>>). In production, it is recommended to be set to `false`.
 
 For example, if `true`
 
@@ -251,7 +257,7 @@ If `false`
 - Resulting Verification URL: `https://forwardauth.corp.example.com/?uri={URL-TO-VERIFY}`
 - Optional
 
-Forward authentication creates an endpoint that can be used with third-party proxies that do not have rich access control capabilities ([nginx](http://nginx.org/en/docs/http/ngx_http_auth_request_module.html), [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), [ambassador](https://www.getambassador.io/reference/services/auth-service/), [traefik](https://docs.traefik.io/middlewares/forwardauth/)). Forward authentication allow you to delegate authentication and authorization for each request to Pomerium.
+Forward authentication creates an endpoint that can be used with third-party proxies that do not have rich access control capabilities ([nginx](http://nginx.org/en/docs/http/ngx_http_auth_request_module.html), [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), [ambassador](https://www.getambassador.io/reference/services/auth-service/), [traefik](https://docs.traefik.io/middlewares/forwardauth/)). Forward authentication allows you to delegate authentication and authorization for each request to Pomerium.
 
 #### Request flow
 
@@ -340,8 +346,6 @@ Timeouts set the global server timeouts. For route-specific timeouts, see [polic
 
 ### GRPC Options
 
-These settings control upstream connections to the Authorize service.
-
 #### GRPC Address
 
 - Environmental Variable: `GRPC_ADDRESS`
@@ -350,34 +354,33 @@ These settings control upstream connections to the Authorize service.
 - Example: `:443`, `:8443`
 - Default: `:443` or `:5443` if in all-in-one mode
 
-Address specifies the host and port to serve GRPC requests from. Defaults to `:443` (or `:5443` in all in one mode).
+gRPC Address specifies the host and port to serve gRPC requests from.
 
 #### GRPC Insecure
 
 - Environmental Variable: `GRPC_INSECURE`
 - Config File Key: `grpc_insecure`
 - Type: `bool`
-- Default: `:443` (or `:5443` if in all-in-one mode)
 
-If set, GRPC Insecure disables transport security for communication between the proxy and authorize components. If running in all-in-one mode, defaults to true as communication will run over localhost's own socket.
+This setting disables transport security for gRPC communication. If running in all-in-one mode, defaults to true as communication will run over localhost's own socket.
 
 #### GRPC Client Timeout
-
-Maximum time before canceling an upstream RPC request. During transient failures, the proxy will retry upstreams for this duration, if possible. You should leave this high enough to handle backend service restart and rediscovery so that client requests do not fail.
 
 - Environmental Variable: `GRPC_CLIENT_TIMEOUT`
 - Config File Key: `grpc_client_timeout`
 - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
 - Default: `10s`
 
-#### GRPC Client DNS RoundRobin
+Maximum time before canceling an upstream gRPC request. During transient failures, the proxy will retry upstreams for this duration. You should leave this high enough to handle backend service restart and rediscovery so that client requests do not fail.
 
-Enable grpc DNS based round robin load balancing. This method uses DNS to resolve endpoints and does client side load balancing of _all_ addresses returned by the DNS record. Do not disable unless you have a specific use case.
+#### GRPC Client DNS RoundRobin
 
 - Environmental Variable: `GRPC_CLIENT_DNS_ROUNDROBIN`
 - Config File Key: `grpc_client_dns_roundrobin`
 - Type: `bool`
 - Default: `true`
+
+Enable gRPC DNS based round robin load balancing. This method uses DNS to resolve endpoints and does client side load balancing of _all_ addresses returned by the DNS record. Do not disable unless you have a specific use case.
 
 #### GRPC Server Max Connection Age
 
@@ -392,14 +395,14 @@ See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for de
 
 #### GRPC Server Max Connection Age Grace
 
-Additive period with `grpc_server_max_connection_age`, after which servers will force connections to close.
-
-See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
-
 - Environmental Variable: `GRPC_SERVER_MAX_CONNECTION_AGE_GRACE`
 - Config File Key: `grpc_server_max_connection_age_grace`
 - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
 - Default: `5m`
+
+Additive period with `grpc_server_max_connection_age`, after which servers will force connections to close.
+
+See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
 
 ### HTTP Redirect Address
 
@@ -447,7 +450,7 @@ Log level sets the global logging level for pomerium. Only logs of the desired l
 - Default: `disabled`
 - Optional
 
-Expose a prometheus format HTTP endpoint on the specified port. Disabled by default.
+Expose a prometheus endpoint on the specified port.
 
 :::warning
 
@@ -457,37 +460,37 @@ Expose a prometheus format HTTP endpoint on the specified port. Disabled by defa
 
 #### Pomerium Metrics Tracked
 
-| Name                                          | Type      | Description                                                             |
-| --------------------------------------------- | --------- | ----------------------------------------------------------------------- |
-| grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service                                 |
-| grpc_client_request_size_bytes                | Histogram | GRPC client request size by service                                     |
-| grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service                              |
-| grpc_client_response_size_bytes               | Histogram | GRPC client response size by service                                    |
-| grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service                                 |
-| grpc_server_request_size_bytes                | Histogram | GRPC server request size by service                                     |
-| grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service                              |
-| grpc_server_response_size_bytes               | Histogram | GRPC server response size by service                                    |
-| http_client_request_duration_ms               | Histogram | HTTP client request duration by service                                 |
-| http_client_request_size_bytes                | Histogram | HTTP client request size by service                                     |
-| http_client_requests_total                    | Counter   | Total HTTP client requests made by service                              |
-| http_client_response_size_bytes               | Histogram | HTTP client response size by service                                    |
-| http_server_request_duration_ms               | Histogram | HTTP server request duration by service                                 |
-| http_server_request_size_bytes                | Histogram | HTTP server request size by service                                     |
-| http_server_requests_total                    | Counter   | Total HTTP server requests handled by service                           |
-| http_server_response_size_bytes               | Histogram | HTTP server response size by service                                    |
-| pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion |
-| pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service                      |
-| pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service              |
-| pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service    |
-| redis_conns                                   | Gauge     | Number of total connections in the pool                                 |
-| redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool             |
-| redis_wait_count_total                        | Counter   | Total number of connections waited for                                  |
-| redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections                                |
-| storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service    |
+Name                                          | Type      | Description
+--------------------------------------------- | --------- | -----------------------------------------------------------------------
+grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service
+grpc_client_request_size_bytes                | Histogram | GRPC client request size by service
+grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service
+grpc_client_response_size_bytes               | Histogram | GRPC client response size by service
+grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service
+grpc_server_request_size_bytes                | Histogram | GRPC server request size by service
+grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service
+grpc_server_response_size_bytes               | Histogram | GRPC server response size by service
+http_client_request_duration_ms               | Histogram | HTTP client request duration by service
+http_client_request_size_bytes                | Histogram | HTTP client request size by service
+http_client_requests_total                    | Counter   | Total HTTP client requests made by service
+http_client_response_size_bytes               | Histogram | HTTP client response size by service
+http_server_request_duration_ms               | Histogram | HTTP server request duration by service
+http_server_request_size_bytes                | Histogram | HTTP server request size by service
+http_server_requests_total                    | Counter   | Total HTTP server requests handled by service
+http_server_response_size_bytes               | Histogram | HTTP server response size by service
+pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion
+pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service
+pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service
+pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service
+redis_conns                                   | Gauge     | Number of total connections in the pool
+redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool
+redis_wait_count_total                        | Counter   | Total number of connections waited for
+redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections
+storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service
 
 #### Envoy Proxy Metrics
 
-As of `v0.9`, Pomerium uses [envoy Proxy]([https://](https://www.envoyproxy.io/) for the data plane. As such, proxy related metrics are sourced from envoy, and use envoy's internal [stats data model](https://www.envoyproxy.io/docs/envoy/latest/operations/stats_overview). Please see Envoy's documentation for information about specific metrics.
+As of `v0.9`, Pomerium uses [envoy proxy](https://www.envoyproxy.io/) for the data plane. Proxy related metrics are sourced from envoy, and use envoy's internal [stats data model](https://www.envoyproxy.io/docs/envoy/latest/operations/stats_overview). Please see Envoy's documentation for information about specific metrics.
 
 All metrics coming from envoy will be labeled with `service="pomerium"` or `service="pomerium-proxy"`, depending if you're running all-in-one or distributed service mode.
 
@@ -509,7 +512,7 @@ Log level sets the logging level for the pomerium proxy service. Only logs of th
 - Default: `all`
 - Options: `all` `authenticate` `authorize` `cache` or `proxy`
 
-Service mode sets the pomerium service(s) to run. If testing, you may want to set to `all` and run pomerium in "all-in-one mode." In production, you'll likely want to spin up several instances of each service mode for high availability.
+Service mode sets which service(s) to run. If testing, you may want to set to `all` and run pomerium in "all-in-one mode." In production, you'll likely want to spin up several instances of each service mode for high availability.
 
 ### Shared Secret
 
@@ -518,7 +521,7 @@ Service mode sets the pomerium service(s) to run. If testing, you may want to se
 - Type: [base64 encoded] `string`
 - Required
 
-Shared Secret is the base64 encoded 256-bit key used to mutually authenticate requests between services. It's critical that secret keys are random, and stored safely. Use a key management system or `/dev/urandom/` to generate a key. For example:
+Shared Secret is the base64 encoded 256-bit key used to mutually authenticate requests between services. It's critical that secret keys are random, and stored safely. Use a key management system or `/dev/urandom` to generate a key. For example:
 
 ```
 head -c32 /dev/urandom | base64
@@ -532,10 +535,10 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 #### Shared Tracing Settings
 
-| Config Key          | Description                                                                          | Required |
-| :------------------ | :----------------------------------------------------------------------------------- | -------- |
-| tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅        |
-| tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌        |
+Config Key          | Description                                                                          | Required
+:------------------ | :----------------------------------------------------------------------------------- | --------
+tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅
+tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌
 
 #### Jaeger (partial)
 
@@ -549,10 +552,10 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 - Service dependency analysis
 - Performance / latency optimization
 
-| Config Key                        | Description                                 | Required |
-| :-------------------------------- | :------------------------------------------ | -------- |
-| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
-| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
+Config Key                        | Description                                 | Required
+:-------------------------------- | :------------------------------------------ | --------
+tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅
+tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅
 
 #### Zipkin
 
@@ -560,9 +563,9 @@ Zipkin is an open source distributed tracing system and protocol.
 
 Many tracing backends support zipkin either directly or through intermediary agents, including Jaeger. For full tracing support, we recommend using the Zipkin tracing protocol.
 
-| Config Key              | Description                      | Required |
-| :---------------------- | :------------------------------- | -------- |
-| tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅        |
+Config Key              | Description                      | Required
+:---------------------- | :------------------------------- | --------
+tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
 
 #### Example
 
@@ -578,7 +581,7 @@ Many tracing backends support zipkin either directly or through intermediary age
 - Default: `/oauth2/callback`
 - Optional
 
-The authenticate callback path is the path/url from the authenticate service that will receive the response from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client.
+Authenticate callback path sets the path at which the authenticate service receives callback responses from your identity provider. The value must exactly match one of the authorized redirect URIs for the OAuth 2.0 client.
 
 This value is referred to as the `redirect_url` in the [OpenIDConnect][oidc rfc] and OAuth2 specs.
 
@@ -636,18 +639,28 @@ See [identity provider] for details.
 - Default: `oidc`,`profile`, `email`, `offline_access` (typically)
 - Optional for built-in identity providers.
 
-Identity provider scopes correspond to access privilege scopes as defined in Section 3.3 of OAuth 2.0 RFC6749\. The scopes associated with Access Tokens determine what resources will be available when they are used to access OAuth 2.0 protected endpoints. If you are using a built-in provider, you probably don't want to set customized scopes.
+Identity provider scopes correspond to access privilege scopes as defined in Section 3.3 of OAuth 2.0 RFC6749\. The scopes associated with Access Tokens determine what resources will be available when they are used to access OAuth 2.0 protected endpoints.
+
+:::warning
+
+If you are using a built-in provider, you probably don't want to set customized scopes.
+
+:::
 
 ### Identity Provider Service Account
 
 - Environmental Variable: `IDP_SERVICE_ACCOUNT`
 - Config File Key: `idp_service_account`
 - Type: `string`
-- Required for group based policies
+- **Required** for group based policies (most configurations)
 
-Identity Provider Service Account is field used to configure any additional user account or access-token that may be required for querying additional user information during authentication.
+The identity provider service account setting is used to query associated identity information from your identity provider.
 
-**All group membership from an IdP is queried via service account.**
+:::warning
+
+If you plan to write authorization policies using groups, or any other data that exists in your identity provider's directory service, this setting is **mandatory**.
+
+:::
 
 ### Identity Provider URL
 
@@ -682,8 +695,13 @@ For more information see:
 - Example: `IDP_REFRESH_DIRECTORY_INTERVAL=30m`
 - Defaults: `IDP_REFRESH_DIRECTORY_INTERVAL=10m` `IDP_REFRESH_DIRECTORY_TIMEOUT=1m`
 
-Refresh directory interval is the time that pomerium will sync your IDP diretory, while refresh directory timeout is the
-maximum time allow each run. Use it at your ownn risk, if you set a too low value, you may reach IDP API rate limit.
+Refresh directory interval is the time that pomerium will sync your IDP diretory, while refresh directory timeout is the maximum time allowed each run.
+
+:::warning
+
+Use it at your ownn risk, if you set a too low value, you may reach IDP API rate limit.
+
+:::
 
 ## Proxy Service
 
@@ -716,7 +734,13 @@ If your load balancer does not support gRPC pass-through you'll need to set this
 - Type: [base64 encoded] `string` or relative file location
 - Optional
 
-Certificate Authority is set when behind-the-ingress service communication uses self-signed certificates. Be sure to include the intermediary certificate.
+Certificate Authority is set when behind-the-ingress service communication uses custom or self-signed certificates.
+
+:::warning
+
+Be sure to include the intermediary certificate.
+
+:::
 
 ### Default Upstream Timeout
 
@@ -769,13 +793,13 @@ By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/O
 - Example: `email`,`groups`, `user`
 - Optional
 
-The JWT Claim Headers setting allows you to pass specific user session data down to downstream applications as HTTP request headers. Note, unlike the header `x-pomerium-jwt-assertion` these values are not signed by the authorization service.
+The JWT Claim Headers setting allows you to pass specific user session data down to upstream applications as HTTP request headers. Note, unlike the header `x-pomerium-jwt-assertion` these values are not signed by the authorization service.
 
-Any claim in the pomerium session JWT can be placed into a corresponding header for downstream consumption. This claim information is sourced from your Identity Provider (IdP) and Pomerium's own session metadata. The header will have the following format:
+Any claim in the pomerium session JWT can be placed into a corresponding header for upstream consumption. This claim information is sourced from your Identity Provider (IdP) and Pomerium's own session metadata. The header will have the following format:
 
 `X-Pomerium-Claim-{Name}` where `{Name}` is the name of the claim requested.
 
-Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}` for downstream authN/Z.
+Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}`.
 
 ### Override Certificate Name
 
@@ -809,7 +833,9 @@ The cache service is used for storing user session data.
 - Example: `https://cache.corp.example.com`
 - Default: in all-in-one mode, `http://localhost:5443`
 
-The data broker service URL points to a data broker which is responsible for storing sessions, users and user groups. The `cache` service implements a basic in-memory databroker, so the legacy option `cache_service_url` will be used if this option is not configured.
+The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups).
+
+By default, the `cache` service uses an in-memory databroker, so the legacy option `cache_service_url` will be used if this option is not configured.
 
 To create your own data broker, implement the following gRPC interface:
 
@@ -825,10 +851,10 @@ For an example implementation, the in-memory database used by the cache service 
 - Config File Key: `databroker_storage_type`
 - Type: `string`
 - Optional
-- Example: `redis`
+- Example: `redis`,`memory`
 - Default: `memory`
 
-The backend storage that databroker server will use, available types: `memory`, `redis`.
+The backend storage that databroker server will use.
 
 ### Data Broker Storage Connection String
 
@@ -838,7 +864,7 @@ The backend storage that databroker server will use, available types: `memory`, 
 - **Required** when storage type is `redis`
 - Example: `"redis://localhost:6379/0"`, `"rediss://localhost:6379/0"`
 
-The connection string that server will use to connect to storage backend.
+The connection string that the databroker service will use to connect to storage backend.
 
 ### Data Broker Storage Certificate File
 
@@ -847,7 +873,7 @@ The connection string that server will use to connect to storage backend.
 - Type: relative file location
 - Optional
 
-The certificate uses to connect to storage backend.
+The certificate used to connect to a storage backend.
 
 ### Data Broker Storage Certificate Key File
 
@@ -856,7 +882,7 @@ The certificate uses to connect to storage backend.
 - Type: relative file location
 - Optional
 
-The certificate key uses to connect to storage backend.
+The certificate key used to connect to a storage backend.
 
 ### Data Broker Storage Certificate Authority
 
@@ -865,7 +891,7 @@ The certificate key uses to connect to storage backend.
 - Type: relative file location
 - Optional
 
-The Broker Storage Certificate Authority defines the set of root certificate authorities that are use when verifying storage server certificates.
+This setting defines the set of root certificates used when verifying storage server connections.
 
 ### Data Broker Storage TLS Skip Verify
 
@@ -874,7 +900,7 @@ The Broker Storage Certificate Authority defines the set of root certificate aut
 - Type: relative file location
 - Optional
 
-If set, TLS connection to storage backend will not be verified.
+If set, the TLS connection to the storage backend will not be verified.
 
 ## Policy
 
@@ -900,7 +926,7 @@ policies:
     allow_public_unauthenticated_access: true
 ```
 
-In this example an incoming request with a path prefix of `/admin` would be handled by the first route (which is restricted to superusers). All other requests for `from.example.com` would be handled by the second route (which is open to the public).
+In this example, an incoming request with a path prefix of `/admin` would be handled by the first route (which is restricted to superusers). All other requests for `from.example.com` would be handled by the second route (which is open to the public).
 
 A list of policy configuration variables follows.
 
@@ -940,7 +966,6 @@ Allowed users is a collection of whitelisted users to authorize for a given rout
 
 Allow unauthenticated HTTP OPTIONS requests as [per the CORS spec](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests).
 
-
 ### Enable Google Cloud Serverless Authentication
 
 - Environmental Variable: `ENABLE_GOOGLE_CLOUD_SERVERLESS_AUTHENTICATION`
@@ -959,15 +984,16 @@ Requires setting [Google Cloud Serverless Authentication Service Account](./#goo
 - Required
 - Example: `https://httpbin.corp.example.com`
 
-`From` is externally accessible source of the proxied request.
+`From` is the externally accessible source of the proxied request.
 
 ### Kubernetes Service Account Token
+
 - `yaml`/`json` setting: `kubernetes_service_account_token` / `kubernetes_service_account_token_file`
 - Type: `string` or relative file location containing a Kubernetes bearer token
 - Optional
 - Example: `eyJ0eXAiOiJKV1QiLCJhbGciOiJ...` or `/var/run/secrets/kubernetes.io/serviceaccount/token`
 
-Use this token to authenticate requests to a Kubernetes API server.  
+Use this token to authenticate requests to a Kubernetes API server.
 
 Pomerium will [https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation](impersonate) the Pomerium user's identity, and Kubernetes RBAC can be applied to IdP user and groups.
 
@@ -1076,29 +1102,29 @@ Remove Request Headers allows you to remove given request headers. This can be u
 
 `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
 
+:::warning
+
 Be careful with trailing slash.
 
 With rule:
- 
+
 ```yaml
 - from: https://httpbin.corp.example.com
   to: https://httpbin.org/anything
 ```
 
-Requests to `https://httpbin.corp.example.com` will be forwarded to `https://httpbin.org/anything`, while requests to
-`https://httpbin.corp.example.com/foo` will be forwarded to `https://httpbin.org/anythingfoo`.To make the request forwarded to
-`https://httbin.org/anything/foo`, you can use double slashes in your request `https://httbin.corp.example.com//foo`.
+Requests to `https://httpbin.corp.example.com` will be forwarded to `https://httpbin.org/anything`, while requests to `https://httpbin.corp.example.com/foo` will be forwarded to `https://httpbin.org/anythingfoo`.To make the request forwarded to `https://httbin.org/anything/foo`, you can use double slashes in your request `https://httbin.corp.example.com//foo`.
 
-While with rule:
+While the rule:
 
 ```yaml
 - from: https://httpbin.corp.example.com
   to: https://httpbin.org/anything/
 ```
 
-All requests to `https://httpbin.corp.example.com/*` will be forwarded to `https://httpbin.org/anything/*`. That means accessing to
-`https://httpbin.corp.example.com` will be forwarded to `https://httpbin.org/anything/`. That said, if your application does not handle
-trailing slash, the request will end up with 404 not found.
+All requests to `https://httpbin.corp.example.com/*` will be forwarded to `https://httpbin.org/anything/*`. That means accessing to `https://httpbin.corp.example.com` will be forwarded to `https://httpbin.org/anything/`. That said, if your application does not handle trailing slash, the request will end up with 404 not found.
+
+:::
 
 ### TLS Skip Verification
 
@@ -1114,7 +1140,7 @@ TLS Skip Verification controls whether a client verifies the server's certificat
 - Type: `string`
 - Optional
 
-TLS Server Name overrides the hostname you specified in the `to` field. If set, this server name will be used to verify server side certificate. This is useful when the backend of your service is an HTTPS server with valid certificate, but you want to communicate via an internal hostname or IP address.
+TLS Server Name overrides the hostname specified in the `to` field. If set, this server name will be used to verify the certificate name. This is useful when the backend of your service is an TLS server with a valid certificate, but mismatched name.
 
 ### TLS Custom Certificate Authority
 
@@ -1122,7 +1148,7 @@ TLS Server Name overrides the hostname you specified in the `to` field. If set, 
 - Type: [base64 encoded] `string` or relative file location
 - Optional
 
-TLS Custom Certificate Authority defines the set of root certificate authorities that clients use when verifying server certificates.
+TLS Custom Certificate Authority defines a set of root certificate authorities that clients use when verifying server certificates.
 
 Note: This setting will replace (not append) the system's trust store for a given route.
 
@@ -1132,7 +1158,7 @@ Note: This setting will replace (not append) the system's trust store for a give
 - Type: [base64 encoded] `string` or relative file location
 - Optional
 
-Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/examples/tree/master/mutual-tls) and the [certificate docs](../docs/topics/certificates.md).
+Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [certificate docs](../docs/topics/certificates.md).
 
 ### Pass Identity Headers
 
@@ -1141,7 +1167,7 @@ Pomerium supports client certificates which can be used to enforce [mutually aut
 - Optional
 - Default: `false`
 
-When enabled, this option will pass the identity headers to the downstream application. These headers include:
+When enabled, this option will pass identity headers to upstream applications. These headers include:
 
 - X-Pomerium-Jwt-Assertion
 - X-Pomerium-Claim-*
@@ -1152,7 +1178,7 @@ When enabled, this option will pass the identity headers to the downstream appli
 - Type: `bool`
 - Default: `false`
 
-If set, enables proxying of SPDY protocol upgrades.  
+If set, enables proxying of SPDY protocol upgrades.
 
 ### Websocket Connections
 
@@ -1162,7 +1188,11 @@ If set, enables proxying of SPDY protocol upgrades.
 
 If set, enables proxying of websocket connections.
 
-**Use with caution:** By definition, websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced. Allowing websocket connections to the proxy could result in abuse via [DOS attacks](https://www.cloudflare.com/learning/ddos/ddos-attack-tools/slowloris/).
+:::warning
+
+**Use with caution:** websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced. Allowing websocket connections to the proxy could result in abuse via [DOS attacks](https://www.cloudflare.com/learning/ddos/ddos-attack-tools/slowloris/).
+
+:::
 
 ## Authorize Service
 
@@ -1185,10 +1215,10 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 
 Manually specify the service account credentials to support GCP's [Authorization Header](https://cloud.google.com/run/docs/authenticating/service-to-service) format.
 
-If unspecified: 
+If unspecified:
 
-- If [Identity Provider Name](#identity-provider-name) is set to `google`, will default to [Identity Provider Service Account](#identity-provider-service-account) 
-- Otherwise, will default to ambient credentials in the default locations searched by the Google SDK.  This includes GCE metadata server tokens.
+- If [Identity Provider Name](#identity-provider-name) is set to `google`, will default to [Identity Provider Service Account](#identity-provider-service-account)
+- Otherwise, will default to ambient credentials in the default locations searched by the Google SDK. This includes GCE metadata server tokens.
 
 ### Signing Key
 
