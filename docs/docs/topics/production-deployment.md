@@ -28,7 +28,7 @@ In dedicated service mode, you have the opportunity to scale the components of P
 
 All of Pomerium's components are designed to be stateless, and may all be scaled horizontally or vertically. In general, horizontal scaling is recommended.  Vertical scaling will lead to diminished returns after ~8 vCPUs.
 
-The Cache service, which is responsible for session and identity related data, must be [configured for external persistence](/docs/topics/data-storage.html) to be fully stateless.
+The Cache service, which is responsible for session and identity related data, must be [configured for external persistence](/docs/topics/data-storage.md) to be fully stateless.
 
 ### Proxy
 
@@ -55,7 +55,7 @@ The Cache service is responsible for background identity data retrieval and stor
 The Cache service does not require significant resources, as it provides streaming updates of state changes to the Authorize service.  There will be utilization spikes when Authorize services are restarted and perform an initial synchronization.  Add resources if running many Authorize services and performing restarts in large batches.  In many deployments, 2 replicas of Cache is enough to provide resilient service.
 
 ::: warning
-In a production configuration, Cache CPU/IO utilization also translates to IO load on the [underlying storage system](/docs/topics/data-storage.html).  Ensure it is scaled accordingly!
+In a production configuration, Cache CPU/IO utilization also translates to IO load on the [underlying storage system](/docs/topics/data-storage.md).  Ensure it is scaled accordingly!
 :::
 
 ## Load Balancing
@@ -99,7 +99,7 @@ Regardless of the service mode, it is recommended you run 2+ instances of Pomeri
 Ensure that you have enough spare capacity to handle the scope of your failure domains.
 
 ::: warning
-Multiple replicas of Cache or all-in-one service are only supported with [external storage](/docs/topics/data-storage.html) configured
+Multiple replicas of Cache or all-in-one service are only supported with [external storage](/docs/topics/data-storage.md) configured
 ::: 
 
 ## SSL/TLS Certificates
