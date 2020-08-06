@@ -47,7 +47,7 @@ Proxy will need resources scaled in conjunction with request count and may need 
 
 The Authorize service is responsible for policy checks during requests. It is in the hot path for user requests but does not directly handle user traffic.
 
-Authorize will need resources scaled in conjunction with request count. Request size and type should be of a constant complexity.  In most environments Authorize and Proxy will scale linearly with request volume.
+Authorize will need resources scaled in conjunction with request count. Request size and type should be of a constant complexity.  In most environments, Authorize and Proxy will scale linearly with request volume.
 
 ### Authenticate
 
