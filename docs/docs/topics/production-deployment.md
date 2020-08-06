@@ -35,7 +35,7 @@ In dedicated service mode, you have the opportunity to scale the components of P
 
 All of Pomerium's components are designed to be stateless, and may all be scaled horizontally or vertically. In general, horizontal scaling is recommended.  Vertical scaling will lead to diminished returns after ~8 vCPUs.
 
-The Cache service, which is responsible for session and identity related data must be [configured for external persistence](/docs/topics/data-storage.html) to be fully stateless.
+The Cache service, which is responsible for session and identity related data, must be [configured for external persistence](/docs/topics/data-storage.html) to be fully stateless.
 
 ### Proxy
 
