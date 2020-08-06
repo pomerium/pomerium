@@ -36,6 +36,10 @@ Pomerium can be leveraged as a proxy for user requests to the API Server.
 
 ## How it works
 
+<br><br>
+<img alt="kubernetes integration" src="./img/kubernetes-integration.svg" width="85%">
+<br><br>
+
 Building on top of a standard Kubernetes and Pomerium deployment:
 
 1. Pomerium is given access to a Kubernetes service account with [impersonation](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation) permissions
