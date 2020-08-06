@@ -126,10 +126,10 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 	defer span.End()
 
 	a.dataBrokerDataLock.RLock()
-	s, ok := a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
+	u, ok := a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
 	a.dataBrokerDataLock.RUnlock()
 	if ok {
-		return s
+		return u
 	}
 
 	res, err := a.dataBrokerClient.Get(ctx, &databroker.GetRequest{
@@ -145,10 +145,10 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 	if current := a.dataBrokerData.Get(userTypeURL, userID); current == nil {
 		a.dataBrokerData.Update(res.GetRecord())
 	}
-	s, _ = a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
+	u, _ = a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
 	a.dataBrokerDataLock.Unlock()
 
-	return s
+	return u
 }
 
 func (a *Authorize) getEnvoyRequestHeaders(signedJWT string) ([]*envoy_api_v2_core.HeaderValueOption, error) {
