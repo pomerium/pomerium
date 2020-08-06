@@ -59,7 +59,7 @@ Authenticate requires significantly fewer resources than other components due to
 
 The Cache service is responsible for background identity data retrieval and storage.  It is in the hot path for user authentication.  However, it does not directly handle user traffic and is not in-path for authorization decisions.
 
-The Cache service does not require significant resources, as it provides streaming updates of state changes to the Authorize service.  There will be utilization spikes when Authorize services are restarted and perform an initial syncronization.  Add resources if running many Authorize services and performing restarts in large batches.  In many deployments, 2 replicas of Cache is enough to provide resilient service.
+The Cache service does not require significant resources, as it provides streaming updates of state changes to the Authorize service.  There will be utilization spikes when Authorize services are restarted and perform an initial synchronization.  Add resources if running many Authorize services and performing restarts in large batches.  In many deployments, 2 replicas of Cache is enough to provide resilient service.
 
 ::: warning
 In a production configuration, Cache CPU/IO utilization also translates to IO load on the [underlying storage system](/docs/topics/data-storage.html).  Ensure it is scaled accordingly!
