@@ -22,13 +22,6 @@ In smaller deployments or while testing, it may be desirable to run in "all-in-o
 
 In larger footprints, it is recommended to run Pomerium as a collection of discrete service clusters. This limits blast radius in the event of vulnerabilities and allows for per-service [scaling](#scaling) and monitoring.
 
-In more complicated deployments, you may also choose to share aspects of the control plane across multiple logical Proxy clusters. Examples:
-
-1. You want central AuthN and AuthZ but need to support a number of independently configured Proxy clusters
-2. You want central AuthZ but different Proxy clusters need different IDPs
-
-In both configurations, you must ensure the [Shared Secret](../../reference/readme.md#shared-secret) matches across services. You must also ensure Proxy and Authenticate external names sit within the same domain.
-
 ## Scaling
 
 In dedicated service mode, you have the opportunity to scale the components of Pomerium independently.
