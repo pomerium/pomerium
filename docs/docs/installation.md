@@ -100,14 +100,9 @@ brew install pomerium-cli
 
 ### Source
 
-::: tip
-Officially supported build platforms are limited by envoy proxy.  If you have an 
-enoy binary for your platform in your path at start time, `pomerium` should function correctly.
-:::
-
 ```shell
 git clone git@github.com:pomerium/pomerium.git
 cd pomerium
 make
-./bin/pomerium --help
+./bin/pomerium-cli --help
 ```
