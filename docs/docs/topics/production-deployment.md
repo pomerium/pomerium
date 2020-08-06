@@ -83,7 +83,7 @@ Authenticate is compatible with any L4 or L7/HTTP load balancer. Session stickin
 
 ### Authorize and Cache
 
-You do **not** need to provide a load balancer in front of Authorize and Cache services. Both utilize GRPC, and thus has special requirements if you should chose to use an external load balancer. GRPC can perform client based load balancing, and in most configurations is the best architecture.
+You do **not** need to provide a load balancer in front of Authorize and Cache services. Both utilize GRPC, and thus has special requirements if you should choose to use an external load balancer. GRPC can perform client based load balancing, and in most configurations is the best architecture.
 
 By default, Pomerium gRPC clients will automatically connect to all IPs returned by a DNS query for the name of an upstream service. They will then regularly re-query DNS for changes to the Authorize or Cache service cluster. Health checks and failover are automatic.
 
