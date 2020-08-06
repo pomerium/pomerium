@@ -1,40 +1,5 @@
 # Releases
 
-## Binaries
-
-Official binaries for OSX, Windows, and Linux can be found on our [Github Releases](https://github.com/pomerium/pomerium/releases) page.
-
-## Docker
-
-Pomerium is also distributed as a [minimal](https://github.com/GoogleContainerTools/distroless) [docker container](https://www.docker.com/resources/what-container). You can find Pomerium's images on [dockerhub](https://hub.docker.com/r/pomerium/pomerium). Pomerium can be pulled in several flavors and architectures.
-
-- `:vX.Y.Z`: which will pull the a [specific tagged release](https://github.com/pomerium/pomerium/tags).
-
-  ```bash
-  $ docker run pomerium/pomerium:v0.1.0 --version
-  v0.1.0+53bfa4e
-  ```
-
-- `:latest`: which will pull the [most recent tagged release](https://github.com/pomerium/pomerium/releases).
-
-  ```bash
-  $ docker pull pomerium/pomerium:latest && docker run pomerium/pomerium:latest --version
-  v0.2.0+87e214b
-  ```
-
-- `:master` : which will pull an image in sync with git's [master](https://github.com/pomerium/pomerium/tree/master) branch.
-
-## Source
-
-If you'd like to run Pomerium on an [operating system or architecture](https://gist.github.com/asukakenji/f15ba7e588ac42795f421b48b8aede63) not officially released by Pomerium, or simply prefer to compile from source, you can do so by checking out the latest code and compiling as follows.
-
-```bash
-git clone git@github.com:pomerium/pomerium.git
-cd pomerium
-make
-./bin/pomerium --version
-```
-
 ## Release Cycle
 
 The current release cycle is aligned on a monthly basis. Pre-`1.0.0` we target a `MINOR` release on or around the **first day of each month**. We try to hit the targets as closely as possible, while still delivering a quality release.
