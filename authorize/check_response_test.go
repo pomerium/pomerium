@@ -12,6 +12,7 @@ import (
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 
@@ -19,20 +20,49 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 func TestAuthorize_okResponse(t *testing.T) {
-	a := new(Authorize)
-	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
-	a.currentEncoder.Store(encoder)
-	a.currentOptions.Store(&config.Options{
+	opt := &config.Options{
+		AuthenticateURL: mustParseURL("https://authenticate.example.com"),
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
 		}},
-	})
+		JWTClaimsHeaders: []string{"email"},
+	}
+	a := new(Authorize)
+	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
+	a.currentEncoder.Store(encoder)
+	a.currentOptions.Store(opt)
+	a.store = evaluator.NewStore()
+	pe, err := newPolicyEvaluator(opt, a.store)
+	require.NoError(t, err)
+	a.pe = pe
+	validJWT, _ := a.pe.SignedJWT(a.pe.JWTPayload(&evaluator.Request{
+		DataBrokerData: evaluator.DataBrokerData{
+			"type.googleapis.com/session.Session": map[string]interface{}{
+				"SESSION_ID": &session.Session{
+					UserId: "USER_ID",
+				},
+			},
+			"type.googleapis.com/user.User": map[string]interface{}{
+				"USER_ID": &user.User{
+					Id:    "USER_ID",
+					Name:  "foo",
+					Email: "foo@example.com",
+				},
+			},
+		},
+		HTTP: evaluator.RequestHTTP{URL: "https://example.com"},
+		Session: evaluator.RequestSession{
+			ID: "SESSION_ID",
+		},
+	}))
 
 	originalGCPIdentityDocURL := gcpIdentityDocURL
 	defer func() {
@@ -137,6 +167,25 @@ func TestAuthorize_okResponse(t *testing.T) {
 						Headers: []*envoy_api_v2_core.HeaderValueOption{
 							mkHeader("x-pomerium-jwt-assertion", "valid-signed-jwt", false),
 							mkHeader("Authorization", "Bearer 2020-01-01T01:00:00Z", false),
+						},
+					},
+				},
+			},
+		},
+		{
+			"ok reply with jwt claims header",
+			&evaluator.Result{
+				Status:    0,
+				Message:   "ok",
+				SignedJWT: validJWT,
+			},
+			&envoy_service_auth_v2.CheckResponse{
+				Status: &status.Status{Code: 0, Message: "ok"},
+				HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
+					OkResponse: &envoy_service_auth_v2.OkHttpResponse{
+						Headers: []*envoy_api_v2_core.HeaderValueOption{
+							mkHeader("x-pomerium-claim-email", "foo@example.com", false),
+							mkHeader("x-pomerium-jwt-assertion", validJWT, false),
 						},
 					},
 				},
