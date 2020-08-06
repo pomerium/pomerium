@@ -179,6 +179,8 @@ IDP_CLIENT_ID            | Values from setting up your [identity provider]
 IDP_PROVIDER             | Values from setting up your [identity provider] (e.g. `google`)
 COOKIE_SECRET            | output of `head -c32 /dev/urandom                               | base64`
 AUTHENTICATE_SERVICE_URL | `https://authenticate.int.nas.example`
+SHARED_SECRET            | output of `head -c32 /dev/urandom                               | base64`
+
 
 For a detailed explanation, and additional options, please refer to the [configuration variable docs]. Also note, though not covered in this guide, settings can be made via a mounted configuration file.
 
