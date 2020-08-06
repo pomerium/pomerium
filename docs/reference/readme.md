@@ -490,7 +490,7 @@ storage_operation_duration_ms                 | Histogram | Storage operation du
 
 #### Envoy Proxy Metrics
 
-As of `v0.9`, Pomerium uses [envoy proxy](https://www.envoyproxy.io/) for the data plane. Proxy related metrics are sourced from envoy, and use envoy's internal [stats data model](https://www.envoyproxy.io/docs/envoy/latest/operations/stats_overview). Please see Envoy's documentation for information about specific metrics.
+As of `v0.9`, Pomerium uses [envoy](https://www.envoyproxy.io/) for the data plane. As such, proxy related metrics are sourced from envoy, and use envoy's internal [stats data model](https://www.envoyproxy.io/docs/envoy/latest/operations/stats_overview). Please see Envoy's documentation for information about specific metrics.
 
 All metrics coming from envoy will be labeled with `service="pomerium"` or `service="pomerium-proxy"`, depending if you're running all-in-one or distributed service mode.
 
@@ -995,7 +995,7 @@ Requires setting [Google Cloud Serverless Authentication Service Account](./#goo
 
 Use this token to authenticate requests to a Kubernetes API server.
 
-Pomerium will [https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation](impersonate) the Pomerium user's identity, and Kubernetes RBAC can be applied to IdP user and groups.
+Pomerium will [impersonate](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation) the Pomerium user's identity, and Kubernetes RBAC can be applied to IdP user and groups.
 
 ### Path
 
@@ -1262,7 +1262,7 @@ If no certificate is specified, one will be generated and the base64'd public ke
 [letsencrypt]: https://letsencrypt.org/
 [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
-[signed headers]: ./signed-headers.md
+[signed headers]: ../docs/topics/getting-users-identity.md
 [toml]: https://en.wikipedia.org/wiki/TOML
 [yaml]: https://en.wikipedia.org/wiki/YAML
 [Elliptic Curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters

@@ -12,7 +12,7 @@ Please also see [architecture](../#architecture) for information on component in
 
 ## Service Mode
 
-For configuration of the service mode, see [Service Mode](../../configuration/readme.md#service-mode).
+For configuration of the service mode, see [Service Mode](../../reference/readme.md#service-mode).
 
 ### All in One
 
@@ -27,7 +27,7 @@ In more complicated deployments, you may also choose to share aspects of the con
 1. You want central AuthN and AuthZ but need to support a number of independently configured Proxy clusters
 2. You want central AuthZ but different Proxy clusters need different IDPs
 
-In both configurations, you must ensure the [Shared Secret](../../configuration/readme.md#shared-secret) matches across services. You must also ensure Proxy and Authenticate external names sit within the same domain.
+In both configurations, you must ensure the [Shared Secret](../../reference/readme.md#shared-secret) matches across services. You must also ensure Proxy and Authenticate external names sit within the same domain.
 
 ## Scaling
 

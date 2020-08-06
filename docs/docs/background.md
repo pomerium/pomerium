@@ -41,7 +41,7 @@ In summary, perimeter based security suffers from the following shortcomings:
 - Even just defining what the network perimeter is is an increasingly difficult proposition in a remote-work, BYOD, multi-cloud world. Most organizations are a heterogeneous mix of clouds, servers, devices, and organizational units.
 - VPNs are often misused and exacerbate the issue by opening yet another door into your network organization.
 
-### Zero-trust, security behind the gates
+### Zero-trust
 
 [Zero-trust](https://ldapwiki.com/wiki/Zero%20Trust) instead attempts to mitigate these shortcomings by adopting the following principles:
 

@@ -48,10 +48,10 @@ source ./env
 
 Browse to `external-httpbin.your.domain.example`. Connections between you and [httpbin] will now be proxied and managed by Pomerium.
 
-[configuration variables]: ../../configuration/readme.md
+[configuration variables]: ../../reference/readme.md
 [download]: https://github.com/pomerium/pomerium/releases
 [environmental configuration variables]: https://12factor.net/config
 [httpbin]: https://httpbin.org/
 [identity provider]: ../identity-providers/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
-[tls certificates]: ../reference/certificates.md
+[tls certificates]: ../topics/certificates.md

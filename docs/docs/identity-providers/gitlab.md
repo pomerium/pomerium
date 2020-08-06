@@ -68,4 +68,4 @@ When a user first uses pomerium to login, they will be presented with an authori
 
 Please be aware that [Group ID](https://docs.gitlab.com/ee/api/groups.html#details-of-a-group) will be used to affirm group(s) a user belongs to.
 
-[identity scopes]: ../../configuration/readme.md#identity-provider-scopes
+[identity scopes]: ../../reference/readme.md#identity-provider-scopes

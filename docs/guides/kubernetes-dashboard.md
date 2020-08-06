@@ -350,7 +350,7 @@ Whichever option you choose to go with, 🎉🍾🎊 **congratulations** 🎉�
 [creating sample users]: https://github.com/kubernetes/dashboard/blob/master/docs/user/access-control/creating-sample-user.md
 [dashboard ui]: https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/#deploying-the-dashboard-ui
 [dns01 challenge provider]: https://docs.cert-manager.io/en/latest/tasks/issuers/setup-acme/dns01/index.html
-[forward-auth]: ../docs/topics/reference.html#forward-auth
+[forward-auth]: ../reference/readme.md#forward-auth
 [helm install]: https://helm.sh/docs/using_helm/#installing-the-helm-client
 [helm]: https://helm.sh
 [homebrew]: https://brew.sh
@@ -362,5 +362,5 @@ Whichever option you choose to go with, 🎉🍾🎊 **congratulations** 🎉�
 [nginx]: https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-subrequest-authentication/
 [securing your helm installation]: https://helm.sh/docs/using_helm/#securing-your-helm-installation
 [snap]: https://github.com/snapcrafters/helm
-[with pomerium]: ../docs/topics/reference.html#forward-auth
+[with pomerium]: ../reference/readme.md#forward-auth
 [your dashboard]: http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/login

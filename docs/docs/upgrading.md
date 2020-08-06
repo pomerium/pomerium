@@ -5,43 +5,52 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
-# Since 0.10.0
+# Since 0.9.0
 
 ## Breaking
 
-### Service Accounts and `allowed_groups`
+### Service accounts required for groups and directory data
 
-With this release we now query group information asynchronously using a service account. This was already the behavior
-for Google, but for all other providers a `idp_service_account` configuration will need to be supplied. The format of
-this field varies and is specified in each identity provider's documentation.
+With the v0.10.0 release, Pomerium now queries group information asynchronously using a service account. While a service account was already required for a few identity providers like Google's GSuite, an [Identity Provider Service Account] is now required for all other providers as well. The format of this field varies and is specified in each identity provider's documentation.
 
-If no `idp_service_account` is supplied, the `allowed_groups` policy configuration will not work.
+:::warning
 
-### Cache Service
+If no [Identity Provider Service Account] is supplied, policies using groups (e.g. `allowed_groups` will not work).
 
-The cache service now stores user and session data in storage backend (rather than in a browser cookie). There are two storage
-backend types supported, `memory` or `redis`.
+:::
+
+### Cache service builds stateful context
+
+With the v0.10 release, Pomerium now asynchronously fetches associated authorization context (e.g. identity provider directory context, groups, user-data, session data, etc) in the `cache` service. In previous versions, Pomerium used session cookies to associated identity state which authorization policy was evaluated against. While using session tokens had the advantage of making Pomerium a relatively stateless application, that approach has many shortcomings which is more extensively covered in the [data storage docs](./topics/data-storage.md).
+
+There are two [storage backend types] available: `memory` or `redis`. You can see the existing [storage backend configuration settings in the docs][cache service docs].
+
+#### Memory Storage Backend
+
+For `memory` storage, restarting the cache service will result in all users having to re-login. Code for the in-memory database used by the cache service can be found here: [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/master/internal/databroker/memory).
+
+:::warning
 
 Running more than one instance of the `memory` type cache service is not supported.
 
-For `memory` storage, restarting the cache service will result in all users having to re-login. The in-memory database used by the cache
-service can be found here: [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/master/internal/databroker/memory).
+:::
 
-The `redis` storage can be used for persistent data, you can see the existing [storage backend configuration here].
+#### Redis Storage Backend
 
-You can see:
+In production deployments, we recommend using the `redis` storage backend. Unlike the `memory` backend, `redis` can be used for persistent data.
 
- - [databroker gRPC interface](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
- - [storage backend interface](https://github.com/pomerium/pomerium/blob/master/pkg/storage/storage.go)
- 
-for reference to implement your own.
+#### Implementing your own storage backend
+
+Please see the following interfaces for reference to implement your storage backend interface.
+
+- [databroker gRPC interface](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
+- [storage backend interface](https://github.com/pomerium/pomerium/blob/master/pkg/storage/storage.go)
 
 ### Identity headers
 
-With this release, pomerium will not insert identity headers (X-Pomerium-Jwt-Asserttion/X-Pomerium-Claim-*) by default. To get pre 0.9.0 behavior, you
-can set `pass_identity_headers` to true on a per-policy basis.
+With this release, pomerium will not insert identity headers (X-Pomerium-Jwt-Asserttion/X-Pomerium-Claim-*) by default. To get pre 0.9.0 behavior, you can set `pass_identity_headers` to true on a per-policy basis.
 
-# Since 0.9.0
+# Since 0.8.0
 
 ## Breaking
 
@@ -51,32 +60,26 @@ With this release, default log level has been changed to INFO.
 
 ### HTTP 1.0
 
-HTTP 1.0 is not supported anymore. If you relied on it make sure to upgrade to HTTP 1.1 or higher.
+HTTP 1.0 (not to be confused with HTTP 1.1) is not supported anymore. If you relied on it make sure to upgrade to HTTP 1.1 or higher.
 
 Example for HAProxy health check, in pre `0.9.0`:
 
-```shell script
-option httpchk GET /ping
+```sh
+shell script option httpchk GET /ping
 ```
 
 In `0.9.0`:
 
-```shell script
-
+```sh
 option httpchk GET /ping HTTP/1.1\r\nHost:pomerium
 ```
 
 ### preserve_host_header option
 
-With this release, Pomerium uses an embedded envoy proxy instead hand-written one. Thus, we defer the preserve host header
-functionality to [envoy's auto_host_rewrite](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#envoy-v3-api-field-config-route-v3-routeaction-auto-host-rewrite),
-which does not affect if the policy routes to a static IP.
+With this release, Pomerium uses an embedded envoy proxy instead hand-written one. Thus, we defer the preserve host header functionality to [envoys auto_host_rewrite](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#envoy-v3-api-field-config-route-v3-routeaction-auto-host-rewrite), which does not affect if the policy routes to a static IP.
 
 To preserve 0.8.x behavior, you can use the `set_request_headers` option to explicitly set the Host header.
 
-# Since 0.8.0
-
-## Breaking
 
 ### Unsupported platforms
 
@@ -145,7 +148,7 @@ policy:
 
 :::warning
 
-This changed was partially reverted in v0.7.2\. Session details like `user`, `email`, and `groups` can still be explicitly extracted by setting the [jwt_claims_header](../configuration/readme.md#jwt-claim-headers) configuration option.
+This changed was partially reverted in v0.7.2\. Session details like `user`, `email`, and `groups` can still be explicitly extracted by setting the [jwt_claims_header](../reference/readme.md#jwt-claim-headers) configuration option.
 
 :::
 
@@ -368,8 +371,9 @@ Usage of the POLICY_FILE envvar is no longer supported. Support for file based p
 
 The configuration variable [Authenticate Internal Service URL] must now be a valid [URL](https://golang.org/pkg/net/url/#URL) type and contain both a hostname and valid `https` schema.
 
-[authenticate internal service url]: ../configuration/readme.md#authenticate-service-url
-[cache service docs]: ../configuration/readme.md#cache-service
-[policy]: ../configuration/readme.md#policy
-[split service example]: ../configuration/examples.md#distinct-services
+[authenticate internal service url]: ../reference/readme.md#authenticate-service-url
+[cache service docs]: ../reference/readme.md#cache-service
+[identity provider service account]: ../reference/readme.md#identity-provider-service-account
+[policy]: ../reference/readme.md#policy
 [storage backend configuration here]: ../reference/readme.md#cache-service
+[storage backend types]: ../reference/readme.md#data-broker-storage-type
