@@ -46,7 +46,7 @@ Building on top of a standard Kubernetes and Pomerium deployment:
 
 ## Kubeconfig Setup
 
-After installing the [pomerium-cli](/docs/installation.html#pomerium-client), you must configure your `kubeconfig` for authentication.
+After installing the [pomerium-cli](/docs/installation.html#pomerium-cli), you must configure your `kubeconfig` for authentication.
 
 Substitute `mycluster.pomerium.io` with your own API Server's `from` in Pomerium's policy:
 

@@ -9,6 +9,6 @@ description: >-
 
 ## Overview
 
-## Pomerium Server
+## Pomerium
 
-## Pomerium Client
+## Pomerium CLI
