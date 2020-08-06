@@ -65,5 +65,21 @@ func TestStore(t *testing.T) {
 		v, err = storage.ReadOne(ctx, s.opaStore, storage.MustParsePath("/databroker_data/type.googleapis.com/user.User/u1"))
 		assert.Error(t, err)
 		assert.Nil(t, v)
+
+		s.UpdateRecord(&databroker.Record{
+			Version: "v1",
+			Type:    any.GetTypeUrl(),
+			Id:      u.GetId(),
+			Data:    any,
+		})
+
+		v, err = storage.ReadOne(ctx, s.opaStore, storage.MustParsePath("/databroker_data/type.googleapis.com/user.User/u1"))
+		assert.NoError(t, err)
+		assert.NotNil(t, v)
+
+		s.ClearRecords("type.googleapis.com/user.User")
+		v, err = storage.ReadOne(ctx, s.opaStore, storage.MustParsePath("/databroker_data/type.googleapis.com/user.User/u1"))
+		assert.Error(t, err)
+		assert.Nil(t, v)
 	})
 }
