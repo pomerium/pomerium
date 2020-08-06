@@ -20,7 +20,7 @@ Using both [environmental variables] and config file keys is allowed and encoura
 
 :::tip
 
-Pomerium can hot-reload route configuration details, certificates, and other proxy settings.
+Pomerium can hot-reload route configuration details, authorization policy, certificates, and other proxy settings.
 
 :::
 
