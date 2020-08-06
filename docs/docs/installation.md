@@ -24,7 +24,7 @@ Pomerium releases include both the `pomerium` and `pomerium-cli` binaries.
 
 ### Binaries
 
-Official binaries for OSX, Windows, and Linux can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page.
+Official binaries can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page.
 
 ```shell
 ARCH=[your arch]
@@ -81,7 +81,7 @@ make
 
 ### Binaries
 
-[GitHub Releases](https://github.com/pomerium/pomerium/releases)
+Official binaries can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page.
 
 ```shell
 ARCH=[your arch]
