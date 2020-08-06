@@ -38,3 +38,29 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "2020-01-01T01:00:00Z", token.AccessToken)
 }
+
+func Test_normalizeServiceAccount(t *testing.T) {
+	tests := []struct {
+		name                   string
+		serviceAccount         string
+		expectedServiceAccount string
+		wantError              bool
+	}{
+		{"empty", "", "", false},
+		{"leading spaces", `  {"service_account": "foo"}`, `{"service_account": "foo"}`, false},
+		{"trailing spaces", `{"service_account": "foo"}  `, `{"service_account": "foo"}`, false},
+		{"leading+trailing spaces", `   {"service_account": "foo"}  `, `{"service_account": "foo"}`, false},
+		{"base64", "eyJzZXJ2aWNlX2FjY291bnQiOiAiZm9vIn0=", `{"service_account": "foo"}`, false},
+		{"invalid base64", "--eyJzZXJ2aWNlX2FjY291bnQiOiAiZm9vIn0=--", "", true},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			gotServiceAccount, err := normalizeServiceAccount(tc.serviceAccount)
+			assert.True(t, (err != nil) == tc.wantError)
+			assert.Equal(t, tc.expectedServiceAccount, gotServiceAccount)
+		})
+	}
+}

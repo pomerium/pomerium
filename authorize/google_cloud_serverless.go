@@ -80,6 +80,20 @@ var (
 	}
 )
 
+func normalizeServiceAccount(serviceAccount string) (string, error) {
+	serviceAccount = strings.TrimSpace(serviceAccount)
+
+	// the service account can be base64 encoded
+	if !strings.HasPrefix(serviceAccount, "{") {
+		bs, err := base64.StdEncoding.DecodeString(serviceAccount)
+		if err != nil {
+			return "", err
+		}
+		serviceAccount = string(bs)
+	}
+	return serviceAccount, nil
+}
+
 func getGoogleCloudServerlessTokenSource(serviceAccount, audience string) (oauth2.TokenSource, error) {
 	key := gcpTokenSourceKey{
 		serviceAccount: serviceAccount,
@@ -99,22 +113,15 @@ func getGoogleCloudServerlessTokenSource(serviceAccount, audience string) (oauth
 			audience: audience,
 		})
 	} else {
-		serviceAccount = strings.TrimSpace(serviceAccount)
-
-		// the service account can be base64 encoded
-		if !strings.HasPrefix(serviceAccount, "{") {
-			bs, err := base64.StdEncoding.DecodeString(serviceAccount)
-			if err != nil {
-				return nil, err
-			}
-			serviceAccount = string(bs)
-		}
-
-		var err error
-		src, err = idtoken.NewTokenSource(context.Background(), audience, idtoken.WithCredentialsJSON([]byte(serviceAccount)))
+		serviceAccount, err := normalizeServiceAccount(serviceAccount)
 		if err != nil {
 			return nil, err
 		}
+		newSrc, err := idtoken.NewTokenSource(context.Background(), audience, idtoken.WithCredentialsJSON([]byte(serviceAccount)))
+		if err != nil {
+			return nil, err
+		}
+		src = newSrc
 	}
 
 	gcpTokenSources.m[key] = src
