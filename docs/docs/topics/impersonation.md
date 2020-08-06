@@ -158,4 +158,4 @@ And you should see something like the following in response:
 }
 ```
 
-[configuration settings]: ../../configuration/readme.md#administrators
+[configuration settings]: ../../reference/readme.md#administrators

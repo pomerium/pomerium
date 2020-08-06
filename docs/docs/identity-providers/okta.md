@@ -63,8 +63,8 @@ IDP_CLIENT_SECRET="REPLACE_ME"
 IDP_SERVICE_ACCOUNT="REPLACE_ME" # service account
 ```
 
-[client id]: ../../configuration/readme.md#identity-provider-client-id
-[client secret]: ../../configuration/readme.md#identity-provider-client-secret
+[client id]: ../../reference/readme.md#identity-provider-client-id
+[client secret]: ../../reference/readme.md#identity-provider-client-secret
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
 [openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect

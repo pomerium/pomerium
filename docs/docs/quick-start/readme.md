@@ -66,10 +66,10 @@ You can also navigate to the special pomerium endpoint `httpbin.corp.yourdomain.
 
 ![currently logged in user](./img/logged-in-as.png)
 
-[configuration file]: ../../configuration/readme.md
+[configuration file]: ../../reference/readme.md
 [container images]: https://hub.docker.com/r/pomerium/pomerium
 [docker]: https://docs.docker.com/install/
 [docker-compose]: https://docs.docker.com/compose/install/
 [httpbin]: https://httpbin.org/
 [identity provider]: ../identity-providers/readme.md
-[tls certificates]: ../reference/certificates.md
+[tls certificates]: ../topics/certificates.md

@@ -63,9 +63,9 @@ You can also navigate to the special pomerium endpoint `httpbin.your.domain.exam
 
 ![currently logged in user](./img/logged-in-as.png)
 
-[./kubernetes_gke.sh]: ../../configuration/examples.md#google-kubernetes-engine
-[example kubernetes files]: ../../configuration/examples.md#google-kubernetes-engine
+[./kubernetes_gke.sh]: https://github.com/pomerium/pomerium/tree/master/examples
+[example kubernetes files]: https://github.com/pomerium/pomerium/tree/master/examples
 [identity provider]: ../identity-providers/readme.md
 [letsencrypt]: https://letsencrypt.org/
 [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
-[tls certificates]: ../reference/certificates.md
+[tls certificates]: ../topics/certificates.md

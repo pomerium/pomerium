@@ -4,6 +4,10 @@ module.exports = {
   description:
     "Pomerium is a beyond-corp inspired, zero trust, open source identity-aware access proxy.",
   plugins: {
+    "check-md": {
+      pattern: "**/*.md",
+    },
+
     sitemap: {
       hostname: "https://www.pomerium.io",
     },

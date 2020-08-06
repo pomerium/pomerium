@@ -553,7 +553,7 @@ There were no changes in the v0.7.1 release, but we updated the build process sl
 
 - `http.Server` and `httputil.NewSingleHostReverseProxy` now uses pomerium's logging package instead of the standard library's built in one. [GH-58]
 
-[certificates documentation]: ../reference/certificates.md
+[certificates documentation]: ../docs/topics/certificates.md
 [gh-1]: https://github.com/pomerium/pomerium/issues/1
 [gh-10]: https://github.com/pomerium/pomerium/issues/10
 [gh-100]: https://github.com/pomerium/pomerium/issues/100
