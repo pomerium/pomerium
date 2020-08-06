@@ -36,8 +36,6 @@ curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomeri
 
 ### Docker Image
 
-Docker is the most commonly used deployment method for Pomerium.
-
 Pomerium utilizes a [minimal](https://github.com/GoogleContainerTools/distroless) [docker container](https://www.docker.com/resources/what-container). You can find Pomerium's images on [dockerhub](https://hub.docker.com/r/pomerium/pomerium). Pomerium can be pulled in several flavors and architectures.
 
 - `:vX.Y.Z`: which will pull the a [specific tagged release](https://github.com/pomerium/pomerium/tags).
@@ -59,6 +57,17 @@ Pomerium utilizes a [minimal](https://github.com/GoogleContainerTools/distroless
 ```shell
 docker pull pomerium/pomerium:latest
 ```
+
+### Helm
+
+Pomerium maintains a [helm](https://helm.sh) chart for easy Kubernetes deployment with best practices [https://helm.pomerium.io/](https://helm.pomerium.io/)
+
+```shell
+helm repo add pomerium https://helm.pomerium.io
+helm install pomerium/pomerium
+```
+
+See the [README](https://github.com/pomerium/pomerium-helm/blob/master/charts/pomerium/README.md) for up to date install options.
 
 ### Source
 
