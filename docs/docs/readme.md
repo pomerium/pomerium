@@ -19,12 +19,12 @@ Pomerium can be used to:
 - enforce **dynamic access policy** based on **context**, **identity**, and **device state**.
 - aggregate access logs and telemetry data.
 - perform delegated user authorization for service-based authorization systems:
-  - [Istio](/guides/istio.html)
-  - [Google Cloud](/guides/cloud-run.html)
+  - [Istio](/guides/istio.md)
+  - [Google Cloud](/guides/cloud-run.md)
 - provide unified identity attestation for upstream services:
-  - [Kubernetes](/guides/kubernetes.html)
-  - [Grafana](/guides/istio.html#pomerium-configuration)
-  - [Custom applications](/docs/topics/getting-users-identity.html)
+  - [Kubernetes](/guides/kubernetes.md)
+  - [Grafana](/guides/istio.md#pomerium-configuration)
+  - [Custom applications](/docs/topics/getting-users-identity.md)
 - provide a **VPN alternative**.
 
 ## Architecture
