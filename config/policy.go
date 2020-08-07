@@ -116,7 +116,7 @@ type Policy struct {
 	// to upstream requests.
 	EnableGoogleCloudServerlessAuthentication bool `mapstructure:"enable_google_cloud_serverless_authentication" yaml:"enable_google_cloud_serverless_authentication,omitempty"` //nolint
 
-	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies" json:"sub_policies"`
+	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
 }
 
 // A SubPolicy is a protobuf Policy within a protobuf Route.
