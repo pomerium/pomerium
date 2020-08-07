@@ -23,10 +23,9 @@ func TestNew(t *testing.T) {
 		opts    config.Options
 		wantErr bool
 	}{
-		{"good - autocache", config.Options{SharedKey: cryptutil.NewBase64Key(), DataBrokerURL: &url.URL{Scheme: "http", Host: "example"}}, false},
+		{"good", config.Options{SharedKey: cryptutil.NewBase64Key(), DataBrokerURL: &url.URL{Scheme: "http", Host: "example"}}, false},
 		{"bad shared secret", config.Options{SharedKey: string([]byte(cryptutil.NewBase64Key())[:31]), DataBrokerURL: &url.URL{Scheme: "http", Host: "example"}}, true},
 		{"bad cache url", config.Options{SharedKey: cryptutil.NewBase64Key(), DataBrokerURL: &url.URL{}}, true},
-		{"good - bolt", config.Options{SharedKey: cryptutil.NewBase64Key(), DataBrokerURL: &url.URL{Scheme: "http", Host: "example"}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
