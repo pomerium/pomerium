@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,31 +14,49 @@ func TestNew(t *testing.T) {
 	t.Parallel()
 	policies := testPolicies(t)
 	tests := []struct {
-		name      string
-		SharedKey string
-		Policies  []config.Policy
-		wantErr   bool
+		name    string
+		config  config.Options
+		wantErr bool
 	}{
-		{"good", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", policies, false},
-		{"bad shared secret", "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==", policies, true},
-		{"really bad shared secret", "sup", policies, true},
-		{"validation error, short secret", "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==", policies, true},
-		{"empty options", "", []config.Policy{}, true}, // special case
-
+		{"good",
+			config.Options{
+				AuthenticateURL: mustParseURL("https://authN.example.com"),
+				DataBrokerURL:   mustParseURL("https://cache.example.com"),
+				SharedKey:       "2p/Wi2Q6bYDfzmoSEbKqYKtg+DUoLWTEHHs7vOhvL7w=",
+				Policies:        policies},
+			false},
+		{"bad shared secret",
+			config.Options{
+				AuthenticateURL: mustParseURL("https://authN.example.com"),
+				DataBrokerURL:   mustParseURL("https://cache.example.com"),
+				SharedKey:       "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
+				Policies:        policies}, true},
+		{"really bad shared secret",
+			config.Options{
+				AuthenticateURL: mustParseURL("https://authN.example.com"),
+				DataBrokerURL:   mustParseURL("https://cache.example.com"),
+				SharedKey:       "sup",
+				Policies:        policies}, true},
+		{"validation error, short secret",
+			config.Options{
+				AuthenticateURL: mustParseURL("https://authN.example.com"),
+				DataBrokerURL:   mustParseURL("https://cache.example.com"),
+				SharedKey:       "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
+				Policies:        policies}, true},
+		{"empty options", config.Options{}, true},
+		{"bad cache url",
+			config.Options{
+				AuthenticateURL: mustParseURL("https://authN.example.com"),
+				DataBrokerURL:   &url.URL{},
+				SharedKey:       "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
+				Policies:        policies},
+			true},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			o := &config.Options{
-				AuthenticateURL: mustParseURL("https://authN.example.com"),
-				DataBrokerURL:   mustParseURL("https://cache.example.com"),
-				SharedKey:       tt.SharedKey,
-				Policies:        tt.Policies}
-			if tt.name == "empty options" {
-				o = &config.Options{}
-			}
-			_, err := New(o)
+			_, err := New(&tt.config)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
