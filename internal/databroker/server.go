@@ -30,6 +30,7 @@ import (
 const (
 	recordTypeServerVersion = "server_version"
 	serverVersionKey        = "version"
+	syncBatchSize           = 100
 )
 
 // Server implements the databroker service using an in memory database.
@@ -225,10 +226,19 @@ func (srv *Server) doSync(ctx context.Context, recordVersion *string, db storage
 		return updated[i].Version < updated[j].Version
 	})
 	*recordVersion = updated[len(updated)-1].Version
-	return stream.Send(&databroker.SyncResponse{
-		ServerVersion: srv.version,
-		Records:       updated,
-	})
+	for i := 0; i < len(updated); i += syncBatchSize {
+		j := i + syncBatchSize
+		if j > len(updated) {
+			j = len(updated)
+		}
+		if err := stream.Send(&databroker.SyncResponse{
+			ServerVersion: srv.version,
+			Records:       updated[i:j],
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Sync streams updates for the given record type.
