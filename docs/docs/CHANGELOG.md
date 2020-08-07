@@ -2,25 +2,225 @@
 
 ## v0.10.0
 
-### New
-
-- config: add remove_request_headers @cuonglm [GH-822]
-- config: change default log level to INFO  @cuonglm [GH-902]
-- config: add pass_identity_headers @cuonglm [GH-903]
-- authenticate: allow hot reloaded admin users config @cuonglm [GH-984]
-- authorize: include "kid" in JWT headers @cuonglm [GH-1046]
-- config: both base64 and file reference can be used for "certificates" @dmitrif [GH-1055]
-- envoy: enable strip host port matching @cuonglm [GH-1126]
-
 ### Changes
 
+- Add storage backend interface @cuonglm GH-1072
+- all: update outdated comments about OptionsUpdater interface @cuonglm GH-1207
+- Allow specify go executable in Makefile @cuonglm GH-1008
+- audit: add protobuf definitions @calebdoxsey GH-1047
+- authenticate: hide impersonation form from non-admin users @cuonglm GH-979
+- authenticate: move impersonate from proxy to authenticate @calebdoxsey GH-965
+- authenticate: remove useless/duplicated code block @cuonglm GH-962
+- authenticate: revoke current session oauth token before sign out @cuonglm GH-964
+- authorize,proxy: allow traefik forward auth without uri query @cuonglm GH-1103
+- authorize: add evaluator store @calebdoxsey GH-1105
+- authorize: add test for denied response @cuonglm GH-1197
+- authorize: avoid serializing databroker data map to improve performance @calebdoxsey GH-995
+- authorize: clear session state if session was deleted in databroker @cuonglm GH-1053
+- authorize: derive check response message from reply message @cuonglm GH-1193
+- authorize: include "kid" in JWT header @cuonglm GH-1049
+- authorize: store policy evaluator on success only @cuonglm GH-1206
+- authorize/evaluator: add more test cases @cuonglm GH-1198
+- authorize/evaluator: fix wrong custom policies decision @cuonglm GH-1199
+- authorize/evaluator/opa: use route policy object instead of array index @cuonglm GH-1001
+- cache: add client telemetry @travisgroth GH-975
+- cache: add test for runMemberList @cuonglm GH-1007
+- cache: attempt to join memberlist cluster for sanity check @travisgroth GH-1004
+- cache: fix missing parameter @travisgroth GH-1005
+- cache: only run memberlist for in-memory databroker @travisgroth GH-1224
+- ci: Add cloudrun build @travisgroth GH-1097
+- ci: support rc releases @travisgroth GH-1011
+- cmd/pomerium-cli: do not require terminal with cached creds @travisgroth GH-1196
+- config: add check to assert service account is required for policies with allowed_groups @desimone GH-997
+- config: add support for policies stored in the databroker @calebdoxsey GH-1099
+- config: additional kubernetes token source support @travisgroth GH-1200
+- config: allow setting directory sync interval and timeout @cuonglm GH-1098
+- config: default to google idp credentials for serverless @travisgroth GH-1170
+- config: fix loading storage client cert from wrong location @travisgroth GH-1212
+- config: Set loopback address by ipv4 IP @travisgroth GH-1116
+- cryptutil: move to pkg dir, add token generator @calebdoxsey GH-1029
+- deployment: fix brew creation for pomerium-cli @travisgroth GH-1192
+- directory.Group entry for groups @calebdoxsey GH-1118
+- docs/docs: update upgrading to mention redis storage backend @cuonglm GH-1172
+- envoy: disable idle timeouts to controlplane @travisgroth GH-1000
+- grpc: rename internal/grpc to pkg/grpc @calebdoxsey GH-1010
+- grpc: use relative paths in codegen @desimone GH-1106
+- grpcutil: add functions for JWTs in gRPC metadata @calebdoxsey GH-1165
+- Increasing authorize coverage @cuonglm GH-1221
+- integration: add dummy value for idp_service_account @cuonglm GH-1009
+- internal/controlplane: set envoy prefix rewrite if present @cuonglm GH-1034
+- internal/controlplane: using envoy strip host port matching @cuonglm GH-1126
+- internal/databroker: handle new db error @cuonglm GH-1129
+- internal/databroker: store server version @cuonglm GH-1121
+- internal/directory: improve google user groups list @cuonglm GH-1092
+- internal/directory: use both id and name for group @cuonglm GH-1086
+- internal/directory/google: return both group e-mail and id @travisgroth GH-1083
+- internal/frontend/assets/html: make timestamp human readable @cuonglm GH-1107
+- internal/sessions: handle claims "ver" field generally @cuonglm GH-990
+- internal/urlutil: add tests for GetDomainsForURL @cuonglm GH-1183
+- memberlist: use bufio reader instead of scanner @calebdoxsey GH-1002
+- config: options refactor @calebdoxsey GH-1088
+- pkg: add grpcutil package @calebdoxsey GH-1032
+- pkg/storage: add package docs @cuonglm GH-1078
+- pkg/storage: change backend interface to return error @cuonglm GH-1131
+- pkg/storage: introduce storage.Backend Watch method @cuonglm GH-1135
+- pkg/storage: make Watch returns receive only channel @cuonglm GH-1211
+- pkg/storage/redis: do not use timeout to signal redis conn to stop @cuonglm GH-1155
+- pkg/storage/redis: fix multiple data race @cuonglm GH-1210
+- pkg/storage/redis: metrics updates @travisgroth GH-1195
+- pkg/storage/redis: move last version to redis @cuonglm GH-1134
+- proxy: add support for spdy upgrades @travisgroth GH-1203
+- proxy: avoid second policy validation @travisgroth GH-1204
+- proxy: refactor handler setup code @travisgroth GH-1205
+- set session state expiry @calebdoxsey GH-1215
+- Sleep longer before running integration tests @cuonglm GH-968
+- telemetry: add tracing spans to cache and databroker @travisgroth GH-987
+
+### New
+
+- authenticate: allow hot reloaded admin users config @cuonglm [GH-984]
+- authenticate: support hot reloaded config @cuonglm GH-984
+- authorize: custom rego policies @calebdoxsey GH-1123
+- authorize: include "kid" in JWT headers @cuonglm [GH-1046]
+- azure: use OID for user id in session @calebdoxsey GH-985
+- config: add pass_identity_headers @cuonglm [GH-903]
+- config: add remove_request_headers @cuonglm [GH-822]
+- config: both base64 and file reference can be used for "certificates" @dmitrif [GH-1055]
+- config: change config key parsing to attempt Base64 decoding first. @dmitrif GH-1055
+- config: change default log level to INFO @cuonglm [GH-902]
+- custom rego in databroker @calebdoxsey GH-1124
+- databroker server backend config @cuonglm GH-1127
+- databroker: add encryption for records @calebdoxsey GH-1168
+- deploy: Add homebrew tap publishing @travisgroth GH-1179
+- deployment: cut separate archive for cli @desimone GH-1177
+- directory: add service account struct and parsing method @calebdoxsey GH-971
+- envoy: enable strip host port matching @cuonglm [GH-1126]
+- github: implement github directory provider @calebdoxsey GH-963
+- google: store directory information by user id @calebdoxsey GH-988
+- identity: support custom code flow request params @desimone GH-998
+- implement google cloud serverless authentication @calebdoxsey GH-1080
+- internal/directory/okta: store directory information by user id @cuonglm GH-991
+- internal/directory/onelogin: store directory information by user id @cuonglm GH-992
+- kubernetes apiserver integration @calebdoxsey GH-1063
+- pkg/storage/redis: add authentication support @cuonglm GH-1159
+- pkg/storage/redis: add redis TLS support @cuonglm GH-1163
+- pomerium-cli k8s exec-credential @calebdoxsey GH-1073
+- redis storage backend @cuonglm GH-1082
+- telmetry: add databroker storage metrics and tracing @travisgroth GH-1161
+- use custom binary for arm64 linux release @calebdoxsey GH-1065
+
+### Fixed
+
+- authenticate: fix wrong condition checking in VerifySession @cuonglm GH-1146
+- authenticate: fix wrong SignIn telemetry name @cuonglm GH-1038
+- authorize: Force redirect scheme to https @travisgroth GH-1075
+- authorize: strip port from host header if necessary @cuonglm GH-1175
+- authorize/evaluator/opa: set client tls cert usage explicitly @travisgroth GH-1026
+- authorize/evaluator/opa/policy: fix allow rules with impersonate @cuonglm GH-1094
+- cache: fix data race in NotifyJoin @cuonglm GH-1028
+- ci: fix arm docker image releases @travisgroth GH-1178
+- ci: Prevent dirty git state @travisgroth GH-1117
+- ci: release fixes @travisgroth GH-1181
+- config: fix deep copy of config @calebdoxsey GH-1089
+- controlplane: add robots route @desimone GH-966
+- deploy: ensure pomerium-cli is built correctly @travisgroth GH-1180
+- deployment: fix pomerium-cli release @desimone GH-1104
+- envoy: Set ExtAuthz Cluster name to URL Host @travisgroth GH-1132
+- fix databroker restart versioning, handle missing sessions @calebdoxsey GH-1145
+- fix lint errors @travisgroth GH-1171
+- fix redirect loop, remove user/session services, remove duplicate deleted_at fields @calebdoxsey GH-1162
+- handle example.com and example.com:443 @calebdoxsey GH-1153
+- internal/controlplane: enable envoy use remote address @cuonglm GH-1023
+- internal/databroker: fix wrong server version init @cuonglm GH-1125
+- pkg/grpc: fix wrong audit protoc gen file @cuonglm GH-1048
+- pkg/storage/redis: handling connection to redis backend failure @cuonglm GH-1174
+- pomerium-cli: fix kubernetes token caching @calebdoxsey GH-1169
+- pomerium-cli: kubernetes fixes @calebdoxsey GH-1176
 - proxy: do not set X-Pomerium-Jwt-Assertion/X-Pomerium-Claim-* headers by default @cuonglm [GH-903]
+- proxy: fix invalid session after logout in forward auth mode @cuonglm GH-1062
+- proxy: fix redirect url with traefik forward auth @cuonglm GH-1037
+- proxy: fix wrong forward auth request @cuonglm GH-1030
+
+### Documentation
+
+- docs: Update synology.md @roulesse GH-1219
+- docs: add installation section @travisgroth GH-1223
+- docs: add kubectl config commands @travisgroth GH-1152
+- docs: add kubernetes docs @calebdoxsey GH-1087
+- docs: add recipe for TiddlyWiki on Node.js @favadi GH-1143
+- docs: add required in cookie_secret @mig4ng GH-1142
+- docs: add warnings cones around requiring IdP Service Accounts @travisgroth GH-999
+- docs: cloud Run / GCP Serverless @travisgroth GH-1101
+- docs: document preserve_host_header with policy routes to static ip @cuonglm GH-1024
+- docs: fix incorrect example middleware @travisgroth GH-1128
+- docs: fix links, clarify upgrade guide for v0.10 @desimone GH-1220
+- docs: fix minor errors @travisgroth GH-1214
+- docs: Kubernetes topic @travisgroth GH-1222
+- docs: Move examples repo into main repo @travisgroth GH-1102
+- docs: Redis and stateful storage docs @travisgroth GH-1173
+- docs: refactor sections, consolidate examples @desimone GH-1164
+- docs: rename docs/reference to docs/topics @desimone GH-1182
+- docs: service account instructions for azure @calebdoxsey GH-969
+- docs: service account instructions for gitlab @calebdoxsey GH-970
+- docs: update architecture diagrams + descriptions @travisgroth GH-1218
+- docs: update GitHub documentation for service account @calebdoxsey GH-967
+- docs: Update Istio VirtualService example @jeffhubLR GH-1006
+- docs: update okta service account docs to match new format @calebdoxsey GH-972
+- Docs: Update README stating specific requirements for SIGNING_KEY @bradjones1 GH-1217
+- docs: update reference docs @desimone GH-1208
+- docs: update service account instructions for OneLogin @calebdoxsey GH-973
+- docs: update upgrading document for breaking changes @calebdoxsey GH-974
+- docs/.vuepress: fix missing local-oidc recipes section @cuonglm GH-1147
+- docs/configuration: add doc for trailing slash limitation in "To" field @cuonglm GH-1040
+- docs/docs: add changelog for #1055 @cuonglm GH-1084
+- docs/docs/identity-providers: document gitlab default scopes changed @cuonglm GH-980
+- docs/recipes: add local oidc example @cuonglm GH-1045
+
+### Dependency
+
+- chore(deps): bump envoy to 1.15.0 @desimone GH-1119
+- chore(deps): google.golang.org/genproto commit hash to da3ae01 @renovate GH-1138
+- chore(deps): module google/go-cmp to v0.5.1 @renovate GH-1139
+- chore(deps): update envoy to 1.14.4 @desimone GH-1076
+- chore(deps): update github.com/skratchdot/open-golang commit hash to eef8423 @renovate GH-1108
+- chore(deps): update golang.org/x/crypto commit hash to 123391f @renovate GH-1184
+- chore(deps): update golang.org/x/crypto commit hash to 948cd5f @renovate GH-1056
+- chore(deps): update golang.org/x/net commit hash to 4c52546 @renovate GH-1017
+- chore(deps): update golang.org/x/net commit hash to ab34263 @renovate GH-1057
+- chore(deps): update golang.org/x/sync commit hash to 6e8e738 @renovate GH-1018
+- chore(deps): update google.golang.org/genproto commit hash to 11fb19a @renovate GH-1109
+- chore(deps): update google.golang.org/genproto commit hash to 8145dea @renovate GH-1185
+- chore(deps): update google.golang.org/genproto commit hash to 8698661 @renovate GH-1058
+- chore(deps): update google.golang.org/genproto commit hash to 8e8330b @renovate GH-1039
+- chore(deps): update google.golang.org/genproto commit hash to ee7919e @renovate GH-1019
+- chore(deps): update google.golang.org/genproto commit hash to fbb79ea @renovate GH-945
+- chore(deps): update module cenkalti/backoff/v4 to v4.0.2 @renovate GH-946
+- chore(deps): update module contrib.go.opencensus.io/exporter/jaeger to v0.2.1 @renovate GH-1186
+- chore(deps): update module contrib.go.opencensus.io/exporter/zipkin to v0.1.2 @renovate GH-1187
+- chore(deps): update module envoyproxy/go-control-plane to v0.9.6 @renovate GH-1059
+- chore(deps): update module go.opencensus.io to v0.22.4 @renovate GH-948
+- chore(deps): update module golang/mock to v1.4.4 @renovate GH-1188
+- chore(deps): update module google.golang.org/api to v0.28.0 @renovate GH-949
+- chore(deps): update module google.golang.org/api to v0.29.0 @renovate GH-1060
+- chore(deps): update module google.golang.org/grpc to v1.30.0 @renovate GH-1020
+- chore(deps): update module google.golang.org/grpc to v1.31.0 @renovate GH-1189
+- chore(deps): update module google.golang.org/protobuf to v1.25.0 @renovate GH-1021
+- chore(deps): update module google/go-cmp to v0.5.0 @renovate GH-950
+- chore(deps): update module hashicorp/memberlist to v0.2.2 @renovate GH-951
+- chore(deps): update module open-policy-agent/opa to v0.21.0 @renovate GH-952
+- chore(deps): update module open-policy-agent/opa to v0.21.1 @renovate GH-1061
+- chore(deps): update module open-policy-agent/opa to v0.22.0 @renovate GH-1110
+- chore(deps): update module prometheus/client_golang to v1.7.0 @renovate GH-953
+- chore(deps): update module prometheus/client_golang to v1.7.1 @renovate GH-1022
+- chore(deps): update module spf13/cobra to v1 @renovate GH-1111
+- chore(deps): update module spf13/viper to v1.7.1 @renovate GH-1190
+- chore(deps):s bump opa v0.21.0 @desimone GH-993
 
 ## v0.9.1
 
 ### Security
 
-- envoy: fixes CVE-2020-11080 by rejecting HTTP/2 SETTINGS frames with too many parameters  
+- envoy: fixes CVE-2020-11080 by rejecting HTTP/2 SETTINGS frames with too many parameters
 
 ## v0.9.0
 
@@ -38,7 +238,7 @@
 - authenticate: clear session if ctx fails @desimone [GH-806]
 - telemetry: fix autocache labels @travisgroth [GH-805]
 - telemetry: fix missing/incorrect grpc labels @travisgroth [GH-804]
-- authorize: fix authorization panic caused by logging a nil reference @desimone [[GH-704]]
+- authorize: fix authorization panic caused by logging a nil reference @desimone [GH-704]
 
 ### Changes
 
