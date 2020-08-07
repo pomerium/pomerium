@@ -105,10 +105,13 @@ func New(opts *config.Options) (*Authorize, error) {
 
 func validateOptions(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
-		return fmt.Errorf("bad shared_secret: %w", err)
+		return fmt.Errorf("authorize: bad 'SHARED_SECRET': %w", err)
 	}
 	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
-		return fmt.Errorf("invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
+		return fmt.Errorf("authorize: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
+	}
+	if err := urlutil.ValidateURL(o.DataBrokerURL); err != nil {
+		return fmt.Errorf("authorize: invalid 'DATABROKER_SERVICE_URL': %w", err)
 	}
 	return nil
 }
