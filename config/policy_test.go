@@ -131,3 +131,45 @@ func Test_PolicyRouteID(t *testing.T) {
 		})
 	}
 }
+
+func TestPolicy_Checksum(t *testing.T) {
+	t.Parallel()
+	p := &Policy{From: "https://pomerium.io", To: "http://localhost", AllowedUsers: []string{"foo@bar.com"}}
+	oldChecksum := p.Checksum()
+	p.AllowedUsers = []string{"foo@pomerium.io"}
+	newChecksum := p.Checksum()
+
+	if newChecksum == oldChecksum {
+		t.Errorf("Checksum() failed to update old = %d, new = %d", oldChecksum, newChecksum)
+	}
+
+	if newChecksum == 0 || oldChecksum == 0 {
+		t.Error("Checksum() not returning data")
+	}
+
+	if p.Checksum() != newChecksum {
+		t.Error("Checksum() inconsistent")
+	}
+}
+
+func TestPolicy_FromToPb(t *testing.T) {
+	t.Parallel()
+	p := &Policy{
+		From:         "https://pomerium.io",
+		To:           "http://localhost",
+		AllowedUsers: []string{"foo@bar.com"},
+		SubPolicies: []SubPolicy{
+			{
+				ID:   "sub_policy_id",
+				Name: "sub_policy",
+				Rego: []string{"deny = true"},
+			},
+		},
+	}
+	pbPolicy := p.ToProto()
+	policyFromPb, err := NewPolicyFromProto(pbPolicy)
+	assert.NoError(t, err)
+	assert.Equal(t, p.From, policyFromPb.From)
+	assert.Equal(t, p.To, policyFromPb.To)
+	assert.Equal(t, p.AllowedUsers, policyFromPb.AllowedUsers)
+}
