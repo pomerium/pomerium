@@ -463,3 +463,52 @@ func TestCompareByteSliceSlice(t *testing.T) {
 		}
 	}
 }
+
+func TestOptions_DefaultURL(t *testing.T) {
+	t.Parallel()
+
+	defaultOptions := &Options{}
+	opts := &Options{
+		AuthenticateURL: mustParseURL("https://authenticate.example.com"),
+		AuthorizeURL:    mustParseURL("https://authorize.example.com"),
+		DataBrokerURL:   mustParseURL("https://databroker.example.com"),
+		ForwardAuthURL:  mustParseURL("https://forwardauth.example.com"),
+	}
+	tests := []struct {
+		name           string
+		f              func() *url.URL
+		expectedURLStr string
+	}{
+		{"default authenticate url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
+		{"default authorize url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
+		{"default databroker url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
+		{"default forward auth url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
+		{"good authenticate url", opts.GetAuthenticateURL, "https://authenticate.example.com"},
+		{"good authorize url", opts.GetAuthorizeURL, "https://authorize.example.com"},
+		{"good databroker url", opts.GetDataBrokerURL, "https://databroker.example.com"},
+		{"good forward auth url", opts.GetForwardAuthURL, "https://forwardauth.example.com"},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expectedURLStr, tc.f().String())
+		})
+	}
+}
+
+func mustParseURL(str string) *url.URL {
+	u, err := url.Parse(str)
+	if err != nil {
+		panic(err)
+	}
+	return u
+}
+
+func TestOptions_GetOauthOptions(t *testing.T) {
+	opts := &Options{AuthenticateURL: mustParseURL("https://authenticate.example.com")}
+
+	// Test that oauth redirect url hostname must point to authenticate url hostname.
+	assert.Equal(t, opts.AuthenticateURL.Hostname(), opts.GetOauthOptions().RedirectURL.Hostname())
+}
