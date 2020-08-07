@@ -78,16 +78,23 @@
 
 ### New
 
-- config: change config key parsing to attempt Base64 decoding first. @dmitrif GH-1055
+- authenticate: allow hot reloaded admin users config @cuonglm [GH-984]
 - authenticate: support hot reloaded config @cuonglm GH-984
 - authorize: custom rego policies @calebdoxsey GH-1123
+- authorize: include "kid" in JWT headers @cuonglm [GH-1046]
 - azure: use OID for user id in session @calebdoxsey GH-985
+- config: add pass_identity_headers @cuonglm [GH-903]
+- config: add remove_request_headers @cuonglm [GH-822]
+- config: both base64 and file reference can be used for "certificates" @dmitrif [GH-1055]
+- config: change config key parsing to attempt Base64 decoding first. @dmitrif GH-1055
+- config: change default log level to INFO @cuonglm [GH-902]
 - custom rego in databroker @calebdoxsey GH-1124
 - databroker server backend config @cuonglm GH-1127
 - databroker: add encryption for records @calebdoxsey GH-1168
 - deploy: Add homebrew tap publishing @travisgroth GH-1179
 - deployment: cut separate archive for cli @desimone GH-1177
 - directory: add service account struct and parsing method @calebdoxsey GH-971
+- envoy: enable strip host port matching @cuonglm [GH-1126]
 - github: implement github directory provider @calebdoxsey GH-963
 - google: store directory information by user id @calebdoxsey GH-988
 - identity: support custom code flow request params @desimone GH-998
@@ -129,6 +136,7 @@
 - pkg/storage/redis: handling connection to redis backend failure @cuonglm GH-1174
 - pomerium-cli: fix kubernetes token caching @calebdoxsey GH-1169
 - pomerium-cli: kubernetes fixes @calebdoxsey GH-1176
+- proxy: do not set X-Pomerium-Jwt-Assertion/X-Pomerium-Claim-* headers by default @cuonglm [GH-903]
 - proxy: fix invalid session after logout in forward auth mode @cuonglm GH-1062
 - proxy: fix redirect url with traefik forward auth @cuonglm GH-1037
 - proxy: fix wrong forward auth request @cuonglm GH-1030
