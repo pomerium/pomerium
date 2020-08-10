@@ -1,2 +1,2 @@
 <!-- Simply redirect back to docs! -->
-<Redirect to="https://www.pomerium.com/" />
+<Redirect to="https://www.pomerium.com/docs/" />
