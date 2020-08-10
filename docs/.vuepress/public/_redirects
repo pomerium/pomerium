@@ -43,3 +43,13 @@
 /docs/reference/programmatic-access.html		/docs/topics/programmatic-access.html
 
 /docs/reference/examples.html				/configuration/examples.html
+
+/posts/2020/06/01/release-0-9/				/blog/posts-2020-06-01-release-0-9/
+/posts/2020/05/11/release-0-8/				/blog/announcing-pomerium-0-8/
+/posts/2020/04/16/release-0-7/				/blog/announcing-pomerium-0-7/
+
+/jobs/										/careers/
+/jobs/Frontend-Engineer.html				/careers/frontend-engineer/
+/jobs/Backend-Engineer.html					/careers/backend-engineer/
+
+/enterprise/								/
