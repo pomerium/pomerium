@@ -29,7 +29,12 @@ module.exports = {
       { text: "Documentation", link: "/docs/" },
       { text: "Reference", link: "/reference/" },
       { text: "Guides", link: "/guides/" },
-      { text: "Enterprise", link: "/", target: "_self", rel: "" },
+      {
+        text: "Enterprise",
+        link: "https://www.pomerium.com/",
+        target: "_self",
+        rel: "",
+      },
       {
         text: "v0.10.x", // current tagged version
         ariaLabel: "Version menu",
