@@ -7,37 +7,18 @@ module.exports = {
     "check-md": {
       pattern: "**/*.md",
     },
-
     sitemap: {
       hostname: "https://www.pomerium.io",
     },
     "@vuepress/google-analytics": {
       ga: "UA-129872447-2",
     },
-    "@vuepress/blog": {
-      directories: [
-        {
-          id: "post",
-          dirname: "_posts",
-          path: "/posts/",
-          itemPermalink: "/posts/:year/:month/:day/:slug",
-        },
-      ],
-    },
-    "vuepress-plugin-mailchimp": {
-      title: "Sign up to be notified of new features and updates",
-      content: " ",
-      endpoint:
-        "https://pomerium.us19.list-manage.com/subscribe/post?u=76f0996a737c138396687fd6b&amp;id=2f4f70cf07",
-      sitemap: {
-        hostname: "https://www.pomerium.io",
-      },
-    },
   },
   markdown: {
     externalLinkSymbol: false,
   },
   themeConfig: {
+    home: false,
     logo: "/logo-long-civez.png",
     repo: "pomerium/pomerium",
     editLinks: true,
@@ -48,7 +29,7 @@ module.exports = {
       { text: "Documentation", link: "/docs/" },
       { text: "Reference", link: "/reference/" },
       { text: "Guides", link: "/guides/" },
-      { text: "Enterprise", link: "/enterprise/" },
+      { text: "Enterprise", link: "/", target: "_self", rel: "" },
       {
         text: "v0.10.x", // current tagged version
         ariaLabel: "Version menu",
@@ -171,15 +152,6 @@ module.exports = {
             "tiddlywiki",
             "vs-code-server",
           ],
-        },
-      ],
-      "/enterprise/": [
-        {
-          title: "Enterprise",
-          type: "group",
-          collapsable: false,
-          sidebarDepth: 1,
-          children: [""],
         },
       ],
       "/reference/": [
