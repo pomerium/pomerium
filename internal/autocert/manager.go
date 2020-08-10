@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/caddyserver/certmagic"
 
@@ -105,10 +106,14 @@ func (mgr *Manager) updateAutocert(cfg *config.Config) error {
 			cert, err = cm.CacheManagedCertificate(domain)
 		}
 		if err == nil && cert.NeedsRenewal(cm) {
+			expired := time.Now().After(cert.Leaf.NotAfter)
 			log.Info().Str("domain", domain).Msg("renewing certificate")
 			err = cm.RenewCert(context.Background(), domain, false)
-			if err != nil {
+			if err != nil && expired {
 				return fmt.Errorf("autocert: failed to renew client certificate: %w", err)
+			}
+			if !expired {
+				log.Warn().Err(err).Msg("renew client certificated failed, use existing cert")
 			}
 			cert, err = cm.CacheManagedCertificate(domain)
 		}
