@@ -19,7 +19,6 @@ service:
   type: NodePort
 
 config:
-  rootDomain: corp.beyondperimeter.com
   policy:
     - from: https://hello.corp.beyondperimeter.com
       to: http://nginx.default.svc.cluster.local:80

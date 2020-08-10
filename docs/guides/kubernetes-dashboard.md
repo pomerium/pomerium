@@ -258,7 +258,6 @@ forwardAuth:
 config:
   sharedSecret: YOUR_SHARED_SECRET
   cookieSecret: YOUR_COOKIE_SECRET
-  rootDomain: domain.example
 
   policy:
     # this route is directly proxied by pomerium & injects the authorization header

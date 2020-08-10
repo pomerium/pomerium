@@ -68,7 +68,6 @@ Like with Argo we will install Pomerium using the [Helm chart](https://github.co
 
 ```yaml
 config:
-  rootDomain: localhost.pomerium.io
   policy:
     - from: https://argo.localhost.pomerium.io
       to: http://argo-server.kube-system.svc.cluster.local:2746
