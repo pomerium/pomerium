@@ -1,10 +1,8 @@
 {
   "devDependencies": {
-    "@vuepress/plugin-blog": "1.9.2",
     "@vuepress/plugin-google-analytics": "1.5.2",
-    "vuepress": "1.5.2",
-    "vuepress-plugin-check-md": "^0.0.2",
-    "vuepress-plugin-mailchimp": "1.4.2",
+    "vuepress": "1.5.3",
+    "vuepress-plugin-check-md": "0.0.2",
     "vuepress-plugin-sitemap": "2.3.1"
   },
   "scripts": {
