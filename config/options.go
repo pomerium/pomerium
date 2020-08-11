@@ -19,6 +19,12 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 
+	"github.com/pomerium/pomerium/internal/directory/azure"
+	"github.com/pomerium/pomerium/internal/directory/github"
+	"github.com/pomerium/pomerium/internal/directory/gitlab"
+	"github.com/pomerium/pomerium/internal/directory/google"
+	"github.com/pomerium/pomerium/internal/directory/okta"
+	"github.com/pomerium/pomerium/internal/directory/onelogin"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -651,6 +657,16 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: server must be run with `autocert`, " +
 			"`insecure_server` or manually provided certificates to start")
 	}
+
+	switch o.Provider {
+	case azure.Name, github.Name, gitlab.Name, google.Name, okta.Name, onelogin.Name:
+		if len(o.Scopes) > 0 {
+			docLink := "https://www.pomerium.io/reference/#identity-provider-scopes"
+			log.Warn().Msg("config: using custom scopes may result in undefined behavior, see: " + docLink)
+		}
+	default:
+	}
+
 	return nil
 }
 
