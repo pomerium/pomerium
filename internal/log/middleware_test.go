@@ -43,7 +43,7 @@ func TestNewHandler(t *testing.T) {
 	log := zerolog.New(nil).With().
 		Str("foo", "bar").
 		Logger()
-	lh := NewHandler(log)
+	lh := NewHandler(func() *zerolog.Logger { return &log })
 	h := lh(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		l := FromRequest(r)
 		if !reflect.DeepEqual(*l, log) {
@@ -62,7 +62,8 @@ func TestURLHandler(t *testing.T) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
-	h = NewHandler(zerolog.New(out))(h)
+	log := zerolog.New(out)
+	h = NewHandler(func() *zerolog.Logger { return &log })(h)
 	h.ServeHTTP(nil, r)
 	if want, got := `{"url":"/path?foo=bar"}`+"\n", decodeIfBinary(out); want != got {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
@@ -78,7 +79,8 @@ func TestMethodHandler(t *testing.T) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
-	h = NewHandler(zerolog.New(out))(h)
+	log := zerolog.New(out)
+	h = NewHandler(func() *zerolog.Logger { return &log })(h)
 	h.ServeHTTP(nil, r)
 	if want, got := `{"method":"POST"}`+"\n", decodeIfBinary(out); want != got {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
@@ -95,7 +97,8 @@ func TestRequestHandler(t *testing.T) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
-	h = NewHandler(zerolog.New(out))(h)
+	log := zerolog.New(out)
+	h = NewHandler(func() *zerolog.Logger { return &log })(h)
 	h.ServeHTTP(nil, r)
 	if want, got := `{"request":"POST /path?foo=bar"}`+"\n", decodeIfBinary(out); want != got {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
@@ -111,7 +114,8 @@ func TestRemoteAddrHandler(t *testing.T) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
-	h = NewHandler(zerolog.New(out))(h)
+	log := zerolog.New(out)
+	h = NewHandler(func() *zerolog.Logger { return &log })(h)
 	h.ServeHTTP(nil, r)
 	if want, got := `{"ip":"1.2.3.4"}`+"\n", decodeIfBinary(out); want != got {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
@@ -127,7 +131,8 @@ func TestRemoteAddrHandlerIPv6(t *testing.T) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
-	h = NewHandler(zerolog.New(out))(h)
+	log := zerolog.New(out)
+	h = NewHandler(func() *zerolog.Logger { return &log })(h)
 	h.ServeHTTP(nil, r)
 	if want, got := `{"ip":"2001:db8:a0b:12f0::1"}`+"\n", decodeIfBinary(out); want != got {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
@@ -145,7 +150,8 @@ func TestUserAgentHandler(t *testing.T) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
-	h = NewHandler(zerolog.New(out))(h)
+	log := zerolog.New(out)
+	h = NewHandler(func() *zerolog.Logger { return &log })(h)
 	h.ServeHTTP(nil, r)
 	if want, got := `{"ua":"some user agent string"}`+"\n", decodeIfBinary(out); want != got {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
@@ -163,7 +169,8 @@ func TestRefererHandler(t *testing.T) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
-	h = NewHandler(zerolog.New(out))(h)
+	log := zerolog.New(out)
+	h = NewHandler(func() *zerolog.Logger { return &log })(h)
 	h.ServeHTTP(nil, r)
 	if want, got := `{"referer":"http://foo.com/bar"}`+"\n", decodeIfBinary(out); want != got {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
@@ -185,7 +192,8 @@ func TestRequestIDHandler(t *testing.T) {
 			t.Errorf("Invalid log output, got: %s, want: %s", got, want)
 		}
 	}))
-	h = NewHandler(zerolog.New(out))(h)
+	log := zerolog.New(out)
+	h = NewHandler(func() *zerolog.Logger { return &log })(h)
 	h = requestid.HTTPMiddleware()(h)
 	h.ServeHTTP(httptest.NewRecorder(), r)
 }
@@ -200,7 +208,8 @@ func TestCombinedHandlers(t *testing.T) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))))
-	h = NewHandler(zerolog.New(out))(h)
+	log := zerolog.New(out)
+	h = NewHandler(func() *zerolog.Logger { return &log })(h)
 	h.ServeHTTP(nil, r)
 	if want, got := `{"method":"POST","request":"POST /path?foo=bar","url":"/path?foo=bar"}`+"\n", decodeIfBinary(out); want != got {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
@@ -218,10 +227,22 @@ func BenchmarkHandlers(b *testing.B) {
 	}))
 	h2 := MethodHandler("method")(RequestHandler("request")(h1))
 	handlers := map[string]http.Handler{
-		"Single":           NewHandler(zerolog.New(ioutil.Discard))(h1),
-		"Combined":         NewHandler(zerolog.New(ioutil.Discard))(h2),
-		"SingleDisabled":   NewHandler(zerolog.New(ioutil.Discard).Level(zerolog.Disabled))(h1),
-		"CombinedDisabled": NewHandler(zerolog.New(ioutil.Discard).Level(zerolog.Disabled))(h2),
+		"Single": NewHandler(func() *zerolog.Logger {
+			log := zerolog.New(ioutil.Discard)
+			return &log
+		})(h1),
+		"Combined": NewHandler((func() *zerolog.Logger {
+			log := zerolog.New(ioutil.Discard)
+			return &log
+		}))(h2),
+		"SingleDisabled": NewHandler((func() *zerolog.Logger {
+			log := zerolog.New(ioutil.Discard).Level(zerolog.Disabled)
+			return &log
+		}))(h1),
+		"CombinedDisabled": NewHandler((func() *zerolog.Logger {
+			log := zerolog.New(ioutil.Discard).Level(zerolog.Disabled)
+			return &log
+		}))(h2),
 	}
 	for name := range handlers {
 		h := handlers[name]
@@ -237,7 +258,7 @@ func BenchmarkDataRace(b *testing.B) {
 	log := zerolog.New(nil).With().
 		Str("foo", "bar").
 		Logger()
-	lh := NewHandler(log)
+	lh := NewHandler(func() *zerolog.Logger { return &log })
 	h := lh(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		l := FromRequest(r)
 		l.UpdateContext(func(c zerolog.Context) zerolog.Context {
@@ -264,7 +285,8 @@ func TestLogHeadersHandler(t *testing.T) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
-	h = NewHandler(zerolog.New(out))(h)
+	log := zerolog.New(out)
+	h = NewHandler(func() *zerolog.Logger { return &log })(h)
 	h.ServeHTTP(nil, r)
 	if want, got := `{"X-Forwarded-For":["proxy1,proxy2,proxy3"]}`+"\n", decodeIfBinary(out); want != got {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
@@ -284,7 +306,8 @@ func TestAccessHandler(t *testing.T) {
 		l.Log().Msg("some inner logging")
 		w.Write([]byte("Add something to the request of non-zero size"))
 	}))
-	h = NewHandler(zerolog.New(out))(h)
+	log := zerolog.New(out)
+	h = NewHandler(func() *zerolog.Logger { return &log })(h)
 	w := httptest.NewRecorder()
 
 	h.ServeHTTP(w, r)

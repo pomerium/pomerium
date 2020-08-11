@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
+// TracingOptions are the options for tracing.
 type TracingOptions = trace.TracingOptions
 
 // NewTracingOptions builds a new TracingOptions from core Options

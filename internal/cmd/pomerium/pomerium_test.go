@@ -4,60 +4,9 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"os/signal"
-	"syscall"
 	"testing"
 	"time"
-
-	"github.com/pomerium/pomerium/config"
 )
-
-func Test_setupTracing(t *testing.T) {
-	tests := []struct {
-		name string
-		opt  *config.Options
-	}{
-		{"good jaeger", &config.Options{TracingProvider: "jaeger", TracingJaegerAgentEndpoint: "localhost:0", TracingJaegerCollectorEndpoint: "localhost:0"}},
-		{"dont register aything", &config.Options{}},
-		{"bad provider", &config.Options{TracingProvider: "bad provider"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			setupTracing(context.Background(), tt.opt)
-		})
-	}
-}
-
-func Test_setupMetrics(t *testing.T) {
-	tests := []struct {
-		name string
-		opt  *config.Options
-	}{
-		{"dont register aything", &config.Options{}},
-		{"good metrics server", &config.Options{MetricsAddr: "localhost:0"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := make(chan os.Signal, 1)
-			signal.Notify(c, syscall.SIGINT)
-			defer signal.Stop(c)
-			setupMetrics(context.Background(), tt.opt)
-			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-			waitSig(t, c, syscall.SIGINT)
-		})
-	}
-}
-
-func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
-	select {
-	case s := <-c:
-		if s != sig {
-			t.Fatalf("signal was %v, want %v", s, sig)
-		}
-	case <-time.After(1 * time.Second):
-		t.Fatalf("timeout waiting for %v", sig)
-	}
-}
 
 func Test_run(t *testing.T) {
 	os.Clearenv()
