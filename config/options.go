@@ -36,6 +36,11 @@ import (
 // DisableHeaderKey is the key used to check whether to disable setting header
 const DisableHeaderKey = "disable"
 
+const (
+	idpCustomScopesDocLink = "https://www.pomerium.io/reference/#identity-provider-scopes"
+	idpCustomScopesWarnMsg = "config: using custom scopes may result in undefined behavior, see: " + idpCustomScopesDocLink
+)
+
 // DefaultAlternativeAddr is the address used is two services are competing over
 // the same listener. Typically this is invisible to the end user (e.g. localhost)
 // gRPC server, or is used for healthchecks (authorize only service)
@@ -661,8 +666,7 @@ func (o *Options) Validate() error {
 	switch o.Provider {
 	case azure.Name, github.Name, gitlab.Name, google.Name, okta.Name, onelogin.Name:
 		if len(o.Scopes) > 0 {
-			docLink := "https://www.pomerium.io/reference/#identity-provider-scopes"
-			log.Warn().Msg("config: using custom scopes may result in undefined behavior, see: " + docLink)
+			log.Warn().Msg(idpCustomScopesWarnMsg)
 		}
 	default:
 	}
