@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"testing"
 
@@ -9,7 +10,20 @@ import (
 )
 
 func TestMetricsManager(t *testing.T) {
-	addr1, addr2 := "127.0.1.1:19999", "127.0.2.1:19999"
+	li1, err := net.Listen("tcp", "127.0.0.1:0")
+	if !assert.NoError(t, err) {
+		return
+	}
+	addr1 := li1.Addr().String()
+
+	li2, err := net.Listen("tcp", "127.0.0.1:0")
+	if !assert.NoError(t, err) {
+		return
+	}
+	addr2 := li2.Addr().String()
+
+	li1.Close()
+	li2.Close()
 
 	src := NewStaticSource(&Config{
 		Options: &Options{
