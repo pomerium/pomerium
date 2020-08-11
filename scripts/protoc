@@ -2,7 +2,8 @@
 set -euo pipefail
 
 _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-_protoc_version="3.12.3"
+_protoc_version="4.0.0-rc2"
+_protoc_version_filename="4.0.0-rc-2"
 _protoc_path="/tmp/pomerium-protoc/protoc-$_protoc_version"
 _os="linux"
 if [ "$(uname -s)" == "Darwin" ]; then
@@ -14,9 +15,12 @@ if [ ! -f "$_protoc_path/bin/protoc" ]; then
   echo "downloading protoc"
   curl -L \
     -o protoc.zip \
-    "https://github.com/protocolbuffers/protobuf/releases/download/v$_protoc_version/protoc-$_protoc_version-$_os-x86_64.zip"
+    "https://github.com/protocolbuffers/protobuf/releases/download/v$_protoc_version/protoc-$_protoc_version_filename-$_os-x86_64.zip"
   unzip -o -d "$_protoc_path" protoc.zip
   rm protoc.zip
 fi
-
-exec "$_protoc_path/bin/protoc" --plugin="protoc-gen-go=$_dir/protoc-gen-go" "$@"
+exec "$_protoc_path/bin/protoc" \
+  --experimental_allow_proto3_optional \
+  --plugin="protoc-gen-go=$_dir/protoc-gen-go" \
+  --plugin="protoc-gen-grpc-web=$_dir/protoc-gen-grpc-web" \
+  "$@"

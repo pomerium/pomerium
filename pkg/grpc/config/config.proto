@@ -4,10 +4,12 @@ package pomerium.config;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 
 message Config {
   string name = 1;
   repeated Route routes = 2;
+  Settings settings = 3;
 }
 
 message Route {
@@ -16,9 +18,9 @@ message Route {
   string from = 2;
   string to = 3;
 
-  repeated string allowed_users = 4 [deprecated = true];
-  repeated string allowed_groups = 5 [deprecated = true];
-  repeated string allowed_domains = 6 [deprecated = true];
+  repeated string allowed_users = 4 [ deprecated = true ];
+  repeated string allowed_groups = 5 [ deprecated = true ];
+  repeated string allowed_domains = 6 [ deprecated = true ];
 
   string prefix = 7;
   string path = 8;
@@ -58,4 +60,72 @@ message Policy {
   repeated string allowed_groups = 4;
   repeated string allowed_domains = 5;
   repeated string rego = 6;
+}
+
+message Settings {
+  message Certificate {
+    string cert_file = 1;
+    string key_file = 2;
+    bytes cert_bytes = 3;
+    bytes key_bytes = 4;
+  }
+
+  optional bool debug = 2;
+  optional string log_level = 3;
+  optional string proxy_log_level = 4;
+  optional string shared_secret = 5;
+  optional string services = 6;
+  optional string address = 7;
+  optional bool insecure_server = 8;
+  repeated Certificate certificates = 9;
+  optional string http_redirect_addr = 10;
+  optional google.protobuf.Duration timeout_read = 11;
+  optional google.protobuf.Duration timeout_write = 12;
+  optional google.protobuf.Duration timeout_idle = 13;
+  optional string authenticate_service_url = 14;
+  optional string authenticate_callback_path = 15;
+  optional string cookie_name = 16;
+  optional string cookie_secret = 17;
+  optional string cookie_domain = 18;
+  optional bool cookie_secure = 19;
+  optional bool cookie_http_only = 20;
+  optional google.protobuf.Duration cookie_expire = 21;
+  optional string idp_client_id = 22;
+  optional string idp_client_secret = 23;
+  optional string idp_provider = 24;
+  optional string idp_provider_url = 25;
+  repeated string scopes = 26;
+  optional string idp_service_account = 27;
+  optional google.protobuf.Duration idp_refresh_directory_timeout = 28;
+  optional google.protobuf.Duration idp_refresh_directory_interval = 29;
+  map<string, string> request_params = 30;
+  repeated string administrators = 31;
+  optional string authorize_service_url = 32;
+  optional string override_certificate_name = 33;
+  optional string certificate_authority = 34;
+  optional string certificate_authority_file = 35;
+  optional string signing_key = 36;
+  repeated string jwt_claims_headers = 37;
+  optional google.protobuf.Duration refresh_cooldown = 38;
+  optional google.protobuf.Duration default_upstream_timeout = 39;
+  optional string metrics_address = 40;
+  optional string tracing_provider = 41;
+  optional double tracing_sample_rate = 42;
+  optional string tracing_jaeger_collector_endpoint = 43;
+  optional string tracing_jaeger_agent_endpoint = 44;
+  optional string tracing_zipkin_endpoint = 45;
+  optional string grpc_address = 46;
+  optional bool grpc_insecure = 47;
+  google.protobuf.Duration grpc_server_max_connection_age = 48;
+  google.protobuf.Duration grpc_server_max_connection_age_grace = 49;
+  optional string forward_auth_url = 50;
+  optional string cache_service_url = 51;
+  optional string databroker_service_url = 52;
+  optional string client_ca = 53;
+  optional string client_ca_file = 54;
+  optional string google_cloud_serverless_authentication_service_account = 55;
+  optional bool autocert = 56;
+  optional bool autocert_use_staging = 57;
+  optional bool autocert_must_staple = 58;
+  optional string autocert_dir = 59;
 }
