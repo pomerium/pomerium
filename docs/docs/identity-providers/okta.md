@@ -47,7 +47,7 @@ The format of the `idp_service_account` for Okta is a base64-encoded JSON docume
 
 ```json
 {
-  "api_token": "..."
+  "api_key": "..."
 }
 ```
 
