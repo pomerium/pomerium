@@ -25,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // DisableHeaderKey is the key used to check whether to disable setting header
@@ -713,6 +714,198 @@ func (o *Options) Checksum() uint64 {
 		return 0
 	}
 	return hash
+}
+
+// ApplySettings modifies the config options using the given protobuf settings.
+func (o *Options) ApplySettings(settings *config.Settings) {
+	if settings == nil {
+		return
+	}
+
+	if settings.Debug != nil {
+		o.Debug = settings.GetDebug()
+	}
+	if settings.LogLevel != nil {
+		o.LogLevel = settings.GetLogLevel()
+	}
+	if settings.ProxyLogLevel != nil {
+		o.ProxyLogLevel = settings.GetProxyLogLevel()
+	}
+	if settings.SharedSecret != nil {
+		o.SharedKey = settings.GetSharedSecret()
+	}
+	if settings.Services != nil {
+		o.Services = settings.GetServices()
+	}
+	if settings.Address != nil {
+		o.Addr = settings.GetAddress()
+	}
+	if settings.InsecureServer != nil {
+		o.InsecureServer = settings.GetInsecureServer()
+	}
+	for _, c := range settings.Certificates {
+		cfp := certificateFilePair{
+			CertFile: c.CertFile,
+			KeyFile:  c.KeyFile,
+		}
+		if cfp.CertFile == "" {
+			cfp.CertFile = base64.StdEncoding.EncodeToString(c.CertBytes)
+		}
+		if cfp.KeyFile == "" {
+			cfp.KeyFile = base64.StdEncoding.EncodeToString(c.KeyBytes)
+		}
+		o.CertificateFiles = append(o.CertificateFiles, cfp)
+	}
+	if settings.HttpRedirectAddr != nil {
+		o.HTTPRedirectAddr = settings.GetHttpRedirectAddr()
+	}
+	if settings.TimeoutRead != nil {
+		o.ReadTimeout = settings.GetTimeoutRead().AsDuration()
+	}
+	if settings.TimeoutWrite != nil {
+		o.WriteTimeout = settings.GetTimeoutWrite().AsDuration()
+	}
+	if settings.TimeoutIdle != nil {
+		o.IdleTimeout = settings.GetTimeoutIdle().AsDuration()
+	}
+	if settings.AuthenticateServiceUrl != nil {
+		o.AuthenticateURLString = settings.GetAuthenticateServiceUrl()
+	}
+	if settings.AuthenticateCallbackPath != nil {
+		o.AuthenticateCallbackPath = settings.GetAuthenticateCallbackPath()
+	}
+	if settings.CookieName != nil {
+		o.CookieName = settings.GetCookieName()
+	}
+	if settings.CookieSecret != nil {
+		o.CookieSecret = settings.GetCookieSecret()
+	}
+	if settings.CookieDomain != nil {
+		o.CookieDomain = settings.GetCookieDomain()
+	}
+	if settings.CookieSecure != nil {
+		o.CookieSecure = settings.GetCookieSecure()
+	}
+	if settings.CookieHttpOnly != nil {
+		o.CookieHTTPOnly = settings.GetCookieHttpOnly()
+	}
+	if settings.CookieExpire != nil {
+		o.CookieExpire = settings.GetCookieExpire().AsDuration()
+	}
+	if settings.IdpClientId != nil {
+		o.ClientID = settings.GetIdpClientId()
+	}
+	if settings.IdpClientSecret != nil {
+		o.ClientSecret = settings.GetIdpClientSecret()
+	}
+	if settings.IdpProvider != nil {
+		o.Provider = settings.GetIdpProvider()
+	}
+	if settings.IdpProviderUrl != nil {
+		o.ProviderURL = settings.GetIdpProviderUrl()
+	}
+	if len(settings.Scopes) > 0 {
+		o.Scopes = settings.Scopes
+	}
+	if settings.IdpServiceAccount != nil {
+		o.ServiceAccount = settings.GetIdpServiceAccount()
+	}
+	if settings.IdpRefreshDirectoryTimeout != nil {
+		o.RefreshDirectoryTimeout = settings.GetIdpRefreshDirectoryTimeout().AsDuration()
+	}
+	if settings.IdpRefreshDirectoryInterval != nil {
+		o.RefreshDirectoryInterval = settings.GetIdpRefreshDirectoryInterval().AsDuration()
+	}
+	if settings.RequestParams != nil && len(settings.RequestParams) > 0 {
+		o.RequestParams = settings.RequestParams
+	}
+	if len(settings.Administrators) > 0 {
+		o.Administrators = settings.Administrators
+	}
+	if settings.AuthorizeServiceUrl != nil {
+		o.AuthorizeURLString = settings.GetAuthorizeServiceUrl()
+	}
+	if settings.OverrideCertificateName != nil {
+		o.OverrideCertificateName = settings.GetOverrideCertificateName()
+	}
+	if settings.CertificateAuthority != nil {
+		o.CA = settings.GetCertificateAuthority()
+	}
+	if settings.CertificateAuthorityFile != nil {
+		o.CAFile = settings.GetCertificateAuthorityFile()
+	}
+	if settings.SigningKey != nil {
+		o.SigningKey = settings.GetSigningKey()
+	}
+	if len(settings.JwtClaimsHeaders) > 0 {
+		o.JWTClaimsHeaders = settings.GetJwtClaimsHeaders()
+	}
+	if settings.RefreshCooldown != nil {
+		o.RefreshCooldown = settings.GetRefreshCooldown().AsDuration()
+	}
+	if settings.DefaultUpstreamTimeout != nil {
+		o.DefaultUpstreamTimeout = settings.GetDefaultUpstreamTimeout().AsDuration()
+	}
+	if settings.MetricsAddress != nil {
+		o.MetricsAddr = settings.GetMetricsAddress()
+	}
+	if settings.TracingProvider != nil {
+		o.TracingProvider = settings.GetTracingProvider()
+	}
+	if settings.TracingSampleRate != nil {
+		o.TracingSampleRate = settings.GetTracingSampleRate()
+	}
+	if settings.TracingJaegerCollectorEndpoint != nil {
+		o.TracingJaegerCollectorEndpoint = settings.GetTracingJaegerCollectorEndpoint()
+	}
+	if settings.TracingJaegerAgentEndpoint != nil {
+		o.TracingJaegerAgentEndpoint = settings.GetTracingJaegerAgentEndpoint()
+	}
+	if settings.TracingZipkinEndpoint != nil {
+		o.ZipkinEndpoint = settings.GetTracingZipkinEndpoint()
+	}
+	if settings.GrpcAddress != nil {
+		o.GRPCAddr = settings.GetGrpcAddress()
+	}
+	if settings.GrpcInsecure != nil {
+		o.GRPCInsecure = settings.GetGrpcInsecure()
+	}
+	if settings.GrpcServerMaxConnectionAge != nil {
+		o.GRPCServerMaxConnectionAge = settings.GetGrpcServerMaxConnectionAge().AsDuration()
+	}
+	if settings.GrpcServerMaxConnectionAgeGrace != nil {
+		o.GRPCServerMaxConnectionAgeGrace = settings.GetGrpcServerMaxConnectionAgeGrace().AsDuration()
+	}
+	if settings.ForwardAuthUrl != nil {
+		o.ForwardAuthURLString = settings.GetForwardAuthUrl()
+	}
+	if settings.CacheServiceUrl != nil {
+		o.CacheURLString = settings.GetCacheServiceUrl()
+	}
+	if settings.DatabrokerServiceUrl != nil {
+		o.DataBrokerURLString = settings.GetDatabrokerServiceUrl()
+	}
+	if settings.ClientCa != nil {
+		o.ClientCA = settings.GetClientCa()
+	}
+	if settings.ClientCaFile != nil {
+		o.ClientCAFile = settings.GetClientCaFile()
+	}
+	if settings.GoogleCloudServerlessAuthenticationServiceAccount != nil {
+		o.GoogleCloudServerlessAuthenticationServiceAccount = settings.GetGoogleCloudServerlessAuthenticationServiceAccount()
+	}
+	if settings.Autocert != nil {
+		o.AutocertOptions.Enable = settings.GetAutocert()
+	}
+	if settings.AutocertUseStaging != nil {
+		o.AutocertOptions.UseStaging = settings.GetAutocertUseStaging()
+	}
+	if settings.AutocertMustStaple != nil {
+		o.AutocertOptions.MustStaple = settings.GetAutocertMustStaple()
+	}
+	if settings.AutocertDir != nil {
+		o.AutocertOptions.Folder = settings.GetAutocertDir()
+	}
 }
 
 // handleConfigUpdate takes configuration file, an existing options struct, and

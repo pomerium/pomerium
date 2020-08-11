@@ -91,6 +91,8 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 
 	// add all the config policies to the list
 	for _, cfgpb := range src.dbConfigs {
+		cfg.Options.ApplySettings(cfgpb.Settings)
+
 		for _, routepb := range cfgpb.GetRoutes() {
 			policy, err := config.NewPolicyFromProto(routepb)
 			if err != nil {
