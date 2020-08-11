@@ -2,44 +2,18 @@ package config
 
 import (
 	"fmt"
-	"net/url"
+	"reflect"
+	"sync"
 
+	octrace "go.opencensus.io/trace"
+
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-const (
-	// JaegerTracingProviderName is the name of the tracing provider Jaeger.
-	JaegerTracingProviderName = "jaeger"
-	// ZipkinTracingProviderName is the name of the tracing provider Zipkin.
-	ZipkinTracingProviderName = "zipkin"
-)
-
-// TracingOptions contains the configurations settings for a http server.
-type TracingOptions struct {
-	// Shared
-	Provider string
-	Service  string
-	Debug    bool
-
-	// Jaeger
-
-	// CollectorEndpoint is the full url to the Jaeger HTTP Thrift collector.
-	// For example, http://localhost:14268/api/traces
-	JaegerCollectorEndpoint *url.URL
-	// AgentEndpoint instructs exporter to send spans to jaeger-agent at this address.
-	// For example, localhost:6831.
-	JaegerAgentEndpoint string
-
-	// Zipkin
-
-	// ZipkinEndpoint configures the zipkin collector URI
-	// Example: http://zipkin:9411/api/v2/spans
-	ZipkinEndpoint *url.URL
-
-	// SampleRate is percentage of requests which are sampled
-	SampleRate float64
-}
+type TracingOptions = trace.TracingOptions
 
 // NewTracingOptions builds a new TracingOptions from core Options
 func NewTracingOptions(o *Options) (*TracingOptions, error) {
@@ -51,7 +25,7 @@ func NewTracingOptions(o *Options) (*TracingOptions, error) {
 	}
 
 	switch o.TracingProvider {
-	case JaegerTracingProviderName:
+	case trace.JaegerTracingProviderName:
 		if o.TracingJaegerCollectorEndpoint != "" {
 			jaegerCollectorEndpoint, err := urlutil.ParseAndValidateURL(o.TracingJaegerCollectorEndpoint)
 			if err != nil {
@@ -60,7 +34,7 @@ func NewTracingOptions(o *Options) (*TracingOptions, error) {
 			tracingOpts.JaegerCollectorEndpoint = jaegerCollectorEndpoint
 			tracingOpts.JaegerAgentEndpoint = o.TracingJaegerAgentEndpoint
 		}
-	case ZipkinTracingProviderName:
+	case trace.ZipkinTracingProviderName:
 		zipkinEndpoint, err := urlutil.ParseAndValidateURL(o.ZipkinEndpoint)
 		if err != nil {
 			return nil, fmt.Errorf("config: invalid zipkin endpoint url: %w", err)
@@ -73,10 +47,64 @@ func NewTracingOptions(o *Options) (*TracingOptions, error) {
 	}
 
 	return &tracingOpts, nil
-
 }
 
-// Enabled indicates whether tracing is enabled on a given TracingOptions
-func (t *TracingOptions) Enabled() bool {
-	return t.Provider != ""
+// A TraceManager manages setting up a trace exporter based on configuration options.
+type TraceManager struct {
+	mu        sync.Mutex
+	traceOpts *TracingOptions
+	exporter  octrace.Exporter
+}
+
+// NewTraceManager creates a new TraceManager.
+func NewTraceManager(src Source) *TraceManager {
+	mgr := &TraceManager{}
+	src.OnConfigChange(mgr.OnConfigChange)
+	mgr.OnConfigChange(src.GetConfig())
+	return mgr
+}
+
+// Close closes any underlying trace exporter.
+func (mgr *TraceManager) Close() error {
+	mgr.mu.Lock()
+	defer mgr.mu.Unlock()
+
+	if mgr.exporter != nil {
+		trace.UnregisterTracing(mgr.exporter)
+	}
+	return nil
+}
+
+// OnConfigChange updates the manager whenever the configuration is changed.
+func (mgr *TraceManager) OnConfigChange(cfg *Config) {
+	mgr.mu.Lock()
+	defer mgr.mu.Unlock()
+
+	traceOpts, err := NewTracingOptions(cfg.Options)
+	if err != nil {
+		log.Error().Err(err).Msg("trace: failed to build tracing options")
+		return
+	}
+
+	if reflect.DeepEqual(traceOpts, mgr.traceOpts) {
+		return
+	}
+	mgr.traceOpts = traceOpts
+
+	if mgr.exporter != nil {
+		trace.UnregisterTracing(mgr.exporter)
+		mgr.exporter = nil
+	}
+
+	if !traceOpts.Enabled() {
+		return
+	}
+
+	log.Info().Interface("options", traceOpts).Msg("trace: starting exporter")
+
+	mgr.exporter, err = trace.RegisterTracing(traceOpts)
+	if err != nil {
+		log.Error().Err(err).Msg("trace: failed to register exporter")
+		return
+	}
 }

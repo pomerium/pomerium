@@ -32,6 +32,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 const (
@@ -268,7 +269,7 @@ func (srv *Server) addTraceConfig(traceOpts *config.TracingOptions, bootCfg *env
 	}
 
 	// We only support zipkin in envoy currently
-	if traceOpts.Provider != config.ZipkinTracingProviderName {
+	if traceOpts.Provider != trace.ZipkinTracingProviderName {
 		return nil
 	}
 

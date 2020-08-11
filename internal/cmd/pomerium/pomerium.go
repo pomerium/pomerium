@@ -22,7 +22,6 @@ import (
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/envoy"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/proxy"
@@ -48,12 +47,10 @@ func Run(ctx context.Context, configFile string) error {
 
 	metricsMgr := config.NewMetricsManager(src)
 	defer metricsMgr.Close()
+	traceMgr := config.NewTraceManager(src)
+	defer traceMgr.Close()
 
 	cfg := src.GetConfig()
-
-	if err := setupTracing(ctx, cfg.Options); err != nil {
-		return err
-	}
 
 	// setup the control plane
 	controlPlane, err := controlplane.NewServer(cfg.Options.Services)
@@ -185,23 +182,5 @@ func setupProxy(opt *config.Options, controlPlane *controlplane.Server) error {
 		return fmt.Errorf("error creating proxy service: %w", err)
 	}
 	controlPlane.HTTPRouter.PathPrefix("/").Handler(svc)
-	return nil
-}
-
-func setupTracing(ctx context.Context, opt *config.Options) error {
-	traceOpts, err := config.NewTracingOptions(opt)
-	if err != nil {
-		return fmt.Errorf("error setting up tracing: %w", err)
-	}
-	if traceOpts.Enabled() {
-		exporter, err := trace.RegisterTracing(traceOpts)
-		if err != nil {
-			return err
-		}
-		go func() {
-			<-ctx.Done()
-			trace.UnregisterTracing(exporter)
-		}()
-	}
 	return nil
 }

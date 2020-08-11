@@ -1,11 +1,18 @@
 package config
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 func Test_NewTracingOptions(t *testing.T) {
@@ -75,5 +82,75 @@ func Test_TracingEnabled(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, tt.opts.Enabled(), "unexpected tracing state")
 		})
+	}
+}
+
+func TestTraceManager(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
+	defer clearTimeout()
+
+	type Request struct {
+		URL  string
+		Name string
+	}
+
+	incoming := make(chan Request, 100)
+
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var objs []struct {
+			Name string
+		}
+		json.NewDecoder(r.Body).Decode(&objs)
+		for _, obj := range objs {
+			incoming <- Request{Name: obj.Name, URL: r.Host}
+		}
+	})
+
+	srv1 := httptest.NewServer(h)
+	defer srv1.Close()
+	srv2 := httptest.NewServer(h)
+	defer srv2.Close()
+
+	src := NewStaticSource(&Config{Options: &Options{
+		TracingProvider:   "zipkin",
+		ZipkinEndpoint:    srv1.URL,
+		TracingSampleRate: 1,
+	}})
+
+	mgr := NewTraceManager(src)
+	_ = mgr
+
+	_, span := trace.StartSpan(ctx, "Example")
+	span.End()
+
+	src.SetConfig(&Config{Options: &Options{
+		TracingProvider:   "zipkin",
+		ZipkinEndpoint:    srv2.URL,
+		TracingSampleRate: 1,
+	}})
+
+	_, span = trace.StartSpan(ctx, "Example")
+	span.End()
+
+	expect := map[Request]struct{}{
+		{Name: "Example", URL: srv1.Listener.Addr().String()}: {},
+		{Name: "Example", URL: srv2.Listener.Addr().String()}: {},
+	}
+
+	for len(expect) > 0 {
+		var req Request
+		select {
+		case <-ctx.Done():
+			t.Error("timeout waiting for requests")
+			return
+		case req = <-incoming:
+		}
+
+		if _, ok := expect[req]; ok {
+			delete(expect, req)
+		} else {
+			t.Error("unexpected request", req)
+			return
+		}
 	}
 }
