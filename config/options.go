@@ -19,6 +19,12 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 
+	"github.com/pomerium/pomerium/internal/directory/azure"
+	"github.com/pomerium/pomerium/internal/directory/github"
+	"github.com/pomerium/pomerium/internal/directory/gitlab"
+	"github.com/pomerium/pomerium/internal/directory/google"
+	"github.com/pomerium/pomerium/internal/directory/okta"
+	"github.com/pomerium/pomerium/internal/directory/onelogin"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -30,6 +36,11 @@ import (
 
 // DisableHeaderKey is the key used to check whether to disable setting header
 const DisableHeaderKey = "disable"
+
+const (
+	idpCustomScopesDocLink = "https://www.pomerium.io/reference/#identity-provider-scopes"
+	idpCustomScopesWarnMsg = "config: using custom scopes may result in undefined behavior, see: " + idpCustomScopesDocLink
+)
 
 // DefaultAlternativeAddr is the address used is two services are competing over
 // the same listener. Typically this is invisible to the end user (e.g. localhost)
@@ -652,6 +663,15 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: server must be run with `autocert`, " +
 			"`insecure_server` or manually provided certificates to start")
 	}
+
+	switch o.Provider {
+	case azure.Name, github.Name, gitlab.Name, google.Name, okta.Name, onelogin.Name:
+		if len(o.Scopes) > 0 {
+			log.Warn().Msg(idpCustomScopesWarnMsg)
+		}
+	default:
+	}
+
 	return nil
 }
 
