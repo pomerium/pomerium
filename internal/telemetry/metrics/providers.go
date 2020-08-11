@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sync"
 
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
 	prom "github.com/prometheus/client_golang/prometheus"
@@ -16,19 +17,11 @@ import (
 // PrometheusHandler creates an exporter that exports stats to Prometheus
 // and returns a handler suitable for exporting metrics.
 func PrometheusHandler(envoyURL *url.URL) (http.Handler, error) {
-	if err := registerDefaultViews(); err != nil {
-		return nil, fmt.Errorf("telemetry/metrics: failed registering views")
-	}
-	reg := prom.DefaultRegisterer.(*prom.Registry)
-	exporter, err := ocprom.NewExporter(
-		ocprom.Options{
-			Namespace: "pomerium",
-			Registry:  reg,
-		})
+	exporter, err := getGlobalExporter()
 	if err != nil {
-		return nil, fmt.Errorf("telemetry/metrics: prometheus exporter: %w", err)
+		return nil, err
 	}
-	view.RegisterExporter(exporter)
+
 	mux := http.NewServeMux()
 
 	envoyMetricsURL, err := envoyURL.Parse("/stats/prometheus")
@@ -38,6 +31,36 @@ func PrometheusHandler(envoyURL *url.URL) (http.Handler, error) {
 
 	mux.Handle("/metrics", newProxyMetricsHandler(exporter, *envoyMetricsURL))
 	return mux, nil
+}
+
+var (
+	globalExporter     *ocprom.Exporter
+	globalExporterErr  error
+	globalExporterOnce sync.Once
+)
+
+func getGlobalExporter() (*ocprom.Exporter, error) {
+	globalExporterOnce.Do(func() {
+		globalExporterErr = registerDefaultViews()
+		if globalExporterErr != nil {
+			globalExporterErr = fmt.Errorf("telemetry/metrics: failed registering views: %w", globalExporterErr)
+			return
+		}
+
+		reg := prom.DefaultRegisterer.(*prom.Registry)
+		globalExporter, globalExporterErr = ocprom.NewExporter(
+			ocprom.Options{
+				Namespace: "pomerium",
+				Registry:  reg,
+			})
+		if globalExporterErr != nil {
+			globalExporterErr = fmt.Errorf("telemetry/metrics: prometheus exporter: %w", globalExporterErr)
+			return
+		}
+
+		view.RegisterExporter(globalExporter)
+	})
+	return globalExporter, globalExporterErr
 }
 
 func registerDefaultViews() error {

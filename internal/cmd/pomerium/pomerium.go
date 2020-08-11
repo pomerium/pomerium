@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
@@ -22,10 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/envoy"
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry"
-	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
@@ -50,11 +46,11 @@ func Run(ctx context.Context, configFile string) error {
 
 	src = databroker.NewConfigSource(src)
 
+	metricsMgr := config.NewMetricsManager(src)
+	defer metricsMgr.Close()
+
 	cfg := src.GetConfig()
 
-	if err := setupMetrics(ctx, cfg.Options); err != nil {
-		return err
-	}
 	if err := setupTracing(ctx, cfg.Options); err != nil {
 		return err
 	}
@@ -177,33 +173,6 @@ func setupCache(opt *config.Options, controlPlane *controlplane.Server) (*cache.
 	svc.Register(controlPlane.GRPCServer)
 	log.Info().Msg("enabled cache service")
 	return svc, nil
-}
-
-func setupMetrics(ctx context.Context, opt *config.Options) error {
-	serviceName := telemetry.ServiceName(opt.Services)
-	if opt.MetricsAddr != "" {
-		handler, err := metrics.PrometheusHandler(config.EnvoyAdminURL)
-		if err != nil {
-			return err
-		}
-		metrics.SetBuildInfo(serviceName)
-		metrics.RegisterInfoMetrics()
-		serverOpts := &httputil.ServerOptions{
-			Addr:     opt.MetricsAddr,
-			Insecure: true,
-			Service:  "metrics",
-		}
-		var wg sync.WaitGroup
-		srv, err := httputil.NewServer(serverOpts, handler, &wg)
-		if err != nil {
-			return err
-		}
-		go func() {
-			<-ctx.Done()
-			_ = srv.Close()
-		}()
-	}
-	return nil
 }
 
 func setupProxy(opt *config.Options, controlPlane *controlplane.Server) error {
