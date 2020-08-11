@@ -5,19 +5,37 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"sync/atomic"
 
 	"github.com/rs/zerolog"
 )
 
-// Logger is the global logger.
-var Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+var (
+	logger atomic.Value
+)
 
-// SetDebugMode tells the logger to use standard out and pretty print output.
-func SetDebugMode() {
-	Logger = Logger.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+func init() {
+	DisableDebug()
 }
 
-// SetLevel sets the minimum global log level. Options are 'debu' 'info' 'warn' and 'error'.
+// DisableDebug tells the logger to use stdout and json output.
+func DisableDebug() {
+	l := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	logger.Store(&l)
+}
+
+// EnableDebug tells the logger to use stdout and pretty print output.
+func EnableDebug() {
+	l := zerolog.New(os.Stdout).With().Timestamp().Logger().Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	logger.Store(&l)
+}
+
+// Logger returns the global logger.
+func Logger() *zerolog.Logger {
+	return logger.Load().(*zerolog.Logger)
+}
+
+// SetLevel sets the minimum global log level. Options are 'debug' 'info' 'warn' and 'error'.
 // Defaults to 'debug'
 func SetLevel(level string) {
 	switch level {
@@ -34,40 +52,40 @@ func SetLevel(level string) {
 
 // With creates a child logger with the field added to its context.
 func With() zerolog.Context {
-	return Logger.With()
+	return Logger().With()
 }
 
 // Level creates a child logger with the minimum accepted level set to level.
 func Level(level zerolog.Level) zerolog.Logger {
-	return Logger.Level(level)
+	return Logger().Level(level)
 }
 
 // Debug starts a new message with debug level.
 //
 // You must call Msg on the returned event in order to send the event.
 func Debug() *zerolog.Event {
-	return Logger.Debug()
+	return Logger().Debug()
 }
 
 // Info starts a new message with info level.
 //
 // You must call Msg on the returned event in order to send the event.
 func Info() *zerolog.Event {
-	return Logger.Info()
+	return Logger().Info()
 }
 
 // Warn starts a new message with warn level.
 //
 // You must call Msg on the returned event in order to send the event.
 func Warn() *zerolog.Event {
-	return Logger.Warn()
+	return Logger().Warn()
 }
 
 // Error starts a new message with error level.
 //
 // You must call Msg on the returned event in order to send the event.
 func Error() *zerolog.Event {
-	return Logger.Error()
+	return Logger().Error()
 }
 
 // Fatal starts a new message with fatal level. The os.Exit(1) function
@@ -75,7 +93,7 @@ func Error() *zerolog.Event {
 //
 // You must call Msg on the returned event in order to send the event.
 func Fatal() *zerolog.Event {
-	return Logger.Fatal()
+	return Logger().Fatal()
 }
 
 // Panic starts a new message with panic level. The message is also sent
@@ -83,14 +101,14 @@ func Fatal() *zerolog.Event {
 //
 // You must call Msg on the returned event in order to send the event.
 func Panic() *zerolog.Event {
-	return Logger.Panic()
+	return Logger().Panic()
 }
 
 // WithLevel starts a new message with level.
 //
 // You must call Msg on the returned event in order to send the event.
 func WithLevel(level zerolog.Level) *zerolog.Event {
-	return Logger.WithLevel(level)
+	return Logger().WithLevel(level)
 }
 
 // Log starts a new message with no level. Setting zerolog.GlobalLevel to
@@ -98,19 +116,19 @@ func WithLevel(level zerolog.Level) *zerolog.Event {
 //
 // You must call Msg on the returned event in order to send the event.
 func Log() *zerolog.Event {
-	return Logger.Log()
+	return Logger().Log()
 }
 
 // Print sends a log event using debug level and no extra field.
 // Arguments are handled in the manner of fmt.Print.
 func Print(v ...interface{}) {
-	Logger.Print(v...)
+	Logger().Print(v...)
 }
 
 // Printf sends a log event using debug level and no extra field.
 // Arguments are handled in the manner of fmt.Printf.
 func Printf(format string, v ...interface{}) {
-	Logger.Printf(format, v...)
+	Logger().Printf(format, v...)
 }
 
 // Ctx returns the Logger associated with the ctx. If no logger

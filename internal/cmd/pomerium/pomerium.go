@@ -45,6 +45,8 @@ func Run(ctx context.Context, configFile string) error {
 
 	src = databroker.NewConfigSource(src)
 
+	logMgr := config.NewLogManager(src)
+	defer logMgr.Close()
 	metricsMgr := config.NewMetricsManager(src)
 	defer metricsMgr.Close()
 	traceMgr := config.NewTraceManager(src)

@@ -309,12 +309,6 @@ func newOptionsFromConfig(configFile string) (*Options, error) {
 	if err != nil {
 		return nil, fmt.Errorf("config: options from config file %w", err)
 	}
-	if o.Debug {
-		log.SetDebugMode()
-	}
-	if o.LogLevel != "" {
-		log.SetLevel(o.LogLevel)
-	}
 	serviceName := telemetry.ServiceName(o.Services)
 	metrics.AddPolicyCountCallback(serviceName, func() int64 {
 		return int64(len(o.Policies))
