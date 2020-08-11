@@ -94,7 +94,7 @@ type Policy struct {
 	// PreserveHostHeader disables host header rewriting.
 	//
 	// This option only takes affect if the destination is a DNS name. If the destination is an IP address,
-	// use SetRequestHeaders to explicitly set the "URL" header.
+	// use SetRequestHeaders to explicitly set the "Host" header.
 	//
 	// https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header
 	PreserveHostHeader bool `mapstructure:"preserve_host_header" yaml:"preserve_host_header,omitempty"`
