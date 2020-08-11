@@ -65,12 +65,16 @@ func (mgr *MetricsManager) updateServer(cfg *Config) {
 	}
 
 	if mgr.srv != nil {
-		_ = mgr.srv.Close()
+		err := mgr.srv.Close()
+		if err != nil {
+			log.Warn().Err(err).Msg("metrics: error closing http server")
+		}
 		mgr.srv = nil
 	}
 
 	mgr.addr = cfg.Options.MetricsAddr
 	if mgr.addr == "" {
+		log.Info().Msg("metrics: http server disabled")
 		return
 	}
 

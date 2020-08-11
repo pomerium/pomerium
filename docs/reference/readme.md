@@ -502,7 +502,7 @@ All metrics coming from envoy will be labeled with `service="pomerium"` or `serv
 - Options: `debug` `info` `warn` `error`
 - Default: value of `log_level` or `debug` if both are unset
 
-Log level sets the logging level for the pomerium proxy service. Only logs of the desired level and above will be logged.
+Proxy log level sets the logging level for the pomerium proxy service access logs. Only logs of the desired level and above will be logged.
 
 ### Service Mode
 
