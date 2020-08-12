@@ -32,13 +32,16 @@ func TestNewStore(t *testing.T) {
 		want    sessions.SessionStore
 		wantErr bool
 	}{
-		{"good", &Options{Name: "_cookie", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}, encoder, &Store{Name: "_cookie", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}, false},
-		{"missing name", &Options{Name: "", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}, encoder, nil, true},
+		{"good", &Options{Name: "_cookie", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}, encoder, &Store{getOptions: func() Options {
+			return Options{Name: "_cookie", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}
+		}}, false},
 		{"missing encoder", &Options{Name: "_cookie", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}, nil, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewStore(tt.opts, tt.encoder)
+			got, err := NewStore(func() Options {
+				return *tt.opts
+			}, tt.encoder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewStore() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -66,13 +69,16 @@ func TestNewCookieLoader(t *testing.T) {
 		want    *Store
 		wantErr bool
 	}{
-		{"good", &Options{Name: "_cookie", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}, encoder, &Store{Name: "_cookie", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}, false},
-		{"missing name", &Options{Name: "", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}, encoder, nil, true},
+		{"good", &Options{Name: "_cookie", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}, encoder, &Store{getOptions: func() Options {
+			return Options{Name: "_cookie", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}
+		}}, false},
 		{"missing encoder", &Options{Name: "_cookie", Secure: true, HTTPOnly: true, Domain: "pomerium.io", Expire: 10 * time.Second}, nil, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewCookieLoader(tt.opts, tt.encoder)
+			got, err := NewCookieLoader(func() Options {
+				return *tt.opts
+			}, tt.encoder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewCookieLoader() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -117,13 +123,17 @@ func TestStore_SaveSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Store{
-				Name:     "_pomerium",
-				Secure:   true,
-				HTTPOnly: true,
-				Domain:   "pomerium.io",
-				Expire:   10 * time.Second,
-				encoder:  tt.encoder,
-				decoder:  tt.decoder,
+				getOptions: func() Options {
+					return Options{
+						Name:     "_pomerium",
+						Secure:   true,
+						HTTPOnly: true,
+						Domain:   "pomerium.io",
+						Expire:   10 * time.Second,
+					}
+				},
+				encoder: tt.encoder,
+				decoder: tt.decoder,
 			}
 
 			r := httptest.NewRequest("GET", "/", nil)

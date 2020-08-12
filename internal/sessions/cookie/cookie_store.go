@@ -33,18 +33,6 @@ const (
 	MaxNumChunks = 5
 )
 
-// Store implements the session store interface for session cookies.
-type Store struct {
-	Name     string
-	Domain   string
-	Expire   time.Duration
-	HTTPOnly bool
-	Secure   bool
-
-	encoder encoding.Marshaler
-	decoder encoding.Unmarshaler
-}
-
 // Options holds options for Store
 type Options struct {
 	Name     string
@@ -54,10 +42,20 @@ type Options struct {
 	Secure   bool
 }
 
+// A GetOptionsFunc is a getter for cookie options.
+type GetOptionsFunc func() Options
+
+// Store implements the session store interface for session cookies.
+type Store struct {
+	getOptions GetOptionsFunc
+	encoder    encoding.Marshaler
+	decoder    encoding.Unmarshaler
+}
+
 // NewStore returns a new store that implements the SessionStore interface
 // using http cookies.
-func NewStore(opts *Options, encoder encoding.MarshalUnmarshaler) (sessions.SessionStore, error) {
-	cs, err := NewCookieLoader(opts, encoder)
+func NewStore(getOptions GetOptionsFunc, encoder encoding.MarshalUnmarshaler) (sessions.SessionStore, error) {
+	cs, err := NewCookieLoader(getOptions, encoder)
 	if err != nil {
 		return nil, err
 	}
@@ -67,41 +65,31 @@ func NewStore(opts *Options, encoder encoding.MarshalUnmarshaler) (sessions.Sess
 
 // NewCookieLoader returns a new store that implements the SessionLoader
 // interface using http cookies.
-func NewCookieLoader(opts *Options, dencoder encoding.Unmarshaler) (*Store, error) {
+func NewCookieLoader(getOptions GetOptionsFunc, dencoder encoding.Unmarshaler) (*Store, error) {
 	if dencoder == nil {
 		return nil, fmt.Errorf("internal/sessions: dencoder cannot be nil")
 	}
-	cs, err := newStore(opts)
-	if err != nil {
-		return nil, err
-	}
+	cs := newStore(getOptions)
 	cs.decoder = dencoder
 	return cs, nil
 }
 
-func newStore(opts *Options) (*Store, error) {
-	if opts.Name == "" {
-		return nil, fmt.Errorf("internal/sessions: cookie name cannot be empty")
-	}
-
+func newStore(getOptions GetOptionsFunc) *Store {
 	return &Store{
-		Name:     opts.Name,
-		Secure:   opts.Secure,
-		HTTPOnly: opts.HTTPOnly,
-		Domain:   opts.Domain,
-		Expire:   opts.Expire,
-	}, nil
+		getOptions: getOptions,
+	}
 }
 
 func (cs *Store) makeCookie(value string) *http.Cookie {
+	opts := cs.getOptions()
 	return &http.Cookie{
-		Name:     cs.Name,
+		Name:     opts.Name,
 		Value:    value,
 		Path:     "/",
-		Domain:   cs.Domain,
-		HttpOnly: cs.HTTPOnly,
-		Secure:   cs.Secure,
-		Expires:  timeNow().Add(cs.Expire),
+		Domain:   opts.Domain,
+		HttpOnly: opts.HTTPOnly,
+		Secure:   opts.Secure,
+		Expires:  timeNow().Add(opts.Expire),
 	}
 }
 
@@ -126,7 +114,8 @@ func getCookies(r *http.Request, name string) []*http.Cookie {
 
 // LoadSession returns a State from the cookie in the request.
 func (cs *Store) LoadSession(r *http.Request) (string, error) {
-	cookies := getCookies(r, cs.Name)
+	opts := cs.getOptions()
+	cookies := getCookies(r, opts.Name)
 	if len(cookies) == 0 {
 		return "", sessions.ErrNoSessionFound
 	}

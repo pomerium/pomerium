@@ -92,7 +92,7 @@ func Run(ctx context.Context, configFile string) error {
 			return err
 		}
 	}
-	if err := setupProxy(cfg.Options, controlPlane); err != nil {
+	if err := setupProxy(src, cfg, controlPlane); err != nil {
 		return err
 	}
 
@@ -174,15 +174,20 @@ func setupCache(opt *config.Options, controlPlane *controlplane.Server) (*cache.
 	return svc, nil
 }
 
-func setupProxy(opt *config.Options, controlPlane *controlplane.Server) error {
-	if !config.IsProxy(opt.Services) {
+func setupProxy(src config.Source, cfg *config.Config, controlPlane *controlplane.Server) error {
+	if !config.IsProxy(cfg.Options.Services) {
 		return nil
 	}
 
-	svc, err := proxy.New(*opt)
+	svc, err := proxy.New(cfg.Options)
 	if err != nil {
 		return fmt.Errorf("error creating proxy service: %w", err)
 	}
 	controlPlane.HTTPRouter.PathPrefix("/").Handler(svc)
+
+	log.Info().Msg("enabled proxy service")
+	src.OnConfigChange(svc.OnConfigChange)
+	svc.OnConfigChange(cfg)
+
 	return nil
 }

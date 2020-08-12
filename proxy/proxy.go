@@ -43,7 +43,7 @@ const (
 
 // ValidateOptions checks that proper configuration settings are set to create
 // a proper Proxy instance
-func ValidateOptions(o config.Options) error {
+func ValidateOptions(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("proxy: invalid 'SHARED_SECRET': %w", err)
 	}
@@ -76,7 +76,6 @@ type Proxy struct {
 	authenticateRefreshURL   *url.URL
 
 	encoder         encoding.Unmarshaler
-	cookieOptions   *cookie.Options
 	cookieSecret    []byte
 	refreshCooldown time.Duration
 	sessionStore    sessions.SessionStore
@@ -85,12 +84,13 @@ type Proxy struct {
 	jwtClaimHeaders []string
 	authzClient     envoy_service_auth_v2.AuthorizationClient
 
-	currentRouter atomic.Value
+	currentOptions *config.AtomicOptions
+	currentRouter  atomic.Value
 }
 
 // New takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
-func New(opts config.Options) (*Proxy, error) {
+func New(opts *config.Options) (*Proxy, error) {
 	if err := ValidateOptions(opts); err != nil {
 		return nil, err
 	}
@@ -104,34 +104,16 @@ func New(opts config.Options) (*Proxy, error) {
 		return nil, err
 	}
 
-	cookieOptions := &cookie.Options{
-		Name:     opts.CookieName,
-		Domain:   opts.CookieDomain,
-		Secure:   opts.CookieSecure,
-		HTTPOnly: opts.CookieHTTPOnly,
-		Expire:   opts.CookieExpire,
-	}
-
-	cookieStore, err := cookie.NewStore(cookieOptions, encoder)
-	if err != nil {
-		return nil, err
-	}
-
 	p := &Proxy{
 		SharedKey:    opts.SharedKey,
 		sharedCipher: sharedCipher,
 		encoder:      encoder,
 
 		cookieSecret:    decodedCookieSecret,
-		cookieOptions:   cookieOptions,
 		refreshCooldown: opts.RefreshCooldown,
-		sessionStore:    cookieStore,
-		sessionLoaders: []sessions.SessionLoader{
-			cookieStore,
-			header.NewStore(encoder, httputil.AuthorizationTypePomerium),
-			queryparam.NewStore(encoder, "pomerium_session")},
 		templates:       template.Must(frontend.NewTemplates()),
 		jwtClaimHeaders: opts.JWTClaimsHeaders,
+		currentOptions:  config.NewAtomicOptions(),
 	}
 	p.currentRouter.Store(httputil.NewRouter())
 	// errors checked in ValidateOptions
@@ -141,6 +123,25 @@ func New(opts config.Options) (*Proxy, error) {
 	p.authenticateSigninURL = p.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	p.authenticateSignoutURL = p.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
 	p.authenticateRefreshURL = p.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
+
+	cookieStore, err := cookie.NewStore(func() cookie.Options {
+		opts := p.currentOptions.Load()
+		return cookie.Options{
+			Name:     opts.CookieName,
+			Domain:   opts.CookieDomain,
+			Secure:   opts.CookieSecure,
+			HTTPOnly: opts.CookieHTTPOnly,
+			Expire:   opts.CookieExpire,
+		}
+	}, encoder)
+	if err != nil {
+		return nil, err
+	}
+	p.sessionStore = cookieStore
+	p.sessionLoaders = []sessions.SessionLoader{
+		cookieStore,
+		header.NewStore(encoder, httputil.AuthorizationTypePomerium),
+		queryparam.NewStore(encoder, "pomerium_session")}
 
 	authzConn, err := grpc.NewGRPCClientConn(&grpc.Options{
 		Addr:                    p.authorizeURL,
@@ -157,11 +158,6 @@ func New(opts config.Options) (*Proxy, error) {
 	}
 	p.authzClient = envoy_service_auth_v2.NewAuthorizationClient(authzConn)
 
-	err = p.UpdateOptions(opts)
-	if err != nil {
-		return nil, err
-	}
-
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
 		return int64(len(opts.Policies))
 	})
@@ -169,14 +165,15 @@ func New(opts config.Options) (*Proxy, error) {
 	return p, nil
 }
 
-// UpdateOptions updates internal structures based on config.Options
-func (p *Proxy) UpdateOptions(o config.Options) error {
+// OnConfigChange updates internal structures based on config.Options
+func (p *Proxy) OnConfigChange(cfg *config.Config) {
 	if p == nil {
-		return nil
+		return
 	}
-	log.Info().Str("checksum", fmt.Sprintf("%x", o.Checksum())).Msg("proxy: updating options")
-	p.setHandlers(&o)
-	return nil
+
+	log.Info().Str("checksum", fmt.Sprintf("%x", cfg.Options.Checksum())).Msg("proxy: updating options")
+	p.currentOptions.Store(cfg.Options)
+	p.setHandlers(cfg.Options)
 }
 
 func (p *Proxy) setHandlers(opts *config.Options) {

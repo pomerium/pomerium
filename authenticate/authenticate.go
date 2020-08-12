@@ -110,6 +110,8 @@ type Authenticate struct {
 	jwk *jose.JSONWebKeySet
 
 	templates *template.Template
+
+	options *config.AtomicOptions
 }
 
 // New validates and creates a new authenticate service from a set of Options.
@@ -136,11 +138,6 @@ func New(opts *config.Options) (*Authenticate, error) {
 		Secure:   opts.CookieSecure,
 		HTTPOnly: opts.CookieHTTPOnly,
 		Expire:   opts.CookieExpire,
-	}
-
-	cookieStore, err := cookie.NewStore(cookieOptions, sharedEncoder)
-	if err != nil {
-		return nil, err
 	}
 
 	dataBrokerConn, err := grpc.NewGRPCClientConn(
@@ -192,9 +189,7 @@ func New(opts *config.Options) (*Authenticate, error) {
 		cookieSecret:     decodedCookieSecret,
 		cookieCipher:     cookieCipher,
 		cookieOptions:    cookieOptions,
-		sessionStore:     cookieStore,
 		encryptedEncoder: encryptedEncoder,
-		sessionLoaders:   []sessions.SessionLoader{qpStore, headerStore, cookieStore},
 		// IdP
 		provider:     provider,
 		providerName: opts.Provider,
@@ -202,7 +197,25 @@ func New(opts *config.Options) (*Authenticate, error) {
 		dataBrokerClient: dataBrokerClient,
 		jwk:              &jose.JSONWebKeySet{},
 		templates:        template.Must(frontend.NewTemplates()),
+		options:          config.NewAtomicOptions(),
 	}
+
+	cookieStore, err := cookie.NewStore(func() cookie.Options {
+		opts := a.options.Load()
+		return cookie.Options{
+			Name:     opts.CookieName,
+			Domain:   opts.CookieDomain,
+			Secure:   opts.CookieSecure,
+			HTTPOnly: opts.CookieHTTPOnly,
+			Expire:   opts.CookieExpire,
+		}
+	}, sharedEncoder)
+	if err != nil {
+		return nil, err
+	}
+
+	a.sessionStore = cookieStore
+	a.sessionLoaders = []sessions.SessionLoader{qpStore, headerStore, cookieStore}
 
 	if opts.SigningKey != "" {
 		decodedCert, err := base64.StdEncoding.DecodeString(opts.SigningKey)
@@ -236,5 +249,6 @@ func (a *Authenticate) OnConfigChange(cfg *config.Config) {
 	}
 
 	log.Info().Str("checksum", fmt.Sprintf("%x", cfg.Options.Checksum())).Msg("authenticate: updating options")
+	a.options.Store(cfg.Options)
 	a.setAdminUsers(cfg.Options)
 }

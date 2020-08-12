@@ -10,7 +10,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-func testOptions(t *testing.T) config.Options {
+func testOptions(t *testing.T) *config.Options {
 	opts := config.NewDefaultOptions()
 	opts.AuthenticateURLString = "https://authenticate.example"
 	opts.AuthorizeURLString = "https://authorize.example"
@@ -26,7 +26,7 @@ func testOptions(t *testing.T) config.Options {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return *opts
+	return opts
 }
 
 func TestOptions_Validate(t *testing.T) {
@@ -57,11 +57,11 @@ func TestOptions_Validate(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		o       config.Options
+		o       *config.Options
 		wantErr bool
 	}{
 		{"good - minimum options", good, false},
-		{"nil options", config.Options{}, true},
+		{"nil options", &config.Options{}, true},
 		{"authenticate service url", badAuthURL, true},
 		{"authenticate service url no scheme", authenticateBadScheme, true},
 		{"authorize service url no scheme", authorizeBadSCheme, true},
@@ -93,14 +93,13 @@ func TestNew(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		opts      config.Options
+		opts      *config.Options
 		wantProxy bool
 		wantErr   bool
 	}{
 		{"good", good, true, false},
-		{"empty options", config.Options{}, false, true},
+		{"empty options", &config.Options{}, false, true},
 		{"short secret/validate sanity check", shortCookieLength, false, true},
-		{"invalid cookie name, empty", badCookie, false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -169,8 +168,8 @@ func Test_UpdateOptions(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		originalOptions config.Options
-		updatedOptions  config.Options
+		originalOptions *config.Options
+		updatedOptions  *config.Options
 		host            string
 		wantErr         bool
 		wantRoute       bool
@@ -198,26 +197,18 @@ func Test_UpdateOptions(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = p.UpdateOptions(tt.updatedOptions)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("UpdateOptions: err = %v, wantErr = %v", err, tt.wantErr)
+			p.OnConfigChange(&config.Config{Options: tt.updatedOptions})
+			r := httptest.NewRequest("GET", tt.host, nil)
+			w := httptest.NewRecorder()
+			p.ServeHTTP(w, r)
+			if tt.wantRoute && w.Code != http.StatusNotFound {
+				t.Errorf("Failed to find route handler")
 				return
-			}
-
-			// This is only safe if we actually can load policies
-			if err == nil {
-				r := httptest.NewRequest("GET", tt.host, nil)
-				w := httptest.NewRecorder()
-				p.ServeHTTP(w, r)
-				if tt.wantRoute && w.Code != http.StatusNotFound {
-					t.Errorf("Failed to find route handler")
-					return
-				}
 			}
 		})
 	}
 
 	// Test nil
 	var p *Proxy
-	p.UpdateOptions(config.Options{})
+	p.OnConfigChange(&config.Config{})
 }

@@ -47,7 +47,7 @@ func TestProxy_ForwardAuth(t *testing.T) {
 	opts := testOptions(t)
 	tests := []struct {
 		name     string
-		options  config.Options
+		options  *config.Options
 		ctxError error
 		method   string
 
@@ -94,7 +94,7 @@ func TestProxy_ForwardAuth(t *testing.T) {
 				t.Fatal(err)
 			}
 			p.encoder = signer
-			p.UpdateOptions(tt.options)
+			p.OnConfigChange(&config.Config{Options: tt.options})
 			uri, err := url.Parse(tt.requestURI)
 			if err != nil {
 				t.Fatal(err)

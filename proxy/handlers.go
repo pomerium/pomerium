@@ -25,12 +25,15 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	// 2. AuthN - Verify the user is authenticated. Set email, group, & id headers
 	h.Use(p.AuthenticateSession)
 	// 3. Enforce CSRF protections for any non-idempotent http method
-	h.Use(csrf.Protect(
-		p.cookieSecret,
-		csrf.Secure(p.cookieOptions.Secure),
-		csrf.CookieName(fmt.Sprintf("%s_csrf", p.cookieOptions.Name)),
-		csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
-	))
+	h.Use(func(h http.Handler) http.Handler {
+		opts := p.currentOptions.Load()
+		return csrf.Protect(
+			p.cookieSecret,
+			csrf.Secure(opts.CookieSecure),
+			csrf.CookieName(fmt.Sprintf("%s_csrf", opts.CookieName)),
+			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
+		)(h)
+	})
 	// dashboard endpoints can be used by user's to view, or modify their session
 	h.Path("/").HandlerFunc(p.UserDashboard).Methods(http.MethodGet)
 	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
