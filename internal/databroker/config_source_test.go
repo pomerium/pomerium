@@ -33,11 +33,13 @@ func TestConfigSource(t *testing.T) {
 
 	cfgs := make(chan *config.Config, 10)
 
+	base := config.NewDefaultOptions()
+	base.DataBrokerURL = mustParse("http://" + li.Addr().String())
+	base.InsecureServer = true
+	base.GRPCInsecure = true
+
 	src := NewConfigSource(config.NewStaticSource(&config.Config{
-		Options: &config.Options{
-			DataBrokerURL: mustParse("http://" + li.Addr().String()),
-			GRPCInsecure:  true,
-		},
+		Options: base,
 	}), func(cfg *config.Config) {
 		cfgs <- cfg
 	})
