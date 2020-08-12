@@ -87,6 +87,6 @@ To make this a bit more concrete, see the following short video which demonstrat
 5. Pomerium delegating and granting access to the requested resource.
 6. The **authorized** user inspecting their user details including group membership.
 
-<video autoplay="" loop="" muted="" playsinline="" width="100%" height="600" control=""><source src="/pomerium-in-action-800-600.mp4" type="video/mp4">
+<video autoplay="" loop="" muted="" playsinline="" width="100%" height="600" control=""><source src="./img/pomerium-in-action-800-600.mp4" type="video/mp4">
 Your browser does not support the video tag.
 </video>
