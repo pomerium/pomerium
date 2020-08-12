@@ -132,16 +132,6 @@ func (srv *Server) update(cfg *config.Config) {
 	}
 	srv.options = options
 
-	// release the previous process so we can hot-reload
-	if srv.cmd != nil && srv.cmd.Process != nil {
-		log.Info().Msg("envoy: releasing envoy process for hot-reload")
-		err := srv.cmd.Process.Release()
-		if err != nil {
-			log.Warn().Err(err).Str("service", "envoy").Msg("envoy: failed to release envoy process for hot-reload")
-		}
-		srv.cmd = nil
-	}
-
 	if err := srv.writeConfig(); err != nil {
 		log.Error().Err(err).Str("service", "envoy").Msg("envoy: failed to write envoy config")
 		return
@@ -169,28 +159,38 @@ func (srv *Server) run() error {
 		args = append(args, "--use-dynamic-base-id", "--base-id-path", baseIDPath)
 	}
 
-	srv.cmd = exec.Command(srv.envoyPath, args...) // #nosec
-	srv.cmd.Dir = srv.wd
+	cmd := exec.Command(srv.envoyPath, args...) // #nosec
+	cmd.Dir = srv.wd
 
-	stderr, err := srv.cmd.StderrPipe()
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return fmt.Errorf("error creating stderr pipe for envoy: %w", err)
 	}
 	go srv.handleLogs(stderr)
 
-	stdout, err := srv.cmd.StdoutPipe()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("error creating stderr pipe for envoy: %w", err)
 	}
 	go srv.handleLogs(stdout)
 
 	// make sure envoy is killed if we're killed
-	srv.cmd.SysProcAttr = sysProcAttr
+	cmd.SysProcAttr = sysProcAttr
 
-	err = srv.cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		return fmt.Errorf("error starting envoy: %w", err)
 	}
+
+	// release the previous process so we can hot-reload
+	if srv.cmd != nil && srv.cmd.Process != nil {
+		log.Info().Msg("envoy: releasing envoy process for hot-reload")
+		err := srv.cmd.Process.Release()
+		if err != nil {
+			log.Warn().Err(err).Str("service", "envoy").Msg("envoy: failed to release envoy process for hot-reload")
+		}
+	}
+	srv.cmd = cmd
 
 	return nil
 }
