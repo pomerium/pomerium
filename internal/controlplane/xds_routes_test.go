@@ -1,6 +1,7 @@
 package controlplane
 
 import (
+	"fmt"
 	"net/url"
 	"testing"
 	"time"
@@ -8,6 +9,14 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil"
 )
+
+func policyNameFunc() func(*config.Policy) string {
+	i := 0
+	return func(*config.Policy) string {
+		i++
+		return fmt.Sprintf("policy-%d", i)
+	}
+}
 
 func Test_buildGRPCRoutes(t *testing.T) {
 	routes := buildGRPCRoutes()
@@ -210,6 +219,10 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 }
 
 func Test_buildPolicyRoutes(t *testing.T) {
+	defer func(f func(*config.Policy) string) {
+		getPolicyName = f
+	}(getPolicyName)
+	getPolicyName = policyNameFunc()
 	routes := buildPolicyRoutes(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
@@ -283,7 +296,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-701142725541ce1f",
+					"cluster": "policy-1",
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -306,7 +319,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": false,
-					"cluster": "policy-35b6cce9d52d36ed",
+					"cluster": "policy-2",
 					"timeout": "0s",
 					"upgradeConfigs": [
 						{ "enabled": true, "upgradeType": "websocket"},
@@ -329,7 +342,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-8935ca8067709cf7",
+					"cluster": "policy-3",
 					"timeout": "60s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -362,7 +375,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-45c2908c3d6f0e52",
+					"cluster": "policy-4",
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -385,7 +398,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-8935ca8067709cf7",
+					"cluster": "policy-5",
 					"timeout": "60s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -409,7 +422,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": false,
-					"cluster": "policy-35b6cce9d52d36ed",
+					"cluster": "policy-6",
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -432,7 +445,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": false,
-					"cluster": "policy-35b6cce9d52d36ed",
+					"cluster": "policy-7",
 					"timeout": "0s",
 					"upgradeConfigs": [
 						{ "enabled": true, "upgradeType": "websocket"},
@@ -447,6 +460,10 @@ func Test_buildPolicyRoutes(t *testing.T) {
 // Make sure default Headers are set for response.
 // See also https://github.com/pomerium/pomerium/issues/901
 func TestAddOptionsHeadersToResponse(t *testing.T) {
+	defer func(f func(*config.Policy) string) {
+		getPolicyName = f
+	}(getPolicyName)
+	getPolicyName = policyNameFunc()
 	routes := buildPolicyRoutes(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
@@ -476,7 +493,7 @@ func TestAddOptionsHeadersToResponse(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-701142725541ce1f",
+					"cluster": "policy-1",
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -496,6 +513,10 @@ func TestAddOptionsHeadersToResponse(t *testing.T) {
 }
 
 func Test_buildPolicyRoutesWithDestinationPath(t *testing.T) {
+	defer func(f func(*config.Policy) string) {
+		getPolicyName = f
+	}(getPolicyName)
+	getPolicyName = policyNameFunc()
 	routes := buildPolicyRoutes(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
@@ -526,7 +547,7 @@ func Test_buildPolicyRoutesWithDestinationPath(t *testing.T) {
 				"route": {
 					"autoHostRewrite": true,
 					"prefixRewrite": "/bar",
-					"cluster": "policy-605b7be39724cb4f",
+					"cluster": "policy-1",
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
