@@ -93,28 +93,24 @@ func Test_PolicyRouteID(t *testing.T) {
 		name          string
 		basePolicy    *Policy
 		comparePolicy *Policy
-		wantID        uint64
 		wantSame      bool
 	}{
 		{
 			"same",
 			&Policy{From: "https://pomerium.io", To: "http://localhost", AllowedUsers: []string{"foo@bar.com"}},
 			&Policy{From: "https://pomerium.io", To: "http://localhost", AllowedGroups: []string{"allusers"}},
-			6315033228798964203,
 			true,
 		},
 		{
 			"different from",
 			&Policy{From: "https://pomerium.io", To: "http://localhost"},
 			&Policy{From: "https://notpomerium.io", To: "http://localhost"},
-			6315033228798964203,
 			false,
 		},
 		{
 			"different path",
 			&Policy{From: "https://pomerium.io", To: "http://localhost"},
 			&Policy{From: "https://pomerium.io", To: "http://localhost", Path: "/foo"},
-			6315033228798964203,
 			false,
 		},
 	}
@@ -127,7 +123,6 @@ func Test_PolicyRouteID(t *testing.T) {
 			assert.NoError(t, tt.comparePolicy.Validate())
 
 			assert.Equal(t, tt.wantSame, tt.basePolicy.RouteID() == tt.comparePolicy.RouteID())
-			assert.Equal(t, tt.wantID, tt.basePolicy.RouteID())
 		})
 	}
 }
