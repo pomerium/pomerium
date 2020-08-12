@@ -157,7 +157,7 @@ func (srv *Server) update(cfg *config.Config) {
 func (srv *Server) run() error {
 	args := []string{
 		"-c", configFileName,
-		"--log-level", "trace",
+		"--log-level", firstNonEmpty(srv.options.logLevel),
 		"--log-format", "[LOG_FORMAT]%l--%n--%v",
 		"--log-format-escaped",
 	}
