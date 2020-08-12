@@ -9,6 +9,7 @@ module.exports = {
     },
     sitemap: {
       hostname: "https://www.pomerium.io",
+      outFile: "docs/sitemap.xml"
     },
     "@vuepress/google-analytics": {
       ga: "UA-129872447-2",
@@ -19,7 +20,7 @@ module.exports = {
   },
   themeConfig: {
     home: false,
-    logo: "/logo-long-civez.png",
+    logo: "/img/logo-long-civez.png",
     repo: "pomerium/pomerium",
     editLinks: true,
     docsDir: "docs",
