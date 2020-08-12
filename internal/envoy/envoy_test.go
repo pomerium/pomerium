@@ -61,10 +61,14 @@ func Test_addTraceConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv := &Server{}
+			srv := &Server{
+				options: serverOptions{
+					tracingOptions: *tt.opts,
+				},
+			}
 			baseCfg := &envoy_config_bootstrap_v3.Bootstrap{}
 
-			err := srv.addTraceConfig(tt.opts, baseCfg)
+			err := srv.addTraceConfig(baseCfg)
 
 			assert.Equal(t, tt.wantErr, err != nil, "unexpected error state")
 
@@ -86,7 +90,7 @@ func Test_buildStatsConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv := &Server{opts: tt.opts}
+			srv := &Server{options: serverOptions{services: tt.opts.Services}}
 
 			statsCfg := srv.buildStatsConfig()
 			testutil.AssertProtoJSONEqual(t, tt.want, statsCfg)

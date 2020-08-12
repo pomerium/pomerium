@@ -69,10 +69,11 @@ func Run(ctx context.Context, configFile string) error {
 	log.Info().Str("port", httpPort).Msg("HTTP server started")
 
 	// create envoy server
-	envoyServer, err := envoy.NewServer(cfg.Options, grpcPort, httpPort)
+	envoyServer, err := envoy.NewServer(src, grpcPort, httpPort)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
 	}
+	defer envoyServer.Close()
 
 	// add services
 	if err := setupAuthenticate(src, cfg, controlPlane); err != nil {
@@ -115,9 +116,6 @@ func Run(ctx context.Context, configFile string) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return controlPlane.Run(ctx)
-	})
-	eg.Go(func() error {
-		return envoyServer.Run(ctx)
 	})
 	if authorizeServer != nil {
 		eg.Go(func() error {
