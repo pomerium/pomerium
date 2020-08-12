@@ -19,7 +19,7 @@ module.exports = {
   },
   themeConfig: {
     home: false,
-    logo: "/logo-long-civez.png",
+    logo: "/img/logo-long-civez.png",
     repo: "pomerium/pomerium",
     editLinks: true,
     docsDir: "docs",

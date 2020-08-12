@@ -33,7 +33,7 @@ Pomerium can be used to:
 
 Pomerium sits between end users and services requiring strong authentication. After verifying identity with your identity provider (IdP), Pomerium uses a configurable policy to decide how to route your user's request and if they are authorized to access the service.
 
-<img alt="pomerium architecture diagram" src="/pomerium-system-context.svg" width="65%">
+<img alt="pomerium architecture diagram" src="./img/pomerium-system-context.svg" width="65%">
 
 ### Component Level
 
@@ -64,7 +64,7 @@ In production deployments, it is recommended that you deploy each component sepa
 
 In test deployments, all four components may run from a single binary and configuration.
 
-<img alt="pomerium architecture diagram" src="/pomerium-container-context.svg" width="65%">
+<img alt="pomerium architecture diagram" src="./img/pomerium-container-context.svg" width="65%">
 
 ### Authentication Flow
 
@@ -73,7 +73,7 @@ Pomerium's internal and external component interactions during full authenticati
 After initial authentication to provide a session token, only the authorization check interactions occur.
 
 <a href="/pomerium-auth-flow.svg">
-<img alt="pomerium architecture diagram" src="/pomerium-auth-flow.svg">
+<img alt="pomerium architecture diagram" src="./img/pomerium-auth-flow.svg">
 </a>
 
 ## In action
