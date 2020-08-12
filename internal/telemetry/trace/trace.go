@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"contrib.go.opencensus.io/exporter/jaeger"
 	ocZipkin "contrib.go.opencensus.io/exporter/zipkin"
@@ -10,18 +11,55 @@ import (
 	zipkinHTTP "github.com/openzipkin/zipkin-go/reporter/http"
 	"go.opencensus.io/trace"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
+const (
+	// JaegerTracingProviderName is the name of the tracing provider Jaeger.
+	JaegerTracingProviderName = "jaeger"
+	// ZipkinTracingProviderName is the name of the tracing provider Zipkin.
+	ZipkinTracingProviderName = "zipkin"
+)
+
+// TracingOptions contains the configurations settings for a http server.
+type TracingOptions struct {
+	// Shared
+	Provider string
+	Service  string
+	Debug    bool
+
+	// Jaeger
+
+	// CollectorEndpoint is the full url to the Jaeger HTTP Thrift collector.
+	// For example, http://localhost:14268/api/traces
+	JaegerCollectorEndpoint *url.URL
+	// AgentEndpoint instructs exporter to send spans to jaeger-agent at this address.
+	// For example, localhost:6831.
+	JaegerAgentEndpoint string
+
+	// Zipkin
+
+	// ZipkinEndpoint configures the zipkin collector URI
+	// Example: http://zipkin:9411/api/v2/spans
+	ZipkinEndpoint *url.URL
+
+	// SampleRate is percentage of requests which are sampled
+	SampleRate float64
+}
+
+// Enabled indicates whether tracing is enabled on a given TracingOptions
+func (t *TracingOptions) Enabled() bool {
+	return t.Provider != ""
+}
+
 // RegisterTracing creates a new trace exporter from TracingOptions.
-func RegisterTracing(opts *config.TracingOptions) (trace.Exporter, error) {
+func RegisterTracing(opts *TracingOptions) (trace.Exporter, error) {
 	var exporter trace.Exporter
 	var err error
 	switch opts.Provider {
-	case config.JaegerTracingProviderName:
+	case JaegerTracingProviderName:
 		exporter, err = registerJaeger(opts)
-	case config.ZipkinTracingProviderName:
+	case ZipkinTracingProviderName:
 		exporter, err = registerZipkin(opts)
 	default:
 		return nil, fmt.Errorf("telemetry/trace: provider %s unknown", opts.Provider)
@@ -40,7 +78,7 @@ func UnregisterTracing(exporter trace.Exporter) {
 	trace.UnregisterExporter(exporter)
 }
 
-func registerJaeger(opts *config.TracingOptions) (trace.Exporter, error) {
+func registerJaeger(opts *TracingOptions) (trace.Exporter, error) {
 	jOpts := jaeger.Options{
 		ServiceName:   opts.Service,
 		AgentEndpoint: opts.JaegerAgentEndpoint,
@@ -56,7 +94,7 @@ func registerJaeger(opts *config.TracingOptions) (trace.Exporter, error) {
 	return jex, nil
 }
 
-func registerZipkin(opts *config.TracingOptions) (trace.Exporter, error) {
+func registerZipkin(opts *TracingOptions) (trace.Exporter, error) {
 	localEndpoint, err := zipkin.NewEndpoint(opts.Service, "")
 	if err != nil {
 		return nil, fmt.Errorf("telemetry/trace: could not create local endpoint: %w", err)

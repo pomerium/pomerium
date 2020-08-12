@@ -14,12 +14,12 @@ import (
 )
 
 // NewHandler injects log into requests context.
-func NewHandler(log zerolog.Logger) func(http.Handler) http.Handler {
+func NewHandler(getLogger func() *zerolog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Create a copy of the logger (including internal context slice)
 			// to prevent data race when using UpdateContext.
-			l := log.With().Logger()
+			l := getLogger().With().Logger()
 			r = r.WithContext(l.WithContext(r.Context()))
 			next.ServeHTTP(w, r)
 		})

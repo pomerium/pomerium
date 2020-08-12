@@ -3,11 +3,11 @@ package log_test
 import (
 	"errors"
 	"flag"
-	"os"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/rs/zerolog"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // setup would normally be an init() function, however, there seems
@@ -24,7 +24,7 @@ func setup() {
 	zerolog.TimestampFunc = func() time.Time {
 		return time.Date(2008, 1, 8, 17, 5, 5, 0, time.UTC)
 	}
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	log.DisableDebug()
 }
 
 // Simple logging example using the Print function in the log package

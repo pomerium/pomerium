@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testutil"
 )
 
@@ -40,19 +41,19 @@ func Test_addTraceConfig(t *testing.T) {
 	}{
 		{
 			"good zipkin",
-			&config.TracingOptions{Provider: config.ZipkinTracingProviderName, ZipkinEndpoint: &url.URL{Host: "localhost:9411"}},
+			&config.TracingOptions{Provider: trace.ZipkinTracingProviderName, ZipkinEndpoint: &url.URL{Host: "localhost:9411"}},
 			`{"tracing":{"http":{"name":"envoy.tracers.opencensus","typedConfig":{"@type":"type.googleapis.com/envoy.config.trace.v3.OpenCensusConfig","zipkinExporterEnabled":true,"zipkinUrl":"//localhost:9411","incomingTraceContext":["B3","TRACE_CONTEXT","CLOUD_TRACE_CONTEXT","GRPC_TRACE_BIN"],"outgoingTraceContext":["B3","TRACE_CONTEXT","GRPC_TRACE_BIN"]}}}}`,
 			false,
 		},
 		{
 			"good jaeger",
-			&config.TracingOptions{Provider: config.JaegerTracingProviderName},
+			&config.TracingOptions{Provider: trace.JaegerTracingProviderName},
 			`{}`,
 			false,
 		},
 		{
 			"bad zipkin",
-			&config.TracingOptions{Provider: config.ZipkinTracingProviderName, ZipkinEndpoint: &url.URL{}},
+			&config.TracingOptions{Provider: trace.ZipkinTracingProviderName, ZipkinEndpoint: &url.URL{}},
 			`{}`,
 			true,
 		},
