@@ -61,7 +61,7 @@ func WithServiceAccount(serviceAccount *ServiceAccount) Option {
 
 func getConfig(options ...Option) *config {
 	cfg := new(config)
-	WithBatchSize(100)(cfg)
+	WithBatchSize(200)(cfg)
 	WithHTTPClient(http.DefaultClient)(cfg)
 	for _, option := range options {
 		option(cfg)
