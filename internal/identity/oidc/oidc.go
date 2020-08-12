@@ -239,3 +239,8 @@ func (p *Provider) GetSubject(v interface{}) (string, error) {
 	}
 	return s.Subject, nil
 }
+
+// Name returns the provider name.
+func (p *Provider) Name() string {
+	return Name
+}

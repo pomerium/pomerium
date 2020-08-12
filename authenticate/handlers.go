@@ -538,7 +538,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 
 	s := &session.Session{
 		Id:        sessionState.ID,
-		UserId:    sessionState.UserID(a.providerName),
+		UserId:    sessionState.UserID(a.provider.Name()),
 		ExpiresAt: sessionExpiry,
 		IdToken: &session.IDToken{
 			Issuer:    sessionState.Issuer,
