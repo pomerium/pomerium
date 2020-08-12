@@ -124,7 +124,7 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(tt.opts)
+			_, err := New(&config.Config{Options: tt.opts})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -151,7 +151,7 @@ func TestIsAdmin(t *testing.T) {
 			t.Parallel()
 			opts := newTestOptions(t)
 			opts.Administrators = tc.admins
-			a, err := New(opts)
+			a, err := New(&config.Config{Options: opts})
 			a.OnConfigChange(&config.Config{Options: opts})
 			require.NoError(t, err)
 			assert.True(t, a.isAdmin(tc.user) == tc.isAdmin)

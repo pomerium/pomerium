@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"sync/atomic"
 
 	"golang.org/x/oauth2"
 
@@ -55,4 +56,31 @@ func NewAuthenticator(o oauth.Options) (a Authenticator, err error) {
 		return nil, err
 	}
 	return a, nil
+}
+
+// wrap the Authenticator for the AtomicAuthenticator to support a nil default value.
+type authenticatorValue struct {
+	Authenticator
+}
+
+// An AtomicAuthenticator is a strongly-typed atomic.Value for storing an authenticator.
+type AtomicAuthenticator struct {
+	current atomic.Value
+}
+
+// NewAtomicAuthenticator creates a new AtomicAuthenticator.
+func NewAtomicAuthenticator() *AtomicAuthenticator {
+	a := &AtomicAuthenticator{}
+	a.current.Store(authenticatorValue{})
+	return a
+}
+
+// Load loads the current authenticator.
+func (a *AtomicAuthenticator) Load() Authenticator {
+	return a.current.Load().(authenticatorValue)
+}
+
+// Store stores the authenticator.
+func (a *AtomicAuthenticator) Store(value Authenticator) {
+	a.current.Store(authenticatorValue{value})
 }
