@@ -74,12 +74,6 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 	defer src.mu.Unlock()
 
 	cfg := src.underlyingConfig.Clone()
-	defer func() {
-		src.computedConfig = cfg
-		if !firstTime {
-			src.Trigger(cfg)
-		}
-	}()
 
 	// start the updater
 	src.runUpdater(cfg)
@@ -105,6 +99,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 				log.Warn().Err(err).
 					Str("policy", policy.String()).
 					Msg("databroker: invalid policy, ignoring")
+				continue
 			}
 
 			routeID := policy.RouteID()
@@ -119,6 +114,17 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 
 			cfg.Options.Policies = append(cfg.Options.Policies, *policy)
 		}
+
+		err := cfg.Options.Validate()
+		if err != nil {
+			log.Warn().Err(err).Msg("databroker: invalid config detected, ignoring")
+			return
+		}
+	}
+
+	src.computedConfig = cfg
+	if !firstTime {
+		src.Trigger(cfg)
 	}
 }
 
