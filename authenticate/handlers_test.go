@@ -111,10 +111,6 @@ func TestAuthenticate_Handler(t *testing.T) {
 
 func TestAuthenticate_SignIn(t *testing.T) {
 	t.Parallel()
-	aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
-	if err != nil {
-		t.Fatal(err)
-	}
 	tests := []struct {
 		name string
 
@@ -152,7 +148,6 @@ func TestAuthenticate_SignIn(t *testing.T) {
 				RedirectURL:      uriParseHelper("https://some.example"),
 				sharedEncoder:    tt.encoder,
 				encryptedEncoder: tt.encoder,
-				sharedCipher:     aead,
 				dataBrokerClient: mockDataBrokerServiceClient{
 					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 						data, err := ptypes.MarshalAny(&session.Session{
@@ -175,6 +170,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 				options:  config.NewAtomicOptions(),
 				provider: identity.NewAtomicAuthenticator(),
 			}
+			a.options.Store(&config.Options{SharedKey: base64.StdEncoding.EncodeToString(cryptutil.NewKey())})
 			a.provider.Store(tt.provider)
 			uri := &url.URL{Scheme: tt.scheme, Host: tt.host}
 

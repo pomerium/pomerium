@@ -69,8 +69,6 @@ type Authenticate struct {
 	// authentication flow
 	RedirectURL *url.URL
 
-	// sharedCipher is used to encrypt data for use between services
-	sharedCipher cipher.AEAD
 	// sharedEncoder is the encoder to use to serialize data to be consumed
 	// by other services
 	sharedEncoder encoding.MarshalUnmarshaler
@@ -113,7 +111,6 @@ func New(cfg *config.Config) (*Authenticate, error) {
 	}
 
 	// shared state encoder setup
-	sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(cfg.Options.SharedKey)
 	sharedEncoder, err := jws.NewHS256Signer([]byte(cfg.Options.SharedKey), cfg.Options.GetAuthenticateURL().Host)
 	if err != nil {
 		return nil, err
@@ -150,7 +147,6 @@ func New(cfg *config.Config) (*Authenticate, error) {
 	a := &Authenticate{
 		RedirectURL: redirectURL,
 		// shared state
-		sharedCipher:  sharedCipher,
 		sharedEncoder: sharedEncoder,
 		// private state
 		cookieSecret:     decodedCookieSecret,

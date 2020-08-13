@@ -168,6 +168,11 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	options := a.options.Load()
 
+	sharedCipher, err := cryptutil.NewAEADCipherFromBase64(options.SharedKey)
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+
 	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -237,7 +242,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// encrypt our route-based token JWT avoiding any accidental logging
-	encryptedJWT := cryptutil.Encrypt(a.sharedCipher, signedJWT, nil)
+	encryptedJWT := cryptutil.Encrypt(sharedCipher, signedJWT, nil)
 	// base64 our encrypted payload for URL-friendlyness
 	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
 
