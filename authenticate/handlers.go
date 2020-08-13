@@ -46,12 +46,13 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 	r.Use(func(h http.Handler) http.Handler {
 		options := a.options.Load()
+		state := a.state.Load()
 		return csrf.Protect(
-			a.cookieSecret,
+			state.cookieSecret,
 			csrf.Secure(options.CookieSecure),
 			csrf.Path("/"),
-			csrf.UnsafePaths([]string{a.RedirectURL.Path}), // enforce CSRF on "safe" handler
-			csrf.FormValueName("state"),                    // rfc6749 section-10.12
+			csrf.UnsafePaths([]string{state.redirectURL.Path}), // enforce CSRF on "safe" handler
+			csrf.FormValueName("state"),                        // rfc6749 section-10.12
 			csrf.CookieName(fmt.Sprintf("%s_csrf", options.CookieName)),
 			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
 		)(h)
@@ -76,7 +77,9 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		AllowedHeaders:   []string{"*"},
 	})
 	v.Use(c.Handler)
-	v.Use(sessions.RetrieveSession(a.sessionLoaders...))
+	v.Use(func(h http.Handler) http.Handler {
+		return sessions.RetrieveSession(a.state.Load().sessionLoaders...)(h)
+	})
 	v.Use(a.VerifySession)
 	v.Path("/").Handler(httputil.HandlerFunc(a.Dashboard))
 	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
@@ -89,12 +92,16 @@ func (a *Authenticate) Mount(r *mux.Router) {
 
 	// programmatic access api endpoint
 	api := r.PathPrefix("/api").Subrouter()
-	api.Use(sessions.RetrieveSession(a.sessionLoaders...))
+	api.Use(func(h http.Handler) http.Handler {
+		return sessions.RetrieveSession(a.state.Load().sessionLoaders...)(h)
+	})
 }
 
 // Well-Known Uniform Resource Identifiers (URIs)
 // https://en.wikipedia.org/wiki/List_of_/.well-known/_services_offered_by_webservers
 func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
+	state := a.state.Load()
+
 	wellKnownURLS := struct {
 		// URL string referencing the client's JSON Web Key (JWK) Set
 		// RFC7517 document, which contains the client's public keys.
@@ -102,9 +109,9 @@ func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 		OAuth2Callback         string `json:"authentication_callback_endpoint"`
 		ProgrammaticRefreshAPI string `json:"api_refresh_endpoint"`
 	}{
-		a.RedirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
-		a.RedirectURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
-		a.RedirectURL.ResolveReference(&url.URL{Path: "/api/v1/refresh"}).String(),
+		state.redirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
+		state.redirectURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
+		state.redirectURL.ResolveReference(&url.URL{Path: "/api/v1/refresh"}).String(),
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -118,9 +125,11 @@ func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *Authenticate) jwks(w http.ResponseWriter, r *http.Request) error {
+	state := a.state.Load()
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	jBytes, err := json.Marshal(a.jwk)
+	jBytes, err := json.Marshal(state.jwk)
 	if err != nil {
 		return err
 	}
@@ -167,6 +176,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	defer span.End()
 
 	options := a.options.Load()
+	state := a.state.Load()
 
 	sharedCipher, err := cryptutil.NewAEADCipherFromBase64(options.SharedKey)
 	if err != nil {
@@ -178,7 +188,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	jwtAudience := []string{a.RedirectURL.Host, redirectURL.Host}
+	jwtAudience := []string{state.redirectURL.Host, redirectURL.Host}
 
 	var callbackURL *url.URL
 	// if the callback is explicitly set, set it and add an additional audience
@@ -202,7 +212,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	s, err := a.getSessionFromCtx(ctx)
 	if err != nil {
-		a.sessionStore.ClearSession(w, r)
+		state.sessionStore.ClearSession(w, r)
 		return err
 	}
 
@@ -210,10 +220,10 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	if impersonate := r.FormValue(urlutil.QueryImpersonateAction); impersonate != "" {
 		s.SetImpersonation(r.FormValue(urlutil.QueryImpersonateEmail), r.FormValue(urlutil.QueryImpersonateGroups))
 	}
-	newSession := sessions.NewSession(s, a.RedirectURL.Host, jwtAudience)
+	newSession := sessions.NewSession(s, state.redirectURL.Host, jwtAudience)
 
 	// re-persist the session, useful when session was evicted from session
-	if err := a.sessionStore.SaveSession(w, r, s); err != nil {
+	if err := state.sessionStore.SaveSession(w, r, s); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
@@ -227,7 +237,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
 
-		encSession, err := a.encryptedEncoder.Marshal(pbSession.GetOauthToken())
+		encSession, err := state.encryptedEncoder.Marshal(pbSession.GetOauthToken())
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
@@ -236,7 +246,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// sign the route session, as a JWT
-	signedJWT, err := a.sharedEncoder.Marshal(newSession)
+	signedJWT, err := state.sharedEncoder.Marshal(newSession)
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -264,6 +274,8 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
 	defer span.End()
 
+	state := a.state.Load()
+
 	sessionState, err := a.getSessionFromCtx(ctx)
 	if err == nil {
 		if s, _ := session.Get(ctx, a.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
@@ -278,7 +290,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// no matter what happens, we want to clear the session store
-	a.sessionStore.ClearSession(w, r)
+	state.sessionStore.ClearSession(w, r)
 	redirectString := r.FormValue(urlutil.QueryRedirectURI)
 	endSessionURL, err := a.provider.Load().LogOut()
 	if err == nil {
@@ -331,17 +343,18 @@ func (a *Authenticate) Impersonate(w http.ResponseWriter, r *http.Request) error
 // https://tools.ietf.org/html/rfc6749#section-4.2.1
 // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
 func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Request, err error) error {
+	state := a.state.Load()
 	// If request AJAX/XHR request, return a 401 instead because the redirect
 	// will almost certainly violate their CORs policy
 	if reqType := r.Header.Get("X-Requested-With"); strings.EqualFold(reqType, "XmlHttpRequest") {
 		return httputil.NewError(http.StatusUnauthorized, err)
 	}
-	a.sessionStore.ClearSession(w, r)
-	redirectURL := a.RedirectURL.ResolveReference(r.URL)
+	state.sessionStore.ClearSession(w, r)
+	redirectURL := state.redirectURL.ResolveReference(r.URL)
 	nonce := csrf.Token(r)
 	now := time.Now().Unix()
 	b := []byte(fmt.Sprintf("%s|%d|", nonce, now))
-	enc := cryptutil.Encrypt(a.cookieCipher, []byte(redirectURL.String()), b)
+	enc := cryptutil.Encrypt(state.cookieCipher, []byte(redirectURL.String()), b)
 	b = append(b, enc...)
 	encodedState := base64.URLEncoding.EncodeToString(b)
 	httputil.Redirect(w, r, a.provider.Load().GetSignInURL(encodedState), http.StatusFound)
@@ -374,6 +387,8 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.getOAuthCallback")
 	defer span.End()
 
+	state := a.state.Load()
+
 	// Error Authentication Response: rfc6749#section-4.1.2.1 & OIDC#3.1.2.6
 	//
 	// first, check if the identity provider returned an error
@@ -402,8 +417,8 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 
 	newState := sessions.NewSession(
 		&s,
-		a.RedirectURL.Hostname(),
-		[]string{a.RedirectURL.Hostname()})
+		state.redirectURL.Hostname(),
+		[]string{state.redirectURL.Hostname()})
 
 	// state includes a csrf nonce (validated by middleware) and redirect uri
 	bytes, err := base64.URLEncoding.DecodeString(r.FormValue("state"))
@@ -427,7 +442,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	// mac: to validate the nonce again, and above timestamp
 	// decrypt: to prevent leaking 'redirect_uri' to IdP or logs
 	b := []byte(fmt.Sprint(statePayload[0], "|", statePayload[1], "|"))
-	redirectString, err := cryptutil.Decrypt(a.cookieCipher, []byte(statePayload[2]), b)
+	redirectString, err := cryptutil.Decrypt(state.cookieCipher, []byte(statePayload[2]), b)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -438,19 +453,21 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// ...  and the user state to local storage.
-	if err := a.sessionStore.SaveSession(w, r, &newState); err != nil {
+	if err := state.sessionStore.SaveSession(w, r, &newState); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 	return redirectURL, nil
 }
 
 func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, error) {
+	state := a.state.Load()
+
 	jwt, err := sessions.FromContext(ctx)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
 	var s sessions.State
-	if err := a.sharedEncoder.Unmarshal([]byte(jwt), &s); err != nil {
+	if err := state.sharedEncoder.Unmarshal([]byte(jwt), &s); err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
 	return &s, nil
@@ -465,10 +482,8 @@ func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) erro
 }
 
 func (a *Authenticate) isAdmin(user string) bool {
-	a.administratorMu.Lock()
-	defer a.administratorMu.Unlock()
-
-	_, ok := a.administrator[user]
+	state := a.state.Load()
+	_, ok := state.administrators[user]
 	return ok
 }
 
