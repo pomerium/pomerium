@@ -8,8 +8,8 @@ module.exports = {
       pattern: "**/*.md",
     },
     sitemap: {
-      hostname: "https://www.pomerium.io",
-      outFile: "docs/sitemap.xml"
+      hostname: "https://www.pomerium.com",
+      outFile: "docs/sitemap.xml",
     },
     "@vuepress/google-analytics": {
       ga: "UA-129872447-2",
