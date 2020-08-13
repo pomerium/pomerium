@@ -21,14 +21,17 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	h := r.PathPrefix(dashboardPath).Subrouter()
 	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 	// 1. Retrieve the user session and add it to the request context
-	h.Use(sessions.RetrieveSession(p.sessionStore))
+	h.Use(func(h http.Handler) http.Handler {
+		return sessions.RetrieveSession(p.state.Load().sessionStore)(h)
+	})
 	// 2. AuthN - Verify the user is authenticated. Set email, group, & id headers
 	h.Use(p.AuthenticateSession)
 	// 3. Enforce CSRF protections for any non-idempotent http method
 	h.Use(func(h http.Handler) http.Handler {
 		opts := p.currentOptions.Load()
+		state := p.state.Load()
 		return csrf.Protect(
-			p.cookieSecret,
+			state.cookieSecret,
 			csrf.Secure(opts.CookieSecure),
 			csrf.CookieName(fmt.Sprintf("%s_csrf", opts.CookieName)),
 			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
@@ -42,7 +45,9 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	// callback used to set route-scoped session and redirect back to destination
 	// only accept signed requests (hmac) from other trusted pomerium services
 	c := r.PathPrefix(dashboardPath + "/callback").Subrouter()
-	c.Use(middleware.ValidateSignature(p.SharedKey))
+	h.Use(func(h http.Handler) http.Handler {
+		return middleware.ValidateSignature(p.state.Load().sharedKey)(h)
+	})
 
 	c.Path("/").
 		Handler(httputil.HandlerFunc(p.ProgrammaticCallback)).
@@ -71,28 +76,32 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 // of the authenticate service to revoke the remote session and clear
 // the local session state.
 func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
+	state := p.state.Load()
+
 	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/"}
 	if uri, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI)); err == nil && uri.String() != "" {
 		redirectURL = uri
 	}
 
-	signoutURL := *p.authenticateSignoutURL
+	signoutURL := *state.authenticateSignoutURL
 	q := signoutURL.Query()
 	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
 	signoutURL.RawQuery = q.Encode()
 
-	p.sessionStore.ClearSession(w, r)
-	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signoutURL).String(), http.StatusFound)
+	state.sessionStore.ClearSession(w, r)
+	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &signoutURL).String(), http.StatusFound)
 }
 
 // UserDashboard redirects to the authenticate dasbhoard.
 func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
+	state := p.state.Load()
+
 	redirectURL := urlutil.GetAbsoluteURL(r).String()
 	if ref := r.Header.Get(httputil.HeaderReferrer); ref != "" {
 		redirectURL = ref
 	}
 
-	url := p.authenticateDashboardURL.ResolveReference(&url.URL{
+	url := state.authenticateDashboardURL.ResolveReference(&url.URL{
 		RawQuery: url.Values{
 			urlutil.QueryRedirectURI: {redirectURL},
 		}.Encode(),
@@ -116,18 +125,20 @@ func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
 // saveCallbackSession takes an encrypted per-route session token, and decrypts
 // it using the shared service key, then stores it the local session store.
 func (p *Proxy) saveCallbackSession(w http.ResponseWriter, r *http.Request, enctoken string) ([]byte, error) {
+	state := p.state.Load()
+
 	// 1. extract the base64 encoded and encrypted JWT from query params
 	encryptedJWT, err := base64.URLEncoding.DecodeString(enctoken)
 	if err != nil {
 		return nil, fmt.Errorf("proxy: malfromed callback token: %w", err)
 	}
 	// 2. decrypt the JWT using the cipher using the _shared_ secret key
-	rawJWT, err := cryptutil.Decrypt(p.sharedCipher, encryptedJWT, nil)
+	rawJWT, err := cryptutil.Decrypt(state.sharedCipher, encryptedJWT, nil)
 	if err != nil {
 		return nil, fmt.Errorf("proxy: callback token decrypt error: %w", err)
 	}
 	// 3. Save the decrypted JWT to the session store directly as a string, without resigning
-	if err = p.sessionStore.SaveSession(w, r, rawJWT); err != nil {
+	if err = state.sessionStore.SaveSession(w, r, rawJWT); err != nil {
 		return nil, fmt.Errorf("proxy: callback session save failure: %w", err)
 	}
 	return rawJWT, nil
@@ -136,11 +147,13 @@ func (p *Proxy) saveCallbackSession(w http.ResponseWriter, r *http.Request, enct
 // ProgrammaticLogin returns a signed url that can be used to login
 // using the authenticate service.
 func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error {
+	state := p.state.Load()
+
 	redirectURI, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
-	signinURL := *p.authenticateSigninURL
+	signinURL := *state.authenticateSigninURL
 	callbackURI := urlutil.GetAbsoluteURL(r)
 	callbackURI.Path = dashboardPath + "/callback/"
 	q := signinURL.Query()
@@ -148,7 +161,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	q.Set(urlutil.QueryRedirectURI, redirectURI.String())
 	q.Set(urlutil.QueryIsProgrammatic, "true")
 	signinURL.RawQuery = q.Encode()
-	response := urlutil.NewSignedURL(p.SharedKey, &signinURL).String()
+	response := urlutil.NewSignedURL(state.sharedKey, &signinURL).String()
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)

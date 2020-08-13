@@ -11,8 +11,10 @@ import (
 	"net"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/credentials"
@@ -143,4 +145,47 @@ func grpcTimeoutInterceptor(timeout time.Duration) grpc.UnaryClientInterceptor {
 		defer cancel()
 		return invoker(ctx, method, req, reply, cc, opts...)
 	}
+}
+
+type grpcClientConnRecord struct {
+	conn *grpc.ClientConn
+	opts *Options
+}
+
+var grpcClientConns = struct {
+	sync.Mutex
+	m map[string]grpcClientConnRecord
+}{
+	m: make(map[string]grpcClientConnRecord),
+}
+
+// GetGRPCClientConn returns a gRPC client connection for the given name. If a connection for that name has already been
+// established the existing connection will be returned. If any options change for that connection, the existing
+// connection will be closed and a new one established.
+func GetGRPCClientConn(name string, opts *Options) (*grpc.ClientConn, error) {
+	grpcClientConns.Lock()
+	defer grpcClientConns.Unlock()
+
+	current, ok := grpcClientConns.m[name]
+	if ok {
+		if cmp.Equal(current.opts, opts) {
+			return current.conn, nil
+		}
+
+		err := current.conn.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("grpc: failed to close existing connection")
+		}
+	}
+
+	cc, err := NewGRPCClientConn(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	grpcClientConns.m[name] = grpcClientConnRecord{
+		conn: cc,
+		opts: opts,
+	}
+	return current.conn, nil
 }

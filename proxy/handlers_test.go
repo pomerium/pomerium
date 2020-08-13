@@ -47,7 +47,7 @@ func TestProxy_Signout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	proxy, err := New(opts)
+	proxy, err := New(&config.Config{Options: opts})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestProxy_Signout(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusFound)
 	}
 	body := rr.Body.String()
-	want := (proxy.authenticateURL.String())
+	want := proxy.state.Load().authenticateURL.String()
 	if !strings.Contains(body, want) {
 		t.Errorf("handler returned unexpected body: got %v want %s ", body, want)
 	}
@@ -79,7 +79,7 @@ func TestProxy_SignOut(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := testOptions(t)
-			p, err := New(opts)
+			p, err := New(&config.Config{Options: opts})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -221,12 +221,13 @@ func TestProxy_Callback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(tt.options)
+			p, err := New(&config.Config{Options: tt.options})
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.encoder = tt.cipher
-			p.sessionStore = tt.sessionStore
+			state := p.state.Load()
+			state.encoder = tt.cipher
+			state.sessionStore = tt.sessionStore
 			p.OnConfigChange(&config.Config{Options: tt.options})
 			redirectURI := &url.URL{Scheme: tt.scheme, Host: tt.host, Path: tt.path}
 			queryString := redirectURI.Query()
@@ -297,7 +298,7 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(tt.options)
+			p, err := New(&config.Config{Options: tt.options})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -428,12 +429,13 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(tt.options)
+			p, err := New(&config.Config{Options: tt.options})
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.encoder = tt.cipher
-			p.sessionStore = tt.sessionStore
+			state := p.state.Load()
+			state.encoder = tt.cipher
+			state.sessionStore = tt.sessionStore
 			p.OnConfigChange(&config.Config{Options: tt.options})
 			redirectURI, _ := url.Parse(tt.redirectURI)
 			queryString := redirectURI.Query()

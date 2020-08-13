@@ -83,17 +83,18 @@ func TestProxy_ForwardAuth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(tt.options)
+			p, err := New(&config.Config{Options: tt.options})
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.authzClient = tt.authorizer
-			p.sessionStore = tt.sessionStore
+			state := p.state.Load()
+			state.authzClient = tt.authorizer
+			state.sessionStore = tt.sessionStore
 			signer, err := jws.NewHS256Signer(nil, "mock")
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.encoder = signer
+			state.encoder = signer
 			p.OnConfigChange(&config.Config{Options: tt.options})
 			uri, err := url.Parse(tt.requestURI)
 			if err != nil {
@@ -110,10 +111,10 @@ func TestProxy_ForwardAuth(t *testing.T) {
 			uri.RawQuery = queryString.Encode()
 
 			r := httptest.NewRequest(tt.method, uri.String(), nil)
-			state, _ := tt.sessionStore.LoadSession(r)
+			ss, _ := tt.sessionStore.LoadSession(r)
 
 			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, tt.ctxError)
+			ctx = sessions.NewContext(ctx, ss, tt.ctxError)
 			r = r.WithContext(ctx)
 			r.Header.Set("Accept", "application/json")
 			if len(tt.headers) != 0 {
