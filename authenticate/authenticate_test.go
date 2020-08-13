@@ -86,9 +86,6 @@ func TestNew(t *testing.T) {
 	badRedirectURL.AuthenticateURL = nil
 	badRedirectURL.CookieName = "B"
 
-	badCookieName := newTestOptions(t)
-	badCookieName.CookieName = ""
-
 	badProvider := newTestOptions(t)
 	badProvider.Provider = ""
 	badProvider.CookieName = "C"
@@ -118,7 +115,6 @@ func TestNew(t *testing.T) {
 		{"good", good, false},
 		{"empty opts", &config.Options{}, true},
 		{"fails to validate", badRedirectURL, true},
-		{"bad cookie name", badCookieName, true},
 		{"bad provider", badProvider, true},
 		{"bad cache url", badGRPCConn, true},
 		{"empty provider url", emptyProviderURL, true},

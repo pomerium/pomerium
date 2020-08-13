@@ -47,7 +47,7 @@ yE+vPxsiUkvQHdO2fojCkY8jg70jxM+gu59tPDNbw3Uh/2Ij310FgTHsnGQMyA==
 -----END CERTIFICATE-----`
 
 func Test_getEvaluatorRequest(t *testing.T) {
-	a := new(Authorize)
+	a := &Authorize{currentOptions: config.NewAtomicOptions()}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
 	a.currentEncoder.Store(encoder)
 	a.currentOptions.Store(&config.Options{
@@ -273,7 +273,7 @@ func Test_handleForwardAuth(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			a := new(Authorize)
+			a := &Authorize{currentOptions: config.NewAtomicOptions()}
 			var fau *url.URL
 			if tc.forwardAuthURL != "" {
 				fau = mustParseURL(tc.forwardAuthURL)
@@ -288,7 +288,7 @@ func Test_handleForwardAuth(t *testing.T) {
 }
 
 func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
-	a := new(Authorize)
+	a := &Authorize{currentOptions: config.NewAtomicOptions()}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
 	a.currentEncoder.Store(encoder)
 	a.currentOptions.Store(&config.Options{

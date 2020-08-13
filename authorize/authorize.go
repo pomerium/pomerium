@@ -23,18 +23,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-type atomicOptions struct {
-	value atomic.Value
-}
-
-func (a *atomicOptions) Load() *config.Options {
-	return a.value.Load().(*config.Options)
-}
-
-func (a *atomicOptions) Store(options *config.Options) {
-	a.value.Store(options)
-}
-
 type atomicMarshalUnmarshaler struct {
 	value atomic.Value
 }
@@ -52,7 +40,7 @@ type Authorize struct {
 	pe    *evaluator.Evaluator
 	store *evaluator.Store
 
-	currentOptions atomicOptions
+	currentOptions *config.AtomicOptions
 	currentEncoder atomicMarshalUnmarshaler
 	templates      *template.Template
 
@@ -84,6 +72,7 @@ func New(opts *config.Options) (*Authorize, error) {
 	}
 
 	a := Authorize{
+		currentOptions:   config.NewAtomicOptions(),
 		store:            evaluator.NewStore(),
 		templates:        template.Must(frontend.NewTemplates()),
 		dataBrokerClient: databroker.NewDataBrokerServiceClient(dataBrokerConn),
@@ -99,7 +88,6 @@ func New(opts *config.Options) (*Authorize, error) {
 		return nil, err
 	}
 	a.currentEncoder.Store(encoder)
-	a.currentOptions.Store(new(config.Options))
 	return &a, nil
 }
 

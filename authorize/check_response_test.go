@@ -35,7 +35,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 		}},
 		JWTClaimsHeaders: []string{"email"},
 	}
-	a := new(Authorize)
+	a := &Authorize{currentOptions: config.NewAtomicOptions()}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
 	a.currentEncoder.Store(encoder)
 	a.currentOptions.Store(opt)
@@ -204,7 +204,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 }
 
 func TestAuthorize_deniedResponse(t *testing.T) {
-	a := new(Authorize)
+	a := &Authorize{currentOptions: config.NewAtomicOptions()}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
 	a.currentEncoder.Store(encoder)
 	a.currentOptions.Store(&config.Options{

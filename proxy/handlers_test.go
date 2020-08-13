@@ -118,7 +118,7 @@ func TestProxy_Callback(t *testing.T) {
 	opts := testOptions(t)
 	tests := []struct {
 		name    string
-		options config.Options
+		options *config.Options
 
 		method string
 
@@ -227,7 +227,7 @@ func TestProxy_Callback(t *testing.T) {
 			}
 			p.encoder = tt.cipher
 			p.sessionStore = tt.sessionStore
-			p.UpdateOptions(tt.options)
+			p.OnConfigChange(&config.Config{Options: tt.options})
 			redirectURI := &url.URL{Scheme: tt.scheme, Host: tt.host, Path: tt.path}
 			queryString := redirectURI.Query()
 			for k, v := range tt.qp {
@@ -276,7 +276,7 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 	opts := testOptions(t)
 	tests := []struct {
 		name    string
-		options config.Options
+		options *config.Options
 
 		method string
 
@@ -337,7 +337,7 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 	opts := testOptions(t)
 	tests := []struct {
 		name    string
-		options config.Options
+		options *config.Options
 
 		method string
 
@@ -434,7 +434,7 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 			}
 			p.encoder = tt.cipher
 			p.sessionStore = tt.sessionStore
-			p.UpdateOptions(tt.options)
+			p.OnConfigChange(&config.Config{Options: tt.options})
 			redirectURI, _ := url.Parse(tt.redirectURI)
 			queryString := redirectURI.Query()
 			for k, v := range tt.qp {

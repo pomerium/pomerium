@@ -65,8 +65,10 @@ func TestVerifier(t *testing.T) {
 				encSession = append(encSession, cryptutil.NewKey()...)
 			}
 
-			cs, err := NewStore(&Options{
-				Name: "_pomerium",
+			cs, err := NewStore(func() Options {
+				return Options{
+					Name: "_pomerium",
+				}
 			}, encoder)
 			if err != nil {
 				t.Fatal(err)
