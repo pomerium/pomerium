@@ -699,9 +699,22 @@ Refresh directory interval is the time that pomerium will sync your IDP diretory
 
 :::warning
 
-Use it at your ownn risk, if you set a too low value, you may reach IDP API rate limit.
+Use it at your own risk, if you set a too low value, you may reach IDP API rate limit.
 
 :::
+
+### Identity Provider API Query Per Second
+
+- Environmental Variables: `IDP_QPS`
+- Config File Key: `idp_qps`
+- Type: `float64`
+- Example: `IDP_QPS=1.8`
+- Defaults: `IDP_QPS=1.0`
+
+Limit number of API requests per second to identity provider server. The lowest value is `1.0`, any value less than `1.0`
+has no effect.
+
+Currently, only applying for [okta].
 
 ## Proxy Service
 
@@ -1258,6 +1271,7 @@ If no certificate is specified, one will be generated and the base64'd public ke
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [identity provider]: ../docs/identity-providers/
+[okta]: ../docs/identity-providers/okta.md
 [json]: https://en.wikipedia.org/wiki/JSON
 [letsencrypt]: https://letsencrypt.org/
 [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
