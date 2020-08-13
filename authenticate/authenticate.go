@@ -88,8 +88,7 @@ type Authenticate struct {
 	// encryptedEncoder is the encoder used to marshal and unmarshal session data
 	encryptedEncoder encoding.MarshalUnmarshaler
 	// sessionStore is the session store used to persist a user's session
-	sessionStore  sessions.SessionStore
-	cookieOptions *cookie.Options
+	sessionStore sessions.SessionStore
 
 	// sessionLoaders are a collection of session loaders to attempt to pull
 	// a user's session state from
@@ -129,14 +128,6 @@ func New(cfg *config.Config) (*Authenticate, error) {
 	cookieCipher, _ := cryptutil.NewAEADCipher(decodedCookieSecret)
 	encryptedEncoder := ecjson.New(cookieCipher)
 
-	cookieOptions := &cookie.Options{
-		Name:     cfg.Options.CookieName,
-		Domain:   cfg.Options.CookieDomain,
-		Secure:   cfg.Options.CookieSecure,
-		HTTPOnly: cfg.Options.CookieHTTPOnly,
-		Expire:   cfg.Options.CookieExpire,
-	}
-
 	dataBrokerConn, err := grpc.NewGRPCClientConn(
 		&grpc.Options{
 			Addr:                    cfg.Options.DataBrokerURL,
@@ -173,7 +164,6 @@ func New(cfg *config.Config) (*Authenticate, error) {
 		// private state
 		cookieSecret:     decodedCookieSecret,
 		cookieCipher:     cookieCipher,
-		cookieOptions:    cookieOptions,
 		encryptedEncoder: encryptedEncoder,
 		// grpc client for cache
 		dataBrokerClient: dataBrokerClient,

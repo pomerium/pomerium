@@ -25,7 +25,6 @@ import (
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -46,8 +45,8 @@ func testAuthenticate() *Authenticate {
 	auth.RedirectURL, _ = url.Parse("https://auth.example.com/oauth/callback")
 	auth.sharedKey = cryptutil.NewBase64Key()
 	auth.cookieSecret = cryptutil.NewKey()
-	auth.cookieOptions = &cookie.Options{Name: "name"}
 	auth.templates = template.Must(frontend.NewTemplates())
+	auth.options = config.NewAtomicOptions()
 	return &auth
 }
 
@@ -153,10 +152,6 @@ func TestAuthenticate_SignIn(t *testing.T) {
 				sharedEncoder:    tt.encoder,
 				encryptedEncoder: tt.encoder,
 				sharedCipher:     aead,
-				cookieOptions: &cookie.Options{
-					Name:   "cookie",
-					Domain: "foo",
-				},
 				dataBrokerClient: mockDataBrokerServiceClient{
 					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 						data, err := ptypes.MarshalAny(&session.Session{

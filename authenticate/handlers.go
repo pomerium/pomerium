@@ -44,15 +44,18 @@ func (a *Authenticate) Handler() http.Handler {
 func (a *Authenticate) Mount(r *mux.Router) {
 	r.StrictSlash(true)
 	r.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
-	r.Use(csrf.Protect(
-		a.cookieSecret,
-		csrf.Secure(a.cookieOptions.Secure),
-		csrf.Path("/"),
-		csrf.UnsafePaths([]string{a.RedirectURL.Path}), // enforce CSRF on "safe" handler
-		csrf.FormValueName("state"),                    // rfc6749 section-10.12
-		csrf.CookieName(fmt.Sprintf("%s_csrf", a.cookieOptions.Name)),
-		csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
-	))
+	r.Use(func(h http.Handler) http.Handler {
+		options := a.options.Load()
+		return csrf.Protect(
+			a.cookieSecret,
+			csrf.Secure(options.CookieSecure),
+			csrf.Path("/"),
+			csrf.UnsafePaths([]string{a.RedirectURL.Path}), // enforce CSRF on "safe" handler
+			csrf.FormValueName("state"),                    // rfc6749 section-10.12
+			csrf.CookieName(fmt.Sprintf("%s_csrf", options.CookieName)),
+			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
+		)(h)
+	})
 
 	r.Path("/robots.txt").HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
 	// Identity Provider (IdP) endpoints
@@ -532,7 +535,9 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 		return nil
 	}
 
-	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(a.cookieOptions.Expire))
+	options := a.options.Load()
+
+	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(options.CookieExpire))
 	sessionState.Expiry = jwt.NewNumericDate(sessionExpiry.AsTime())
 	idTokenIssuedAt, _ := ptypes.TimestampProto(sessionState.IssuedAt.Time())
 
