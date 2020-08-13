@@ -12,6 +12,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
+	"golang.org/x/time/rate"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -21,11 +22,15 @@ import (
 // Name is the provider name.
 const Name = "okta"
 
+// See https://developer.okta.com/docs/reference/rate-limits/#okta-api-endpoints-and-per-minute-limits
+const defaultQPS = 100 / 60
+
 type config struct {
 	batchSize      int
 	httpClient     *http.Client
 	providerURL    *url.URL
 	serviceAccount *ServiceAccount
+	qps            float64
 }
 
 // An Option configures the Okta Provider.
@@ -59,10 +64,18 @@ func WithServiceAccount(serviceAccount *ServiceAccount) Option {
 	}
 }
 
+// WithQPS sets the query per second option.
+func WithQPS(qps float64) Option {
+	return func(cfg *config) {
+		cfg.qps = qps
+	}
+}
+
 func getConfig(options ...Option) *config {
 	cfg := new(config)
 	WithBatchSize(100)(cfg)
 	WithHTTPClient(http.DefaultClient)(cfg)
+	WithQPS(defaultQPS)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -71,15 +84,21 @@ func getConfig(options ...Option) *config {
 
 // A Provider is an Okta user group directory provider.
 type Provider struct {
-	cfg *config
-	log zerolog.Logger
+	cfg     *config
+	log     zerolog.Logger
+	limiter *rate.Limiter
 }
 
 // New creates a new Provider.
 func New(options ...Option) *Provider {
+	cfg := getConfig(options...)
+	if cfg.qps == 0 {
+		cfg.qps = defaultQPS
+	}
 	return &Provider{
-		cfg: getConfig(options...),
-		log: log.With().Str("service", "directory").Str("provider", "okta").Logger(),
+		cfg:     cfg,
+		log:     log.With().Str("service", "directory").Str("provider", "okta").Logger(),
+		limiter: rate.NewLimiter(rate.Limit(cfg.qps), int(cfg.qps)),
 	}
 }
 
@@ -190,6 +209,10 @@ func (p *Provider) apiGet(ctx context.Context, uri string, out interface{}) (htt
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "SSWS "+p.cfg.serviceAccount.APIKey)
+
+	if err := p.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
 
 	res, err := p.cfg.httpClient.Do(req)
 	if err != nil {
