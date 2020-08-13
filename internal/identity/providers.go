@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"sync/atomic"
 
 	"golang.org/x/oauth2"
 
@@ -19,24 +20,13 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oidc/onelogin"
 )
 
-var (
-	// compile time assertions that providers are satisfying the interface
-	_ Authenticator = &azure.Provider{}
-	_ Authenticator = &github.Provider{}
-	_ Authenticator = &gitlab.Provider{}
-	_ Authenticator = &google.Provider{}
-	_ Authenticator = &MockProvider{}
-	_ Authenticator = &oidc.Provider{}
-	_ Authenticator = &okta.Provider{}
-	_ Authenticator = &onelogin.Provider{}
-)
-
 // Authenticator is an interface representing the ability to authenticate with an identity provider.
 type Authenticator interface {
 	Authenticate(context.Context, string, interface{}) (*oauth2.Token, error)
 	Refresh(context.Context, *oauth2.Token, interface{}) (*oauth2.Token, error)
 	Revoke(context.Context, *oauth2.Token) error
 	GetSignInURL(state string) string
+	Name() string
 	LogOut() (*url.URL, error)
 	UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error
 }
@@ -66,4 +56,31 @@ func NewAuthenticator(o oauth.Options) (a Authenticator, err error) {
 		return nil, err
 	}
 	return a, nil
+}
+
+// wrap the Authenticator for the AtomicAuthenticator to support a nil default value.
+type authenticatorValue struct {
+	Authenticator
+}
+
+// An AtomicAuthenticator is a strongly-typed atomic.Value for storing an authenticator.
+type AtomicAuthenticator struct {
+	current atomic.Value
+}
+
+// NewAtomicAuthenticator creates a new AtomicAuthenticator.
+func NewAtomicAuthenticator() *AtomicAuthenticator {
+	a := &AtomicAuthenticator{}
+	a.current.Store(authenticatorValue{})
+	return a
+}
+
+// Load loads the current authenticator.
+func (a *AtomicAuthenticator) Load() Authenticator {
+	return a.current.Load().(authenticatorValue)
+}
+
+// Store stores the authenticator.
+func (a *AtomicAuthenticator) Store(value Authenticator) {
+	a.current.Store(authenticatorValue{value})
 }

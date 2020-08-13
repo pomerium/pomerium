@@ -238,3 +238,8 @@ func (p *Provider) GetSignInURL(state string) string {
 func (p *Provider) LogOut() (*url.URL, error) {
 	return nil, oidc.ErrSignoutNotImplemented
 }
+
+// Name returns the provider name.
+func (p *Provider) Name() string {
+	return Name
+}

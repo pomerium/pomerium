@@ -135,7 +135,7 @@ func setupAuthenticate(src config.Source, cfg *config.Config, controlPlane *cont
 		return nil
 	}
 
-	svc, err := authenticate.New(cfg.Options)
+	svc, err := authenticate.New(cfg)
 	if err != nil {
 		return fmt.Errorf("error creating authenticate service: %w", err)
 	}

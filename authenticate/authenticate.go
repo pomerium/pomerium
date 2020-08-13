@@ -95,10 +95,6 @@ type Authenticate struct {
 	// a user's session state from
 	sessionLoaders []sessions.SessionLoader
 
-	// provider is the interface to interacting with the identity provider (IdP)
-	provider     identity.Authenticator
-	providerName string
-
 	// dataBrokerClient is used to retrieve sessions
 	dataBrokerClient databroker.DataBrokerServiceClient
 
@@ -111,45 +107,46 @@ type Authenticate struct {
 
 	templates *template.Template
 
-	options *config.AtomicOptions
+	options  *config.AtomicOptions
+	provider *identity.AtomicAuthenticator
 }
 
 // New validates and creates a new authenticate service from a set of Options.
-func New(opts *config.Options) (*Authenticate, error) {
-	if err := ValidateOptions(opts); err != nil {
+func New(cfg *config.Config) (*Authenticate, error) {
+	if err := ValidateOptions(cfg.Options); err != nil {
 		return nil, err
 	}
 
 	// shared state encoder setup
-	sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(opts.SharedKey)
-	sharedEncoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.GetAuthenticateURL().Host)
+	sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(cfg.Options.SharedKey)
+	sharedEncoder, err := jws.NewHS256Signer([]byte(cfg.Options.SharedKey), cfg.Options.GetAuthenticateURL().Host)
 	if err != nil {
 		return nil, err
 	}
 
 	// private state encoder setup, used to encrypt oauth2 tokens
-	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
+	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
 	cookieCipher, _ := cryptutil.NewAEADCipher(decodedCookieSecret)
 	encryptedEncoder := ecjson.New(cookieCipher)
 
 	cookieOptions := &cookie.Options{
-		Name:     opts.CookieName,
-		Domain:   opts.CookieDomain,
-		Secure:   opts.CookieSecure,
-		HTTPOnly: opts.CookieHTTPOnly,
-		Expire:   opts.CookieExpire,
+		Name:     cfg.Options.CookieName,
+		Domain:   cfg.Options.CookieDomain,
+		Secure:   cfg.Options.CookieSecure,
+		HTTPOnly: cfg.Options.CookieHTTPOnly,
+		Expire:   cfg.Options.CookieExpire,
 	}
 
 	dataBrokerConn, err := grpc.NewGRPCClientConn(
 		&grpc.Options{
-			Addr:                    opts.DataBrokerURL,
-			OverrideCertificateName: opts.OverrideCertificateName,
-			CA:                      opts.CA,
-			CAFile:                  opts.CAFile,
-			RequestTimeout:          opts.GRPCClientTimeout,
-			ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
-			WithInsecure:            opts.GRPCInsecure,
-			ServiceName:             opts.Services,
+			Addr:                    cfg.Options.DataBrokerURL,
+			OverrideCertificateName: cfg.Options.OverrideCertificateName,
+			CA:                      cfg.Options.CA,
+			CAFile:                  cfg.Options.CAFile,
+			RequestTimeout:          cfg.Options.GRPCClientTimeout,
+			ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
+			WithInsecure:            cfg.Options.GRPCInsecure,
+			ServiceName:             cfg.Options.Services,
 		})
 	if err != nil {
 		return nil, err
@@ -160,20 +157,8 @@ func New(opts *config.Options) (*Authenticate, error) {
 	qpStore := queryparam.NewStore(encryptedEncoder, urlutil.QueryProgrammaticToken)
 	headerStore := header.NewStore(encryptedEncoder, httputil.AuthorizationTypePomerium)
 
-	redirectURL, _ := urlutil.DeepCopy(opts.AuthenticateURL)
-	redirectURL.Path = opts.AuthenticateCallbackPath
-	// configure our identity provider
-	provider, err := identity.NewAuthenticator(
-		oauth.Options{
-			RedirectURL:     redirectURL,
-			ProviderName:    opts.Provider,
-			ProviderURL:     opts.ProviderURL,
-			ClientID:        opts.ClientID,
-			ClientSecret:    opts.ClientSecret,
-			Scopes:          opts.Scopes,
-			ServiceAccount:  opts.ServiceAccount,
-			AuthCodeOptions: opts.RequestParams,
-		})
+	redirectURL, _ := urlutil.DeepCopy(cfg.Options.AuthenticateURL)
+	redirectURL.Path = cfg.Options.AuthenticateCallbackPath
 
 	if err != nil {
 		return nil, err
@@ -182,7 +167,7 @@ func New(opts *config.Options) (*Authenticate, error) {
 	a := &Authenticate{
 		RedirectURL: redirectURL,
 		// shared state
-		sharedKey:     opts.SharedKey,
+		sharedKey:     cfg.Options.SharedKey,
 		sharedCipher:  sharedCipher,
 		sharedEncoder: sharedEncoder,
 		// private state
@@ -190,14 +175,17 @@ func New(opts *config.Options) (*Authenticate, error) {
 		cookieCipher:     cookieCipher,
 		cookieOptions:    cookieOptions,
 		encryptedEncoder: encryptedEncoder,
-		// IdP
-		provider:     provider,
-		providerName: opts.Provider,
 		// grpc client for cache
 		dataBrokerClient: dataBrokerClient,
 		jwk:              &jose.JSONWebKeySet{},
 		templates:        template.Must(frontend.NewTemplates()),
 		options:          config.NewAtomicOptions(),
+		provider:         identity.NewAtomicAuthenticator(),
+	}
+
+	err = a.updateProvider(cfg)
+	if err != nil {
+		return nil, err
 	}
 
 	cookieStore, err := cookie.NewStore(func() cookie.Options {
@@ -217,8 +205,8 @@ func New(opts *config.Options) (*Authenticate, error) {
 	a.sessionStore = cookieStore
 	a.sessionLoaders = []sessions.SessionLoader{qpStore, headerStore, cookieStore}
 
-	if opts.SigningKey != "" {
-		decodedCert, err := base64.StdEncoding.DecodeString(opts.SigningKey)
+	if cfg.Options.SigningKey != "" {
+		decodedCert, err := base64.StdEncoding.DecodeString(cfg.Options.SigningKey)
 		if err != nil {
 			return nil, fmt.Errorf("authenticate: failed to decode signing key: %w", err)
 		}
@@ -251,4 +239,31 @@ func (a *Authenticate) OnConfigChange(cfg *config.Config) {
 	log.Info().Str("checksum", fmt.Sprintf("%x", cfg.Options.Checksum())).Msg("authenticate: updating options")
 	a.options.Store(cfg.Options)
 	a.setAdminUsers(cfg.Options)
+	if err := a.updateProvider(cfg); err != nil {
+		log.Error().Err(err).Msg("authenticate: failed to update identity provider")
+	}
+}
+
+func (a *Authenticate) updateProvider(cfg *config.Config) error {
+	redirectURL, _ := urlutil.DeepCopy(cfg.Options.AuthenticateURL)
+	redirectURL.Path = cfg.Options.AuthenticateCallbackPath
+
+	// configure our identity provider
+	provider, err := identity.NewAuthenticator(
+		oauth.Options{
+			RedirectURL:     redirectURL,
+			ProviderName:    cfg.Options.Provider,
+			ProviderURL:     cfg.Options.ProviderURL,
+			ClientID:        cfg.Options.ClientID,
+			ClientSecret:    cfg.Options.ClientSecret,
+			Scopes:          cfg.Options.Scopes,
+			ServiceAccount:  cfg.Options.ServiceAccount,
+			AuthCodeOptions: cfg.Options.RequestParams,
+		})
+	if err != nil {
+		return err
+	}
+	a.provider.Store(provider)
+
+	return nil
 }

@@ -45,3 +45,8 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 
 	return &p, nil
 }
+
+// Name returns the provider name.
+func (p *Provider) Name() string {
+	return Name
+}

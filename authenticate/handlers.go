@@ -256,7 +256,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	sessionState, err := a.getSessionFromCtx(ctx)
 	if err == nil {
 		if s, _ := session.Get(ctx, a.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
-			if err := a.provider.Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
+			if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
 				log.Warn().Err(err).Msg("failed to revoke access token")
 			}
 		}
@@ -269,7 +269,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	// no matter what happens, we want to clear the session store
 	a.sessionStore.ClearSession(w, r)
 	redirectString := r.FormValue(urlutil.QueryRedirectURI)
-	endSessionURL, err := a.provider.LogOut()
+	endSessionURL, err := a.provider.Load().LogOut()
 	if err == nil {
 		params := url.Values{}
 		params.Add("post_logout_redirect_uri", redirectString)
@@ -331,7 +331,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	enc := cryptutil.Encrypt(a.cookieCipher, []byte(redirectURL.String()), b)
 	b = append(b, enc...)
 	encodedState := base64.URLEncoding.EncodeToString(b)
-	httputil.Redirect(w, r, a.provider.GetSignInURL(encodedState), http.StatusFound)
+	httputil.Redirect(w, r, a.provider.Load().GetSignInURL(encodedState), http.StatusFound)
 	return nil
 }
 
@@ -377,7 +377,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	//
 	// Exchange the supplied Authorization Code for a valid user session.
 	s := sessions.State{ID: uuid.New().String()}
-	accessToken, err := a.provider.Authenticate(ctx, code, &s)
+	accessToken, err := a.provider.Load().Authenticate(ctx, code, &s)
 	if err != nil {
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
@@ -538,7 +538,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 
 	s := &session.Session{
 		Id:        sessionState.ID,
-		UserId:    sessionState.UserID(a.providerName),
+		UserId:    sessionState.UserID(a.provider.Load().Name()),
 		ExpiresAt: sessionExpiry,
 		IdToken: &session.IDToken{
 			Issuer:    sessionState.Issuer,
@@ -557,7 +557,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 				Id: s.GetUserId(),
 			},
 		}
-		err := a.provider.UpdateUserInfo(ctx, accessToken, &mu)
+		err := a.provider.Load().UpdateUserInfo(ctx, accessToken, &mu)
 		if err != nil {
 			return fmt.Errorf("authenticate: error retrieving user info: %w", err)
 		}

@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
@@ -147,7 +148,6 @@ func TestAuthenticate_SignIn(t *testing.T) {
 
 			a := &Authenticate{
 				sessionStore:     tt.session,
-				provider:         tt.provider,
 				RedirectURL:      uriParseHelper("https://some.example"),
 				sharedKey:        "secret",
 				sharedEncoder:    tt.encoder,
@@ -176,7 +176,9 @@ func TestAuthenticate_SignIn(t *testing.T) {
 						}, nil
 					},
 				},
+				provider: identity.NewAtomicAuthenticator(),
 			}
+			a.provider.Store(tt.provider)
 			uri := &url.URL{Scheme: tt.scheme, Host: tt.host}
 
 			queryString := uri.Query()
@@ -234,7 +236,6 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			defer ctrl.Finish()
 			a := &Authenticate{
 				sessionStore:     tt.sessionStore,
-				provider:         tt.provider,
 				encryptedEncoder: mock.Encoder{},
 				templates:        template.Must(frontend.NewTemplates()),
 				sharedEncoder:    mock.Encoder{},
@@ -260,7 +261,9 @@ func TestAuthenticate_SignOut(t *testing.T) {
 						}, nil
 					},
 				},
+				provider: identity.NewAtomicAuthenticator(),
 			}
+			a.provider.Store(tt.provider)
 			u, _ := url.Parse("/sign_out")
 			params, _ := url.ParseQuery(u.RawQuery)
 			params.Add("sig", tt.sig)
@@ -344,10 +347,11 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			a := &Authenticate{
 				RedirectURL:      authURL,
 				sessionStore:     tt.session,
-				provider:         tt.provider,
 				cookieCipher:     aead,
 				encryptedEncoder: signer,
+				provider:         identity.NewAtomicAuthenticator(),
 			}
+			a.provider.Store(tt.provider)
 			u, _ := url.Parse("/oauthGet")
 			params, _ := url.ParseQuery(u.RawQuery)
 			params.Add("error", tt.paramErr)
@@ -466,7 +470,6 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				cookieSecret:     cryptutil.NewKey(),
 				RedirectURL:      uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
 				sessionStore:     tt.session,
-				provider:         tt.provider,
 				cookieCipher:     aead,
 				encryptedEncoder: signer,
 				sharedEncoder:    signer,
@@ -489,7 +492,9 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 						}, nil
 					},
 				},
+				provider: identity.NewAtomicAuthenticator(),
 			}
+			a.provider.Store(tt.provider)
 			r := httptest.NewRequest("GET", "/", nil)
 			state, err := tt.session.LoadSession(r)
 			if err != nil {
@@ -535,7 +540,7 @@ func TestWellKnownEndpoint(t *testing.T) {
 func TestJwksEndpoint(t *testing.T) {
 	o := newTestOptions(t)
 	o.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUpCMFZkbko1VjEvbVlpYUlIWHhnd2Q0Yzd5YWRTeXMxb3Y0bzA1b0F3ekdvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFVUc1eENQMEpUVDFINklvbDhqS3VUSVBWTE0wNENnVzlQbEV5cE5SbVdsb29LRVhSOUhUMwpPYnp6aktZaWN6YjArMUt3VjJmTVRFMTh1dy82MXJVQ0JBPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
-	auth, err := New(o)
+	auth, err := New(&config.Config{Options: o})
 	if err != nil {
 		t.Fatal(err)
 	}

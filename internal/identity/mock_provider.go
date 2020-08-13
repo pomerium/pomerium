@@ -45,3 +45,8 @@ func (mp MockProvider) LogOut() (*url.URL, error) { return &mp.LogOutResponse, m
 func (mp MockProvider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
 	return mp.UpdateUserInfoError
 }
+
+// Name returns the provider name.
+func (mp MockProvider) Name() string {
+	return "mock"
+}
