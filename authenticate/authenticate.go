@@ -69,10 +69,6 @@ type Authenticate struct {
 	// authentication flow
 	RedirectURL *url.URL
 
-	// values related to cross service communication
-	//
-	// sharedKey is used to encrypt and authenticate data between services
-	sharedKey string
 	// sharedCipher is used to encrypt data for use between services
 	sharedCipher cipher.AEAD
 	// sharedEncoder is the encoder to use to serialize data to be consumed
@@ -151,14 +147,9 @@ func New(cfg *config.Config) (*Authenticate, error) {
 	redirectURL, _ := urlutil.DeepCopy(cfg.Options.AuthenticateURL)
 	redirectURL.Path = cfg.Options.AuthenticateCallbackPath
 
-	if err != nil {
-		return nil, err
-	}
-
 	a := &Authenticate{
 		RedirectURL: redirectURL,
 		// shared state
-		sharedKey:     cfg.Options.SharedKey,
 		sharedCipher:  sharedCipher,
 		sharedEncoder: sharedEncoder,
 		// private state

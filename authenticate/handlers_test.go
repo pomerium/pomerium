@@ -43,10 +43,12 @@ import (
 func testAuthenticate() *Authenticate {
 	var auth Authenticate
 	auth.RedirectURL, _ = url.Parse("https://auth.example.com/oauth/callback")
-	auth.sharedKey = cryptutil.NewBase64Key()
 	auth.cookieSecret = cryptutil.NewKey()
 	auth.templates = template.Must(frontend.NewTemplates())
 	auth.options = config.NewAtomicOptions()
+	auth.options.Store(&config.Options{
+		SharedKey: cryptutil.NewBase64Key(),
+	})
 	return &auth
 }
 
@@ -148,7 +150,6 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			a := &Authenticate{
 				sessionStore:     tt.session,
 				RedirectURL:      uriParseHelper("https://some.example"),
-				sharedKey:        "secret",
 				sharedEncoder:    tt.encoder,
 				encryptedEncoder: tt.encoder,
 				sharedCipher:     aead,
@@ -171,6 +172,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 						}, nil
 					},
 				},
+				options:  config.NewAtomicOptions(),
 				provider: identity.NewAtomicAuthenticator(),
 			}
 			a.provider.Store(tt.provider)
@@ -256,6 +258,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 						}, nil
 					},
 				},
+				options:  config.NewAtomicOptions(),
 				provider: identity.NewAtomicAuthenticator(),
 			}
 			a.provider.Store(tt.provider)
@@ -344,6 +347,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 				sessionStore:     tt.session,
 				cookieCipher:     aead,
 				encryptedEncoder: signer,
+				options:          config.NewAtomicOptions(),
 				provider:         identity.NewAtomicAuthenticator(),
 			}
 			a.provider.Store(tt.provider)
@@ -461,7 +465,6 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := Authenticate{
-				sharedKey:        cryptutil.NewBase64Key(),
 				cookieSecret:     cryptutil.NewKey(),
 				RedirectURL:      uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
 				sessionStore:     tt.session,
@@ -487,6 +490,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 						}, nil
 					},
 				},
+				options:  config.NewAtomicOptions(),
 				provider: identity.NewAtomicAuthenticator(),
 			}
 			a.provider.Store(tt.provider)

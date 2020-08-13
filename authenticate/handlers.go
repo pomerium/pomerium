@@ -65,7 +65,8 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	v := r.PathPrefix("/.pomerium").Subrouter()
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
-			err := middleware.ValidateRequestURL(r, a.sharedKey)
+			options := a.options.Load()
+			err := middleware.ValidateRequestURL(r, options.SharedKey)
 			if err != nil {
 				log.FromRequest(r).Info().Err(err).Msg("authenticate: origin blocked")
 			}
@@ -165,6 +166,8 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignIn")
 	defer span.End()
 
+	options := a.options.Load()
+
 	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -245,7 +248,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	// build our hmac-d redirect URL with our session, pointing back to the
 	// proxy's callback URL which is responsible for setting our new route-session
-	uri := urlutil.NewSignedURL(a.sharedKey, callbackURL)
+	uri := urlutil.NewSignedURL(options.SharedKey, callbackURL)
 	httputil.Redirect(w, r, uri.String(), http.StatusFound)
 	return nil
 }
@@ -291,6 +294,8 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 // to the user's current user sessions state if the user is currently an
 // administrative user. Requests are redirected back to the user dashboard.
 func (a *Authenticate) Impersonate(w http.ResponseWriter, r *http.Request) error {
+	options := a.options.Load()
+
 	redirectURL := urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{
 		Path: "/.pomerium",
 	})
@@ -306,7 +311,7 @@ func (a *Authenticate) Impersonate(w http.ResponseWriter, r *http.Request) error
 	q.Set(urlutil.QueryImpersonateEmail, r.FormValue(urlutil.QueryImpersonateEmail))
 	q.Set(urlutil.QueryImpersonateGroups, r.FormValue(urlutil.QueryImpersonateGroups))
 	signinURL.RawQuery = q.Encode()
-	httputil.Redirect(w, r, urlutil.NewSignedURL(a.sharedKey, signinURL).String(), http.StatusFound)
+	httputil.Redirect(w, r, urlutil.NewSignedURL(options.SharedKey, signinURL).String(), http.StatusFound)
 	return nil
 }
 
