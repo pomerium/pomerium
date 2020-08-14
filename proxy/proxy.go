@@ -5,32 +5,20 @@
 package proxy
 
 import (
-	"crypto/cipher"
-	"encoding/base64"
 	"fmt"
 	"html/template"
 	"net/http"
-	"net/url"
 	"sync/atomic"
-	"time"
 
-	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"github.com/gorilla/mux"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/encoding"
-	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/sessions/cookie"
-	"github.com/pomerium/pomerium/internal/sessions/header"
-	"github.com/pomerium/pomerium/internal/sessions/queryparam"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc"
 )
 
 const (
@@ -64,102 +52,29 @@ func ValidateOptions(o *config.Options) error {
 
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
-	// SharedKey used to mutually authenticate service communication
-	SharedKey    string
-	sharedCipher cipher.AEAD
-
-	authorizeURL             *url.URL
-	authenticateURL          *url.URL
-	authenticateDashboardURL *url.URL
-	authenticateSigninURL    *url.URL
-	authenticateSignoutURL   *url.URL
-	authenticateRefreshURL   *url.URL
-
-	encoder         encoding.Unmarshaler
-	cookieSecret    []byte
-	refreshCooldown time.Duration
-	sessionStore    sessions.SessionStore
-	sessionLoaders  []sessions.SessionLoader
-	templates       *template.Template
-	jwtClaimHeaders []string
-	authzClient     envoy_service_auth_v2.AuthorizationClient
-
+	templates      *template.Template
+	state          *atomicProxyState
 	currentOptions *config.AtomicOptions
 	currentRouter  atomic.Value
 }
 
 // New takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
-func New(opts *config.Options) (*Proxy, error) {
-	if err := ValidateOptions(opts); err != nil {
-		return nil, err
-	}
-
-	sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(opts.SharedKey)
-	decodedCookieSecret, _ := base64.StdEncoding.DecodeString(opts.CookieSecret)
-
-	// used to load and verify JWT tokens signed by the authenticate service
-	encoder, err := jws.NewHS256Signer([]byte(opts.SharedKey), opts.GetAuthenticateURL().Host)
+func New(cfg *config.Config) (*Proxy, error) {
+	state, err := newProxyStateFromConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	p := &Proxy{
-		SharedKey:    opts.SharedKey,
-		sharedCipher: sharedCipher,
-		encoder:      encoder,
-
-		cookieSecret:    decodedCookieSecret,
-		refreshCooldown: opts.RefreshCooldown,
-		templates:       template.Must(frontend.NewTemplates()),
-		jwtClaimHeaders: opts.JWTClaimsHeaders,
-		currentOptions:  config.NewAtomicOptions(),
+		templates:      template.Must(frontend.NewTemplates()),
+		state:          newAtomicProxyState(state),
+		currentOptions: config.NewAtomicOptions(),
 	}
 	p.currentRouter.Store(httputil.NewRouter())
-	// errors checked in ValidateOptions
-	p.authorizeURL, _ = urlutil.DeepCopy(opts.AuthorizeURL)
-	p.authenticateURL, _ = urlutil.DeepCopy(opts.AuthenticateURL)
-	p.authenticateDashboardURL = p.authenticateURL.ResolveReference(&url.URL{Path: dashboardPath})
-	p.authenticateSigninURL = p.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
-	p.authenticateSignoutURL = p.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
-	p.authenticateRefreshURL = p.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
-
-	cookieStore, err := cookie.NewStore(func() cookie.Options {
-		opts := p.currentOptions.Load()
-		return cookie.Options{
-			Name:     opts.CookieName,
-			Domain:   opts.CookieDomain,
-			Secure:   opts.CookieSecure,
-			HTTPOnly: opts.CookieHTTPOnly,
-			Expire:   opts.CookieExpire,
-		}
-	}, encoder)
-	if err != nil {
-		return nil, err
-	}
-	p.sessionStore = cookieStore
-	p.sessionLoaders = []sessions.SessionLoader{
-		cookieStore,
-		header.NewStore(encoder, httputil.AuthorizationTypePomerium),
-		queryparam.NewStore(encoder, "pomerium_session")}
-
-	authzConn, err := grpc.NewGRPCClientConn(&grpc.Options{
-		Addr:                    p.authorizeURL,
-		OverrideCertificateName: opts.OverrideCertificateName,
-		CA:                      opts.CA,
-		CAFile:                  opts.CAFile,
-		RequestTimeout:          opts.GRPCClientTimeout,
-		ClientDNSRoundRobin:     opts.GRPCClientDNSRoundRobin,
-		WithInsecure:            opts.GRPCInsecure,
-		ServiceName:             opts.Services,
-	})
-	if err != nil {
-		return nil, err
-	}
-	p.authzClient = envoy_service_auth_v2.NewAuthorizationClient(authzConn)
 
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
-		return int64(len(opts.Policies))
+		return int64(len(p.currentOptions.Load().Policies))
 	})
 
 	return p, nil
@@ -174,6 +89,11 @@ func (p *Proxy) OnConfigChange(cfg *config.Config) {
 	log.Info().Str("checksum", fmt.Sprintf("%x", cfg.Options.Checksum())).Msg("proxy: updating options")
 	p.currentOptions.Store(cfg.Options)
 	p.setHandlers(cfg.Options)
+	if state, err := newProxyStateFromConfig(cfg); err != nil {
+		log.Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
+	} else {
+		p.state.Store(state)
+	}
 }
 
 func (p *Proxy) setHandlers(opts *config.Options) {

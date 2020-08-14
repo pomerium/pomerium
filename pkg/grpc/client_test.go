@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 )
 
@@ -76,4 +77,40 @@ func TestNewGRPC(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetGRPC(t *testing.T) {
+	cc1, err := GetGRPCClientConn("example", &Options{
+		Addr: mustParseURL("https://localhost.example"),
+	})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	cc2, err := GetGRPCClientConn("example", &Options{
+		Addr: mustParseURL("https://localhost.example"),
+	})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, cc1, cc2, "GetGRPCClientConn should return the same connection when there are no changes")
+
+	cc3, err := GetGRPCClientConn("example", &Options{
+		Addr:         mustParseURL("http://localhost.example"),
+		WithInsecure: true,
+	})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.NotEqual(t, cc1, cc3, "GetGRPCClientConn should return a new connection when there are changes")
+}
+
+func mustParseURL(rawurl string) *url.URL {
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		panic(err)
+	}
+	return u
 }

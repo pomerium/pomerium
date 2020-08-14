@@ -18,7 +18,9 @@ import (
 func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r := httputil.NewRouter()
 	r.StrictSlash(true)
-	r.Use(sessions.RetrieveSession(p.sessionStore))
+	r.Use(func(h http.Handler) http.Handler {
+		return sessions.RetrieveSession(p.state.Load().sessionStore)(h)
+	})
 	r.Use(p.jwtClaimMiddleware(true))
 
 	// NGNIX's forward-auth capabilities are split across two settings:
@@ -96,6 +98,8 @@ func (p *Proxy) forwardedURIHeaderCallback(w http.ResponseWriter, r *http.Reques
 // provider. If the user is unauthorized, a `401` error is returned.
 func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		state := p.state.Load()
+
 		var err error
 		if status := r.FormValue("auth_status"); status == fmt.Sprint(http.StatusForbidden) {
 			return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
@@ -120,7 +124,7 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 
 		unAuthenticated := ar.statusCode == http.StatusUnauthorized
 		if unAuthenticated {
-			p.sessionStore.ClearSession(w, r)
+			state.sessionStore.ClearSession(w, r)
 		}
 
 		_, err = sessions.FromContext(r.Context())
@@ -141,6 +145,8 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 // forwardAuthRedirectToSignInWithURI redirects request to authenticate signin url,
 // with all necessary information extracted from given input uri.
 func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *http.Request, uri *url.URL) {
+	state := p.state.Load()
+
 	// Traefik set the uri in the header, we must set it in redirect uri if present. Otherwise, request like
 	// https://example.com/foo will be redirected to https://example.com after authentication.
 	if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "/" {
@@ -148,13 +154,13 @@ func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *htt
 	}
 
 	// redirect to authenticate
-	authN := *p.authenticateSigninURL
+	authN := *state.authenticateSigninURL
 	q := authN.Query()
 	q.Set(urlutil.QueryCallbackURI, uri.String())
 	q.Set(urlutil.QueryRedirectURI, uri.String())              // final destination
 	q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
 	authN.RawQuery = q.Encode()
-	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &authN).String(), http.StatusFound)
+	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &authN).String(), http.StatusFound)
 }
 
 func getURIStringFromRequest(r *http.Request) (*url.URL, error) {

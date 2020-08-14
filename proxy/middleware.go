@@ -40,17 +40,21 @@ func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
 }
 
 func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
-	signinURL := *p.authenticateSigninURL
+	state := p.state.Load()
+
+	signinURL := *state.authenticateSigninURL
 	q := signinURL.Query()
 	q.Set(urlutil.QueryRedirectURI, urlutil.GetAbsoluteURL(r).String())
 	signinURL.RawQuery = q.Encode()
 	log.FromRequest(r).Debug().Str("url", signinURL.String()).Msg("proxy: redirectToSignin")
-	httputil.Redirect(w, r, urlutil.NewSignedURL(p.SharedKey, &signinURL).String(), http.StatusFound)
-	p.sessionStore.ClearSession(w, r)
+	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &signinURL).String(), http.StatusFound)
+	state.sessionStore.ClearSession(w, r)
 	return nil
 }
 
 func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorizeResponse, error) {
+	state := p.state.Load()
+
 	tm, err := ptypes.TimestampProto(time.Now())
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error creating protobuf timestamp from current time: %w", err))
@@ -72,7 +76,7 @@ func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorize
 		httpAttrs.Path += "?" + r.URL.RawQuery
 	}
 
-	res, err := p.authzClient.Check(r.Context(), &envoy_service_auth_v2.CheckRequest{
+	res, err := state.authzClient.Check(r.Context(), &envoy_service_auth_v2.CheckRequest{
 		Attributes: &envoy_service_auth_v2.AttributeContext{
 			Request: &envoy_service_auth_v2.AttributeContext_Request{
 				Time: tm,
@@ -118,11 +122,11 @@ func SetResponseHeaders(headers map[string]string) func(next http.Handler) http.
 //
 // if returnJWTInfo is set to true, it will also return JWT claim information in the response
 func (p *Proxy) jwtClaimMiddleware(returnJWTInfo bool) mux.MiddlewareFunc {
-
 	return func(next http.Handler) http.Handler {
-
 		return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 			defer next.ServeHTTP(w, r)
+
+			state := p.state.Load()
 
 			jwt, err := sessions.FromContext(r.Context())
 			if err != nil {
@@ -147,7 +151,7 @@ func (p *Proxy) jwtClaimMiddleware(returnJWTInfo bool) mux.MiddlewareFunc {
 			}
 
 			// set headers for any claims specified by config
-			for _, claimName := range p.jwtClaimHeaders {
+			for _, claimName := range state.jwtClaimHeaders {
 				if _, ok := formattedJWTClaims[claimName]; ok {
 
 					headerName := fmt.Sprintf("x-pomerium-claim-%s", claimName)
@@ -165,10 +169,12 @@ func (p *Proxy) jwtClaimMiddleware(returnJWTInfo bool) mux.MiddlewareFunc {
 
 // getFormatJWTClaims reformats jwtClaims into something resembling map[string]string
 func (p *Proxy) getFormatedJWTClaims(jwt []byte) (map[string]string, error) {
+	state := p.state.Load()
+
 	formattedJWTClaims := make(map[string]string)
 
 	var jwtClaims map[string]interface{}
-	if err := p.encoder.Unmarshal(jwt, &jwtClaims); err != nil {
+	if err := state.encoder.Unmarshal(jwt, &jwtClaims); err != nil {
 		return formattedJWTClaims, err
 	}
 

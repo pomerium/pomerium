@@ -177,7 +177,7 @@ func setupProxy(src config.Source, cfg *config.Config, controlPlane *controlplan
 		return nil
 	}
 
-	svc, err := proxy.New(cfg.Options)
+	svc, err := proxy.New(cfg)
 	if err != nil {
 		return fmt.Errorf("error creating proxy service: %w", err)
 	}

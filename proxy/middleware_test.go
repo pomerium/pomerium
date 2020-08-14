@@ -57,13 +57,15 @@ func TestProxy_AuthenticateSession(t *testing.T) {
 			}
 
 			a := Proxy{
-				SharedKey:              "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
-				cookieSecret:           []byte("80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="),
-				authenticateURL:        uriParseHelper("https://authenticate.corp.example"),
-				authenticateSigninURL:  uriParseHelper("https://authenticate.corp.example/sign_in"),
-				authenticateRefreshURL: uriParseHelper(rURL),
-				sessionStore:           tt.session,
-				encoder:                tt.encoder,
+				state: newAtomicProxyState(&proxyState{
+					sharedKey:              "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ=",
+					cookieSecret:           []byte("80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="),
+					authenticateURL:        uriParseHelper("https://authenticate.corp.example"),
+					authenticateSigninURL:  uriParseHelper("https://authenticate.corp.example/sign_in"),
+					authenticateRefreshURL: uriParseHelper(rURL),
+					sessionStore:           tt.session,
+					encoder:                tt.encoder,
+				}),
 			}
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			state, _ := tt.session.LoadSession(r)
@@ -95,10 +97,12 @@ func Test_jwtClaimMiddleware(t *testing.T) {
 	}
 
 	a := Proxy{
-		SharedKey:       sharedKey,
-		cookieSecret:    []byte("80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="),
-		encoder:         encoder,
-		jwtClaimHeaders: claimHeaders,
+		state: newAtomicProxyState(&proxyState{
+			sharedKey:       sharedKey,
+			cookieSecret:    []byte("80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="),
+			encoder:         encoder,
+			jwtClaimHeaders: claimHeaders,
+		}),
 	}
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
