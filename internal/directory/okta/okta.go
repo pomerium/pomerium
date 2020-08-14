@@ -27,6 +27,9 @@ const Name = "okta"
 // See https://developer.okta.com/docs/reference/rate-limits/#okta-api-endpoints-and-per-minute-limits
 const defaultQPS = 100 / 60
 
+// Okta use ISO-8601, see https://developer.okta.com/docs/reference/api-overview/#media-types
+const filterDateFormat = "2006-01-02T15:04:05.999Z"
+
 type config struct {
 	batchSize      int
 	httpClient     *http.Client
@@ -86,9 +89,11 @@ func getConfig(options ...Option) *config {
 
 // A Provider is an Okta user group directory provider.
 type Provider struct {
-	cfg     *config
-	log     zerolog.Logger
-	limiter *rate.Limiter
+	cfg         *config
+	log         zerolog.Logger
+	limiter     *rate.Limiter
+	lastUpdated *time.Time
+	groups      map[string]*directory.Group
 }
 
 // New creates a new Provider.
@@ -101,6 +106,7 @@ func New(options ...Option) *Provider {
 		cfg:     cfg,
 		log:     log.With().Str("service", "directory").Str("provider", "okta").Logger(),
 		limiter: rate.NewLimiter(rate.Limit(cfg.qps), int(cfg.qps)),
+		groups:  make(map[string]*directory.Group),
 	}
 }
 
@@ -148,17 +154,26 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 }
 
 func (p *Provider) getGroups(ctx context.Context) ([]*directory.Group, error) {
-	var groups []*directory.Group
-	groupURL := p.cfg.providerURL.ResolveReference(&url.URL{
-		Path:     "/api/v1/groups",
-		RawQuery: fmt.Sprintf("limit=%d", p.cfg.batchSize),
-	}).String()
+	u := &url.URL{Path: "/api/v1/groups"}
+	q := u.Query()
+	q.Set("limit", strconv.Itoa(p.cfg.batchSize))
+	if p.lastUpdated != nil {
+		q.Set("filter", fmt.Sprintf(`lastUpdated+gt+"%[1]s"+or+lastMembershipUpdated+gt+"%[1]s"`, p.lastUpdated.UTC().Format(filterDateFormat)))
+	} else {
+		now := time.Now()
+		p.lastUpdated = &now
+	}
+	u.RawQuery = q.Encode()
+
+	groupURL := p.cfg.providerURL.ResolveReference(u).String()
 	for groupURL != "" {
 		var out []struct {
 			ID      string `json:"id"`
 			Profile struct {
 				Name string `json:"name"`
 			} `json:"profile"`
+			LastUpdated           string `json:"lastUpdated"`
+			LastMembershipUpdated string `json:"lastMembershipUpdated"`
 		}
 		hdrs, err := p.apiGet(ctx, groupURL, &out)
 		if err != nil {
@@ -166,13 +181,25 @@ func (p *Provider) getGroups(ctx context.Context) ([]*directory.Group, error) {
 		}
 
 		for _, el := range out {
-			groups = append(groups, &directory.Group{
+			lu, _ := time.Parse(el.LastUpdated, filterDateFormat)
+			lmu, _ := time.Parse(el.LastMembershipUpdated, filterDateFormat)
+			if lu.After(*p.lastUpdated) {
+				p.lastUpdated = &lu
+			}
+			if lmu.After(*p.lastUpdated) {
+				p.lastUpdated = &lmu
+			}
+			p.groups[el.ID] = &directory.Group{
 				Id:   el.ID,
 				Name: el.Profile.Name,
-			})
+			}
 		}
-
 		groupURL = getNextLink(hdrs)
+	}
+
+	groups := make([]*directory.Group, 0, len(p.groups))
+	for _, dg := range p.groups {
+		groups = append(groups, dg)
 	}
 	return groups, nil
 }
@@ -227,30 +254,17 @@ func (p *Provider) apiGet(ctx context.Context, uri string, out interface{}) (htt
 			limitReset, err := strconv.ParseInt(res.Header.Get("X-Rate-Limit-Reset"), 10, 64)
 			if err == nil {
 				time.Sleep(time.Until(time.Unix(limitReset, 0)))
-				continue
 			}
+			continue
 		}
-		if res.StatusCode/100 == 2 {
-			break
+		if res.StatusCode/100 != 2 {
+			return nil, fmt.Errorf("okta: error query api status_code=%d: %s", res.StatusCode, res.Status)
 		}
-		return nil, fmt.Errorf("okta: error query api status_code=%d: %s", res.StatusCode, res.Status)
+		if err := json.NewDecoder(res.Body).Decode(out); err != nil {
+			return nil, err
+		}
+		return res.Header, nil
 	}
-	res, err := p.cfg.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode/100 != 2 {
-		return nil, fmt.Errorf("okta: error query api status_code=%d: %s", res.StatusCode, res.Status)
-	}
-
-	err = json.NewDecoder(res.Body).Decode(out)
-	if err != nil {
-		return nil, err
-	}
-
-	return res.Header, nil
 }
 
 func getNextLink(hdrs http.Header) string {
