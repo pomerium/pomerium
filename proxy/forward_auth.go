@@ -19,8 +19,7 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r := httputil.NewRouter()
 	r.StrictSlash(true)
 	r.Use(func(h http.Handler) http.Handler {
-		state := p.state.Load()
-		return sessions.RetrieveSession(state.sessionStore)(h)
+		return sessions.RetrieveSession(p.state.Load().sessionStore)(h)
 	})
 	r.Use(p.jwtClaimMiddleware(true))
 
