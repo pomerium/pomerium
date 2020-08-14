@@ -433,10 +433,10 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			p.OnConfigChange(&config.Config{Options: tt.options})
 			state := p.state.Load()
 			state.encoder = tt.cipher
 			state.sessionStore = tt.sessionStore
-			p.OnConfigChange(&config.Config{Options: tt.options})
 			redirectURI, _ := url.Parse(tt.redirectURI)
 			queryString := redirectURI.Query()
 			for k, v := range tt.qp {
