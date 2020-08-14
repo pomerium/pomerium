@@ -225,10 +225,10 @@ func TestProxy_Callback(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			p.OnConfigChange(&config.Config{Options: tt.options})
 			state := p.state.Load()
 			state.encoder = tt.cipher
 			state.sessionStore = tt.sessionStore
-			p.OnConfigChange(&config.Config{Options: tt.options})
 			redirectURI := &url.URL{Scheme: tt.scheme, Host: tt.host, Path: tt.path}
 			queryString := redirectURI.Query()
 			for k, v := range tt.qp {

@@ -22,7 +22,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 )
 
-type proxyState struct { // SharedKey used to mutually authenticate service communication
+type proxyState struct {
 	sharedKey    string
 	sharedCipher cipher.AEAD
 

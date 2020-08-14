@@ -87,6 +87,7 @@ func TestProxy_ForwardAuth(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			p.OnConfigChange(&config.Config{Options: tt.options})
 			state := p.state.Load()
 			state.authzClient = tt.authorizer
 			state.sessionStore = tt.sessionStore
@@ -95,7 +96,6 @@ func TestProxy_ForwardAuth(t *testing.T) {
 				t.Fatal(err)
 			}
 			state.encoder = signer
-			p.OnConfigChange(&config.Config{Options: tt.options})
 			uri, err := url.Parse(tt.requestURI)
 			if err != nil {
 				t.Fatal(err)
