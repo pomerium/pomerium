@@ -187,5 +187,5 @@ func GetGRPCClientConn(name string, opts *Options) (*grpc.ClientConn, error) {
 		conn: cc,
 		opts: opts,
 	}
-	return current.conn, nil
+	return cc, nil
 }
