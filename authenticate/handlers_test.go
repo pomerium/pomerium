@@ -25,7 +25,6 @@ import (
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -42,12 +41,17 @@ import (
 )
 
 func testAuthenticate() *Authenticate {
+	redirectURL, _ := url.Parse("https://auth.example.com/oauth/callback")
 	var auth Authenticate
-	auth.RedirectURL, _ = url.Parse("https://auth.example.com/oauth/callback")
-	auth.sharedKey = cryptutil.NewBase64Key()
-	auth.cookieSecret = cryptutil.NewKey()
-	auth.cookieOptions = &cookie.Options{Name: "name"}
+	auth.state = newAtomicAuthenticateState(&authenticateState{
+		redirectURL:  redirectURL,
+		cookieSecret: cryptutil.NewKey(),
+	})
 	auth.templates = template.Must(frontend.NewTemplates())
+	auth.options = config.NewAtomicOptions()
+	auth.options.Store(&config.Options{
+		SharedKey: cryptutil.NewBase64Key(),
+	})
 	return &auth
 }
 
@@ -110,10 +114,6 @@ func TestAuthenticate_Handler(t *testing.T) {
 
 func TestAuthenticate_SignIn(t *testing.T) {
 	t.Parallel()
-	aead, err := chacha20poly1305.NewX(cryptutil.NewKey())
-	if err != nil {
-		t.Fatal(err)
-	}
 	tests := []struct {
 		name string
 
@@ -147,16 +147,12 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			defer ctrl.Finish()
 
 			a := &Authenticate{
-				sessionStore:     tt.session,
-				RedirectURL:      uriParseHelper("https://some.example"),
-				sharedKey:        "secret",
-				sharedEncoder:    tt.encoder,
-				encryptedEncoder: tt.encoder,
-				sharedCipher:     aead,
-				cookieOptions: &cookie.Options{
-					Name:   "cookie",
-					Domain: "foo",
-				},
+				state: newAtomicAuthenticateState(&authenticateState{
+					sessionStore:     tt.session,
+					redirectURL:      uriParseHelper("https://some.example"),
+					sharedEncoder:    tt.encoder,
+					encryptedEncoder: tt.encoder,
+				}),
 				dataBrokerClient: mockDataBrokerServiceClient{
 					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 						data, err := ptypes.MarshalAny(&session.Session{
@@ -176,8 +172,10 @@ func TestAuthenticate_SignIn(t *testing.T) {
 						}, nil
 					},
 				},
+				options:  config.NewAtomicOptions(),
 				provider: identity.NewAtomicAuthenticator(),
 			}
+			a.options.Store(&config.Options{SharedKey: base64.StdEncoding.EncodeToString(cryptutil.NewKey())})
 			a.provider.Store(tt.provider)
 			uri := &url.URL{Scheme: tt.scheme, Host: tt.host}
 
@@ -235,10 +233,12 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			a := &Authenticate{
-				sessionStore:     tt.sessionStore,
-				encryptedEncoder: mock.Encoder{},
-				templates:        template.Must(frontend.NewTemplates()),
-				sharedEncoder:    mock.Encoder{},
+				state: newAtomicAuthenticateState(&authenticateState{
+					sessionStore:     tt.sessionStore,
+					encryptedEncoder: mock.Encoder{},
+					sharedEncoder:    mock.Encoder{},
+				}),
+				templates: template.Must(frontend.NewTemplates()),
 				dataBrokerClient: mockDataBrokerServiceClient{
 					delete: func(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 						return nil, nil
@@ -261,6 +261,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 						}, nil
 					},
 				},
+				options:  config.NewAtomicOptions(),
 				provider: identity.NewAtomicAuthenticator(),
 			}
 			a.provider.Store(tt.provider)
@@ -345,11 +346,14 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			}
 			authURL, _ := url.Parse(tt.authenticateURL)
 			a := &Authenticate{
-				RedirectURL:      authURL,
-				sessionStore:     tt.session,
-				cookieCipher:     aead,
-				encryptedEncoder: signer,
-				provider:         identity.NewAtomicAuthenticator(),
+				state: newAtomicAuthenticateState(&authenticateState{
+					redirectURL:      authURL,
+					sessionStore:     tt.session,
+					cookieCipher:     aead,
+					encryptedEncoder: signer,
+				}),
+				options:  config.NewAtomicOptions(),
+				provider: identity.NewAtomicAuthenticator(),
 			}
 			a.provider.Store(tt.provider)
 			u, _ := url.Parse("/oauthGet")
@@ -360,7 +364,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			// (nonce|timestamp|redirect_url|encrypt(redirect_url),mac(nonce,ts))
 			b := []byte(fmt.Sprintf("%s|%d|%s", nonce, tt.ts, tt.extraMac))
 
-			enc := cryptutil.Encrypt(a.cookieCipher, []byte(tt.redirectURI), b)
+			enc := cryptutil.Encrypt(a.state.Load().cookieCipher, []byte(tt.redirectURI), b)
 			b = append(b, enc...)
 			encodedState := base64.URLEncoding.EncodeToString(b)
 			if tt.extraState != "" {
@@ -466,13 +470,14 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := Authenticate{
-				sharedKey:        cryptutil.NewBase64Key(),
-				cookieSecret:     cryptutil.NewKey(),
-				RedirectURL:      uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
-				sessionStore:     tt.session,
-				cookieCipher:     aead,
-				encryptedEncoder: signer,
-				sharedEncoder:    signer,
+				state: newAtomicAuthenticateState(&authenticateState{
+					cookieSecret:     cryptutil.NewKey(),
+					redirectURL:      uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
+					sessionStore:     tt.session,
+					cookieCipher:     aead,
+					encryptedEncoder: signer,
+					sharedEncoder:    signer,
+				}),
 				dataBrokerClient: mockDataBrokerServiceClient{
 					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 						data, err := ptypes.MarshalAny(&session.Session{
@@ -492,6 +497,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 						}, nil
 					},
 				},
+				options:  config.NewAtomicOptions(),
 				provider: identity.NewAtomicAuthenticator(),
 			}
 			a.provider.Store(tt.provider)
@@ -543,6 +549,7 @@ func TestJwksEndpoint(t *testing.T) {
 	auth, err := New(&config.Config{Options: o})
 	if err != nil {
 		t.Fatal(err)
+		return
 	}
 	h := auth.Handler()
 	if h == nil {
@@ -554,7 +561,7 @@ func TestJwksEndpoint(t *testing.T) {
 	h.ServeHTTP(rr, req)
 	body := rr.Body.String()
 	expected := `{"keys":[{"use":"sig","kty":"EC","kid":"5b419ade1895fec2d2def6cd33b1b9a018df60db231dc5ecb85cbed6d942813c","crv":"P-256","alg":"ES256","x":"UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo","y":"KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ"}]}`
-	assert.Equal(t, body, expected)
+	assert.Equal(t, expected, body)
 }
 func TestAuthenticate_Dashboard(t *testing.T) {
 	t.Parallel()
@@ -582,10 +589,12 @@ func TestAuthenticate_Dashboard(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := &Authenticate{
-				sessionStore:     tt.sessionStore,
-				encryptedEncoder: signer,
-				sharedEncoder:    signer,
-				templates:        template.Must(frontend.NewTemplates()),
+				state: newAtomicAuthenticateState(&authenticateState{
+					sessionStore:     tt.sessionStore,
+					encryptedEncoder: signer,
+					sharedEncoder:    signer,
+				}),
+				templates: template.Must(frontend.NewTemplates()),
 				dataBrokerClient: mockDataBrokerServiceClient{
 					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 						data, err := ptypes.MarshalAny(&session.Session{

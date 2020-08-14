@@ -14,7 +14,6 @@ func NewAEADCipher(secret []byte) (cipher.AEAD, error) {
 		return nil, fmt.Errorf("cryptutil: got %d bytes but want 32", len(secret))
 	}
 	return chacha20poly1305.NewX(secret)
-
 }
 
 // NewAEADCipherFromBase64 takes a base64 encoded secret key and returns a new XChacha20poly1305 cipher.
