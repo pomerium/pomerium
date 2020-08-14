@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
@@ -214,6 +216,25 @@ func (p *Provider) apiGet(ctx context.Context, uri string, out interface{}) (htt
 		return nil, err
 	}
 
+	for {
+		res, err := p.cfg.httpClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer res.Body.Close()
+
+		if res.StatusCode == http.StatusTooManyRequests {
+			limitReset, err := strconv.ParseInt(res.Header.Get("X-Rate-Limit-Reset"), 10, 64)
+			if err == nil {
+				time.Sleep(time.Until(time.Unix(limitReset, 0)))
+				continue
+			}
+		}
+		if res.StatusCode/100 == 2 {
+			break
+		}
+		return nil, fmt.Errorf("okta: error query api status_code=%d: %s", res.StatusCode, res.Status)
+	}
 	res, err := p.cfg.httpClient.Do(req)
 	if err != nil {
 		return nil, err
