@@ -20,7 +20,6 @@ import (
 var (
 	errObtainCertFailed = errors.New("obtain cert failed")
 	errRenewCertFailed  = errors.New("renew cert failed")
-	defaultStorage      = &certmagic.FileStorage{Path: dataDir()}
 )
 
 // Manager manages TLS certificates.
