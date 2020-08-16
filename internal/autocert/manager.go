@@ -20,6 +20,7 @@ import (
 var (
 	errObtainCertFailed = errors.New("obtain cert failed")
 	errRenewCertFailed  = errors.New("renew cert failed")
+	defaultStorage      = &certmagic.FileStorage{Path: dataDir()}
 )
 
 // Manager manages TLS certificates.
@@ -37,6 +38,12 @@ type Manager struct {
 
 // New creates a new autocert manager.
 func New(src config.Source) (*Manager, error) {
+	// set certmagic default storage cache, otherwise cert renewal loop will be based off
+	// certmagic's own default location
+	certmagic.Default.Storage = &certmagic.FileStorage{
+		Path: src.GetConfig().Options.AutocertOptions.Folder,
+	}
+
 	mgr := &Manager{
 		src:       src,
 		certmagic: certmagic.NewDefault(),
