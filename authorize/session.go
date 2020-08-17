@@ -91,8 +91,10 @@ func (a *Authorize) getJWTClaimHeaders(options *config.Options, signedJWT string
 		return make(map[string]string), nil
 	}
 
+	state := a.state.Load()
+
 	var claims map[string]interface{}
-	payload, err := a.pe.ParseSignedJWT(signedJWT)
+	payload, err := state.evaluator.ParseSignedJWT(signedJWT)
 	if err != nil {
 		return nil, err
 	}

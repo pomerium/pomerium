@@ -43,11 +43,13 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
 	defer span.End()
 
+	state := a.state.Load()
+
 	// maybe rewrite http request for forward auth
 	isForwardAuth := a.handleForwardAuth(in)
 	hreq := getHTTPRequestFromCheckRequest(in)
-	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), a.currentEncoder.Load())
-	sessionState, _ := loadSession(a.currentEncoder.Load(), rawJWT)
+	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), state.encoder)
+	sessionState, _ := loadSession(state.encoder, rawJWT)
 
 	if err := a.forceSync(ctx, sessionState); err != nil {
 		log.Warn().Err(err).Msg("clearing session due to force sync failed")
@@ -58,7 +60,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	defer a.dataBrokerDataLock.RUnlock()
 
 	req := a.getEvaluatorRequestFromCheckRequest(in, sessionState)
-	reply, err := a.pe.Evaluate(ctx, req)
+	reply, err := state.evaluator.Evaluate(ctx, req)
 	if err != nil {
 		log.Error().Err(err).Msg("error during OPA evaluation")
 		return nil, err
@@ -95,6 +97,8 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) *ses
 	ctx, span := trace.StartSpan(ctx, "authorize.forceSyncSession")
 	defer span.End()
 
+	state := a.state.Load()
+
 	a.dataBrokerDataLock.RLock()
 	s, ok := a.dataBrokerData.Get(sessionTypeURL, sessionID).(*session.Session)
 	a.dataBrokerDataLock.RUnlock()
@@ -102,7 +106,7 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) *ses
 		return s
 	}
 
-	res, err := a.dataBrokerClient.Get(ctx, &databroker.GetRequest{
+	res, err := state.dataBrokerClient.Get(ctx, &databroker.GetRequest{
 		Type: sessionTypeURL,
 		Id:   sessionID,
 	})
@@ -125,6 +129,8 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 	ctx, span := trace.StartSpan(ctx, "authorize.forceSyncUser")
 	defer span.End()
 
+	state := a.state.Load()
+
 	a.dataBrokerDataLock.RLock()
 	u, ok := a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
 	a.dataBrokerDataLock.RUnlock()
@@ -132,7 +138,7 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 		return u
 	}
 
-	res, err := a.dataBrokerClient.Get(ctx, &databroker.GetRequest{
+	res, err := state.dataBrokerClient.Get(ctx, &databroker.GetRequest{
 		Type: userTypeURL,
 		Id:   userID,
 	})

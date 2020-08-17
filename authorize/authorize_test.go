@@ -56,7 +56,7 @@ func TestNew(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := New(&tt.config)
+			_, err := New(&config.Config{Options: &tt.config})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -87,11 +87,11 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 				SharedKey:       tc.SharedKey,
 				Policies:        tc.Policies,
 			}
-			a, err := New(o)
+			a, err := New(&config.Config{Options: o})
 			require.NoError(t, err)
 			require.NotNil(t, a)
 
-			oldPe := a.pe
+			oldPe := a.state.Load().evaluator
 			cfg := &config.Config{Options: o}
 			assertFunc := assert.True
 			o.SigningKey = "bad-share-key"
@@ -100,7 +100,7 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 				assertFunc = assert.False
 			}
 			a.OnConfigChange(cfg)
-			assertFunc(t, oldPe == a.pe)
+			assertFunc(t, oldPe == a.state.Load().evaluator)
 		})
 	}
 }
