@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"google.golang.org/protobuf/types/known/anypb"
+
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 type mockBackend struct {
@@ -16,6 +17,10 @@ type mockBackend struct {
 	delete       func(ctx context.Context, id string) error
 	clearDeleted func(ctx context.Context, cutoff time.Time)
 	watch        func(ctx context.Context) <-chan struct{}
+}
+
+func (m *mockBackend) Close() error {
+	return nil
 }
 
 func (m *mockBackend) Put(ctx context.Context, id string, data *anypb.Any) error {

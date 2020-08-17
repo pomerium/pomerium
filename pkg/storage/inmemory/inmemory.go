@@ -52,6 +52,9 @@ type DB struct {
 	byVersion  *btree.BTree
 	deletedIDs []string
 	onchange   *signal.Signal
+
+	closeOnce sync.Once
+	closed    chan struct{}
 }
 
 // NewDB creates a new in-memory database for the given record type.
@@ -62,6 +65,7 @@ func NewDB(recordType string, btreeDegree int) *DB {
 		byID:       btree.New(btreeDegree),
 		byVersion:  btree.New(btreeDegree),
 		onchange:   s,
+		closed:     make(chan struct{}),
 	}
 }
 
@@ -82,6 +86,14 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 		}
 	}
 	db.deletedIDs = remaining
+}
+
+// Close closes the database. Any watchers will be closed.
+func (db *DB) Close() error {
+	db.closeOnce.Do(func() {
+		close(db.closed)
+	})
+	return nil
 }
 
 // Delete marks a record as deleted.
@@ -140,7 +152,10 @@ func (db *DB) Put(_ context.Context, id string, data *anypb.Any) error {
 func (db *DB) Watch(ctx context.Context) <-chan struct{} {
 	ch := db.onchange.Bind()
 	go func() {
-		<-ctx.Done()
+		select {
+		case <-db.closed:
+		case <-ctx.Done():
+		}
 		close(ch)
 		db.onchange.Unbind(ch)
 	}()

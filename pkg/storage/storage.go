@@ -12,6 +12,9 @@ import (
 
 // Backend is the interface required for a storage backend.
 type Backend interface {
+	// Close closes the backend.
+	Close() error
+
 	// Put is used to insert or update a record.
 	Put(ctx context.Context, id string, data *anypb.Any) error
 

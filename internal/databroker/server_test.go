@@ -33,36 +33,46 @@ func newServer(cfg *serverConfig) *Server {
 func TestServer_initVersion(t *testing.T) {
 	cfg := newServerConfig()
 	t.Run("nil db", func(t *testing.T) {
+		srvVersion := uuid.New()
+		oldNewUUID := newUUID
+		newUUID = func() uuid.UUID {
+			return srvVersion
+		}
+		defer func() { newUUID = oldNewUUID }()
+
 		srv := newServer(cfg)
-		srvVersion := uuid.New().String()
-		srv.version = srvVersion
 		srv.byType[recordTypeServerVersion] = nil
 		srv.initVersion()
-		assert.Equal(t, srvVersion, srv.version)
+		assert.Equal(t, srvVersion.String(), srv.version)
 	})
 	t.Run("new server with random version", func(t *testing.T) {
+		srvVersion := uuid.New()
+		oldNewUUID := newUUID
+		newUUID = func() uuid.UUID {
+			return srvVersion
+		}
+		defer func() { newUUID = oldNewUUID }()
+
 		srv := newServer(cfg)
 		ctx := context.Background()
-		db, err := srv.getDB(recordTypeServerVersion)
+		db, _, err := srv.getDB(recordTypeServerVersion, false)
 		require.NoError(t, err)
 		r, err := db.Get(ctx, serverVersionKey)
 		assert.Error(t, err)
 		assert.Nil(t, r)
-		srvVersion := uuid.New().String()
-		srv.version = srvVersion
 		srv.initVersion()
-		assert.Equal(t, srvVersion, srv.version)
+		assert.Equal(t, srvVersion.String(), srv.version)
 		r, err = db.Get(ctx, serverVersionKey)
 		require.NoError(t, err)
 		assert.NotNil(t, r)
 		var sv databroker.ServerVersion
 		assert.NoError(t, ptypes.UnmarshalAny(r.GetData(), &sv))
-		assert.Equal(t, srvVersion, sv.Version)
+		assert.Equal(t, srvVersion.String(), sv.Version)
 	})
 	t.Run("init version twice should get the same version", func(t *testing.T) {
 		srv := newServer(cfg)
 		ctx := context.Background()
-		db, err := srv.getDB(recordTypeServerVersion)
+		db, _, err := srv.getDB(recordTypeServerVersion, false)
 		require.NoError(t, err)
 		r, err := db.Get(ctx, serverVersionKey)
 		assert.Error(t, err)

@@ -2,7 +2,11 @@ package databroker
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"time"
+
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 var (
@@ -21,7 +25,9 @@ type serverConfig struct {
 	secret                  []byte
 	storageType             string
 	storageConnectionString string
-	storageTLSConfig        *tls.Config
+	storageCAFile           string
+	storageCertSkipVerify   bool
+	storageCertificate      *tls.Certificate
 }
 
 func newServerConfig(options ...ServerOption) *serverConfig {
@@ -54,10 +60,15 @@ func WithDeletePermanentlyAfter(dur time.Duration) ServerOption {
 	}
 }
 
-// WithSecret sets the secret in the config.
-func WithSecret(secret []byte) ServerOption {
+// WithSharedKey sets the secret in the config.
+func WithSharedKey(sharedKey string) ServerOption {
 	return func(cfg *serverConfig) {
-		cfg.secret = secret
+		key, err := base64.StdEncoding.DecodeString(sharedKey)
+		if err != nil || len(key) != cryptutil.DefaultKeySize {
+			log.Error().Err(err).Msgf("shared key is required and must be %d bytes long", cryptutil.DefaultKeySize)
+			return
+		}
+		cfg.secret = key
 	}
 }
 
@@ -75,9 +86,23 @@ func WithStorageConnectionString(connStr string) ServerOption {
 	}
 }
 
-// WithStorageTLSConfig sets the tls config for connection to storage.
-func WithStorageTLSConfig(tlsConfig *tls.Config) ServerOption {
+// WithStorageCAFile sets the CA file in the config.
+func WithStorageCAFile(filePath string) ServerOption {
 	return func(cfg *serverConfig) {
-		cfg.storageTLSConfig = tlsConfig
+		cfg.storageCAFile = filePath
+	}
+}
+
+// WithStorageCertSkipVerify sets the storageCertSkipVerify in the config.
+func WithStorageCertSkipVerify(storageCertSkipVerify bool) ServerOption {
+	return func(cfg *serverConfig) {
+		cfg.storageCertSkipVerify = storageCertSkipVerify
+	}
+}
+
+// WithStorageCertificate sets the storageCertificate in the config.
+func WithStorageCertificate(certificate *tls.Certificate) ServerOption {
+	return func(cfg *serverConfig) {
+		cfg.storageCertificate = certificate
 	}
 }

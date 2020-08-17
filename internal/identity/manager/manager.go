@@ -42,11 +42,8 @@ type (
 
 // A Manager refreshes identity information using session and user data.
 type Manager struct {
-	cfg              *config
-	authenticator    Authenticator
-	directory        directory.Provider
-	dataBrokerClient databroker.DataBrokerServiceClient
-	log              zerolog.Logger
+	cfg *atomicConfig
+	log zerolog.Logger
 
 	sessions         sessionCollection
 	sessionScheduler *scheduler.Scheduler
@@ -67,17 +64,11 @@ type Manager struct {
 
 // New creates a new identity manager.
 func New(
-	authenticator Authenticator,
-	directoryProvider directory.Provider,
-	dataBrokerClient databroker.DataBrokerServiceClient,
 	options ...Option,
 ) *Manager {
 	mgr := &Manager{
-		cfg:              newConfig(options...),
-		authenticator:    authenticator,
-		directory:        directoryProvider,
-		dataBrokerClient: dataBrokerClient,
-		log:              log.With().Str("service", "identity_manager").Logger(),
+		cfg: newAtomicConfig(newConfig()),
+		log: log.With().Str("service", "identity_manager").Logger(),
 
 		sessions: sessionCollection{
 			BTree: btree.New(8),
@@ -88,7 +79,13 @@ func New(
 		},
 		userScheduler: scheduler.New(),
 	}
+	mgr.UpdateConfig(options...)
 	return mgr
+}
+
+// UpdateConfig updates the manager with the new options.
+func (mgr *Manager) UpdateConfig(options ...Option) {
+	mgr.cfg.Store(newConfig(options...))
 }
 
 // Run runs the manager. This method blocks until an error occurs or the given context is canceled.
@@ -169,7 +166,7 @@ func (mgr *Manager) refreshLoop(
 		// refresh groups
 		if mgr.directoryNextRefresh.Before(now) {
 			mgr.refreshDirectoryUserGroups(ctx)
-			mgr.directoryNextRefresh = now.Add(mgr.cfg.groupRefreshInterval)
+			mgr.directoryNextRefresh = now.Add(mgr.cfg.Load().groupRefreshInterval)
 			if mgr.directoryNextRefresh.Before(nextTime) {
 				nextTime = mgr.directoryNextRefresh
 			}
@@ -211,10 +208,10 @@ func (mgr *Manager) refreshLoop(
 func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) {
 	mgr.log.Info().Msg("refreshing directory users")
 
-	ctx, clearTimeout := context.WithTimeout(ctx, mgr.cfg.groupRefreshTimeout)
+	ctx, clearTimeout := context.WithTimeout(ctx, mgr.cfg.Load().groupRefreshTimeout)
 	defer clearTimeout()
 
-	directoryGroups, directoryUsers, err := mgr.directory.UserGroups(ctx)
+	directoryGroups, directoryUsers, err := mgr.cfg.Load().directory.UserGroups(ctx)
 	if err != nil {
 		mgr.log.Warn().Err(err).Msg("failed to refresh directory users and groups")
 		return
@@ -238,7 +235,7 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory group")
 				return
 			}
-			_, err = mgr.dataBrokerClient.Set(ctx, &databroker.SetRequest{
+			_, err = mgr.cfg.Load().dataBrokerClient.Set(ctx, &databroker.SetRequest{
 				Type: any.GetTypeUrl(),
 				Id:   newDG.GetId(),
 				Data: any,
@@ -258,7 +255,7 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory group")
 				return
 			}
-			_, err = mgr.dataBrokerClient.Delete(ctx, &databroker.DeleteRequest{
+			_, err = mgr.cfg.Load().dataBrokerClient.Delete(ctx, &databroker.DeleteRequest{
 				Type: any.GetTypeUrl(),
 				Id:   curDG.GetId(),
 			})
@@ -284,7 +281,7 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory user")
 				return
 			}
-			_, err = mgr.dataBrokerClient.Set(ctx, &databroker.SetRequest{
+			_, err = mgr.cfg.Load().dataBrokerClient.Set(ctx, &databroker.SetRequest{
 				Type: any.GetTypeUrl(),
 				Id:   newDU.GetId(),
 				Data: any,
@@ -304,7 +301,7 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory user")
 				return
 			}
-			_, err = mgr.dataBrokerClient.Delete(ctx, &databroker.DeleteRequest{
+			_, err = mgr.cfg.Load().dataBrokerClient.Delete(ctx, &databroker.DeleteRequest{
 				Type: any.GetTypeUrl(),
 				Id:   curDU.GetId(),
 			})
@@ -349,7 +346,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 		return
 	}
 
-	newToken, err := mgr.authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), &s)
+	newToken, err := mgr.cfg.Load().authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), &s)
 	if isTemporaryError(err) {
 		mgr.log.Error().Err(err).
 			Str("user_id", s.GetUserId()).
@@ -366,7 +363,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 	}
 	s.OauthToken = ToOAuthToken(newToken)
 
-	res, err := session.Set(ctx, mgr.dataBrokerClient, s.Session)
+	res, err := session.Set(ctx, mgr.cfg.Load().dataBrokerClient, s.Session)
 	if err != nil {
 		mgr.log.Error().Err(err).
 			Str("user_id", s.GetUserId()).
@@ -401,7 +398,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 			continue
 		}
 
-		err := mgr.authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &u)
+		err := mgr.cfg.Load().authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &u)
 		if isTemporaryError(err) {
 			mgr.log.Error().Err(err).
 				Str("user_id", s.GetUserId()).
@@ -417,7 +414,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 			continue
 		}
 
-		record, err := user.Set(ctx, mgr.dataBrokerClient, u.User)
+		record, err := user.Set(ctx, mgr.cfg.Load().dataBrokerClient, u.User)
 		if err != nil {
 			mgr.log.Error().Err(err).
 				Str("user_id", s.GetUserId()).
@@ -438,7 +435,7 @@ func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- sessionMessage) 
 		return err
 	}
 
-	client, err := mgr.dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
+	client, err := mgr.cfg.Load().dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
 		Type: any.GetTypeUrl(),
 	})
 	if err != nil {
@@ -474,7 +471,7 @@ func (mgr *Manager) syncUsers(ctx context.Context, ch chan<- userMessage) error 
 		return err
 	}
 
-	client, err := mgr.dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
+	client, err := mgr.cfg.Load().dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
 		Type: any.GetTypeUrl(),
 	})
 	if err != nil {
@@ -510,7 +507,7 @@ func (mgr *Manager) initDirectoryUsers(ctx context.Context) error {
 		return err
 	}
 
-	res, err := mgr.dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
+	res, err := mgr.cfg.Load().dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
 		Type: any.GetTypeUrl(),
 	})
 	if err != nil {
@@ -541,7 +538,7 @@ func (mgr *Manager) syncDirectoryUsers(ctx context.Context, ch chan<- *directory
 		return err
 	}
 
-	client, err := mgr.dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
+	client, err := mgr.cfg.Load().dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
 		Type:          any.GetTypeUrl(),
 		ServerVersion: mgr.directoryUsersServerVersion,
 		RecordVersion: mgr.directoryUsersRecordVersion,
@@ -579,7 +576,7 @@ func (mgr *Manager) initDirectoryGroups(ctx context.Context) error {
 		return err
 	}
 
-	res, err := mgr.dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
+	res, err := mgr.cfg.Load().dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
 		Type: any.GetTypeUrl(),
 	})
 	if err != nil {
@@ -610,7 +607,7 @@ func (mgr *Manager) syncDirectoryGroups(ctx context.Context, ch chan<- *director
 		return err
 	}
 
-	client, err := mgr.dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
+	client, err := mgr.cfg.Load().dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
 		Type:          any.GetTypeUrl(),
 		ServerVersion: mgr.directoryGroupsServerVersion,
 		RecordVersion: mgr.directoryGroupsRecordVersion,
@@ -652,8 +649,8 @@ func (mgr *Manager) onUpdateSession(ctx context.Context, msg sessionMessage) {
 	// update session
 	s, _ := mgr.sessions.Get(msg.session.GetUserId(), msg.session.GetId())
 	s.lastRefresh = time.Now()
-	s.gracePeriod = mgr.cfg.sessionRefreshGracePeriod
-	s.coolOffDuration = mgr.cfg.sessionRefreshCoolOffDuration
+	s.gracePeriod = mgr.cfg.Load().sessionRefreshGracePeriod
+	s.coolOffDuration = mgr.cfg.Load().sessionRefreshCoolOffDuration
 	s.Session = msg.session
 	mgr.sessions.ReplaceOrInsert(s)
 	mgr.sessionScheduler.Add(s.NextRefresh(), toSessionSchedulerKey(msg.session.GetUserId(), msg.session.GetId()))
@@ -676,7 +673,7 @@ func (mgr *Manager) onUpdateUser(_ context.Context, msg userMessage) {
 		// only reset the refresh time if this is an existing user
 		u.lastRefresh = time.Now()
 	}
-	u.refreshInterval = mgr.cfg.groupRefreshInterval
+	u.refreshInterval = mgr.cfg.Load().groupRefreshInterval
 	u.User = msg.user
 	mgr.users.ReplaceOrInsert(u)
 	mgr.userScheduler.Add(u.NextRefresh(), u.GetId())
@@ -697,7 +694,7 @@ func (mgr *Manager) createUser(ctx context.Context, pbSession *session.Session) 
 		},
 	}
 
-	_, err := user.Set(ctx, mgr.dataBrokerClient, u.User)
+	_, err := user.Set(ctx, mgr.cfg.Load().dataBrokerClient, u.User)
 	if err != nil {
 		mgr.log.Error().Err(err).
 			Str("user_id", pbSession.GetUserId()).
@@ -707,7 +704,7 @@ func (mgr *Manager) createUser(ctx context.Context, pbSession *session.Session) 
 }
 
 func (mgr *Manager) deleteSession(ctx context.Context, pbSession *session.Session) {
-	err := session.Delete(ctx, mgr.dataBrokerClient, pbSession.GetId())
+	err := session.Delete(ctx, mgr.cfg.Load().dataBrokerClient, pbSession.GetId())
 	if err != nil {
 		mgr.log.Error().Err(err).
 			Str("session_id", pbSession.GetId()).
