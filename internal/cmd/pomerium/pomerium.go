@@ -150,7 +150,7 @@ func setupAuthenticate(src config.Source, cfg *config.Config, controlPlane *cont
 }
 
 func setupAuthorize(src config.Source, cfg *config.Config, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
-	svc, err := authorize.New(cfg.Options)
+	svc, err := authorize.New(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)
 	}

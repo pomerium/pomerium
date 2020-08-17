@@ -47,9 +47,9 @@ yE+vPxsiUkvQHdO2fojCkY8jg70jxM+gu59tPDNbw3Uh/2Ij310FgTHsnGQMyA==
 -----END CERTIFICATE-----`
 
 func Test_getEvaluatorRequest(t *testing.T) {
-	a := &Authorize{currentOptions: config.NewAtomicOptions()}
+	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
-	a.currentEncoder.Store(encoder)
+	a.state.Load().encoder = encoder
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
@@ -273,7 +273,7 @@ func Test_handleForwardAuth(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			a := &Authorize{currentOptions: config.NewAtomicOptions()}
+			a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
 			var fau *url.URL
 			if tc.forwardAuthURL != "" {
 				fau = mustParseURL(tc.forwardAuthURL)
@@ -288,9 +288,9 @@ func Test_handleForwardAuth(t *testing.T) {
 }
 
 func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
-	a := &Authorize{currentOptions: config.NewAtomicOptions()}
+	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
-	a.currentEncoder.Store(encoder)
+	a.state.Load().encoder = encoder
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
@@ -454,7 +454,7 @@ func TestSync(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			a, err := New(o)
+			a, err := New(&config.Config{Options: o})
 			require.NoError(t, err)
 			a.dataBrokerData = evaluator.DataBrokerData{
 				"type.googleapis.com/session.Session": map[string]interface{}{
@@ -464,7 +464,7 @@ func TestSync(t *testing.T) {
 					"dbd_user1": &user.User{Id: "dbd_user1"},
 				},
 			}
-			a.dataBrokerClient = tc.databrokerClient
+			a.state.Load().dataBrokerClient = tc.databrokerClient
 			assert.True(t, (a.forceSync(ctx, tc.sessionState) != nil) == tc.wantErr)
 		})
 	}

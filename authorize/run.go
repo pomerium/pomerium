@@ -36,7 +36,7 @@ func (a *Authorize) runTypesSyncer(ctx context.Context, updateTypes chan<- []str
 	return tryForever(ctx, func(backoff interface{ Reset() }) error {
 		ctx, span := trace.StartSpan(ctx, "authorize.dataBrokerClient.Sync")
 		defer span.End()
-		stream, err := a.dataBrokerClient.SyncTypes(ctx, new(emptypb.Empty))
+		stream, err := a.state.Load().dataBrokerClient.SyncTypes(ctx, new(emptypb.Empty))
 		if err != nil {
 			return err
 		}
@@ -91,7 +91,7 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error
 	ctx, span := trace.StartSpan(ctx, "authorize.dataBrokerClient.GetAll")
 	backoff := backoff.NewExponentialBackOff()
 	for {
-		res, err := a.dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
+		res, err := a.state.Load().dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
 			Type: typeURL,
 		})
 		if err != nil {
@@ -119,7 +119,7 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error
 	return tryForever(ctx, func(backoff interface{ Reset() }) error {
 		ctx, span := trace.StartSpan(ctx, "authorize.dataBrokerClient.Sync")
 		defer span.End()
-		stream, err := a.dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
+		stream, err := a.state.Load().dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
 			ServerVersion: serverVersion,
 			RecordVersion: recordVersion,
 			Type:          typeURL,

@@ -35,15 +35,15 @@ func TestAuthorize_okResponse(t *testing.T) {
 		}},
 		JWTClaimsHeaders: []string{"email"},
 	}
-	a := &Authorize{currentOptions: config.NewAtomicOptions()}
+	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
-	a.currentEncoder.Store(encoder)
+	a.state.Load().encoder = encoder
 	a.currentOptions.Store(opt)
 	a.store = evaluator.NewStore()
 	pe, err := newPolicyEvaluator(opt, a.store)
 	require.NoError(t, err)
-	a.pe = pe
-	validJWT, _ := a.pe.SignedJWT(a.pe.JWTPayload(&evaluator.Request{
+	a.state.Load().evaluator = pe
+	validJWT, _ := pe.SignedJWT(pe.JWTPayload(&evaluator.Request{
 		DataBrokerData: evaluator.DataBrokerData{
 			"type.googleapis.com/session.Session": map[string]interface{}{
 				"SESSION_ID": &session.Session{
@@ -204,9 +204,9 @@ func TestAuthorize_okResponse(t *testing.T) {
 }
 
 func TestAuthorize_deniedResponse(t *testing.T) {
-	a := &Authorize{currentOptions: config.NewAtomicOptions()}
+	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
-	a.currentEncoder.Store(encoder)
+	a.state.Load().encoder = encoder
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},

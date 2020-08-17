@@ -116,15 +116,15 @@ func TestAuthorize_getJWTClaimHeaders(t *testing.T) {
 			}},
 		}},
 	}
-	a := &Authorize{currentOptions: config.NewAtomicOptions()}
+	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
-	a.currentEncoder.Store(encoder)
+	a.state.Load().encoder = encoder
 	a.currentOptions.Store(opt)
 	a.store = evaluator.NewStore()
 	pe, err := newPolicyEvaluator(opt, a.store)
 	require.NoError(t, err)
-	a.pe = pe
-	signedJWT, _ := a.pe.SignedJWT(a.pe.JWTPayload(&evaluator.Request{
+	a.state.Load().evaluator = pe
+	signedJWT, _ := pe.SignedJWT(pe.JWTPayload(&evaluator.Request{
 		DataBrokerData: evaluator.DataBrokerData{
 			"type.googleapis.com/session.Session": map[string]interface{}{
 				"SESSION_ID": &session.Session{
