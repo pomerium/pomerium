@@ -117,8 +117,7 @@ func TestTraceManager(t *testing.T) {
 		TracingSampleRate: 1,
 	}})
 
-	mgr := NewTraceManager(src)
-	_ = mgr
+	_ = NewTraceManager(src)
 
 	_, span := trace.StartSpan(ctx, "Example")
 	span.End()
@@ -133,8 +132,8 @@ func TestTraceManager(t *testing.T) {
 	span.End()
 
 	expect := map[Request]struct{}{
-		{Name: "Example", URL: srv1.Listener.Addr().String()}: {},
-		{Name: "Example", URL: srv2.Listener.Addr().String()}: {},
+		{Name: "example", URL: srv1.Listener.Addr().String()}: {},
+		{Name: "example", URL: srv2.Listener.Addr().String()}: {},
 	}
 
 	for len(expect) > 0 {
