@@ -125,3 +125,16 @@ jobs:
 
       - name: test
         run: go test -v ./integration/...
+
+  precommit:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v2
+      - uses: pre-commit/action@release
+        with:
+          extra_args: --show-diff-on-failure --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
