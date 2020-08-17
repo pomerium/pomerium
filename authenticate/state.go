@@ -20,6 +20,8 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/queryparam"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 type authenticateState struct {
@@ -42,6 +44,8 @@ type authenticateState struct {
 	sessionLoaders []sessions.SessionLoader
 
 	jwk *jose.JSONWebKeySet
+
+	dataBrokerClient databroker.DataBrokerServiceClient
 }
 
 func newAuthenticateState() *authenticateState {
@@ -52,6 +56,10 @@ func newAuthenticateState() *authenticateState {
 }
 
 func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, error) {
+	if err := ValidateOptions(cfg.Options); err != nil {
+		return nil, err
+	}
+
 	state := &authenticateState{}
 
 	state.redirectURL, _ = urlutil.DeepCopy(cfg.Options.AuthenticateURL)
@@ -105,6 +113,22 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		}
 		state.jwk.Keys = append(state.jwk.Keys, *jwk)
 	}
+
+	dataBrokerConn, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
+		Addr:                    cfg.Options.DataBrokerURL,
+		OverrideCertificateName: cfg.Options.OverrideCertificateName,
+		CA:                      cfg.Options.CA,
+		CAFile:                  cfg.Options.CAFile,
+		RequestTimeout:          cfg.Options.GRPCClientTimeout,
+		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
+		WithInsecure:            cfg.Options.GRPCInsecure,
+		ServiceName:             cfg.Options.Services,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
 
 	return state, nil
 }

@@ -152,26 +152,27 @@ func TestAuthenticate_SignIn(t *testing.T) {
 					redirectURL:      uriParseHelper("https://some.example"),
 					sharedEncoder:    tt.encoder,
 					encryptedEncoder: tt.encoder,
-				}),
-				dataBrokerClient: mockDataBrokerServiceClient{
-					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-						data, err := ptypes.MarshalAny(&session.Session{
-							Id: "SESSION_ID",
-						})
-						if err != nil {
-							return nil, err
-						}
+					dataBrokerClient: mockDataBrokerServiceClient{
+						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+							data, err := ptypes.MarshalAny(&session.Session{
+								Id: "SESSION_ID",
+							})
+							if err != nil {
+								return nil, err
+							}
 
-						return &databroker.GetResponse{
-							Record: &databroker.Record{
-								Version: "0001",
-								Type:    data.GetTypeUrl(),
-								Id:      "SESSION_ID",
-								Data:    data,
-							},
-						}, nil
+							return &databroker.GetResponse{
+								Record: &databroker.Record{
+									Version: "0001",
+									Type:    data.GetTypeUrl(),
+									Id:      "SESSION_ID",
+									Data:    data,
+								},
+							}, nil
+						},
 					},
-				},
+				}),
+
 				options:  config.NewAtomicOptions(),
 				provider: identity.NewAtomicAuthenticator(),
 			}
@@ -237,32 +238,32 @@ func TestAuthenticate_SignOut(t *testing.T) {
 					sessionStore:     tt.sessionStore,
 					encryptedEncoder: mock.Encoder{},
 					sharedEncoder:    mock.Encoder{},
+					dataBrokerClient: mockDataBrokerServiceClient{
+						delete: func(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+							return nil, nil
+						},
+						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+							data, err := ptypes.MarshalAny(&session.Session{
+								Id: "SESSION_ID",
+							})
+							if err != nil {
+								return nil, err
+							}
+
+							return &databroker.GetResponse{
+								Record: &databroker.Record{
+									Version: "0001",
+									Type:    data.GetTypeUrl(),
+									Id:      "SESSION_ID",
+									Data:    data,
+								},
+							}, nil
+						},
+					},
 				}),
 				templates: template.Must(frontend.NewTemplates()),
-				dataBrokerClient: mockDataBrokerServiceClient{
-					delete: func(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-						return nil, nil
-					},
-					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-						data, err := ptypes.MarshalAny(&session.Session{
-							Id: "SESSION_ID",
-						})
-						if err != nil {
-							return nil, err
-						}
-
-						return &databroker.GetResponse{
-							Record: &databroker.Record{
-								Version: "0001",
-								Type:    data.GetTypeUrl(),
-								Id:      "SESSION_ID",
-								Data:    data,
-							},
-						}, nil
-					},
-				},
-				options:  config.NewAtomicOptions(),
-				provider: identity.NewAtomicAuthenticator(),
+				options:   config.NewAtomicOptions(),
+				provider:  identity.NewAtomicAuthenticator(),
 			}
 			a.provider.Store(tt.provider)
 			u, _ := url.Parse("/sign_out")
@@ -477,26 +478,26 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 					cookieCipher:     aead,
 					encryptedEncoder: signer,
 					sharedEncoder:    signer,
-				}),
-				dataBrokerClient: mockDataBrokerServiceClient{
-					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-						data, err := ptypes.MarshalAny(&session.Session{
-							Id: "SESSION_ID",
-						})
-						if err != nil {
-							return nil, err
-						}
+					dataBrokerClient: mockDataBrokerServiceClient{
+						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+							data, err := ptypes.MarshalAny(&session.Session{
+								Id: "SESSION_ID",
+							})
+							if err != nil {
+								return nil, err
+							}
 
-						return &databroker.GetResponse{
-							Record: &databroker.Record{
-								Version: "0001",
-								Type:    data.GetTypeUrl(),
-								Id:      "SESSION_ID",
-								Data:    data,
-							},
-						}, nil
+							return &databroker.GetResponse{
+								Record: &databroker.Record{
+									Version: "0001",
+									Type:    data.GetTypeUrl(),
+									Id:      "SESSION_ID",
+									Data:    data,
+								},
+							}, nil
+						},
 					},
-				},
+				}),
 				options:  config.NewAtomicOptions(),
 				provider: identity.NewAtomicAuthenticator(),
 			}
@@ -593,29 +594,29 @@ func TestAuthenticate_Dashboard(t *testing.T) {
 					sessionStore:     tt.sessionStore,
 					encryptedEncoder: signer,
 					sharedEncoder:    signer,
+					dataBrokerClient: mockDataBrokerServiceClient{
+						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+							data, err := ptypes.MarshalAny(&session.Session{
+								Id:      "SESSION_ID",
+								UserId:  "USER_ID",
+								IdToken: &session.IDToken{IssuedAt: pbNow},
+							})
+							if err != nil {
+								return nil, err
+							}
+
+							return &databroker.GetResponse{
+								Record: &databroker.Record{
+									Version: "0001",
+									Type:    data.GetTypeUrl(),
+									Id:      "SESSION_ID",
+									Data:    data,
+								},
+							}, nil
+						},
+					},
 				}),
 				templates: template.Must(frontend.NewTemplates()),
-				dataBrokerClient: mockDataBrokerServiceClient{
-					get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-						data, err := ptypes.MarshalAny(&session.Session{
-							Id:      "SESSION_ID",
-							UserId:  "USER_ID",
-							IdToken: &session.IDToken{IssuedAt: pbNow},
-						})
-						if err != nil {
-							return nil, err
-						}
-
-						return &databroker.GetResponse{
-							Record: &databroker.Record{
-								Version: "0001",
-								Type:    data.GetTypeUrl(),
-								Id:      "SESSION_ID",
-								Data:    data,
-							},
-						}, nil
-					},
-				},
 			}
 			u, _ := url.Parse("/")
 			r := httptest.NewRequest(tt.method, u.String(), nil)
