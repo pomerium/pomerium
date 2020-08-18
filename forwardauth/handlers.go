@@ -1,6 +1,7 @@
-package proxy
+package forwardauth
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,19 +10,42 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
+
+// saveCallbackSession takes an encrypted per-route session token, and decrypts
+// it using the shared service key, then stores it the local session store.
+func (fa *ForwardAuth) saveCallbackSession(w http.ResponseWriter, r *http.Request, enctoken string) ([]byte, error) {
+	state := fa.state.Load()
+
+	// 1. extract the base64 encoded and encrypted JWT from query params
+	encryptedJWT, err := base64.URLEncoding.DecodeString(enctoken)
+	if err != nil {
+		return nil, fmt.Errorf("fowardauth: malfromed callback token: %w", err)
+	}
+	// 2. decrypt the JWT using the cipher using the _shared_ secret key
+	rawJWT, err := cryptutil.Decrypt(state.sharedCipher, encryptedJWT, nil)
+	if err != nil {
+		return nil, fmt.Errorf("fowardauth: callback token decrypt error: %w", err)
+	}
+	// 3. Save the decrypted JWT to the session store directly as a string, without resigning
+	if err = state.sessionStore.SaveSession(w, r, rawJWT); err != nil {
+		return nil, fmt.Errorf("fowardauth: callback session save failure: %w", err)
+	}
+	return rawJWT, nil
+}
 
 // registerFwdAuthHandlers returns a set of handlers that support using pomerium
 // as a "forward-auth" provider with other reverse proxies like nginx, traefik.
 //
 // see : https://www.pomerium.io/configuration/#forward-auth
-func (p *Proxy) registerFwdAuthHandlers() http.Handler {
+func (fa *ForwardAuth) registerFwdAuthHandlers() http.Handler {
 	r := httputil.NewRouter()
 	r.StrictSlash(true)
 	r.Use(func(h http.Handler) http.Handler {
-		return sessions.RetrieveSession(p.state.Load().sessionStore)(h)
+		return sessions.RetrieveSession(fa.state.Load().sessionStore)(h)
 	})
-	r.Use(p.jwtClaimMiddleware(true))
+	r.Use(fa.jwtClaimMiddleware(true))
 
 	// NGNIX's forward-auth capabilities are split across two settings:
 	// `auth-url` and `auth-signin` which correspond to `verify` and `auth-url`
@@ -30,29 +54,29 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	// 		 to reason about so each step has a postfix order step.
 
 	// nginx 3: save the returned session post authenticate flow
-	r.Handle("/verify", httputil.HandlerFunc(p.nginxCallback)).
+	r.Handle("/verify", httputil.HandlerFunc(fa.nginxCallback)).
 		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
 
 	// nginx 1: verify. Return 401 if invalid and NGINX will call `auth-signin`
-	r.Handle("/verify", p.Verify(true)).Queries("uri", "{uri}")
+	r.Handle("/verify", fa.Verify(true)).Queries("uri", "{uri}")
 
 	// nginx 4: redirect the user back to their originally requested location.
-	r.Handle("/", httputil.HandlerFunc(p.nginxPostCallbackRedirect)).
+	r.Handle("/", httputil.HandlerFunc(fa.nginxPostCallbackRedirect)).
 		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
 
 	// traefik 2: save the returned session post authenticate flow
-	r.Handle("/", httputil.HandlerFunc(p.forwardedURIHeaderCallback)).
+	r.Handle("/", httputil.HandlerFunc(fa.forwardedURIHeaderCallback)).
 		HeadersRegexp(httputil.HeaderForwardedURI, urlutil.QuerySessionEncrypted)
 
 	// nginx 2 / traefik 1: verify and then start authenticate flow
-	r.Handle("/", p.Verify(false))
+	r.Handle("/", fa.Verify(false))
 
 	return r
 }
 
 // nginxPostCallbackRedirect redirects the user to their original destination
 // in order to drop the authenticate related query params
-func (p *Proxy) nginxPostCallbackRedirect(w http.ResponseWriter, r *http.Request) error {
+func (fa *ForwardAuth) nginxPostCallbackRedirect(w http.ResponseWriter, r *http.Request) error {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	httputil.Redirect(w, r, r.FormValue(urlutil.QueryRedirectURI), http.StatusFound)
 	return nil
@@ -62,9 +86,9 @@ func (p *Proxy) nginxPostCallbackRedirect(w http.ResponseWriter, r *http.Request
 // unauthorized status in order to restart the request flow process. Strangely
 // we need to throw a 401 after saving the session to redirect the user
 // to their originally desired location.
-func (p *Proxy) nginxCallback(w http.ResponseWriter, r *http.Request) error {
+func (fa *ForwardAuth) nginxCallback(w http.ResponseWriter, r *http.Request) error {
 	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
-	if _, err := p.saveCallbackSession(w, r, encryptedSession); err != nil {
+	if _, err := fa.saveCallbackSession(w, r, encryptedSession); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -74,7 +98,7 @@ func (p *Proxy) nginxCallback(w http.ResponseWriter, r *http.Request) error {
 
 // forwardedURIHeaderCallback handles the post-authentication callback from
 // forwarding proxies that support the `X-Forwarded-Uri`.
-func (p *Proxy) forwardedURIHeaderCallback(w http.ResponseWriter, r *http.Request) error {
+func (fa *ForwardAuth) forwardedURIHeaderCallback(w http.ResponseWriter, r *http.Request) error {
 	forwardedURL, err := url.Parse(r.Header.Get(httputil.HeaderForwardedURI))
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -83,7 +107,7 @@ func (p *Proxy) forwardedURIHeaderCallback(w http.ResponseWriter, r *http.Reques
 	redirectURLString := q.Get(urlutil.QueryRedirectURI)
 	encryptedSession := q.Get(urlutil.QuerySessionEncrypted)
 
-	if _, err := p.saveCallbackSession(w, r, encryptedSession); err != nil {
+	if _, err := fa.saveCallbackSession(w, r, encryptedSession); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -96,9 +120,9 @@ func (p *Proxy) forwardedURIHeaderCallback(w http.ResponseWriter, r *http.Reques
 // a `200` http status code is returned. If the user is not authenticated, they
 // will be redirected to the authenticate service to sign in with their identity
 // provider. If the user is unauthorized, a `401` error is returned.
-func (p *Proxy) Verify(verifyOnly bool) http.Handler {
+func (fa *ForwardAuth) Verify(verifyOnly bool) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		state := p.state.Load()
+		state := fa.state.Load()
 
 		var err error
 		if status := r.FormValue("auth_status"); status == fmt.Sprint(http.StatusForbidden) {
@@ -110,7 +134,7 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
 
-		ar, err := p.isAuthorized(w, r)
+		ar, err := fa.isAuthorized(w, r)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
@@ -137,15 +161,15 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusUnauthorized, err)
 		}
 
-		p.forwardAuthRedirectToSignInWithURI(w, r, uri)
+		fa.forwardAuthRedirectToSignInWithURI(w, r, uri)
 		return nil
 	})
 }
 
 // forwardAuthRedirectToSignInWithURI redirects request to authenticate signin url,
 // with all necessary information extracted from given input uri.
-func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *http.Request, uri *url.URL) {
-	state := p.state.Load()
+func (fa *ForwardAuth) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *http.Request, uri *url.URL) {
+	state := fa.state.Load()
 
 	// Traefik set the uri in the header, we must set it in redirect uri if present. Otherwise, request like
 	// https://example.com/foo will be redirected to https://example.com after authentication.

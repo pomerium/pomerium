@@ -11,6 +11,8 @@ const (
 	ServiceAuthenticate = "authenticate"
 	// ServiceCache represents running the cache service component
 	ServiceCache = "cache"
+	// ServiceForwardAuth represents running the forward auth service component
+	ServiceForwardAuth = "forwardauth"
 	// StorageRedisName is the name of the redis storage backend
 	StorageRedisName = "redis"
 	// StorageInMemoryName is the name of the in-memory storage backend
@@ -64,12 +66,23 @@ func IsProxy(s string) bool {
 	return false
 }
 
-// IsCache checks to see if we should be running the proxy service
+// IsCache checks to see if we should be running the cache service
 func IsCache(s string) bool {
 	switch s {
 	case
 		ServiceAll,
 		ServiceCache:
+		return true
+	}
+	return false
+}
+
+// IsForwardAuth checks to see if we should be running the forward auth service
+func IsForwardAuth(s string) bool {
+	switch s {
+	case
+		ServiceAll,
+		ServiceForwardAuth:
 		return true
 	}
 	return false

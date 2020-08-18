@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/cache"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/forwardauth"
 	"github.com/pomerium/pomerium/internal/autocert"
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/databroker"
@@ -92,6 +93,9 @@ func Run(ctx context.Context, configFile string) error {
 		if err != nil {
 			return err
 		}
+	}
+	if err := setupForwardAuth(src, cfg, controlPlane); err != nil {
+		return err
 	}
 	if err := setupProxy(src, cfg, controlPlane); err != nil {
 		return err
@@ -188,6 +192,25 @@ func setupProxy(src config.Source, cfg *config.Config, controlPlane *controlplan
 	log.Info().Msg("enabled proxy service")
 	src.OnConfigChange(svc.OnConfigChange)
 	svc.OnConfigChange(cfg)
+
+	return nil
+}
+
+func setupForwardAuth(src config.Source, cfg *config.Config, controlPlane *controlplane.Server) error {
+	if !config.IsForwardAuth(cfg.Options.Services) {
+		return nil
+	}
+
+	svc, err := forwardauth.New(cfg)
+	if err != nil {
+		return fmt.Errorf("error creating forwardauth service: %w", err)
+	}
+	src.OnConfigChange(svc.OnConfigChange)
+	svc.OnConfigChange(cfg)
+	host := urlutil.StripPort(cfg.Options.GetForwardAuthURL().Host)
+	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
+	svc.Mount(sr)
+	log.Info().Str("host", host).Msg("enabled forwardauth service")
 
 	return nil
 }

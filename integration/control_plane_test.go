@@ -48,23 +48,6 @@ func TestDashboard(t *testing.T) {
 		assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code")
 		assert.Equal(t, "image/svg+xml", res.Header.Get("Content-Type"))
 	})
-	t.Run("forward auth image asset", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
-
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://fa-httpdetails.localhost.pomerium.io/.pomerium/assets/img/pomerium.svg", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
-
-		assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code")
-		assert.Equal(t, "image/svg+xml", res.Header.Get("Content-Type"))
-	})
 }
 
 func TestHealth(t *testing.T) {
