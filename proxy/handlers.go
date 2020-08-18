@@ -45,7 +45,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	// callback used to set route-scoped session and redirect back to destination
 	// only accept signed requests (hmac) from other trusted pomerium services
 	c := r.PathPrefix(dashboardPath + "/callback").Subrouter()
-	h.Use(func(h http.Handler) http.Handler {
+	c.Use(func(h http.Handler) http.Handler {
 		return middleware.ValidateSignature(p.state.Load().sharedKey)(h)
 	})
 
