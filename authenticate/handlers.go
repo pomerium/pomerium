@@ -482,8 +482,7 @@ func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) erro
 	if state.dataBrokerClient == nil {
 		return nil
 	}
-	err := session.Delete(ctx, state.dataBrokerClient, sessionID)
-	return err
+	return session.Delete(ctx, state.dataBrokerClient, sessionID)
 }
 
 func (a *Authenticate) isAdmin(user string) bool {
