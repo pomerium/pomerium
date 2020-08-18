@@ -40,6 +40,9 @@ type DB struct {
 	deletedSet             string
 	tlsConfig              *tls.Config
 	notifyChMu             sync.Mutex
+
+	closeOnce sync.Once
+	closed    chan struct{}
 }
 
 // New returns new DB instance.
@@ -50,6 +53,7 @@ func New(rawURL, recordType string, deletePermanentAfter int64, opts ...Option) 
 		versionSet:             recordType + "_version_set",
 		deletedSet:             recordType + "_deleted_set",
 		lastVersionKey:         recordType + "_last_version",
+		closed:                 make(chan struct{}),
 	}
 
 	for _, o := range opts {
@@ -77,6 +81,14 @@ func New(rawURL, recordType string, deletePermanentAfter int64, opts ...Option) 
 	}
 	metrics.AddRedisMetrics(db.pool.Stats)
 	return db, nil
+}
+
+// Close closes the redis db connection.
+func (db *DB) Close() error {
+	db.closeOnce.Do(func() {
+		close(db.closed)
+	})
+	return nil
 }
 
 // Put sets new record for given id with input data.
@@ -259,7 +271,10 @@ func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}) {
 	}
 	for {
 		select {
+		case <-db.closed:
+			return
 		case <-ctx.Done():
+			return
 		default:
 		}
 		switch v := psc.Receive().(type) {
@@ -271,12 +286,17 @@ func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}) {
 			}
 
 			select {
+			case <-db.closed:
+				return
 			case <-ctx.Done():
 				log.Warn().Err(ctx.Err()).Msg("context done, stop receive from redis channel")
 				return
 			default:
 				db.notifyChMu.Lock()
 				select {
+				case <-db.closed:
+					db.notifyChMu.Unlock()
+					return
 				case <-ctx.Done():
 					db.notifyChMu.Unlock()
 					log.Warn().Err(ctx.Err()).Msg("context done while holding notify lock, stop receive from redis channel")
@@ -313,6 +333,7 @@ func (db *DB) watch(ctx context.Context, ch chan struct{}) {
 		db.doNotifyLoop(ctx, ch)
 	}()
 	select {
+	case <-db.closed:
 	case <-ctx.Done():
 	case <-done:
 	}

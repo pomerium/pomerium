@@ -15,10 +15,12 @@ import (
 )
 
 func TestCache_runMemberList(t *testing.T) {
-	c, err := New(config.Options{
-		SharedKey:     cryptutil.NewBase64Key(),
-		DataBrokerURL: &url.URL{Scheme: "http", Host: "member1"},
-		Provider:      "google",
+	c, err := New(&config.Config{
+		Options: &config.Options{
+			SharedKey:     cryptutil.NewBase64Key(),
+			DataBrokerURL: &url.URL{Scheme: "http", Host: "member1"},
+			Provider:      "google",
+		},
 	})
 	require.NoError(t, err)
 

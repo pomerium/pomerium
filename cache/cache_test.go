@@ -30,7 +30,7 @@ func TestNew(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.opts.Provider = "google"
-			_, err := New(tt.opts)
+			_, err := New(&config.Config{Options: &tt.opts})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return

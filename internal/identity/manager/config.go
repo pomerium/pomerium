@@ -1,6 +1,12 @@
 package manager
 
-import "time"
+import (
+	"sync/atomic"
+	"time"
+
+	"github.com/pomerium/pomerium/internal/directory"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+)
 
 var (
 	defaultGroupRefreshInterval          = 10 * time.Minute
@@ -10,6 +16,9 @@ var (
 )
 
 type config struct {
+	authenticator                 Authenticator
+	directory                     directory.Provider
+	dataBrokerClient              databroker.DataBrokerServiceClient
 	groupRefreshInterval          time.Duration
 	groupRefreshTimeout           time.Duration
 	sessionRefreshGracePeriod     time.Duration
@@ -30,6 +39,27 @@ func newConfig(options ...Option) *config {
 
 // An Option customizes the configuration used for the identity manager.
 type Option func(*config)
+
+// WithAuthenticator sets the authenticator in the config.
+func WithAuthenticator(authenticator Authenticator) Option {
+	return func(cfg *config) {
+		cfg.authenticator = authenticator
+	}
+}
+
+// WithDirectoryProvider sets the directory provider in the config.
+func WithDirectoryProvider(directoryProvider directory.Provider) Option {
+	return func(cfg *config) {
+		cfg.directory = directoryProvider
+	}
+}
+
+// WithDataBrokerClient sets the databroker client in the config.
+func WithDataBrokerClient(dataBrokerClient databroker.DataBrokerServiceClient) Option {
+	return func(cfg *config) {
+		cfg.dataBrokerClient = dataBrokerClient
+	}
+}
 
 // WithGroupRefreshInterval sets the group refresh interval used by the manager.
 func WithGroupRefreshInterval(interval time.Duration) Option {
@@ -57,4 +87,22 @@ func WithSessionRefreshCoolOffDuration(dur time.Duration) Option {
 	return func(cfg *config) {
 		cfg.sessionRefreshCoolOffDuration = dur
 	}
+}
+
+type atomicConfig struct {
+	value atomic.Value
+}
+
+func newAtomicConfig(cfg *config) *atomicConfig {
+	ac := new(atomicConfig)
+	ac.Store(cfg)
+	return ac
+}
+
+func (ac *atomicConfig) Load() *config {
+	return ac.value.Load().(*config)
+}
+
+func (ac *atomicConfig) Store(cfg *config) {
+	ac.value.Store(cfg)
 }
