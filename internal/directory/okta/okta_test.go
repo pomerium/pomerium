@@ -40,7 +40,7 @@ func newMockOkta(srv *httptest.Server, userEmailToGroups map[string][]string) ht
 		})
 	})
 	r.Get("/api/v1/groups", func(w http.ResponseWriter, r *http.Request) {
-		lastUpdated := strings.Contains(r.URL.Query().Get("filter"), "lastUpdated")
+		lastUpdated := strings.Contains(r.URL.Query().Get("filter"), "lastUpdated ")
 		var groups []string
 		for group := range allGroups {
 			if lastUpdated && group != "user-updated" {
