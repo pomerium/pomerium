@@ -48,3 +48,13 @@ func GetUser(ctx context.Context, client databroker.DataBrokerServiceClient, use
 	}
 	return &u, nil
 }
+
+// Options are directory provider options.
+type Options struct {
+	ServiceAccount string
+	Provider       string
+	ProviderURL    string
+	ClientID       string
+	ClientSecret   string
+	QPS            float64
+}

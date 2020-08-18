@@ -24,17 +24,12 @@ type Group = directory.Group
 // A User is a directory User.
 type User = directory.User
 
+// Options are the options specific to the provider.
+type Options = directory.Options
+
 // A Provider provides user group directory information.
 type Provider interface {
 	UserGroups(ctx context.Context) ([]*Group, []*User, error)
-}
-
-// Options are the options specific to the provider.
-type Options struct {
-	ServiceAccount string
-	Provider       string
-	ProviderURL    string
-	QPS            float64
 }
 
 var globalProvider = struct {
@@ -59,11 +54,10 @@ func GetProvider(options Options) (provider Provider) {
 
 	switch options.Provider {
 	case azure.Name:
-		serviceAccount, err := azure.ParseServiceAccount(options.ServiceAccount)
+		serviceAccount, err := azure.ParseServiceAccount(options)
 		if err == nil {
 			return azure.New(azure.WithServiceAccount(serviceAccount))
 		}
-
 		log.Warn().
 			Str("service", "directory").
 			Str("provider", options.Provider).

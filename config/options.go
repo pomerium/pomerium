@@ -632,8 +632,9 @@ func (o *Options) Validate() error {
 	}
 
 	// if no service account was defined, there should not be any policies that
-	// assert group membership
-	if o.ServiceAccount == "" {
+	// assert group membership (except for azure which can be derived from the client
+	// id, secret and provider url)
+	if o.ServiceAccount == "" && o.Provider != "azure" {
 		for _, p := range o.Policies {
 			if len(p.AllowedGroups) != 0 {
 				return fmt.Errorf("config: `allowed_groups` requires `idp_service_account`")
