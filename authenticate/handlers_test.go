@@ -348,6 +348,14 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			authURL, _ := url.Parse(tt.authenticateURL)
 			a := &Authenticate{
 				state: newAtomicAuthenticateState(&authenticateState{
+					dataBrokerClient: mockDataBrokerServiceClient{
+						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+							return nil, fmt.Errorf("not implemented")
+						},
+						set: func(ctx context.Context, in *databroker.SetRequest, opts ...grpc.CallOption) (*databroker.SetResponse, error) {
+							return &databroker.SetResponse{Record: &databroker.Record{Data: in.Data}}, nil
+						},
+					},
 					redirectURL:      authURL,
 					sessionStore:     tt.session,
 					cookieCipher:     aead,
@@ -647,6 +655,7 @@ type mockDataBrokerServiceClient struct {
 
 	delete func(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	get    func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error)
+	set    func(ctx context.Context, in *databroker.SetRequest, opts ...grpc.CallOption) (*databroker.SetResponse, error)
 }
 
 func (m mockDataBrokerServiceClient) Delete(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
@@ -655,4 +664,8 @@ func (m mockDataBrokerServiceClient) Delete(ctx context.Context, in *databroker.
 
 func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 	return m.get(ctx, in, opts...)
+}
+
+func (m mockDataBrokerServiceClient) Set(ctx context.Context, in *databroker.SetRequest, opts ...grpc.CallOption) (*databroker.SetResponse, error) {
+	return m.set(ctx, in, opts...)
 }

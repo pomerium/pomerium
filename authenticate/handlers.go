@@ -478,10 +478,6 @@ func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, 
 
 func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) error {
 	state := a.state.Load()
-
-	if state.dataBrokerClient == nil {
-		return nil
-	}
 	return session.Delete(ctx, state.dataBrokerClient, sessionID)
 }
 
@@ -563,11 +559,6 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 
 func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState *sessions.State, accessToken *oauth2.Token) error {
 	state := a.state.Load()
-
-	if state.dataBrokerClient == nil {
-		return nil
-	}
-
 	options := a.options.Load()
 
 	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(options.CookieExpire))
