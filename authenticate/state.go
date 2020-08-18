@@ -56,7 +56,8 @@ func newAuthenticateState() *authenticateState {
 }
 
 func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, error) {
-	if err := ValidateOptions(cfg.Options); err != nil {
+	err := ValidateOptions(cfg.Options)
+	if err != nil {
 		return nil, err
 	}
 
@@ -71,7 +72,6 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	}
 
 	// shared state encoder setup
-	var err error
 	state.sharedEncoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey), cfg.Options.GetAuthenticateURL().Host)
 	if err != nil {
 		return nil, err
