@@ -14,8 +14,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 // ValidateOptions checks that configuration are complete and valid.
@@ -50,9 +48,6 @@ func ValidateOptions(o *config.Options) error {
 
 // Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
-	// dataBrokerClient is used to retrieve sessions
-	dataBrokerClient databroker.DataBrokerServiceClient
-
 	templates *template.Template
 
 	options  *config.AtomicOptions
@@ -62,39 +57,11 @@ type Authenticate struct {
 
 // New validates and creates a new authenticate service from a set of Options.
 func New(cfg *config.Config) (*Authenticate, error) {
-	if err := ValidateOptions(cfg.Options); err != nil {
-		return nil, err
-	}
-
-	dataBrokerConn, err := grpc.NewGRPCClientConn(
-		&grpc.Options{
-			Addr:                    cfg.Options.DataBrokerURL,
-			OverrideCertificateName: cfg.Options.OverrideCertificateName,
-			CA:                      cfg.Options.CA,
-			CAFile:                  cfg.Options.CAFile,
-			RequestTimeout:          cfg.Options.GRPCClientTimeout,
-			ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-			WithInsecure:            cfg.Options.GRPCInsecure,
-			ServiceName:             cfg.Options.Services,
-		})
-	if err != nil {
-		return nil, err
-	}
-
-	dataBrokerClient := databroker.NewDataBrokerServiceClient(dataBrokerConn)
-
 	a := &Authenticate{
-		// grpc client for cache
-		dataBrokerClient: dataBrokerClient,
-		templates:        template.Must(frontend.NewTemplates()),
-		options:          config.NewAtomicOptions(),
-		provider:         identity.NewAtomicAuthenticator(),
-		state:            newAtomicAuthenticateState(newAuthenticateState()),
-	}
-
-	err = a.updateProvider(cfg)
-	if err != nil {
-		return nil, err
+		templates: template.Must(frontend.NewTemplates()),
+		options:   config.NewAtomicOptions(),
+		provider:  identity.NewAtomicAuthenticator(),
+		state:     newAtomicAuthenticateState(newAuthenticateState()),
 	}
 
 	state, err := newAuthenticateStateFromConfig(cfg)
@@ -102,6 +69,11 @@ func New(cfg *config.Config) (*Authenticate, error) {
 		return nil, err
 	}
 	a.state.Store(state)
+
+	err = a.updateProvider(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	return a, nil
 }
@@ -114,13 +86,13 @@ func (a *Authenticate) OnConfigChange(cfg *config.Config) {
 
 	log.Info().Str("checksum", fmt.Sprintf("%x", cfg.Options.Checksum())).Msg("authenticate: updating options")
 	a.options.Store(cfg.Options)
-	if err := a.updateProvider(cfg); err != nil {
-		log.Error().Err(err).Msg("authenticate: failed to update identity provider")
-	}
 	if state, err := newAuthenticateStateFromConfig(cfg); err != nil {
 		log.Error().Err(err).Msg("authenticate: failed to update state")
 	} else {
 		a.state.Store(state)
+	}
+	if err := a.updateProvider(cfg); err != nil {
+		log.Error().Err(err).Msg("authenticate: failed to update identity provider")
 	}
 }
 
