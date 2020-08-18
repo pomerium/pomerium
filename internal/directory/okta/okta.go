@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"sort"
@@ -158,7 +159,7 @@ func (p *Provider) getGroups(ctx context.Context) ([]*directory.Group, error) {
 	q := u.Query()
 	q.Set("limit", strconv.Itoa(p.cfg.batchSize))
 	if p.lastUpdated != nil {
-		q.Set("filter", fmt.Sprintf(`lastUpdated+gt+"%[1]s"+or+lastMembershipUpdated+gt+"%[1]s"`, p.lastUpdated.UTC().Format(filterDateFormat)))
+		q.Set("filter", fmt.Sprintf(`lastUpdated gt "%[1]s" or lastMembershipUpdated gt "%[1]s"`, p.lastUpdated.UTC().Format(filterDateFormat)))
 	} else {
 		now := time.Now()
 		p.lastUpdated = &now
@@ -258,7 +259,8 @@ func (p *Provider) apiGet(ctx context.Context, uri string, out interface{}) (htt
 			continue
 		}
 		if res.StatusCode/100 != 2 {
-			return nil, fmt.Errorf("okta: error query api status_code=%d: %s", res.StatusCode, res.Status)
+			buf, _ := ioutil.ReadAll(res.Body)
+			return nil, fmt.Errorf("okta: error query api status_code=%d: %s", res.StatusCode, string(buf))
 		}
 		if err := json.NewDecoder(res.Body).Decode(out); err != nil {
 			return nil, err
