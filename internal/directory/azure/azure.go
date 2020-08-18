@@ -282,7 +282,39 @@ type ServiceAccount struct {
 }
 
 // ParseServiceAccount parses the service account in the config options.
-func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
+func ParseServiceAccount(options directory.Options) (*ServiceAccount, error) {
+	if options.ServiceAccount != "" {
+		return parseServiceAccountFromString(options.ServiceAccount)
+	}
+	return parseServiceAccountFromOptions(options.ClientID, options.ClientSecret, options.ProviderURL)
+}
+
+func parseServiceAccountFromOptions(clientID, clientSecret, providerURL string) (*ServiceAccount, error) {
+	serviceAccount := ServiceAccount{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+	}
+
+	var err error
+	serviceAccount.DirectoryID, err = parseDirectoryIDFromURL(providerURL)
+	if err != nil {
+		return nil, err
+	}
+
+	if serviceAccount.ClientID == "" {
+		return nil, fmt.Errorf("client_id is required")
+	}
+	if serviceAccount.ClientSecret == "" {
+		return nil, fmt.Errorf("client_secret is required")
+	}
+	if serviceAccount.DirectoryID == "" {
+		return nil, fmt.Errorf("directory_id is required")
+	}
+
+	return &serviceAccount, nil
+}
+
+func parseServiceAccountFromString(rawServiceAccount string) (*ServiceAccount, error) {
 	bs, err := base64.StdEncoding.DecodeString(rawServiceAccount)
 	if err != nil {
 		return nil, err
@@ -305,4 +337,18 @@ func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
 	}
 
 	return &serviceAccount, nil
+}
+
+func parseDirectoryIDFromURL(providerURL string) (string, error) {
+	u, err := url.Parse(providerURL)
+	if err != nil {
+		return "", err
+	}
+
+	pathParts := strings.SplitN(u.Path, "/", 3)
+	if len(pathParts) != 3 {
+		return "", fmt.Errorf("no directory id found in path")
+	}
+
+	return pathParts[1], nil
 }
