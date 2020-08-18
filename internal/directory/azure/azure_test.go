@@ -2,6 +2,7 @@ package azure
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -105,6 +106,43 @@ func Test(t *testing.T) {
 		{Id: "admin", Name: "Admin Group"},
 		{Id: "test", Name: "Test Group"},
 	}, groups)
+}
+
+func TestParseServiceAccount(t *testing.T) {
+	t.Run("by options", func(t *testing.T) {
+		serviceAccount, err := ParseServiceAccount(directory.Options{
+			ProviderURL:  "https://login.microsoftonline.com/0303f438-3c5c-4190-9854-08d3eb31bd9f/v2.0",
+			ClientID:     "CLIENT_ID",
+			ClientSecret: "CLIENT_SECRET",
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, &ServiceAccount{
+			ClientID:     "CLIENT_ID",
+			ClientSecret: "CLIENT_SECRET",
+			DirectoryID:  "0303f438-3c5c-4190-9854-08d3eb31bd9f",
+		}, serviceAccount)
+	})
+	t.Run("by service account", func(t *testing.T) {
+		serviceAccount, err := ParseServiceAccount(directory.Options{
+			ServiceAccount: base64.StdEncoding.EncodeToString([]byte(`{
+				"client_id": "CLIENT_ID",
+				"client_secret": "CLIENT_SECRET",
+				"directory_id": "0303f438-3c5c-4190-9854-08d3eb31bd9f"
+			}`)),
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, &ServiceAccount{
+			ClientID:     "CLIENT_ID",
+			ClientSecret: "CLIENT_SECRET",
+			DirectoryID:  "0303f438-3c5c-4190-9854-08d3eb31bd9f",
+		}, serviceAccount)
+	})
 }
 
 func mustParseURL(rawurl string) *url.URL {
