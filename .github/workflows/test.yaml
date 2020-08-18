@@ -138,3 +138,5 @@ jobs:
       - uses: pre-commit/action@release
         with:
           extra_args: --show-diff-on-failure --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
+        env:
+          SKIP: lint
