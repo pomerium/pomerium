@@ -129,6 +129,8 @@ func (c *Cache) update(cfg *config.Config) error {
 		Provider:       cfg.Options.Provider,
 		ProviderURL:    cfg.Options.ProviderURL,
 		QPS:            cfg.Options.QPS,
+		ClientID:       cfg.Options.ClientID,
+		ClientSecret:   cfg.Options.ClientSecret,
 	})
 
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(c.localGRPCConnection)
