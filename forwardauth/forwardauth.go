@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"sync/atomic"
-	"time"
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"github.com/gorilla/mux"
@@ -27,13 +26,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 )
 
-const (
-	// authenticate urls
-	dashboardPath = "/.pomerium"
-	signinURL     = "/.pomerium/sign_in"
-	signoutURL    = "/.pomerium/sign_out"
-	refreshURL    = "/.pomerium/refresh"
-)
+const signinURL = "/.pomerium/sign_in"
 
 // ForwardAuth stores all the information associated with proxying a request.
 type ForwardAuth struct {
@@ -68,16 +61,12 @@ type faState struct {
 	sharedKey    string
 	sharedCipher cipher.AEAD
 
-	authorizeURL             *url.URL
-	authenticateURL          *url.URL
-	authenticateDashboardURL *url.URL
-	authenticateSigninURL    *url.URL
-	authenticateSignoutURL   *url.URL
-	authenticateRefreshURL   *url.URL
+	authorizeURL          *url.URL
+	authenticateURL       *url.URL
+	authenticateSigninURL *url.URL
 
 	encoder         encoding.MarshalUnmarshaler
 	cookieSecret    []byte
-	refreshCooldown time.Duration
 	sessionStore    sessions.SessionStore
 	sessionLoaders  []sessions.SessionLoader
 	jwtClaimHeaders []string
@@ -105,16 +94,12 @@ func newFaStateFromConfig(cfg *config.Config) (*faState, error) {
 		return nil, err
 	}
 
-	state.refreshCooldown = cfg.Options.RefreshCooldown
 	state.jwtClaimHeaders = cfg.Options.JWTClaimsHeaders
 
 	// errors checked in validateOptions
 	state.authorizeURL, _ = urlutil.DeepCopy(cfg.Options.AuthorizeURL)
 	state.authenticateURL, _ = urlutil.DeepCopy(cfg.Options.AuthenticateURL)
-	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: dashboardPath})
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
-	state.authenticateSignoutURL = state.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
-	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
 
 	state.sessionStore, err = cookie.NewStore(func() cookie.Options {
 		return cookie.Options{
