@@ -1,7 +1,6 @@
 package forwardauth
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,34 +11,16 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
-var registerHandler = map[string]func(*ForwardAuth, *mux.Router){
-	ProxyTypeNginx:   registerNginxHandlers,
-	ProxyTypeTraefik: registerTraefikHandlers,
+// Router is the interface that setup handlers for forward auth requests flow.
+type Router interface {
+	Init(*ForwardAuth, *mux.Router)
 }
 
-// saveCallbackSession takes an encrypted per-route session token, and decrypts
-// it using the shared service key, then stores it the local session store.
-func (fa *ForwardAuth) saveCallbackSession(w http.ResponseWriter, r *http.Request, enctoken string) ([]byte, error) {
-	state := fa.state.Load()
-
-	// 1. extract the base64 encoded and encrypted JWT from query params
-	encryptedJWT, err := base64.URLEncoding.DecodeString(enctoken)
-	if err != nil {
-		return nil, fmt.Errorf("fowardauth: malfromed callback token: %w", err)
-	}
-	// 2. decrypt the JWT using the cipher using the _shared_ secret key
-	rawJWT, err := cryptutil.Decrypt(state.sharedCipher, encryptedJWT, nil)
-	if err != nil {
-		return nil, fmt.Errorf("fowardauth: callback token decrypt error: %w", err)
-	}
-	// 3. Save the decrypted JWT to the session store directly as a string, without resigning
-	if err = state.sessionStore.SaveSession(w, r, rawJWT); err != nil {
-		return nil, fmt.Errorf("fowardauth: callback session save failure: %w", err)
-	}
-	return rawJWT, nil
+var registerHandler = map[string]Router{
+	ProxyTypeNginx:   new(nginx),
+	ProxyTypeTraefik: new(traefik),
 }
 
 // registerFwdAuthHandlers returns a set of handlers that support using pomerium
@@ -55,7 +36,7 @@ func (fa *ForwardAuth) registerFwdAuthHandlers() http.Handler {
 	r.Use(fa.jwtClaimMiddleware)
 
 	proxyType := fa.state.Load().proxyType
-	registerHandler[proxyType](fa, r)
+	registerHandler[proxyType].Init(fa, r)
 	return r
 }
 

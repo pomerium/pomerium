@@ -10,18 +10,23 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-func registerTraefikHandlers(fa *ForwardAuth, r *mux.Router) {
+type traefik struct {
+	fa *ForwardAuth
+}
+
+func (t *traefik) Init(fa *ForwardAuth, r *mux.Router) {
+	t.fa = fa
 	// traefik 2: save the returned session post authenticate flow
-	r.Handle("/", httputil.HandlerFunc(fa.traefikCallback)).
+	r.Handle("/", httputil.HandlerFunc(t.traefikCallback)).
 		HeadersRegexp(httputil.HeaderForwardedURI, urlutil.QuerySessionEncrypted)
 
 	// traefik 1: verify and then start authenticate flow
-	r.Handle("/", fa.Verify(false))
+	r.Handle("/", t.fa.Verify(false))
 }
 
 // traefikCallback handles the post-authentication callback from
 // forwarding proxies that support the `X-Forwarded-Uri`.
-func (fa *ForwardAuth) traefikCallback(w http.ResponseWriter, r *http.Request) error {
+func (t *traefik) traefikCallback(w http.ResponseWriter, r *http.Request) error {
 	forwardedURL, err := url.Parse(r.Header.Get(httputil.HeaderForwardedURI))
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -30,7 +35,7 @@ func (fa *ForwardAuth) traefikCallback(w http.ResponseWriter, r *http.Request) e
 	redirectURLString := q.Get(urlutil.QueryRedirectURI)
 	encryptedSession := q.Get(urlutil.QuerySessionEncrypted)
 
-	if _, err := fa.saveCallbackSession(w, r, encryptedSession); err != nil {
+	if _, err := t.fa.saveCallbackSession(w, r, encryptedSession); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
