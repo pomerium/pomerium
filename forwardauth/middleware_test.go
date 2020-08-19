@@ -13,6 +13,7 @@ import (
 )
 
 func Test_jwtClaimMiddleware(t *testing.T) {
+	t.Parallel()
 	claimHeaders := []string{"email", "groups", "missing"}
 	sharedKey := "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 

@@ -26,6 +26,16 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 )
 
+const (
+	// ProxyTypeNginx is the name of nginx proxy.
+	ProxyTypeNginx = config.ProxyTypeNginx
+	// ProxyTypeTraefik is the name of traefik proxy.
+	ProxyTypeTraefik = config.ProxyTypeTraefik
+)
+
+// ProxyTypes contains all supported proxy types.
+var ProxyTypes = config.ProxyTypes
+
 const signinURL = "/.pomerium/sign_in"
 
 // ForwardAuth stores all the information associated with proxying a request.
@@ -58,6 +68,7 @@ func New(cfg *config.Config) (*ForwardAuth, error) {
 }
 
 type faState struct {
+	proxyType    string
 	sharedKey    string
 	sharedCipher cipher.AEAD
 
@@ -84,6 +95,7 @@ func newFaStateFromConfig(cfg *config.Config) (*faState, error) {
 	}
 
 	state := new(faState)
+	state.proxyType = cfg.Options.ForwardAuthType
 	state.sharedKey = cfg.Options.SharedKey
 	state.sharedCipher, _ = cryptutil.NewAEADCipherFromBase64(cfg.Options.SharedKey)
 	state.cookieSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
@@ -101,15 +113,7 @@ func newFaStateFromConfig(cfg *config.Config) (*faState, error) {
 	state.authenticateURL, _ = urlutil.DeepCopy(cfg.Options.AuthenticateURL)
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 
-	state.sessionStore, err = cookie.NewStore(func() cookie.Options {
-		return cookie.Options{
-			Name:     cfg.Options.CookieName,
-			Domain:   cfg.Options.CookieDomain,
-			Secure:   cfg.Options.CookieSecure,
-			HTTPOnly: cfg.Options.CookieHTTPOnly,
-			Expire:   cfg.Options.CookieExpire,
-		}
-	}, state.encoder)
+	state.sessionStore, err = cookie.NewStore(cfg.Options.CookieOption, state.encoder)
 	if err != nil {
 		return nil, err
 	}
@@ -118,16 +122,9 @@ func newFaStateFromConfig(cfg *config.Config) (*faState, error) {
 		header.NewStore(state.encoder, httputil.AuthorizationTypePomerium),
 		queryparam.NewStore(state.encoder, "pomerium_session")}
 
-	authzConn, err := grpc.GetGRPCClientConn("authorize", &grpc.Options{
-		Addr:                    state.authorizeURL,
-		OverrideCertificateName: cfg.Options.OverrideCertificateName,
-		CA:                      cfg.Options.CA,
-		CAFile:                  cfg.Options.CAFile,
-		RequestTimeout:          cfg.Options.GRPCClientTimeout,
-		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GRPCInsecure,
-		ServiceName:             cfg.Options.Services,
-	})
+	grpcOpts := cfg.Options.GRPCOptions()
+	grpcOpts.Addr = state.authorizeURL
+	authzConn, err := grpc.GetGRPCClientConn("authorize", grpcOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -177,6 +174,7 @@ func (fa *ForwardAuth) OnConfigChange(cfg *config.Config) {
 		return
 	}
 	fa.state.Store(state)
+	fa.Mount(fa.currentRouter.Load().(*mux.Router))
 }
 
 func (fa *ForwardAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {

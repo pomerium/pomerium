@@ -28,10 +28,12 @@ import (
 	"github.com/pomerium/pomerium/internal/directory/onelogin"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
@@ -227,6 +229,7 @@ type Options struct {
 	// these requests with this switch
 	ForwardAuthURLString string   `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
 	ForwardAuthURL       *url.URL `yaml:",omitempty"`
+	ForwardAuthType      string   `mapstructure:"forward_auth_type", yaml:"forward_auth_type,omitempty"`
 
 	// CacheURL is the routable destination of the cache service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
@@ -301,6 +304,7 @@ var defaultOptions = Options{
 	RefreshDirectoryInterval:        10 * time.Minute,
 	RefreshDirectoryTimeout:         1 * time.Minute,
 	QPS:                             1.0,
+	ForwardAuthType:                 ProxyTypeNginx,
 
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
@@ -561,6 +565,11 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad forward-auth-url %s : %w", o.ForwardAuthURLString, err)
 		}
 		o.ForwardAuthURL = u
+		switch o.ForwardAuthType {
+		case ProxyTypeNginx, ProxyTypeTraefik:
+		default:
+			return fmt.Errorf("config: bad forward-auth-type: %s, supported types: %v", o.ForwardAuthType, ProxyTypes)
+		}
 	}
 
 	if o.PolicyFile != "" {
@@ -926,6 +935,28 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.AutocertDir != nil {
 		o.AutocertOptions.Folder = settings.GetAutocertDir()
+	}
+}
+
+func (o *Options) GRPCOptions() *grpc.Options {
+	return &grpc.Options{
+		OverrideCertificateName: o.OverrideCertificateName,
+		CA:                      o.CA,
+		CAFile:                  o.CAFile,
+		RequestTimeout:          o.GRPCClientTimeout,
+		ClientDNSRoundRobin:     o.GRPCClientDNSRoundRobin,
+		WithInsecure:            o.GRPCInsecure,
+		ServiceName:             o.Services,
+	}
+}
+
+func (o *Options) CookieOption() cookie.Options {
+	return cookie.Options{
+		Name:     o.CookieName,
+		Domain:   o.CookieDomain,
+		Secure:   o.CookieSecure,
+		HTTPOnly: o.CookieHTTPOnly,
+		Expire:   o.CookieExpire,
 	}
 }
 

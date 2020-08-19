@@ -17,7 +17,14 @@ const (
 	StorageRedisName = "redis"
 	// StorageInMemoryName is the name of the in-memory storage backend
 	StorageInMemoryName = "memory"
+	// ProxyTypeNginx is the name of nginx proxy.
+	ProxyTypeNginx = "nginx"
+	// ProxyTypeTraefik is the name of traefik proxy.
+	ProxyTypeTraefik = "traefik"
 )
+
+// ProxyTypes contains all supported proxy types.
+var ProxyTypes = []string{ProxyTypeNginx, ProxyTypeTraefik}
 
 // IsValidService checks to see if a service is a valid service mode
 func IsValidService(s string) bool {
@@ -27,7 +34,8 @@ func IsValidService(s string) bool {
 		ServiceAuthenticate,
 		ServiceAuthorize,
 		ServiceCache,
-		ServiceProxy:
+		ServiceProxy,
+		ServiceForwardAuth:
 		return true
 	}
 	return false

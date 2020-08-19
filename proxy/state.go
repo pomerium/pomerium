@@ -70,15 +70,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	state.authenticateSignoutURL = state.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
 	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
 
-	state.sessionStore, err = cookie.NewStore(func() cookie.Options {
-		return cookie.Options{
-			Name:     cfg.Options.CookieName,
-			Domain:   cfg.Options.CookieDomain,
-			Secure:   cfg.Options.CookieSecure,
-			HTTPOnly: cfg.Options.CookieHTTPOnly,
-			Expire:   cfg.Options.CookieExpire,
-		}
-	}, state.encoder)
+	state.sessionStore, err = cookie.NewStore(cfg.Options.CookieOption, state.encoder)
 	if err != nil {
 		return nil, err
 	}
@@ -87,16 +79,9 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 		header.NewStore(state.encoder, httputil.AuthorizationTypePomerium),
 		queryparam.NewStore(state.encoder, "pomerium_session")}
 
-	authzConn, err := grpc.GetGRPCClientConn("authorize", &grpc.Options{
-		Addr:                    state.authorizeURL,
-		OverrideCertificateName: cfg.Options.OverrideCertificateName,
-		CA:                      cfg.Options.CA,
-		CAFile:                  cfg.Options.CAFile,
-		RequestTimeout:          cfg.Options.GRPCClientTimeout,
-		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GRPCInsecure,
-		ServiceName:             cfg.Options.Services,
-	})
+	grpcOpts := cfg.Options.GRPCOptions()
+	grpcOpts.Addr = state.authorizeURL
+	authzConn, err := grpc.GetGRPCClientConn("authorize", grpcOpts)
 	if err != nil {
 		return nil, err
 	}

@@ -259,6 +259,17 @@ If `false`
 
 Forward authentication creates an endpoint that can be used with third-party proxies that do not have rich access control capabilities ([nginx](http://nginx.org/en/docs/http/ngx_http_auth_request_module.html), [nginx-ingress](https://kubernetes.github.io/ingress-nginx/examples/auth/oauth-external-auth/), [ambassador](https://www.getambassador.io/reference/services/auth-service/), [traefik](https://docs.traefik.io/middlewares/forwardauth/)). Forward authentication allows you to delegate authentication and authorization for each request to Pomerium.
 
+### Forward Auth Type
+
+- Environmental Variable: `FORWARD_AUTH_TYPE`
+- Config File Key: `forward_auth_type`
+- Type: `string`
+- Example: `nginx` `traefik`
+- Optional
+- Default `nginx`
+
+The third-party proxy that forward auth will handle request for, default `nginx`, available: `nginx`, `traefik`.
+
 #### Request flow
 
 ![pomerium forward auth request flow](./img/auth-flow-diagram.svg)
