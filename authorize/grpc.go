@@ -345,6 +345,8 @@ func logAuthorizeCheck(
 		evt = evt.Bool("allow", reply.Status == http.StatusOK)
 		evt = evt.Int("status", reply.Status)
 		evt = evt.Str("message", reply.Message)
+		evt = evt.Str("user", reply.UserEmail)
+		evt = evt.Strs("groups", reply.UserGroups)
 	}
 
 	// potentially sensitive, only log if debug mode
