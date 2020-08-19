@@ -45,7 +45,7 @@ func (fa *ForwardAuth) registerFwdAuthHandlers() http.Handler {
 	r.Use(func(h http.Handler) http.Handler {
 		return sessions.RetrieveSession(fa.state.Load().sessionStore)(h)
 	})
-	r.Use(fa.jwtClaimMiddleware(true))
+	r.Use(fa.jwtClaimMiddleware)
 
 	// NGNIX's forward-auth capabilities are split across two settings:
 	// `auth-url` and `auth-signin` which correspond to `verify` and `auth-url`

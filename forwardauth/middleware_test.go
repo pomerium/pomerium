@@ -42,7 +42,7 @@ func Test_jwtClaimMiddleware(t *testing.T) {
 	ctx = sessions.NewContext(ctx, string(state), nil)
 	r = r.WithContext(ctx)
 	w := httptest.NewRecorder()
-	proxyHandler := a.jwtClaimMiddleware(true)(handler)
+	proxyHandler := a.jwtClaimMiddleware(handler)
 	proxyHandler.ServeHTTP(w, r)
 
 	t.Run("missing claim", func(t *testing.T) {
