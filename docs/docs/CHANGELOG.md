@@ -16,7 +16,7 @@
 ### Documentation
 - docs: prepare for enterprise / oss split @desimone GH-1239
 - docs: add / redirect @desimone GH-1242
-- Docs/enterprise button @desimone GH-1246
+- docs: remove enterprise button @desimone GH-1246
 - docs: image, sitemap and redirect fixes @travisgroth GH-1265
 - docs: fix in-action video @travisgroth GH-1269
 - docs: use .com sitemap hostname @desimone GH-1275
