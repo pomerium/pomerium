@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/caddyserver/certmagic"
 
@@ -22,7 +23,7 @@ type Manager struct {
 	mu        sync.RWMutex
 	config    *config.Config
 	certmagic *certmagic.Config
-	acmeMgr   *certmagic.ACMEManager
+	acmeMgr   atomic.Value
 	srv       *http.Server
 
 	config.ChangeDispatcher
@@ -74,7 +75,7 @@ func (mgr *Manager) getCertMagicConfig(options *config.Options) (*certmagic.Conf
 	}
 	acmeMgr.DisableTLSALPNChallenge = true
 	mgr.certmagic.Issuer = acmeMgr
-	mgr.acmeMgr = acmeMgr
+	mgr.acmeMgr.Store(acmeMgr)
 
 	return mgr.certmagic, nil
 }
@@ -166,9 +167,7 @@ func (mgr *Manager) updateServer(cfg *config.Config) {
 }
 
 func (mgr *Manager) handleHTTPChallenge(w http.ResponseWriter, r *http.Request) bool {
-	mgr.mu.RLock()
-	acmeMgr := mgr.acmeMgr
-	mgr.mu.RUnlock()
+	acmeMgr := mgr.acmeMgr.Load().(*certmagic.ACMEManager)
 	if acmeMgr == nil {
 		return false
 	}
