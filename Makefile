@@ -82,7 +82,7 @@ lint: ## Verifies `golint` passes.
 .PHONY: test
 test: ## Runs the go tests.
 	@echo "==> $@"
-	@$(GO) test -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
+	@$(GO) test -count=1 -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
 	@opa test ./authorize/evaluator/opa/policy
 
 .PHONY: spellcheck

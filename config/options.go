@@ -564,11 +564,6 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad forward-auth-url %s : %w", o.ForwardAuthURLString, err)
 		}
 		o.ForwardAuthURL = u
-		switch o.ForwardAuthType {
-		case ForwardingProxyNginx, ForwardingProxyTraefik:
-		default:
-			return fmt.Errorf("config: %s is required when forward-auth-url is set, supported types: %v\", o.ForwardAuthType, ForwardingProxyTypes", o.ForwardAuthType, ForwardingProxyTypes)
-		}
 	}
 
 	if o.PolicyFile != "" {

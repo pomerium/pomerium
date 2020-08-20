@@ -53,24 +53,24 @@ func (fa *ForwardAuth) Mount(r *mux.Router) {
 
 // saveCallbackSession takes an encrypted per-route session token, and decrypts
 // it using the shared service key, then stores it the local session store.
-func (fa *ForwardAuth) saveCallbackSession(w http.ResponseWriter, r *http.Request, enctoken string) ([]byte, error) {
+func (fa *ForwardAuth) saveCallbackSession(w http.ResponseWriter, r *http.Request, enctoken string) error {
 	state := fa.state.Load()
 
 	// 1. extract the base64 encoded and encrypted JWT from query params
 	encryptedJWT, err := base64.URLEncoding.DecodeString(enctoken)
 	if err != nil {
-		return nil, fmt.Errorf("fowardauth: malfromed callback token: %w", err)
+		return fmt.Errorf("fowardauth: malfromed callback token: %w", err)
 	}
 	// 2. decrypt the JWT using the cipher using the _shared_ secret key
 	rawJWT, err := cryptutil.Decrypt(state.sharedCipher, encryptedJWT, nil)
 	if err != nil {
-		return nil, fmt.Errorf("fowardauth: callback token decrypt error: %w", err)
+		return fmt.Errorf("fowardauth: callback token decrypt error: %w", err)
 	}
 	// 3. Save the decrypted JWT to the session store directly as a string, without resigning
 	if err = state.sessionStore.SaveSession(w, r, rawJWT); err != nil {
-		return nil, fmt.Errorf("fowardauth: callback session save failure: %w", err)
+		return fmt.Errorf("fowardauth: callback session save failure: %w", err)
 	}
-	return rawJWT, nil
+	return nil
 }
 
 // New returns new ForwardAuth instance from given config.

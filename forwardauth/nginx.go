@@ -50,7 +50,7 @@ func (n *nginx) nginxPostCallbackRedirect(w http.ResponseWriter, r *http.Request
 // to their originally desired location.
 func (n *nginx) nginxCallback(w http.ResponseWriter, r *http.Request) error {
 	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
-	if _, err := n.fa.saveCallbackSession(w, r, encryptedSession); err != nil {
+	if err := n.fa.saveCallbackSession(w, r, encryptedSession); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")

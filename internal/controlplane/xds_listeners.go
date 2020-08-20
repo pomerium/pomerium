@@ -419,10 +419,10 @@ func getAllRouteableDomains(options *config.Options, addr string) []string {
 				lookup[h] = struct{}{}
 			}
 		}
-		if options.ForwardAuthURL != nil {
-			for _, h := range urlutil.GetDomainsForURL(options.GetForwardAuthURL()) {
-				lookup[h] = struct{}{}
-			}
+	}
+	if config.IsForwardAuth(options.Services) && options.ForwardAuthURL != nil && addr == options.Addr {
+		for _, h := range urlutil.GetDomainsForURL(options.GetForwardAuthURL()) {
+			lookup[h] = struct{}{}
 		}
 	}
 

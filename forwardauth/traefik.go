@@ -39,7 +39,7 @@ func (t *traefik) traefikCallback(w http.ResponseWriter, r *http.Request) error 
 	redirectURLString := q.Get(urlutil.QueryRedirectURI)
 	encryptedSession := q.Get(urlutil.QuerySessionEncrypted)
 
-	if _, err := t.fa.saveCallbackSession(w, r, encryptedSession); err != nil {
+	if err := t.fa.saveCallbackSession(w, r, encryptedSession); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")

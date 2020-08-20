@@ -53,8 +53,8 @@ func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_co
 	if config.IsAuthenticate(options.Services) && hostMatchesDomain(options.GetAuthenticateURL(), domain) {
 		routes = append(routes, buildControlPlanePathRoute(options.AuthenticateCallbackPath))
 	}
-	// if we're the proxy and this is the forward-auth url
-	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {
+	// if we're the forward-auth
+	if config.IsForwardAuth(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {
 		routes = append(routes, buildControlPlanePrefixRoute("/"))
 	}
 	return routes

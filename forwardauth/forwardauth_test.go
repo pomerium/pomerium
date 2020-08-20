@@ -105,9 +105,7 @@ func TestForwardAuth(t *testing.T) {
 		{"bad nginx callback failed to set session", []string{ForwardingProxyNginx}, nil, http.MethodGet, nil, map[string]string{urlutil.QueryRedirectURI: "https://some.domain.example/", urlutil.QuerySessionEncrypted: goodEncryptionString + "nope"}, "https://some.domain.example/verify", "https://some.domain.example", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, allowClient, http.StatusBadRequest, ""},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			for _, typ := range tt.ForwardAuthTypes {
 				opts := testOptions(t)
 				opts.ForwardAuthType = typ

@@ -44,9 +44,6 @@ func Test_Validate(t *testing.T) {
 	invalidStorageType.DataBrokerStorageType = "foo"
 	missingStorageDSN := testOptions()
 	missingStorageDSN.DataBrokerStorageType = "redis"
-	invalidForwardAuthType := testOptions()
-	invalidForwardAuthType.ForwardAuthURLString = "https://forwardauth.example.com"
-	invalidForwardAuthType.ForwardAuthType = "invalid"
 	goodForwardAuth := testOptions()
 	goodForwardAuth.ForwardAuthURLString = "https://forwardauth.example.com"
 	goodForwardAuth.ForwardAuthType = ForwardingProxyTraefik
@@ -64,7 +61,6 @@ func Test_Validate(t *testing.T) {
 		{"invalid databroker storage type", invalidStorageType, true},
 		{"missing databroker storage dsn", missingStorageDSN, true},
 		{"good forward auth", goodForwardAuth, false},
-		{"invalid forward auth type", invalidForwardAuthType, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
