@@ -197,7 +197,7 @@ func setupProxy(src config.Source, cfg *config.Config, controlPlane *controlplan
 }
 
 func setupForwardAuth(src config.Source, cfg *config.Config, controlPlane *controlplane.Server) error {
-	if !config.IsForwardAuth(cfg.Options.Services) {
+	if !config.IsForwardAuth(cfg.Options.Services) || cfg.Options.ForwardAuthURLString == "" {
 		return nil
 	}
 
