@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.10.1
+
+### Changes
+- config: omit empty subpolicies in yaml/json @travisgroth GH-1230
+
+### New
+- authorize: add databroker url check @desimone GH-1231
+- azure: support deriving credentials from client id, client secret and provider url @calebdoxsey GH-1300
+
+### Fixed
+- autocert: fix  bootstrapped cache store path @desimone GH-1291
+- authorize: log users and groups @desimone GH-1303
+
+### Documentation
+- docs: prepare for enterprise / oss split @desimone GH-1239
+- docs: add / redirect @desimone GH-1242
+- Docs/enterprise button @desimone GH-1246
+- docs: image, sitemap and redirect fixes @travisgroth GH-1265
+- docs: fix in-action video @travisgroth GH-1269
+- docs: use .com sitemap hostname @desimone GH-1275
+
 ## v0.10.0
 
 ### Changes
