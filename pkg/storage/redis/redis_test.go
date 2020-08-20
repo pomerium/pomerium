@@ -48,12 +48,12 @@ func tlsConfig(rawURL string, t *testing.T) *tls.Config {
 	return tlsConfig
 }
 
-func runWithRedisDockerImage(repo, tag string, env []string, withTLS bool, testFunc func(t *testing.T), t *testing.T) {
+func runWithRedisDockerImage(t *testing.T, runOpts *dockertest.RunOptions, withTLS bool, testFunc func(t *testing.T)) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		t.Fatalf("Could not connect to docker: %s", err)
 	}
-	resource, err := pool.Run(repo, tag, env)
+	resource, err := pool.RunWithOptions(runOpts)
 	if err != nil {
 		t.Fatalf("Could not start resource: %s", err)
 	}
@@ -88,27 +88,29 @@ func TestDB(t *testing.T) {
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}
-	redisTLSEnv := []string{
-		"ALLOW_EMPTY_PASSWORD=yes",
-		"REDIS_TLS_ENABLED=yes",
-		"REDIS_TLS_CERT_FILE=/tls/redis.crt",
-		"REDIS_TLS_KEY_FILE=/tls/redis.key",
-		"REDIS_TLS_CA_FILE=/tls/ca.crt",
+
+	cwd, err := os.Getwd()
+	assert.NoError(t, err)
+
+	tlsCmd := []string{
+		"--port", "0",
+		"--tls-port", "6379",
+		"--tls-cert-file", "/tls/redis.crt",
+		"--tls-key-file", "/tls/redis.key",
+		"--tls-ca-cert-file", "/tls/ca.crt",
 	}
 	tests := []struct {
 		name    string
-		repo    string
-		tag     string
-		env     []string
 		withTLS bool
+		runOpts *dockertest.RunOptions
 	}{
-		{"redis", "redis", "latest", nil, false},
-		{"redis TLS", "gnouc/pomerium-redis-tls", "latest", redisTLSEnv, true},
+		{"redis", false, &dockertest.RunOptions{Repository: "redis", Tag: "latest"}},
+		{"redis TLS", true, &dockertest.RunOptions{Repository: "redis", Tag: "latest", Cmd: tlsCmd, Mounts: []string{cwd + "/testdata/tls:/tls"}}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			runWithRedisDockerImage(tc.repo, tc.tag, tc.env, tc.withTLS, testDB, t)
+			runWithRedisDockerImage(t, tc.runOpts, tc.withTLS, testDB)
 		})
 	}
 }
