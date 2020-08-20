@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -124,40 +122,4 @@ func Test_jwtClaimMiddleware(t *testing.T) {
 		}
 	})
 
-}
-
-func TestProxy_SetResponseHeaders(t *testing.T) {
-	t.Parallel()
-	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		var sb strings.Builder
-		for k, v := range r.Header {
-			k = strings.ToLower(k)
-			for _, h := range v {
-				sb.WriteString(fmt.Sprintf("%v: %v\n", k, h))
-			}
-		}
-		fmt.Fprint(w, sb.String())
-		w.WriteHeader(http.StatusOK)
-	})
-	tests := []struct {
-		name        string
-		setHeaders  map[string]string
-		wantHeaders string
-	}{
-		{"good", map[string]string{"x-gonna": "give-it-to-ya"}, "x-gonna: give-it-to-ya\n"},
-		{"nil", nil, ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			w := httptest.NewRecorder()
-			got := SetResponseHeaders(tt.setHeaders)(fn)
-			got.ServeHTTP(w, r)
-			if diff := cmp.Diff(w.Body.String(), tt.wantHeaders); diff != "" {
-				t.Errorf("SetResponseHeaders() :\n %s", diff)
-			}
-		})
-	}
 }

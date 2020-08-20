@@ -104,20 +104,6 @@ func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorize
 	return ar, nil
 }
 
-// SetResponseHeaders sets a map of response headers.
-func SetResponseHeaders(headers map[string]string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "proxy.SetResponseHeaders")
-			defer span.End()
-			for key, val := range headers {
-				r.Header.Set(key, val)
-			}
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
-
 // jwtClaimMiddleware logs and propagates JWT claim information via request headers
 //
 // if returnJWTInfo is set to true, it will also return JWT claim information in the response
