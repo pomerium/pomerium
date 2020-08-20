@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"testing"
@@ -450,7 +451,6 @@ func TestPassIdentityHeaders(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			client := testcluster.NewHTTPClient()
 			res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io"+tc.path),
@@ -474,4 +474,22 @@ func TestPassIdentityHeaders(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestForwardAuth(t *testing.T) {
+	ctx := mainCtx
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	client := testcluster.NewHTTPClient()
+	res, err := flows.Authenticate(ctx, client, mustParseURL("https://fa-httpdetails.localhost.pomerium.io/by-user"),
+		flows.WithForwardAuth(true), flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
+	if !assert.NoError(t, err, "unexpected http error") {
+		return
+	}
+	defer res.Body.Close()
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+	b, _ := ioutil.ReadAll(res.Body)
+	t.Logf("%#v\n", res)
+	t.Log(string(b))
 }

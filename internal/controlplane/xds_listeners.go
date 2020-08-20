@@ -40,7 +40,7 @@ func init() {
 func buildListeners(options *config.Options) []*envoy_config_listener_v3.Listener {
 	var listeners []*envoy_config_listener_v3.Listener
 
-	if config.IsAuthenticate(options.Services) || config.IsProxy(options.Services) {
+	if config.IsAuthenticate(options.Services) || config.IsProxy(options.Services) || config.IsForwardAuth(options.Services) {
 		listeners = append(listeners, buildMainListener(options))
 	}
 

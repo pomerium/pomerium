@@ -380,7 +380,6 @@ local PomeriumNodePortServce = function() {
 
 local PomeriumIngress = function() {
   local proxyHosts = [
-    'forward-authenticate.localhost.pomerium.io',
     'httpecho.localhost.pomerium.io',
     'httpdetails.localhost.pomerium.io',
     'restricted-httpdetails.localhost.pomerium.io',
@@ -417,6 +416,20 @@ local PomeriumIngress = function() {
               path: '/',
               backend: {
                 serviceName: 'authenticate',
+                servicePort: 'https',
+              },
+            },
+          ],
+        },
+      },
+      {
+        host: 'forward-authenticate.localhost.pomerium.io',
+        http: {
+          paths: [
+            {
+              path: '/',
+              backend: {
+                serviceName: 'forwardauth',
                 servicePort: 'https',
               },
             },
@@ -502,6 +515,8 @@ local PomeriumForwardAuthIngress = function() {
     PomeriumDeployment('cache'),
     PomeriumService('proxy'),
     PomeriumDeployment('proxy'),
+    PomeriumService('forwardauth'),
+    PomeriumDeployment('forwardauth'),
     PomeriumNodePortServce(),
     PomeriumIngress(),
     PomeriumForwardAuthIngress(),

@@ -27,6 +27,7 @@ type authenticateConfig struct {
 	groups          []string
 	tokenExpiration time.Duration
 	apiPath         string
+	forwardAuth     bool
 }
 
 // An AuthenticateOption is an option for authentication.
@@ -42,6 +43,13 @@ func getAuthenticateConfig(options ...AuthenticateOption) *authenticateConfig {
 		}
 	}
 	return cfg
+}
+
+// WithForwardAuth enables/disables forward auth.
+func WithForwardAuth(fa bool) AuthenticateOption {
+	return func(cfg *authenticateConfig) {
+		cfg.forwardAuth = fa
+	}
 }
 
 // WithEmail sets the email to use.
@@ -169,7 +177,7 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 		}
 	}
 
-	// (4) back to authenticate
+	// (4) back to authenticate or forward auth
 	for req.URL.Hostname() == authenticateHostname {
 		res, err = client.Do(req)
 		if err != nil {
@@ -184,10 +192,27 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 	}
 
 	// (5) finally to callback
-	if req.URL.Path != pomeriumCallbackPath {
+	if !cfg.forwardAuth && req.URL.Path != pomeriumCallbackPath {
 		return nil, fmt.Errorf("expected to redirect back to %s, but got %s", pomeriumCallbackPath, req.URL.String())
 	}
 
+	if cfg.forwardAuth {
+		for {
+			res, err = client.Do(req)
+			if err != nil {
+				return nil, err
+			}
+			defer res.Body.Close()
+			if res.StatusCode != 302 {
+				break
+			}
+			req, err = requestFromRedirectResponse(ctx, res, req)
+			if err != nil {
+				return nil, fmt.Errorf("expected redirect to %s: %w", originalHostname, err)
+			}
+		}
+		return res, err
+	}
 	res, err = client.Do(req)
 	if err != nil {
 		return nil, err
