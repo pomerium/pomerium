@@ -27,14 +27,14 @@ import (
 )
 
 const (
-	// ProxyTypeNginx is the name of nginx proxy.
-	ProxyTypeNginx = config.ProxyTypeNginx
-	// ProxyTypeTraefik is the name of traefik proxy.
-	ProxyTypeTraefik = config.ProxyTypeTraefik
+	// ForwardingProxyNginx is the name of nginx proxy.
+	ForwardingProxyNginx = config.ForwardingProxyNginx
+	// ForwardingProxyTraefik is the name of traefik proxy.
+	ForwardingProxyTraefik = config.ForwardingProxyTraefik
 )
 
-// ProxyTypes contains all supported proxy types.
-var ProxyTypes = config.ProxyTypes
+// ForwardingProxyTypes contains all supported proxy types.
+var ForwardingProxyTypes = config.ForwardingProxyTypes
 
 const signinURL = "/.pomerium/sign_in"
 
@@ -135,7 +135,7 @@ func newFaStateFromConfig(cfg *config.Config) (*faState, error) {
 	state.authenticateURL, _ = urlutil.DeepCopy(cfg.Options.AuthenticateURL)
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 
-	state.sessionStore, err = cookie.NewStore(cfg.Options.CookieOption, state.encoder)
+	state.sessionStore, err = cookie.NewStore(cfg.Options.CookieOptions, state.encoder)
 	if err != nil {
 		return nil, err
 	}
@@ -173,14 +173,21 @@ func (aps *atomicFaState) Store(state *faState) {
 // a proper ForwardAuth instance.
 func validateOptions(o *config.Options) error {
 	if err := urlutil.ValidateURL(o.ForwardAuthURL); err != nil {
-		return fmt.Errorf("proxy: invalid 'FORWARD_AUTH_URL': %w", err)
+		return fmt.Errorf("forwardauth: invalid 'FORWARD_AUTH_URL': %w", err)
 	}
+
+	switch o.ForwardAuthType {
+	case ForwardingProxyNginx, ForwardingProxyTraefik:
+	default:
+		return fmt.Errorf("forwardauth: bad forward-auth-type: %s, supported types: %v", o.ForwardAuthType, ForwardingProxyTypes)
+	}
+
 	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
-		return fmt.Errorf("proxy: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
+		return fmt.Errorf("forwardauth: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
 	}
 
 	if err := urlutil.ValidateURL(o.AuthorizeURL); err != nil {
-		return fmt.Errorf("proxy: invalid 'AUTHORIZE_SERVICE_URL': %w", err)
+		return fmt.Errorf("forwardauth: invalid 'AUTHORIZE_SERVICE_URL': %w", err)
 	}
 	return nil
 }

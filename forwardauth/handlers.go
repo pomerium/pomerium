@@ -13,14 +13,16 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-// Router is the interface that setup handlers for forward auth requests flow.
+// Router is the interface used to setup handlers related to forward auth requests flow.
 type Router interface {
+	// Init initializes handlers associated with the mux router.
+	// Theses handlers will handle the forward auth requests flow.
 	Init(*ForwardAuth, *mux.Router)
 }
 
 var registerHandler = map[string]Router{
-	ProxyTypeNginx:   new(nginx),
-	ProxyTypeTraefik: new(traefik),
+	ForwardingProxyNginx:   new(nginx),
+	ForwardingProxyTraefik: new(traefik),
 }
 
 // registerFwdAuthHandlers returns a set of handlers that support using pomerium

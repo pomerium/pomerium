@@ -16,6 +16,10 @@ type traefik struct {
 
 func (t *traefik) Init(fa *ForwardAuth, r *mux.Router) {
 	t.fa = fa
+
+	// NOTE: Route order matters here which makes the request flow confusing
+	//       to reason about so each step has a postfix order step.
+
 	// traefik 2: save the returned session post authenticate flow
 	r.Handle("/", httputil.HandlerFunc(t.traefikCallback)).
 		HeadersRegexp(httputil.HeaderForwardedURI, urlutil.QuerySessionEncrypted)

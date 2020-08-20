@@ -70,7 +70,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	state.authenticateSignoutURL = state.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
 	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
 
-	state.sessionStore, err = cookie.NewStore(cfg.Options.CookieOption, state.encoder)
+	state.sessionStore, err = cookie.NewStore(cfg.Options.CookieOptions, state.encoder)
 	if err != nil {
 		return nil, err
 	}

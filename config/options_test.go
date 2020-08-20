@@ -49,7 +49,7 @@ func Test_Validate(t *testing.T) {
 	invalidForwardAuthType.ForwardAuthType = "invalid"
 	goodForwardAuth := testOptions()
 	goodForwardAuth.ForwardAuthURLString = "https://forwardauth.example.com"
-	goodForwardAuth.ForwardAuthType = ProxyTypeTraefik
+	goodForwardAuth.ForwardAuthType = ForwardingProxyTraefik
 
 	tests := []struct {
 		name     string
@@ -251,7 +251,6 @@ func TestOptionsFromViper(t *testing.T) {
 				RefreshDirectoryTimeout:  1 * time.Minute,
 				RefreshDirectoryInterval: 10 * time.Minute,
 				QPS:                      1.0,
-				ForwardAuthType:          ProxyTypeNginx,
 				DataBrokerStorageType:    "memory",
 			},
 			false},
@@ -270,7 +269,6 @@ func TestOptionsFromViper(t *testing.T) {
 				RefreshDirectoryTimeout:         1 * time.Minute,
 				RefreshDirectoryInterval:        10 * time.Minute,
 				QPS:                             1.0,
-				ForwardAuthType:                 ProxyTypeNginx,
 				DataBrokerStorageType:           "memory",
 			},
 			false},
@@ -315,7 +313,7 @@ func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 		{"good disable headers ", map[string]string{"HEADERS": "disable:true", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 		{"bad whitespace in secret", map[string]string{"INSECURE_SERVER": "true", "SERVICES": "authenticate", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=\n"}, true},
 		{"bad cache url", map[string]string{"CACHE_SERVICE_URL": "cache.example", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
-		{"good forward auth url", map[string]string{"FORWARD_AUTH_URL": "https://cache.example", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
+		{"good forward auth url", map[string]string{"FORWARD_AUTH_URL": "https://cache.example", "FORWARD_AUTH_TYPE": ForwardingProxyNginx, "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 		{"bad forward auth url", map[string]string{"FORWARD_AUTH_URL": "cache.example", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
 		{"same addr and grpc addr", map[string]string{"SERVICES": "cache", "ADDRESS": "0", "GRPC_ADDRESS": "0", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 		{"bad cert files", map[string]string{"INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", "CERTIFICATES": "./test-data/example-cert.pem"}, true},

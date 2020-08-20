@@ -229,7 +229,7 @@ type Options struct {
 	// these requests with this switch
 	ForwardAuthURLString string   `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
 	ForwardAuthURL       *url.URL `yaml:",omitempty"`
-	ForwardAuthType      string   `mapstructure:"forward_auth_type", yaml:"forward_auth_type,omitempty"`
+	ForwardAuthType      string   `mapstructure:"forward_auth_type" yaml:"forward_auth_type,omitempty"`
 
 	// CacheURL is the routable destination of the cache service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
@@ -304,7 +304,6 @@ var defaultOptions = Options{
 	RefreshDirectoryInterval:        10 * time.Minute,
 	RefreshDirectoryTimeout:         1 * time.Minute,
 	QPS:                             1.0,
-	ForwardAuthType:                 ProxyTypeNginx,
 
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
@@ -566,9 +565,9 @@ func (o *Options) Validate() error {
 		}
 		o.ForwardAuthURL = u
 		switch o.ForwardAuthType {
-		case ProxyTypeNginx, ProxyTypeTraefik:
+		case ForwardingProxyNginx, ForwardingProxyTraefik:
 		default:
-			return fmt.Errorf("config: bad forward-auth-type: %s, supported types: %v", o.ForwardAuthType, ProxyTypes)
+			return fmt.Errorf("config: %s is required when forward-auth-url is set, supported types: %v\", o.ForwardAuthType, ForwardingProxyTypes", o.ForwardAuthType, ForwardingProxyTypes)
 		}
 	}
 
@@ -938,6 +937,7 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 }
 
+// GRPCOptions returns the given grpc options set in Options.
 func (o *Options) GRPCOptions() *grpc.Options {
 	return &grpc.Options{
 		OverrideCertificateName: o.OverrideCertificateName,
@@ -950,7 +950,8 @@ func (o *Options) GRPCOptions() *grpc.Options {
 	}
 }
 
-func (o *Options) CookieOption() cookie.Options {
+// CookieOptions returns the given cookie options set in Options.
+func (o *Options) CookieOptions() cookie.Options {
 	return cookie.Options{
 		Name:     o.CookieName,
 		Domain:   o.CookieDomain,

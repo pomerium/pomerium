@@ -41,16 +41,9 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		return nil, err
 	}
 
-	cc, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
-		Addr:                    cfg.Options.DataBrokerURL,
-		OverrideCertificateName: cfg.Options.OverrideCertificateName,
-		CA:                      cfg.Options.CA,
-		CAFile:                  cfg.Options.CAFile,
-		RequestTimeout:          cfg.Options.GRPCClientTimeout,
-		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GRPCInsecure,
-		ServiceName:             cfg.Options.Services,
-	})
+	opts := cfg.Options.GRPCOptions()
+	opts.Addr = cfg.Options.DataBrokerURL
+	cc, err := grpc.GetGRPCClientConn("databroker", opts)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error creating databroker connection: %w", err)
 	}

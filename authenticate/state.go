@@ -85,15 +85,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	qpStore := queryparam.NewStore(state.encryptedEncoder, urlutil.QueryProgrammaticToken)
 	headerStore := header.NewStore(state.encryptedEncoder, httputil.AuthorizationTypePomerium)
 
-	cookieStore, err := cookie.NewStore(func() cookie.Options {
-		return cookie.Options{
-			Name:     cfg.Options.CookieName,
-			Domain:   cfg.Options.CookieDomain,
-			Secure:   cfg.Options.CookieSecure,
-			HTTPOnly: cfg.Options.CookieHTTPOnly,
-			Expire:   cfg.Options.CookieExpire,
-		}
-	}, state.sharedEncoder)
+	cookieStore, err := cookie.NewStore(cfg.Options.CookieOptions, state.sharedEncoder)
 	if err != nil {
 		return nil, err
 	}
@@ -114,16 +106,9 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		state.jwk.Keys = append(state.jwk.Keys, *jwk)
 	}
 
-	dataBrokerConn, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
-		Addr:                    cfg.Options.DataBrokerURL,
-		OverrideCertificateName: cfg.Options.OverrideCertificateName,
-		CA:                      cfg.Options.CA,
-		CAFile:                  cfg.Options.CAFile,
-		RequestTimeout:          cfg.Options.GRPCClientTimeout,
-		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GRPCInsecure,
-		ServiceName:             cfg.Options.Services,
-	})
+	opts := cfg.Options.GRPCOptions()
+	opts.Addr = cfg.Options.DataBrokerURL
+	dataBrokerConn, err := grpc.GetGRPCClientConn("databroker", opts)
 	if err != nil {
 		return nil, err
 	}

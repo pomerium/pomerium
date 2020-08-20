@@ -19,7 +19,7 @@ func (n *nginx) Init(fa *ForwardAuth, r *mux.Router) {
 	// `auth-url` and `auth-signin` which correspond to `verify` and `auth-url`
 	//
 	// NOTE: Route order matters here which makes the request flow confusing
-	// 		 to reason about so each step has a postfix order step.
+	//       to reason about so each step has a postfix order step.
 
 	// nginx 3: save the returned session post authenticate flow
 	r.Handle("/verify", httputil.HandlerFunc(n.nginxCallback)).

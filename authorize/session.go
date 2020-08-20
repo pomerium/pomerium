@@ -52,15 +52,7 @@ func loadSession(encoder encoding.MarshalUnmarshaler, rawJWT []byte) (*sessions.
 }
 
 func getCookieStore(options *config.Options, encoder encoding.MarshalUnmarshaler) (sessions.SessionStore, error) {
-	cookieStore, err := cookie.NewStore(func() cookie.Options {
-		return cookie.Options{
-			Name:     options.CookieName,
-			Domain:   options.CookieDomain,
-			Secure:   options.CookieSecure,
-			HTTPOnly: options.CookieHTTPOnly,
-			Expire:   options.CookieExpire,
-		}
-	}, encoder)
+	cookieStore, err := cookie.NewStore(options.CookieOptions, encoder)
 	if err != nil {
 		return nil, err
 	}
