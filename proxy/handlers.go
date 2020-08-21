@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/gorilla/mux"
-	"github.com/pomerium/csrf"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -26,17 +25,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	})
 	// 2. AuthN - Verify the user is authenticated. Set email, group, & id headers
 	h.Use(p.AuthenticateSession)
-	// 3. Enforce CSRF protections for any non-idempotent http method
-	h.Use(func(h http.Handler) http.Handler {
-		opts := p.currentOptions.Load()
-		state := p.state.Load()
-		return csrf.Protect(
-			state.cookieSecret,
-			csrf.Secure(opts.CookieSecure),
-			csrf.CookieName(fmt.Sprintf("%s_csrf", opts.CookieName)),
-			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
-		)(h)
-	})
+
 	// dashboard endpoints can be used by user's to view, or modify their session
 	h.Path("/").HandlerFunc(p.UserDashboard).Methods(http.MethodGet)
 	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
