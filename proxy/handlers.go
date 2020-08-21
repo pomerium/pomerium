@@ -7,11 +7,9 @@ import (
 	"net/url"
 
 	"github.com/gorilla/mux"
-	"github.com/pomerium/csrf"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -20,23 +18,7 @@ import (
 func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	h := r.PathPrefix(dashboardPath).Subrouter()
 	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
-	// 1. Retrieve the user session and add it to the request context
-	h.Use(func(h http.Handler) http.Handler {
-		return sessions.RetrieveSession(p.state.Load().sessionStore)(h)
-	})
-	// 2. AuthN - Verify the user is authenticated. Set email, group, & id headers
-	h.Use(p.AuthenticateSession)
-	// 3. Enforce CSRF protections for any non-idempotent http method
-	h.Use(func(h http.Handler) http.Handler {
-		opts := p.currentOptions.Load()
-		state := p.state.Load()
-		return csrf.Protect(
-			state.cookieSecret,
-			csrf.Secure(opts.CookieSecure),
-			csrf.CookieName(fmt.Sprintf("%s_csrf", opts.CookieName)),
-			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
-		)(h)
-	})
+
 	// dashboard endpoints can be used by user's to view, or modify their session
 	h.Path("/").HandlerFunc(p.UserDashboard).Methods(http.MethodGet)
 	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
@@ -48,13 +30,8 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	c.Use(func(h http.Handler) http.Handler {
 		return middleware.ValidateSignature(p.state.Load().sharedKey)(h)
 	})
-
-	c.Path("/").
-		Handler(httputil.HandlerFunc(p.ProgrammaticCallback)).
-		Methods(http.MethodGet).
-		Queries(urlutil.QueryIsProgrammatic, "true")
-
 	c.Path("/").Handler(httputil.HandlerFunc(p.Callback)).Methods(http.MethodGet)
+
 	// Programmatic API handlers and middleware
 	a := r.PathPrefix(dashboardPath + "/api").Subrouter()
 	// login api handler generates a user-navigable login url to authenticate
@@ -92,7 +69,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &signoutURL).String(), http.StatusFound)
 }
 
-// UserDashboard redirects to the authenticate dasbhoard.
+// UserDashboard redirects to the authenticate dashboard.
 func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 	state := p.state.Load()
 
@@ -115,10 +92,23 @@ func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
 	redirectURLString := r.FormValue(urlutil.QueryRedirectURI)
 	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
 
-	if _, err := p.saveCallbackSession(w, r, encryptedSession); err != nil {
+	redirectURL, err := urlutil.ParseAndValidateURL(redirectURLString)
+	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
-	httputil.Redirect(w, r, redirectURLString, http.StatusFound)
+
+	rawJWT, err := p.saveCallbackSession(w, r, encryptedSession)
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	// if programmatic, encode the session jwt as a query param
+	if isProgrammatic := r.FormValue(urlutil.QueryIsProgrammatic); isProgrammatic == "true" {
+		q := redirectURL.Query()
+		q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
+		redirectURL.RawQuery = q.Encode()
+	}
+	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
 	return nil
 }
 
@@ -166,30 +156,5 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(response))
-	return nil
-}
-
-// ProgrammaticCallback handles a successful call to the authenticate service.
-// In addition to returning the individual route session (JWT) it also returns
-// the refresh token.
-func (p *Proxy) ProgrammaticCallback(w http.ResponseWriter, r *http.Request) error {
-	redirectURLString := r.FormValue(urlutil.QueryRedirectURI)
-	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
-
-	redirectURL, err := urlutil.ParseAndValidateURL(redirectURLString)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	rawJWT, err := p.saveCallbackSession(w, r, encryptedSession)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	q := redirectURL.Query()
-	q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
-	q.Set(urlutil.QueryRefreshToken, r.FormValue(urlutil.QueryRefreshToken))
-	redirectURL.RawQuery = q.Encode()
-	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
 	return nil
 }

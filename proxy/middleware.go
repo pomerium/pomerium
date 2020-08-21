@@ -14,42 +14,11 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 type authorizeResponse struct {
 	authorized bool
 	statusCode int32
-}
-
-// AuthenticateSession is middleware to enforce a valid authentication
-// session state is retrieved from the users's request context.
-func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
-	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthenticateSession")
-		defer span.End()
-
-		if _, err := sessions.FromContext(ctx); err != nil {
-			log.FromRequest(r).Debug().Err(err).Msg("proxy: session state")
-			return p.redirectToSignin(w, r)
-		}
-		next.ServeHTTP(w, r.WithContext(ctx))
-		return nil
-	})
-}
-
-func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
-	state := p.state.Load()
-
-	signinURL := *state.authenticateSigninURL
-	q := signinURL.Query()
-	q.Set(urlutil.QueryRedirectURI, urlutil.GetAbsoluteURL(r).String())
-	signinURL.RawQuery = q.Encode()
-	log.FromRequest(r).Debug().Str("url", signinURL.String()).Msg("proxy: redirectToSignin")
-	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &signinURL).String(), http.StatusFound)
-	state.sessionStore.ClearSession(w, r)
-	return nil
 }
 
 func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorizeResponse, error) {
@@ -102,20 +71,6 @@ func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorize
 		ar.statusCode = http.StatusInternalServerError
 	}
 	return ar, nil
-}
-
-// SetResponseHeaders sets a map of response headers.
-func SetResponseHeaders(headers map[string]string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "proxy.SetResponseHeaders")
-			defer span.End()
-			for key, val := range headers {
-				r.Header.Set(key, val)
-			}
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
 }
 
 // jwtClaimMiddleware logs and propagates JWT claim information via request headers

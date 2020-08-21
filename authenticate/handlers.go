@@ -105,13 +105,11 @@ func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 	wellKnownURLS := struct {
 		// URL string referencing the client's JSON Web Key (JWK) Set
 		// RFC7517 document, which contains the client's public keys.
-		JSONWebKeySetURL       string `json:"jwks_uri"`
-		OAuth2Callback         string `json:"authentication_callback_endpoint"`
-		ProgrammaticRefreshAPI string `json:"api_refresh_endpoint"`
+		JSONWebKeySetURL string `json:"jwks_uri"`
+		OAuth2Callback   string `json:"authentication_callback_endpoint"`
 	}{
 		state.redirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
 		state.redirectURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
-		state.redirectURL.ResolveReference(&url.URL{Path: "/api/v1/refresh"}).String(),
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -234,17 +232,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	if r.FormValue(urlutil.QueryIsProgrammatic) == "true" {
 		newSession.Programmatic = true
-
-		pbSession, err := session.Get(ctx, state.dataBrokerClient, s.ID)
-		if err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
-		}
-
-		encSession, err := state.encryptedEncoder.Marshal(pbSession.GetOauthToken())
-		if err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
-		}
-		callbackParams.Set(urlutil.QueryRefreshToken, string(encSession))
 		callbackParams.Set(urlutil.QueryIsProgrammatic, "true")
 	}
 
