@@ -4,10 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 var (

@@ -74,6 +74,10 @@ linters-settings:
     line-length: 160
     # tab width in spaces. Default to 1.
     tab-width: 1
+  goimports:
+    # put imports beginning with prefix after 3rd-party packages;
+    # it's a comma-separated list of prefixes
+    local-prefixes: github.com/pomerium/pomerium
   unused:
     # treat code as a program (not a library) and report unused exported identifiers; default is false.
     # XXX: if you enable this setting, unused will report a lot of false-positives in text editors:
@@ -201,7 +205,7 @@ issues:
 
   exclude-rules:
     # Exclude some linters from running on test files.
-    - path: _test\.go$|^tests/|^samples/|templates\.go$
+    - path: _test\.go$|^tests/|^integration/|^samples/|templates\.go$
       linters:
         - errcheck
         - maligned
@@ -209,6 +213,7 @@ issues:
         - gosec
         - bodyclose
         - unparam
+        - unused
     # erroneously thinks google api url is a cred
     - path: internal/identity/google.go
       text: "Potential hardcoded credentials"

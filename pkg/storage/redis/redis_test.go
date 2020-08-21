@@ -14,10 +14,11 @@ import (
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/ory/dockertest/v3"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/anypb"
+
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 var db *DB

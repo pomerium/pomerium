@@ -10,8 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/tripper"
 	"go.opencensus.io/stats/view"
+
+	"github.com/pomerium/pomerium/internal/tripper"
 )
 
 func testDataRetrieval(v *view.View, t *testing.T, want string) {

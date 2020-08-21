@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/tripper"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
+
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/tripper"
 )
 
 // HTTP Views
