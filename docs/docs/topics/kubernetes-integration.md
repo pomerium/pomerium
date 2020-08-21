@@ -25,7 +25,7 @@ Similarly, Kubernetes supports native [audit logging](https://kubernetes.io/docs
 
 ## Solution
 
-Pomerium can be leveraged as a proxy for user requests to the API Server.  
+Pomerium can be leveraged as a proxy for user requests to the API Server.
 
 - Any supported IdP can be supported for authentication, in any environment
 - Group membership is supported consistently
@@ -60,7 +60,7 @@ kubectl config set-cluster via-pomerium --server=https://mycluster.pomerium.io
 # Add Context
 kubectl config set-context via-pomerium --user=via-pomerium --cluster=via-pomerium
 # Add credentials command
-kubectl config set-credentials via-pomerium --exec-command=pomerium-cli \ 
+kubectl config set-credentials via-pomerium --exec-command=pomerium-cli \
   --exec-arg=k8s,exec-credential,https://mycluster.pomerium.io
 ```
 

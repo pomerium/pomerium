@@ -95,7 +95,7 @@ data:
 
     idp_provider: oidc
     idp_provider_url: https://cognito-idp.${AWS-REGION}.amazonaws.com/${USER_POOL_ID}
-    idp_client_id: 304a12ktcc5djt9d7enj6dsjkg 
+    idp_client_id: 304a12ktcc5djt9d7enj6dsjkg
     idp_client_secret: "1re5ukkv3dab6up5aefv7rru65lu60oblf04t6cv8u9s0itjbci7"
     idp_scopes: ["openid", "email", "profile"]
 kind: ConfigMap
