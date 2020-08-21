@@ -14,25 +14,11 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 type authorizeResponse struct {
 	authorized bool
 	statusCode int32
-}
-
-func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
-	state := p.state.Load()
-
-	signinURL := *state.authenticateSigninURL
-	q := signinURL.Query()
-	q.Set(urlutil.QueryRedirectURI, urlutil.GetAbsoluteURL(r).String())
-	signinURL.RawQuery = q.Encode()
-	log.FromRequest(r).Debug().Str("url", signinURL.String()).Msg("proxy: redirectToSignin")
-	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &signinURL).String(), http.StatusFound)
-	state.sessionStore.ClearSession(w, r)
-	return nil
 }
 
 func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorizeResponse, error) {
