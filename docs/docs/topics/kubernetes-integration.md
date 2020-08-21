@@ -9,7 +9,7 @@ description: >-
 
 ## Background
 
-Kubernetes supports [a variety](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#authentication-strategies) of ways to perform authentication against the API Server.  While there is tremendous flexability in the core product, operators can encounter various practical challenges:
+Kubernetes supports [a variety](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#authentication-strategies) of ways to perform authentication against the API Server.  While there is tremendous flexibility in the core product, operators can encounter various practical challenges:
 
 - Cloud providers typically support only their native IAM implementation, which may not integrate with your IdP
 - OIDC providers may not provide group claims, requiring manual mappings to RBAC roles

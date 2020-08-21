@@ -51,7 +51,7 @@ After this is done, go to **App client settings** (in the Side menu under **App 
 
 ![AWS Cognito Side Menu](./img/cognito-side-menu.png)
 
-In the setings for **Pomerium** app, put in the following details
+In the settings for **Pomerium** app, put in the following details
 
 | **Field**                  | **Description**                                                                              |
 | -------------------------- | -------------------------------------------------------------------------------------------- |

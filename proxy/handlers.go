@@ -74,7 +74,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &signoutURL).String(), http.StatusFound)
 }
 
-// UserDashboard redirects to the authenticate dasbhoard.
+// UserDashboard redirects to the authenticate dashboard.
 func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 	state := p.state.Load()
 
