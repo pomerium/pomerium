@@ -170,7 +170,6 @@ func (p *Proxy) ProgrammaticCallback(w http.ResponseWriter, r *http.Request) err
 
 	q := redirectURL.Query()
 	q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
-	q.Set(urlutil.QueryRefreshToken, r.FormValue(urlutil.QueryRefreshToken))
 	redirectURL.RawQuery = q.Encode()
 	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
 	return nil

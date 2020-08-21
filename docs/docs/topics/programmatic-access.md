@@ -25,15 +25,13 @@ https://authenticate.example.com/.pomerium/sign_in?redirect_uri=http%3A%2F%2Floc
 
 ### Callback handler
 
-It is the script or application's responsibility to create a HTTP callback handler. Authenticated sessions are returned in the form of a [callback](https://developer.okta.com/docs/concepts/auth-overview/#what-kind-of-client-are-you-building) from pomerium to a HTTP server. This is the `redirect_uri` value used to build login API's URL, and represents the URL of a (usually local) HTTP server responsible for receiving the resulting user session in the form of `pomerium_jwt` and `pomerium_refresh_token` query parameters.
+It is the script or application's responsibility to create a HTTP callback handler. Authenticated sessions are returned in the form of a [callback](https://developer.okta.com/docs/concepts/auth-overview/#what-kind-of-client-are-you-building) from pomerium to a HTTP server. This is the `redirect_uri` value used to build login API's URL, and represents the URL of a (usually local) HTTP server responsible for receiving the resulting user session in the form of `pomerium_jwt` query parameters.
 
 See the python script below for example of how to start a callback server, and store the session payload.
 
 ## Handling expiration and revocation
 
-Your application should handle token expiration. If the session expires before work is done, the identity provider issued `refresh_token` can be used to create a new valid session.
-
-Also, your script or application should anticipate the possibility that a granted `refresh_token` may stop working. For example, a refresh token might stop working if the underlying user changes passwords, revokes access, or if the administrator removes rotates or deletes the OAuth Client ID.
+Your script or application should anticipate the possibility that your underlying  `refresh_token` may stop working. For example, a refresh token might stop working if the underlying user changes passwords, revokes access, or if the administrator removes rotates or deletes the OAuth Client ID.
 
 ## High level workflow
 
