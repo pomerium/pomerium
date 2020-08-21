@@ -19,9 +19,6 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	h := r.PathPrefix(dashboardPath).Subrouter()
 	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 
-	// 2. AuthN - Verify the user is authenticated. Set email, group, & id headers
-	h.Use(p.AuthenticateSession)
-
 	// dashboard endpoints can be used by user's to view, or modify their session
 	h.Path("/").HandlerFunc(p.UserDashboard).Methods(http.MethodGet)
 	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)

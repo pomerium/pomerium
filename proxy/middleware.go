@@ -14,29 +14,12 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 type authorizeResponse struct {
 	authorized bool
 	statusCode int32
-}
-
-// AuthenticateSession is middleware to enforce a valid authentication
-// session state is retrieved from the users's request context.
-func (p *Proxy) AuthenticateSession(next http.Handler) http.Handler {
-	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		ctx, span := trace.StartSpan(r.Context(), "proxy.AuthenticateSession")
-		defer span.End()
-
-		if _, err := sessions.FromContext(ctx); err != nil {
-			log.FromRequest(r).Debug().Err(err).Msg("proxy: session state")
-			return p.redirectToSignin(w, r)
-		}
-		next.ServeHTTP(w, r.WithContext(ctx))
-		return nil
-	})
 }
 
 func (p *Proxy) redirectToSignin(w http.ResponseWriter, r *http.Request) error {
