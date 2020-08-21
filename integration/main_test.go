@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"github.com/onsi/gocleanup"
-	"github.com/pomerium/pomerium/integration/internal/cluster"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"github.com/pomerium/pomerium/integration/internal/cluster"
 )
 
 var (
