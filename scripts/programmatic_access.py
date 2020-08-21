@@ -14,7 +14,7 @@ done = False
 parser = argparse.ArgumentParser()
 parser.add_argument("--login", action="store_true")
 parser.add_argument(
-    "--dst", default="https://httpbin.imac.bdd.io/headers",
+    "--dst", default="https://httpbin.example.com/headers",
 )
 parser.add_argument("--server", default="localhost", type=str)
 parser.add_argument("--port", default=8000, type=int)
