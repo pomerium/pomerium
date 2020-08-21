@@ -105,13 +105,6 @@ func TestProxy_SignOut(t *testing.T) {
 		})
 	}
 }
-func uriParseHelper(s string) *url.URL {
-	uri, err := url.Parse(s)
-	if err != nil {
-		panic(err)
-	}
-	return uri
-}
 
 func TestProxy_Callback(t *testing.T) {
 	t.Parallel()
