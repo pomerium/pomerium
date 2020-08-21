@@ -464,7 +464,7 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 			}
 
 			w := httptest.NewRecorder()
-			httputil.HandlerFunc(p.ProgrammaticCallback).ServeHTTP(w, r)
+			httputil.HandlerFunc(p.Callback).ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
 				t.Errorf("\n%+v", w.Body.String())
