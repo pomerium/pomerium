@@ -548,7 +548,7 @@ func TestWellKnownEndpoint(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	body := rr.Body.String()
-	expected := `{"jwks_uri":"https://auth.example.com/.well-known/pomerium/jwks.json","authentication_callback_endpoint":"https://auth.example.com/oauth2/callback","api_refresh_endpoint":"https://auth.example.com/api/v1/refresh"}`
+	expected := `{"jwks_uri":"https://auth.example.com/.well-known/pomerium/jwks.json","authentication_callback_endpoint":"https://auth.example.com/oauth2/callback"}`
 	assert.Equal(t, body, expected)
 }
 

@@ -14,7 +14,6 @@ const (
 	QuerySession           = "pomerium_session"
 	QuerySessionEncrypted  = "pomerium_session_encrypted"
 	QueryRedirectURI       = "pomerium_redirect_uri"
-	QueryRefreshToken      = "pomerium_refresh_token"
 	QueryAccessTokenID     = "pomerium_session_access_token_id"
 	QueryAudience          = "pomerium_session_audience"
 	QueryProgrammaticToken = "pomerium_programmatic_token"

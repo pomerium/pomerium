@@ -18,7 +18,7 @@ func TestDashboard(t *testing.T) {
 	t.Run("user dashboard", func(t *testing.T) {
 		client := testcluster.NewHTTPClient()
 
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/.pomerium", nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/.pomerium/", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -30,6 +30,22 @@ func TestDashboard(t *testing.T) {
 		defer res.Body.Close()
 
 		assert.Equal(t, http.StatusFound, res.StatusCode, "unexpected status code")
+	})
+	t.Run("dashboard strict slash redirect", func(t *testing.T) {
+		client := testcluster.NewHTTPClient()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/.pomerium", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusMovedPermanently, res.StatusCode, "unexpected status code")
 	})
 	t.Run("image asset", func(t *testing.T) {
 		client := testcluster.NewHTTPClient()

@@ -25,9 +25,8 @@ args = parser.parse_args()
 
 
 class PomeriumSession:
-    def __init__(self, jwt, refresh_token):
+    def __init__(self, jwt):
         self.jwt = jwt
-        self.refresh_token = refresh_token
 
     def to_json(self):
         return json.dumps(self.__dict__, indent=2)
@@ -55,7 +54,6 @@ class Callback(http.server.BaseHTTPRequestHandler):
             path_qp = urllib.parse.parse_qs(path)
             session = PomeriumSession(
                 path_qp.get("pomerium_jwt")[0],
-                path_qp.get("pomerium_refresh_token")[0],
             )
             done = True
             response = session.to_json().encode()
