@@ -214,20 +214,22 @@ func TestAuthenticate_SignOut(t *testing.T) {
 		name   string
 		method string
 
-		ctxError    error
-		redirectURL string
-		sig         string
-		ts          string
+		ctxError           error
+		redirectURL        string
+		signoutRedirectURL string
+		sig                string
+		ts                 string
 
 		provider     identity.Authenticator
 		sessionStore sessions.SessionStore
 		wantCode     int
 		wantBody     string
 	}{
-		{"good post", http.MethodPost, nil, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{LogOutResponse: (*uriParseHelper("https://microsoft.com"))}, &mstore.Store{Encrypted: true, Session: &sessions.State{}}, http.StatusFound, ""},
-		{"failed revoke", http.MethodPost, nil, "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &mstore.Store{Encrypted: true, Session: &sessions.State{}}, http.StatusFound, ""},
-		{"load session error", http.MethodPost, errors.New("error"), "https://corp.pomerium.io/", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &mstore.Store{Encrypted: true, Session: &sessions.State{}}, http.StatusFound, ""},
-		{"bad redirect uri", http.MethodPost, nil, "corp.pomerium.io/", "sig", "ts", identity.MockProvider{LogOutError: oidc.ErrSignoutNotImplemented}, &mstore.Store{Encrypted: true, Session: &sessions.State{}}, http.StatusFound, ""},
+		{"good post", http.MethodPost, nil, "https://corp.pomerium.io/", "", "sig", "ts", identity.MockProvider{LogOutResponse: (*uriParseHelper("https://microsoft.com"))}, &mstore.Store{Encrypted: true, Session: &sessions.State{}}, http.StatusFound, ""},
+		{"signout redirect url", http.MethodPost, nil, "", "https://signout-redirect-url.example.com", "sig", "ts", identity.MockProvider{LogOutResponse: (*uriParseHelper("https://microsoft.com"))}, &mstore.Store{Encrypted: true, Session: &sessions.State{}}, http.StatusFound, ""},
+		{"failed revoke", http.MethodPost, nil, "https://corp.pomerium.io/", "", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &mstore.Store{Encrypted: true, Session: &sessions.State{}}, http.StatusFound, ""},
+		{"load session error", http.MethodPost, errors.New("error"), "https://corp.pomerium.io/", "", "sig", "ts", identity.MockProvider{RevokeError: errors.New("OH NO")}, &mstore.Store{Encrypted: true, Session: &sessions.State{}}, http.StatusFound, ""},
+		{"bad redirect uri", http.MethodPost, nil, "corp.pomerium.io/", "", "sig", "ts", identity.MockProvider{LogOutError: oidc.ErrSignoutNotImplemented}, &mstore.Store{Encrypted: true, Session: &sessions.State{}}, http.StatusFound, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -265,6 +267,11 @@ func TestAuthenticate_SignOut(t *testing.T) {
 				options:   config.NewAtomicOptions(),
 				provider:  identity.NewAtomicAuthenticator(),
 			}
+			if tt.signoutRedirectURL != "" {
+				opts := a.options.Load()
+				opts.SignOutRedirectURL, _ = url.Parse(tt.signoutRedirectURL)
+				a.options.Store(opts)
+			}
 			a.provider.Store(tt.provider)
 			u, _ := url.Parse("/sign_out")
 			params, _ := url.ParseQuery(u.RawQuery)
@@ -291,7 +298,10 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			if diff := cmp.Diff(body, tt.wantBody); diff != "" {
 				t.Errorf("handler returned wrong body Body: %s", diff)
 			}
-
+			if tt.signoutRedirectURL != "" {
+				loc := w.Header().Get("Location")
+				assert.Contains(t, loc, url.QueryEscape(tt.signoutRedirectURL))
+			}
 		})
 	}
 }

@@ -112,6 +112,10 @@ type Options struct {
 	// used for authentication requests and callbacks
 	AuthenticateURLString string   `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
 	AuthenticateURL       *url.URL `yaml:"-,omitempty"`
+	// AuthenticateURL represents the externally accessible http endpoints
+	// used for authentication requests and callbacks
+	SignOutRedirectURLString string   `mapstructure:"signout_redirect_url" yaml:"signout_redirect_url,omitempty"`
+	SignOutRedirectURL       *url.URL `yaml:"-,omitempty"`
 
 	// AuthenticateCallbackPath is the path to the HTTP endpoint that will
 	// receive the response from your identity provider. The value must exactly
@@ -537,6 +541,14 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad authenticate-url %s : %w", o.AuthenticateURLString, err)
 		}
 		o.AuthenticateURL = u
+	}
+
+	if o.SignOutRedirectURLString != "" {
+		u, err := urlutil.ParseAndValidateURL(o.SignOutRedirectURLString)
+		if err != nil {
+			return fmt.Errorf("config: bad signout-redirect-url %s : %w", o.SignOutRedirectURLString, err)
+		}
+		o.SignOutRedirectURL = u
 	}
 
 	if o.AuthorizeURLString != "" {

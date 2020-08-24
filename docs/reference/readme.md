@@ -601,6 +601,16 @@ See also:
 
 Authenticate Service URL is the externally accessible URL for the authenticate service.
 
+### Signout Redirect URL
+
+- Environmental Variable: `SIGNOUT_REDIRECT_URL`
+- Config File Key: `signout_redirect_url`
+- Type: `URL`
+- Required
+- Example: `https://signout-redirect-url.corp.example.com`
+
+Signout redirect url is the url user will be redirected to after signing out.
+
 ### Identity Provider Client ID
 
 - Environmental Variable: `IDP_CLIENT_ID`
