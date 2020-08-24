@@ -206,6 +206,7 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 		payload["aud"] = u.Hostname()
 	}
 	if s, ok := req.DataBrokerData.Get("type.googleapis.com/session.Session", req.Session.ID).(*session.Session); ok {
+		payload["jti"] = s.GetId()
 		if tm, err := ptypes.Timestamp(s.GetIdToken().GetExpiresAt()); err == nil {
 			payload["exp"] = tm.Unix()
 		}

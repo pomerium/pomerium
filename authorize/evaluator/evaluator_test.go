@@ -153,6 +153,7 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 				DataBrokerData: DataBrokerData{
 					"type.googleapis.com/session.Session": map[string]interface{}{
 						"SESSION_ID": &session.Session{
+							Id: "SESSION_ID",
 							IdToken: &session.IDToken{
 								ExpiresAt: nowPb,
 								IssuedAt:  nowPb,
@@ -167,6 +168,7 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 			},
 			map[string]interface{}{
 				"iss": "authn.example.com",
+				"jti": "SESSION_ID",
 				"aud": "example.com",
 				"exp": now.Unix(),
 				"iat": now.Unix(),
@@ -178,6 +180,7 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 				DataBrokerData: DataBrokerData{
 					"type.googleapis.com/session.Session": map[string]interface{}{
 						"SESSION_ID": &session.Session{
+							Id:     "SESSION_ID",
 							UserId: "USER_ID",
 						},
 					},
@@ -196,6 +199,7 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 			},
 			map[string]interface{}{
 				"iss":   "authn.example.com",
+				"jti":   "SESSION_ID",
 				"aud":   "example.com",
 				"sub":   "USER_ID",
 				"user":  "USER_ID",
@@ -208,6 +212,7 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 				DataBrokerData: DataBrokerData{
 					"type.googleapis.com/session.Session": map[string]interface{}{
 						"SESSION_ID": &session.Session{
+							Id:     "SESSION_ID",
 							UserId: "USER_ID",
 						},
 					},
@@ -237,6 +242,7 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 			},
 			map[string]interface{}{
 				"iss":    "authn.example.com",
+				"jti":    "SESSION_ID",
 				"aud":    "example.com",
 				"groups": []string{"group1", "group2", "admin", "test"},
 			},
