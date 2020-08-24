@@ -14,8 +14,6 @@ const (
 	QuerySession           = "pomerium_session"
 	QuerySessionEncrypted  = "pomerium_session_encrypted"
 	QueryRedirectURI       = "pomerium_redirect_uri"
-	QueryAccessTokenID     = "pomerium_session_access_token_id"
-	QueryAudience          = "pomerium_session_audience"
 	QueryProgrammaticToken = "pomerium_programmatic_token"
 )
 
@@ -24,5 +22,4 @@ const (
 	QueryHmacExpiry    = "pomerium_expiry"
 	QueryHmacIssued    = "pomerium_issued"
 	QueryHmacSignature = "pomerium_signature"
-	QueryHmacURI       = "pomerium_uri"
 )
