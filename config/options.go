@@ -112,7 +112,7 @@ type Options struct {
 	// used for authentication requests and callbacks
 	AuthenticateURLString string   `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
 	AuthenticateURL       *url.URL `yaml:"-,omitempty"`
-	// SignOutRedirectURL represents the url that user will be redirected to after signing out.
+	// SignOutRedirectURL represents the url that  user will be redirected to after signing out.
 	SignOutRedirectURLString string   `mapstructure:"signout_redirect_url" yaml:"signout_redirect_url,omitempty"`
 	SignOutRedirectURL       *url.URL `yaml:"-,omitempty"`
 

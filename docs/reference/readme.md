@@ -1020,8 +1020,8 @@ Pomerium will [impersonate](https://kubernetes.io/docs/reference/access-authn-au
 
 Signout redirect url is the url user will be redirected to after signing out.
 
-You can overwrite this value by passing url query param `pomerium_redirect_uri` or post value `pomerium_redirect_uri`
-when hitting the ./pomerium/signout endpoint.
+You can overwrite this behavior by passing the query param `pomerium_redirect_uri` or post value `pomerium_redirect_uri`
+to the `/.pomerium/signout/` endpoint.
 
 ### Path
 
