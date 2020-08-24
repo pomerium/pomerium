@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.11.0
+
+### New
+
+ - config: add signout redirect url @cuonglm Gh-1213
+
 ## v0.10.0
 
 ### Changes

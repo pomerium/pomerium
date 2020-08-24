@@ -56,6 +56,9 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	state := p.state.Load()
 
 	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/"}
+	if sru := p.currentOptions.Load().SignOutRedirectURL; sru != nil {
+		redirectURL = sru
+	}
 	if uri, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI)); err == nil && uri.String() != "" {
 		redirectURL = uri
 	}

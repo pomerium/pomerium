@@ -1010,6 +1010,19 @@ Use this token to authenticate requests to a Kubernetes API server.
 
 Pomerium will [impersonate](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation) the Pomerium user's identity, and Kubernetes RBAC can be applied to IdP user and groups.
 
+### Signout Redirect URL
+
+- Environmental Variable: `SIGNOUT_REDIRECT_URL`
+- Config File Key: `signout_redirect_url`
+- Type: `URL`
+- Required
+- Example: `https://signout-redirect-url.corp.example.com`
+
+Signout redirect url is the url user will be redirected to after signing out.
+
+You can overwrite this behavior by passing the query param `pomerium_redirect_uri` or post value `pomerium_redirect_uri`
+to the `/.pomerium/signout/` endpoint.
+
 ### Path
 
 - `yaml`/`json` setting: `path`
