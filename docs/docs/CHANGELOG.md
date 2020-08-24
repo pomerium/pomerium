@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.10.2
+
+### Changes
+- Improving okta API requests @cuonglm GH-1278
+- internal/directory/okta: fix wrong API query filter @cuonglm GH-1296
+- Rate limit for okta @cuonglm GH-1271
+
+### Fixed
+- autocert: fix locking issue @calebdoxsey GH-1310
+
 ## v0.10.1
 
 ### Changes
