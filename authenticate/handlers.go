@@ -281,10 +281,14 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	// no matter what happens, we want to clear the session store
 	state.sessionStore.ClearSession(w, r)
-	redirectString := r.FormValue(urlutil.QueryRedirectURI)
+	redirectString := ""
 	if sru := a.options.Load().SignOutRedirectURL; sru != nil {
 		redirectString = sru.String()
 	}
+	if uri := r.FormValue(urlutil.QueryRedirectURI); uri != "" {
+		redirectString = uri
+	}
+
 	endSessionURL, err := a.provider.Load().LogOut()
 	if err == nil {
 		params := url.Values{}

@@ -601,16 +601,6 @@ See also:
 
 Authenticate Service URL is the externally accessible URL for the authenticate service.
 
-### Signout Redirect URL
-
-- Environmental Variable: `SIGNOUT_REDIRECT_URL`
-- Config File Key: `signout_redirect_url`
-- Type: `URL`
-- Required
-- Example: `https://signout-redirect-url.corp.example.com`
-
-Signout redirect url is the url user will be redirected to after signing out.
-
 ### Identity Provider Client ID
 
 - Environmental Variable: `IDP_CLIENT_ID`
@@ -1019,6 +1009,19 @@ Requires setting [Google Cloud Serverless Authentication Service Account](./#goo
 Use this token to authenticate requests to a Kubernetes API server.
 
 Pomerium will [impersonate](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation) the Pomerium user's identity, and Kubernetes RBAC can be applied to IdP user and groups.
+
+### Signout Redirect URL
+
+- Environmental Variable: `SIGNOUT_REDIRECT_URL`
+- Config File Key: `signout_redirect_url`
+- Type: `URL`
+- Required
+- Example: `https://signout-redirect-url.corp.example.com`
+
+Signout redirect url is the url user will be redirected to after signing out.
+
+You can overwrite this value by passing url query param `pomerium_redirect_uri` or post value `pomerium_redirect_uri`
+when hitting the ./pomerium/signout endpoint.
 
 ### Path
 
