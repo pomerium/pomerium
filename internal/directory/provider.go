@@ -86,7 +86,7 @@ func GetProvider(options *config.Options) Provider {
 			return okta.New(
 				okta.WithProviderURL(providerURL),
 				okta.WithServiceAccount(serviceAccount),
-				okta.WithQPS(options.QPS),
+				okta.WithQPS(1.0), // Backported default config
 			)
 		}
 		log.Warn().
