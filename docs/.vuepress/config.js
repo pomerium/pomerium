@@ -155,6 +155,7 @@ module.exports = {
             "kubernetes-dashboard",
             "local-oidc",
             "mtls",
+            'nginx',
             "tiddlywiki",
             "vs-code-server",
           ],
