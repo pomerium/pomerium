@@ -5,8 +5,10 @@ meta:
   - name: keywords
     content: pomerium identity-access-proxy nginx
 description: >-
-  This guide covers how to use Pomerium to protect services behind an nginx proxy.
+  This guide covers how to use Pomerium to protect services behind an nginx
+  proxy.
 ---
+
 # Securing Nginx
 
 This recipe's sources can be found [on github](https://github.com/pomerium/pomerium/tree/master/examples/nginx)
@@ -15,15 +17,13 @@ At the end, you will have a locally running install of [httpbin](https://httpbin
 
 ## Background
 
-Nginx can be [configured](https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-subrequest-authentication/) to authorize requests by calling an external
-service.  Pomerium is compatible with this external authentication protocol and can thus be used to protect services behind nginx.  In this configuration, Pomerium does
-not proxy traffic, but authorizes it on behalf of nginx.  This is useful for integrating into existing load balancer infrastructure.
+Nginx can be [configured](https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-subrequest-authentication/) to authorize requests by calling an external authorization service. Pomerium is compatible with this external authentication protocol and can thus be used to protect services behind nginx. In this configuration, Pomerium does not proxy traffic, but authorizes it on behalf of nginx. This is useful for integrating into existing load balancer infrastructure.
 
 For more information on using Pomerium as an external authorization endpoint, see [forward auth](https://www.pomerium.com/reference/#forward-auth) in the Pomerium docs.
 
 ## How It Works
 
-- Create a standard pomerium configuration to authenticate against your IdP
+- Create a standard pomerium configuration to authenticate against your identity provider (IdP)
 - Configure nginx to authorize incoming requests via pomerium
 - Pomerium authenticates users via IdP
 - Nginx queries Pomerium on each request to verify the traffic is authorized
@@ -32,7 +32,7 @@ For more information on using Pomerium as an external authorization endpoint, se
 
 ## Pre-requisites
 
-This recipe is designed to run on a local docker-compose instance.  The included configuration can be adopted for any nginx deployment.
+This recipe is designed to run on a local docker-compose instance. The included configuration can be adopted for any nginx deployment.
 
 - docker
 - docker-compose
@@ -42,22 +42,23 @@ This recipe is designed to run on a local docker-compose instance.  The included
 
 ## Certificates (optional)
 
-This demo comes with its own certificates, but they will generate warnings in your browser.  You may instead provide your own or use [mkcert](https://github.com/FiloSottile/mkcert) to generate locally trusted certificates.
+This demo comes with its own certificates, but they will generate warnings in your browser. You may instead provide your own or use [mkcert](https://github.com/FiloSottile/mkcert) to generate locally trusted certificates.
 
 After installing `mkcert`, run the following inside the example repo:
-   ```bash
-   mkcert -install
+
+```bash
+mkcert -install
    mkcert '*.localhost.pomerium.io'
-   ```
+```
 
 This will install a trusted CA and generate a new wildcard certificate:
+
 - `_wildcard.localhost.pomerium.io.pem`
 - `_wildcard.localhost.pomerium.io-key.pem`
 
 To provide your own certificates through another mechanism, please overwrite these files or update `docker-compose.yaml` accordingly.
 
 ## Configure
-
 
 ### Pomerium
 
@@ -81,7 +82,7 @@ Nginx configuration for the protected endpoint
 
 <<< @/examples/nginx/docker-compose.yaml
 
-Run `docker-compose up`.  After a few seconds, browse to [httpbin.localhost.pomerium.io](https://httpbin.localhost.pomerium.io).
+Run `docker-compose up`. After a few seconds, browse to [httpbin.localhost.pomerium.io](https://httpbin.localhost.pomerium.io).
 
 You should be prompted to log in through your IdP and then granted access to the deployed `httpbin` instance.
 
