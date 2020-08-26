@@ -85,7 +85,9 @@ func GetProvider(options *config.Options) Provider {
 		if err == nil {
 			return okta.New(
 				okta.WithProviderURL(providerURL),
-				okta.WithServiceAccount(serviceAccount))
+				okta.WithServiceAccount(serviceAccount),
+				okta.WithQPS(1.0), // Backported default config
+			)
 		}
 		log.Warn().
 			Str("service", "directory").

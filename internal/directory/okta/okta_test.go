@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi"
@@ -14,7 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/tomnomnom/linkheader"
 
-	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -40,8 +40,15 @@ func newMockOkta(srv *httptest.Server, userEmailToGroups map[string][]string) ht
 		})
 	})
 	r.Get("/api/v1/groups", func(w http.ResponseWriter, r *http.Request) {
+		lastUpdated := strings.Contains(r.URL.Query().Get("filter"), "lastUpdated ")
 		var groups []string
 		for group := range allGroups {
+			if lastUpdated && group != "user-updated" {
+				continue
+			}
+			if !lastUpdated && group == "user-updated" {
+				continue
+			}
 			groups = append(groups, group)
 		}
 		sort.Strings(groups)
@@ -132,11 +139,65 @@ func TestProvider_UserGroups(t *testing.T) {
 			GroupIds: []string{"user"},
 		},
 	}, users)
-	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "admin", "name": "admin-name" },
-		{ "id": "test", "name": "test-name" },
-		{ "id": "user", "name": "user-name" }
-	]`, groups)
+	assert.Len(t, groups, 3)
+}
+
+func TestProvider_UserGroupsQueryUpdated(t *testing.T) {
+	var mockOkta http.Handler
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockOkta.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	mockOkta = newMockOkta(srv, map[string][]string{
+		"a@example.com":       {"user", "admin"},
+		"b@example.com":       {"user", "test"},
+		"c@example.com":       {"user"},
+		"updated@example.com": {"user-updated"},
+	})
+
+	p := New(
+		WithServiceAccount(&ServiceAccount{APIKey: "APITOKEN"}),
+		WithProviderURL(mustParseURL(srv.URL)),
+	)
+	groups, users, err := p.UserGroups(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, []*directory.User{
+		{
+			Id:       "okta/a@example.com",
+			GroupIds: []string{"admin", "user"},
+		},
+		{
+			Id:       "okta/b@example.com",
+			GroupIds: []string{"test", "user"},
+		},
+		{
+			Id:       "okta/c@example.com",
+			GroupIds: []string{"user"},
+		},
+	}, users)
+	assert.Len(t, groups, 3)
+
+	groups, users, err = p.UserGroups(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, []*directory.User{
+		{
+			Id:       "okta/a@example.com",
+			GroupIds: []string{"admin", "user"},
+		},
+		{
+			Id:       "okta/b@example.com",
+			GroupIds: []string{"test", "user"},
+		},
+		{
+			Id:       "okta/c@example.com",
+			GroupIds: []string{"user"},
+		},
+		{
+			Id:       "okta/updated@example.com",
+			GroupIds: []string{"user-updated"},
+		},
+	}, users)
+	assert.Len(t, groups, 4)
 }
 
 func mustParseURL(rawurl string) *url.URL {
