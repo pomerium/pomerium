@@ -82,6 +82,8 @@ var serviceAccountCmd = &cobra.Command{
 		var sharedKey string
 		if len(args) == 1 {
 			sharedKey = args[0]
+		} else if k := os.Getenv("POMERIUM_SHARED_KEY"); k != "" {
+			sharedKey = k
 		} else {
 			fmt.Print("Enter base64 encoded shared key >")
 			scanner := bufio.NewScanner(os.Stdin)

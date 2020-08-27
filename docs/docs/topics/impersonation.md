@@ -100,6 +100,14 @@ The cli will then prompt you for your base64 encoded shared secret. As a reminde
 
 :::
 
+:::tip
+
+You can also pass the shared secret by setting the `POMERIUM_SHARED_KEY` environment variable.
+
+:::
+
+
+
 You should now see something like:
 
 ```jwt
