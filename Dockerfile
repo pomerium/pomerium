@@ -11,7 +11,8 @@ COPY . .
 
 # build
 RUN make build-deps
-RUN make build
+RUN make build NAME=pomerium
+RUN make build NAME=pomerium-cli
 RUN touch /config.yaml
 
 FROM gcr.io/distroless/base:debug
