@@ -1,8 +1,8 @@
 FROM golang:latest as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
-RUN apt update \
-    && apt -y install zip
+RUN apt-get update \
+    && apt-get -y install zip
 
 # cache depedency downloads
 COPY go.mod go.sum ./
