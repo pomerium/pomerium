@@ -44,6 +44,7 @@ type Server struct {
 
 	currentConfig atomicVersionedOptions
 	configUpdated chan struct{}
+	name          string
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
