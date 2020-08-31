@@ -21,7 +21,7 @@ require (
 	github.com/google/btree v1.0.0
 	github.com/google/go-cmp v0.5.1
 	github.com/google/go-jsonnet v0.16.0
-	github.com/google/uuid v1.1.1
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/handlers v1.5.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
