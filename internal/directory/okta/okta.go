@@ -291,9 +291,8 @@ func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
 	}
 
 	var serviceAccount ServiceAccount
-	err = json.Unmarshal(bs, &serviceAccount)
-	if err != nil {
-		return nil, err
+	if err := json.Unmarshal(bs, &serviceAccount); err != nil {
+		serviceAccount.APIKey = string(bs)
 	}
 
 	if serviceAccount.APIKey == "" {
