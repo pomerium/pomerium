@@ -11,6 +11,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
+	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/version"
 )
@@ -35,6 +36,7 @@ func (srv *Server) addHTTPMiddleware() {
 	root.Use(log.UserAgentHandler("user_agent"))
 	root.Use(log.RefererHandler("referer"))
 	root.Use(log.RequestIDHandler("request-id"))
+	root.Use(telemetry.HTTPStatsHandler(srv.name))
 	root.Use(middleware.Healthcheck("/ping", version.UserAgent()))
 	root.HandleFunc("/healthz", httputil.HealthCheck)
 	root.HandleFunc("/ping", httputil.HealthCheck)
