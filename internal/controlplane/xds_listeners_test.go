@@ -87,21 +87,6 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						"domains": ["example.com"],
 						"routes": [
 							{
-								"name": "pomerium-path-/robots.txt",
-								"match": {
-									"path": "/robots.txt"
-								},
-								"route": {
-									"cluster": "pomerium-control-plane-http"
-								},
-								"typedPerFilterConfig": {
-									"envoy.filters.http.ext_authz": {
-										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-										"disabled": true
-									}
-								}
-							},
-							{
 								"name": "pomerium-path-/ping",
 								"match": {
 									"path": "/ping"
@@ -180,6 +165,21 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 								"name": "pomerium-prefix-/.well-known/pomerium/",
 								"match": {
 									"prefix": "/.well-known/pomerium/"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-path-/robots.txt",
+								"match": {
+									"path": "/robots.txt"
 								},
 								"route": {
 									"cluster": "pomerium-control-plane-http"
@@ -198,21 +198,6 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						"domains": ["*"],
 						"routes": [
 							{
-								"name": "pomerium-path-/robots.txt",
-								"match": {
-									"path": "/robots.txt"
-								},
-								"route": {
-									"cluster": "pomerium-control-plane-http"
-								},
-								"typedPerFilterConfig": {
-									"envoy.filters.http.ext_authz": {
-										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-										"disabled": true
-									}
-								}
-							},
-							{
 								"name": "pomerium-path-/ping",
 								"match": {
 									"path": "/ping"
@@ -291,6 +276,21 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 								"name": "pomerium-prefix-/.well-known/pomerium/",
 								"match": {
 									"prefix": "/.well-known/pomerium/"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-path-/robots.txt",
+								"match": {
+									"path": "/robots.txt"
 								},
 								"route": {
 									"cluster": "pomerium-control-plane-http"

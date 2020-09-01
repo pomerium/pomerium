@@ -2,7 +2,6 @@ package controlplane
 
 import (
 	"fmt"
-	"net/url"
 	"testing"
 	"time"
 
@@ -43,137 +42,94 @@ func Test_buildGRPCRoutes(t *testing.T) {
 }
 
 func Test_buildPomeriumHTTPRoutes(t *testing.T) {
-	routes := buildPomeriumHTTPRoutes(&config.Options{
-		Services:                 "all",
-		AuthenticateURL:          mustParseURL("https://authenticate.example.com"),
-		AuthenticateCallbackPath: "/oauth2/callback",
-		ForwardAuthURL:           mustParseURL("https://forward-auth.example.com"),
-	}, "authenticate.example.com")
+	routeString := func(typ, name string) string {
+		return `{
+				"name": "pomerium-` + typ + `-` + name + `",
+				"match": {
+					"` + typ + `": "` + name + `"
+				},
+				"route": {
+					"cluster": "pomerium-control-plane-http"
+				},
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"disabled": true
+					}
+				}
+			}`
+	}
 
-	testutil.AssertProtoJSONEqual(t, `
-		[
-			{
-				"name": "pomerium-path-/robots.txt",
-				"match": {
-					"path": "/robots.txt"
-				},
-				"route": {
-					"cluster": "pomerium-control-plane-http"
-				},
-				"typedPerFilterConfig": {
-					"envoy.filters.http.ext_authz": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-						"disabled": true
-					}
-				}
-			},
-			{
-				"name": "pomerium-path-/ping",
-				"match": {
-					"path": "/ping"
-				},
-				"route": {
-					"cluster": "pomerium-control-plane-http"
-				},
-				"typedPerFilterConfig": {
-					"envoy.filters.http.ext_authz": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-						"disabled": true
-					}
-				}
-			},
-			{
-				"name": "pomerium-path-/healthz",
-				"match": {
-					"path": "/healthz"
-				},
-				"route": {
-					"cluster": "pomerium-control-plane-http"
-				},
-				"typedPerFilterConfig": {
-					"envoy.filters.http.ext_authz": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-						"disabled": true
-					}
-				}
-			},
-			{
-				"name": "pomerium-path-/.pomerium",
-				"match": {
-					"path": "/.pomerium"
-				},
-				"route": {
-					"cluster": "pomerium-control-plane-http"
-				},
-				"typedPerFilterConfig": {
-					"envoy.filters.http.ext_authz": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-						"disabled": true
-					}
-				}
-			},
-			{
-				"name": "pomerium-prefix-/.pomerium/",
-				"match": {
-					"prefix": "/.pomerium/"
-				},
-				"route": {
-					"cluster": "pomerium-control-plane-http"
-				},
-				"typedPerFilterConfig": {
-					"envoy.filters.http.ext_authz": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-						"disabled": true
-					}
-				}
-			},
-			{
-				"name": "pomerium-path-/.well-known/pomerium",
-				"match": {
-					"path": "/.well-known/pomerium"
-				},
-				"route": {
-					"cluster": "pomerium-control-plane-http"
-				},
-				"typedPerFilterConfig": {
-					"envoy.filters.http.ext_authz": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-						"disabled": true
-					}
-				}
-			},
-			{
-				"name": "pomerium-prefix-/.well-known/pomerium/",
-				"match": {
-					"prefix": "/.well-known/pomerium/"
-				},
-				"route": {
-					"cluster": "pomerium-control-plane-http"
-				},
-				"typedPerFilterConfig": {
-					"envoy.filters.http.ext_authz": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-						"disabled": true
-					}
-				}
-			},
-			{
-				"name": "pomerium-path-/oauth2/callback",
-				"match": {
-					"path": "/oauth2/callback"
-				},
-				"route": {
-					"cluster": "pomerium-control-plane-http"
-				},
-				"typedPerFilterConfig": {
-					"envoy.filters.http.ext_authz": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-						"disabled": true
-					}
-				}
-			}
-		]
-	`, routes)
+	t.Run("authenticate", func(t *testing.T) {
+		options := &config.Options{
+			Services:                 "all",
+			AuthenticateURL:          mustParseURL("https://authenticate.example.com"),
+			AuthenticateCallbackPath: "/oauth2/callback",
+			ForwardAuthURL:           mustParseURL("https://forward-auth.example.com"),
+		}
+		routes := buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+
+		testutil.AssertProtoJSONEqual(t, `[
+			`+routeString("path", "/ping")+`,
+			`+routeString("path", "/healthz")+`,
+			`+routeString("path", "/.pomerium")+`,
+			`+routeString("prefix", "/.pomerium/")+`,
+			`+routeString("path", "/.well-known/pomerium")+`,
+			`+routeString("prefix", "/.well-known/pomerium/")+`,
+			`+routeString("path", "/robots.txt")+`,
+			`+routeString("path", "/oauth2/callback")+`
+		]`, routes)
+	})
+
+	t.Run("with robots", func(t *testing.T) {
+		options := &config.Options{
+			Services:                 "all",
+			AuthenticateURL:          mustParseURL("https://authenticate.example.com"),
+			AuthenticateCallbackPath: "/oauth2/callback",
+			ForwardAuthURL:           mustParseURL("https://forward-auth.example.com"),
+			Policies: []config.Policy{{
+				From: "https://from.example.com",
+				To:   "https://to.example.com",
+			}},
+		}
+		_ = options.Policies[0].Validate()
+		routes := buildPomeriumHTTPRoutes(options, "from.example.com")
+
+		testutil.AssertProtoJSONEqual(t, `[
+			`+routeString("path", "/ping")+`,
+			`+routeString("path", "/healthz")+`,
+			`+routeString("path", "/.pomerium")+`,
+			`+routeString("prefix", "/.pomerium/")+`,
+			`+routeString("path", "/.well-known/pomerium")+`,
+			`+routeString("prefix", "/.well-known/pomerium/")+`,
+			`+routeString("path", "/robots.txt")+`
+		]`, routes)
+	})
+
+	t.Run("without robots", func(t *testing.T) {
+		options := &config.Options{
+			Services:                 "all",
+			AuthenticateURL:          mustParseURL("https://authenticate.example.com"),
+			AuthenticateCallbackPath: "/oauth2/callback",
+			ForwardAuthURL:           mustParseURL("https://forward-auth.example.com"),
+			Policies: []config.Policy{{
+				From:                             "https://from.example.com",
+				To:                               "https://to.example.com",
+				AllowPublicUnauthenticatedAccess: true,
+			}},
+		}
+		_ = options.Policies[0].Validate()
+		routes := buildPomeriumHTTPRoutes(options, "from.example.com")
+
+		testutil.AssertProtoJSONEqual(t, `[
+			`+routeString("path", "/ping")+`,
+			`+routeString("path", "/healthz")+`,
+			`+routeString("path", "/.pomerium")+`,
+			`+routeString("prefix", "/.pomerium/")+`,
+			`+routeString("path", "/.well-known/pomerium")+`,
+			`+routeString("prefix", "/.well-known/pomerium/")+`
+		]`, routes)
+	})
 }
 
 func Test_buildControlPlanePathRoute(t *testing.T) {
@@ -429,7 +385,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						{ "enabled": true, "upgradeType": "spdy/3.1"}
 					]
 				}
-			},		
+			},
 			{
 				"name": "policy-7",
 				"match": {
@@ -557,12 +513,4 @@ func Test_buildPolicyRoutesWithDestinationPath(t *testing.T) {
 			}
 		]
 	`, routes)
-}
-
-func mustParseURL(str string) *url.URL {
-	u, err := url.Parse(str)
-	if err != nil {
-		panic(err)
-	}
-	return u
 }
