@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tomnomnom/linkheader"
 
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
@@ -206,4 +207,29 @@ func mustParseURL(rawurl string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func TestParseServiceAccount(t *testing.T) {
+	tests := []struct {
+		name              string
+		rawServiceAccount string
+		apiKey            string
+		wantErr           bool
+	}{
+		{"json", "ewogICAgImFwaV9rZXkiOiAiZm9vIgp9Cg==", "foo", false},
+		{"value", "Zm9v", "foo", false},
+		{"empty", "", "", true},
+		{"invalid", "Zm9v---", "", true},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := ParseServiceAccount(tc.rawServiceAccount)
+			require.True(t, (err != nil) == tc.wantErr)
+			if tc.apiKey != "" {
+				assert.Equal(t, tc.apiKey, got.APIKey)
+			}
+		})
+	}
 }
