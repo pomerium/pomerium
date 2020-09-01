@@ -7,7 +7,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.2.0
 	contrib.go.opencensus.io/exporter/zipkin v0.1.2
 	github.com/btcsuite/btcutil v1.0.2
-	github.com/caddyserver/certmagic v0.11.2
+	github.com/caddyserver/certmagic v0.11.3-0.20200826185716-09acc6bf59fa
 	github.com/cenkalti/backoff/v4 v4.0.2
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/cncf/udpa/go v0.0.0-20200629203442-efcf912fb354 // indirect
@@ -39,6 +39,7 @@ require (
 	github.com/openzipkin/zipkin-go v0.2.3
 	github.com/ory/dockertest/v3 v3.6.0
 	github.com/pelletier/go-toml v1.6.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v1.7.1
@@ -56,6 +57,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80
 	go.opencensus.io v0.22.4
+	go.uber.org/zap v1.15.0
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	golang.org/x/net v0.0.0-20200822124328-c89045814202
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
@@ -66,6 +68,7 @@ require (
 	google.golang.org/grpc v1.31.1
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
+	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v2 v2.3.0

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/caddyserver/certmagic"
+	"go.uber.org/zap"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -43,6 +44,7 @@ func New(src config.Source) (*Manager, error) {
 	certmagic.Default.Storage = &certmagic.FileStorage{
 		Path: src.GetConfig().Options.AutocertOptions.Folder,
 	}
+	certmagic.Default.Logger = log.ZapLogger().With(zap.String("service", "autocert"))
 
 	mgr := &Manager{
 		src:       src,
