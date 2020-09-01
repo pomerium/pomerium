@@ -8,13 +8,29 @@ import (
 	"sync/atomic"
 
 	"github.com/rs/zerolog"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
-	logger atomic.Value
+	logger    atomic.Value
+	zapLogger atomic.Value
+	zapLevel  zap.AtomicLevel
 )
 
 func init() {
+	zapLevel = zap.NewAtomicLevel()
+
+	zapCfg := zap.NewProductionEncoderConfig()
+	zapCfg.TimeKey = "time"
+	zapCfg.EncodeTime = zapcore.RFC3339TimeEncoder
+
+	zapLogger.Store(zap.New(zapcore.NewCore(
+		zapcore.NewJSONEncoder(zapCfg),
+		zapcore.Lock(os.Stdout),
+		zapLevel,
+	)))
+
 	DisableDebug()
 }
 
@@ -22,17 +38,24 @@ func init() {
 func DisableDebug() {
 	l := zerolog.New(os.Stdout).With().Timestamp().Logger()
 	logger.Store(&l)
+	zapLevel.SetLevel(zapcore.InfoLevel)
 }
 
 // EnableDebug tells the logger to use stdout and pretty print output.
 func EnableDebug() {
 	l := zerolog.New(os.Stdout).With().Timestamp().Logger().Output(zerolog.ConsoleWriter{Out: os.Stdout})
 	logger.Store(&l)
+	zapLevel.SetLevel(zapcore.DebugLevel)
 }
 
 // Logger returns the global logger.
 func Logger() *zerolog.Logger {
 	return logger.Load().(*zerolog.Logger)
+}
+
+// ZapLogger returns the global zap logger.
+func ZapLogger() *zap.Logger {
+	return zapLogger.Load().(*zap.Logger)
 }
 
 // SetLevel sets the minimum global log level. Options are 'debug' 'info' 'warn' and 'error'.
