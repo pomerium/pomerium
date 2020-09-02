@@ -20,8 +20,6 @@ Pomerium is shipped in multiple formats and architectures to suit a variety of d
 - Supported Operating Systems: `linux`, `darwin`
 - Supported Architectures: `amd64`, `arm64`
 
-Pomerium releases include both the `pomerium` and `pomerium-cli` binaries.
-
 ### Binaries
 
 Official binaries can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page.
