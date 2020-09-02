@@ -20,8 +20,6 @@ Pomerium is shipped in multiple formats and architectures to suit a variety of d
 - Supported Operating Systems: `linux`, `darwin`
 - Supported Architectures: `amd64`, `arm64`
 
-Pomerium releases include both the `pomerium` and `pomerium-cli` binaries.
-
 ### Binaries
 
 Official binaries can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page.
@@ -30,7 +28,7 @@ Official binaries can be found on our [GitHub Releases](https://github.com/pomer
 ARCH=[your arch]
 OS=[your os]
 VERSION=[desired version]
-curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomerium-${OS}-${ARCH}.tar.gz \ 
+curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomerium-${OS}-${ARCH}.tar.gz \
     | tar -z -x
 ```
 
@@ -72,7 +70,7 @@ See the [README](https://github.com/pomerium/pomerium-helm/blob/master/charts/po
 ### Source
 
 ::: tip
-Officially supported build platforms are limited by envoy proxy.  If you have an 
+Officially supported build platforms are limited by envoy proxy.  If you have an
 enoy binary for your platform in your path at start time, `pomerium` should function correctly.
 :::
 
@@ -96,7 +94,7 @@ Official binaries can be found on our [GitHub Releases](https://github.com/pomer
 ARCH=[your arch]
 OS=[your os]
 VERSION=[desired version]
-curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomerium-cli-${OS}-${ARCH}.tar.gz \ 
+curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomerium-cli-${OS}-${ARCH}.tar.gz \
     | tar -z -x
 ```
 
