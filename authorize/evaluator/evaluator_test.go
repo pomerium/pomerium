@@ -247,6 +247,22 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 				"groups": []string{"group1", "group2", "admin", "test"},
 			},
 		},
+		{
+			"with impersonate",
+			&Request{
+				HTTP: RequestHTTP{URL: "https://example.com"},
+				Session: RequestSession{
+					ImpersonateEmail:  "user@example.com",
+					ImpersonateGroups: []string{"admin", "test"},
+				},
+			},
+			map[string]interface{}{
+				"iss":    "authn.example.com",
+				"aud":    "example.com",
+				"email":  "user@example.com",
+				"groups": []string{"admin", "test"},
+			},
+		},
 	}
 
 	for _, tc := range tests {

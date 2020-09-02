@@ -231,6 +231,14 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 			payload["groups"] = groups
 		}
 	}
+
+	if req.Session.ImpersonateEmail != "" {
+		payload["email"] = req.Session.ImpersonateEmail
+	}
+	if len(req.Session.ImpersonateGroups) > 0 {
+		payload["groups"] = req.Session.ImpersonateGroups
+	}
+
 	return payload
 }
 
