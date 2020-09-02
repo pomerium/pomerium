@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"fmt"
+	"net/url"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -41,13 +42,16 @@ func buildGRPCRoutes() []*envoy_config_route_v3.Route {
 
 func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	routes := []*envoy_config_route_v3.Route{
-		buildControlPlanePathRoute("/robots.txt"),
 		buildControlPlanePathRoute("/ping"),
 		buildControlPlanePathRoute("/healthz"),
 		buildControlPlanePathRoute("/.pomerium"),
 		buildControlPlanePrefixRoute("/.pomerium/"),
 		buildControlPlanePathRoute("/.well-known/pomerium"),
 		buildControlPlanePrefixRoute("/.well-known/pomerium/"),
+	}
+	// per #837, only add robots.txt if there are no unauthenticated routes
+	if !hasPublicPolicyMatchingURL(options, mustParseURL("https://"+domain+"/robots.txt")) {
+		routes = append(routes, buildControlPlanePathRoute("/robots.txt"))
 	}
 	// if we're handling authentication, add the oauth2 callback url
 	if config.IsAuthenticate(options.Services) && hostMatchesDomain(options.GetAuthenticateURL(), domain) {
@@ -245,4 +249,21 @@ func getPrefixRewrite(policy *config.Policy) string {
 		prefixRewrite = policy.Destination.Path
 	}
 	return prefixRewrite
+}
+
+func hasPublicPolicyMatchingURL(options *config.Options, requestURL *url.URL) bool {
+	for _, policy := range options.Policies {
+		if policy.AllowPublicUnauthenticatedAccess && policy.Matches(requestURL) {
+			return true
+		}
+	}
+	return false
+}
+
+func mustParseURL(str string) *url.URL {
+	u, err := url.Parse(str)
+	if err != nil {
+		panic(err)
+	}
+	return u
 }
