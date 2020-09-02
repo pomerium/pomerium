@@ -7,7 +7,6 @@ daysUntilClose: 7
 # Only issues or pull requests with all of these labels are check if stale. Defaults to `[]` (disabled)
 onlyLabels:
   - WaitingForInfo
-  - ChangesRequested
 # Issues with these labels will never be considered stale
 exemptLabels:
   - thinking
@@ -28,6 +27,7 @@ pulls:
     This pull request has been automatically marked as stale because it has not had
     recent activity. It will be closed if no further activity occurs. Thank you
     for you
-
+  onlyLabels:
+    - ChangesRequested
 # Limit the number of actions per hour, from 1-30. Default is 30
 limitPerRun: 1
