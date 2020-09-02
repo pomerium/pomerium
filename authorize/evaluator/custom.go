@@ -8,6 +8,8 @@ import (
 
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
+
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 // A CustomEvaluatorRequest is the data needed to evaluate a custom rego policy.
@@ -42,6 +44,9 @@ func NewCustomEvaluator(store storage.Store) *CustomEvaluator {
 
 // Evaluate evaluates the custom rego policy.
 func (ce *CustomEvaluator) Evaluate(ctx context.Context, req *CustomEvaluatorRequest) (*CustomEvaluatorResponse, error) {
+	_, span := trace.StartSpan(ctx, "authorize.evaluator.custom.Evaluate")
+	defer span.End()
+
 	q, err := ce.getPreparedEvalQuery(ctx, req.RegoPolicy)
 	if err != nil {
 		return nil, err
