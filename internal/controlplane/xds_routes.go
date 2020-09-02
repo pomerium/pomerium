@@ -247,11 +247,7 @@ func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb
 func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrite *envoy_type_matcher_v3.RegexMatchAndSubstitute) {
 	if policy.PrefixRewrite != "" {
 		prefixRewrite = policy.PrefixRewrite
-	} else if policy.Destination != nil && policy.Destination.Path != "" {
-		prefixRewrite = policy.Destination.Path
-	}
-
-	if policy.RegexRewritePattern != "" {
+	} else if policy.RegexRewritePattern != "" {
 		regexRewrite = &envoy_type_matcher_v3.RegexMatchAndSubstitute{
 			Pattern: &envoy_type_matcher_v3.RegexMatcher{
 				EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
@@ -261,6 +257,8 @@ func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrit
 			},
 			Substitution: policy.RegexRewriteSubstitution,
 		}
+	} else if policy.Destination != nil && policy.Destination.Path != "" {
+		prefixRewrite = policy.Destination.Path
 	}
 
 	return prefixRewrite, regexRewrite

@@ -1087,8 +1087,7 @@ If set, the route will only match incoming requests with a path that matches the
 - Optional
 - Example: `{ "regex_rewrite_pattern":"^/service/([^/]+)(/.*)$", "regex_rewrite_substitution": "\\2/instance/\\1" }`
 
-If set, the URL path will be rewritten according to the pattern and substitution. This option should only be used with
-`regex`.
+If set, the URL path will be rewritten according to the pattern and substitution, similar to `prefix_rewrite`.
 
 ### Route Timeout
 
