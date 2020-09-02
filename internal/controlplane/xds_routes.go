@@ -120,7 +120,7 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 		requestHeadersToAdd := toEnvoyHeaders(policy.SetRequestHeaders)
 		requestHeadersToRemove := getRequestHeadersToRemove(options, &policy)
 		routeTimeout := getRouteTimeout(options, &policy)
-		prefixRewrite := getPrefixRewrite(&policy)
+		prefixRewrite, regexRewrite := getRewriteOptions(&policy)
 
 		routes = append(routes, &envoy_config_route_v3.Route{
 			Name:  fmt.Sprintf("policy-%d", i),
@@ -163,6 +163,7 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 					},
 					Timeout:       routeTimeout,
 					PrefixRewrite: prefixRewrite,
+					RegexRewrite:  regexRewrite,
 				},
 			},
 			RequestHeadersToAdd:    requestHeadersToAdd,
@@ -243,12 +244,24 @@ func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb
 	return routeTimeout
 }
 
-func getPrefixRewrite(policy *config.Policy) string {
-	prefixRewrite := ""
-	if policy.Destination != nil && policy.Destination.Path != "" {
+func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrite *envoy_type_matcher_v3.RegexMatchAndSubstitute) {
+	if policy.PrefixRewrite != "" {
+		prefixRewrite = policy.PrefixRewrite
+	} else if policy.RegexRewritePattern != "" {
+		regexRewrite = &envoy_type_matcher_v3.RegexMatchAndSubstitute{
+			Pattern: &envoy_type_matcher_v3.RegexMatcher{
+				EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
+					GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
+				},
+				Regex: policy.RegexRewritePattern,
+			},
+			Substitution: policy.RegexRewriteSubstitution,
+		}
+	} else if policy.Destination != nil && policy.Destination.Path != "" {
 		prefixRewrite = policy.Destination.Path
 	}
-	return prefixRewrite
+
+	return prefixRewrite, regexRewrite
 }
 
 func hasPublicPolicyMatchingURL(options *config.Options, requestURL *url.URL) bool {

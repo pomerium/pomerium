@@ -4,7 +4,6 @@ package pomerium.config;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
 import "google/protobuf/duration.proto";
-import "google/protobuf/timestamp.proto";
 
 message Config {
   string name = 1;
@@ -25,6 +24,10 @@ message Route {
   string prefix = 7;
   string path = 8;
   string regex = 9;
+
+  string prefix_rewrite = 29;
+  string regex_rewrite_pattern = 30;
+  string regex_rewrite_substitution = 31;
 
   bool cors_allow_preflight = 10;
   bool allow_public_unauthenticated_access = 11;

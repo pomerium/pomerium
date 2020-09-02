@@ -1041,6 +1041,25 @@ If set, the route will only match incoming requests with a path that is an exact
 
 If set, the route will only match incoming requests with a path that begins with the specified prefix.
 
+### Prefix Rewrite
+
+- `yaml`/`json` setting: `prefix_rewrite`
+- Type: `string`
+- Optional
+- Example: `/subpath`
+
+If set, indicates that during forwarding, the matched prefix (or path) should be swapped with this value.
+For example, given this policy:
+
+```yaml
+from: https://from.example.com
+to: https://to.example.com
+prefix: /admin
+prefix_rewrite: /
+```
+
+A request to `https://from.example.com/admin` would be forwarded to `https://to.example.com/`.
+
 ### Public Access
 
 - `yaml`/`json` setting: `allow_public_unauthenticated_access`
@@ -1060,6 +1079,15 @@ If this setting is enabled, no whitelists (e.g. Allowed Users) should be provide
 - Example: `^/(admin|superuser)/.*$`
 
 If set, the route will only match incoming requests with a path that matches the specified regular expression. The supported syntax is the same as the Go [regexp package](https://golang.org/pkg/regexp/) which is based on [re2](https://github.com/google/re2/wiki/Syntax).
+
+### Regex Rewrite
+
+- `yaml`/`json` setting: `regex_rewrite_pattern`, `regex_rewrite_substitution`
+- Type: `string`
+- Optional
+- Example: `{ "regex_rewrite_pattern":"^/service/([^/]+)(/.*)$", "regex_rewrite_substitution": "\\2/instance/\\1" }`
+
+If set, the URL path will be rewritten according to the pattern and substitution, similar to `prefix_rewrite`.
 
 ### Route Timeout
 

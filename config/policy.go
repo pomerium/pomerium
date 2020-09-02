@@ -38,6 +38,11 @@ type Policy struct {
 	Path   string `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty"`
 	Regex  string `mapstructure:"regex" yaml:"regex,omitempty" json:"regex,omitempty"`
 
+	// Path Rewrite Options
+	PrefixRewrite            string `mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitempty" json:"prefix_rewrite,omitempty"`
+	RegexRewritePattern      string `mapstructure:"regex_rewrite_pattern" yaml:"regex_rewrite_pattern,omitempty" json:"regex_rewrite_pattern,omitempty"`
+	RegexRewriteSubstitution string `mapstructure:"regex_rewrite_substitution" yaml:"regex_rewrite_substitution,omitempty" json:"regex_rewrite_substitution,omitempty"` //nolint
+
 	// Allow unauthenticated HTTP OPTIONS requests as per the CORS spec
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Preflighted_requests
 	CORSAllowPreflight bool `mapstructure:"cors_allow_preflight" yaml:"cors_allow_preflight,omitempty"`
@@ -144,6 +149,9 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		Prefix:                           pb.GetPrefix(),
 		Path:                             pb.GetPath(),
 		Regex:                            pb.GetRegex(),
+		PrefixRewrite:                    pb.GetPrefixRewrite(),
+		RegexRewritePattern:              pb.GetRegexRewritePattern(),
+		RegexRewriteSubstitution:         pb.GetRegexRewriteSubstitution(),
 		CORSAllowPreflight:               pb.GetCorsAllowPreflight(),
 		AllowPublicUnauthenticatedAccess: pb.GetAllowPublicUnauthenticatedAccess(),
 		UpstreamTimeout:                  timeout,
@@ -199,6 +207,9 @@ func (p *Policy) ToProto() *configpb.Route {
 		Prefix:                           p.Prefix,
 		Path:                             p.Path,
 		Regex:                            p.Regex,
+		PrefixRewrite:                    p.PrefixRewrite,
+		RegexRewritePattern:              p.RegexRewritePattern,
+		RegexRewriteSubstitution:         p.RegexRewriteSubstitution,
 		CorsAllowPreflight:               p.CORSAllowPreflight,
 		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
 		Timeout:                          timeout,
@@ -285,6 +296,10 @@ func (p *Policy) Validate() error {
 			return fmt.Errorf("config: failed to load kubernetes service account token: %w", err)
 		}
 		p.KubernetesServiceAccountToken = string(token)
+	}
+
+	if p.PrefixRewrite != "" && p.RegexRewritePattern != "" {
+		return fmt.Errorf("config: only prefix_rewrite or regex_rewrite_pattern can be specified, but not both")
 	}
 
 	return nil
