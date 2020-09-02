@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/cespare/xxhash/v2"
@@ -332,6 +334,39 @@ func (p *Policy) String() string {
 		return fmt.Sprintf("%s → %s", p.From, p.To)
 	}
 	return fmt.Sprintf("%s → %s", p.Source.String(), p.Destination.String())
+}
+
+// Matches returns true if the policy would match the given URL.
+func (p *Policy) Matches(requestURL *url.URL) bool {
+	// handle nils by always returning false
+	if p.Source == nil || requestURL == nil {
+		return false
+	}
+
+	if p.Source.Host != requestURL.Host {
+		return false
+	}
+
+	if p.Prefix != "" {
+		if !strings.HasPrefix(requestURL.Path, p.Prefix) {
+			return false
+		}
+	}
+
+	if p.Path != "" {
+		if requestURL.Path != p.Path {
+			return false
+		}
+	}
+
+	if p.Regex != "" {
+		re, err := regexp.Compile(p.Regex)
+		if err == nil && !re.MatchString(requestURL.String()) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // StringURL stores a URL as a string in json.

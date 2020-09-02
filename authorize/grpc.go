@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/golang/protobuf/ptypes"
@@ -243,34 +242,9 @@ func (a *Authorize) getMatchingPolicy(requestURL *url.URL) *config.Policy {
 	options := a.currentOptions.Load()
 
 	for _, p := range options.Policies {
-		if p.Source == nil {
-			continue
+		if p.Matches(requestURL) {
+			return &p
 		}
-
-		if p.Source.Host != requestURL.Host {
-			continue
-		}
-
-		if p.Prefix != "" {
-			if !strings.HasPrefix(requestURL.Path, p.Prefix) {
-				continue
-			}
-		}
-
-		if p.Path != "" {
-			if requestURL.Path != p.Path {
-				continue
-			}
-		}
-
-		if p.Regex != "" {
-			re, err := regexp.Compile(p.Regex)
-			if err == nil && !re.MatchString(requestURL.String()) {
-				continue
-			}
-		}
-
-		return &p
 	}
 
 	return nil
