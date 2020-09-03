@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -70,6 +71,9 @@ func (src *ConfigSource) GetConfig() *config.Config {
 }
 
 func (src *ConfigSource) rebuild(firstTime bool) {
+	_, span := trace.StartSpan(context.Background(), "databroker.config_source.rebuild")
+	defer span.End()
+
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
@@ -83,9 +87,17 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 		seen[policy.RouteID()] = struct{}{}
 	}
 
+	var additionalPolicies []config.Policy
+
 	// add all the config policies to the list
 	for _, cfgpb := range src.dbConfigs {
 		cfg.Options.ApplySettings(cfgpb.Settings)
+
+		err := cfg.Options.Validate()
+		if err != nil {
+			log.Warn().Err(err).Msg("databroker: invalid config detected, ignoring")
+			return
+		}
 
 		for _, routepb := range cfgpb.GetRoutes() {
 			policy, err := config.NewPolicyFromProto(routepb)
@@ -112,15 +124,12 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 			}
 			seen[routeID] = struct{}{}
 
-			cfg.Options.Policies = append(cfg.Options.Policies, *policy)
-		}
-
-		err := cfg.Options.Validate()
-		if err != nil {
-			log.Warn().Err(err).Msg("databroker: invalid config detected, ignoring")
-			return
+			additionalPolicies = append(additionalPolicies, *policy)
 		}
 	}
+
+	// add the additional policies here since calling `Validate` will reset them.
+	cfg.Options.Policies = append(cfg.Options.Policies, additionalPolicies...)
 
 	src.computedConfig = cfg
 	if !firstTime {
