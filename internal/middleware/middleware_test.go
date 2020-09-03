@@ -42,42 +42,6 @@ func TestSetHeaders(t *testing.T) {
 	}
 }
 
-func TestHealthCheck(t *testing.T) {
-	t.Parallel()
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hi"))
-	})
-	tests := []struct {
-		name       string
-		method     string
-		clientPath string
-		serverPath string
-
-		wantStatus int
-	}{
-		{"good - Get", http.MethodGet, "/ping", "/ping", http.StatusOK},
-		{"good - Head", http.MethodHead, "/ping", "/ping", http.StatusOK},
-		{"bad - Options", http.MethodOptions, "/ping", "/ping", http.StatusMethodNotAllowed},
-		{"bad - Put", http.MethodPut, "/ping", "/ping", http.StatusMethodNotAllowed},
-		{"bad - Post", http.MethodPost, "/ping", "/ping", http.StatusMethodNotAllowed},
-		{"bad - route miss", http.MethodGet, "/not-ping", "/ping", http.StatusOK},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			r := httptest.NewRequest(tt.method, tt.clientPath, nil)
-			w := httptest.NewRecorder()
-
-			handler := Healthcheck(tt.serverPath, string("OK"))(testHandler)
-			handler.ServeHTTP(w, r)
-			if w.Code != tt.wantStatus {
-				t.Errorf("code differs. got %d want %d body: %s", w.Code, tt.wantStatus, w.Body.String())
-			}
-		})
-	}
-}
-
 func TestStripCookie(t *testing.T) {
 	tests := []struct {
 		name           string
