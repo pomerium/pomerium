@@ -3,6 +3,7 @@ package controlplane
 import (
 	envoy_service_accesslog_v2 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v2"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
@@ -21,13 +22,20 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v2.AccessLogS
 		}
 
 		for _, entry := range msg.GetHttpLogs().LogEntry {
-			evt := log.Info().Str("service", "envoy")
+			reqPath := entry.GetRequest().GetPath()
+			var evt *zerolog.Event
+			if reqPath == "/ping" || reqPath == "/healthz" {
+				evt = log.Debug()
+			} else {
+				evt = log.Info()
+			}
 			// common properties
+			evt = evt.Str("service", "envoy")
 			evt = evt.Str("upstream-cluster", entry.GetCommonProperties().GetUpstreamCluster())
 			// request properties
 			evt = evt.Str("method", entry.GetRequest().GetRequestMethod().String())
 			evt = evt.Str("authority", entry.GetRequest().GetAuthority())
-			evt = evt.Str("path", entry.GetRequest().GetPath())
+			evt = evt.Str("path", reqPath)
 			evt = evt.Str("user-agent", entry.GetRequest().GetUserAgent())
 			evt = evt.Str("referer", entry.GetRequest().GetReferer())
 			evt = evt.Str("forwarded-for", entry.GetRequest().GetForwardedFor())

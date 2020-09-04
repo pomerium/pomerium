@@ -15,7 +15,7 @@ about: Let us know about a bug!
 
 ## What's your environment like?
 
-- Pomerium version (retrieve with `pomerium --version` or `/ping` endpoint):
+- Pomerium version (retrieve with `pomerium --version`):
 - Server Operating System/Architecture/Cloud:
 
 ## What's your config.yaml?

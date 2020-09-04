@@ -46,36 +46,6 @@ func ValidateRequestURL(r *http.Request, key string) error {
 	return urlutil.NewSignedURL(key, urlutil.GetAbsoluteURL(r)).Validate()
 }
 
-// Healthcheck endpoint middleware useful to setting up a path like
-// `/ping` that load balancers or uptime testing external services
-// can make a request before hitting any routes. It's also convenient
-// to place this above ACL middlewares as well.
-//
-// https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html
-func Healthcheck(endpoint, msg string) func(http.Handler) http.Handler {
-	f := func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.Healthcheck")
-			defer span.End()
-			if strings.EqualFold(r.URL.Path, endpoint) {
-				if r.Method != http.MethodGet && r.Method != http.MethodHead {
-					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-					return
-				}
-				w.Header().Set("Content-Type", "text/plain")
-				w.WriteHeader(http.StatusOK)
-				if r.Method == http.MethodGet {
-					w.Write([]byte(msg))
-				}
-				return
-			}
-			next.ServeHTTP(w, r.WithContext(ctx))
-		}
-		return http.HandlerFunc(fn)
-	}
-	return f
-}
-
 // StripCookie strips the cookie from the downstram request.
 func StripCookie(cookieName string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
