@@ -213,7 +213,12 @@ func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) {
 
 	directoryGroups, directoryUsers, err := mgr.cfg.Load().directory.UserGroups(ctx)
 	if err != nil {
-		mgr.log.Warn().Err(err).Msg("failed to refresh directory users and groups")
+		msg := "failed to refresh directory users and groups"
+		if ctx.Err() != nil {
+			msg += ". You may need to increase the identity provider directory timeout setting"
+			msg += "(https://www.pomerium.io/reference/#identity-provider-refresh-directory-settings)"
+		}
+		mgr.log.Warn().Err(err).Msg(msg)
 		return
 	}
 
