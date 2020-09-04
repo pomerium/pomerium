@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
@@ -27,15 +26,11 @@ import (
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 )
 
-var sessionTypeURL, userTypeURL string
-
-func init() {
-	any, _ := ptypes.MarshalAny(new(session.Session))
-	sessionTypeURL = any.GetTypeUrl()
-
-	any, _ = ptypes.MarshalAny(new(user.User))
-	userTypeURL = any.GetTypeUrl()
-}
+const (
+	serviceAccountTypeURL = "type.googleapis.com/user.ServiceAccount"
+	sessionTypeURL        = "type.googleapis.com/session.Session"
+	userTypeURL           = "type.googleapis.com/user.User"
+)
 
 // Check implements the envoy auth server gRPC endpoint.
 func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRequest) (*envoy_service_auth_v2.CheckResponse, error) {
@@ -92,7 +87,7 @@ func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) error {
 	return nil
 }
 
-func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) *session.Session {
+func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) interface{ GetUserId() string } {
 	ctx, span := trace.StartSpan(ctx, "authorize.forceSyncSession")
 	defer span.End()
 
@@ -103,6 +98,13 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) *ses
 	a.dataBrokerDataLock.RUnlock()
 	if ok {
 		return s
+	}
+
+	a.dataBrokerDataLock.RLock()
+	sa, ok := a.dataBrokerData.Get(serviceAccountTypeURL, sessionID).(*user.ServiceAccount)
+	a.dataBrokerDataLock.RUnlock()
+	if ok {
+		return sa
 	}
 
 	res, err := state.dataBrokerClient.Get(ctx, &databroker.GetRequest{

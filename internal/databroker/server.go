@@ -390,6 +390,7 @@ func (srv *Server) getDB(recordType string, lock bool) (db storage.Backend, vers
 		if db == nil {
 			db, err = srv.newDB(recordType)
 			srv.byType[recordType] = db
+			defer srv.onTypechange.Broadcast()
 		}
 		if lock {
 			srv.mu.Unlock()

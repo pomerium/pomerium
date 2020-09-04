@@ -30,10 +30,11 @@ import (
 )
 
 const (
+	directoryGroupTypeURL = "type.googleapis.com/directory.Group"
+	directoryUserTypeURL  = "type.googleapis.com/directory.User"
+	serviceAccountTypeURL = "type.googleapis.com/user.ServiceAccount"
 	sessionTypeURL        = "type.googleapis.com/session.Session"
 	userTypeURL           = "type.googleapis.com/user.User"
-	directoryUserTypeURL  = "type.googleapis.com/directory.User"
-	directoryGroupTypeURL = "type.googleapis.com/directory.Group"
 )
 
 // Evaluator specifies the interface for a policy engine.
@@ -282,6 +283,9 @@ type dataBrokerDataInput struct {
 func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input {
 	i := new(input)
 	i.DataBrokerData.Session = req.DataBrokerData.Get(sessionTypeURL, req.Session.ID)
+	if i.DataBrokerData.Session == nil {
+		i.DataBrokerData.Session = req.DataBrokerData.Get(serviceAccountTypeURL, req.Session.ID)
+	}
 	if obj, ok := i.DataBrokerData.Session.(interface{ GetUserId() string }); ok {
 		i.DataBrokerData.User = req.DataBrokerData.Get(userTypeURL, obj.GetUserId())
 

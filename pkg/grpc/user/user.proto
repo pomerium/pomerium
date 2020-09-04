@@ -4,6 +4,7 @@ package user;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/user";
 
 import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
 
 message User {
   string version = 1;
@@ -11,4 +12,11 @@ message User {
   string name = 3;
   string email = 4;
   map<string, google.protobuf.Any> claims = 8;
+}
+
+message ServiceAccount {
+  string id = 1;
+  string user_id = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  google.protobuf.Timestamp issued_at = 4;
 }
