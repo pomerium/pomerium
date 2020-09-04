@@ -37,15 +37,20 @@ func init() {
 // DisableDebug tells the logger to use stdout and json output.
 func DisableDebug() {
 	l := zerolog.New(os.Stdout).With().Timestamp().Logger()
-	logger.Store(&l)
+	SetLogger(&l)
 	zapLevel.SetLevel(zapcore.InfoLevel)
 }
 
 // EnableDebug tells the logger to use stdout and pretty print output.
 func EnableDebug() {
 	l := zerolog.New(os.Stdout).With().Timestamp().Logger().Output(zerolog.ConsoleWriter{Out: os.Stdout})
-	logger.Store(&l)
+	SetLogger(&l)
 	zapLevel.SetLevel(zapcore.DebugLevel)
+}
+
+// SetLogger sets zerolog the logger.
+func SetLogger(l *zerolog.Logger) {
+	logger.Store(l)
 }
 
 // Logger returns the global logger.

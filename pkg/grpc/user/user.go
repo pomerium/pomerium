@@ -50,3 +50,17 @@ func Set(ctx context.Context, client databroker.DataBrokerServiceClient, u *User
 	}
 	return res.GetRecord(), nil
 }
+
+// SetServiceAccount sets a service account in the databroker.
+func SetServiceAccount(ctx context.Context, client databroker.DataBrokerServiceClient, sa *ServiceAccount) (*databroker.Record, error) {
+	any, _ := anypb.New(sa)
+	res, err := client.Set(ctx, &databroker.SetRequest{
+		Type: any.GetTypeUrl(),
+		Id:   sa.GetId(),
+		Data: any,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error setting service account in databroker: %w", err)
+	}
+	return res.GetRecord(), nil
+}
