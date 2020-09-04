@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	defaultGroupRefreshInterval          = 10 * time.Minute
-	defaultGroupRefreshTimeout           = 1 * time.Minute
+	defaultGroupRefreshInterval          = 15 * time.Minute
+	defaultGroupRefreshTimeout           = 10 * time.Minute
 	defaultSessionRefreshGracePeriod     = 1 * time.Minute
 	defaultSessionRefreshCoolOffDuration = 10 * time.Second
 )
