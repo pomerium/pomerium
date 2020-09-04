@@ -99,9 +99,7 @@ func GetProvider(options Options) (provider Provider) {
 		if err == nil {
 			return okta.New(
 				okta.WithProviderURL(providerURL),
-				okta.WithServiceAccount(serviceAccount),
-				okta.WithQPS(options.QPS),
-			)
+				okta.WithServiceAccount(serviceAccount))
 		}
 		log.Warn().
 			Str("service", "directory").
