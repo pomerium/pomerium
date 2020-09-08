@@ -40,7 +40,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	state := a.state.Load()
 
 	// maybe rewrite http request for forward auth
-	isForwardAuth := a.handleForwardAuth(in)
+	_ = a.handleForwardAuth(in)
 	hreq := getHTTPRequestFromCheckRequest(in)
 	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), state.encoder)
 	sessionState, _ := loadSession(state.encoder, rawJWT)
@@ -65,9 +65,6 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	case reply.Status == http.StatusOK:
 		return a.okResponse(reply), nil
 	case reply.Status == http.StatusUnauthorized:
-		if isForwardAuth {
-			return a.deniedResponse(in, http.StatusUnauthorized, "Unauthenticated", nil), nil
-		}
 		return a.redirectResponse(in), nil
 	}
 	return a.deniedResponse(in, int32(reply.Status), reply.Message, nil), nil

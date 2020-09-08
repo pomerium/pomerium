@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 func buildGRPCRoutes() []*envoy_config_route_v3.Route {
@@ -59,7 +60,31 @@ func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_co
 	}
 	// if we're the proxy and this is the forward-auth url
 	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {
-		routes = append(routes, buildControlPlanePrefixRoute("/"))
+		matcher := []*envoy_config_route_v3.QueryParameterMatcher{
+			{
+				Name:                         "uri",
+				QueryParameterMatchSpecifier: &envoy_config_route_v3.QueryParameterMatcher_PresentMatch{PresentMatch: true},
+			},
+			{
+				Name:                         urlutil.QuerySessionEncrypted,
+				QueryParameterMatchSpecifier: &envoy_config_route_v3.QueryParameterMatcher_PresentMatch{PresentMatch: true},
+			},
+			{
+				Name:                         urlutil.QueryRedirectURI,
+				QueryParameterMatchSpecifier: &envoy_config_route_v3.QueryParameterMatcher_PresentMatch{PresentMatch: true},
+			},
+		}
+		route := buildControlPlanePrefixRoute("/")
+		route.Match.QueryParameters = matcher
+		routes = append(routes, route)
+
+		route = buildControlPlanePathRoute("/verify")
+		route.Match.QueryParameters = matcher
+		routes = append(routes, route)
+
+		route = buildControlPlanePrefixRoute("/")
+		route.TypedPerFilterConfig = nil
+		routes = append(routes, route)
 	}
 	return routes
 }

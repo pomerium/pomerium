@@ -34,7 +34,7 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
 
 	// nginx 1: verify. Return 401 if invalid and NGINX will call `auth-signin`
-	r.Handle("/verify", p.Verify(true)).Queries("uri", "{uri}")
+	// r.Handle("/verify", p.Verify(true)).Queries("uri", "{uri}")
 
 	// nginx 4: redirect the user back to their originally requested location.
 	r.Handle("/", httputil.HandlerFunc(p.nginxPostCallbackRedirect)).
@@ -45,7 +45,7 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 		HeadersRegexp(httputil.HeaderForwardedURI, urlutil.QuerySessionEncrypted)
 
 	// nginx 2 / traefik 1: verify and then start authenticate flow
-	r.Handle("/", p.Verify(false))
+	// r.Handle("/", p.Verify(false))
 
 	return r
 }
