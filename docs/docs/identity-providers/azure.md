@@ -32,19 +32,19 @@ This will bring you to the admin center of the Azure AD instance backing your Of
 
 Login to Microsoft Azure and choose **Azure Active Directory** from the sidebar.
 
-![Select Active Directory](./img/azure-dashboard.png)
+![Select Active Directory](./img/azure/azure-dashboard.png)
 
 Then under **MANAGE**, select **App registrations**.
 
-![Select App registrations](./img/azure-app-registrations.png)
+![Select App registrations](./img/azure/azure-app-registrations.png)
 
 Then click on the **+ ADD** button to add a new application.
 
 Enter a name for the application, select **Web app/API** as the **Application Type**, and for **Sign-on URL** enter your application URL.
 
-![Create application form](./img/azure-create-application.png)
+![Create application form](./img/azure/azure-create-application.png)
 
-Next you will need to create a key which will be used as the **[Client Secret]** in Pomerium's configuration settings. Click on **Keys** from the **Settings** menu.
+Next you will need to create a key which will be used as the **[Client Secret]** in Pomerium's configuration settings. Click on **Certificates and Secrets** from the **Settings** menu, then **click new client secret**.
 
 Enter a name for the key and choose the desired duration.
 
@@ -56,29 +56,33 @@ If you choose an expiring key, make sure to record the expiration date in your c
 
 Click on **Save** and the key will be displayed. **Make sure to copy the value of this key before leaving this screen**, otherwise you may need to create a new key. This value is used as the **[Client Secret]**.
 
-![Creating a Key](./img/azure-create-key.png)
+![Creating a Key](./img/azure/azure-create-key.png)
 
-Next you need to ensure that the Pomerium's Redirect URL is listed in allowed reply URLs for the created application. Navigate to **Azure Active Directory** -> **Apps registrations** and select your app. Then click **Settings** -> **Reply URLs** and add Pomerium's redirect URL. For example, `https://${authenticate_service_url}/oauth2/callback`.
+Next you need to ensure that the Pomerium's Redirect URL is listed in allowed reply URLs for the created application. Navigate to **Azure Active Directory** -> **Apps registrations** and select your app. Then click **Manage** -> **Authentication** --> **Add a platform** -> **Select Web**
 
-![Add Reply URL](./img/azure-redirect-url.png)
+![Add a platform](./img/azure/azure-add-a-platform.png)
+
+On the following screen, then add Pomerium's redirect URL. For example, `https://${authenticate_service_url}/oauth2/callback`.
+
+![Add Reply URL](./img/azure/azure-redirect-url.png)
 
 Next, in order to retrieve group information from Active Directory, we need to enable the necessary permissions for the [Microsoft Graph API](https://docs.microsoft.com/en-us/graph/auth-v2-service#azure-ad-endpoint-considerations).
 
 Please note, [Group ID](https://docs.microsoft.com/en-us/graph/api/group-get?view=graph-rest-1.0&tabs=http) not group name will be used to affirm group membership.
 
-On the **App registrations** page, click **API permissions**. Click the **Add a permission** button and select **Microsoft Graph API**, select **Delegated permissions**. Under the **Directory** row, select the checkbox for **Group.Read.All**.
+On the **App registrations** page, click **API permissions**. Click the **Add a permission** button and select **Microsoft Graph API**, select **Application permissions**. Under the **Directory** row, select the checkbox for **Group.Read.All**.
 
-![Azure add group membership claims](./img/azure-api-settings.png)
+![Azure add group membership claims](./img/azure/azure-api-settings.png)
 
 You can also optionally select **grant admin consent for all users** which will suppress the permission screen on first login for users.
 
 The final, and most unique step to Azure AD provider, is to take note of your specific endpoint. Navigate to **Azure Active Directory** -> **Apps registrations** and select your app.
 
-![Application dashboard](./img/azure-application-dashbaord.png)
+![Application dashboard](./img/azure/azure-application-dashboard.png)
 
 Click on **Endpoints**
 
-![Endpoint details](./img/azure-endpoints.png)
+![Endpoint details](./img/azure/azure-endpoints.png)
 
 The **OpenID Connect Metadata Document** value will form the basis for Pomerium's **Provider URL** setting.
 
@@ -94,11 +98,16 @@ https://login.microsoftonline.com/0303f438-3c5c-4190-9854-08d3eb31bd9f/v2.0/.wel
 https://login.microsoftonline.com/0303f438-3c5c-4190-9854-08d3eb31bd9f/v2.0
 ```
 
-## Service Account
+## Service Account (Optional)
 
-To use `allowed_groups` in a policy an `idp_service_account` needs to be set in the Pomerium configuration. The service account for Azure AD uses the same client ID and client secret configured above, as well as the directory (tenant) ID:
+::: tip
 
-![Personal Access Token](./img/azure-ids.png)
+By default, this information will be inferred from your provider URL. If you are using a different [OAuth2] credential set, you may need to set these values separately.
+:::
+
+To use `allowed_groups` in a policy an `idp_service_account` needs to be set in the Pomerium configuration. The service account for Azure AD uses the same [client ID] and client secret configured above, as well as the directory (tenant) ID:
+
+![Application dashboard](./img/azure/azure-application-dashboard.png)
 
 
 The format of the `idp_service_account` for Azure AD is a base64-encoded JSON document:
@@ -121,11 +130,12 @@ IDP_PROVIDER="azure"
 IDP_PROVIDER_URL="https://login.microsoftonline.com/{REPLACE-ME-SEE-ABOVE}/v2.0"
 IDP_CLIENT_ID="REPLACE-ME"
 IDP_CLIENT_SECRET="REPLACE-ME"
-IDP_SERVICE_ACCOUNT="REPLACE-ME-SEE-ABOVE"
+# Optional, if service account credentials are different
+# or cannot be inferred from the above credential set.
+# IDP_SERVICE_ACCOUNT="REPLACE-ME-SEE-ABOVE"
 ```
 
 [client id]: ../../reference/readme.md#identity-provider-client-id
 [client secret]: ../../reference/readme.md#identity-provider-client-secret
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
-[openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect
