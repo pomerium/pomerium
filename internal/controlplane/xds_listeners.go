@@ -109,8 +109,9 @@ func buildFilterChains(
 	callback func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain,
 ) []*envoy_config_listener_v3.FilterChain {
 	allDomains := getAllRouteableDomains(options, addr)
+	tlsDomains := getAllTLSDomains(options, addr)
 	var chains []*envoy_config_listener_v3.FilterChain
-	for _, domain := range allDomains {
+	for _, domain := range tlsDomains {
 		// first we match on SNI
 		chains = append(chains, callback(domain, allDomains))
 	}
@@ -423,6 +424,25 @@ func getAllRouteableDomains(options *config.Options, addr string) []string {
 			for _, h := range urlutil.GetDomainsForURL(options.GetForwardAuthURL()) {
 				lookup[h] = struct{}{}
 			}
+		}
+	}
+
+	domains := make([]string, 0, len(lookup))
+	for domain := range lookup {
+		domains = append(domains, domain)
+	}
+	sort.Strings(domains)
+
+	return domains
+}
+
+func getAllTLSDomains(options *config.Options, addr string) []string {
+	lookup := map[string]struct{}{}
+	for _, hp := range getAllRouteableDomains(options, addr) {
+		if d, _, err := net.SplitHostPort(hp); err == nil {
+			lookup[d] = struct{}{}
+		} else {
+			lookup[hp] = struct{}{}
 		}
 	}
 
