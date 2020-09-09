@@ -153,8 +153,8 @@ func (srv *Server) run() error {
 	}
 
 	if baseID, ok := readBaseID(); ok {
-		srv.restartEpoch++
 		args = append(args, "--base-id", strconv.Itoa(baseID), "--restart-epoch", strconv.Itoa(srv.restartEpoch))
+		srv.restartEpoch++ // start with epoch zero when we're a fresh pomerium process
 	} else {
 		args = append(args, "--use-dynamic-base-id", "--base-id-path", baseIDPath)
 	}
