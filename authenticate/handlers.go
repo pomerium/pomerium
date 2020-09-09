@@ -270,7 +270,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	a.sessionStore.ClearSession(w, r)
 	redirectString := r.FormValue(urlutil.QueryRedirectURI)
 	endSessionURL, err := a.provider.LogOut()
-	if err == nil {
+	if err == nil && redirectString != "" {
 		params := url.Values{}
 		params.Add("post_logout_redirect_uri", redirectString)
 		endSessionURL.RawQuery = params.Encode()

@@ -27,11 +27,12 @@
             <section>
               <p class="message">Your current session details.</p>
               <fieldset>
+                {{if .RedirectURL}}
                 <label>
                   <span>URL</span>
                   <a href="{{.RedirectURL}}">{{.RedirectURL}}</a>
                 </label>
-
+                {{end}}
                 {{if .User.Name}}
                 <label>
                   <span>Name</span>
