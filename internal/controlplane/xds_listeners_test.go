@@ -360,7 +360,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	}`, downstreamTLSContext)
 }
 
-func Test_getAllRouteableDomains(t *testing.T) {
+func Test_getAllDomains(t *testing.T) {
 	options := &config.Options{
 		Addr:            "127.0.0.1:9000",
 		GRPCAddr:        "127.0.0.1:9001",
@@ -374,27 +374,49 @@ func Test_getAllRouteableDomains(t *testing.T) {
 			{Source: &config.StringURL{URL: mustParseURL("https://c.example.com")}},
 		},
 	}
-	t.Run("http", func(t *testing.T) {
-		actual := getAllRouteableDomains(options, "127.0.0.1:9000")
-		expect := []string{
-			"a.example.com",
-			"a.example.com:80",
-			"authenticate.example.com",
-			"authenticate.example.com:443",
-			"b.example.com",
-			"b.example.com:443",
-			"c.example.com",
-			"c.example.com:443",
-		}
-		assert.Equal(t, expect, actual)
+	t.Run("routable", func(t *testing.T) {
+		t.Run("http", func(t *testing.T) {
+			actual := getAllRouteableDomains(options, "127.0.0.1:9000")
+			expect := []string{
+				"a.example.com",
+				"a.example.com:80",
+				"authenticate.example.com",
+				"authenticate.example.com:443",
+				"b.example.com",
+				"b.example.com:443",
+				"c.example.com",
+				"c.example.com:443",
+			}
+			assert.Equal(t, expect, actual)
+		})
+		t.Run("grpc", func(t *testing.T) {
+			actual := getAllRouteableDomains(options, "127.0.0.1:9001")
+			expect := []string{
+				"authorize.example.com:9001",
+				"cache.example.com:9001",
+			}
+			assert.Equal(t, expect, actual)
+		})
 	})
-	t.Run("grpc", func(t *testing.T) {
-		actual := getAllRouteableDomains(options, "127.0.0.1:9001")
-		expect := []string{
-			"authorize.example.com:9001",
-			"cache.example.com:9001",
-		}
-		assert.Equal(t, expect, actual)
+	t.Run("tls", func(t *testing.T) {
+		t.Run("http", func(t *testing.T) {
+			actual := getAllTLSDomains(options, "127.0.0.1:9000")
+			expect := []string{
+				"a.example.com",
+				"authenticate.example.com",
+				"b.example.com",
+				"c.example.com",
+			}
+			assert.Equal(t, expect, actual)
+		})
+		t.Run("grpc", func(t *testing.T) {
+			actual := getAllTLSDomains(options, "127.0.0.1:9001")
+			expect := []string{
+				"authorize.example.com",
+				"cache.example.com",
+			}
+			assert.Equal(t, expect, actual)
+		})
 	})
 }
 
