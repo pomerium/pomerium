@@ -142,7 +142,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 							mkHeader("x-pomerium-jwt-assertion", "valid-signed-jwt", false),
 							mkHeader("Authorization", "Bearer k8s-svc-account", false),
 							mkHeader("Impersonate-User", "foo@example.com", false),
-							mkHeader("Impersonate-Group", "admin", true),
+							mkHeader("Impersonate-Group", "admin", false),
 							mkHeader("Impersonate-Group", "test", true),
 						},
 					},
