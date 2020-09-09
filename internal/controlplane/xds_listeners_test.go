@@ -45,6 +45,13 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 			},
 			"httpFilters": [
 				{
+					"name": "envoy.filters.http.lua",
+					"typedConfig": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+						"inlineCode": "local function starts_with(str, start)\n    return str:sub(1, #start) == start\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local metadata = request_handle:metadata()\n\n    local remove_impersonate_headers = metadata:get(\"remove_impersonate_headers\")\n    if remove_impersonate_headers then\n        local to_remove = {}\n        for k, v in pairs(headers) do\n            if starts_with(k, \"impersonate-extra-\") or k == \"impersonate-group\" or k == \"impersonate-user\" then\n                table.insert(to_remove, k)\n            end\n        end\n\n        for k, v in pairs(to_remove) do\n            headers:remove(v)\n        end\n    end\nend\n\nfunction envoy_on_response(response_handle)\nend\n"
+					}
+				},
+				{
 					"name": "envoy.filters.http.ext_authz",
 					"typedConfig": {
 						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz",
