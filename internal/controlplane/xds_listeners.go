@@ -183,6 +183,9 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 	cleanUpstreamLua, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
 		InlineCode: luascripts.CleanUpstream,
 	})
+	removeImpersonateHeadersLua, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
+		InlineCode: luascripts.RemoveImpersonateHeaders,
+	})
 
 	var maxStreamDuration *durationpb.Duration
 	if options.WriteTimeout > 0 {
@@ -196,6 +199,12 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 			RouteConfig: buildRouteConfiguration("main", virtualHosts),
 		},
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
+			{
+				Name: "envoy.filters.http.lua",
+				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+					TypedConfig: removeImpersonateHeadersLua,
+				},
+			},
 			{
 				Name: "envoy.filters.http.ext_authz",
 				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{

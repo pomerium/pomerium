@@ -154,15 +154,15 @@ func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) *en
 
 func getKubernetesHeaders(reply *evaluator.Result) []*envoy_api_v2_core.HeaderValueOption {
 	var requestHeaders []*envoy_api_v2_core.HeaderValueOption
-	if reply.MatchingPolicy != nil && reply.MatchingPolicy.KubernetesServiceAccountToken != "" {
+	if reply.MatchingPolicy != nil && (reply.MatchingPolicy.KubernetesServiceAccountTokenFile != "" || reply.MatchingPolicy.KubernetesServiceAccountToken != "") {
 		requestHeaders = append(requestHeaders,
 			mkHeader("Authorization", "Bearer "+reply.MatchingPolicy.KubernetesServiceAccountToken, false))
 
 		if reply.UserEmail != "" {
 			requestHeaders = append(requestHeaders, mkHeader("Impersonate-User", reply.UserEmail, false))
 		}
-		for _, group := range reply.UserGroups {
-			requestHeaders = append(requestHeaders, mkHeader("Impersonate-Group", group, true))
+		for i, group := range reply.UserGroups {
+			requestHeaders = append(requestHeaders, mkHeader("Impersonate-Group", group, i > 0))
 		}
 	}
 	return requestHeaders

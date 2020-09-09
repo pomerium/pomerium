@@ -135,6 +135,11 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 									BoolValue: true,
 								},
 							},
+							"remove_impersonate_headers": {
+								Kind: &structpb.Value_BoolValue{
+									BoolValue: policy.KubernetesServiceAccountTokenFile != "" || policy.KubernetesServiceAccountToken != "",
+								},
+							},
 						},
 					},
 				},
