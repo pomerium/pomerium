@@ -289,6 +289,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"metadata": {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium"
 						}
@@ -312,6 +313,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"metadata": {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium"
 						}
@@ -335,6 +337,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"metadata": {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium"
 						}
@@ -368,6 +371,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"metadata": {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium"
 						}
@@ -391,6 +395,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"metadata": {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium"
 						}
@@ -415,6 +420,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"metadata": {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium"
 						}
@@ -438,6 +444,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"metadata": {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium"
 						}
@@ -486,6 +493,7 @@ func TestAddOptionsHeadersToResponse(t *testing.T) {
 				"metadata": {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium"
 						}
@@ -539,6 +547,7 @@ func Test_buildPolicyRoutesWithDestinationPath(t *testing.T) {
 				"metadata": {
 					"filterMetadata": {
 						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
 							"remove_pomerium_cookie": "pomerium"
 						}

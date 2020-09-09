@@ -13,8 +13,9 @@ import (
 //go:generate go fmt ./luascripts/statik.go
 
 var luascripts struct {
-	ExtAuthzSetCookie string
-	CleanUpstream     string
+	ExtAuthzSetCookie        string
+	CleanUpstream            string
+	RemoveImpersonateHeaders string
 }
 
 func init() {
@@ -24,8 +25,9 @@ func init() {
 	}
 
 	fileToField := map[string]*string{
-		"/clean-upstream.lua":       &luascripts.CleanUpstream,
-		"/ext-authz-set-cookie.lua": &luascripts.ExtAuthzSetCookie,
+		"/clean-upstream.lua":             &luascripts.CleanUpstream,
+		"/ext-authz-set-cookie.lua":       &luascripts.ExtAuthzSetCookie,
+		"/remove-impersonate-headers.lua": &luascripts.RemoveImpersonateHeaders,
 	}
 
 	err = fs.Walk(hfs, "/", func(p string, fi os.FileInfo, err error) error {
