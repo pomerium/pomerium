@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.10.3
+
+### Changes
+
+- docs: add nginx example @travisgroth GH-1329
+- internal/directory/okta: remove rate limiter @cuonglm GH-1370
+- internal/directory/okta: accept non-json service account @cuonglm GH-1359
+- docs: update azure docs @desimone GH-1377
+- ci: publish cloudrun latest tag @travisgroth GH-1398
+
+### Fixed
+
+- internal/controlplane: add telemetry http handler @travisgroth GH-1353
+- authenticate: fix unset post_logout_redirect_uri @desimone GH-1390
+
+### Security
+
+- proxy: remove impersonate headers for kubernetes @calebdoxsey GH-1394
+
 ## v0.10.2
 
 ### Changes
