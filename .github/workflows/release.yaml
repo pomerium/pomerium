@@ -61,3 +61,6 @@ jobs:
 
           docker tag pomerium/pomerium:arm64v8-${{ env.LATEST_TAG }} pomerium/pomerium:arm64v8-latest
           docker push pomerium/pomerium:arm64v8-latest
+
+          docker tag gcr.io/pomerium-io/pomerium:${{ env.LATEST_TAG }}-cloudrun gcr.io/pomerium-io/pomerium:latest-cloudrun
+          docker push gcr.io/pomerium-io/pomerium:latest-cloudrun
