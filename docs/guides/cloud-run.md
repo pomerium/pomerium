@@ -34,7 +34,7 @@ This guide assumes you have Editor access to a Google Cloud project which can be
 
 ## Set Up
 
-To deploy Pomerium to Cloud Run securely and easily, a special [image](https://console.cloud.google.com/gcr/images/pomerium-io/GLOBAL/pomerium) is available at `gcr.io/pomerium-io/pomerium-[version]-cloudrun`. It allows sourcing configuration from GCP Secrets Manager, and sets some defaults for Cloud Run to keep configuration minimal. We will be leveraging it in this example to store IdP credentials. Our policy contains no secrets so we can place it directly in an ENV var.
+To deploy Pomerium to Cloud Run securely and easily, a special [image](https://console.cloud.google.com/gcr/images/pomerium-io/GLOBAL/pomerium) is available at `gcr.io/pomerium-io/pomerium:[version]-cloudrun`. It allows sourcing configuration from GCP Secrets Manager, and sets some defaults for Cloud Run to keep configuration minimal. We will be leveraging it in this example to store IdP credentials. Our policy contains no secrets so we can place it directly in an ENV var.
 
 [Dockerfile](https://github.com/pomerium/pomerium/blob/master/.github/Dockerfile-cloudrun) Based on [vals-entrypoint](https://github.com/pomerium/vals-entrypoint)
 
