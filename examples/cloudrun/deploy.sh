@@ -29,7 +29,7 @@ gcloud secrets add-iam-policy-binding pomerium-config \
 
 # Deploy pomerium with policy and configuration references
 gcloud run deploy pomerium --region us-central1 --platform managed --allow-unauthenticated --max-instances 1 \
-    --image=gcr.io/pomerium-io/pomerium:v0.10.0-rc2-cloudrun \
+    --image=gcr.io/pomerium-io/pomerium:latest-cloudrun \
     --set-env-vars VALS_FILES="/pomerium/config.yaml:ref+gcpsecrets://${PROJECT}/pomerium-config",POLICY=$(base64 policy.yaml)
 
 # Set domain mappings for the protected routes and authenticate
