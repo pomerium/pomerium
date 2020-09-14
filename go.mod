@@ -64,7 +64,7 @@ require (
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	google.golang.org/api v0.30.0
 	google.golang.org/genproto v0.0.0-20200911024640-645f7a48b24f
-	google.golang.org/grpc v1.31.1
+	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
 	gopkg.in/ini.v1 v1.51.1 // indirect
