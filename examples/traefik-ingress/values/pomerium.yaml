@@ -1,0 +1,24 @@
+authenticate:
+  idp:
+    provider: REPLACEME
+    url: REPLACEME
+    clientID: REPLACEME
+    clientSecret: REPLACEME
+
+config:
+  rootDomain: localhost.pomerium.io
+  sharedSecret: R0+XRoGVpcoi4PfB8tMlvnrS5XUasO+D1frAEdYcYjs=
+  cookieSecret: FLPCOQKigK5EQnyXlBhchl5fgzNKqi3ubtvOGt477Dg=
+  generateTLS: true
+  policy:
+    - from: https://hello.localhost.pomerium.io
+      to: http://nginx-hello
+      allowed_domains:
+        - gmail.com
+ingress:
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  secretName: wildcard-tls
+forwardAuth:
+  enabled: true
+  internal: true
