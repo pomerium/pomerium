@@ -54,11 +54,11 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 		r.Get("/groups/{group_name}/members", func(w http.ResponseWriter, r *http.Request) {
 			members := map[string][]M{
 				"admin": {
-					{"id": "user-1"},
+					{"@odata.type": "#microsoft.graph.user", "id": "user-1"},
 				},
 				"test": {
-					{"id": "user-2"},
-					{"id": "user-3"},
+					{"@odata.type": "#microsoft.graph.user", "id": "user-2"},
+					{"@odata.type": "#microsoft.graph.user", "id": "user-3"},
 				},
 			}
 			_ = json.NewEncoder(w).Encode(M{
