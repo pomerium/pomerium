@@ -29,6 +29,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 					"commonTlsContext": {
 						"alpnProtocols": ["http/1.1"],
+						"tlsParams": {
+							"ecdhCurves": [
+								"X25519",
+								"P-256",
+								"P-384",
+								"P-512"
+							]
+						},
 						"validationContext": {
 							"matchSubjectAltNames": [{
 								"exact": "example.com"
@@ -53,6 +61,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 					"commonTlsContext": {
 						"alpnProtocols": ["http/1.1"],
+						"tlsParams": {
+							"ecdhCurves": [
+								"X25519",
+								"P-256",
+								"P-384",
+								"P-512"
+							]
+						},
 						"validationContext": {
 							"matchSubjectAltNames": [{
 								"exact": "use-this-name.example.com"
@@ -78,6 +94,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 					"commonTlsContext": {
 						"alpnProtocols": ["http/1.1"],
+						"tlsParams": {
+							"ecdhCurves": [
+								"X25519",
+								"P-256",
+								"P-384",
+								"P-512"
+							]
+						},
 						"validationContext": {
 							"matchSubjectAltNames": [{
 								"exact": "example.com"
@@ -104,6 +128,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 					"commonTlsContext": {
 						"alpnProtocols": ["http/1.1"],
+						"tlsParams": {
+							"ecdhCurves": [
+								"X25519",
+								"P-256",
+								"P-384",
+								"P-512"
+							]
+						},
 						"validationContext": {
 							"matchSubjectAltNames": [{
 								"exact": "example.com"
@@ -130,6 +162,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 					"commonTlsContext": {
 						"alpnProtocols": ["http/1.1"],
+						"tlsParams": {
+							"ecdhCurves": [
+								"X25519",
+								"P-256",
+								"P-384",
+								"P-512"
+							]
+						},
 						"tlsCertificates": [{
 							"certificateChain":{
 								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-921a8294d2e2ec54.pem")+`"
@@ -208,6 +248,14 @@ func Test_buildCluster(t *testing.T) {
 						"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 						"commonTlsContext": {
 							"alpnProtocols": ["http/1.1"],
+							"tlsParams": {
+							"ecdhCurves": [
+								"X25519",
+								"P-256",
+								"P-384",
+								"P-512"
+							]
+						},
 							"validationContext": {
 								"matchSubjectAltNames": [{
 									"exact": "example.com"
