@@ -5,6 +5,14 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.10.0
+
+## Breaking
+
+### Policy checking for forward auth
+
+Forward auth now check the policy for URL given in the query string instead of the verify endpoint.
+
 # Since 0.9.0
 
 ## Breaking
