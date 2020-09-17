@@ -35,7 +35,7 @@ For more information on using Pomerium as an external authorization endpoint, se
 
 ## Pre-requisites
 
-- Access to a Kubernetes cluster 
+- Access to a Kubernetes cluster
 - Helm (already initialized if using helm v2)
 - A copy of the [example repo](https://github.com/pomerium/pomerium/tree/master/examples/traefik-ingress) checked out
 - Valid credentials for your OIDC provider
@@ -89,7 +89,7 @@ Helm chart values:
 
 <<< @/examples/traefik-ingress/values/hello.yaml
 
-## Install 
+## Install
 
 ### Add helm repos
 

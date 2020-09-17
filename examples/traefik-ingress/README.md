@@ -1,7 +1,7 @@
 # Pomerium as forward-auth provider for Traefik on Kubernetes
 
 Run this demo locally on your kubernetes capable workstation or:
-    - use `kubectl port-forward service/traefik 80:80 443:443` 
+    - use `kubectl port-forward service/traefik 80:80 443:443`
     - replace `localhost.pomerium.io` with your own domain
 
 ## Includes
