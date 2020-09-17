@@ -110,7 +110,11 @@ func (p *Proxy) Verify(verifyOnly bool) http.Handler {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
 
-		ar, err := p.isAuthorized(w, r)
+		authorizingRequest := r.Clone(r.Context())
+		authorizingRequest.URL = uri
+		authorizingRequest.Host = uri.Hostname()
+
+		ar, err := p.isAuthorized(w, authorizingRequest)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}

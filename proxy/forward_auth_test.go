@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"context"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -34,6 +35,27 @@ func (m *mockCheckClient) Check(ctx context.Context, in *envoy_service_auth_v2.C
 	return m.response, m.err
 }
 
+type assertRequestClient struct {
+	envoy_service_auth_v2.AuthorizationClient
+
+	hostname string
+	path string
+	t *testing.T
+}
+
+func (v *assertRequestClient) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRequest, opts ...grpc.CallOption) (*envoy_service_auth_v2.CheckResponse, error) {
+	assert := assert.New(v.t)
+
+	if v.hostname != "" {
+		assert.Equal(v.hostname, in.Attributes.Request.Http.Host)
+	}
+	if v.path != "" {
+		assert.Equal(v.path, in.Attributes.Request.Http.Path)
+	}
+
+	return v.AuthorizationClient.Check(ctx, in, opts...)
+}
+
 func TestProxy_ForwardAuth(t *testing.T) {
 	t.Parallel()
 
@@ -42,6 +64,13 @@ func TestProxy_ForwardAuth(t *testing.T) {
 			Status:       &status.Status{Code: int32(codes.OK), Message: "OK"},
 			HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{},
 		},
+	}
+
+	verifyingClient := &assertRequestClient{
+		AuthorizationClient: allowClient,
+		hostname:            "application.example",
+		path:                "/apppath",
+		t:                   t,
 	}
 
 	opts := testOptions(t)
@@ -65,6 +94,7 @@ func TestProxy_ForwardAuth(t *testing.T) {
 	}{
 		{"good redirect not required", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/", "https://some.domain.example", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, allowClient, http.StatusOK, "Access to some.domain.example is allowed."},
 		{"good verify only, no redirect", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/verify", "https://some.domain.example", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, allowClient, http.StatusOK, ""},
+		{"good policy verify", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/verify", "https://application.example/apppath", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, verifyingClient, http.StatusOK, ""},
 		{"bad empty domain uri", opts, nil, http.MethodGet, nil, map[string]string{"uri": ""}, "https://some.domain.example/", "", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, allowClient, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: no uri to validate\"}\n"},
 		{"bad naked domain uri", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/", "a.naked.domain", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, allowClient, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: a.naked.domain url does contain a valid scheme\"}\n"},
 		{"bad naked domain uri verify only", opts, nil, http.MethodGet, nil, nil, "https://some.domain.example/verify", "a.naked.domain", &mock.Encoder{}, &mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}}, allowClient, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: a.naked.domain url does contain a valid scheme\"}\n"},
