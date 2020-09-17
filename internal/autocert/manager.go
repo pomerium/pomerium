@@ -181,6 +181,10 @@ func (mgr *Manager) updateServer(cfg *config.Config) {
 	hsrv := &http.Server{
 		Addr: cfg.Options.HTTPRedirectAddr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for k, v := range cfg.Options.Headers {
+				w.Header().Set(k, v)
+			}
+
 			if mgr.handleHTTPChallenge(w, r) {
 				return
 			}
@@ -198,10 +202,11 @@ func (mgr *Manager) updateServer(cfg *config.Config) {
 }
 
 func (mgr *Manager) handleHTTPChallenge(w http.ResponseWriter, r *http.Request) bool {
-	acmeMgr := mgr.acmeMgr.Load().(*certmagic.ACMEManager)
-	if acmeMgr == nil {
+	obj := mgr.acmeMgr.Load()
+	if obj == nil {
 		return false
 	}
+	acmeMgr := obj.(*certmagic.ACMEManager)
 	return acmeMgr.HandleHTTPChallenge(w, r)
 }
 
