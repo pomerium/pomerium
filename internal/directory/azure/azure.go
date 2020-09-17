@@ -111,24 +111,20 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, err
 	}
 
-	userIDToGroupIDs := map[string][]string{}
+	groupLookup := newGroupLookup()
 	for _, group := range groups {
-		userIDs, err := p.listGroupMembers(ctx, group.Id)
+		groupIDs, userIDs, err := p.listGroupMembers(ctx, group.Id)
 		if err != nil {
 			return nil, nil, err
 		}
-
-		for _, userID := range userIDs {
-			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], group.Id)
-		}
+		groupLookup.addGroup(group.Id, groupIDs, userIDs)
 	}
 
 	var users []*directory.User
-	for userID, groupIDs := range userIDToGroupIDs {
-		sort.Strings(groupIDs)
+	for _, userID := range groupLookup.getUserIDs() {
 		users = append(users, &directory.User{
 			Id:       databroker.GetUserID(Name, userID),
-			GroupIds: groupIDs,
+			GroupIds: groupLookup.getGroupIDsForUser(userID),
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {
@@ -168,7 +164,7 @@ func (p *Provider) listGroups(ctx context.Context) ([]*directory.Group, error) {
 	return groups, nil
 }
 
-func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (userIDs []string, err error) {
+func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (groupIDs, userIDs []string, err error) {
 	nextURL := p.cfg.graphURL.ResolveReference(&url.URL{
 		Path: fmt.Sprintf("/v1.0/groups/%s/members", groupID),
 	}).String()
@@ -176,21 +172,27 @@ func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (userID
 	for nextURL != "" {
 		var result struct {
 			Value []struct {
-				ID string `json:"id"`
+				Type string `json:"@odata.type"`
+				ID   string `json:"id"`
 			} `json:"value"`
 			NextLink string `json:"@odata.nextLink"`
 		}
 		err := p.api(ctx, "GET", nextURL, nil, &result)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for _, v := range result.Value {
-			userIDs = append(userIDs, v.ID)
+			switch v.Type {
+			case "#microsoft.graph.group":
+				groupIDs = append(groupIDs, v.ID)
+			case "#microsoft.graph.user":
+				userIDs = append(userIDs, v.ID)
+			}
 		}
 		nextURL = result.NextLink
 	}
 
-	return userIDs, nil
+	return groupIDs, userIDs, nil
 }
 
 func (p *Provider) api(ctx context.Context, method, url string, body io.Reader, out interface{}) error {
