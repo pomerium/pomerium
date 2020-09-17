@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -111,8 +112,21 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	}
 
 	userIDToGroups := map[string][]string{}
-	for _, group := range groups {
+	for i := 0; i < len(groups); i++ {
+		group := groups[i]
 		ids, err := p.getGroupMemberIDs(ctx, group.Id)
+
+		// if we get a 404 on the member query, it means the group doesn't exist, so we should remove it from
+		// the cached lookup and the local groups list
+		var apiErr *APIError
+		if errors.As(err, &apiErr) && apiErr.HTTPStatusCode == http.StatusNotFound {
+			log.Debug().Str("group", group.Id).Msg("okta: group was removed")
+			delete(p.groups, group.Id)
+			groups = append(groups[:i], groups[i+1:]...)
+			i--
+			continue
+		}
+
 		if err != nil {
 			return nil, nil, err
 		}
@@ -236,8 +250,7 @@ func (p *Provider) apiGet(ctx context.Context, uri string, out interface{}) (htt
 			continue
 		}
 		if res.StatusCode/100 != 2 {
-			buf, _ := ioutil.ReadAll(res.Body)
-			return nil, fmt.Errorf("okta: error query api status_code=%d: %s", res.StatusCode, string(buf))
+			return nil, newAPIError(res)
 		}
 		if err := json.NewDecoder(res.Body).Decode(out); err != nil {
 			return nil, err
@@ -277,4 +290,33 @@ func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
 	}
 
 	return &serviceAccount, nil
+}
+
+// An APIError is an error from the okta API.
+type APIError struct {
+	HTTPStatusCode int
+	Body           string
+	ErrorCode      string   `json:"errorCode"`
+	ErrorSummary   string   `json:"errorSummary"`
+	ErrorLink      string   `json:"errorLink"`
+	ErrorID        string   `json:"errorId"`
+	ErrorCauses    []string `json:"errorCauses"`
+}
+
+func newAPIError(res *http.Response) error {
+	if res == nil {
+		return nil
+	}
+	buf, _ := ioutil.ReadAll(res.Body)
+
+	err := &APIError{
+		HTTPStatusCode: res.StatusCode,
+		Body:           string(buf),
+	}
+	_ = json.Unmarshal(buf, err)
+	return err
+}
+
+func (err *APIError) Error() string {
+	return fmt.Sprintf("okta: error querying API, status_code=%d: %s", err.HTTPStatusCode, err.Body)
 }
