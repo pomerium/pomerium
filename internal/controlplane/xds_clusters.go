@@ -123,7 +123,6 @@ func buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.Tra
 					"X25519",
 					"P-256",
 					"P-384",
-					"P-512",
 				},
 			},
 			AlpnProtocols: []string{"http/1.1"},
