@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -307,7 +308,7 @@ func newAPIError(res *http.Response) error {
 	if res == nil {
 		return nil
 	}
-	buf, _ := ioutil.ReadAll(res.Body)
+	buf, _ := ioutil.ReadAll(io.LimitReader(res.Body, 100*1024)) // limit to 100kb
 
 	err := &APIError{
 		HTTPStatusCode: res.StatusCode,
