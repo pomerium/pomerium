@@ -6,7 +6,7 @@
 # Or, mix and match a policy file (this) with env vars : config.example.env
 
 # Proxied routes and per-route policies are defined in a policy block
-# NOTA BENE: You must uncomment the bellow 'policy' key if you are loading policy as a file.
+# NOTA BENE: You must uncomment the below 'policy' key if you are loading policy as a file.
 # policy:
 - from: https://httpbin.corp.beyondperimeter.com
   to: http://localhost:8000
