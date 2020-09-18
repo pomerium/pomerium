@@ -22,11 +22,14 @@ import (
 type M = map[string]interface{}
 
 func newMockOkta(srv *httptest.Server, userEmailToGroups map[string][]string) http.Handler {
-	allGroups := map[string]struct{}{}
-	for _, groups := range userEmailToGroups {
-		for _, group := range groups {
-			allGroups[group] = struct{}{}
+	getAllGroups := func() map[string]struct{} {
+		allGroups := map[string]struct{}{}
+		for _, groups := range userEmailToGroups {
+			for _, group := range groups {
+				allGroups[group] = struct{}{}
+			}
 		}
+		return allGroups
 	}
 
 	r := chi.NewRouter()
@@ -43,7 +46,7 @@ func newMockOkta(srv *httptest.Server, userEmailToGroups map[string][]string) ht
 	r.Get("/api/v1/groups", func(w http.ResponseWriter, r *http.Request) {
 		lastUpdated := strings.Contains(r.URL.Query().Get("filter"), "lastUpdated ")
 		var groups []string
-		for group := range allGroups {
+		for group := range getAllGroups() {
 			if lastUpdated && group != "user-updated" {
 				continue
 			}
@@ -85,6 +88,18 @@ func newMockOkta(srv *httptest.Server, userEmailToGroups map[string][]string) ht
 	})
 	r.Get("/api/v1/groups/{group}/users", func(w http.ResponseWriter, r *http.Request) {
 		group := chi.URLParam(r, "group")
+
+		if _, ok := getAllGroups()[group]; !ok {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(`{
+				"errorCode": "E0000007",
+				"errorSummary": "Not found: {0}",
+				"errorLink": E0000007,
+				"errorId": "sampleE7p0NECLNnSN5z_xLNT",
+				"errorCauses": []
+			}`))
+			return
+		}
 
 		var result []M
 		for email, groups := range userEmailToGroups {
@@ -149,12 +164,13 @@ func TestProvider_UserGroupsQueryUpdated(t *testing.T) {
 		mockOkta.ServeHTTP(w, r)
 	}))
 	defer srv.Close()
-	mockOkta = newMockOkta(srv, map[string][]string{
+	userEmailToGroups := map[string][]string{
 		"a@example.com":       {"user", "admin"},
 		"b@example.com":       {"user", "test"},
 		"c@example.com":       {"user"},
 		"updated@example.com": {"user-updated"},
-	})
+	}
+	mockOkta = newMockOkta(srv, userEmailToGroups)
 
 	p := New(
 		WithServiceAccount(&ServiceAccount{APIKey: "APITOKEN"}),
@@ -199,6 +215,30 @@ func TestProvider_UserGroupsQueryUpdated(t *testing.T) {
 		},
 	}, users)
 	assert.Len(t, groups, 4)
+
+	userEmailToGroups["b@example.com"] = []string{"user"}
+
+	groups, users, err = p.UserGroups(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, []*directory.User{
+		{
+			Id:       "okta/a@example.com",
+			GroupIds: []string{"admin", "user"},
+		},
+		{
+			Id:       "okta/b@example.com",
+			GroupIds: []string{"user"},
+		},
+		{
+			Id:       "okta/c@example.com",
+			GroupIds: []string{"user"},
+		},
+		{
+			Id:       "okta/updated@example.com",
+			GroupIds: []string{"user-updated"},
+		},
+	}, users)
+	assert.Len(t, groups, 3)
 }
 
 func mustParseURL(rawurl string) *url.URL {
