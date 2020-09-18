@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo add pomerium https://helm.pomerium.io

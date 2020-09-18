@@ -12,7 +12,7 @@ config:
   generateTLS: true
   policy:
     - from: https://hello.localhost.pomerium.io
-      to: http://nginx-hello
+      to: http://hello-nginx
       allowed_domains:
         - gmail.com
 ingress:

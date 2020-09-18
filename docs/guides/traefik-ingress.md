@@ -113,4 +113,8 @@ You should be prompted to log in through your IdP and then granted access to the
 
 ## That's it!
 
-Your `hello` application is protected by Pomerium
+Your `hello` application is protected by Pomerium.
+
+Here's a run through of the steps in this demo:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/wrvNV9fP5hw" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>

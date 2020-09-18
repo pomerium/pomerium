@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 kubectl create namespace pomerium
 
@@ -21,10 +21,11 @@ helm upgrade --install --wait \
     --values values/pomerium.yaml
 
 # Create middleware
-kubectl apply -f crds/middleware.yaml
+kubectl --namespace pomerium apply -f crds/middleware.yaml
 
 # Install hello app
 helm upgrade --install --wait \
     --namespace pomerium \
+    --version 6.2.1 \
     hello bitnami/nginx \
     --values values/hello.yaml
