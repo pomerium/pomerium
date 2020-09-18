@@ -2,12 +2,13 @@ package proxy
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"github.com/google/go-cmp/cmp"
@@ -39,8 +40,8 @@ type assertRequestClient struct {
 	envoy_service_auth_v2.AuthorizationClient
 
 	hostname string
-	path string
-	t *testing.T
+	path     string
+	t        *testing.T
 }
 
 func (v *assertRequestClient) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRequest, opts ...grpc.CallOption) (*envoy_service_auth_v2.CheckResponse, error) {
