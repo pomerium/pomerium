@@ -117,4 +117,4 @@ Your `hello` application is protected by Pomerium.
 
 Here's a run through of the steps in this demo:
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/wrvNV9fP5hw" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<iframe width="800" height="500" src="https://www.youtube.com/embed/wrvNV9fP5hw" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
