@@ -14,7 +14,7 @@ This guide's sources can be found [on github](https://github.com/pomerium/pomeri
 
 At the end, you will have an install of a hello-world app proxied by [Traefik](https://containo.us/traefik/) with authorization policy enforced by Pomerium.
 
-This guide specifically demonstrates using Traefik and Pomerium in the context of a [Kubernetes Ingress](https://docs.traefik.io/providers/kubernetes-ingress/) controller, but the patterns can be utilized in anywhere [Traefik is deployed](https://docs.traefik.io/providers/overview/).
+This guide specifically demonstrates using Traefik and Pomerium in the context of a [Kubernetes Ingress](https://docs.traefik.io/providers/kubernetes-ingress/) controller, but the patterns can be utilized anywhere [Traefik is deployed](https://docs.traefik.io/providers/overview/).
 
 ## Background
 
@@ -36,7 +36,7 @@ For more information on using Pomerium as an external authorization endpoint, se
 ## Pre-requisites
 
 - Access to a Kubernetes cluster
-- Helm (already initialized if using helm v2)
+- [Helm](https://helm.sh/) (already initialized if using helm v2)
 - A copy of the [example repo](https://github.com/pomerium/pomerium/tree/master/examples/traefik-ingress) checked out
 - Valid credentials for your OIDC provider
 - (Optional) `mkcert` to generate locally trusted certificates
