@@ -12,6 +12,8 @@ idp_client_secret: REPLACEME
 insecure_server: true
 forward_auth_url: http://pomerium
 authenticate_service_url: https://authenticate.localhost.pomerium.io
+jwt_claims_headers: email,groups,user
+
 
 policy:
   - from: https://httpbin.localhost.pomerium.io
