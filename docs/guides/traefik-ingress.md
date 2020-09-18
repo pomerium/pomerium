@@ -28,7 +28,7 @@ For more information on using Pomerium as an external authorization endpoint, se
 - Install a standard Pomerium configuration with `forwardauth` enabled
 - Create [middleware](https://docs.traefik.io/middlewares/forwardauth/#configuration-examples) to use Pomerium for authorization
 - Install an application with an `Ingress` resource configured to use the Pomerium authorization `middleware`
-- Pomerium authenticates users via Identity Provider
+- Pomerium authenticates users via [Identity Provider](https://www.pomerium.com/docs/identity-providers/)
 - Traefik queries Pomerium on each request to verify the traffic is authorized
 - Pomerium verifies the traffic against policy, responding to Traefik
 - Traefik proxies the traffic or responds with an error
@@ -63,7 +63,7 @@ This will install a trusted CA and generate a new wildcard certificate:
 - `_wildcard.localhost.pomerium.io.pem`
 - `_wildcard.localhost.pomerium.io-key.pem`
 
-To provide your own certificates through another mechanism, please overwrite these files or update the `Ingress` configurations accordingly.
+To provide your own [certificates](https://www.pomerium.com/reference/#certificates) through another mechanism, please overwrite these files or update the `Ingress` configurations accordingly.
 
 ## Configure
 
@@ -79,9 +79,17 @@ Helm chart values:
 
 <<< @/examples/traefik-ingress/values/traefik.yaml
 
+:::tip
+Please note `forwardedHeaders.insecure` must be set on the entrypoint in front of Pomerium proxy if you are routing forward auth requests through Traefik.  See [docs](https://docs.traefik.io/routing/entrypoints/#forwarded-headers) for more information.
+:::
+
 Middleware:
 
 <<< @/examples/traefik-ingress/crds/middleware.yaml
+
+::: warning
+Please note `trustForwardHeader: true` must be set for the middleware to work correctly.  See [docs](https://docs.traefik.io/middlewares/forwardauth/#trustforwardheader) for more information.
+::: 
 
 ### Hello
 
