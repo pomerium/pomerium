@@ -34,7 +34,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"X25519",
 								"P-256",
 								"P-384",
-								"P-512"
+								"P-521"
 							]
 						},
 						"validationContext": {
@@ -66,7 +66,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"X25519",
 								"P-256",
 								"P-384",
-								"P-512"
+								"P-521"
 							]
 						},
 						"validationContext": {
@@ -99,7 +99,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"X25519",
 								"P-256",
 								"P-384",
-								"P-512"
+								"P-521"
 							]
 						},
 						"validationContext": {
@@ -133,7 +133,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"X25519",
 								"P-256",
 								"P-384",
-								"P-512"
+								"P-521"
 							]
 						},
 						"validationContext": {
@@ -167,7 +167,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"X25519",
 								"P-256",
 								"P-384",
-								"P-512"
+								"P-521"
 							]
 						},
 						"tlsCertificates": [{
@@ -253,7 +253,7 @@ func Test_buildCluster(t *testing.T) {
 								"X25519",
 								"P-256",
 								"P-384",
-								"P-512"
+								"P-521"
 							]
 						},
 							"validationContext": {
