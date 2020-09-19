@@ -157,6 +157,7 @@ module.exports = {
             "mtls",
             'nginx',
             "tiddlywiki",
+            "traefik-ingress",
             "vs-code-server",
           ],
         },
