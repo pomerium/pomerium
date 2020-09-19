@@ -46,7 +46,7 @@ This guide is optimized to run on a local kubernetes install in [Docker Desktop]
 If running in minikube or other non-local clusters, you will need to use `kubectl port-forward` to forward traffic from `127.0.0.1:[80,443]` to the Traefik service in Kubernetes, or replace `*.localhost.pomerium.io` references with your own domain.
 
 For the purposes of the guide, all resources are installed inside the namespace `pomerium`.
-  
+
 ## Certificates (optional)
 
 This demo comes with its own certificates, but they will generate warnings in your browser. You may instead provide your own or use [mkcert](https://github.com/FiloSottile/mkcert) to generate locally trusted certificates.
@@ -89,7 +89,7 @@ Middleware:
 
 ::: warning
 Please note `trustForwardHeader: true` must be set for the middleware to work correctly.  See [docs](https://docs.traefik.io/middlewares/forwardauth/#trustforwardheader) for more information.
-::: 
+:::
 
 ### Hello
 
