@@ -83,8 +83,8 @@ github.com/btcsuite/goleveldb v0.0.0-20160330041536-7834afc9e8cd/go.mod h1:F+uVa
 github.com/btcsuite/snappy-go v0.0.0-20151229074030-0bdef8d06723/go.mod h1:8woku9dyThutzjeg+3xrA5iCpBRH8XEEg3lh6TiUghc=
 github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792/go.mod h1:ghJtEyQwv5/p4Mg4C0fgbePVuGr935/5ddU9Z3TmDRY=
 github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46fmI40EZs=
-github.com/caddyserver/certmagic v0.11.3-0.20200826185716-09acc6bf59fa h1:NmVvlVyS9PrTsJ+SJEUCYjzfczuKwCgN+tFrYx77Ipc=
-github.com/caddyserver/certmagic v0.11.3-0.20200826185716-09acc6bf59fa/go.mod h1:ru+9UfE7sgvPJgieBLSRz5S3xuCd6wlV0qEHErC+x1k=
+github.com/caddyserver/certmagic v0.12.0 h1:1f7kxykaJkOVVpXJ8ZrC6RAO5F6+kKm9U7dBFbLNeug=
+github.com/caddyserver/certmagic v0.12.0/go.mod h1:tr26xh+9fY5dN0J6IPAlMj07qpog22PJKa7Nw7j835U=
 github.com/cenkalti/backoff/v3 v3.0.0 h1:ske+9nBpD9qZsTBoF41nW5L+AIuFBKMeze18XQ3eG1c=
 github.com/cenkalti/backoff/v3 v3.0.0/go.mod h1:cIeZDE3IrqwwJl6VUwCN6trj1oXrTS4rc0ij+ULvLYs=
 github.com/cenkalti/backoff/v4 v4.0.2 h1:JIufpQLbh4DkbQoii76ItQIUFzevQSqOLZca4eamEDs=
@@ -333,8 +333,8 @@ github.com/mattn/go-isatty v0.0.11/go.mod h1:PhnuNfih5lzO57/f3n+odYbM4JtupLOxQOA
 github.com/mattn/go-runewidth v0.0.0-20181025052659-b20a3daf6a39/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
 github.com/matttproud/golang_protobuf_extensions v1.0.1 h1:4hp9jkHxhMHkqkrB3Ix0jegS5sx/RkqARlsWZ6pIwiU=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
-github.com/mholt/acmez v0.1.1-0.20200811184240-dc9c5f05ed1e h1:F5E9CM0APrZtTfowJfvUBmrCjuHLfslZyFlNTEB7UV4=
-github.com/mholt/acmez v0.1.1-0.20200811184240-dc9c5f05ed1e/go.mod h1:8qnn8QA/Ewx8E3ZSsmscqsIjhhpxuy9vqdgbX2ceceM=
+github.com/mholt/acmez v0.1.1 h1:KQODCqk+hBn3O7qfCRPj6L96uG65T5BSS95FKNEqtdA=
+github.com/mholt/acmez v0.1.1/go.mod h1:8qnn8QA/Ewx8E3ZSsmscqsIjhhpxuy9vqdgbX2ceceM=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/miekg/dns v1.1.26/go.mod h1:bPDLeHnStXmXAq1m/Ch/hvfNHr14JKNPMBo3VZKjuso=
 github.com/miekg/dns v1.1.30 h1:Qww6FseFn8PRfw07jueqIXqodm0JKiiKuK0DeXSqfyo=
