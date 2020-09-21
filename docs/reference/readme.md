@@ -431,6 +431,16 @@ Pomerium should _never_ be exposed to the internet without TLS encryption.
 
 :::
 
+### DNS Lookup Family
+
+- Environmental Variable: `DNS_LOOKUP_FAMILY`
+- Config File Key: `dns_lookup_family`
+- Type: `string`
+- Options: `V4_ONLY` `V6_ONLY` `AUTO`
+- Optional
+
+The DNS IP address resolution policy. If not specified, the value defaults to `AUTO`.
+
 ### Log Level
 
 - Environmental Variable: `LOG_LEVEL`

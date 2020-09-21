@@ -42,7 +42,7 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 
 	if config.IsProxy(options.Services) {
 		for _, policy := range options.Policies {
-			clusters = append(clusters, buildPolicyCluster(&policy))
+			clusters = append(clusters, buildPolicyCluster(options, &policy))
 		}
 	}
 
@@ -50,12 +50,17 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 }
 
 func buildInternalCluster(options *config.Options, name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
-	return buildCluster(name, endpoint, buildInternalTransportSocket(options, endpoint), forceHTTP2, false)
+	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
+	return buildCluster(name, endpoint, buildInternalTransportSocket(options, endpoint), forceHTTP2, dnsLookupFamily)
 }
 
-func buildPolicyCluster(policy *config.Policy) *envoy_config_cluster_v3.Cluster {
+func buildPolicyCluster(options *config.Options, policy *config.Policy) *envoy_config_cluster_v3.Cluster {
 	name := getPolicyName(policy)
-	return buildCluster(name, policy.Destination, buildPolicyTransportSocket(policy), false, policy.EnableGoogleCloudServerlessAuthentication)
+	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
+	if policy.EnableGoogleCloudServerlessAuthentication {
+		dnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
+	}
+	return buildCluster(name, policy.Destination, buildPolicyTransportSocket(policy), false, dnsLookupFamily)
 }
 
 func buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *envoy_config_core_v3.TransportSocket {
@@ -188,7 +193,7 @@ func buildCluster(
 	endpoint *url.URL,
 	transportSocket *envoy_config_core_v3.TransportSocket,
 	forceHTTP2 bool,
-	forceIPV4 bool,
+	dnsLookupFamily envoy_config_cluster_v3.Cluster_DnsLookupFamily,
 ) *envoy_config_cluster_v3.Cluster {
 	defaultPort := 80
 	if transportSocket != nil && transportSocket.Name == "tls" {
@@ -219,6 +224,7 @@ func buildCluster(
 		},
 		RespectDnsTtl:   true,
 		TransportSocket: transportSocket,
+		DnsLookupFamily: dnsLookupFamily,
 	}
 
 	if forceHTTP2 {
@@ -232,10 +238,6 @@ func buildCluster(
 		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STATIC}
 	} else {
 		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STRICT_DNS}
-	}
-
-	if forceIPV4 {
-		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 	}
 
 	return cluster
