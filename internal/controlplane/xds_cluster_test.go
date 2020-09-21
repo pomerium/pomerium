@@ -200,7 +200,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 func Test_buildCluster(t *testing.T) {
 	rootCA, _ := getRootCertificateAuthority()
 	t.Run("insecure", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true, true)
+		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true, config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyV4Only))
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -235,7 +235,7 @@ func Test_buildCluster(t *testing.T) {
 		transportSocket := buildPolicyTransportSocket(&config.Policy{
 			Destination: u,
 		})
-		cluster := buildCluster("example", u, transportSocket, true, false)
+		cluster := buildCluster("example", u, transportSocket, true, config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto))
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -291,7 +291,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("ip address", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://127.0.0.1"), nil, true, false)
+		cluster := buildCluster("example", mustParseURL("http://127.0.0.1"), nil, true, config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto))
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -321,7 +321,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("localhost", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://localhost"), nil, true, false)
+		cluster := buildCluster("example", mustParseURL("http://localhost"), nil, true, config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto))
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",

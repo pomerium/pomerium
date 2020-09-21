@@ -82,6 +82,10 @@ type Options struct {
 	// This should be used only for testing.
 	InsecureServer bool `mapstructure:"insecure_server" yaml:"insecure_server,omitempty"`
 
+	// DNSLookupFamily is the DNS IP address resolution policy.
+	// If this setting is not specified, the value defaults to AUTO.
+	DNSLookupFamily string `mapstructure:"dns_lookup_family" yaml:"dns_lookup_family,omitempty"`
+
 	CertificateFiles []certificateFilePair `mapstructure:"certificates" yaml:"certificates,omitempty"`
 
 	// Cert and Key is the x509 certificate used to create the HTTPS server.
@@ -684,6 +688,11 @@ func (o *Options) Validate() error {
 	if o.QPS < 1.0 {
 		o.QPS = 1.0
 	}
+
+	if err := ValidateDNSLookupFamily(o.DNSLookupFamily); err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+
 	return nil
 }
 
@@ -774,6 +783,9 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.InsecureServer != nil {
 		o.InsecureServer = settings.GetInsecureServer()
+	}
+	if settings.DnsLookupFamily != nil {
+		o.DNSLookupFamily = settings.GetDnsLookupFamily()
 	}
 	for _, c := range settings.Certificates {
 		cfp := certificateFilePair{

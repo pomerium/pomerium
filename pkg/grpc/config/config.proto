@@ -80,6 +80,7 @@ message Settings {
   optional string services = 6;
   optional string address = 7;
   optional bool insecure_server = 8;
+  optional string dns_lookup_family = 60;
   repeated Certificate certificates = 9;
   optional string http_redirect_addr = 10;
   optional google.protobuf.Duration timeout_read = 11;
