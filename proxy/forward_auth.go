@@ -162,10 +162,11 @@ func getURIStringFromRequest(r *http.Request) (*url.URL, error) {
 	// or inferred from forwarding headers
 	uriString := r.FormValue("uri")
 	if uriString == "" {
-		if r.Header.Get(httputil.HeaderForwardedProto) == "" || r.Header.Get(httputil.HeaderForwardedHost) == "" {
+		if r.Header.Get(httputil.HeaderForwardedHost) == "" {
 			return nil, errors.New("no uri to validate")
 		}
-		uriString = r.Header.Get(httputil.HeaderForwardedProto) + "://" +
+		// Always assume HTTPS for application callback
+		uriString = "https://" +
 			r.Header.Get(httputil.HeaderForwardedHost) +
 			r.Header.Get(httputil.HeaderForwardedURI)
 	}
