@@ -4,10 +4,10 @@
 
 ### Fixed
 
-controlplane: support P-384 / P-512 EC curves @desimone GH-1409
-controplane: remove p-521 EC @desimone GH-1420
-redirect-server: add config headers to responses @calebdoxsey GH-1416
-proxy: always use https for application callback @travisgroth GH-1433
+- controlplane: support P-384 / P-512 EC curves @desimone GH-1409
+- controplane: remove p-521 EC @desimone GH-1420
+- redirect-server: add config headers to responses @calebdoxsey GH-1416
+- proxy: always use https for application callback @travisgroth GH-1433
 
 ## v0.10.3
 
