@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -231,16 +232,26 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 		Int64("limit", req.GetLimit()).
 		Msg("query")
 
+	query := strings.ToLower(req.GetQuery())
+
 	db, _, err := srv.getDB(req.GetType(), true)
 	if err != nil {
 		return nil, err
 	}
 
-	records, totalCount, err := db.Query(ctx, req.GetQuery(), int(req.GetOffset()), int(req.GetLimit()))
+	all, err := db.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	var filtered []*databroker.Record
+	for _, record := range all {
+		if record.DeletedAt == nil && storage.MatchAny(record.GetData(), query) {
+			filtered = append(filtered, record)
+		}
+	}
+
+	records, totalCount := databroker.ApplyOffsetAndLimit(filtered, int(req.GetOffset()), int(req.GetLimit()))
 	return &databroker.QueryResponse{
 		Records:    records,
 		TotalCount: int64(totalCount),

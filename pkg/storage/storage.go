@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -35,9 +36,6 @@ type Backend interface {
 	// ClearDeleted is used clear marked delete records.
 	ClearDeleted(ctx context.Context, cutoff time.Time)
 
-	// Query queries for records.
-	Query(ctx context.Context, query string, offset, limit int) ([]*databroker.Record, int, error)
-
 	// Watch returns a channel to the caller. The channel is used to notify
 	// about changes that happen in storage. When ctx is finished, Watch will close
 	// the channel.
@@ -53,6 +51,7 @@ func MatchAny(any *anypb.Any, query string) bool {
 	msg, err := any.UnmarshalNew()
 	if err != nil {
 		// ignore invalid any types
+		log.Error().Err(err).Msg("storage: invalid any type")
 		return false
 	}
 

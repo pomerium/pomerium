@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -146,32 +145,6 @@ func (db *DB) Put(_ context.Context, id string, data *anypb.Any) error {
 		record.Data = data
 	})
 	return nil
-}
-
-// Query queries for records in the db.
-func (db *DB) Query(_ context.Context, query string, offset, limit int) (records []*databroker.Record, totalCount int, err error) {
-	query = strings.ToLower(query)
-
-	var all []*databroker.Record
-	db.byID.Ascend(func(item btree.Item) bool {
-		record := item.(byIDRecord).Record
-		// ignore deleted records
-		if record.DeletedAt != nil {
-			return true
-		}
-
-		// skip unmatched records
-		if !storage.MatchAny(record.GetData(), query) {
-			return true
-		}
-
-		all = append(all, record)
-
-		return true
-	})
-
-	records, totalCount = databroker.ApplyOffsetAndLimit(all, offset, limit)
-	return records, totalCount, err
 }
 
 // Watch returns the underlying signal.Signal binding channel to the caller.

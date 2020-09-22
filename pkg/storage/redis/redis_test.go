@@ -200,23 +200,6 @@ func testDB(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, records, 0)
 	})
-	t.Run("query", func(t *testing.T) {
-		cleanup(c, db, t)
-
-		for i, id := range ids {
-			data, _ := anypb.New(users[i])
-			assert.NoError(t, db.Put(ctx, id, data))
-		}
-
-		records, totalCount, err := db.Query(ctx, "test", 0, 1)
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, 2, totalCount)
-		if assert.Len(t, records, 1) {
-			assert.Equal(t, records[0].Id, "a")
-		}
-	})
 
 	expectedNumEvents := 14
 	actualNumEvents := 0
