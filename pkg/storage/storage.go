@@ -3,10 +3,13 @@ package storage
 
 import (
 	"context"
+	"strings"
 	"time"
 
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -37,4 +40,75 @@ type Backend interface {
 	// about changes that happen in storage. When ctx is finished, Watch will close
 	// the channel.
 	Watch(ctx context.Context) <-chan struct{}
+}
+
+// MatchAny searches any data with a query.
+func MatchAny(any *anypb.Any, query string) bool {
+	if any == nil {
+		return false
+	}
+
+	msg, err := any.UnmarshalNew()
+	if err != nil {
+		// ignore invalid any types
+		log.Error().Err(err).Msg("storage: invalid any type")
+		return false
+	}
+
+	// search by query
+	return matchProtoMessage(msg.ProtoReflect(), query)
+}
+
+func matchProtoMessage(msg protoreflect.Message, query string) bool {
+	md := msg.Descriptor()
+	fds := md.Fields()
+	for i := 0; i < fds.Len(); i++ {
+		fd := fds.Get(i)
+		if !msg.Has(fd) {
+			continue
+		}
+		if matchProtoValue(fd, msg.Get(fd), query) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchProtoValue(fd protoreflect.FieldDescriptor, v protoreflect.Value, query string) bool {
+	switch {
+	case fd.IsList():
+		return matchProtoListValue(fd, v.List(), query)
+	case fd.IsMap():
+		return matchProtoMapValue(fd, v.Map(), query)
+	default:
+		return matchProtoSingularValue(fd, v, query)
+	}
+}
+
+func matchProtoSingularValue(fd protoreflect.FieldDescriptor, v protoreflect.Value, query string) bool {
+	switch fd.Kind() {
+	case protoreflect.MessageKind:
+		return matchProtoMessage(v.Message(), query)
+	case protoreflect.StringKind:
+		return strings.Contains(strings.ToLower(v.String()), query)
+	}
+	return false
+}
+
+func matchProtoListValue(fd protoreflect.FieldDescriptor, l protoreflect.List, query string) bool {
+	for i := 0; i < l.Len(); i++ {
+		if matchProtoSingularValue(fd, l.Get(i), query) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchProtoMapValue(fd protoreflect.FieldDescriptor, m protoreflect.Map, query string) bool {
+	matches := false
+	m.Range(func(k protoreflect.MapKey, v protoreflect.Value) bool {
+		matches = matches || matchProtoSingularValue(fd, v, query)
+		return !matches
+	})
+	return matches
 }

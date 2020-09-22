@@ -39,6 +39,17 @@ message GetAllResponse {
   string record_version = 3;
 }
 
+message QueryRequest {
+  string type = 1;
+  string query = 2;
+  int64 offset = 3;
+  int64 limit = 4;
+}
+message QueryResponse {
+  repeated Record records = 1;
+  int64 total_count = 2;
+}
+
 message SetRequest {
   string type = 1;
   string id = 2;
@@ -65,6 +76,7 @@ service DataBrokerService {
   rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
   rpc Get(GetRequest) returns (GetResponse);
   rpc GetAll(GetAllRequest) returns (GetAllResponse);
+  rpc Query(QueryRequest) returns (QueryResponse);
   rpc Set(SetRequest) returns (SetResponse);
   rpc Sync(SyncRequest) returns (stream SyncResponse);
 
