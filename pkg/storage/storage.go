@@ -60,8 +60,6 @@ func MatchAny(any *anypb.Any, query string) bool {
 }
 
 func matchProtoMessage(msg protoreflect.Message, query string) bool {
-	matches := false
-
 	md := msg.Descriptor()
 	fds := md.Fields()
 	for i := 0; i < fds.Len(); i++ {
@@ -69,10 +67,11 @@ func matchProtoMessage(msg protoreflect.Message, query string) bool {
 		if !msg.Has(fd) {
 			continue
 		}
-		matches = matches || matchProtoValue(fd, msg.Get(fd), query)
+		if matchProtoValue(fd, msg.Get(fd), query) {
+			return true
+		}
 	}
-
-	return matches
+	return false
 }
 
 func matchProtoValue(fd protoreflect.FieldDescriptor, v protoreflect.Value, query string) bool {
@@ -97,18 +96,19 @@ func matchProtoSingularValue(fd protoreflect.FieldDescriptor, v protoreflect.Val
 }
 
 func matchProtoListValue(fd protoreflect.FieldDescriptor, l protoreflect.List, query string) bool {
-	matches := false
 	for i := 0; i < l.Len(); i++ {
-		matches = matches || matchProtoSingularValue(fd, l.Get(i), query)
+		if matchProtoSingularValue(fd, l.Get(i), query) {
+			return true
+		}
 	}
-	return matches
+	return false
 }
 
 func matchProtoMapValue(fd protoreflect.FieldDescriptor, m protoreflect.Map, query string) bool {
 	matches := false
 	m.Range(func(k protoreflect.MapKey, v protoreflect.Value) bool {
 		matches = matches || matchProtoSingularValue(fd, v, query)
-		return true
+		return !matches
 	})
 	return matches
 }
