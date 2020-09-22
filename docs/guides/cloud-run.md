@@ -21,6 +21,8 @@ These bearer tokens are not easily set in a browser session and must be refreshe
 
 ## How it works
 
+![Architecture](./img/cloud-run/architecture.svg)
+
 - Add an IAM policy delegating `roles/run.invoker` permissions to a service account
 - Run Pomerium with access to a key for the corresponding service account
 - Publish DNS records for each protected application pointing to Pomerium
