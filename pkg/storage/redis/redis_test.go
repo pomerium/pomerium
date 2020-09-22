@@ -19,6 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
 var db *DB
@@ -120,6 +121,11 @@ func testDB(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
+	users := []*directory.User{
+		{Id: "u1", GroupIds: []string{"test", "admin"}},
+		{Id: "u2"},
+		{Id: "u3", GroupIds: []string{"test"}},
+	}
 	ids := []string{"a", "b", "c"}
 	id := ids[0]
 	c := db.pool.Get()
@@ -133,13 +139,13 @@ func testDB(t *testing.T) {
 		assert.Nil(t, record)
 	})
 	t.Run("get record", func(t *testing.T) {
-		data := new(anypb.Any)
+		data, _ := anypb.New(users[0])
 		assert.NoError(t, db.Put(ctx, id, data))
 		record, err := db.Get(ctx, id)
 		require.NoError(t, err)
 		if assert.NotNil(t, record) {
 			assert.NotNil(t, record.CreatedAt)
-			assert.Equal(t, data, record.Data)
+			assert.NotEmpty(t, record.Data)
 			assert.Nil(t, record.DeletedAt)
 			assert.Equal(t, "a", record.Id)
 			assert.NotNil(t, record.ModifiedAt)
@@ -163,9 +169,9 @@ func testDB(t *testing.T) {
 		records, err := db.GetAll(ctx)
 		assert.NoError(t, err)
 		assert.Len(t, records, 0)
-		data := new(anypb.Any)
 
-		for _, id := range ids {
+		for i, id := range ids {
+			data, _ := anypb.New(users[i])
 			assert.NoError(t, db.Put(ctx, id, data))
 		}
 		records, err = db.GetAll(ctx)
@@ -193,6 +199,23 @@ func testDB(t *testing.T) {
 		records, err = db.List(ctx, "00000000000F")
 		assert.NoError(t, err)
 		assert.Len(t, records, 0)
+	})
+	t.Run("query", func(t *testing.T) {
+		cleanup(c, db, t)
+
+		for i, id := range ids {
+			data, _ := anypb.New(users[i])
+			assert.NoError(t, db.Put(ctx, id, data))
+		}
+
+		records, totalCount, err := db.Query(ctx, "test", 0, 1)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, 2, totalCount)
+		if assert.Len(t, records, 1) {
+			assert.Equal(t, records[0].Id, "a")
+		}
 	})
 
 	expectedNumEvents := 14

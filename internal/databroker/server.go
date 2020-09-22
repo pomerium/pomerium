@@ -220,6 +220,33 @@ func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*
 	}, nil
 }
 
+// Query queries for records.
+func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*databroker.QueryResponse, error) {
+	_, span := trace.StartSpan(ctx, "databroker.grpc.Query")
+	defer span.End()
+	srv.log.Info().
+		Str("type", req.GetType()).
+		Str("query", req.GetQuery()).
+		Int64("offset", req.GetOffset()).
+		Int64("limit", req.GetLimit()).
+		Msg("query")
+
+	db, _, err := srv.getDB(req.GetType(), true)
+	if err != nil {
+		return nil, err
+	}
+
+	records, totalCount, err := db.Query(ctx, req.GetQuery(), int(req.GetOffset()), int(req.GetLimit()))
+	if err != nil {
+		return nil, err
+	}
+
+	return &databroker.QueryResponse{
+		Records:    records,
+		TotalCount: int64(totalCount),
+	}, nil
+}
+
 // Set updates a record in the in-memory list, or adds a new one.
 func (srv *Server) Set(ctx context.Context, req *databroker.SetRequest) (*databroker.SetResponse, error) {
 	_, span := trace.StartSpan(ctx, "databroker.grpc.Set")

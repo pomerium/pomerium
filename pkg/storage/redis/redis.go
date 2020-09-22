@@ -6,7 +6,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -254,6 +256,25 @@ func (db *DB) ClearDeleted(ctx context.Context, cutoff time.Time) {
 			opErr = db.tx(c, cmds)
 		}
 	}
+}
+
+// Query queries for records.
+func (db *DB) Query(ctx context.Context, query string, offset, limit int) (records []*databroker.Record, totalCount int, err error) {
+	query = strings.ToLower(query)
+
+	all, err := db.getAll(ctx, func(record *databroker.Record) bool {
+		return record.DeletedAt == nil && storage.MatchAny(record.GetData(), query)
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].GetId() < all[j].GetId()
+	})
+
+	records, totalCount = databroker.ApplyOffsetAndLimit(all, offset, limit)
+	return records, totalCount, nil
 }
 
 // doNotifyLoop receives event from redis and send signal to the channel.

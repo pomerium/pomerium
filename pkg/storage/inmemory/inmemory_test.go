@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/anypb"
+
+	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
 func TestDB(t *testing.T) {
@@ -73,5 +75,25 @@ func TestDB(t *testing.T) {
 		records, err = db.List(ctx, "00000000000F")
 		require.NoError(t, err)
 		assert.Len(t, records, 0)
+	})
+	t.Run("query", func(t *testing.T) {
+		users := []*directory.User{
+			{Id: "u1", GroupIds: []string{"test", "admin"}},
+			{Id: "u2"},
+			{Id: "u3", GroupIds: []string{"test"}},
+		}
+		for _, u := range users {
+			data, _ := anypb.New(u)
+			assert.NoError(t, db.Put(ctx, u.Id, data))
+		}
+
+		records, totalCount, err := db.Query(ctx, "test", 0, 1)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, 2, totalCount)
+		if assert.Len(t, records, 1) {
+			assert.Equal(t, records[0].Id, "u1")
+		}
 	})
 }
