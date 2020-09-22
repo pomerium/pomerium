@@ -3,6 +3,7 @@ package proxy
 import (
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -22,6 +23,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	// dashboard endpoints can be used by user's to view, or modify their session
 	h.Path("/").HandlerFunc(p.UserDashboard).Methods(http.MethodGet)
 	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
+	h.Path("/jwt").Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
 
 	// Authenticate service callback handlers and middleware
 	// callback used to set route-scoped session and redirect back to destination
@@ -159,5 +161,27 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(response))
+	return nil
+}
+
+func (p *Proxy) jwtAssertion(w http.ResponseWriter, r *http.Request) error {
+	res, err := p.authorizeCheck(r)
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+
+	headers := append(res.GetOkResponse().GetHeaders(), res.GetDeniedResponse().GetHeaders()...)
+	for _, h := range headers {
+		if h.GetHeader().GetKey() == httputil.HeaderPomeriumJWTAssertion {
+			w.Header().Set("Content-Type", "application/jwt")
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(w, h.GetHeader().GetValue())
+			return nil
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusNotFound)
+	_, _ = io.WriteString(w, "jwt not found")
 	return nil
 }
