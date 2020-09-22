@@ -28,12 +28,6 @@
               them with your
               <a href="/.pomerium/">request details</a>.
             </div>
-
-            {{end}} {{if.RetryURL}}
-            <div class="message">
-              If you believe the error is temporary, you can
-              <a href="{{.RetryURL}}">retry</a> the request.
-            </div>
             {{end}}
           </section>
           <div class="card-footer">
@@ -44,7 +38,6 @@
                 class="icon"
               />
             </a>
-
             <div class="text-right text-muted small">
               {{.RequestID}} <br />
               Pomerium {{.Version}}
