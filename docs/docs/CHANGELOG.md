@@ -9,6 +9,9 @@
 - redirect-server: add config headers to responses @calebdoxsey GH-1416
 - proxy: always use https for application callback @travisgroth GH-1433
 
+### Security
+- httputil: remove retry button @desimone GH-1438
+
 ## v0.10.3
 
 ### Changes
