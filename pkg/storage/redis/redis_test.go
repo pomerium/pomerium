@@ -71,7 +71,7 @@ func runWithRedisDockerImage(t *testing.T, runOpts *dockertest.RunOptions, withT
 	address := fmt.Sprintf(scheme+"://localhost:%s/0", resource.GetPort("6379/tcp"))
 	if err := pool.Retry(func() error {
 		var err error
-		db, err = New(address, "record_type", int64(time.Hour.Seconds()), WithTLSConfig(tlsConfig(address, t)))
+		db, err = New(address, "record_type", WithTLSConfig(tlsConfig(address, t)))
 		if err != nil {
 			return err
 		}
