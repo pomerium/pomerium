@@ -465,7 +465,6 @@ func (srv *Server) newDB(recordType string) (db storage.Backend, err error) {
 		db, err = redis.New(
 			srv.cfg.storageConnectionString,
 			recordType,
-			int64(srv.cfg.deletePermanentlyAfter.Seconds()),
 			redis.WithTLSConfig(tlsConfig),
 		)
 		if err != nil {
