@@ -22,6 +22,28 @@ type authorizeResponse struct {
 }
 
 func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorizeResponse, error) {
+	res, err := p.authorizeCheck(r)
+	if err != nil {
+		return nil, httputil.NewError(http.StatusInternalServerError, err)
+	}
+
+	ar := &authorizeResponse{}
+	switch res.HttpResponse.(type) {
+	case *envoy_service_auth_v2.CheckResponse_OkResponse:
+		for _, hdr := range res.GetOkResponse().GetHeaders() {
+			w.Header().Set(hdr.GetHeader().GetKey(), hdr.GetHeader().GetValue())
+		}
+		ar.authorized = true
+		ar.statusCode = res.GetStatus().Code
+	case *envoy_service_auth_v2.CheckResponse_DeniedResponse:
+		ar.statusCode = int32(res.GetDeniedResponse().GetStatus().Code)
+	default:
+		ar.statusCode = http.StatusInternalServerError
+	}
+	return ar, nil
+}
+
+func (p *Proxy) authorizeCheck(r *http.Request) (*envoy_service_auth_v2.CheckResponse, error) {
 	state := p.state.Load()
 
 	tm, err := ptypes.TimestampProto(time.Now())
@@ -45,7 +67,7 @@ func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorize
 		httpAttrs.Path += "?" + r.URL.RawQuery
 	}
 
-	res, err := state.authzClient.Check(r.Context(), &envoy_service_auth_v2.CheckRequest{
+	return state.authzClient.Check(r.Context(), &envoy_service_auth_v2.CheckRequest{
 		Attributes: &envoy_service_auth_v2.AttributeContext{
 			Request: &envoy_service_auth_v2.AttributeContext_Request{
 				Time: tm,
@@ -53,24 +75,6 @@ func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorize
 			},
 		},
 	})
-	if err != nil {
-		return nil, httputil.NewError(http.StatusInternalServerError, err)
-	}
-
-	ar := &authorizeResponse{}
-	switch res.HttpResponse.(type) {
-	case *envoy_service_auth_v2.CheckResponse_OkResponse:
-		for _, hdr := range res.GetOkResponse().GetHeaders() {
-			w.Header().Set(hdr.GetHeader().GetKey(), hdr.GetHeader().GetValue())
-		}
-		ar.authorized = true
-		ar.statusCode = res.GetStatus().Code
-	case *envoy_service_auth_v2.CheckResponse_DeniedResponse:
-		ar.statusCode = int32(res.GetDeniedResponse().GetStatus().Code)
-	default:
-		ar.statusCode = http.StatusInternalServerError
-	}
-	return ar, nil
 }
 
 // jwtClaimMiddleware logs and propagates JWT claim information via request headers
