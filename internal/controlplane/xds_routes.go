@@ -12,6 +12,7 @@ import (
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -122,6 +123,29 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 		routeTimeout := getRouteTimeout(options, &policy)
 		prefixRewrite, regexRewrite := getRewriteOptions(&policy)
 
+		routeAction := &envoy_config_route_v3.RouteAction{
+			ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+				Cluster: clusterName,
+			},
+			UpgradeConfigs: []*envoy_config_route_v3.RouteAction_UpgradeConfig{
+				{
+					UpgradeType: "websocket",
+					Enabled:     &wrappers.BoolValue{Value: policy.AllowWebsockets},
+				},
+				{
+					UpgradeType: "spdy/3.1",
+					Enabled:     &wrappers.BoolValue{Value: policy.AllowSPDY},
+				},
+			},
+			HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
+				AutoHostRewrite: &wrappers.BoolValue{Value: !policy.PreserveHostHeader},
+			},
+			Timeout:       routeTimeout,
+			PrefixRewrite: prefixRewrite,
+			RegexRewrite:  regexRewrite,
+		}
+		setHostRewriteOptions(&policy, routeAction)
+
 		routes = append(routes, &envoy_config_route_v3.Route{
 			Name:  fmt.Sprintf("policy-%d", i),
 			Match: match,
@@ -148,29 +172,7 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 					},
 				},
 			},
-			Action: &envoy_config_route_v3.Route_Route{
-				Route: &envoy_config_route_v3.RouteAction{
-					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-						Cluster: clusterName,
-					},
-					UpgradeConfigs: []*envoy_config_route_v3.RouteAction_UpgradeConfig{
-						{
-							UpgradeType: "websocket",
-							Enabled:     &wrappers.BoolValue{Value: policy.AllowWebsockets},
-						},
-						{
-							UpgradeType: "spdy/3.1",
-							Enabled:     &wrappers.BoolValue{Value: policy.AllowSPDY},
-						},
-					},
-					HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
-						AutoHostRewrite: &wrappers.BoolValue{Value: !policy.PreserveHostHeader},
-					},
-					Timeout:       routeTimeout,
-					PrefixRewrite: prefixRewrite,
-					RegexRewrite:  regexRewrite,
-				},
-			},
+			Action:                 &envoy_config_route_v3.Route_Route{Route: routeAction},
 			RequestHeadersToAdd:    requestHeadersToAdd,
 			RequestHeadersToRemove: requestHeadersToRemove,
 			ResponseHeadersToAdd:   responseHeadersToAdd,
@@ -267,6 +269,39 @@ func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrit
 	}
 
 	return prefixRewrite, regexRewrite
+}
+
+func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.RouteAction) {
+	switch {
+	case policy.HostRewrite != "":
+		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_HostRewriteLiteral{
+			HostRewriteLiteral: policy.HostRewrite,
+		}
+	case policy.HostRewriteHeader != "":
+		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_HostRewriteHeader{
+			HostRewriteHeader: policy.HostRewriteHeader,
+		}
+	case policy.HostPathRegexRewritePattern != "":
+		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_HostRewritePathRegex{
+			HostRewritePathRegex: &envoy_type_matcher_v3.RegexMatchAndSubstitute{
+				Pattern: &envoy_type_matcher_v3.RegexMatcher{
+					EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
+						GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
+					},
+					Regex: policy.HostPathRegexRewritePattern,
+				},
+				Substitution: policy.HostPathRegexRewriteSubstitution,
+			},
+		}
+	case policy.PreserveHostHeader:
+		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_AutoHostRewrite{
+			AutoHostRewrite: wrapperspb.Bool(false),
+		}
+	default:
+		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_AutoHostRewrite{
+			AutoHostRewrite: wrapperspb.Bool(true),
+		}
+	}
 }
 
 func hasPublicPolicyMatchingURL(options *config.Options, requestURL *url.URL) bool {
