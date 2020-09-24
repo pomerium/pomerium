@@ -9,13 +9,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 	"sync"
 
 	"golang.org/x/oauth2"
 
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -88,6 +86,7 @@ func getConfig(options ...Option) *config {
 // A Provider is a directory implementation using azure active directory.
 type Provider struct {
 	cfg *config
+	gdc *groupsDeltaCollection
 
 	mu    sync.RWMutex
 	token *oauth2.Token
@@ -95,9 +94,11 @@ type Provider struct {
 
 // New creates a new Provider.
 func New(options ...Option) *Provider {
-	return &Provider{
+	p := &Provider{
 		cfg: getConfig(options...),
 	}
+	p.gdc = newGroupsDeltaCollection(p)
+	return p
 }
 
 // UserGroups returns the directory users in azure active directory.
@@ -106,93 +107,13 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, fmt.Errorf("azure: service account not defined")
 	}
 
-	groups, err := p.listGroups(ctx)
+	err := p.gdc.Sync(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	groupLookup := newGroupLookup()
-	for _, group := range groups {
-		groupIDs, userIDs, err := p.listGroupMembers(ctx, group.Id)
-		if err != nil {
-			return nil, nil, err
-		}
-		groupLookup.addGroup(group.Id, groupIDs, userIDs)
-	}
-
-	var users []*directory.User
-	for _, userID := range groupLookup.getUserIDs() {
-		users = append(users, &directory.User{
-			Id:       databroker.GetUserID(Name, userID),
-			GroupIds: groupLookup.getGroupIDsForUser(userID),
-		})
-	}
-	sort.Slice(users, func(i, j int) bool {
-		return users[i].GetId() < users[j].GetId()
-	})
+	groups, users := p.gdc.CurrentUserGroups()
 	return groups, users, nil
-}
-
-// listGroups returns a map, with key is group ID, element is group name.
-func (p *Provider) listGroups(ctx context.Context) ([]*directory.Group, error) {
-	nextURL := p.cfg.graphURL.ResolveReference(&url.URL{
-		Path: "/v1.0/groups",
-	}).String()
-
-	var groups []*directory.Group
-	for nextURL != "" {
-		var result struct {
-			Value []struct {
-				ID          string `json:"id"`
-				DisplayName string `json:"displayName"`
-			} `json:"value"`
-			NextLink string `json:"@odata.nextLink"`
-		}
-		err := p.api(ctx, "GET", nextURL, nil, &result)
-		if err != nil {
-			return nil, err
-		}
-		for _, v := range result.Value {
-			groups = append(groups, &directory.Group{
-				Id:   v.ID,
-				Name: v.DisplayName,
-			})
-		}
-		nextURL = result.NextLink
-	}
-
-	return groups, nil
-}
-
-func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (groupIDs, userIDs []string, err error) {
-	nextURL := p.cfg.graphURL.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/v1.0/groups/%s/members", groupID),
-	}).String()
-
-	for nextURL != "" {
-		var result struct {
-			Value []struct {
-				Type string `json:"@odata.type"`
-				ID   string `json:"id"`
-			} `json:"value"`
-			NextLink string `json:"@odata.nextLink"`
-		}
-		err := p.api(ctx, "GET", nextURL, nil, &result)
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, v := range result.Value {
-			switch v.Type {
-			case "#microsoft.graph.group":
-				groupIDs = append(groupIDs, v.ID)
-			case "#microsoft.graph.user":
-				userIDs = append(userIDs, v.ID)
-			}
-		}
-		nextURL = result.NextLink
-	}
-
-	return groupIDs, userIDs, nil
 }
 
 func (p *Provider) api(ctx context.Context, method, url string, body io.Reader, out interface{}) error {
