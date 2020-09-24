@@ -161,15 +161,15 @@ func (mgr *Manager) refreshLoop(
 		}
 
 		now := time.Now()
-		nextTime := now.Add(maxWait)
+		nextTime = now.Add(maxWait)
 
 		// refresh groups
 		if mgr.directoryNextRefresh.Before(now) {
 			mgr.refreshDirectoryUserGroups(ctx)
 			mgr.directoryNextRefresh = now.Add(mgr.cfg.Load().groupRefreshInterval)
-			if mgr.directoryNextRefresh.Before(nextTime) {
-				nextTime = mgr.directoryNextRefresh
-			}
+		}
+		if mgr.directoryNextRefresh.Before(nextTime) {
+			nextTime = mgr.directoryNextRefresh
 		}
 
 		// refresh sessions
