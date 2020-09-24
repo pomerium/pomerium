@@ -135,6 +135,13 @@ func (p *Provider) api(ctx context.Context, method, url string, body io.Reader, 
 	}
 	defer res.Body.Close()
 
+	// if we get unauthorized, invalidate the token
+	if res.StatusCode == http.StatusUnauthorized {
+		p.mu.Lock()
+		p.token = nil
+		p.mu.Unlock()
+	}
+
 	if res.StatusCode/100 != 2 {
 		return fmt.Errorf("azure: error querying api: %s", res.Status)
 	}
