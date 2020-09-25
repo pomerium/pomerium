@@ -107,7 +107,6 @@ curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomeri
 ### Packages
 
 - Supported formats: `rpm`, `deb`
-- Requires `systemd` support
 
 Official packages can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page.
 
