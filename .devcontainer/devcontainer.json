@@ -13,8 +13,8 @@
   // Add the IDs of extensions you want installed when the container is created.
   "extensions": ["golang.Go"],
   "postCreateCommand": "go version",
-
-  "dockerComposeFile": ["envs/traefik.yaml"],
+  "dockerComposeFile": ["envs/nginx.yaml"],
+  // "dockerComposeFile": ["envs/traefik.yaml"],
   "service": "pomerium",
   "shutdownAction": "none",
   "workspaceFolder": "/workspace"
