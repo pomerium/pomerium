@@ -535,6 +535,25 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				RegexRewritePattern:      "^/service/([^/]+)(/.*)$",
 				RegexRewriteSubstitution: "\\2/instance/\\1",
 			},
+			{
+				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
+				Destination:         mustParseURL("https://foo.example.com/bar"),
+				PassIdentityHeaders: true,
+				HostRewrite:         "literal.example.com",
+			},
+			{
+				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
+				Destination:         mustParseURL("https://foo.example.com/bar"),
+				PassIdentityHeaders: true,
+				HostRewriteHeader:   "HOST_HEADER",
+			},
+			{
+				Source:                           &config.StringURL{URL: mustParseURL("https://example.com")},
+				Destination:                      mustParseURL("https://foo.example.com/bar"),
+				PassIdentityHeaders:              true,
+				HostPathRegexRewritePattern:      "^/(.+)/.+$",
+				HostPathRegexRewriteSubstitution: "\\1",
+			},
 		},
 	}, "example.com")
 
@@ -614,6 +633,87 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"substitution": "\\2/instance/\\1"
 					},
 					"cluster": "policy-3",
+					"timeout": "3s",
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
+				}
+			},
+			{
+				"name": "policy-3",
+				"match": {
+					"prefix": "/"
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"hostRewriteLiteral": "literal.example.com",
+					"prefixRewrite": "/bar",
+					"cluster": "policy-4",
+					"timeout": "3s",
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
+				}
+			},
+			{
+				"name": "policy-4",
+				"match": {
+					"prefix": "/"
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"hostRewriteHeader": "HOST_HEADER",
+					"prefixRewrite": "/bar",
+					"cluster": "policy-5",
+					"timeout": "3s",
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"}
+					]
+				}
+			},
+			{
+				"name": "policy-5",
+				"match": {
+					"prefix": "/"
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"hostRewritePathRegex": {
+						"pattern": {
+							"googleRe2": {},
+							"regex": "^/(.+)/.+$"
+						},
+						"substitution": "\\1"
+					},
+					"prefixRewrite": "/bar",
+					"cluster": "policy-6",
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},

@@ -1057,6 +1057,28 @@ prefix_rewrite: /
 
 A request to `https://from.example.com/admin` would be forwarded to `https://to.example.com/`.
 
+### Host Rewrite
+
+- `yaml`/`json` settings: `host_rewrite`, `host_rewrite_header`, `host_path_regex_rewrite_pattern`, `host_path_regex_rewrite_substitution`
+- Type: `string`
+- Optional
+- Example: `host_rewrite: "example.com"`
+
+The `host` header can be customized via 3 mutually exclusive options:
+
+1. `host_rewrite` which will rewrite the host to a new literal value.
+2. `host_rewrite_header` which will rewrite the host to match an incoming header value.
+3. `host_path_regex_rewrite_pattern`, `host_path_regex_rewrite_substitution` which will rewrite the host according to a regex matching the path. For example with the following config:
+
+    ```yaml
+    host_path_regex_rewrite_pattern: "^/(.+)/.+$"
+    host_path_regex_rewrite_substitution: \1
+    ```
+
+    Would rewrite the host header to `example.com` given the path `/example.com/some/path`.
+
+These options correspond to the envoy route action host related options, which can be found [here](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto.html#config-route-v3-routeaction).
+
 ### Public Access
 
 - `yaml`/`json` setting: `allow_public_unauthenticated_access`
