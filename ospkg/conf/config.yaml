@@ -14,7 +14,7 @@ idp_client_secret: YYYY
 idp_service_account: XXXXXX
 
 policy:
-  - from: https://httpbin.localhost.pomerium.io
-    to: https://httpbin.org
+  - from: https://yoursite.localhost.pomerium.io
+    to: https://yoursite.local
     allowed_users:
       - user@domain.com
