@@ -1,3 +1,5 @@
+# Required settings below.  See complete documentation at https://www.pomerium.com/reference/
+
 # To run on :443 set AmbientCapabilities=CAP_NET_BIND_SERVICE
 # in a systemd override
 address: :8443
