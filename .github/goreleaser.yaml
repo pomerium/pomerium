@@ -234,8 +234,12 @@ nfpms:
 
     overrides:
       deb:
+        dependencies:
+          - libsystemd0
         file_name_template: "{{ .ProjectName }}_{{ .Version }}-{{ .Release }}_{{ .Arch }}"
       rpm:
+        dependencies:
+          - systemd-libs
         replacements:
           arm64: aarch64
           amd64: x86_64
@@ -259,7 +263,7 @@ nfpms:
       - deb
       - rpm
 
-    bindir: /usr/bin
+    bindir: /usr/sbin
 
     overrides:
       deb:
