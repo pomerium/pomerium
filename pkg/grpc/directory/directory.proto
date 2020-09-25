@@ -3,6 +3,8 @@ syntax = "proto3";
 package directory;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/directory";
 
+import "google/protobuf/empty.proto";
+
 message User {
   string version = 1;
   string id = 2;
@@ -14,4 +16,10 @@ message Group {
   string id = 2;
   string name = 3;
   string email = 4;
+}
+
+message RefreshUserRequest { string user_id = 1; }
+
+service DirectoryService {
+  rpc RefreshUser(RefreshUserRequest) returns (google.protobuf.Empty);
 }

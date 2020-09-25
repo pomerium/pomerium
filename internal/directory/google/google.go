@@ -19,8 +19,12 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
-// Name is the provider name.
-const Name = "google"
+const (
+	// Name is the provider name.
+	Name = "google"
+
+	currentAccountCustomerID = "my_customer"
+)
 
 const (
 	defaultProviderURL = "https://accounts.google.com"
@@ -78,6 +82,37 @@ func New(options ...Option) *Provider {
 	}
 }
 
+// User returns the user record for the given id.
+func (p *Provider) User(ctx context.Context, userID string) (*directory.User, error) {
+	apiClient, err := p.getAPIClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("google: error getting API client: %w", err)
+	}
+
+	_, providerUserID := databroker.FromUserID(userID)
+
+	var groupIDs []string
+	err = apiClient.Groups.List().
+		Context(ctx).
+		UserKey(providerUserID).
+		Pages(ctx, func(res *admin.Groups) error {
+			for _, g := range res.Groups {
+				groupIDs = append(groupIDs, g.Id)
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("google: error getting groups for user: %w", err)
+	}
+
+	sort.Strings(groupIDs)
+
+	return &directory.User{
+		Id:       userID,
+		GroupIds: groupIDs,
+	}, nil
+}
+
 // UserGroups returns a slice of group names a given user is in
 // NOTE: groups via Directory API is limited to 1 QPS!
 // https://developers.google.com/admin-sdk/directory/v1/reference/groups/list
@@ -91,7 +126,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	var groups []*directory.Group
 	err = apiClient.Groups.List().
 		Context(ctx).
-		Customer("my_customer").
+		Customer(currentAccountCustomerID).
 		Pages(ctx, func(res *admin.Groups) error {
 			for _, g := range res.Groups {
 				// Skip group without member.

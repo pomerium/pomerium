@@ -100,6 +100,11 @@ func New(options ...Option) *Provider {
 	}
 }
 
+// User returns the user record for the given id.
+func (p *Provider) User(ctx context.Context, id string) (*directory.User, error) {
+	panic("not implemented")
+}
+
 // UserGroups returns the directory users in azure active directory.
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
 	if p.cfg.serviceAccount == nil {

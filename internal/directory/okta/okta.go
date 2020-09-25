@@ -94,6 +94,11 @@ func New(options ...Option) *Provider {
 	}
 }
 
+// User returns the user record for the given id.
+func (p *Provider) User(ctx context.Context, id string) (*directory.User, error) {
+	panic("not implemented")
+}
+
 // UserGroups fetches the groups of which the user is a member
 // https://developer.okta.com/docs/reference/api/users/#get-user-s-groups
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {

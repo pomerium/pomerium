@@ -27,8 +27,12 @@ type User = directory.User
 // Options are the options specific to the provider.
 type Options = directory.Options
 
+// RegisterDirectoryServiceServer registers the directory gRPC service.
+var RegisterDirectoryServiceServer = directory.RegisterDirectoryServiceServer
+
 // A Provider provides user group directory information.
 type Provider interface {
+	User(ctx context.Context, userID string) (*User, error)
 	UserGroups(ctx context.Context) ([]*Group, []*User, error)
 }
 
@@ -125,6 +129,10 @@ func GetProvider(options Options) (provider Provider) {
 }
 
 type nullProvider struct{}
+
+func (nullProvider) User(ctx context.Context, id string) (*directory.User, error) {
+	return nil, nil
+}
 
 func (nullProvider) UserGroups(ctx context.Context) ([]*Group, []*User, error) {
 	return nil, nil, nil
