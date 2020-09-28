@@ -132,7 +132,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 			Id:          databroker.GetUserID(Name, u.ID),
 			GroupIds:    groupLookup.getGroupIDsForUser(u.ID),
 			DisplayName: u.DisplayName,
-			Email:       u.Mail,
+			Email:       u.getEmail(),
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {
@@ -361,8 +361,29 @@ func parseDirectoryIDFromURL(providerURL string) (string, error) {
 }
 
 type apiDirectoryObject struct {
-	Type        string `json:"@odata.type"`
-	ID          string `json:"id"`
-	Mail        string `json:"mail"`
-	DisplayName string `json:"displayName"`
+	Type              string `json:"@odata.type"`
+	ID                string `json:"id"`
+	Mail              string `json:"mail"`
+	DisplayName       string `json:"displayName"`
+	UserPrincipalName string `json:"userPrincipalName"`
+}
+
+func (obj apiDirectoryObject) getEmail() string {
+	if obj.Mail != "" {
+		return obj.Mail
+	}
+
+	// AD often doesn't have the email address returned, but we can parse it from the UPN
+
+	// UPN looks like:
+	// cdoxsey_pomerium.com#EXT#@cdoxseypomerium.onmicrosoft.com
+	email := obj.UserPrincipalName
+	if idx := strings.Index(email, "#EXT"); idx > 0 {
+		email = email[:idx]
+	}
+	// find the last _ and replace it with @
+	if idx := strings.LastIndex(email, "_"); idx > 0 {
+		email = email[:idx] + "@" + email[idx+1:]
+	}
+	return email
 }
