@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.5
+
+### Changes
+
+- redis: use pubsub instead of keyspace events @calebdoxsey GH-1451
+
 ## v0.10.4
 
 ### Fixed
