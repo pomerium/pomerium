@@ -15,6 +15,7 @@ It turns out that bringing the debug environment to the containerized environmen
 ## How
 
 - Install [Remote-container](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+- Change `devcontainer.json` to use the docker compose file you want to test with
 - run `Remote-Containers: Rebuild Container` from the Command Palette
 - ???
 - Debug, code, etc as your normally would.
