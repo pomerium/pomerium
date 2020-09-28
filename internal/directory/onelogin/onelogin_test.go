@@ -115,9 +115,11 @@ func newMockAPI(srv *httptest.Server, userIDToGroupName map[int]string) http.Han
 			var result []M
 			for _, userID := range allUserIDs {
 				result = append(result, M{
-					"id":       userID,
-					"email":    userIDToGroupName[userID] + "@example.com",
-					"group_id": userIDToGroupID[userID],
+					"id":        userID,
+					"email":     userIDToGroupName[userID] + "@example.com",
+					"group_id":  userIDToGroupID[userID],
+					"firstname": "User",
+					"lastname":  fmt.Sprint(userID),
 				})
 			}
 			_ = json.NewEncoder(w).Encode(M{
@@ -150,9 +152,9 @@ func TestProvider_UserGroups(t *testing.T) {
 	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "onelogin/111", "groupIds": ["0"] },
-		{ "id": "onelogin/222", "groupIds": ["1"] },
-		{ "id": "onelogin/333", "groupIds": ["2"] }
+		{ "id": "onelogin/111", "groupIds": ["0"], "name": "User 111", "email": "admin@example.com" },
+		{ "id": "onelogin/222", "groupIds": ["1"], "name": "User 222", "email": "test@example.com" },
+		{ "id": "onelogin/333", "groupIds": ["2"], "name": "User 333", "email": "user@example.com" }
 	]`, users)
 	testutil.AssertProtoJSONEqual(t, `[
 		{ "id": "0", "name": "admin" },
