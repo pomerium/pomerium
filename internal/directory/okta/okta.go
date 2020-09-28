@@ -112,10 +112,11 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, err
 	}
 
+	userLookup := map[string]apiUserObject{}
 	userIDToGroups := map[string][]string{}
 	for i := 0; i < len(groups); i++ {
 		group := groups[i]
-		ids, err := p.getGroupMemberIDs(ctx, group.Id)
+		users, err := p.getGroupMembers(ctx, group.Id)
 
 		// if we get a 404 on the member query, it means the group doesn't exist, so we should remove it from
 		// the cached lookup and the local groups list
@@ -131,17 +132,21 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		if err != nil {
 			return nil, nil, err
 		}
-		for _, id := range ids {
-			userIDToGroups[id] = append(userIDToGroups[id], group.Id)
+		for _, u := range users {
+			userIDToGroups[u.ID] = append(userIDToGroups[u.ID], group.Id)
+			userLookup[u.ID] = u
 		}
 	}
 
 	var users []*directory.User
-	for userID, groups := range userIDToGroups {
+	for _, u := range userLookup {
+		groups := userIDToGroups[u.ID]
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:       databroker.GetUserID(Name, userID),
+			Id:       databroker.GetUserID(Name, u.ID),
 			GroupIds: groups,
+			Name:     u.Profile.FirstName + " " + u.Profile.LastName,
+			Email:    u.Profile.Email,
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {
@@ -201,30 +206,23 @@ func (p *Provider) getGroups(ctx context.Context) ([]*directory.Group, error) {
 	return groups, nil
 }
 
-func (p *Provider) getGroupMemberIDs(ctx context.Context, groupID string) ([]string, error) {
-	var emails []string
-
+func (p *Provider) getGroupMembers(ctx context.Context, groupID string) (users []apiUserObject, err error) {
 	usersURL := p.cfg.providerURL.ResolveReference(&url.URL{
 		Path:     fmt.Sprintf("/api/v1/groups/%s/users", groupID),
 		RawQuery: fmt.Sprintf("limit=%d", p.cfg.batchSize),
 	}).String()
 	for usersURL != "" {
-		var out []struct {
-			ID string `json:"id"`
-		}
+		var out []apiUserObject
 		hdrs, err := p.apiGet(ctx, usersURL, &out)
 		if err != nil {
 			return nil, fmt.Errorf("okta: error querying for groups: %w", err)
 		}
 
-		for _, el := range out {
-			emails = append(emails, el.ID)
-		}
-
+		users = append(users, out...)
 		usersURL = getNextLink(hdrs)
 	}
 
-	return emails, nil
+	return users, nil
 }
 
 func (p *Provider) apiGet(ctx context.Context, uri string, out interface{}) (http.Header, error) {
@@ -320,4 +318,13 @@ func newAPIError(res *http.Response) error {
 
 func (err *APIError) Error() string {
 	return fmt.Sprintf("okta: error querying API, status_code=%d: %s", err.HTTPStatusCode, err.Body)
+}
+
+type apiUserObject struct {
+	ID      string `json:"id"`
+	Profile struct {
+		FirstName string `json:"firstName"`
+		LastName  string `json:"lastName"`
+		Email     string `json:"email"`
+	} `json:"profile"`
 }
