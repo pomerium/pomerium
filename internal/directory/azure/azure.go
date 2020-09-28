@@ -111,7 +111,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, err
 	}
 
-	userLookup := map[string]directoryObject{}
+	userLookup := map[string]apiDirectoryObject{}
 	groupLookup := newGroupLookup()
 	for _, group := range groups {
 		groupIDs, users, err := p.listGroupMembers(ctx, group.Id)
@@ -129,10 +129,10 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	users := make([]*directory.User, 0, len(userLookup))
 	for _, u := range userLookup {
 		users = append(users, &directory.User{
-			Id:       databroker.GetUserID(Name, u.ID),
-			GroupIds: groupLookup.getGroupIDsForUser(u.ID),
-			Name:     u.DisplayName,
-			Email:    u.Mail,
+			Id:          databroker.GetUserID(Name, u.ID),
+			GroupIds:    groupLookup.getGroupIDsForUser(u.ID),
+			DisplayName: u.DisplayName,
+			Email:       u.Mail,
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {
@@ -172,15 +172,15 @@ func (p *Provider) listGroups(ctx context.Context) ([]*directory.Group, error) {
 	return groups, nil
 }
 
-func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (groupIDs []string, users []directoryObject, err error) {
+func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (groupIDs []string, users []apiDirectoryObject, err error) {
 	nextURL := p.cfg.graphURL.ResolveReference(&url.URL{
 		Path: fmt.Sprintf("/v1.0/groups/%s/members", groupID),
 	}).String()
 
 	for nextURL != "" {
 		var result struct {
-			Value    []directoryObject `json:"value"`
-			NextLink string            `json:"@odata.nextLink"`
+			Value    []apiDirectoryObject `json:"value"`
+			NextLink string               `json:"@odata.nextLink"`
 		}
 		err := p.api(ctx, "GET", nextURL, nil, &result)
 		if err != nil {
@@ -360,7 +360,7 @@ func parseDirectoryIDFromURL(providerURL string) (string, error) {
 	return pathParts[1], nil
 }
 
-type directoryObject struct {
+type apiDirectoryObject struct {
 	Type        string `json:"@odata.type"`
 	ID          string `json:"id"`
 	Mail        string `json:"mail"`

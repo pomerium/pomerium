@@ -143,10 +143,10 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		groups := userIDToGroups[u.ID]
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:       databroker.GetUserID(Name, u.ID),
-			GroupIds: groups,
-			Name:     u.Profile.FirstName + " " + u.Profile.LastName,
-			Email:    u.Profile.Email,
+			Id:          databroker.GetUserID(Name, u.ID),
+			GroupIds:    groups,
+			DisplayName: u.Profile.FirstName + " " + u.Profile.LastName,
+			Email:       u.Profile.Email,
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {

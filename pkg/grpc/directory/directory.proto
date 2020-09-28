@@ -7,7 +7,7 @@ message User {
   string version = 1;
   string id = 2;
   repeated string group_ids = 3;
-  string name = 4;
+  string display_name = 4;
   string email = 5;
 }
 

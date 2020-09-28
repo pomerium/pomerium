@@ -125,10 +125,10 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		}
 
 		user := &directory.User{
-			Id:       databroker.GetUserID(Name, userLogin),
-			GroupIds: groups,
-			Name:     u.Name,
-			Email:    u.Email,
+			Id:          databroker.GetUserID(Name, userLogin),
+			GroupIds:    groups,
+			DisplayName: u.Name,
+			Email:       u.Email,
 		}
 		sort.Strings(user.GroupIds)
 		users = append(users, user)

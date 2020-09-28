@@ -113,9 +113,9 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	var users []*directory.User
 	for _, u := range userLookup {
 		user := &directory.User{
-			Id:    databroker.GetUserID(Name, fmt.Sprint(u.ID)),
-			Name:  u.Name,
-			Email: u.Email,
+			Id:          databroker.GetUserID(Name, fmt.Sprint(u.ID)),
+			DisplayName: u.Name,
+			Email:       u.Email,
 		}
 
 		user.GroupIds = append(user.GroupIds, userIDToGroupIDs[u.ID]...)

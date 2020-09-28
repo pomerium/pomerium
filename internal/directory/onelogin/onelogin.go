@@ -120,10 +120,10 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	var users []*directory.User
 	for _, u := range apiUsers {
 		users = append(users, &directory.User{
-			Id:       databroker.GetUserID(Name, strconv.Itoa(u.ID)),
-			GroupIds: []string{strconv.Itoa(u.GroupID)},
-			Name:     u.FirstName + " " + u.LastName,
-			Email:    u.Email,
+			Id:          databroker.GetUserID(Name, strconv.Itoa(u.ID)),
+			GroupIds:    []string{strconv.Itoa(u.GroupID)},
+			DisplayName: u.FirstName + " " + u.LastName,
+			Email:       u.Email,
 		})
 	}
 
