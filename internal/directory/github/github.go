@@ -2,12 +2,10 @@
 package github
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -121,9 +119,16 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 
 	var users []*directory.User
 	for userLogin, groups := range userLoginToGroups {
+		u, err := p.getUser(ctx, userLogin)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		user := &directory.User{
 			Id:       databroker.GetUserID(Name, userLogin),
 			GroupIds: groups,
+			Name:     u.Name,
+			Email:    u.Email,
 		}
 		sort.Strings(user.GroupIds)
 		users = append(users, user)
@@ -143,7 +148,7 @@ func (p *Provider) listOrgs(ctx context.Context) (orgSlugs []string, err error) 
 		var results []struct {
 			Login string `json:"login"`
 		}
-		hdrs, err := p.api(ctx, "GET", nextURL, nil, &results)
+		hdrs, err := p.api(ctx, nextURL, &results)
 		if err != nil {
 			return nil, err
 		}
@@ -169,7 +174,7 @@ func (p *Provider) listGroups(ctx context.Context, orgSlug string) ([]*directory
 			ID   int    `json:"id"`
 			Slug string `json:"slug"`
 		}
-		hdrs, err := p.api(ctx, "GET", nextURL, nil, &results)
+		hdrs, err := p.api(ctx, nextURL, &results)
 		if err != nil {
 			return nil, err
 		}
@@ -196,7 +201,7 @@ func (p *Provider) listTeamMembers(ctx context.Context, orgSlug, teamSlug string
 		var results []struct {
 			Login string `json:"login"`
 		}
-		hdrs, err := p.api(ctx, "GET", nextURL, nil, &results)
+		hdrs, err := p.api(ctx, nextURL, &results)
 		if err != nil {
 			return nil, err
 		}
@@ -211,16 +216,22 @@ func (p *Provider) listTeamMembers(ctx context.Context, orgSlug, teamSlug string
 	return userLogins, err
 }
 
-func (p *Provider) api(ctx context.Context, method string, apiURL string, in, out interface{}) (http.Header, error) {
-	var body io.Reader
-	if in != nil {
-		bs, err := json.Marshal(in)
-		if err != nil {
-			return nil, fmt.Errorf("github: failed to marshal api input")
-		}
-		body = bytes.NewReader(bs)
+func (p *Provider) getUser(ctx context.Context, userLogin string) (*apiUserObject, error) {
+	apiURL := p.cfg.url.ResolveReference(&url.URL{
+		Path: fmt.Sprintf("/users/%s", userLogin),
+	}).String()
+
+	var res apiUserObject
+	_, err := p.api(ctx, apiURL, &res)
+	if err != nil {
+		return nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, method, apiURL, body)
+
+	return &res, nil
+}
+
+func (p *Provider) api(ctx context.Context, apiURL string, out interface{}) (http.Header, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("github: failed to create http request: %w", err)
 	}
@@ -282,4 +293,11 @@ func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
 	}
 
 	return &serviceAccount, nil
+}
+
+// see: https://docs.github.com/en/free-pro-team@latest/rest/reference/users#get-a-user
+type apiUserObject struct {
+	Login string `json:"login"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }

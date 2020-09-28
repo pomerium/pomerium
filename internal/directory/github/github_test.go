@@ -75,6 +75,16 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 		teamID := chi.URLParam(r, "team_id")
 		json.NewEncoder(w).Encode(members[orgID][teamID])
 	})
+	r.Get("/users/{user_id}", func(w http.ResponseWriter, r *http.Request) {
+		users := map[string]apiUserObject{
+			"user1": {Login: "user1", Name: "User 1", Email: "user1@example.com"},
+			"user2": {Login: "user2", Name: "User 2", Email: "user2@example.com"},
+			"user3": {Login: "user3", Name: "User 3", Email: "user3@example.com"},
+			"user4": {Login: "user4", Name: "User 4", Email: "user4@example.com"},
+		}
+		userID := chi.URLParam(r, "user_id")
+		json.NewEncoder(w).Encode(users[userID])
+	})
 	return r
 }
 
@@ -96,10 +106,10 @@ func Test(t *testing.T) {
 	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "github/user1", "groupIds": ["1", "2", "3"] },
-		{ "id": "github/user2", "groupIds": ["1", "3"] },
-		{ "id": "github/user3", "groupIds": ["3"] },
-		{ "id": "github/user4", "groupIds": ["4"] }
+		{ "id": "github/user1", "groupIds": ["1", "2", "3"], "name": "User 1", "email": "user1@example.com" },
+		{ "id": "github/user2", "groupIds": ["1", "3"], "name": "User 2", "email": "user2@example.com" },
+		{ "id": "github/user3", "groupIds": ["3"], "name": "User 3", "email": "user3@example.com" },
+		{ "id": "github/user4", "groupIds": ["4"], "name": "User 4", "email": "user4@example.com" }
 	]`, users)
 	testutil.AssertProtoJSONEqual(t, `[
 		{ "id": "1", "name": "team1" },
