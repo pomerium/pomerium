@@ -50,9 +50,9 @@ func ValidateOptions(o *config.Options) error {
 type Authenticate struct {
 	templates *template.Template
 
-	options  *config.AtomicOptions
-	provider *identity.AtomicAuthenticator
-	state    *atomicAuthenticateState
+	options   *config.AtomicOptions
+	provider  *identity.AtomicAuthenticator
+	state     *atomicAuthenticateState
 }
 
 // New validates and creates a new authenticate service from a set of Options.
