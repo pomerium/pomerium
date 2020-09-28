@@ -1,0 +1,11 @@
+[Unit]
+Description=Pomerium
+
+[Service]
+ExecStart=/usr/sbin/pomerium -config /etc/pomerium/config.yaml
+User=pomerium
+Group=pomerium
+Environment=AUTOCERT_DIR=/etc/pomerium/
+
+[Install]
+WantedBy=multi-user.target
