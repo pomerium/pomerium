@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/rakyll/statik/fs"
 
@@ -60,6 +61,9 @@ func NewTemplates() (*template.Template, error) {
 	t := template.New("pomerium-templates").Funcs(map[string]interface{}{
 		"dataURL": func(p string) template.URL {
 			return dataURLs[strings.TrimPrefix(p, "/.pomerium/assets")]
+		},
+		"formatTime": func(tm time.Time) string {
+			return tm.Format("2006-01-02 15:04:05 MST")
 		},
 	})
 
