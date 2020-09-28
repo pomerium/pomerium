@@ -54,11 +54,11 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 		r.Get("/groups/{group_name}/members", func(w http.ResponseWriter, r *http.Request) {
 			members := map[string][]M{
 				"admin": {
-					{"@odata.type": "#microsoft.graph.user", "id": "user-1"},
+					{"@odata.type": "#microsoft.graph.user", "id": "user-1", "displayName": "User 1", "mail": "user1@example.com"},
 				},
 				"test": {
-					{"@odata.type": "#microsoft.graph.user", "id": "user-2"},
-					{"@odata.type": "#microsoft.graph.user", "id": "user-3"},
+					{"@odata.type": "#microsoft.graph.user", "id": "user-2", "displayName": "User 2", "mail": "user2@example.com"},
+					{"@odata.type": "#microsoft.graph.user", "id": "user-3", "displayName": "User 3", "mail": "user3@example.com"},
 				},
 			}
 			_ = json.NewEncoder(w).Encode(M{
@@ -92,14 +92,20 @@ func Test(t *testing.T) {
 		{
 			Id:       "azure/user-1",
 			GroupIds: []string{"admin"},
+			Name:     "User 1",
+			Email:    "user1@example.com",
 		},
 		{
 			Id:       "azure/user-2",
 			GroupIds: []string{"test"},
+			Name:     "User 2",
+			Email:    "user2@example.com",
 		},
 		{
 			Id:       "azure/user-3",
 			GroupIds: []string{"test"},
+			Name:     "User 3",
+			Email:    "user3@example.com",
 		},
 	}, users)
 	assert.Equal(t, []*directory.Group{

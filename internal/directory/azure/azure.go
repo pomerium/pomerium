@@ -111,20 +111,28 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, err
 	}
 
+	userLookup := map[string]directoryObject{}
 	groupLookup := newGroupLookup()
 	for _, group := range groups {
-		groupIDs, userIDs, err := p.listGroupMembers(ctx, group.Id)
+		groupIDs, users, err := p.listGroupMembers(ctx, group.Id)
 		if err != nil {
 			return nil, nil, err
+		}
+		userIDs := make([]string, 0, len(users))
+		for _, u := range users {
+			userIDs = append(userIDs, u.ID)
+			userLookup[u.ID] = u
 		}
 		groupLookup.addGroup(group.Id, groupIDs, userIDs)
 	}
 
-	var users []*directory.User
-	for _, userID := range groupLookup.getUserIDs() {
+	users := make([]*directory.User, 0, len(userLookup))
+	for _, u := range userLookup {
 		users = append(users, &directory.User{
-			Id:       databroker.GetUserID(Name, userID),
-			GroupIds: groupLookup.getGroupIDsForUser(userID),
+			Id:       databroker.GetUserID(Name, u.ID),
+			GroupIds: groupLookup.getGroupIDsForUser(u.ID),
+			Name:     u.DisplayName,
+			Email:    u.Mail,
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {
@@ -164,18 +172,15 @@ func (p *Provider) listGroups(ctx context.Context) ([]*directory.Group, error) {
 	return groups, nil
 }
 
-func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (groupIDs, userIDs []string, err error) {
+func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (groupIDs []string, users []directoryObject, err error) {
 	nextURL := p.cfg.graphURL.ResolveReference(&url.URL{
 		Path: fmt.Sprintf("/v1.0/groups/%s/members", groupID),
 	}).String()
 
 	for nextURL != "" {
 		var result struct {
-			Value []struct {
-				Type string `json:"@odata.type"`
-				ID   string `json:"id"`
-			} `json:"value"`
-			NextLink string `json:"@odata.nextLink"`
+			Value    []directoryObject `json:"value"`
+			NextLink string            `json:"@odata.nextLink"`
 		}
 		err := p.api(ctx, "GET", nextURL, nil, &result)
 		if err != nil {
@@ -186,13 +191,13 @@ func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (groupI
 			case "#microsoft.graph.group":
 				groupIDs = append(groupIDs, v.ID)
 			case "#microsoft.graph.user":
-				userIDs = append(userIDs, v.ID)
+				users = append(users, v)
 			}
 		}
 		nextURL = result.NextLink
 	}
 
-	return groupIDs, userIDs, nil
+	return groupIDs, users, nil
 }
 
 func (p *Provider) api(ctx context.Context, method, url string, body io.Reader, out interface{}) error {
@@ -353,4 +358,11 @@ func parseDirectoryIDFromURL(providerURL string) (string, error) {
 	}
 
 	return pathParts[1], nil
+}
+
+type directoryObject struct {
+	Type        string `json:"@odata.type"`
+	ID          string `json:"id"`
+	Mail        string `json:"mail"`
+	DisplayName string `json:"displayName"`
 }
