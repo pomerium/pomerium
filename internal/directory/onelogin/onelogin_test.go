@@ -152,9 +152,9 @@ func TestProvider_UserGroups(t *testing.T) {
 	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "onelogin/111", "groupIds": ["0"], "name": "User 111", "email": "admin@example.com" },
-		{ "id": "onelogin/222", "groupIds": ["1"], "name": "User 222", "email": "test@example.com" },
-		{ "id": "onelogin/333", "groupIds": ["2"], "name": "User 333", "email": "user@example.com" }
+		{ "id": "onelogin/111", "groupIds": ["0"], "displayName": "User 111", "email": "admin@example.com" },
+		{ "id": "onelogin/222", "groupIds": ["1"], "displayName": "User 222", "email": "test@example.com" },
+		{ "id": "onelogin/333", "groupIds": ["2"], "displayName": "User 333", "email": "user@example.com" }
 	]`, users)
 	testutil.AssertProtoJSONEqual(t, `[
 		{ "id": "0", "name": "admin" },
