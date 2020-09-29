@@ -26,8 +26,21 @@ import (
 // Name is the provider name.
 const Name = "okta"
 
-// Okta use ISO-8601, see https://developer.okta.com/docs/reference/api-overview/#media-types
-const filterDateFormat = "2006-01-02T15:04:05.999Z"
+const (
+	// Okta use ISO-8601, see https://developer.okta.com/docs/reference/api-overview/#media-types
+	filterDateFormat = "2006-01-02T15:04:05.999Z"
+
+	batchSize        = 200
+	readLimit        = 100 * 1024
+	httpSuccessClass = 2
+)
+
+// Errors.
+var (
+	ErrAPIKeyRequired           = errors.New("okta: api_key is required")
+	ErrServiceAccountNotDefined = errors.New("okta: service account not defined")
+	ErrProviderURLNotDefined    = errors.New("okta: provider url not defined")
+)
 
 type config struct {
 	batchSize      int
@@ -69,11 +82,12 @@ func WithServiceAccount(serviceAccount *ServiceAccount) Option {
 
 func getConfig(options ...Option) *config {
 	cfg := new(config)
-	WithBatchSize(200)(cfg)
+	WithBatchSize(batchSize)(cfg)
 	WithHTTPClient(http.DefaultClient)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
+
 	return cfg
 }
 
@@ -98,13 +112,13 @@ func New(options ...Option) *Provider {
 // https://developer.okta.com/docs/reference/api/users/#get-user-s-groups
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
 	if p.cfg.serviceAccount == nil {
-		return nil, nil, fmt.Errorf("okta: service account not defined")
+		return nil, nil, ErrServiceAccountNotDefined
 	}
 
 	p.log.Info().Msg("getting user groups")
 
 	if p.cfg.providerURL == nil {
-		return nil, nil, fmt.Errorf("okta: provider url not defined")
+		return nil, nil, ErrProviderURLNotDefined
 	}
 
 	groups, err := p.getGroups(ctx)
@@ -248,7 +262,7 @@ func (p *Provider) apiGet(ctx context.Context, uri string, out interface{}) (htt
 			}
 			continue
 		}
-		if res.StatusCode/100 != 2 {
+		if res.StatusCode/100 != httpSuccessClass {
 			return nil, newAPIError(res)
 		}
 		if err := json.NewDecoder(res.Body).Decode(out); err != nil {
@@ -285,7 +299,7 @@ func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
 	}
 
 	if serviceAccount.APIKey == "" {
-		return nil, fmt.Errorf("api_key is required")
+		return nil, ErrAPIKeyRequired
 	}
 
 	return &serviceAccount, nil
@@ -306,7 +320,7 @@ func newAPIError(res *http.Response) error {
 	if res == nil {
 		return nil
 	}
-	buf, _ := ioutil.ReadAll(io.LimitReader(res.Body, 100*1024)) // limit to 100kb
+	buf, _ := ioutil.ReadAll(io.LimitReader(res.Body, readLimit)) // limit to 100kb
 
 	err := &APIError{
 		HTTPStatusCode: res.StatusCode,

@@ -145,22 +145,22 @@ func TestProvider_UserGroups(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:       "okta/a@example.com",
-			GroupIds: []string{"admin", "user"},
-			Name:     "first last",
-			Email:    "a@example.com",
+			Id:          "okta/a@example.com",
+			GroupIds:    []string{"admin", "user"},
+			DisplayName: "first last",
+			Email:       "a@example.com",
 		},
 		{
-			Id:       "okta/b@example.com",
-			GroupIds: []string{"test", "user"},
-			Name:     "first last",
-			Email:    "b@example.com",
+			Id:          "okta/b@example.com",
+			GroupIds:    []string{"test", "user"},
+			DisplayName: "first last",
+			Email:       "b@example.com",
 		},
 		{
-			Id:       "okta/c@example.com",
-			GroupIds: []string{"user"},
-			Name:     "first last",
-			Email:    "c@example.com",
+			Id:          "okta/c@example.com",
+			GroupIds:    []string{"user"},
+			DisplayName: "first last",
+			Email:       "c@example.com",
 		},
 	}, users)
 	assert.Len(t, groups, 3)
@@ -188,22 +188,22 @@ func TestProvider_UserGroupsQueryUpdated(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:       "okta/a@example.com",
-			GroupIds: []string{"admin", "user"},
-			Name:     "first last",
-			Email:    "a@example.com",
+			Id:          "okta/a@example.com",
+			GroupIds:    []string{"admin", "user"},
+			DisplayName: "first last",
+			Email:       "a@example.com",
 		},
 		{
-			Id:       "okta/b@example.com",
-			GroupIds: []string{"test", "user"},
-			Name:     "first last",
-			Email:    "b@example.com",
+			Id:          "okta/b@example.com",
+			GroupIds:    []string{"test", "user"},
+			DisplayName: "first last",
+			Email:       "b@example.com",
 		},
 		{
-			Id:       "okta/c@example.com",
-			GroupIds: []string{"user"},
-			Name:     "first last",
-			Email:    "c@example.com",
+			Id:          "okta/c@example.com",
+			GroupIds:    []string{"user"},
+			DisplayName: "first last",
+			Email:       "c@example.com",
 		},
 	}, users)
 	assert.Len(t, groups, 3)
@@ -212,28 +212,28 @@ func TestProvider_UserGroupsQueryUpdated(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:       "okta/a@example.com",
-			GroupIds: []string{"admin", "user"},
-			Name:     "first last",
-			Email:    "a@example.com",
+			Id:          "okta/a@example.com",
+			GroupIds:    []string{"admin", "user"},
+			DisplayName: "first last",
+			Email:       "a@example.com",
 		},
 		{
-			Id:       "okta/b@example.com",
-			GroupIds: []string{"test", "user"},
-			Name:     "first last",
-			Email:    "b@example.com",
+			Id:          "okta/b@example.com",
+			GroupIds:    []string{"test", "user"},
+			DisplayName: "first last",
+			Email:       "b@example.com",
 		},
 		{
-			Id:       "okta/c@example.com",
-			GroupIds: []string{"user"},
-			Name:     "first last",
-			Email:    "c@example.com",
+			Id:          "okta/c@example.com",
+			GroupIds:    []string{"user"},
+			DisplayName: "first last",
+			Email:       "c@example.com",
 		},
 		{
-			Id:       "okta/updated@example.com",
-			GroupIds: []string{"user-updated"},
-			Name:     "first last",
-			Email:    "updated@example.com",
+			Id:          "okta/updated@example.com",
+			GroupIds:    []string{"user-updated"},
+			DisplayName: "first last",
+			Email:       "updated@example.com",
 		},
 	}, users)
 	assert.Len(t, groups, 4)
@@ -244,28 +244,28 @@ func TestProvider_UserGroupsQueryUpdated(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:       "okta/a@example.com",
-			GroupIds: []string{"admin", "user"},
-			Name:     "first last",
-			Email:    "a@example.com",
+			Id:          "okta/a@example.com",
+			GroupIds:    []string{"admin", "user"},
+			DisplayName: "first last",
+			Email:       "a@example.com",
 		},
 		{
-			Id:       "okta/b@example.com",
-			GroupIds: []string{"user"},
-			Name:     "first last",
-			Email:    "b@example.com",
+			Id:          "okta/b@example.com",
+			GroupIds:    []string{"user"},
+			DisplayName: "first last",
+			Email:       "b@example.com",
 		},
 		{
-			Id:       "okta/c@example.com",
-			GroupIds: []string{"user"},
-			Name:     "first last",
-			Email:    "c@example.com",
+			Id:          "okta/c@example.com",
+			GroupIds:    []string{"user"},
+			DisplayName: "first last",
+			Email:       "c@example.com",
 		},
 		{
-			Id:       "okta/updated@example.com",
-			GroupIds: []string{"user-updated"},
-			Name:     "first last",
-			Email:    "updated@example.com",
+			Id:          "okta/updated@example.com",
+			GroupIds:    []string{"user-updated"},
+			DisplayName: "first last",
+			Email:       "updated@example.com",
 		},
 	}, users)
 	assert.Len(t, groups, 3)
