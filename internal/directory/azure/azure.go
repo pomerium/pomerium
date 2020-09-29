@@ -86,7 +86,7 @@ func getConfig(options ...Option) *config {
 // A Provider is a directory implementation using azure active directory.
 type Provider struct {
 	cfg *config
-	gdc *deltaCollection
+	dc  *deltaCollection
 
 	mu    sync.RWMutex
 	token *oauth2.Token
@@ -97,7 +97,7 @@ func New(options ...Option) *Provider {
 	p := &Provider{
 		cfg: getConfig(options...),
 	}
-	p.gdc = newDeltaCollection(p)
+	p.dc = newDeltaCollection(p)
 	return p
 }
 
@@ -107,12 +107,12 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, fmt.Errorf("azure: service account not defined")
 	}
 
-	err := p.gdc.Sync(ctx)
+	err := p.dc.Sync(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	groups, users := p.gdc.CurrentUserGroups()
+	groups, users := p.dc.CurrentUserGroups()
 	return groups, users, nil
 }
 
