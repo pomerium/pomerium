@@ -1,5 +1,5 @@
 ---
-title: Okta
+title: Auth0
 lang: en-US
 sidebarDepth: 0
 meta:
@@ -17,7 +17,7 @@ meta:
 
 On the **Create New Application** page, select the **Regular Web Application** for your application.
 
-![Okta Create Application Select Platform](./img/auth0/create.png)
+![Auth0 Create Application Select Platform](./img/auth0/create.png)
 
 Next, provide the following information for your application settings:
 
