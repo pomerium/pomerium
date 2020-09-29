@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"sort"
+	"strings"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
@@ -21,8 +22,10 @@ type (
 		members     map[string]groupsDeltaGroupMember
 	}
 	groupsDeltaGroupMember struct {
-		memberType string
-		id         string
+		memberType  string
+		id          string
+		displayName string
+		email       string
 	}
 )
 
@@ -86,8 +89,10 @@ func (gdc *groupsDeltaCollection) Sync(ctx context.Context) error {
 				}
 
 				gdg.members[m.ID] = groupsDeltaGroupMember{
-					memberType: m.Type,
-					id:         m.ID,
+					memberType:  m.Type,
+					id:          m.ID,
+					displayName: m.DisplayName,
+					email:       m.getEmail(),
 				}
 			}
 			gdc.groups[g.ID] = gdg
@@ -109,6 +114,7 @@ func (gdc *groupsDeltaCollection) Sync(ctx context.Context) error {
 func (gdc *groupsDeltaCollection) CurrentUserGroups() ([]*directory.Group, []*directory.User) {
 	var groups []*directory.Group
 
+	userLookup := map[string]groupsDeltaGroupMember{}
 	groupLookup := newGroupLookup()
 	for _, g := range gdc.groups {
 		groups = append(groups, &directory.Group{
@@ -122,16 +128,19 @@ func (gdc *groupsDeltaCollection) CurrentUserGroups() ([]*directory.Group, []*di
 				groupIDs = append(groupIDs, m.id)
 			case "#microsoft.graph.user":
 				userIDs = append(userIDs, m.id)
+				userLookup[m.id] = m
 			}
 		}
 		groupLookup.addGroup(g.id, groupIDs, userIDs)
 	}
 
 	var users []*directory.User
-	for _, userID := range groupLookup.getUserIDs() {
+	for _, u := range userLookup {
 		users = append(users, &directory.User{
-			Id:       databroker.GetUserID(Name, userID),
-			GroupIds: groupLookup.getGroupIDsForUser(userID),
+			Id:          databroker.GetUserID(Name, u.id),
+			GroupIds:    groupLookup.getGroupIDsForUser(u.id),
+			DisplayName: u.displayName,
+			Email:       u.email,
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {
@@ -156,11 +165,34 @@ type (
 		Removed     *groupsDeltaResponseRemoved      `json:"@removed,omitempty"`
 	}
 	groupsDeltaResponseGroupMember struct {
-		Type    string                      `json:"@odata.type"`
-		ID      string                      `json:"id"`
-		Removed *groupsDeltaResponseRemoved `json:"@removed,omitempty"`
+		Type              string                      `json:"@odata.type"`
+		ID                string                      `json:"id"`
+		Mail              string                      `json:"mail"`
+		DisplayName       string                      `json:"displayName"`
+		UserPrincipalName string                      `json:"userPrincipalName"`
+		Removed           *groupsDeltaResponseRemoved `json:"@removed,omitempty"`
 	}
 	groupsDeltaResponseRemoved struct {
 		Reason string `json:"reason"`
 	}
 )
+
+func (obj groupsDeltaResponseGroupMember) getEmail() string {
+	if obj.Mail != "" {
+		return obj.Mail
+	}
+
+	// AD often doesn't have the email address returned, but we can parse it from the UPN
+
+	// UPN looks like:
+	// cdoxsey_pomerium.com#EXT#@cdoxseypomerium.onmicrosoft.com
+	email := obj.UserPrincipalName
+	if idx := strings.Index(email, "#EXT"); idx > 0 {
+		email = email[:idx]
+	}
+	// find the last _ and replace it with @
+	if idx := strings.LastIndex(email, "_"); idx > 0 {
+		email = email[:idx] + "@" + email[idx+1:]
+	}
+	return email
+}

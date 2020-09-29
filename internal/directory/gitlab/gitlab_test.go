@@ -39,11 +39,11 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 		r.Get("/groups/{group_name}/members", func(w http.ResponseWriter, r *http.Request) {
 			members := map[string][]M{
 				"1": {
-					{"id": 11},
+					{"id": 11, "name": "User 1", "email": "user1@example.com"},
 				},
 				"2": {
-					{"id": 12},
-					{"id": 13},
+					{"id": 12, "name": "User 2", "email": "user2@example.com"},
+					{"id": 13, "name": "User 3", "email": "user3@example.com"},
 				},
 			}
 			_ = json.NewEncoder(w).Encode(members[chi.URLParam(r, "group_name")])
@@ -69,9 +69,9 @@ func Test(t *testing.T) {
 	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "gitlab/11", "groupIds": ["1"] },
-		{ "id": "gitlab/12", "groupIds": ["2"] },
-		{ "id": "gitlab/13", "groupIds": ["2"] }
+		{ "id": "gitlab/11", "groupIds": ["1"], "displayName": "User 1", "email": "user1@example.com" },
+		{ "id": "gitlab/12", "groupIds": ["2"], "displayName": "User 2", "email": "user2@example.com" },
+		{ "id": "gitlab/13", "groupIds": ["2"], "displayName": "User 3", "email": "user3@example.com" }
 	]`, users)
 	testutil.AssertProtoJSONEqual(t, `[
 		{ "id": "1", "name": "Group 1" },

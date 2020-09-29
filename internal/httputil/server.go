@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	stdlog "log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync"
@@ -69,9 +69,13 @@ func NewServer(opt *ServerOptions, h http.Handler, wg *sync.WaitGroup) (*http.Se
 // RedirectHandler takes an incoming request and redirects to its HTTPS counterpart
 func RedirectHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		newURL := new(url.URL)
+		*newURL = *r.URL
+		newURL.Scheme = "https"
+		newURL.Host = urlutil.StripPort(r.Host)
+
 		w.Header().Set("Connection", "close")
-		url := fmt.Sprintf("https://%s", urlutil.StripPort(r.Host))
-		http.Redirect(w, r, url, http.StatusMovedPermanently)
+		http.Redirect(w, r, newURL.String(), http.StatusMovedPermanently)
 	})
 }
 

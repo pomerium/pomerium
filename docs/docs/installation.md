@@ -32,6 +32,13 @@ curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomeri
     | tar -z -x
 ```
 
+### Packages
+
+- Supported formats: `rpm`, `deb`
+- Requires `systemd` support
+
+Official packages can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page.
+
 ### Docker Image
 
 Pomerium utilizes a [minimal](https://github.com/GoogleContainerTools/distroless) [docker container](https://www.docker.com/resources/what-container). You can find Pomerium's images on [dockerhub](https://hub.docker.com/r/pomerium/pomerium). Pomerium can be pulled in several flavors and architectures.
@@ -97,6 +104,11 @@ VERSION=[desired version]
 curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomerium-cli-${OS}-${ARCH}.tar.gz \
     | tar -z -x
 ```
+### Packages
+
+- Supported formats: `rpm`, `deb`
+
+Official packages can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page.
 
 ### Homebrew
 

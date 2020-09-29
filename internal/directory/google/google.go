@@ -110,6 +110,24 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, fmt.Errorf("google: error getting groups: %w", err)
 	}
 
+	userLookup := map[string]apiUserObject{}
+	err = apiClient.Users.List().
+		Context(ctx).
+		Customer("my_customer").
+		Pages(ctx, func(res *admin.Users) error {
+			for _, u := range res.Users {
+				userLookup[u.Id] = apiUserObject{
+					ID:          u.Id,
+					DisplayName: u.Name.FullName,
+					Email:       u.PrimaryEmail,
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, nil, fmt.Errorf("google: error getting users: %w", err)
+	}
+
 	userIDToGroups := map[string][]string{}
 	for _, group := range groups {
 		group := group
@@ -127,11 +145,14 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	}
 
 	var users []*directory.User
-	for userID, groups := range userIDToGroups {
+	for _, u := range userLookup {
+		groups := userIDToGroups[u.ID]
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:       databroker.GetUserID(Name, userID),
-			GroupIds: groups,
+			Id:          databroker.GetUserID(Name, u.ID),
+			GroupIds:    groups,
+			DisplayName: u.DisplayName,
+			Email:       u.Email,
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {
@@ -215,4 +236,10 @@ func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
 	}
 
 	return &serviceAccount, nil
+}
+
+type apiUserObject struct {
+	ID          string
+	DisplayName string
+	Email       string
 }

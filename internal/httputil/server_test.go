@@ -130,16 +130,17 @@ func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
 
 func TestRedirectHandler(t *testing.T) {
 	tests := []struct {
-		name       string
+		url        string
 		wantStatus int
 		wantBody   string
 	}{
 		{"http://example", http.StatusMovedPermanently, "<a href=\"https://example\">Moved Permanently</a>.\n\n"},
 		{"http://example:8080", http.StatusMovedPermanently, "<a href=\"https://example\">Moved Permanently</a>.\n\n"},
+		{"http://example:8080/some/path?x=y", http.StatusMovedPermanently, "<a href=\"https://example/some/path?x=y\">Moved Permanently</a>.\n\n"},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "http://example/", nil)
+		t.Run(tt.url, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.url, nil)
 			rr := httptest.NewRecorder()
 			RedirectHandler().ServeHTTP(rr, req)
 			if diff := cmp.Diff(tt.wantStatus, rr.Code); diff != "" {
