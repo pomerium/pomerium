@@ -595,7 +595,7 @@ func TestAuthenticate_Dashboard(t *testing.T) {
 
 	now := time.Now()
 	pbNow, _ := ptypes.TimestampProto(now)
-	nowStr := now.UTC().Format("2006-01-02 15:04:05.999999999")
+	nowStr := now.UTC().Format("2006-01-02 15:04:05 MST")
 	tests := []struct {
 		name         string
 		method       string

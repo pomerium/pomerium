@@ -117,17 +117,18 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, err
 	}
 
-	userIDToGroupIDs, err := p.getUserIDToGroupIDs(ctx, token)
+	apiUsers, err := p.getUsers(ctx, token)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	var users []*directory.User
-	for userID, groupIDs := range userIDToGroupIDs {
-		sort.Strings(groupIDs)
+	for _, u := range apiUsers {
 		users = append(users, &directory.User{
-			Id:       databroker.GetUserID(Name, strconv.Itoa(userID)),
-			GroupIds: groupIDs,
+			Id:          databroker.GetUserID(Name, strconv.Itoa(u.ID)),
+			GroupIds:    []string{strconv.Itoa(u.GroupID)},
+			DisplayName: u.FirstName + " " + u.LastName,
+			Email:       u.Email,
 		})
 	}
 
@@ -165,35 +166,25 @@ func (p *Provider) listGroups(ctx context.Context, token *oauth2.Token) ([]*dire
 	return groups, nil
 }
 
-func (p *Provider) getUserIDToGroupIDs(ctx context.Context, token *oauth2.Token) (map[int][]string, error) {
-	userIDToGroupIDs := map[int][]string{}
+func (p *Provider) getUsers(ctx context.Context, token *oauth2.Token) ([]apiUserObject, error) {
+	var users []apiUserObject
 
 	apiURL := p.cfg.apiURL.ResolveReference(&url.URL{
 		Path:     "/api/1/users",
 		RawQuery: fmt.Sprintf("limit=%d", p.cfg.batchSize),
 	}).String()
 	for apiURL != "" {
-		var result []struct {
-			ID      int  `json:"id"`
-			GroupID *int `json:"group_id"`
-		}
+		var result []apiUserObject
 		nextLink, err := p.apiGet(ctx, token, apiURL, &result)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, r := range result {
-			groupID := 0
-			if r.GroupID != nil {
-				groupID = *r.GroupID
-			}
-			userIDToGroupIDs[r.ID] = append(userIDToGroupIDs[r.ID], strconv.Itoa(groupID))
-		}
-
+		users = append(users, result...)
 		apiURL = nextLink
 	}
 
-	return userIDToGroupIDs, nil
+	return users, nil
 }
 
 func (p *Provider) apiGet(ctx context.Context, token *oauth2.Token, uri string, out interface{}) (nextLink string, err error) {
@@ -312,4 +303,12 @@ func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
 	}
 
 	return &serviceAccount, nil
+}
+
+type apiUserObject struct {
+	ID        int    `json:"id"`
+	GroupID   int    `json:"group_id"`
+	Email     string `json:"email"`
+	FirstName string `json:"firstname"`
+	LastName  string `json:"lastname"`
 }

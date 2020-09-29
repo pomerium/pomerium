@@ -1,0 +1,22 @@
+# Required settings below.  See complete documentation at https://www.pomerium.com/reference/
+
+# To run on :443 set AmbientCapabilities=CAP_NET_BIND_SERVICE
+# in a systemd override
+address: :8443
+
+authenticate_service_url: https://authenticate.localhost.pomerium.io
+certificates:
+  - cert: /etc/pomerium/cert.pem
+    key: /etc/pomerium/key.pem
+shared_secret: XXXXXX
+cookie_secret: YYYYY
+idp_provider: "google"
+idp_client_id: XXXX
+idp_client_secret: YYYY
+idp_service_account: XXXXXX
+
+policy:
+  - from: https://yoursite.localhost.pomerium.io
+    to: https://yoursite.local
+    allowed_users:
+      - user@domain.com

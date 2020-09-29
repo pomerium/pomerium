@@ -38,6 +38,7 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Header.Get("Authorization") != "Bearer ACCESSTOKEN" {
 					http.Error(w, "forbidden", http.StatusForbidden)
+
 					return
 				}
 				next.ServeHTTP(w, r)
@@ -54,11 +55,11 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 		r.Get("/groups/{group_name}/members", func(w http.ResponseWriter, r *http.Request) {
 			members := map[string][]M{
 				"admin": {
-					{"@odata.type": "#microsoft.graph.user", "id": "user-1"},
+					{"@odata.type": "#microsoft.graph.user", "id": "user-1", "displayName": "User 1", "mail": "user1@example.com"},
 				},
 				"test": {
-					{"@odata.type": "#microsoft.graph.user", "id": "user-2"},
-					{"@odata.type": "#microsoft.graph.user", "id": "user-3"},
+					{"@odata.type": "#microsoft.graph.user", "id": "user-2", "displayName": "User 2", "mail": "user2@example.com"},
+					{"@odata.type": "#microsoft.graph.user", "id": "user-3", "displayName": "User 3", "userPrincipalName": "user3_example.com#EXT#@user3example.onmicrosoft.com"},
 				},
 			}
 			_ = json.NewEncoder(w).Encode(M{
@@ -66,6 +67,7 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 			})
 		})
 	})
+
 	return r
 }
 
@@ -90,16 +92,22 @@ func Test(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:       "azure/user-1",
-			GroupIds: []string{"admin"},
+			Id:          "azure/user-1",
+			GroupIds:    []string{"admin"},
+			DisplayName: "User 1",
+			Email:       "user1@example.com",
 		},
 		{
-			Id:       "azure/user-2",
-			GroupIds: []string{"test"},
+			Id:          "azure/user-2",
+			GroupIds:    []string{"test"},
+			DisplayName: "User 2",
+			Email:       "user2@example.com",
 		},
 		{
-			Id:       "azure/user-3",
-			GroupIds: []string{"test"},
+			Id:          "azure/user-3",
+			GroupIds:    []string{"test"},
+			DisplayName: "User 3",
+			Email:       "user3@example.com",
 		},
 	}, users)
 	assert.Equal(t, []*directory.Group{

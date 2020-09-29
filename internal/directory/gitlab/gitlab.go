@@ -101,25 +101,29 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, err
 	}
 
+	userLookup := map[int]apiUserObject{}
 	userIDToGroupIDs := map[int][]string{}
 	for _, group := range groups {
-		userIDs, err := p.listGroupMemberIDs(ctx, group.Id)
+		users, err := p.listGroupMembers(ctx, group.Id)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		for _, userID := range userIDs {
-			userIDToGroupIDs[userID] = append(userIDToGroupIDs[userID], group.Id)
+		for _, u := range users {
+			userIDToGroupIDs[u.ID] = append(userIDToGroupIDs[u.ID], group.Id)
+			userLookup[u.ID] = u
 		}
 	}
 
 	var users []*directory.User
-	for userID, groups := range userIDToGroupIDs {
+	for _, u := range userLookup {
 		user := &directory.User{
-			Id: databroker.GetUserID(Name, fmt.Sprint(userID)),
+			Id:          databroker.GetUserID(Name, fmt.Sprint(u.ID)),
+			DisplayName: u.Name,
+			Email:       u.Email,
 		}
 
-		user.GroupIds = append(user.GroupIds, groups...)
+		user.GroupIds = append(user.GroupIds, userIDToGroupIDs[u.ID]...)
 
 		sort.Strings(user.GroupIds)
 		users = append(users, user)
@@ -158,26 +162,21 @@ func (p *Provider) listGroups(ctx context.Context) ([]*directory.Group, error) {
 	return groups, nil
 }
 
-func (p *Provider) listGroupMemberIDs(ctx context.Context, groupID string) (userIDs []int, err error) {
+func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (users []apiUserObject, err error) {
 	nextURL := p.cfg.url.ResolveReference(&url.URL{
 		Path: fmt.Sprintf("/api/v4/groups/%s/members", groupID),
 	}).String()
 	for nextURL != "" {
-		var result []struct {
-			ID int `json:"id"`
-		}
+		var result []apiUserObject
 		hdrs, err := p.apiGet(ctx, nextURL, &result)
 		if err != nil {
 			return nil, fmt.Errorf("gitlab: error querying group members: %w", err)
 		}
 
-		for _, r := range result {
-			userIDs = append(userIDs, r.ID)
-		}
-
+		users = append(users, result...)
 		nextURL = getNextLink(hdrs)
 	}
-	return userIDs, nil
+	return users, nil
 }
 
 func (p *Provider) apiGet(ctx context.Context, uri string, out interface{}) (http.Header, error) {
@@ -239,4 +238,10 @@ func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
 	}
 
 	return &serviceAccount, nil
+}
+
+type apiUserObject struct {
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }

@@ -11,6 +11,9 @@ services:
       - ./pomerium.conf:/etc/nginx/conf.d/pomerium.conf
       - ./_wildcard.localhost.pomerium.io.pem:/etc/nginx/nginx.pem
       - ./_wildcard.localhost.pomerium.io-key.pem:/etc/nginx/nginx-key.pem
+      - ./proxy.conf:/etc/nginx/proxy.conf
+      - ./auth.conf:/etc/nginx/auth.conf
+      - ./ext_authz.conf:/etc/nginx/ext_authz.conf
 
   httpbin:
     image: kennethreitz/httpbin:latest

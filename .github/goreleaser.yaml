@@ -199,3 +199,79 @@ brews:
     folder: Formula
     install: |
       bin.install "pomerium"
+
+nfpms:
+  - id: pomerium
+
+    builds:
+      - pomerium
+
+    package_name: pomerium
+    vendor: Pomerium, Inc.
+    homepage: https://www.pomerium.com
+    description: Identity Aware Proxy
+    maintainer:
+    license: Apache 2.0
+    epoch: 1
+    release: 1
+    meta: false
+
+    formats:
+      - deb
+      - rpm
+
+    bindir: /usr/sbin
+
+    empty_folders:
+      - /etc/pomerium
+
+    scripts:
+      preinstall: ospkg/preinstall.sh
+      postinstall: ospkg/postinstall.sh
+
+    config_files:
+      "ospkg/conf/config.yaml": "/etc/pomerium/config.yaml"
+
+    overrides:
+      deb:
+        dependencies:
+          - libsystemd0
+        file_name_template: "{{ .ProjectName }}_{{ .Version }}-{{ .Release }}_{{ .Arch }}"
+      rpm:
+        dependencies:
+          - systemd-libs
+        replacements:
+          arm64: aarch64
+          amd64: x86_64
+        file_name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Release }}.{{ .Arch }}"
+  - id: pomerium-cli
+
+    builds:
+      - pomerium-cli
+
+    package_name: pomerium-cli
+    vendor: Pomerium, Inc.
+    homepage: https://www.pomerium.com
+    description: Identity Aware Proxy
+    maintainer:
+    license: Apache 2.0
+    epoch: 1
+    release: 1
+    meta: false
+
+    formats:
+      - deb
+      - rpm
+
+    bindir: /usr/sbin
+
+    overrides:
+      deb:
+        replacements:
+          arm64: arm64
+        file_name_template: '{{ .ProjectName }}-cli_{{ .Version }}-{{ .Release }}_{{ .Arch }}{{ if .Arm }}{{if eq .Arm "7"}}hf{{ end }}{{ end }}'
+      rpm:
+        replacements:
+          arm64: aarch64
+          amd64: x86_64
+        file_name_template: '{{ .ProjectName }}-cli_{{ .Version }}-{{ .Release }}_{{ .Arch }}{{ if .Arm }}{{if eq .Arm "7"}}hf{{ end }}{{ end }}'
