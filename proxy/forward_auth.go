@@ -149,7 +149,7 @@ func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *htt
 
 	// Traefik set the uri in the header, we must set it in redirect uri if present. Otherwise, request like
 	// https://example.com/foo will be redirected to https://example.com after authentication.
-	if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "/" {
+	if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "" && xfu != "/" {
 		uri.Path = xfu
 	}
 

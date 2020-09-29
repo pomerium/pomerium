@@ -1,0 +1,34 @@
+version: "3"
+services:
+  nginx:
+    image: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../../examples/nginx/httpbin.conf:/etc/nginx/conf.d/httpbin.conf
+      - ../../examples/nginx/pomerium.conf:/etc/nginx/conf.d/pomerium.conf
+      - ../../examples/nginx/proxy.conf:/etc/nginx/proxy.conf
+      - ../../examples/nginx/auth.conf:/etc/nginx/auth.conf
+      - ../../examples/nginx/ext_authz.conf:/etc/nginx/ext_authz.conf
+      - ../../examples/nginx/_wildcard.localhost.pomerium.io.pem:/etc/nginx/nginx.pem
+      - ../../examples/nginx/_wildcard.localhost.pomerium.io-key.pem:/etc/nginx/nginx-key.pem
+
+  httpbin:
+    image: kennethreitz/httpbin:latest
+    expose:
+      - 80
+
+  pomerium:
+    build: ../.
+    volumes:
+      - ../../:/workspace:cached
+    command: /bin/sh -c "while sleep 1000; do :; done"
+    environment:
+      - INSECURE_SERVER=TRUE
+      - ADDRESS=:80
+      - FORWARD_AUTH_URL=https://fwdauth.localhost.pomerium.io
+      - JWT_CLAIMS_HEADERS="email,groups,user"
+    expose:
+      - 80
