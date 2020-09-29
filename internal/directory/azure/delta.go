@@ -11,28 +11,34 @@ import (
 )
 
 type (
-	groupsDeltaCollection struct {
-		provider  *Provider
-		groups    map[string]groupsDeltaGroup
-		deltaLink string
+	deltaCollection struct {
+		provider       *Provider
+		groups         map[string]deltaGroup
+		groupDeltaLink string
+		users          map[string]deltaUser
+		userDeltaLink  string
 	}
-	groupsDeltaGroup struct {
+	deltaGroup struct {
 		id          string
 		displayName string
-		members     map[string]groupsDeltaGroupMember
+		members     map[string]deltaGroupMember
 	}
-	groupsDeltaGroupMember struct {
-		memberType  string
+	deltaGroupMember struct {
+		memberType string
+		id         string
+	}
+	deltaUser struct {
 		id          string
 		displayName string
 		email       string
 	}
 )
 
-func newGroupsDeltaCollection(p *Provider) *groupsDeltaCollection {
-	return &groupsDeltaCollection{
+func newDeltaCollection(p *Provider) *deltaCollection {
+	return &deltaCollection{
 		provider: p,
-		groups:   make(map[string]groupsDeltaGroup),
+		groups:   make(map[string]deltaGroup),
+		users:    make(map[string]deltaUser),
 	}
 }
 
@@ -48,12 +54,24 @@ func newGroupsDeltaCollection(p *Provider) *groupsDeltaCollection {
 //   4. on the next call to sync, starting at @odata.deltaLink
 //
 // Only the changed groups/members are returned. Removed groups/members have an @removed property.
-func (gdc *groupsDeltaCollection) Sync(ctx context.Context) error {
-	apiURL := gdc.deltaLink
+func (dc *deltaCollection) Sync(ctx context.Context) error {
+	if err := dc.syncGroups(ctx); err != nil {
+		return err
+	}
+
+	if err := dc.syncUsers(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dc *deltaCollection) syncGroups(ctx context.Context) error {
+	apiURL := dc.groupDeltaLink
 
 	// if no delta link is set yet, start the initial fill
 	if apiURL == "" {
-		apiURL = gdc.provider.cfg.graphURL.ResolveReference(&url.URL{
+		apiURL = dc.provider.cfg.graphURL.ResolveReference(&url.URL{
 			Path: "/v1.0/groups/delta",
 			RawQuery: url.Values{
 				"$select": {"displayName,members"},
@@ -63,7 +81,7 @@ func (gdc *groupsDeltaCollection) Sync(ctx context.Context) error {
 
 	for {
 		var res groupsDeltaResponse
-		err := gdc.provider.api(ctx, "GET", apiURL, nil, &res)
+		err := dc.provider.api(ctx, "GET", apiURL, nil, &res)
 		if err != nil {
 			return err
 		}
@@ -71,15 +89,15 @@ func (gdc *groupsDeltaCollection) Sync(ctx context.Context) error {
 		for _, g := range res.Value {
 			// if removed exists, the group was deleted
 			if g.Removed != nil {
-				delete(gdc.groups, g.ID)
+				delete(dc.groups, g.ID)
 				continue
 			}
 
-			gdg := gdc.groups[g.ID]
+			gdg := dc.groups[g.ID]
 			gdg.id = g.ID
 			gdg.displayName = g.DisplayName
 			if gdg.members == nil {
-				gdg.members = make(map[string]groupsDeltaGroupMember)
+				gdg.members = make(map[string]deltaGroupMember)
 			}
 			for _, m := range g.Members {
 				// if removed exists, the member was deleted
@@ -88,14 +106,12 @@ func (gdc *groupsDeltaCollection) Sync(ctx context.Context) error {
 					continue
 				}
 
-				gdg.members[m.ID] = groupsDeltaGroupMember{
-					memberType:  m.Type,
-					id:          m.ID,
-					displayName: m.DisplayName,
-					email:       m.getEmail(),
+				gdg.members[m.ID] = deltaGroupMember{
+					memberType: m.Type,
+					id:         m.ID,
 				}
 			}
-			gdc.groups[g.ID] = gdg
+			dc.groups[g.ID] = gdg
 		}
 
 		switch {
@@ -104,19 +120,63 @@ func (gdc *groupsDeltaCollection) Sync(ctx context.Context) error {
 			apiURL = res.NextLink
 		default:
 			// once no next link is set anymore, we save the delta link and return
-			gdc.deltaLink = res.DeltaLink
+			dc.groupDeltaLink = res.DeltaLink
+			return nil
+		}
+	}
+}
+
+func (dc *deltaCollection) syncUsers(ctx context.Context) error {
+	apiURL := dc.userDeltaLink
+
+	// if no delta link is set yet, start the initial fill
+	if apiURL == "" {
+		apiURL = dc.provider.cfg.graphURL.ResolveReference(&url.URL{
+			Path: "/v1.0/users/delta",
+			RawQuery: url.Values{
+				"$select": {"displayName,mail,userPrincipalName"},
+			}.Encode(),
+		}).String()
+	}
+
+	for {
+		var res usersDeltaResponse
+		err := dc.provider.api(ctx, "GET", apiURL, nil, &res)
+		if err != nil {
+			return err
+		}
+
+		for _, u := range res.Value {
+			// if removed exists, the user was deleted
+			if u.Removed != nil {
+				delete(dc.users, u.ID)
+				continue
+			}
+			dc.users[u.ID] = deltaUser{
+				id:          u.ID,
+				displayName: u.DisplayName,
+				email:       u.getEmail(),
+			}
+		}
+
+		switch {
+		case res.NextLink != "":
+			// when there's a next link we will query again
+			apiURL = res.NextLink
+		default:
+			// once no next link is set anymore, we save the delta link and return
+			dc.userDeltaLink = res.DeltaLink
 			return nil
 		}
 	}
 }
 
 // CurrentUserGroups returns the directory groups and users based on the current state.
-func (gdc *groupsDeltaCollection) CurrentUserGroups() ([]*directory.Group, []*directory.User) {
+func (dc *deltaCollection) CurrentUserGroups() ([]*directory.Group, []*directory.User) {
 	var groups []*directory.Group
 
-	userLookup := map[string]groupsDeltaGroupMember{}
 	groupLookup := newGroupLookup()
-	for _, g := range gdc.groups {
+	for _, g := range dc.groups {
 		groups = append(groups, &directory.Group{
 			Id:   g.id,
 			Name: g.displayName,
@@ -128,14 +188,13 @@ func (gdc *groupsDeltaCollection) CurrentUserGroups() ([]*directory.Group, []*di
 				groupIDs = append(groupIDs, m.id)
 			case "#microsoft.graph.user":
 				userIDs = append(userIDs, m.id)
-				userLookup[m.id] = m
 			}
 		}
 		groupLookup.addGroup(g.id, groupIDs, userIDs)
 	}
 
 	var users []*directory.User
-	for _, u := range userLookup {
+	for _, u := range dc.users {
 		users = append(users, &directory.User{
 			Id:          databroker.GetUserID(Name, u.id),
 			GroupIds:    groupLookup.getGroupIDsForUser(u.id),
@@ -152,6 +211,10 @@ func (gdc *groupsDeltaCollection) CurrentUserGroups() ([]*directory.Group, []*di
 
 // API types for the microsoft graph API.
 type (
+	deltaResponseRemoved struct {
+		Reason string `json:"reason"`
+	}
+
 	groupsDeltaResponse struct {
 		Context   string                     `json:"@odata.context"`
 		NextLink  string                     `json:"@odata.nextLink,omitempty"`
@@ -162,22 +225,30 @@ type (
 		ID          string                           `json:"id"`
 		DisplayName string                           `json:"displayName"`
 		Members     []groupsDeltaResponseGroupMember `json:"members@delta"`
-		Removed     *groupsDeltaResponseRemoved      `json:"@removed,omitempty"`
+		Removed     *deltaResponseRemoved            `json:"@removed,omitempty"`
 	}
 	groupsDeltaResponseGroupMember struct {
-		Type              string                      `json:"@odata.type"`
-		ID                string                      `json:"id"`
-		Mail              string                      `json:"mail"`
-		DisplayName       string                      `json:"displayName"`
-		UserPrincipalName string                      `json:"userPrincipalName"`
-		Removed           *groupsDeltaResponseRemoved `json:"@removed,omitempty"`
+		Type    string                `json:"@odata.type"`
+		ID      string                `json:"id"`
+		Removed *deltaResponseRemoved `json:"@removed,omitempty"`
 	}
-	groupsDeltaResponseRemoved struct {
-		Reason string `json:"reason"`
+
+	usersDeltaResponse struct {
+		Context   string                   `json:"@odata.context"`
+		NextLink  string                   `json:"@odata.nextLink,omitempty"`
+		DeltaLink string                   `json:"@odata.deltaLink,omitempty"`
+		Value     []usersDeltaResponseUser `json:"value"`
+	}
+	usersDeltaResponseUser struct {
+		ID                string                `json:"id"`
+		DisplayName       string                `json:"displayName"`
+		Mail              string                `json:"mail"`
+		UserPrincipalName string                `json:"userPrincipalName"`
+		Removed           *deltaResponseRemoved `json:"@removed,omitempty"`
 	}
 )
 
-func (obj groupsDeltaResponseGroupMember) getEmail() string {
+func (obj usersDeltaResponseUser) getEmail() string {
 	if obj.Mail != "" {
 		return obj.Mail
 	}

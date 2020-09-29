@@ -86,7 +86,7 @@ func getConfig(options ...Option) *config {
 // A Provider is a directory implementation using azure active directory.
 type Provider struct {
 	cfg *config
-	gdc *groupsDeltaCollection
+	gdc *deltaCollection
 
 	mu    sync.RWMutex
 	token *oauth2.Token
@@ -97,7 +97,7 @@ func New(options ...Option) *Provider {
 	p := &Provider{
 		cfg: getConfig(options...),
 	}
-	p.gdc = newGroupsDeltaCollection(p)
+	p.gdc = newDeltaCollection(p)
 	return p
 }
 

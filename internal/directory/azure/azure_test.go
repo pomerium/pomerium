@@ -51,17 +51,26 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 						"id":          "admin",
 						"displayName": "Admin Group",
 						"members@delta": []M{
-							{"@odata.type": "#microsoft.graph.user", "id": "user-1", "displayName": "User 1", "mail": "user1@example.com"},
+							{"@odata.type": "#microsoft.graph.user", "id": "user-1"},
 						},
 					},
 					{
 						"id":          "test",
 						"displayName": "Test Group",
 						"members@delta": []M{
-							{"@odata.type": "#microsoft.graph.user", "id": "user-2", "displayName": "User 2", "mail": "user2@example.com"},
-							{"@odata.type": "#microsoft.graph.user", "id": "user-3", "displayName": "User 3", "userPrincipalName": "user3_example.com#EXT#@user3example.onmicrosoft.com"},
+							{"@odata.type": "#microsoft.graph.user", "id": "user-2"},
+							{"@odata.type": "#microsoft.graph.user", "id": "user-3"},
 						},
 					},
+				},
+			})
+		})
+		r.Get("/users/delta", func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewEncoder(w).Encode(M{
+				"value": []M{
+					{"id": "user-1", "displayName": "User 1", "mail": "user1@example.com"},
+					{"id": "user-2", "displayName": "User 2", "mail": "user2@example.com"},
+					{"id": "user-3", "displayName": "User 3", "userPrincipalName": "user3_example.com#EXT#@user3example.onmicrosoft.com"},
 				},
 			})
 		})
