@@ -10,6 +10,11 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
+const (
+	groupsDeltaPath = "/v1.0/groups/delta"
+	usersDeltaPath  = "/v1.0/users/delta"
+)
+
 type (
 	deltaCollection struct {
 		provider       *Provider
@@ -72,7 +77,7 @@ func (dc *deltaCollection) syncGroups(ctx context.Context) error {
 	// if no delta link is set yet, start the initial fill
 	if apiURL == "" {
 		apiURL = dc.provider.cfg.graphURL.ResolveReference(&url.URL{
-			Path: "/v1.0/groups/delta",
+			Path: groupsDeltaPath,
 			RawQuery: url.Values{
 				"$select": {"displayName,members"},
 			}.Encode(),
@@ -132,7 +137,7 @@ func (dc *deltaCollection) syncUsers(ctx context.Context) error {
 	// if no delta link is set yet, start the initial fill
 	if apiURL == "" {
 		apiURL = dc.provider.cfg.graphURL.ResolveReference(&url.URL{
-			Path: "/v1.0/users/delta",
+			Path: usersDeltaPath,
 			RawQuery: url.Values{
 				"$select": {"displayName,mail,userPrincipalName"},
 			}.Encode(),
