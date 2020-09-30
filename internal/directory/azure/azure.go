@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -101,8 +100,47 @@ func New(options ...Option) *Provider {
 }
 
 // User returns the user record for the given id.
-func (p *Provider) User(ctx context.Context, id string) (*directory.User, error) {
-	panic("not implemented")
+func (p *Provider) User(ctx context.Context, userID string) (*directory.User, error) {
+	if p.cfg.serviceAccount == nil {
+		return nil, fmt.Errorf("azure: service account not defined")
+	}
+
+	_, providerUserID := databroker.FromUserID(userID)
+
+	du := &directory.User{
+		Id: providerUserID,
+	}
+
+	userURL := p.cfg.graphURL.ResolveReference(&url.URL{
+		Path: fmt.Sprintf("/v1.0/users/%s", providerUserID),
+	}).String()
+
+	var u apiDirectoryObject
+	err := p.api(ctx, userURL, &u)
+	if err != nil {
+		return nil, err
+	}
+	du.DisplayName = u.DisplayName
+	du.Email = u.getEmail()
+
+	groupURL := p.cfg.graphURL.ResolveReference(&url.URL{
+		Path: fmt.Sprintf("/v1.0/users/%s/transitiveMemberOf", providerUserID),
+	}).String()
+
+	var res struct {
+		Value []apiDirectoryObject `json:"value"`
+	}
+	err = p.api(ctx, groupURL, &res)
+	if err != nil {
+		return nil, err
+	}
+	for _, g := range res.Value {
+		du.GroupIds = append(du.GroupIds, g.ID)
+	}
+
+	sort.Strings(du.GroupIds)
+
+	return du, nil
 }
 
 // UserGroups returns the directory users in azure active directory.
@@ -161,7 +199,7 @@ func (p *Provider) listGroups(ctx context.Context) ([]*directory.Group, error) {
 			} `json:"value"`
 			NextLink string `json:"@odata.nextLink"`
 		}
-		err := p.api(ctx, "GET", nextURL, nil, &result)
+		err := p.api(ctx, nextURL, &result)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +225,7 @@ func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (groupI
 			Value    []apiDirectoryObject `json:"value"`
 			NextLink string               `json:"@odata.nextLink"`
 		}
-		err := p.api(ctx, "GET", nextURL, nil, &result)
+		err := p.api(ctx, nextURL, &result)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -205,13 +243,13 @@ func (p *Provider) listGroupMembers(ctx context.Context, groupID string) (groupI
 	return groupIDs, users, nil
 }
 
-func (p *Provider) api(ctx context.Context, method, url string, body io.Reader, out interface{}) error {
+func (p *Provider) api(ctx context.Context, url string, out interface{}) error {
 	token, err := p.getToken(ctx)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("azure: error creating HTTP request: %w", err)
 	}
@@ -225,7 +263,7 @@ func (p *Provider) api(ctx context.Context, method, url string, body io.Reader, 
 	defer res.Body.Close()
 
 	if res.StatusCode/100 != 2 {
-		return fmt.Errorf("azure: error querying api: %s", res.Status)
+		return fmt.Errorf("azure: error querying api (%s): %s", url, res.Status)
 	}
 
 	err = json.NewDecoder(res.Body).Decode(out)
