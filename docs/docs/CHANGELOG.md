@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.6
+
+### Security
+
+- deps: envoy 1.15.1 @desimone GH-1473
+- deps: update envoy arm64 to v1.15.1 @travisgroth GH-1475
+  
 ## v0.10.5
 
 ### Changes
