@@ -44,26 +44,34 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 				next.ServeHTTP(w, r)
 			})
 		})
-		r.Get("/groups", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/groups/delta", func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(M{
 				"value": []M{
-					{"id": "admin", "displayName": "Admin Group"},
-					{"id": "test", "displayName": "Test Group"},
+					{
+						"id":          "admin",
+						"displayName": "Admin Group",
+						"members@delta": []M{
+							{"@odata.type": "#microsoft.graph.user", "id": "user-1"},
+						},
+					},
+					{
+						"id":          "test",
+						"displayName": "Test Group",
+						"members@delta": []M{
+							{"@odata.type": "#microsoft.graph.user", "id": "user-2"},
+							{"@odata.type": "#microsoft.graph.user", "id": "user-3"},
+						},
+					},
 				},
 			})
 		})
-		r.Get("/groups/{group_name}/members", func(w http.ResponseWriter, r *http.Request) {
-			members := map[string][]M{
-				"admin": {
-					{"@odata.type": "#microsoft.graph.user", "id": "user-1", "displayName": "User 1", "mail": "user1@example.com"},
-				},
-				"test": {
-					{"@odata.type": "#microsoft.graph.user", "id": "user-2", "displayName": "User 2", "mail": "user2@example.com"},
-					{"@odata.type": "#microsoft.graph.user", "id": "user-3", "displayName": "User 3", "userPrincipalName": "user3_example.com#EXT#@user3example.onmicrosoft.com"},
-				},
-			}
+		r.Get("/users/delta", func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(M{
-				"value": members[chi.URLParam(r, "group_name")],
+				"value": []M{
+					{"id": "user-1", "displayName": "User 1", "mail": "user1@example.com"},
+					{"id": "user-2", "displayName": "User 2", "mail": "user2@example.com"},
+					{"id": "user-3", "displayName": "User 3", "userPrincipalName": "user3_example.com#EXT#@user3example.onmicrosoft.com"},
+				},
 			})
 		})
 	})
