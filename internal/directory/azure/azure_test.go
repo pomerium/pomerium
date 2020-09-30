@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -74,12 +75,62 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 				},
 			})
 		})
+		r.Get("/users/{user_id}", func(w http.ResponseWriter, r *http.Request) {
+			switch chi.URLParam(r, "user_id") {
+			case "user-1":
+				_ = json.NewEncoder(w).Encode(M{"id": "user-1", "displayName": "User 1", "mail": "user1@example.com"})
+			default:
+				http.Error(w, "not found", http.StatusNotFound)
+			}
+		})
+		r.Get("/users/{user_id}/transitiveMemberOf", func(w http.ResponseWriter, r *http.Request) {
+			switch chi.URLParam(r, "user_id") {
+			case "user-1":
+				_ = json.NewEncoder(w).Encode(M{
+					"value": []M{
+						{"id": "admin"},
+					},
+				})
+			default:
+				http.Error(w, "not found", http.StatusNotFound)
+			}
+		})
 	})
 
 	return r
 }
 
-func Test(t *testing.T) {
+func TestProvider_User(t *testing.T) {
+	var mockAPI http.Handler
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockAPI.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	mockAPI = newMockAPI(t, srv)
+
+	p := New(
+		WithGraphURL(mustParseURL(srv.URL)),
+		WithLoginURL(mustParseURL(srv.URL)),
+		WithServiceAccount(&ServiceAccount{
+			ClientID:     "CLIENT_ID",
+			ClientSecret: "CLIENT_SECRET",
+			DirectoryID:  "DIRECTORY_ID",
+		}),
+	)
+
+	du, err := p.User(context.Background(), "azure/user-1")
+	if !assert.NoError(t, err) {
+		return
+	}
+	testutil.AssertProtoJSONEqual(t, `{
+		"id": "azure/user-1",
+		"displayName": "User 1",
+		"email": "user1@example.com",
+		"groupIds": ["admin"]
+	}`, du)
+}
+
+func TestProvider_UserGroups(t *testing.T) {
 	var mockAPI http.Handler
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockAPI.ServeHTTP(w, r)

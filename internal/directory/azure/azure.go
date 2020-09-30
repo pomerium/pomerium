@@ -111,7 +111,7 @@ func (p *Provider) User(ctx context.Context, userID string) (*directory.User, er
 	_, providerUserID := databroker.FromUserID(userID)
 
 	du := &directory.User{
-		Id: providerUserID,
+		Id: userID,
 	}
 
 	userURL := p.cfg.graphURL.ResolveReference(&url.URL{
