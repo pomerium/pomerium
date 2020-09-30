@@ -2,6 +2,7 @@
 package github
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -84,8 +85,44 @@ func New(options ...Option) *Provider {
 }
 
 // User returns the user record for the given id.
-func (p *Provider) User(ctx context.Context, id string) (*directory.User, error) {
-	panic("not implemented")
+func (p *Provider) User(ctx context.Context, userID string) (*directory.User, error) {
+	if p.cfg.serviceAccount == nil {
+		return nil, fmt.Errorf("github: service account not defined")
+	}
+
+	_, providerUserID := databroker.FromUserID(userID)
+	du := &directory.User{
+		Id: userID,
+	}
+
+	au, err := p.getUser(ctx, providerUserID)
+	if err != nil {
+		return nil, err
+	}
+	du.DisplayName = au.Name
+	du.Email = au.Email
+
+	teamIDLookup := map[int]struct{}{}
+	orgSlugs, err := p.listOrgs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, orgSlug := range orgSlugs {
+		teamIDs, err := p.listUserOrganizationTeams(ctx, userID, orgSlug)
+		if err != nil {
+			return nil, err
+		}
+		for _, teamID := range teamIDs {
+			teamIDLookup[teamID] = struct{}{}
+		}
+	}
+
+	for teamID := range teamIDLookup {
+		du.GroupIds = append(du.GroupIds, strconv.Itoa(teamID))
+	}
+	sort.Strings(du.GroupIds)
+
+	return du, nil
 }
 
 // UserGroups gets the directory user groups for github.
@@ -235,8 +272,114 @@ func (p *Provider) getUser(ctx context.Context, userLogin string) (*apiUserObjec
 	return &res, nil
 }
 
+func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug string, orgSlug string) ([]int, error) {
+	// GitHub's Rest API doesn't have an easy way of querying this data, so we use the GraphQL API.
+
+	enc := func(obj interface{}) string {
+		bs, _ := json.Marshal(obj)
+		return string(bs)
+	}
+	const pageCount = 100
+
+	var teamIDs []int
+	var cursor *string
+	for {
+		var res struct {
+			Data struct {
+				Organization struct {
+					Teams struct {
+						TotalCount int `json:"totalCount"`
+						PageInfo   struct {
+							EndCursor string `json:"endCursor"`
+						} `json:"pageInfo"`
+						Edges []struct {
+							Node struct {
+								ID int `json:"id"`
+							} `json:"node"`
+						} `json:"edges"`
+					} `json:"teams"`
+				} `json:"organization"`
+			} `json:"data"`
+		}
+		cursorStr := ""
+		if cursor != nil {
+			cursorStr = fmt.Sprintf(",%s", enc(*cursor))
+		}
+		q := fmt.Sprintf(`query {
+			organization(login:%s) {
+				teams(first:%s, userLogins:[%s] %s) {
+					totalCount
+					pageInfo {
+						endCursor
+					}
+					edges {
+						node {
+							id
+						}
+					}
+				}
+			}
+		}`, enc(orgSlug), enc(pageCount), enc(userSlug), cursorStr)
+		_, err := p.graphql(ctx, q, &res)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(res.Data.Organization.Teams.Edges) == 0 {
+			break
+		}
+
+		for _, edge := range res.Data.Organization.Teams.Edges {
+			teamIDs = append(teamIDs, edge.Node.ID)
+		}
+
+		if len(teamIDs) >= res.Data.Organization.Teams.TotalCount {
+			break
+		}
+
+		cursor = &res.Data.Organization.Teams.PageInfo.EndCursor
+	}
+
+	return teamIDs, nil
+}
+
 func (p *Provider) api(ctx context.Context, apiURL string, out interface{}) (http.Header, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("github: failed to create http request: %w", err)
+	}
+	req.SetBasicAuth(p.cfg.serviceAccount.Username, p.cfg.serviceAccount.PersonalAccessToken)
+
+	res, err := p.cfg.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("github: failed to make http request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("github: error from API: %s", res.Status)
+	}
+
+	if out != nil {
+		err := json.NewDecoder(res.Body).Decode(out)
+		if err != nil {
+			return nil, fmt.Errorf("github: failed to decode json body: %w", err)
+		}
+	}
+
+	return res.Header, nil
+}
+
+func (p *Provider) graphql(ctx context.Context, query string, out interface{}) (http.Header, error) {
+	apiURL := p.cfg.url.ResolveReference(&url.URL{
+		Path: "/graphql",
+	}).String()
+
+	bs, _ := json.Marshal(struct {
+		Query string `json:"query"`
+	}{query})
+
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(bs))
 	if err != nil {
 		return nil, fmt.Errorf("github: failed to create http request: %w", err)
 	}
