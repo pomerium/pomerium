@@ -103,7 +103,7 @@ func New(options ...Option) *Provider {
 }
 
 // User returns the user record for the given id.
-func (p *Provider) User(ctx context.Context, userID string) (*directory.User, error) {
+func (p *Provider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
 	if p.cfg.serviceAccount == nil {
 		return nil, fmt.Errorf("azure: service account not defined")
 	}

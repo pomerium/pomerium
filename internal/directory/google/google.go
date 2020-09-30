@@ -86,7 +86,7 @@ func New(options ...Option) *Provider {
 }
 
 // User returns the user record for the given id.
-func (p *Provider) User(ctx context.Context, userID string) (*directory.User, error) {
+func (p *Provider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
 	apiClient, err := p.getAPIClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("google: error getting API client: %w", err)

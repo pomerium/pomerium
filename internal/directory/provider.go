@@ -32,7 +32,7 @@ var RegisterDirectoryServiceServer = directory.RegisterDirectoryServiceServer
 
 // A Provider provides user group directory information.
 type Provider interface {
-	User(ctx context.Context, userID string) (*User, error)
+	User(ctx context.Context, userID, accessToken string) (*User, error)
 	UserGroups(ctx context.Context) ([]*Group, []*User, error)
 }
 
@@ -130,7 +130,7 @@ func GetProvider(options Options) (provider Provider) {
 
 type nullProvider struct{}
 
-func (nullProvider) User(ctx context.Context, id string) (*directory.User, error) {
+func (nullProvider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
 	return nil, nil
 }
 

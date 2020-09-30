@@ -130,7 +130,7 @@ func TestProvider_User(t *testing.T) {
 			PersonalAccessToken: "xyz",
 		}),
 	)
-	du, err := p.User(context.Background(), "github/user1")
+	du, err := p.User(context.Background(), "github/user1", "")
 	if !assert.NoError(t, err) {
 		return
 	}

@@ -20,7 +20,10 @@ message Group {
   string email = 4;
 }
 
-message RefreshUserRequest { string user_id = 1; }
+message RefreshUserRequest {
+  string user_id = 1;
+  string access_token = 2;
+}
 
 service DirectoryService {
   rpc RefreshUser(RefreshUserRequest) returns (google.protobuf.Empty);

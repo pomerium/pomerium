@@ -21,7 +21,7 @@ func (c *Cache) RefreshUser(ctx context.Context, req *directory.RefreshUserReque
 		return nil, errors.New("no directory provider is available for refresh")
 	}
 
-	u, err := dp.User(ctx, req.GetUserId())
+	u, err := dp.User(ctx, req.GetUserId(), req.GetAccessToken())
 	if err != nil {
 		return nil, err
 	}

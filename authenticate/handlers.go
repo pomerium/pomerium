@@ -597,7 +597,8 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 	sessionState.Version = sessions.Version(res.GetServerVersion())
 
 	_, err = state.directoryClient.RefreshUser(ctx, &directory.RefreshUserRequest{
-		UserId: s.UserId,
+		UserId:      s.UserId,
+		AccessToken: accessToken.AccessToken,
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("directory: failed to refresh user data")

@@ -118,7 +118,7 @@ func TestProvider_User(t *testing.T) {
 		}),
 	)
 
-	du, err := p.User(context.Background(), "azure/user-1")
+	du, err := p.User(context.Background(), "azure/user-1", "")
 	if !assert.NoError(t, err) {
 		return
 	}

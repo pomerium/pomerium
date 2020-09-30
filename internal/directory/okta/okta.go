@@ -109,7 +109,7 @@ func New(options ...Option) *Provider {
 }
 
 // User returns the user record for the given id.
-func (p *Provider) User(ctx context.Context, id string) (*directory.User, error) {
+func (p *Provider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
 	panic("not implemented")
 }
 

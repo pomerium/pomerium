@@ -123,7 +123,7 @@ func TestProvider_User(t *testing.T) {
 		TokenURL:   srv.URL + "/token",
 	}), WithURL(srv.URL))
 
-	du, err := p.User(ctx, "user1")
+	du, err := p.User(ctx, "user1", "")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -132,7 +132,7 @@ func TestProvider_User(t *testing.T) {
 	assert.Equal(t, "User 1", du.DisplayName)
 	assert.Equal(t, []string{"group1", "group2"}, du.GroupIds)
 
-	du, err = p.User(ctx, "user2")
+	du, err = p.User(ctx, "user2", "")
 	if !assert.NoError(t, err) {
 		return
 	}
