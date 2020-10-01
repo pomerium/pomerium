@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/rs/zerolog"
 
@@ -72,9 +71,8 @@ func getConfig(options ...Option) *config {
 
 // Provider is an Auth0 user group directory provider.
 type Provider struct {
-	cfg         *config
-	log         zerolog.Logger
-	lastUpdated *time.Time
+	cfg *config
+	log zerolog.Logger
 }
 
 // New creates a new Provider.
