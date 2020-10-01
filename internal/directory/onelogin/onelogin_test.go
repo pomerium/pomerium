@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -102,6 +103,28 @@ func newMockAPI(srv *httptest.Server, userIDToGroupName map[int]string) http.Han
 
 			_ = json.NewEncoder(w).Encode(result)
 		})
+		r.Get("/users/{user_id}", func(w http.ResponseWriter, r *http.Request) {
+			userIDToGroupID := map[int]int{}
+			for userID, groupName := range userIDToGroupName {
+				for id, n := range allGroups {
+					if groupName == n {
+						userIDToGroupID[userID] = id
+					}
+				}
+			}
+
+			userID, _ := strconv.Atoi(chi.URLParam(r, "user_id"))
+
+			_ = json.NewEncoder(w).Encode(M{
+				"data": M{
+					"id":        userID,
+					"email":     userIDToGroupName[userID] + "@example.com",
+					"group_id":  userIDToGroupID[userID],
+					"firstname": "User",
+					"lastname":  fmt.Sprint(userID),
+				},
+			})
+		})
 		r.Get("/users", func(w http.ResponseWriter, r *http.Request) {
 			userIDToGroupID := map[int]int{}
 			for userID, groupName := range userIDToGroupName {
@@ -128,6 +151,37 @@ func newMockAPI(srv *httptest.Server, userIDToGroupName map[int]string) http.Han
 		})
 	})
 	return r
+}
+
+func TestProvider_User(t *testing.T) {
+	var mockAPI http.Handler
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockAPI.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	mockAPI = newMockAPI(srv, map[int]string{
+		111: "admin",
+		222: "test",
+		333: "user",
+	})
+
+	p := New(
+		WithServiceAccount(&ServiceAccount{
+			ClientID:     "CLIENTID",
+			ClientSecret: "CLIENTSECRET",
+		}),
+		WithURL(mustParseURL(srv.URL)),
+	)
+	user, err := p.User(context.Background(), "onelogin/111", "ACCESSTOKEN")
+	if !assert.NoError(t, err) {
+		return
+	}
+	testutil.AssertProtoJSONEqual(t, `{
+		"id": "onelogin/111",
+		"groupIds": ["0"],
+		"displayName": "User 111",
+		"email": "admin@example.com"
+	}`, user)
 }
 
 func TestProvider_UserGroups(t *testing.T) {

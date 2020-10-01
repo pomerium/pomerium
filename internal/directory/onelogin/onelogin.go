@@ -96,7 +96,28 @@ func New(options ...Option) *Provider {
 
 // User returns the user record for the given id.
 func (p *Provider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
-	panic("not implemented")
+	if p.cfg.serviceAccount == nil {
+		return nil, fmt.Errorf("onelogin: service account not defined")
+	}
+	_, providerUserID := databroker.FromUserID(userID)
+	du := &directory.User{
+		Id: userID,
+	}
+
+	token, err := p.getToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	au, err := p.getUser(ctx, token.AccessToken, providerUserID)
+	if err != nil {
+		return nil, err
+	}
+	du.DisplayName = au.getDisplayName()
+	du.Email = au.Email
+	du.GroupIds = []string{strconv.Itoa(au.GroupID)}
+
+	return du, nil
 }
 
 // UserGroups gets the directory user groups for onelogin.
@@ -112,12 +133,12 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, err
 	}
 
-	groups, err := p.listGroups(ctx, token)
+	groups, err := p.listGroups(ctx, token.AccessToken)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	apiUsers, err := p.getUsers(ctx, token)
+	apiUsers, err := p.listUsers(ctx, token.AccessToken)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -138,7 +159,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	return groups, users, nil
 }
 
-func (p *Provider) listGroups(ctx context.Context, token *oauth2.Token) ([]*directory.Group, error) {
+func (p *Provider) listGroups(ctx context.Context, accessToken string) ([]*directory.Group, error) {
 	var groups []*directory.Group
 	apiURL := p.cfg.apiURL.ResolveReference(&url.URL{
 		Path:     "/api/1/groups",
@@ -149,9 +170,9 @@ func (p *Provider) listGroups(ctx context.Context, token *oauth2.Token) ([]*dire
 			ID   int    `json:"id"`
 			Name string `json:"name"`
 		}
-		nextLink, err := p.apiGet(ctx, token, apiURL, &result)
+		nextLink, err := p.apiGet(ctx, accessToken, apiURL, &result)
 		if err != nil {
-			return nil, fmt.Errorf("onelogin: error querying group api: %w", err)
+			return nil, fmt.Errorf("onelogin: listing groups: %w", err)
 		}
 
 		for _, r := range result {
@@ -166,7 +187,24 @@ func (p *Provider) listGroups(ctx context.Context, token *oauth2.Token) ([]*dire
 	return groups, nil
 }
 
-func (p *Provider) getUsers(ctx context.Context, token *oauth2.Token) ([]apiUserObject, error) {
+func (p *Provider) getUser(ctx context.Context, accessToken string, userID string) (*apiUserObject, error) {
+	apiURL := p.cfg.apiURL.ResolveReference(&url.URL{
+		Path: fmt.Sprintf("/api/1/users/%s", userID),
+	}).String()
+
+	var out []apiUserObject
+	_, err := p.apiGet(ctx, accessToken, apiURL, &out)
+	if err != nil {
+		return nil, fmt.Errorf("onelogin: error getting user: %w", err)
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("onelogin: user not found")
+	}
+
+	return &out[0], nil
+}
+
+func (p *Provider) listUsers(ctx context.Context, accessToken string) ([]apiUserObject, error) {
 	var users []apiUserObject
 
 	apiURL := p.cfg.apiURL.ResolveReference(&url.URL{
@@ -175,9 +213,9 @@ func (p *Provider) getUsers(ctx context.Context, token *oauth2.Token) ([]apiUser
 	}).String()
 	for apiURL != "" {
 		var result []apiUserObject
-		nextLink, err := p.apiGet(ctx, token, apiURL, &result)
+		nextLink, err := p.apiGet(ctx, accessToken, apiURL, &result)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("onelogin: listing users: %w", err)
 		}
 
 		users = append(users, result...)
@@ -187,12 +225,12 @@ func (p *Provider) getUsers(ctx context.Context, token *oauth2.Token) ([]apiUser
 	return users, nil
 }
 
-func (p *Provider) apiGet(ctx context.Context, token *oauth2.Token, uri string, out interface{}) (nextLink string, err error) {
+func (p *Provider) apiGet(ctx context.Context, accessToken string, uri string, out interface{}) (nextLink string, err error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", uri, nil)
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("bearer:%s", token.AccessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("bearer:%s", accessToken))
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := p.cfg.httpClient.Do(req)
@@ -311,4 +349,8 @@ type apiUserObject struct {
 	Email     string `json:"email"`
 	FirstName string `json:"firstname"`
 	LastName  string `json:"lastname"`
+}
+
+func (obj *apiUserObject) getDisplayName() string {
+	return obj.FirstName + " " + obj.LastName
 }
