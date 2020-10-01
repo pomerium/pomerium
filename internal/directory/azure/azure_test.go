@@ -169,10 +169,10 @@ func TestProvider_UserGroups(t *testing.T) {
 			Email:       "user3@example.com",
 		},
 	}, users)
-	assert.Equal(t, []*directory.Group{
-		{Id: "admin", Name: "Admin Group"},
-		{Id: "test", Name: "Test Group"},
-	}, groups)
+	testutil.AssertProtoJSONEqual(t, `[
+		{ "id": "admin", "name": "Admin Group" },
+		{ "id": "test", "name": "Test Group"}
+	]`, groups)
 }
 
 func TestParseServiceAccount(t *testing.T) {

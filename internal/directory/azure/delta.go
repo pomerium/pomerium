@@ -197,6 +197,9 @@ func (dc *deltaCollection) CurrentUserGroups() ([]*directory.Group, []*directory
 		}
 		groupLookup.addGroup(g.id, groupIDs, userIDs)
 	}
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].GetId() < groups[j].GetId()
+	})
 
 	var users []*directory.User
 	for _, u := range dc.users {
