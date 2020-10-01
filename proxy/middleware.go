@@ -1,156 +1,140 @@
 package proxy
 
-import (
-	"fmt"
-	"net/http"
-	"strings"
-	"time"
+// type authorizeResponse struct {
+// 	authorized bool
+// 	statusCode int32
+// }
 
-	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/gorilla/mux"
-	"github.com/rs/zerolog"
+// func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorizeResponse, error) {
+// 	res, err := p.authorizeCheck(r)
+// 	if err != nil {
+// 		return nil, httputil.NewError(http.StatusInternalServerError, err)
+// 	}
 
-	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sessions"
-)
+// 	ar := &authorizeResponse{}
+// 	switch res.HttpResponse.(type) {
+// 	case *envoy_service_auth_v2.CheckResponse_OkResponse:
+// 		for _, hdr := range res.GetOkResponse().GetHeaders() {
+// 			w.Header().Set(hdr.GetHeader().GetKey(), hdr.GetHeader().GetValue())
+// 		}
+// 		ar.authorized = true
+// 		ar.statusCode = res.GetStatus().Code
+// 	case *envoy_service_auth_v2.CheckResponse_DeniedResponse:
+// 		ar.statusCode = int32(res.GetDeniedResponse().GetStatus().Code)
+// 	default:
+// 		ar.statusCode = http.StatusInternalServerError
+// 	}
+// 	return ar, nil
+// }
 
-type authorizeResponse struct {
-	authorized bool
-	statusCode int32
-}
+// func (p *Proxy) authorizeCheck(r *http.Request) (*envoy_service_auth_v2.CheckResponse, error) {
+// 	state := p.state.Load()
 
-func (p *Proxy) isAuthorized(w http.ResponseWriter, r *http.Request) (*authorizeResponse, error) {
-	res, err := p.authorizeCheck(r)
-	if err != nil {
-		return nil, httputil.NewError(http.StatusInternalServerError, err)
-	}
+// 	tm, err := ptypes.TimestampProto(time.Now())
+// 	if err != nil {
+// 		return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error creating protobuf timestamp from current time: %w", err))
+// 	}
 
-	ar := &authorizeResponse{}
-	switch res.HttpResponse.(type) {
-	case *envoy_service_auth_v2.CheckResponse_OkResponse:
-		for _, hdr := range res.GetOkResponse().GetHeaders() {
-			w.Header().Set(hdr.GetHeader().GetKey(), hdr.GetHeader().GetValue())
-		}
-		ar.authorized = true
-		ar.statusCode = res.GetStatus().Code
-	case *envoy_service_auth_v2.CheckResponse_DeniedResponse:
-		ar.statusCode = int32(res.GetDeniedResponse().GetStatus().Code)
-	default:
-		ar.statusCode = http.StatusInternalServerError
-	}
-	return ar, nil
-}
+// 	httpAttrs := &envoy_service_auth_v2.AttributeContext_HttpRequest{
+// 		Method:   "GET",
+// 		Headers:  map[string]string{},
+// 		Path:     r.URL.Path,
+// 		Host:     r.Host,
+// 		Scheme:   r.URL.Scheme,
+// 		Fragment: r.URL.Fragment,
+// 	}
+// 	for k := range r.Header {
+// 		httpAttrs.Headers[k] = r.Header.Get(k)
+// 	}
+// 	if r.URL.RawQuery != "" {
+// 		// envoy expects the query string in the path
+// 		httpAttrs.Path += "?" + r.URL.RawQuery
+// 	}
 
-func (p *Proxy) authorizeCheck(r *http.Request) (*envoy_service_auth_v2.CheckResponse, error) {
-	state := p.state.Load()
+// 	return state.authzClient.Check(r.Context(), &envoy_service_auth_v2.CheckRequest{
+// 		Attributes: &envoy_service_auth_v2.AttributeContext{
+// 			Request: &envoy_service_auth_v2.AttributeContext_Request{
+// 				Time: tm,
+// 				Http: httpAttrs,
+// 			},
+// 		},
+// 	})
+// }
 
-	tm, err := ptypes.TimestampProto(time.Now())
-	if err != nil {
-		return nil, httputil.NewError(http.StatusInternalServerError, fmt.Errorf("error creating protobuf timestamp from current time: %w", err))
-	}
+// // jwtClaimMiddleware logs and propagates JWT claim information via request headers
+// //
+// // if returnJWTInfo is set to true, it will also return JWT claim information in the response
+// func (p *Proxy) jwtClaimMiddleware(returnJWTInfo bool) mux.MiddlewareFunc {
+// 	return func(next http.Handler) http.Handler {
+// 		return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+// 			defer next.ServeHTTP(w, r)
 
-	httpAttrs := &envoy_service_auth_v2.AttributeContext_HttpRequest{
-		Method:   "GET",
-		Headers:  map[string]string{},
-		Path:     r.URL.Path,
-		Host:     r.Host,
-		Scheme:   r.URL.Scheme,
-		Fragment: r.URL.Fragment,
-	}
-	for k := range r.Header {
-		httpAttrs.Headers[k] = r.Header.Get(k)
-	}
-	if r.URL.RawQuery != "" {
-		// envoy expects the query string in the path
-		httpAttrs.Path += "?" + r.URL.RawQuery
-	}
+// 			state := p.state.Load()
 
-	return state.authzClient.Check(r.Context(), &envoy_service_auth_v2.CheckRequest{
-		Attributes: &envoy_service_auth_v2.AttributeContext{
-			Request: &envoy_service_auth_v2.AttributeContext_Request{
-				Time: tm,
-				Http: httpAttrs,
-			},
-		},
-	})
-}
+// 			jwt, err := sessions.FromContext(r.Context())
+// 			if err != nil {
+// 				log.Error().Err(err).Msg("proxy: could not locate session from context")
+// 				return nil // best effort decoding
+// 			}
 
-// jwtClaimMiddleware logs and propagates JWT claim information via request headers
-//
-// if returnJWTInfo is set to true, it will also return JWT claim information in the response
-func (p *Proxy) jwtClaimMiddleware(returnJWTInfo bool) mux.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
-		return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-			defer next.ServeHTTP(w, r)
+// 			formattedJWTClaims, err := p.getFormatedJWTClaims([]byte(jwt))
+// 			if err != nil {
+// 				log.Error().Err(err).Msg("proxy: failed to format jwt claims")
+// 				return nil // best effort formatting
+// 			}
 
-			state := p.state.Load()
+// 			// log group, email, user claims
+// 			l := log.Ctx(r.Context())
+// 			for _, claimName := range []string{"groups", "email", "user"} {
 
-			jwt, err := sessions.FromContext(r.Context())
-			if err != nil {
-				log.Error().Err(err).Msg("proxy: could not locate session from context")
-				return nil // best effort decoding
-			}
+// 				l.UpdateContext(func(c zerolog.Context) zerolog.Context {
+// 					return c.Str(claimName, fmt.Sprintf("%v", formattedJWTClaims[claimName]))
+// 				})
 
-			formattedJWTClaims, err := p.getFormatedJWTClaims([]byte(jwt))
-			if err != nil {
-				log.Error().Err(err).Msg("proxy: failed to format jwt claims")
-				return nil // best effort formatting
-			}
+// 			}
 
-			// log group, email, user claims
-			l := log.Ctx(r.Context())
-			for _, claimName := range []string{"groups", "email", "user"} {
+// 			// set headers for any claims specified by config
+// 			for _, claimName := range state.jwtClaimHeaders {
+// 				if _, ok := formattedJWTClaims[claimName]; ok {
 
-				l.UpdateContext(func(c zerolog.Context) zerolog.Context {
-					return c.Str(claimName, fmt.Sprintf("%v", formattedJWTClaims[claimName]))
-				})
+// 					headerName := fmt.Sprintf("x-pomerium-claim-%s", claimName)
+// 					r.Header.Set(headerName, formattedJWTClaims[claimName])
+// 					if returnJWTInfo {
+// 						w.Header().Add(headerName, formattedJWTClaims[claimName])
+// 					}
+// 				}
+// 			}
 
-			}
+// 			return nil
+// 		})
+// 	}
+// }
 
-			// set headers for any claims specified by config
-			for _, claimName := range state.jwtClaimHeaders {
-				if _, ok := formattedJWTClaims[claimName]; ok {
+// // getFormatJWTClaims reformats jwtClaims into something resembling map[string]string
+// func (p *Proxy) getFormatedJWTClaims(jwt []byte) (map[string]string, error) {
+// 	state := p.state.Load()
 
-					headerName := fmt.Sprintf("x-pomerium-claim-%s", claimName)
-					r.Header.Set(headerName, formattedJWTClaims[claimName])
-					if returnJWTInfo {
-						w.Header().Add(headerName, formattedJWTClaims[claimName])
-					}
-				}
-			}
+// 	formattedJWTClaims := make(map[string]string)
 
-			return nil
-		})
-	}
-}
+// 	var jwtClaims map[string]interface{}
+// 	if err := state.encoder.Unmarshal(jwt, &jwtClaims); err != nil {
+// 		return formattedJWTClaims, err
+// 	}
 
-// getFormatJWTClaims reformats jwtClaims into something resembling map[string]string
-func (p *Proxy) getFormatedJWTClaims(jwt []byte) (map[string]string, error) {
-	state := p.state.Load()
+// 	for claim, value := range jwtClaims {
+// 		var formattedClaim string
+// 		if cv, ok := value.([]interface{}); ok {
+// 			elements := make([]string, len(cv))
 
-	formattedJWTClaims := make(map[string]string)
+// 			for i, v := range cv {
+// 				elements[i] = fmt.Sprintf("%v", v)
+// 			}
+// 			formattedClaim = strings.Join(elements, ",")
+// 		} else {
+// 			formattedClaim = fmt.Sprintf("%v", value)
+// 		}
+// 		formattedJWTClaims[claim] = formattedClaim
+// 	}
 
-	var jwtClaims map[string]interface{}
-	if err := state.encoder.Unmarshal(jwt, &jwtClaims); err != nil {
-		return formattedJWTClaims, err
-	}
-
-	for claim, value := range jwtClaims {
-		var formattedClaim string
-		if cv, ok := value.([]interface{}); ok {
-			elements := make([]string, len(cv))
-
-			for i, v := range cv {
-				elements[i] = fmt.Sprintf("%v", v)
-			}
-			formattedClaim = strings.Join(elements, ",")
-		} else {
-			formattedClaim = fmt.Sprintf("%v", value)
-		}
-		formattedJWTClaims[claim] = formattedClaim
-	}
-
-	return formattedJWTClaims, nil
-}
+// 	return formattedJWTClaims, nil
+// }

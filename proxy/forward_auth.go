@@ -2,12 +2,10 @@ package proxy
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -18,10 +16,10 @@ import (
 func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r := httputil.NewRouter()
 	r.StrictSlash(true)
-	r.Use(func(h http.Handler) http.Handler {
-		return sessions.RetrieveSession(p.state.Load().sessionStore)(h)
-	})
-	r.Use(p.jwtClaimMiddleware(true))
+	// r.Use(func(h http.Handler) http.Handler {
+	// 	return sessions.RetrieveSession(p.state.Load().sessionStore)(h)
+	// })
+	// r.Use(p.jwtClaimMiddleware(true))
 
 	// NGNIX's forward-auth capabilities are split across two settings:
 	// `auth-url` and `auth-signin` which correspond to `verify` and `auth-url`
@@ -31,18 +29,24 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 
 	// nginx 3: save the returned session post authenticate flow
 	r.Handle("/verify", httputil.HandlerFunc(p.nginxCallback)).
-		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
+		Queries(urlutil.QueryForwardAuthURI, "{uri}",
+			urlutil.QuerySessionEncrypted, "",
+			urlutil.QueryRedirectURI, "")
 
 	// nginx 1: verify. Return 401 if invalid and NGINX will call `auth-signin`
-	r.Handle("/verify", p.Verify(true)).Queries("uri", "{uri}")
+	r.Handle("/verify", p.Verify(true)).Queries(urlutil.QueryForwardAuthURI, "{uri}")
 
 	// nginx 4: redirect the user back to their originally requested location.
 	r.Handle("/", httputil.HandlerFunc(p.nginxPostCallbackRedirect)).
-		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
+		Queries(urlutil.QueryForwardAuthURI, "{uri}",
+			urlutil.QuerySessionEncrypted, "",
+			urlutil.QueryRedirectURI, "")
 
 	// traefik 2: save the returned session post authenticate flow
 	r.Handle("/", httputil.HandlerFunc(p.forwardedURIHeaderCallback)).
 		HeadersRegexp(httputil.HeaderForwardedURI, urlutil.QuerySessionEncrypted)
+
+	r.Handle("/", httputil.HandlerFunc(p.forwardAuthRedirectToSignInWithURI)).Queries(urlutil.QueryForwardAuthURI, "{uri}")
 
 	// nginx 2 / traefik 1: verify and then start authenticate flow
 	r.Handle("/", p.Verify(false))
@@ -91,62 +95,73 @@ func (p *Proxy) forwardedURIHeaderCallback(w http.ResponseWriter, r *http.Reques
 	return nil
 }
 
+func (p *Proxy) Verify(verifyOnly bool) http.Handler {
+	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		return nil
+	})
+}
+
 // Verify checks a user's credentials for an arbitrary host. If the user
 // is properly authenticated and is authorized to access the supplied host,
 // a `200` http status code is returned. If the user is not authenticated, they
 // will be redirected to the authenticate service to sign in with their identity
 // provider. If the user is unauthorized, a `401` error is returned.
-func (p *Proxy) Verify(verifyOnly bool) http.Handler {
-	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		state := p.state.Load()
+// func (p *Proxy) Verify(verifyOnly bool) http.Handler {
+// 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+// 		state := p.state.Load()
 
-		var err error
-		if status := r.FormValue("auth_status"); status == fmt.Sprint(http.StatusForbidden) {
-			return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
-		}
+// 		var err error
+// 		if status := r.FormValue("auth_status"); status == fmt.Sprint(http.StatusForbidden) {
+// 			return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
+// 		}
 
-		uri, err := getURIStringFromRequest(r)
-		if err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
-		}
+// 		uri, err := getURIStringFromRequest(r)
+// 		if err != nil {
+// 			return httputil.NewError(http.StatusBadRequest, err)
+// 		}
 
-		ar, err := p.isAuthorized(w, r)
-		if err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
-		}
+// 		ar, err := p.isAuthorized(w, r)
+// 		if err != nil {
+// 			return httputil.NewError(http.StatusBadRequest, err)
+// 		}
 
-		if ar.authorized {
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, "Access to %s is allowed.", uri.Host)
-			return nil
-		}
+// 		if ar.authorized {
+// 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+// 			w.WriteHeader(http.StatusOK)
+// 			fmt.Fprintf(w, "Access to %s is allowed.", uri.Host)
+// 			return nil
+// 		}
 
-		unAuthenticated := ar.statusCode == http.StatusUnauthorized
-		if unAuthenticated {
-			state.sessionStore.ClearSession(w, r)
-		}
+// 		unAuthenticated := ar.statusCode == http.StatusUnauthorized
+// 		if unAuthenticated {
+// 			state.sessionStore.ClearSession(w, r)
+// 		}
 
-		_, err = sessions.FromContext(r.Context())
-		hasSession := err == nil
-		if hasSession && !unAuthenticated {
-			return httputil.NewError(http.StatusForbidden, errors.New("access denied"))
-		}
+// 		_, err = sessions.FromContext(r.Context())
+// 		hasSession := err == nil
+// 		if hasSession && !unAuthenticated {
+// 			return httputil.NewError(http.StatusForbidden, errors.New("access denied"))
+// 		}
 
-		if verifyOnly {
-			return httputil.NewError(http.StatusUnauthorized, err)
-		}
+// 		if verifyOnly {
+// 			return httputil.NewError(http.StatusUnauthorized, err)
+// 		}
 
-		p.forwardAuthRedirectToSignInWithURI(w, r, uri)
-		return nil
-	})
-}
+// 		p.forwardAuthRedirectToSignInWithURI(w, r, uri)
+// 		return nil
+// 	})
+// }
 
 // forwardAuthRedirectToSignInWithURI redirects request to authenticate signin url,
 // with all necessary information extracted from given input uri.
-func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *http.Request, uri *url.URL) {
+func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
-
+	uri, err := getURIStringFromRequest(r)
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
 	// Traefik set the uri in the header, we must set it in redirect uri if present. Otherwise, request like
 	// https://example.com/foo will be redirected to https://example.com after authentication.
 	if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "" && xfu != "/" {
@@ -161,12 +176,13 @@ func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *htt
 	q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
 	authN.RawQuery = q.Encode()
 	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &authN).String(), http.StatusFound)
+	return nil
 }
 
 func getURIStringFromRequest(r *http.Request) (*url.URL, error) {
 	// the route to validate will be pulled from the uri queryparam
 	// or inferred from forwarding headers
-	uriString := r.FormValue("uri")
+	uriString := r.FormValue(urlutil.QueryForwardAuthURI)
 	if uriString == "" {
 		if r.Header.Get(httputil.HeaderForwardedHost) == "" {
 			return nil, errors.New("no uri to validate")

@@ -16,6 +16,11 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/urlutil"
+)
+
+const (
+	httpCluster = "pomerium-control-plane-http"
 )
 
 func buildGRPCRoutes() []*envoy_config_route_v3.Route {
@@ -60,9 +65,62 @@ func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_co
 	}
 	// if we're the proxy and this is the forward-auth url
 	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {
-		routes = append(routes, buildControlPlanePrefixRoute("/"))
+		routes = append(routes, buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}))
+		// routes = append(routes, buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI}))
+		routes = append(routes, buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}))
+		// routes = append(routes, buildControlPlanePathAndQueryRoute("/"))
+		routes = append(routes, buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI}))
+		catchAll := catchAll("/")
+		catchAll.TypedPerFilterConfig = nil
+		routes = append(routes, catchAll)
 	}
 	return routes
+}
+
+func catchAll(prefix string) *envoy_config_route_v3.Route {
+	return &envoy_config_route_v3.Route{
+		Name: "pomerium-prefix-" + prefix,
+		Match: &envoy_config_route_v3.RouteMatch{
+			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: prefix},
+		},
+		Action: &envoy_config_route_v3.Route_Route{
+			Route: &envoy_config_route_v3.RouteAction{
+				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+					Cluster: httpCluster,
+				},
+			},
+		},
+	}
+}
+
+func buildControlPlanePathAndQueryRoute(path string, queryparams []string) *envoy_config_route_v3.Route {
+
+	var queryParameterMatchers []*envoy_config_route_v3.QueryParameterMatcher
+	for _, q := range queryparams {
+		queryParameterMatchers = append(queryParameterMatchers,
+			&envoy_config_route_v3.QueryParameterMatcher{
+				Name:                         q,
+				QueryParameterMatchSpecifier: &envoy_config_route_v3.QueryParameterMatcher_PresentMatch{PresentMatch: true},
+			})
+	}
+
+	return &envoy_config_route_v3.Route{
+		Name: "pomerium-path-" + path,
+		Match: &envoy_config_route_v3.RouteMatch{
+			PathSpecifier:   &envoy_config_route_v3.RouteMatch_Path{Path: path},
+			QueryParameters: queryParameterMatchers,
+		},
+		Action: &envoy_config_route_v3.Route_Route{
+			Route: &envoy_config_route_v3.RouteAction{
+				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+					Cluster: httpCluster,
+				},
+			},
+		},
+		TypedPerFilterConfig: map[string]*any.Any{
+			"envoy.filters.http.ext_authz": disableExtAuthz,
+		},
+	}
 }
 
 func buildControlPlanePathRoute(path string) *envoy_config_route_v3.Route {
@@ -74,7 +132,7 @@ func buildControlPlanePathRoute(path string) *envoy_config_route_v3.Route {
 		Action: &envoy_config_route_v3.Route_Route{
 			Route: &envoy_config_route_v3.RouteAction{
 				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-					Cluster: "pomerium-control-plane-http",
+					Cluster: httpCluster,
 				},
 			},
 		},
@@ -93,7 +151,7 @@ func buildControlPlanePrefixRoute(prefix string) *envoy_config_route_v3.Route {
 		Action: &envoy_config_route_v3.Route_Route{
 			Route: &envoy_config_route_v3.RouteAction{
 				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-					Cluster: "pomerium-control-plane-http",
+					Cluster: httpCluster,
 				},
 			},
 		},
@@ -319,4 +377,33 @@ func mustParseURL(str string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+type Route *envoy_config_route_v3.Route
+
+// NewRoute returns a new route instance.
+func NewRoute(name string) Route {
+	return Route(&envoy_config_route_v3.Route{
+		Name: name,
+		Action: &envoy_config_route_v3.Route_Route{
+			Route: &envoy_config_route_v3.RouteAction{
+				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+					Cluster: name,
+				},
+			},
+		},
+		TypedPerFilterConfig: map[string]*any.Any{
+			"envoy.filters.http.ext_authz": disableExtAuthz,
+		},
+	})
+}
+
+// Methods adds a matcher for HTTP methods.
+// It accepts a sequence of one or more methods to be matched, e.g.:
+// "GET", "POST", "PUT".
+func MatchPath(r *envoy_config_route_v3.Route, path string) *envoy_config_route_v3.Route {
+	r.Match = &envoy_config_route_v3.RouteMatch{
+		PathSpecifier: &envoy_config_route_v3.RouteMatch_Path{Path: path},
+	}
+	return r
 }
