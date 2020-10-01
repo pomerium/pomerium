@@ -232,6 +232,9 @@ nfpms:
     config_files:
       "ospkg/conf/config.yaml": "/etc/pomerium/config.yaml"
 
+    files:
+      "ospkg/pomerium.service": "/usr/lib/systemd/system/pomerium.service"
+
     overrides:
       deb:
         dependencies:
