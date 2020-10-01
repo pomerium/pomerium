@@ -32,7 +32,7 @@ type RoleManager interface {
 type config struct {
 	domain         string
 	serviceAccount *ServiceAccount
-	newRoleManager func(domain string, serviceAccount *ServiceAccount, ctx context.Context) (RoleManager, error)
+	newRoleManager func(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, error)
 }
 
 // Option provides config for the Auth0 Provider.
@@ -52,7 +52,7 @@ func WithDomain(domain string) Option {
 	}
 }
 
-func defaultNewRoleManagerFunc(domain string, serviceAccount *ServiceAccount, ctx context.Context) (RoleManager, error) {
+func defaultNewRoleManagerFunc(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, error) {
 	m, err := management.New(domain, serviceAccount.ClientID, serviceAccount.Secret, management.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("auth0: could not build management")
@@ -86,7 +86,7 @@ func New(options ...Option) *Provider {
 }
 
 func (p *Provider) getRoleManager(ctx context.Context) (RoleManager, error) {
-	return p.cfg.newRoleManager(p.cfg.domain, p.cfg.serviceAccount, ctx)
+	return p.cfg.newRoleManager(ctx, p.cfg.domain, p.cfg.serviceAccount)
 }
 
 // UserGroups fetches a slice of groups and users.

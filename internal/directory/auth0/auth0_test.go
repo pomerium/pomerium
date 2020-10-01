@@ -15,18 +15,18 @@ import (
 )
 
 type mockNewRoleManagerFunc struct {
+	CalledWithContext        context.Context
 	CalledWithDomain         string
 	CalledWithServiceAccount *ServiceAccount
-	CalledWithContext        context.Context
 
 	ReturnRoleManager RoleManager
 	ReturnError       error
 }
 
-func (m *mockNewRoleManagerFunc) f(domain string, serviceAccount *ServiceAccount, ctx context.Context) (RoleManager, error) {
+func (m *mockNewRoleManagerFunc) f(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, error) {
+	m.CalledWithContext = ctx
 	m.CalledWithDomain = domain
 	m.CalledWithServiceAccount = serviceAccount
-	m.CalledWithContext = ctx
 
 	return m.ReturnRoleManager, m.ReturnError
 }
