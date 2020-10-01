@@ -110,7 +110,32 @@ func New(options ...Option) *Provider {
 
 // User returns the user record for the given id.
 func (p *Provider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
-	panic("not implemented")
+	if p.cfg.serviceAccount == nil {
+		return nil, ErrServiceAccountNotDefined
+	}
+
+	_, providerUserID := databroker.FromUserID(userID)
+	du := &directory.User{
+		Id: userID,
+	}
+
+	au, err := p.getUser(ctx, providerUserID)
+	if err != nil {
+		return nil, err
+	}
+	du.DisplayName = au.getDisplayName()
+	du.Email = au.Profile.Email
+
+	groups, err := p.listUserGroups(ctx, providerUserID)
+	if err != nil {
+		return nil, err
+	}
+	for _, g := range groups {
+		du.GroupIds = append(du.GroupIds, g.ID)
+	}
+	sort.Strings(du.GroupIds)
+
+	return du, nil
 }
 
 // UserGroups fetches the groups of which the user is a member
@@ -164,7 +189,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		users = append(users, &directory.User{
 			Id:          databroker.GetUserID(Name, u.ID),
 			GroupIds:    groups,
-			DisplayName: u.Profile.FirstName + " " + u.Profile.LastName,
+			DisplayName: u.getDisplayName(),
 			Email:       u.Profile.Email,
 		})
 	}
@@ -188,14 +213,7 @@ func (p *Provider) getGroups(ctx context.Context) ([]*directory.Group, error) {
 
 	groupURL := p.cfg.providerURL.ResolveReference(u).String()
 	for groupURL != "" {
-		var out []struct {
-			ID      string `json:"id"`
-			Profile struct {
-				Name string `json:"name"`
-			} `json:"profile"`
-			LastUpdated           string `json:"lastUpdated"`
-			LastMembershipUpdated string `json:"lastMembershipUpdated"`
-		}
+		var out []apiGroupObject
 		hdrs, err := p.apiGet(ctx, groupURL, &out)
 		if err != nil {
 			return nil, fmt.Errorf("okta: error querying for groups: %w", err)
@@ -242,6 +260,36 @@ func (p *Provider) getGroupMembers(ctx context.Context, groupID string) (users [
 	}
 
 	return users, nil
+}
+
+func (p *Provider) getUser(ctx context.Context, userID string) (*apiUserObject, error) {
+	apiURL := p.cfg.providerURL.ResolveReference(&url.URL{
+		Path: fmt.Sprintf("/api/v1/users/%s", userID),
+	}).String()
+
+	var out apiUserObject
+	_, err := p.apiGet(ctx, apiURL, &out)
+	if err != nil {
+		return nil, fmt.Errorf("okta: error querying for user: %w", err)
+	}
+
+	return &out, nil
+}
+
+func (p *Provider) listUserGroups(ctx context.Context, userID string) (groups []apiGroupObject, err error) {
+	apiURL := p.cfg.providerURL.ResolveReference(&url.URL{
+		Path: fmt.Sprintf("/api/v1/users/%s/groups", userID),
+	}).String()
+	for apiURL != "" {
+		var out []apiGroupObject
+		hdrs, err := p.apiGet(ctx, apiURL, &out)
+		if err != nil {
+			return nil, fmt.Errorf("okta: error querying for user groups: %w", err)
+		}
+		groups = append(groups, out...)
+		apiURL = getNextLink(hdrs)
+	}
+	return groups, nil
 }
 
 func (p *Provider) apiGet(ctx context.Context, uri string, out interface{}) (http.Header, error) {
@@ -339,11 +387,25 @@ func (err *APIError) Error() string {
 	return fmt.Sprintf("okta: error querying API, status_code=%d: %s", err.HTTPStatusCode, err.Body)
 }
 
-type apiUserObject struct {
-	ID      string `json:"id"`
-	Profile struct {
-		FirstName string `json:"firstName"`
-		LastName  string `json:"lastName"`
-		Email     string `json:"email"`
-	} `json:"profile"`
+type (
+	apiGroupObject struct {
+		ID      string `json:"id"`
+		Profile struct {
+			Name string `json:"name"`
+		} `json:"profile"`
+		LastUpdated           string `json:"lastUpdated"`
+		LastMembershipUpdated string `json:"lastMembershipUpdated"`
+	}
+	apiUserObject struct {
+		ID      string `json:"id"`
+		Profile struct {
+			FirstName string `json:"firstName"`
+			LastName  string `json:"lastName"`
+			Email     string `json:"email"`
+		} `json:"profile"`
+	}
+)
+
+func (obj *apiUserObject) getDisplayName() string {
+	return obj.Profile.FirstName + " " + obj.Profile.LastName
 }

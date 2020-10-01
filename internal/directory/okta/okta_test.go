@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tomnomnom/linkheader"
 
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -43,86 +44,140 @@ func newMockOkta(srv *httptest.Server, userEmailToGroups map[string][]string) ht
 			next.ServeHTTP(w, r)
 		})
 	})
-	r.Get("/api/v1/groups", func(w http.ResponseWriter, r *http.Request) {
-		lastUpdated := strings.Contains(r.URL.Query().Get("filter"), "lastUpdated ")
-		var groups []string
-		for group := range getAllGroups() {
-			if lastUpdated && group != "user-updated" {
-				continue
-			}
-			if !lastUpdated && group == "user-updated" {
-				continue
-			}
-			groups = append(groups, group)
-		}
-		sort.Strings(groups)
-
-		var result []M
-
-		found := r.URL.Query().Get("after") == ""
-		for i := range groups {
-			if found {
-				result = append(result, M{
-					"id": groups[i],
-					"profile": M{
-						"name": groups[i] + "-name",
-					},
-				})
-				break
-			}
-			found = r.URL.Query().Get("after") == groups[i]
-		}
-
-		if len(result) > 0 {
-			nextURL := mustParseURL(srv.URL).ResolveReference(r.URL)
-			q := nextURL.Query()
-			q.Set("after", result[0]["id"].(string))
-			nextURL.RawQuery = q.Encode()
-			w.Header().Set("Link", linkheader.Link{
-				URL: nextURL.String(),
-				Rel: "next",
-			}.String())
-		}
-
-		_ = json.NewEncoder(w).Encode(result)
-	})
-	r.Get("/api/v1/groups/{group}/users", func(w http.ResponseWriter, r *http.Request) {
-		group := chi.URLParam(r, "group")
-
-		if _, ok := getAllGroups()[group]; !ok {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(`{
-				"errorCode": "E0000007",
-				"errorSummary": "Not found: {0}",
-				"errorLink": E0000007,
-				"errorId": "sampleE7p0NECLNnSN5z_xLNT",
-				"errorCauses": []
-			}`))
-			return
-		}
-
-		var result []M
-		for email, groups := range userEmailToGroups {
-			for _, g := range groups {
-				if group == g {
-					result = append(result, M{
-						"id": email,
-						"profile": M{
-							"email":     email,
-							"firstName": "first",
-							"lastName":  "last",
-						},
-					})
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Route("/groups", func(r chi.Router) {
+			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+				lastUpdated := strings.Contains(r.URL.Query().Get("filter"), "lastUpdated ")
+				var groups []string
+				for group := range getAllGroups() {
+					if lastUpdated && group != "user-updated" {
+						continue
+					}
+					if !lastUpdated && group == "user-updated" {
+						continue
+					}
+					groups = append(groups, group)
 				}
-			}
-		}
-		sort.Slice(result, func(i, j int) bool {
-			return result[i]["id"].(string) < result[j]["id"].(string)
-		})
+				sort.Strings(groups)
 
-		_ = json.NewEncoder(w).Encode(result)
+				var result []M
+
+				found := r.URL.Query().Get("after") == ""
+				for i := range groups {
+					if found {
+						result = append(result, M{
+							"id": groups[i],
+							"profile": M{
+								"name": groups[i] + "-name",
+							},
+						})
+						break
+					}
+					found = r.URL.Query().Get("after") == groups[i]
+				}
+
+				if len(result) > 0 {
+					nextURL := mustParseURL(srv.URL).ResolveReference(r.URL)
+					q := nextURL.Query()
+					q.Set("after", result[0]["id"].(string))
+					nextURL.RawQuery = q.Encode()
+					w.Header().Set("Link", linkheader.Link{
+						URL: nextURL.String(),
+						Rel: "next",
+					}.String())
+				}
+
+				_ = json.NewEncoder(w).Encode(result)
+			})
+			r.Get("/{group}/users", func(w http.ResponseWriter, r *http.Request) {
+				group := chi.URLParam(r, "group")
+
+				if _, ok := getAllGroups()[group]; !ok {
+					w.WriteHeader(http.StatusNotFound)
+					w.Write([]byte(`{
+						"errorCode": "E0000007",
+						"errorSummary": "Not found: {0}",
+						"errorLink": E0000007,
+						"errorId": "sampleE7p0NECLNnSN5z_xLNT",
+						"errorCauses": []
+					}`))
+					return
+				}
+
+				var result []M
+				for email, groups := range userEmailToGroups {
+					for _, g := range groups {
+						if group == g {
+							result = append(result, M{
+								"id": email,
+								"profile": M{
+									"email":     email,
+									"firstName": "first",
+									"lastName":  "last",
+								},
+							})
+						}
+					}
+				}
+				sort.Slice(result, func(i, j int) bool {
+					return result[i]["id"].(string) < result[j]["id"].(string)
+				})
+
+				_ = json.NewEncoder(w).Encode(result)
+			})
+		})
+		r.Route("/users", func(r chi.Router) {
+			r.Get("/{user_id}/groups", func(w http.ResponseWriter, r *http.Request) {
+				var groups []apiGroupObject
+				for _, nm := range userEmailToGroups[chi.URLParam(r, "user_id")] {
+					obj := apiGroupObject{
+						ID: nm,
+					}
+					obj.Profile.Name = nm
+					groups = append(groups, obj)
+				}
+				_ = json.NewEncoder(w).Encode(groups)
+			})
+			r.Get("/{user_id}", func(w http.ResponseWriter, r *http.Request) {
+				user := apiUserObject{
+					ID: chi.URLParam(r, "user_id"),
+				}
+				user.Profile.Email = chi.URLParam(r, "user_id")
+				user.Profile.FirstName = "first"
+				user.Profile.LastName = "last"
+				_ = json.NewEncoder(w).Encode(user)
+			})
+		})
 	})
 	return r
+}
+
+func TestProvider_User(t *testing.T) {
+	var mockOkta http.Handler
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockOkta.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	mockOkta = newMockOkta(srv, map[string][]string{
+		"a@example.com": {"user", "admin"},
+		"b@example.com": {"user", "test"},
+		"c@example.com": {"user"},
+	})
+
+	p := New(
+		WithServiceAccount(&ServiceAccount{APIKey: "APITOKEN"}),
+		WithProviderURL(mustParseURL(srv.URL)),
+	)
+	user, err := p.User(context.Background(), "okta/a@example.com", "")
+	if !assert.NoError(t, err) {
+		return
+	}
+	testutil.AssertProtoJSONEqual(t, `{
+		"id": "okta/a@example.com",
+		"groupIds": ["admin","user"],
+		"displayName": "first last",
+		"email": "a@example.com"
+	}`, user)
 }
 
 func TestProvider_UserGroups(t *testing.T) {
