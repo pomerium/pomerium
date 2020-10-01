@@ -116,13 +116,13 @@ func newMockAPI(srv *httptest.Server, userIDToGroupName map[int]string) http.Han
 			userID, _ := strconv.Atoi(chi.URLParam(r, "user_id"))
 
 			_ = json.NewEncoder(w).Encode(M{
-				"data": M{
+				"data": []M{{
 					"id":        userID,
 					"email":     userIDToGroupName[userID] + "@example.com",
 					"group_id":  userIDToGroupID[userID],
 					"firstname": "User",
 					"lastname":  fmt.Sprint(userID),
-				},
+				}},
 			})
 		})
 		r.Get("/users", func(w http.ResponseWriter, r *http.Request) {
