@@ -101,3 +101,18 @@ func GetDomainsForURL(u *url.URL) []string {
 	// for everything else we return two routes: 'example.com' and 'example.com:443'
 	return []string{u.Hostname(), net.JoinHostPort(u.Hostname(), defaultPort)}
 }
+
+// ParseEnvoyQueryParams returns a new URL with queryparams parsed from envoy format.
+func ParseEnvoyQueryParams(u *url.URL) *url.URL {
+	nu := &url.URL{
+		Scheme: u.Scheme,
+		Host:   u.Host,
+		Path:   u.Path,
+	}
+
+	path := u.Path
+	if idx := strings.Index(path, "?"); idx != -1 {
+		nu.Path, nu.RawQuery = path[:idx], path[idx+1:]
+	}
+	return nu
+}

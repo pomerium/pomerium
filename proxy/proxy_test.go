@@ -13,7 +13,6 @@ import (
 func testOptions(t *testing.T) *config.Options {
 	opts := config.NewDefaultOptions()
 	opts.AuthenticateURLString = "https://authenticate.example"
-	opts.AuthorizeURLString = "https://authorize.example"
 
 	testPolicy := config.Policy{From: "https://corp.example.example", To: "https://example.example"}
 	opts.Policies = []config.Policy{testPolicy}
@@ -38,10 +37,6 @@ func TestOptions_Validate(t *testing.T) {
 	authurl, _ := url.Parse("authenticate.corp.beyondperimeter.com")
 	authenticateBadScheme := testOptions(t)
 	authenticateBadScheme.AuthenticateURL = authurl
-	authorizeBadSCheme := testOptions(t)
-	authorizeBadSCheme.AuthorizeURL = authurl
-	authorizeNil := testOptions(t)
-	authorizeNil.AuthorizeURL = nil
 	emptyCookieSecret := testOptions(t)
 	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := testOptions(t)
@@ -64,8 +59,6 @@ func TestOptions_Validate(t *testing.T) {
 		{"nil options", &config.Options{}, true},
 		{"authenticate service url", badAuthURL, true},
 		{"authenticate service url no scheme", authenticateBadScheme, true},
-		{"authorize service url no scheme", authorizeBadSCheme, true},
-		{"authorize service cannot be nil", authorizeNil, true},
 		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},

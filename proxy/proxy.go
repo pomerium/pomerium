@@ -44,9 +44,6 @@ func ValidateOptions(o *config.Options) error {
 		return fmt.Errorf("proxy: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
 	}
 
-	if err := urlutil.ValidateURL(o.AuthorizeURL); err != nil {
-		return fmt.Errorf("proxy: invalid 'AUTHORIZE_SERVICE_URL': %w", err)
-	}
 	return nil
 }
 
