@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/pomerium/pomerium/internal/directory/auth0/mock_auth0"
-	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/auth0.v4/management"
+
+	"github.com/pomerium/pomerium/internal/directory/auth0/mock_auth0"
+	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
 type mockNewRoleManagerFunc struct {

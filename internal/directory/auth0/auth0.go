@@ -11,12 +11,11 @@ import (
 	"sort"
 
 	"github.com/rs/zerolog"
+	"gopkg.in/auth0.v4/management"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
-
-	"gopkg.in/auth0.v4/management"
 )
 
 // Name is the provider name.
@@ -151,16 +150,16 @@ func getRoles(rm RoleManager) ([]*directory.Group, error) {
 	return roles, nil
 }
 
-func getRoleUserIDs(rm RoleManager, id string) ([]string, error) {
+func getRoleUserIDs(rm RoleManager, roleID string) ([]string, error) {
 	var ids []string
 
 	shouldContinue := true
 	page := 0
 
 	for shouldContinue {
-		usersRes, err := rm.Users(id, management.IncludeTotals(true), management.Page(page))
+		usersRes, err := rm.Users(roleID, management.IncludeTotals(true), management.Page(page))
 		if err != nil {
-			return nil, fmt.Errorf("could not get users for role %q: %w", id, err)
+			return nil, fmt.Errorf("could not get users for role %q: %w", roleID, err)
 		}
 
 		for _, user := range usersRes.Users {
