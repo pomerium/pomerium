@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	"github.com/pomerium/pomerium/internal/directory/auth0"
 	"github.com/pomerium/pomerium/internal/directory/azure"
 	"github.com/pomerium/pomerium/internal/directory/github"
 	"github.com/pomerium/pomerium/internal/directory/gitlab"
@@ -57,6 +58,18 @@ func GetProvider(options Options) (provider Provider) {
 	}()
 
 	switch options.Provider {
+	case auth0.Name:
+		serviceAccount, err := auth0.ParseServiceAccount(options.ServiceAccount)
+		if err == nil {
+			return auth0.New(
+				auth0.WithDomain(options.ProviderURL),
+				auth0.WithServiceAccount(serviceAccount))
+		}
+		log.Warn().
+			Str("service", "directory").
+			Str("provider", options.Provider).
+			Err(err).
+			Msg("invalid service account for auth0 directory provider")
 	case azure.Name:
 		serviceAccount, err := azure.ParseServiceAccount(options)
 		if err == nil {

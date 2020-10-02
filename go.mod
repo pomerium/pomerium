@@ -6,11 +6,14 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
 	contrib.go.opencensus.io/exporter/prometheus v0.2.0
 	contrib.go.opencensus.io/exporter/zipkin v0.1.2
+	github.com/aybabtme/iocontrol v0.0.0-20150809002002-ad15bcfc95a0 // indirect
+	github.com/benbjohnson/clock v1.0.3 // indirect
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/caddyserver/certmagic v0.12.0
 	github.com/cenkalti/backoff/v4 v4.0.2
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coreos/go-oidc v2.2.1+incompatible
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/envoyproxy/go-control-plane v0.9.7-0.20200924180459-2fd2c9f35b9c
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-chi/chi v4.1.2+incompatible
@@ -65,6 +68,7 @@ require (
 	google.golang.org/genproto v0.0.0-20200925023002-c2d885f95484
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.25.0
+	gopkg.in/auth0.v4 v4.6.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1

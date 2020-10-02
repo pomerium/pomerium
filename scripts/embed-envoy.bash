@@ -3,7 +3,7 @@ set -euo pipefail
 
 BINARY=$1
 
-ENVOY_VERSION=1.15.0
+ENVOY_VERSION=1.15.1
 DIR=$(dirname "${BINARY}")
 TARGET="${TARGET:-"$(go env GOOS)_$(go env GOARCH)"}"
 
@@ -23,7 +23,7 @@ export PATH=$PATH:$(go env GOPATH)/bin
 if [ "$TARGET" == "linux_arm64" ]; then
   ENVOY_PATH="$DIR/$TARGET"
   mkdir -p "$ENVOY_PATH"
-  curl -L -o "$ENVOY_PATH/envoy" https://github.com/pomerium/envoy-binaries/releases/download/v0.1.0/envoy-linux-arm64
+  curl -L -o "$ENVOY_PATH/envoy" https://github.com/pomerium/envoy-binaries/releases/download/v${ENVOY_VERSION}/envoy-linux-arm64
 else
   env HOME="${DIR}" getenvoy fetch standard:${ENVOY_VERSION}/${ENVOY_PLATFORM}
   ENVOY_PATH=${DIR}/.getenvoy/builds/standard/${ENVOY_VERSION}/${ENVOY_PLATFORM}/bin
