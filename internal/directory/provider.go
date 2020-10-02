@@ -59,7 +59,7 @@ func GetProvider(options Options) (provider Provider) {
 
 	switch options.Provider {
 	case auth0.Name:
-		serviceAccount, err := auth0.ParseServiceAccount(options.ServiceAccount)
+		serviceAccount, err := auth0.ParseServiceAccount(options)
 		if err == nil {
 			return auth0.New(
 				auth0.WithDomain(options.ProviderURL),
