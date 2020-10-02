@@ -165,8 +165,8 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	return nil
 }
 
-// jwtAssertion returns the JWT assertion from the current request
-// per rfc7519#section-10.3.1
+// jwtAssertion returns the current user's/request's JWT (rfc7519#section-10.3.1) that should be
+// added from the downstream request.
 func (p *Proxy) jwtAssertion(w http.ResponseWriter, r *http.Request) error {
 	assertionJWT := r.Header.Get(httputil.HeaderPomeriumJWTAssertion)
 	if assertionJWT == "" {

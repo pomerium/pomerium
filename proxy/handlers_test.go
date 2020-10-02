@@ -11,17 +11,17 @@ import (
 	"testing"
 	"time"
 
-	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
-
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
+	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
@@ -494,4 +494,30 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProxy_jwt(t *testing.T) {
+
+	// without downstream headers being set
+	req, _ := http.NewRequest("GET", "https://www.example.com/.pomerium/jwt", nil)
+	w := httptest.NewRecorder()
+
+	proxy := &Proxy{
+		state: newAtomicProxyState(&proxyState{}),
+	}
+	err := proxy.jwtAssertion(w, req)
+	if !assert.Error(t, err) {
+		return
+	}
+
+	// with downstream request headers being set
+	req, _ = http.NewRequest("GET", "https://www.example.com/.pomerium/jwt", nil)
+	w = httptest.NewRecorder()
+	req.Header.Set(httputil.HeaderPomeriumJWTAssertion, "MOCK_JWT")
+	err = proxy.jwtAssertion(w, req)
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.Equal(t, "application/jwt", w.Header().Get("Content-Type"))
+	assert.Equal(t, w.Body.String(), "MOCK_JWT")
 }
