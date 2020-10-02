@@ -49,7 +49,7 @@ func buildGRPCRoutes() []*envoy_config_route_v3.Route {
 func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	routes := []*envoy_config_route_v3.Route{
 		// enable ext_authz
-		buildControlPlaneProtectedPathRoute("/.pomerium/jwt"), //
+		buildControlPlaneProtectedPathRoute("/.pomerium/jwt"),
 		// disable ext_authz and passthrough to proxy handlers
 		buildControlPlanePathRoute("/ping"),
 		buildControlPlanePathRoute("/healthz"),
@@ -73,8 +73,9 @@ func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_co
 			buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}),
 			buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}),
 			buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI}),
-			// otherwise, enforce ext_authz, and pass through to a handler that simply responds
-			// with http status 200 / OK
+			// otherwise, enforce ext_authz; pass all other requests through to an upstream
+			// handler that will simply respond with http status 200 / OK indicating that
+			// the fronting forward-auth proxy can continue.
 			buildControlPlaneProtectedPrefixRoute("/"))
 	}
 	return routes
