@@ -11,10 +11,6 @@ import (
 	"testing"
 	"time"
 
-	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
-	"github.com/stretchr/testify/assert"
-
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 
@@ -66,39 +62,6 @@ func TestProxy_Signout(t *testing.T) {
 	if !strings.Contains(body, want) {
 		t.Errorf("handler returned unexpected body: got %v want %s ", body, want)
 	}
-}
-
-func TestProxy_jwt(t *testing.T) {
-	authzClient := &mockCheckClient{
-		response: &envoy_service_auth_v2.CheckResponse{
-			HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
-				OkResponse: &envoy_service_auth_v2.OkHttpResponse{
-					Headers: []*envoy_api_v2_core.HeaderValueOption{
-						{Header: &envoy_api_v2_core.HeaderValue{
-							Key:   httputil.HeaderPomeriumJWTAssertion,
-							Value: "MOCK_JWT",
-						}},
-					},
-				},
-			},
-		},
-	}
-
-	req, _ := http.NewRequest("GET", "https://www.example.com/.pomerium/jwt", nil)
-	w := httptest.NewRecorder()
-
-	proxy := &Proxy{
-		state: newAtomicProxyState(&proxyState{
-			authzClient: authzClient,
-		}),
-	}
-	err := proxy.jwtAssertion(w, req)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	assert.Equal(t, "application/jwt", w.Header().Get("Content-Type"))
-	assert.Equal(t, w.Body.String(), "MOCK_JWT")
 }
 
 func TestProxy_UserDashboard(t *testing.T) {

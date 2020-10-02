@@ -48,6 +48,9 @@ func buildGRPCRoutes() []*envoy_config_route_v3.Route {
 
 func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	routes := []*envoy_config_route_v3.Route{
+		// enable ext_authz
+		buildControlPlaneProtectedPathRoute("/.pomerium/jwt"), //
+		// disable ext_authz and passthrough to proxy handlers
 		buildControlPlanePathRoute("/ping"),
 		buildControlPlanePathRoute("/healthz"),
 		buildControlPlanePathRoute("/.pomerium"),
@@ -65,21 +68,21 @@ func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_co
 	}
 	// if we're the proxy and this is the forward-auth url
 	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {
-		routes = append(routes, buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}))
-		// routes = append(routes, buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI}))
-		routes = append(routes, buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}))
-		// routes = append(routes, buildControlPlanePathAndQueryRoute("/"))
-		routes = append(routes, buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI}))
-		catchAll := catchAll("/")
-		catchAll.TypedPerFilterConfig = nil
-		routes = append(routes, catchAll)
+		routes = append(routes,
+			// disable ext_authz and pass request to proxy handlers that enable authN flow
+			buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}),
+			buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}),
+			buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI}),
+			// otherwise, enforce ext_authz, and pass through to a handler that simply responds
+			// with http status 200 / OK
+			buildControlPlaneProtectedPrefixRoute("/"))
 	}
 	return routes
 }
 
-func catchAll(prefix string) *envoy_config_route_v3.Route {
+func buildControlPlaneProtectedPrefixRoute(prefix string) *envoy_config_route_v3.Route {
 	return &envoy_config_route_v3.Route{
-		Name: "pomerium-prefix-" + prefix,
+		Name: "pomerium-protected-prefix-" + prefix,
 		Match: &envoy_config_route_v3.RouteMatch{
 			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: prefix},
 		},
@@ -93,8 +96,23 @@ func catchAll(prefix string) *envoy_config_route_v3.Route {
 	}
 }
 
-func buildControlPlanePathAndQueryRoute(path string, queryparams []string) *envoy_config_route_v3.Route {
+func buildControlPlaneProtectedPathRoute(path string) *envoy_config_route_v3.Route {
+	return &envoy_config_route_v3.Route{
+		Name: "pomerium-protected-path-" + path,
+		Match: &envoy_config_route_v3.RouteMatch{
+			PathSpecifier: &envoy_config_route_v3.RouteMatch_Path{Path: path},
+		},
+		Action: &envoy_config_route_v3.Route_Route{
+			Route: &envoy_config_route_v3.RouteAction{
+				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+					Cluster: httpCluster,
+				},
+			},
+		},
+	}
+}
 
+func buildControlPlanePathAndQueryRoute(path string, queryparams []string) *envoy_config_route_v3.Route {
 	var queryParameterMatchers []*envoy_config_route_v3.QueryParameterMatcher
 	for _, q := range queryparams {
 		queryParameterMatchers = append(queryParameterMatchers,
@@ -105,7 +123,7 @@ func buildControlPlanePathAndQueryRoute(path string, queryparams []string) *envo
 	}
 
 	return &envoy_config_route_v3.Route{
-		Name: "pomerium-path-" + path,
+		Name: "pomerium-path-and-query" + path,
 		Match: &envoy_config_route_v3.RouteMatch{
 			PathSpecifier:   &envoy_config_route_v3.RouteMatch_Path{Path: path},
 			QueryParameters: queryParameterMatchers,
@@ -377,33 +395,4 @@ func mustParseURL(str string) *url.URL {
 		panic(err)
 	}
 	return u
-}
-
-type Route *envoy_config_route_v3.Route
-
-// NewRoute returns a new route instance.
-func NewRoute(name string) Route {
-	return Route(&envoy_config_route_v3.Route{
-		Name: name,
-		Action: &envoy_config_route_v3.Route_Route{
-			Route: &envoy_config_route_v3.RouteAction{
-				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-					Cluster: name,
-				},
-			},
-		},
-		TypedPerFilterConfig: map[string]*any.Any{
-			"envoy.filters.http.ext_authz": disableExtAuthz,
-		},
-	})
-}
-
-// Methods adds a matcher for HTTP methods.
-// It accepts a sequence of one or more methods to be matched, e.g.:
-// "GET", "POST", "PUT".
-func MatchPath(r *envoy_config_route_v3.Route, path string) *envoy_config_route_v3.Route {
-	r.Match = &envoy_config_route_v3.RouteMatch{
-		PathSpecifier: &envoy_config_route_v3.RouteMatch_Path{Path: path},
-	}
-	return r
 }

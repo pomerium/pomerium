@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
-
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -37,7 +35,6 @@ type proxyState struct {
 	sessionStore    sessions.SessionStore
 	sessionLoaders  []sessions.SessionLoader
 	jwtClaimHeaders []string
-	authzClient     envoy_service_auth_v2.AuthorizationClient
 }
 
 func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {

@@ -30,7 +30,7 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 			urlutil.QueryRedirectURI, "")
 
 	// nginx 1: verify. Return 401 if invalid and NGINX will call `auth-signin`
-	r.Handle("/verify", p.Verify(true)).
+	r.Handle("/verify", httputil.HandlerFunc(p.ok)).
 		Queries(urlutil.QueryForwardAuthURI, "{uri}")
 
 	// nginx 4: redirect the user back to their originally requested location.
@@ -47,7 +47,7 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 		Queries(urlutil.QueryForwardAuthURI, "{uri}")
 
 	// nginx 2 / traefik 1: verify and then start authenticate flow
-	r.Handle("/", p.Verify(false))
+	r.Handle("/", httputil.HandlerFunc(p.ok))
 
 	return r
 }
@@ -97,14 +97,20 @@ func (p *Proxy) forwardedURIHeaderCallback(w http.ResponseWriter, r *http.Reques
 	return nil
 }
 
-func (p *Proxy) Verify(verifyOnly bool) http.Handler {
-	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, http.StatusText(http.StatusOK))
-		return nil
-	})
+// ok will always return http status 200 (OK) and is assumed to always be
+// behind a protected (ext_authz) envoy control plane managed endpoint.
+func (p *Proxy) ok(w http.ResponseWriter, r *http.Request) error {
+
+	if status := r.FormValue("auth_status"); status == fmt.Sprint(http.StatusForbidden) {
+		return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, http.StatusText(http.StatusOK))
+	return nil
+
 }
 
 // forwardAuthRedirectToSignInWithURI redirects request to authenticate signin url,
@@ -145,10 +151,5 @@ func getURIStringFromRequest(r *http.Request) (*url.URL, error) {
 			r.Header.Get(httputil.HeaderForwardedHost) +
 			r.Header.Get(httputil.HeaderForwardedURI)
 	}
-
-	uri, err := urlutil.ParseAndValidateURL(uriString)
-	if err != nil {
-		return nil, err
-	}
-	return uri, nil
+	return urlutil.ParseAndValidateURL(uriString)
 }

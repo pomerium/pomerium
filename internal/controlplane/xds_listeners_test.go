@@ -94,6 +94,15 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						"domains": ["example.com"],
 						"routes": [
 							{
+								"name": "pomerium-protected-path-/.pomerium/jwt",
+								"match": {
+									"path": "/.pomerium/jwt"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								}
+							},
+							{
 								"name": "pomerium-path-/ping",
 								"match": {
 									"path": "/ping"
@@ -204,6 +213,15 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						"name": "catch-all",
 						"domains": ["*"],
 						"routes": [
+							{
+								"name": "pomerium-protected-path-/.pomerium/jwt",
+								"match": {
+									"path": "/.pomerium/jwt"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								}
+							},
 							{
 								"name": "pomerium-path-/ping",
 								"match": {

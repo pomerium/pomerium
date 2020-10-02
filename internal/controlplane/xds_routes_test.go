@@ -59,7 +59,17 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 				}
 			}`
 	}
-
+	protectedRouteString := func(typ, name string) string {
+		return `{
+				"name": "pomerium-protected-` + typ + `-` + name + `",
+				"match": {
+					"` + typ + `": "` + name + `"
+				},
+				"route": {
+					"cluster": "pomerium-control-plane-http"
+				}
+			}`
+	}
 	t.Run("authenticate", func(t *testing.T) {
 		options := &config.Options{
 			Services:                 "all",
@@ -70,6 +80,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		routes := buildPomeriumHTTPRoutes(options, "authenticate.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `[
+			`+protectedRouteString("path", "/.pomerium/jwt")+`,
 			`+routeString("path", "/ping")+`,
 			`+routeString("path", "/healthz")+`,
 			`+routeString("path", "/.pomerium")+`,
@@ -96,6 +107,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		routes := buildPomeriumHTTPRoutes(options, "from.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `[
+			`+protectedRouteString("path", "/.pomerium/jwt")+`,
 			`+routeString("path", "/ping")+`,
 			`+routeString("path", "/healthz")+`,
 			`+routeString("path", "/.pomerium")+`,
@@ -122,6 +134,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		routes := buildPomeriumHTTPRoutes(options, "from.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `[
+			`+protectedRouteString("path", "/.pomerium/jwt")+`,
 			`+routeString("path", "/ping")+`,
 			`+routeString("path", "/healthz")+`,
 			`+routeString("path", "/.pomerium")+`,
