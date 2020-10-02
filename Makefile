@@ -43,7 +43,7 @@ all: clean build-deps test lint spellcheck build ## Runs a clean, build, fmt, li
 .PHONY: generate-mocks
 generate-mocks: ## Generate mocks
 	@echo "==> $@"
-	@go run github.com/golang/mock/mockgen -destination authorize/evaluator/mock_evaluator/mock.go github.com/pomerium/pomerium/authorize/evaluator Evaluator
+	@go run github.com/golang/mock/mockgen -destination internal/directory/auth0/mock_auth0/mock.go github.com/pomerium/pomerium/internal/directory/auth0 RoleManager
 
 .PHONY: build-deps
 build-deps: ## Install build dependencies
