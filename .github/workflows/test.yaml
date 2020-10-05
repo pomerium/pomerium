@@ -90,6 +90,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: lint
+        run: |
+          docker run --rm --interactive hadolint/hadolint < Dockerfile
       - name: build
         run: docker build .
 
