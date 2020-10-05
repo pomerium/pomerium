@@ -292,9 +292,17 @@ func getCheckRequestURL(req *envoy_service_auth_v2.CheckRequest) *url.URL {
 		u.Path = path
 	}
 
-	if h.GetHeaders() != nil {
-		if fwdProto, ok := h.GetHeaders()["x-forwarded-proto"]; ok {
-			u.Scheme = fwdProto
+	// check to make sure this is _not_ a verify endpoint and that forwarding
+	// headers are set. If so, infer the true authorization location from thos
+	if u.Path != "/verify" && h.GetHeaders() != nil {
+		if val, ok := h.GetHeaders()["x-forwarded-proto"]; ok && val != "" {
+			u.Scheme = val
+		}
+		if val, ok := h.GetHeaders()["x-forwarded-host"]; ok && val != "" {
+			u.Host = val
+		}
+		if val, ok := h.GetHeaders()["x-forwarded-uri"]; ok && val != "" && val != "/" {
+			u.Path = val
 		}
 	}
 	return u

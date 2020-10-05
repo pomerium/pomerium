@@ -16,6 +16,11 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/urlutil"
+)
+
+const (
+	httpCluster = "pomerium-control-plane-http"
 )
 
 func buildGRPCRoutes() []*envoy_config_route_v3.Route {
@@ -43,6 +48,9 @@ func buildGRPCRoutes() []*envoy_config_route_v3.Route {
 
 func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	routes := []*envoy_config_route_v3.Route{
+		// enable ext_authz
+		buildControlPlaneProtectedPathRoute("/.pomerium/jwt"),
+		// disable ext_authz and passthrough to proxy handlers
 		buildControlPlanePathRoute("/ping"),
 		buildControlPlanePathRoute("/healthz"),
 		buildControlPlanePathRoute("/.pomerium"),
@@ -60,9 +68,78 @@ func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_co
 	}
 	// if we're the proxy and this is the forward-auth url
 	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {
-		routes = append(routes, buildControlPlanePrefixRoute("/"))
+		routes = append(routes,
+			// disable ext_authz and pass request to proxy handlers that enable authN flow
+			buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}),
+			buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}),
+			buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI}),
+			// otherwise, enforce ext_authz; pass all other requests through to an upstream
+			// handler that will simply respond with http status 200 / OK indicating that
+			// the fronting forward-auth proxy can continue.
+			buildControlPlaneProtectedPrefixRoute("/"))
 	}
 	return routes
+}
+
+func buildControlPlaneProtectedPrefixRoute(prefix string) *envoy_config_route_v3.Route {
+	return &envoy_config_route_v3.Route{
+		Name: "pomerium-protected-prefix-" + prefix,
+		Match: &envoy_config_route_v3.RouteMatch{
+			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: prefix},
+		},
+		Action: &envoy_config_route_v3.Route_Route{
+			Route: &envoy_config_route_v3.RouteAction{
+				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+					Cluster: httpCluster,
+				},
+			},
+		},
+	}
+}
+
+func buildControlPlaneProtectedPathRoute(path string) *envoy_config_route_v3.Route {
+	return &envoy_config_route_v3.Route{
+		Name: "pomerium-protected-path-" + path,
+		Match: &envoy_config_route_v3.RouteMatch{
+			PathSpecifier: &envoy_config_route_v3.RouteMatch_Path{Path: path},
+		},
+		Action: &envoy_config_route_v3.Route_Route{
+			Route: &envoy_config_route_v3.RouteAction{
+				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+					Cluster: httpCluster,
+				},
+			},
+		},
+	}
+}
+
+func buildControlPlanePathAndQueryRoute(path string, queryparams []string) *envoy_config_route_v3.Route {
+	var queryParameterMatchers []*envoy_config_route_v3.QueryParameterMatcher
+	for _, q := range queryparams {
+		queryParameterMatchers = append(queryParameterMatchers,
+			&envoy_config_route_v3.QueryParameterMatcher{
+				Name:                         q,
+				QueryParameterMatchSpecifier: &envoy_config_route_v3.QueryParameterMatcher_PresentMatch{PresentMatch: true},
+			})
+	}
+
+	return &envoy_config_route_v3.Route{
+		Name: "pomerium-path-and-query" + path,
+		Match: &envoy_config_route_v3.RouteMatch{
+			PathSpecifier:   &envoy_config_route_v3.RouteMatch_Path{Path: path},
+			QueryParameters: queryParameterMatchers,
+		},
+		Action: &envoy_config_route_v3.Route_Route{
+			Route: &envoy_config_route_v3.RouteAction{
+				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+					Cluster: httpCluster,
+				},
+			},
+		},
+		TypedPerFilterConfig: map[string]*any.Any{
+			"envoy.filters.http.ext_authz": disableExtAuthz,
+		},
+	}
 }
 
 func buildControlPlanePathRoute(path string) *envoy_config_route_v3.Route {
@@ -74,7 +151,7 @@ func buildControlPlanePathRoute(path string) *envoy_config_route_v3.Route {
 		Action: &envoy_config_route_v3.Route_Route{
 			Route: &envoy_config_route_v3.RouteAction{
 				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-					Cluster: "pomerium-control-plane-http",
+					Cluster: httpCluster,
 				},
 			},
 		},
@@ -93,7 +170,7 @@ func buildControlPlanePrefixRoute(prefix string) *envoy_config_route_v3.Route {
 		Action: &envoy_config_route_v3.Route_Route{
 			Route: &envoy_config_route_v3.RouteAction{
 				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-					Cluster: "pomerium-control-plane-http",
+					Cluster: httpCluster,
 				},
 			},
 		},

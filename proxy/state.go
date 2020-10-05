@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
-
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -19,14 +17,12 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/queryparam"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc"
 )
 
 type proxyState struct {
 	sharedKey    string
 	sharedCipher cipher.AEAD
 
-	authorizeURL             *url.URL
 	authenticateURL          *url.URL
 	authenticateDashboardURL *url.URL
 	authenticateSigninURL    *url.URL
@@ -39,7 +35,6 @@ type proxyState struct {
 	sessionStore    sessions.SessionStore
 	sessionLoaders  []sessions.SessionLoader
 	jwtClaimHeaders []string
-	authzClient     envoy_service_auth_v2.AuthorizationClient
 }
 
 func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
@@ -63,7 +58,6 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	state.jwtClaimHeaders = cfg.Options.JWTClaimsHeaders
 
 	// errors checked in ValidateOptions
-	state.authorizeURL, _ = urlutil.DeepCopy(cfg.Options.AuthorizeURL)
 	state.authenticateURL, _ = urlutil.DeepCopy(cfg.Options.AuthenticateURL)
 	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: dashboardPath})
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
@@ -86,21 +80,6 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 		state.sessionStore,
 		header.NewStore(state.encoder, httputil.AuthorizationTypePomerium),
 		queryparam.NewStore(state.encoder, "pomerium_session")}
-
-	authzConn, err := grpc.GetGRPCClientConn("authorize", &grpc.Options{
-		Addr:                    state.authorizeURL,
-		OverrideCertificateName: cfg.Options.OverrideCertificateName,
-		CA:                      cfg.Options.CA,
-		CAFile:                  cfg.Options.CAFile,
-		RequestTimeout:          cfg.Options.GRPCClientTimeout,
-		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GRPCInsecure,
-		ServiceName:             cfg.Options.Services,
-	})
-	if err != nil {
-		return nil, err
-	}
-	state.authzClient = envoy_service_auth_v2.NewAuthorizationClient(authzConn)
 
 	return state, nil
 }

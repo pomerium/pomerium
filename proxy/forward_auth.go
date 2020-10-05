@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -17,11 +16,6 @@ import (
 // see : https://www.pomerium.io/configuration/#forward-auth
 func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r := httputil.NewRouter()
-	r.StrictSlash(true)
-	r.Use(func(h http.Handler) http.Handler {
-		return sessions.RetrieveSession(p.state.Load().sessionStore)(h)
-	})
-	r.Use(p.jwtClaimMiddleware(true))
 
 	// NGNIX's forward-auth capabilities are split across two settings:
 	// `auth-url` and `auth-signin` which correspond to `verify` and `auth-url`
@@ -31,21 +25,29 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 
 	// nginx 3: save the returned session post authenticate flow
 	r.Handle("/verify", httputil.HandlerFunc(p.nginxCallback)).
-		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
+		Queries(urlutil.QueryForwardAuthURI, "{uri}",
+			urlutil.QuerySessionEncrypted, "",
+			urlutil.QueryRedirectURI, "")
 
-	// nginx 1: verify. Return 401 if invalid and NGINX will call `auth-signin`
-	r.Handle("/verify", p.Verify(true)).Queries("uri", "{uri}")
+	// nginx 1: verify, fronted by ext_authz
+	r.Handle("/verify", httputil.HandlerFunc(p.allowUpstream)).
+		Queries(urlutil.QueryForwardAuthURI, "{uri}")
 
 	// nginx 4: redirect the user back to their originally requested location.
 	r.Handle("/", httputil.HandlerFunc(p.nginxPostCallbackRedirect)).
-		Queries("uri", "{uri}", urlutil.QuerySessionEncrypted, "", urlutil.QueryRedirectURI, "")
+		Queries(urlutil.QueryForwardAuthURI, "{uri}",
+			urlutil.QuerySessionEncrypted, "",
+			urlutil.QueryRedirectURI, "")
 
 	// traefik 2: save the returned session post authenticate flow
 	r.Handle("/", httputil.HandlerFunc(p.forwardedURIHeaderCallback)).
 		HeadersRegexp(httputil.HeaderForwardedURI, urlutil.QuerySessionEncrypted)
 
+	r.Handle("/", httputil.HandlerFunc(p.startAuthN)).
+		Queries(urlutil.QueryForwardAuthURI, "{uri}")
+
 	// nginx 2 / traefik 1: verify and then start authenticate flow
-	r.Handle("/", p.Verify(false))
+	r.Handle("/", httputil.HandlerFunc(p.allowUpstream))
 
 	return r
 }
@@ -53,8 +55,15 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 // nginxPostCallbackRedirect redirects the user to their original destination
 // in order to drop the authenticate related query params
 func (p *Proxy) nginxPostCallbackRedirect(w http.ResponseWriter, r *http.Request) error {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	httputil.Redirect(w, r, r.FormValue(urlutil.QueryRedirectURI), http.StatusFound)
+	u, err := url.Parse(r.FormValue(urlutil.QueryRedirectURI))
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+	u = urlutil.ParseEnvoyQueryParams(u)
+	q := u.Query()
+	q.Del(urlutil.QueryForwardAuthURI)
+	u.RawQuery = q.Encode()
+	httputil.Redirect(w, r, u.String(), http.StatusFound)
 	return nil
 }
 
@@ -67,9 +76,7 @@ func (p *Proxy) nginxCallback(w http.ResponseWriter, r *http.Request) error {
 	if _, err := p.saveCallbackSession(w, r, encryptedSession); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusUnauthorized)
-	return nil
+	return httputil.NewError(http.StatusUnauthorized, errors.New("mock error to restart redirect flow"))
 }
 
 // forwardedURIHeaderCallback handles the post-authentication callback from
@@ -86,74 +93,42 @@ func (p *Proxy) forwardedURIHeaderCallback(w http.ResponseWriter, r *http.Reques
 	if _, err := p.saveCallbackSession(w, r, encryptedSession); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	httputil.Redirect(w, r, redirectURLString, http.StatusFound)
 	return nil
 }
 
-// Verify checks a user's credentials for an arbitrary host. If the user
-// is properly authenticated and is authorized to access the supplied host,
-// a `200` http status code is returned. If the user is not authenticated, they
-// will be redirected to the authenticate service to sign in with their identity
-// provider. If the user is unauthorized, a `401` error is returned.
-func (p *Proxy) Verify(verifyOnly bool) http.Handler {
-	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		state := p.state.Load()
-
-		var err error
-		if status := r.FormValue("auth_status"); status == fmt.Sprint(http.StatusForbidden) {
-			return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
-		}
-
-		uri, err := getURIStringFromRequest(r)
-		if err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
-		}
-
-		ar, err := p.isAuthorized(w, r)
-		if err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
-		}
-
-		if ar.authorized {
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, "Access to %s is allowed.", uri.Host)
-			return nil
-		}
-
-		unAuthenticated := ar.statusCode == http.StatusUnauthorized
-		if unAuthenticated {
-			state.sessionStore.ClearSession(w, r)
-		}
-
-		_, err = sessions.FromContext(r.Context())
-		hasSession := err == nil
-		if hasSession && !unAuthenticated {
-			return httputil.NewError(http.StatusForbidden, errors.New("access denied"))
-		}
-
-		if verifyOnly {
-			return httputil.NewError(http.StatusUnauthorized, err)
-		}
-
-		p.forwardAuthRedirectToSignInWithURI(w, r, uri)
-		return nil
-	})
+// allowUpstream will return status 200 (OK) unless auth_status is set to forbidden.
+// This handler is expected to be behind a routed protected by envoy's control plane (ext_authz).
+func (p *Proxy) allowUpstream(w http.ResponseWriter, r *http.Request) error {
+	if status := r.FormValue("auth_status"); status == fmt.Sprint(http.StatusForbidden) {
+		return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, http.StatusText(http.StatusOK))
+	return nil
 }
 
-// forwardAuthRedirectToSignInWithURI redirects request to authenticate signin url,
-// with all necessary information extracted from given input uri.
-func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *http.Request, uri *url.URL) {
+// startAuthN redirects an unauthenticated user to start forward-auth
+// authentication flow
+func (p *Proxy) startAuthN(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
-
-	// Traefik set the uri in the header, we must set it in redirect uri if present. Otherwise, request like
-	// https://example.com/foo will be redirected to https://example.com after authentication.
+	uriString := r.FormValue(urlutil.QueryForwardAuthURI)
+	if uriString == "" {
+		uriString = "https://" + // always use HTTPS for external urls
+			r.Header.Get(httputil.HeaderForwardedHost) +
+			r.Header.Get(httputil.HeaderForwardedURI)
+	}
+	uri, err := urlutil.ParseAndValidateURL(uriString)
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+	// add any non-empty existing path from the forwarded URI
 	if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "" && xfu != "/" {
 		uri.Path = xfu
 	}
 
-	// redirect to authenticate
 	authN := *state.authenticateSigninURL
 	q := authN.Query()
 	q.Set(urlutil.QueryCallbackURI, uri.String())
@@ -161,25 +136,5 @@ func (p *Proxy) forwardAuthRedirectToSignInWithURI(w http.ResponseWriter, r *htt
 	q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
 	authN.RawQuery = q.Encode()
 	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &authN).String(), http.StatusFound)
-}
-
-func getURIStringFromRequest(r *http.Request) (*url.URL, error) {
-	// the route to validate will be pulled from the uri queryparam
-	// or inferred from forwarding headers
-	uriString := r.FormValue("uri")
-	if uriString == "" {
-		if r.Header.Get(httputil.HeaderForwardedHost) == "" {
-			return nil, errors.New("no uri to validate")
-		}
-		// Always assume HTTPS for application callback
-		uriString = "https://" +
-			r.Header.Get(httputil.HeaderForwardedHost) +
-			r.Header.Get(httputil.HeaderForwardedURI)
-	}
-
-	uri, err := urlutil.ParseAndValidateURL(uriString)
-	if err != nil {
-		return nil, err
-	}
-	return uri, nil
+	return nil
 }

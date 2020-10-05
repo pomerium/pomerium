@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -160,28 +161,19 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(response))
+	_, _ = io.WriteString(w, response)
 	return nil
 }
 
+// jwtAssertion returns the current user's/request's JWT (rfc7519#section-10.3.1) that should be
+// added from the downstream request.
 func (p *Proxy) jwtAssertion(w http.ResponseWriter, r *http.Request) error {
-	res, err := p.authorizeCheck(r)
-	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, err)
+	assertionJWT := r.Header.Get(httputil.HeaderPomeriumJWTAssertion)
+	if assertionJWT == "" {
+		return httputil.NewError(http.StatusNotFound, errors.New("jwt not found"))
 	}
-
-	headers := append(res.GetOkResponse().GetHeaders(), res.GetDeniedResponse().GetHeaders()...)
-	for _, h := range headers {
-		if h.GetHeader().GetKey() == httputil.HeaderPomeriumJWTAssertion {
-			w.Header().Set("Content-Type", "application/jwt")
-			w.WriteHeader(http.StatusOK)
-			_, _ = io.WriteString(w, h.GetHeader().GetValue())
-			return nil
-		}
-	}
-
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusNotFound)
-	_, _ = io.WriteString(w, "jwt not found")
+	w.Header().Set("Content-Type", "application/jwt")
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.WriteString(w, assertionJWT)
 	return nil
 }
