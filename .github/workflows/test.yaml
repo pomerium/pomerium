@@ -103,6 +103,8 @@ jobs:
         Dockerfile: [.github/Dockerfile-cloudrun, .github/Dockerfile-release, .github/Dockerfile-release.arm32v6, .github/Dockerfile-release.arm32v7, .github/Dockerfile-release.arm64v8]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
       - name: hadolint
         uses: brpaz/hadolint-action@master
         with:
