@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
@@ -29,10 +31,12 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -171,6 +175,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 							}, nil
 						},
 					},
+					directoryClient: new(mockDirectoryServiceClient),
 				}),
 
 				options:  config.NewAtomicOptions(),
@@ -262,6 +267,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 							}, nil
 						},
 					},
+					directoryClient: new(mockDirectoryServiceClient),
 				}),
 				templates: template.Must(frontend.NewTemplates()),
 				options:   config.NewAtomicOptions(),
@@ -366,6 +372,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 							return &databroker.SetResponse{Record: &databroker.Record{Data: in.Data}}, nil
 						},
 					},
+					directoryClient:  new(mockDirectoryServiceClient),
 					redirectURL:      authURL,
 					sessionStore:     tt.session,
 					cookieCipher:     aead,
@@ -515,6 +522,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 							}, nil
 						},
 					},
+					directoryClient: new(mockDirectoryServiceClient),
 				}),
 				options:  config.NewAtomicOptions(),
 				provider: identity.NewAtomicAuthenticator(),
@@ -633,6 +641,7 @@ func TestAuthenticate_Dashboard(t *testing.T) {
 							}, nil
 						},
 					},
+					directoryClient: new(mockDirectoryServiceClient),
 				}),
 				templates: template.Must(frontend.NewTemplates()),
 			}
@@ -678,4 +687,17 @@ func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.Get
 
 func (m mockDataBrokerServiceClient) Set(ctx context.Context, in *databroker.SetRequest, opts ...grpc.CallOption) (*databroker.SetResponse, error) {
 	return m.set(ctx, in, opts...)
+}
+
+type mockDirectoryServiceClient struct {
+	directory.DirectoryServiceClient
+
+	refreshUser func(ctx context.Context, in *directory.RefreshUserRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+}
+
+func (m mockDirectoryServiceClient) RefreshUser(ctx context.Context, in *directory.RefreshUserRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	if m.refreshUser != nil {
+		return m.refreshUser(ctx, in, opts...)
+	}
+	return nil, status.Error(codes.Unimplemented, "")
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
 type authenticateState struct {
@@ -46,6 +47,7 @@ type authenticateState struct {
 	jwk *jose.JSONWebKeySet
 
 	dataBrokerClient databroker.DataBrokerServiceClient
+	directoryClient  directory.DirectoryServiceClient
 }
 
 func newAuthenticateState() *authenticateState {
@@ -129,6 +131,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	}
 
 	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
+	state.directoryClient = directory.NewDirectoryServiceClient(dataBrokerConn)
 
 	return state, nil
 }

@@ -2,18 +2,116 @@ package auth0
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/auth0.v4/management"
 
 	"github.com/pomerium/pomerium/internal/directory/auth0/mock_auth0"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
+
+type M = map[string]interface{}
+
+func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Post("/oauth/token", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(M{
+			"access_token":  "ACCESSTOKEN",
+			"token_type":    "Bearer",
+			"refresh_token": "REFRESHTOKEN",
+		})
+	})
+	r.Route("/api/v2", func(r chi.Router) {
+		r.Route("/users", func(r chi.Router) {
+			r.Route("/{user_id}", func(r chi.Router) {
+				r.Get("/roles", func(w http.ResponseWriter, r *http.Request) {
+					switch chi.URLParam(r, "user_id") {
+					case "user1":
+						w.Header().Set("Content-Type", "application/json")
+						_ = json.NewEncoder(w).Encode(M{
+							"total": 2,
+							"limit": 2,
+							"roles": []M{
+								{"id": "role1"},
+								{"id": "role2"},
+							},
+						})
+					default:
+						http.Error(w, "not found", http.StatusNotFound)
+					}
+				})
+				r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+					switch chi.URLParam(r, "user_id") {
+					case "user1":
+						w.Header().Set("Content-Type", "application/json")
+						_ = json.NewEncoder(w).Encode(M{
+							"user_id": "user1",
+							"email":   "user1@example.com",
+							"name":    "User 1",
+						})
+					default:
+						http.Error(w, "not found", http.StatusNotFound)
+					}
+				})
+			})
+		})
+	})
+
+	return r
+}
+
+func TestProvider_User(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute)
+	defer clearTimeout()
+
+	orig := http.DefaultTransport
+	defer func() {
+		http.DefaultTransport = orig
+	}()
+	http.DefaultTransport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+
+	var mockAPI http.Handler
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockAPI.ServeHTTP(w, r)
+	}))
+	srv.StartTLS()
+	defer srv.Close()
+	mockAPI = newMockAPI(t, srv)
+
+	p := New(
+		WithDomain(srv.URL),
+		WithServiceAccount(&ServiceAccount{ClientID: "CLIENT_ID", Secret: "SECRET"}),
+	)
+	du, err := p.User(ctx, "auth0/user1", "")
+	if !assert.NoError(t, err) {
+		return
+	}
+	testutil.AssertProtoJSONEqual(t, `{
+		"id": "auth0/user1",
+		"displayName": "User 1",
+		"email": "user1@example.com",
+		"groupIds": ["role1", "role2"]
+	}`, du)
+}
 
 type mockNewRoleManagerFunc struct {
 	CalledWithContext        context.Context
@@ -21,15 +119,16 @@ type mockNewRoleManagerFunc struct {
 	CalledWithServiceAccount *ServiceAccount
 
 	ReturnRoleManager RoleManager
+	ReturnUserManager UserManager
 	ReturnError       error
 }
 
-func (m *mockNewRoleManagerFunc) f(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, error) {
+func (m *mockNewRoleManagerFunc) f(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, UserManager, error) {
 	m.CalledWithContext = ctx
 	m.CalledWithDomain = domain
 	m.CalledWithServiceAccount = serviceAccount
 
-	return m.ReturnRoleManager, m.ReturnError
+	return m.ReturnRoleManager, m.ReturnUserManager, m.ReturnError
 }
 
 type listOptionMatcher struct {
@@ -379,7 +478,7 @@ func TestProvider_UserGroups(t *testing.T) {
 
 			mRoleManager := mock_auth0.NewMockRoleManager(ctrl)
 
-			mNewRoleManagerFunc := mockNewRoleManagerFunc{
+			mNewManagersFunc := mockNewRoleManagerFunc{
 				ReturnRoleManager: mRoleManager,
 				ReturnError:       tc.newRoleManagerError,
 			}
@@ -392,7 +491,7 @@ func TestProvider_UserGroups(t *testing.T) {
 				WithDomain(expectedDomain),
 				WithServiceAccount(expectedServiceAccount),
 			)
-			p.cfg.newRoleManager = mNewRoleManagerFunc.f
+			p.cfg.newManagers = mNewManagersFunc.f
 
 			actualGroups, actualUsers, err := p.UserGroups(context.Background())
 			if tc.expectedError != nil {
@@ -404,8 +503,8 @@ func TestProvider_UserGroups(t *testing.T) {
 			assert.Equal(t, tc.expectedGroups, actualGroups)
 			assert.Equal(t, tc.expectedUsers, actualUsers)
 
-			assert.Equal(t, expectedDomain, mNewRoleManagerFunc.CalledWithDomain)
-			assert.Equal(t, expectedServiceAccount, mNewRoleManagerFunc.CalledWithServiceAccount)
+			assert.Equal(t, expectedDomain, mNewManagersFunc.CalledWithDomain)
+			assert.Equal(t, expectedServiceAccount, mNewManagersFunc.CalledWithServiceAccount)
 		})
 	}
 
@@ -433,7 +532,7 @@ func TestParseServiceAccount(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			actualServiceAccount, err := ParseServiceAccount(tc.rawServiceAccount)
+			actualServiceAccount, err := ParseServiceAccount(directory.Options{ServiceAccount: tc.rawServiceAccount})
 			if tc.expectedError != nil {
 				assert.EqualError(t, err, tc.expectedError.Error())
 			} else {

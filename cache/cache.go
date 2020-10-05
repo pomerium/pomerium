@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync"
 
 	"google.golang.org/grpc"
 	"gopkg.in/tomb.v2"
@@ -33,6 +34,9 @@ type Cache struct {
 	localGRPCConnection          *grpc.ClientConn
 	dataBrokerStorageType        string //TODO remove in v0.11
 	deprecatedCacheClusterDomain string //TODO: remove in v0.11
+
+	mu                sync.Mutex
+	directoryProvider directory.Provider
 }
 
 // New creates a new cache service.
@@ -90,6 +94,7 @@ func (c *Cache) OnConfigChange(cfg *config.Config) {
 // Register registers all the gRPC services with the given server.
 func (c *Cache) Register(grpcServer *grpc.Server) {
 	databroker.RegisterDataBrokerServiceServer(grpcServer, c.dataBrokerServer)
+	directory.RegisterDirectoryServiceServer(grpcServer, c)
 }
 
 // Run runs the cache components.
@@ -132,6 +137,9 @@ func (c *Cache) update(cfg *config.Config) error {
 		ClientID:       cfg.Options.ClientID,
 		ClientSecret:   cfg.Options.ClientSecret,
 	})
+	c.mu.Lock()
+	c.directoryProvider = directoryProvider
+	c.mu.Unlock()
 
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(c.localGRPCConnection)
 

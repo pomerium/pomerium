@@ -21,16 +21,33 @@ import (
 // Name is the provider name.
 const Name = "auth0"
 
-// RoleManager defines what is needed to get role info from Auth0.
-type RoleManager interface {
-	List(opts ...management.ListOption) (r *management.RoleList, err error)
-	Users(id string, opts ...management.ListOption) (u *management.UserList, err error)
+type (
+	// RoleManager defines what is needed to get role info from Auth0.
+	RoleManager interface {
+		List(opts ...management.ListOption) (r *management.RoleList, err error)
+		Users(id string, opts ...management.ListOption) (u *management.UserList, err error)
+	}
+	// UserManager defines what is needed to get user info from Auth0.
+	UserManager interface {
+		Read(id string) (*management.User, error)
+		Roles(id string, opts ...management.ListOption) (r *management.RoleList, err error)
+	}
+)
+
+type newManagersFunc = func(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, UserManager, error)
+
+func defaultNewManagersFunc(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, UserManager, error) {
+	m, err := management.New(domain, serviceAccount.ClientID, serviceAccount.Secret, management.WithContext(ctx))
+	if err != nil {
+		return nil, nil, fmt.Errorf("auth0: could not build management: %w", err)
+	}
+	return m.Role, m.User, nil
 }
 
 type config struct {
 	domain         string
 	serviceAccount *ServiceAccount
-	newRoleManager func(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, error)
+	newManagers    newManagersFunc
 }
 
 // Option provides config for the Auth0 Provider.
@@ -50,17 +67,9 @@ func WithDomain(domain string) Option {
 	}
 }
 
-func defaultNewRoleManagerFunc(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, error) {
-	m, err := management.New(domain, serviceAccount.ClientID, serviceAccount.Secret, management.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("auth0: could not build management")
-	}
-	return m.Role, nil
-}
-
 func getConfig(options ...Option) *config {
 	cfg := &config{
-		newRoleManager: defaultNewRoleManagerFunc,
+		newManagers: defaultNewManagersFunc,
 	}
 	for _, option := range options {
 		option(cfg)
@@ -82,13 +91,49 @@ func New(options ...Option) *Provider {
 	}
 }
 
-func (p *Provider) getRoleManager(ctx context.Context) (RoleManager, error) {
-	return p.cfg.newRoleManager(ctx, p.cfg.domain, p.cfg.serviceAccount)
+func (p *Provider) getManagers(ctx context.Context) (RoleManager, UserManager, error) {
+	return p.cfg.newManagers(ctx, p.cfg.domain, p.cfg.serviceAccount)
+}
+
+// User returns the user record for the given id.
+func (p *Provider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
+	_, um, err := p.getManagers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("auth0: could not get the role manager: %w", err)
+	}
+
+	_, providerUserID := databroker.FromUserID(userID)
+	du := &directory.User{
+		Id: userID,
+	}
+
+	u, err := um.Read(providerUserID)
+	if err != nil {
+		return nil, fmt.Errorf("auth0: error getting user info: %w", err)
+	}
+	du.DisplayName = u.GetName()
+	du.Email = u.GetEmail()
+
+	for page, hasNext := 0, true; hasNext; page++ {
+		rl, err := um.Roles(providerUserID, management.IncludeTotals(true), management.Page(page))
+		if err != nil {
+			return nil, fmt.Errorf("auth0: error getting user roles: %w", err)
+		}
+
+		for _, role := range rl.Roles {
+			du.GroupIds = append(du.GroupIds, role.GetID())
+		}
+
+		hasNext = rl.HasNext()
+	}
+
+	sort.Strings(du.GroupIds)
+	return du, nil
 }
 
 // UserGroups fetches a slice of groups and users.
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
-	rm, err := p.getRoleManager(ctx)
+	rm, _, err := p.getManagers(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("auth0: could not get the role manager: %w", err)
 	}
@@ -147,6 +192,9 @@ func getRoles(rm RoleManager) ([]*directory.Group, error) {
 		shouldContinue = listRes.HasNext()
 	}
 
+	sort.Slice(roles, func(i, j int) bool {
+		return roles[i].GetId() < roles[j].GetId()
+	})
 	return roles, nil
 }
 
@@ -170,6 +218,7 @@ func getRoleUserIDs(rm RoleManager, roleID string) ([]string, error) {
 		shouldContinue = usersRes.HasNext()
 	}
 
+	sort.Strings(ids)
 	return ids, nil
 }
 
@@ -180,7 +229,30 @@ type ServiceAccount struct {
 }
 
 // ParseServiceAccount parses the service account in the config options.
-func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
+func ParseServiceAccount(options directory.Options) (*ServiceAccount, error) {
+	if options.ServiceAccount != "" {
+		return parseServiceAccountFromString(options.ServiceAccount)
+	}
+	return parseServiceAccountFromOptions(options.ClientID, options.ClientSecret)
+}
+
+func parseServiceAccountFromOptions(clientID, clientSecret string) (*ServiceAccount, error) {
+	serviceAccount := ServiceAccount{
+		ClientID: clientID,
+		Secret:   clientSecret,
+	}
+
+	if serviceAccount.ClientID == "" {
+		return nil, fmt.Errorf("auth0: client_id is required")
+	}
+	if serviceAccount.Secret == "" {
+		return nil, fmt.Errorf("auth0: client_secret is required")
+	}
+
+	return &serviceAccount, nil
+}
+
+func parseServiceAccountFromString(rawServiceAccount string) (*ServiceAccount, error) {
 	bs, err := base64.StdEncoding.DecodeString(rawServiceAccount)
 	if err != nil {
 		return nil, fmt.Errorf("auth0: could not decode base64: %w", err)

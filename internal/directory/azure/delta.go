@@ -86,7 +86,7 @@ func (dc *deltaCollection) syncGroups(ctx context.Context) error {
 
 	for {
 		var res groupsDeltaResponse
-		err := dc.provider.api(ctx, "GET", apiURL, nil, &res)
+		err := dc.provider.api(ctx, apiURL, &res)
 		if err != nil {
 			return err
 		}
@@ -146,7 +146,7 @@ func (dc *deltaCollection) syncUsers(ctx context.Context) error {
 
 	for {
 		var res usersDeltaResponse
-		err := dc.provider.api(ctx, "GET", apiURL, nil, &res)
+		err := dc.provider.api(ctx, apiURL, &res)
 		if err != nil {
 			return err
 		}
@@ -197,6 +197,9 @@ func (dc *deltaCollection) CurrentUserGroups() ([]*directory.Group, []*directory
 		}
 		groupLookup.addGroup(g.id, groupIDs, userIDs)
 	}
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].GetId() < groups[j].GetId()
+	})
 
 	var users []*directory.User
 	for _, u := range dc.users {

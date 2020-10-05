@@ -5,13 +5,16 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"sort"
 	"sync"
 
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2/google"
 	admin "google.golang.org/api/admin/directory/v1"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -19,11 +22,15 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
-// Name is the provider name.
-const Name = "google"
+const (
+	// Name is the provider name.
+	Name = "google"
+
+	currentAccountCustomerID = "my_customer"
+)
 
 const (
-	defaultProviderURL = "https://accounts.google.com"
+	defaultProviderURL = "https://www.googleapis.com/admin/directory/v1/"
 )
 
 type config struct {
@@ -78,6 +85,51 @@ func New(options ...Option) *Provider {
 	}
 }
 
+// User returns the user record for the given id.
+func (p *Provider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
+	apiClient, err := p.getAPIClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("google: error getting API client: %w", err)
+	}
+
+	_, providerUserID := databroker.FromUserID(userID)
+	du := &directory.User{
+		Id: userID,
+	}
+
+	au, err := apiClient.Users.Get(providerUserID).
+		Context(ctx).
+		Do()
+	if isAccessDenied(err) {
+		// ignore forbidden errors as a user may login from another gsuite domain
+		return du, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("google: error getting user: %w", err)
+	} else {
+		if au.Name != nil {
+			du.DisplayName = au.Name.FullName
+		}
+		du.Email = au.PrimaryEmail
+	}
+
+	err = apiClient.Groups.List().
+		Context(ctx).
+		UserKey(providerUserID).
+		Pages(ctx, func(res *admin.Groups) error {
+			for _, g := range res.Groups {
+				du.GroupIds = append(du.GroupIds, g.Id)
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("google: error getting groups for user: %w", err)
+	}
+
+	sort.Strings(du.GroupIds)
+
+	return du, nil
+}
+
 // UserGroups returns a slice of group names a given user is in
 // NOTE: groups via Directory API is limited to 1 QPS!
 // https://developers.google.com/admin-sdk/directory/v1/reference/groups/list
@@ -91,7 +143,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	var groups []*directory.Group
 	err = apiClient.Groups.List().
 		Context(ctx).
-		Customer("my_customer").
+		Customer(currentAccountCustomerID).
 		Pages(ctx, func(res *admin.Groups) error {
 			for _, g := range res.Groups {
 				// Skip group without member.
@@ -113,7 +165,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	userLookup := map[string]apiUserObject{}
 	err = apiClient.Users.List().
 		Context(ctx).
-		Customer("my_customer").
+		Customer(currentAccountCustomerID).
 		Pages(ctx, func(res *admin.Users) error {
 			for _, u := range res.Users {
 				userLookup[u.Id] = apiUserObject{
@@ -188,7 +240,7 @@ func (p *Provider) getAPIClient(ctx context.Context) (*admin.Service, error) {
 
 	ts := config.TokenSource(ctx)
 
-	p.apiClient, err = admin.NewService(ctx, option.WithTokenSource(ts))
+	p.apiClient, err = admin.NewService(ctx, option.WithTokenSource(ts), option.WithEndpoint(p.cfg.url))
 	if err != nil {
 		return nil, fmt.Errorf("google: failed creating admin service %w", err)
 	}
@@ -242,4 +294,17 @@ type apiUserObject struct {
 	ID          string
 	DisplayName string
 	Email       string
+}
+
+func isAccessDenied(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	gerr := new(googleapi.Error)
+	if errors.As(err, &gerr) {
+		return gerr.Code == http.StatusForbidden
+	}
+
+	return false
 }

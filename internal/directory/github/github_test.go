@@ -29,6 +29,33 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	})
+	r.Post("/graphql", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query string `json:"query"`
+		}
+		json.NewDecoder(r.Body).Decode(&body)
+
+		_ = json.NewEncoder(w).Encode(M{
+			"data": M{
+				"organization": M{
+					"teams": M{
+						"totalCount": 3,
+						"edges": []M{
+							{"node": M{
+								"id": 1,
+							}},
+							{"node": M{
+								"id": 2,
+							}},
+							{"node": M{
+								"id": 3,
+							}},
+						},
+					},
+				},
+			},
+		})
+	})
 	r.Get("/user/orgs", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode([]M{
 			{"login": "org1"},
@@ -88,7 +115,34 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 	return r
 }
 
-func Test(t *testing.T) {
+func TestProvider_User(t *testing.T) {
+	var mockAPI http.Handler
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockAPI.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	mockAPI = newMockAPI(t, srv)
+
+	p := New(
+		WithURL(mustParseURL(srv.URL)),
+		WithServiceAccount(&ServiceAccount{
+			Username:            "abc",
+			PersonalAccessToken: "xyz",
+		}),
+	)
+	du, err := p.User(context.Background(), "github/user1", "")
+	if !assert.NoError(t, err) {
+		return
+	}
+	testutil.AssertProtoJSONEqual(t, `{
+		"id": "github/user1",
+		"groupIds": ["1", "2", "3"],
+		"displayName": "User 1",
+		"email": "user1@example.com"
+	}`, du)
+}
+
+func TestProvider_UserGroups(t *testing.T) {
 	var mockAPI http.Handler
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockAPI.ServeHTTP(w, r)
