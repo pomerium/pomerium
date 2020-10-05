@@ -5,7 +5,7 @@ WORKDIR /go/src/github.com/pomerium/pomerium
 # hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get -y install --no-install-recommends zip \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # cache depedency downloads
 COPY go.mod go.sum ./
