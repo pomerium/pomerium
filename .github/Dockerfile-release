@@ -1,6 +1,8 @@
+# hadolint ignore:DL3007
 FROM busybox:latest as build
 RUN touch /config.yaml
 
+# hadolint ignore:DL3006
 FROM gcr.io/distroless/base
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium

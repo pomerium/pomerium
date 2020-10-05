@@ -1,10 +1,15 @@
+# hadolint ignore=DL3007
 FROM busybox:latest as build
 RUN touch /config.yaml
 
+# hadolint ignore=DL3006
 FROM arm64v8/alpine
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
-COPY --from=multiarch/qemu-user-static /usr/bin/qemu-aarch64-static /usr/bin/
+# hadolint ignore=DL3006
+FROM multiarch/qemu-user-static as qemu-user-static
+COPY --from=qemu-user-static /usr/bin/qemu-aarch64-static /usr/bin/
+# hadolint ignore=DL3018
 RUN apk --no-cache add ca-certificates
 COPY pomerium* /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
