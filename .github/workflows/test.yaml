@@ -90,12 +90,23 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: lint
+      - name: hadolint
         uses: brpaz/hadolint-action@master
         with:
           dockerfile: 'Dockerfile'
       - name: build
         run: docker build .
+
+  lint-goreleaser-docker:
+    strategy:
+      matrix:
+        Dockerfile: [.github/Dockerfile-cloudrun, .github/Dockerfile-release, .github/Dockerfile-release.arm32v6, .github/Dockerfile-release.arm32v7, .github/Dockerfile-release.arm64v8]
+    runs-on: ubuntu-latest
+    steps:
+      - name: hadolint
+        uses: brpaz/hadolint-action@master
+        with:
+          dockerfile: ${{ matrix.Dockerfile }}
 
   integration-tests:
     runs-on: ubuntu-latest
