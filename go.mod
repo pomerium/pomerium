@@ -14,7 +14,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/dustin/go-humanize v1.0.0 // indirect
-	github.com/envoyproxy/go-control-plane v0.9.7-0.20200924180459-2fd2c9f35b9c
+	github.com/envoyproxy/go-control-plane v0.9.7
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/golang/mock v1.4.4
