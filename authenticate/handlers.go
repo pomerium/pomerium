@@ -219,6 +219,18 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	// user impersonation
 	if impersonate := r.FormValue(urlutil.QueryImpersonateAction); impersonate != "" {
+		pbSession, err := session.Get(ctx, state.dataBrokerClient, s.ID)
+		if err != nil {
+			return err
+		}
+		pbUser, err := user.Get(ctx, state.dataBrokerClient, pbSession.GetUserId())
+		if err != nil {
+			return err
+		}
+		if !a.isAdmin(pbUser.Email) {
+			return httputil.NewError(http.StatusForbidden, fmt.Errorf("%s is not an admin", pbUser.Email))
+		}
+
 		s.SetImpersonation(r.FormValue(urlutil.QueryImpersonateEmail), r.FormValue(urlutil.QueryImpersonateGroups))
 	}
 	newSession := sessions.NewSession(s, state.redirectURL.Host, jwtAudience)
