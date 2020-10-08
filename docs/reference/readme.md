@@ -635,7 +635,7 @@ Client Secret is the OAuth 2.0 Secret Identifier retrieved from your identity pr
 - Config File Key: `idp_provider`
 - Type: `string`
 - Required
-- Options: `azure` `google` `okta` `onelogin` or `oidc`
+- Options: `auth0` `azure` `google` `okta` `onelogin` or `oidc`
 
 Provider is the short-hand name of a built-in OpenID Connect (oidc) identity provider to be used for authentication. To use a generic provider,set to `oidc`.
 

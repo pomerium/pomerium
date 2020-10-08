@@ -34,6 +34,14 @@ authenticate_service_url: https://authenticate.corp.beyondperimeter.com
 
 # Identity Provider Settings
 
+# Auth0
+# idp_provider: "auth0"
+# idp_provider_url: "https://REPLACEME.us.auth0.com"
+# idp_client_id: "REPLACEME" # from the application the users login to
+# idp_client_secret: "REPLACEME" # from the application the users login to
+# the following is optional and only needed if you want role (Auth0 calls groups roles) data
+# idp_service_account: "REPLACEME" # built from the machine-to-machine application which talks to the Auth0 Management API
+
 # Azure
 # idp_provider: "azure"
 # idp_provider_url: "https://login.microsoftonline.com/REPLACEME/v2.0"

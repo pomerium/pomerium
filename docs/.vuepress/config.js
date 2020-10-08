@@ -98,6 +98,7 @@ module.exports = {
           sidebarDepth: 0,
           children: [
             "identity-providers/",
+            "identity-providers/auth0",
             "identity-providers/azure",
             "identity-providers/cognito",
             "identity-providers/github",
