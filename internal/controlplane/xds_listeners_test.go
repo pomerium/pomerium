@@ -94,7 +94,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						"domains": ["example.com"],
 						"routes": [
 							{
-								"name": "pomerium-protected-path-/.pomerium/jwt",
+								"name": "pomerium-path-/.pomerium/jwt",
 								"match": {
 									"path": "/.pomerium/jwt"
 								},
@@ -130,6 +130,24 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
 										"disabled": true
 									}
+								}
+							},
+							{
+								"name": "pomerium-path-/.pomerium/admin",
+								"match": {
+									"path": "/.pomerium/admin"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								}
+							},
+							{
+								"name": "pomerium-prefix-/.pomerium/admin/",
+								"match": {
+									"prefix": "/.pomerium/admin/"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
 								}
 							},
 							{
@@ -214,7 +232,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						"domains": ["*"],
 						"routes": [
 							{
-								"name": "pomerium-protected-path-/.pomerium/jwt",
+								"name": "pomerium-path-/.pomerium/jwt",
 								"match": {
 									"path": "/.pomerium/jwt"
 								},
@@ -250,6 +268,24 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
 										"disabled": true
 									}
+								}
+							},
+							{
+								"name": "pomerium-path-/.pomerium/admin",
+								"match": {
+									"path": "/.pomerium/admin"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								}
+							},
+							{
+								"name": "pomerium-prefix-/.pomerium/admin/",
+								"match": {
+									"prefix": "/.pomerium/admin/"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
 								}
 							},
 							{

@@ -42,33 +42,28 @@ func Test_buildGRPCRoutes(t *testing.T) {
 }
 
 func Test_buildPomeriumHTTPRoutes(t *testing.T) {
-	routeString := func(typ, name string) string {
-		return `{
+	routeString := func(typ, name string, protected bool) string {
+		str := `{
 				"name": "pomerium-` + typ + `-` + name + `",
 				"match": {
 					"` + typ + `": "` + name + `"
 				},
 				"route": {
 					"cluster": "pomerium-control-plane-http"
-				},
+				}
+			`
+		if !protected {
+			str += `,
 				"typedPerFilterConfig": {
 					"envoy.filters.http.ext_authz": {
 						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
 						"disabled": true
 					}
 				}
-			}`
-	}
-	protectedRouteString := func(typ, name string) string {
-		return `{
-				"name": "pomerium-protected-` + typ + `-` + name + `",
-				"match": {
-					"` + typ + `": "` + name + `"
-				},
-				"route": {
-					"cluster": "pomerium-control-plane-http"
-				}
-			}`
+			`
+		}
+		str += "}"
+		return str
 	}
 	t.Run("authenticate", func(t *testing.T) {
 		options := &config.Options{
@@ -80,15 +75,17 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		routes := buildPomeriumHTTPRoutes(options, "authenticate.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `[
-			`+protectedRouteString("path", "/.pomerium/jwt")+`,
-			`+routeString("path", "/ping")+`,
-			`+routeString("path", "/healthz")+`,
-			`+routeString("path", "/.pomerium")+`,
-			`+routeString("prefix", "/.pomerium/")+`,
-			`+routeString("path", "/.well-known/pomerium")+`,
-			`+routeString("prefix", "/.well-known/pomerium/")+`,
-			`+routeString("path", "/robots.txt")+`,
-			`+routeString("path", "/oauth2/callback")+`
+			`+routeString("path", "/.pomerium/jwt", true)+`,
+			`+routeString("path", "/ping", false)+`,
+			`+routeString("path", "/healthz", false)+`,
+			`+routeString("path", "/.pomerium/admin", true)+`,
+			`+routeString("prefix", "/.pomerium/admin/", true)+`,
+			`+routeString("path", "/.pomerium", false)+`,
+			`+routeString("prefix", "/.pomerium/", false)+`,
+			`+routeString("path", "/.well-known/pomerium", false)+`,
+			`+routeString("prefix", "/.well-known/pomerium/", false)+`,
+			`+routeString("path", "/robots.txt", false)+`,
+			`+routeString("path", "/oauth2/callback", false)+`
 		]`, routes)
 	})
 
@@ -107,14 +104,16 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		routes := buildPomeriumHTTPRoutes(options, "from.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `[
-			`+protectedRouteString("path", "/.pomerium/jwt")+`,
-			`+routeString("path", "/ping")+`,
-			`+routeString("path", "/healthz")+`,
-			`+routeString("path", "/.pomerium")+`,
-			`+routeString("prefix", "/.pomerium/")+`,
-			`+routeString("path", "/.well-known/pomerium")+`,
-			`+routeString("prefix", "/.well-known/pomerium/")+`,
-			`+routeString("path", "/robots.txt")+`
+			`+routeString("path", "/.pomerium/jwt", true)+`,
+			`+routeString("path", "/ping", false)+`,
+			`+routeString("path", "/healthz", false)+`,
+			`+routeString("path", "/.pomerium/admin", true)+`,
+			`+routeString("prefix", "/.pomerium/admin/", true)+`,
+			`+routeString("path", "/.pomerium", false)+`,
+			`+routeString("prefix", "/.pomerium/", false)+`,
+			`+routeString("path", "/.well-known/pomerium", false)+`,
+			`+routeString("prefix", "/.well-known/pomerium/", false)+`,
+			`+routeString("path", "/robots.txt", false)+`
 		]`, routes)
 	})
 
@@ -134,19 +133,21 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		routes := buildPomeriumHTTPRoutes(options, "from.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `[
-			`+protectedRouteString("path", "/.pomerium/jwt")+`,
-			`+routeString("path", "/ping")+`,
-			`+routeString("path", "/healthz")+`,
-			`+routeString("path", "/.pomerium")+`,
-			`+routeString("prefix", "/.pomerium/")+`,
-			`+routeString("path", "/.well-known/pomerium")+`,
-			`+routeString("prefix", "/.well-known/pomerium/")+`
+			`+routeString("path", "/.pomerium/jwt", true)+`,
+			`+routeString("path", "/ping", false)+`,
+			`+routeString("path", "/healthz", false)+`,
+			`+routeString("path", "/.pomerium/admin", true)+`,
+			`+routeString("prefix", "/.pomerium/admin/", true)+`,
+			`+routeString("path", "/.pomerium", false)+`,
+			`+routeString("prefix", "/.pomerium/", false)+`,
+			`+routeString("path", "/.well-known/pomerium", false)+`,
+			`+routeString("prefix", "/.well-known/pomerium/", false)+`
 		]`, routes)
 	})
 }
 
 func Test_buildControlPlanePathRoute(t *testing.T) {
-	route := buildControlPlanePathRoute("/hello/world")
+	route := buildControlPlanePathRoute("/hello/world", false)
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-path-/hello/world",
@@ -167,7 +168,7 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 }
 
 func Test_buildControlPlanePrefixRoute(t *testing.T) {
-	route := buildControlPlanePrefixRoute("/hello/world/")
+	route := buildControlPlanePrefixRoute("/hello/world/", false)
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-prefix-/hello/world/",

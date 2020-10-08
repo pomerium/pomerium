@@ -49,22 +49,24 @@ func buildGRPCRoutes() []*envoy_config_route_v3.Route {
 func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
 	routes := []*envoy_config_route_v3.Route{
 		// enable ext_authz
-		buildControlPlaneProtectedPathRoute("/.pomerium/jwt"),
+		buildControlPlanePathRoute("/.pomerium/jwt", true),
 		// disable ext_authz and passthrough to proxy handlers
-		buildControlPlanePathRoute("/ping"),
-		buildControlPlanePathRoute("/healthz"),
-		buildControlPlanePathRoute("/.pomerium"),
-		buildControlPlanePrefixRoute("/.pomerium/"),
-		buildControlPlanePathRoute("/.well-known/pomerium"),
-		buildControlPlanePrefixRoute("/.well-known/pomerium/"),
+		buildControlPlanePathRoute("/ping", false),
+		buildControlPlanePathRoute("/healthz", false),
+		buildControlPlanePathRoute("/.pomerium/admin", true),
+		buildControlPlanePrefixRoute("/.pomerium/admin/", true),
+		buildControlPlanePathRoute("/.pomerium", false),
+		buildControlPlanePrefixRoute("/.pomerium/", false),
+		buildControlPlanePathRoute("/.well-known/pomerium", false),
+		buildControlPlanePrefixRoute("/.well-known/pomerium/", false),
 	}
 	// per #837, only add robots.txt if there are no unauthenticated routes
 	if !hasPublicPolicyMatchingURL(options, mustParseURL("https://"+domain+"/robots.txt")) {
-		routes = append(routes, buildControlPlanePathRoute("/robots.txt"))
+		routes = append(routes, buildControlPlanePathRoute("/robots.txt", false))
 	}
 	// if we're handling authentication, add the oauth2 callback url
 	if config.IsAuthenticate(options.Services) && hostMatchesDomain(options.GetAuthenticateURL(), domain) {
-		routes = append(routes, buildControlPlanePathRoute(options.AuthenticateCallbackPath))
+		routes = append(routes, buildControlPlanePathRoute(options.AuthenticateCallbackPath, false))
 	}
 	// if we're the proxy and this is the forward-auth url
 	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {
@@ -86,22 +88,6 @@ func buildControlPlaneProtectedPrefixRoute(prefix string) *envoy_config_route_v3
 		Name: "pomerium-protected-prefix-" + prefix,
 		Match: &envoy_config_route_v3.RouteMatch{
 			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: prefix},
-		},
-		Action: &envoy_config_route_v3.Route_Route{
-			Route: &envoy_config_route_v3.RouteAction{
-				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-					Cluster: httpCluster,
-				},
-			},
-		},
-	}
-}
-
-func buildControlPlaneProtectedPathRoute(path string) *envoy_config_route_v3.Route {
-	return &envoy_config_route_v3.Route{
-		Name: "pomerium-protected-path-" + path,
-		Match: &envoy_config_route_v3.RouteMatch{
-			PathSpecifier: &envoy_config_route_v3.RouteMatch_Path{Path: path},
 		},
 		Action: &envoy_config_route_v3.Route_Route{
 			Route: &envoy_config_route_v3.RouteAction{
@@ -142,8 +128,8 @@ func buildControlPlanePathAndQueryRoute(path string, queryparams []string) *envo
 	}
 }
 
-func buildControlPlanePathRoute(path string) *envoy_config_route_v3.Route {
-	return &envoy_config_route_v3.Route{
+func buildControlPlanePathRoute(path string, protected bool) *envoy_config_route_v3.Route {
+	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-path-" + path,
 		Match: &envoy_config_route_v3.RouteMatch{
 			PathSpecifier: &envoy_config_route_v3.RouteMatch_Path{Path: path},
@@ -155,14 +141,17 @@ func buildControlPlanePathRoute(path string) *envoy_config_route_v3.Route {
 				},
 			},
 		},
-		TypedPerFilterConfig: map[string]*any.Any{
-			"envoy.filters.http.ext_authz": disableExtAuthz,
-		},
 	}
+	if !protected {
+		r.TypedPerFilterConfig = map[string]*any.Any{
+			"envoy.filters.http.ext_authz": disableExtAuthz,
+		}
+	}
+	return r
 }
 
-func buildControlPlanePrefixRoute(prefix string) *envoy_config_route_v3.Route {
-	return &envoy_config_route_v3.Route{
+func buildControlPlanePrefixRoute(prefix string, protected bool) *envoy_config_route_v3.Route {
+	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-prefix-" + prefix,
 		Match: &envoy_config_route_v3.RouteMatch{
 			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: prefix},
@@ -174,10 +163,13 @@ func buildControlPlanePrefixRoute(prefix string) *envoy_config_route_v3.Route {
 				},
 			},
 		},
-		TypedPerFilterConfig: map[string]*any.Any{
-			"envoy.filters.http.ext_authz": disableExtAuthz,
-		},
 	}
+	if !protected {
+		r.TypedPerFilterConfig = map[string]*any.Any{
+			"envoy.filters.http.ext_authz": disableExtAuthz,
+		}
+	}
+	return r
 }
 
 var getPolicyName = func(policy *config.Policy) string {
