@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 const (
@@ -52,6 +53,9 @@ type Options struct {
 
 	// ServiceName specifies the service name for telemetry exposition
 	ServiceName string
+
+	// SignedJWTKey is the JWT key to use for signing a JWT attached to metadata.
+	SignedJWTKey []byte
 }
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
@@ -70,17 +74,27 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		}
 	}
 
-	dialOptions := []grpc.DialOption{
-		grpc.WithChainUnaryInterceptor(
-			requestid.UnaryClientInterceptor(),
-			grpcTimeoutInterceptor(opts.RequestTimeout),
-		),
-		grpc.WithStreamInterceptor(requestid.StreamClientInterceptor()),
-		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
+	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.ServiceName)
+
+	unaryClientInterceptors := []grpc.UnaryClientInterceptor{
+		requestid.UnaryClientInterceptor(),
+		grpcTimeoutInterceptor(opts.RequestTimeout),
+		clientStatsHandler.UnaryInterceptor,
+	}
+	streamClientInterceptors := []grpc.StreamClientInterceptor{
+		requestid.StreamClientInterceptor(),
+	}
+	if opts.SignedJWTKey != nil {
+		unaryClientInterceptors = append(unaryClientInterceptors, grpcutil.WithUnarySignedJWT(opts.SignedJWTKey))
+		streamClientInterceptors = append(streamClientInterceptors, grpcutil.WithStreamSignedJWT(opts.SignedJWTKey))
 	}
 
-	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.ServiceName)
-	dialOptions = clientStatsHandler.DialOptions(dialOptions...)
+	dialOptions := []grpc.DialOption{
+		grpc.WithChainUnaryInterceptor(unaryClientInterceptors...),
+		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
+		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
+		grpc.WithStatsHandler(clientStatsHandler.Handler),
+	}
 
 	if opts.WithInsecure {
 		log.Info().Str("addr", connAddr).Msg("internal/grpc: grpc with insecure")
@@ -129,10 +143,8 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		dialOptions = append(dialOptions, grpc.WithBalancerName(roundrobin.Name), grpc.WithDisableServiceConfig())
 		connAddr = fmt.Sprintf("dns:///%s", connAddr)
 	}
-	return grpc.Dial(
-		connAddr,
-		dialOptions...,
-	)
+
+	return grpc.Dial(connAddr, dialOptions...)
 }
 
 // grpcTimeoutInterceptor enforces per-RPC request timeouts

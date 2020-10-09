@@ -5,6 +5,7 @@ package cache
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 // Cache represents the cache service. The cache service is a simple interface
@@ -46,12 +48,22 @@ func New(cfg *config.Config) (*Cache, error) {
 		return nil, err
 	}
 
+	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+
 	// No metrics handler because we have one in the control plane.  Add one
 	// if we no longer register with that grpc Server
-	localGRPCServer := grpc.NewServer()
+	localGRPCServer := grpc.NewServer(
+		grpc.StreamInterceptor(grpcutil.StreamRequireSignedJWT(cfg.Options.SharedKey)),
+		grpc.UnaryInterceptor(grpcutil.UnaryRequireSignedJWT(cfg.Options.SharedKey)),
+	)
 
 	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(cfg.Options.Services)
-	clientDialOptions := clientStatsHandler.DialOptions(grpc.WithInsecure())
+	clientDialOptions := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithChainUnaryInterceptor(clientStatsHandler.UnaryInterceptor, grpcutil.WithUnarySignedJWT(sharedKey)),
+		grpc.WithChainStreamInterceptor(grpcutil.WithStreamSignedJWT(sharedKey)),
+		grpc.WithStatsHandler(clientStatsHandler.Handler),
+	}
 
 	localGRPCConnection, err := grpc.DialContext(
 		context.Background(),

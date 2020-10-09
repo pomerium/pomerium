@@ -20,7 +20,7 @@ func TestDashboard(t *testing.T) {
 	t.Run("admin impersonate", func(t *testing.T) {
 		client := testcluster.NewHTTPClient()
 
-		res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-user"),
+		_, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-user"),
 			flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
 		if !assert.NoError(t, err) {
 			return
@@ -31,7 +31,7 @@ func TestDashboard(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		res, err = client.Do(req)
+		res, err := client.Do(req)
 		if !assert.NoError(t, err, "unexpected http error") {
 			return
 		}

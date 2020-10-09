@@ -14,7 +14,7 @@ func StreamClientInterceptor() grpc.StreamClientInterceptor {
 		desc *grpc.StreamDesc, cc *grpc.ClientConn,
 		method string, streamer grpc.Streamer, opts ...grpc.CallOption,
 	) (grpc.ClientStream, error) {
-		toMetadata(ctx)
+		ctx = toMetadata(ctx)
 		return streamer(ctx, desc, cc, method, opts...)
 	}
 }
@@ -26,21 +26,15 @@ func UnaryClientInterceptor() grpc.UnaryClientInterceptor {
 		method string, req, reply interface{},
 		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
 	) error {
-		toMetadata(ctx)
+		ctx = toMetadata(ctx)
 		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }
 
-func toMetadata(ctx context.Context) {
+func toMetadata(ctx context.Context) context.Context {
 	requestID := FromContext(ctx)
 	if requestID == "" {
 		requestID = New()
 	}
-
-	md, ok := metadata.FromOutgoingContext(ctx)
-	if !ok {
-		return
-	}
-
-	md.Set(headerName, requestID)
+	return metadata.AppendToOutgoingContext(ctx, headerName, requestID)
 }
