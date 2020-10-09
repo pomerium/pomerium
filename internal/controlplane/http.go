@@ -3,6 +3,7 @@ package controlplane
 
 import (
 	"net/http"
+	"net/http/pprof"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -38,4 +39,11 @@ func (srv *Server) addHTTPMiddleware() {
 	root.HandleFunc("/healthz", httputil.HealthCheck)
 	root.HandleFunc("/ping", httputil.HealthCheck)
 	root.PathPrefix("/.pomerium/assets/").Handler(http.StripPrefix("/.pomerium/assets/", frontend.MustAssetHandler()))
+
+	// pprof
+	root.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
+	root.Path("/debug/pprof/profile").HandlerFunc(pprof.Profile)
+	root.Path("/debug/pprof/symbol").HandlerFunc(pprof.Symbol)
+	root.Path("/debug/pprof/trace").HandlerFunc(pprof.Trace)
+	root.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
 }
