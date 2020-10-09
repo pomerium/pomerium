@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"encoding/base64"
 	"fmt"
 	"sync/atomic"
 
@@ -41,6 +42,8 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		return nil, err
 	}
 
+	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+
 	cc, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
 		Addr:                    cfg.Options.DataBrokerURL,
 		OverrideCertificateName: cfg.Options.OverrideCertificateName,
@@ -50,6 +53,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
 		WithInsecure:            cfg.Options.GRPCInsecure,
 		ServiceName:             cfg.Options.Services,
+		SignedJWTKey:            sharedKey,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error creating databroker connection: %w", err)

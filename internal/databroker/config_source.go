@@ -2,6 +2,7 @@ package databroker
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"sync"
 	"time"
@@ -138,6 +139,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 }
 
 func (src *ConfigSource) runUpdater(cfg *config.Config) {
+	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 	connectionOptions := &grpc.Options{
 		Addr:                    cfg.Options.DataBrokerURL,
 		OverrideCertificateName: cfg.Options.OverrideCertificateName,
@@ -147,6 +149,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
 		WithInsecure:            cfg.Options.GRPCInsecure,
 		ServiceName:             cfg.Options.Services,
+		SignedJWTKey:            sharedKey,
 	}
 	h, err := hashstructure.Hash(connectionOptions, nil)
 	if err != nil {

@@ -116,6 +116,8 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		state.jwk.Keys = append(state.jwk.Keys, *jwk)
 	}
 
+	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+
 	dataBrokerConn, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
 		Addr:                    cfg.Options.DataBrokerURL,
 		OverrideCertificateName: cfg.Options.OverrideCertificateName,
@@ -125,6 +127,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
 		WithInsecure:            cfg.Options.GRPCInsecure,
 		ServiceName:             cfg.Options.Services,
+		SignedJWTKey:            sharedKey,
 	})
 	if err != nil {
 		return nil, err

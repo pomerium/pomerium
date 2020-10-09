@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"go.opencensus.io/plugin/ocgrpc"
-	"google.golang.org/grpc"
 	grpcstats "google.golang.org/grpc/stats"
 )
 
@@ -35,28 +34,4 @@ func Test_GRPCServerStatsHandler(t *testing.T) {
 	assert.True(t, metricsHandler.called)
 	assert.Equal(t, ctx.Value(mockCtxTag("added")), "true")
 	assert.Equal(t, ctx.Value(mockCtxTag("original")), "true")
-}
-
-type mockDialOption struct {
-	name string
-	grpc.EmptyDialOption
-}
-
-func Test_NewGRPCClientStatsHandler(t *testing.T) {
-	t.Parallel()
-
-	h := NewGRPCClientStatsHandler("test")
-
-	origOpts := []grpc.DialOption{
-		mockDialOption{name: "one"},
-		mockDialOption{name: "two"},
-	}
-
-	newOpts := h.DialOptions(origOpts...)
-
-	for i := range origOpts {
-		assert.Contains(t, newOpts, origOpts[i])
-	}
-
-	assert.Greater(t, len(newOpts), len(origOpts))
 }

@@ -55,13 +55,3 @@ func NewGRPCClientStatsHandler(service string) *GRPCClientStatsHandler {
 		UnaryInterceptor: metrics.GRPCClientInterceptor(ServiceName(service)),
 	}
 }
-
-// DialOptions returns telemetry related DialOptions appended to an optional existing list
-// of DialOptions
-func (h *GRPCClientStatsHandler) DialOptions(o ...grpc.DialOption) []grpc.DialOption {
-	o = append(o,
-		grpc.WithUnaryInterceptor(h.UnaryInterceptor),
-		grpc.WithStatsHandler(h.Handler),
-	)
-	return o
-}

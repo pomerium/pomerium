@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/url"
@@ -91,23 +92,6 @@ var serviceAccountCmd = &cobra.Command{
 		l := zerolog.Nop()
 		log.SetLogger(&l)
 
-		dataBrokerURL, err := url.Parse(serviceAccountOptions.dataBrokerURL)
-		if err != nil {
-			return fmt.Errorf("invalid databroker url: %w", err)
-		}
-
-		cc, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
-			Addr:                    dataBrokerURL,
-			OverrideCertificateName: serviceAccountOptions.overrideCertificateName,
-			CA:                      serviceAccountOptions.ca,
-			CAFile:                  serviceAccountOptions.caFile,
-			WithInsecure:            !strings.HasSuffix(dataBrokerURL.Scheme, "s"),
-		})
-		if err != nil {
-			return fmt.Errorf("error creating databroker connection: %w", err)
-		}
-		defer cc.Close()
-
 		// hydrate our session
 		serviceAccountOptions.serviceAccount.Audience = jwt.Audience(serviceAccountOptions.aud)
 		serviceAccountOptions.serviceAccount.Groups = []string(serviceAccountOptions.groups)
@@ -143,6 +127,26 @@ var serviceAccountCmd = &cobra.Command{
 		if serviceAccountOptions.serviceAccount.Issuer == "" {
 			return errors.New("iss is required")
 		}
+
+		dataBrokerURL, err := url.Parse(serviceAccountOptions.dataBrokerURL)
+		if err != nil {
+			return fmt.Errorf("invalid databroker url: %w", err)
+		}
+
+		rawSharedKey, _ := base64.StdEncoding.DecodeString(sharedKey)
+
+		cc, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
+			Addr:                    dataBrokerURL,
+			OverrideCertificateName: serviceAccountOptions.overrideCertificateName,
+			CA:                      serviceAccountOptions.ca,
+			CAFile:                  serviceAccountOptions.caFile,
+			WithInsecure:            !strings.HasSuffix(dataBrokerURL.Scheme, "s"),
+			SignedJWTKey:            rawSharedKey,
+		})
+		if err != nil {
+			return fmt.Errorf("error creating databroker connection: %w", err)
+		}
+		defer cc.Close()
 
 		sa := &user.ServiceAccount{
 			Id:        uuid.New().String(),
