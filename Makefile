@@ -74,6 +74,13 @@ build: ## Builds dynamic executables and/or packages.
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 	./scripts/embed-envoy.bash $(BINDIR)/$(NAME)
 
+.PHONY: build-debug
+build-debug: ## Builds binaries appropriate for debugging
+	@echo "==> $@"
+	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+	./scripts/embed-envoy.bash $(BINDIR)/$(NAME)
+
+
 .PHONY: lint
 lint: ## Verifies `golint` passes.
 	@echo "==> $@"

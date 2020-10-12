@@ -1,0 +1,28 @@
+FROM golang:latest as build
+WORKDIR /go/src/github.com/pomerium/pomerium
+
+RUN apt-get update \
+    && apt-get -y install zip
+
+# cache depedency downloads
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+
+# build
+RUN make build-deps
+RUN make build-debug NAME=pomerium
+RUN make build-debug NAME=pomerium-cli
+RUN touch /config.yaml
+RUN go get github.com/go-delve/delve/cmd/dlv
+
+FROM alpine:latest
+ENV AUTOCERT_DIR /data/autocert
+WORKDIR /pomerium
+RUN apk add --no-cache ca-certificates
+COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
+COPY --from=build /config.yaml /pomerium/config.yaml
+COPY --from=build /go/bin/dlv /bin
+COPY scripts/debug-entrypoint.sh /
+ENTRYPOINT [ "/bin/pomerium" ]
+CMD ["-config","/pomerium/config.yaml"]
