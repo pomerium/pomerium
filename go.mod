@@ -39,9 +39,8 @@ require (
 	github.com/onsi/gomega v1.8.1 // indirect
 	github.com/open-policy-agent/opa v0.23.2
 	github.com/openzipkin/zipkin-go v0.2.5
-	github.com/ory/dockertest/v3 v3.6.0
+	github.com/ory/dockertest/v3 v3.6.1
 	github.com/pelletier/go-toml v1.6.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v1.7.1
@@ -64,7 +63,6 @@ require (
 	golang.org/x/net v0.0.0-20200927032502-5d4f70055728
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/sync v0.0.0-20201008141435-b3e1573b7520
-	golang.org/x/sys v0.0.0-20200826173525-f9321e4c35a6 // indirect
 	google.golang.org/api v0.30.0
 	google.golang.org/genproto v0.0.0-20201009135657-4d944d34d83c
 	google.golang.org/grpc v1.32.0
