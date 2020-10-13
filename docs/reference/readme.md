@@ -56,7 +56,7 @@ Administrative users are [super users](https://en.wikipedia.org/wiki/Superuser) 
 - Default: `false`
 - Optional
 
-Enabling user impersonation allowed administrators to impersonate other user accounts. Prior to v0.11.0 this feature was
+Enabling user impersonation allows administrators to impersonate other user accounts. Prior to v0.11.0 this feature was
 enabled by default. It is now disabled by default.
 
 ### Autocert
