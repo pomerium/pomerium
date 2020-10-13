@@ -73,7 +73,7 @@ allow {
 
 # allow user is admin
 allow {
-	element_in_list(data.admins, input.user.email)
+	element_in_list(data.admins, user.email)
 	contains(input.http.url, ".pomerium/admin")
 }
 

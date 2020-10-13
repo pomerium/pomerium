@@ -5,6 +5,13 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.10.0
+
+### User impersonation disabled by default
+
+With the v0.11.0 release, user impersonation by administrators is now disabled by default. To enable this feature, set
+`enable_user_impersonation` to true in the configuration options.
+
 # Since 0.9.0
 
 ## Breaking

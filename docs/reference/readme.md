@@ -48,6 +48,17 @@ Address specifies the host and port to serve HTTP requests from. If empty, `:443
 
 Administrative users are [super users](https://en.wikipedia.org/wiki/Superuser) that can sign-in as another user or group. User impersonation allows administrators to temporarily impersonate a different user.
 
+### Enable User Impersonation
+
+- Environmental Variable: `ENABLE_USER_IMPERSONATION`
+- Config File Key: `enable_user_impersonation`
+- Type: `bool`
+- Default: `false`
+- Optional
+
+Enabling user impersonation allowed administrators to impersonate other user accounts. Prior to v0.11.0 this feature was
+enabled by default. It is now disabled by default.
+
 ### Autocert
 
 - Environmental Variable: `AUTOCERT`

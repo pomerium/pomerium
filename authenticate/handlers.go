@@ -310,6 +310,12 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 func (a *Authenticate) Impersonate(w http.ResponseWriter, r *http.Request) error {
 	options := a.options.Load()
 
+	if !options.EnableUserImpersonation {
+		return httputil.NewError(http.StatusForbidden,
+			errors.New("user impersonation is currently, disabled - to enable user impersonation "+
+				"set `enable_user_impersonation` to true in the pomerium configuration options"))
+	}
+
 	redirectURL := urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{
 		Path: "/.pomerium",
 	})
@@ -522,17 +528,17 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	input := map[string]interface{}{
-		"State":             s,
-		"Session":           pbSession,
-		"User":              pbUser,
-		"DirectoryGroups":   groups,
-		"DirectoryUser":     pbDirectoryUser,
-		"csrfField":         csrf.TemplateField(r),
-		"ImpersonateAction": urlutil.QueryImpersonateAction,
-		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
-		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
-		"RedirectURL":       r.URL.Query().Get(urlutil.QueryRedirectURI),
-		"IsAdmin":           a.isAdmin(pbUser.Email),
+		"State":                   s,
+		"Session":                 pbSession,
+		"User":                    pbUser,
+		"DirectoryGroups":         groups,
+		"DirectoryUser":           pbDirectoryUser,
+		"csrfField":               csrf.TemplateField(r),
+		"ImpersonateAction":       urlutil.QueryImpersonateAction,
+		"ImpersonateEmail":        urlutil.QueryImpersonateEmail,
+		"ImpersonateGroups":       urlutil.QueryImpersonateGroups,
+		"RedirectURL":             r.URL.Query().Get(urlutil.QueryRedirectURI),
+		"EnableUserImpersonation": a.options.Load().EnableUserImpersonation && a.isAdmin(pbUser.Email),
 	}
 
 	if redirectURL, err := url.Parse(r.URL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
