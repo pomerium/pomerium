@@ -616,6 +616,7 @@ func TestAuthenticate_Dashboard(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := &Authenticate{
+				options: config.NewAtomicOptions(),
 				state: newAtomicAuthenticateState(&authenticateState{
 					sessionStore:     tt.sessionStore,
 					encryptedEncoder: signer,
