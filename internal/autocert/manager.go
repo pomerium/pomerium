@@ -22,6 +22,9 @@ import (
 var (
 	errObtainCertFailed = errors.New("obtain cert failed")
 	errRenewCertFailed  = errors.New("renew cert failed")
+
+	checkInterval = time.Minute * 10
+	acmeTemplate  = certmagic.DefaultACME
 )
 
 // Manager manages TLS certificates.
@@ -64,6 +67,18 @@ func New(src config.Source) (*Manager, error) {
 		cfg = mgr.GetConfig()
 		mgr.Trigger(cfg)
 	})
+	go func() {
+		ticker := time.NewTicker(checkInterval)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			err := mgr.renewConfigCerts()
+			if err != nil {
+				log.Error().Err(err).Msg("autocert: error updating config")
+				return
+			}
+		}
+	}()
 	return mgr, nil
 }
 
@@ -77,16 +92,48 @@ func (mgr *Manager) getCertMagicConfig(options *config.Options) (*certmagic.Conf
 			return nil, fmt.Errorf("config: failed caching cert: %w", err)
 		}
 	}
-	acmeMgr := certmagic.NewACMEManager(mgr.certmagic, certmagic.DefaultACME)
+	acmeMgr := certmagic.NewACMEManager(mgr.certmagic, acmeTemplate)
 	acmeMgr.Agreed = true
 	if options.AutocertOptions.UseStaging {
-		acmeMgr.CA = certmagic.LetsEncryptStagingCA
+		acmeMgr.CA = acmeMgr.TestCA
 	}
 	acmeMgr.DisableTLSALPNChallenge = true
 	mgr.certmagic.Issuer = acmeMgr
 	mgr.acmeMgr.Store(acmeMgr)
 
 	return mgr.certmagic, nil
+}
+
+func (mgr *Manager) renewConfigCerts() error {
+	mgr.mu.Lock()
+	defer mgr.mu.Unlock()
+
+	cfg := mgr.config
+	cm, err := mgr.getCertMagicConfig(cfg.Options)
+	if err != nil {
+		return err
+	}
+
+	needsRenewal := false
+	for _, domain := range sourceHostnames(cfg) {
+		cert, err := cm.CacheManagedCertificate(domain)
+		if err == nil && cert.NeedsRenewal(cm) {
+			needsRenewal = true
+		}
+	}
+	if !needsRenewal {
+		return nil
+	}
+
+	cfg = mgr.src.GetConfig().Clone()
+	mgr.updateServer(cfg)
+	if err := mgr.updateAutocert(cfg); err != nil {
+		return err
+	}
+
+	mgr.config = cfg
+	mgr.Trigger(cfg)
+	return nil
 }
 
 func (mgr *Manager) update(cfg *config.Config) error {
@@ -154,6 +201,7 @@ func (mgr *Manager) updateAutocert(cfg *config.Config) error {
 			log.Error().Err(err).Msg("autocert: failed to obtain client certificate")
 			continue
 		}
+
 		log.Info().Strs("names", cert.Names).Msg("autocert: added certificate")
 		cfg.Options.Certificates = append(cfg.Options.Certificates, cert.Certificate)
 	}
