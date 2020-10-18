@@ -64,6 +64,9 @@ func (a *Authorize) deniedResponse(
 }
 
 func (a *Authorize) htmlDeniedResponse(code int32, reason string, headers map[string]string) *envoy_service_auth_v2.CheckResponse {
+	opts := a.currentOptions.Load()
+	debugEndpoint := opts.GetAuthenticateURL().ResolveReference(&url.URL{Path: "/.pomerium/"})
+
 	var details string
 	switch code {
 	case httputil.StatusInvalidClientCertificate:
@@ -83,6 +86,7 @@ func (a *Authorize) htmlDeniedResponse(code int32, reason string, headers map[st
 		"Status":     code,
 		"StatusText": reason,
 		"CanDebug":   code/100 == 4,
+		"DebugURL":   debugEndpoint,
 		"Error":      details,
 	})
 	if err != nil {

@@ -22,11 +22,11 @@
             <div class="message">
               <div class="text-monospace">{{.Error}}</div>
             </div>
-            {{if .CanDebug}}
+            {{if and .CanDebug .DebugURL }}
             <div class="message">
               If you should have access, contact your administrator and provide
               them with your
-              <a href="/.pomerium/">request details</a>.
+              <a href="{{.DebugURL}}">request details</a>.
             </div>
             {{end}}
           </section>
