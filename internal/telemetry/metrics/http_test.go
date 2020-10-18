@@ -16,6 +16,7 @@ import (
 )
 
 func testDataRetrieval(v *view.View, t *testing.T, want string) {
+	t.Helper()
 	if v == nil {
 		t.Fatalf("%s: nil view passed", t.Name())
 	}
@@ -68,8 +69,8 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 			verb:                          "GET",
 			wanthttpServerRequestSize:     "{ { {host test.local}{http_method GET}{service test_service} }&{1 0 5e-324 0 0 [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
 			wanthttpServerResponseSize:    "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpServerRequestDuration: "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }&{1",
-			wanthttpServerRequestCount:    "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }&{1",
+			wanthttpServerRequestDuration: "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }",
+			wanthttpServerRequestCount:    "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }",
 		},
 		{
 			name:                          "good post",
@@ -77,8 +78,8 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 			verb:                          "POST",
 			wanthttpServerRequestSize:     "{ { {host test.local}{http_method POST}{service test_service} }&{1 0 5e-324 0 0 [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
 			wanthttpServerResponseSize:    "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpServerRequestDuration: "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }&{1",
-			wanthttpServerRequestCount:    "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }&{1",
+			wanthttpServerRequestDuration: "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }",
+			wanthttpServerRequestCount:    "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }",
 		},
 		{
 			name:                          "bad post",
@@ -86,8 +87,8 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 			verb:                          "POST",
 			wanthttpServerRequestSize:     "{ { {host test.local}{http_method POST}{service test_service} }&{1 0 5e-324 0 0 [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
 			wanthttpServerResponseSize:    "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }&{1 19 19 19 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpServerRequestDuration: "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }&{1",
-			wanthttpServerRequestCount:    "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }&{1",
+			wanthttpServerRequestDuration: "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }",
+			wanthttpServerRequestCount:    "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }",
 		},
 	}
 	for _, tt := range tests {
@@ -149,8 +150,8 @@ func Test_HTTPMetricsRoundTripper(t *testing.T) {
 			verb:                          "GET",
 			wanthttpClientRequestSize:     "{ { {destination test_destination}{host test.local}{http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
 			wanthttpClientResponseSize:    "{ { {destination test_destination}{host test.local}{http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpClientRequestDuration: "{ { {destination test_destination}{host test.local}{http.status 200}{http_method GET}{service test_service} }&{1",
-			wanthttpClientRequestCount:    "{ { {destination test_destination}{host test.local}{http.status 200}{http_method GET}{service test_service} }&{1",
+			wanthttpClientRequestDuration: "{ { {destination test_destination}{host test.local}{http.status 200}{http_method GET}{service test_service} }",
+			wanthttpClientRequestCount:    "{ { {destination test_destination}{host test.local}{http.status 200}{http_method GET}{service test_service} }",
 		},
 		{
 			name:                          "good post",
@@ -158,8 +159,8 @@ func Test_HTTPMetricsRoundTripper(t *testing.T) {
 			verb:                          "POST",
 			wanthttpClientRequestSize:     "{ { {destination test_destination}{host test.local}{http.status 200}{http_method POST}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
 			wanthttpClientResponseSize:    "{ { {destination test_destination}{host test.local}{http.status 200}{http_method POST}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpClientRequestDuration: "{ { {destination test_destination}{host test.local}{http.status 200}{http_method POST}{service test_service} }&{1",
-			wanthttpClientRequestCount:    "{ { {destination test_destination}{host test.local}{http.status 200}{http_method POST}{service test_service} }&{1",
+			wanthttpClientRequestDuration: "{ { {destination test_destination}{host test.local}{http.status 200}{http_method POST}{service test_service} }",
+			wanthttpClientRequestCount:    "{ { {destination test_destination}{host test.local}{http.status 200}{http_method POST}{service test_service} }",
 		},
 		{
 			name:                          "bad post",
@@ -167,8 +168,8 @@ func Test_HTTPMetricsRoundTripper(t *testing.T) {
 			verb:                          "POST",
 			wanthttpClientRequestSize:     "{ { {destination test_destination}{host test.local}{http.status 404}{http_method POST}{service test_service} }&{1 19 19 19 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
 			wanthttpClientResponseSize:    "{ { {destination test_destination}{host test.local}{http.status 404}{http_method POST}{service test_service} }&{1 19 19 19 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpClientRequestDuration: "{ { {destination test_destination}{host test.local}{http.status 404}{http_method POST}{service test_service} }&{1",
-			wanthttpClientRequestCount:    "{ { {destination test_destination}{host test.local}{http.status 404}{http_method POST}{service test_service} }&{1",
+			wanthttpClientRequestDuration: "{ { {destination test_destination}{host test.local}{http.status 404}{http_method POST}{service test_service} }",
+			wanthttpClientRequestCount:    "{ { {destination test_destination}{host test.local}{http.status 404}{http_method POST}{service test_service} }",
 		},
 	}
 	for _, tt := range tests {
