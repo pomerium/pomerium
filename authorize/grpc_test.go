@@ -8,6 +8,7 @@ import (
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -95,7 +96,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 		},
 		HTTP: evaluator.RequestHTTP{
 			Method: "GET",
-			URL:    "https://example.com/some/path?qs=1",
+			URL:    "http://example.com/some/path?qs=1",
 			Headers: map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
@@ -108,12 +109,12 @@ func Test_getEvaluatorRequest(t *testing.T) {
 }
 
 func Test_handleForwardAuth(t *testing.T) {
+
 	tests := []struct {
 		name           string
 		checkReq       *envoy_service_auth_v2.CheckRequest
-		attrCtxHTTPReq *envoy_service_auth_v2.AttributeContext_HttpRequest
 		forwardAuthURL string
-		isForwardAuth  bool
+		want           bool
 	}{
 		{
 			name: "enabled",
@@ -132,21 +133,14 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: &envoy_service_auth_v2.AttributeContext_HttpRequest{
-				Method: "GET",
-				Path:   "/some/path?qs=1",
-				Host:   "example.com",
-				Scheme: "https",
-			},
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  true,
+			want:           true,
 		},
 		{
 			name:           "disabled",
 			checkReq:       nil,
-			attrCtxHTTPReq: nil,
 			forwardAuthURL: "",
-			isForwardAuth:  false,
+			want:           false,
 		},
 		{
 			name: "honor x-forwarded-uri set",
@@ -170,19 +164,8 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: &envoy_service_auth_v2.AttributeContext_HttpRequest{
-				Method: "GET",
-				Path:   "/foo/bar",
-				Host:   "example.com",
-				Scheme: "https",
-				Headers: map[string]string{
-					httputil.HeaderForwardedURI:   "/foo/bar",
-					httputil.HeaderForwardedProto: "https",
-					httputil.HeaderForwardedHost:  "example.com",
-				},
-			},
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  true,
+			want:           true,
 		},
 		{
 			name: "request with invalid forward auth url",
@@ -201,9 +184,8 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: nil,
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  false,
+			want:           false,
 		},
 		{
 			name: "request with invalid path",
@@ -222,9 +204,8 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: nil,
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  false,
+			want:           true,
 		},
 		{
 			name: "request with empty uri",
@@ -243,9 +224,8 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: nil,
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  false,
+			want:           true,
 		},
 		{
 			name: "request with invalid uri",
@@ -264,9 +244,8 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: nil,
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  false,
+			want:           true,
 		},
 	}
 
@@ -279,9 +258,11 @@ func Test_handleForwardAuth(t *testing.T) {
 				fau = mustParseURL(tc.forwardAuthURL)
 			}
 			a.currentOptions.Store(&config.Options{ForwardAuthURL: fau})
-			assert.Equal(t, tc.isForwardAuth, a.handleForwardAuth(tc.checkReq))
-			if tc.attrCtxHTTPReq != nil {
-				assert.Equal(t, tc.attrCtxHTTPReq, tc.checkReq.Attributes.Request.Http)
+
+			got := a.isForwardAuth(tc.checkReq)
+
+			if diff := cmp.Diff(got, tc.want); diff != "" {
+				t.Errorf("Authorize.Check() = %s", diff)
 			}
 		})
 	}
@@ -325,7 +306,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 		Session: evaluator.RequestSession{},
 		HTTP: evaluator.RequestHTTP{
 			Method: "GET",
-			URL:    "https://example.com/some/path?qs=1",
+			URL:    "http://example.com/some/path?qs=1",
 			Headers: map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",

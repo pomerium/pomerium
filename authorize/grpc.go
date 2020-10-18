@@ -208,10 +208,8 @@ func (a *Authorize) isForwardAuth(req *envoy_service_auth_v2.CheckRequest) bool 
 	}
 
 	checkURL := getCheckRequestURL(req)
-	if urlutil.StripPort(checkURL.Host) != urlutil.StripPort(opts.GetForwardAuthURL().Host) {
-		return false
-	}
-	return true
+
+	return urlutil.StripPort(checkURL.Host) != urlutil.StripPort(opts.GetForwardAuthURL().Host)
 }
 
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v2.CheckRequest, sessionState *sessions.State) *evaluator.Request {
