@@ -58,14 +58,31 @@ func (a *Authorize) deniedResponse(
 	}
 
 	if returnHTMLError {
-		return a.htmlDeniedResponse(code, reason, headers)
+		return a.htmlDeniedResponse(in, code, reason, headers)
 	}
 	return a.plainTextDeniedResponse(code, reason, headers)
 }
 
-func (a *Authorize) htmlDeniedResponse(code int32, reason string, headers map[string]string) *envoy_service_auth_v2.CheckResponse {
+func (a *Authorize) htmlDeniedResponse(
+	in *envoy_service_auth_v2.CheckRequest,
+	code int32, reason string, headers map[string]string,
+) *envoy_service_auth_v2.CheckResponse {
+
 	opts := a.currentOptions.Load()
 	debugEndpoint := opts.GetAuthenticateURL().ResolveReference(&url.URL{Path: "/.pomerium/"})
+
+	// create go-style http request
+	r := getHTTPRequestFromCheckRequest(in)
+	redirectURL := urlutil.GetAbsoluteURL(r).String()
+	if ref := r.Header.Get(httputil.HeaderReferrer); ref != "" {
+		redirectURL = ref
+	}
+
+	debugEndpoint = debugEndpoint.ResolveReference(&url.URL{
+		RawQuery: url.Values{
+			urlutil.QueryRedirectURI: {redirectURL},
+		}.Encode(),
+	})
 
 	var details string
 	switch code {
