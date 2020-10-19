@@ -1,7 +1,6 @@
 package httputil
 
 import (
-	"encoding/json"
 	"html/template"
 	"net/http"
 
@@ -68,10 +67,7 @@ func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Header.Get("Accept") == "application/json" {
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		RenderJSON(w, e.Status, response)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")

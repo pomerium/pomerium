@@ -150,8 +150,11 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
+			sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(cryptutil.NewBase64Key())
+
 			a := &Authenticate{
 				state: newAtomicAuthenticateState(&authenticateState{
+					sharedCipher:     sharedCipher,
 					sessionStore:     tt.session,
 					redirectURL:      uriParseHelper("https://some.example"),
 					sharedEncoder:    tt.encoder,
@@ -566,7 +569,7 @@ func TestWellKnownEndpoint(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	body := rr.Body.String()
-	expected := `{"jwks_uri":"https://auth.example.com/.well-known/pomerium/jwks.json","authentication_callback_endpoint":"https://auth.example.com/oauth2/callback"}`
+	expected := "{\"jwks_uri\":\"https://auth.example.com/.well-known/pomerium/jwks.json\",\"authentication_callback_endpoint\":\"https://auth.example.com/oauth2/callback\"}\n"
 	assert.Equal(t, body, expected)
 }
 
@@ -587,7 +590,7 @@ func TestJwksEndpoint(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	body := rr.Body.String()
-	expected := `{"keys":[{"use":"sig","kty":"EC","kid":"5b419ade1895fec2d2def6cd33b1b9a018df60db231dc5ecb85cbed6d942813c","crv":"P-256","alg":"ES256","x":"UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo","y":"KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ"}]}`
+	expected := "{\"keys\":[{\"use\":\"sig\",\"kty\":\"EC\",\"kid\":\"5b419ade1895fec2d2def6cd33b1b9a018df60db231dc5ecb85cbed6d942813c\",\"crv\":\"P-256\",\"alg\":\"ES256\",\"x\":\"UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo\",\"y\":\"KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ\"}]}\n"
 	assert.Equal(t, expected, body)
 }
 func TestAuthenticate_Dashboard(t *testing.T) {
