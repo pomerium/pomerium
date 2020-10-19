@@ -1,6 +1,7 @@
 package httputil
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,11 +36,14 @@ func Redirect(w http.ResponseWriter, r *http.Request, url string, code int) {
 func RenderJSON(w http.ResponseWriter, code int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(code)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
+	b := new(bytes.Buffer)
+	if err := json.NewEncoder(b).Encode(v); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, `{"error":"%s"}`, err)
+		fmt.Fprintf(b, `{"error":"%s"}`, err)
+	} else {
+		w.WriteHeader(code)
 	}
+	fmt.Fprint(w, b)
 }
 
 // The HandlerFunc type is an adapter to allow the use of

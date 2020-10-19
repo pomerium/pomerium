@@ -101,9 +101,10 @@ func TestRenderJSON(t *testing.T) {
 		code     int
 		v        interface{}
 		wantBody string
+		wantCode int
 	}{
 		{"simple",
-			http.StatusOK,
+			http.StatusTeapot,
 			struct {
 				A string
 				B string
@@ -113,7 +114,9 @@ func TestRenderJSON(t *testing.T) {
 				B: "B",
 				C: 1,
 			},
-			"{\"A\":\"A\",\"B\":\"B\",\"C\":1}\n"},
+			"{\"A\":\"A\",\"B\":\"B\",\"C\":1}\n",
+			http.StatusTeapot,
+		},
 		{"map",
 			http.StatusOK,
 			map[string]interface{}{
@@ -122,13 +125,14 @@ func TestRenderJSON(t *testing.T) {
 				"B": "B",
 			},
 			// alphabetical
-			"{\"A\":\"A\",\"B\":\"B\",\"C\":1}\n"},
+			"{\"A\":\"A\",\"B\":\"B\",\"C\":1}\n", http.StatusOK,
+		},
 		{"bad!",
 			http.StatusOK,
 			map[string]interface{}{
 				"BAD BOI": math.Inf(1),
 			},
-			`{"error":"json: unsupported value: +Inf"}`},
+			`{"error":"json: unsupported value: +Inf"}`, http.StatusInternalServerError},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -136,6 +140,9 @@ func TestRenderJSON(t *testing.T) {
 
 			RenderJSON(w, tt.code, tt.v)
 			if diff := cmp.Diff(tt.wantBody, w.Body.String()); diff != "" {
+				t.Errorf("TestRenderJSON:\n %s", diff)
+			}
+			if diff := cmp.Diff(tt.wantCode, w.Result().StatusCode); diff != "" {
 				t.Errorf("TestRenderJSON:\n %s", diff)
 			}
 		})
