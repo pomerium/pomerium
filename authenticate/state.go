@@ -17,7 +17,6 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/sessions/header"
-	"github.com/pomerium/pomerium/internal/sessions/queryparam"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
@@ -32,6 +31,10 @@ type authenticateState struct {
 	// sharedEncoder is the encoder to use to serialize data to be consumed
 	// by other services
 	sharedEncoder encoding.MarshalUnmarshaler
+	// sharedSecret is the secret to encrypt and authenticate data shared between services
+	sharedSecret []byte
+	// sharedCipher is the cipher to use to encrypt/decrypt data shared between services
+	sharedCipher cipher.AEAD
 	// cookieSecret is the secret to encrypt and authenticate session data
 	cookieSecret []byte
 	// cookieCipher is the cipher to use to encrypt/decrypt session data
@@ -79,12 +82,15 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		return nil, err
 	}
 
+	// shared cipher to encrypt data before passing data between services
+	state.sharedSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	state.sharedCipher, _ = cryptutil.NewAEADCipher(state.sharedSecret)
+
 	// private state encoder setup, used to encrypt oauth2 tokens
 	state.cookieSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
 	state.cookieCipher, _ = cryptutil.NewAEADCipher(state.cookieSecret)
 	state.encryptedEncoder = ecjson.New(state.cookieCipher)
 
-	qpStore := queryparam.NewStore(state.encryptedEncoder, urlutil.QueryProgrammaticToken)
 	headerStore := header.NewStore(state.encryptedEncoder, httputil.AuthorizationTypePomerium)
 
 	cookieStore, err := cookie.NewStore(func() cookie.Options {
@@ -101,7 +107,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	}
 
 	state.sessionStore = cookieStore
-	state.sessionLoaders = []sessions.SessionLoader{qpStore, headerStore, cookieStore}
+	state.sessionLoaders = []sessions.SessionLoader{headerStore, cookieStore}
 
 	state.jwk = new(jose.JSONWebKeySet)
 	if cfg.Options.SigningKey != "" {

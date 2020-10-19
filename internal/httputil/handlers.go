@@ -1,6 +1,8 @@
 package httputil
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,6 +27,23 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 func Redirect(w http.ResponseWriter, r *http.Request, url string, code int) {
 	w.Header().Set(HeaderPomeriumResponse, "true")
 	http.Redirect(w, r, url, code)
+}
+
+// RenderJSON replies to the request with the specified struct as JSON and HTTP code.
+// It does not otherwise end the request; the caller should ensure no further
+// writes are done to w.
+// The error message should be application/json.
+func RenderJSON(w http.ResponseWriter, code int, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	b := new(bytes.Buffer)
+	if err := json.NewEncoder(b).Encode(v); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(b, `{"error":"%s"}`, err)
+	} else {
+		w.WriteHeader(code)
+	}
+	fmt.Fprint(w, b)
 }
 
 // The HandlerFunc type is an adapter to allow the use of

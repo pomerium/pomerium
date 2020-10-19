@@ -2,6 +2,7 @@ package httputil
 
 import (
 	"errors"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -88,6 +89,61 @@ func TestHandlerFunc_ServeHTTP(t *testing.T) {
 			tt.f.ServeHTTP(w, r)
 			if diff := cmp.Diff(tt.wantBody, w.Body.String()); diff != "" {
 				t.Errorf("ErrorResponse status:\n %s", diff)
+			}
+		})
+	}
+}
+
+func TestRenderJSON(t *testing.T) {
+
+	tests := []struct {
+		name     string
+		code     int
+		v        interface{}
+		wantBody string
+		wantCode int
+	}{
+		{"simple",
+			http.StatusTeapot,
+			struct {
+				A string
+				B string
+				C int
+			}{
+				A: "A",
+				B: "B",
+				C: 1,
+			},
+			"{\"A\":\"A\",\"B\":\"B\",\"C\":1}\n",
+			http.StatusTeapot,
+		},
+		{"map",
+			http.StatusOK,
+			map[string]interface{}{
+				"C": 1, // notice order does not matter
+				"A": "A",
+				"B": "B",
+			},
+			// alphabetical
+			"{\"A\":\"A\",\"B\":\"B\",\"C\":1}\n", http.StatusOK,
+		},
+		{"bad!",
+			http.StatusOK,
+			map[string]interface{}{
+				"BAD BOI": math.Inf(1),
+			},
+			`{"error":"json: unsupported value: +Inf"}`, http.StatusInternalServerError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+
+			RenderJSON(w, tt.code, tt.v)
+			if diff := cmp.Diff(tt.wantBody, w.Body.String()); diff != "" {
+				t.Errorf("TestRenderJSON:\n %s", diff)
+			}
+			if diff := cmp.Diff(tt.wantCode, w.Result().StatusCode); diff != "" {
+				t.Errorf("TestRenderJSON:\n %s", diff)
 			}
 		})
 	}

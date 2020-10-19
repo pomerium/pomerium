@@ -3,7 +3,6 @@ package authenticate
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -66,8 +65,8 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	v := r.PathPrefix("/.pomerium").Subrouter()
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
-			options := a.options.Load()
-			err := middleware.ValidateRequestURL(r, options.SharedKey)
+			state := a.state.Load()
+			err := middleware.ValidateRequestURL(r, string(state.sharedSecret))
 			if err != nil {
 				log.FromRequest(r).Info().Err(err).Msg("authenticate: origin blocked")
 			}
@@ -89,12 +88,6 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	wk := r.PathPrefix("/.well-known/pomerium").Subrouter()
 	wk.Path("/jwks.json").Handler(httputil.HandlerFunc(a.jwks)).Methods(http.MethodGet)
 	wk.Path("/").Handler(httputil.HandlerFunc(a.wellKnown)).Methods(http.MethodGet)
-
-	// programmatic access api endpoint
-	api := r.PathPrefix("/api").Subrouter()
-	api.Use(func(h http.Handler) http.Handler {
-		return sessions.RetrieveSession(a.state.Load().sessionLoaders...)(h)
-	})
 }
 
 // Well-Known Uniform Resource Identifiers (URIs)
@@ -111,28 +104,12 @@ func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 		state.redirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
 		state.redirectURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	jBytes, err := json.Marshal(wellKnownURLS)
-	if err != nil {
-		return err
-	}
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "%s", jBytes)
+	httputil.RenderJSON(w, http.StatusOK, wellKnownURLS)
 	return nil
 }
 
 func (a *Authenticate) jwks(w http.ResponseWriter, r *http.Request) error {
-	state := a.state.Load()
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	jBytes, err := json.Marshal(state.jwk)
-	if err != nil {
-		return err
-	}
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "%s", jBytes)
+	httputil.RenderJSON(w, http.StatusOK, a.state.Load().jwk)
 	return nil
 }
 
@@ -151,12 +128,12 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
-		if state.dataBrokerClient != nil {
-			_, err = session.Get(ctx, state.dataBrokerClient, sessionState.ID)
-			if err != nil {
-				log.FromRequest(r).Info().Err(err).Str("id", sessionState.ID).Msg("authenticate: session not found in databroker")
-				return a.reauthenticateOrFail(w, r, err)
-			}
+		if state.dataBrokerClient == nil {
+			return errors.New("authenticate: databroker client cannot be nil")
+		}
+		if _, err = session.Get(ctx, state.dataBrokerClient, sessionState.ID); err != nil {
+			log.FromRequest(r).Info().Err(err).Str("id", sessionState.ID).Msg("authenticate: session not found in databroker")
+			return a.reauthenticateOrFail(w, r, err)
 		}
 
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -178,11 +155,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	options := a.options.Load()
 	state := a.state.Load()
-
-	sharedCipher, err := cryptutil.NewAEADCipherFromBase64(options.SharedKey)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
 
 	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {
@@ -241,8 +213,8 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	// encrypt our route-based token JWT avoiding any accidental logging
-	encryptedJWT := cryptutil.Encrypt(sharedCipher, signedJWT, nil)
+	// encrypt our route-scoped JWT to avoid accidental logging of queryparams
+	encryptedJWT := cryptutil.Encrypt(a.state.Load().sharedCipher, signedJWT, nil)
 	// base64 our encrypted payload for URL-friendlyness
 	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
 
@@ -413,7 +385,8 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
-	err = a.saveSessionToDataBroker(r.Context(), &s, accessToken)
+	// save the session and access token to the databroker
+	err = a.saveSessionToDataBroker(ctx, &s, accessToken)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
@@ -550,11 +523,7 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 		input["SignOutURL"] = "/.pomerium/sign_out"
 	}
 
-	err = a.templates.ExecuteTemplate(w, "dashboard.html", input)
-	if err != nil {
-		log.Warn().Err(err).Interface("input", input).Msg("proxy: error rendering dashboard")
-	}
-	return nil
+	return a.templates.ExecuteTemplate(w, "dashboard.html", input)
 }
 
 func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState *sessions.State, accessToken *oauth2.Token) error {
