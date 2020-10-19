@@ -1,7 +1,7 @@
 {
   "devDependencies": {
-    "@vuepress/plugin-google-analytics": "1.6.0",
-    "vuepress": "1.6.0",
+    "@vuepress/plugin-google-analytics": "1.7.1",
+    "vuepress": "1.7.1",
     "vuepress-plugin-check-md": "0.0.2",
     "vuepress-plugin-sitemap": "2.3.1"
   },
