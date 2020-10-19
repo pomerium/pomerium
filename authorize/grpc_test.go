@@ -8,8 +8,11 @@ import (
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
@@ -95,7 +98,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 		},
 		HTTP: evaluator.RequestHTTP{
 			Method: "GET",
-			URL:    "https://example.com/some/path?qs=1",
+			URL:    "http://example.com/some/path?qs=1",
 			Headers: map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
@@ -108,12 +111,12 @@ func Test_getEvaluatorRequest(t *testing.T) {
 }
 
 func Test_handleForwardAuth(t *testing.T) {
+
 	tests := []struct {
 		name           string
 		checkReq       *envoy_service_auth_v2.CheckRequest
-		attrCtxHTTPReq *envoy_service_auth_v2.AttributeContext_HttpRequest
 		forwardAuthURL string
-		isForwardAuth  bool
+		want           bool
 	}{
 		{
 			name: "enabled",
@@ -132,21 +135,14 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: &envoy_service_auth_v2.AttributeContext_HttpRequest{
-				Method: "GET",
-				Path:   "/some/path?qs=1",
-				Host:   "example.com",
-				Scheme: "https",
-			},
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  true,
+			want:           true,
 		},
 		{
 			name:           "disabled",
 			checkReq:       nil,
-			attrCtxHTTPReq: nil,
 			forwardAuthURL: "",
-			isForwardAuth:  false,
+			want:           false,
 		},
 		{
 			name: "honor x-forwarded-uri set",
@@ -170,19 +166,8 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: &envoy_service_auth_v2.AttributeContext_HttpRequest{
-				Method: "GET",
-				Path:   "/foo/bar",
-				Host:   "example.com",
-				Scheme: "https",
-				Headers: map[string]string{
-					httputil.HeaderForwardedURI:   "/foo/bar",
-					httputil.HeaderForwardedProto: "https",
-					httputil.HeaderForwardedHost:  "example.com",
-				},
-			},
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  true,
+			want:           true,
 		},
 		{
 			name: "request with invalid forward auth url",
@@ -201,9 +186,8 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: nil,
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  false,
+			want:           false,
 		},
 		{
 			name: "request with invalid path",
@@ -222,9 +206,8 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: nil,
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  false,
+			want:           true,
 		},
 		{
 			name: "request with empty uri",
@@ -243,9 +226,8 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: nil,
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  false,
+			want:           true,
 		},
 		{
 			name: "request with invalid uri",
@@ -264,9 +246,8 @@ func Test_handleForwardAuth(t *testing.T) {
 					},
 				},
 			},
-			attrCtxHTTPReq: nil,
 			forwardAuthURL: "https://forward-auth.example.com",
-			isForwardAuth:  false,
+			want:           true,
 		},
 	}
 
@@ -279,9 +260,11 @@ func Test_handleForwardAuth(t *testing.T) {
 				fau = mustParseURL(tc.forwardAuthURL)
 			}
 			a.currentOptions.Store(&config.Options{ForwardAuthURL: fau})
-			assert.Equal(t, tc.isForwardAuth, a.handleForwardAuth(tc.checkReq))
-			if tc.attrCtxHTTPReq != nil {
-				assert.Equal(t, tc.attrCtxHTTPReq, tc.checkReq.Attributes.Request.Http)
+
+			got := a.isForwardAuth(tc.checkReq)
+
+			if diff := cmp.Diff(got, tc.want); diff != "" {
+				t.Errorf("Authorize.Check() = %s", diff)
 			}
 		})
 	}
@@ -325,7 +308,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 		Session: evaluator.RequestSession{},
 		HTTP: evaluator.RequestHTTP{
 			Method: "GET",
-			URL:    "https://example.com/some/path?qs=1",
+			URL:    "http://example.com/some/path?qs=1",
 			Headers: map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
@@ -485,4 +468,96 @@ type mockDataBrokerServiceClient struct {
 
 func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 	return m.get(ctx, in, opts...)
+}
+
+func TestAuthorize_Check(t *testing.T) {
+	opt := config.NewDefaultOptions()
+	opt.AuthenticateURL = mustParseURL("https://authenticate.example.com")
+	opt.DataBrokerURL = mustParseURL("https://databroker.example.com")
+	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
+	a, err := New(&config.Config{Options: opt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.currentOptions.Store(&config.Options{ForwardAuthURL: mustParseURL("https://forward-auth.example.com")})
+
+	cmpOpts := []cmp.Option{
+		cmpopts.IgnoreUnexported(envoy_service_auth_v2.CheckResponse{}),
+		cmpopts.IgnoreUnexported(status.Status{}),
+		cmpopts.IgnoreTypes(envoy_service_auth_v2.DeniedHttpResponse{}),
+	}
+	tests := []struct {
+		name    string
+		in      *envoy_service_auth_v2.CheckRequest
+		want    *envoy_service_auth_v2.CheckResponse
+		wantErr bool
+	}{
+		{"basic deny",
+			&envoy_service_auth_v2.CheckRequest{
+				Attributes: &envoy_service_auth_v2.AttributeContext{
+					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+						Certificate: url.QueryEscape(certPEM),
+					},
+					Request: &envoy_service_auth_v2.AttributeContext_Request{
+						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+							Id:     "id-1234",
+							Method: "GET",
+							Headers: map[string]string{
+								"accept":            "application/json",
+								"x-forwarded-proto": "https",
+							},
+							Path:   "/some/path?qs=1",
+							Host:   "example.com",
+							Scheme: "http",
+							Body:   "BODY",
+						},
+					},
+				},
+			},
+			&envoy_service_auth_v2.CheckResponse{
+				Status: &status.Status{Code: 7, Message: "Access Denied"},
+				HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
+					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{},
+				},
+			},
+			false},
+		{"basic forward-auth deny",
+			&envoy_service_auth_v2.CheckRequest{
+				Attributes: &envoy_service_auth_v2.AttributeContext{
+					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+						Certificate: url.QueryEscape(certPEM),
+					},
+					Request: &envoy_service_auth_v2.AttributeContext_Request{
+						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+							Method: "GET",
+							Path:   "/verify?uri=" + url.QueryEscape("https://example.com/some/path?qs=1"),
+							Host:   "forward-auth.example.com",
+							Scheme: "https",
+						},
+					},
+				},
+			},
+			&envoy_service_auth_v2.CheckResponse{
+				Status: &status.Status{Code: 7, Message: "Access Denied"},
+				HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
+					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{},
+				},
+			},
+			false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := a.Check(context.TODO(), tt.in)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Authorize.Check() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if diff := cmp.Diff(got, tt.want, cmpOpts...); diff != "" {
+				t.Errorf("NewStore() = %s", diff)
+			}
+
+		})
+	}
 }

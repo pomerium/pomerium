@@ -39,9 +39,21 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 
 	state := a.state.Load()
 
-	// maybe rewrite http request for forward auth
-	isForwardAuth := a.handleForwardAuth(in)
+	// convert the incoming envoy-style http request into a go-style http request
 	hreq := getHTTPRequestFromCheckRequest(in)
+
+	isForwardAuth := a.isForwardAuth(in)
+	if isForwardAuth {
+		// update the incoming http request's uri to match the forwarded URI
+		fwdAuthURI := getForwardAuthURL(hreq)
+		in.Attributes.Request.Http.Scheme = fwdAuthURI.Scheme
+		in.Attributes.Request.Http.Host = fwdAuthURI.Host
+		in.Attributes.Request.Http.Path = fwdAuthURI.Path
+		if fwdAuthURI.RawQuery != "" {
+			in.Attributes.Request.Http.Path += "?" + fwdAuthURI.RawQuery
+		}
+	}
+
 	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), state.encoder)
 	sessionState, _ := loadSession(state.encoder, rawJWT)
 
@@ -65,7 +77,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	case reply.Status == http.StatusOK:
 		return a.okResponse(reply), nil
 	case reply.Status == http.StatusUnauthorized:
-		if isForwardAuth {
+		if isForwardAuth && hreq.URL.Path == "/verify" {
 			return a.deniedResponse(in, http.StatusUnauthorized, "Unauthenticated", nil), nil
 		}
 		return a.redirectResponse(in), nil
@@ -172,7 +184,23 @@ func (a *Authorize) getEnvoyRequestHeaders(signedJWT string) ([]*envoy_api_v2_co
 	return hvos, nil
 }
 
-func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) bool {
+func getForwardAuthURL(r *http.Request) *url.URL {
+	urqQuery := r.URL.Query().Get("uri")
+	u, _ := urlutil.ParseAndValidateURL(urqQuery)
+	if u == nil {
+		u = &url.URL{
+			Scheme: r.Header.Get(httputil.HeaderForwardedProto),
+			Host:   r.Header.Get(httputil.HeaderForwardedHost),
+			Path:   r.Header.Get(httputil.HeaderForwardedURI),
+		}
+	}
+	// todo(bdd): handle httputil.HeaderOriginalURL which incorporates
+	// 			  path and query params
+	return u
+}
+
+// isForwardAuth returns if the current request is a forward auth route.
+func (a *Authorize) isForwardAuth(req *envoy_service_auth_v2.CheckRequest) bool {
 	opts := a.currentOptions.Load()
 
 	if opts.ForwardAuthURL == nil {
@@ -180,37 +208,8 @@ func (a *Authorize) handleForwardAuth(req *envoy_service_auth_v2.CheckRequest) b
 	}
 
 	checkURL := getCheckRequestURL(req)
-	if urlutil.StripPort(checkURL.Host) != urlutil.StripPort(opts.GetForwardAuthURL().Host) {
-		return false
-	}
 
-	uriQuery := checkURL.Query().Get("uri")
-	if headers := req.GetAttributes().GetRequest().GetHttp().GetHeaders(); uriQuery == "" && headers != nil {
-		uriQuery = headers[http.CanonicalHeaderKey(httputil.HeaderForwardedProto)] + "://" +
-			headers[http.CanonicalHeaderKey(httputil.HeaderForwardedHost)]
-		if xfu := headers[http.CanonicalHeaderKey(httputil.HeaderForwardedURI)]; xfu != "/" {
-			uriQuery += xfu
-		}
-	}
-
-	if (checkURL.Path != "/" && checkURL.Path != "/verify") || uriQuery == "" {
-		return false
-	}
-	verifyURL, err := url.Parse(uriQuery)
-	if err != nil {
-		log.Warn().Str("uri", checkURL.Query().Get("uri")).Err(err).Msg("failed to parse uri for forward authentication")
-		return false
-	}
-
-	req.Attributes.Request.Http.Scheme = verifyURL.Scheme
-	req.Attributes.Request.Http.Host = verifyURL.Host
-	req.Attributes.Request.Http.Path = verifyURL.Path
-
-	// envoy sends the query string as part of the path
-	if verifyURL.RawQuery != "" {
-		req.Attributes.Request.Http.Path += "?" + verifyURL.RawQuery
-	}
-	return true
+	return urlutil.StripPort(checkURL.Host) == urlutil.StripPort(opts.GetForwardAuthURL().Host)
 }
 
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v2.CheckRequest, sessionState *sessions.State) *evaluator.Request {
@@ -290,20 +289,6 @@ func getCheckRequestURL(req *envoy_service_auth_v2.CheckRequest) *url.URL {
 		u.Path, u.RawQuery = path[:idx], path[idx+1:]
 	} else {
 		u.Path = path
-	}
-
-	// check to make sure this is _not_ a verify endpoint and that forwarding
-	// headers are set. If so, infer the true authorization location from thos
-	if u.Path != "/verify" && h.GetHeaders() != nil {
-		if val, ok := h.GetHeaders()["x-forwarded-proto"]; ok && val != "" {
-			u.Scheme = val
-		}
-		if val, ok := h.GetHeaders()["x-forwarded-host"]; ok && val != "" {
-			u.Host = val
-		}
-		if val, ok := h.GetHeaders()["x-forwarded-uri"]; ok && val != "" && val != "/" {
-			u.Path = val
-		}
 	}
 	return u
 }

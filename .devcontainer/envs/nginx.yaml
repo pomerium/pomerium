@@ -10,8 +10,6 @@ services:
       - ../../examples/nginx/httpbin.conf:/etc/nginx/conf.d/httpbin.conf
       - ../../examples/nginx/pomerium.conf:/etc/nginx/conf.d/pomerium.conf
       - ../../examples/nginx/proxy.conf:/etc/nginx/proxy.conf
-      - ../../examples/nginx/auth.conf:/etc/nginx/auth.conf
-      - ../../examples/nginx/ext_authz.conf:/etc/nginx/ext_authz.conf
       - ../../examples/nginx/_wildcard.localhost.pomerium.io.pem:/etc/nginx/nginx.pem
       - ../../examples/nginx/_wildcard.localhost.pomerium.io-key.pem:/etc/nginx/nginx-key.pem
 
