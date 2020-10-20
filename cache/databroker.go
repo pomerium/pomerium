@@ -19,8 +19,8 @@ type dataBrokerServer struct {
 	sharedKey atomic.Value
 }
 
-// NewDataBrokerServer creates a new databroker service server.
-func NewDataBrokerServer(cfg *config.Config) *dataBrokerServer {
+// newDataBrokerServer creates a new databroker service server.
+func newDataBrokerServer(cfg *config.Config) *dataBrokerServer {
 	srv := &dataBrokerServer{}
 	srv.server = databroker.New(srv.getOptions(cfg)...)
 	srv.setKey(cfg)

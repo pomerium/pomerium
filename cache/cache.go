@@ -71,7 +71,7 @@ func New(cfg *config.Config) (*Cache, error) {
 		return nil, err
 	}
 
-	dataBrokerServer := NewDataBrokerServer(cfg)
+	dataBrokerServer := newDataBrokerServer(cfg)
 
 	c := &Cache{
 		dataBrokerServer:             dataBrokerServer,
