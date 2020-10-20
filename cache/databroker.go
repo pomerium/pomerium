@@ -23,19 +23,14 @@ type dataBrokerServer struct {
 func NewDataBrokerServer(cfg *config.Config) *dataBrokerServer {
 	srv := &dataBrokerServer{}
 	srv.server = databroker.New(srv.getOptions(cfg)...)
-
-	bs, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
-	srv.sharedKey.Store(bs)
-
+	srv.setKey(cfg)
 	return srv
 }
 
 // OnConfigChange updates the underlying databroker server whenever configuration is changed.
 func (srv *dataBrokerServer) OnConfigChange(cfg *config.Config) {
 	srv.server.UpdateConfig(srv.getOptions(cfg)...)
-
-	bs, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
-	srv.sharedKey.Store(bs)
+	srv.setKey(cfg)
 }
 
 func (srv *dataBrokerServer) getOptions(cfg *config.Config) []databroker.ServerOption {
@@ -47,6 +42,14 @@ func (srv *dataBrokerServer) getOptions(cfg *config.Config) []databroker.ServerO
 		databroker.WithStorageCertificate(cfg.Options.DataBrokerCertificate),
 		databroker.WithStorageCertSkipVerify(cfg.Options.DataBrokerStorageCertSkipVerify),
 	}
+}
+
+func (srv *dataBrokerServer) setKey(cfg *config.Config) {
+	bs, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	if bs == nil {
+		bs = make([]byte, 0)
+	}
+	srv.sharedKey.Store(bs)
 }
 
 func (srv *dataBrokerServer) Delete(ctx context.Context, req *databrokerpb.DeleteRequest) (*empty.Empty, error) {

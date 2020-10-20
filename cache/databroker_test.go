@@ -28,6 +28,7 @@ func init() {
 	s := grpc.NewServer()
 	internalSrv := internal_databroker.New()
 	srv := &dataBrokerServer{server: internalSrv}
+	srv.sharedKey.Store([]byte{})
 	databroker.RegisterDataBrokerServiceServer(s, srv)
 
 	go func() {
