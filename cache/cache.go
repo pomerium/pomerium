@@ -28,7 +28,7 @@ import (
 // Cache represents the cache service. The cache service is a simple interface
 // for storing keyed blobs (bytes) of unstructured data.
 type Cache struct {
-	dataBrokerServer *DataBrokerServer
+	dataBrokerServer *dataBrokerServer
 	manager          *manager.Manager
 
 	localListener                net.Listener
@@ -52,10 +52,7 @@ func New(cfg *config.Config) (*Cache, error) {
 
 	// No metrics handler because we have one in the control plane.  Add one
 	// if we no longer register with that grpc Server
-	localGRPCServer := grpc.NewServer(
-		grpc.StreamInterceptor(grpcutil.StreamRequireSignedJWT(cfg.Options.SharedKey)),
-		grpc.UnaryInterceptor(grpcutil.UnaryRequireSignedJWT(cfg.Options.SharedKey)),
-	)
+	localGRPCServer := grpc.NewServer()
 
 	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(cfg.Options.Services)
 	clientDialOptions := []grpc.DialOption{
@@ -74,7 +71,7 @@ func New(cfg *config.Config) (*Cache, error) {
 		return nil, err
 	}
 
-	dataBrokerServer := NewDataBrokerServer(localGRPCServer, cfg)
+	dataBrokerServer := newDataBrokerServer(cfg)
 
 	c := &Cache{
 		dataBrokerServer:             dataBrokerServer,
@@ -84,6 +81,7 @@ func New(cfg *config.Config) (*Cache, error) {
 		deprecatedCacheClusterDomain: cfg.Options.GetDataBrokerURL().Hostname(),
 		dataBrokerStorageType:        cfg.Options.DataBrokerStorageType,
 	}
+	c.Register(c.localGRPCServer)
 
 	err = c.update(cfg)
 	if err != nil {
