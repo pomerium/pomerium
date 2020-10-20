@@ -66,7 +66,7 @@ func withSignedJWT(ctx context.Context, key []byte) (context.Context, error) {
 func UnaryRequireSignedJWT(key string) grpc.UnaryServerInterceptor {
 	keyBS, _ := base64.StdEncoding.DecodeString(key)
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-		if err := requireSignedJWT(ctx, keyBS); err != nil {
+		if err := RequireSignedJWT(ctx, keyBS); err != nil {
 			return nil, err
 		}
 		return handler(ctx, req)
@@ -77,14 +77,15 @@ func UnaryRequireSignedJWT(key string) grpc.UnaryServerInterceptor {
 func StreamRequireSignedJWT(key string) grpc.StreamServerInterceptor {
 	keyBS, _ := base64.StdEncoding.DecodeString(key)
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		if err := requireSignedJWT(ss.Context(), keyBS); err != nil {
+		if err := RequireSignedJWT(ss.Context(), keyBS); err != nil {
 			return err
 		}
 		return handler(srv, ss)
 	}
 }
 
-func requireSignedJWT(ctx context.Context, key []byte) error {
+// RequireSignedJWT requires a JWT in the gRPC metadata and that it be signed by the given key.
+func RequireSignedJWT(ctx context.Context, key []byte) error {
 	if len(key) > 0 {
 		rawjwt, ok := JWTFromGRPCRequest(ctx)
 		if !ok {
