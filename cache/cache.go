@@ -71,7 +71,7 @@ func New(cfg *config.Config) (*Cache, error) {
 		return nil, err
 	}
 
-	dataBrokerServer := NewDataBrokerServer(localGRPCServer, cfg)
+	dataBrokerServer := NewDataBrokerServer(cfg)
 
 	c := &Cache{
 		dataBrokerServer:             dataBrokerServer,
@@ -81,6 +81,7 @@ func New(cfg *config.Config) (*Cache, error) {
 		deprecatedCacheClusterDomain: cfg.Options.GetDataBrokerURL().Hostname(),
 		dataBrokerStorageType:        cfg.Options.DataBrokerStorageType,
 	}
+	c.Register(c.localGRPCServer)
 
 	err = c.update(cfg)
 	if err != nil {
