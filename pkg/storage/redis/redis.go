@@ -5,8 +5,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +18,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -31,14 +32,16 @@ var _ storage.Backend = (*DB)(nil)
 
 // DB wraps redis conn to interact with redis server.
 type DB struct {
-	pool                  *redis.Pool
 	recordType            string
 	lastVersionKey        string
 	lastVersionChannelKey string
 	versionSet            string
 	deletedSet            string
+	rawURL                string
 	tlsConfig             *tls.Config
-	notifyChMu            sync.Mutex
+
+	pool          *redis.Pool
+	pubSubTracker *pubSubTracker
 
 	closeOnce sync.Once
 	closed    chan struct{}
@@ -52,6 +55,7 @@ func New(rawURL, recordType string, opts ...Option) (*DB, error) {
 		deletedSet:            recordType + "_deleted_set",
 		lastVersionKey:        recordType + "_last_version",
 		lastVersionChannelKey: recordType + "_last_version_ch",
+		rawURL:                rawURL,
 		closed:                make(chan struct{}),
 	}
 
@@ -61,12 +65,9 @@ func New(rawURL, recordType string, opts ...Option) (*DB, error) {
 	db.pool = &redis.Pool{
 		Wait: true,
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.DialURL(rawURL, redis.DialTLSConfig(db.tlsConfig))
-			if err != nil {
-				return nil, fmt.Errorf(`redis.DialURL(): %w`, err)
-			}
-			return c, nil
+			return db.dial(context.Background())
 		},
+		DialContext: db.dial,
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
 			if time.Since(t) < time.Minute {
 				return nil
@@ -78,6 +79,7 @@ func New(rawURL, recordType string, opts ...Option) (*DB, error) {
 			return nil
 		},
 	}
+	db.pubSubTracker = newPubSubTracker(db)
 	metrics.AddRedisMetrics(db.pool.Stats)
 	return db, nil
 }
@@ -257,91 +259,111 @@ func (db *DB) ClearDeleted(ctx context.Context, cutoff time.Time) {
 	}
 }
 
-// doNotifyLoop receives event from redis and send signal to the channel.
-func (db *DB) doNotifyLoop(ctx context.Context, ch chan struct{}) {
-	eb := backoff.NewExponentialBackOff()
-	psConn := db.pool.Get()
-	psc := redis.PubSubConn{Conn: psConn}
-	defer func(psc *redis.PubSubConn) {
-		psc.Conn.Close()
-	}(&psc)
+// signalWithPubSub receives event from redis and send signal to the channel.
+func (db *DB) signalWithPubSub(ctx context.Context, s *signal.Signal) {
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
 
-	if err := psc.Subscribe(db.lastVersionChannelKey); err != nil {
-		log.Error().Err(err).Msg("failed to subscribe to version set channel")
-		return
-	}
+	// loop until the db is closed or the context is Done. We use exp backoff on errors.
+	wait := time.After(0)
 	for {
 		select {
-		case <-db.closed:
-			return
 		case <-ctx.Done():
 			return
-		default:
+		case <-db.closed:
+			return
+		case <-wait:
 		}
-		switch v := psc.Receive().(type) {
+		db.signalWithPubSubOnce(ctx, s, bo)
+
+		wait = time.After(bo.NextBackOff())
+	}
+}
+
+func (db *DB) signalWithPubSubOnce(ctx context.Context, s *signal.Signal, bo backoff.BackOff) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// get a connection from the pub sub tracker to make sure we aren't leaking connections
+	conn, err := db.pubSubTracker.Get(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get redis connection")
+		return
+	}
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-db.closed:
+		}
+		_ = conn.Close()
+	}()
+
+	// subscribe to pubsub
+	err = conn.Subscribe(db.lastVersionChannelKey)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to subscribe to redis channel")
+		return
+	}
+
+	for {
+		switch v := conn.Receive().(type) {
 		case redis.Message:
 			log.Debug().Str("action", string(v.Data)).Msg("got redis message")
 			recordOperation(ctx, time.Now(), "sub_received", nil)
 
-			select {
-			case <-db.closed:
-				return
-			case <-ctx.Done():
-				log.Warn().Err(ctx.Err()).Msg("context done, stop receive from redis channel")
-				return
-			default:
-				db.notifyChMu.Lock()
-				select {
-				case <-db.closed:
-					db.notifyChMu.Unlock()
-					return
-				case <-ctx.Done():
-					db.notifyChMu.Unlock()
-					log.Warn().Err(ctx.Err()).Msg("context done while holding notify lock, stop receive from redis channel")
-					return
-				case ch <- struct{}{}:
-				}
-				db.notifyChMu.Unlock()
-			}
+			// reset the backoff since we got a successful result
+			bo.Reset()
+
+			// trigger the signal
+			s.Broadcast()
 		case error:
-			log.Warn().Err(v).Msg("failed to receive from redis channel")
-			recordOperation(ctx, time.Now(), "sub_received", v)
-			if _, ok := v.(net.Error); ok {
+			if strings.Contains(v.Error(), "use of closed network connection") {
 				return
 			}
-			time.Sleep(eb.NextBackOff())
-			log.Warn().Msg("retry with new connection")
-			_ = psc.Conn.Close()
-			psc.Conn = db.pool.Get()
-			_ = psc.Subscribe(db.lastVersionChannelKey)
+			log.Error().Err(v).Msg("failed to receive from redis channel")
+			return
 		}
 	}
 }
 
-// watch runs the doNotifyLoop. It returns when ctx was done or doNotifyLoop exits.
-func (db *DB) watch(ctx context.Context, ch chan struct{}) {
-	defer func() {
-		db.notifyChMu.Lock()
-		close(ch)
-		db.notifyChMu.Unlock()
-	}()
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		db.doNotifyLoop(ctx, ch)
-	}()
-	select {
-	case <-db.closed:
-	case <-ctx.Done():
-	case <-done:
-	}
-}
-
-// Watch returns a channel to the caller, when there is a change to the version set,
-// sending message to the channel to notify the caller.
+// Watch returns a channel to the caller which will send an empty struct any time the last version changes.
 func (db *DB) Watch(ctx context.Context) <-chan struct{} {
-	ch := make(chan struct{})
-	go db.watch(ctx, ch)
+	// create a new signal that will be used by the caller.
+	s := signal.New()
+	ch := s.Bind()
+
+	// listen for pubsub events
+	pubSubSignal := signal.New()
+	pubSubCh := pubSubSignal.Bind()
+	go db.signalWithPubSub(ctx, pubSubSignal)
+	go func() {
+		defer s.Unbind(ch)
+		defer pubSubSignal.Unbind(pubSubCh)
+
+		// force a recheck every 30 seconds
+		ticker := time.NewTicker(time.Second * 30)
+		defer ticker.Stop()
+
+		var lastVersion int64
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-db.closed:
+				return
+			case <-ticker.C: // forced re-check
+			case <-pubSubCh: // change detected via pubsub
+			}
+
+			if v, err := db.getLastVersion(ctx); err != nil {
+				log.Error().Err(err).Msg("redis: failed to get last version")
+			} else if v != lastVersion {
+				lastVersion = v
+				s.Broadcast()
+			}
+		}
+	}()
+
 	return ch
 }
 
@@ -377,6 +399,16 @@ func (db *DB) getAll(_ context.Context, filter func(record *databroker.Record) b
 	return records, nil
 }
 
+func (db *DB) getLastVersion(ctx context.Context) (int64, error) {
+	c, err := db.pool.GetContext(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer c.Close()
+
+	return redis.Int64(c.Do("GET", db.lastVersionKey))
+}
+
 func (db *DB) toPbRecord(b []byte) (*databroker.Record, error) {
 	record := &databroker.Record{}
 	if err := proto.Unmarshal(b, record); err != nil {
@@ -396,6 +428,10 @@ func (db *DB) tx(c redis.Conn, commands []map[string][]interface{}) error {
 
 	_, err := c.Do("EXEC")
 	return err
+}
+
+func (db *DB) dial(ctx context.Context) (redis.Conn, error) {
+	return redis.DialURL(db.rawURL, redis.DialTLSConfig(db.tlsConfig))
 }
 
 func recordOperation(ctx context.Context, startTime time.Time, operation string, err error) {

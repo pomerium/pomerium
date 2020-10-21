@@ -51,6 +51,8 @@ func tlsConfig(rawURL string, t *testing.T) *tls.Config {
 }
 
 func runWithRedisDockerImage(t *testing.T, runOpts *dockertest.RunOptions, withTLS bool, testFunc func(t *testing.T)) {
+	const maxWait = time.Second * 30
+
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		t.Fatalf("Could not connect to docker: %s", err)
@@ -59,6 +61,7 @@ func runWithRedisDockerImage(t *testing.T, runOpts *dockertest.RunOptions, withT
 	if err != nil {
 		t.Fatalf("Could not start resource: %s", err)
 	}
+	_ = resource.Expire(uint(maxWait.Seconds()))
 
 	defer func() {
 		if err := pool.Purge(resource); err != nil {
@@ -201,12 +204,34 @@ func testDB(t *testing.T) {
 		assert.Len(t, records, 0)
 	})
 
-	expectedNumEvents := 14
-	actualNumEvents := 0
-	for range ch {
-		actualNumEvents++
-		if actualNumEvents == expectedNumEvents {
-			cancelFunc()
-		}
+	select {
+	case <-ctx.Done():
+		t.Fatal("expected watch to trigger")
+	case <-ch:
 	}
+}
+
+func TestLeak(t *testing.T) {
+	runWithRedisDockerImage(t, &dockertest.RunOptions{Repository: "redis", Tag: "latest"}, false, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		db.pool.IdleTimeout = 0
+
+		u := &directory.User{Id: "u1", GroupIds: []string{"test", "admin"}}
+		for i := 0; i < 10; i++ {
+			db.Watch(ctx)
+		}
+
+		data, _ := anypb.New(u)
+		assert.NoError(t, db.Put(ctx, "a", data))
+
+		assert.Equal(t, 10, db.pubSubTracker.ActiveCount())
+
+		cancel()
+
+		assert.Eventually(t, func() bool {
+			return db.pubSubTracker.ActiveCount() == 0
+		}, time.Second*10, time.Millisecond*500)
+	})
 }
