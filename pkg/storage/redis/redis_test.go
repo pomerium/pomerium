@@ -212,6 +212,10 @@ func testDB(t *testing.T) {
 }
 
 func TestLeak(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
 	runWithRedisDockerImage(t, &dockertest.RunOptions{Repository: "redis", Tag: "latest"}, false, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
