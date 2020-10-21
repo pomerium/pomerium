@@ -431,7 +431,7 @@ func (db *DB) tx(c redis.Conn, commands []map[string][]interface{}) error {
 }
 
 func (db *DB) dial(ctx context.Context) (redis.Conn, error) {
-	return redis.DialURL(db.rawURL, redis.DialTLSConfig(db.tlsConfig))
+	return dialURL(ctx, db.rawURL, redis.DialTLSConfig(db.tlsConfig))
 }
 
 func recordOperation(ctx context.Context, startTime time.Time, operation string, err error) {
