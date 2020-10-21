@@ -1280,14 +1280,14 @@ If set, enables proxying of websocket connections.
 
 ## Authorize Service
 
-### Authenticate Service URL
-- Environmental Variable: `AUTHENTICATE_SERVICE_URL`
-- Config File Key: `authenticate_service_url`
+### Authorize Service URL
+- Environmental Variable: `AUTHORIZE_SERVICE_URL`
+- Config File Key: `authorize_service_url`
 - Type: `URL`
 - Required
-- Example: `https://authenticate.corp.example.com`
+- Example: `https://authorize.corp.example.com`
 
-Authenticate Service URL is the externally accessible URL for the authenticate service.
+Authorize Service URL is the location of the internally accessible authorize service.
 
 
 ### Google Cloud Serverless Authentication Service Account
