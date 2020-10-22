@@ -10,6 +10,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // A User is a user managed by the Manager.
@@ -45,16 +46,15 @@ func (u *User) UnmarshalJSON(data []byte) error {
 		delete(raw, "email")
 	}
 
-	u.User.Claims = make(map[string]*anypb.Any)
+	if u.User.Claims == nil {
+		u.User.Claims = make(map[string]*anypb.Any)
+	}
 	for k, rawv := range raw {
 		var v interface{}
 		if json.Unmarshal(rawv, &v) != nil {
 			continue
 		}
-
-		if anyv, err := toAny(v); err == nil {
-			u.User.Claims[k] = anyv
-		}
+		u.User.Claims[k] = protoutil.ToAny(v)
 	}
 
 	return nil
@@ -141,16 +141,15 @@ func (s *Session) UnmarshalJSON(data []byte) error {
 		delete(raw, "iat")
 	}
 
-	s.Session.Claims = make(map[string]*anypb.Any)
+	if s.Session.Claims == nil {
+		s.Session.Claims = make(map[string]*anypb.Any)
+	}
 	for k, rawv := range raw {
 		var v interface{}
 		if json.Unmarshal(rawv, &v) != nil {
 			continue
 		}
-
-		if anyv, err := toAny(v); err == nil {
-			s.Session.Claims[k] = anyv
-		}
+		s.Session.Claims[k] = protoutil.ToAny(v)
 	}
 
 	return nil
