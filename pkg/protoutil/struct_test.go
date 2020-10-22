@@ -27,6 +27,7 @@ func TestToValue(t *testing.T) {
 		{"uint32", uint32(1), "1"},
 		{"uint64", uint64(1), "1"},
 		{"[]interface{}", []interface{}{1, 2, 3, 4}, `[1,2,3,4]`},
+		{"map[string]interface{}", map[string]interface{}{"k1": "v1", "k2": "v2"}, `{"k1":"v1","k2":"v2"}`},
 	}
 	for _, tc := range testCases {
 		tc := tc

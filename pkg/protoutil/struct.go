@@ -2,11 +2,18 @@
 package protoutil
 
 import (
+	"fmt"
+	"reflect"
+
 	structpb "github.com/golang/protobuf/ptypes/struct"
 )
 
 // ToStruct converts any value into a structpb Value.
 func ToStruct(value interface{}) *structpb.Value {
+	if value == nil {
+		return NewStructNull()
+	}
+
 	switch v := value.(type) {
 	case bool:
 		return NewStructBool(v)
@@ -36,21 +43,46 @@ func ToStruct(value interface{}) *structpb.Value {
 		return NewStructNumber(float64(v))
 	case uint64:
 		return NewStructNumber(float64(v))
-	case []interface{}:
-		svs := make([]*structpb.Value, len(v))
-		for i := range v {
-			svs[i] = ToStruct(v[i])
+	}
+
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Slice:
+		svs := make([]*structpb.Value, rv.Len())
+		for i := range svs {
+			svs[i] = ToStruct(rv.Index(i).Interface())
 		}
 		return NewStructList(svs...)
-	default:
-		return NewStructNull()
+	case reflect.Map:
+		svm := make(map[string]*structpb.Value)
+		iter := rv.MapRange()
+		for iter.Next() {
+			svm[fmt.Sprint(iter.Key().Interface())] = ToStruct(iter.Value().Interface())
+		}
+		return NewStructMap(svm)
 	}
+
+	return NewStructNull()
 }
 
 // NewStructBool creates a new bool struct value.
 func NewStructBool(v bool) *structpb.Value {
 	return &structpb.Value{
 		Kind: &structpb.Value_BoolValue{BoolValue: v},
+	}
+}
+
+// NewStructMap creates a new map struct value.
+func NewStructMap(v map[string]*structpb.Value) *structpb.Value {
+	return &structpb.Value{
+		Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{Fields: v}},
+	}
+}
+
+// NewStructNull creates a new null struct value.
+func NewStructNull() *structpb.Value {
+	return &structpb.Value{
+		Kind: &structpb.Value_NullValue{},
 	}
 }
 
@@ -61,13 +93,6 @@ func NewStructNumber(v float64) *structpb.Value {
 	}
 }
 
-// NewStructString creates a new string struct value.
-func NewStructString(v string) *structpb.Value {
-	return &structpb.Value{
-		Kind: &structpb.Value_StringValue{StringValue: v},
-	}
-}
-
 // NewStructList creates a new list struct value.
 func NewStructList(vs ...*structpb.Value) *structpb.Value {
 	return &structpb.Value{
@@ -75,9 +100,9 @@ func NewStructList(vs ...*structpb.Value) *structpb.Value {
 	}
 }
 
-// NewStructNull creates a new null struct value.
-func NewStructNull() *structpb.Value {
+// NewStructString creates a new string struct value.
+func NewStructString(v string) *structpb.Value {
 	return &structpb.Value{
-		Kind: &structpb.Value_NullValue{},
+		Kind: &structpb.Value_StringValue{StringValue: v},
 	}
 }

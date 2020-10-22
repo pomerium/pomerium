@@ -72,6 +72,10 @@ func TestToAny(t *testing.T) {
 			"@type": "type.googleapis.com/google.protobuf.Value", 
 			"value": [1,2,3,4]
 		}`},
+		{"map[string]interface{}", map[string]interface{}{"k1": "v1", "k2": "v2"}, `{
+			"@type": "type.googleapis.com/google.protobuf.Value",
+			"value": {"k1": "v1", "k2": "v2"}
+		}`},
 	}
 	for _, tc := range testCases {
 		tc := tc
