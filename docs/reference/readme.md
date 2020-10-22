@@ -1351,4 +1351,3 @@ If no certificate is specified, one will be generated and the base64'd public ke
 [toml]: https://en.wikipedia.org/wiki/TOML
 [yaml]: https://en.wikipedia.org/wiki/YAML
 [Elliptic Curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters
-
