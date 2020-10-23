@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	structpb "github.com/golang/protobuf/ptypes/struct"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // ToStruct converts any value into a structpb Value.

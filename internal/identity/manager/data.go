@@ -6,11 +6,10 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/btree"
-	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // A User is a user managed by the Manager.
@@ -46,16 +45,7 @@ func (u *User) UnmarshalJSON(data []byte) error {
 		delete(raw, "email")
 	}
 
-	if u.User.Claims == nil {
-		u.User.Claims = make(map[string]*anypb.Any)
-	}
-	for k, rawv := range raw {
-		var v interface{}
-		if json.Unmarshal(rawv, &v) != nil {
-			continue
-		}
-		u.User.Claims[k] = protoutil.ToAny(v)
-	}
+	u.AddClaims(identity.NewClaimsFromRaw(raw).Flatten())
 
 	return nil
 }
@@ -141,16 +131,7 @@ func (s *Session) UnmarshalJSON(data []byte) error {
 		delete(raw, "iat")
 	}
 
-	if s.Session.Claims == nil {
-		s.Session.Claims = make(map[string]*anypb.Any)
-	}
-	for k, rawv := range raw {
-		var v interface{}
-		if json.Unmarshal(rawv, &v) != nil {
-			continue
-		}
-		s.Session.Claims[k] = protoutil.ToAny(v)
-	}
+	s.AddClaims(identity.NewClaimsFromRaw(raw).Flatten())
 
 	return nil
 }

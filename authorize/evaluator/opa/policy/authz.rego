@@ -12,6 +12,7 @@ groups := input.databroker_data.groups
 all_allowed_domains := get_allowed_domains(route_policy)
 all_allowed_groups := get_allowed_groups(route_policy)
 all_allowed_users := get_allowed_users(route_policy)
+all_allowed_idp_claims := get_allowed_idp_claims(route_policy)
 
 # allow public
 allow {
@@ -63,6 +64,14 @@ allow {
 allow {
 	some domain
 	email_in_domain(input.session.impersonate_email, all_allowed_domains[domain])
+}
+
+# allow by arbitrary idp claims
+allow {
+    are_claims_allowed(all_allowed_idp_claims[_], session.claims)
+}
+allow {
+    are_claims_allowed(all_allowed_idp_claims[_], user.claims)
 }
 
 # allow pomerium urls
@@ -180,4 +189,22 @@ get_allowed_groups(policy) = v {
         policy.allowed_groups,
         [u | u := policy.sub_policies[_].allowed_groups[_]]
     )[_] }
+}
+
+get_allowed_idp_claims(policy) = v {
+    v := array.concat(
+        [policy.allowed_idp_claims],
+        [u | u := policy.sub_policies[_].allowed_idp_claims]
+     )
+}
+
+are_claims_allowed(a, b) {
+    is_object(a)
+    is_object(b)
+    avs := a[ak]
+    bvs := object.get(b, ak, null)
+
+    is_array(avs)
+    is_array(bvs)
+    avs[_] == bvs[_]
 }

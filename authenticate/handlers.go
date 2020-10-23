@@ -552,8 +552,8 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 			IssuedAt:  idTokenIssuedAt,
 		},
 		OauthToken: manager.ToOAuthToken(accessToken),
-		Claims:     claims.ToAnyMap(),
 	}
+	s.AddClaims(claims.Flatten())
 
 	// if no user exists yet, create a new one
 	currentUser, _ := user.Get(ctx, state.dataBrokerClient, s.GetUserId())

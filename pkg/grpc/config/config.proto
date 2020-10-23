@@ -4,6 +4,7 @@ package pomerium.config;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
 
 message Config {
   string name = 1;
@@ -20,6 +21,7 @@ message Route {
   repeated string allowed_users = 4 [ deprecated = true ];
   repeated string allowed_groups = 5 [ deprecated = true ];
   repeated string allowed_domains = 6 [ deprecated = true ];
+  map<string, google.protobuf.ListValue> allowed_idp_claims = 32 [ deprecated = true ];
 
   string prefix = 7;
   string path = 8;
@@ -62,6 +64,7 @@ message Policy {
   repeated string allowed_users = 3;
   repeated string allowed_groups = 4;
   repeated string allowed_domains = 5;
+  map<string, google.protobuf.ListValue> allowed_idp_claims = 7;
   repeated string rego = 6;
 }
 
