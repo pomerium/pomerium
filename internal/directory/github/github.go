@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
@@ -102,13 +103,13 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 	du.DisplayName = au.Name
 	du.Email = au.Email
 
-	teamIDLookup := map[int]struct{}{}
+	teamIDLookup := map[string]struct{}{}
 	orgSlugs, err := p.listOrgs(ctx)
 	if err != nil {
 		return nil, err
 	}
 	for _, orgSlug := range orgSlugs {
-		teamIDs, err := p.listUserOrganizationTeams(ctx, userID, orgSlug)
+		teamIDs, err := p.listUserOrganizationTeams(ctx, providerUserID, orgSlug)
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +119,7 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 	}
 
 	for teamID := range teamIDLookup {
-		du.GroupIds = append(du.GroupIds, strconv.Itoa(teamID))
+		du.GroupIds = append(du.GroupIds, teamID)
 	}
 	sort.Strings(du.GroupIds)
 
@@ -272,7 +273,7 @@ func (p *Provider) getUser(ctx context.Context, userLogin string) (*apiUserObjec
 	return &res, nil
 }
 
-func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug string, orgSlug string) ([]int, error) {
+func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug string, orgSlug string) ([]string, error) {
 	// GitHub's Rest API doesn't have an easy way of querying this data, so we use the GraphQL API.
 
 	enc := func(obj interface{}) string {
@@ -281,7 +282,7 @@ func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug strin
 	}
 	const pageCount = 100
 
-	var teamIDs []int
+	var teamIDs []string
 	var cursor *string
 	for {
 		var res struct {
@@ -294,7 +295,7 @@ func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug strin
 						} `json:"pageInfo"`
 						Edges []struct {
 							Node struct {
-								ID int `json:"id"`
+								ID string `json:"id"`
 							} `json:"node"`
 						} `json:"edges"`
 					} `json:"teams"`
@@ -330,7 +331,11 @@ func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug strin
 		}
 
 		for _, edge := range res.Data.Organization.Teams.Edges {
-			teamIDs = append(teamIDs, edge.Node.ID)
+			teamID, err := decodeTeamID(edge.Node.ID)
+			if err != nil {
+				return nil, err
+			}
+			teamIDs = append(teamIDs, teamID)
 		}
 
 		if len(teamIDs) >= res.Data.Organization.Teams.TotalCount {
@@ -403,6 +408,21 @@ func (p *Provider) graphql(ctx context.Context, query string, out interface{}) (
 	}
 
 	return res.Header, nil
+}
+
+func decodeTeamID(src string) (string, error) {
+	// Github graphql API returns base64 encoded string.
+	// See https://developer.github.com/v4/scalar/id/
+	s, err := base64.StdEncoding.DecodeString(src)
+	if err != nil {
+		return "", fmt.Errorf("github: failed to decode base64 team id: %w", err)
+	}
+	// Team ID is formed like as "04:Team12345"
+	sep := strings.SplitN(string(s), ":", 2)
+	if len(sep) != 2 {
+		return "", fmt.Errorf("github: invalid team id: %s", s)
+	}
+	return strings.TrimPrefix(sep[1], "Team"), nil
 }
 
 func getNextLink(hdrs http.Header) string {
