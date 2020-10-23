@@ -8,10 +8,10 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func TestUser_UnmarshalJSON(t *testing.T) {
@@ -25,9 +25,8 @@ func TestUser_UnmarshalJSON(t *testing.T) {
 	assert.NotNil(t, u.User)
 	assert.Equal(t, "joe", u.User.Name)
 	assert.Equal(t, "joe@test.com", u.User.Email)
-	anyv, _ := ptypes.MarshalAny(&wrapperspb.StringValue{Value: "xyz"})
-	assert.Equal(t, map[string]*anypb.Any{
-		"some-other-claim": anyv,
+	assert.Equal(t, map[string]*structpb.ListValue{
+		"some-other-claim": {Values: []*structpb.Value{protoutil.ToStruct("xyz")}},
 	}, u.Claims)
 }
 
@@ -72,8 +71,7 @@ func TestSession_UnmarshalJSON(t *testing.T) {
 	assert.Equal(t, "subject", s.Session.IdToken.Subject)
 	assert.Equal(t, pbtm, s.Session.IdToken.ExpiresAt)
 	assert.Equal(t, pbtm, s.Session.IdToken.IssuedAt)
-	anyv, _ := ptypes.MarshalAny(&wrapperspb.StringValue{Value: "xyz"})
-	assert.Equal(t, map[string]*anypb.Any{
-		"some-other-claim": anyv,
+	assert.Equal(t, map[string]*structpb.ListValue{
+		"some-other-claim": {Values: []*structpb.Value{protoutil.ToStruct("xyz")}},
 	}, s.Claims)
 }

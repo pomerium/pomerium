@@ -22,7 +22,7 @@ func TestClaims_Flatten(t *testing.T) {
 
 	flattened := claims.Flatten()
 	assert.Equal(t, FlattenedClaims{
-		"a.aa.aaa": {"12345"},
-		"a.ab":     {"1", "2", "3", "4", "5"},
+		"a.aa.aaa": {12345.0},
+		"a.ab":     {1.0, 2.0, 3.0, 4.0, 5.0},
 	}, flattened)
 }
