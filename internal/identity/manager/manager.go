@@ -15,6 +15,7 @@ import (
 	"gopkg.in/tomb.v2"
 
 	"github.com/pomerium/pomerium/internal/directory"
+	"github.com/pomerium/pomerium/internal/identity/identity"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/scheduler"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -24,9 +25,9 @@ import (
 
 // Authenticator is an identity.Provider with only the methods needed by the manager.
 type Authenticator interface {
-	Refresh(context.Context, *oauth2.Token, interface{}) (*oauth2.Token, error)
+	Refresh(context.Context, *oauth2.Token, identity.State) (*oauth2.Token, error)
 	Revoke(context.Context, *oauth2.Token) error
-	UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error
+	UpdateUserInfo(context.Context, *oauth2.Token, interface{}) error
 }
 
 type (

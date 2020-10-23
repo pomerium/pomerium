@@ -239,9 +239,11 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	state := a.state.Load()
 
+	var rawIDToken string
 	sessionState, err := a.getSessionFromCtx(ctx)
 	if err == nil {
 		if s, _ := session.Get(ctx, state.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
+			rawIDToken = s.GetIdToken().GetRaw()
 			if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
 				log.Warn().Err(err).Msg("failed to revoke access token")
 			}
@@ -265,6 +267,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	endSessionURL, err := a.provider.Load().LogOut()
 	if err == nil && redirectString != "" {
 		params := url.Values{}
+		params.Add("id_token_hint", rawIDToken)
 		params.Add("post_logout_redirect_uri", redirectString)
 		endSessionURL.RawQuery = params.Encode()
 		redirectString = endSessionURL.String()
@@ -380,14 +383,14 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	// Successful Authentication Response: rfc6749#section-4.1.2 & OIDC#3.1.2.5
 	//
 	// Exchange the supplied Authorization Code for a valid user session.
-	var claims identity.Claims
+	var claims identity.SessionClaims
 	accessToken, err := a.provider.Load().Authenticate(ctx, code, &claims)
 	if err != nil {
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
 	s := sessions.State{ID: uuid.New().String()}
-	err = claims.Claims(&s)
+	err = claims.Claims.Claims(&s)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling session state: %w", err)
 	}
@@ -533,7 +536,12 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 	return a.templates.ExecuteTemplate(w, "dashboard.html", input)
 }
 
-func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState *sessions.State, claims identity.Claims, accessToken *oauth2.Token) error {
+func (a *Authenticate) saveSessionToDataBroker(
+	ctx context.Context,
+	sessionState *sessions.State,
+	claims identity.SessionClaims,
+	accessToken *oauth2.Token,
+) error {
 	state := a.state.Load()
 	options := a.options.Load()
 
@@ -553,6 +561,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 		},
 		OauthToken: manager.ToOAuthToken(accessToken),
 	}
+	s.SetRawIDToken(claims.RawIDToken)
 	s.AddClaims(claims.Flatten())
 
 	// if no user exists yet, create a new one

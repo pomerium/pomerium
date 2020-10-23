@@ -17,6 +17,7 @@ import (
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/identity/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
@@ -77,7 +78,7 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 
 // Authenticate creates an identity session with github from a authorization code, and follows up
 // call to the user and user group endpoint with the
-func (p *Provider) Authenticate(ctx context.Context, code string, v interface{}) (*oauth2.Token, error) {
+func (p *Provider) Authenticate(ctx context.Context, code string, v identity.State) (*oauth2.Token, error) {
 	oauth2Token, err := p.Oauth.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("github: token exchange failed %v", err)
@@ -112,7 +113,7 @@ func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interf
 }
 
 // Refresh is a no-op for github, because github sessions never expire.
-func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v interface{}) (*oauth2.Token, error) {
+func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.State) (*oauth2.Token, error) {
 	t.Expiry = time.Now().Add(refreshDeadline)
 	return t, nil
 }

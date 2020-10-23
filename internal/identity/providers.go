@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/pomerium/pomerium/internal/identity/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/identity/oauth/github"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
@@ -23,8 +24,8 @@ import (
 
 // Authenticator is an interface representing the ability to authenticate with an identity provider.
 type Authenticator interface {
-	Authenticate(context.Context, string, interface{}) (*oauth2.Token, error)
-	Refresh(context.Context, *oauth2.Token, interface{}) (*oauth2.Token, error)
+	Authenticate(context.Context, string, identity.State) (*oauth2.Token, error)
+	Refresh(context.Context, *oauth2.Token, identity.State) (*oauth2.Token, error)
 	Revoke(context.Context, *oauth2.Token) error
 	GetSignInURL(state string) string
 	Name() string

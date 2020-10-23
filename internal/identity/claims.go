@@ -11,6 +11,17 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
+// SessionClaims are claims that are attached to a session so we can store the raw id token.
+type SessionClaims struct {
+	Claims
+	RawIDToken string
+}
+
+// SetRawIDToken sets the raw id token.
+func (claims *SessionClaims) SetRawIDToken(rawIDToken string) {
+	claims.RawIDToken = rawIDToken
+}
+
 // Claims are JWT claims.
 type Claims map[string]interface{}
 
