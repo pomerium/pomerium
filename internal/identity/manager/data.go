@@ -6,8 +6,8 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/btree"
-	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
@@ -45,17 +45,7 @@ func (u *User) UnmarshalJSON(data []byte) error {
 		delete(raw, "email")
 	}
 
-	u.User.Claims = make(map[string]*anypb.Any)
-	for k, rawv := range raw {
-		var v interface{}
-		if json.Unmarshal(rawv, &v) != nil {
-			continue
-		}
-
-		if anyv, err := toAny(v); err == nil {
-			u.User.Claims[k] = anyv
-		}
-	}
+	u.AddClaims(identity.NewClaimsFromRaw(raw).Flatten())
 
 	return nil
 }
@@ -141,17 +131,7 @@ func (s *Session) UnmarshalJSON(data []byte) error {
 		delete(raw, "iat")
 	}
 
-	s.Session.Claims = make(map[string]*anypb.Any)
-	for k, rawv := range raw {
-		var v interface{}
-		if json.Unmarshal(rawv, &v) != nil {
-			continue
-		}
-
-		if anyv, err := toAny(v); err == nil {
-			s.Session.Claims[k] = anyv
-		}
-	}
+	s.AddClaims(identity.NewClaimsFromRaw(raw).Flatten())
 
 	return nil
 }

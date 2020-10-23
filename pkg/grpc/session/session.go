@@ -7,7 +7,9 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -56,4 +58,14 @@ func Set(ctx context.Context, client databroker.DataBrokerServiceClient, s *Sess
 		return nil, fmt.Errorf("error setting session in databroker: %w", err)
 	}
 	return res, nil
+}
+
+// AddClaims adds the flattened claims to the session.
+func (x *Session) AddClaims(claims identity.FlattenedClaims) {
+	if x.Claims == nil {
+		x.Claims = make(map[string]*structpb.ListValue)
+	}
+	for k, svs := range claims.ToPB() {
+		x.Claims[k] = svs
+	}
 }

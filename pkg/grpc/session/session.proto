@@ -3,8 +3,9 @@ syntax = "proto3";
 package session;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/session";
 
-import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
 
 message IDToken {
   string issuer = 1;
@@ -27,5 +28,5 @@ message Session {
   google.protobuf.Timestamp expires_at = 4;
   IDToken id_token = 6;
   OAuthToken oauth_token = 7;
-  map<string, google.protobuf.Any> claims = 8;
+  map<string, google.protobuf.ListValue> claims = 9;
 }

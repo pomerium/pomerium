@@ -19,6 +19,7 @@ import (
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/manager"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
@@ -379,14 +380,20 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	// Successful Authentication Response: rfc6749#section-4.1.2 & OIDC#3.1.2.5
 	//
 	// Exchange the supplied Authorization Code for a valid user session.
-	s := sessions.State{ID: uuid.New().String()}
-	accessToken, err := a.provider.Load().Authenticate(ctx, code, &s)
+	var claims identity.Claims
+	accessToken, err := a.provider.Load().Authenticate(ctx, code, &claims)
 	if err != nil {
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
+	s := sessions.State{ID: uuid.New().String()}
+	err = claims.Claims(&s)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling session state: %w", err)
+	}
+
 	// save the session and access token to the databroker
-	err = a.saveSessionToDataBroker(ctx, &s, accessToken)
+	err = a.saveSessionToDataBroker(ctx, &s, claims, accessToken)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
@@ -526,7 +533,7 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 	return a.templates.ExecuteTemplate(w, "dashboard.html", input)
 }
 
-func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState *sessions.State, accessToken *oauth2.Token) error {
+func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState *sessions.State, claims identity.Claims, accessToken *oauth2.Token) error {
 	state := a.state.Load()
 	options := a.options.Load()
 
@@ -546,6 +553,7 @@ func (a *Authenticate) saveSessionToDataBroker(ctx context.Context, sessionState
 		},
 		OauthToken: manager.ToOAuthToken(accessToken),
 	}
+	s.AddClaims(claims.Flatten())
 
 	// if no user exists yet, create a new one
 	currentUser, _ := user.Get(ctx, state.dataBrokerClient, s.GetUserId())

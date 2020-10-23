@@ -169,6 +169,25 @@ test_impersonate_domain_allowed {
 		input.session as { "id": "session1", "impersonate_email": "y@example1.com" }
 }
 
+test_idp_claims_allowed {
+    allow with
+        data.route_policies as [{
+            "source": "example.com",
+            "allowed_idp_claims": {
+                "some.claim": ["a", "b"]
+            }
+        }] with
+        input.databroker_data as {
+            "session": {
+                "claims": {
+                    "some.claim": ["b"]
+                }
+            }
+        } with
+		input.http as { "url": "http://example.com" } with
+        input.session as { "id": "session1", "impersonate_email": "" }
+}
+
 test_example {
 	not allow with
 		data.route_policies as [
@@ -343,4 +362,15 @@ test_sub_policy {
         ]
     })
 	z == {"g1", "g2", "g3", "g4"}
+}
+
+test_are_claims_allowed {
+    are_claims_allowed({"a": ["1"]}, {"a": ["1"]})
+    not are_claims_allowed({"a": ["2"]}, {"a": ["1"]})
+
+    are_claims_allowed({"a": ["1", "2", "3"]}, {"a": ["1"]})
+    are_claims_allowed({"a": ["1"]}, {"a": ["1", "2", "3"]})
+    not are_claims_allowed({"a": ["4", "5", "6"]}, {"a": ["1"]})
+
+    are_claims_allowed({"a.b.c": ["1"], "d.e.f": ["2"]}, {"d.e.f": ["2"]})
 }

@@ -5,16 +5,16 @@ import (
 	context "context"
 	"fmt"
 
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/pomerium/pomerium/internal/protoutil"
+	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 // Get gets a user from the databroker.
 func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID string) (*User, error) {
-	any, _ := ptypes.MarshalAny(new(User))
+	any, _ := anypb.New(new(User))
 
 	res, err := client.Get(ctx, &databroker.GetRequest{
 		Type: any.GetTypeUrl(),
@@ -25,16 +25,11 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID 
 	}
 
 	var u User
-	err = ptypes.UnmarshalAny(res.GetRecord().GetData(), &u)
+	err = res.GetRecord().GetData().UnmarshalTo(&u)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling user from databroker: %w", err)
 	}
 	return &u, nil
-}
-
-// GetClaim gets a claim.
-func (user *User) GetClaim(claim string) interface{} {
-	return protoutil.AnyToInterface(user.GetClaims()[claim])
 }
 
 // Set sets a user in the databroker.
@@ -63,4 +58,14 @@ func SetServiceAccount(ctx context.Context, client databroker.DataBrokerServiceC
 		return nil, fmt.Errorf("error setting service account in databroker: %w", err)
 	}
 	return res.GetRecord(), nil
+}
+
+// AddClaims adds the flattened claims to the user.
+func (x *User) AddClaims(claims identity.FlattenedClaims) {
+	if x.Claims == nil {
+		x.Claims = make(map[string]*structpb.ListValue)
+	}
+	for k, svs := range claims.ToPB() {
+		x.Claims[k] = svs
+	}
 }
