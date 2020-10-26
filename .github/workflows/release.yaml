@@ -45,7 +45,7 @@ jobs:
 
       - name: Get tag name
         id: tagName
-        uses: olegtarasov/get-tag@v1
+        uses: olegtarasov/get-tag@v2
 
       - name: Find latest tag
         id: latestTag
