@@ -69,3 +69,11 @@ func (x *Session) AddClaims(claims identity.FlattenedClaims) {
 		x.Claims[k] = svs
 	}
 }
+
+// SetRawIDToken sets the raw id token.
+func (x *Session) SetRawIDToken(rawIDToken string) {
+	if x.IdToken == nil {
+		x.IdToken = new(IDToken)
+	}
+	x.IdToken.Raw = rawIDToken
+}

@@ -15,6 +15,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/identity/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
@@ -105,7 +106,7 @@ func (p *Provider) GetSignInURL(state string) string {
 
 // Authenticate converts an authorization code returned from the identity
 // provider into a token which is then converted into a user session.
-func (p *Provider) Authenticate(ctx context.Context, code string, v interface{}) (*oauth2.Token, error) {
+func (p *Provider) Authenticate(ctx context.Context, code string, v identity.State) (*oauth2.Token, error) {
 	// Exchange converts an authorization code into a token.
 	oauth2Token, err := p.Oauth.Exchange(ctx, code)
 	if err != nil {
@@ -115,6 +116,10 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v interface{})
 	idToken, err := p.getIDToken(ctx, oauth2Token)
 	if err != nil {
 		return nil, fmt.Errorf("identity/oidc: failed getting id_token: %w", err)
+	}
+
+	if rawIDToken, ok := oauth2Token.Extra("id_token").(string); ok {
+		v.SetRawIDToken(rawIDToken)
 	}
 
 	// hydrate `v` using claims inside the returned `id_token`
@@ -148,7 +153,7 @@ func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interf
 // Refresh renews a user's session using an oidc refresh token without reprompting the user.
 // Group membership is also refreshed.
 // https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
-func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v interface{}) (*oauth2.Token, error) {
+func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.State) (*oauth2.Token, error) {
 	if t == nil {
 		return nil, ErrMissingAccessToken
 	}
@@ -165,6 +170,10 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v interface{}) 
 	// https://github.com/FusionAuth/fusionauth-issues/issues/110#issuecomment-481526544
 	idToken, err := p.getIDToken(ctx, newToken)
 	if err == nil {
+		if rawIDToken, ok := newToken.Extra("id_token").(string); ok {
+			v.SetRawIDToken(rawIDToken)
+		}
+
 		if err := idToken.Claims(v); err != nil {
 			return nil, fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
 		}
