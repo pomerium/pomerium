@@ -389,23 +389,6 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
-	s := sessions.State{ID: uuid.New().String()}
-	err = claims.Claims.Claims(&s)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshaling session state: %w", err)
-	}
-
-	newState := sessions.NewSession(
-		&s,
-		state.redirectURL.Hostname(),
-		[]string{state.redirectURL.Hostname()})
-
-	// save the session and access token to the databroker
-	err = a.saveSessionToDataBroker(ctx, &newState, claims, accessToken)
-	if err != nil {
-		return nil, httputil.NewError(http.StatusInternalServerError, err)
-	}
-
 	// state includes a csrf nonce (validated by middleware) and redirect uri
 	bytes, err := base64.URLEncoding.DecodeString(r.FormValue("state"))
 	if err != nil {
@@ -436,6 +419,27 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	redirectURL, err := urlutil.ParseAndValidateURL(string(redirectString))
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	s := sessions.State{ID: uuid.New().String()}
+	err = claims.Claims.Claims(&s)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling session state: %w", err)
+	}
+
+	newState := sessions.NewSession(
+		&s,
+		state.redirectURL.Hostname(),
+		[]string{state.redirectURL.Hostname()})
+
+	if nextRedirectURL, err := urlutil.ParseAndValidateURL(redirectURL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
+		newState.Audience = append(newState.Audience, nextRedirectURL.Hostname())
+	}
+
+	// save the session and access token to the databroker
+	err = a.saveSessionToDataBroker(ctx, &newState, claims, accessToken)
+	if err != nil {
+		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
 
 	// ...  and the user state to local storage.
