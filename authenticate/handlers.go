@@ -395,16 +395,16 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return nil, fmt.Errorf("error unmarshaling session state: %w", err)
 	}
 
-	// save the session and access token to the databroker
-	err = a.saveSessionToDataBroker(ctx, &s, claims, accessToken)
-	if err != nil {
-		return nil, httputil.NewError(http.StatusInternalServerError, err)
-	}
-
 	newState := sessions.NewSession(
 		&s,
 		state.redirectURL.Hostname(),
 		[]string{state.redirectURL.Hostname()})
+
+	// save the session and access token to the databroker
+	err = a.saveSessionToDataBroker(ctx, &newState, claims, accessToken)
+	if err != nil {
+		return nil, httputil.NewError(http.StatusInternalServerError, err)
+	}
 
 	// state includes a csrf nonce (validated by middleware) and redirect uri
 	bytes, err := base64.URLEncoding.DecodeString(r.FormValue("state"))
