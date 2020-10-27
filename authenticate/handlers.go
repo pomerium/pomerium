@@ -560,6 +560,7 @@ func (a *Authenticate) saveSessionToDataBroker(
 			IssuedAt:  idTokenIssuedAt,
 		},
 		OauthToken: manager.ToOAuthToken(accessToken),
+		Audience:   sessionState.Audience,
 	}
 	s.SetRawIDToken(claims.RawIDToken)
 	s.AddClaims(claims.Flatten())
