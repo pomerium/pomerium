@@ -1077,7 +1077,7 @@ Set Request Headers allows you to set static values for given request headers. T
 
 ### Remove Request Headers
 
-- Config File Key: `removet_request_headers`
+- Config File Key: `remove_request_headers`
 - Type: array of `strings`
 - Optional
 
