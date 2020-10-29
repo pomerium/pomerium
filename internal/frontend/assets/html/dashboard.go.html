@@ -12,8 +12,8 @@
         <div class="card">
           <div class="card-header">
             <h2>Current user</h2>
-            {{if .User.Claims.picture }}
-            <img class="icon" src="{{.User.GetClaim "picture"}}" alt="user image" />
+            {{with .User.GetClaim "picture"}}
+            <img class="icon" src="{{.}}" alt="user image" />
             {{else}}
             <img
               class="icon"
@@ -27,68 +27,74 @@
             <section>
               <p class="message">Your current session details.</p>
               <fieldset>
-                {{if .RedirectURL}}
+                {{with .RedirectURL}}
                 <label>
                   <span>URL</span>
-                  <a href="{{.RedirectURL}}">{{.RedirectURL}}</a>
+                  <a href="{{.}}">{{.}}</a>
                 </label>
                 {{end}}
-                {{if .User.Name}}
+                {{with .User.Name}}
                 <label>
                   <span>Name</span>
                   <input
                     type="text"
                     class="field"
-                    value="{{.User.Name}}"
-                    title="{{.User.Name}}"
+                    value="{{.}}"
+                    title="{{.}}"
                     disabled
                   />
                 </label>
-                {{else}} {{if .User.Claims.given_name}}
-                <label>
-                  <span>Given Name</span>
-                  <input
-                    type="text"
-                    class="field"
-                    value="{{.User.GetClaim "given_name"}}"
-                    title="{{.User.GetClaim "given_name"}}"
-                    disabled
-                  />
-                </label>
-                {{end}} {{if .User.Claims.family_name}}
-                <label>
-                  <span>Family Name</span>
-                  <input
-                    type="text"
-                    class="field"
-                    value="{{.User.GetClaim "family_name"}}"
-                    title="{{.User.GetClaim "family_name"}}"
-                    disabled
-                  />
-                </label>
-                {{end}} {{end}} {{if .User.Id}}
+                {{else}}
+                  {{with .User.GetClaim "given_name"}}
+                  <label>
+                    <span>Given Name</span>
+                    <input
+                      type="text"
+                      class="field"
+                      value="{{.}}"
+                      title="{{.}}"
+                      disabled
+                    />
+                  </label>
+                  {{end}}
+                  {{with .User.GetClaim "family_name"}}
+                  <label>
+                    <span>Family Name</span>
+                    <input
+                      type="text"
+                      class="field"
+                      value="{{.}}"
+                      title="{{.}}"
+                      disabled
+                    />
+                  </label>
+                  {{end}}
+                {{end}}
+                {{with .User.Id}}
                 <label>
                   <span>UserID</span>
                   <input
                     type="text"
                     class="field"
-                    value="{{.User.Id}}"
-                    title="{{.User.Id}}"
+                    value="{{.}}"
+                    title="{{.}}"
                     disabled
                   />
                 </label>
-                {{end}} {{if .User.Email}}
+                {{end}}
+                {{with .User.Email}}
                 <label>
                   <span>Email</span>
                   <input
                     type="email"
                     class="field"
-                    value="{{.User.Email}}"
-                    title="{{.User.Email}}"
+                    value="{{.}}"
+                    title="{{.}}"
                     disabled
                   />
                 </label>
-                {{end}} {{range $i,$_:= .DirectoryGroups}}
+                {{end}}
+                {{range $i,$_:= .DirectoryGroups}}
                 <label>
                   {{if eq $i 0}}
                   <span>Group</span>
