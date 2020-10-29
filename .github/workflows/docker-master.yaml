@@ -7,17 +7,13 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    outputs:
+      sha-tag: ${{ steps.metadata.outputs.sha-tag }}
+      image: ${{ steps.metadata.outputs.image }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-
-      - name: Docker Publish - Master
-        uses: zenato/docker-action@master
-        with:
-          username: ${{ secrets.DOCKERHUB_USER }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: pomerium/pomerium
-          tag: master
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -28,6 +24,32 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Prepare Image Metadata
+        id: metadata
+        run: |
+          IMAGE=pomerium/pomerium
+          SHA_TAG=git-${GITHUB_SHA::8}
+          TAGS=${IMAGE}:master
+          TAGS=${TAGS},${IMAGE}:${SHA_TAG}
+          TS=$(date +%Y%m%d%H%M%S)
+          echo ::set-output name=tags::${TAGS}
+          echo ::set-output name=timestamp::${TS}
+          echo ::set-output name=name::pomerium
+          echo ::set-output name=image::${IMAGE}
+          echo ::set-output name=sha-tag::${SHA_TAG}
+
+      - name: Docker Publish - Master
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}"
+            org.opencontainers.image.name=${{ steps.metadata.outputs.name }}"
+            org.opencontainers.image.revision=${{ github.sha }}
+
       - name: Docker Publish - Debug
         uses: docker/build-push-action@v2
         with:
@@ -35,3 +57,31 @@ jobs:
           file: ./Dockerfile.debug
           push: true
           tags: pomerium/pomerium:debug
+          labels: |
+            org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}"
+            org.opencontainers.image.name=${{ steps.metadata.outputs.name }}"
+            org.opencontainers.image.revision=${{ github.sha }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: publish
+    steps:
+      - name: Checkout Helmfile Repo
+        uses: actions/checkout@v2
+        with:
+          repository: pomerium/helmfile
+          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+
+      - name: Bump test environment
+        uses: mikefarah/yq@3.4.0
+        with:
+          cmd: "yq write -i environments/internal-prd/values/pomerium-demo.yaml image.tag ${{ needs.publish.outputs.sha-tag }}"
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          branch: master
+          commit_message: |
+            Bump test environment ${{ needs.publish.outputs.image }}
+            Image tag: ${{ needs.publish.outputs.sha-tag }}
+            Source Repo: ${{ github.repository }}@${{ github.sha }}
