@@ -73,6 +73,9 @@ func (p *Proxy) nginxPostCallbackRedirect(w http.ResponseWriter, r *http.Request
 // to their originally desired location.
 func (p *Proxy) nginxCallback(w http.ResponseWriter, r *http.Request) error {
 	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
+	return p.nginxCallbackWithSession(w, r, encryptedSession)
+}
+func (p *Proxy) nginxCallbackWithSession(w http.ResponseWriter, r *http.Request, encryptedSession string) error {
 	if _, err := p.saveCallbackSession(w, r, encryptedSession); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -114,6 +117,7 @@ func (p *Proxy) allowUpstream(w http.ResponseWriter, r *http.Request) error {
 // authentication flow
 func (p *Proxy) startAuthN(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
+
 	uriString := r.FormValue(urlutil.QueryForwardAuthURI)
 	if uriString == "" {
 		uriString = "https://" + // always use HTTPS for external urls
@@ -127,6 +131,23 @@ func (p *Proxy) startAuthN(w http.ResponseWriter, r *http.Request) error {
 	// add any non-empty existing path from the forwarded URI
 	if xfu := r.Header.Get(httputil.HeaderForwardedURI); xfu != "" && xfu != "/" {
 		uri.Path = xfu
+	}
+
+	rawRedirectURI := uri.Query().Get(urlutil.QueryRedirectURI)
+	rawSessionEncrypted := uri.Query().Get(urlutil.QuerySessionEncrypted)
+	if rawRedirectURI != "" && rawSessionEncrypted != "" {
+		if r.URL.Path == "/verify" {
+			return p.nginxCallbackWithSession(w, r, rawSessionEncrypted)
+		}
+		u, err := url.Parse(rawRedirectURI)
+		if err != nil {
+			return httputil.NewError(http.StatusBadRequest, err)
+		}
+		q := u.Query()
+		q.Del(urlutil.QueryForwardAuthURI)
+		u.RawQuery = q.Encode()
+		httputil.Redirect(w, r, u.String(), http.StatusFound)
+		return nil
 	}
 
 	authN := *state.authenticateSigninURL

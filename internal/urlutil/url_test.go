@@ -48,6 +48,7 @@ func TestParseAndValidateURL(t *testing.T) {
 		{"bad hostname", "https://", nil, true},
 		{"bad parse", "https://^", nil, true},
 		{"empty string error", "", nil, true},
+		{"%0A", "https://from.example.com/%0A/test", &url.URL{Scheme: "https", Host: "from.example.com", Path: "/\x0A/test"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

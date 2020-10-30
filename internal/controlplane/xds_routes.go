@@ -72,8 +72,7 @@ func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_co
 	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {
 		routes = append(routes,
 			// disable ext_authz and pass request to proxy handlers that enable authN flow
-			buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}),
-			buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}),
+			buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI}),
 			buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI}),
 			// otherwise, enforce ext_authz; pass all other requests through to an upstream
 			// handler that will simply respond with http status 200 / OK indicating that

@@ -76,7 +76,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 							"accept":            "text/html",
 							"x-forwarded-proto": "https",
 						},
-						Path:   "/some/path?qs=1",
+						Path:   "/some/path%0A?qs=1",
 						Host:   "example.com",
 						Scheme: "http",
 						Body:   "BODY",
@@ -98,7 +98,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 		},
 		HTTP: evaluator.RequestHTTP{
 			Method: "GET",
-			URL:    "http://example.com/some/path?qs=1",
+			URL:    "http://example.com/some/path%0A?qs=1",
 			Headers: map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
@@ -560,4 +560,19 @@ func TestAuthorize_Check(t *testing.T) {
 
 		})
 	}
+}
+
+func TestReplaceCheckRequestURL(t *testing.T) {
+	in := &envoy_service_auth_v2.CheckRequest{
+		Attributes: &envoy_service_auth_v2.AttributeContext{
+			Request: &envoy_service_auth_v2.AttributeContext_Request{
+				Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{},
+			},
+		},
+	}
+
+	newURL, _ := url.Parse("https://example.com/path%0A/example")
+	replaceCheckRequestURL(in, newURL)
+
+	assert.Equal(t, in.Attributes.Request.Http.Path, "/path%0A/example")
 }

@@ -46,12 +46,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	if isForwardAuth {
 		// update the incoming http request's uri to match the forwarded URI
 		fwdAuthURI := getForwardAuthURL(hreq)
-		in.Attributes.Request.Http.Scheme = fwdAuthURI.Scheme
-		in.Attributes.Request.Http.Host = fwdAuthURI.Host
-		in.Attributes.Request.Http.Path = fwdAuthURI.Path
-		if fwdAuthURI.RawQuery != "" {
-			in.Attributes.Request.Http.Path += "?" + fwdAuthURI.RawQuery
-		}
+		replaceCheckRequestURL(in, fwdAuthURI)
 	}
 
 	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), state.encoder)
@@ -283,13 +278,21 @@ func getCheckRequestURL(req *envoy_service_auth_v2.CheckRequest) *url.URL {
 		Host:   h.GetHost(),
 	}
 	u.Host = urlutil.GetDomainsForURL(u)[0]
-	// envoy sends the query string as part of the path
-	path := h.GetPath()
-	if idx := strings.Index(path, "?"); idx != -1 {
-		u.Path, u.RawQuery = path[:idx], path[idx+1:]
+
+	// first try using the parse method which properly handles encoding and sets Raw+Path/Query and the regular
+	// Path/Query.
+	if nu, err := u.Parse(h.GetPath()); err == nil {
+		u = nu
 	} else {
-		u.Path = path
+		// envoy sends the query string as part of the path
+		path := h.GetPath()
+		if idx := strings.Index(path, "?"); idx != -1 {
+			u.Path, u.RawQuery = path[:idx], path[idx+1:]
+		} else {
+			u.Path = path
+		}
 	}
+
 	return u
 }
 
@@ -330,4 +333,14 @@ func logAuthorizeCheck(
 	}
 
 	evt.Msg("authorize check")
+}
+
+func replaceCheckRequestURL(req *envoy_service_auth_v2.CheckRequest, newURL *url.URL) {
+	req.Attributes.Request.Http.Scheme = newURL.Scheme
+	req.Attributes.Request.Http.Host = newURL.Host
+	// the go path is decoded, but the check request path is encoded, so we need to re-encode it
+	req.Attributes.Request.Http.Path = newURL.EscapedPath()
+	if newURL.RawQuery != "" {
+		req.Attributes.Request.Http.Path += "?" + newURL.RawQuery
+	}
 }
