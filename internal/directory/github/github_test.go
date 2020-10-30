@@ -42,13 +42,13 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 						"totalCount": 3,
 						"edges": []M{
 							{"node": M{
-								"id": 1,
+								"id": "MDQ6VGVhbTE=",
 							}},
 							{"node": M{
-								"id": 2,
+								"id": "MDQ6VGVhbTI=",
 							}},
 							{"node": M{
-								"id": 3,
+								"id": "MDQ6VGVhbTM=",
 							}},
 						},
 					},
