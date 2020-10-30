@@ -58,6 +58,9 @@ type Policy struct {
 	// Allow any public request to access this route. **Bypasses authentication**
 	AllowPublicUnauthenticatedAccess bool `mapstructure:"allow_public_unauthenticated_access" yaml:"allow_public_unauthenticated_access,omitempty"`
 
+	// Allow any authenticated user
+	AllowAnyAuthenticatedUser bool `mapstructure:"allow_any_authenticated_user" yaml:"allow_any_authenticated_user,omitempty"`
+
 	// UpstreamTimeout is the route specific timeout. Must be less than the global
 	// timeout. If unset,  route will fallback to the proxy's DefaultUpstreamTimeout.
 	UpstreamTimeout time.Duration `mapstructure:"timeout" yaml:"timeout,omitempty"`
@@ -164,6 +167,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		RegexRewriteSubstitution:         pb.GetRegexRewriteSubstitution(),
 		CORSAllowPreflight:               pb.GetCorsAllowPreflight(),
 		AllowPublicUnauthenticatedAccess: pb.GetAllowPublicUnauthenticatedAccess(),
+		AllowAnyAuthenticatedUser:        pb.GetAllowAnyAuthenticatedUser(),
 		UpstreamTimeout:                  timeout,
 		AllowWebsockets:                  pb.GetAllowWebsockets(),
 		TLSSkipVerify:                    pb.GetTlsSkipVerify(),
@@ -225,6 +229,7 @@ func (p *Policy) ToProto() *configpb.Route {
 		RegexRewriteSubstitution:         p.RegexRewriteSubstitution,
 		CorsAllowPreflight:               p.CORSAllowPreflight,
 		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
+		AllowAnyAuthenticatedUser:        p.AllowAnyAuthenticatedUser,
 		Timeout:                          timeout,
 		AllowWebsockets:                  p.AllowWebsockets,
 		TlsSkipVerify:                    p.TLSSkipVerify,
@@ -266,8 +271,13 @@ func (p *Policy) Validate() error {
 	}
 
 	// Only allow public access if no other whitelists are in place
-	if p.AllowPublicUnauthenticatedAccess && (p.AllowedDomains != nil || p.AllowedGroups != nil || p.AllowedUsers != nil) {
+	if p.AllowPublicUnauthenticatedAccess && (p.AllowAnyAuthenticatedUser || p.AllowedDomains != nil || p.AllowedGroups != nil || p.AllowedUsers != nil) {
 		return fmt.Errorf("config: policy route marked as public but contains whitelists")
+	}
+
+	// Only allow any authenticated user if no other whitelists are in place
+	if p.AllowAnyAuthenticatedUser && (p.AllowedDomains != nil || p.AllowedGroups != nil || p.AllowedUsers != nil) {
+		return fmt.Errorf("config: policy route marked accessible for any authenticated user but contains whitelists")
 	}
 
 	if (p.TLSClientCert == "" && p.TLSClientKey != "") || (p.TLSClientCert != "" && p.TLSClientKey == "") ||

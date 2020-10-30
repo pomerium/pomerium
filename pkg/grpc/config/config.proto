@@ -33,6 +33,7 @@ message Route {
 
   bool cors_allow_preflight = 10;
   bool allow_public_unauthenticated_access = 11;
+  bool allow_any_authenticated_user = 33;
   google.protobuf.Duration timeout = 12;
   bool allow_websockets = 13;
 
