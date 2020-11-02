@@ -369,6 +369,22 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 	}
 	s.OauthToken = ToOAuthToken(newToken)
 
+	err = mgr.cfg.Load().authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &s)
+	if isTemporaryError(err) {
+		mgr.log.Error().Err(err).
+			Str("user_id", s.GetUserId()).
+			Str("session_id", s.GetId()).
+			Msg("failed to update user info")
+		return
+	} else if err != nil {
+		mgr.log.Error().Err(err).
+			Str("user_id", s.GetUserId()).
+			Str("session_id", s.GetId()).
+			Msg("failed to update user info, deleting session")
+		mgr.deleteSession(ctx, s.Session)
+		return
+	}
+
 	res, err := session.Set(ctx, mgr.cfg.Load().dataBrokerClient, s.Session)
 	if err != nil {
 		mgr.log.Error().Err(err).
