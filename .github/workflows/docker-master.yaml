@@ -73,7 +73,7 @@ jobs:
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
-        uses: mikefarah/yq@3.4.0
+        uses: mikefarah/yq@3.4.1
         with:
           cmd: "yq write -i environments/internal-prd/values/pomerium-demo.yaml image.tag ${{ needs.publish.outputs.sha-tag }}"
 
