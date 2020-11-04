@@ -45,6 +45,6 @@ func (t *httpTransport) update(options *Options) {
 }
 
 // RoundTrip executes an HTTP request.
-func (t *httpTransport) RoundTrip(req *http.Request) (res *http.Response, err error) {
+func (t *httpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return t.transport.Load().(http.RoundTripper).RoundTrip(req)
 }
