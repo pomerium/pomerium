@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -44,6 +45,9 @@ func Run(ctx context.Context, configFile string) error {
 	}
 
 	src = databroker.NewConfigSource(src)
+
+	// override the default http transport so we can use the custom CA in the TLS client config (#1570)
+	http.DefaultTransport = config.NewHTTPTransport(src)
 
 	logMgr := config.NewLogManager(src)
 	defer logMgr.Close()

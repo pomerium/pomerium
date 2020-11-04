@@ -3,11 +3,8 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"strconv"
@@ -22,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
@@ -100,29 +98,9 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		log.Info().Str("addr", connAddr).Msg("internal/grpc: grpc with insecure")
 		dialOptions = append(dialOptions, grpc.WithInsecure())
 	} else {
-		rootCAs, err := x509.SystemCertPool()
+		rootCAs, err := cryptutil.GetCertPool(opts.CA, opts.CAFile)
 		if err != nil {
-			log.Warn().Msg("internal/grpc: failed getting system cert pool making new one")
-			rootCAs = x509.NewCertPool()
-		}
-		if opts.CA != "" || opts.CAFile != "" {
-			var ca []byte
-			var err error
-			if opts.CA != "" {
-				ca, err = base64.StdEncoding.DecodeString(opts.CA)
-				if err != nil {
-					return nil, fmt.Errorf("failed to decode certificate authority: %w", err)
-				}
-			} else {
-				ca, err = ioutil.ReadFile(opts.CAFile)
-				if err != nil {
-					return nil, fmt.Errorf("certificate authority file %v not readable: %w", opts.CAFile, err)
-				}
-			}
-			if ok := rootCAs.AppendCertsFromPEM(ca); !ok {
-				return nil, fmt.Errorf("failed to append CA cert to certPool")
-			}
-			log.Debug().Msg("internal/grpc: added custom certificate authority")
+			return nil, err
 		}
 
 		cert := credentials.NewTLS(&tls.Config{RootCAs: rootCAs})
