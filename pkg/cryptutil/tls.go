@@ -19,25 +19,26 @@ func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
 		log.Error().Msg("pkg/cryptutil: failed getting system cert pool making new one")
 		rootCAs = x509.NewCertPool()
 	}
-	if ca != "" || caFile != "" {
-		var data []byte
-		var err error
-		if ca != "" {
-			data, err = base64.StdEncoding.DecodeString(ca)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode certificate authority: %w", err)
-			}
-		} else {
-			data, err = ioutil.ReadFile(caFile)
-			if err != nil {
-				return nil, fmt.Errorf("certificate authority file %v not readable: %w", caFile, err)
-			}
-		}
-		if ok := rootCAs.AppendCertsFromPEM(data); !ok {
-			return nil, fmt.Errorf("failed to append CA cert to certPool")
-		}
-		log.Debug().Msg("pkg/cryptutil: added custom certificate authority")
+	if ca == "" && caFile == "" {
+		return rootCAs, nil
 	}
+
+	var data []byte
+	if ca != "" {
+		data, err = base64.StdEncoding.DecodeString(ca)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode certificate authority: %w", err)
+		}
+	} else {
+		data, err = ioutil.ReadFile(caFile)
+		if err != nil {
+			return nil, fmt.Errorf("certificate authority file %v not readable: %w", caFile, err)
+		}
+	}
+	if ok := rootCAs.AppendCertsFromPEM(data); !ok {
+		return nil, fmt.Errorf("failed to append CA cert to certPool")
+	}
+	log.Debug().Msg("pkg/cryptutil: added custom certificate authority")
 	return rootCAs, nil
 }
 
