@@ -38,7 +38,7 @@ func (t *httpTransport) update(options *Options) {
 				RootCAs: rootCAs,
 			}
 		} else {
-			log.Error().Err(err).Msg("internal/config: error getting cert pool")
+			log.Error().Err(err).Msg("config: error getting cert pool")
 		}
 	}
 	t.transport.Store(nt)
