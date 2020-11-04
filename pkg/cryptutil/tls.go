@@ -3,9 +3,44 @@ package cryptutil
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
+	"fmt"
+	"io/ioutil"
 
 	"github.com/caddyserver/certmagic"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
+
+// GetCertPool gets a cert pool for the given CA or CAFile.
+func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
+	rootCAs, err := x509.SystemCertPool()
+	if err != nil {
+		log.Error().Msg("pkg/cryptutil: failed getting system cert pool making new one")
+		rootCAs = x509.NewCertPool()
+	}
+	if ca == "" && caFile == "" {
+		return rootCAs, nil
+	}
+
+	var data []byte
+	if ca != "" {
+		data, err = base64.StdEncoding.DecodeString(ca)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode certificate authority: %w", err)
+		}
+	} else {
+		data, err = ioutil.ReadFile(caFile)
+		if err != nil {
+			return nil, fmt.Errorf("certificate authority file %v not readable: %w", caFile, err)
+		}
+	}
+	if ok := rootCAs.AppendCertsFromPEM(data); !ok {
+		return nil, fmt.Errorf("failed to append CA cert to certPool")
+	}
+	log.Debug().Msg("pkg/cryptutil: added custom certificate authority")
+	return rootCAs, nil
+}
 
 // GetCertificateForDomain returns the tls Certificate which matches the given domain name.
 // It should handle both exact matches and wildcard matches. If none of those match, the first certificate will be used.
