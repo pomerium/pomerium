@@ -18,8 +18,7 @@ def main():
                           "..", "docs", "reference", "readme.md"), "w")
     f.write(f"{doc['preamble']}\n")
     write_setting(f, 1, doc)
-    f.write(f"{doc['postamble']}\n")
-
+    f.write(f"{doc['postamble']}")
     f.close()
 
 

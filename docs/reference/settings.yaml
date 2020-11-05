@@ -45,7 +45,7 @@ settings:
       These configuration variables are shared by all services, in all service modes.
     settings:
       - name: "Address"
-        keys: [ "address" ]
+        keys: ["address"]
         attributes: |
           - Environmental Variable: `ADDRESS`
           - Config File Key: `address`
@@ -58,7 +58,7 @@ settings:
         shortdoc: |
           Address specifies the host and port to serve HTTP requests from.
       - name: "Administrators"
-        keys: [ "administrators" ]
+        keys: ["administrators"]
         attributes: |
           - Environmental Variable: `ADMINISTRATORS`
           - Config File Key: `administrators`
@@ -69,7 +69,7 @@ settings:
         shortdoc: |
           Administrative users are super user that can sign in as another user or group.
       - name: "Enable User Impersonation"
-        keys: [ "enable_user_impersonation" ]
+        keys: ["enable_user_impersonation"]
         attributes: |
           - Environmental Variable: `ENABLE_USER_IMPERSONATION`
           - Config File Key: `enable_user_impersonation`
@@ -79,7 +79,7 @@ settings:
         doc: |
           Enabling user impersonation allows administrators to impersonate other user accounts. Prior to v0.11.0 this feature was enabled by default. It is now disabled by default.
       - name: "Autocert"
-        keys: [ "autocert" ]
+        keys: ["autocert"]
         attributes: |
           - Environmental Variable: `AUTOCERT`
           - Config File Key: `autocert`
@@ -104,7 +104,7 @@ settings:
         shortdoc: |
           Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from Lets Encrypt.
       - name: "Autocert Must-Staple"
-        keys: [ "autocert_must_staple" ]
+        keys: ["autocert_must_staple"]
         attributes: |
           - Environmental Variable: `AUTOCERT_MUST_STAPLE`
           - Config File Key: `autocert_must_staple`
@@ -121,7 +121,7 @@ settings:
 
           For more details, please see [RFC7633](https://tools.ietf.org/html/rfc7633) .
       - name: "Autocert Directory"
-        keys: [ "autocert_dir" ]
+        keys: ["autocert_dir"]
         attributes: |
           - Environmental Variable: either `AUTOCERT_DIR`
           - Config File Key: `autocert_dir`
@@ -137,7 +137,7 @@ settings:
         shortdoc: |
           Autocert directory is the path which autocert will store x509 certificate data.
       - name: "Autocert Use Staging"
-        keys: [ "autocert_use_staging" ]
+        keys: ["autocert_use_staging"]
         attributes: |
           - Environmental Variable: `AUTOCERT_USE_STAGING`
           - Config File Key: `autocert_use_staging`
@@ -148,7 +148,14 @@ settings:
         shortdoc: |
           Let's Encrypt has strict usage limits. Enabling this setting allows you to use Let's Encrypt's staging environment which has much more lax usage limits.
       - name: "Certificates"
-        keys: [ "certificates", "certificate", "certificate_key", "certificate_file", "certificate_key_file" ]
+        keys:
+          [
+            "certificates",
+            "certificate",
+            "certificate_key",
+            "certificate_file",
+            "certificate_key_file",
+          ]
         attributes: |
           - Config File Key: `certificates` (not yet settable using environmental variables)
           - Config File Key: `certificate` / `certificate_key`
@@ -174,7 +181,7 @@ settings:
               key: "$HOME/.acme.sh/prometheus.example.com_ecc/prometheus.example.com.key"
           ```
       - name: "Client Certificate Authority"
-        keys: [ "client_ca", "client_ca_file" ]
+        keys: ["client_ca", "client_ca_file"]
         attributes: |
           - Environment Variable: `CLIENT_CA` / `CLIENT_CA_FILE`
           - Config File Key: `client_ca` / `client_ca_file`
@@ -185,7 +192,7 @@ settings:
       - name: "Cookie Options"
         settings:
           - name: "Cookie Name"
-            keys: [ "cookie_name" ]
+            keys: ["cookie_name"]
             attributes: |
               - Environmental Variable: `COOKIE_NAME`
               - Config File Key: `cookie_name`
@@ -196,7 +203,7 @@ settings:
             shortdoc: |
               The name of the session cookie sent to clients.
           - name: "Cookie Secret"
-            keys: [ "cookie_secret" ]
+            keys: ["cookie_secret"]
             attributes: |
               - Environmental Variable: `COOKIE_SECRET`
               - Config File Key: `cookie_secret`
@@ -207,7 +214,7 @@ settings:
             shortdoc: |
               Secret used to encrypt and sign session cookies.
           - name: "Cookie Domain"
-            keys: [ "cookie_domain" ]
+            keys: ["cookie_domain"]
             attributes: |
               - Environmental Variable: `COOKIE_DOMAIN`
               - Config File Key: `cookie_domain`
@@ -219,7 +226,7 @@ settings:
             shortdoc: |
               The scope of session cookies issued by Pomerium.
           - name: "HTTPS only"
-            keys: [ "cookie_secure" ]
+            keys: ["cookie_secure"]
             attributes: |
               - Environmental Variable: `COOKIE_SECURE`
               - Config File Key: `cookie_secure`
@@ -236,7 +243,7 @@ settings:
             shortdoc: |
               If true, instructs browsers to only send user session cookies over HTTPS.
           - name: "Javascript Security"
-            keys: [ "cookie_http_only" ]
+            keys: ["cookie_http_only"]
             attributes: |
               - Environmental Variable: `COOKIE_HTTP_ONLY`
               - Config File Key: `cookie_http_only`
@@ -253,7 +260,7 @@ settings:
             shortdoc: |
               If true, prevents javascript in browsers from reading user session cookies.
           - name: "Expiration"
-            keys: [ "cookie_expire" ]
+            keys: ["cookie_expire"]
             attributes: |
               - Environmental Variable: `COOKIE_EXPIRE`
               - Config File Key: `cookie_expire`
@@ -264,7 +271,7 @@ settings:
             shortdoc: |
               Sets the lifetime of session cookies. After this interval, users must reauthenticate.
       - name: "Debug"
-        keys: [ "pomerium_debug" ]
+        keys: ["pomerium_debug"]
         attributes: |
           - Environmental Variable: `POMERIUM_DEBUG`
           - Config File Key: `pomerium_debug`
@@ -299,7 +306,7 @@ settings:
         shortdoc: |
           Debug enables colored, human-readable logs to be streamed to standard out.
       - name: "Forward Auth"
-        keys: [ "forward_auth_url" ]
+        keys: ["forward_auth_url"]
         attributes: |
           - Environmental Variable: `FORWARD_AUTH_URL`
           - Config File Key: `forward_auth_url`
@@ -383,7 +390,7 @@ settings:
         shortdoc: |
           Forward authentication creates an endpoint that can be used with third-party proxies.
       - name: "Global Timeouts"
-        keys: [ "timeout_read", "timeout_write", "timeout_idle" ]
+        keys: ["timeout_read", "timeout_write", "timeout_idle"]
         attributes: |
           - Environmental Variables: `TIMEOUT_READ` `TIMEOUT_WRITE` `TIMEOUT_IDLE`
           - Config File Key: `timeout_read` `timeout_write` `timeout_idle`
@@ -616,7 +623,14 @@ settings:
         shortdoc: |
           Shared Secret is the base64 encoded 256-bit key used to mutually authenticate requests between services.
       - name: "Tracing"
-        keys: ["tracing_provider", "tracing_sample_rate", "tracing_jaeger_collector_endpoint", "tracing_jaeger_agent_endpoint", "tracing_zipkin_endpoint"]
+        keys:
+          [
+            "tracing_provider",
+            "tracing_sample_rate",
+            "tracing_jaeger_collector_endpoint",
+            "tracing_jaeger_agent_endpoint",
+            "tracing_zipkin_endpoint",
+          ]
         doc: |
           Tracing tracks the progression of a single user request as it is handled by Pomerium.
 
@@ -794,7 +808,8 @@ settings:
         shortdoc: |
           Headers specifies a mapping of HTTP Header to be added to proxied  requests. Nota bene Downstream application headers will be overwritten by Pomerium's headers on conflict.
       - name: "Identity Provider Refresh Directory Settings"
-        keys: ["idp_refresh_directory_interval", "idp_refresh_directory_timeout"]
+        keys:
+          ["idp_refresh_directory_interval", "idp_refresh_directory_timeout"]
         attributes: |
           - Environmental Variables: `IDP_REFRESH_DIRECTORY_INTERVAL` `IDP_REFRESH_DIRECTORY_TIMEOUT`
           - Config File Key: `idp_refresh_directory_interval` `idp_refresh_directory_timeout`
@@ -1104,7 +1119,11 @@ settings:
         doc: |
           `From` is the externally accessible source of the proxied request.
       - name: "Kubernetes Service Account Token"
-        keys: ["kubernetes_service_account_token", "kubernetes_service_account_token_file"]
+        keys:
+          [
+            "kubernetes_service_account_token",
+            "kubernetes_service_account_token_file",
+          ]
         attributes: |
           - `yaml`/`json` setting: `kubernetes_service_account_token` / `kubernetes_service_account_token_file`
           - Type: `string` or relative file location containing a Kubernetes bearer token
@@ -1165,7 +1184,13 @@ settings:
 
           A request to `https://from.example.com/admin` would be forwarded to `https://to.example.com/`.
       - name: "Host Rewrite"
-        keys: ["host_rewrite", "host_rewrite_header", "host_path_regex_rewrite_pattern", "host_path_regex_rewrite_substitution"]
+        keys:
+          [
+            "host_rewrite",
+            "host_rewrite_header",
+            "host_path_regex_rewrite_pattern",
+            "host_path_regex_rewrite_substitution",
+          ]
         attributes: |
           - `yaml`/`json` settings: `host_rewrite`, `host_rewrite_header`, `host_path_regex_rewrite_pattern`, `host_path_regex_rewrite_substitution`
           - Type: `string`
@@ -1197,6 +1222,17 @@ settings:
           **Use with caution:** Allow all requests for a given route, bypassing authentication and authorization. Suitable for publicly exposed web services.
 
           If this setting is enabled, no whitelists (e.g. Allowed Users) should be provided in this route.
+      - name: "Allow Any Authenticated User"
+        keys: ["allow_any_authenticated_user"]
+        attributes: |
+          - `yaml`/`json` setting: `allow_any_authenticated_user`
+          - Type: `bool`
+          - Optional
+          - Default: `false`
+        doc: |
+          **Use with caution:** This setting will allow all requests for any user which is able to authenticate with our given identity provider. For instance, if you are using a corporate GSuite account, an unrelated gmail user will be able to access the underlying upstream.
+
+          Use of this setting means Pomerium **will not enforce centralized authorization policy** for this route. The upstream is responsible for handling any authorization.
       - name: "Regex"
         keys: ["regex"]
         attributes: |
@@ -1333,7 +1369,13 @@ settings:
 
           Note: This setting will replace (not append) the system's trust store for a given route.
       - name: "TLS Client Certificate"
-        keys: ["tls_client_cert", "tls_client_key", "tls_client_cert_file", "tls_client_key_file"]
+        keys:
+          [
+            "tls_client_cert",
+            "tls_client_key",
+            "tls_client_cert_file",
+            "tls_client_key_file",
+          ]
         attributes: |
           - Config File Key: `tls_client_cert` and `tls_client_key` or `tls_client_cert_file` and `tls_client_key_file`
           - Type: [base64 encoded] `string` or relative file location
