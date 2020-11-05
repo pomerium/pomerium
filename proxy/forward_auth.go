@@ -103,6 +103,13 @@ func (p *Proxy) allowUpstream(w http.ResponseWriter, r *http.Request) error {
 	if status := r.FormValue("auth_status"); status == fmt.Sprint(http.StatusForbidden) {
 		return httputil.NewError(http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
 	}
+	// in forward-auth configuration we want to treat our request headers as response headers
+	// so that they can be forwarded by the fronting proxy, if desired
+	for k, vs := range r.Header {
+		for _, v := range vs {
+			w.Header().Set(k, v)
+		}
+	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
