@@ -27,6 +27,12 @@ allow {
 	count(object.get(input.http.headers, "Origin", [])) > 0
 }
 
+# allow any authenticated user
+allow {
+    route_policy.AllowAnyAuthenticatedUser == true
+    session.user_id != ""
+}
+
 # allow by email
 allow {
 	user.email == all_allowed_users[_]

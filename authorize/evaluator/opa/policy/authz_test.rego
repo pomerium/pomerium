@@ -374,3 +374,30 @@ test_are_claims_allowed {
 
     are_claims_allowed({"a.b.c": ["1"], "d.e.f": ["2"]}, {"d.e.f": ["2"]})
 }
+
+test_any_authenticated_user_allowed {
+	allow with
+		data.route_policies as [{
+			"source": "example.com",
+			"AllowAnyAuthenticatedUser": true
+		}] with
+		input.databroker_data as {
+			"session": {
+				"user_id": "user1"
+			},
+			"user": {
+				"email": "x@example.com"
+			}
+		} with
+		input.http as { "url": "http://example.com" } with
+		input.session as { "id": "session1", "impersonate_email": "" }
+}
+test_any_authenticated_user_denied {
+	not allow with
+		data.route_policies as [{
+			"source": "example.com",
+			"AllowAnyAuthenticatedUser": true
+		}] with
+		input.http as { "url": "http://example.com" } with
+		input.session as { "id": "session1", "impersonate_email": "" }
+}
