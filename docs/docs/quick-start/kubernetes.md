@@ -24,7 +24,7 @@ Retrieve the latest copy of pomerium's source-code by cloning the repository.
 
 ```bash
 git clone https://github.com/pomerium/pomerium.git $HOME/pomerium
-cd $HOME/pomerium/docs/configuration/examples/kubernetes
+cd $HOME/pomerium/examples/kubernetes
 ```
 
 ## Configure
