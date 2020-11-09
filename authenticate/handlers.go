@@ -61,6 +61,11 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Path("/robots.txt").HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
 	// Identity Provider (IdP) endpoints
 	r.Path("/oauth2/callback").Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet)
+	s := r.PathPrefix("/oauth2/session").Subrouter()
+	s.Use(func(h http.Handler) http.Handler {
+		return sessions.RetrieveSession(a.state.Load().sessionLoaders...)(h)
+	})
+	s.Path("/frontchannel-logout").Handler(httputil.HandlerFunc(a.FrontchannelLogout)).Methods(http.MethodGet)
 
 	// Proxy service endpoints
 	v := r.PathPrefix("/.pomerium").Subrouter()
@@ -600,6 +605,70 @@ func (a *Authenticate) saveSessionToDataBroker(
 	if err != nil {
 		log.Error().Err(err).Msg("directory: failed to refresh user data")
 	}
+
+	return nil
+}
+
+// FrontchannelLogout signs the user out
+func (a *Authenticate) FrontchannelLogout(w http.ResponseWriter, r *http.Request) error {
+	ctx, span := trace.StartSpan(r.Context(), "authenticate.FrontchannelLogout")
+	defer span.End()
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache, no-store")
+	w.Header().Set("Pragma", "no-cache")
+
+	if err := a.processFrontchannelLogoutWithContext(ctx, w, r); err != nil {
+		log.FromRequest(r).Debug().Err(err).Msg("failed processing frontchannel logout")
+
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "%s", "mising required parameters")
+
+		return nil
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "%s", "OK")
+
+	return nil
+}
+
+func (a *Authenticate) processFrontchannelLogoutWithContext(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+
+	state := a.state.Load()
+
+	sessionState, err := a.getSessionFromCtx(ctx)
+
+	if err != nil {
+
+		return err
+	}
+
+	s, err := session.Get(ctx, state.dataBrokerClient, sessionState.ID)
+
+	if err != nil {
+
+		return err
+	}
+
+	if s == nil || s.IdToken == nil {
+
+		return errors.New("could not load session")
+	}
+
+	if s.OauthToken != nil {
+
+		if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
+			log.Warn().Err(err).Msg("failed to revoke access token")
+		}
+	}
+
+	if err := a.deleteSession(ctx, sessionState.ID); err != nil {
+		log.Warn().Err(err).Msg("failed to delete session from session store")
+	}
+
+	// no matter what happens, we want to clear the session store
+	state.sessionStore.ClearSession(w, r)
 
 	return nil
 }

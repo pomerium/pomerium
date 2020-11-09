@@ -66,7 +66,7 @@ func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_co
 	}
 	// if we're handling authentication, add the oauth2 callback url
 	if config.IsAuthenticate(options.Services) && hostMatchesDomain(options.GetAuthenticateURL(), domain) {
-		routes = append(routes, buildControlPlanePathRoute(options.AuthenticateCallbackPath, false))
+		routes = append(routes, buildControlPlanePathRoute(options.AuthenticateCallbackPath, false), buildControlPlanePathRoute("/oauth2/session/frontchannel-logout", false))
 	}
 	// if we're the proxy and this is the forward-auth url
 	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {

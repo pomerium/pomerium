@@ -85,7 +85,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			`+routeString("path", "/.well-known/pomerium", false)+`,
 			`+routeString("prefix", "/.well-known/pomerium/", false)+`,
 			`+routeString("path", "/robots.txt", false)+`,
-			`+routeString("path", "/oauth2/callback", false)+`
+			`+routeString("path", "/oauth2/callback", false)+`,
+			`+routeString("path", "/oauth2/session/frontchannel-logout", false)+`
 		]`, routes)
 	})
 
