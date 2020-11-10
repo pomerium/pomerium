@@ -16,7 +16,6 @@ import (
 // see : https://www.pomerium.io/configuration/#forward-auth
 func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r := httputil.NewRouter()
-
 	// NGNIX's forward-auth capabilities are split across two settings:
 	// `auth-url` and `auth-signin` which correspond to `verify` and `auth-url`
 	//
@@ -46,9 +45,9 @@ func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r.Handle("/", httputil.HandlerFunc(p.startAuthN)).
 		Queries(urlutil.QueryForwardAuthURI, "{uri}")
 
-	// nginx 2 / traefik 1: verify and then start authenticate flow
-	r.Handle("/", httputil.HandlerFunc(p.allowUpstream))
-
+	// otherwise, send a 200 OK for any other route.
+	// these routes do _not_ enforce authZ, they are helper routes.
+	r.NotFoundHandler = httputil.HandlerFunc(p.allowUpstream)
 	return r
 }
 
