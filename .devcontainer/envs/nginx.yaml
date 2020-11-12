@@ -1,7 +1,7 @@
 version: "3"
 services:
   nginx:
-    image: nginx
+    image: openresty/openresty
     restart: unless-stopped
     ports:
       - "80:80"
