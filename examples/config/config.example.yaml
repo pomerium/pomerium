@@ -70,8 +70,6 @@ authenticate_service_url: https://authenticate.corp.beyondperimeter.com
 # idp_client_secret: "REPLACEME"
 # idp_provider_url: "https://openid-connect.onelogin.com/oidc" #optional, defaults to `https://openid-connect.onelogin.com/oidc`
 
-# scope: "openid email" # generally, you want the default OIDC scopes
-
 # For Group data you must set an IDP_SERVICE_ACCOUNT
 # idp_service_account: YOUR_SERVICE_ACCOUNT
 
