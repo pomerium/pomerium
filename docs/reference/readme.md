@@ -655,7 +655,7 @@ See [identity provider] for details.
 ### Identity Provider Scopes
 - Environmental Variable: `IDP_SCOPES`
 - Config File Key: `idp_scopes`
-- Type: `[]string` comma separated list of oauth scopes.
+- Type: list of `strings`
 - Default: `oidc`,`profile`, `email`, `offline_access` (typically)
 - Optional for built-in identity providers.
 
@@ -664,6 +664,12 @@ Identity provider scopes correspond to access privilege scopes as defined in Sec
 :::warning
 
 If you are using a built-in provider, you probably don't want to set customized scopes.
+
+:::
+
+:::warning
+
+Some providers, like Amazon Cognito, _do not_ support the `offline_access` scope.
 
 :::
 
@@ -953,7 +959,7 @@ A list of policy configuration variables follows.
 
 ### Allowed Domains
 - `yaml`/`json` setting: `allowed_domains`
-- Type: collection of `strings`
+- Type: list of `strings`
 - Required
 - Example: `pomerium.io` , `gmail.com`
 
@@ -962,7 +968,7 @@ Allowed domains is a collection of whitelisted domains to authorize for a given 
 
 ### Allowed Groups
 - `yaml`/`json` setting: `allowed_groups`
-- Type: collection of `strings`
+- Type: list of `strings`
 - Required
 - Example: `admins` , `support@company.com`
 
@@ -971,7 +977,7 @@ Allowed groups is a collection of whitelisted groups to authorize for a given ro
 
 ### Allowed Users
 - `yaml`/`json` setting: `allowed_users`
-- Type: collection of `strings`
+- Type: list of `strings`
 - Required
 - Example: `alice@pomerium.io` , `bob@contractor.co`
 
