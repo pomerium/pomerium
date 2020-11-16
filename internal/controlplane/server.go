@@ -10,12 +10,15 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 type versionedOptions struct {
@@ -61,10 +64,13 @@ func NewServer(name string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	ui, si := grpcutil.AttachMetadataInterceptors(
+		metadata.Pairs(grpcutil.MetadataKeyPomeriumVersion, version.FullVersion()),
+	)
 	srv.GRPCServer = grpc.NewServer(
 		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(name)),
-		grpc.UnaryInterceptor(requestid.UnaryServerInterceptor()),
-		grpc.StreamInterceptor(requestid.StreamServerInterceptor()),
+		grpc.ChainUnaryInterceptor(requestid.UnaryServerInterceptor(), ui),
+		grpc.ChainStreamInterceptor(requestid.StreamServerInterceptor(), si),
 	)
 	reflection.Register(srv.GRPCServer)
 	srv.registerXDSHandlers()
