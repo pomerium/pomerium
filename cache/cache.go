@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"gopkg.in/tomb.v2"
 
 	"github.com/pomerium/pomerium/config"
@@ -20,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -50,9 +52,16 @@ func New(cfg *config.Config) (*Cache, error) {
 
 	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 
+	ui, si := grpcutil.AttachMetadataInterceptors(
+		metadata.Pairs(grpcutil.MetadataKeyPomeriumVersion, version.FullVersion()),
+	)
+
 	// No metrics handler because we have one in the control plane.  Add one
 	// if we no longer register with that grpc Server
-	localGRPCServer := grpc.NewServer()
+	localGRPCServer := grpc.NewServer(
+		grpc.StreamInterceptor(si),
+		grpc.UnaryInterceptor(ui),
+	)
 
 	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(cfg.Options.Services)
 	clientDialOptions := []grpc.DialOption{
