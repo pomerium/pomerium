@@ -91,7 +91,7 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error
 	ctx, span := trace.StartSpan(ctx, "authorize.dataBrokerClient.GetAll")
 	backoff := backoff.NewExponentialBackOff()
 	for {
-		res, err := a.state.Load().dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
+		res, err := databroker.GetAllPages(ctx, a.state.Load().dataBrokerClient, &databroker.GetAllRequest{
 			Type: typeURL,
 		})
 		if err != nil {

@@ -1,7 +1,10 @@
 // Package databroker contains databroker protobuf definitions.
 package databroker
 
-import "strings"
+import (
+	context "context"
+	"strings"
+)
 
 // GetUserID gets the databroker user id from a provider user id.
 func GetUserID(provider, providerUserID string) string {
@@ -29,4 +32,29 @@ func ApplyOffsetAndLimit(all []*Record, offset, limit int) (records []*Record, t
 		records = records[:limit]
 	}
 	return records, len(all)
+}
+
+// GetAllPages calls GetAll for all pages of data.
+func GetAllPages(ctx context.Context, client DataBrokerServiceClient, in *GetAllRequest) (*GetAllResponse, error) {
+	var res GetAllResponse
+	var pageToken string
+	for {
+		nxt, err := client.GetAll(ctx, &GetAllRequest{
+			Type:      in.GetType(),
+			PageToken: pageToken,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		res.ServerVersion = nxt.ServerVersion
+		res.RecordVersion = nxt.RecordVersion
+		res.Records = append(res.Records, nxt.Records...)
+
+		if nxt.NextPageToken == "" {
+			break
+		}
+		pageToken = nxt.NextPageToken
+	}
+	return &res, nil
 }

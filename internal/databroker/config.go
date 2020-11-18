@@ -17,6 +17,8 @@ var (
 	DefaultBTreeDegree = 8
 	// DefaultStorageType is the default storage type that Server use
 	DefaultStorageType = "memory"
+	// DefaultGetAllPageSize is the default page size for GetAll calls.
+	DefaultGetAllPageSize = 50
 )
 
 type serverConfig struct {
@@ -28,6 +30,7 @@ type serverConfig struct {
 	storageCAFile           string
 	storageCertSkipVerify   bool
 	storageCertificate      *tls.Certificate
+	getAllPageSize          int
 }
 
 func newServerConfig(options ...ServerOption) *serverConfig {
@@ -35,6 +38,7 @@ func newServerConfig(options ...ServerOption) *serverConfig {
 	WithDeletePermanentlyAfter(DefaultDeletePermanentlyAfter)(cfg)
 	WithBTreeDegree(DefaultBTreeDegree)(cfg)
 	WithStorageType(DefaultStorageType)(cfg)
+	WithGetAllPageSize(DefaultGetAllPageSize)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -57,6 +61,13 @@ func WithBTreeDegree(degree int) ServerOption {
 func WithDeletePermanentlyAfter(dur time.Duration) ServerOption {
 	return func(cfg *serverConfig) {
 		cfg.deletePermanentlyAfter = dur
+	}
+}
+
+// WithGetAllPageSize sets the page size for GetAll calls.
+func WithGetAllPageSize(pageSize int) ServerOption {
+	return func(cfg *serverConfig) {
+		cfg.getAllPageSize = pageSize
 	}
 }
 

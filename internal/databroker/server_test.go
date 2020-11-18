@@ -2,6 +2,7 @@ package databroker
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes"
@@ -11,6 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
@@ -124,7 +126,9 @@ func TestServer_Get(t *testing.T) {
 }
 
 func TestServer_GetAll(t *testing.T) {
-	cfg := newServerConfig()
+	cfg := newServerConfig(
+		WithGetAllPageSize(5),
+	)
 	t.Run("ignore deleted", func(t *testing.T) {
 		srv := newServer(cfg)
 
@@ -147,5 +151,34 @@ func TestServer_GetAll(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Len(t, res.GetRecords(), 0)
+	})
+	t.Run("paging", func(t *testing.T) {
+		srv := newServer(cfg)
+
+		any, err := anypb.New(wrapperspb.String("TEST"))
+		assert.NoError(t, err)
+
+		for i := 0; i < 7; i++ {
+			srv.Set(context.Background(), &databroker.SetRequest{
+				Type: any.TypeUrl,
+				Id:   fmt.Sprint(i),
+				Data: any,
+			})
+		}
+
+		res, err := srv.GetAll(context.Background(), &databroker.GetAllRequest{
+			Type: any.TypeUrl,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, res.GetRecords(), 5)
+		assert.Equal(t, res.GetNextPageToken(), "000000000005")
+
+		res, err = srv.GetAll(context.Background(), &databroker.GetAllRequest{
+			Type:      any.TypeUrl,
+			PageToken: res.GetNextPageToken(),
+		})
+		assert.NoError(t, err)
+		assert.Len(t, res.GetRecords(), 2)
+		assert.Equal(t, res.GetNextPageToken(), "")
 	})
 }
