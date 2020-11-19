@@ -97,7 +97,7 @@ checksum:
   name_template: "{{ .ProjectName }}_checksums.txt"
 
 snapshot:
-  name_template: "{{ .Tag }}+next"
+  name_template: "{{ .Version }}+next+{{ .ShortCommit }}"
 
 dockers:
   - image_templates:
