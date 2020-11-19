@@ -181,7 +181,7 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 	return &databroker.GetResponse{Record: record}, nil
 }
 
-// GetAll gets all the records from the in-memory list.
+// GetAll gets all the records from the backend.
 func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*databroker.GetAllResponse, error) {
 	_, span := trace.StartSpan(ctx, "databroker.grpc.GetAll")
 	defer span.End()
@@ -199,25 +199,40 @@ func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*
 		return nil, err
 	}
 
-	if len(all) == 0 {
-		return &databroker.GetAllResponse{ServerVersion: version}, nil
-	}
+	// sort by record version
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Version < all[j].Version
+	})
 
 	var recordVersion string
 	records := make([]*databroker.Record, 0, len(all))
 	for _, record := range all {
-		if record.GetVersion() > recordVersion {
-			recordVersion = record.GetVersion()
+		// skip previous page records
+		if record.GetVersion() <= req.PageToken {
+			continue
 		}
+
+		recordVersion = record.GetVersion()
 		if record.DeletedAt == nil {
 			records = append(records, record)
 		}
+
+		// stop when we've hit the page size
+		if len(records) >= srv.cfg.getAllPageSize {
+			break
+		}
+	}
+
+	nextPageToken := recordVersion
+	if len(records) < srv.cfg.getAllPageSize {
+		nextPageToken = ""
 	}
 
 	return &databroker.GetAllResponse{
 		ServerVersion: version,
 		RecordVersion: recordVersion,
 		Records:       records,
+		NextPageToken: nextPageToken,
 	}, nil
 }
 

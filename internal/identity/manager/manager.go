@@ -529,7 +529,7 @@ func (mgr *Manager) initDirectoryUsers(ctx context.Context) error {
 		return err
 	}
 
-	res, err := mgr.cfg.Load().dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
+	res, err := databroker.GetAllPages(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.GetAllRequest{
 		Type: any.GetTypeUrl(),
 	})
 	if err != nil {
@@ -598,7 +598,7 @@ func (mgr *Manager) initDirectoryGroups(ctx context.Context) error {
 		return err
 	}
 
-	res, err := mgr.cfg.Load().dataBrokerClient.GetAll(ctx, &databroker.GetAllRequest{
+	res, err := databroker.GetAllPages(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.GetAllRequest{
 		Type: any.GetTypeUrl(),
 	})
 	if err != nil {
