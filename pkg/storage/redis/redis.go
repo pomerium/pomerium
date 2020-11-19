@@ -77,6 +77,7 @@ func New(rawURL, recordType string, opts ...Option) (*DB, error) {
 			}
 			return nil
 		},
+		MaxIdle: 100,
 	}
 	metrics.AddRedisMetrics(db.pool.Stats)
 	return db, nil
