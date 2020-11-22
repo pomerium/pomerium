@@ -28,11 +28,17 @@ func TestEncodeAndDecodeAccessToken(t *testing.T) {
 		t.Fatalf("unexpected err decrypting: %v", err)
 	}
 
-	// if less than 32 bytes, fail
-	_, err = Decrypt(c, []byte("oh"), nil)
-	if err == nil {
-		t.Fatalf("should fail if <32 bytes output: %v", err)
+	diffKey, err := NewAEADCipher(NewKey())
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
 	}
+	// key mismatch
+	_, err = Decrypt(diffKey, ciphertext, nil)
+	assert.Error(t, err)
+
+	// bad data size
+	_, err = Decrypt(c, []byte("oh"), nil)
+	assert.Error(t, err)
 
 	if !reflect.DeepEqual(got, plaintext) {
 		t.Logf(" got: %v", got)
