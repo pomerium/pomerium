@@ -46,8 +46,8 @@ jobs:
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: |
-            org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}"
-            org.opencontainers.image.name=${{ steps.metadata.outputs.name }}"
+            org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
+            org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Docker Publish - Debug
@@ -58,8 +58,8 @@ jobs:
           push: true
           tags: pomerium/pomerium:debug
           labels: |
-            org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}"
-            org.opencontainers.image.name=${{ steps.metadata.outputs.name }}"
+            org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
+            org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.revision=${{ github.sha }}
 
   deploy:
