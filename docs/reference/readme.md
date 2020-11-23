@@ -861,7 +861,7 @@ The cache service is used for storing user session data.
 
 The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups).
 
-By default, the `cache` service uses an in-memory databroker, so the legacy option `cache_service_url` will be used if this option is not configured.
+By default, the `cache` service uses an in-memory databroker.
 
 To create your own data broker, implement the following gRPC interface:
 

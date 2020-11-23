@@ -6,7 +6,7 @@ grpc_address: ":80"
 
 authenticate_service_url: https://authenticate.corp.beyondperimeter.com
 authorize_service_url: http://pomerium-authorize-service.default.svc.cluster.local
-cache_service_url: http://pomerium-cache-service.default.svc.cluster.local
+databroker_service_url: http://pomerium-cache-service.default.svc.cluster.local
 
 override_certificate_name: "*.corp.beyondperimeter.com"
 
