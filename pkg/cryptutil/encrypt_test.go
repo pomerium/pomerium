@@ -23,11 +23,6 @@ func TestEncodeAndDecodeAccessToken(t *testing.T) {
 		t.Fatalf("plaintext is not encrypted plaintext:%v ciphertext:%x", plaintext, ciphertext)
 	}
 
-	got, err := Decrypt(c, ciphertext, nil)
-	if err != nil {
-		t.Fatalf("unexpected err decrypting: %v", err)
-	}
-
 	diffKey, err := NewAEADCipher(NewKey())
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -40,11 +35,10 @@ func TestEncodeAndDecodeAccessToken(t *testing.T) {
 	_, err = Decrypt(c, []byte("oh"), nil)
 	assert.Error(t, err)
 
-	if !reflect.DeepEqual(got, plaintext) {
-		t.Logf(" got: %v", got)
-		t.Logf("want: %v", plaintext)
-		t.Fatal("got unexpected decrypted value")
-	}
+	// good
+	got, err := Decrypt(c, ciphertext, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, got, plaintext)
 }
 
 func TestNewAEADCipher(t *testing.T) {
