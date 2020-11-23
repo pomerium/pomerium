@@ -184,7 +184,7 @@ local PomeriumConfigMap = function() {
     AUTHENTICATE_SERVICE_URL: 'https://authenticate.localhost.pomerium.io',
     AUTHENTICATE_CALLBACK_PATH: '/oauth2/callback',
     AUTHORIZE_SERVICE_URL: 'https://authorize.default.svc.cluster.local:5443',
-    CACHE_SERVICE_URL: 'https://cache.default.svc.cluster.local:5443',
+    DATABROKER_SERVICE_URL: 'https://cache.default.svc.cluster.local:5443',
     FORWARD_AUTH_URL: 'https://forward-authenticate.localhost.pomerium.io',
     HEADERS: 'X-Frame-Options:SAMEORIGIN',
     JWT_CLAIMS_HEADERS: 'email',
