@@ -48,6 +48,28 @@ jobs:
         run: |
           TAG=$(git describe --tags --exact-match)
           echo ::set-output name=tag::${TAG}
+          echo ::set-output name=version::${TAG#v}
+
+      - name: Install jfrog cli
+        uses: jfrog/setup-jfrog-cli@v1
+
+      - name: Configure jfrog cli
+        run: |
+          jfrog bt config --user ${{ secrets.BINTRAY_USER }} --key ${{ secrets.BINTRAY_KEY }}
+
+      - name: Upload packages to bintray beta channel
+        if: "contains(steps.tagName.outputs.version, 'rc') == 1"
+        run: |
+          VERSION=${{ steps.tagName.outputs.version }}
+          jfrog bt upload --publish dist/pomerium-${VERSION}-1.x86_64.rpm pomerium/enterprise-yum/pomerium/${VERSION} centos/8/x86_64/beta/
+          jfrog bt upload --publish dist/pomerium-cli-${VERSION}-1.x86_64.rpm pomerium/enterprise-yum/pomerium/${VERSION} centos/8/x86_64/beta/
+
+      - name: Upload packages to bintray stable channel
+        if: "contains(steps.tagName.outputs.version, 'rc') == 0"
+        run: |
+          VERSION=${{ steps.tagName.outputs.version }}
+          jfrog bt upload --publish dist/pomerium-${VERSION}-1.x86_64.rpm pomerium/enterprise-yum/pomerium/${VERSION} centos/8/x86_64/stable/
+          jfrog bt upload --publish dist/pomerium-cli-${VERSION}-1.x86_64.rpm pomerium/enterprise-yum/pomerium/${VERSION} centos/8/x86_64/stable/
 
       - name: Find latest tag
         id: latestTag
