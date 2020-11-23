@@ -1,8 +1,9 @@
-//go:generate go run github.com/rakyll/statik -src=./assets -include=*.svg,*.html,*.css,*.js -ns web
-
 // Package frontend handles the generation, and instantiation of Pomerium's
 // html templates.
 package frontend
+
+//go:generate go run github.com/rakyll/statik -src=./assets -include=*.svg,*.html,*.css,*.js -ns web
+//go:generate go fmt statik/statik.go
 
 import (
 	"encoding/base64"

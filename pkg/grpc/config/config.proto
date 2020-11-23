@@ -128,7 +128,6 @@ message Settings {
   google.protobuf.Duration grpc_server_max_connection_age = 48;
   google.protobuf.Duration grpc_server_max_connection_age_grace = 49;
   optional string forward_auth_url = 50;
-  optional string cache_service_url = 51;
   optional string databroker_service_url = 52;
   optional string client_ca = 53;
   optional string client_ca_file = 54;

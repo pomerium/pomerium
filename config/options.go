@@ -238,14 +238,6 @@ type Options struct {
 	ForwardAuthURLString string   `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
 	ForwardAuthURL       *url.URL `yaml:",omitempty"`
 
-	// CacheURL is the routable destination of the cache service's
-	// gRPC endpoint. NOTE: As many load balancers do not support
-	// externally routed gRPC so this may be an internal location.
-	//
-	// TODO(BDD): Deprecate and remove in 0.11.0
-	CacheURLString string   `mapstructure:"cache_service_url" yaml:"cache_service_url,omitempty"`
-	CacheURL       *url.URL `yaml:",omitempty"`
-
 	// DataBrokerURL is the routable destination of the databroker service's gRPC endpiont.
 	DataBrokerURLString string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
 	DataBrokerURL       *url.URL `yaml:",omitempty"`
@@ -504,15 +496,11 @@ func (o *Options) Validate() error {
 		if o.AuthorizeURLString == "" {
 			o.AuthorizeURLString = "http://127.0.0.1" + DefaultAlternativeAddr
 		}
-		if o.CacheURLString == "" {
-			o.CacheURLString = "http://127.0.0.1" + DefaultAlternativeAddr
+		if o.DataBrokerURLString == "" {
+			o.DataBrokerURLString = "http://127.0.0.1" + DefaultAlternativeAddr
 		}
 	}
 
-	if o.DataBrokerURLString == "" {
-		log.Warn().Msg("config: cache url will be deprecated in v0.11.0")
-		o.DataBrokerURLString = o.CacheURLString
-	}
 	switch o.DataBrokerStorageType {
 	case StorageInMemoryName:
 	case StorageRedisName:
@@ -928,9 +916,6 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.ForwardAuthUrl != nil {
 		o.ForwardAuthURLString = settings.GetForwardAuthUrl()
-	}
-	if settings.CacheServiceUrl != nil {
-		o.CacheURLString = settings.GetCacheServiceUrl()
 	}
 	if settings.DatabrokerServiceUrl != nil {
 		o.DataBrokerURLString = settings.GetDatabrokerServiceUrl()
