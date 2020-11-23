@@ -31,7 +31,7 @@ services:
       - VIRTUAL_PROTO=http
       - VIRTUAL_HOST=authenticate.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
-      - CACHE_SERVICE_URL=http://pomerium-cache:443
+      - DATABROKER_SERVICE_URL=http://pomerium-cache:443
     volumes:
       - ../config/config.example.yaml:/pomerium/config.yaml:ro
 
