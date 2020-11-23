@@ -22,7 +22,7 @@ require (
 	github.com/gomodule/redigo v1.8.2
 	github.com/google/btree v1.0.0
 	github.com/google/go-cmp v0.5.3
-	github.com/google/go-jsonnet v0.16.0
+	github.com/google/go-jsonnet v0.17.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
