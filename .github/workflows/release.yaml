@@ -45,7 +45,9 @@ jobs:
 
       - name: Get tag name
         id: tagName
-        uses: olegtarasov/get-tag@v2
+        run: |
+          TAG=$(git describe --tags --exact-match)
+          echo ::set-output name=tag::${TAG}
 
       - name: Find latest tag
         id: latestTag
