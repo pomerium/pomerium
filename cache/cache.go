@@ -10,9 +10,9 @@ import (
 	"net"
 	"sync"
 
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"gopkg.in/tomb.v2"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/directory"
@@ -118,24 +118,19 @@ func (c *Cache) Register(grpcServer *grpc.Server) {
 
 // Run runs the cache components.
 func (c *Cache) Run(ctx context.Context) error {
-	t, ctx := tomb.WithContext(ctx)
-	if c.dataBrokerStorageType == config.StorageInMemoryName {
-		t.Go(func() error {
-			return c.runMemberList(ctx)
-		})
-	}
-	t.Go(func() error {
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
 		return c.localGRPCServer.Serve(c.localListener)
 	})
-	t.Go(func() error {
+	eg.Go(func() error {
 		<-ctx.Done()
 		c.localGRPCServer.Stop()
 		return nil
 	})
-	t.Go(func() error {
+	eg.Go(func() error {
 		return c.manager.Run(ctx)
 	})
-	return t.Wait()
+	return eg.Wait()
 }
 
 func (c *Cache) update(cfg *config.Config) error {
