@@ -12,7 +12,7 @@ import (
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
-	"gopkg.in/tomb.v2"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/identity/identity"
@@ -101,33 +101,33 @@ func (mgr *Manager) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize directory users: %w", err)
 	}
 
-	t, ctx := tomb.WithContext(ctx)
+	eg, ctx := errgroup.WithContext(ctx)
 
 	updatedSession := make(chan sessionMessage, 1)
-	t.Go(func() error {
+	eg.Go(func() error {
 		return mgr.syncSessions(ctx, updatedSession)
 	})
 
 	updatedUser := make(chan userMessage, 1)
-	t.Go(func() error {
+	eg.Go(func() error {
 		return mgr.syncUsers(ctx, updatedUser)
 	})
 
 	updatedDirectoryGroup := make(chan *directory.Group, 1)
-	t.Go(func() error {
+	eg.Go(func() error {
 		return mgr.syncDirectoryGroups(ctx, updatedDirectoryGroup)
 	})
 
 	updatedDirectoryUser := make(chan *directory.User, 1)
-	t.Go(func() error {
+	eg.Go(func() error {
 		return mgr.syncDirectoryUsers(ctx, updatedDirectoryUser)
 	})
 
-	t.Go(func() error {
+	eg.Go(func() error {
 		return mgr.refreshLoop(ctx, updatedSession, updatedUser, updatedDirectoryUser, updatedDirectoryGroup)
 	})
 
-	return t.Wait()
+	return eg.Wait()
 }
 
 func (mgr *Manager) refreshLoop(
