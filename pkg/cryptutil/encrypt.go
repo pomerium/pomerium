@@ -44,7 +44,7 @@ func Decrypt(a cipher.AEAD, data, ad []byte) ([]byte, error) {
 	nonce := data[size:]
 	plaintext, err := a.Open(nil, nonce, ciphertext, ad)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cryptutil: decryption failed (mismatched keys?): %w", err)
 	}
 	return plaintext, nil
 }
