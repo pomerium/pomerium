@@ -7,10 +7,16 @@ description: >-
 
 # Since 0.10.0
 
+## Breaking
+
 ### User impersonation disabled by default
 
 With the v0.11.0 release, user impersonation by administrators is now disabled by default. To enable this feature, set
 `enable_user_impersonation` to true in the configuration options.
+
+### `cache_service_url` has been renamed to `databroker_service_url`
+
+The `cache_service_url` parameter has been deprecated since v0.10.0 and is now removed.  Please replace it with `databroker_service_url` in your yaml configuration, or `DATABROKER_SERVICE_URL` as an environment variable.
 
 # Since 0.9.0
 
