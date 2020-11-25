@@ -66,6 +66,7 @@ message SyncRequest {
   string server_version = 1;
   string record_version = 2;
   string type = 3;
+  bool no_wait = 4;
 }
 message SyncResponse {
   string server_version = 1;

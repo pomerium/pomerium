@@ -91,7 +91,7 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error
 	ctx, span := trace.StartSpan(ctx, "authorize.dataBrokerClient.GetAll")
 	backoff := backoff.NewExponentialBackOff()
 	for {
-		res, err := databroker.GetAllPages(ctx, a.state.Load().dataBrokerClient, &databroker.GetAllRequest{
+		res, err := databroker.InitialSync(ctx, a.state.Load().dataBrokerClient, &databroker.SyncRequest{
 			Type: typeURL,
 		})
 		if err != nil {
@@ -105,10 +105,10 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error
 		}
 
 		serverVersion = res.GetServerVersion()
-		recordVersion = res.GetRecordVersion()
 
 		for _, record := range res.GetRecords() {
 			a.updateRecord(record)
+			recordVersion = record.GetVersion()
 		}
 
 		break
