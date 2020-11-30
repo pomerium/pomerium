@@ -12,14 +12,14 @@ This article describes how to retrieve a user's identity from a pomerium managed
 To secure your app with signed headers, you'll need the following:
 
 - An application you want users to connect to.
-- A [JWT] library that supports the `ES256` algorithm.
+- A [JWT] library. We strongly recommend using `ES256` or `EdDSA` over `RSA` based algorithms which are often much faster. When in doubt, use `ES256`
 
 ## Verification
 
 If a [signing key] is set, the user's associated identity information will be included in a signed attestation JWT that will be added to each requests's upstream header `X-Pomerium-Jwt-Assertion`. You should verify that the JWT contains at least the following claims:
 
  [JWT]   | description
-:------: | ------------------------------------------------------------------------------------------------------
+:------: | -----------------------------------------------------------------------------------------
  `exp`   | Expiration time in seconds since the UNIX epoch. Allow 1 minute for skew.
  `iat`   | Issued-at time in seconds since the UNIX epoch. Allow 1 minute for skew.
  `aud`   | The client's final domain e.g. `httpbin.corp.example.com`.
@@ -45,6 +45,21 @@ $ curl https://authenticate.int.example.com/.well-known/pomerium/jwks.json | jq
       "alg": "ES256",
       "x": "QCN7adG2AmIK3UdHJvVJkldsUc6XeBRz83Z4rXX8Va4",
       "y": "PI95b-ary66nrvA55TpaiWADq8b3O1CYIbvjqIHpXCY"
+    }
+  ]
+}
+```
+
+```json
+{
+  "keys": [
+    {
+      "use": "sig",
+      "kty": "OKP",
+      "kid": "3aa847838906f3c930f55c2d5885943ac7bede8f780d388015575334f88e77ef",
+      "crv": "Ed25519",
+      "alg": "EdDSA",
+      "x": "xsg1A67wECXAmRnSib8lSsgatcNcYm7vvspQnocPQNc"
     }
   ]
 }

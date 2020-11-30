@@ -30,12 +30,6 @@ func TestPrivateJWKFromBytes(t *testing.T) {
 			`{"use":"sig","kty":"EC","kid":"d591aa6e01e57ea8b80f349dc5de8517aa7b1f12f77700d89cbdba83938c0c61","crv":"P-256","alg":"ES256","x":"oLZD26lGXDHQBhafGelEfD7e6f3iDcYROV7TlYHtquc","y":"DxP4R8IH2jHKgDxZRY58iayK2mtXgpWBNs0SkgTXeaU","d":"F7ROqat0ilhczuzNEMNVvBb3_sRsZSFK1AiNeVOxbc8"}`,
 			false,
 		},
-		{"unknown signing key type",
-			"LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUJlMFRxbXJkSXBZWE03c3pSRERWYndXOS83RWJHVWhTdFFJalhsVHNXM1BvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFb0xaRDI2bEdYREhRQmhhZkdlbEVmRDdlNmYzaURjWVJPVjdUbFlIdHF1Y1BFL2hId2dmYQpNY3FBUEZsRmpueUpySXJhYTFlQ2xZRTJ6UktTQk5kNXBRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=",
-			jose.HS256,
-			`null`,
-			true,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -82,9 +76,16 @@ func TestPublicJWKFromBytes(t *testing.T) {
 			`{"use":"sig","kty":"EC","kid":"d591aa6e01e57ea8b80f349dc5de8517aa7b1f12f77700d89cbdba83938c0c61","crv":"P-256","alg":"ES256","x":"oLZD26lGXDHQBhafGelEfD7e6f3iDcYROV7TlYHtquc","y":"DxP4R8IH2jHKgDxZRY58iayK2mtXgpWBNs0SkgTXeaU"}`,
 			false,
 		},
-		{"unknown signing key type",
-			"LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUJlMFRxbXJkSXBZWE03c3pSRERWYndXOS83RWJHVWhTdFFJalhsVHNXM1BvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFb0xaRDI2bEdYREhRQmhhZkdlbEVmRDdlNmYzaURjWVJPVjdUbFlIdHF1Y1BFL2hId2dmYQpNY3FBUEZsRmpueUpySXJhYTFlQ2xZRTJ6UktTQk5kNXBRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=",
-			jose.HS256,
+		{"good ed25519",
+			"LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1DNENBUUF3QlFZREsyVndCQ0lFSUZiNDN6SkVqblMvOHdxZVMwRlhiNDNWdlV5ZmhRL3UvWGd3UVV2bDVnaloKLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLQo=",
+			jose.EdDSA,
+			`{"use":"sig","kty":"OKP","kid":"3aa847838906f3c930f55c2d5885943ac7bede8f780d388015575334f88e77ef","crv":"Ed25519","alg":"EdDSA","x":"xsg1A67wECXAmRnSib8lSsgatcNcYm7vvspQnocPQNc"}`,
+			false,
+		},
+
+		{"bad key decode",
+			"LS0t",
+			jose.RS256,
 			`null`,
 			true,
 		},
