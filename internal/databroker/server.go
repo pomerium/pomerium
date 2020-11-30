@@ -309,9 +309,6 @@ func (srv *Server) doSync(ctx context.Context,
 	if len(updated) == 0 {
 		return nil
 	}
-	sort.Slice(updated, func(i, j int) bool {
-		return updated[i].Version < updated[j].Version
-	})
 	*recordVersion = updated[len(updated)-1].Version
 	for i := 0; i < len(updated); i += syncBatchSize {
 		j := i + syncBatchSize
@@ -346,6 +343,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	recordVersion := req.GetRecordVersion()
 	// reset record version if the server versions don't match
 	if req.GetServerVersion() != serverVersion {
+		serverVersion = req.GetServerVersion()
 		recordVersion = ""
 		// send the new server version to the client
 		err := stream.Send(&databroker.SyncResponse{
@@ -357,11 +355,21 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	}
 
 	ctx := stream.Context()
-	ch := db.Watch(ctx)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	// Do first sync, so we won't missed anything.
+	var ch <-chan struct{}
+	if !req.GetNoWait() {
+		ch = db.Watch(ctx)
+	}
+
+	// Do first sync, so we won't miss anything.
 	if err := srv.doSync(ctx, serverVersion, &recordVersion, db, stream); err != nil {
 		return err
+	}
+
+	if req.GetNoWait() {
+		return nil
 	}
 
 	for range ch {

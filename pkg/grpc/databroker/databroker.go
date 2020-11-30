@@ -3,7 +3,10 @@ package databroker
 
 import (
 	"context"
+	"io"
 	"strings"
+
+	"google.golang.org/protobuf/proto"
 )
 
 // GetUserID gets the databroker user id from a provider user id.
@@ -34,27 +37,32 @@ func ApplyOffsetAndLimit(all []*Record, offset, limit int) (records []*Record, t
 	return records, len(all)
 }
 
-// GetAllPages calls GetAll for all pages of data.
-func GetAllPages(ctx context.Context, client DataBrokerServiceClient, in *GetAllRequest) (*GetAllResponse, error) {
-	var res GetAllResponse
-	var pageToken string
+// InitialSync performs a sync with no_wait set to true and then returns all the results.
+func InitialSync(ctx context.Context, client DataBrokerServiceClient, in *SyncRequest) (*SyncResponse, error) {
+	dup := new(SyncRequest)
+	proto.Merge(dup, in)
+	dup.NoWait = true
+
+	stream, err := client.Sync(ctx, dup)
+	if err != nil {
+		return nil, err
+	}
+
+	finalRes := &SyncResponse{}
+
+loop:
 	for {
-		nxt, err := client.GetAll(ctx, &GetAllRequest{
-			Type:      in.GetType(),
-			PageToken: pageToken,
-		})
-		if err != nil {
+		res, err := stream.Recv()
+		switch {
+		case err == io.EOF:
+			break loop
+		case err != nil:
 			return nil, err
 		}
 
-		res.ServerVersion = nxt.ServerVersion
-		res.RecordVersion = nxt.RecordVersion
-		res.Records = append(res.Records, nxt.Records...)
-
-		if nxt.NextPageToken == "" {
-			break
-		}
-		pageToken = nxt.NextPageToken
+		finalRes.ServerVersion = res.GetServerVersion()
+		finalRes.Records = append(finalRes.Records, res.GetRecords()...)
 	}
-	return &res, nil
+
+	return finalRes, nil
 }

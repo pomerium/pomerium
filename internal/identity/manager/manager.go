@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/identity/identity"
@@ -21,6 +22,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+)
+
+const (
+	dataBrokerParallelism = 10
 )
 
 // Authenticator is an identity.Provider with only the methods needed by the manager.
@@ -61,6 +66,8 @@ type Manager struct {
 	directoryGroupsRecordVersion string
 
 	directoryNextRefresh time.Time
+
+	dataBrokerSemaphore *semaphore.Weighted
 }
 
 // New creates a new identity manager.
@@ -79,6 +86,8 @@ func New(
 			BTree: btree.New(8),
 		},
 		userScheduler: scheduler.New(),
+
+		dataBrokerSemaphore: semaphore.NewWeighted(dataBrokerParallelism),
 	}
 	mgr.UpdateConfig(options...)
 	return mgr
@@ -228,6 +237,8 @@ func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) {
 }
 
 func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*directory.Group) {
+	eg, ctx := errgroup.WithContext(ctx)
+
 	lookup := map[string]*directory.Group{}
 	for _, dg := range directoryGroups {
 		lookup[dg.GetId()] = dg
@@ -236,44 +247,62 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 	for groupID, newDG := range lookup {
 		curDG, ok := mgr.directoryGroups[groupID]
 		if !ok || !proto.Equal(newDG, curDG) {
+			id := newDG.GetId()
 			any, err := ptypes.MarshalAny(newDG)
 			if err != nil {
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory group")
 				return
 			}
-			_, err = mgr.cfg.Load().dataBrokerClient.Set(ctx, &databroker.SetRequest{
-				Type: any.GetTypeUrl(),
-				Id:   newDG.GetId(),
-				Data: any,
+			eg.Go(func() error {
+				if err := mgr.dataBrokerSemaphore.Acquire(ctx, 1); err != nil {
+					return err
+				}
+				defer mgr.dataBrokerSemaphore.Release(1)
+
+				_, err = mgr.cfg.Load().dataBrokerClient.Set(ctx, &databroker.SetRequest{
+					Type: any.GetTypeUrl(),
+					Id:   id,
+					Data: any,
+				})
+				if err != nil {
+					return fmt.Errorf("failed to update directory group: %s", id)
+				}
+				return nil
 			})
-			if err != nil {
-				mgr.log.Warn().Err(err).Msg("failed to update directory group")
-				return
-			}
 		}
 	}
 
 	for groupID, curDG := range mgr.directoryGroups {
 		_, ok := lookup[groupID]
 		if !ok {
+			id := curDG.GetId()
 			any, err := ptypes.MarshalAny(curDG)
 			if err != nil {
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory group")
 				return
 			}
-			_, err = mgr.cfg.Load().dataBrokerClient.Delete(ctx, &databroker.DeleteRequest{
-				Type: any.GetTypeUrl(),
-				Id:   curDG.GetId(),
+			eg.Go(func() error {
+				if err := mgr.dataBrokerSemaphore.Acquire(ctx, 1); err != nil {
+					return err
+				}
+				defer mgr.dataBrokerSemaphore.Release(1)
+
+				_, err = mgr.cfg.Load().dataBrokerClient.Delete(ctx, &databroker.DeleteRequest{
+					Type: any.GetTypeUrl(),
+					Id:   id,
+				})
+				if err != nil {
+					return fmt.Errorf("failed to delete directory group: %s", id)
+				}
+				return nil
 			})
-			if err != nil {
-				mgr.log.Warn().Err(err).Msg("failed to delete directory group")
-				return
-			}
 		}
 	}
 }
 
 func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.User) {
+	eg, ctx := errgroup.WithContext(ctx)
+
 	lookup := map[string]*directory.User{}
 	for _, du := range directoryUsers {
 		lookup[du.GetId()] = du
@@ -282,40 +311,60 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 	for userID, newDU := range lookup {
 		curDU, ok := mgr.directoryUsers[userID]
 		if !ok || !proto.Equal(newDU, curDU) {
+			id := newDU.GetId()
 			any, err := ptypes.MarshalAny(newDU)
 			if err != nil {
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory user")
 				return
 			}
-			_, err = mgr.cfg.Load().dataBrokerClient.Set(ctx, &databroker.SetRequest{
-				Type: any.GetTypeUrl(),
-				Id:   newDU.GetId(),
-				Data: any,
+			eg.Go(func() error {
+				if err := mgr.dataBrokerSemaphore.Acquire(ctx, 1); err != nil {
+					return err
+				}
+				defer mgr.dataBrokerSemaphore.Release(1)
+
+				client := mgr.cfg.Load().dataBrokerClient
+				if _, err := client.Set(ctx, &databroker.SetRequest{
+					Type: any.GetTypeUrl(),
+					Id:   id,
+					Data: any,
+				}); err != nil {
+					return fmt.Errorf("failed to update directory user: %s", id)
+				}
+				return nil
 			})
-			if err != nil {
-				mgr.log.Warn().Err(err).Msg("failed to update directory user")
-				return
-			}
 		}
 	}
 
 	for userID, curDU := range mgr.directoryUsers {
 		_, ok := lookup[userID]
 		if !ok {
+			id := curDU.GetId()
 			any, err := ptypes.MarshalAny(curDU)
 			if err != nil {
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory user")
 				return
 			}
-			_, err = mgr.cfg.Load().dataBrokerClient.Delete(ctx, &databroker.DeleteRequest{
-				Type: any.GetTypeUrl(),
-				Id:   curDU.GetId(),
+			eg.Go(func() error {
+				if err := mgr.dataBrokerSemaphore.Acquire(ctx, 1); err != nil {
+					return err
+				}
+				defer mgr.dataBrokerSemaphore.Release(1)
+
+				client := mgr.cfg.Load().dataBrokerClient
+				if _, err := client.Delete(ctx, &databroker.DeleteRequest{
+					Type: any.GetTypeUrl(),
+					Id:   id,
+				}); err != nil {
+					return fmt.Errorf("failed to delete directory user: %s", id)
+				}
+				return nil
 			})
-			if err != nil {
-				mgr.log.Warn().Err(err).Msg("failed to delete directory user")
-				return
-			}
 		}
+	}
+
+	if err := eg.Wait(); err != nil {
+		mgr.log.Warn().Err(err).Msg("manager: failed to merge users")
 	}
 }
 
@@ -529,7 +578,7 @@ func (mgr *Manager) initDirectoryUsers(ctx context.Context) error {
 		return err
 	}
 
-	res, err := databroker.GetAllPages(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.GetAllRequest{
+	res, err := databroker.InitialSync(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.SyncRequest{
 		Type: any.GetTypeUrl(),
 	})
 	if err != nil {
@@ -545,9 +594,11 @@ func (mgr *Manager) initDirectoryUsers(ctx context.Context) error {
 		}
 
 		mgr.directoryUsers[pbDirectoryUser.GetId()] = &pbDirectoryUser
+		mgr.directoryUsersRecordVersion = record.GetVersion()
 	}
-	mgr.directoryUsersRecordVersion = res.GetRecordVersion()
 	mgr.directoryUsersServerVersion = res.GetServerVersion()
+
+	mgr.log.Info().Int("count", len(mgr.directoryUsers)).Msg("initialized directory users")
 
 	return nil
 }
@@ -598,7 +649,7 @@ func (mgr *Manager) initDirectoryGroups(ctx context.Context) error {
 		return err
 	}
 
-	res, err := databroker.GetAllPages(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.GetAllRequest{
+	res, err := databroker.InitialSync(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.SyncRequest{
 		Type: any.GetTypeUrl(),
 	})
 	if err != nil {
@@ -614,9 +665,11 @@ func (mgr *Manager) initDirectoryGroups(ctx context.Context) error {
 		}
 
 		mgr.directoryGroups[pbDirectoryGroup.GetId()] = &pbDirectoryGroup
+		mgr.directoryGroupsRecordVersion = record.GetVersion()
 	}
-	mgr.directoryGroupsRecordVersion = res.GetRecordVersion()
 	mgr.directoryGroupsServerVersion = res.GetServerVersion()
+
+	mgr.log.Info().Int("count", len(mgr.directoryGroups)).Msg("initialized directory groups")
 
 	return nil
 }
