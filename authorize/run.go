@@ -5,13 +5,12 @@ import (
 	"io"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
-
 	backoff "github.com/cenkalti/backoff/v4"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -29,6 +28,20 @@ func (a *Authorize) Run(ctx context.Context) error {
 	})
 
 	return eg.Wait()
+}
+
+// WaitForInitialSync waits for the initial sync to complete.
+func (a *Authorize) WaitForInitialSync(ctx context.Context) error {
+	for typeURL, ch := range a.dataBrokerInitialSync {
+		log.Info().Str("type_url", typeURL).Msg("waiting for initial sync")
+		select {
+		case <-ch:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		log.Info().Str("type_url", typeURL).Msg("initial sync complete")
+	}
+	return nil
 }
 
 func (a *Authorize) runTypesSyncer(ctx context.Context, updateTypes chan<- []string) error {
@@ -88,8 +101,9 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error
 	var serverVersion, recordVersion string
 
 	log.Info().Str("type_url", typeURL).Msg("starting data initial load")
-	ctx, span := trace.StartSpan(ctx, "authorize.dataBrokerClient.GetAll")
+	ctx, span := trace.StartSpan(ctx, "authorize.dataBrokerClient.InitialSync")
 	backoff := backoff.NewExponentialBackOff()
+	backoff.MaxElapsedTime = 0
 	for {
 		res, err := databroker.InitialSync(ctx, a.state.Load().dataBrokerClient, &databroker.SyncRequest{
 			Type: typeURL,
@@ -113,7 +127,17 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error
 
 		break
 	}
+	a.dataBrokerDataLock.Lock()
+	log.Info().Str("type_url", typeURL).Int("count", a.dataBrokerData.Count(typeURL)).Msg("initial data load complete")
+	a.dataBrokerDataLock.Unlock()
 	span.End()
+
+	if ch, ok := a.dataBrokerInitialSync[typeURL]; ok {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
 
 	log.Info().Str("type_url", typeURL).Msg("starting data syncer")
 	return tryForever(ctx, func(backoff interface{ Reset() }) error {
@@ -176,6 +200,7 @@ func (a *Authorize) updateRecord(record *databroker.Record) {
 
 func tryForever(ctx context.Context, callback func(onSuccess interface{ Reset() }) error) error {
 	backoff := backoff.NewExponentialBackOff()
+	backoff.MaxElapsedTime = 0
 	for {
 		err := callback(backoff)
 		if err != nil {

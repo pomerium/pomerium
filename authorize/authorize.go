@@ -27,6 +27,8 @@ type Authorize struct {
 
 	dataBrokerDataLock sync.RWMutex
 	dataBrokerData     evaluator.DataBrokerData
+
+	dataBrokerInitialSync map[string]chan struct{}
 }
 
 // New validates and creates a new Authorize service from a set of config options.
@@ -36,6 +38,10 @@ func New(cfg *config.Config) (*Authorize, error) {
 		store:          evaluator.NewStore(),
 		templates:      template.Must(frontend.NewTemplates()),
 		dataBrokerData: make(evaluator.DataBrokerData),
+		dataBrokerInitialSync: map[string]chan struct{}{
+			"type.googleapis.com/directory.Group": make(chan struct{}, 1),
+			"type.googleapis.com/directory.User":  make(chan struct{}, 1),
+		},
 	}
 
 	state, err := newAuthorizeStateFromConfig(cfg, a.store)

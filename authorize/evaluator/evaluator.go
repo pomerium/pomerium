@@ -420,6 +420,11 @@ func (dbd DataBrokerData) Clear(typeURL string) {
 	delete(dbd, typeURL)
 }
 
+// Count returns the number of entries for the given type URL.
+func (dbd DataBrokerData) Count(typeURL string) int {
+	return len(dbd[typeURL])
+}
+
 // Get gets a record from the DataBrokerData.
 func (dbd DataBrokerData) Get(typeURL, id string) interface{} {
 	m, ok := dbd[typeURL]
