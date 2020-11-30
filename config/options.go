@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash/v2"
-	"github.com/mitchellh/hashstructure"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 
@@ -740,7 +740,7 @@ func (o *Options) GetOauthOptions() oauth.Options {
 
 // Checksum returns the checksum of the current options struct
 func (o *Options) Checksum() uint64 {
-	hash, err := hashstructure.Hash(o, &hashstructure.HashOptions{Hasher: xxhash.New()})
+	hash, err := hashstructure.Hash(o, hashstructure.FormatV2, &hashstructure.HashOptions{Hasher: xxhash.New()})
 	if err != nil {
 		log.Warn().Err(err).Msg("config: checksum failure")
 		return 0
