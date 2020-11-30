@@ -10,8 +10,8 @@ import (
 func DecodeBase64OrJSON(in string, out interface{}) error {
 	in = strings.TrimSpace(in)
 
-	// the service account can be base64 encoded
-	if !strings.HasPrefix(in, "{") {
+	// the data can be base64 encoded
+	if !json.Valid([]byte(in)) {
 		bs, err := base64.StdEncoding.DecodeString(in)
 		if err != nil {
 			return err
