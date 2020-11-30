@@ -60,7 +60,7 @@ loop:
 			return nil, err
 		}
 
-		finalRes.ServerVersion = finalRes.GetServerVersion()
+		finalRes.ServerVersion = res.GetServerVersion()
 		finalRes.Records = append(finalRes.Records, res.GetRecords()...)
 	}
 
