@@ -7,7 +7,9 @@ import "google/protobuf/any.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-message ServerVersion { string version = 1; }
+message ServerVersion {
+  string version = 1;
+}
 
 message Record {
   string version = 1;
@@ -28,7 +30,9 @@ message GetRequest {
   string type = 1;
   string id = 2;
 }
-message GetResponse { Record record = 1; }
+message GetResponse {
+  Record record = 1;
+}
 
 message GetAllRequest {
   string type = 1;
@@ -73,7 +77,9 @@ message SyncResponse {
   repeated Record records = 2;
 }
 
-message GetTypesResponse { repeated string types = 1; }
+message GetTypesResponse {
+  repeated string types = 1;
+}
 
 service DataBrokerService {
   rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
