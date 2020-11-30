@@ -118,14 +118,21 @@ func Run(ctx context.Context, configFile string) error {
 
 	// run everything
 	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		return controlPlane.Run(ctx)
-	})
 	if authorizeServer != nil {
 		eg.Go(func() error {
 			return authorizeServer.Run(ctx)
 		})
+		// in non-all-in-one mode we will wait for the initial sync to complete before starting
+		// the control plane
+		if cacheServer == nil {
+			if err := authorizeServer.WaitForInitialSync(ctx); err != nil {
+				return err
+			}
+		}
 	}
+	eg.Go(func() error {
+		return controlPlane.Run(ctx)
+	})
 	if cacheServer != nil {
 		eg.Go(func() error {
 			return cacheServer.Run(ctx)
