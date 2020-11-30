@@ -12,8 +12,8 @@
         <div class="card">
           <div class="card-header">
             <h2>Current user</h2>
-            {{with .User.GetClaim "picture"}}
-            <img class="icon" src="{{.}}" alt="user image" />
+            {{range .User.GetClaim "picture"}}
+            <img class="icon" src="{{.|safeURL}}" alt="user image" />
             {{else}}
             <img
               class="icon"
@@ -45,7 +45,7 @@
                   />
                 </label>
                 {{else}}
-                  {{with .User.GetClaim "given_name"}}
+                  {{range .User.GetClaim "given_name"}}
                   <label>
                     <span>Given Name</span>
                     <input
@@ -57,7 +57,7 @@
                     />
                   </label>
                   {{end}}
-                  {{with .User.GetClaim "family_name"}}
+                  {{range .User.GetClaim "family_name"}}
                   <label>
                     <span>Family Name</span>
                     <input

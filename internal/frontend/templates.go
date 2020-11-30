@@ -60,6 +60,15 @@ func NewTemplates() (*template.Template, error) {
 	}
 
 	t := template.New("pomerium-templates").Funcs(map[string]interface{}{
+		"safeURL": func(arg interface{}) template.URL {
+			return template.URL(fmt.Sprint(arg))
+		},
+		"safeHTML": func(arg interface{}) template.HTML {
+			return template.HTML(fmt.Sprint(arg))
+		},
+		"safeHTMLAttr": func(arg interface{}) template.HTMLAttr {
+			return template.HTMLAttr(fmt.Sprint(arg))
+		},
 		"dataURL": func(p string) template.URL {
 			return dataURLs[strings.TrimPrefix(p, "/.pomerium/assets")]
 		},
