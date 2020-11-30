@@ -1363,7 +1363,7 @@ If no certificate is specified, one will be generated and the base64'd public ke
 - Options: `ES256` or `EdDSA` or `RS256`
 - Default: `ES256`
 
-This setting specifies which signing algorithim to use when signing the upstream attestation JWT. Cryptographic algorithim choice is subtle, and beyond the scope of this document, but we suggest sticking to the default `ES256` unless you have a good reason to use something else.
+This setting specifies which signing algorithm to use when signing the upstream attestation JWT. Cryptographic algorithm choice is subtle, and beyond the scope of this document, but we suggest sticking to the default `ES256` unless you have a good reason to use something else.
 
 Be aware that any RSA based signature method may be an order of magnitude lower than [elliptic curve] variants like EdDSA (`ed25519`) and ECDSA (`ES256`). For more information, checkout [this article](https://www.scottbrady91.com/JOSE/JWTs-Which-Signing-Algorithm-Should-I-Use).
 
