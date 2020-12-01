@@ -18,10 +18,10 @@ message Route {
   string from = 2;
   string to = 3;
 
-  repeated string allowed_users = 4 [ deprecated = true ];
-  repeated string allowed_groups = 5 [ deprecated = true ];
-  repeated string allowed_domains = 6 [ deprecated = true ];
-  map<string, google.protobuf.ListValue> allowed_idp_claims = 32 [ deprecated = true ];
+  repeated string allowed_users = 4 [deprecated = true];
+  repeated string allowed_groups = 5 [deprecated = true];
+  repeated string allowed_domains = 6 [deprecated = true];
+  map<string, google.protobuf.ListValue> allowed_idp_claims = 32 [deprecated = true];
 
   string prefix = 7;
   string path = 8;
@@ -114,6 +114,7 @@ message Settings {
   optional string certificate_authority = 34;
   optional string certificate_authority_file = 35;
   optional string signing_key = 36;
+  optional string signing_key_algorithm = 62;
   repeated string jwt_claims_headers = 37;
   optional google.protobuf.Duration refresh_cooldown = 38;
   optional google.protobuf.Duration default_upstream_timeout = 39;

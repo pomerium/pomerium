@@ -1320,14 +1320,14 @@ If unspecified:
 - If [Identity Provider Name](#identity-provider-name) is set to `google`, will default to [Identity Provider Service Account](#identity-provider-service-account)
 - Otherwise, will default to ambient credentials in the default locations searched by the Google SDK. This includes GCE metadata server tokens.
 
-
 ### Signing Key
+
 - Environmental Variable: `SIGNING_KEY`
 - Config File Key: `signing_key`
 - Type: [base64 encoded] `string`
 - Optional
 
-Signing Key is the [Elliptic Curve] private key used to sign a user's attestation JWT which can be consumed by upstream applications to pass along identifying user information like username, id, and groups.
+Signing Key is the private key used to sign a user's attestation JWT which can be consumed by upstream applications to pass along identifying user information like username, id, and groups.
 
 If set, the signing key's public key will can retrieved by hitting Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. (If running the authentication service separately, this option must also be set there.)
 
@@ -1355,16 +1355,27 @@ $ curl https://authenticate.int.example.com/.well-known/pomerium/jwks.json | jq
 
 If no certificate is specified, one will be generated and the base64'd public key will be added to the logs. Note, however, that this key be unique to each service, ephemeral, and will not be accessible via the authenticate service's `jwks_uri` endpoint.
 
+### Signing Key Algorithm
+
+- Environmental Variable: `SIGNING_KEY_ALGORITHM`
+- Config File Key: `signing_key_algorithm`
+- Type: [base64 encoded] `string`
+- Options: `ES256` or `EdDSA` or `RS256`
+- Default: `ES256`
+
+This setting specifies which signing algorithm to use when signing the upstream attestation JWT. Cryptographic algorithm choice is subtle, and beyond the scope of this document, but we suggest sticking to the default `ES256` unless you have a good reason to use something else.
+
+Be aware that any RSA based signature method may be an order of magnitude lower than [elliptic curve] variants like EdDSA (`ed25519`) and ECDSA (`ES256`). For more information, checkout [this article](https://www.scottbrady91.com/JOSE/JWTs-Which-Signing-Algorithm-Should-I-Use).
 
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
+[elliptic curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [identity provider]: ../docs/identity-providers/
-[okta]: ../docs/identity-providers/okta.md
 [json]: https://en.wikipedia.org/wiki/JSON
 [letsencrypt]: https://letsencrypt.org/
 [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
+[okta]: ../docs/identity-providers/okta.md
 [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
 [signed headers]: ../docs/topics/getting-users-identity.md
 [toml]: https://en.wikipedia.org/wiki/TOML
 [yaml]: https://en.wikipedia.org/wiki/YAML
-[Elliptic Curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters

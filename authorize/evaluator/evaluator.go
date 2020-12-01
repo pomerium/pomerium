@@ -4,9 +4,9 @@ package evaluator
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -46,8 +46,8 @@ type Evaluator struct {
 
 	clientCA         string
 	authenticateHost string
-	jwk              interface{}
-	kid              string
+	jwk              *jose.JSONWebKey
+	signer           jose.Signer
 }
 
 // New creates a new Evaluator.
@@ -66,33 +66,10 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 		}
 		e.clientCA = string(bs)
 	}
-
-	if options.SigningKey == "" {
-		key, err := cryptutil.NewSigningKey()
-		if err != nil {
-			return nil, fmt.Errorf("authorize: couldn't generate signing key: %w", err)
-		}
-		e.jwk = key
-		pubKeyBytes, err := cryptutil.EncodePublicKey(&key.PublicKey)
-		if err != nil {
-			return nil, fmt.Errorf("authorize: encode public key: %w", err)
-		}
-		log.Info().Interface("PublicKey", pubKeyBytes).Msg("authorize: ecdsa public key")
-	} else {
-		decodedCert, err := base64.StdEncoding.DecodeString(options.SigningKey)
-		if err != nil {
-			return nil, fmt.Errorf("authorize: failed to decode certificate cert %v: %w", decodedCert, err)
-		}
-		key, err := cryptutil.DecodePrivateKey(decodedCert)
-		if err != nil {
-			return nil, fmt.Errorf("authorize: couldn't generate signing key: %w", err)
-		}
-		e.jwk = key
-		jwk, err := cryptutil.PublicJWKFromBytes(decodedCert, jose.ES256)
-		if err != nil {
-			return nil, fmt.Errorf("authorize: failed to convert jwk: %w", err)
-		}
-		e.kid = jwk.KeyID
+	var err error
+	e.signer, e.jwk, err = newSigner(options)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: couldn't create signer: %w", err)
 	}
 
 	authzPolicy, err := readPolicy("/authz.rego")
@@ -172,7 +149,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	}
 	if allow {
 		evalResult.Status = http.StatusOK
-		evalResult.Message = "OK"
+		evalResult.Message = http.StatusText(http.StatusOK)
 		return evalResult, nil
 	}
 
@@ -184,7 +161,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 
 	evalResult.Status = http.StatusForbidden
 	if evalResult.Message == "" {
-		evalResult.Message = "forbidden"
+		evalResult.Message = http.StatusText(http.StatusForbidden)
 	}
 	return evalResult, nil
 }
@@ -195,7 +172,7 @@ func (e *Evaluator) ParseSignedJWT(signature string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return object.Verify(&(e.jwk.(*ecdsa.PrivateKey).PublicKey))
+	return object.Verify(e.jwk.Public())
 }
 
 // JWTPayload returns the JWT payload for a request.
@@ -242,16 +219,52 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 
 	return payload
 }
+func newSigner(options *config.Options) (jose.Signer, *jose.JSONWebKey, error) {
+	// if we don't have a signing key, generate one
+	if options.SigningKey == "" {
+		key, err := cryptutil.NewSigningKey()
+		if err != nil {
+			return nil, nil, fmt.Errorf("couldn't generate signing key: %w", err)
+		}
+		generatedKey, err := cryptutil.EncodePrivateKey(key)
+		if err != nil {
+			return nil, nil, fmt.Errorf("bad signing key: %w", err)
+		}
+		options.SigningKey = base64.StdEncoding.EncodeToString(generatedKey)
+	}
+	if options.SigningKeyAlgorithm == "" {
+		options.SigningKeyAlgorithm = string(jose.ES256)
+	}
+
+	decodedCert, err := base64.StdEncoding.DecodeString(options.SigningKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("bad signing key: %w", err)
+	}
+	jwk, err := cryptutil.PrivateJWKFromBytes(decodedCert, jose.SignatureAlgorithm(options.SigningKeyAlgorithm))
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't generate signing key: %w", err)
+	}
+	log.Info().Str("Algorithm", jwk.Algorithm).
+		Str("KeyID", jwk.KeyID).
+		Interface("Public Key", jwk.Public()).
+		Msg("authorize: signing key")
+
+	signerOpt := &jose.SignerOptions{}
+	signer, err := jose.NewSigner(jose.SigningKey{
+		Algorithm: jose.SignatureAlgorithm(jwk.Algorithm),
+		Key:       jwk,
+	}, signerOpt.WithHeader("kid", jwk.KeyID))
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't create signer: %w", err)
+	}
+	return signer, jwk, nil
+}
 
 // SignedJWT returns the signature of given request.
 func (e *Evaluator) SignedJWT(payload map[string]interface{}) (string, error) {
-	signerOpt := &jose.SignerOptions{}
-	signer, err := jose.NewSigner(jose.SigningKey{
-		Algorithm: jose.ES256,
-		Key:       e.jwk,
-	}, signerOpt.WithHeader("kid", e.kid))
-	if err != nil {
-		return "", err
+	if e.signer == nil {
+		return "", errors.New("evaluator: signer cannot be nil")
 	}
 
 	bs, err := json.Marshal(payload)
@@ -259,7 +272,7 @@ func (e *Evaluator) SignedJWT(payload map[string]interface{}) (string, error) {
 		return "", err
 	}
 
-	jws, err := signer.Sign(bs)
+	jws, err := e.signer.Sign(bs)
 	if err != nil {
 		return "", err
 	}

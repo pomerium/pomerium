@@ -172,9 +172,10 @@ type Options struct {
 	CA                      string `mapstructure:"certificate_authority" yaml:"certificate_authority,omitempty"`
 	CAFile                  string `mapstructure:"certificate_authority_file" yaml:"certificate_authority_file,omitempty"`
 
-	// SigningKey is the private key used to add a JWT-signature.
-	// https://www.pomerium.io/docs/signed-headers.html
-	SigningKey string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
+	// SigningKey is the private key used to add a JWT-signature to upstream requests.
+	// https://www.pomerium.io/docs/topics/getting-users-identity.html
+	SigningKey          string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
+	SigningKeyAlgorithm string `mapstructure:"signing_key_algorithm" yaml:"signing_key_algorithm,omitempty"`
 
 	// Headers to set on all proxied requests. Add a 'disable' key map to turn off.
 	HeadersEnv string            `yaml:",omitempty"`
@@ -868,6 +869,9 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.SigningKey != nil {
 		o.SigningKey = settings.GetSigningKey()
+	}
+	if settings.SigningKeyAlgorithm != nil {
+		o.SigningKeyAlgorithm = settings.GetSigningKeyAlgorithm()
 	}
 	if len(settings.JwtClaimsHeaders) > 0 {
 		o.JWTClaimsHeaders = settings.GetJwtClaimsHeaders()
