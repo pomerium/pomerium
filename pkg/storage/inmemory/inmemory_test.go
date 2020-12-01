@@ -74,4 +74,14 @@ func TestDB(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, records, 0)
 	})
+	t.Run("delete twice", func(t *testing.T) {
+		data := new(anypb.Any)
+		assert.NoError(t, db.Put(ctx, "abcd", data))
+		assert.NoError(t, db.Delete(ctx, "abcd"))
+		assert.NoError(t, db.Delete(ctx, "abcd"))
+		db.ClearDeleted(ctx, time.Now().Add(time.Second))
+		record, err := db.Get(ctx, "abcd")
+		require.Error(t, err)
+		assert.Nil(t, record)
+	})
 }

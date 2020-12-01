@@ -30,7 +30,7 @@ type byIDRecord struct {
 }
 
 func (k byIDRecord) Less(than btree.Item) bool {
-	return k.Id < than.(byIDRecord).Id
+	return k.GetId() < than.(byIDRecord).GetId()
 }
 
 type byVersionRecord struct {
@@ -38,7 +38,7 @@ type byVersionRecord struct {
 }
 
 func (k byVersionRecord) Less(than btree.Item) bool {
-	return k.Version < than.(byVersionRecord).Version
+	return k.GetVersion() < than.(byVersionRecord).GetVersion()
 }
 
 // DB is an in-memory database of records using b-trees.
@@ -77,7 +77,7 @@ func (db *DB) ClearDeleted(_ context.Context, cutoff time.Time) {
 	var remaining []string
 	for _, id := range db.deletedIDs {
 		record, _ := db.byID.Get(byIDRecord{Record: &databroker.Record{Id: id}}).(byIDRecord)
-		ts, _ := ptypes.Timestamp(record.DeletedAt)
+		ts := record.GetDeletedAt().AsTime()
 		if ts.Before(cutoff) {
 			db.byID.Delete(record)
 			db.byVersion.Delete(byVersionRecord(record))
