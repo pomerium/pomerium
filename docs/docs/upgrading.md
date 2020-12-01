@@ -18,6 +18,12 @@ With the v0.11.0 release, user impersonation by administrators is now disabled b
 
 The `cache_service_url` parameter has been deprecated since v0.10.0 and is now removed.  Please replace it with `databroker_service_url` in your yaml configuration, or `DATABROKER_SERVICE_URL` as an environment variable.
 
+## New
+
+### Docker Multi-Arch Images
+
+With the v0.11.0 release, Pomerium docker images are multi-arch for `arm64` and `amd64`.  Individual images for each architecture will continue to be published.
+
 # Since 0.9.0
 
 ## Breaking

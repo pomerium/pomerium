@@ -101,13 +101,14 @@ snapshot:
 
 dockers:
   - image_templates:
-      - "pomerium/pomerium:{{ .Tag }}"
+      - "pomerium/pomerium:amd64-{{ .Tag }}"
     dockerfile: .github/Dockerfile-release
     binaries:
       - pomerium
       - pomerium-cli
     build_flag_templates:
       - "--pull"
+      - "--build-arg=ARCH=amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.name={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
@@ -134,12 +135,13 @@ dockers:
   - goarch: arm64
     image_templates:
       - "pomerium/pomerium:arm64v8-{{ .Tag }}"
-    dockerfile: .github/Dockerfile-release.arm64v8
+    dockerfile: .github/Dockerfile-release
     binaries:
       - pomerium
       - pomerium-cli
     build_flag_templates:
       - "--pull"
+      - "--build-arg=ARCH=arm64"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.name={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
@@ -147,6 +149,12 @@ dockers:
       - "--label=org.opencontainers.image.source={{.GitURL}}"
       - "--label=repository=http://github.com/pomerium/pomerium"
       - "--label=homepage=http://www.pomerium.io"
+
+docker_manifests:
+  - name_template: "pomerium/pomerium:{{ .Tag }}"
+    image_templates:
+      - pomerium/pomerium:arm64v8-{{ .Tag }}
+      - pomerium/pomerium:amd64-{{ .Tag }}
 
 brews:
   - # Name template of the recipe
