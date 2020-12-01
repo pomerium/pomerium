@@ -12,10 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/mitchellh/hashstructure"
 
+	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -330,10 +329,7 @@ func (p *Policy) Validate() error {
 
 // Checksum returns the xxhash hash for the policy.
 func (p *Policy) Checksum() uint64 {
-	cs, _ := hashstructure.Hash(p, &hashstructure.HashOptions{
-		Hasher: xxhash.New(),
-	})
-	return cs
+	return hashutil.MustHash(p)
 }
 
 // RouteID returns a unique identifier for a route
@@ -346,10 +342,7 @@ func (p *Policy) RouteID() uint64 {
 		Regex:       p.Regex,
 	}
 
-	cs, _ := hashstructure.Hash(id, &hashstructure.HashOptions{
-		Hasher: xxhash.New(),
-	})
-	return cs
+	return hashutil.MustHash(id)
 }
 
 func (p *Policy) String() string {

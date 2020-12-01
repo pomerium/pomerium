@@ -9,9 +9,9 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/mitchellh/hashstructure"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc"
@@ -151,7 +151,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 		ServiceName:             cfg.Options.Services,
 		SignedJWTKey:            sharedKey,
 	}
-	h, err := hashstructure.Hash(connectionOptions, nil)
+	h, err := hashutil.Hash(connectionOptions)
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}

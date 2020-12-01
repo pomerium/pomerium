@@ -15,8 +15,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cespare/xxhash/v2"
-	"github.com/mitchellh/hashstructure"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 
@@ -26,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/directory/google"
 	"github.com/pomerium/pomerium/internal/directory/okta"
 	"github.com/pomerium/pomerium/internal/directory/onelogin"
+	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -740,12 +739,7 @@ func (o *Options) GetOauthOptions() oauth.Options {
 
 // Checksum returns the checksum of the current options struct
 func (o *Options) Checksum() uint64 {
-	hash, err := hashstructure.Hash(o, &hashstructure.HashOptions{Hasher: xxhash.New()})
-	if err != nil {
-		log.Warn().Err(err).Msg("config: checksum failure")
-		return 0
-	}
-	return hash
+	return hashutil.MustHash(o)
 }
 
 // ApplySettings modifies the config options using the given protobuf settings.
