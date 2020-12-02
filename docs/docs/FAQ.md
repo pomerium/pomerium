@@ -1,5 +1,5 @@
 ---
-title: Troubleshooting
+title: FAQ
 lang: en-US
 meta:
   - name: keywords

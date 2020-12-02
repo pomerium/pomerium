@@ -11,7 +11,7 @@ meta:
 
 We deeply appreciate any effort to discover and disclose security vulnerabilities responsibly.
 
-If you would like to report a vulnerability, or have any security concerns, please e-mail info@pomerium.io or reach out on [keybase](https://keybase.io/bdesimone).
+If you would like to report a vulnerability, or have any security concerns, please e-mail security@pomerium.com or reach out on [keybase](https://keybase.io/bdesimone).
 
 Though we accept PGP-encrypted email, please only use it for critical security reports.
 
