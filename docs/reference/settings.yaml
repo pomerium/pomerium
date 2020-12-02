@@ -27,17 +27,17 @@ preamble: |
 
 postamble: |
   [base64 encoded]: https://en.wikipedia.org/wiki/Base64
+  [elliptic curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters
   [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
   [identity provider]: ../docs/identity-providers/
-  [okta]: ../docs/identity-providers/okta.md
   [json]: https://en.wikipedia.org/wiki/JSON
   [letsencrypt]: https://letsencrypt.org/
   [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
+  [okta]: ../docs/identity-providers/okta.md
   [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
   [signed headers]: ../docs/topics/getting-users-identity.md
   [toml]: https://en.wikipedia.org/wiki/TOML
   [yaml]: https://en.wikipedia.org/wiki/YAML
-  [Elliptic Curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters
 
 settings:
   - name: "Shared Settings"
@@ -748,7 +748,7 @@ settings:
         attributes: |
           - Environmental Variable: `IDP_SCOPES`
           - Config File Key: `idp_scopes`
-          - Type: `[]string` comma separated list of oauth scopes.
+          - Type: list of `string`
           - Default: `oidc`,`profile`, `email`, `offline_access` (typically)
           - Optional for built-in identity providers.
         doc: |
@@ -759,6 +759,13 @@ settings:
           If you are using a built-in provider, you probably don't want to set customized scopes.
 
           :::
+
+          :::warning
+
+          Some providers, like Amazon Cognito, _do not_ support the `offline_access` scope.
+
+          :::
+
         shortdoc: |
           Identity provider scopes correspond to access privilege scopes as defined in Section 33 of OAuth 20 RFC6749.
       - name: "Identity Provider Service Account"
@@ -967,7 +974,7 @@ settings:
         doc: |
           The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups).
 
-          By default, the `cache` service uses an in-memory databroker, so the legacy option `cache_service_url` will be used if this option is not configured.
+          By default, the `cache` service uses an in-memory databroker.
 
           To create your own data broker, implement the following gRPC interface:
 
@@ -1066,7 +1073,7 @@ settings:
         keys: ["allowed_domains"]
         attributes: |
           - `yaml`/`json` setting: `allowed_domains`
-          - Type: collection of `strings`
+          - Type: list of `string`
           - Required
           - Example: `pomerium.io` , `gmail.com`
         doc: |
@@ -1075,7 +1082,7 @@ settings:
         keys: ["allowed_groups"]
         attributes: |
           - `yaml`/`json` setting: `allowed_groups`
-          - Type: collection of `strings`
+          - Type: list of `string`
           - Required
           - Example: `admins` , `support@company.com`
         doc: |
@@ -1084,7 +1091,7 @@ settings:
         keys: ["allowed_users"]
         attributes: |
           - `yaml`/`json` setting: `allowed_users`
-          - Type: collection of `strings`
+          - Type: list of `string`
           - Required
           - Example: `alice@pomerium.io` , `bob@contractor.co`
         doc: |
@@ -1452,7 +1459,7 @@ settings:
           - Type: [base64 encoded] `string`
           - Optional
         doc: |
-          Signing Key is the [Elliptic Curve] private key used to sign a user's attestation JWT which can be consumed by upstream applications to pass along identifying user information like username, id, and groups.
+          Signing Key is the private key used to sign a user's attestation JWT which can be consumed by upstream applications to pass along identifying user information like username, id, and groups.
 
           If set, the signing key's public key will can retrieved by hitting Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. (If running the authentication service separately, this option must also be set there.)
 
@@ -1481,3 +1488,17 @@ settings:
           If no certificate is specified, one will be generated and the base64'd public key will be added to the logs. Note, however, that this key be unique to each service, ephemeral, and will not be accessible via the authenticate service's `jwks_uri` endpoint.
         shortdoc: |
           Signing Key is the key used to sign a user's attestation JWT which can be consumed by upstream applications to pass along identifying user information like username, id, and groups.
+      - name: "Signing Key Algorithm"
+        keys: ["signing_key_algorithm"]
+        attributes: |
+          - Environmental Variable: `SIGNING_KEY_ALGORITHM`
+          - Config File Key: `signing_key_algorithm`
+          - Type: `string`
+          - Options: `ES256` or `EdDSA` or `RS256`
+          - Default: `ES256`
+        doc: |
+          This setting specifies which signing algorithm to use when signing the upstream attestation JWT. Cryptographic algorithm choice is subtle, and beyond the scope of this document, but we suggest sticking to the default `ES256` unless you have a good reason to use something else.
+
+          Be aware that any RSA based signature method may be an order of magnitude lower than [elliptic curve] variants like EdDSA (`ed25519`) and ECDSA (`ES256`). For more information, checkout [this article](https://www.scottbrady91.com/JOSE/JWTs-Which-Signing-Algorithm-Should-I-Use).
+        shortdoc: |
+          Signing Key Algorithm is the algorithm used to sign a user's attestation JWT.
