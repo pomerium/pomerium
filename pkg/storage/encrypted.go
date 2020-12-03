@@ -50,20 +50,6 @@ func (e *encryptedBackend) Get(ctx context.Context, id string) (*databroker.Reco
 	return record, nil
 }
 
-func (e *encryptedBackend) GetAll(ctx context.Context) ([]*databroker.Record, error) {
-	records, err := e.Backend.GetAll(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for i := range records {
-		records[i], err = e.decryptRecord(records[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return records, nil
-}
-
 func (e *encryptedBackend) List(ctx context.Context, sinceVersion string) ([]*databroker.Record, error) {
 	records, err := e.Backend.List(ctx, sinceVersion)
 	if err != nil {

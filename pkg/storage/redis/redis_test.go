@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gomodule/redigo/redis"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,13 +23,8 @@ import (
 
 var db *DB
 
-func cleanup(c redis.Conn, db *DB, t *testing.T) {
-	require.NoError(t, c.Send("MULTI"))
-	require.NoError(t, c.Send("DEL", db.recordType))
-	require.NoError(t, c.Send("DEL", db.versionSet))
-	require.NoError(t, c.Send("DEL", db.deletedSet))
-	_, err := c.Do("EXEC")
-	require.NoError(t, err)
+func cleanup(ctx context.Context, db *DB, t *testing.T) {
+	require.NoError(t, db.client.FlushAll(ctx).Err())
 }
 
 func tlsConfig(rawURL string, t *testing.T) *tls.Config {
@@ -59,6 +53,7 @@ func runWithRedisDockerImage(t *testing.T, runOpts *dockertest.RunOptions, withT
 	if err != nil {
 		t.Fatalf("Could not start resource: %s", err)
 	}
+	resource.Expire(30)
 
 	defer func() {
 		if err := pool.Purge(resource); err != nil {
@@ -73,11 +68,11 @@ func runWithRedisDockerImage(t *testing.T, runOpts *dockertest.RunOptions, withT
 	address := fmt.Sprintf(scheme+"://localhost:%s/0", resource.GetPort("6379/tcp"))
 	if err := pool.Retry(func() error {
 		var err error
-		db, err = New(address, "record_type", WithTLSConfig(tlsConfig(address, t)))
+		db, err = New(address, WithRecordType("record_type"), WithTLSConfig(tlsConfig(address, t)))
 		if err != nil {
 			return err
 		}
-		_, err = db.pool.Get().Do("PING")
+		err = db.client.Ping(context.Background()).Err()
 		return err
 	}); err != nil {
 		t.Fatalf("Could not connect to docker: %s", err)
@@ -128,10 +123,6 @@ func testDB(t *testing.T) {
 	}
 	ids := []string{"a", "b", "c"}
 	id := ids[0]
-	c := db.pool.Get()
-	defer c.Close()
-
-	ch := db.Watch(ctx)
 
 	t.Run("get missing record", func(t *testing.T) {
 		record, err := db.Get(ctx, id)
@@ -165,24 +156,8 @@ func testDB(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, record)
 	})
-	t.Run("get all", func(t *testing.T) {
-		records, err := db.GetAll(ctx)
-		assert.NoError(t, err)
-		assert.Len(t, records, 0)
-
-		for i, id := range ids {
-			data, _ := anypb.New(users[i])
-			assert.NoError(t, db.Put(ctx, id, data))
-		}
-		records, err = db.GetAll(ctx)
-		assert.NoError(t, err)
-		assert.Len(t, records, len(ids))
-		for _, id := range ids {
-			_, _ = c.Do("DEL", id)
-		}
-	})
 	t.Run("list", func(t *testing.T) {
-		cleanup(c, db, t)
+		cleanup(ctx, db, t)
 
 		for i := 0; i < 10; i++ {
 			id := fmt.Sprintf("%02d", i)
@@ -193,20 +168,23 @@ func testDB(t *testing.T) {
 		records, err := db.List(ctx, "")
 		assert.NoError(t, err)
 		assert.Len(t, records, 10)
-		records, err = db.List(ctx, "00000000000A")
+		records, err = db.List(ctx, "000000000005")
 		assert.NoError(t, err)
 		assert.Len(t, records, 5)
 		records, err = db.List(ctx, "00000000000F")
 		assert.NoError(t, err)
 		assert.Len(t, records, 0)
 	})
+	t.Run("watch", func(t *testing.T) {
+		ch := db.Watch(ctx)
+		time.Sleep(time.Second)
 
-	expectedNumEvents := 14
-	actualNumEvents := 0
-	for range ch {
-		actualNumEvents++
-		if actualNumEvents == expectedNumEvents {
-			cancelFunc()
+		go db.Put(ctx, "WATCH", new(anypb.Any))
+
+		select {
+		case <-ch:
+		case <-time.After(time.Second * 10):
+			t.Error("expected watch signal on put")
 		}
-	}
+	})
 }

@@ -194,7 +194,7 @@ func (srv *Server) GetAll(ctx context.Context, req *databroker.GetAllRequest) (*
 		return nil, err
 	}
 
-	all, err := db.GetAll(ctx)
+	all, err := db.List(ctx, "")
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +254,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 		return nil, err
 	}
 
-	all, err := db.GetAll(ctx)
+	all, err := db.List(ctx, "")
 	if err != nil {
 		return nil, err
 	}
@@ -487,7 +487,7 @@ func (srv *Server) newDB(recordType string) (db storage.Backend, err error) {
 	case config.StorageRedisName:
 		db, err = redis.New(
 			srv.cfg.storageConnectionString,
-			recordType,
+			redis.WithRecordType(recordType),
 			redis.WithTLSConfig(tlsConfig),
 		)
 		if err != nil {

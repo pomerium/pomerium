@@ -24,9 +24,6 @@ type Backend interface {
 	// Get is used to retrieve a record.
 	Get(ctx context.Context, id string) (*databroker.Record, error)
 
-	// GetAll is used to retrieve all the records.
-	GetAll(ctx context.Context) ([]*databroker.Record, error)
-
 	// List is used to retrieve all the records since a version.
 	List(ctx context.Context, sinceVersion string) ([]*databroker.Record, error)
 

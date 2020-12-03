@@ -356,7 +356,7 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 					Type: any.GetTypeUrl(),
 					Id:   id,
 				}); err != nil {
-					return fmt.Errorf("failed to delete directory user: %s", id)
+					return fmt.Errorf("failed to delete directory user (%s): %w", id, err)
 				}
 				return nil
 			})
