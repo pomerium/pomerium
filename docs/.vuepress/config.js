@@ -61,18 +61,18 @@ module.exports = {
     sidebar: {
       "/docs/": [
         {
-          title: "",
+          title: "Overview",
           type: "group",
           collapsable: false,
           sidebarDepth: 0,
           children: [
             "",
-            "background",
-            "releases",
             "installation",
+            "architecture",
+            "background",
+            "FAQ",
             "upgrading",
             "CHANGELOG",
-            "FAQ",
           ],
         },
         {
@@ -85,7 +85,6 @@ module.exports = {
             "quick-start/",
             "quick-start/binary",
             "quick-start/helm",
-            "quick-start/kubernetes",
             "quick-start/synology",
             "quick-start/from-source",
           ],
@@ -156,7 +155,7 @@ module.exports = {
             "kubernetes-dashboard",
             "local-oidc",
             "mtls",
-            'nginx',
+            "nginx",
             "tiddlywiki",
             "traefik-ingress",
             "vs-code-server",

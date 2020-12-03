@@ -23,7 +23,7 @@ Pomerium is lightweight, can easily handle hundreds of concurrent requests, and 
 
 - A [docker-capable] synology product
 - A [Google Cloud Account](https://console.cloud.google.com/)
-- A configured Google OAuth2 [identity provider]
+- A configured [identity provider]
 - [TLS certificates][certificate documentation]
 
 Though any supported [identity provider] would work, this guide uses google.
@@ -180,7 +180,6 @@ IDP_PROVIDER             | Values from setting up your [identity provider] (e.g.
 COOKIE_SECRET            | output of `head -c32 /dev/urandom                               | base64`
 AUTHENTICATE_SERVICE_URL | `https://authenticate.int.nas.example`
 SHARED_SECRET            | output of `head -c32 /dev/urandom                               | base64`
-
 
 For a detailed explanation, and additional options, please refer to the [configuration variable docs]. Also note, though not covered in this guide, settings can be made via a mounted configuration file.
 

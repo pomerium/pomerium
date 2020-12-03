@@ -1,21 +1,21 @@
 ---
-title: Installation
+title: Download
 sidebarDepth: 2
-description: >-
-  This article describes various ways to install pomerium
+description: This article describes various ways to install pomerium
 ---
 
-# Installation
+# Releases
 
-## Overview
+Pomerium is shipped in multiple formats and architectures to suit a variety of deployment patterns. There are two binaries:
 
-Pomerium is shipped in multiple formats and architectures to suit a variety of deployment patterns.  There are two binaries:
+- `pomerium` is the primary server component. It is a monolithic binary that can perform the function of any [services mode](/reference/#service-mode).
+- `pomerium-cli` (optional) is a command-line client for working with Pomerium.  Functions include generating service accounts, and acting as an authentication helper for tools like [kubtctl](topics/kubernetes-integration.md).
 
-`pomerium` is the server component.  It is a monolithic binary that can perform the function of any [services mode](/reference/#service-mode), depending on configuration.
 
-`pomerium-cli` is the user component.  It is a similarly monolithic binary handling user facing capabilities such as pomerium service account creation and authentication helper functions.
+[[toc]]
 
-## Pomerium
+
+## pomerium
 
 - Supported Operating Systems: `linux`, `darwin`
 - Supported Architectures: `amd64`, `arm64`
@@ -59,15 +59,15 @@ Pomerium utilizes a [minimal](https://github.com/GoogleContainerTools/distroless
 
 - `:master` : which will pull an image in sync with git's [master](https://github.com/pomerium/pomerium/tree/master) branch.
 
-```shell
-docker pull pomerium/pomerium:latest
-```
+  ```bash
+  docker pull pomerium/pomerium:latest
+  ```
 
 ### Helm
 
-Pomerium maintains a [helm](https://helm.sh) chart for easy Kubernetes deployment with best practices [https://helm.pomerium.io/](https://helm.pomerium.io/)
+Pomerium maintains a [helm](https://helm.sh) chart for easy Kubernetes deployment with best practices <https://helm.pomerium.io/>
 
-```shell
+```bash
 helm repo add pomerium https://helm.pomerium.io
 helm install pomerium/pomerium
 ```
@@ -77,18 +77,19 @@ See the [README](https://github.com/pomerium/pomerium-helm/blob/master/charts/po
 ### Source
 
 ::: tip
-Officially supported build platforms are limited by envoy proxy.  If you have an
-enoy binary for your platform in your path at start time, `pomerium` should function correctly.
+
+Officially supported build platforms are limited by [envoy proxy](https://www.envoyproxy.io/). If you have an enoy binary for your platform in your path at start time, `pomerium` should function correctly.
+
 :::
 
-```shell
+```bash
 git clone git@github.com:pomerium/pomerium.git
 cd pomerium
 make
 ./bin/pomerium --version
 ```
 
-## Pomerium CLI
+## pomerium-cli
 
 - Supported Operating Systems: `linux`, `darwin`, `windows`, `freebsd`
 - Supported Architectures: `amd64`, `arm64`, `armv6`, `armv7`
@@ -104,6 +105,7 @@ VERSION=[desired version]
 curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomerium-cli-${OS}-${ARCH}.tar.gz \
     | tar -z -x
 ```
+
 ### Packages
 
 - Supported formats: `rpm`, `deb`
@@ -125,3 +127,17 @@ cd pomerium
 make
 ./bin/pomerium-cli --help
 ```
+
+## Release cycle
+
+The current release cycle is aligned on a monthly basis. Pre-`1.0.0` we target a `MINOR` release on or around the **first day of each month**. We try to hit the targets as closely as possible, while still delivering a quality release.
+
+Pomerium uses [Semantic Versioning](https://semver.org/). In practice this means for a given version number **vMAJOR**.**MINOR**.**PATCH** (e.g. `v0.1.0`):
+
+- **MAJOR** indicates an incompatible API change,
+- **MINOR** indicates a new functionality in a backwards-compatible manner, and
+- **PATCH** indicates a backwards-compatible bug fixe.
+
+As Pomerium is still pre-`v1.0.0`, breaking changes between releases should be expected.
+
+To see difference between releases, please refer to the changelog and upgrading documents.

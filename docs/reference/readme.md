@@ -9,7 +9,7 @@ meta:
 
 # Configuration Settings
 
-Pomerium can be configured using a configuration file ([YAML]/[JSON]/[TOML]) or [environmental variables]. In general, environmental variable keys are identical to config file keys but are in uppercase. If you are coming from a kubernetes or docker background this should feel familiar. If not, check out the following primers.
+Pomerium can be configured using a configuration file ([YAML]/[JSON]/[TOML]) or [environmental variables]. In general, environmental variable keys are identical to config file keys but are uppercase. If you are coming from a kubernetes or docker background this should feel familiar. If not, check out the following primers.
 
 - [Store config in the environment](https://12factor.net/config)
 - [Kubernetes: Environment variables](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)
@@ -65,7 +65,7 @@ Enabling user impersonation allows administrators to impersonate other user acco
 - Type: `bool`
 - Optional
 
-Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] for each of your managed routes as well as for the authenticate service. This setting must be used in conjunction with [Autocert Directory](./#autocert-directory) as Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
+Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] which includes managed routes and the authenticate service. [Autocert Directory](./#autocert-directory) must be used with Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
 
 This setting can be useful in situations where you may not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
 

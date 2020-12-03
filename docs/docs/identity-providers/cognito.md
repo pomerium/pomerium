@@ -1,5 +1,5 @@
 ---
-title: AWS Cognito
+title: Cognito
 lang: en-US
 # sidebarDepth: 0
 meta:
@@ -7,7 +7,7 @@ meta:
     content: amazon aws cognito open-id oidc
 ---
 
-# AWS Cognito
+# Cognito
 
 This document describes the use of AWS Cognito as an identity provider with Pomerium.
 

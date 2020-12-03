@@ -1,13 +1,13 @@
 ---
-title: Google / GSuite
+title: Google
 lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: google gsuite gmail oidc openid-connect
+    content: google gsuite gmail oidc openid-connect workspaces
 ---
 
-# Google
+# Google Workspace (formerly known as G Suite)
 
 Log in to your Google account and go to the [APIs & services](https://console.developers.google.com/projectselector/apis/credentials). Navigate to **Credentials** using the left-hand menu.
 
@@ -27,10 +27,10 @@ Click the button on the banner to go to the consent screen configuration. If all
 
 On the **Create [Client ID]** page, select **Web application**. In the new fields that display, set the following parameters:
 
-| Field        | Description                                                              |
-| ------------ | ------------------------------------------------------------------------ |
-| Name         | The name of your web app                                                 |
-| Redirect URI | Redirect URL (e.g.`https://${authenticate_service_url}/oauth2/callback`) |
+Field        | Description
+------------ | ------------------------------------------------------------------------
+Name         | The name of your web app
+Redirect URI | Redirect URL (e.g.`https://${authenticate_service_url}/oauth2/callback`)
 
 ![Web App Credentials Configuration](./img/google-create-client-id-config.png)
 

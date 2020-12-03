@@ -1,5 +1,5 @@
 ---
-title: Helm
+title: Kubernetes / Helm
 lang: en-US
 meta:
   - name: keywords

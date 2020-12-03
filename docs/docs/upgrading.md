@@ -11,12 +11,11 @@ description: >-
 
 ### User impersonation disabled by default
 
-With the v0.11.0 release, user impersonation by administrators is now disabled by default. To enable this feature, set
-`enable_user_impersonation` to true in the configuration options.
+With the v0.11.0 release, the ability to do user user impersonation is **disabled by default**. To enable user impersonation, set `enable_user_impersonation` to true in the configuration options.
 
 ### `cache_service_url` has been renamed to `databroker_service_url`
 
-The `cache_service_url` parameter has been deprecated since v0.10.0 and is now removed.  Please replace it with `databroker_service_url` in your yaml configuration, or `DATABROKER_SERVICE_URL` as an environment variable.
+The `cache_service_url` parameter has been deprecated since v0.10.0 and is now removed. Please replace it with `databroker_service_url` in your yaml configuration, or `DATABROKER_SERVICE_URL` as an environment variable.
 
 ## New
 
@@ -98,7 +97,6 @@ option httpchk GET /ping HTTP/1.1\r\nHost:pomerium
 With this release, Pomerium uses an embedded envoy proxy instead hand-written one. Thus, we defer the preserve host header functionality to [envoys auto_host_rewrite](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#envoy-v3-api-field-config-route-v3-routeaction-auto-host-rewrite), which does not affect if the policy routes to a static IP.
 
 To preserve 0.8.x behavior, you can use the `set_request_headers` option to explicitly set the Host header.
-
 
 ### Unsupported platforms
 
