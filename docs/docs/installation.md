@@ -15,7 +15,7 @@ Pomerium is shipped in multiple formats and architectures to suit a variety of d
 [[toc]]
 
 
-## Pomerium server
+## pomerium
 
 - Supported Operating Systems: `linux`, `darwin`
 - Supported Architectures: `amd64`, `arm64`
