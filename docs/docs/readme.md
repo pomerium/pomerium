@@ -31,7 +31,7 @@ Pomerium can be used to:
 
 ## Demo
 
-To make this a bit more concrete, click the image thumnail to see a short youtube demo:
+To make this a bit more concrete, click the image thumbnail to see a short youtube demo:
 
 [![demo](https://img.youtube.com/vi/ddmrkvBSO60/0.jpg)](https://www.youtube.com/watch?v=ddmrkvBSO60 "Pomerium demo")
 
