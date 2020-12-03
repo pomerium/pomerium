@@ -655,7 +655,7 @@ See [identity provider] for details.
 ### Identity Provider Scopes
 - Environmental Variable: `IDP_SCOPES`
 - Config File Key: `idp_scopes`
-- Type: list of `strings`
+- Type: list of `string`
 - Default: `oidc`,`profile`, `email`, `offline_access` (typically)
 - Optional for built-in identity providers.
 
@@ -959,7 +959,7 @@ A list of policy configuration variables follows.
 
 ### Allowed Domains
 - `yaml`/`json` setting: `allowed_domains`
-- Type: list of `strings`
+- Type: list of `string`
 - Required
 - Example: `pomerium.io` , `gmail.com`
 
@@ -968,7 +968,7 @@ Allowed domains is a collection of whitelisted domains to authorize for a given 
 
 ### Allowed Groups
 - `yaml`/`json` setting: `allowed_groups`
-- Type: list of `strings`
+- Type: list of `string`
 - Required
 - Example: `admins` , `support@company.com`
 
@@ -977,7 +977,7 @@ Allowed groups is a collection of whitelisted groups to authorize for a given ro
 
 ### Allowed Users
 - `yaml`/`json` setting: `allowed_users`
-- Type: list of `strings`
+- Type: list of `string`
 - Required
 - Example: `alice@pomerium.io` , `bob@contractor.co`
 
@@ -1320,8 +1320,8 @@ If unspecified:
 - If [Identity Provider Name](#identity-provider-name) is set to `google`, will default to [Identity Provider Service Account](#identity-provider-service-account)
 - Otherwise, will default to ambient credentials in the default locations searched by the Google SDK. This includes GCE metadata server tokens.
 
-### Signing Key
 
+### Signing Key
 - Environmental Variable: `SIGNING_KEY`
 - Config File Key: `signing_key`
 - Type: [base64 encoded] `string`
@@ -1355,17 +1355,18 @@ $ curl https://authenticate.int.example.com/.well-known/pomerium/jwks.json | jq
 
 If no certificate is specified, one will be generated and the base64'd public key will be added to the logs. Note, however, that this key be unique to each service, ephemeral, and will not be accessible via the authenticate service's `jwks_uri` endpoint.
 
-### Signing Key Algorithm
 
+### Signing Key Algorithm
 - Environmental Variable: `SIGNING_KEY_ALGORITHM`
 - Config File Key: `signing_key_algorithm`
-- Type: [base64 encoded] `string`
+- Type: `string`
 - Options: `ES256` or `EdDSA` or `RS256`
 - Default: `ES256`
 
 This setting specifies which signing algorithm to use when signing the upstream attestation JWT. Cryptographic algorithm choice is subtle, and beyond the scope of this document, but we suggest sticking to the default `ES256` unless you have a good reason to use something else.
 
 Be aware that any RSA based signature method may be an order of magnitude lower than [elliptic curve] variants like EdDSA (`ed25519`) and ECDSA (`ES256`). For more information, checkout [this article](https://www.scottbrady91.com/JOSE/JWTs-Which-Signing-Algorithm-Should-I-Use).
+
 
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [elliptic curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters
