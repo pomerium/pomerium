@@ -56,15 +56,13 @@ func Run(ctx context.Context, configFile string) error {
 	traceMgr := config.NewTraceManager(src)
 	defer traceMgr.Close()
 
-	cfg := src.GetConfig()
-
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(cfg.Options.Services)
+	controlPlane, err := controlplane.NewServer(src.GetConfig().Options.Services)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
 	src.OnConfigChange(controlPlane.OnConfigChange)
-	controlPlane.OnConfigChange(cfg)
+	controlPlane.OnConfigChange(src.GetConfig())
 
 	_, grpcPort, _ := net.SplitHostPort(controlPlane.GRPCListener.Addr().String())
 	_, httpPort, _ := net.SplitHostPort(controlPlane.HTTPListener.Addr().String())
@@ -80,24 +78,24 @@ func Run(ctx context.Context, configFile string) error {
 	defer envoyServer.Close()
 
 	// add services
-	if err := setupAuthenticate(src, cfg, controlPlane); err != nil {
+	if err := setupAuthenticate(src, controlPlane); err != nil {
 		return err
 	}
 	var authorizeServer *authorize.Authorize
-	if config.IsAuthorize(cfg.Options.Services) {
-		authorizeServer, err = setupAuthorize(src, cfg, controlPlane)
+	if config.IsAuthorize(src.GetConfig().Options.Services) {
+		authorizeServer, err = setupAuthorize(src, controlPlane)
 		if err != nil {
 			return err
 		}
 	}
 	var cacheServer *cache.Cache
-	if config.IsCache(cfg.Options.Services) {
-		cacheServer, err = setupCache(src, cfg, controlPlane)
+	if config.IsCache(src.GetConfig().Options.Services) {
+		cacheServer, err = setupCache(src, controlPlane)
 		if err != nil {
 			return err
 		}
 	}
-	if err := setupProxy(src, cfg, controlPlane); err != nil {
+	if err := setupProxy(src, controlPlane); err != nil {
 		return err
 	}
 
@@ -141,18 +139,18 @@ func Run(ctx context.Context, configFile string) error {
 	return eg.Wait()
 }
 
-func setupAuthenticate(src config.Source, cfg *config.Config, controlPlane *controlplane.Server) error {
-	if !config.IsAuthenticate(cfg.Options.Services) {
+func setupAuthenticate(src config.Source, controlPlane *controlplane.Server) error {
+	if !config.IsAuthenticate(src.GetConfig().Options.Services) {
 		return nil
 	}
 
-	svc, err := authenticate.New(cfg)
+	svc, err := authenticate.New(src.GetConfig())
 	if err != nil {
 		return fmt.Errorf("error creating authenticate service: %w", err)
 	}
 	src.OnConfigChange(svc.OnConfigChange)
-	svc.OnConfigChange(cfg)
-	host := urlutil.StripPort(cfg.Options.GetAuthenticateURL().Host)
+	svc.OnConfigChange(src.GetConfig())
+	host := urlutil.StripPort(src.GetConfig().Options.GetAuthenticateURL().Host)
 	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
 	svc.Mount(sr)
 	log.Info().Str("host", host).Msg("enabled authenticate service")
@@ -160,8 +158,8 @@ func setupAuthenticate(src config.Source, cfg *config.Config, controlPlane *cont
 	return nil
 }
 
-func setupAuthorize(src config.Source, cfg *config.Config, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
-	svc, err := authorize.New(cfg)
+func setupAuthorize(src config.Source, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
+	svc, err := authorize.New(src.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)
 	}
@@ -169,28 +167,28 @@ func setupAuthorize(src config.Source, cfg *config.Config, controlPlane *control
 
 	log.Info().Msg("enabled authorize service")
 	src.OnConfigChange(svc.OnConfigChange)
-	svc.OnConfigChange(cfg)
+	svc.OnConfigChange(src.GetConfig())
 	return svc, nil
 }
 
-func setupCache(src config.Source, cfg *config.Config, controlPlane *controlplane.Server) (*cache.Cache, error) {
-	svc, err := cache.New(cfg)
+func setupCache(src config.Source, controlPlane *controlplane.Server) (*cache.Cache, error) {
+	svc, err := cache.New(src.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("error creating config service: %w", err)
 	}
 	svc.Register(controlPlane.GRPCServer)
 	log.Info().Msg("enabled cache service")
 	src.OnConfigChange(svc.OnConfigChange)
-	svc.OnConfigChange(cfg)
+	svc.OnConfigChange(src.GetConfig())
 	return svc, nil
 }
 
-func setupProxy(src config.Source, cfg *config.Config, controlPlane *controlplane.Server) error {
-	if !config.IsProxy(cfg.Options.Services) {
+func setupProxy(src config.Source, controlPlane *controlplane.Server) error {
+	if !config.IsProxy(src.GetConfig().Options.Services) {
 		return nil
 	}
 
-	svc, err := proxy.New(cfg)
+	svc, err := proxy.New(src.GetConfig())
 	if err != nil {
 		return fmt.Errorf("error creating proxy service: %w", err)
 	}
@@ -198,7 +196,7 @@ func setupProxy(src config.Source, cfg *config.Config, controlPlane *controlplan
 
 	log.Info().Msg("enabled proxy service")
 	src.OnConfigChange(svc.OnConfigChange)
-	svc.OnConfigChange(cfg)
+	svc.OnConfigChange(src.GetConfig())
 
 	return nil
 }
