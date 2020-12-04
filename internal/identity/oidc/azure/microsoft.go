@@ -12,9 +12,10 @@ import (
 	"net/http"
 
 	go_oidc "github.com/coreos/go-oidc"
+	"golang.org/x/oauth2"
+
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
-	"golang.org/x/oauth2"
 )
 
 // Name identifies the Azure identity provider
