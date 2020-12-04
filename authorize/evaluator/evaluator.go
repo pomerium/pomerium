@@ -197,6 +197,9 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 			payload["email"] = u.GetEmail()
 		}
 		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", s.GetUserId()).(*directory.User); ok {
+			if du.GetEmail() != "" {
+				payload["email"] = du.GetEmail()
+			}
 			var groupNames []string
 			for _, groupID := range du.GetGroupIds() {
 				if dg, ok := req.DataBrokerData.Get("type.googleapis.com/directory.Group", groupID).(*directory.Group); ok {
