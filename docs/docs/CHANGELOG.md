@@ -80,6 +80,7 @@
 
 ## Fixed
 
+- fix config race [\#1660](https://github.com/pomerium/pomerium/pull/1660) (@calebdoxsey)
 - fix ordering of autocert config source [\#1640](https://github.com/pomerium/pomerium/pull/1640) (@calebdoxsey)
 - pkg/storage/redis: Prevent connection churn [\#1603](https://github.com/pomerium/pomerium/pull/1603) (@travisgroth)
 -  forward-auth: fix special character support for nginx  [\#1578](https://github.com/pomerium/pomerium/pull/1578) (@desimone)
