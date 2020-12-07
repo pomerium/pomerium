@@ -64,7 +64,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	google.golang.org/api v0.30.0
-	google.golang.org/genproto v0.0.0-20201119123407-9b1e624d6bc4
+	google.golang.org/genproto v0.0.0-20201207150747-9ee31aac76e7
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/auth0.v4 v4.6.0
