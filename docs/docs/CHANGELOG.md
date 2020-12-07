@@ -522,7 +522,7 @@
 ## Deployment
 
 - ci: automatically update test environment with master [\#1562](https://github.com/pomerium/pomerium/pull/1562) (@travisgroth)
-- deplyoment: add debug build / container / docs [\#1513](https://github.com/pomerium/pomerium/pull/1513) (@travisgroth)
+- deployment: add debug build / container / docs [\#1513](https://github.com/pomerium/pomerium/pull/1513) (@travisgroth)
 - deployment: Generate deb and rpm packages [\#1458](https://github.com/pomerium/pomerium/pull/1458) (@travisgroth)
 - deployment: bump release go to v1.15.x [\#1439](https://github.com/pomerium/pomerium/pull/1439) (@desimone)
 - ci: publish cloudrun latest tag [\#1398](https://github.com/pomerium/pomerium/pull/1398) (@travisgroth)
