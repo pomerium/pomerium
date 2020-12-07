@@ -38,7 +38,7 @@ require (
 	github.com/onsi/ginkgo v1.11.0 // indirect
 	github.com/onsi/gocleanup v0.0.0-20140331211545-c1a5478700b5
 	github.com/onsi/gomega v1.8.1 // indirect
-	github.com/open-policy-agent/opa v0.24.0
+	github.com/open-policy-agent/opa v0.25.1
 	github.com/openzipkin/zipkin-go v0.2.5
 	github.com/ory/dockertest/v3 v3.6.2
 	github.com/pelletier/go-toml v1.6.0 // indirect
@@ -46,7 +46,6 @@ require (
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v1.8.0
 	github.com/rakyll/statik v0.1.7
-	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.20.0
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
