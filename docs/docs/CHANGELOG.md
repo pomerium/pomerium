@@ -152,6 +152,13 @@
 
 ## Dependency
 
+- chore\(deps\): update module open-policy-agent/opa to v0.25.1 [\#1659](https://github.com/pomerium/pomerium/pull/1659) (@renovate[bot])
+- chore\(deps\): update module lithammer/shortuuid/v3 to v3.0.5 [\#1658](https://github.com/pomerium/pomerium/pull/1658) (@renovate[bot])
+- chore\(deps\): update module google.golang.org/grpc to v1.34.0 [\#1657](https://github.com/pomerium/pomerium/pull/1657) (@renovate[bot])
+- chore\(deps\): update google.golang.org/genproto commit hash to 9ee31aa [\#1655](https://github.com/pomerium/pomerium/pull/1655) (@renovate[bot])
+- chore\(deps\): update golang.org/x/oauth2 commit hash to 9317641 [\#1654](https://github.com/pomerium/pomerium/pull/1654) (@renovate[bot])
+- chore\(deps\): update golang.org/x/net commit hash to c7110b5 [\#1653](https://github.com/pomerium/pomerium/pull/1653) (@renovate[bot])
+- chore\(deps\): update golang.org/x/crypto commit hash to be400ae [\#1652](https://github.com/pomerium/pomerium/pull/1652) (@renovate[bot])
 - deps: update hashstructure v2 [\#1632](https://github.com/pomerium/pomerium/pull/1632) (@desimone)
 - chore\(deps\): update precommit hook pre-commit/pre-commit-hooks to v3 [\#1630](https://github.com/pomerium/pomerium/pull/1630) (@renovate[bot])
 - chore\(deps\): update module yaml to v2.4.0 [\#1629](https://github.com/pomerium/pomerium/pull/1629) (@renovate[bot])
