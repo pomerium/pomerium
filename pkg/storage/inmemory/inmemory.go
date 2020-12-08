@@ -30,7 +30,8 @@ type byIDRecord struct {
 }
 
 func (k byIDRecord) Less(than btree.Item) bool {
-	return k.GetId() < than.(byIDRecord).GetId()
+	k2, _ := than.(byIDRecord)
+	return k.GetId() < k2.GetId()
 }
 
 type byVersionRecord struct {
@@ -38,7 +39,8 @@ type byVersionRecord struct {
 }
 
 func (k byVersionRecord) Less(than btree.Item) bool {
-	return k.GetVersion() < than.(byVersionRecord).GetVersion()
+	k2, _ := than.(byVersionRecord)
+	return k.GetVersion() < k2.GetVersion()
 }
 
 // DB is an in-memory database of records using b-trees.

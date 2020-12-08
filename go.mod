@@ -32,12 +32,12 @@ require (
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
-	github.com/lithammer/shortuuid/v3 v3.0.4
+	github.com/lithammer/shortuuid/v3 v3.0.5
 	github.com/mitchellh/hashstructure/v2 v2.0.1
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
 	github.com/nsf/jsondiff v0.0.0-20200515183724-f29ed568f4ce
 	github.com/onsi/gocleanup v0.0.0-20140331211545-c1a5478700b5
-	github.com/open-policy-agent/opa v0.24.0
+	github.com/open-policy-agent/opa v0.25.1
 	github.com/openzipkin/zipkin-go v0.2.5
 	github.com/ory/dockertest/v3 v3.6.2
 	github.com/pelletier/go-toml v1.6.0 // indirect
@@ -45,7 +45,6 @@ require (
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v1.8.0
 	github.com/rakyll/statik v0.1.7
-	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.20.0
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
@@ -58,13 +57,13 @@ require (
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80
 	go.opencensus.io v0.22.5
 	go.uber.org/zap v1.16.0
-	golang.org/x/crypto v0.0.0-20201124201722-c8d3bf9c5392
-	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
-	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58
+	golang.org/x/crypto v0.0.0-20201203163018-be400aefbc4c
+	golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb
+	golang.org/x/oauth2 v0.0.0-20201207163604-931764155e3f
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	google.golang.org/api v0.30.0
-	google.golang.org/genproto v0.0.0-20201119123407-9b1e624d6bc4
-	google.golang.org/grpc v1.33.2
+	google.golang.org/genproto v0.0.0-20201207150747-9ee31aac76e7
+	google.golang.org/grpc v1.34.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/auth0.v4 v4.6.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d

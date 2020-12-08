@@ -171,7 +171,7 @@ func testDB(t *testing.T) {
 		records, err = db.List(ctx, "000000000005")
 		assert.NoError(t, err)
 		assert.Len(t, records, 5)
-		records, err = db.List(ctx, "00000000000F")
+		records, err = db.List(ctx, "000000000010")
 		assert.NoError(t, err)
 		assert.Len(t, records, 0)
 	})
