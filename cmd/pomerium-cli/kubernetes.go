@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,6 +18,8 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sync/errgroup"
 	jose "gopkg.in/square/go-jose.v2"
+
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 var kubernetesExecCredentialOption struct {
@@ -148,21 +148,12 @@ func runOpenBrowser(ctx context.Context, li net.Listener, serverURL *url.URL) er
 	if kubernetesExecCredentialOption.disableTLSVerification {
 		transport.TLSClientConfig.InsecureSkipVerify = true
 	}
-	if kubernetesExecCredentialOption.alternateCAPath != "" {
-		data, err := ioutil.ReadFile(kubernetesExecCredentialOption.alternateCAPath)
-		if err != nil {
-			return fmt.Errorf("error reading CA certificate: %w", err)
-		}
-		transport.TLSClientConfig.RootCAs = x509.NewCertPool()
-		transport.TLSClientConfig.RootCAs.AppendCertsFromPEM(data)
-	}
-	if kubernetesExecCredentialOption.caCert != "" {
-		data, err := base64.StdEncoding.DecodeString(kubernetesExecCredentialOption.caCert)
-		if err != nil {
-			return fmt.Errorf("error reading CA certificate: %w", err)
-		}
-		transport.TLSClientConfig.RootCAs = x509.NewCertPool()
-		transport.TLSClientConfig.RootCAs.AppendCertsFromPEM(data)
+	transport.TLSClientConfig.RootCAs, err = cryptutil.GetCertPool(
+		kubernetesExecCredentialOption.caCert,
+		kubernetesExecCredentialOption.alternateCAPath,
+	)
+	if err != nil {
+		return err
 	}
 
 	client := &http.Client{
