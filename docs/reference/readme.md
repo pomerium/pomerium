@@ -65,7 +65,7 @@ Enabling user impersonation allows administrators to impersonate other user acco
 - Type: `bool`
 - Optional
 
-Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] which includes managed routes and the authenticate service. [Autocert Directory](./#autocert-directory) must be used with Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
+Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] which includes managed routes and the authenticate service.  [Autocert Directory](./#autocert-directory) must be used with Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
 
 This setting can be useful in situations where you may not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
 
@@ -973,6 +973,41 @@ Allowed domains is a collection of whitelisted domains to authorize for a given 
 - Example: `admins` , `support@company.com`
 
 Allowed groups is a collection of whitelisted groups to authorize for a given route.
+
+
+### Allowed IdP Claims
+- `yaml`/`json` setting: `allowed_idp_claims`
+- Type: map of `strings` lists
+- Required
+
+Allowed IdP Claims is a collection of whitelisted claim key-value pairs to authorize for a given route.
+
+This is useful if your identity provider has extra information about a user that is not in the directory.  It can also be useful if you wish to use groups with the generic OIDC provider.
+
+Example:
+
+```yaml
+  - from: http://from.example.com
+    to: http://to.example.com
+    allowed_idp_claims:
+      family_name:
+        - Doe
+        - Smith
+```
+
+This policy would match users with the `family_name` claim containing `Smith` or `Doe`.
+
+Claims are represented as a map of strings to a list of values:
+
+```json
+{
+  "family_name": ["Doe"],
+  "given_name": ["John"]
+}
+```
+
+- Nested maps are flattened: `{ "a": { "b": ["c"] } }` becomes `{ "a.b": ["c"] }`
+- Values are always a list: `{ "a": "b" }` becomes `{ "a": ["b"] }`
 
 
 ### Allowed Users
