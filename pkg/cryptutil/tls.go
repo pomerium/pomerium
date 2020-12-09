@@ -16,7 +16,7 @@ import (
 func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
 	rootCAs, err := x509.SystemCertPool()
 	if err != nil {
-		log.Error().Msg("pkg/cryptutil: failed getting system cert pool making new one")
+		log.Error().Err(err).Msg("pkg/cryptutil: failed getting system cert pool making new one")
 		rootCAs = x509.NewCertPool()
 	}
 	if ca == "" && caFile == "" {
@@ -27,16 +27,16 @@ func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
 	if ca != "" {
 		data, err = base64.StdEncoding.DecodeString(ca)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode certificate authority: %w", err)
+			return nil, fmt.Errorf("failed to decode base64-encoded certificate authority: %w", err)
 		}
 	} else {
 		data, err = ioutil.ReadFile(caFile)
 		if err != nil {
-			return nil, fmt.Errorf("certificate authority file %v not readable: %w", caFile, err)
+			return nil, fmt.Errorf("failed to read certificate authority file (%s): %w", caFile, err)
 		}
 	}
 	if ok := rootCAs.AppendCertsFromPEM(data); !ok {
-		return nil, fmt.Errorf("failed to append CA cert to certPool")
+		return nil, fmt.Errorf("failed to append any PEM-encoded certificates")
 	}
 	log.Debug().Msg("pkg/cryptutil: added custom certificate authority")
 	return rootCAs, nil

@@ -4,9 +4,7 @@ package databroker
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"reflect"
 	"sort"
 	"strings"
@@ -26,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
@@ -464,13 +463,9 @@ func (srv *Server) getDB(recordType string, lock bool) (db storage.Backend, vers
 }
 
 func (srv *Server) newDB(recordType string) (db storage.Backend, err error) {
-	caCertPool := x509.NewCertPool()
-	if srv.cfg.storageCAFile != "" {
-		if caCert, err := ioutil.ReadFile(srv.cfg.storageCAFile); err == nil {
-			caCertPool.AppendCertsFromPEM(caCert)
-		} else {
-			log.Warn().Err(err).Msg("failed to read databroker CA file")
-		}
+	caCertPool, err := cryptutil.GetCertPool("", srv.cfg.storageCAFile)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to read databroker CA file")
 	}
 	tlsConfig := &tls.Config{
 		RootCAs: caCertPool,
