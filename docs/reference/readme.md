@@ -989,7 +989,7 @@ Example:
 ```yaml
   - from: http://from.example.com
     to: http://to.example.com
-    allowed_idp_claims: 
+    allowed_idp_claims:
       family_name:
         - Doe
         - Smith
