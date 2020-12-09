@@ -1078,6 +1078,15 @@ settings:
           - Example: `pomerium.io` , `gmail.com`
         doc: |
           Allowed domains is a collection of whitelisted domains to authorize for a given route.
+      - name: "Allowed Groups"
+        keys: ["allowed_groups"]
+        attributes: |
+          - `yaml`/`json` setting: `allowed_groups`
+          - Type: list of `string`
+          - Required
+          - Example: `admins` , `support@company.com`
+        doc: |
+          Allowed groups is a collection of whitelisted groups to authorize for a given route.
       - name: "Allowed IdP Claims"
         keys: ["allowed_idp_claims"]
         attributes: |
@@ -1116,15 +1125,6 @@ settings:
           - Nested maps are flattened: `{ "a": { "b": ["c"] } }` becomes `{ "a.b": ["c"] }`
           - Values are always a list: `{ "a": "b" }` becomes `{ "a": ["b"] }`
 
-      - name: "Allowed Groups"
-        keys: ["allowed_groups"]
-        attributes: |
-          - `yaml`/`json` setting: `allowed_groups`
-          - Type: list of `string`
-          - Required
-          - Example: `admins` , `support@company.com`
-        doc: |
-          Allowed groups is a collection of whitelisted groups to authorize for a given route.
       - name: "Allowed Users"
         keys: ["allowed_users"]
         attributes: |
