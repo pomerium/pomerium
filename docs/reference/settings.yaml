@@ -1086,7 +1086,7 @@ settings:
           - Required
         shortdoc: |
           Authorize users by matching claims attached to a user's identity token by their identity provider
-        docs: |
+        doc: |
           Allowed IdP Claims is a collection of whitelisted claim key-value pairs to authorize for a given route.
 
           This is useful if your identity provider has extra information about a user that is not in the directory.  It can also be useful if you wish to use groups with the generic OIDC provider.
