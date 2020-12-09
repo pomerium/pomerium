@@ -398,13 +398,13 @@ settings:
           - Example: `TIMEOUT_READ=30s`
           - Defaults: `TIMEOUT_READ=30s` `TIMEOUT_WRITE=0` `TIMEOUT_IDLE=5m`
         doc: |
-          Timeouts set the global server timeouts. For route-specific timeouts, see [policy](./#policy).
+          Timeouts set the global server timeouts. Timeouts can also be set for individual [routes](./#policy).
 
           ![cloudflare blog on timeouts](https://blog.cloudflare.com/content/images/2016/06/Timeouts-001.png)
 
           > For a deep dive on timeout values see [these](https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/) [two](https://blog.cloudflare.com/exposing-go-on-the-internet/) excellent blog posts.
         shortdoc: |
-          Timeouts set the global server timeouts. For route-specific timeouts, see policy.
+          Timeouts set the global server timeouts. Timeouts can also be set for individual routes.
       - name: "GRPC Options"
         settings:
           - name: "GRPC Address"
