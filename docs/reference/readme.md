@@ -65,7 +65,7 @@ Enabling user impersonation allows administrators to impersonate other user acco
 - Type: `bool`
 - Optional
 
-Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] which includes managed routes and the authenticate service. [Autocert Directory](./#autocert-directory) must be used with Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
+Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] which includes managed routes and the authenticate service.  [Autocert Directory](./#autocert-directory) must be used with Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
 
 This setting can be useful in situations where you may not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
 
@@ -964,6 +964,12 @@ A list of policy configuration variables follows.
 - Example: `pomerium.io` , `gmail.com`
 
 Allowed domains is a collection of whitelisted domains to authorize for a given route.
+
+
+### Allowed IdP Claims
+- `yaml`/`json` setting: `allowed_idp_claims`
+- Type: map of `strings` lists
+- Required
 
 
 ### Allowed Groups
