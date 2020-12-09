@@ -348,7 +348,7 @@ services:
 - Example: `TIMEOUT_READ=30s`
 - Defaults: `TIMEOUT_READ=30s` `TIMEOUT_WRITE=0` `TIMEOUT_IDLE=5m`
 
-Timeouts set the global server timeouts. For route-specific timeouts, see [policy](./#policy).
+Timeouts set the global server timeouts. Timeouts can also be set for individual [routes](./#policy).
 
 ![cloudflare blog on timeouts](https://blog.cloudflare.com/content/images/2016/06/Timeouts-001.png)
 
