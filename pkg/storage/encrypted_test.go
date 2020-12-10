@@ -14,7 +14,6 @@ import (
 )
 
 func TestEncryptedBackend(t *testing.T) {
-
 	ctx := context.Background()
 
 	m := map[string]*anypb.Any{}
@@ -79,7 +78,7 @@ func TestEncryptedBackend(t *testing.T) {
 	assert.Equal(t, any.Value, record.Data.Value, "value should be preserved")
 	assert.Equal(t, any.TypeUrl, record.Type, "record type should be preserved")
 
-	records, err := e.GetAll(ctx)
+	records, err := e.List(ctx, "")
 	if !assert.NoError(t, err) {
 		return
 	}
