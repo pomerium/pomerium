@@ -712,11 +712,10 @@ func (mgr *Manager) syncDirectoryGroups(ctx context.Context, ch chan<- *director
 	}
 }
 
-func (mgr *Manager) onUpdateSession(ctx context.Context, msg sessionMessage) {
+func (mgr *Manager) onUpdateSession(_ context.Context, msg sessionMessage) {
 	mgr.sessionScheduler.Remove(toSessionSchedulerKey(msg.session.GetUserId(), msg.session.GetId()))
 
 	if msg.record.GetDeletedAt() != nil {
-		// remove from local store
 		mgr.sessions.Delete(msg.session.GetUserId(), msg.session.GetId())
 		return
 	}
@@ -729,25 +728,18 @@ func (mgr *Manager) onUpdateSession(ctx context.Context, msg sessionMessage) {
 	s.Session = msg.session
 	mgr.sessions.ReplaceOrInsert(s)
 	mgr.sessionScheduler.Add(s.NextRefresh(), toSessionSchedulerKey(msg.session.GetUserId(), msg.session.GetId()))
-
-	// create the user if it doesn't exist yet
-	if _, ok := mgr.users.Get(msg.session.GetUserId()); !ok {
-		mgr.createUser(ctx, msg.session)
-	}
 }
 
 func (mgr *Manager) onUpdateUser(_ context.Context, msg userMessage) {
-	if msg.record.DeletedAt != nil {
+	mgr.userScheduler.Remove(msg.user.GetId())
+
+	if msg.record.GetDeletedAt() != nil {
 		mgr.users.Delete(msg.user.GetId())
-		mgr.userScheduler.Remove(msg.user.GetId())
 		return
 	}
 
-	u, ok := mgr.users.Get(msg.user.GetId())
-	if ok {
-		// only reset the refresh time if this is an existing user
-		u.lastRefresh = time.Now()
-	}
+	u, _ := mgr.users.Get(msg.user.GetId())
+	u.lastRefresh = time.Now()
 	u.refreshInterval = mgr.cfg.Load().groupRefreshInterval
 	u.User = msg.user
 	mgr.users.ReplaceOrInsert(u)
@@ -760,22 +752,6 @@ func (mgr *Manager) onUpdateDirectoryUser(_ context.Context, pbDirectoryUser *di
 
 func (mgr *Manager) onUpdateDirectoryGroup(_ context.Context, pbDirectoryGroup *directory.Group) {
 	mgr.directoryGroups[pbDirectoryGroup.GetId()] = pbDirectoryGroup
-}
-
-func (mgr *Manager) createUser(ctx context.Context, pbSession *session.Session) {
-	u := User{
-		User: &user.User{
-			Id: pbSession.GetUserId(),
-		},
-	}
-
-	_, err := user.Set(ctx, mgr.cfg.Load().dataBrokerClient, u.User)
-	if err != nil {
-		mgr.log.Error().Err(err).
-			Str("user_id", pbSession.GetUserId()).
-			Str("session_id", pbSession.GetId()).
-			Msg("failed to create user")
-	}
 }
 
 func (mgr *Manager) deleteSession(ctx context.Context, pbSession *session.Session) {
