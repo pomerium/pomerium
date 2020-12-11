@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -84,4 +85,24 @@ func TestDB(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, record)
 	})
+}
+
+func TestConcurrency(t *testing.T) {
+	ctx := context.Background()
+	db := NewDB("example", 2)
+
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		for i := 0; i < 1000; i++ {
+			_, _ = db.List(ctx, "")
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		for i := 0; i < 1000; i++ {
+			db.Put(ctx, fmt.Sprint(i), new(anypb.Any))
+		}
+		return nil
+	})
+	eg.Wait()
 }
