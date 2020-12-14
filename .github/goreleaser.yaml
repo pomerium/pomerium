@@ -285,4 +285,4 @@ nfpms:
         replacements:
           arm64: aarch64
           amd64: x86_64
-        file_name_template: '{{ .ProjectName }}-cli-{{ .Version }}-{{ .Release }}_{{ .Arch }}{{ if .Arm }}{{if eq .Arm "7"}}hf{{ end }}{{ end }}'
+        file_name_template: '{{ .ProjectName }}-cli-{{ .Version }}-{{ .Release }}.{{ .Arch }}{{ if .Arm }}{{if eq .Arm "7"}}hf{{ end }}{{ end }}'
