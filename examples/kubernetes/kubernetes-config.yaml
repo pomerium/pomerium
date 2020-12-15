@@ -4,11 +4,11 @@ grpc_insecure: true
 address: ":80"
 grpc_address: ":80"
 
-authenticate_service_url: https://authenticate.corp.beyondperimeter.com
+authenticate_service_url: https://authenticate.localhost.pomerium.io
 authorize_service_url: http://pomerium-authorize-service.default.svc.cluster.local
 databroker_service_url: http://pomerium-cache-service.default.svc.cluster.local
 
-override_certificate_name: "*.corp.beyondperimeter.com"
+override_certificate_name: "*.localhost.pomerium.io"
 
 idp_provider: google
 idp_client_id: REPLACE_ME.apps.googleusercontent.com
@@ -18,7 +18,7 @@ idp_client_secret: "REPLACE_ME"
 idp_service_account: YOUR_SERVICE_ACCOUNT
 
 policy:
-  - from: https://httpbin.corp.beyondperimeter.com
+  - from: https://httpbin.localhost.pomerium.io
     to: http://httpbin.default.svc.cluster.local:8000
     allowed_domains:
       - gmail.com

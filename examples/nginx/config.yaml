@@ -19,3 +19,4 @@ policy:
     allowed_domains:
       - pomerium.com
       - gmail.com
+    pass_identity_headers: true

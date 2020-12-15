@@ -5,7 +5,7 @@ authenticate:
     clientSecret: YOUR_SECRET
     # Required for group data
     # https://www.pomerium.com/configuration/#identity-provider-service-account
-    serviceAccount: YOUR_SERVICE_ACCOUNT 
+    serviceAccount: YOUR_SERVICE_ACCOUNT
   service:
     annotations:
       cloud.google.com/app-protocols: '{"https":"HTTPS"}'
@@ -20,7 +20,7 @@ service:
 
 config:
   policy:
-    - from: https://hello.corp.beyondperimeter.com
+    - from: https://hello.localhost.pomerium.io
       to: http://nginx.default.svc.cluster.local:80
       allowed_domains:
         - gmail.com

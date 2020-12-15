@@ -23,3 +23,4 @@ policy:
     to: https://httpbin.org
     allowed_users:
       - bdd@pomerium.io
+    pass_identity_headers: true
