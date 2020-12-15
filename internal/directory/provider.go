@@ -57,6 +57,7 @@ func GetProvider(options Options) (provider Provider) {
 		globalProvider.options = options
 	}()
 
+	providerURL, _ := url.Parse(options.ProviderURL)
 	switch options.Provider {
 	case auth0.Name:
 		serviceAccount, err := auth0.ParseServiceAccount(options)
@@ -93,7 +94,12 @@ func GetProvider(options Options) (provider Provider) {
 	case gitlab.Name:
 		serviceAccount, err := gitlab.ParseServiceAccount(options.ServiceAccount)
 		if err == nil {
-			return gitlab.New(gitlab.WithServiceAccount(serviceAccount))
+			if providerURL == nil {
+				return gitlab.New(gitlab.WithServiceAccount(serviceAccount))
+			}
+			return gitlab.New(
+				gitlab.WithURL(providerURL),
+				gitlab.WithServiceAccount(serviceAccount))
 		}
 		log.Warn().
 			Str("service", "directory").
@@ -111,7 +117,6 @@ func GetProvider(options Options) (provider Provider) {
 			Err(err).
 			Msg("invalid service account for google directory provider")
 	case okta.Name:
-		providerURL, _ := url.Parse(options.ProviderURL)
 		serviceAccount, err := okta.ParseServiceAccount(options.ServiceAccount)
 		if err == nil {
 			return okta.New(
