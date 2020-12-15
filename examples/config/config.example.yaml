@@ -5,7 +5,7 @@
 # service: "all" # optional, default is all
 # log_level: info # optional, default is debug
 
-authenticate_service_url: https://authenticate.corp.beyondperimeter.com
+authenticate_service_url: https://authenticate.localhost.pomerium.io
 # authorize service url will default to localhost in all-in-one mode, otherwise
 # it should be set to a "behind-the-ingress" routable url
 # authorize_service_url: https://pomerium-authorize-service.default.svc.cluster.local
@@ -75,17 +75,22 @@ authenticate_service_url: https://authenticate.corp.beyondperimeter.com
 
 # Proxied routes and per-route policies are defined in a policy block
 policy:
-  - from: https://httpbin.corp.beyondperimeter.com
+  - from: https://httpbin.localhost.pomerium.io
     to: http://httpbin
     allowed_domains:
       - pomerium.io
     cors_allow_preflight: true
     timeout: 30s
-  - from: https://external-httpbin.corp.beyondperimeter.com
+    pass_identity_headers: true
+
+  - from: https://external-httpbin.localhost.pomerium.io
     to: https://httpbin.org
     allowed_domains:
       - gmail.com
-  - from: https://hello.corp.beyondperimeter.com
+    pass_identity_headers: true
+
+  - from: https://hello.localhost.pomerium.io
     to: http://hello:8080
     allowed_groups:
       - admins@pomerium.io
+    pass_identity_headers: true

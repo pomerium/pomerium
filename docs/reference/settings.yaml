@@ -219,7 +219,7 @@ settings:
               - Environmental Variable: `COOKIE_DOMAIN`
               - Config File Key: `cookie_domain`
               - Type: `string`
-              - Example: `corp.beyondperimeter.com`
+              - Example: `localhost.pomerium.io`
               - Optional
             doc: |
               The scope of session cookies issued by Pomerium.
@@ -290,18 +290,18 @@ settings:
 
           ```
           10:37AM INF cmd/pomerium version=v0.0.1-dirty+ede4124
-          10:37AM INF proxy: new route from=httpbin.corp.beyondperimeter.com to=https://httpbin.org
-          10:37AM INF proxy: new route from=ssl.corp.beyondperimeter.com to=http://neverssl.com
-          10:37AM INF proxy/authenticator: grpc connection OverrideCertificateName= addr=auth.corp.beyondperimeter.com:443
+          10:37AM INF proxy: new route from=httpbin.localhost.pomerium.io to=https://httpbin.org
+          10:37AM INF proxy: new route from=ssl.localhost.pomerium.io to=http://neverssl.com
+          10:37AM INF proxy/authenticator: grpc connection OverrideCertificateName= addr=auth.localhost.pomerium.io:443
           ```
 
           If `false`
 
           ```
           {"level":"info","version":"v0.0.1-dirty+ede4124","time":"2019-02-18T10:41:03-08:00","message":"cmd/pomerium"}
-          {"level":"info","from":"httpbin.corp.beyondperimeter.com","to":"https://httpbin.org","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
-          {"level":"info","from":"ssl.corp.beyondperimeter.com","to":"http://neverssl.com","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
-          {"level":"info","OverrideCertificateName":"","addr":"auth.corp.beyondperimeter.com:443","time":"2019-02-18T10:41:03-08:00","message":"proxy/authenticator: grpc connection"}
+          {"level":"info","from":"httpbin.localhost.pomerium.io","to":"https://httpbin.org","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
+          {"level":"info","from":"ssl.localhost.pomerium.io","to":"http://neverssl.com","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
+          {"level":"info","OverrideCertificateName":"","addr":"auth.localhost.pomerium.io:443","time":"2019-02-18T10:41:03-08:00","message":"proxy/authenticator: grpc connection"}
           ```
         shortdoc: |
           Debug enables colored, human-readable logs to be streamed to standard out.
