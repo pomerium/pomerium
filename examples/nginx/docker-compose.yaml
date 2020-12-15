@@ -1,6 +1,10 @@
 version: "3"
 services:
   nginx:
+    # to emulate nginx-ingress behavior, use openresty which comes with 'escaped_request_uri'
+    # pre-compiled. Also uncomment lines marked `uncomment to emulate nginx-ingress behavior`
+    # in the nginx `.conf` configuration files.
+    # image: openresty/openresty
     image: nginx
     restart: unless-stopped
     ports:
