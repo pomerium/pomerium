@@ -132,6 +132,12 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string) 
 		_ = remote.Close()
 		log.Info().Msg("tcptunnel: connection closed")
 	}()
+	if done := ctx.Done(); done != nil {
+		go func() {
+			<-done
+			_ = remote.Close()
+		}()
+	}
 
 	err = req.Write(remote)
 	if err != nil {
@@ -143,7 +149,9 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string) 
 	if err != nil {
 		return fmt.Errorf("tcptunnel: failed to read HTTP response: %w", err)
 	}
-	defer func() { _ = res.Body.Close() }()
+	defer func() {
+		_ = res.Body.Close()
+	}()
 	switch res.StatusCode {
 	case http.StatusOK:
 	case http.StatusMovedPermanently,
