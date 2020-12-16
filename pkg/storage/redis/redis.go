@@ -60,6 +60,7 @@ func New(rawURL string, options ...Option) (*DB, error) {
 		opts.TLSConfig = db.cfg.tls
 	}
 	db.client = redis.NewClient(opts)
+	metrics.AddRedisMetrics(db.client.PoolStats)
 	return db, nil
 }
 

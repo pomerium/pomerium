@@ -20,7 +20,6 @@ require (
 	github.com/go-redis/redis/v8 v8.4.2
 	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.4.3
-	github.com/gomodule/redigo v1.8.2
 	github.com/google/btree v1.0.0
 	github.com/google/go-cmp v0.5.4
 	github.com/google/go-jsonnet v0.17.0

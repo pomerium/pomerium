@@ -3,7 +3,7 @@ package metrics
 import (
 	"testing"
 
-	"github.com/gomodule/redigo/redis"
+	redis "github.com/go-redis/redis/v8"
 	"go.opencensus.io/metric/metricdata"
 )
 
@@ -15,9 +15,9 @@ func Test_AddRedisMetrics(t *testing.T) {
 		stat redis.PoolStats
 		want int64
 	}{
-		{"redis_conns", redis.PoolStats{ActiveCount: 7}, 7},
-		{"redis_idle_conns", redis.PoolStats{IdleCount: 3}, 3},
-		{"redis_wait_count_total", redis.PoolStats{WaitCount: 2}, 2},
+		{"redis_conns", redis.PoolStats{TotalConns: 7}, 7},
+		{"redis_idle_conns", redis.PoolStats{IdleConns: 3}, 3},
+		{"redis_miss_count_total", redis.PoolStats{Misses: 2}, 2},
 	}
 
 	labelValues := []metricdata.LabelValue{
@@ -26,7 +26,7 @@ func Test_AddRedisMetrics(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			AddRedisMetrics(func() redis.PoolStats { return tt.stat })
+			AddRedisMetrics(func() *redis.PoolStats { return &tt.stat })
 			testMetricRetrieval(registry.registry.Read(), t, labelValues, tt.want, tt.name)
 		})
 	}
