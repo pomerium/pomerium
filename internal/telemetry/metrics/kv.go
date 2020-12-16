@@ -13,7 +13,7 @@ func AddRedisMetrics(stats func() *redis.PoolStats) {
 	}{
 		{"redis_conns", "Number of total connections in the pool", func() int64 { return int64(stats().TotalConns) }},
 		{"redis_idle_conns", "Number of idle connections in the pool", func() int64 { return int64(stats().IdleConns) }},
-		{"redis_stale_conns", "Number of idle connections in the pool", func() int64 { return int64(stats().StaleConns) }},
+		{"redis_stale_conns", "Number of stale connections in the pool", func() int64 { return int64(stats().StaleConns) }},
 	}
 
 	for _, m := range gaugeMetrics {

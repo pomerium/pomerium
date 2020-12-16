@@ -480,33 +480,34 @@ Expose a prometheus endpoint on the specified port.
 
 #### Pomerium Metrics Tracked
 
-Name                                          | Type      | Description
---------------------------------------------- | --------- | -----------------------------------------------------------------------
-grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service
-grpc_client_request_size_bytes                | Histogram | GRPC client request size by service
-grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service
-grpc_client_response_size_bytes               | Histogram | GRPC client response size by service
-grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service
-grpc_server_request_size_bytes                | Histogram | GRPC server request size by service
-grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service
-grpc_server_response_size_bytes               | Histogram | GRPC server response size by service
-http_client_request_duration_ms               | Histogram | HTTP client request duration by service
-http_client_request_size_bytes                | Histogram | HTTP client request size by service
-http_client_requests_total                    | Counter   | Total HTTP client requests made by service
-http_client_response_size_bytes               | Histogram | HTTP client response size by service
-http_server_request_duration_ms               | Histogram | HTTP server request duration by service
-http_server_request_size_bytes                | Histogram | HTTP server request size by service
-http_server_requests_total                    | Counter   | Total HTTP server requests handled by service
-http_server_response_size_bytes               | Histogram | HTTP server response size by service
-pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion
-pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service
-pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service
-pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service
-redis_conns                                   | Gauge     | Number of total connections in the pool
-redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool
-redis_wait_count_total                        | Counter   | Total number of connections waited for
-redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections
-storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service
+| Name                                          | Type      | Description                                                             |
+| --------------------------------------------- | --------- | ----------------------------------------------------------------------- |
+| grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service                                 |
+| grpc_client_request_size_bytes                | Histogram | GRPC client request size by service                                     |
+| grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service                              |
+| grpc_client_response_size_bytes               | Histogram | GRPC client response size by service                                    |
+| grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service                                 |
+| grpc_server_request_size_bytes                | Histogram | GRPC server request size by service                                     |
+| grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service                              |
+| grpc_server_response_size_bytes               | Histogram | GRPC server response size by service                                    |
+| http_client_request_duration_ms               | Histogram | HTTP client request duration by service                                 |
+| http_client_request_size_bytes                | Histogram | HTTP client request size by service                                     |
+| http_client_requests_total                    | Counter   | Total HTTP client requests made by service                              |
+| http_client_response_size_bytes               | Histogram | HTTP client response size by service                                    |
+| http_server_request_duration_ms               | Histogram | HTTP server request duration by service                                 |
+| http_server_request_size_bytes                | Histogram | HTTP server request size by service                                     |
+| http_server_requests_total                    | Counter   | Total HTTP server requests handled by service                           |
+| http_server_response_size_bytes               | Histogram | HTTP server response size by service                                    |
+| pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion |
+| pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service                      |
+| pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service              |
+| pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service    |
+| redis_conns                                   | Gauge     | Number of total connections in the pool                                 |
+| redis_idle_conns                              | Gauge     | Number of idle connections in the pool                                  |
+| redis_stale_conns                             | Gauge     | Number of stale connections in the pool                                 |
+| redis_miss_count_total                        | Counter   | Total number of times a connection was NOT found in the pool            |
+| redis_hit_count_total                         | Counter   | Total number of times a connection was found in the pool                |
+| storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service    |
 
 #### Envoy Proxy Metrics
 
