@@ -153,7 +153,7 @@ allowed_route_regex(input_url_obj, policy) {
 
 parse_url(str) = { "scheme": scheme, "host": host, "path": path } {
 	[_, scheme, host, rawpath] = regex.find_all_string_submatch_n(
-		`(?:(http[s]?)://)?([^/]+)([^?#]*)`,
+		`(?:((?:tcp[+])?http[s]?)://)?([^/]+)([^?#]*)`,
 		str, 1)[0]
 	path = normalize_url_path(rawpath)
 }
