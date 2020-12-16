@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"net/url"
 	"os"
@@ -76,11 +77,17 @@ var tcpCmd = &cobra.Command{
 			cancel()
 		}()
 
-		err = tcptunnel.New(
+		tun := tcptunnel.New(
 			tcptunnel.WithDestinationHost(dstHost),
 			tcptunnel.WithProxyHost(pomeriumURL.Host),
 			tcptunnel.WithTLSConfig(tlsConfig),
-		).RunListener(ctx, tcpCmdOptions.listen)
+		)
+
+		if tcpCmdOptions.listen == "-" {
+			err = tun.Run(ctx, readWriter{Reader: os.Stdin, Writer: os.Stdout})
+		} else {
+			err = tun.RunListener(ctx, tcpCmdOptions.listen)
+		}
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 			os.Exit(1)
@@ -88,4 +95,9 @@ var tcpCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+type readWriter struct {
+	io.Reader
+	io.Writer
 }
