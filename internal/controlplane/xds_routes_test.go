@@ -464,6 +464,50 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			}
 		]
 	`, routes)
+
+	t.Run("tcp", func(t *testing.T) {
+		routes = buildPolicyRoutes(&config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			Policies: []config.Policy{
+				{
+					Source:              &config.StringURL{URL: mustParseURL("tcp+https://example.com:22")},
+					PassIdentityHeaders: true,
+				},
+			},
+		}, "example.com:22")
+
+		testutil.AssertProtoJSONEqual(t, `
+		[
+			{
+				"name": "policy-0",
+				"match": {
+					"connectMatcher": {}
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": true,
+					"cluster": "policy-9",
+					"timeout": "3s",
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"},
+						{ "enabled": true, "upgradeType": "CONNECT", "connectConfig": {} }
+					]
+				}
+			}
+		]
+	`, routes)
+
+	})
 }
 
 // Make sure default Headers are set for response.

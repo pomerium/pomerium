@@ -301,6 +301,13 @@ test_parse_url {
 	url.path == "/some/path"
 }
 
+test_parse_tcp_url {
+	url := parse_url("tcp+http://example.com/some/path?qs")
+	url.scheme == "tcp+http"
+	url.host == "example.com"
+	url.path == "/some/path"
+}
+
 test_allowed_route_source {
 	allowed_route("http://example.com", {"source": "example.com"})
 	allowed_route("http://example.com", {"source": "http://example.com"})

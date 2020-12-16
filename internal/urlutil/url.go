@@ -84,6 +84,10 @@ func GetAbsoluteURL(r *http.Request) *url.URL {
 // For standard HTTP (80)/HTTPS (443) ports, it returns `example.com` and `example.com:<port>`.
 // Otherwise, return the URL.Host value.
 func GetDomainsForURL(u *url.URL) []string {
+	if IsTCP(u) {
+		return []string{u.Host}
+	}
+
 	var defaultPort string
 	if u.Scheme == "http" {
 		defaultPort = "80"
@@ -100,6 +104,11 @@ func GetDomainsForURL(u *url.URL) []string {
 
 	// for everything else we return two routes: 'example.com' and 'example.com:443'
 	return []string{u.Hostname(), net.JoinHostPort(u.Hostname(), defaultPort)}
+}
+
+// IsTCP returns whether or not the given URL is for TCP via HTTP Connect.
+func IsTCP(u *url.URL) bool {
+	return u.Scheme == "tcp+http" || u.Scheme == "tcp+https"
 }
 
 // ParseEnvoyQueryParams returns a new URL with queryparams parsed from envoy format.
