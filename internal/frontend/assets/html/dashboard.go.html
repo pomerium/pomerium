@@ -194,6 +194,7 @@
               <p class="message">
                 Administrators can temporarily impersonate another user.
               </p>
+              {{if not .State.ImpersonateEmail}}
               <fieldset>
                 <label>
                   <span>Email</span>
@@ -216,6 +217,7 @@
                   />
                 </label>
               </fieldset>
+              {{end}}
             </section>
             <div class="flex">
               {{ .csrfField }}
@@ -225,7 +227,11 @@
                 class="button full"
                 type="submit"
               >
-                Impersonate
+                {{if .State.ImpersonateEmail}}
+                  Unimpersonate
+                {{else}}
+                  Impersonate
+                {{end}}
               </button>
             </div>
           </form>
