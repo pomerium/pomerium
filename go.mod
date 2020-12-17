@@ -32,6 +32,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/lithammer/shortuuid/v3 v3.0.5
+	github.com/martinlindhe/base36 v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.1
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
 	github.com/nsf/jsondiff v0.0.0-20200515183724-f29ed568f4ce
