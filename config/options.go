@@ -114,10 +114,10 @@ type Options struct {
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
 	AuthenticateURLString string   `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
-	AuthenticateURL       *url.URL `yaml:"-,omitempty"`
+	AuthenticateURL       *url.URL `yaml:"-"`
 	// SignOutRedirectURL represents the url that  user will be redirected to after signing out.
 	SignOutRedirectURLString string   `mapstructure:"signout_redirect_url" yaml:"signout_redirect_url,omitempty"`
-	SignOutRedirectURL       *url.URL `yaml:"-,omitempty"`
+	SignOutRedirectURL       *url.URL `yaml:"-"`
 
 	// AuthenticateCallbackPath is the path to the HTTP endpoint that will
 	// receive the response from your identity provider. The value must exactly
