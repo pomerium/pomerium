@@ -66,7 +66,9 @@ var tcpCmd = &cobra.Command{
 			tlsConfig = new(tls.Config)
 		}
 
-		l := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})
+		l := zerolog.New(zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
+			w.Out = os.Stderr
+		})).With().Timestamp().Logger()
 		log.SetLogger(&l)
 
 		c := make(chan os.Signal, 1)
