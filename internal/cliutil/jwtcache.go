@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/martinlindhe/base36"
-	"golang.org/x/crypto/blake2s"
 	"gopkg.in/square/go-jose.v2"
+
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // predefined cache errors
@@ -78,8 +79,8 @@ func (cache *LocalJWTCache) StoreJWT(key string, rawJWT string) error {
 }
 
 func (cache *LocalJWTCache) hash(str string) string {
-	h := blake2s.Sum256([]byte(str))
-	return base36.EncodeBytes(h[:])
+	h := cryptutil.Hash("LocalJWTCache", []byte(str))
+	return base36.EncodeBytes(h)
 }
 
 func (cache *LocalJWTCache) fileName(key string) string {
