@@ -1,4 +1,4 @@
-// Package authclient contains an CLI authentication client for Pomerium.
+// Package authclient contains a CLI authentication client for Pomerium.
 package authclient
 
 import (

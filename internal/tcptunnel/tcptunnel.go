@@ -89,10 +89,12 @@ func (tun *Tunnel) RunListener(ctx context.Context, listenerAddress string) erro
 func (tun *Tunnel) Run(ctx context.Context, local io.ReadWriter) error {
 	rawJWT, err := tun.cfg.jwtCache.LoadJWT(tun.jwtCacheKey())
 	switch {
-	case err == nil:
-	case errors.Is(err, cliutil.ErrExpired):
-	case errors.Is(err, cliutil.ErrInvalid):
-	case errors.Is(err, cliutil.ErrNotFound):
+	// if there is no error, or it is one of the pre-defined cliutil errors,
+	// then ignore and use an empty JWT
+	case err == nil,
+		errors.Is(err, cliutil.ErrExpired),
+		errors.Is(err, cliutil.ErrInvalid),
+		errors.Is(err, cliutil.ErrNotFound):
 	default:
 		return fmt.Errorf("tcptunnel: failed to load JWT: %w", err)
 	}

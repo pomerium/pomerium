@@ -29,7 +29,7 @@ func init() {
 	flags.StringVar(&tcpCmdOptions.listen, "listen", "127.0.0.1:0",
 		"local address to start a listener on")
 	flags.StringVar(&tcpCmdOptions.pomeriumURL, "pomerium-url", "",
-		"the URL of the pomerium server to connect too")
+		"the URL of the pomerium server to connect to")
 	rootCmd.AddCommand(tcpCmd)
 }
 
