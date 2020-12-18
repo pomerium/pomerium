@@ -18,7 +18,7 @@ idp_client_secret: "REPLACE_ME"
 idp_service_account: YOUR_SERVICE_ACCOUNT
 
 policy:
-  - from: https://httpbin.localhost.pomerium.io
+  - from: https://verify.localhost.pomerium.io
     to: http://httpbin.default.svc.cluster.local:8000
     allowed_domains:
       - gmail.com

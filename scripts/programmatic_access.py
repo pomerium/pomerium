@@ -14,7 +14,7 @@ done = False
 parser = argparse.ArgumentParser()
 parser.add_argument("--login", action="store_true")
 parser.add_argument(
-    "--dst", default="https://httpbin.example.com/headers",
+    "--dst", default="https://verify.example.com/json",
 )
 parser.add_argument("--server", default="localhost", type=str)
 parser.add_argument("--port", default=8000, type=int)

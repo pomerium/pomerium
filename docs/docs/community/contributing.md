@@ -89,7 +89,7 @@ We use [Netlify](https://www.netlify.com) to build and host our docs. One of nic
 [configuration variables]: ../../reference/readme.md
 [download]: https://github.com/pomerium/pomerium/releases
 [environmental configuration variables]: https://12factor.net/config
-[httpbin]: https://httpbin.org/
+[verify]: https://verify.pomerium.com/
 [identity provider]: ../identity-providers/readme.md
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [tls certificates]: ../topics/certificates.md
