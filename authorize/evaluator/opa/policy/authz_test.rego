@@ -70,7 +70,7 @@ test_group_allowed {
 			"groups": ["1"]
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_groups": null }
+		input.session as { "id": "session1" }
 }
 
 test_impersonate_groups_not_allowed {
@@ -86,12 +86,10 @@ test_impersonate_groups_not_allowed {
 			"user": {
 				"email": "x@example.com"
 			},
-			"directory_user": {
-			    "groups": ["1"]
-			}
+			"groups": ["1"]
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_groups": ["2"] }
+		input.session as { "id": "session1", "impersonate_email": "y@example.com", "impersonate_groups": ["2"] }
 }
 
 test_impersonate_groups_allowed {
@@ -112,7 +110,7 @@ test_impersonate_groups_allowed {
 			}
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_groups": ["2"] }
+		input.session as { "id": "session1", "impersonate_email": "y@example.com", "impersonate_groups": ["2"] }
 }
 
 test_domain_allowed {
