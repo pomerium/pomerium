@@ -103,9 +103,11 @@ func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 		// RFC7517 document, which contains the client's public keys.
 		JSONWebKeySetURL string `json:"jwks_uri"`
 		OAuth2Callback   string `json:"authentication_callback_endpoint"`
+		FrontchannelLogoutURI   string `json:"frontchannel_logout_uri"`
 	}{
 		state.redirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
 		state.redirectURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
+		state.redirectURL.ResolveReference(&url.URL{Path: "/.pomerium/frontchannel-logout"}).String(),
 	}
 	httputil.RenderJSON(w, http.StatusOK, wellKnownURLS)
 	return nil
