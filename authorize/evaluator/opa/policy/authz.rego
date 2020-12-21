@@ -14,6 +14,8 @@ all_allowed_groups := get_allowed_groups(route_policy)
 all_allowed_users := get_allowed_users(route_policy)
 all_allowed_idp_claims := get_allowed_idp_claims(route_policy)
 
+is_impersonating := count(input.session.impersonate_email) > 0
+
 # allow public
 allow {
 	route_policy.AllowPublicUnauthenticatedAccess == true
@@ -35,25 +37,27 @@ allow {
 
 # allow by email
 allow {
+	not is_impersonating
 	user.email == all_allowed_users[_]
-	input.session.impersonate_email == ""
 }
 
 # allow group
 allow {
+	not is_impersonating
 	some group
 	groups[_] = group
 	all_allowed_groups[_] = group
-	input.session.impersonate_groups == null
 }
 
 # allow by impersonate email
 allow {
+	is_impersonating
 	all_allowed_users[_] = input.session.impersonate_email
 }
 
 # allow by impersonate group
 allow {
+	is_impersonating
 	some group
 	input.session.impersonate_groups[_] = group
 	all_allowed_groups[_] = group
@@ -61,13 +65,14 @@ allow {
 
 # allow by domain
 allow {
+	not is_impersonating
 	some domain
 	email_in_domain(user.email, all_allowed_domains[domain])
-	input.session.impersonate_email == ""
 }
 
 # allow by impersonate domain
 allow {
+	is_impersonating
 	some domain
 	email_in_domain(input.session.impersonate_email, all_allowed_domains[domain])
 }
