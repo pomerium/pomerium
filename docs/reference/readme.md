@@ -503,10 +503,9 @@ Expose a prometheus endpoint on the specified port.
 | pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service              |
 | pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service    |
 | redis_conns                                   | Gauge     | Number of total connections in the pool                                 |
-| redis_idle_conns                              | Gauge     | Number of idle connections in the pool                                  |
-| redis_stale_conns                             | Gauge     | Number of stale connections in the pool                                 |
-| redis_miss_count_total                        | Counter   | Total number of times a connection was NOT found in the pool            |
-| redis_hit_count_total                         | Counter   | Total number of times a connection was found in the pool                |
+| redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool             |
+| redis_wait_count_total                        | Counter   | Total number of connections waited for                                  |
+| redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections                                |
 | storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service    |
 
 #### Envoy Proxy Metrics
@@ -556,10 +555,10 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 #### Shared Tracing Settings
 
-Config Key          | Description                                                                          | Required
-:------------------ | :----------------------------------------------------------------------------------- | --------
-tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅
-tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌
+| Config Key          | Description                                                                          | Required |
+| :------------------ | :----------------------------------------------------------------------------------- | -------- |
+| tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅        |
+| tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌        |
 
 #### Jaeger (partial)
 
@@ -573,10 +572,10 @@ tracing_sample_rate | Percentage of requests to sample in decimal notation. Defa
 - Service dependency analysis
 - Performance / latency optimization
 
-Config Key                        | Description                                 | Required
-:-------------------------------- | :------------------------------------------ | --------
-tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅
-tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅
+| Config Key                        | Description                                 | Required |
+| :-------------------------------- | :------------------------------------------ | -------- |
+| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
+| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
 
 #### Zipkin
 
@@ -584,9 +583,9 @@ Zipkin is an open source distributed tracing system and protocol.
 
 Many tracing backends support zipkin either directly or through intermediary agents, including Jaeger. For full tracing support, we recommend using the Zipkin tracing protocol.
 
-Config Key              | Description                      | Required
-:---------------------- | :------------------------------- | --------
-tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
+| Config Key              | Description                      | Required |
+| :---------------------- | :------------------------------- | -------- |
+| tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅        |
 
 #### Example
 
@@ -1043,10 +1042,13 @@ Requires setting [Google Cloud Serverless Authentication Service Account](./#goo
 ### From
 - `yaml`/`json` setting: `from`
 - Type: `URL` (must contain a scheme and hostname, must not contain a path)
+- Schemes: `https`, `tcp+https`
 - Required
-- Example: `https://verify.corp.example.com`
+- Example: `https://verify.corp.example.com`, `tcp+https://ssh.corp.example.com:22`
 
-`From` is the externally accessible source of the proxied request.
+`From` is the externally accessible URL for the proxied request.
+
+Specifying `tcp+https` for the scheme enables [TCP proxying](../docs/topics/tcp-support.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
 
 
 ### Kubernetes Service Account Token
@@ -1233,10 +1235,13 @@ Remove Request Headers allows you to remove given request headers. This can be u
 ### To
 - `yaml`/`json` setting: `to`
 - Type: `URL` (must contain a scheme and hostname)
+- Schemes: `http`, `https`, `tcp`
 - Required
 - Example: `http://verify` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://verify.org/anything/`
 
 `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
+
+Must be `tcp` if `from` is `tcp+https`.
 
 :::warning
 
