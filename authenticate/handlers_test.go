@@ -688,7 +688,7 @@ func TestAuthenticate_FrontchannelLogout(t *testing.T) {
 		wantCode int
 	}{
 		{"good", "https://idp.pomerium.io", "https://idp.pomerium.io", true, &mstore.Store{}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, http.StatusOK},
-		{"failed no session", "https://idp.pomerium.io", "https://idp.pomerium.io", false, &mstore.Store{SaveError: errors.New("error")}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, http.StatusBadRequest},
+		{"good no session", "https://idp.pomerium.io", "https://idp.pomerium.io", false, &mstore.Store{SaveError: errors.New("error")}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, http.StatusOK},
 	}
 
 	for _, tt := range tests {
@@ -737,7 +737,7 @@ func TestAuthenticate_FrontchannelLogout(t *testing.T) {
 			}
 
 			a.provider.Store(tt.provider)
-			u, _ := url.Parse("/oauth2/session/frontchannel-logout")
+			u, _ := url.Parse("/.pomerium/frontchannel-logout")
 			params, _ := url.ParseQuery(u.RawQuery)
 			params.Add("iss", tt.logoutIssuer)
 			u.RawQuery = params.Encode()

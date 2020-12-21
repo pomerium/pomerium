@@ -61,13 +61,12 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Path("/robots.txt").HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
 	// Identity Provider (IdP) endpoints
 	r.Path("/oauth2/callback").Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet)
-	s := r.PathPrefix("/oauth2/session").Subrouter()
-	s.Use(func(h http.Handler) http.Handler {
-		return sessions.RetrieveSession(a.state.Load().sessionLoaders...)(h)
-	})
-	s.Path("/frontchannel-logout").Handler(httputil.HandlerFunc(a.FrontchannelLogout)).Methods(http.MethodGet)
 
 	// Proxy service endpoints
+	s := r.PathPrefix("/.pomerium/frontchannel-logout").Subrouter()
+	s.Use(a.RetrieveSession)
+	s.Path("/").Handler(httputil.HandlerFunc(a.FrontchannelLogout)).Methods(http.MethodGet)
+
 	v := r.PathPrefix("/.pomerium").Subrouter()
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
@@ -82,9 +81,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		AllowedHeaders:   []string{"*"},
 	})
 	v.Use(c.Handler)
-	v.Use(func(h http.Handler) http.Handler {
-		return sessions.RetrieveSession(a.state.Load().sessionLoaders...)(h)
-	})
+	v.Use(a.RetrieveSession)
 	v.Use(a.VerifySession)
 	v.Path("/").Handler(httputil.HandlerFunc(a.Dashboard))
 	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
@@ -117,6 +114,11 @@ func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 func (a *Authenticate) jwks(w http.ResponseWriter, r *http.Request) error {
 	httputil.RenderJSON(w, http.StatusOK, a.state.Load().jwk)
 	return nil
+}
+
+// RetrieveSession is the middleware used retrieve session by the sessionLoaders
+func (a *Authenticate) RetrieveSession(next http.Handler) http.Handler {
+	return sessions.RetrieveSession(a.state.Load().sessionLoaders...)(next)
 }
 
 // VerifySession is the middleware used to enforce a valid authentication
@@ -242,25 +244,8 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
 	defer span.End()
 
-	state := a.state.Load()
+	rawIDToken := a.processSignOutWithContext(ctx, w, r)
 
-	var rawIDToken string
-	sessionState, err := a.getSessionFromCtx(ctx)
-	if err == nil {
-		if s, _ := session.Get(ctx, state.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
-			rawIDToken = s.GetIdToken().GetRaw()
-			if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
-				log.Warn().Err(err).Msg("failed to revoke access token")
-			}
-		}
-		err = a.deleteSession(ctx, sessionState.ID)
-		if err != nil {
-			log.Warn().Err(err).Msg("failed to delete session from session store")
-		}
-	}
-
-	// no matter what happens, we want to clear the session store
-	state.sessionStore.ClearSession(w, r)
 	redirectString := ""
 	if sru := a.options.Load().SignOutRedirectURL; sru != nil {
 		redirectString = sru.String()
@@ -609,66 +594,48 @@ func (a *Authenticate) saveSessionToDataBroker(
 	return nil
 }
 
-// FrontchannelLogout signs the user out
+// FrontchannelLogout signs the user out.
+// this endpoint gets rendered in an iframe on the idP site if it supports OIDC Front-Channel Logout
+//
+// https://openid.net/specs/openid-connect-frontchannel-1_0.html
 func (a *Authenticate) FrontchannelLogout(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.FrontchannelLogout")
 	defer span.End()
 
+	a.processSignOutWithContext(ctx, w, r)
+
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache, no-store")
 	w.Header().Set("Pragma", "no-cache")
-
-	if err := a.processFrontchannelLogoutWithContext(ctx, w, r); err != nil {
-		log.FromRequest(r).Debug().Err(err).Msg("failed processing frontchannel logout")
-
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "%s", "mising required parameters")
-
-		return nil
-	}
-
 	w.WriteHeader(http.StatusOK)
+
 	fmt.Fprintf(w, "%s", "OK")
 
 	return nil
 }
 
-func (a *Authenticate) processFrontchannelLogoutWithContext(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-
+// signOut process clears session, revokes access token and returns the raw ID-Token
+func (a *Authenticate) processSignOutWithContext(ctx context.Context, w http.ResponseWriter, r *http.Request) string {
 	state := a.state.Load()
 
+	var rawIDToken string
 	sessionState, err := a.getSessionFromCtx(ctx)
 
-	if err != nil {
-
-		return err
-	}
-
-	s, err := session.Get(ctx, state.dataBrokerClient, sessionState.ID)
-
-	if err != nil {
-
-		return err
-	}
-
-	if s == nil || s.IdToken == nil {
-
-		return errors.New("could not load session")
-	}
-
-	if s.OauthToken != nil {
-
-		if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
-			log.Warn().Err(err).Msg("failed to revoke access token")
+	if err == nil {
+		if s, _ := session.Get(ctx, state.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
+			rawIDToken = s.GetIdToken().GetRaw()
+			if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
+				log.Warn().Err(err).Msg("failed to revoke access token")
+			}
 		}
-	}
-
-	if err := a.deleteSession(ctx, sessionState.ID); err != nil {
-		log.Warn().Err(err).Msg("failed to delete session from session store")
+		err = a.deleteSession(ctx, sessionState.ID)
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to delete session from session store")
+		}
 	}
 
 	// no matter what happens, we want to clear the session store
 	state.sessionStore.ClearSession(w, r)
 
-	return nil
+	return rawIDToken
 }
