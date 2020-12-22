@@ -1,0 +1,2 @@
+Host *.localhost.pomerium.io
+    ProxyCommand pomerium-cli tcp --listen - %h:%p
