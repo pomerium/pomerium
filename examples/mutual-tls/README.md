@@ -25,8 +25,8 @@ policy:
     tls_client_cert_file: "/Users/bdd/examples/mutual-tls/out/pomerium.crt"
     tls_client_key_file: "/Users/bdd/examples/mutual-tls/out/pomerium.key"
 
-  - from: https://httpbin.corp.domain.example
-    to: https://httpbin.org
+  - from: https://verify.corp.domain.example
+    to: https://verify.pomerium.com
     allow_public_unauthenticated_access: true
 ```
 

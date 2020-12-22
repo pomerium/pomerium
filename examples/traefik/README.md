@@ -12,6 +12,6 @@ Run this demo locally on your docker-compose capable workstation, or replace `lo
 - Update `config.yaml` for your e-mail address, if not using gmail/google.
 - Replace secrets in `config.yaml`.
 - Run `docker-compose up` from this directory.
-- Navigate to `https://httpbin.localhost.pomerium.io`
+- Navigate to `https://verify.localhost.pomerium.io`
 - ???
 - Profit

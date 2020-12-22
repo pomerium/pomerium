@@ -1,7 +1,7 @@
 # Pomerium on Cloud Run
 
-Run this demo with gcloud command line configured for your project.  The commands assume 
-all resources (Cloud Run, Cloud DNS, and Secret Manager) are in a single project.  
+Run this demo with gcloud command line configured for your project.  The commands assume
+all resources (Cloud Run, Cloud DNS, and Secret Manager) are in a single project.
 
 We recommend a dedicated project that is easy to clean up.
 
@@ -28,6 +28,6 @@ This demo includes a Cloud Run target configured to only accept requests from th
 - Deploy config.yaml to Secret Manager
 - Deploy the demo hello world app
 - Deploy pomerium with policy
-- Navigate to `https://httpbin.cloudrun.pomerium.io`
+- Navigate to `https://verify.cloudrun.pomerium.io`
 - Navigate to `https://hello-direct.cloudrun.pomerium.io`
 - Navigate to `https://hello.cloudrun.pomerium.io`

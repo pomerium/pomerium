@@ -74,8 +74,8 @@ idp_client_id: YOUR_CLIENT_ID
 idp_client_secret: YOUR_SECRET
 
 policy:
-  - from: "https://httpbin.localhost.pomerium.io:8443"
-    to: "https://httpbin.org"
+  - from: "https://verify.localhost.pomerium.io:8443"
+    to: "https://verify.org"
     allow_public_unauthenticated_access: true
 ```
 
@@ -89,7 +89,7 @@ Before visiting the page in your browser we have one final step.
 
 ## Install Client Certificate
 
-Because `https://httpbin.localhost.pomerium.io:8443` now requires a client certificate to be accessed, we first need to install that client certificate in our browser. The following instructions are for Chrome, but client certificates are supported in all major browsers.
+Because `https://verify.localhost.pomerium.io:8443` now requires a client certificate to be accessed, we first need to install that client certificate in our browser. The following instructions are for Chrome, but client certificates are supported in all major browsers.
 
 Go to <chrome://settings/certificates>:
 
@@ -109,6 +109,6 @@ You should see the `org-mkcert development certificate` in the list of your cert
 
 ## Using the Client Certificate
 
-You can now visit **<https://httpbin.localhost.pomerium.io>** and you should be prompted to choose a client certificate:
+You can now visit **<https://verify.localhost.pomerium.io>** and you should be prompted to choose a client certificate:
 
 ![choose client certificate](./img/mtls/05-select-client-certificate.png)

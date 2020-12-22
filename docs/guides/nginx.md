@@ -13,7 +13,7 @@ description: >-
 
 This recipe's sources can be found [on github](https://github.com/pomerium/pomerium/tree/master/examples/nginx)
 
-At the end, you will have a locally running install of [httpbin](https://httpbin.org/) behind nginx with policy enforced by Pomerium.
+At the end, you will have a locally running install of [verify](https://verify.pomerium.com/) behind nginx with policy enforced by Pomerium.
 
 ## Background
 
@@ -72,28 +72,28 @@ Nginx configuration for Pomerium endpoints
 
 <<< @/examples/nginx/pomerium.conf
 
-### Nginx - httpbin
+### Nginx - verify
 
 Nginx configuration for the protected endpoint
 
-<<< @/examples/nginx/httpbin.conf
+<<< @/examples/nginx/verify.conf
 
 ### Docker Compose
 
 <<< @/examples/nginx/docker-compose.yaml
 
-Run `docker-compose up`. After a few seconds, browse to [httpbin.localhost.pomerium.io](https://httpbin.localhost.pomerium.io).
+Run `docker-compose up`. After a few seconds, browse to [verify.localhost.pomerium.io](https://verify.localhost.pomerium.io).
 
-You should be prompted to log in through your IdP and then granted access to the deployed `httpbin` instance.
+You should be prompted to log in through your IdP and then granted access to the deployed `verify` instance.
 
 ## That's it!
 
-Your `httpbin` install is protected by Pomerium.
+Your `verify` install is protected by Pomerium.
 
 ## Adapting
 
 To re-use the configuration in this demo in other contexts:
 
-- Update `httpbin.conf` to reflect the correct forward auth URL in `location @error401`
+- Update `verify.conf` to reflect the correct forward auth URL in `location @error401`
 - Update `pomerium.conf` to reflect the pomerium hostname(s) or IP(s) in `upstream pomerium`
 - Update `pomerium.conf` to reflect your pomerium authenticate and forward auth hostnames in `server_name`

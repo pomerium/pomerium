@@ -141,8 +141,8 @@ For example, if specifying multiple certificates at once:
 certificates:
   - cert: "$HOME/.acme.sh/authenticate.example.com_ecc/fullchain.cer"
     key: "$HOME/.acme.sh/authenticate.example.com_ecc/authenticate.example.com.key"
-  - cert: "$HOME/.acme.sh/httpbin.example.com_ecc/fullchain.cer"
-    key: "$HOME/.acme.sh/httpbin.example.com_ecc/httpbin.example.com.key"
+  - cert: "$HOME/.acme.sh/verify.example.com_ecc/fullchain.cer"
+    key: "$HOME/.acme.sh/verify.example.com_ecc/verify.example.com.key"
   - cert: "$HOME/.acme.sh/prometheus.example.com_ecc/fullchain.cer"
     key: "$HOME/.acme.sh/prometheus.example.com_ecc/prometheus.example.com.key"
 ```
@@ -244,7 +244,7 @@ For example, if `true`
 
 ```
 10:37AM INF cmd/pomerium version=v0.0.1-dirty+ede4124
-10:37AM INF proxy: new route from=httpbin.localhost.pomerium.io to=https://httpbin.org
+10:37AM INF proxy: new route from=verify.localhost.pomerium.io to=https://verify.org
 10:37AM INF proxy: new route from=ssl.localhost.pomerium.io to=http://neverssl.com
 10:37AM INF proxy/authenticator: grpc connection OverrideCertificateName= addr=auth.localhost.pomerium.io:443
 ```
@@ -253,7 +253,7 @@ If `false`
 
 ```
 {"level":"info","version":"v0.0.1-dirty+ede4124","time":"2019-02-18T10:41:03-08:00","message":"cmd/pomerium"}
-{"level":"info","from":"httpbin.localhost.pomerium.io","to":"https://httpbin.org","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
+{"level":"info","from":"verify.localhost.pomerium.io","to":"https://verify.org","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
 {"level":"info","from":"ssl.localhost.pomerium.io","to":"http://neverssl.com","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
 {"level":"info","OverrideCertificateName":"","addr":"auth.localhost.pomerium.io:443","time":"2019-02-18T10:41:03-08:00","message":"proxy/authenticator: grpc connection"}
 ```
@@ -283,7 +283,7 @@ Some reverse-proxies, such as nginx split access control flow into two parts: ve
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: httpbin
+  name: verify
   annotations:
     kubernetes.io/ingress.class: "nginx"
     certmanager.k8s.io/issuer: "letsencrypt-prod"
@@ -292,15 +292,15 @@ metadata:
 spec:
   tls:
     - hosts:
-        - httpbin.corp.example.com
+        - verify.corp.example.com
       secretName: quickstart-example-tls
   rules:
-    - host: httpbin.corp.example.com
+    - host: verify.corp.example.com
       http:
         paths:
           - path: /
             backend:
-              serviceName: httpbin
+              serviceName: verify
               servicePort: 80
 ```
 
@@ -329,15 +329,15 @@ services:
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
-  httpbin:
+  verify:
     # A container that exposes an API to show its IP address
-    image: kennethreitz/httpbin:latest
+    image: pomerium/verify
     labels:
-      - "traefik.http.routers.httpbin.rule=Host(`httpbin.corp.example.com`)"
+      - "traefik.http.routers.verify.rule=Host(`verify.corp.example.com`)"
       # Create a middleware named `foo-add-prefix`
       - "traefik.http.middlewares.test-auth.forwardauth.authResponseHeaders=X-Pomerium-Authenticated-User-Email,x-pomerium-authenticated-user-id,x-pomerium-authenticated-user-groups,x-pomerium-jwt-assertion"
-      - "traefik.http.middlewares.test-auth.forwardauth.address=http://forwardauth.corp.example.com/?uri=https://httpbin.corp.example.com"
-      - "traefik.http.routers.httpbin.middlewares=test-auth@docker"
+      - "traefik.http.middlewares.test-auth.forwardauth.address=http://forwardauth.corp.example.com/?uri=https://verify.corp.example.com"
+      - "traefik.http.routers.verify.middlewares=test-auth@docker"
 ```
 
 
@@ -1044,7 +1044,7 @@ Requires setting [Google Cloud Serverless Authentication Service Account](./#goo
 - `yaml`/`json` setting: `from`
 - Type: `URL` (must contain a scheme and hostname, must not contain a path)
 - Required
-- Example: `https://httpbin.corp.example.com`
+- Example: `https://verify.corp.example.com`
 
 `From` is the externally accessible source of the proxied request.
 
@@ -1200,13 +1200,13 @@ See [ProxyPreserveHost](http://httpd.apache.org/docs/2.0/mod/mod_proxy.html#prox
 Set Request Headers allows you to set static values for given request headers. This can be useful if you want to pass along additional information to downstream applications as headers, or set authentication header to the request. For example:
 
 ```yaml
-- from: https://httpbin.corp.example.com
-  to: https://httpbin.org
+- from: https://verify.corp.example.com
+  to: https://verify.pomerium.com
   allowed_users:
     - bdd@pomerium.io
   set_request_headers:
     # works auto-magically!
-    # https://httpbin.corp.example.com/basic-auth/root/hunter42
+    # https://verify.corp.example.com/basic-auth/root/hunter42
     Authorization: Basic cm9vdDpodW50ZXI0Mg==
     X-Your-favorite-authenticating-Proxy: "Pomerium"
 ```
@@ -1220,8 +1220,8 @@ Set Request Headers allows you to set static values for given request headers. T
 Remove Request Headers allows you to remove given request headers. This can be useful if you want to prevent privacy information from being passed to downstream applications. For example:
 
 ```yaml
-- from: https://httpbin.corp.example.com
-  to: https://httpbin.org
+- from: https://verify.corp.example.com
+  to: https://verify.pomerium.com
   allowed_users:
     - bdd@pomerium.io
   remove_request_headers:
@@ -1234,7 +1234,7 @@ Remove Request Headers allows you to remove given request headers. This can be u
 - `yaml`/`json` setting: `to`
 - Type: `URL` (must contain a scheme and hostname)
 - Required
-- Example: `http://httpbin` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://httpbin.org/anything/`
+- Example: `http://verify` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://verify.org/anything/`
 
 `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
 
@@ -1245,20 +1245,20 @@ Be careful with trailing slash.
 With rule:
 
 ```yaml
-- from: https://httpbin.corp.example.com
-  to: https://httpbin.org/anything
+- from: https://verify.corp.example.com
+  to: https://verify.pomerium.com/anything
 ```
 
-Requests to `https://httpbin.corp.example.com` will be forwarded to `https://httpbin.org/anything`, while requests to `https://httpbin.corp.example.com/foo` will be forwarded to `https://httpbin.org/anythingfoo`.To make the request forwarded to `https://httbin.org/anything/foo`, you can use double slashes in your request `https://httbin.corp.example.com//foo`.
+Requests to `https://verify.corp.example.com` will be forwarded to `https://verify.org/anything`, while requests to `https://verify.corp.example.com/foo` will be forwarded to `https://verify.org/anythingfoo`.To make the request forwarded to `https://httbin.org/anything/foo`, you can use double slashes in your request `https://httbin.corp.example.com//foo`.
 
 While the rule:
 
 ```yaml
-- from: https://httpbin.corp.example.com
-  to: https://httpbin.org/anything/
+- from: https://verify.corp.example.com
+  to: https://verify.pomerium.com/anything/
 ```
 
-All requests to `https://httpbin.corp.example.com/*` will be forwarded to `https://httpbin.org/anything/*`. That means accessing to `https://httpbin.corp.example.com` will be forwarded to `https://httpbin.org/anything/`. That said, if your application does not handle trailing slash, the request will end up with 404 not found.
+All requests to `https://verify.corp.example.com/*` will be forwarded to `https://verify.org/anything/*`. That means accessing to `https://verify.corp.example.com` will be forwarded to `https://verify.org/anything/`. That said, if your application does not handle trailing slash, the request will end up with 404 not found.
 
 :::
 

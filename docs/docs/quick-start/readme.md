@@ -58,11 +58,11 @@ Finally, simply run docker compose.
 docker-compose up
 ```
 
-Docker will automatically download the required [container images] for Pomerium and [httpbin]. Then, Pomerium will run with the configuration details set in the previous steps.
+Docker will automatically download the required [container images] for Pomerium and [verify]. Then, Pomerium will run with the configuration details set in the previous steps.
 
-You should now be able access to the routes (e.g. `https://httpbin.corp.yourdomain.example`) as specified in your policy file.
+You should now be able access to the routes (e.g. `https://verify.localhost.pomerium.io`) as specified in your policy file.
 
-You can also navigate to the special pomerium endpoint `httpbin.corp.yourdomain.example/.pomerium/` to see your current user details.
+You can also navigate to the special pomerium endpoint `verify.corp.yourdomain.example/.pomerium/` to see your current user details.
 
 ![currently logged in user](./img/logged-in-as.png)
 
@@ -70,6 +70,6 @@ You can also navigate to the special pomerium endpoint `httpbin.corp.yourdomain.
 [container images]: https://hub.docker.com/r/pomerium/pomerium
 [docker]: https://docs.docker.com/install/
 [docker-compose]: https://docs.docker.com/compose/install/
-[httpbin]: https://httpbin.org/
+[verify]: https://verify.pomerium.com/
 [identity provider]: ../identity-providers/readme.md
 [tls certificates]: ../topics/certificates.md

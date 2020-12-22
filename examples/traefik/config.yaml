@@ -15,7 +15,7 @@ authenticate_service_url: https://authenticate.localhost.pomerium.io
 jwt_claims_headers: email,groups,user
 
 policy:
-  - from: https://httpbin.localhost.pomerium.io
+  - from: https://verify.localhost.pomerium.io
     to: https://httpbin
     allowed_domains:
       - pomerium.io

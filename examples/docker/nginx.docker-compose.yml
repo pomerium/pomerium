@@ -91,9 +91,9 @@ services:
     expose:
       - 443
 
-  # https://httpbin.corp.beyondperimeter.com
-  httpbin:
-    image: kennethreitz/httpbin:latest
+  # https://verify.corp.beyondperimeter.com
+  verify:
+    image: pomerium/verify:latest
     expose:
       - 80
   # https://hello.corp.beyondperimeter.com

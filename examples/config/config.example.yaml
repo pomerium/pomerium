@@ -75,7 +75,7 @@ authenticate_service_url: https://authenticate.localhost.pomerium.io
 
 # Proxied routes and per-route policies are defined in a policy block
 policy:
-  - from: https://httpbin.localhost.pomerium.io
+  - from: https://verify.localhost.pomerium.io
     to: http://httpbin
     allowed_domains:
       - pomerium.io
@@ -83,8 +83,8 @@ policy:
     timeout: 30s
     pass_identity_headers: true
 
-  - from: https://external-httpbin.localhost.pomerium.io
-    to: https://httpbin.org
+  - from: https://external-verify.localhost.pomerium.io
+    to: https://verify.pomerium.com
     allowed_domains:
       - gmail.com
     pass_identity_headers: true

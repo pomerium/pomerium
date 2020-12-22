@@ -39,10 +39,10 @@ Finally, source the configuration `env` file and run pomerium specifying the `co
 
 ## Navigate
 
-Browse to `external-httpbin.your.domain.example`. Connections between you and [httpbin] will now be proxied and managed by Pomerium.
+Browse to `external-verify.your.domain.example`. Connections between you and [verify] will now be proxied and managed by Pomerium.
 
 [configuration variables]: ../../reference/readme.md
 [download]: https://github.com/pomerium/pomerium/releases
-[httpbin]: https://httpbin.org/
+[verify]: https://verify.pomerium.com/
 [identity provider]: ../identity-providers/
 [tls certificates]: ../topics/certificates.md
