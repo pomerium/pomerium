@@ -241,15 +241,15 @@ Previous programmatic authentication endpoints (`/api/v1/token`) has been remove
 
 ### Forward-auth route change
 
-Previously, routes were verified by taking the downstream applications hostname in the form of a path `(e.g. ${forwardauth}/.pomerium/verify/httpbin.some.example`) variable. The new method for verifying a route using forward authentication is to pass the entire requested url in the form of a query string `(e.g. ${forwardauth}/.pomerium/verify?url=https://httpbin.some.example)` where the routed domain is the value of the `uri` key.
+Previously, routes were verified by taking the downstream applications hostname in the form of a path `(e.g. ${forwardauth}/.pomerium/verify/verify.some.example`) variable. The new method for verifying a route using forward authentication is to pass the entire requested url in the form of a query string `(e.g. ${forwardauth}/.pomerium/verify?url=https://verify.some.example)` where the routed domain is the value of the `uri` key.
 
 Note that the verification URL is no longer nested under the `.pomerium` endpoint.
 
 For example, in nginx this would look like:
 
 ```diff
--    nginx.ingress.kubernetes.io/auth-url: https://forwardauth.corp.example.com/.pomerium/verify/httpbin.corp.example.com?no_redirect=true
--    nginx.ingress.kubernetes.io/auth-signin: https://forwardauth.corp.example.com/.pomerium/verify/httpbin.corp.example.com
+-    nginx.ingress.kubernetes.io/auth-url: https://forwardauth.corp.example.com/.pomerium/verify/verify.corp.example.com?no_redirect=true
+-    nginx.ingress.kubernetes.io/auth-signin: https://forwardauth.corp.example.com/.pomerium/verify/verify.corp.example.com
 +    nginx.ingress.kubernetes.io/auth-url: https://forwardauth.corp.example.com/verify?uri=$scheme://$host$request_uri
 +    nginx.ingress.kubernetes.io/auth-signin: https://forwardauth.corp.example.com?uri=$scheme://$host$request_uri
 ```
@@ -324,12 +324,12 @@ Previously, it was allowable to define a policy without a schema (e.g. `http`/`h
 
 ```yaml
 policy:
-  - from: httpbin.corp.domain.example
-    to: http://httpbin
+  - from: verify.corp.domain.example
+    to: http://verify
     allowed_domains:
       - pomerium.io
-  - from: external-httpbin.corp.domain.example
-    to: https://httpbin.org
+  - from: external-verify.corp.domain.example
+    to: https://verify.pomerium.com
     allow_public_unauthenticated_access: true
 ```
 
@@ -337,12 +337,12 @@ Should now be:
 
 ```yaml
 policy:
-  - from: https://httpbin.corp.domain.example
-    to: http://httpbin
+  - from: https://verify.corp.domain.example
+    to: http://verify
     allowed_domains:
       - pomerium.io
-  - from: https://external-httpbin.corp.domain.example
-    to: https://httpbin.org
+  - from: https://external-verify.corp.domain.example
+    to: https://verify.pomerium.com
     allow_public_unauthenticated_access: true
 ```
 
@@ -364,8 +364,8 @@ Usage of the POLICY_FILE envvar is no longer supported. Support for file based p
   Old:
 
   ```yaml
-  - from: httpbin.corp.beyondperimeter.com
-    to: http://httpbin
+  - from: verify.localhost.pomerium.io
+    to: http://verify
     allowed_domains:
       - pomerium.io
     cors_allow_preflight: true
@@ -376,8 +376,8 @@ Usage of the POLICY_FILE envvar is no longer supported. Support for file based p
 
   ```yaml
   policy:
-    - from: httpbin.corp.beyondperimeter.com
-      to: http://httpbin
+    - from: verify.localhost.pomerium.io
+      to: http://verify
       allowed_domains:
         - pomerium.io
       cors_allow_preflight: true

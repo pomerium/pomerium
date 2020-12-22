@@ -34,8 +34,8 @@ services:
     depends_on:
       - identityprovider
 
-  httpbin:
-    image: kennethreitz/httpbin:latest
+  verify:
+    image: pomerium/verify
     expose:
       - 80
 
@@ -75,8 +75,8 @@ cookie_secret: <reducted>
 
 # https://www.pomerium.io/configuration/#policy
 policy:
-  - from: https://httpbin.localhost.pomerium.io
-    to: http://httpbin
+  - from: https://verify.localhost.pomerium.io
+    to: http://verify
     allowed_domains:
       - example.org
 ```
@@ -147,7 +147,7 @@ $ : wait identityprovider up
 $ docker-compose up -d
 ```
 
-Now accessing to `https://httpbin.localhost.pomerium.io` and you will be redireted to OIDC server for authentication.
+Now accessing to `https://verify.localhost.pomerium.io` and you will be redireted to OIDC server for authentication.
 
 [identity provider]: ../docs/identity-providers/
 [qlik/simple-oidc-provider]: https://hub.docker.com/r/qlik/simple-oidc-provider/

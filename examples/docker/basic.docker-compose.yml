@@ -14,8 +14,8 @@ services:
     ports:
       - 443:443
 
-  # https://httpbin.corp.beyondperimeter.com --> Pomerium --> http://httpbin
-  httpbin:
-    image: kennethreitz/httpbin:latest
+  # https://verify.corp.beyondperimeter.com --> Pomerium --> http://verify
+  verify:
+    image: pomerium/verify:latest
     expose:
       - 80

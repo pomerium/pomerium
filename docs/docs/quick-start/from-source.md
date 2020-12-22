@@ -69,10 +69,10 @@ make && ./bin/pomerium -config config.yaml
 
 ### Navigate
 
-Browse to `httpbin.localhost.pomerium.io`. Connections between you and [httpbin] will now be proxied and managed by Pomerium.
+Browse to `verify.localhost.pomerium.io`. Connections between you and [verify] will now be proxied and managed by Pomerium.
 
 [configuration variables]: ../../reference/readme.md
-[httpbin]: https://httpbin.org/
+[verify]: https://verify.pomerium.com/
 [identity provider]: ../identity-providers/
 [make]: https://en.wikipedia.org/wiki/Make_(software)
 [tls certificates]: ../topics/certificates.md
