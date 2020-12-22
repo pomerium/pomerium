@@ -18,9 +18,9 @@ The API returns a cryptographically signed sign-in url that can be used to compl
 For example:
 
 ```bash
-$ curl "https://httpbin.example.com/.pomerium/api/v1/login?redirect_uri=http://localhost:8000"
+$ curl "https://verify.example.com/.pomerium/api/v1/login?redirect_uri=http://localhost:8000"
 
-https://authenticate.example.com/.pomerium/sign_in?redirect_uri=http%3A%2F%2Flocalhost%3Fpomerium_callback_uri%3Dhttps%253A%252F%252Fhttpbin.corp.example%252F.pomerium%252Fapi%252Fv1%252Flogin%253Fredirect_uri%253Dhttp%253A%252F%252Flocalhost&sig=hsLuzJctmgsN4kbMeQL16fe_FahjDBEcX0_kPYfg8bs%3D&ts=1573262981
+https://authenticate.example.com/.pomerium/sign_in?redirect_uri=http%3A%2F%2Flocalhost%3Fpomerium_callback_uri%3Dhttps%253A%252F%verify.corp.example%252F.pomerium%252Fapi%252Fv1%252Flogin%253Fredirect_uri%253Dhttp%253A%252F%252Flocalhost&sig=hsLuzJctmgsN4kbMeQL16fe_FahjDBEcX0_kPYfg8bs%3D&ts=1573262981
 ```
 
 ### Callback handler
@@ -35,13 +35,13 @@ Your script or application should anticipate the possibility that your underlyin
 
 ## High level workflow
 
-The application interacting with Pomerium must manage the following workflow. Consider the following example where a script or program desires delegated, programmatic access to the domain `httpbin.corp.domain.example`:
+The application interacting with Pomerium must manage the following workflow. Consider the following example where a script or program desires delegated, programmatic access to the domain `verify.corp.domain.example`:
 
-1. The script or application requests a new login url from the pomerium managed endpoint (e.g. `https://httpbin.corp.domain.example/.pomerium/api/v1/login`) and takes a `redirect_uri` as an argument.
+1. The script or application requests a new login url from the pomerium managed endpoint (e.g. `https://verify.corp.domain.example/.pomerium/api/v1/login`) and takes a `redirect_uri` as an argument.
 1. The script or application opens a browser or redirects the user to the returned login page.
 1. The user completes the identity providers login flow.
 1. The identity provider makes a callback to pomerium's authenticate service (e.g. `authenticate.corp.domain.example`) .
-1. Pomerium's authenticate service creates a user session and redirect token, then redirects back to the managed endpoint (e.g. `httpbin.corp.domain.example`)
+1. Pomerium's authenticate service creates a user session and redirect token, then redirects back to the managed endpoint (e.g. `verify.corp.domain.example`)
 1. Pomerium's proxy service makes a callback request to the original `redirect_uri` with the user session and as an argument.
 1. The script or application is responsible for handling that http callback request, and securely handling the callback session (`pomerium_jwt`) queryparam.
 1. The script or application can now make any requests as normal to the upstream application by setting the `Authorization: Pomerium ${pomerium_jwt}` header.
@@ -52,7 +52,7 @@ Please consider see the following minimal but complete python example.
 
 ```bash
 python3 scripts/programmatic_access.py \
-	--dst https://httpbin.example.com/headers
+	--dst https://verify.example.com/headers
 ```
 
 <<< @/scripts/programmatic_access.py

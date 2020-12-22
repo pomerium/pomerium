@@ -4,8 +4,8 @@
   allowed_domains:
     - gmail.com
   enable_google_cloud_serverless_authentication: true
-- from: https://httpbin.cloudrun.pomerium.io
-  to: https://httpbin.org
+- from: https://verify.cloudrun.pomerium.io
+  to: https://verify.pomerium.com
   pass_identity_headers: true
   allowed_domains:
     - gmail.com

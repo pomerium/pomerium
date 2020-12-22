@@ -108,7 +108,7 @@ And a hello page:
 
 If your target application is not running on GCP, you can also perform your own header validation.
 
-Browse to [https://httpbin.cloudrun.pomerium.io](https://httpbin.cloudrun.pomerium.io/headers)
+Browse to [https://verify.cloudrun.pomerium.io](https://verify.cloudrun.pomerium.io/headers)
 
 You should see your identity header set:
 

@@ -7,14 +7,14 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ../../examples/nginx/httpbin.conf:/etc/nginx/conf.d/httpbin.conf
+      - ../../examples/nginx/verify.conf:/etc/nginx/conf.d/verify.conf
       - ../../examples/nginx/pomerium.conf:/etc/nginx/conf.d/pomerium.conf
       - ../../examples/nginx/proxy.conf:/etc/nginx/proxy.conf
       - ../../examples/nginx/_wildcard.localhost.pomerium.io.pem:/etc/nginx/nginx.pem
       - ../../examples/nginx/_wildcard.localhost.pomerium.io-key.pem:/etc/nginx/nginx-key.pem
 
-  httpbin:
-    image: kennethreitz/httpbin:latest
+  verify:
+    image: pomerium/verify
     expose:
       - 80
 
