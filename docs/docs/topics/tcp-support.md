@@ -16,9 +16,9 @@ In addition to managing HTTP based applications, Pomerium can be used to protect
 Internally, Pomerium uses the [`CONNECT` method](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/CONNECT) to establish the TCP tunnel.
 
 ::: warning
-For proper TCP support, you should not use an HTTP proxy in front of Pomerium.  Instead, configure your load balancer in L4 or TCP mode.
+To minimize issues with TCP support, Pomerium should not be placed behind another HTTP proxy.  Instead, configure your load balancer in L4 or TCP mode.
 
-If an HTTP proxy is in front of Pomerium, it must know how to properly handle the `CONNECT` command and proxy it upstream.  This will be specific to each proxy implementation.
+Otherwise, the HTTP proxy in front of Pomerium must know how to properly handle the `CONNECT` command and proxy it upstream.  This capability will be specific to each proxy implementation.
 :::
 
 ## Configuring
