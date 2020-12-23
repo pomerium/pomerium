@@ -122,6 +122,7 @@ module.exports = {
             "topics/kubernetes-integration",
             "topics/production-deployment",
             "topics/programmatic-access",
+            "topics/tcp-support",
             "topics/impersonation",
           ],
         },

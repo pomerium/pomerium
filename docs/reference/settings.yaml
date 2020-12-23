@@ -1159,10 +1159,13 @@ settings:
         attributes: |
           - `yaml`/`json` setting: `from`
           - Type: `URL` (must contain a scheme and hostname, must not contain a path)
+          - Schemes: `https`, `tcp+https`
           - Required
-          - Example: `https://verify.corp.example.com`
+          - Example: `https://verify.corp.example.com`, `tcp+https://ssh.corp.example.com:22`
         doc: |
-          `From` is the externally accessible source of the proxied request.
+          `From` is the externally accessible URL for the proxied request.
+
+          Specifying `tcp+https` for the scheme enables [TCP proxying](../docs/topics/tcp-support.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
       - name: "Kubernetes Service Account Token"
         keys:
           [
@@ -1359,10 +1362,13 @@ settings:
         attributes: |
           - `yaml`/`json` setting: `to`
           - Type: `URL` (must contain a scheme and hostname)
+          - Schemes: `http`, `https`, `tcp`
           - Required
           - Example: `http://verify` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://verify.pomerium.com/anything/`
         doc: |
           `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
+
+          Must be `tcp` if `from` is `tcp+https`.
 
           :::warning
 
