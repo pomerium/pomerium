@@ -22,7 +22,7 @@ It is worth noting that Pomerium authorizes HTTP on a request-by-request basis, 
 
 ## How it works
 
-* Create a standard Pomerium configuration for your identity provider (IdP)
+* Create a standard Pomerium configuration for your [identity provider (IdP)](/docs/identity-providers/)
 * `pomerium-cli` runs on your workstation, listening on loopback for TCP connections
 * When an inbound connection is made, `pomerium-cli` proxies the connection through `pomerium`, authenticating the user if needed
 * Pomerium authorizes the connection and forwards it to the upstream service
