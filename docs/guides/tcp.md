@@ -5,7 +5,7 @@ meta:
   - name: keywords
     content: pomerium identity-access-proxy ssh tcp postgres database redis mysql
 description: >-
-  This guide covers how to use Pomerium to protect TCP services such as SSH, Postgres and Redis
+  This guide covers how to use Pomerium to protect TCP services such as SSH, Postgres and Redis.
 ---
 
 # Securing TCP based services
