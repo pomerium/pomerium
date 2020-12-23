@@ -158,6 +158,7 @@ module.exports = {
             "local-oidc",
             "mtls",
             "nginx",
+            "tcp",
             "tiddlywiki",
             "traefik-ingress",
             "vs-code-server",
