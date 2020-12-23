@@ -474,6 +474,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					Source:              &config.StringURL{URL: mustParseURL("tcp+https://example.com:22")},
 					PassIdentityHeaders: true,
 				},
+				{
+					Source:              &config.StringURL{URL: mustParseURL("tcp+https://example.com:22")},
+					PassIdentityHeaders: true,
+					UpstreamTimeout:     time.Second * 10,
+				},
 			},
 		}, "example.com:22")
 
@@ -496,7 +501,32 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": true,
 					"cluster": "policy-9",
-					"timeout": "3s",
+					"timeout": "0s",
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"},
+						{ "enabled": true, "upgradeType": "CONNECT", "connectConfig": {} }
+					]
+				}
+			},
+			{
+				"name": "policy-1",
+				"match": {
+					"connectMatcher": {}
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium"
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": true,
+					"cluster": "policy-10",
+					"timeout": "10s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
