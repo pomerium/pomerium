@@ -16,9 +16,12 @@ The source files from this guide can be found on [GitHub](https://github.com/pom
 
 ## Background
 
-Pomerium is primarily designed to protect HTTP based services but, when replacing a traditional VPN, there are often non-HTTP based applications which must still be reachable.  In order to provide the same type of protection to these services, Pomerium supports proxying TCP connections to upstream servers with the help of a client side application.  Authentication and authorization configuration is shared with standard HTTP routes, and the underlying transport is still encrypted between the end-user and Pomerium.
+When replacing a traditional VPN, there are often non-HTTP based applications which must still be reachable.  Pomerium is able to provide the same type of protection to these services by using a client side application to proxy TCP connections.  Authentication and authorization configuration is shared with standard HTTP routes, and the underlying transport is still encrypted between the end-user and Pomerium.
 
-It is worth noting that Pomerium authorizes HTTP on a request-by-request basis, but TCP applications are authorized on a per-connection basis.  At this time, Pomerium does not have integrations with providing credentials to upstream applications.
+Important notes:
+
+- Pomerium authorizes HTTP on a request-by-request basis, but TCP is authorized on a per-connection basis.
+- Pomerium is only authorizing the TCP *connection*. It does not interact with application level authorization systems at this time.
 
 ## How it works
 
