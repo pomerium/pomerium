@@ -316,19 +316,12 @@ func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) [
 
 func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb.Duration {
 	var routeTimeout *durationpb.Duration
-	if policy.AllowWebsockets {
-		if policy.UpstreamTimeout != 0 {
-			routeTimeout = ptypes.DurationProto(policy.UpstreamTimeout)
-		} else {
-			// disable the default route timeout for websocket support
-			routeTimeout = ptypes.DurationProto(0)
-		}
+	if policy.UpstreamTimeout != 0 {
+		routeTimeout = ptypes.DurationProto(policy.UpstreamTimeout)
+	} else if policy.AllowWebsockets || urlutil.IsTCP(policy.Source.URL) {
+		routeTimeout = ptypes.DurationProto(0)
 	} else {
-		if policy.UpstreamTimeout != 0 {
-			routeTimeout = ptypes.DurationProto(policy.UpstreamTimeout)
-		} else {
-			routeTimeout = ptypes.DurationProto(options.DefaultUpstreamTimeout)
-		}
+		routeTimeout = ptypes.DurationProto(options.DefaultUpstreamTimeout)
 	}
 	return routeTimeout
 }
