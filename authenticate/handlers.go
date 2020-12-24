@@ -63,6 +63,10 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Path("/oauth2/callback").Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet)
 
 	// Proxy service endpoints
+	s := r.PathPrefix("/.pomerium/frontchannel-logout").Subrouter()
+	s.Use(a.RetrieveSession)
+	s.Path("/").Handler(httputil.HandlerFunc(a.FrontchannelLogout)).Methods(http.MethodGet)
+
 	v := r.PathPrefix("/.pomerium").Subrouter()
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
@@ -77,9 +81,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		AllowedHeaders:   []string{"*"},
 	})
 	v.Use(c.Handler)
-	v.Use(func(h http.Handler) http.Handler {
-		return sessions.RetrieveSession(a.state.Load().sessionLoaders...)(h)
-	})
+	v.Use(a.RetrieveSession)
 	v.Use(a.VerifySession)
 	v.Path("/").Handler(httputil.HandlerFunc(a.Dashboard))
 	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
@@ -99,11 +101,13 @@ func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 	wellKnownURLS := struct {
 		// URL string referencing the client's JSON Web Key (JWK) Set
 		// RFC7517 document, which contains the client's public keys.
-		JSONWebKeySetURL string `json:"jwks_uri"`
-		OAuth2Callback   string `json:"authentication_callback_endpoint"`
+		JSONWebKeySetURL      string `json:"jwks_uri"`
+		OAuth2Callback        string `json:"authentication_callback_endpoint"`
+		FrontchannelLogoutURI string `json:"frontchannel_logout_uri"`
 	}{
 		state.redirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
 		state.redirectURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
+		state.redirectURL.ResolveReference(&url.URL{Path: "/.pomerium/frontchannel-logout"}).String(),
 	}
 	httputil.RenderJSON(w, http.StatusOK, wellKnownURLS)
 	return nil
@@ -112,6 +116,11 @@ func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 func (a *Authenticate) jwks(w http.ResponseWriter, r *http.Request) error {
 	httputil.RenderJSON(w, http.StatusOK, a.state.Load().jwk)
 	return nil
+}
+
+// RetrieveSession is the middleware used retrieve session by the sessionLoaders
+func (a *Authenticate) RetrieveSession(next http.Handler) http.Handler {
+	return sessions.RetrieveSession(a.state.Load().sessionLoaders...)(next)
 }
 
 // VerifySession is the middleware used to enforce a valid authentication
@@ -237,25 +246,8 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
 	defer span.End()
 
-	state := a.state.Load()
+	rawIDToken := a.revokeSession(ctx, w, r)
 
-	var rawIDToken string
-	sessionState, err := a.getSessionFromCtx(ctx)
-	if err == nil {
-		if s, _ := session.Get(ctx, state.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
-			rawIDToken = s.GetIdToken().GetRaw()
-			if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
-				log.Warn().Err(err).Msg("failed to revoke access token")
-			}
-		}
-		err = a.deleteSession(ctx, sessionState.ID)
-		if err != nil {
-			log.Warn().Err(err).Msg("failed to delete session from session store")
-		}
-	}
-
-	// no matter what happens, we want to clear the session store
-	state.sessionStore.ClearSession(w, r)
 	redirectString := ""
 	if sru := a.options.Load().SignOutRedirectURL; sru != nil {
 		redirectString = sru.String()
@@ -602,4 +594,52 @@ func (a *Authenticate) saveSessionToDataBroker(
 	}
 
 	return nil
+}
+
+// FrontchannelLogout uses HTTP GETs to Relying Party URLs (Pomerium) to clear a user's login state.
+// This endpoint implements OpenID Connect Front-Channel Logout and reuses the Relying
+// Party-initiated logout functionality specified in Section 5 of OpenID Connect Session Management
+// 1.0 (RP-Initiated Logout).
+//
+// https://openid.net/specs/openid-connect-frontchannel-1_0.html
+// https://ldapwiki.com/wiki/OpenID%20Connect%20Front-Channel%20Logout
+func (a *Authenticate) FrontchannelLogout(w http.ResponseWriter, r *http.Request) error {
+	ctx, span := trace.StartSpan(r.Context(), "authenticate.FrontchannelLogout")
+	defer span.End()
+
+	_ = a.revokeSession(ctx, w, r)
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache, no-store")
+	w.Header().Set("Pragma", "no-cache")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, http.StatusText(http.StatusOK))
+	return nil
+}
+
+// revokeSession always clears the local session and tries to revoke the associated session stored in the
+// databroker. If successful, it returns the original `id_token` of the session, if failed, returns
+// and empty string.
+func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter, r *http.Request) string {
+	state := a.state.Load()
+	// clear the user's local session no matter what
+	defer state.sessionStore.ClearSession(w, r)
+
+	var rawIDToken string
+	sessionState, err := a.getSessionFromCtx(ctx)
+	if err != nil {
+		return rawIDToken
+	}
+
+	if s, _ := session.Get(ctx, state.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
+		rawIDToken = s.GetIdToken().GetRaw()
+		if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
+			log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
+		}
+	}
+	if err := a.deleteSession(ctx, sessionState.ID); err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to delete session from session store")
+	}
+
+	return rawIDToken
 }
