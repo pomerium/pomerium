@@ -627,12 +627,12 @@ func (a *Authenticate) processSignOutWithContext(ctx context.Context, w http.Res
 		if s, _ := session.Get(ctx, state.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
 			rawIDToken = s.GetIdToken().GetRaw()
 			if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
-				log.Warn().Err(err).Msg("failed to revoke access token")
+				log.Ctx(ctx).Warn().Err(err).Msg("failed to revoke access token")
 			}
 		}
 		err = a.deleteSession(ctx, sessionState.ID)
 		if err != nil {
-			log.Warn().Err(err).Msg("failed to delete session from session store")
+			log.Ctx(ctx).Warn().Err(err).Msg("failed to delete session from session store")
 		}
 	}
 
