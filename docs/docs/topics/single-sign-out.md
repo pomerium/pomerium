@@ -1,6 +1,6 @@
 ---
 title: Single Sign-out
-description: This article describes Pomerium's support for Single Sign-out
+description: This article describes Pomerium's support for Single Sign-out according to OpenID Connect Front-Channel Logout 1.0.
 ---
 
 # Single Sign-out
