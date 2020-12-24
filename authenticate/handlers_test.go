@@ -677,13 +677,13 @@ func TestAuthenticate_FrontchannelLogout(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name   string
+		name string
 
 		logoutIssuer string
-		tokenIssuer string
+		tokenIssuer  string
 		widthSession bool
-		sessionStore         sessions.SessionStore
-		provider        identity.MockProvider
+		sessionStore sessions.SessionStore
+		provider     identity.MockProvider
 
 		wantCode int
 	}{
@@ -732,8 +732,8 @@ func TestAuthenticate_FrontchannelLogout(t *testing.T) {
 					},
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
-				options:   config.NewAtomicOptions(),
-				provider:  identity.NewAtomicAuthenticator(),
+				options:  config.NewAtomicOptions(),
+				provider: identity.NewAtomicAuthenticator(),
 			}
 
 			a.provider.Store(tt.provider)

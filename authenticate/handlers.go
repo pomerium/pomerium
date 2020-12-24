@@ -101,9 +101,9 @@ func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 	wellKnownURLS := struct {
 		// URL string referencing the client's JSON Web Key (JWK) Set
 		// RFC7517 document, which contains the client's public keys.
-		JSONWebKeySetURL string `json:"jwks_uri"`
-		OAuth2Callback   string `json:"authentication_callback_endpoint"`
-		FrontchannelLogoutURI   string `json:"frontchannel_logout_uri"`
+		JSONWebKeySetURL      string `json:"jwks_uri"`
+		OAuth2Callback        string `json:"authentication_callback_endpoint"`
+		FrontchannelLogoutURI string `json:"frontchannel_logout_uri"`
 	}{
 		state.redirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
 		state.redirectURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
@@ -246,7 +246,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
 	defer span.End()
 
-	rawIDToken := a.processSignOutWithContext(ctx, w, r)
+	rawIDToken := a.revokeSession(ctx, w, r)
 
 	redirectString := ""
 	if sru := a.options.Load().SignOutRedirectURL; sru != nil {
@@ -596,48 +596,50 @@ func (a *Authenticate) saveSessionToDataBroker(
 	return nil
 }
 
-// FrontchannelLogout signs the user out.
-// this endpoint gets rendered in an iframe on the idP site if it supports OIDC Front-Channel Logout
+// FrontchannelLogout uses HTTP GETs to Relying Party URLs (Pomerium) to clear a user's login state.
+// This endpoint implements OpenID Connect Front-Channel Logout and reuses the Relying
+// Party-initiated logout functionality specified in Section 5 of OpenID Connect Session Management
+// 1.0 (RP-Initiated Logout).
 //
 // https://openid.net/specs/openid-connect-frontchannel-1_0.html
+// https://ldapwiki.com/wiki/OpenID%20Connect%20Front-Channel%20Logout
 func (a *Authenticate) FrontchannelLogout(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.FrontchannelLogout")
 	defer span.End()
 
-	a.processSignOutWithContext(ctx, w, r)
+	_ = a.revokeSession(ctx, w, r)
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache, no-store")
 	w.Header().Set("Pragma", "no-cache")
 	w.WriteHeader(http.StatusOK)
-
-	fmt.Fprintf(w, "%s", "OK")
-
+	fmt.Fprintln(w, http.StatusText(http.StatusOK))
 	return nil
 }
 
-// signOut process clears session, revokes access token and returns the raw ID-Token
-func (a *Authenticate) processSignOutWithContext(ctx context.Context, w http.ResponseWriter, r *http.Request) string {
+// revokeSession always clears the local session and tries to revoke the associated session stored in the
+// databroker. If successful, it returns the original `id_token` of the session, if failed, returns
+// and empty string.
+func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter, r *http.Request) string {
 	state := a.state.Load()
+	// clear the user's local session no matter what
+	defer state.sessionStore.ClearSession(w, r)
 
 	var rawIDToken string
 	sessionState, err := a.getSessionFromCtx(ctx)
-
-	if err == nil {
-		if s, _ := session.Get(ctx, state.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
-			rawIDToken = s.GetIdToken().GetRaw()
-			if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
-				log.Ctx(ctx).Warn().Err(err).Msg("failed to revoke access token")
-			}
-		}
-		err = a.deleteSession(ctx, sessionState.ID)
-		if err != nil {
-			log.Ctx(ctx).Warn().Err(err).Msg("failed to delete session from session store")
-		}
+	if err != nil {
+		return rawIDToken
 	}
 
-	// no matter what happens, we want to clear the session store
-	state.sessionStore.ClearSession(w, r)
+	if s, _ := session.Get(ctx, state.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
+		rawIDToken = s.GetIdToken().GetRaw()
+		if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
+			log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
+		}
+	}
+	if err := a.deleteSession(ctx, sessionState.ID); err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to delete session from session store")
+	}
 
 	return rawIDToken
 }
