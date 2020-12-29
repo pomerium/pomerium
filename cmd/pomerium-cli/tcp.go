@@ -25,6 +25,7 @@ var tcpCmdOptions struct {
 }
 
 func init() {
+	addTLSFlags(tcpCmd)
 	flags := tcpCmd.Flags()
 	flags.StringVar(&tcpCmdOptions.listen, "listen", "127.0.0.1:0",
 		"local address to start a listener on")
@@ -63,7 +64,7 @@ var tcpCmd = &cobra.Command{
 
 		var tlsConfig *tls.Config
 		if pomeriumURL.Scheme == "https" {
-			tlsConfig = getTLSConfig(false, "", "")
+			tlsConfig = getTLSConfig()
 		}
 
 		l := zerolog.New(zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
