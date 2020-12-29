@@ -5,21 +5,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"time"
 
-	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
-	"golang.org/x/sync/errgroup"
 	jose "gopkg.in/square/go-jose.v2"
 
-	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/internal/authclient"
 )
 
 var kubernetesExecCredentialOption struct {
@@ -62,139 +55,31 @@ var kubernetesExecCredentialCmd = &cobra.Command{
 			return nil
 		}
 
-		// require interactive session to handle login
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-			return fmt.Errorf("only interactive sessions are supported")
+		var tlsConfig *tls.Config
+		if serverURL.Scheme == "https" {
+			tlsConfig = getTLSConfig(
+				kubernetesExecCredentialOption.disableTLSVerification,
+				kubernetesExecCredentialOption.caCert,
+				kubernetesExecCredentialOption.alternateCAPath,
+			)
 		}
 
-		li, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			fatalf("failed to start listener: %v", err)
-		}
-		defer li.Close()
-
-		incomingJWT := make(chan string)
-
-		eg, ctx := errgroup.WithContext(context.Background())
-		eg.Go(func() error {
-			return runHTTPServer(ctx, li, incomingJWT)
-		})
-		eg.Go(func() error {
-			return runOpenBrowser(ctx, li, serverURL)
-		})
-		eg.Go(func() error {
-			return runHandleJWT(ctx, serverURL, incomingJWT)
-		})
-		err = eg.Wait()
+		ac := authclient.New(authclient.WithTLSConfig(tlsConfig))
+		rawJWT, err := ac.GetJWT(context.Background(), serverURL)
 		if err != nil {
 			fatalf("%s", err)
 		}
 
+		creds, err = parseToken(rawJWT)
+		if err != nil {
+			fatalf("%s", err)
+		}
+
+		saveCachedCredential(serverURL.String(), creds)
+		printCreds(creds)
+
 		return nil
 	},
-}
-
-func runHTTPServer(ctx context.Context, li net.Listener, incomingJWT chan string) error {
-	var srv *http.Server
-	srv = &http.Server{
-		BaseContext: func(li net.Listener) context.Context {
-			return ctx
-		},
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			jwt := r.FormValue("pomerium_jwt")
-			if jwt == "" {
-				http.Error(w, "not found", http.StatusNotFound)
-				return
-			}
-			incomingJWT <- jwt
-
-			w.Header().Set("Content-Type", "text/plain")
-			io.WriteString(w, "login complete, you may close this page")
-
-			go func() { _ = srv.Shutdown(ctx) }()
-		}),
-	}
-	// shutdown the server when ctx is done.
-	go func() {
-		<-ctx.Done()
-		_ = srv.Shutdown(ctx)
-	}()
-	err := srv.Serve(li)
-	if err == http.ErrServerClosed {
-		err = nil
-	}
-	return err
-}
-
-func runOpenBrowser(ctx context.Context, li net.Listener, serverURL *url.URL) error {
-	dst := serverURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/api/v1/login",
-		RawQuery: url.Values{
-			"pomerium_redirect_uri": {fmt.Sprintf("http://%s", li.Addr().String())},
-		}.Encode(),
-	})
-
-	ctx, clearTimeout := context.WithTimeout(ctx, 10*time.Second)
-	defer clearTimeout()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", dst.String(), nil)
-	if err != nil {
-		return err
-	}
-
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{},
-	}
-	if kubernetesExecCredentialOption.disableTLSVerification {
-		transport.TLSClientConfig.InsecureSkipVerify = true
-	}
-	transport.TLSClientConfig.RootCAs, err = cryptutil.GetCertPool(
-		kubernetesExecCredentialOption.caCert,
-		kubernetesExecCredentialOption.alternateCAPath,
-	)
-	if err != nil {
-		return err
-	}
-
-	client := &http.Client{
-		Transport: transport,
-	}
-
-	res, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to get login url: %w", err)
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode/100 != 2 {
-		return fmt.Errorf("failed to get login url: %s", res.Status)
-	}
-
-	bs, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read login url: %w", err)
-	}
-
-	return open.Run(string(bs))
-}
-
-func runHandleJWT(ctx context.Context, serverURL *url.URL, incomingJWT chan string) error {
-	var rawjwt string
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case rawjwt = <-incomingJWT:
-	}
-
-	creds, err := parseToken(rawjwt)
-	if err != nil {
-		return err
-	}
-
-	saveCachedCredential(serverURL.String(), creds)
-	printCreds(creds)
-
-	return nil
 }
 
 func parseToken(rawjwt string) (*ExecCredential, error) {

@@ -63,7 +63,7 @@ var tcpCmd = &cobra.Command{
 
 		var tlsConfig *tls.Config
 		if pomeriumURL.Scheme == "https" {
-			tlsConfig = new(tls.Config)
+			tlsConfig = getTLSConfig(false, "", "")
 		}
 
 		l := zerolog.New(zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
