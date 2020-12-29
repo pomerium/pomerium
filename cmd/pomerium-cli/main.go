@@ -26,14 +26,30 @@ func fatalf(msg string, args ...interface{}) {
 	os.Exit(1)
 }
 
-func getTLSConfig(insecureSkipVerify bool, caCert, alternateCAPath string) *tls.Config {
+var tlsOptions struct {
+	disableTLSVerification bool
+	alternateCAPath        string
+	caCert                 string
+}
+
+func addTLSFlags(cmd *cobra.Command) {
+	flags := cmd.Flags()
+	flags.BoolVar(&tlsOptions.disableTLSVerification, "disable-tls-verification", false,
+		"disables TLS verification")
+	flags.StringVar(&tlsOptions.alternateCAPath, "alternate-ca-path", "",
+		"path to CA certificate to use for HTTP requests")
+	flags.StringVar(&tlsOptions.caCert, "ca-cert", "",
+		"base64-encoded CA TLS certificate to use for HTTP requests")
+}
+
+func getTLSConfig() *tls.Config {
 	cfg := new(tls.Config)
-	if insecureSkipVerify {
+	if tlsOptions.disableTLSVerification {
 		cfg.InsecureSkipVerify = true
 	}
-	if caCert != "" {
+	if tlsOptions.caCert != "" {
 		var err error
-		cfg.RootCAs, err = cryptutil.GetCertPool(caCert, alternateCAPath)
+		cfg.RootCAs, err = cryptutil.GetCertPool(tlsOptions.caCert, tlsOptions.alternateCAPath)
 		if err != nil {
 			fatalf("%s", err)
 		}

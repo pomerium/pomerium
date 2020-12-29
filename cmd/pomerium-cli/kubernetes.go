@@ -15,20 +15,8 @@ import (
 	"github.com/pomerium/pomerium/internal/authclient"
 )
 
-var kubernetesExecCredentialOption struct {
-	disableTLSVerification bool
-	alternateCAPath        string
-	caCert                 string
-}
-
 func init() {
-	flags := kubernetesExecCredentialCmd.Flags()
-	flags.BoolVar(&kubernetesExecCredentialOption.disableTLSVerification, "disable-tls-verification", false,
-		"disables TLS verification")
-	flags.StringVar(&kubernetesExecCredentialOption.alternateCAPath, "alternate-ca-path", "",
-		"path to CA certificate to use for HTTP requests")
-	flags.StringVar(&kubernetesExecCredentialOption.caCert, "ca-cert", "",
-		"base64-encoded CA TLS certificate to use for HTTP requests")
+	addTLSFlags(kubernetesExecCredentialCmd)
 	kubernetesCmd.AddCommand(kubernetesExecCredentialCmd)
 	rootCmd.AddCommand(kubernetesCmd)
 }
@@ -57,11 +45,7 @@ var kubernetesExecCredentialCmd = &cobra.Command{
 
 		var tlsConfig *tls.Config
 		if serverURL.Scheme == "https" {
-			tlsConfig = getTLSConfig(
-				kubernetesExecCredentialOption.disableTLSVerification,
-				kubernetesExecCredentialOption.caCert,
-				kubernetesExecCredentialOption.alternateCAPath,
-			)
+			tlsConfig = getTLSConfig()
 		}
 
 		ac := authclient.New(authclient.WithTLSConfig(tlsConfig))
