@@ -98,10 +98,10 @@ func (tun *Tunnel) Run(ctx context.Context, local io.ReadWriter) error {
 	default:
 		return fmt.Errorf("tcptunnel: failed to load JWT: %w", err)
 	}
-	return tun.run(ctx, local, rawJWT)
+	return tun.run(ctx, local, rawJWT, 0)
 }
 
-func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string) error {
+func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, retryCount int) error {
 	log.Info().
 		Str("dst", tun.cfg.dstHost).
 		Str("proxy", tun.cfg.proxyHost).
@@ -160,15 +160,18 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string) 
 		http.StatusFound,
 		http.StatusTemporaryRedirect,
 		http.StatusPermanentRedirect:
-		if rawJWT == "" {
+		if retryCount == 0 {
 			_ = remote.Close()
 
-			authURL, err := url.Parse(res.Header.Get("Location"))
-			if err != nil {
-				return fmt.Errorf("tcptunnel: invalid redirect location for authentication: %w", err)
+			serverURL := &url.URL{
+				Scheme: "http",
+				Host:   tun.cfg.proxyHost,
+			}
+			if tun.cfg.tlsConfig != nil {
+				serverURL.Scheme = "https"
 			}
 
-			rawJWT, err = tun.auth.GetJWT(ctx, authURL)
+			rawJWT, err = tun.auth.GetJWT(ctx, serverURL)
 			if err != nil {
 				return fmt.Errorf("tcptunnel: failed to get authentication JWT: %w", err)
 			}
@@ -178,10 +181,11 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string) 
 				return fmt.Errorf("tcptunnel: failed to store JWT: %w", err)
 			}
 
-			return tun.run(ctx, local, rawJWT)
+			return tun.run(ctx, local, rawJWT, retryCount+1)
 		}
 		fallthrough
 	default:
+		_ = tun.cfg.jwtCache.DeleteJWT(tun.jwtCacheKey())
 		return fmt.Errorf("tcptunnel: invalid http response code: %d", res.StatusCode)
 	}
 
