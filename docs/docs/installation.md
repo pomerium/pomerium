@@ -124,7 +124,7 @@ brew install pomerium-cli
 ```shell
 git clone git@github.com:pomerium/pomerium.git
 cd pomerium
-make
+make build NAME=pomerium-cli
 ./bin/pomerium-cli --help
 ```
 
