@@ -70,9 +70,9 @@ Next, in order to retrieve group information from Active Directory, we need to e
 
 Please note, [Group ID](https://docs.microsoft.com/en-us/graph/api/group-get?view=graph-rest-1.0&tabs=http) not group name will be used to affirm group membership.
 
-On the **App registrations** page, click **API permissions**. Click the **Add a permission** button and select **Microsoft Graph API**, select **Application permissions**. Under the **Directory** row, select the checkbox for **Group.Read.All**.
+On the **App registrations** page, click **API permissions**. Click the **Add a permission** button and select **Microsoft Graph API**, select **Application permissions**. Select the checkboxes for **Directory.Read.All**, **Group.Read.All** and **User.Read.All**.
 
-![Azure add group membership claims](./img/azure/azure-api-settings.png)
+![Azure add group membership claims](./img/azure/azure-api-permissions.png)
 
 You can also optionally select **grant admin consent for all users** which will suppress the permission screen on first login for users.
 
