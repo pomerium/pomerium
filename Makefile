@@ -2,7 +2,7 @@
 PREFIX?=$(shell pwd)
 
 NAME := pomerium
-PKG := github.com/pomerium/$(NAME)
+PKG := github.com/pomerium/pomerium
 
 BUILDDIR := ${PREFIX}/dist
 BINDIR := ${PREFIX}/bin
@@ -13,7 +13,7 @@ BUILDTAGS :=
 
 # Populate version variables
 # Add to compile time flags
-VERSION := $(shell cat VERSION)
+VERSION := $(shell git describe --abbrev=0 --tags)
 GITCOMMIT := $(shell git rev-parse --short HEAD)
 BUILDMETA:=
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
@@ -33,9 +33,9 @@ GOOS = $(shell $(GO) env GOOS)
 GOARCH= $(shell $(GO) env GOARCH)
 MISSPELL_VERSION = v0.3.4
 GOLANGCI_VERSION = v1.21.0
-OPA_VERSION = v0.21.0
-GETENVOY_VERSION = v0.1.8
-
+OPA_VERSION = v0.25.2
+GETENVOY_VERSION = v0.2.0
+GORELEASER_VERSION = v0.150.0
 .PHONY: all
 all: clean build-deps test lint spellcheck build ## Runs a clean, build, fmt, lint, test, and vet.
 
@@ -52,6 +52,7 @@ build-deps: ## Install build dependencies
 	@cd /tmp; GO111MODULE=on $(GO) get github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_VERSION}
 	@cd /tmp; GO111MODULE=on $(GO) get github.com/open-policy-agent/opa@${OPA_VERSION}
 	@cd /tmp; GO111MODULE=on $(GO) get github.com/tetratelabs/getenvoy/cmd/getenvoy@${GETENVOY_VERSION}
+	@cd /tmp; GO111MODULE=on $(GO) get github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
 
 .PHONY: docs
 docs: ## Start the vuepress docs development server
@@ -115,11 +116,10 @@ clean: ## Cleanup any build binaries or packages.
 	$(RM) -r $(BINDIR)
 	$(RM) -r $(BUILDDIR)
 
-.PHONY: release
+.PHONY: snapshot
 snapshot: ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
-	@echo "+ $@"
-	@cd /tmp; GO111MODULE=on $(GO) get github.com/goreleaser/goreleaser
-	goreleaser release --rm-dist -f .github/goreleaser.yaml --snapshot
+	@echo "==> $@"
+	@goreleaser release --rm-dist -f .github/goreleaser.yaml --snapshot
 
 .PHONY: help
 help:
