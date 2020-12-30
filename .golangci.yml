@@ -1,3 +1,6 @@
+run:
+  deadline: 20m
+
 linters-settings:
   dupl:
     threshold: 100
