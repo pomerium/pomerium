@@ -50,7 +50,6 @@ func (a *Authorize) deniedResponse(
 	in *envoy_service_auth_v2.CheckRequest,
 	code int32, reason string, headers map[string]string,
 ) *envoy_service_auth_v2.CheckResponse {
-
 	returnHTMLError := true
 	inHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
 	if inHeaders != nil {
@@ -67,7 +66,6 @@ func (a *Authorize) htmlDeniedResponse(
 	in *envoy_service_auth_v2.CheckRequest,
 	code int32, reason string, headers map[string]string,
 ) *envoy_service_auth_v2.CheckResponse {
-
 	opts := a.currentOptions.Load()
 	debugEndpoint := opts.GetAuthenticateURL().ResolveReference(&url.URL{Path: "/.pomerium/"})
 

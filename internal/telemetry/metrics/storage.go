@@ -50,7 +50,7 @@ func RecordStorageOperation(ctx context.Context, tags *StorageOperationTags, dur
 			tag.Upsert(TagKeyStorageOperation, tags.Operation),
 			tag.Upsert(TagKeyStorageResult, result),
 			tag.Upsert(TagKeyStorageBackend, tags.Backend),
-			//TODO service tag does not consistently come in from RPCs.  Requires
+			// TODO service tag does not consistently come in from RPCs.  Requires
 			// follow up
 			tag.Upsert(TagKeyService, "databroker"),
 		},

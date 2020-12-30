@@ -5,9 +5,11 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding"
 )
 
-var _ encoding.MarshalUnmarshaler = &Encoder{}
-var _ encoding.Marshaler = &Encoder{}
-var _ encoding.Unmarshaler = &Encoder{}
+var (
+	_ encoding.MarshalUnmarshaler = &Encoder{}
+	_ encoding.Marshaler          = &Encoder{}
+	_ encoding.Unmarshaler        = &Encoder{}
+)
 
 // Encoder MockCSRFStore is a mock implementation of Cipher.
 type Encoder struct {

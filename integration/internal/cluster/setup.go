@@ -72,8 +72,10 @@ func (cluster *Cluster) Setup(ctx context.Context) error {
 func (cluster *Cluster) GetNodePortAddr(ctx context.Context, namespace, svcName string) (hostport string, err error) {
 	var buf bytes.Buffer
 
-	args := []string{"get", "service", "--namespace", namespace, "--output", "json",
-		svcName}
+	args := []string{
+		"get", "service", "--namespace", namespace, "--output", "json",
+		svcName,
+	}
 	err = run(ctx, "kubectl", withArgs(args...), withStdout(&buf))
 	if err != nil {
 		return "", fmt.Errorf("error getting service details with kubectl: %w", err)

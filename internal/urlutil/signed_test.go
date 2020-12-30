@@ -20,11 +20,14 @@ func TestSignedURL(t *testing.T) {
 		want     url.URL
 		wantErr  bool
 	}{
-		{"good", "test-key", url.URL{Scheme: "https", Host: "pomerium.io"},
+		{
+			"good", "test-key",
+			url.URL{Scheme: "https", Host: "pomerium.io"},
 			func() time.Time { return original }, func() time.Time { return original },
 			"https://pomerium.io?pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=XtvM-Y-oPvoGGV2Q5G0vrQ_CgNeYhVyTG5dHIqLsBOU%3D",
 			url.URL{Scheme: "https", Host: "pomerium.io", RawQuery: "pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=XtvM-Y-oPvoGGV2Q5G0vrQ_CgNeYhVyTG5dHIqLsBOU%3D"},
-			false},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

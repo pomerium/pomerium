@@ -35,7 +35,8 @@ func (t *httpTransport) update(options *Options) {
 		rootCAs, err := cryptutil.GetCertPool(options.CA, options.CAFile)
 		if err == nil {
 			nt.TLSClientConfig = &tls.Config{
-				RootCAs: rootCAs,
+				RootCAs:    rootCAs,
+				MinVersion: tls.VersionTLS12,
 			}
 		} else {
 			log.Error().Err(err).Msg("config: error getting cert pool")

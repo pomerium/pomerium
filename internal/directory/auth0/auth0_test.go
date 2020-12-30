@@ -275,7 +275,6 @@ func TestProvider_UserGroups(t *testing.T) {
 					listOptionMatcher{expected: management.IncludeTotals(true)},
 					listOptionMatcher{expected: management.Page(0)},
 				).Return(&management.UserList{}, nil)
-
 			},
 			expectedGroups: []*directory.Group{
 				{
@@ -351,7 +350,6 @@ func TestProvider_UserGroups(t *testing.T) {
 						{ID: stringPtr("i-am-user-id-3")},
 					},
 				}, nil)
-
 			},
 			expectedGroups: []*directory.Group{
 				{
@@ -507,7 +505,6 @@ func TestProvider_UserGroups(t *testing.T) {
 			assert.Equal(t, expectedServiceAccount, mNewManagersFunc.CalledWithServiceAccount)
 		})
 	}
-
 }
 
 func TestParseServiceAccount(t *testing.T) {
@@ -517,7 +514,8 @@ func TestParseServiceAccount(t *testing.T) {
 		expectedServiceAccount *ServiceAccount
 		expectedError          error
 	}{
-		{"valid", "eyJjbGllbnRfaWQiOiJpLWFtLWNsaWVudC1pZCIsInNlY3JldCI6ImktYW0tc2VjcmV0In0K",
+		{
+			"valid", "eyJjbGllbnRfaWQiOiJpLWFtLWNsaWVudC1pZCIsInNlY3JldCI6ImktYW0tc2VjcmV0In0K",
 			&ServiceAccount{
 				ClientID: "i-am-client-id",
 				Secret:   "i-am-secret",

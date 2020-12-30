@@ -222,6 +222,7 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 
 	return payload
 }
+
 func newSigner(options *config.Options) (jose.Signer, *jose.JSONWebKey, error) {
 	// if we don't have a signing key, generate one
 	if options.SigningKey == "" {
@@ -257,7 +258,6 @@ func newSigner(options *config.Options) (jose.Signer, *jose.JSONWebKey, error) {
 		Algorithm: jose.SignatureAlgorithm(jwk.Algorithm),
 		Key:       jwk,
 	}, signerOpt.WithHeader("kid", jwk.KeyID))
-
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't create signer: %w", err)
 	}

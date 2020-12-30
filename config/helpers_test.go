@@ -42,7 +42,6 @@ func Test_isAuthenticate(t *testing.T) {
 		{"jiberish", "xd23", false},
 	}
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsAuthenticate(tt.service); got != tt.want {
 				t.Errorf("isAuthenticate() = %v, want %v", got, tt.want)
@@ -66,7 +65,6 @@ func Test_isAuthorize(t *testing.T) {
 		{"jiberish", "xd23", false},
 	}
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsAuthorize(tt.service); got != tt.want {
 				t.Errorf("isAuthenticate() = %v, want %v", got, tt.want)
@@ -74,6 +72,7 @@ func Test_isAuthorize(t *testing.T) {
 		})
 	}
 }
+
 func Test_IsProxy(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -87,7 +86,6 @@ func Test_IsProxy(t *testing.T) {
 		{"jiberish", "xd23", false},
 	}
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsProxy(tt.service); got != tt.want {
 				t.Errorf("IsProxy() = %v, want %v", got, tt.want)
@@ -111,7 +109,6 @@ func Test_IsCache(t *testing.T) {
 		{"cache", "cache", true},
 	}
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsCache(tt.service); got != tt.want {
 				t.Errorf("IsCache() = %v, want %v", got, tt.want)

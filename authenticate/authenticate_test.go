@@ -10,7 +10,6 @@ import (
 )
 
 func newTestOptions(t *testing.T) *config.Options {
-
 	opts := config.NewDefaultOptions()
 	opts.AuthenticateURLString = "https://authenticate.example"
 	opts.AuthorizeURLString = "https://authorize.example"

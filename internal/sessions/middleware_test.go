@@ -97,7 +97,6 @@ func TestVerifier(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			r.Header.Set("Accept", "application/json")
 			w := httptest.NewRecorder()

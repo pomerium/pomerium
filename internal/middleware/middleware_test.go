@@ -32,7 +32,6 @@ func TestSetHeaders(t *testing.T) {
 					if got := w.Header().Get(k); want != got {
 						t.Errorf("want %s got %q", want, got)
 					}
-
 				}
 			})
 			rr := httptest.NewRecorder()
@@ -80,7 +79,6 @@ func TestStripCookie(t *testing.T) {
 
 			handler := StripCookie(tt.pomeriumCookie)(testHandler)
 			handler.ServeHTTP(rr, req)
-
 		})
 	}
 }

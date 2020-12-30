@@ -10,7 +10,6 @@ import (
 )
 
 func Test_RecordStorageOperation(t *testing.T) {
-
 	tests := []struct {
 		name     string
 		tags     *StorageOperationTags

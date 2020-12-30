@@ -34,6 +34,7 @@ func TestFullVersionVersion(t *testing.T) {
 		}
 	}
 }
+
 func BenchmarkFullVersion(b *testing.B) {
 	Version = "1.0.0"
 	GitCommit = "314501b"

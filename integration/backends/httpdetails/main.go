@@ -12,9 +12,7 @@ import (
 )
 
 func main() {
-	var (
-		certFile, keyFile, mutualAuthCAFile, bindAddr string
-	)
+	var certFile, keyFile, mutualAuthCAFile, bindAddr string
 
 	flag.StringVar(&certFile, "cert-file", "", "the tls cert file to use")
 	flag.StringVar(&keyFile, "key-file", "", "the tls key file to use")

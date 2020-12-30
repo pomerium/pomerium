@@ -6,7 +6,6 @@ import (
 )
 
 func TestIsReadableFile(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		args    string

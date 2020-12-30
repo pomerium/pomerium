@@ -162,10 +162,12 @@ func (f *httpFancyWriter) ReadFrom(r io.Reader) (int64, error) {
 	return n, err
 }
 
-var _ http.Flusher = &httpFancyWriter{}
-var _ http.Hijacker = &httpFancyWriter{}
-var _ http.Pusher = &http2FancyWriter{}
-var _ io.ReaderFrom = &httpFancyWriter{}
+var (
+	_ http.Flusher  = &httpFancyWriter{}
+	_ http.Hijacker = &httpFancyWriter{}
+	_ http.Pusher   = &http2FancyWriter{}
+	_ io.ReaderFrom = &httpFancyWriter{}
+)
 
 // http2FancyWriter is a HTTP2 writer that additionally satisfies
 // http.Flusher, and io.ReaderFrom. It exists for the common case

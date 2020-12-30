@@ -113,7 +113,6 @@ func TestAuthenticate_Handler(t *testing.T) {
 	if body == "" {
 		t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
 	}
-
 }
 
 func TestAuthenticate_SignIn(t *testing.T) {
@@ -593,6 +592,7 @@ func TestJwksEndpoint(t *testing.T) {
 	expected := "{\"keys\":[{\"use\":\"sig\",\"kty\":\"EC\",\"kid\":\"5b419ade1895fec2d2def6cd33b1b9a018df60db231dc5ecb85cbed6d942813c\",\"crv\":\"P-256\",\"alg\":\"ES256\",\"x\":\"UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo\",\"y\":\"KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ\"}]}\n"
 	assert.Equal(t, expected, body)
 }
+
 func TestAuthenticate_Dashboard(t *testing.T) {
 	t.Parallel()
 
@@ -706,7 +706,6 @@ func TestAuthenticate_FrontchannelLogout(t *testing.T) {
 						},
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							if !tt.widthSession {
-
 								return nil, nil
 							}
 

@@ -224,9 +224,9 @@ type Options struct {
 	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin" yaml:"grpc_client_dns_roundrobin,omitempty"`
 
-	//GRPCServerMaxConnectionAge sets MaxConnectionAge in the grpc ServerParameters used to create GRPC Services
+	// GRPCServerMaxConnectionAge sets MaxConnectionAge in the grpc ServerParameters used to create GRPC Services
 	GRPCServerMaxConnectionAge time.Duration `mapstructure:"grpc_server_max_connection_age" yaml:"grpc_server_max_connection_age,omitempty"`
-	//GRPCServerMaxConnectionAgeGrace sets MaxConnectionAgeGrace in the grpc ServerParameters used to create GRPC Services
+	// GRPCServerMaxConnectionAgeGrace sets MaxConnectionAgeGrace in the grpc ServerParameters used to create GRPC Services
 	GRPCServerMaxConnectionAgeGrace time.Duration `mapstructure:"grpc_server_max_connection_age_grace,omitempty" yaml:"grpc_server_max_connection_age_grace,omitempty"` //nolint: lll
 
 	// ForwardAuthEndpoint allows for a given route to be used as a forward-auth
@@ -418,7 +418,6 @@ func (o *Options) parseHeaders() error {
 				headerFields := strings.SplitN(headerSlice[n], ":", 2)
 				if len(headerFields) == 2 {
 					headers[headerFields[0]] = headerFields[1]
-
 				} else {
 					// Something went wrong
 					return fmt.Errorf("failed to decode headers from '%s'", o.HeadersEnv)

@@ -74,7 +74,6 @@ func registerDefaultViews() error {
 // newProxyMetricsHandler creates a subrequest to the envoy control plane for metrics and
 // combines them with our own
 func newProxyMetricsHandler(promHandler http.Handler, envoyURL url.URL) http.HandlerFunc {
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer promHandler.ServeHTTP(w, r)
 

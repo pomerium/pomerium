@@ -124,7 +124,6 @@ func TestProxy_SignOut(t *testing.T) {
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
 			}
-
 		})
 	}
 }
@@ -344,7 +343,6 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 					t.Errorf("wrong body\n%s", diff)
 				}
 			}
-
 		})
 	}
 }
@@ -386,9 +384,11 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 			http.MethodGet,
 			"http://pomerium.io/",
 			nil,
-			map[string]string{urlutil.QueryIsProgrammatic: "true",
+			map[string]string{
+				urlutil.QueryIsProgrammatic:   "true",
 				urlutil.QueryCallbackURI:      "ok",
-				urlutil.QuerySessionEncrypted: goodEncryptionString},
+				urlutil.QuerySessionEncrypted: goodEncryptionString,
+			},
 			&mock.Encoder{MarshalResponse: []byte("x")},
 			&mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
 			http.StatusFound,
@@ -497,7 +497,6 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 }
 
 func TestProxy_jwt(t *testing.T) {
-
 	// without downstream headers being set
 	req, _ := http.NewRequest("GET", "https://www.example.com/.pomerium/jwt", nil)
 	w := httptest.NewRecorder()

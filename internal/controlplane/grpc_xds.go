@@ -132,5 +132,5 @@ func (srv *Server) streamAggregatedResourcesOutgoingStep(
 
 // DeltaAggregatedResources is not implemented.
 func (srv *Server) DeltaAggregatedResources(in envoy_service_discovery_v3.AggregatedDiscoveryService_DeltaAggregatedResourcesServer) error {
-	return fmt.Errorf("DeltaAggregatedResources not implemented")
+	return fmt.Errorf("method DeltaAggregatedResources not implemented")
 }

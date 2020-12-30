@@ -22,7 +22,6 @@ func testDataRetrieval(v *view.View, t *testing.T, want string) {
 	}
 	name := v.Name
 	data, err := view.RetrieveData(name)
-
 	if err != nil {
 		t.Fatalf("%s: failed to retrieve data line %s", name, err)
 	}
@@ -53,7 +52,6 @@ func newTestMux() http.Handler {
 }
 
 func Test_HTTPMetricsHandler(t *testing.T) {
-
 	tests := []struct {
 		name                          string
 		url                           string

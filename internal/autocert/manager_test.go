@@ -130,7 +130,7 @@ func TestConfig(t *testing.T) {
 	mockACME = newMockACME(srv)
 
 	tmpdir := filepath.Join(os.TempDir(), uuid.New().String())
-	_ = os.MkdirAll(tmpdir, 0755)
+	_ = os.MkdirAll(tmpdir, 0o755)
 	defer os.RemoveAll(tmpdir)
 
 	li, err := net.Listen("tcp", "127.0.0.1:0")

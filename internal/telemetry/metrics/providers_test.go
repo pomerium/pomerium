@@ -10,7 +10,6 @@ import (
 )
 
 func newEnvoyMetricsHandler() http.HandlerFunc {
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`
 # TYPE envoy_server_initialization_time_ms histogram
@@ -47,7 +46,6 @@ func getMetrics(t *testing.T, envoyURL *url.URL) []byte {
 }
 
 func Test_PrometheusHandler(t *testing.T) {
-
 	t.Run("no envoy", func(t *testing.T) {
 		b := getMetrics(t, &url.URL{})
 
@@ -67,7 +65,5 @@ func Test_PrometheusHandler(t *testing.T) {
 		if m, _ := regexp.Match(`(?m)^# TYPE envoy_.*`, b); !m {
 			t.Errorf("Metrics endpoint did not contain envoy metrics: %s", b)
 		}
-
 	})
-
 }

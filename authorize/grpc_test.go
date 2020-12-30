@@ -111,7 +111,6 @@ func Test_getEvaluatorRequest(t *testing.T) {
 }
 
 func Test_handleForwardAuth(t *testing.T) {
-
 	tests := []struct {
 		name           string
 		checkReq       *envoy_service_auth_v2.CheckRequest
@@ -452,6 +451,7 @@ func TestSync(t *testing.T) {
 		})
 	}
 }
+
 func mustParseURL(str string) *url.URL {
 	u, err := url.Parse(str)
 	if err != nil {
@@ -492,7 +492,8 @@ func TestAuthorize_Check(t *testing.T) {
 		want    *envoy_service_auth_v2.CheckResponse
 		wantErr bool
 	}{
-		{"basic deny",
+		{
+			"basic deny",
 			&envoy_service_auth_v2.CheckRequest{
 				Attributes: &envoy_service_auth_v2.AttributeContext{
 					Source: &envoy_service_auth_v2.AttributeContext_Peer{
@@ -520,8 +521,10 @@ func TestAuthorize_Check(t *testing.T) {
 					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{},
 				},
 			},
-			false},
-		{"basic forward-auth deny",
+			false,
+		},
+		{
+			"basic forward-auth deny",
 			&envoy_service_auth_v2.CheckRequest{
 				Attributes: &envoy_service_auth_v2.AttributeContext{
 					Source: &envoy_service_auth_v2.AttributeContext_Peer{
@@ -543,11 +546,11 @@ func TestAuthorize_Check(t *testing.T) {
 					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{},
 				},
 			},
-			false},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			got, err := a.Check(context.TODO(), tt.in)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Authorize.Check() error = %v, wantErr %v", err, tt.wantErr)
@@ -557,7 +560,6 @@ func TestAuthorize_Check(t *testing.T) {
 			if diff := cmp.Diff(got, tt.want, cmpOpts...); diff != "" {
 				t.Errorf("NewStore() = %s", diff)
 			}
-
 		})
 	}
 }

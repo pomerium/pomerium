@@ -10,7 +10,6 @@ import (
 )
 
 func TestHTTPError_ErrorResponse(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		Status  int
@@ -46,7 +45,6 @@ func TestHTTPError_ErrorResponse(t *testing.T) {
 					t.Errorf("ErrorResponse status:\n %s", diff)
 				}
 			}
-
 		})
 	}
 }
@@ -69,7 +67,6 @@ func TestNewError(t *testing.T) {
 			if err != nil && !errors.Is(err, tt.err) {
 				t.Errorf("NewError() unwrap fail = %v, wantErr %v", err, tt.wantErr)
 			}
-
 		})
 	}
 }

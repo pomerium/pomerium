@@ -18,39 +18,57 @@ func TestNew(t *testing.T) {
 		config  config.Options
 		wantErr bool
 	}{
-		{"good",
+		{
+			"good",
 			config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
 				DataBrokerURL:   mustParseURL("https://cache.example.com"),
 				SharedKey:       "2p/Wi2Q6bYDfzmoSEbKqYKtg+DUoLWTEHHs7vOhvL7w=",
-				Policies:        policies},
-			false},
-		{"bad shared secret",
+				Policies:        policies,
+			},
+			false,
+		},
+		{
+			"bad shared secret",
 			config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
 				DataBrokerURL:   mustParseURL("https://cache.example.com"),
 				SharedKey:       "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
-				Policies:        policies}, true},
-		{"really bad shared secret",
+				Policies:        policies,
+			},
+			true,
+		},
+		{
+			"really bad shared secret",
 			config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
 				DataBrokerURL:   mustParseURL("https://cache.example.com"),
 				SharedKey:       "sup",
-				Policies:        policies}, true},
-		{"validation error, short secret",
+				Policies:        policies,
+			},
+			true,
+		},
+		{
+			"validation error, short secret",
 			config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
 				DataBrokerURL:   mustParseURL("https://cache.example.com"),
 				SharedKey:       "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
-				Policies:        policies}, true},
+				Policies:        policies,
+			},
+			true,
+		},
 		{"empty options", config.Options{}, true},
-		{"bad cache url",
+		{
+			"bad cache url",
 			config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
 				DataBrokerURL:   &url.URL{},
 				SharedKey:       "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
-				Policies:        policies},
-			true},
+				Policies:        policies,
+			},
+			true,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt

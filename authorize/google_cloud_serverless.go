@@ -71,14 +71,12 @@ type gcpTokenSourceKey struct {
 	audience       string
 }
 
-var (
-	gcpTokenSources = struct {
-		sync.Mutex
-		m map[gcpTokenSourceKey]oauth2.TokenSource
-	}{
-		m: make(map[gcpTokenSourceKey]oauth2.TokenSource),
-	}
-)
+var gcpTokenSources = struct {
+	sync.Mutex
+	m map[gcpTokenSourceKey]oauth2.TokenSource
+}{
+	m: make(map[gcpTokenSourceKey]oauth2.TokenSource),
+}
 
 func normalizeServiceAccount(serviceAccount string) (string, error) {
 	serviceAccount = strings.TrimSpace(serviceAccount)

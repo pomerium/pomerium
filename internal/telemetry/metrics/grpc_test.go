@@ -55,8 +55,8 @@ func newTestCC(t *testing.T) *grpc.ClientConn {
 	}
 	return testCC
 }
-func Test_GRPCClientInterceptor(t *testing.T) {
 
+func Test_GRPCClientInterceptor(t *testing.T) {
 	interceptor := GRPCClientInterceptor("test_service")
 
 	tests := []struct {
@@ -99,7 +99,6 @@ func Test_GRPCClientInterceptor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			view.Unregister(GRPCClientViews...)
 			view.Register(GRPCClientViews...)
 
@@ -115,7 +114,6 @@ func Test_GRPCClientInterceptor(t *testing.T) {
 			testDataRetrieval(GRPCClientRequestDurationView, t, tt.wantgrpcClientRequestDuration)
 			testDataRetrieval(GRPCClientRequestCountView, t, tt.wantgrpcClientRequestCount)
 			testDataRetrieval(GRPCClientRequestSizeView, t, tt.wantgrpcClientRequestSize)
-
 		})
 	}
 }
@@ -128,8 +126,8 @@ func mockServerRPCHandle(metricsHandler *GRPCServerMetricsHandler, method string
 	statsHandler.HandleRPC(ctx, &stats.InPayload{Client: false, Length: len(message)})
 	statsHandler.HandleRPC(ctx, &stats.OutPayload{Client: false, Length: len(message)})
 	statsHandler.HandleRPC(ctx, &stats.End{Client: false, Error: errorCode})
-
 }
+
 func Test_GRPCServerMetricsHandler(t *testing.T) {
 	tests := []struct {
 		name                          string
@@ -171,7 +169,6 @@ func Test_GRPCServerMetricsHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			view.Unregister(GRPCServerViews...)
 			view.Register(GRPCServerViews...)
 
@@ -182,7 +179,6 @@ func Test_GRPCServerMetricsHandler(t *testing.T) {
 			testDataRetrieval(GRPCServerRequestDurationView, t, tt.wantgrpcServerRequestDuration)
 			testDataRetrieval(GRPCServerRequestCountView, t, tt.wantgrpcServerRequestCount)
 			testDataRetrieval(GRPCServerRequestSizeView, t, tt.wantgrpcServerRequestSizeView)
-
 		})
 	}
 }

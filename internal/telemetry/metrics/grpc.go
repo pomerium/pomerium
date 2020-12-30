@@ -20,13 +20,15 @@ var (
 		GRPCClientRequestCountView,
 		GRPCClientRequestDurationView,
 		GRPCClientResponseSizeView,
-		GRPCClientRequestSizeView}
+		GRPCClientRequestSizeView,
+	}
 	// GRPCServerViews contains opencensus views for GRPC Server metrics.
 	GRPCServerViews = []*view.View{
 		GRPCServerRequestCountView,
 		GRPCServerRequestDurationView,
 		GRPCServerResponseSizeView,
-		GRPCServerRequestSizeView}
+		GRPCServerRequestSizeView,
+	}
 
 	// GRPCServerRequestCountView is an OpenCensus view which counts GRPC Server
 	// requests by pomerium service, grpc service, grpc method, and status
@@ -123,7 +125,6 @@ func GRPCClientInterceptor(service string) grpc.UnaryClientInterceptor {
 		cc *grpc.ClientConn,
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption) error {
-
 		// Split the method into parts for better slicing
 		rpcInfo := strings.SplitN(method, "/", 3)
 		var rpcMethod string
@@ -148,7 +149,6 @@ func GRPCClientInterceptor(service string) grpc.UnaryClientInterceptor {
 		// Calls the invoker to execute RPC
 		return invoker(taggedCtx, method, req, reply, cc, opts...)
 	}
-
 }
 
 // GRPCServerMetricsHandler implements a telemetry tagRPCHandler methods for metrics
@@ -163,7 +163,6 @@ func NewGRPCServerMetricsHandler(service string) *GRPCServerMetricsHandler {
 
 // TagRPC handles adding any metrics related values to the incoming context
 func (h *GRPCServerMetricsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.RPCTagInfo) context.Context {
-
 	// Split the method into parts for better slicing
 	rpcInfo := strings.SplitN(tagInfo.FullMethodName, "/", 3)
 	var rpcMethod string

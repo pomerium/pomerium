@@ -115,7 +115,6 @@ func TestPreserveHostHeader(t *testing.T) {
 		assert.NotEqual(t, "httpdetails.localhost.pomerium.io", result.Host,
 			"destination host should not be preserved in %v", result)
 	})
-
 }
 
 func TestSetRequestHeaders(t *testing.T) {
@@ -146,7 +145,6 @@ func TestSetRequestHeaders(t *testing.T) {
 
 	assert.Equal(t, "custom-request-header-value", result.Headers["X-Custom-Request-Header"],
 		"expected custom request header to be sent upstream")
-
 }
 
 func TestRemoveRequestHeaders(t *testing.T) {
@@ -178,7 +176,6 @@ func TestRemoveRequestHeaders(t *testing.T) {
 
 	_, exist := result.Headers["X-Custom-Request-Header-To-Remove"]
 	assert.False(t, exist, "expected X-Custom-Request-Header-To-Remove not to be present.")
-
 }
 
 func TestWebsocket(t *testing.T) {

@@ -47,9 +47,9 @@ func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
 // Finally if there are no matching certificates one will be generated.
 func GetCertificateForDomain(certificates []tls.Certificate, domain string) (*tls.Certificate, error) {
 	// first try a direct name match
-	for _, cert := range certificates {
-		if matchesDomain(&cert, domain) {
-			return &cert, nil
+	for i := range certificates {
+		if matchesDomain(&certificates[i], domain) {
+			return &certificates[i], nil
 		}
 	}
 

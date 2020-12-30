@@ -28,7 +28,7 @@ func extractEmbeddedEnvoy() (outPath string, err error) {
 	}
 	defer rc.Close()
 
-	err = os.MkdirAll(embeddedFilesDirectory, 0755)
+	err = os.MkdirAll(embeddedFilesDirectory, 0o755)
 	if err != nil {
 		return "", fmt.Errorf("error creating embedded file directory: (directory=%s): %w", embeddedFilesDirectory, err)
 	}
@@ -51,7 +51,7 @@ func extractEmbeddedEnvoy() (outPath string, err error) {
 		return "", fmt.Errorf("error extracting embedded envoy binary to temporary directory (path=%s): %w", outPath, err)
 	}
 
-	err = os.Chmod(outPath, 0755)
+	err = os.Chmod(outPath, 0o755)
 	if err != nil {
 		return "", fmt.Errorf("error chmoding embedded envoy binary: %w", err)
 	}

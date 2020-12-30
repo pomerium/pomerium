@@ -103,7 +103,7 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 			return nil, err
 		}
 
-		cert := credentials.NewTLS(&tls.Config{RootCAs: rootCAs})
+		cert := credentials.NewTLS(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12})
 
 		// override allowed certificate name string, typically used when doing behind ingress connection
 		if opts.OverrideCertificateName != "" {

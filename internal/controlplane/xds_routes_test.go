@@ -536,7 +536,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			}
 		]
 	`, routes)
-
 	})
 }
 
