@@ -14,7 +14,6 @@ import (
 )
 
 func TestNewQueryParamStore(t *testing.T) {
-
 	tests := []struct {
 		name  string
 		State *sessions.State

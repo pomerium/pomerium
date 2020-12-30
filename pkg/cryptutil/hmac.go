@@ -24,7 +24,6 @@ func GenerateHMAC(data []byte, key string) []byte {
 	h := hmac.New(sha512.New512_256, []byte(key))
 	h.Write(data)
 	return h.Sum(nil)
-
 }
 
 // CheckHMAC securely checks the supplied MAC against a message using the

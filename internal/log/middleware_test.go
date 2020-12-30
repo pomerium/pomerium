@@ -292,6 +292,7 @@ func TestLogHeadersHandler(t *testing.T) {
 		t.Errorf("Invalid log output, got: %s, want: %s", got, want)
 	}
 }
+
 func TestAccessHandler(t *testing.T) {
 	out := &bytes.Buffer{}
 
@@ -300,7 +301,6 @@ func TestAccessHandler(t *testing.T) {
 	h := AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
 		l := FromRequest(r)
 		l.Log().Int("status", status).Int("size", size).Msg("info")
-
 	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		l := FromRequest(r)
 		l.Log().Msg("some inner logging")
@@ -316,5 +316,4 @@ func TestAccessHandler(t *testing.T) {
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("TestAccessHandler: %s", diff)
 	}
-
 }

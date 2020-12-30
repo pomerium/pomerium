@@ -7,12 +7,19 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
+
+// 10mb reasonable default?
+const maxMemory = int64(10 << 20)
+
+// ErrMessageTooLarge is returned if the data is too large to be processed.
+var ErrMessageTooLarge = errors.New("ecjson: message too large")
 
 // EncryptedCompressedJSON implements SecureEncoder for JSON using an AEAD cipher.
 //
@@ -74,7 +81,6 @@ func (c *EncryptedCompressedJSON) Unmarshal(data []byte, s interface{}) error {
 		return err
 	}
 	return nil
-
 }
 
 // compress gzips a set of bytes
@@ -104,8 +110,12 @@ func decompress(data []byte) ([]byte, error) {
 	}
 	defer reader.Close()
 	var buf bytes.Buffer
-	if _, err = io.Copy(&buf, reader); err != nil {
+	n, err := io.CopyN(&buf, reader, maxMemory+1)
+	if err != nil && err != io.EOF {
 		return nil, err
+	}
+	if n > maxMemory {
+		return nil, ErrMessageTooLarge
 	}
 	return buf.Bytes(), nil
 }

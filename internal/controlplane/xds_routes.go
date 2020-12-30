@@ -180,7 +180,8 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 	var routes []*envoy_config_route_v3.Route
 	responseHeadersToAdd := toEnvoyHeaders(options.Headers)
 
-	for i, policy := range options.Policies {
+	for i := range options.Policies {
+		policy := options.Policies[i]
 		if !hostMatchesDomain(policy.Source.URL, domain) {
 			continue
 		}

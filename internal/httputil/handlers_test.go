@@ -28,7 +28,6 @@ func TestHealthCheck(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			r := httptest.NewRequest(tt.method, "/", nil)
 			w := httptest.NewRecorder()
 
@@ -56,7 +55,6 @@ func TestRedirect(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			r := httptest.NewRequest(tt.method, "/", nil)
 			w := httptest.NewRecorder()
 
@@ -72,7 +70,6 @@ func TestRedirect(t *testing.T) {
 }
 
 func TestHandlerFunc_ServeHTTP(t *testing.T) {
-
 	tests := []struct {
 		name     string
 		f        HandlerFunc
@@ -95,7 +92,6 @@ func TestHandlerFunc_ServeHTTP(t *testing.T) {
 }
 
 func TestRenderJSON(t *testing.T) {
-
 	tests := []struct {
 		name     string
 		code     int
@@ -103,7 +99,8 @@ func TestRenderJSON(t *testing.T) {
 		wantBody string
 		wantCode int
 	}{
-		{"simple",
+		{
+			"simple",
 			http.StatusTeapot,
 			struct {
 				A string
@@ -117,7 +114,8 @@ func TestRenderJSON(t *testing.T) {
 			"{\"A\":\"A\",\"B\":\"B\",\"C\":1}\n",
 			http.StatusTeapot,
 		},
-		{"map",
+		{
+			"map",
 			http.StatusOK,
 			map[string]interface{}{
 				"C": 1, // notice order does not matter
@@ -127,12 +125,14 @@ func TestRenderJSON(t *testing.T) {
 			// alphabetical
 			"{\"A\":\"A\",\"B\":\"B\",\"C\":1}\n", http.StatusOK,
 		},
-		{"bad!",
+		{
+			"bad!",
 			http.StatusOK,
 			map[string]interface{}{
 				"BAD BOI": math.Inf(1),
 			},
-			`{"error":"json: unsupported value: +Inf"}`, http.StatusInternalServerError},
+			`{"error":"json: unsupported value: +Inf"}`, http.StatusInternalServerError,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

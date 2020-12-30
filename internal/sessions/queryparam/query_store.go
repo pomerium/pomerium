@@ -9,8 +9,10 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 )
 
-var _ sessions.SessionStore = &Store{}
-var _ sessions.SessionLoader = &Store{}
+var (
+	_ sessions.SessionStore  = &Store{}
+	_ sessions.SessionLoader = &Store{}
+)
 
 const (
 	defaultQueryParamKey = "pomerium_session"

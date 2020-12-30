@@ -29,14 +29,14 @@ type TLSCertsBundle struct {
 
 func bootstrapCerts(ctx context.Context) (*TLSCertsBundle, error) {
 	wd := filepath.Join(os.TempDir(), "pomerium-integration-tests", "certs")
-	err := os.MkdirAll(wd, 0755)
+	err := os.MkdirAll(wd, 0o755)
 	if err != nil {
 		return nil, fmt.Errorf("error creating integration tests working directory: %w", err)
 	}
 
 	var bundle TLSCertsBundle
 
-	var generators = []struct {
+	generators := []struct {
 		certs   *TLSCerts
 		caroot  string
 		install bool
@@ -48,7 +48,7 @@ func bootstrapCerts(ctx context.Context) (*TLSCertsBundle, error) {
 	}
 
 	for _, generator := range generators {
-		err = os.MkdirAll(generator.caroot, 0755)
+		err = os.MkdirAll(generator.caroot, 0o755)
 		if err != nil {
 			return nil, fmt.Errorf("error creating integration tests %s working directory: %w",
 				filepath.Base(generator.caroot), err)

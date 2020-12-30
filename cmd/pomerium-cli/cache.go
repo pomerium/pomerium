@@ -17,7 +17,7 @@ func configHome() string {
 	}
 
 	ch := filepath.Join(cfgDir, "pomerium-cli")
-	err = os.MkdirAll(ch, 0755)
+	err = os.MkdirAll(ch, 0o755)
 	if err != nil {
 		fatalf("error creating user config dir: %v", err)
 	}
@@ -69,7 +69,7 @@ func loadCachedCredential(serverURL string) *ExecCredential {
 func saveCachedCredential(serverURL string, creds *ExecCredential) {
 	fn := cachedCredentialPath(serverURL)
 
-	err := os.MkdirAll(filepath.Dir(fn), 0755)
+	err := os.MkdirAll(filepath.Dir(fn), 0o755)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create cache directory: %v", err)
 		return

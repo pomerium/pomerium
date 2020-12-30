@@ -41,7 +41,6 @@ func ExampleWith() {
 	sublog := log.With().Str("foo", "bar").Logger()
 	sublog.Debug().Msg("hello world")
 	// Output: {"level":"debug","foo":"bar","time":1199811905,"message":"hello world"}
-
 }
 
 // Simple logging example using the Printf function in the log package

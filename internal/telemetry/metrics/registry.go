@@ -11,9 +11,7 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 )
 
-var (
-	registry = newMetricRegistry()
-)
+var registry = newMetricRegistry()
 
 // metricRegistry holds the non-view metrics and handles safe
 // initialization and updates.  Behavior without using newMetricRegistry()
@@ -108,7 +106,6 @@ func (r *metricRegistry) setConfigChecksum(service string, checksum uint64) {
 }
 
 func (r *metricRegistry) addInt64DerivedGaugeMetric(name string, desc string, service string, f func() int64) {
-
 	m, err := r.registry.AddInt64DerivedGauge(name, metric.WithDescription(desc), metric.WithLabelKeys("service"))
 	if err != nil {
 		log.Error().Err(err).Str("service", service).Msg("telemetry/metrics: failed to register metric")
@@ -123,7 +120,6 @@ func (r *metricRegistry) addInt64DerivedGaugeMetric(name string, desc string, se
 }
 
 func (r *metricRegistry) addInt64DerivedCumulativeMetric(name string, desc string, service string, f func() int64) {
-
 	m, err := r.registry.AddInt64DerivedCumulative(name, metric.WithDescription(desc), metric.WithLabelKeys("service"))
 	if err != nil {
 		log.Error().Err(err).Str("service", service).Msg("telemetry/metrics: failed to register metric")

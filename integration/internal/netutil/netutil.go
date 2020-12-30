@@ -46,5 +46,4 @@ func (d *localDialer) remapHost(ctx context.Context, hostport string) string {
 	}
 
 	return dst
-
 }

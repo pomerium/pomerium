@@ -10,8 +10,10 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 )
 
-var versionFlag = flag.Bool("version", false, "prints the version")
-var configFile = flag.String("config", "", "Specify configuration file location")
+var (
+	versionFlag = flag.Bool("version", false, "prints the version")
+	configFile  = flag.String("config", "", "Specify configuration file location")
+)
 
 func main() {
 	if err := run(context.Background()); err != nil {

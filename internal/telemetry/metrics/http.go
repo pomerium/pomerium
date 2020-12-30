@@ -18,13 +18,15 @@ var (
 	HTTPClientViews = []*view.View{
 		HTTPClientRequestCountView,
 		HTTPClientRequestDurationView,
-		HTTPClientResponseSizeView}
+		HTTPClientResponseSizeView,
+	}
 	// HTTPServerViews contains opencensus views for HTTP Server metrics.
 	HTTPServerViews = []*view.View{
 		HTTPServerRequestCountView,
 		HTTPServerRequestDurationView,
 		HTTPServerRequestSizeView,
-		HTTPServerResponseSizeView}
+		HTTPServerResponseSizeView,
+	}
 
 	// HTTPServerRequestCountView is an OpenCensus View that tracks HTTP server
 	// requests by pomerium service, host, method and status
@@ -97,7 +99,7 @@ var (
 	}
 
 	// HTTPClientRequestSizeView is an OpenCensus view that tracks HTTP client
-	//request size by pomerium service, destination, host and method
+	// request size by pomerium service, destination, host and method
 	HTTPClientRequestSizeView = &view.View{
 		Name:        "http/client/response_size_bytes",
 		Measure:     ochttp.ClientSentBytes,

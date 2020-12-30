@@ -12,8 +12,10 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 )
 
-var _ sessions.SessionStore = &Store{}
-var _ sessions.SessionLoader = &Store{}
+var (
+	_ sessions.SessionStore  = &Store{}
+	_ sessions.SessionLoader = &Store{}
+)
 
 // timeNow is time.Now but pulled out as a variable for tests.
 var timeNow = time.Now

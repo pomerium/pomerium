@@ -87,7 +87,7 @@ func (f *Form) NewRequestWithContext(ctx context.Context, baseURL *url.URL) (*ht
 	if err != nil {
 		return nil, err
 	}
-	//TODO: handle multipart forms
+	// TODO: handle multipart forms
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	return req, nil
 }

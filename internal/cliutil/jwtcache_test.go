@@ -19,7 +19,7 @@ func TestLocalJWTCache(t *testing.T) {
 		dir: filepath.Join(os.TempDir(), uuid.New().String()),
 	}
 
-	err := os.MkdirAll(c.dir, 0755)
+	err := os.MkdirAll(c.dir, 0o755)
 	if !assert.NoError(t, err) {
 		return
 	}

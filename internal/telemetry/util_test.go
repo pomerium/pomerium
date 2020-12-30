@@ -7,7 +7,6 @@ import (
 )
 
 func Test_ServiceName(t *testing.T) {
-
 	t.Parallel()
 	tests := []struct {
 		name        string

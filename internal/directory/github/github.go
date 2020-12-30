@@ -24,12 +24,10 @@ import (
 // Name is the provider name.
 const Name = "github"
 
-var (
-	defaultURL = &url.URL{
-		Scheme: "https",
-		Host:   "api.github.com",
-	}
-)
+var defaultURL = &url.URL{
+	Scheme: "https",
+	Host:   "api.github.com",
+}
 
 type config struct {
 	httpClient     *http.Client

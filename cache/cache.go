@@ -36,8 +36,8 @@ type Cache struct {
 	localListener                net.Listener
 	localGRPCServer              *grpc.Server
 	localGRPCConnection          *grpc.ClientConn
-	dataBrokerStorageType        string //TODO remove in v0.11
-	deprecatedCacheClusterDomain string //TODO: remove in v0.11
+	dataBrokerStorageType        string // TODO remove in v0.11
+	deprecatedCacheClusterDomain string // TODO: remove in v0.11
 
 	mu                sync.Mutex
 	directoryProvider directory.Provider

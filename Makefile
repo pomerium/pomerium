@@ -32,10 +32,11 @@ GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
 GOOS = $(shell $(GO) env GOOS)
 GOARCH= $(shell $(GO) env GOARCH)
 MISSPELL_VERSION = v0.3.4
-GOLANGCI_VERSION = v1.21.0
+GOLANGCI_VERSION = v1.34.1
 OPA_VERSION = v0.25.2
 GETENVOY_VERSION = v0.2.0
 GORELEASER_VERSION = v0.150.0
+
 .PHONY: all
 all: clean build-deps test lint spellcheck build ## Runs a clean, build, fmt, lint, test, and vet.
 

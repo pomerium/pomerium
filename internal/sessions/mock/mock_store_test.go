@@ -17,7 +17,8 @@ func TestStore(t *testing.T) {
 		wantLoadErr bool
 		wantSaveErr bool
 	}{
-		{"basic",
+		{
+			"basic",
 			&Store{
 				ResponseSession: "test",
 				Session:         &sessions.State{Subject: "0101"},
@@ -27,7 +28,8 @@ func TestStore(t *testing.T) {
 			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcm9ncmFtYXRpYyI6ZmFsc2UsInN1YiI6IjAxMDEifQ.xQQPXGN3q3j_CHbz6p9D-vZ1DaiPWwKdQhNxNHoYzvM",
 			&sessions.State{Subject: "0101"},
 			false,
-			false},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

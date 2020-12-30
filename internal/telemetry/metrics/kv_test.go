@@ -30,5 +30,4 @@ func Test_AddRedisMetrics(t *testing.T) {
 			testMetricRetrieval(registry.registry.Read(), t, labelValues, tt.want, tt.name)
 		})
 	}
-
 }

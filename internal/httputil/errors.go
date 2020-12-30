@@ -10,8 +10,10 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 )
 
-var errorTemplate = template.Must(frontend.NewTemplates())
-var fullVersion = version.FullVersion()
+var (
+	errorTemplate = template.Must(frontend.NewTemplates())
+	fullVersion   = version.FullVersion()
+)
 
 // HTTPError contains an HTTP status code and wrapped error.
 type HTTPError struct {

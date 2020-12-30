@@ -19,9 +19,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-var (
-	configTypeURL string
-)
+var configTypeURL string
 
 func init() {
 	any, _ := ptypes.MarshalAny(new(configpb.Config))

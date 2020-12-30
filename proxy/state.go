@@ -79,7 +79,8 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	state.sessionLoaders = []sessions.SessionLoader{
 		state.sessionStore,
 		header.NewStore(state.encoder, httputil.AuthorizationTypePomerium),
-		queryparam.NewStore(state.encoder, "pomerium_session")}
+		queryparam.NewStore(state.encoder, "pomerium_session"),
+	}
 
 	return state, nil
 }

@@ -26,7 +26,6 @@ func (t *mockTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 func mockMiddleware(id string) func(next http.RoundTripper) http.RoundTripper {
 	return func(next http.RoundTripper) http.RoundTripper {
 		return RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
-
 			resp, _ := next.RoundTrip(r)
 
 			body, _ := ioutil.ReadAll(resp.Body)
@@ -77,7 +76,6 @@ func TestNilThen(t *testing.T) {
 	if NewChain().Then(nil) != http.DefaultTransport {
 		t.Error("Then does not treat nil as DefaultTransport")
 	}
-
 }
 
 func TestAppend(t *testing.T) {

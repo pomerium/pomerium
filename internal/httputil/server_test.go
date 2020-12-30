@@ -18,7 +18,6 @@ import (
 )
 
 func TestNewServer(t *testing.T) {
-
 	// to support envs that won't let us use 443 without root
 	defaultServerOptions.Addr = ":0"
 
@@ -31,7 +30,8 @@ func TestNewServer(t *testing.T) {
 		wantErr bool
 	}{
 
-		{"good basic http handler",
+		{
+			"good basic http handler",
 			&ServerOptions{
 				Addr:     ":0",
 				Insecure: true,
@@ -39,45 +39,56 @@ func TestNewServer(t *testing.T) {
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
-			false},
-		{"bad neither insecure nor certs set",
+			false,
+		},
+		{
+			"bad neither insecure nor certs set",
 			&ServerOptions{
 				Addr: ":0",
 			},
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
-			true},
-		{"good no address",
+			true,
+		},
+		{
+			"good no address",
 			&ServerOptions{
 				Insecure: true,
 			},
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
-			false},
-		{"empty handler",
+			false,
+		},
+		{
+			"empty handler",
 			nil,
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
-			true},
-		{"bad port - invalid port range ",
+			true,
+		},
+		{
+			"bad port - invalid port range ",
 			&ServerOptions{
 				Addr:     ":65536",
 				Insecure: true,
 			}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
-			true},
-		{"good tls set",
+			true,
+		},
+		{
+			"good tls set",
 			&ServerOptions{
 				TLSConfig: &tls.Config{},
 			},
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
-			false},
+			false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -113,10 +124,10 @@ func TestNewServer(t *testing.T) {
 				syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 				waitSig(t, c, syscall.SIGINT)
 			}
-
 		})
 	}
 }
+
 func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
 	select {
 	case s := <-c:

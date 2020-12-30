@@ -53,5 +53,4 @@ func TestCustomEvaluator(t *testing.T) {
 		}
 		assert.NotNil(t, res)
 	})
-
 }

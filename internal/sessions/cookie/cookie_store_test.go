@@ -56,6 +56,7 @@ func TestNewStore(t *testing.T) {
 		})
 	}
 }
+
 func TestNewCookieLoader(t *testing.T) {
 	cipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
 	if err != nil {

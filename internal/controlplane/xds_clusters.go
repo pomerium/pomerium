@@ -41,7 +41,8 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 	clusters = append(clusters, buildInternalCluster(options, authzURL.Host, authzURL, true))
 
 	if config.IsProxy(options.Services) {
-		for _, policy := range options.Policies {
+		for i := range options.Policies {
+			policy := options.Policies[i]
 			clusters = append(clusters, buildPolicyCluster(options, &policy))
 		}
 	}

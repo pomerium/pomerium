@@ -146,7 +146,6 @@ func Test_parseHeaders(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func Test_parsePolicyFile(t *testing.T) {
@@ -188,7 +187,6 @@ func Test_parsePolicyFile(t *testing.T) {
 					t.Errorf("parsePolicyEnv() = diff:%s", diff)
 				}
 			}
-
 		})
 	}
 }
@@ -227,7 +225,8 @@ func TestOptionsFromViper(t *testing.T) {
 		want        *Options
 		wantErr     bool
 	}{
-		{"good",
+		{
+			"good",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
 				Policies:                        []Policy{{From: "https://from.example", To: "https://to.example"}},
@@ -248,8 +247,10 @@ func TestOptionsFromViper(t *testing.T) {
 				QPS:                      1.0,
 				DataBrokerStorageType:    "memory",
 			},
-			false},
-		{"good disable header",
+			false,
+		},
+		{
+			"good disable header",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
 				Policies:                        []Policy{{From: "https://from.example", To: "https://to.example"}},
@@ -266,7 +267,8 @@ func TestOptionsFromViper(t *testing.T) {
 				QPS:                             1.0,
 				DataBrokerStorageType:           "memory",
 			},
-			false},
+			false,
+		},
 		{"bad url", []byte(`{"policy":[{"from": "https://","to":"https://to.example"}]}`), nil, true},
 		{"bad policy", []byte(`{"policy":[{"allow_public_unauthenticated_access": "dog","to":"https://to.example"}]}`), nil, true},
 		{"bad file", []byte(`{''''}`), nil, true},
@@ -358,7 +360,6 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 	if o.AutocertOptions.Folder != "/test" {
 		t.Errorf("o.AutocertOptions.Folder: want /test, got %s", o.AutocertOptions.Folder)
 	}
-
 }
 
 func TestHTTPRedirectAddressStripQuotes(t *testing.T) {
@@ -440,7 +441,8 @@ func TestCompareByteSliceSlice(t *testing.T) {
 				{0, 1, 2, 3},
 			},
 		},
-		{-1,
+		{
+			-1,
 			Bytes{
 				{0, 1, 2, 3},
 			},
@@ -449,7 +451,8 @@ func TestCompareByteSliceSlice(t *testing.T) {
 				{4, 5, 6, 7},
 			},
 		},
-		{1,
+		{
+			1,
 			Bytes{
 				{0, 1, 2, 3},
 				{4, 5, 6, 7},

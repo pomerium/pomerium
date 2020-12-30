@@ -12,7 +12,6 @@ import (
 )
 
 func Test_grpcTimeoutInterceptor(t *testing.T) {
-
 	mockInvoker := func(sleepTime time.Duration, wantFail bool) grpc.UnaryInvoker {
 		return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
 			time.Sleep(sleepTime)
@@ -37,7 +36,6 @@ func Test_grpcTimeoutInterceptor(t *testing.T) {
 
 	to(context.Background(), "test", nil, nil, nil, mockInvoker(timeOut*2, true))
 	to(context.Background(), "test", nil, nil, nil, mockInvoker(timeOut/2, false))
-
 }
 
 func TestNewGRPC(t *testing.T) {
@@ -73,7 +71,6 @@ func TestNewGRPC(t *testing.T) {
 			}
 			if got != nil && got.Target() != tt.wantTarget {
 				t.Errorf("New() target = %v expected %v", got.Target(), tt.wantTarget)
-
 			}
 		})
 	}

@@ -5,9 +5,10 @@
 package mock_auth0
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	management "gopkg.in/auth0.v4/management"
-	reflect "reflect"
 )
 
 // MockRoleManager is a mock of RoleManager interface

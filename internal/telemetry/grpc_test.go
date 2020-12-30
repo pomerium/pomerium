@@ -21,7 +21,6 @@ func (m *mockTagHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.RPCTagIn
 }
 
 func Test_GRPCServerStatsHandler(t *testing.T) {
-
 	metricsHandler := &mockTagHandler{}
 	h := &GRPCServerStatsHandler{
 		metricsHandler: metricsHandler,

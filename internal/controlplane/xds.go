@@ -143,14 +143,14 @@ func inlineBytesAsFilename(name string, bs []byte) *envoy_config_core_v3.DataSou
 		cacheDir = filepath.Join(os.TempDir())
 	}
 	cacheDir = filepath.Join(cacheDir, "pomerium", "envoy", "files")
-	if err = os.MkdirAll(cacheDir, 0755); err != nil {
+	if err = os.MkdirAll(cacheDir, 0o755); err != nil {
 		log.Error().Err(err).Msg("error creating cache directory, falling back to inline bytes")
 		return inlineBytes(bs)
 	}
 
 	fp := filepath.Join(cacheDir, name)
 	if _, err = os.Stat(fp); os.IsNotExist(err) {
-		err = ioutil.WriteFile(fp, bs, 0600)
+		err = ioutil.WriteFile(fp, bs, 0o600)
 		if err != nil {
 			log.Error().Err(err).Msg("error writing cache file, falling back to inline bytes")
 			return inlineBytes(bs)
@@ -227,7 +227,6 @@ func getRootCertificateAuthority() (string, error) {
 			log.Error().Strs("known-locations", knownRootLocations).
 				Msgf("no root certificates were found in any of the known locations")
 		} else {
-
 			log.Info().Msgf("using %s as the system root certificate authority bundle", rootCABundle.value)
 		}
 	})

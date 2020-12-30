@@ -169,7 +169,6 @@ func TestParseEnvoyQueryParams(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			got := ParseEnvoyQueryParams(tt.u)
 			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("ParseEnvoyQueryParams() = %v", diff)
