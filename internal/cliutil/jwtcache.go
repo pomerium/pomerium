@@ -25,6 +25,7 @@ var (
 
 // A JWTCache loads and stores JWTs.
 type JWTCache interface {
+	DeleteJWT(key string) error
 	LoadJWT(key string) (rawJWT string, err error)
 	StoreJWT(key string, rawJWT string) error
 }
@@ -51,6 +52,16 @@ func NewLocalJWTCache() (*LocalJWTCache, error) {
 	return &LocalJWTCache{
 		dir: dir,
 	}, nil
+}
+
+// DeleteJWT deletes a raw JWT from the local cache.
+func (cache *LocalJWTCache) DeleteJWT(key string) error {
+	path := filepath.Join(cache.dir, cache.fileName(key))
+	err := os.Remove(path)
+	if os.IsNotExist(err) {
+		err = nil
+	}
+	return err
 }
 
 // LoadJWT loads a raw JWT from the local cache.
@@ -96,6 +107,15 @@ type MemoryJWTCache struct {
 // NewMemoryJWTCache creates a new in-memory JWT cache.
 func NewMemoryJWTCache() *MemoryJWTCache {
 	return &MemoryJWTCache{entries: make(map[string]string)}
+}
+
+// DeleteJWT deletes a JWT from the in-memory map.
+func (cache *MemoryJWTCache) DeleteJWT(key string) error {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	delete(cache.entries, key)
+	return nil
 }
 
 // LoadJWT loads a JWT from the in-memory map.
