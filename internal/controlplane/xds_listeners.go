@@ -20,12 +20,15 @@ import (
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
+
+const listenerBufferLimit uint32 = 32 * 1024
 
 var disableExtAuthz *any.Any
 
@@ -64,6 +67,7 @@ func buildMainListener(options *config.Options) *envoy_config_listener_v3.Listen
 					filter,
 				},
 			}},
+			PerConnectionBufferLimitBytes: wrapperspb.UInt32(listenerBufferLimit),
 		}
 	}
 
@@ -100,6 +104,7 @@ func buildMainListener(options *config.Options) *envoy_config_listener_v3.Listen
 				}
 				return filterChain
 			}),
+		PerConnectionBufferLimitBytes: wrapperspb.UInt32(listenerBufferLimit),
 	}
 	return li
 }
@@ -156,9 +161,9 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 
 	var grpcClientTimeout *durationpb.Duration
 	if options.GRPCClientTimeout != 0 {
-		grpcClientTimeout = ptypes.DurationProto(options.GRPCClientTimeout)
+		grpcClientTimeout = durationpb.New(options.GRPCClientTimeout)
 	} else {
-		grpcClientTimeout = ptypes.DurationProto(30 * time.Second)
+		grpcClientTimeout = durationpb.New(30 * time.Second)
 	}
 
 	extAuthZ, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthz{
@@ -190,7 +195,7 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 
 	var maxStreamDuration *durationpb.Duration
 	if options.WriteTimeout > 0 {
-		maxStreamDuration = ptypes.DurationProto(options.WriteTimeout)
+		maxStreamDuration = durationpb.New(options.WriteTimeout)
 	}
 
 	tc, _ := ptypes.MarshalAny(&envoy_http_connection_manager.HttpConnectionManager{
@@ -230,10 +235,15 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		},
 		AccessLog: buildAccessLogs(options),
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
-			IdleTimeout:       ptypes.DurationProto(options.IdleTimeout),
+			IdleTimeout:       durationpb.New(options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
 		},
-		RequestTimeout: ptypes.DurationProto(options.ReadTimeout),
+		Http2ProtocolOptions: &envoy_config_core_v3.Http2ProtocolOptions{
+			MaxConcurrentStreams:        wrapperspb.UInt32(maxConcurrentStreams),
+			InitialStreamWindowSize:     wrapperspb.UInt32(initialStreamWindowSizeLimit),
+			InitialConnectionWindowSize: wrapperspb.UInt32(initialConnectionWindowSizeLimit),
+		},
+		RequestTimeout: durationpb.New(options.ReadTimeout),
 		Tracing: &envoy_http_connection_manager.HttpConnectionManager_Tracing{
 			RandomSampling: &envoy_type_v3.Percent{Value: options.TracingSampleRate * 100},
 		},
@@ -262,6 +272,7 @@ func buildGRPCListener(options *config.Options) *envoy_config_listener_v3.Listen
 					filter,
 				},
 			}},
+			PerConnectionBufferLimitBytes: wrapperspb.UInt32(listenerBufferLimit),
 		}
 	}
 
@@ -297,6 +308,7 @@ func buildGRPCListener(options *config.Options) *envoy_config_listener_v3.Listen
 				}
 				return filterChain
 			}),
+		PerConnectionBufferLimitBytes: wrapperspb.UInt32(listenerBufferLimit),
 	}
 	return li
 }

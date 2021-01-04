@@ -43,6 +43,11 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 			"commonHttpProtocolOptions": {
 				"idleTimeout": "300s"
 			},
+			"http2ProtocolOptions": {
+				"initialConnectionWindowSize": 1048576,
+				"initialStreamWindowSize": 65536,
+				"maxConcurrentStreams": 100
+			},
 			"httpFilters": [
 				{
 					"name": "envoy.filters.http.lua",

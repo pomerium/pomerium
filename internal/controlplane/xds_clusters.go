@@ -11,12 +11,23 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	envoy_extensions_upstreams_http_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
+)
+
+// recommended defaults: https://www.envoyproxy.io/docs/envoy/latest/configuration/best_practices/edge
+const (
+	connectionBufferLimit            uint32 = 32 * 1024
+	maxConcurrentStreams             uint32 = 100
+	initialStreamWindowSizeLimit     uint32 = 64 * 1024
+	initialConnectionWindowSizeLimit uint32 = 1 * 1024 * 1024
 )
 
 func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluster_v3.Cluster {
@@ -223,14 +234,28 @@ func buildCluster(
 				}},
 			}},
 		},
-		RespectDnsTtl:   true,
-		TransportSocket: transportSocket,
-		DnsLookupFamily: dnsLookupFamily,
+		RespectDnsTtl:                 true,
+		TransportSocket:               transportSocket,
+		DnsLookupFamily:               dnsLookupFamily,
+		PerConnectionBufferLimitBytes: wrapperspb.UInt32(connectionBufferLimit),
 	}
 
 	if forceHTTP2 {
-		cluster.Http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{
-			AllowConnect: true,
+		any, _ := anypb.New(&envoy_extensions_upstreams_http_v3.HttpProtocolOptions{
+			UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig_{
+				ExplicitHttpConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig{
+					ProtocolConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig_Http2ProtocolOptions{
+						Http2ProtocolOptions: &envoy_config_core_v3.Http2ProtocolOptions{
+							AllowConnect:                true,
+							InitialStreamWindowSize:     wrapperspb.UInt32(initialStreamWindowSizeLimit),
+							InitialConnectionWindowSize: wrapperspb.UInt32(initialConnectionWindowSizeLimit),
+						},
+					},
+				},
+			},
+		})
+		cluster.TypedExtensionProtocolOptions = map[string]*anypb.Any{
+			"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": any,
 		}
 	}
 
