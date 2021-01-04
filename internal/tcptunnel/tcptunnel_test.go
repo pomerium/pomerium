@@ -50,7 +50,7 @@ func TestTunnel(t *testing.T) {
 
 		w.WriteHeader(200)
 
-		in, _, err := w.(http.Hijacker).Hijack()
+		in, brw, err := w.(http.Hijacker).Hijack()
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -68,7 +68,7 @@ func TestTunnel(t *testing.T) {
 			errc <- err
 		}()
 		go func() {
-			_, err := io.Copy(out, in)
+			_, err := io.Copy(out, deBuffer(brw.Reader, in))
 			errc <- err
 		}()
 		<-errc
