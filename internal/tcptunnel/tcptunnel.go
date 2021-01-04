@@ -197,7 +197,7 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, 
 		errc <- err
 	}()
 	go func() {
-		_, err := io.Copy(local, remote)
+		_, err := io.Copy(local, deBuffer(br, remote))
 		errc <- err
 	}()
 
@@ -214,4 +214,11 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, 
 
 func (tun *Tunnel) jwtCacheKey() string {
 	return fmt.Sprintf("%s|%s|%v", tun.cfg.dstHost, tun.cfg.proxyHost, tun.cfg.tlsConfig != nil)
+}
+
+func deBuffer(br *bufio.Reader, underlying io.Reader) io.Reader {
+	if br.Buffered() == 0 {
+		return underlying
+	}
+	return io.MultiReader(io.LimitReader(br, int64(br.Buffered())), underlying)
 }

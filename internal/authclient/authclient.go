@@ -94,7 +94,17 @@ func (client *AuthClient) runHTTPServer(ctx context.Context, li net.Listener, in
 }
 
 func (client *AuthClient) runOpenBrowser(ctx context.Context, li net.Listener, serverURL *url.URL) error {
-	dst := serverURL.ResolveReference(&url.URL{
+	browserURL := new(url.URL)
+	*browserURL = *serverURL
+
+	// remove unnecessary ports to avoid HMAC error
+	if browserURL.Scheme == "http" && browserURL.Host == browserURL.Hostname()+":80" {
+		browserURL.Host = browserURL.Hostname()
+	} else if browserURL.Scheme == "https" && browserURL.Host == browserURL.Hostname()+":443" {
+		browserURL.Host = browserURL.Hostname()
+	}
+
+	dst := browserURL.ResolveReference(&url.URL{
 		Path: "/.pomerium/api/v1/login",
 		RawQuery: url.Values{
 			"pomerium_redirect_uri": {fmt.Sprintf("http://%s", li.Addr().String())},
