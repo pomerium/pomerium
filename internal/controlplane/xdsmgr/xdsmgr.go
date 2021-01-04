@@ -4,12 +4,13 @@ package xdsmgr
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
@@ -20,6 +21,8 @@ type streamState struct {
 	clientResourceVersions map[string]string
 	unsubscribedResources  map[string]struct{}
 }
+
+var onHandleDeltaRequest = func(state *streamState) {}
 
 // A Manager manages xDS resources.
 type Manager struct {
@@ -136,6 +139,8 @@ func (mgr *Manager) DeltaAggregatedResources(
 			// so we reset the version to treat it like a new version
 			delete(state.clientResourceVersions, name)
 		}
+
+		onHandleDeltaRequest(state)
 	}
 
 	incoming := make(chan *envoy_service_discovery_v3.DeltaDiscoveryRequest)
@@ -209,7 +214,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 func (mgr *Manager) StreamAggregatedResources(
 	stream envoy_service_discovery_v3.AggregatedDiscoveryService_StreamAggregatedResourcesServer,
 ) error {
-	return fmt.Errorf("method StreamAggregatedResources not implemented")
+	return status.Errorf(codes.Unimplemented, "method StreamAggregatedResources not implemented")
 }
 
 // Update updates the state of resources. If any changes are made they will be pushed to any listening
