@@ -5,6 +5,7 @@ import (
 	"crypto/sha512"
 
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/protobuf/proto"
 )
 
 // Hash generates a hash of data using HMAC-SHA-512/256. The tag is intended to
@@ -27,4 +28,15 @@ func HashPassword(password []byte) ([]byte, error) {
 // plaintext equivalent.  Returns nil on success, or an error on failure.
 func CheckPasswordHash(hash, password []byte) error {
 	return bcrypt.CompareHashAndPassword(hash, password)
+}
+
+// HashProto hashes a protobuf message. It sets `Deterministic` to true to ensure
+// the encoded message is always the same. (ie map order is lexographic)
+func HashProto(msg proto.Message) []byte {
+	opts := proto.MarshalOptions{
+		AllowPartial:  true,
+		Deterministic: true,
+	}
+	bs, _ := opts.Marshal(msg)
+	return Hash("proto", bs)
 }

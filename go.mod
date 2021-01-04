@@ -10,6 +10,7 @@ require (
 	github.com/benbjohnson/clock v1.0.3 // indirect
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/caddyserver/certmagic v0.12.0
+	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coreos/go-oidc v2.2.1+incompatible

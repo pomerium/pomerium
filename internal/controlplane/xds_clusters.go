@@ -104,7 +104,7 @@ func buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *e
 		},
 		Sni: sni,
 	}
-	tlsConfig, _ := ptypes.MarshalAny(tlsContext)
+	tlsConfig := marshalAny(tlsContext)
 	return &envoy_config_core_v3.TransportSocket{
 		Name: "tls",
 		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
@@ -144,7 +144,7 @@ func buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.Tra
 			envoyTLSCertificateFromGoTLSCertificate(policy.ClientCertificate))
 	}
 
-	tlsConfig, _ := ptypes.MarshalAny(tlsContext)
+	tlsConfig := marshalAny(tlsContext)
 	return &envoy_config_core_v3.TransportSocket{
 		Name: "tls",
 		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{

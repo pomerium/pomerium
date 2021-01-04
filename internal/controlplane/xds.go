@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -19,51 +20,48 @@ import (
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
 	"golang.org/x/net/nettest"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
-func (srv *Server) buildDiscoveryResponse(version string, typeURL string, options *config.Options) (*envoy_service_discovery_v3.DiscoveryResponse, error) {
-	switch typeURL {
-	case "type.googleapis.com/envoy.config.listener.v3.Listener":
-		listeners := buildListeners(options)
-		anys := make([]*any.Any, len(listeners))
-		for i, listener := range listeners {
-			a, err := ptypes.MarshalAny(listener)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "error marshaling type to any: %v", err)
-			}
-			anys[i] = a
+const (
+	clusterTypeURL  = "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+	listenerTypeURL = "type.googleapis.com/envoy.config.listener.v3.Listener"
+)
+
+func (srv *Server) buildDiscoveryResources() map[string][]*envoy_service_discovery_v3.Resource {
+	resources := map[string][]*envoy_service_discovery_v3.Resource{}
+	cfg := srv.currentConfig.Load()
+	for _, cluster := range srv.buildClusters(&cfg.Options) {
+		any, err := anypb.New(cluster)
+		if err != nil {
+			// anypb will only panic due to developer error.
+			panic(err)
 		}
-		return &envoy_service_discovery_v3.DiscoveryResponse{
-			VersionInfo: version,
-			Resources:   anys,
-			TypeUrl:     typeURL,
-		}, nil
-	case "type.googleapis.com/envoy.config.cluster.v3.Cluster":
-		clusters := srv.buildClusters(options)
-		anys := make([]*any.Any, len(clusters))
-		for i, cluster := range clusters {
-			a, err := ptypes.MarshalAny(cluster)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "error marshaling type to any: %v", err)
-			}
-			anys[i] = a
-		}
-		return &envoy_service_discovery_v3.DiscoveryResponse{
-			VersionInfo: version,
-			Resources:   anys,
-			TypeUrl:     typeURL,
-		}, nil
-	default:
-		return nil, status.Errorf(codes.Internal, "received request for unknown discovery request type: %s", typeURL)
+		resources[clusterTypeURL] = append(resources[clusterTypeURL], &envoy_service_discovery_v3.Resource{
+			Name:     cluster.Name,
+			Version:  hex.EncodeToString(cryptutil.HashProto(cluster)),
+			Resource: any,
+		})
 	}
+	for _, listener := range buildListeners(&cfg.Options) {
+		any, err := anypb.New(listener)
+		if err != nil {
+			// anypb will only panic due to developer error.
+			panic(err)
+		}
+		resources[listenerTypeURL] = append(resources[listenerTypeURL], &envoy_service_discovery_v3.Resource{
+			Name:     listener.Name,
+			Version:  hex.EncodeToString(cryptutil.HashProto(listener)),
+			Resource: any,
+		})
+	}
+	return resources
 }
 
 func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.AccessLog {
@@ -82,7 +80,7 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 		return nil
 	}
 
-	tc, _ := ptypes.MarshalAny(&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{
+	tc := marshalAny(&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{
 		CommonConfig: &envoy_extensions_access_loggers_grpc_v3.CommonGrpcAccessLogConfig{
 			LogName: "ingress-http",
 			GrpcService: &envoy_config_core_v3.GrpcService{
@@ -234,4 +232,13 @@ func getRootCertificateAuthority() (string, error) {
 		return "", fmt.Errorf("root certificates not found")
 	}
 	return rootCABundle.value, nil
+}
+
+func marshalAny(msg proto.Message) *anypb.Any {
+	any := new(anypb.Any)
+	_ = anypb.MarshalFrom(any, msg, proto.MarshalOptions{
+		AllowPartial:  true,
+		Deterministic: true,
+	})
+	return any
 }
