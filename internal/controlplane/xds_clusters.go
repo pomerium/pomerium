@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
+// recommended defaults: https://www.envoyproxy.io/docs/envoy/latest/configuration/best_practices/edge
 const (
 	connectionBufferLimit            uint32 = 32 * 1024
 	maxConcurrentStreams             uint32 = 100
