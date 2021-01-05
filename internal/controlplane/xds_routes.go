@@ -3,6 +3,7 @@ package controlplane
 import (
 	"fmt"
 	"net/url"
+	"sort"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -271,9 +272,15 @@ func mkEnvoyHeader(k, v string) *envoy_config_core_v3.HeaderValueOption {
 }
 
 func toEnvoyHeaders(headers map[string]string) []*envoy_config_core_v3.HeaderValueOption {
+	var ks []string
+	for k := range headers {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+
 	envoyHeaders := make([]*envoy_config_core_v3.HeaderValueOption, 0, len(headers))
-	for k, v := range headers {
-		envoyHeaders = append(envoyHeaders, mkEnvoyHeader(k, v))
+	for _, k := range ks {
+		envoyHeaders = append(envoyHeaders, mkEnvoyHeader(k, headers[k]))
 	}
 	return envoyHeaders
 }

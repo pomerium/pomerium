@@ -229,7 +229,7 @@ func (srv *Server) buildBootstrapConfig() ([]byte, error) {
 
 	dynamicCfg := &envoy_config_bootstrap_v3.Bootstrap_DynamicResources{
 		AdsConfig: &envoy_config_core_v3.ApiConfigSource{
-			ApiType:             envoy_config_core_v3.ApiConfigSource_ApiType(envoy_config_core_v3.ApiConfigSource_ApiType_value["GRPC"]),
+			ApiType:             envoy_config_core_v3.ApiConfigSource_ApiType(envoy_config_core_v3.ApiConfigSource_ApiType_value["DELTA_GRPC"]),
 			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
 			GrpcServices: []*envoy_config_core_v3.GrpcService{
 				{

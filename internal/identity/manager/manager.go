@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/btree"
@@ -578,29 +579,31 @@ func (mgr *Manager) initDirectoryUsers(ctx context.Context) error {
 		return err
 	}
 
-	res, err := databroker.InitialSync(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.SyncRequest{
-		Type: any.GetTypeUrl(),
-	})
-	if err != nil {
-		return fmt.Errorf("error getting all directory users: %w", err)
-	}
-
-	mgr.directoryUsers = map[string]*directory.User{}
-	for _, record := range res.GetRecords() {
-		var pbDirectoryUser directory.User
-		err := ptypes.UnmarshalAny(record.GetData(), &pbDirectoryUser)
+	return exponentialTry(ctx, func() error {
+		res, err := databroker.InitialSync(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.SyncRequest{
+			Type: any.GetTypeUrl(),
+		})
 		if err != nil {
-			return fmt.Errorf("error unmarshaling directory user: %w", err)
+			return fmt.Errorf("error getting all directory users: %w", err)
 		}
 
-		mgr.directoryUsers[pbDirectoryUser.GetId()] = &pbDirectoryUser
-		mgr.directoryUsersRecordVersion = record.GetVersion()
-	}
-	mgr.directoryUsersServerVersion = res.GetServerVersion()
+		mgr.directoryUsers = map[string]*directory.User{}
+		for _, record := range res.GetRecords() {
+			var pbDirectoryUser directory.User
+			err := ptypes.UnmarshalAny(record.GetData(), &pbDirectoryUser)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling directory user: %w", err)
+			}
 
-	mgr.log.Info().Int("count", len(mgr.directoryUsers)).Msg("initialized directory users")
+			mgr.directoryUsers[pbDirectoryUser.GetId()] = &pbDirectoryUser
+			mgr.directoryUsersRecordVersion = record.GetVersion()
+		}
+		mgr.directoryUsersServerVersion = res.GetServerVersion()
 
-	return nil
+		mgr.log.Info().Int("count", len(mgr.directoryUsers)).Msg("initialized directory users")
+
+		return nil
+	})
 }
 
 func (mgr *Manager) syncDirectoryUsers(ctx context.Context, ch chan<- *directory.User) error {
@@ -648,30 +651,31 @@ func (mgr *Manager) initDirectoryGroups(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	res, err := databroker.InitialSync(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.SyncRequest{
-		Type: any.GetTypeUrl(),
-	})
-	if err != nil {
-		return fmt.Errorf("error getting all directory groups: %w", err)
-	}
-
-	mgr.directoryGroups = map[string]*directory.Group{}
-	for _, record := range res.GetRecords() {
-		var pbDirectoryGroup directory.Group
-		err := ptypes.UnmarshalAny(record.GetData(), &pbDirectoryGroup)
+	return exponentialTry(ctx, func() error {
+		res, err := databroker.InitialSync(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.SyncRequest{
+			Type: any.GetTypeUrl(),
+		})
 		if err != nil {
-			return fmt.Errorf("error unmarshaling directory group: %w", err)
+			return fmt.Errorf("error getting all directory groups: %w", err)
 		}
 
-		mgr.directoryGroups[pbDirectoryGroup.GetId()] = &pbDirectoryGroup
-		mgr.directoryGroupsRecordVersion = record.GetVersion()
-	}
-	mgr.directoryGroupsServerVersion = res.GetServerVersion()
+		mgr.directoryGroups = map[string]*directory.Group{}
+		for _, record := range res.GetRecords() {
+			var pbDirectoryGroup directory.Group
+			err := ptypes.UnmarshalAny(record.GetData(), &pbDirectoryGroup)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling directory group: %w", err)
+			}
 
-	mgr.log.Info().Int("count", len(mgr.directoryGroups)).Msg("initialized directory groups")
+			mgr.directoryGroups[pbDirectoryGroup.GetId()] = &pbDirectoryGroup
+			mgr.directoryGroupsRecordVersion = record.GetVersion()
+		}
+		mgr.directoryGroupsServerVersion = res.GetServerVersion()
 
-	return nil
+		mgr.log.Info().Int("count", len(mgr.directoryGroups)).Msg("initialized directory groups")
+
+		return nil
+	})
 }
 
 func (mgr *Manager) syncDirectoryGroups(ctx context.Context, ch chan<- *directory.Group) error {
@@ -774,4 +778,23 @@ func isTemporaryError(err error) bool {
 		return true
 	}
 	return false
+}
+
+// exponentialTry executes f until it succeeds or ctx is Done.
+func exponentialTry(ctx context.Context, f func() error) error {
+	backoff := backoff.NewExponentialBackOff()
+	backoff.MaxElapsedTime = 0
+	for {
+		err := f()
+		if err == nil {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(backoff.NextBackOff()):
+		}
+		continue
+	}
 }

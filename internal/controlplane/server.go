@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/gorilla/mux"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -14,6 +15,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/controlplane/xdsmgr"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
@@ -46,15 +48,13 @@ type Server struct {
 	HTTPRouter   *mux.Router
 
 	currentConfig atomicVersionedOptions
-	configUpdated chan struct{}
 	name          string
+	xdsmgr        *xdsmgr.Manager
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
 func NewServer(name string) (*Server, error) {
-	srv := &Server{
-		configUpdated: make(chan struct{}, 1),
-	}
+	srv := &Server{}
 	srv.currentConfig.Store(versionedOptions{})
 
 	var err error
@@ -73,7 +73,6 @@ func NewServer(name string) (*Server, error) {
 		grpc.ChainStreamInterceptor(requestid.StreamServerInterceptor(), si),
 	)
 	reflection.Register(srv.GRPCServer)
-	srv.registerXDSHandlers()
 	srv.registerAccessLogHandlers()
 
 	// setup HTTP
@@ -84,6 +83,9 @@ func NewServer(name string) (*Server, error) {
 	}
 	srv.HTTPRouter = mux.NewRouter()
 	srv.addHTTPMiddleware()
+
+	srv.xdsmgr = xdsmgr.NewManager(srv.buildDiscoveryResources())
+	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv.GRPCServer, srv.xdsmgr)
 
 	return srv, nil
 }
@@ -150,14 +152,10 @@ func (srv *Server) Run(ctx context.Context) error {
 
 // OnConfigChange updates the pomerium config options.
 func (srv *Server) OnConfigChange(cfg *config.Config) {
-	select {
-	case <-srv.configUpdated:
-	default:
-	}
 	prev := srv.currentConfig.Load()
 	srv.currentConfig.Store(versionedOptions{
 		Options: *cfg.Options,
 		version: prev.version + 1,
 	})
-	srv.configUpdated <- struct{}{}
+	srv.xdsmgr.Update(srv.buildDiscoveryResources())
 }

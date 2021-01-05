@@ -30,7 +30,7 @@ import (
 var disableExtAuthz *any.Any
 
 func init() {
-	disableExtAuthz, _ = ptypes.MarshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute{
+	disableExtAuthz = marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute{
 		Override: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute_Disabled{
 			Disabled: true,
 		},
@@ -67,7 +67,7 @@ func buildMainListener(options *config.Options) *envoy_config_listener_v3.Listen
 		}
 	}
 
-	tlsInspectorCfg, _ := ptypes.MarshalAny(new(emptypb.Empty))
+	tlsInspectorCfg := marshalAny(new(emptypb.Empty))
 	li := &envoy_config_listener_v3.Listener{
 		Name:    "https-ingress",
 		Address: buildAddress(options.Addr, 443),
@@ -90,7 +90,7 @@ func buildMainListener(options *config.Options) *envoy_config_listener_v3.Listen
 				}
 				tlsContext := buildDownstreamTLSContext(options, tlsDomain)
 				if tlsContext != nil {
-					tlsConfig, _ := ptypes.MarshalAny(tlsContext)
+					tlsConfig := marshalAny(tlsContext)
 					filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
 						Name: "tls",
 						ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
@@ -161,7 +161,7 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		grpcClientTimeout = ptypes.DurationProto(30 * time.Second)
 	}
 
-	extAuthZ, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthz{
+	extAuthZ := marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthz{
 		StatusOnError: &envoy_type_v3.HttpStatus{
 			Code: envoy_type_v3.StatusCode_InternalServerError,
 		},
@@ -178,13 +178,13 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		IncludePeerCertificate: true,
 	})
 
-	extAuthzSetCookieLua, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
+	extAuthzSetCookieLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
 		InlineCode: luascripts.ExtAuthzSetCookie,
 	})
-	cleanUpstreamLua, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
+	cleanUpstreamLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
 		InlineCode: luascripts.CleanUpstream,
 	})
-	removeImpersonateHeadersLua, _ := ptypes.MarshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
+	removeImpersonateHeadersLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
 		InlineCode: luascripts.RemoveImpersonateHeaders,
 	})
 
@@ -193,7 +193,7 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		maxStreamDuration = ptypes.DurationProto(options.WriteTimeout)
 	}
 
-	tc, _ := ptypes.MarshalAny(&envoy_http_connection_manager.HttpConnectionManager{
+	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "ingress",
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
@@ -265,7 +265,7 @@ func buildGRPCListener(options *config.Options) *envoy_config_listener_v3.Listen
 		}
 	}
 
-	tlsInspectorCfg, _ := ptypes.MarshalAny(new(emptypb.Empty))
+	tlsInspectorCfg := marshalAny(new(emptypb.Empty))
 	li := &envoy_config_listener_v3.Listener{
 		Name:    "grpc-ingress",
 		Address: buildAddress(options.GRPCAddr, 443),
@@ -287,7 +287,7 @@ func buildGRPCListener(options *config.Options) *envoy_config_listener_v3.Listen
 				}
 				tlsContext := buildDownstreamTLSContext(options, tlsDomain)
 				if tlsContext != nil {
-					tlsConfig, _ := ptypes.MarshalAny(tlsContext)
+					tlsConfig := marshalAny(tlsContext)
 					filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
 						Name: "tls",
 						ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
@@ -302,7 +302,7 @@ func buildGRPCListener(options *config.Options) *envoy_config_listener_v3.Listen
 }
 
 func buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
-	tc, _ := ptypes.MarshalAny(&envoy_http_connection_manager.HttpConnectionManager{
+	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "grpc_ingress",
 		// limit request first byte to last byte time
