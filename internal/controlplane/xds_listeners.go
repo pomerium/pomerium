@@ -54,7 +54,7 @@ func buildListeners(options *config.Options) []*envoy_config_listener_v3.Listene
 func buildMainListener(options *config.Options) *envoy_config_listener_v3.Listener {
 	if options.InsecureServer {
 		filter := buildMainHTTPConnectionManagerFilter(options,
-			getAllRouteableDomains(options, options.Addr))
+			getAllRouteableDomains(options, options.Addr), false)
 
 		return &envoy_config_listener_v3.Listener{
 			Name:    "http-ingress",
@@ -79,7 +79,7 @@ func buildMainListener(options *config.Options) *envoy_config_listener_v3.Listen
 		}},
 		FilterChains: buildFilterChains(options, options.Addr,
 			func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain {
-				filter := buildMainHTTPConnectionManagerFilter(options, httpDomains)
+				filter := buildMainHTTPConnectionManagerFilter(options, httpDomains, tlsDomain != "*")
 				filterChain := &envoy_config_listener_v3.FilterChain{
 					Filters: []*envoy_config_listener_v3.Filter{filter},
 				}
@@ -113,14 +113,14 @@ func buildFilterChains(
 	var chains []*envoy_config_listener_v3.FilterChain
 	for _, domain := range tlsDomains {
 		// first we match on SNI
-		chains = append(chains, callback(domain, allDomains))
+		chains = append(chains, callback(domain, []string{domain}))
 	}
 	// if there are no SNI matches we match on HTTP host
 	chains = append(chains, callback("*", allDomains))
 	return chains
 }
 
-func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []string) *envoy_config_listener_v3.Filter {
+func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []string, isTLSDomainSpecific bool) *envoy_config_listener_v3.Filter {
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, domain := range domains {
 		vh := &envoy_config_route_v3.VirtualHost{
@@ -148,11 +148,13 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 			virtualHosts = append(virtualHosts, vh)
 		}
 	}
-	virtualHosts = append(virtualHosts, &envoy_config_route_v3.VirtualHost{
-		Name:    "catch-all",
-		Domains: []string{"*"},
-		Routes:  buildPomeriumHTTPRoutes(options, "*"),
-	})
+	if !isTLSDomainSpecific {
+		virtualHosts = append(virtualHosts, &envoy_config_route_v3.VirtualHost{
+			Name:    "catch-all",
+			Domains: []string{"*"},
+			Routes:  buildPomeriumHTTPRoutes(options, "*"),
+		})
+	}
 
 	var grpcClientTimeout *durationpb.Duration
 	if options.GRPCClientTimeout != 0 {
@@ -188,6 +190,47 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		InlineCode: luascripts.RemoveImpersonateHeaders,
 	})
 
+	httpFilters := []*envoy_http_connection_manager.HttpFilter{
+		{
+			Name: "envoy.filters.http.lua",
+			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+				TypedConfig: removeImpersonateHeadersLua,
+			},
+		},
+		{
+			Name: "envoy.filters.http.ext_authz",
+			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+				TypedConfig: extAuthZ,
+			},
+		},
+		{
+			Name: "envoy.filters.http.lua",
+			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+				TypedConfig: extAuthzSetCookieLua,
+			},
+		},
+		{
+			Name: "envoy.filters.http.lua",
+			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+				TypedConfig: cleanUpstreamLua,
+			},
+		},
+	}
+	if isTLSDomainSpecific {
+		misdirectedLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
+			InlineCode: luascripts.Misdirected,
+		})
+		httpFilters = append(httpFilters, &envoy_http_connection_manager.HttpFilter{
+			Name: "envoy.filters.http.lua",
+			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+				TypedConfig: misdirectedLua,
+			},
+		})
+	}
+	httpFilters = append(httpFilters, &envoy_http_connection_manager.HttpFilter{
+		Name: "envoy.filters.http.router",
+	})
+
 	var maxStreamDuration *durationpb.Duration
 	if options.WriteTimeout > 0 {
 		maxStreamDuration = ptypes.DurationProto(options.WriteTimeout)
@@ -199,36 +242,8 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
 			RouteConfig: buildRouteConfiguration("main", virtualHosts),
 		},
-		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
-			{
-				Name: "envoy.filters.http.lua",
-				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
-					TypedConfig: removeImpersonateHeadersLua,
-				},
-			},
-			{
-				Name: "envoy.filters.http.ext_authz",
-				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
-					TypedConfig: extAuthZ,
-				},
-			},
-			{
-				Name: "envoy.filters.http.lua",
-				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
-					TypedConfig: extAuthzSetCookieLua,
-				},
-			},
-			{
-				Name: "envoy.filters.http.lua",
-				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
-					TypedConfig: cleanUpstreamLua,
-				},
-			},
-			{
-				Name: "envoy.filters.http.router",
-			},
-		},
-		AccessLog: buildAccessLogs(options),
+		HttpFilters: httpFilters,
+		AccessLog:   buildAccessLogs(options),
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
 			IdleTimeout:       ptypes.DurationProto(options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
