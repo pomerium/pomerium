@@ -780,6 +780,7 @@ func isTemporaryError(err error) bool {
 	return false
 }
 
+// exponentialTry executes f until it succeeds or ctx is Done.
 func exponentialTry(ctx context.Context, f func() error) error {
 	backoff := backoff.NewExponentialBackOff()
 	backoff.MaxElapsedTime = 0

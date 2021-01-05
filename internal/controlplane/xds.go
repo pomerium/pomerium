@@ -38,11 +38,7 @@ func (srv *Server) buildDiscoveryResources() map[string][]*envoy_service_discove
 	resources := map[string][]*envoy_service_discovery_v3.Resource{}
 	cfg := srv.currentConfig.Load()
 	for _, cluster := range srv.buildClusters(&cfg.Options) {
-		any, err := anypb.New(cluster)
-		if err != nil {
-			// anypb will only panic due to developer error.
-			panic(err)
-		}
+		any, _ := anypb.New(cluster)
 		resources[clusterTypeURL] = append(resources[clusterTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     cluster.Name,
 			Version:  hex.EncodeToString(cryptutil.HashProto(cluster)),
@@ -50,11 +46,7 @@ func (srv *Server) buildDiscoveryResources() map[string][]*envoy_service_discove
 		})
 	}
 	for _, listener := range buildListeners(&cfg.Options) {
-		any, err := anypb.New(listener)
-		if err != nil {
-			// anypb will only panic due to developer error.
-			panic(err)
-		}
+		any, _ := anypb.New(listener)
 		resources[listenerTypeURL] = append(resources[listenerTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     listener.Name,
 			Version:  hex.EncodeToString(cryptutil.HashProto(listener)),
