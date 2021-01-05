@@ -20,10 +20,7 @@ func Delete(ctx context.Context, client databroker.DataBrokerServiceClient, sess
 		Type: any.GetTypeUrl(),
 		Id:   sessionID,
 	})
-	if err != nil {
-		return fmt.Errorf("error deleting session: %w", err)
-	}
-	return nil
+	return err
 }
 
 // Get gets a session from the databroker.
@@ -35,7 +32,7 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, session
 		Id:   sessionID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error getting session from databroker: %w", err)
+		return nil, err
 	}
 
 	var s Session
@@ -54,10 +51,7 @@ func Set(ctx context.Context, client databroker.DataBrokerServiceClient, s *Sess
 		Id:   s.Id,
 		Data: any,
 	})
-	if err != nil {
-		return nil, fmt.Errorf("error setting session in databroker: %w", err)
-	}
-	return res, nil
+	return res, err
 }
 
 // AddClaims adds the flattened claims to the session.

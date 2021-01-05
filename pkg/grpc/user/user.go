@@ -21,7 +21,7 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID 
 		Id:   userID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error getting user from databroker: %w", err)
+		return nil, err
 	}
 
 	var u User
@@ -41,7 +41,7 @@ func Set(ctx context.Context, client databroker.DataBrokerServiceClient, u *User
 		Data: any,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error setting user in databroker: %w", err)
+		return nil, err
 	}
 	return res.GetRecord(), nil
 }
@@ -55,7 +55,7 @@ func SetServiceAccount(ctx context.Context, client databroker.DataBrokerServiceC
 		Data: any,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error setting service account in databroker: %w", err)
+		return nil, err
 	}
 	return res.GetRecord(), nil
 }
