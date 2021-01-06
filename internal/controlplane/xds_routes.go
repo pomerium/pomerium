@@ -192,6 +192,7 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 		requestHeadersToAdd := toEnvoyHeaders(policy.SetRequestHeaders)
 		requestHeadersToRemove := getRequestHeadersToRemove(options, &policy)
 		routeTimeout := getRouteTimeout(options, &policy)
+		idleTimeout := getRouteIdleTimeout(&policy)
 		prefixRewrite, regexRewrite := getRewriteOptions(&policy)
 
 		upgradeConfigs := []*envoy_config_route_v3.RouteAction_UpgradeConfig{
@@ -221,6 +222,7 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 				AutoHostRewrite: &wrappers.BoolValue{Value: !policy.PreserveHostHeader},
 			},
 			Timeout:       routeTimeout,
+			IdleTimeout:   idleTimeout,
 			PrefixRewrite: prefixRewrite,
 			RegexRewrite:  regexRewrite,
 		}
@@ -332,6 +334,14 @@ func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb
 		routeTimeout = ptypes.DurationProto(options.DefaultUpstreamTimeout)
 	}
 	return routeTimeout
+}
+
+func getRouteIdleTimeout(policy *config.Policy) *durationpb.Duration {
+	var idleTimeout *durationpb.Duration
+	if policy.AllowWebsockets || urlutil.IsTCP(policy.Source.URL) {
+		idleTimeout = ptypes.DurationProto(0)
+	}
+	return idleTimeout
 }
 
 func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrite *envoy_type_matcher_v3.RegexMatchAndSubstitute) {

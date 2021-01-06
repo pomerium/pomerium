@@ -300,6 +300,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": false,
 					"cluster": "policy-2",
+					"idleTimeout": "0s",
 					"timeout": "0s",
 					"upgradeConfigs": [
 						{ "enabled": true, "upgradeType": "websocket"},
@@ -431,6 +432,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": false,
 					"cluster": "policy-7",
+					"idleTimeout": "0s",
 					"timeout": "0s",
 					"upgradeConfigs": [
 						{ "enabled": true, "upgradeType": "websocket"},
@@ -455,6 +457,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": false,
 					"cluster": "policy-8",
+					"idleTimeout": "0s",
 					"timeout": "10s",
 					"upgradeConfigs": [
 						{ "enabled": true, "upgradeType": "websocket"},
@@ -501,6 +504,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": true,
 					"cluster": "policy-9",
+					"idleTimeout": "0s",
 					"timeout": "0s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -526,6 +530,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": true,
 					"cluster": "policy-10",
+					"idleTimeout": "0s",
 					"timeout": "10s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
