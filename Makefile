@@ -102,14 +102,8 @@ spellcheck: # Spellcheck docs
 
 .PHONY: cover
 cover: ## Runs go test with coverage
-	@echo "" > coverage.txt
-	@for d in $(shell go list ./... | grep -v vendor); do \
-		$(GO) test -race -coverprofile=profile.out -covermode=atomic "$$d"; \
-		if [ -f profile.out ]; then \
-			cat profile.out >> coverage.txt; \
-			rm profile.out; \
-		fi; \
-	done;
+	@echo "==> $@"
+	$(GO) test -race -coverprofile=coverage.txt -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
 
 .PHONY: clean
 clean: ## Cleanup any build binaries or packages.

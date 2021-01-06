@@ -224,27 +224,30 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 }
 
 func newSigner(options *config.Options) (jose.Signer, *jose.JSONWebKey, error) {
+	var decodedCert []byte
 	// if we don't have a signing key, generate one
 	if options.SigningKey == "" {
 		key, err := cryptutil.NewSigningKey()
 		if err != nil {
 			return nil, nil, fmt.Errorf("couldn't generate signing key: %w", err)
 		}
-		generatedKey, err := cryptutil.EncodePrivateKey(key)
+		decodedCert, err = cryptutil.EncodePrivateKey(key)
 		if err != nil {
 			return nil, nil, fmt.Errorf("bad signing key: %w", err)
 		}
-		options.SigningKey = base64.StdEncoding.EncodeToString(generatedKey)
+	} else {
+		var err error
+		decodedCert, err = base64.StdEncoding.DecodeString(options.SigningKey)
+		if err != nil {
+			return nil, nil, fmt.Errorf("bad signing key: %w", err)
+		}
 	}
-	if options.SigningKeyAlgorithm == "" {
-		options.SigningKeyAlgorithm = string(jose.ES256)
+	signingKeyAlgorithm := options.SigningKeyAlgorithm
+	if signingKeyAlgorithm == "" {
+		signingKeyAlgorithm = string(jose.ES256)
 	}
 
-	decodedCert, err := base64.StdEncoding.DecodeString(options.SigningKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("bad signing key: %w", err)
-	}
-	jwk, err := cryptutil.PrivateJWKFromBytes(decodedCert, jose.SignatureAlgorithm(options.SigningKeyAlgorithm))
+	jwk, err := cryptutil.PrivateJWKFromBytes(decodedCert, jose.SignatureAlgorithm(signingKeyAlgorithm))
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't generate signing key: %w", err)
 	}

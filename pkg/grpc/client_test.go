@@ -91,7 +91,7 @@ func TestGetGRPC(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, cc1, cc2, "GetGRPCClientConn should return the same connection when there are no changes")
+	assert.Same(t, cc1, cc2, "GetGRPCClientConn should return the same connection when there are no changes")
 
 	cc3, err := GetGRPCClientConn("example", &Options{
 		Addr:         mustParseURL("http://localhost.example"),
@@ -101,7 +101,7 @@ func TestGetGRPC(t *testing.T) {
 		return
 	}
 
-	assert.NotEqual(t, cc1, cc3, "GetGRPCClientConn should return a new connection when there are changes")
+	assert.NotSame(t, cc1, cc3, "GetGRPCClientConn should return a new connection when there are changes")
 }
 
 func mustParseURL(rawurl string) *url.URL {

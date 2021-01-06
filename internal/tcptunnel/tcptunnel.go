@@ -196,8 +196,9 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, 
 		_, err := io.Copy(remote, local)
 		errc <- err
 	}()
+	remoteReader := deBuffer(br, remote)
 	go func() {
-		_, err := io.Copy(local, deBuffer(br, remote))
+		_, err := io.Copy(local, remoteReader)
 		errc <- err
 	}()
 
