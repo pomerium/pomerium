@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,10 +27,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/natefinch/atomic"
 	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/config"
@@ -301,6 +302,57 @@ func (srv *Server) buildBootstrapConfig() ([]byte, error) {
 		},
 	}
 
+	if srv.options.tracingOptions.Provider == trace.DatadogTracingProviderName {
+		addr := &envoy_config_core_v3.SocketAddress{
+			Address: "127.0.0.1",
+			PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+				PortValue: 8126,
+			},
+		}
+		if srv.options.tracingOptions.DatadogAddress != "" {
+			a, p, err := net.SplitHostPort(srv.options.tracingOptions.DatadogAddress)
+			if err == nil {
+				addr.Address = a
+				if pv, err := strconv.ParseUint(p, 10, 32); err == nil {
+					addr.PortSpecifier = &envoy_config_core_v3.SocketAddress_PortValue{
+						PortValue: uint32(pv),
+					}
+				}
+			}
+		}
+
+		staticCfg.Clusters = append(staticCfg.Clusters, &envoy_config_cluster_v3.Cluster{
+			Name: "datadog-apm",
+			ConnectTimeout: &durationpb.Duration{
+				Seconds: 5,
+			},
+			ClusterDiscoveryType: &envoy_config_cluster_v3.Cluster_Type{
+				Type: envoy_config_cluster_v3.Cluster_STATIC,
+			},
+			LbPolicy: envoy_config_cluster_v3.Cluster_ROUND_ROBIN,
+			LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
+				ClusterName: "datadog-apm",
+				Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{
+					{
+						LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{
+							{
+								HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
+									Endpoint: &envoy_config_endpoint_v3.Endpoint{
+										Address: &envoy_config_core_v3.Address{
+											Address: &envoy_config_core_v3.Address_SocketAddress{
+												SocketAddress: addr,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+	}
+
 	cfg := &envoy_config_bootstrap_v3.Bootstrap{
 		Node:             nodeCfg,
 		Admin:            adminCfg,
@@ -339,44 +391,54 @@ func (srv *Server) addTraceConfig(bootCfg *envoy_config_bootstrap_v3.Bootstrap) 
 		return nil
 	}
 
-	// We only support zipkin in envoy currently
-	if srv.options.tracingOptions.Provider != trace.ZipkinTracingProviderName {
+	switch srv.options.tracingOptions.Provider {
+	default:
 		return nil
-	}
-
-	if srv.options.tracingOptions.ZipkinEndpoint.String() == "" {
-		return fmt.Errorf("missing zipkin url")
-	}
-
-	// TODO the outbound header list should be configurable when this moves to
-	// HTTPConnectionManager filters
-	tracingTC, _ := ptypes.MarshalAny(
-		&envoy_config_trace_v3.OpenCensusConfig{
-			ZipkinExporterEnabled: true,
-			ZipkinUrl:             srv.options.tracingOptions.ZipkinEndpoint.String(),
-			IncomingTraceContext: []envoy_config_trace_v3.OpenCensusConfig_TraceContext{
-				envoy_config_trace_v3.OpenCensusConfig_B3,
-				envoy_config_trace_v3.OpenCensusConfig_TRACE_CONTEXT,
-				envoy_config_trace_v3.OpenCensusConfig_CLOUD_TRACE_CONTEXT,
-				envoy_config_trace_v3.OpenCensusConfig_GRPC_TRACE_BIN,
+	case trace.DatadogTracingProviderName:
+		tracingTC, _ := anypb.New(&envoy_config_trace_v3.DatadogConfig{
+			CollectorCluster: "datadog-apm",
+			ServiceName:      srv.options.tracingOptions.Service,
+		})
+		bootCfg.Tracing = &envoy_config_trace_v3.Tracing{
+			Http: &envoy_config_trace_v3.Tracing_Http{
+				Name: "envoy.tracers.datadog",
+				ConfigType: &envoy_config_trace_v3.Tracing_Http_TypedConfig{
+					TypedConfig: tracingTC,
+				},
 			},
-			OutgoingTraceContext: []envoy_config_trace_v3.OpenCensusConfig_TraceContext{
-				envoy_config_trace_v3.OpenCensusConfig_B3,
-				envoy_config_trace_v3.OpenCensusConfig_TRACE_CONTEXT,
-				envoy_config_trace_v3.OpenCensusConfig_GRPC_TRACE_BIN,
+		}
+	case trace.ZipkinTracingProviderName:
+		if srv.options.tracingOptions.ZipkinEndpoint.String() == "" {
+			return fmt.Errorf("missing zipkin url")
+		}
+		// TODO the outbound header list should be configurable when this moves to
+		// HTTPConnectionManager filters
+		tracingTC, _ := anypb.New(
+			&envoy_config_trace_v3.OpenCensusConfig{
+				ZipkinExporterEnabled: true,
+				ZipkinUrl:             srv.options.tracingOptions.ZipkinEndpoint.String(),
+				IncomingTraceContext: []envoy_config_trace_v3.OpenCensusConfig_TraceContext{
+					envoy_config_trace_v3.OpenCensusConfig_B3,
+					envoy_config_trace_v3.OpenCensusConfig_TRACE_CONTEXT,
+					envoy_config_trace_v3.OpenCensusConfig_CLOUD_TRACE_CONTEXT,
+					envoy_config_trace_v3.OpenCensusConfig_GRPC_TRACE_BIN,
+				},
+				OutgoingTraceContext: []envoy_config_trace_v3.OpenCensusConfig_TraceContext{
+					envoy_config_trace_v3.OpenCensusConfig_B3,
+					envoy_config_trace_v3.OpenCensusConfig_TRACE_CONTEXT,
+					envoy_config_trace_v3.OpenCensusConfig_GRPC_TRACE_BIN,
+				},
 			},
-		},
-	)
-
-	tracingCfg := &envoy_config_trace_v3.Tracing{
-		Http: &envoy_config_trace_v3.Tracing_Http{
-			Name: "envoy.tracers.opencensus",
-			ConfigType: &envoy_config_trace_v3.Tracing_Http_TypedConfig{
-				TypedConfig: tracingTC,
+		)
+		bootCfg.Tracing = &envoy_config_trace_v3.Tracing{
+			Http: &envoy_config_trace_v3.Tracing_Http{
+				Name: "envoy.tracers.opencensus",
+				ConfigType: &envoy_config_trace_v3.Tracing_Http_TypedConfig{
+					TypedConfig: tracingTC,
+				},
 			},
-		},
+		}
 	}
-	bootCfg.Tracing = tracingCfg
 
 	return nil
 }
