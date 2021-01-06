@@ -23,6 +23,12 @@ func Test_NewTracingOptions(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			"datadog_good",
+			&Options{TracingProvider: "datadog"},
+			&TracingOptions{Provider: "datadog", Service: "pomerium"},
+			false,
+		},
+		{
 			"jaeger_good",
 			&Options{TracingProvider: "jaeger", TracingJaegerAgentEndpoint: "foo", TracingJaegerCollectorEndpoint: "http://foo", Services: ServiceAll},
 			&TracingOptions{Provider: "jaeger", JaegerAgentEndpoint: "foo", JaegerCollectorEndpoint: &url.URL{Scheme: "http", Host: "foo"}, Service: "pomerium"},

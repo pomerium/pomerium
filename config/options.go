@@ -196,6 +196,9 @@ type Options struct {
 	TracingProvider   string  `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
 	TracingSampleRate float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
 
+	// Datadog tracing address
+	TracingDatadogAddress string `mapstructure:"tracing_datadog_address" yaml:"tracing_datadog_address"`
+
 	//  Jaeger
 	//
 	// CollectorEndpoint is the full url to the Jaeger HTTP Thrift collector.

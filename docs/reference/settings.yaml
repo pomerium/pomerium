@@ -627,6 +627,7 @@ settings:
           [
             "tracing_provider",
             "tracing_sample_rate",
+            "tracing_datadog_address",
             "tracing_jaeger_collector_endpoint",
             "tracing_jaeger_agent_endpoint",
             "tracing_zipkin_endpoint",
@@ -642,6 +643,14 @@ settings:
           :------------------ | :----------------------------------------------------------------------------------- | --------
           tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅
           tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌
+
+          #### Datadog
+
+          Datadog is a real-time monitoring system that supports distributed tracing and monitoring.
+
+          Config Key              | Description                                                                  | Required
+          :---------------------- | :--------------------------------------------------------------------------- | --------
+          tracing_datadog_address | `host:port` address of the Datadog Trace Agent. Defaults to `localhost:8126` | ❌
 
           #### Jaeger (partial)
 
