@@ -26,6 +26,8 @@ func NewTracingOptions(o *Options) (*TracingOptions, error) {
 	}
 
 	switch o.TracingProvider {
+	case trace.DatadogTracingProviderName:
+		tracingOpts.DatadogAddress = o.TracingDatadogAddress
 	case trace.JaegerTracingProviderName:
 		if o.TracingJaegerCollectorEndpoint != "" {
 			jaegerCollectorEndpoint, err := urlutil.ParseAndValidateURL(o.TracingJaegerCollectorEndpoint)

@@ -244,7 +244,7 @@ For example, if `true`
 
 ```
 10:37AM INF cmd/pomerium version=v0.0.1-dirty+ede4124
-10:37AM INF proxy: new route from=verify.localhost.pomerium.io to=https://verify.org
+10:37AM INF proxy: new route from=verify.localhost.pomerium.io to=https://verify.pomerium.com
 10:37AM INF proxy: new route from=ssl.localhost.pomerium.io to=http://neverssl.com
 10:37AM INF proxy/authenticator: grpc connection OverrideCertificateName= addr=auth.localhost.pomerium.io:443
 ```
@@ -253,7 +253,7 @@ If `false`
 
 ```
 {"level":"info","version":"v0.0.1-dirty+ede4124","time":"2019-02-18T10:41:03-08:00","message":"cmd/pomerium"}
-{"level":"info","from":"verify.localhost.pomerium.io","to":"https://verify.org","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
+{"level":"info","from":"verify.localhost.pomerium.io","to":"https://verify.pomerium.com","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
 {"level":"info","from":"ssl.localhost.pomerium.io","to":"http://neverssl.com","time":"2019-02-18T10:41:03-08:00","message":"proxy: new route"}
 {"level":"info","OverrideCertificateName":"","addr":"auth.localhost.pomerium.io:443","time":"2019-02-18T10:41:03-08:00","message":"proxy/authenticator: grpc connection"}
 ```
@@ -331,7 +331,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
   verify:
     # A container that exposes an API to show its IP address
-    image: pomerium/verify
+    image: pomerium/verify:latest
     labels:
       - "traefik.http.routers.verify.rule=Host(`verify.corp.example.com`)"
       # Create a middleware named `foo-add-prefix`
@@ -480,33 +480,33 @@ Expose a prometheus endpoint on the specified port.
 
 #### Pomerium Metrics Tracked
 
-| Name                                          | Type      | Description                                                             |
-| --------------------------------------------- | --------- | ----------------------------------------------------------------------- |
-| grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service                                 |
-| grpc_client_request_size_bytes                | Histogram | GRPC client request size by service                                     |
-| grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service                              |
-| grpc_client_response_size_bytes               | Histogram | GRPC client response size by service                                    |
-| grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service                                 |
-| grpc_server_request_size_bytes                | Histogram | GRPC server request size by service                                     |
-| grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service                              |
-| grpc_server_response_size_bytes               | Histogram | GRPC server response size by service                                    |
-| http_client_request_duration_ms               | Histogram | HTTP client request duration by service                                 |
-| http_client_request_size_bytes                | Histogram | HTTP client request size by service                                     |
-| http_client_requests_total                    | Counter   | Total HTTP client requests made by service                              |
-| http_client_response_size_bytes               | Histogram | HTTP client response size by service                                    |
-| http_server_request_duration_ms               | Histogram | HTTP server request duration by service                                 |
-| http_server_request_size_bytes                | Histogram | HTTP server request size by service                                     |
-| http_server_requests_total                    | Counter   | Total HTTP server requests handled by service                           |
-| http_server_response_size_bytes               | Histogram | HTTP server response size by service                                    |
-| pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion |
-| pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service                      |
-| pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service              |
-| pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service    |
-| redis_conns                                   | Gauge     | Number of total connections in the pool                                 |
-| redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool             |
-| redis_wait_count_total                        | Counter   | Total number of connections waited for                                  |
-| redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections                                |
-| storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service    |
+Name                                          | Type      | Description
+--------------------------------------------- | --------- | -----------------------------------------------------------------------
+grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service
+grpc_client_request_size_bytes                | Histogram | GRPC client request size by service
+grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service
+grpc_client_response_size_bytes               | Histogram | GRPC client response size by service
+grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service
+grpc_server_request_size_bytes                | Histogram | GRPC server request size by service
+grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service
+grpc_server_response_size_bytes               | Histogram | GRPC server response size by service
+http_client_request_duration_ms               | Histogram | HTTP client request duration by service
+http_client_request_size_bytes                | Histogram | HTTP client request size by service
+http_client_requests_total                    | Counter   | Total HTTP client requests made by service
+http_client_response_size_bytes               | Histogram | HTTP client response size by service
+http_server_request_duration_ms               | Histogram | HTTP server request duration by service
+http_server_request_size_bytes                | Histogram | HTTP server request size by service
+http_server_requests_total                    | Counter   | Total HTTP server requests handled by service
+http_server_response_size_bytes               | Histogram | HTTP server response size by service
+pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion
+pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service
+pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service
+pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service
+redis_conns                                   | Gauge     | Number of total connections in the pool
+redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool
+redis_wait_count_total                        | Counter   | Total number of connections waited for
+redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections
+storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service
 
 #### Envoy Proxy Metrics
 
@@ -555,10 +555,18 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 
 #### Shared Tracing Settings
 
-| Config Key          | Description                                                                          | Required |
-| :------------------ | :----------------------------------------------------------------------------------- | -------- |
-| tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅        |
-| tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌        |
+Config Key          | Description                                                                          | Required
+:------------------ | :----------------------------------------------------------------------------------- | --------
+tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅
+tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌
+
+#### Datadog
+
+Datadog is a real-time monitoring system that supports distributed tracing and monitoring.
+
+Config Key              | Description                                                                  | Required
+:---------------------- | :--------------------------------------------------------------------------- | --------
+tracing_datadog_address | `host:port` address of the Datadog Trace Agent. Defaults to `localhost:8126` | ❌
 
 #### Jaeger (partial)
 
@@ -572,10 +580,10 @@ Each unit work is called a Span in a trace. Spans include metadata about the wor
 - Service dependency analysis
 - Performance / latency optimization
 
-| Config Key                        | Description                                 | Required |
-| :-------------------------------- | :------------------------------------------ | -------- |
-| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
-| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
+Config Key                        | Description                                 | Required
+:-------------------------------- | :------------------------------------------ | --------
+tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅
+tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅
 
 #### Zipkin
 
@@ -583,9 +591,9 @@ Zipkin is an open source distributed tracing system and protocol.
 
 Many tracing backends support zipkin either directly or through intermediary agents, including Jaeger. For full tracing support, we recommend using the Zipkin tracing protocol.
 
-| Config Key              | Description                      | Required |
-| :---------------------- | :------------------------------- | -------- |
-| tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅        |
+Config Key              | Description                      | Required
+:---------------------- | :------------------------------- | --------
+tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
 
 #### Example
 
@@ -1237,7 +1245,7 @@ Remove Request Headers allows you to remove given request headers. This can be u
 - Type: `URL` (must contain a scheme and hostname)
 - Schemes: `http`, `https`, `tcp`
 - Required
-- Example: `http://verify` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://verify.org/anything/`
+- Example: `http://verify` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://verify.pomerium.com/anything/`
 
 `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
 
@@ -1254,7 +1262,7 @@ With rule:
   to: https://verify.pomerium.com/anything
 ```
 
-Requests to `https://verify.corp.example.com` will be forwarded to `https://verify.org/anything`, while requests to `https://verify.corp.example.com/foo` will be forwarded to `https://verify.org/anythingfoo`.To make the request forwarded to `https://httbin.org/anything/foo`, you can use double slashes in your request `https://httbin.corp.example.com//foo`.
+Requests to `https://verify.corp.example.com` will be forwarded to `https://verify.pomerium.com/anything`, while requests to `https://verify.corp.example.com/foo` will be forwarded to `https://verify.pomerium.com/anythingfoo`.To make the request forwarded to `https://httbin.org/anything/foo`, you can use double slashes in your request `https://httbin.corp.example.com//foo`.
 
 While the rule:
 
@@ -1263,7 +1271,7 @@ While the rule:
   to: https://verify.pomerium.com/anything/
 ```
 
-All requests to `https://verify.corp.example.com/*` will be forwarded to `https://verify.org/anything/*`. That means accessing to `https://verify.corp.example.com` will be forwarded to `https://verify.org/anything/`. That said, if your application does not handle trailing slash, the request will end up with 404 not found.
+All requests to `https://verify.corp.example.com/*` will be forwarded to `https://verify.pomerium.com/anything/*`. That means accessing to `https://verify.corp.example.com` will be forwarded to `https://verify.pomerium.com/anything/`. That said, if your application does not handle trailing slash, the request will end up with 404 not found.
 
 :::
 

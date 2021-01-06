@@ -7,6 +7,7 @@ import (
 
 	"contrib.go.opencensus.io/exporter/jaeger"
 	ocZipkin "contrib.go.opencensus.io/exporter/zipkin"
+	datadog "github.com/DataDog/opencensus-go-exporter-datadog"
 	"github.com/openzipkin/zipkin-go"
 	zipkinHTTP "github.com/openzipkin/zipkin-go/reporter/http"
 	"go.opencensus.io/trace"
@@ -15,6 +16,8 @@ import (
 )
 
 const (
+	// DatadogTracingProviderName is the name of the tracing provider Datadog.
+	DatadogTracingProviderName = "datadog"
 	// JaegerTracingProviderName is the name of the tracing provider Jaeger.
 	JaegerTracingProviderName = "jaeger"
 	// ZipkinTracingProviderName is the name of the tracing provider Zipkin.
@@ -27,6 +30,9 @@ type TracingOptions struct {
 	Provider string
 	Service  string
 	Debug    bool
+
+	// Datadog
+	DatadogAddress string
 
 	// Jaeger
 
@@ -57,6 +63,8 @@ func RegisterTracing(opts *TracingOptions) (trace.Exporter, error) {
 	var exporter trace.Exporter
 	var err error
 	switch opts.Provider {
+	case DatadogTracingProviderName:
+		exporter, err = registerDatadog(opts)
 	case JaegerTracingProviderName:
 		exporter, err = registerJaeger(opts)
 	case ZipkinTracingProviderName:
@@ -76,6 +84,19 @@ func RegisterTracing(opts *TracingOptions) (trace.Exporter, error) {
 // UnregisterTracing unregisters a trace exporter.
 func UnregisterTracing(exporter trace.Exporter) {
 	trace.UnregisterExporter(exporter)
+}
+
+func registerDatadog(opts *TracingOptions) (trace.Exporter, error) {
+	dOpts := datadog.Options{
+		Service:   opts.Service,
+		TraceAddr: opts.DatadogAddress,
+	}
+	dex, err := datadog.NewExporter(dOpts)
+	if err != nil {
+		return nil, err
+	}
+	trace.RegisterExporter(dex)
+	return dex, nil
 }
 
 func registerJaeger(opts *TracingOptions) (trace.Exporter, error) {
