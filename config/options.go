@@ -197,7 +197,7 @@ type Options struct {
 	TracingSampleRate float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
 
 	// Datadog tracing address
-	TracingDatadogAddress string `mapstructure:"tracing_datadog_address" yaml:"tracing_datadog_address"`
+	TracingDatadogAddress string `mapstructure:"tracing_datadog_address" yaml:"tracing_datadog_address,omitempty"`
 
 	//  Jaeger
 	//
