@@ -15,7 +15,7 @@ Pomerium can now be used for non-HTTP services.  See [documentation](/docs/topic
 
 ### Datadog Tracing
 
-Datadog has been added as a natively supported [tracing backend]([/reference/#datadog))
+Datadog has been added as a natively supported [tracing backend](/reference/#datadog)
 
 # Since 0.10.0
 
