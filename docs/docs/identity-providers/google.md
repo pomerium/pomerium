@@ -9,13 +9,9 @@ meta:
 
 # Google Workspace (formerly known as G Suite)
 
-Log in to your Google account and go to the [APIs & services](https://console.developers.google.com/projectselector/apis/credentials). Navigate to **Credentials** using the left-hand menu.
+Log in to your Google account and go to the [APIs & services](https://console.developers.google.com/projectselector/apis/credentials). Navigate to **Credentials** using the left-hand menu. On the **Credentials** page, click **Create credentials** and choose **OAuth [Client ID]**.
 
-![API Manager Credentials](./img/google-credentials.png)
-
-On the **Credentials** page, click **Create credentials** and choose **OAuth [Client ID]**.
-
-![Create New Credentials](./img/google-create-new-credentials.png)
+![Create New Credentials](./img/google-credentials.png)
 
 If you don't currently have an OAuth consent page configured, google will not allow you to create credentials until this is completed, and you will likely see **this** banner on the page.
 
