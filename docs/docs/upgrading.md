@@ -5,6 +5,18 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.11.0
+
+## New
+
+### TCP Proxying
+
+Pomerium can now be used for non-HTTP services.  See [documentation](/docs/docs/topics/tcp-support.md) for more details.
+
+### Datadog Tracing
+
+Datadog has been added as a natively supported [tracing backend]([/docs/reference/#datadog))
+
 # Since 0.10.0
 
 ## Breaking
