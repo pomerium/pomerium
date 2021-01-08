@@ -20,7 +20,7 @@ import (
 
 func TestLoadSession(t *testing.T) {
 	opts := config.NewDefaultOptions()
-	encoder, err := jws.NewHS256Signer(nil, "example.com")
+	encoder, err := jws.NewHS256Signer(nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -117,7 +117,7 @@ func TestAuthorize_getJWTClaimHeaders(t *testing.T) {
 		}},
 	}
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
-	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
+	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
 	a.currentOptions.Store(opt)
 	a.store = evaluator.NewStore()

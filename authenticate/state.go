@@ -77,7 +77,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	}
 
 	// shared state encoder setup
-	state.sharedEncoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey), cfg.Options.GetAuthenticateURL().Host)
+	state.sharedEncoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey))
 	if err != nil {
 		return nil, err
 	}

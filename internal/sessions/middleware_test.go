@@ -30,7 +30,7 @@ func TestNewContext(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			signer, err := jws.NewHS256Signer(cryptutil.NewKey(), "issuer")
+			signer, err := jws.NewHS256Signer(cryptutil.NewKey())
 			if err != nil {
 				t.Fatal(err)
 			}

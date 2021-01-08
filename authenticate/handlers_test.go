@@ -359,7 +359,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			signer, err := jws.NewHS256Signer(nil, "mock")
+			signer, err := jws.NewHS256Signer(nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -493,7 +493,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			signer, err := jws.NewHS256Signer(nil, "mock")
+			signer, err := jws.NewHS256Signer(nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -614,7 +614,7 @@ func TestAuthenticate_Dashboard(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			signer, err := jws.NewHS256Signer(nil, "mock")
+			signer, err := jws.NewHS256Signer(nil)
 			if err != nil {
 				t.Fatal(err)
 			}

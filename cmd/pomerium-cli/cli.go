@@ -160,7 +160,7 @@ var serviceAccountCmd = &cobra.Command{
 		}
 		serviceAccountOptions.serviceAccount.ID = sa.GetId()
 
-		encoder, err := jws.NewHS256Signer([]byte(sharedKey), serviceAccountOptions.serviceAccount.Issuer)
+		encoder, err := jws.NewHS256Signer([]byte(sharedKey))
 		if err != nil {
 			return fmt.Errorf("bad shared key: %w", err)
 		}

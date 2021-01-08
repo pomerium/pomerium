@@ -32,7 +32,7 @@ func (ms *Store) ClearSession(http.ResponseWriter, *http.Request) {
 // LoadSession returns the session and a error
 func (ms Store) LoadSession(*http.Request) (string, error) {
 	var signer encoding.MarshalUnmarshaler
-	signer, _ = jws.NewHS256Signer(ms.Secret, "mock")
+	signer, _ = jws.NewHS256Signer(ms.Secret)
 	jwt, _ := signer.Marshal(ms.Session)
 	return string(jwt), ms.LoadError
 }
