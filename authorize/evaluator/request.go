@@ -33,7 +33,7 @@ type (
 	}
 )
 
-type SessionOrServiceAccount interface {
+type sessionOrServiceAccount interface {
 	GetId() string
 	GetExpiresAt() *timestamppb.Timestamp
 	GetIssuedAt() *timestamppb.Timestamp
@@ -57,7 +57,7 @@ func (req *Request) fillJWTPayload(payload map[string]interface{}) {
 	}
 }
 
-func (req *Request) fillJWTPayloadSessionOrServiceAccount(payload map[string]interface{}, s SessionOrServiceAccount) {
+func (req *Request) fillJWTPayloadSessionOrServiceAccount(payload map[string]interface{}, s sessionOrServiceAccount) {
 	payload["jti"] = s.GetId()
 	if s.GetExpiresAt().IsValid() {
 		payload["exp"] = s.GetExpiresAt().AsTime().Unix()
