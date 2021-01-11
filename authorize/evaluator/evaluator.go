@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"strconv"
 
 	"github.com/golang/protobuf/proto"
@@ -25,8 +24,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 const (
@@ -180,46 +177,7 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 	payload := map[string]interface{}{
 		"iss": e.authenticateHost,
 	}
-	if u, err := url.Parse(req.HTTP.URL); err == nil {
-		payload["aud"] = u.Hostname()
-	}
-	if s, ok := req.DataBrokerData.Get("type.googleapis.com/session.Session", req.Session.ID).(*session.Session); ok {
-		payload["jti"] = s.GetId()
-		if tm, err := ptypes.Timestamp(s.GetIdToken().GetExpiresAt()); err == nil {
-			payload["exp"] = tm.Unix()
-		}
-		if tm, err := ptypes.Timestamp(s.GetIdToken().GetIssuedAt()); err == nil {
-			payload["iat"] = tm.Unix()
-		}
-		if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", s.GetUserId()).(*user.User); ok {
-			payload["sub"] = u.GetId()
-			payload["user"] = u.GetId()
-			payload["email"] = u.GetEmail()
-		}
-		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", s.GetUserId()).(*directory.User); ok {
-			if du.GetEmail() != "" {
-				payload["email"] = du.GetEmail()
-			}
-			var groupNames []string
-			for _, groupID := range du.GetGroupIds() {
-				if dg, ok := req.DataBrokerData.Get("type.googleapis.com/directory.Group", groupID).(*directory.Group); ok {
-					groupNames = append(groupNames, dg.Name)
-				}
-			}
-			var groups []string
-			groups = append(groups, du.GetGroupIds()...)
-			groups = append(groups, groupNames...)
-			payload["groups"] = groups
-		}
-	}
-
-	if req.Session.ImpersonateEmail != "" {
-		payload["email"] = req.Session.ImpersonateEmail
-	}
-	if len(req.Session.ImpersonateGroups) > 0 {
-		payload["groups"] = req.Session.ImpersonateGroups
-	}
-
+	req.fillJWTPayload(payload)
 	return payload
 }
 
@@ -305,10 +263,18 @@ func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input
 	if i.DataBrokerData.Session == nil {
 		i.DataBrokerData.Session = req.DataBrokerData.Get(serviceAccountTypeURL, req.Session.ID)
 	}
-	if obj, ok := i.DataBrokerData.Session.(interface{ GetUserId() string }); ok {
-		i.DataBrokerData.User = req.DataBrokerData.Get(userTypeURL, obj.GetUserId())
+	var userIDs []string
+	if obj, ok := i.DataBrokerData.Session.(interface{ GetUserId() string }); ok && obj.GetUserId() != "" {
+		userIDs = append(userIDs, obj.GetUserId())
+	}
+	if obj, ok := i.DataBrokerData.Session.(interface{ GetImpersonateUserId() string }); ok && obj.GetImpersonateUserId() != "" {
+		userIDs = append(userIDs, obj.GetImpersonateUserId())
+	}
 
-		user, ok := req.DataBrokerData.Get(directoryUserTypeURL, obj.GetUserId()).(*directory.User)
+	for _, userID := range userIDs {
+		i.DataBrokerData.User = req.DataBrokerData.Get(userTypeURL, userID)
+
+		user, ok := req.DataBrokerData.Get(directoryUserTypeURL, userID).(*directory.User)
 		if ok {
 			var groups []string
 			for _, groupID := range user.GetGroupIds() {
@@ -330,31 +296,6 @@ func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input
 	i.IsValidClientCertificate = isValidClientCertificate
 	return i
 }
-
-type (
-	// Request is the request data used for the evaluator.
-	Request struct {
-		DataBrokerData DataBrokerData `json:"databroker_data"`
-		HTTP           RequestHTTP    `json:"http"`
-		Session        RequestSession `json:"session"`
-		CustomPolicies []string
-	}
-
-	// RequestHTTP is the HTTP field in the request.
-	RequestHTTP struct {
-		Method            string            `json:"method"`
-		URL               string            `json:"url"`
-		Headers           map[string]string `json:"headers"`
-		ClientCertificate string            `json:"client_certificate"`
-	}
-
-	// RequestSession is the session field in the request.
-	RequestSession struct {
-		ID                string   `json:"id"`
-		ImpersonateEmail  string   `json:"impersonate_email"`
-		ImpersonateGroups []string `json:"impersonate_groups"`
-	}
-)
 
 // Result is the result of evaluation.
 type Result struct {

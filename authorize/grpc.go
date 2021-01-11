@@ -230,9 +230,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v
 	}
 	if sessionState != nil {
 		req.Session = evaluator.RequestSession{
-			ID:                sessionState.ID,
-			ImpersonateEmail:  sessionState.ImpersonateEmail,
-			ImpersonateGroups: sessionState.ImpersonateGroups,
+			ID: sessionState.ID,
 		}
 	}
 	p := a.getMatchingPolicy(requestURL)

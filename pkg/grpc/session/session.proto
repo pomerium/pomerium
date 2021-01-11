@@ -30,4 +30,8 @@ message Session {
   OAuthToken oauth_token = 7;
   map<string, google.protobuf.ListValue> claims = 9;
   repeated string audience = 10;
+
+  optional string impersonate_user_id = 11;
+  optional string impersonate_email = 12;
+  repeated string impersonate_groups = 13;
 }

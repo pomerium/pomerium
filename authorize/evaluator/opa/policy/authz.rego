@@ -14,7 +14,7 @@ all_allowed_groups := get_allowed_groups(route_policy)
 all_allowed_users := get_allowed_users(route_policy)
 all_allowed_idp_claims := get_allowed_idp_claims(route_policy)
 
-is_impersonating := count(input.session.impersonate_email) > 0
+is_impersonating := count(session.impersonate_email) > 0
 
 # allow public
 allow {
@@ -52,14 +52,14 @@ allow {
 # allow by impersonate email
 allow {
 	is_impersonating
-	all_allowed_users[_] = input.session.impersonate_email
+	all_allowed_users[_] = session.impersonate_email
 }
 
 # allow by impersonate group
 allow {
 	is_impersonating
 	some group
-	input.session.impersonate_groups[_] = group
+	session.impersonate_groups[_] = group
 	all_allowed_groups[_] = group
 }
 
@@ -74,7 +74,7 @@ allow {
 allow {
 	is_impersonating
 	some domain
-	email_in_domain(input.session.impersonate_email, all_allowed_domains[domain])
+	email_in_domain(session.impersonate_email, all_allowed_domains[domain])
 }
 
 # allow by arbitrary idp claims

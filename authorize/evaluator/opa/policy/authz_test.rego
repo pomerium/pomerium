@@ -15,7 +15,7 @@ test_email_allowed {
 			}
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_email": "" }
+		input.session as { "id": "session1" }
 }
 
 test_impersonate_email_not_allowed {
@@ -26,14 +26,14 @@ test_impersonate_email_not_allowed {
 		}] with
 		input.databroker_data as {
 			"session": {
-				"user_id": "user1"
+				"user_id": "user1", "impersonate_email": "y@example.com"
 			},
 			"user": {
 				"email": "x@example.com"
 			}
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_email": "y@example.com" }
+		input.session as { "id": "session1" }
 }
 
 test_impersonate_email_allowed {
@@ -44,14 +44,14 @@ test_impersonate_email_allowed {
 		}] with
 		input.databroker_data as {
 			"session": {
-				"user_id": "user1"
+				"user_id": "user1", "impersonate_email": "y@example.com"
 			},
 			"user": {
 				"email": "x@example.com"
 			}
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_email": "y@example.com" }
+		input.session as { "id": "session1" }
 }
 
 test_group_allowed {
@@ -81,7 +81,7 @@ test_impersonate_groups_not_allowed {
 		}] with
 		input.databroker_data as {
 			"session": {
-				"user_id": "user1"
+				"user_id": "user1", "impersonate_email": "y@example.com", "impersonate_groups": ["2"]
 			},
 			"user": {
 				"email": "x@example.com"
@@ -89,7 +89,7 @@ test_impersonate_groups_not_allowed {
 			"groups": ["1"]
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_email": "y@example.com", "impersonate_groups": ["2"] }
+		input.session as { "id": "session1" }
 }
 
 test_impersonate_groups_allowed {
@@ -100,7 +100,7 @@ test_impersonate_groups_allowed {
 		}] with
 		input.databroker_data as {
 			"session": {
-				"user_id": "user1"
+				"user_id": "user1", "impersonate_email": "y@example.com", "impersonate_groups": ["2"]
 			},
 			"user": {
 				"email": "x@example.com"
@@ -110,7 +110,7 @@ test_impersonate_groups_allowed {
 			}
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_email": "y@example.com", "impersonate_groups": ["2"] }
+		input.session as { "id": "session1" }
 }
 
 test_domain_allowed {
@@ -121,14 +121,14 @@ test_domain_allowed {
 		}] with
 		input.databroker_data as {
 			"session": {
-				"user_id": "user1"
+				"user_id": "user1", "impersonate_email": ""
 			},
 			"user": {
 				"email": "x@example.com"
 			}
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_email": "" }
+		input.session as { "id": "session1" }
 }
 
 test_impersonate_domain_not_allowed {
@@ -139,14 +139,14 @@ test_impersonate_domain_not_allowed {
 		}] with
 		input.databroker_data as {
 			"session": {
-				"user_id": "user1"
+				"user_id": "user1", "impersonate_email": "y@example1.com"
 			},
 			"user": {
 				"email": "x@example.com"
 			}
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_email": "y@example1.com" }
+		input.session as { "id": "session1" }
 }
 
 test_impersonate_domain_allowed {
@@ -157,14 +157,14 @@ test_impersonate_domain_allowed {
 		}] with
 		input.databroker_data as {
 			"session": {
-				"user_id": "user1"
+				"user_id": "user1", "impersonate_email": "y@example1.com"
 			},
 			"user": {
 				"email": "x@example.com"
 			}
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_email": "y@example1.com" }
+		input.session as { "id": "session1" }
 }
 
 test_idp_claims_allowed {
@@ -183,7 +183,7 @@ test_idp_claims_allowed {
             }
         } with
 		input.http as { "url": "http://example.com" } with
-        input.session as { "id": "session1", "impersonate_email": "" }
+        input.session as { "id": "session1" }
 }
 
 test_example {
@@ -395,7 +395,7 @@ test_any_authenticated_user_allowed {
 			}
 		} with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_email": "" }
+		input.session as { "id": "session1" }
 }
 test_any_authenticated_user_denied {
 	not allow with
@@ -404,5 +404,5 @@ test_any_authenticated_user_denied {
 			"AllowAnyAuthenticatedUser": true
 		}] with
 		input.http as { "url": "http://example.com" } with
-		input.session as { "id": "session1", "impersonate_email": "" }
+		input.session as { "id": "session1" }
 }

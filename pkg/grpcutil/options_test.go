@@ -32,9 +32,8 @@ func TestSignedJWT(t *testing.T) {
 		grpc.StreamInterceptor(StreamRequireSignedJWT(base64.StdEncoding.EncodeToString(key))),
 		grpc.UnaryInterceptor(UnaryRequireSignedJWT(base64.StdEncoding.EncodeToString(key))),
 	)
-	go srv.Serve(li)
-
 	reflection.Register(srv)
+	go srv.Serve(li)
 
 	t.Run("unauthenticated", func(t *testing.T) {
 		cc, err := grpc.Dial(li.Addr().String(),
