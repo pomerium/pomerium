@@ -18,7 +18,7 @@ require (
 	github.com/envoyproxy/go-control-plane v0.9.8
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-chi/chi v4.1.2+incompatible
-	github.com/go-redis/redis/v8 v8.4.4
+	github.com/go-redis/redis/v8 v8.4.8
 	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.4.3
 	github.com/google/btree v1.0.0
