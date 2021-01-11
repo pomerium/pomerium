@@ -155,6 +155,7 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 								ExpiresAt: nowPb,
 								IssuedAt:  nowPb,
 							},
+							ExpiresAt: nowPb,
 						},
 					},
 				},
@@ -166,6 +167,31 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 			map[string]interface{}{
 				"iss": "authn.example.com",
 				"jti": "SESSION_ID",
+				"aud": "example.com",
+				"exp": now.Unix(),
+				"iat": now.Unix(),
+			},
+		},
+		{
+			"with service account",
+			&Request{
+				DataBrokerData: DataBrokerData{
+					"type.googleapis.com/user.ServiceAccount": map[string]interface{}{
+						"SERVICE_ACCOUNT_ID": &user.ServiceAccount{
+							Id:        "SERVICE_ACCOUNT_ID",
+							IssuedAt:  nowPb,
+							ExpiresAt: nowPb,
+						},
+					},
+				},
+				HTTP: RequestHTTP{URL: "https://example.com"},
+				Session: RequestSession{
+					ID: "SERVICE_ACCOUNT_ID",
+				},
+			},
+			map[string]interface{}{
+				"iss": "authn.example.com",
+				"jti": "SERVICE_ACCOUNT_ID",
 				"aud": "example.com",
 				"exp": now.Unix(),
 				"iat": now.Unix(),

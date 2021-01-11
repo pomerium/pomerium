@@ -8,6 +8,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -70,4 +71,9 @@ func (x *Session) SetRawIDToken(rawIDToken string) {
 		x.IdToken = new(IDToken)
 	}
 	x.IdToken.Raw = rawIDToken
+}
+
+// GetIssuedAt returns the issued at timestamp for the id token.
+func (x *Session) GetIssuedAt() *timestamppb.Timestamp {
+	return x.GetIdToken().GetIssuedAt()
 }

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"strconv"
 
 	"github.com/golang/protobuf/proto"
@@ -25,8 +24,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 const (
@@ -180,93 +177,7 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 	payload := map[string]interface{}{
 		"iss": e.authenticateHost,
 	}
-	if u, err := url.Parse(req.HTTP.URL); err == nil {
-		payload["aud"] = u.Hostname()
-	}
-	if s, ok := req.DataBrokerData.Get("type.googleapis.com/session.Session", req.Session.ID).(*session.Session); ok {
-		payload["jti"] = s.GetId()
-		if tm, err := ptypes.Timestamp(s.GetIdToken().GetExpiresAt()); err == nil {
-			payload["exp"] = tm.Unix()
-		}
-		if tm, err := ptypes.Timestamp(s.GetIdToken().GetIssuedAt()); err == nil {
-			payload["iat"] = tm.Unix()
-		}
-
-		userID := s.GetUserId()
-		if s.ImpersonateUserId != nil {
-			userID = s.GetImpersonateUserId()
-		}
-		if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", userID).(*user.User); ok {
-			payload["sub"] = u.GetId()
-			payload["user"] = u.GetId()
-			payload["email"] = u.GetEmail()
-		}
-		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", userID).(*directory.User); ok {
-			if du.GetEmail() != "" {
-				payload["email"] = du.GetEmail()
-			}
-			var groupNames []string
-			for _, groupID := range du.GetGroupIds() {
-				if dg, ok := req.DataBrokerData.Get("type.googleapis.com/directory.Group", groupID).(*directory.Group); ok {
-					groupNames = append(groupNames, dg.Name)
-				}
-			}
-			var groups []string
-			groups = append(groups, du.GetGroupIds()...)
-			groups = append(groups, groupNames...)
-			payload["groups"] = groups
-		}
-
-		if s.ImpersonateEmail != nil {
-			payload["email"] = s.GetImpersonateEmail()
-		}
-		if len(s.ImpersonateGroups) > 0 {
-			payload["groups"] = s.GetImpersonateGroups()
-		}
-	}
-
-	if sa, ok := req.DataBrokerData.Get("type.googleapis.com/user.ServiceAccount", req.Session.ID).(*user.ServiceAccount); ok {
-		payload["jti"] = sa.GetId()
-		if tm, err := ptypes.Timestamp(sa.GetExpiresAt()); err == nil {
-			payload["exp"] = tm.Unix()
-		}
-		if tm, err := ptypes.Timestamp(sa.GetIssuedAt()); err == nil {
-			payload["iat"] = tm.Unix()
-		}
-
-		userID := sa.GetUserId()
-		if sa.ImpersonateUserId != nil {
-			userID = sa.GetImpersonateUserId()
-		}
-		if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", userID).(*user.User); ok {
-			payload["sub"] = u.GetId()
-			payload["user"] = u.GetId()
-			payload["email"] = u.GetEmail()
-		}
-		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", userID).(*directory.User); ok {
-			if du.GetEmail() != "" {
-				payload["email"] = du.GetEmail()
-			}
-			var groupNames []string
-			for _, groupID := range du.GetGroupIds() {
-				if dg, ok := req.DataBrokerData.Get("type.googleapis.com/directory.Group", groupID).(*directory.Group); ok {
-					groupNames = append(groupNames, dg.Name)
-				}
-			}
-			var groups []string
-			groups = append(groups, du.GetGroupIds()...)
-			groups = append(groups, groupNames...)
-			payload["groups"] = groups
-		}
-
-		if sa.ImpersonateEmail != nil {
-			payload["email"] = sa.GetImpersonateEmail()
-		}
-		if len(sa.ImpersonateGroups) > 0 {
-			payload["groups"] = sa.GetImpersonateGroups()
-		}
-	}
-
+	req.fillJWTPayload(payload)
 	return payload
 }
 
@@ -385,29 +296,6 @@ func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input
 	i.IsValidClientCertificate = isValidClientCertificate
 	return i
 }
-
-type (
-	// Request is the request data used for the evaluator.
-	Request struct {
-		DataBrokerData DataBrokerData `json:"databroker_data"`
-		HTTP           RequestHTTP    `json:"http"`
-		Session        RequestSession `json:"session"`
-		CustomPolicies []string
-	}
-
-	// RequestHTTP is the HTTP field in the request.
-	RequestHTTP struct {
-		Method            string            `json:"method"`
-		URL               string            `json:"url"`
-		Headers           map[string]string `json:"headers"`
-		ClientCertificate string            `json:"client_certificate"`
-	}
-
-	// RequestSession is the session field in the request.
-	RequestSession struct {
-		ID string `json:"id"`
-	}
-)
 
 // Result is the result of evaluation.
 type Result struct {
