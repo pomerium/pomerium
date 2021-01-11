@@ -33,11 +33,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
 	}
 
-	var host string
-	if cfg.Options.AuthenticateURL != nil {
-		host = cfg.Options.AuthenticateURL.Host
-	}
-	state.encoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey), host)
+	state.encoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey))
 	if err != nil {
 		return nil, err
 	}

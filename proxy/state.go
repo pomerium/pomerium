@@ -49,7 +49,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	state.cookieSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
 
 	// used to load and verify JWT tokens signed by the authenticate service
-	state.encoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey), cfg.Options.GetAuthenticateURL().Host)
+	state.encoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey))
 	if err != nil {
 		return nil, err
 	}

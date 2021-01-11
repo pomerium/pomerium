@@ -51,7 +51,7 @@ yE+vPxsiUkvQHdO2fojCkY8jg70jxM+gu59tPDNbw3Uh/2Ij310FgTHsnGQMyA==
 
 func Test_getEvaluatorRequest(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
-	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
+	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
@@ -271,7 +271,7 @@ func Test_handleForwardAuth(t *testing.T) {
 
 func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
-	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0}, "")
+	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{

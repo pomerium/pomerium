@@ -88,7 +88,7 @@ func TestProxy_ForwardAuth(t *testing.T) {
 			p.OnConfigChange(&config.Config{Options: tt.options})
 			state := p.state.Load()
 			state.sessionStore = tt.sessionStore
-			signer, err := jws.NewHS256Signer(nil, "mock")
+			signer, err := jws.NewHS256Signer(nil)
 			if err != nil {
 				t.Fatal(err)
 			}

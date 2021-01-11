@@ -13,19 +13,18 @@ import (
 // https://tools.ietf.org/html/rfc7519
 type JSONWebSigner struct {
 	Signer jose.Signer
-	Issuer string
 
 	key interface{}
 }
 
 // NewHS256Signer creates a SHA256 JWT signer from a 32 byte key.
-func NewHS256Signer(key []byte, issuer string) (encoding.MarshalUnmarshaler, error) {
+func NewHS256Signer(key []byte) (encoding.MarshalUnmarshaler, error) {
 	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS256, Key: key},
 		(&jose.SignerOptions{}).WithType("JWT"))
 	if err != nil {
 		return nil, err
 	}
-	return &JSONWebSigner{Signer: sig, key: key, Issuer: issuer}, nil
+	return &JSONWebSigner{Signer: sig, key: key}, nil
 }
 
 // Marshal signs, and serializes a JWT.
