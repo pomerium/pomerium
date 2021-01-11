@@ -69,12 +69,16 @@ func SetLevel(level string) {
 	switch level {
 	case "info":
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+		zapLevel.SetLevel(zapcore.InfoLevel)
 	case "warn":
 		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+		zapLevel.SetLevel(zapcore.WarnLevel)
 	case "error":
 		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+		zapLevel.SetLevel(zapcore.ErrorLevel)
 	default:
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		zapLevel.SetLevel(zapcore.DebugLevel)
 	}
 }
 
