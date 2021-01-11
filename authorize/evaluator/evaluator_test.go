@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/pomerium/pomerium/config"
@@ -58,9 +59,7 @@ func TestJSONMarshal(t *testing.T) {
 			ClientCertificate: "CLIENT_CERTIFICATE",
 		},
 		Session: RequestSession{
-			ID:                "SESSION_ID",
-			ImpersonateEmail:  "y@example.com",
-			ImpersonateGroups: []string{"group1"},
+			ID: "SESSION_ID",
 		},
 	}, true))
 	assert.JSONEq(t, `{
@@ -79,9 +78,7 @@ func TestJSONMarshal(t *testing.T) {
 			"url": "https://example.com"
 		},
 		"session": {
-			"id": "SESSION_ID",
-			"impersonate_email": "y@example.com",
-			"impersonate_groups": ["group1"]
+			"id": "SESSION_ID"
 		},
 		"is_valid_client_certificate": true
 	}`, string(bs))
@@ -252,12 +249,22 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 			&Request{
 				HTTP: RequestHTTP{URL: "https://example.com"},
 				Session: RequestSession{
-					ImpersonateEmail:  "user@example.com",
-					ImpersonateGroups: []string{"admin", "test"},
+					ID: "SESSION_ID",
+				},
+				DataBrokerData: DataBrokerData{
+					"type.googleapis.com/session.Session": map[string]interface{}{
+						"SESSION_ID": &session.Session{
+							Id:                "SESSION_ID",
+							UserId:            "USER_ID",
+							ImpersonateEmail:  proto.String("user@example.com"),
+							ImpersonateGroups: []string{"admin", "test"},
+						},
+					},
 				},
 			},
 			map[string]interface{}{
 				"iss":    "authn.example.com",
+				"jti":    "SESSION_ID",
 				"aud":    "example.com",
 				"email":  "user@example.com",
 				"groups": []string{"admin", "test"},

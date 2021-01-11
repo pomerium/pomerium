@@ -191,12 +191,17 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 		if tm, err := ptypes.Timestamp(s.GetIdToken().GetIssuedAt()); err == nil {
 			payload["iat"] = tm.Unix()
 		}
-		if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", s.GetUserId()).(*user.User); ok {
+
+		userID := s.GetUserId()
+		if s.ImpersonateUserId != nil {
+			userID = s.GetImpersonateUserId()
+		}
+		if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", userID).(*user.User); ok {
 			payload["sub"] = u.GetId()
 			payload["user"] = u.GetId()
 			payload["email"] = u.GetEmail()
 		}
-		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", s.GetUserId()).(*directory.User); ok {
+		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", userID).(*directory.User); ok {
 			if du.GetEmail() != "" {
 				payload["email"] = du.GetEmail()
 			}
@@ -211,13 +216,55 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 			groups = append(groups, groupNames...)
 			payload["groups"] = groups
 		}
+
+		if s.ImpersonateEmail != nil {
+			payload["email"] = s.GetImpersonateEmail()
+		}
+		if len(s.ImpersonateGroups) > 0 {
+			payload["groups"] = s.GetImpersonateGroups()
+		}
 	}
 
-	if req.Session.ImpersonateEmail != "" {
-		payload["email"] = req.Session.ImpersonateEmail
-	}
-	if len(req.Session.ImpersonateGroups) > 0 {
-		payload["groups"] = req.Session.ImpersonateGroups
+	if sa, ok := req.DataBrokerData.Get("type.googleapis.com/user.ServiceAccount", req.Session.ID).(*user.ServiceAccount); ok {
+		payload["jti"] = sa.GetId()
+		if tm, err := ptypes.Timestamp(sa.GetExpiresAt()); err == nil {
+			payload["exp"] = tm.Unix()
+		}
+		if tm, err := ptypes.Timestamp(sa.GetIssuedAt()); err == nil {
+			payload["iat"] = tm.Unix()
+		}
+
+		userID := sa.GetUserId()
+		if sa.ImpersonateUserId != nil {
+			userID = sa.GetImpersonateUserId()
+		}
+		if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", userID).(*user.User); ok {
+			payload["sub"] = u.GetId()
+			payload["user"] = u.GetId()
+			payload["email"] = u.GetEmail()
+		}
+		if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", userID).(*directory.User); ok {
+			if du.GetEmail() != "" {
+				payload["email"] = du.GetEmail()
+			}
+			var groupNames []string
+			for _, groupID := range du.GetGroupIds() {
+				if dg, ok := req.DataBrokerData.Get("type.googleapis.com/directory.Group", groupID).(*directory.Group); ok {
+					groupNames = append(groupNames, dg.Name)
+				}
+			}
+			var groups []string
+			groups = append(groups, du.GetGroupIds()...)
+			groups = append(groups, groupNames...)
+			payload["groups"] = groups
+		}
+
+		if sa.ImpersonateEmail != nil {
+			payload["email"] = sa.GetImpersonateEmail()
+		}
+		if len(sa.ImpersonateGroups) > 0 {
+			payload["groups"] = sa.GetImpersonateGroups()
+		}
 	}
 
 	return payload
@@ -305,10 +352,18 @@ func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input
 	if i.DataBrokerData.Session == nil {
 		i.DataBrokerData.Session = req.DataBrokerData.Get(serviceAccountTypeURL, req.Session.ID)
 	}
-	if obj, ok := i.DataBrokerData.Session.(interface{ GetUserId() string }); ok {
-		i.DataBrokerData.User = req.DataBrokerData.Get(userTypeURL, obj.GetUserId())
+	var userIDs []string
+	if obj, ok := i.DataBrokerData.Session.(interface{ GetUserId() string }); ok && obj.GetUserId() != "" {
+		userIDs = append(userIDs, obj.GetUserId())
+	}
+	if obj, ok := i.DataBrokerData.Session.(interface{ GetImpersonateUserId() string }); ok && obj.GetImpersonateUserId() != "" {
+		userIDs = append(userIDs, obj.GetImpersonateUserId())
+	}
 
-		user, ok := req.DataBrokerData.Get(directoryUserTypeURL, obj.GetUserId()).(*directory.User)
+	for _, userID := range userIDs {
+		i.DataBrokerData.User = req.DataBrokerData.Get(userTypeURL, userID)
+
+		user, ok := req.DataBrokerData.Get(directoryUserTypeURL, userID).(*directory.User)
 		if ok {
 			var groups []string
 			for _, groupID := range user.GetGroupIds() {
@@ -350,9 +405,7 @@ type (
 
 	// RequestSession is the session field in the request.
 	RequestSession struct {
-		ID                string   `json:"id"`
-		ImpersonateEmail  string   `json:"impersonate_email"`
-		ImpersonateGroups []string `json:"impersonate_groups"`
+		ID string `json:"id"`
 	}
 )
 
