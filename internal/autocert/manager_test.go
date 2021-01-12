@@ -2,6 +2,7 @@ package autocert
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -122,6 +123,9 @@ func newMockACME(srv *httptest.Server) http.Handler {
 }
 
 func TestConfig(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var mockACME http.Handler
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockACME.ServeHTTP(w, r)
@@ -140,23 +144,12 @@ func TestConfig(t *testing.T) {
 	addr := li.Addr().String()
 	_ = li.Close()
 
-	oAcmeTemplate := acmeTemplate
-	defer func() { acmeTemplate = oAcmeTemplate }()
-	acmeTemplate = certmagic.ACMEManager{
-		CA:     srv.URL + "/acme/directory",
-		TestCA: srv.URL + "/acme/directory",
-	}
-
-	oCheckInterval := checkInterval
-	defer func() { checkInterval = oCheckInterval }()
-	checkInterval = time.Second
-
 	p1 := config.Policy{
 		From: "http://from.example.com", To: "http://to.example.com",
 	}
 	_ = p1.Validate()
 
-	mgr, err := New(config.NewStaticSource(&config.Config{
+	mgr, err := newManager(ctx, config.NewStaticSource(&config.Config{
 		Options: &config.Options{
 			AutocertOptions: config.AutocertOptions{
 				Enable:     true,
@@ -167,7 +160,10 @@ func TestConfig(t *testing.T) {
 			HTTPRedirectAddr: addr,
 			Policies:         []config.Policy{p1},
 		},
-	}))
+	}), certmagic.ACMEManager{
+		CA:     srv.URL + "/acme/directory",
+		TestCA: srv.URL + "/acme/directory",
+	}, time.Second)
 	if !assert.NoError(t, err) {
 		return
 	}

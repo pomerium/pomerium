@@ -22,14 +22,12 @@ import (
 var (
 	errObtainCertFailed = errors.New("obtain cert failed")
 	errRenewCertFailed  = errors.New("renew cert failed")
-
-	checkInterval = time.Minute * 10
-	acmeTemplate  = certmagic.DefaultACME
 )
 
 // Manager manages TLS certificates.
 type Manager struct {
-	src config.Source
+	src          config.Source
+	acmeTemplate certmagic.ACMEManager
 
 	mu        sync.RWMutex
 	config    *config.Config
@@ -42,16 +40,29 @@ type Manager struct {
 
 // New creates a new autocert manager.
 func New(src config.Source) (*Manager, error) {
+	return newManager(context.Background(), src, certmagic.DefaultACME, time.Minute*10)
+}
+
+func newManager(ctx context.Context,
+	src config.Source,
+	acmeTemplate certmagic.ACMEManager,
+	checkInterval time.Duration,
+) (*Manager, error) {
+	certmagicConfig := certmagic.NewDefault()
 	// set certmagic default storage cache, otherwise cert renewal loop will be based off
 	// certmagic's own default location
-	certmagic.Default.Storage = &certmagic.FileStorage{
+	certmagicConfig.Storage = &certmagic.FileStorage{
 		Path: src.GetConfig().Options.AutocertOptions.Folder,
 	}
-	certmagic.Default.Logger = log.ZapLogger().With(zap.String("service", "autocert"))
+
+	logger := log.ZapLogger().With(zap.String("service", "autocert"))
+	certmagicConfig.Logger = logger
+	acmeTemplate.Logger = logger
 
 	mgr := &Manager{
-		src:       src,
-		certmagic: certmagic.NewDefault(),
+		src:          src,
+		acmeTemplate: acmeTemplate,
+		certmagic:    certmagicConfig,
 	}
 	err := mgr.update(src.GetConfig())
 	if err != nil {
@@ -71,11 +82,16 @@ func New(src config.Source) (*Manager, error) {
 		ticker := time.NewTicker(checkInterval)
 		defer ticker.Stop()
 
-		for range ticker.C {
-			err := mgr.renewConfigCerts()
-			if err != nil {
-				log.Error().Err(err).Msg("autocert: error updating config")
+		for {
+			select {
+			case <-ctx.Done():
 				return
+			case <-ticker.C:
+				err := mgr.renewConfigCerts()
+				if err != nil {
+					log.Error().Err(err).Msg("autocert: error updating config")
+					return
+				}
 			}
 		}
 	}()
@@ -92,7 +108,7 @@ func (mgr *Manager) getCertMagicConfig(options *config.Options) (*certmagic.Conf
 			return nil, fmt.Errorf("config: failed caching cert: %w", err)
 		}
 	}
-	acmeMgr := certmagic.NewACMEManager(mgr.certmagic, acmeTemplate)
+	acmeMgr := certmagic.NewACMEManager(mgr.certmagic, mgr.acmeTemplate)
 	acmeMgr.Agreed = true
 	if options.AutocertOptions.UseStaging {
 		acmeMgr.CA = acmeMgr.TestCA
