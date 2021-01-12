@@ -3,6 +3,8 @@ package grpcutil
 import (
 	"context"
 	"encoding/base64"
+	"errors"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -44,21 +46,31 @@ func TestSignedJWT(t *testing.T) {
 		defer cc.Close()
 
 		client := grpc_reflection_v1alpha.NewServerReflectionClient(cc)
-		stream, err := client.ServerReflectionInfo(ctx, grpc.WaitForReady(true))
-		if !assert.NoError(t, err) {
-			return
-		}
 
-		err = stream.Send(&grpc_reflection_v1alpha.ServerReflectionRequest{
-			Host:           "",
-			MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_ListServices{},
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		for {
+			stream, err := client.ServerReflectionInfo(ctx, grpc.WaitForReady(true))
+			if !assert.NoError(t, err) {
+				return
+			}
 
-		_, err = stream.Recv()
-		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+			err = stream.Send(&grpc_reflection_v1alpha.ServerReflectionRequest{
+				Host:           "",
+				MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_ListServices{},
+			})
+			if errors.Is(err, io.EOF) {
+				continue
+			} else if !assert.NoError(t, err) {
+				return
+			}
+
+			_, err = stream.Recv()
+			if errors.Is(err, io.EOF) {
+				continue
+			}
+			assert.Equal(t, codes.Unauthenticated, status.Code(err))
+
+			break
+		}
 	})
 	t.Run("authenticated", func(t *testing.T) {
 		cc, err := grpc.Dial(li.Addr().String(),
