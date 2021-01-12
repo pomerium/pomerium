@@ -40,6 +40,8 @@ func Run(ctx context.Context, configFile string) error {
 	}
 
 	src = databroker.NewConfigSource(src)
+	logMgr := config.NewLogManager(src)
+	defer logMgr.Close()
 
 	src, err = autocert.New(src)
 	if err != nil {
@@ -49,8 +51,6 @@ func Run(ctx context.Context, configFile string) error {
 	// override the default http transport so we can use the custom CA in the TLS client config (#1570)
 	http.DefaultTransport = config.NewHTTPTransport(src)
 
-	logMgr := config.NewLogManager(src)
-	defer logMgr.Close()
 	metricsMgr := config.NewMetricsManager(src)
 	defer metricsMgr.Close()
 	traceMgr := config.NewTraceManager(src)
