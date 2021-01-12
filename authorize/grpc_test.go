@@ -85,9 +85,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 			},
 		},
 		&sessions.State{
-			ID:                "SESSION_ID",
-			ImpersonateEmail:  "foo@example.com",
-			ImpersonateGroups: []string{"admin", "test"},
+			ID: "SESSION_ID",
 		},
 	)
 	expect := &evaluator.Request{

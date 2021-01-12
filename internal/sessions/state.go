@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"gopkg.in/square/go-jose.v2/jwt"
@@ -63,10 +62,6 @@ type State struct {
 	// Azure returns OID which should be used instead of subject.
 	OID string `json:"oid,omitempty"`
 
-	// Impersonate-able fields
-	ImpersonateEmail  string   `json:"impersonate_email,omitempty"`
-	ImpersonateGroups []string `json:"impersonate_groups,omitempty"`
-
 	// Programmatic whether this state is used for machine-to-machine
 	// programatic access.
 	Programmatic bool `json:"programatic"`
@@ -88,27 +83,12 @@ func (s *State) IsExpired() bool {
 	return s.Expiry != nil && timeNow().After(s.Expiry.Time())
 }
 
-// Impersonating returns if the request is impersonating.
-func (s *State) Impersonating() bool {
-	return s.ImpersonateEmail != "" || len(s.ImpersonateGroups) != 0
-}
-
 // UserID returns the corresponding user ID for a session.
 func (s *State) UserID(provider string) string {
 	if s.OID != "" {
 		return databroker.GetUserID(provider, s.OID)
 	}
 	return databroker.GetUserID(provider, s.Subject)
-}
-
-// SetImpersonation sets impersonation user and groups.
-func (s *State) SetImpersonation(email, groups string) {
-	s.ImpersonateEmail = email
-	if groups == "" {
-		s.ImpersonateGroups = nil
-	} else {
-		s.ImpersonateGroups = strings.Split(groups, ",")
-	}
 }
 
 // UnmarshalJSON returns a State struct from JSON. Additionally munges

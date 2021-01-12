@@ -5,6 +5,14 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.12.0
+
+## Breaking
+
+### User impersonation removed
+
+With the v0.13.0 release, user impersonation has been removed.
+
 # Since 0.11.0
 
 ## New

@@ -136,37 +136,6 @@
                 </label>
                 {{end}}
                 {{end}}
-
-                {{with .State}}
-                {{with .ImpersonateEmail}}
-                <label>
-                  <span>Impersonating Email</span>
-                  <input
-                    type="text"
-                    class="field"
-                    value="{{.}}"
-                    disabled
-                  />
-                </label>
-                {{end}}
-                {{range $i,$_:= .ImpersonateGroups}}
-                <label>
-                  {{if eq $i 0}}
-                  <span>Impersonating Group</span>
-                  {{else}}
-                  <span></span>
-                  {{end}}
-                  <input
-                    type="text"
-                    class="field"
-                    value="{{.}}"
-                    title="{{.}}"
-                    disabled
-                  />
-                </label>
-                {{end}}
-                {{end}}
-
               </fieldset>
             </section>
             <div class="flex">
@@ -175,69 +144,6 @@
           </form>
         </div>
       </div>
-
-      {{if .EnableUserImpersonation}}
-      <div id="info-box">
-        <div class="card">
-          <div class="card-header">
-            <h2>Sign-in-as</h2>
-            <img
-              class="icon"
-              src="{{dataURL "/.pomerium/assets/img/supervised_user_circle-24px.svg"}}"
-              xmlns="http://www.w3.org/2000/svg"
-            />
-          </div>
-
-          <form method="POST" action="/.pomerium/admin/impersonate">
-            <input type="hidden" value="{{.RedirectURL}}" name="pomerium_redirect_uri">
-            <section>
-              <p class="message">
-                Administrators can temporarily impersonate another user.
-              </p>
-              {{if not .State.ImpersonateEmail}}
-              <fieldset>
-                <label>
-                  <span>Email</span>
-                  <input
-                    name="{{ .ImpersonateEmail }}"
-                    type="email"
-                    class="field"
-                    value=""
-                    placeholder="user@example.com"
-                  />
-                </label>
-                <label>
-                  <span>Group</span>
-                  <input
-                    name="{{ .ImpersonateGroups }}"
-                    type="text"
-                    class="field"
-                    value=""
-                    placeholder="engineering"
-                  />
-                </label>
-              </fieldset>
-              {{end}}
-            </section>
-            <div class="flex">
-              {{ .csrfField }}
-              <button
-                name="{{ .ImpersonateAction }}"
-                value="set"
-                class="button full"
-                type="submit"
-              >
-                {{if .State.ImpersonateEmail}}
-                  Unimpersonate
-                {{else}}
-                  Impersonate
-                {{end}}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-      {{end}}
     </div>
   </body>
 </html>

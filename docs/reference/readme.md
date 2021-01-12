@@ -40,25 +40,6 @@ These configuration variables are shared by all services, in all service modes.
 Address specifies the host and port to serve HTTP requests from. If empty, `:443` is used. Note, in all-in-one deployments, gRPC traffic will be served on loopback on port `:5443`.
 
 
-### Administrators
-- Environmental Variable: `ADMINISTRATORS`
-- Config File Key: `administrators`
-- Type: slice of `string`
-- Example: `"admin@example.com,admin2@example.com"`
-
-Administrative users are [super users](https://en.wikipedia.org/wiki/Superuser) that can sign-in as another user or group. User impersonation allows administrators to temporarily impersonate a different user.
-
-
-### Enable User Impersonation
-- Environmental Variable: `ENABLE_USER_IMPERSONATION`
-- Config File Key: `enable_user_impersonation`
-- Type: `bool`
-- Default: `false`
-- Optional
-
-Enabling user impersonation allows administrators to impersonate other user accounts. Prior to v0.11.0 this feature was enabled by default. It is now disabled by default.
-
-
 ### Autocert
 - Environmental Variable: `AUTOCERT`
 - Config File Key: `autocert`

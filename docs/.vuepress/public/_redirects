@@ -9,10 +9,10 @@
 /community/index.html				/docs/community/
 /community/contributing				/docs/community/contributing.html
 /community/contributing.html		/docs/community/contributing.html
-/community/code-of-conduct			/docs/community/code-of-conduct.html		
-/community/code-of-conduct.html		/docs/community/code-of-conduct.html		
-/community/security					/docs/community/security.html		
-/community/security.html			/docs/community/security.html		
+/community/code-of-conduct			/docs/community/code-of-conduct.html
+/community/code-of-conduct.html		/docs/community/code-of-conduct.html
+/community/security					/docs/community/security.html
+/community/security.html			/docs/community/security.html
 
 /guide/					/docs/quick-start/
 /guide/kubernetes.html	/docs/quick-start/kubernetes.html
@@ -34,12 +34,11 @@
 
 
 /docs/reference/								/docs/topics/
-/docs/reference/readme.html						/docs/topics/readme.html	
+/docs/reference/readme.html						/docs/topics/readme.html
 /docs/reference/certificates.html				/docs/topics/certificates.html
 /docs/reference/data-storage.html				/docs/topics/data-storage.html
 /docs/reference/getting-users-identity.html		/docs/topics/getting-users-identity.html
-/docs/reference/impersonation.html				/docs/topics/impersonation.html
-/docs/reference/production-deployment.html		/docs/topics/production-deployment.html	
+/docs/reference/production-deployment.html		/docs/topics/production-deployment.html
 /docs/reference/programmatic-access.html		/docs/topics/programmatic-access.html
 
 /docs/reference/examples.html				/configuration/examples.html
