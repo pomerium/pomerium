@@ -2,7 +2,6 @@ package sessions
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 	"time"
 
@@ -10,32 +9,6 @@ import (
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
-
-func TestState_Impersonating(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name               string
-		ImpersonateEmail   string
-		ImpersonateGroups  []string
-		want               bool
-		wantResponseEmail  string
-		wantResponseGroups string
-	}{
-		{"impersonating", "impersonating@user.com", []string{"impersonating-group"}, true, "impersonating@user.com", "impersonating-group"},
-		{"not impersonating", "", []string{}, false, "actual@user.com", "actual-group"},
-		{"impersonating user only", "impersonating@user.com", []string{}, true, "impersonating@user.com", "actual-group"},
-		{"impersonating group only", "", []string{"impersonating-group"}, true, "actual@user.com", "impersonating-group"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &State{}
-			s.SetImpersonation(tt.ImpersonateEmail, strings.Join(tt.ImpersonateGroups, ","))
-			if got := s.Impersonating(); got != tt.want {
-				t.Errorf("State.Impersonating() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 func TestState_IsExpired(t *testing.T) {
 	t.Parallel()

@@ -124,7 +124,6 @@ module.exports = {
             "topics/production-deployment",
             "topics/programmatic-access",
             "topics/tcp-support",
-            "topics/impersonation",
             "topics/single-sign-out",
           ],
         },

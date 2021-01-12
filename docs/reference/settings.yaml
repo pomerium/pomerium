@@ -57,27 +57,6 @@ settings:
           Address specifies the host and port to serve HTTP requests from. If empty, `:443` is used. Note, in all-in-one deployments, gRPC traffic will be served on loopback on port `:5443`.
         shortdoc: |
           Address specifies the host and port to serve HTTP requests from.
-      - name: "Administrators"
-        keys: ["administrators"]
-        attributes: |
-          - Environmental Variable: `ADMINISTRATORS`
-          - Config File Key: `administrators`
-          - Type: slice of `string`
-          - Example: `"admin@example.com,admin2@example.com"`
-        doc: |
-          Administrative users are [super users](https://en.wikipedia.org/wiki/Superuser) that can sign-in as another user or group. User impersonation allows administrators to temporarily impersonate a different user.
-        shortdoc: |
-          Administrative users are super user that can sign in as another user or group.
-      - name: "Enable User Impersonation"
-        keys: ["enable_user_impersonation"]
-        attributes: |
-          - Environmental Variable: `ENABLE_USER_IMPERSONATION`
-          - Config File Key: `enable_user_impersonation`
-          - Type: `bool`
-          - Default: `false`
-          - Optional
-        doc: |
-          Enabling user impersonation allows administrators to impersonate other user accounts. Prior to v0.11.0 this feature was enabled by default. It is now disabled by default.
       - name: "Autocert"
         keys: ["autocert"]
         attributes: |

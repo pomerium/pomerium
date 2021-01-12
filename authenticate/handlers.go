@@ -87,7 +87,6 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	v.Path("/").Handler(httputil.HandlerFunc(a.Dashboard))
 	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	v.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
-	v.Path("/admin/impersonate").Handler(httputil.HandlerFunc(a.Impersonate)).Methods(http.MethodPost)
 
 	wk := r.PathPrefix("/.well-known/pomerium").Subrouter()
 	wk.Path("/jwks.json").Handler(httputil.HandlerFunc(a.jwks)).Methods(http.MethodGet)
@@ -200,10 +199,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	// user impersonation
-	if impersonate := r.FormValue(urlutil.QueryImpersonateAction); impersonate != "" {
-		s.SetImpersonation(r.FormValue(urlutil.QueryImpersonateEmail), r.FormValue(urlutil.QueryImpersonateGroups))
-	}
 	newSession := sessions.NewSession(s, state.redirectURL.Host, jwtAudience)
 
 	// re-persist the session, useful when session was evicted from session
@@ -270,37 +265,6 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	httputil.Redirect(w, r, redirectString, http.StatusFound)
 
-	return nil
-}
-
-// Impersonate takes the result of a form and adds user impersonation details
-// to the user's current user sessions state if the user is currently an
-// administrative user. Requests are redirected back to the user dashboard.
-func (a *Authenticate) Impersonate(w http.ResponseWriter, r *http.Request) error {
-	options := a.options.Load()
-
-	if !options.EnableUserImpersonation {
-		return httputil.NewError(http.StatusForbidden,
-			errors.New("user impersonation is currently, disabled - to enable user impersonation "+
-				"set `enable_user_impersonation` to true in the pomerium configuration options"))
-	}
-
-	redirectURL := urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{
-		Path: "/.pomerium",
-	})
-	if u, err := url.Parse(r.FormValue(urlutil.QueryRedirectURI)); err == nil {
-		redirectURL = u
-	}
-	signinURL := urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{
-		Path: "/.pomerium/sign_in",
-	})
-	q := signinURL.Query()
-	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
-	q.Set(urlutil.QueryImpersonateAction, r.FormValue(urlutil.QueryImpersonateAction))
-	q.Set(urlutil.QueryImpersonateEmail, r.FormValue(urlutil.QueryImpersonateEmail))
-	q.Set(urlutil.QueryImpersonateGroups, r.FormValue(urlutil.QueryImpersonateGroups))
-	signinURL.RawQuery = q.Encode()
-	httputil.Redirect(w, r, urlutil.NewSignedURL(options.SharedKey, signinURL).String(), http.StatusFound)
 	return nil
 }
 
@@ -508,17 +472,16 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	input := map[string]interface{}{
-		"State":                   s,
-		"Session":                 pbSession,
-		"User":                    pbUser,
-		"DirectoryGroups":         groups,
-		"DirectoryUser":           pbDirectoryUser,
-		"csrfField":               csrf.TemplateField(r),
-		"ImpersonateAction":       urlutil.QueryImpersonateAction,
-		"ImpersonateEmail":        urlutil.QueryImpersonateEmail,
-		"ImpersonateGroups":       urlutil.QueryImpersonateGroups,
-		"RedirectURL":             r.URL.Query().Get(urlutil.QueryRedirectURI),
-		"EnableUserImpersonation": a.options.Load().EnableUserImpersonation && a.isAdmin(pbUser.Email),
+		"State":             s,
+		"Session":           pbSession,
+		"User":              pbUser,
+		"DirectoryGroups":   groups,
+		"DirectoryUser":     pbDirectoryUser,
+		"csrfField":         csrf.TemplateField(r),
+		"ImpersonateAction": urlutil.QueryImpersonateAction,
+		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
+		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
+		"RedirectURL":       r.URL.Query().Get(urlutil.QueryRedirectURI),
 	}
 
 	if redirectURL, err := url.Parse(r.URL.Query().Get(urlutil.QueryRedirectURI)); err == nil {

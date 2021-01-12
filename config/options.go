@@ -158,9 +158,6 @@ type Options struct {
 	// (sudo) access including the ability to impersonate other users' access
 	Administrators []string `mapstructure:"administrators" yaml:"administrators,omitempty"`
 
-	// EnableUserImpersonation gives administrators the ability to impersonate other users.
-	EnableUserImpersonation bool `mapstructure:"enable_user_impersonation" yaml:"enable_user_impersonation,omitempty"`
-
 	// AuthorizeURL is the routable destination of the authorize service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
@@ -853,9 +850,6 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if len(settings.Administrators) > 0 {
 		o.Administrators = settings.Administrators
-	}
-	if settings.EnableUserImpersonation != nil {
-		o.EnableUserImpersonation = settings.GetEnableUserImpersonation()
 	}
 	if settings.AuthorizeServiceUrl != nil {
 		o.AuthorizeURLString = settings.GetAuthorizeServiceUrl()

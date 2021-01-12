@@ -18,10 +18,11 @@ message Route {
   string from = 2;
   string to = 3;
 
-  repeated string allowed_users = 4 [deprecated = true];
-  repeated string allowed_groups = 5 [deprecated = true];
-  repeated string allowed_domains = 6 [deprecated = true];
-  map<string, google.protobuf.ListValue> allowed_idp_claims = 32 [deprecated = true];
+  repeated string allowed_users = 4 [ deprecated = true ];
+  repeated string allowed_groups = 5 [ deprecated = true ];
+  repeated string allowed_domains = 6 [ deprecated = true ];
+  map<string, google.protobuf.ListValue> allowed_idp_claims = 32
+      [ deprecated = true ];
 
   string prefix = 7;
   string path = 8;
@@ -108,7 +109,6 @@ message Settings {
   optional google.protobuf.Duration idp_refresh_directory_interval = 29;
   map<string, string> request_params = 30;
   repeated string administrators = 31;
-  optional bool enable_user_impersonation = 61;
   optional string authorize_service_url = 32;
   optional string override_certificate_name = 33;
   optional string certificate_authority = 34;
