@@ -472,16 +472,13 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	input := map[string]interface{}{
-		"State":             s,
-		"Session":           pbSession,
-		"User":              pbUser,
-		"DirectoryGroups":   groups,
-		"DirectoryUser":     pbDirectoryUser,
-		"csrfField":         csrf.TemplateField(r),
-		"ImpersonateAction": urlutil.QueryImpersonateAction,
-		"ImpersonateEmail":  urlutil.QueryImpersonateEmail,
-		"ImpersonateGroups": urlutil.QueryImpersonateGroups,
-		"RedirectURL":       r.URL.Query().Get(urlutil.QueryRedirectURI),
+		"State":           s,
+		"Session":         pbSession,
+		"User":            pbUser,
+		"DirectoryGroups": groups,
+		"DirectoryUser":   pbDirectoryUser,
+		"csrfField":       csrf.TemplateField(r),
+		"RedirectURL":     r.URL.Query().Get(urlutil.QueryRedirectURI),
 	}
 
 	if redirectURL, err := url.Parse(r.URL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
