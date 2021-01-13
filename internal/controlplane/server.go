@@ -89,7 +89,7 @@ func NewServer(name string) (*Server, error) {
 	srv.xdsmgr = xdsmgr.NewManager(srv.buildDiscoveryResources())
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv.GRPCServer, srv.xdsmgr)
 
-	srv.filemgr = filemgr.New()
+	srv.filemgr = filemgr.NewManager()
 	srv.filemgr.ClearCache()
 
 	return srv, nil
@@ -98,22 +98,6 @@ func NewServer(name string) (*Server, error) {
 // Run runs the control-plane gRPC and HTTP servers.
 func (srv *Server) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
-
-	// watch for file changes
-	eg.Go(func() error {
-		ch := srv.filemgr.Bind()
-		defer srv.filemgr.Unbind(ch)
-
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case <-ch:
-				srv.filemgr.ClearWatches()
-				srv.xdsmgr.Update(srv.buildDiscoveryResources())
-			}
-		}
-	})
 
 	// start the gRPC server
 	eg.Go(func() error {

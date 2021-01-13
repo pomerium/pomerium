@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/google/uuid"
@@ -23,7 +22,7 @@ func Test(t *testing.T) {
 	}()
 
 	t.Run("bytes", func(t *testing.T) {
-		mgr := New(WithCacheDir(dir))
+		mgr := NewManager(WithCacheDir(dir))
 		ds := mgr.BytesDataSource("test.txt", []byte{1, 2, 3, 4, 5})
 		assert.Equal(t, &envoy_config_core_v3.DataSource{
 			Specifier: &envoy_config_core_v3.DataSource_Filename{
@@ -37,9 +36,7 @@ func Test(t *testing.T) {
 		tmpFilePath := filepath.Join(dir, "test.txt")
 		_ = ioutil.WriteFile(tmpFilePath, []byte("TEST1"), 0o777)
 
-		mgr := New(WithCacheDir(dir))
-		ch := mgr.Bind()
-		defer mgr.Unbind(ch)
+		mgr := NewManager(WithCacheDir(dir))
 
 		ds := mgr.FileDataSource(tmpFilePath)
 		assert.Equal(t, &envoy_config_core_v3.DataSource{
@@ -49,12 +46,6 @@ func Test(t *testing.T) {
 		}, ds)
 
 		_ = ioutil.WriteFile(tmpFilePath, []byte("TEST2"), 0o777)
-
-		select {
-		case <-ch:
-		case <-time.After(time.Second):
-			t.Error("expected signal on file change")
-		}
 
 		ds = mgr.FileDataSource(tmpFilePath)
 		assert.Equal(t, &envoy_config_core_v3.DataSource{

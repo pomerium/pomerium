@@ -48,6 +48,9 @@ func Run(ctx context.Context, configFile string) error {
 		return err
 	}
 
+	// trigger changes when underlying files are changed
+	src = config.NewFileWatcherSource(src)
+
 	// override the default http transport so we can use the custom CA in the TLS client config (#1570)
 	http.DefaultTransport = config.NewHTTPTransport(src)
 

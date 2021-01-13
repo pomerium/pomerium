@@ -10,25 +10,19 @@ import (
 	"github.com/martinlindhe/base36"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // A Manager manages files for envoy.
 type Manager struct {
-	*signal.Signal
-	cfg         *config
-	fileWatcher *FileWatcher
+	cfg *config
 }
 
-// New creates a new Manager.
-func New(options ...Option) *Manager {
-	s := signal.New()
+// NewManager creates a new Manager.
+func NewManager(options ...Option) *Manager {
 	cfg := newConfig(options...)
 	return &Manager{
-		Signal:      s,
-		cfg:         cfg,
-		fileWatcher: newFileWatcher(s),
+		cfg: cfg,
 	}
 }
 
@@ -71,14 +65,8 @@ func (mgr *Manager) ClearCache() {
 	}
 }
 
-// ClearWatches clears any file watches.
-func (mgr *Manager) ClearWatches() {
-	mgr.fileWatcher.Clear()
-}
-
 // FileDataSource returns an envoy config data source based on a file.
 func (mgr *Manager) FileDataSource(filePath string) *envoy_config_core_v3.DataSource {
-	mgr.fileWatcher.Add(filePath)
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return inlineFilename(filePath)

@@ -37,7 +37,7 @@ func (watcher *Watcher) Add(filePath string) {
 	ch := make(chan notify.EventInfo, 1)
 	go func() {
 		for evt := range ch {
-			log.Info().Str("path", evt.Path()).Str("event", evt.Event().String()).Msg("detected file change")
+			log.Info().Str("path", evt.Path()).Str("event", evt.Event().String()).Msg("filemgr: detected file change")
 			watcher.Signal.Broadcast()
 		}
 	}()
@@ -48,7 +48,7 @@ func (watcher *Watcher) Add(filePath string) {
 		close(ch)
 		return
 	}
-	log.Info().Str("path", filePath).Msg("filemgr: watching file for changes")
+	log.Debug().Str("path", filePath).Msg("filemgr: watching file for changes")
 
 	watcher.filePaths[filePath] = ch
 }

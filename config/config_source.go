@@ -1,7 +1,9 @@
 package config
 
 import (
-	"os"
+	"crypto/sha256"
+	"encoding/hex"
+	"io/ioutil"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
@@ -134,6 +136,10 @@ type FileWatcherSource struct {
 	underlying Source
 	watcher    *fileutil.Watcher
 
+	mu             sync.RWMutex
+	computedConfig *Config
+	version        string
+
 	ChangeDispatcher
 }
 
@@ -147,23 +153,31 @@ func NewFileWatcherSource(underlying Source) *FileWatcherSource {
 	ch := src.watcher.Bind()
 	go func() {
 		for range ch {
-			src.Trigger(src.GetConfig())
+			src.check(underlying.GetConfig())
 		}
 	}()
-	underlying.OnConfigChange(src.onConfigChange)
+	underlying.OnConfigChange(func(cfg *Config) {
+		src.check(cfg)
+	})
+	src.check(underlying.GetConfig())
 
 	return src
 }
 
 // GetConfig gets the underlying config.
 func (src *FileWatcherSource) GetConfig() *Config {
-	return src.underlying.GetConfig()
+	src.mu.RLock()
+	defer src.mu.RUnlock()
+	return src.computedConfig
 }
 
-func (src *FileWatcherSource) onConfigChange(cfg *Config) {
-	defer src.Trigger(cfg)
+func (src *FileWatcherSource) check(cfg *Config) {
+	src.mu.Lock()
+	defer src.mu.Unlock()
+
 	src.watcher.Clear()
 
+	h := sha256.New()
 	fs := []string{
 		cfg.Options.CAFile,
 		cfg.Options.CertFile,
@@ -174,12 +188,25 @@ func (src *FileWatcherSource) onConfigChange(cfg *Config) {
 		cfg.Options.KeyFile,
 		cfg.Options.PolicyFile,
 	}
-	for _, cf := range cfg.Options.CertificateFiles {
-		fs = append(fs, cf.CertFile, cf.KeyFile)
-	}
 	for _, f := range fs {
-		if _, err := os.Stat(f); err == nil {
+		_, _ = h.Write([]byte{0})
+		bs, err := ioutil.ReadFile(f)
+		if err == nil {
 			src.watcher.Add(f)
+			_, _ = h.Write(bs)
 		}
+	}
+
+	version := hex.EncodeToString(h.Sum(nil))
+	if src.version != version {
+		src.version = version
+
+		// update the computed config
+		src.computedConfig = cfg.Clone()
+		src.computedConfig.Options.Certificates = nil
+		_ = src.computedConfig.Options.Validate()
+
+		// trigger a change
+		src.Trigger(src.computedConfig)
 	}
 }
