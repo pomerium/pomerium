@@ -7,7 +7,6 @@ package frontend
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -18,9 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/rakyll/statik/fs"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	_ "github.com/pomerium/pomerium/internal/frontend/statik" // load static assets
 )
@@ -77,14 +74,6 @@ func NewTemplates() (*template.Template, error) {
 		},
 		"formatTime": func(tm time.Time) string {
 			return tm.Format("2006-01-02 15:04:05 MST")
-		},
-		"toJSON": func(v interface{}) string {
-			output, _ := json.Marshal(v)
-			return string(output)
-		},
-		"formatPbTime": func(ts *timestamppb.Timestamp) string {
-			t, _ := ptypes.Timestamp(ts)
-			return t.Format("2006-01-02 15:04:05 MST")
 		},
 	})
 
