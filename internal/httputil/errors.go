@@ -7,13 +7,9 @@ import (
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
-	"github.com/pomerium/pomerium/internal/version"
 )
 
-var (
-	errorTemplate = template.Must(frontend.NewTemplates())
-	fullVersion   = version.FullVersion()
-)
+var errorTemplate = template.Must(frontend.NewTemplates())
 
 // HTTPError contains an HTTP status code and wrapped error.
 type HTTPError struct {
@@ -35,11 +31,6 @@ func (e *HTTPError) Error() string {
 
 // Unwrap implements the `error` Unwrap interface.
 func (e *HTTPError) Unwrap() error { return e.Err }
-
-// Debugable reports whether this error represents a user debuggable error.
-func (e *HTTPError) Debugable() bool {
-	return e.Status == http.StatusUnauthorized || e.Status == http.StatusForbidden
-}
 
 // ErrorResponse replies to the request with the specified error message and HTTP code.
 // It does not otherwise end the request; the caller should ensure no further
@@ -64,8 +55,7 @@ func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
 		StatusText: http.StatusText(e.Status),
 		Error:      e.Error(),
 		RequestID:  requestID,
-		CanDebug:   e.Debugable(),
-		Version:    fullVersion,
+		CanDebug:   e.Status/100 == 4,
 	}
 
 	if r.Header.Get("Accept") == "application/json" {

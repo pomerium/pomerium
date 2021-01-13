@@ -1,0 +1,204 @@
+{{define "userInfo.html"}}
+<!DOCTYPE html>
+<html lang="en" charset="utf-8">
+
+<head>
+  <title>User info endpoint</title>
+  {{template "header.html"}}
+</head>
+
+<body>
+  <div class="inner">
+    <div class="header clearfix">
+      <div class="heading">
+        <a href="{{.RedirectURL}}" class="logo"></a>
+        <span><a class="button" href="{{.SignOutURL}}">Logout</a></span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="white box">
+        <div class="largestatus">
+          {{range .User.GetClaim "picture"}}
+          <img class="status-bubble" src="{{.|safeURL}}" alt="user image" />
+          {{else}}
+          <img class="status-bubble" src="{{dataURL "/.pomerium/assets/img/account_circle-24px.svg"}}" xmlns="http://www.w3.org/2000/svg" />
+          {{end}}
+          <div class="title-wrapper">
+            <span class="title">
+              {{with .User.Name}}
+                Hi {{.}}!
+              {{else}}
+                {{range .User.GetClaim "given_name"}}
+                  Hi {{.}}!
+                {{end}}
+              {{end}}
+            </span>
+            <label class="status-time">
+              <span>
+                Welcome to the user info endpoint. Here you can view
+                your current session details, and authorization context.
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="category white box">
+        <div class="messages">
+          <div class="box-inner">
+            <div class="category-header clearfix">
+              <span class="category-title">Session Details</span>
+            </div>
+            </ul>
+            {{if .Session}}
+            <table>
+              <thead>
+                <tr>
+                  <th><a href="https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims">Claims</a></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {{with .Session.UserId}}
+                <tr>
+                  <td>User ID</td>
+                  <td>{{.}}</td>
+                </tr>
+                {{end}}
+                {{with .Session.Id}}
+                <tr>
+                  <td>ID</td>
+                  <td>{{.}}</td>
+                </tr>
+                {{end}}
+                {{with .Session.ExpiresAt}}
+                <tr>
+                  <td>Expires At</td>
+                  <td>{{.AsTime | formatTime}}</td>
+                </tr>
+                {{end}}
+                {{with .Session.ImpersonateUserId}}
+                <tr>
+                  <td>Impersonate ID</td>
+                  <td>{{.}}</td>
+                </tr>
+                {{end}}
+                {{with .Session.ImpersonateEmail}}
+                <tr>
+                  <td>Impersonate Email</td>
+                  <td>{{.}}</td>
+                </tr>
+                {{end}}
+                {{with $groups := .Session.ImpersonateGroups}}
+                <tr>
+                  <td>Impersonate Groups</td>
+                  <td>
+                    {{range $groups}}
+                    <p>{{.}}</p>
+                    {{end}}
+                  </td>
+                </tr>
+                {{end}}
+              </tbody>
+            </table>
+            {{else}}
+            No session details found!
+            {{end}}
+          </div>
+        </div>
+      </div>
+
+
+      <div class="category white box">
+        <div class="messages">
+          <div class="box-inner">
+            <div class="category-header clearfix">
+              <span class="category-title">User Claims</span>
+              {{with .Session.IdToken}}
+              <a href="https://jwt.io/#debugger-io?token={{.Raw}}">
+                <span class="category-icon"> </span>
+              </a>
+              {{end}}
+            </div>
+            </ul>
+            {{if .Session}}
+            <table>
+              <thead>
+                <tr>
+                  <th><a href="https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims">Claims</a></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {{range $k,$v:=.Session.Claims}}
+                <tr>
+                  <td>{{$k}}</td>
+                  <td>
+                    {{range $v.AsSlice}}
+                    <p>{{.}}</p>
+                    {{end}}
+                  </td>
+                </tr>
+                {{end}}
+              </tbody>
+            </table>
+            {{else}}
+            No user claims found!
+            {{end}}
+          </div>
+          <div class="category-link">
+            User <a href="https://docs.pomerium.io/reference/#jwt-claim-headers">identity claims</a> can be passed to upstream applications.
+          </div>
+        </div>
+      </div>
+
+      <div class="category white box">
+        <div class="messages">
+          <div class="box-inner">
+            <div class="category-header clearfix">
+              <span class="category-title">Groups</span>
+
+            </div>
+            </ul>
+            {{if .DirectoryGroups}}
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  {{range .DirectoryGroups}}
+                  <td>{{.Id}}</td>
+                  <td> {{.Name}} </td>
+                </tr>
+                {{end}}
+              </tbody>
+            </table>
+            {{else}}
+            No groups found!
+            {{end}}
+          </div>
+          <div class="category-link">
+            Your associated groups are pulled from your <a href="https://www.pomerium.io/docs/identity-providers/">identity provider</a>.
+          </div>
+        </div>
+      </div>
+      <div id="footer">
+        <ul>
+          <li><a href="https://pomerium.com/">Home</a></li>
+          <li><a href="https://pomerium.com/docs">Docs</a></li>
+          <li><a href="https://pomerium.com/docs/community/">Support</a></li>
+          <li><a href="https://github.com/pomerium">Github</a></li>
+          <li class="last">
+            <a href="https://twitter.com/pomerium_io">@pomerium_io</a>
+          </li>
+        </ul>
+        <p>© Pomerium, Inc.</p>
+      </div>
+</body>
+
+</html>
+{{end}}

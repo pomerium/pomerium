@@ -591,12 +591,11 @@ func TestJwksEndpoint(t *testing.T) {
 	assert.Equal(t, expected, body)
 }
 
-func TestAuthenticate_Dashboard(t *testing.T) {
+func TestAuthenticate_userInfo(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 	pbNow, _ := ptypes.TimestampProto(now)
-	nowStr := now.UTC().Format("2006-01-02 15:04:05 MST")
 	tests := []struct {
 		name         string
 		method       string
@@ -605,7 +604,6 @@ func TestAuthenticate_Dashboard(t *testing.T) {
 		wantBody     string
 	}{
 		{"good", http.MethodGet, &mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}}, http.StatusOK, ""},
-		{"good with expected timestamp format", http.MethodGet, &mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}}, http.StatusOK, nowStr},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -659,7 +657,7 @@ func TestAuthenticate_Dashboard(t *testing.T) {
 			r.Header.Set("Accept", "application/json")
 
 			w := httptest.NewRecorder()
-			httputil.HandlerFunc(a.Dashboard).ServeHTTP(w, r)
+			httputil.HandlerFunc(a.userInfo).ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantCode {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
 			}

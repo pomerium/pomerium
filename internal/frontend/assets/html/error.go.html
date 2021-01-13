@@ -1,51 +1,36 @@
 {{define "error.html"}}
 <!DOCTYPE html>
 <html lang="en" charset="utf-8">
-  <head>
-    <title>{{.Status}} - {{.StatusText}}</title>
-    {{template "header.html"}}
-  </head>
-  <body>
-    <div id="main">
-      <div id="info-box">
-        <div class="card">
-          <div class="card-header">
-            <img
-              class="icon"
-              src="{{dataURL "/.pomerium/assets/img/error-24px.svg"}}"
-              xmlns="http://www.w3.org/2000/svg"
-            />
-            <h2>{{.StatusText}}</h2>
-            <h2>{{.Status}}</h2>
+
+<head>
+  <title>{{.Status}} - {{.StatusText}}</title>
+  {{template "header.html"}}
+</head>
+
+<body>
+  <div class="inner">
+    <div class="header clearfix">
+      <div class="heading"></div>
+    </div>
+    <div class="content">
+      <div class="white box">
+        <div class="largestatus">
+          <img class="status-bubble" src="{{dataURL "/.pomerium/assets/img/error-24px.svg"}}" xmlns="http://www.w3.org/2000/svg" />
+          <div class="title-wrapper">
+            <span class="title">{{.Status}} {{.StatusText}}</span>
+            <label class="status-time">
+              <span>{{.Error}}</span>
+            </label>
           </div>
-          <section>
-            <div class="message">
-              <div class="text-monospace">{{.Error}}</div>
-            </div>
-            {{if and .CanDebug .DebugURL }}
-            <div class="message">
-              If you should have access, contact your administrator and provide
-              them with your
-              <a href="{{.DebugURL}}">request details</a>.
-            </div>
-            {{end}}
-          </section>
-          <div class="card-footer">
-            <a href="https://www.pomerium.io">
-              <img
-                src="{{dataURL "/.pomerium/assets/img/pomerium_circle_96.svg"}}"
-                xmlns="http://www.w3.org/2000/svg"
-                class="icon"
-              />
-            </a>
-            <div class="text-right text-muted small">
-              {{.RequestID}} <br />
-              Pomerium {{.Version}}
-            </div>
-          </div>
+        </div>
+        <div class="category-link">
+          {{if and .CanDebug .DebugURL }}
+            If you should have access, contact your administrator with your <a href="{{.DebugURL}}">session details</a>.
+          {{end}}
         </div>
       </div>
     </div>
-  </body>
+  </div>
+</body>
 </html>
 {{end}}

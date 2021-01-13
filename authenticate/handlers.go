@@ -84,7 +84,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	v.Use(c.Handler)
 	v.Use(a.RetrieveSession)
 	v.Use(a.VerifySession)
-	v.Path("/").Handler(httputil.HandlerFunc(a.Dashboard))
+	v.Path("/").Handler(httputil.HandlerFunc(a.userInfo))
 	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	v.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 
@@ -431,28 +431,30 @@ func (a *Authenticate) isAdmin(user string) bool {
 	return ok
 }
 
-// Dashboard renders the /.pomerium/ user dashboard.
-func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
+func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
+	ctx, span := trace.StartSpan(r.Context(), "authenticate.userInfo")
+	defer span.End()
+
 	state := a.state.Load()
 
-	s, err := a.getSessionFromCtx(r.Context())
+	s, err := a.getSessionFromCtx(ctx)
 	if err != nil {
 		s.ID = uuid.New().String()
 	}
 
-	pbSession, err := session.Get(r.Context(), state.dataBrokerClient, s.ID)
+	pbSession, err := session.Get(ctx, state.dataBrokerClient, s.ID)
 	if err != nil {
 		pbSession = &session.Session{
 			Id: s.ID,
 		}
 	}
-	pbUser, err := user.Get(r.Context(), state.dataBrokerClient, pbSession.GetUserId())
+	pbUser, err := user.Get(ctx, state.dataBrokerClient, pbSession.GetUserId())
 	if err != nil {
 		pbUser = &user.User{
 			Id: pbSession.GetUserId(),
 		}
 	}
-	pbDirectoryUser, err := directory.GetUser(r.Context(), state.dataBrokerClient, pbSession.GetUserId())
+	pbDirectoryUser, err := directory.GetUser(ctx, state.dataBrokerClient, pbSession.GetUserId())
 	if err != nil {
 		pbDirectoryUser = &directory.User{
 			Id: pbSession.GetUserId(),
@@ -460,7 +462,7 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 	}
 	var groups []*directory.Group
 	for _, groupID := range pbDirectoryUser.GetGroupIds() {
-		pbDirectoryGroup, err := directory.GetGroup(r.Context(), state.dataBrokerClient, groupID)
+		pbDirectoryGroup, err := directory.GetGroup(ctx, state.dataBrokerClient, groupID)
 		if err != nil {
 			pbDirectoryGroup = &directory.Group{
 				Id:    groupID,
@@ -470,13 +472,12 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 		}
 		groups = append(groups, pbDirectoryGroup)
 	}
-
 	input := map[string]interface{}{
-		"State":           s,
-		"Session":         pbSession,
-		"User":            pbUser,
-		"DirectoryGroups": groups,
-		"DirectoryUser":   pbDirectoryUser,
+		"State":           s,               // local session state (cookie, header, etc)
+		"Session":         pbSession,       // current access, refresh, id token, & impersonation state
+		"User":            pbUser,          // user details inferred from oidc id_token
+		"DirectoryUser":   pbDirectoryUser, // user details inferred from idp directory
+		"DirectoryGroups": groups,          // user's groups inferred from idp directory
 		"csrfField":       csrf.TemplateField(r),
 		"RedirectURL":     r.URL.Query().Get(urlutil.QueryRedirectURI),
 	}
@@ -490,7 +491,7 @@ func (a *Authenticate) Dashboard(w http.ResponseWriter, r *http.Request) error {
 		input["SignOutURL"] = "/.pomerium/sign_out"
 	}
 
-	return a.templates.ExecuteTemplate(w, "dashboard.html", input)
+	return a.templates.ExecuteTemplate(w, "userInfo.html", input)
 }
 
 func (a *Authenticate) saveSessionToDataBroker(
@@ -511,7 +512,7 @@ func (a *Authenticate) saveSessionToDataBroker(
 		UserId:    sessionState.UserID(a.provider.Load().Name()),
 		ExpiresAt: sessionExpiry,
 		IdToken: &session.IDToken{
-			Issuer:    sessionState.Issuer,
+			Issuer:    sessionState.Issuer, // todo(bdd): the issuer is not authN but the downstream IdP from the claims
 			Subject:   sessionState.Subject,
 			ExpiresAt: sessionExpiry,
 			IssuedAt:  idTokenIssuedAt,

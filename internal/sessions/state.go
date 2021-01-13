@@ -63,8 +63,8 @@ type State struct {
 	OID string `json:"oid,omitempty"`
 
 	// Programmatic whether this state is used for machine-to-machine
-	// programatic access.
-	Programmatic bool `json:"programatic"`
+	// programmatic access.
+	Programmatic bool `json:"programmatic"`
 }
 
 // NewSession updates issuer, audience, and issuance timestamps but keeps
