@@ -1,0 +1,7 @@
+override:
+  - path: "gopkg.in/alecthomas/kingpin.v2"
+    licenses: ["MIT"]
+  - path: "github.com/alecthomas/units"
+    licenses: ["MIT"]
+  - path: "gopkg.in/cookieo9/resources-go.v2"
+    licenses: ["MIT"]
