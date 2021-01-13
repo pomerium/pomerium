@@ -168,11 +168,14 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		Customer(currentAccountCustomerID).
 		Pages(ctx, func(res *admin.Users) error {
 			for _, u := range res.Users {
-				userLookup[u.Id] = apiUserObject{
-					ID:          u.Id,
-					DisplayName: u.Name.FullName,
-					Email:       u.PrimaryEmail,
+				auo := apiUserObject{
+					ID:    u.Id,
+					Email: u.PrimaryEmail,
 				}
+				if u.Name != nil {
+					auo.DisplayName = u.Name.FullName
+				}
+				userLookup[u.Id] = auo
 			}
 			return nil
 		})

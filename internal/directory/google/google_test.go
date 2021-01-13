@@ -11,6 +11,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
 var privateKey = `
@@ -79,17 +81,48 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 					},
 				})
 			default:
-				http.Error(w, "not found", http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(M{
+					"kind": "admin#directory#groups",
+					"groups": []M{
+						{"id": "group1", "directMembersCount": "1"},
+						{"id": "group2"},
+					},
+				})
+			}
+		})
+		r.Get("/{groupKey}/members", func(w http.ResponseWriter, r *http.Request) {
+			switch chi.URLParam(r, "groupKey") {
+			case "group1":
+				_ = json.NewEncoder(w).Encode(M{
+					"members": []M{
+						{
+							"kind": "admin#directory#member",
+							"id":   "user1",
+						},
+					},
+				})
 			}
 		})
 	})
 	r.Route("/users", func(r chi.Router) {
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewEncoder(w).Encode(M{
+				"kind": "admin#directory#users",
+				"users": []M{
+					{
+						"kind":         "admin#directory#user",
+						"id":           "user1",
+						"primaryEmail": "user1@example.com",
+					},
+				},
+			})
+		})
 		r.Get("/{user_id}", func(w http.ResponseWriter, r *http.Request) {
 			switch chi.URLParam(r, "user_id") {
 			case "user1":
 				_ = json.NewEncoder(w).Encode(M{
 					"kind": "admin#directory#user",
-					"id":   "1",
+					"id":   "user1",
 					"name": M{
 						"fullName": "User 1",
 					},
@@ -137,4 +170,34 @@ func TestProvider_User(t *testing.T) {
 		return
 	}
 	assert.Equal(t, "user2", du.Id)
+}
+
+func TestProvider_UserGroups(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
+	defer clearTimeout()
+
+	var mockAPI http.Handler
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockAPI.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	mockAPI = newMockAPI(t, srv)
+
+	p := New(WithServiceAccount(&ServiceAccount{
+		Type:       "service_account",
+		PrivateKey: privateKey,
+		TokenURL:   srv.URL + "/token",
+	}), WithURL(srv.URL))
+
+	dgs, dus, err := p.UserGroups(ctx)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, []*directory.Group{
+		{Id: "group1"},
+	}, dgs)
+	assert.Equal(t, []*directory.User{
+		{Id: "google/user1", Email: "user1@example.com", GroupIds: []string{"group1"}},
+	}, dus)
 }
