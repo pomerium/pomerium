@@ -2,7 +2,7 @@
 // html templates.
 package frontend
 
-//go:generate go run github.com/rakyll/statik -src=./assets -include=*.svg,*.html,*.css,*.js -ns web
+//go:generate go run github.com/rakyll/statik -m -src=./assets -include=*.svg,*.html,*.css,*.js -ns web
 //go:generate go fmt statik/statik.go
 
 import (

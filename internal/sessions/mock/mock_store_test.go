@@ -25,7 +25,7 @@ func TestStore(t *testing.T) {
 				SaveError:       nil,
 				LoadError:       nil,
 			},
-			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcm9ncmFtYXRpYyI6ZmFsc2UsInN1YiI6IjAxMDEifQ.xQQPXGN3q3j_CHbz6p9D-vZ1DaiPWwKdQhNxNHoYzvM",
+			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcm9ncmFtbWF0aWMiOmZhbHNlLCJzdWIiOiIwMTAxIn0.PXmONj-P1lV2BVAZ21lTicAapZr3w8yE2eX9zO07zQc",
 			&sessions.State{Subject: "0101"},
 			false,
 			false,

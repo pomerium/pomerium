@@ -9,7 +9,7 @@ import (
 	_ "github.com/pomerium/pomerium/internal/controlplane/luascripts"
 )
 
-//go:generate go run github.com/rakyll/statik -src=./luascripts -include=*.lua -p luascripts -ns luascripts
+//go:generate go run github.com/rakyll/statik -m -src=./luascripts -include=*.lua -p luascripts -ns luascripts
 //go:generate go fmt ./luascripts/statik.go
 
 var luascripts struct {

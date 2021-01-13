@@ -12,7 +12,7 @@ meta:
 This document describes the use of GitHub as an identity provider for Pomerium.
 
 Before we proceed, please be aware that [GitHub API] does not support [OpenID Connect], just [OAuth 2.0].
-For this reason, it was challenging to implement revocation of a user's **Access Token** (a string representing the granted permissions) when they sign out from Pomerium's dashboard.
+For this reason, it was challenging to implement revocation of a user's **Access Token** (a string representing the granted permissions) when they sign out from Pomerium's user info endpoint.
 
 In addition, the teams of the organization(s) a user belongs to, will be used as groups on Pomerium.
 
