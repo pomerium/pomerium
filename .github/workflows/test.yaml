@@ -84,6 +84,14 @@ jobs:
         run: |
           make build-deps
           make build
+          make build NAME=pomerium-cli
+
+      - name: save binary
+        uses: actions/upload-artifact@v2
+        with:
+          path: bin/pomerium*
+          name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
+          retention-days: 1
 
   build-docker:
     runs-on: ubuntu-latest
@@ -140,3 +148,32 @@ jobs:
           extra_args: --show-diff-on-failure --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
         env:
           SKIP: lint
+
+  license:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.15.x]
+        platform: [ubuntu-latest]
+    needs:
+      - build
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.15.x
+
+      - uses: actions/checkout@v2
+
+      - name: install lichen
+        run: $(cd /tmp; go get github.com/uw-labs/lichen)
+
+      - name: retrieve binary
+        uses: actions/download-artifact@v2
+        with:
+          name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
+          path: bin/
+
+      - name: golang license check
+        run: |
+          chmod 755 bin/pomerium bin/pomerium-cli
+          lichen --config lichen.yaml bin/pomerium*
