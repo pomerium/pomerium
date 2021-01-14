@@ -43,7 +43,9 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 	if config.IsProxy(options.Services) {
 		for i := range options.Policies {
 			policy := options.Policies[i]
-			clusters = append(clusters, buildPolicyCluster(options, &policy))
+			if policy.Destination != nil {
+				clusters = append(clusters, buildPolicyCluster(options, &policy))
+			}
 		}
 	}
 
@@ -114,7 +116,7 @@ func buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *e
 }
 
 func buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.TransportSocket {
-	if policy.Destination.Scheme != "https" {
+	if policy.Destination == nil || policy.Destination.Scheme != "https" {
 		return nil
 	}
 
@@ -154,6 +156,10 @@ func buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.Tra
 }
 
 func buildPolicyValidationContext(policy *config.Policy) *envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext {
+	if policy.Destination == nil {
+		return nil
+	}
+
 	sni := policy.Destination.Hostname()
 	if policy.TLSServerName != "" {
 		sni = policy.TLSServerName
@@ -196,6 +202,10 @@ func buildCluster(
 	forceHTTP2 bool,
 	dnsLookupFamily envoy_config_cluster_v3.Cluster_DnsLookupFamily,
 ) *envoy_config_cluster_v3.Cluster {
+	if endpoint == nil {
+		return nil
+	}
+
 	defaultPort := 80
 	if transportSocket != nil && transportSocket.Name == "tls" {
 		defaultPort = 443

@@ -308,9 +308,15 @@ func (p *Policy) Validate() error {
 
 	p.Source = &StringURL{source}
 
-	p.Destination, err = urlutil.ParseAndValidateURL(p.To)
-	if err != nil {
-		return fmt.Errorf("config: policy bad destination url %w", err)
+	switch {
+	case p.To != "":
+		p.Destination, err = urlutil.ParseAndValidateURL(p.To)
+		if err != nil {
+			return fmt.Errorf("config: policy bad destination url %w", err)
+		}
+	case p.Redirect != nil:
+	default:
+		return fmt.Errorf("config: policy must have either a `to` or `redirect`")
 	}
 
 	// Only allow public access if no other whitelists are in place
