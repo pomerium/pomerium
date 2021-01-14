@@ -16,7 +16,7 @@ type Watcher struct {
 	filePaths map[string]chan notify.EventInfo
 }
 
-// NewFileMatcher creates a new Watcher.
+// NewWatcher creates a new Watcher.
 func NewWatcher() *Watcher {
 	return &Watcher{
 		Signal:    signal.New(),
