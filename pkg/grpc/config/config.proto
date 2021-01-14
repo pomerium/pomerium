@@ -20,7 +20,7 @@ message RouteRedirect {
   optional string path_redirect = 5;
   optional string prefix_rewrite = 6;
   optional string regex_rewrite = 7;
-  optional uint32 response_code = 8;
+  optional int32 response_code = 8;
   optional bool strip_query = 9;
 }
 

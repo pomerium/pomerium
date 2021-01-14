@@ -160,7 +160,7 @@ type PolicyRedirect struct {
 	PathRedirect   *string `mapstructure:"path_redirect" yaml:"path_redirect,omitempty" json:"path_redirect,omitempty"`
 	PrefixRewrite  *string `mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitempty" json:"prefix_rewrite,omitempty"`
 	RegexRewrite   *string `mapstructure:"regex_rewrite" yaml:"regex_rewrite,omitempty" json:"regex_rewrite,omitempty"`
-	ResponseCode   *uint32 `mapstructure:"response_code" yaml:"response_code,omitempty" json:"response_code,omitempty"`
+	ResponseCode   *int32  `mapstructure:"response_code" yaml:"response_code,omitempty" json:"response_code,omitempty"`
 	StripQuery     *bool   `mapstructure:"strip_query" yaml:"strip_query,omitempty" json:"strip_query,omitempty"`
 }
 
