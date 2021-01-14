@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/controlplane/filemgr"
 	"github.com/pomerium/pomerium/internal/controlplane/xdsmgr"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -50,6 +51,7 @@ type Server struct {
 	currentConfig atomicVersionedOptions
 	name          string
 	xdsmgr        *xdsmgr.Manager
+	filemgr       *filemgr.Manager
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
@@ -87,12 +89,31 @@ func NewServer(name string) (*Server, error) {
 	srv.xdsmgr = xdsmgr.NewManager(srv.buildDiscoveryResources())
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv.GRPCServer, srv.xdsmgr)
 
+	srv.filemgr = filemgr.New()
+	srv.filemgr.ClearCache()
+
 	return srv, nil
 }
 
 // Run runs the control-plane gRPC and HTTP servers.
 func (srv *Server) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
+
+	// watch for file changes
+	eg.Go(func() error {
+		ch := srv.filemgr.Bind()
+		defer srv.filemgr.Unbind(ch)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-ch:
+				srv.filemgr.ClearWatches()
+				srv.xdsmgr.Update(srv.buildDiscoveryResources())
+			}
+		}
+	})
 
 	// start the gRPC server
 	eg.Go(func() error {

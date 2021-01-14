@@ -1,9 +1,12 @@
 package config
 
 import (
+	"os"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
+
+	"github.com/pomerium/pomerium/internal/fileutil"
 )
 
 // Config holds pomerium configuration options.
@@ -124,4 +127,59 @@ func (src *FileOrEnvironmentSource) GetConfig() *Config {
 	defer src.mu.RUnlock()
 
 	return src.config
+}
+
+// FileWatcherSource is a config source which triggers a change any time a file in the options changes.
+type FileWatcherSource struct {
+	underlying Source
+	watcher    *fileutil.Watcher
+
+	ChangeDispatcher
+}
+
+// NewFileWatcherSource creates a new FileWatcherSource.
+func NewFileWatcherSource(underlying Source) *FileWatcherSource {
+	src := &FileWatcherSource{
+		underlying: underlying,
+		watcher:    fileutil.NewWatcher(),
+	}
+
+	ch := src.watcher.Bind()
+	go func() {
+		for range ch {
+			src.Trigger(src.GetConfig())
+		}
+	}()
+	underlying.OnConfigChange(src.onConfigChange)
+
+	return src
+}
+
+// GetConfig gets the underlying config.
+func (src *FileWatcherSource) GetConfig() *Config {
+	return src.underlying.GetConfig()
+}
+
+func (src *FileWatcherSource) onConfigChange(cfg *Config) {
+	defer src.Trigger(cfg)
+	src.watcher.Clear()
+
+	fs := []string{
+		cfg.Options.CAFile,
+		cfg.Options.CertFile,
+		cfg.Options.ClientCAFile,
+		cfg.Options.DataBrokerStorageCAFile,
+		cfg.Options.DataBrokerStorageCertFile,
+		cfg.Options.DataBrokerStorageCertKeyFile,
+		cfg.Options.KeyFile,
+		cfg.Options.PolicyFile,
+	}
+	for _, cf := range cfg.Options.CertificateFiles {
+		fs = append(fs, cf.CertFile, cf.KeyFile)
+	}
+	for _, f := range fs {
+		if _, err := os.Stat(f); err == nil {
+			src.watcher.Add(f)
+		}
+	}
 }

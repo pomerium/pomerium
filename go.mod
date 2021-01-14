@@ -46,6 +46,7 @@ require (
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v1.9.0
 	github.com/rakyll/statik v0.1.7
+	github.com/rjeczalik/notify v0.9.2
 	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.20.0
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966

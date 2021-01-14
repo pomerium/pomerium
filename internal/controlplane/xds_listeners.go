@@ -37,21 +37,21 @@ func init() {
 	})
 }
 
-func buildListeners(options *config.Options) []*envoy_config_listener_v3.Listener {
+func (srv *Server) buildListeners(options *config.Options) []*envoy_config_listener_v3.Listener {
 	var listeners []*envoy_config_listener_v3.Listener
 
 	if config.IsAuthenticate(options.Services) || config.IsProxy(options.Services) {
-		listeners = append(listeners, buildMainListener(options))
+		listeners = append(listeners, srv.buildMainListener(options))
 	}
 
 	if config.IsAuthorize(options.Services) || config.IsCache(options.Services) {
-		listeners = append(listeners, buildGRPCListener(options))
+		listeners = append(listeners, srv.buildGRPCListener(options))
 	}
 
 	return listeners
 }
 
-func buildMainListener(options *config.Options) *envoy_config_listener_v3.Listener {
+func (srv *Server) buildMainListener(options *config.Options) *envoy_config_listener_v3.Listener {
 	if options.InsecureServer {
 		filter := buildMainHTTPConnectionManagerFilter(options,
 			getAllRouteableDomains(options, options.Addr))
@@ -88,7 +88,7 @@ func buildMainListener(options *config.Options) *envoy_config_listener_v3.Listen
 						ServerNames: []string{tlsDomain},
 					}
 				}
-				tlsContext := buildDownstreamTLSContext(options, tlsDomain)
+				tlsContext := srv.buildDownstreamTLSContext(options, tlsDomain)
 				if tlsContext != nil {
 					tlsConfig := marshalAny(tlsContext)
 					filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
@@ -250,7 +250,7 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 	}
 }
 
-func buildGRPCListener(options *config.Options) *envoy_config_listener_v3.Listener {
+func (srv *Server) buildGRPCListener(options *config.Options) *envoy_config_listener_v3.Listener {
 	filter := buildGRPCHTTPConnectionManagerFilter()
 
 	if options.GRPCInsecure {
@@ -285,7 +285,7 @@ func buildGRPCListener(options *config.Options) *envoy_config_listener_v3.Listen
 						ServerNames: []string{tlsDomain},
 					}
 				}
-				tlsContext := buildDownstreamTLSContext(options, tlsDomain)
+				tlsContext := srv.buildDownstreamTLSContext(options, tlsDomain)
 				if tlsContext != nil {
 					tlsConfig := marshalAny(tlsContext)
 					filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
@@ -357,7 +357,7 @@ func buildRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.
 	}
 }
 
-func buildDownstreamTLSContext(options *config.Options, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
+func (srv *Server) buildDownstreamTLSContext(options *config.Options, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
 	cert, err := cryptutil.GetCertificateForDomain(options.Certificates, domain)
 	if err != nil {
 		log.Warn().Str("domain", domain).Err(err).Msg("failed to get certificate for domain")
@@ -370,9 +370,9 @@ func buildDownstreamTLSContext(options *config.Options, domain string) *envoy_ex
 		if err != nil {
 			log.Warn().Msg("client_ca does not appear to be a base64 encoded string")
 		}
-		trustedCA = inlineBytesAsFilename("client-ca", bs)
+		trustedCA = srv.filemgr.BytesDataSource("client-ca", bs)
 	} else if options.ClientCAFile != "" {
-		trustedCA = inlineFilename(options.ClientCAFile)
+		trustedCA = srv.filemgr.FileDataSource(options.ClientCAFile)
 	}
 
 	var validationContext *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext
@@ -385,7 +385,7 @@ func buildDownstreamTLSContext(options *config.Options, domain string) *envoy_ex
 		}
 	}
 
-	envoyCert := envoyTLSCertificateFromGoTLSCertificate(cert)
+	envoyCert := srv.envoyTLSCertificateFromGoTLSCertificate(cert)
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams: &envoy_extensions_transport_sockets_tls_v3.TlsParameters{

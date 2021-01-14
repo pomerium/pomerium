@@ -7,14 +7,11 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
-	"path/filepath"
 	"strconv"
 	"sync"
 
-	xxhash "github.com/cespare/xxhash/v2"
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
@@ -45,7 +42,7 @@ func (srv *Server) buildDiscoveryResources() map[string][]*envoy_service_discove
 			Resource: any,
 		})
 	}
-	for _, listener := range buildListeners(&cfg.Options) {
+	for _, listener := range srv.buildListeners(&cfg.Options) {
 		any, _ := anypb.New(listener)
 		resources[listenerTypeURL] = append(resources[listenerTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     listener.Name,
@@ -116,52 +113,7 @@ func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Addres
 	}
 }
 
-func inlineBytes(bs []byte) *envoy_config_core_v3.DataSource {
-	return &envoy_config_core_v3.DataSource{
-		Specifier: &envoy_config_core_v3.DataSource_InlineBytes{
-			InlineBytes: bs,
-		},
-	}
-}
-
-func inlineBytesAsFilename(name string, bs []byte) *envoy_config_core_v3.DataSource {
-	ext := filepath.Ext(name)
-	name = fmt.Sprintf("%s-%x%s", name[:len(name)-len(ext)], xxhash.Sum64(bs), ext)
-
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		cacheDir = filepath.Join(os.TempDir())
-	}
-	cacheDir = filepath.Join(cacheDir, "pomerium", "envoy", "files")
-	if err = os.MkdirAll(cacheDir, 0o755); err != nil {
-		log.Error().Err(err).Msg("error creating cache directory, falling back to inline bytes")
-		return inlineBytes(bs)
-	}
-
-	fp := filepath.Join(cacheDir, name)
-	if _, err = os.Stat(fp); os.IsNotExist(err) {
-		err = ioutil.WriteFile(fp, bs, 0o600)
-		if err != nil {
-			log.Error().Err(err).Msg("error writing cache file, falling back to inline bytes")
-			return inlineBytes(bs)
-		}
-	} else if err != nil {
-		log.Error().Err(err).Msg("error reading cache file, falling back to inline bytes")
-		return inlineBytes(bs)
-	}
-
-	return inlineFilename(fp)
-}
-
-func inlineFilename(name string) *envoy_config_core_v3.DataSource {
-	return &envoy_config_core_v3.DataSource{
-		Specifier: &envoy_config_core_v3.DataSource_Filename{
-			Filename: name,
-		},
-	}
-}
-
-func envoyTLSCertificateFromGoTLSCertificate(cert *tls.Certificate) *envoy_extensions_transport_sockets_tls_v3.TlsCertificate {
+func (srv *Server) envoyTLSCertificateFromGoTLSCertificate(cert *tls.Certificate) *envoy_extensions_transport_sockets_tls_v3.TlsCertificate {
 	envoyCert := &envoy_extensions_transport_sockets_tls_v3.TlsCertificate{}
 	var chain bytes.Buffer
 	for _, cbs := range cert.Certificate {
@@ -170,12 +122,12 @@ func envoyTLSCertificateFromGoTLSCertificate(cert *tls.Certificate) *envoy_exten
 			Bytes: cbs,
 		})
 	}
-	envoyCert.CertificateChain = inlineBytesAsFilename("tls-crt.pem", chain.Bytes())
+	envoyCert.CertificateChain = srv.filemgr.BytesDataSource("tls-crt.pem", chain.Bytes())
 	if cert.OCSPStaple != nil {
-		envoyCert.OcspStaple = inlineBytes(cert.OCSPStaple)
+		envoyCert.OcspStaple = srv.filemgr.BytesDataSource("ocsp-staple", cert.OCSPStaple)
 	}
 	if bs, err := x509.MarshalPKCS8PrivateKey(cert.PrivateKey); err == nil {
-		envoyCert.PrivateKey = inlineBytesAsFilename("tls-key.pem", pem.EncodeToMemory(
+		envoyCert.PrivateKey = srv.filemgr.BytesDataSource("tls-key.pem", pem.EncodeToMemory(
 			&pem.Block{
 				Type:  "PRIVATE KEY",
 				Bytes: bs,
@@ -186,7 +138,7 @@ func envoyTLSCertificateFromGoTLSCertificate(cert *tls.Certificate) *envoy_exten
 	}
 	for _, scts := range cert.SignedCertificateTimestamps {
 		envoyCert.SignedCertificateTimestamp = append(envoyCert.SignedCertificateTimestamp,
-			inlineBytes(scts))
+			srv.filemgr.BytesDataSource("signed-certificate-timestamp", scts))
 	}
 	return envoyCert
 }
