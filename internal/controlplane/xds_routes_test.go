@@ -5,6 +5,10 @@ import (
 	"testing"
 	"time"
 
+	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil"
 )
@@ -815,4 +819,88 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 			}
 		]
 	`, routes)
+}
+
+func Test_buildPolicyRouteRedirectAction(t *testing.T) {
+	t.Run("HTTPSRedirect", func(t *testing.T) {
+		action := buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+			HTTPSRedirect: proto.Bool(true),
+		})
+		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
+			SchemeRewriteSpecifier: &envoy_config_route_v3.RedirectAction_HttpsRedirect{
+				HttpsRedirect: true,
+			},
+		}, action)
+
+		action = buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+			HTTPSRedirect: proto.Bool(false),
+		})
+		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
+			SchemeRewriteSpecifier: &envoy_config_route_v3.RedirectAction_HttpsRedirect{
+				HttpsRedirect: false,
+			},
+		}, action)
+	})
+	t.Run("SchemeRedirect", func(t *testing.T) {
+		action := buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+			SchemeRedirect: proto.String("https"),
+		})
+		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
+			SchemeRewriteSpecifier: &envoy_config_route_v3.RedirectAction_SchemeRedirect{
+				SchemeRedirect: "https",
+			},
+		}, action)
+	})
+	t.Run("HostRedirect", func(t *testing.T) {
+		action := buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+			HostRedirect: proto.String("HOST"),
+		})
+		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
+			HostRedirect: "HOST",
+		}, action)
+	})
+	t.Run("PortRedirect", func(t *testing.T) {
+		action := buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+			PortRedirect: proto.Uint32(1234),
+		})
+		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
+			PortRedirect: 1234,
+		}, action)
+	})
+	t.Run("PathRedirect", func(t *testing.T) {
+		action := buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+			PathRedirect: proto.String("PATH"),
+		})
+		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
+			PathRewriteSpecifier: &envoy_config_route_v3.RedirectAction_PathRedirect{
+				PathRedirect: "PATH",
+			},
+		}, action)
+	})
+	t.Run("PrefixRewrite", func(t *testing.T) {
+		action := buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+			PrefixRewrite: proto.String("PREFIX_REWRITE"),
+		})
+		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
+			PathRewriteSpecifier: &envoy_config_route_v3.RedirectAction_PrefixRewrite{
+				PrefixRewrite: "PREFIX_REWRITE",
+			},
+		}, action)
+	})
+	t.Run("ResponseCode", func(t *testing.T) {
+		action := buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+			ResponseCode: proto.Int32(301),
+		})
+		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
+			ResponseCode: 301,
+		}, action)
+	})
+	t.Run("StripQuery", func(t *testing.T) {
+		action := buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+			StripQuery: proto.Bool(true),
+		})
+		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
+			StripQuery: true,
+		}, action)
+	})
 }

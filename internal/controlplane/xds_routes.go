@@ -188,47 +188,10 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 		}
 
 		match := mkRouteMatch(&policy)
-		clusterName := getPolicyName(&policy)
 		requestHeadersToAdd := toEnvoyHeaders(policy.SetRequestHeaders)
 		requestHeadersToRemove := getRequestHeadersToRemove(options, &policy)
-		routeTimeout := getRouteTimeout(options, &policy)
-		idleTimeout := getRouteIdleTimeout(&policy)
-		prefixRewrite, regexRewrite := getRewriteOptions(&policy)
 
-		upgradeConfigs := []*envoy_config_route_v3.RouteAction_UpgradeConfig{
-			{
-				UpgradeType: "websocket",
-				Enabled:     &wrappers.BoolValue{Value: policy.AllowWebsockets},
-			},
-			{
-				UpgradeType: "spdy/3.1",
-				Enabled:     &wrappers.BoolValue{Value: policy.AllowSPDY},
-			},
-		}
-		if urlutil.IsTCP(policy.Source.URL) {
-			upgradeConfigs = append(upgradeConfigs, &envoy_config_route_v3.RouteAction_UpgradeConfig{
-				UpgradeType:   "CONNECT",
-				Enabled:       &wrappers.BoolValue{Value: true},
-				ConnectConfig: &envoy_config_route_v3.RouteAction_UpgradeConfig_ConnectConfig{},
-			})
-		}
-
-		routeAction := &envoy_config_route_v3.RouteAction{
-			ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-				Cluster: clusterName,
-			},
-			UpgradeConfigs: upgradeConfigs,
-			HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
-				AutoHostRewrite: &wrappers.BoolValue{Value: !policy.PreserveHostHeader},
-			},
-			Timeout:       routeTimeout,
-			IdleTimeout:   idleTimeout,
-			PrefixRewrite: prefixRewrite,
-			RegexRewrite:  regexRewrite,
-		}
-		setHostRewriteOptions(&policy, routeAction)
-
-		routes = append(routes, &envoy_config_route_v3.Route{
+		envoyRoute := &envoy_config_route_v3.Route{
 			Name:  fmt.Sprintf("policy-%d", i),
 			Match: match,
 			Metadata: &envoy_config_core_v3.Metadata{
@@ -254,13 +217,97 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 					},
 				},
 			},
-			Action:                 &envoy_config_route_v3.Route_Route{Route: routeAction},
 			RequestHeadersToAdd:    requestHeadersToAdd,
 			RequestHeadersToRemove: requestHeadersToRemove,
 			ResponseHeadersToAdd:   responseHeadersToAdd,
-		})
+		}
+		if policy.Redirect != nil {
+			envoyRoute.Action = &envoy_config_route_v3.Route_Redirect{
+				Redirect: buildPolicyRouteRedirectAction(policy.Redirect),
+			}
+		} else {
+			envoyRoute.Action = &envoy_config_route_v3.Route_Route{Route: buildPolicyRouteRouteAction(options, &policy)}
+		}
+
+		routes = append(routes, envoyRoute)
 	}
 	return routes
+}
+
+func buildPolicyRouteRedirectAction(r *config.PolicyRedirect) *envoy_config_route_v3.RedirectAction {
+	action := &envoy_config_route_v3.RedirectAction{}
+	switch {
+	case r.HTTPSRedirect != nil:
+		action.SchemeRewriteSpecifier = &envoy_config_route_v3.RedirectAction_HttpsRedirect{
+			HttpsRedirect: *r.HTTPSRedirect,
+		}
+	case r.SchemeRedirect != nil:
+		action.SchemeRewriteSpecifier = &envoy_config_route_v3.RedirectAction_SchemeRedirect{
+			SchemeRedirect: *r.SchemeRedirect,
+		}
+	}
+	if r.HostRedirect != nil {
+		action.HostRedirect = *r.HostRedirect
+	}
+	if r.PortRedirect != nil {
+		action.PortRedirect = *r.PortRedirect
+	}
+	switch {
+	case r.PathRedirect != nil:
+		action.PathRewriteSpecifier = &envoy_config_route_v3.RedirectAction_PathRedirect{
+			PathRedirect: *r.PathRedirect,
+		}
+	case r.PrefixRewrite != nil:
+		action.PathRewriteSpecifier = &envoy_config_route_v3.RedirectAction_PrefixRewrite{
+			PrefixRewrite: *r.PrefixRewrite,
+		}
+	}
+	if r.ResponseCode != nil {
+		action.ResponseCode = envoy_config_route_v3.RedirectAction_RedirectResponseCode(*r.ResponseCode)
+	}
+	if r.StripQuery != nil {
+		action.StripQuery = *r.StripQuery
+	}
+	return action
+}
+
+func buildPolicyRouteRouteAction(options *config.Options, policy *config.Policy) *envoy_config_route_v3.RouteAction {
+	clusterName := getPolicyName(policy)
+	routeTimeout := getRouteTimeout(options, policy)
+	idleTimeout := getRouteIdleTimeout(policy)
+	prefixRewrite, regexRewrite := getRewriteOptions(policy)
+	upgradeConfigs := []*envoy_config_route_v3.RouteAction_UpgradeConfig{
+		{
+			UpgradeType: "websocket",
+			Enabled:     &wrappers.BoolValue{Value: policy.AllowWebsockets},
+		},
+		{
+			UpgradeType: "spdy/3.1",
+			Enabled:     &wrappers.BoolValue{Value: policy.AllowSPDY},
+		},
+	}
+	if urlutil.IsTCP(policy.Source.URL) {
+		upgradeConfigs = append(upgradeConfigs, &envoy_config_route_v3.RouteAction_UpgradeConfig{
+			UpgradeType:   "CONNECT",
+			Enabled:       &wrappers.BoolValue{Value: true},
+			ConnectConfig: &envoy_config_route_v3.RouteAction_UpgradeConfig_ConnectConfig{},
+		})
+	}
+	action := &envoy_config_route_v3.RouteAction{
+		ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+			Cluster: clusterName,
+		},
+		UpgradeConfigs: upgradeConfigs,
+		HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
+			AutoHostRewrite: &wrappers.BoolValue{Value: !policy.PreserveHostHeader},
+		},
+		Timeout:       routeTimeout,
+		IdleTimeout:   idleTimeout,
+		PrefixRewrite: prefixRewrite,
+		RegexRewrite:  regexRewrite,
+	}
+	setHostRewriteOptions(policy, action)
+	return action
 }
 
 func mkEnvoyHeader(k, v string) *envoy_config_core_v3.HeaderValueOption {
