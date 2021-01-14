@@ -1221,11 +1221,33 @@ Remove Request Headers allows you to remove given request headers. This can be u
 ```
 
 
+### Redirect
+- `yaml`/`json` setting: 'redirect'
+- Type: object
+- Optional
+- Example: `{ "host_redirect": "example.com" }`
+
+`Redirect` is used to redirect incoming requests to a new URL. The `redirect` field is an object with several optional,
+options:
+
+- `https_redirect` (boolean): the incoming scheme will be swapped with "https".
+- `scheme_redirect` (string): the incoming scheme will be swapped with the given value.
+- `host_redirect` (string): the incoming host will be swapped with the given value.
+- `port_redirect` (integer): the incoming port will be swapped with the given value.
+- `path_redirect` (string): the incoming path portion of the URL will be swapped with the given value.
+- `prefix_rewrite` (string): the incoming matched prefix will be swapped with the given value.
+- `regex_rewrite_pattern`, `regex_rewrite_substitution` (string): the incoming matched regex will be swapped with this value.
+- `response_code` (integer): the response code to use for the redirect. Defaults to 301.
+- `strip_query` (boolean): indicates that during redirection, the query portion of the URL will be removed. Defaults to false.
+
+Either `redirect` or `to` must be set.
+
+
 ### To
 - `yaml`/`json` setting: `to`
 - Type: `URL` (must contain a scheme and hostname)
 - Schemes: `http`, `https`, `tcp`
-- Required
+- Optional
 - Example: `http://verify` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://verify.pomerium.com/anything/`
 
 `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
@@ -1253,6 +1275,8 @@ While the rule:
 ```
 
 All requests to `https://verify.corp.example.com/*` will be forwarded to `https://verify.pomerium.com/anything/*`. That means accessing to `https://verify.corp.example.com` will be forwarded to `https://verify.pomerium.com/anything/`. That said, if your application does not handle trailing slash, the request will end up with 404 not found.
+
+Either `redirect` or `to` must be set.
 
 :::
 

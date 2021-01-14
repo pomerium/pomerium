@@ -19,9 +19,8 @@ message RouteRedirect {
   optional uint32 port_redirect = 4;
   optional string path_redirect = 5;
   optional string prefix_rewrite = 6;
-  optional string regex_rewrite = 7;
-  optional int32 response_code = 8;
-  optional bool strip_query = 9;
+  optional int32 response_code = 7;
+  optional bool strip_query = 8;
 }
 
 message Route {

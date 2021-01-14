@@ -159,7 +159,6 @@ type PolicyRedirect struct {
 	PortRedirect   *uint32 `mapstructure:"port_redirect" yaml:"port_redirect,omitempty" json:"port_redirect,omitempty"`
 	PathRedirect   *string `mapstructure:"path_redirect" yaml:"path_redirect,omitempty" json:"path_redirect,omitempty"`
 	PrefixRewrite  *string `mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitempty" json:"prefix_rewrite,omitempty"`
-	RegexRewrite   *string `mapstructure:"regex_rewrite" yaml:"regex_rewrite,omitempty" json:"regex_rewrite,omitempty"`
 	ResponseCode   *int32  `mapstructure:"response_code" yaml:"response_code,omitempty" json:"response_code,omitempty"`
 	StripQuery     *bool   `mapstructure:"strip_query" yaml:"strip_query,omitempty" json:"strip_query,omitempty"`
 }
@@ -208,7 +207,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			PortRedirect:   pb.Redirect.PortRedirect,
 			PathRedirect:   pb.Redirect.PathRedirect,
 			PrefixRewrite:  pb.Redirect.PrefixRewrite,
-			RegexRewrite:   pb.Redirect.RegexRewrite,
 			ResponseCode:   pb.Redirect.ResponseCode,
 			StripQuery:     pb.Redirect.StripQuery,
 		}
@@ -284,7 +282,6 @@ func (p *Policy) ToProto() *configpb.Route {
 			PortRedirect:   p.Redirect.PortRedirect,
 			PathRedirect:   p.Redirect.PathRedirect,
 			PrefixRewrite:  p.Redirect.PrefixRewrite,
-			RegexRewrite:   p.Redirect.RegexRewrite,
 			ResponseCode:   p.Redirect.ResponseCode,
 			StripQuery:     p.Redirect.StripQuery,
 		}
