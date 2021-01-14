@@ -16,9 +16,10 @@ import (
 func Test_buildPolicyTransportSocket(t *testing.T) {
 	cacheDir, _ := os.UserCacheDir()
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-32484c314b584447463735303142374c31414145374650305a525539554938594d524855353757313942494d473847535231.pem")
-	trustedCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "ca-certificates-354c304c30465135515846423936454b4756525843304643554559383249303939514a525445524145524d46593941464552.crt")
 
 	srv, _ := NewServer("TEST")
+	rootCAPath, _ := getRootCertificateAuthority()
+	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
 
 	t.Run("insecure", func(t *testing.T) {
 		assert.Nil(t, srv.buildPolicyTransportSocket(&config.Policy{
@@ -46,7 +47,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"exact": "example.com"
 							}],
 							"trustedCa": {
-								"filename": "`+trustedCA+`"
+								"filename": "`+rootCA+`"
 							}
 						}
 					},
@@ -78,7 +79,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"exact": "use-this-name.example.com"
 							}],
 							"trustedCa": {
-								"filename": "`+trustedCA+`"
+								"filename": "`+rootCA+`"
 							}
 						}
 					},
@@ -111,7 +112,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"exact": "example.com"
 							}],
 							"trustedCa": {
-								"filename": "`+trustedCA+`"
+								"filename": "`+rootCA+`"
 							},
 							"trustChainVerification": "ACCEPT_UNTRUSTED"
 						}
@@ -187,7 +188,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"exact": "example.com"
 							}],
 							"trustedCa": {
-								"filename": "`+trustedCA+`"
+								"filename": "`+rootCA+`"
 							}
 						}
 					},
@@ -202,9 +203,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 }
 
 func Test_buildCluster(t *testing.T) {
-	cacheDir, _ := os.UserCacheDir()
-	trustedCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "ca-certificates-354c304c30465135515846423936454b4756525843304643554559383249303939514a525445524145524d46593941464552.crt")
 	srv, _ := NewServer("TEST")
+	rootCAPath, _ := getRootCertificateAuthority()
+	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
 	t.Run("insecure", func(t *testing.T) {
 		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true, config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyV4Only))
 		testutil.AssertProtoJSONEqual(t, `
@@ -267,7 +268,7 @@ func Test_buildCluster(t *testing.T) {
 									"exact": "example.com"
 								}],
 								"trustedCa": {
-									"filename": "`+trustedCA+`"
+									"filename": "`+rootCA+`"
 								}
 							}
 						},

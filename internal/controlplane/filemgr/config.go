@@ -3,6 +3,8 @@ package filemgr
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/google/uuid"
 )
 
 type config struct {
@@ -23,7 +25,7 @@ func newConfig(options ...Option) *config {
 	cfg := new(config)
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
-		cacheDir = filepath.Join(os.TempDir())
+		cacheDir = filepath.Join(os.TempDir(), uuid.New().String())
 	}
 	WithCacheDir(filepath.Join(cacheDir, "pomerium", "envoy", "files"))(cfg)
 	for _, o := range options {

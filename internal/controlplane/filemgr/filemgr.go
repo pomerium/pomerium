@@ -32,7 +32,7 @@ func (mgr *Manager) BytesDataSource(fileName string, data []byte) *envoy_config_
 	ext := filepath.Ext(fileName)
 	fileName = fmt.Sprintf("%s-%x%s", fileName[:len(fileName)-len(ext)], h, ext)
 
-	if err := os.MkdirAll(mgr.cfg.cacheDir, 0o755); err != nil {
+	if err := os.MkdirAll(mgr.cfg.cacheDir, 0o700); err != nil {
 		log.Error().Err(err).Msg("filemgr: error creating cache directory, falling back to inline bytes")
 		return inlineBytes(data)
 	}
