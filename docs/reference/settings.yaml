@@ -1353,7 +1353,7 @@ settings:
           - Optional
           - Example: `{ "host_redirect": "example.com" }`
         doc: |
-          `Redirect` is used to redirect incoming requests to a new URL. The `redirect` field is an object with several optional,
+          `Redirect` is used to redirect incoming requests to a new URL. The `redirect` field is an object with several possible
           options:
 
           - `https_redirect` (boolean): the incoming scheme will be swapped with "https".
