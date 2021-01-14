@@ -25,6 +25,10 @@ import (
 type Policy struct {
 	From string `mapstructure:"from" yaml:"from"`
 	To   string `mapstructure:"to" yaml:"to"`
+
+	// Redirect is used for a redirect action instead of `To`
+	Redirect *PolicyRedirect `mapstructure:"redirect" yaml:"redirect"`
+
 	// Identity related policy
 	AllowedUsers     []string                 `mapstructure:"allowed_users" yaml:"allowed_users,omitempty" json:"allowed_users,omitempty"`
 	AllowedGroups    []string                 `mapstructure:"allowed_groups" yaml:"allowed_groups,omitempty" json:"allowed_groups,omitempty"`
@@ -147,6 +151,19 @@ type SubPolicy struct {
 	Rego             []string                 `mapstructure:"rego" yaml:"rego" json:"rego,omitempty"`
 }
 
+// PolicyRedirect is a route redirect action.
+type PolicyRedirect struct {
+	HTTPSRedirect  *bool   `mapstructure:"https_redirect" yaml:"https_redirect,omitempty" json:"https_redirect,omitempty"`
+	SchemeRedirect *string `mapstructure:"scheme_redirect" yaml:"scheme_redirect,omitempty" json:"scheme_redirect,omitempty"`
+	HostRedirect   *string `mapstructure:"host_redirect" yaml:"host_redirect,omitempty" json:"host_redirect,omitempty"`
+	PortRedirect   *uint32 `mapstructure:"port_redirect" yaml:"port_redirect,omitempty" json:"port_redirect,omitempty"`
+	PathRedirect   *string `mapstructure:"path_redirect" yaml:"path_redirect,omitempty" json:"path_redirect,omitempty"`
+	PrefixRewrite  *string `mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitempty" json:"prefix_rewrite,omitempty"`
+	RegexRewrite   *string `mapstructure:"regex_rewrite" yaml:"regex_rewrite,omitempty" json:"regex_rewrite,omitempty"`
+	ResponseCode   *uint32 `mapstructure:"response_code" yaml:"response_code,omitempty" json:"response_code,omitempty"`
+	StripQuery     *bool   `mapstructure:"strip_query" yaml:"strip_query,omitempty" json:"strip_query,omitempty"`
+}
+
 // NewPolicyFromProto creates a new Policy from a protobuf policy config route.
 func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	timeout, _ := ptypes.Duration(pb.GetTimeout())
@@ -183,6 +200,19 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		PassIdentityHeaders:              pb.GetPassIdentityHeaders(),
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
 	}
+	if pb.Redirect != nil {
+		p.Redirect = &PolicyRedirect{
+			HTTPSRedirect:  pb.Redirect.HttpsRedirect,
+			SchemeRedirect: pb.Redirect.SchemeRedirect,
+			HostRedirect:   pb.Redirect.HostRedirect,
+			PortRedirect:   pb.Redirect.PortRedirect,
+			PathRedirect:   pb.Redirect.PathRedirect,
+			PrefixRewrite:  pb.Redirect.PrefixRewrite,
+			RegexRewrite:   pb.Redirect.RegexRewrite,
+			ResponseCode:   pb.Redirect.ResponseCode,
+			StripQuery:     pb.Redirect.StripQuery,
+		}
+	}
 	for _, sp := range pb.GetPolicies() {
 		p.SubPolicies = append(p.SubPolicies, SubPolicy{
 			ID:               sp.GetId(),
@@ -212,7 +242,7 @@ func (p *Policy) ToProto() *configpb.Route {
 			Rego:             sp.Rego,
 		})
 	}
-	return &configpb.Route{
+	pb := &configpb.Route{
 		Name:                             fmt.Sprint(p.RouteID()),
 		From:                             p.From,
 		To:                               p.To,
@@ -246,6 +276,20 @@ func (p *Policy) ToProto() *configpb.Route {
 		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
 		Policies:                         sps,
 	}
+	if p.Redirect != nil {
+		pb.Redirect = &configpb.RouteRedirect{
+			HttpsRedirect:  p.Redirect.HTTPSRedirect,
+			SchemeRedirect: p.Redirect.SchemeRedirect,
+			HostRedirect:   p.Redirect.HostRedirect,
+			PortRedirect:   p.Redirect.PortRedirect,
+			PathRedirect:   p.Redirect.PathRedirect,
+			PrefixRewrite:  p.Redirect.PrefixRewrite,
+			RegexRewrite:   p.Redirect.RegexRewrite,
+			ResponseCode:   p.Redirect.ResponseCode,
+			StripQuery:     p.Redirect.StripQuery,
+		}
+	}
+	return pb
 }
 
 // Validate checks the validity of a policy.

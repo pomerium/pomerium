@@ -90,14 +90,126 @@ func (x *Config) GetSettings() *Settings {
 	return nil
 }
 
+type RouteRedirect struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	HttpsRedirect  *bool   `protobuf:"varint,1,opt,name=https_redirect,json=httpsRedirect,proto3,oneof" json:"https_redirect,omitempty"`
+	SchemeRedirect *string `protobuf:"bytes,2,opt,name=scheme_redirect,json=schemeRedirect,proto3,oneof" json:"scheme_redirect,omitempty"`
+	HostRedirect   *string `protobuf:"bytes,3,opt,name=host_redirect,json=hostRedirect,proto3,oneof" json:"host_redirect,omitempty"`
+	PortRedirect   *uint32 `protobuf:"varint,4,opt,name=port_redirect,json=portRedirect,proto3,oneof" json:"port_redirect,omitempty"`
+	PathRedirect   *string `protobuf:"bytes,5,opt,name=path_redirect,json=pathRedirect,proto3,oneof" json:"path_redirect,omitempty"`
+	PrefixRewrite  *string `protobuf:"bytes,6,opt,name=prefix_rewrite,json=prefixRewrite,proto3,oneof" json:"prefix_rewrite,omitempty"`
+	RegexRewrite   *string `protobuf:"bytes,7,opt,name=regex_rewrite,json=regexRewrite,proto3,oneof" json:"regex_rewrite,omitempty"`
+	ResponseCode   *uint32 `protobuf:"varint,8,opt,name=response_code,json=responseCode,proto3,oneof" json:"response_code,omitempty"`
+	StripQuery     *bool   `protobuf:"varint,9,opt,name=strip_query,json=stripQuery,proto3,oneof" json:"strip_query,omitempty"`
+}
+
+func (x *RouteRedirect) Reset() {
+	*x = RouteRedirect{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_config_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RouteRedirect) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RouteRedirect) ProtoMessage() {}
+
+func (x *RouteRedirect) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RouteRedirect.ProtoReflect.Descriptor instead.
+func (*RouteRedirect) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RouteRedirect) GetHttpsRedirect() bool {
+	if x != nil && x.HttpsRedirect != nil {
+		return *x.HttpsRedirect
+	}
+	return false
+}
+
+func (x *RouteRedirect) GetSchemeRedirect() string {
+	if x != nil && x.SchemeRedirect != nil {
+		return *x.SchemeRedirect
+	}
+	return ""
+}
+
+func (x *RouteRedirect) GetHostRedirect() string {
+	if x != nil && x.HostRedirect != nil {
+		return *x.HostRedirect
+	}
+	return ""
+}
+
+func (x *RouteRedirect) GetPortRedirect() uint32 {
+	if x != nil && x.PortRedirect != nil {
+		return *x.PortRedirect
+	}
+	return 0
+}
+
+func (x *RouteRedirect) GetPathRedirect() string {
+	if x != nil && x.PathRedirect != nil {
+		return *x.PathRedirect
+	}
+	return ""
+}
+
+func (x *RouteRedirect) GetPrefixRewrite() string {
+	if x != nil && x.PrefixRewrite != nil {
+		return *x.PrefixRewrite
+	}
+	return ""
+}
+
+func (x *RouteRedirect) GetRegexRewrite() string {
+	if x != nil && x.RegexRewrite != nil {
+		return *x.RegexRewrite
+	}
+	return ""
+}
+
+func (x *RouteRedirect) GetResponseCode() uint32 {
+	if x != nil && x.ResponseCode != nil {
+		return *x.ResponseCode
+	}
+	return 0
+}
+
+func (x *RouteRedirect) GetStripQuery() bool {
+	if x != nil && x.StripQuery != nil {
+		return *x.StripQuery
+	}
+	return false
+}
+
 type Route struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	From string `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
-	To   string `protobuf:"bytes,3,opt,name=to,proto3" json:"to,omitempty"`
+	Name     string         `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	From     string         `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
+	To       string         `protobuf:"bytes,3,opt,name=to,proto3" json:"to,omitempty"`
+	Redirect *RouteRedirect `protobuf:"bytes,34,opt,name=redirect,proto3" json:"redirect,omitempty"`
 	// Deprecated: Do not use.
 	AllowedUsers []string `protobuf:"bytes,4,rep,name=allowed_users,json=allowedUsers,proto3" json:"allowed_users,omitempty"`
 	// Deprecated: Do not use.
@@ -137,7 +249,7 @@ type Route struct {
 func (x *Route) Reset() {
 	*x = Route{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_config_proto_msgTypes[1]
+		mi := &file_config_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -150,7 +262,7 @@ func (x *Route) String() string {
 func (*Route) ProtoMessage() {}
 
 func (x *Route) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[1]
+	mi := &file_config_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -163,7 +275,7 @@ func (x *Route) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Route.ProtoReflect.Descriptor instead.
 func (*Route) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{1}
+	return file_config_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Route) GetName() string {
@@ -185,6 +297,13 @@ func (x *Route) GetTo() string {
 		return x.To
 	}
 	return ""
+}
+
+func (x *Route) GetRedirect() *RouteRedirect {
+	if x != nil {
+		return x.Redirect
+	}
+	return nil
 }
 
 // Deprecated: Do not use.
@@ -418,7 +537,7 @@ type Policy struct {
 func (x *Policy) Reset() {
 	*x = Policy{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_config_proto_msgTypes[2]
+		mi := &file_config_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -431,7 +550,7 @@ func (x *Policy) String() string {
 func (*Policy) ProtoMessage() {}
 
 func (x *Policy) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[2]
+	mi := &file_config_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -444,7 +563,7 @@ func (x *Policy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Policy.ProtoReflect.Descriptor instead.
 func (*Policy) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{2}
+	return file_config_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Policy) GetId() string {
@@ -565,7 +684,7 @@ type Settings struct {
 func (x *Settings) Reset() {
 	*x = Settings{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_config_proto_msgTypes[3]
+		mi := &file_config_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -578,7 +697,7 @@ func (x *Settings) String() string {
 func (*Settings) ProtoMessage() {}
 
 func (x *Settings) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[3]
+	mi := &file_config_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -591,7 +710,7 @@ func (x *Settings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Settings.ProtoReflect.Descriptor instead.
 func (*Settings) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{3}
+	return file_config_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Settings) GetDebug() bool {
@@ -1021,7 +1140,7 @@ type Settings_Certificate struct {
 func (x *Settings_Certificate) Reset() {
 	*x = Settings_Certificate{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_config_proto_msgTypes[7]
+		mi := &file_config_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1034,7 +1153,7 @@ func (x *Settings_Certificate) String() string {
 func (*Settings_Certificate) ProtoMessage() {}
 
 func (x *Settings_Certificate) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[7]
+	mi := &file_config_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1047,7 +1166,7 @@ func (x *Settings_Certificate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Settings_Certificate.ProtoReflect.Descriptor instead.
 func (*Settings_Certificate) Descriptor() ([]byte, []int) {
-	return file_config_proto_rawDescGZIP(), []int{3, 0}
+	return file_config_proto_rawDescGZIP(), []int{4, 0}
 }
 
 func (x *Settings_Certificate) GetCertFile() string {
@@ -1095,11 +1214,50 @@ var file_config_proto_rawDesc = []byte{
 	0x73, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x19,
 	0x2e, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67,
 	0x2e, 0x53, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73, 0x52, 0x08, 0x73, 0x65, 0x74, 0x74, 0x69,
-	0x6e, 0x67, 0x73, 0x22, 0x9c, 0x0d, 0x0a, 0x05, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x12, 0x12, 0x0a,
-	0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d,
-	0x65, 0x12, 0x12, 0x0a, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
-	0x04, 0x66, 0x72, 0x6f, 0x6d, 0x12, 0x0e, 0x0a, 0x02, 0x74, 0x6f, 0x18, 0x03, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x02, 0x74, 0x6f, 0x12, 0x27, 0x0a, 0x0d, 0x61, 0x6c, 0x6c, 0x6f, 0x77, 0x65, 0x64,
+	0x6e, 0x67, 0x73, 0x22, 0xb1, 0x04, 0x0a, 0x0d, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x52, 0x65, 0x64,
+	0x69, 0x72, 0x65, 0x63, 0x74, 0x12, 0x2a, 0x0a, 0x0e, 0x68, 0x74, 0x74, 0x70, 0x73, 0x5f, 0x72,
+	0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x48, 0x00, 0x52,
+	0x0d, 0x68, 0x74, 0x74, 0x70, 0x73, 0x52, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x88, 0x01,
+	0x01, 0x12, 0x2c, 0x0a, 0x0f, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x65, 0x5f, 0x72, 0x65, 0x64, 0x69,
+	0x72, 0x65, 0x63, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x48, 0x01, 0x52, 0x0e, 0x73, 0x63,
+	0x68, 0x65, 0x6d, 0x65, 0x52, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x88, 0x01, 0x01, 0x12,
+	0x28, 0x0a, 0x0d, 0x68, 0x6f, 0x73, 0x74, 0x5f, 0x72, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74,
+	0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x48, 0x02, 0x52, 0x0c, 0x68, 0x6f, 0x73, 0x74, 0x52, 0x65,
+	0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x88, 0x01, 0x01, 0x12, 0x28, 0x0a, 0x0d, 0x70, 0x6f, 0x72,
+	0x74, 0x5f, 0x72, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0d,
+	0x48, 0x03, 0x52, 0x0c, 0x70, 0x6f, 0x72, 0x74, 0x52, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74,
+	0x88, 0x01, 0x01, 0x12, 0x28, 0x0a, 0x0d, 0x70, 0x61, 0x74, 0x68, 0x5f, 0x72, 0x65, 0x64, 0x69,
+	0x72, 0x65, 0x63, 0x74, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x48, 0x04, 0x52, 0x0c, 0x70, 0x61,
+	0x74, 0x68, 0x52, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x88, 0x01, 0x01, 0x12, 0x2a, 0x0a,
+	0x0e, 0x70, 0x72, 0x65, 0x66, 0x69, 0x78, 0x5f, 0x72, 0x65, 0x77, 0x72, 0x69, 0x74, 0x65, 0x18,
+	0x06, 0x20, 0x01, 0x28, 0x09, 0x48, 0x05, 0x52, 0x0d, 0x70, 0x72, 0x65, 0x66, 0x69, 0x78, 0x52,
+	0x65, 0x77, 0x72, 0x69, 0x74, 0x65, 0x88, 0x01, 0x01, 0x12, 0x28, 0x0a, 0x0d, 0x72, 0x65, 0x67,
+	0x65, 0x78, 0x5f, 0x72, 0x65, 0x77, 0x72, 0x69, 0x74, 0x65, 0x18, 0x07, 0x20, 0x01, 0x28, 0x09,
+	0x48, 0x06, 0x52, 0x0c, 0x72, 0x65, 0x67, 0x65, 0x78, 0x52, 0x65, 0x77, 0x72, 0x69, 0x74, 0x65,
+	0x88, 0x01, 0x01, 0x12, 0x28, 0x0a, 0x0d, 0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x5f,
+	0x63, 0x6f, 0x64, 0x65, 0x18, 0x08, 0x20, 0x01, 0x28, 0x0d, 0x48, 0x07, 0x52, 0x0c, 0x72, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x43, 0x6f, 0x64, 0x65, 0x88, 0x01, 0x01, 0x12, 0x24, 0x0a,
+	0x0b, 0x73, 0x74, 0x72, 0x69, 0x70, 0x5f, 0x71, 0x75, 0x65, 0x72, 0x79, 0x18, 0x09, 0x20, 0x01,
+	0x28, 0x08, 0x48, 0x08, 0x52, 0x0a, 0x73, 0x74, 0x72, 0x69, 0x70, 0x51, 0x75, 0x65, 0x72, 0x79,
+	0x88, 0x01, 0x01, 0x42, 0x11, 0x0a, 0x0f, 0x5f, 0x68, 0x74, 0x74, 0x70, 0x73, 0x5f, 0x72, 0x65,
+	0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x42, 0x12, 0x0a, 0x10, 0x5f, 0x73, 0x63, 0x68, 0x65, 0x6d,
+	0x65, 0x5f, 0x72, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x42, 0x10, 0x0a, 0x0e, 0x5f, 0x68,
+	0x6f, 0x73, 0x74, 0x5f, 0x72, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x42, 0x10, 0x0a, 0x0e,
+	0x5f, 0x70, 0x6f, 0x72, 0x74, 0x5f, 0x72, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x42, 0x10,
+	0x0a, 0x0e, 0x5f, 0x70, 0x61, 0x74, 0x68, 0x5f, 0x72, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74,
+	0x42, 0x11, 0x0a, 0x0f, 0x5f, 0x70, 0x72, 0x65, 0x66, 0x69, 0x78, 0x5f, 0x72, 0x65, 0x77, 0x72,
+	0x69, 0x74, 0x65, 0x42, 0x10, 0x0a, 0x0e, 0x5f, 0x72, 0x65, 0x67, 0x65, 0x78, 0x5f, 0x72, 0x65,
+	0x77, 0x72, 0x69, 0x74, 0x65, 0x42, 0x10, 0x0a, 0x0e, 0x5f, 0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x5f, 0x63, 0x6f, 0x64, 0x65, 0x42, 0x0e, 0x0a, 0x0c, 0x5f, 0x73, 0x74, 0x72, 0x69,
+	0x70, 0x5f, 0x71, 0x75, 0x65, 0x72, 0x79, 0x22, 0xd8, 0x0d, 0x0a, 0x05, 0x52, 0x6f, 0x75, 0x74,
+	0x65, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x12, 0x0e, 0x0a, 0x02, 0x74, 0x6f, 0x18,
+	0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x74, 0x6f, 0x12, 0x3a, 0x0a, 0x08, 0x72, 0x65, 0x64,
+	0x69, 0x72, 0x65, 0x63, 0x74, 0x18, 0x22, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x70, 0x6f,
+	0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x52, 0x6f,
+	0x75, 0x74, 0x65, 0x52, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x52, 0x08, 0x72, 0x65, 0x64,
+	0x69, 0x72, 0x65, 0x63, 0x74, 0x12, 0x27, 0x0a, 0x0d, 0x61, 0x6c, 0x6c, 0x6f, 0x77, 0x65, 0x64,
 	0x5f, 0x75, 0x73, 0x65, 0x72, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28, 0x09, 0x42, 0x02, 0x18, 0x01,
 	0x52, 0x0c, 0x61, 0x6c, 0x6c, 0x6f, 0x77, 0x65, 0x64, 0x55, 0x73, 0x65, 0x72, 0x73, 0x12, 0x29,
 	0x0a, 0x0e, 0x61, 0x6c, 0x6c, 0x6f, 0x77, 0x65, 0x64, 0x5f, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x73,
@@ -1535,47 +1693,49 @@ func file_config_proto_rawDescGZIP() []byte {
 	return file_config_proto_rawDescData
 }
 
-var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_config_proto_goTypes = []interface{}{
 	(*Config)(nil),               // 0: pomerium.config.Config
-	(*Route)(nil),                // 1: pomerium.config.Route
-	(*Policy)(nil),               // 2: pomerium.config.Policy
-	(*Settings)(nil),             // 3: pomerium.config.Settings
-	nil,                          // 4: pomerium.config.Route.AllowedIdpClaimsEntry
-	nil,                          // 5: pomerium.config.Route.SetRequestHeadersEntry
-	nil,                          // 6: pomerium.config.Policy.AllowedIdpClaimsEntry
-	(*Settings_Certificate)(nil), // 7: pomerium.config.Settings.Certificate
-	nil,                          // 8: pomerium.config.Settings.RequestParamsEntry
-	(*duration.Duration)(nil),    // 9: google.protobuf.Duration
-	(*_struct.ListValue)(nil),    // 10: google.protobuf.ListValue
+	(*RouteRedirect)(nil),        // 1: pomerium.config.RouteRedirect
+	(*Route)(nil),                // 2: pomerium.config.Route
+	(*Policy)(nil),               // 3: pomerium.config.Policy
+	(*Settings)(nil),             // 4: pomerium.config.Settings
+	nil,                          // 5: pomerium.config.Route.AllowedIdpClaimsEntry
+	nil,                          // 6: pomerium.config.Route.SetRequestHeadersEntry
+	nil,                          // 7: pomerium.config.Policy.AllowedIdpClaimsEntry
+	(*Settings_Certificate)(nil), // 8: pomerium.config.Settings.Certificate
+	nil,                          // 9: pomerium.config.Settings.RequestParamsEntry
+	(*duration.Duration)(nil),    // 10: google.protobuf.Duration
+	(*_struct.ListValue)(nil),    // 11: google.protobuf.ListValue
 }
 var file_config_proto_depIdxs = []int32{
-	1,  // 0: pomerium.config.Config.routes:type_name -> pomerium.config.Route
-	3,  // 1: pomerium.config.Config.settings:type_name -> pomerium.config.Settings
-	4,  // 2: pomerium.config.Route.allowed_idp_claims:type_name -> pomerium.config.Route.AllowedIdpClaimsEntry
-	9,  // 3: pomerium.config.Route.timeout:type_name -> google.protobuf.Duration
-	5,  // 4: pomerium.config.Route.set_request_headers:type_name -> pomerium.config.Route.SetRequestHeadersEntry
-	2,  // 5: pomerium.config.Route.policies:type_name -> pomerium.config.Policy
-	6,  // 6: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
-	7,  // 7: pomerium.config.Settings.certificates:type_name -> pomerium.config.Settings.Certificate
-	9,  // 8: pomerium.config.Settings.timeout_read:type_name -> google.protobuf.Duration
-	9,  // 9: pomerium.config.Settings.timeout_write:type_name -> google.protobuf.Duration
-	9,  // 10: pomerium.config.Settings.timeout_idle:type_name -> google.protobuf.Duration
-	9,  // 11: pomerium.config.Settings.cookie_expire:type_name -> google.protobuf.Duration
-	9,  // 12: pomerium.config.Settings.idp_refresh_directory_timeout:type_name -> google.protobuf.Duration
-	9,  // 13: pomerium.config.Settings.idp_refresh_directory_interval:type_name -> google.protobuf.Duration
-	8,  // 14: pomerium.config.Settings.request_params:type_name -> pomerium.config.Settings.RequestParamsEntry
-	9,  // 15: pomerium.config.Settings.refresh_cooldown:type_name -> google.protobuf.Duration
-	9,  // 16: pomerium.config.Settings.default_upstream_timeout:type_name -> google.protobuf.Duration
-	9,  // 17: pomerium.config.Settings.grpc_server_max_connection_age:type_name -> google.protobuf.Duration
-	9,  // 18: pomerium.config.Settings.grpc_server_max_connection_age_grace:type_name -> google.protobuf.Duration
-	10, // 19: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	10, // 20: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	2,  // 0: pomerium.config.Config.routes:type_name -> pomerium.config.Route
+	4,  // 1: pomerium.config.Config.settings:type_name -> pomerium.config.Settings
+	1,  // 2: pomerium.config.Route.redirect:type_name -> pomerium.config.RouteRedirect
+	5,  // 3: pomerium.config.Route.allowed_idp_claims:type_name -> pomerium.config.Route.AllowedIdpClaimsEntry
+	10, // 4: pomerium.config.Route.timeout:type_name -> google.protobuf.Duration
+	6,  // 5: pomerium.config.Route.set_request_headers:type_name -> pomerium.config.Route.SetRequestHeadersEntry
+	3,  // 6: pomerium.config.Route.policies:type_name -> pomerium.config.Policy
+	7,  // 7: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
+	8,  // 8: pomerium.config.Settings.certificates:type_name -> pomerium.config.Settings.Certificate
+	10, // 9: pomerium.config.Settings.timeout_read:type_name -> google.protobuf.Duration
+	10, // 10: pomerium.config.Settings.timeout_write:type_name -> google.protobuf.Duration
+	10, // 11: pomerium.config.Settings.timeout_idle:type_name -> google.protobuf.Duration
+	10, // 12: pomerium.config.Settings.cookie_expire:type_name -> google.protobuf.Duration
+	10, // 13: pomerium.config.Settings.idp_refresh_directory_timeout:type_name -> google.protobuf.Duration
+	10, // 14: pomerium.config.Settings.idp_refresh_directory_interval:type_name -> google.protobuf.Duration
+	9,  // 15: pomerium.config.Settings.request_params:type_name -> pomerium.config.Settings.RequestParamsEntry
+	10, // 16: pomerium.config.Settings.refresh_cooldown:type_name -> google.protobuf.Duration
+	10, // 17: pomerium.config.Settings.default_upstream_timeout:type_name -> google.protobuf.Duration
+	10, // 18: pomerium.config.Settings.grpc_server_max_connection_age:type_name -> google.protobuf.Duration
+	10, // 19: pomerium.config.Settings.grpc_server_max_connection_age_grace:type_name -> google.protobuf.Duration
+	11, // 20: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	11, // 21: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_config_proto_init() }
@@ -1597,7 +1757,7 @@ func file_config_proto_init() {
 			}
 		}
 		file_config_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Route); i {
+			switch v := v.(*RouteRedirect); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1609,7 +1769,7 @@ func file_config_proto_init() {
 			}
 		}
 		file_config_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Policy); i {
+			switch v := v.(*Route); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1621,6 +1781,18 @@ func file_config_proto_init() {
 			}
 		}
 		file_config_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Policy); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_config_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Settings); i {
 			case 0:
 				return &v.state
@@ -1632,7 +1804,7 @@ func file_config_proto_init() {
 				return nil
 			}
 		}
-		file_config_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_config_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Settings_Certificate); i {
 			case 0:
 				return &v.state
@@ -1645,14 +1817,15 @@ func file_config_proto_init() {
 			}
 		}
 	}
-	file_config_proto_msgTypes[3].OneofWrappers = []interface{}{}
+	file_config_proto_msgTypes[1].OneofWrappers = []interface{}{}
+	file_config_proto_msgTypes[4].OneofWrappers = []interface{}{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_config_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

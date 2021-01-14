@@ -12,11 +12,25 @@ message Config {
   Settings settings = 3;
 }
 
+message RouteRedirect {
+  optional bool https_redirect = 1;
+  optional string scheme_redirect = 2;
+  optional string host_redirect = 3;
+  optional uint32 port_redirect = 4;
+  optional string path_redirect = 5;
+  optional string prefix_rewrite = 6;
+  optional string regex_rewrite = 7;
+  optional uint32 response_code = 8;
+  optional bool strip_query = 9;
+}
+
 message Route {
   string name = 1;
 
   string from = 2;
   string to = 3;
+
+  RouteRedirect redirect = 34;
 
   repeated string allowed_users = 4 [ deprecated = true ];
   repeated string allowed_groups = 5 [ deprecated = true ];
