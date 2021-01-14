@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -28,9 +29,12 @@ func TestFileWatcherSource(t *testing.T) {
 			CAFile: filepath.Join(tmpdir, "example.txt"),
 		},
 	}))
+	var closeOnce sync.Once
 	ch := make(chan struct{})
 	src.OnConfigChange(func(cfg *Config) {
-		close(ch)
+		closeOnce.Do(func() {
+			close(ch)
+		})
 	})
 
 	err = ioutil.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{5, 6, 7, 8}, 0o600)
