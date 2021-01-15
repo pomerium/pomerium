@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/controlplane/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -499,4 +500,31 @@ func Test_buildRouteConfiguration(t *testing.T) {
 	assert.Equal(t, "test-route-configuration", routeConfig.GetName())
 	assert.Equal(t, virtualHosts, routeConfig.GetVirtualHosts())
 	assert.False(t, routeConfig.GetValidateClusters().GetValue())
+}
+
+func Test_requireProxyProtocol(t *testing.T) {
+	srv := &Server{
+		filemgr: filemgr.NewManager(),
+	}
+	t.Run("required", func(t *testing.T) {
+		li := srv.buildMainListener(&config.Options{
+			RequireProxyProtocol: true,
+			InsecureServer:       true,
+		})
+		testutil.AssertProtoJSONEqual(t, `[
+			{
+				"name": "envoy.filters.listener.proxy_protocol",
+				"typedConfig": {
+					"@type": "type.googleapis.com/envoy.extensions.filters.listener.proxy_protocol.v3.ProxyProtocol"
+				}
+			}
+		]`, li.GetListenerFilters())
+	})
+	t.Run("not required", func(t *testing.T) {
+		li := srv.buildMainListener(&config.Options{
+			RequireProxyProtocol: false,
+			InsecureServer:       true,
+		})
+		assert.Len(t, li.GetListenerFilters(), 0)
+	})
 }
