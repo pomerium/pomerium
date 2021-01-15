@@ -54,7 +54,7 @@ func (srv *Server) buildListeners(options *config.Options) []*envoy_config_liste
 
 func (srv *Server) buildMainListener(options *config.Options) *envoy_config_listener_v3.Listener {
 	listenerFilters := []*envoy_config_listener_v3.ListenerFilter{}
-	if options.RequireProxyProtocol {
+	if options.UseProxyProtocol {
 		proxyCfg := marshalAny(&envoy_extensions_filters_listener_proxy_protocol_v3.ProxyProtocol{})
 		listenerFilters = append(listenerFilters, &envoy_config_listener_v3.ListenerFilter{
 			Name: "envoy.filters.listener.proxy_protocol",

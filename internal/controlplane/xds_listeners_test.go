@@ -508,8 +508,8 @@ func Test_requireProxyProtocol(t *testing.T) {
 	}
 	t.Run("required", func(t *testing.T) {
 		li := srv.buildMainListener(&config.Options{
-			RequireProxyProtocol: true,
-			InsecureServer:       true,
+			UseProxyProtocol: true,
+			InsecureServer:   true,
 		})
 		testutil.AssertProtoJSONEqual(t, `[
 			{
@@ -522,8 +522,8 @@ func Test_requireProxyProtocol(t *testing.T) {
 	})
 	t.Run("not required", func(t *testing.T) {
 		li := srv.buildMainListener(&config.Options{
-			RequireProxyProtocol: false,
-			InsecureServer:       true,
+			UseProxyProtocol: false,
+			InsecureServer:   true,
 		})
 		assert.Len(t, li.GetListenerFilters(), 0)
 	})

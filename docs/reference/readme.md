@@ -581,6 +581,15 @@ tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
 ![jaeger example trace](./img/jaeger.png)
 
 
+### Use Proxy Protocol
+- Environment Variable: `USE_PROXY_PROTOCOL`
+- Config File Key: `use_proxy_protocol`
+- Type: `bool`
+- Optional
+
+Setting `use_proxy_protocol` will configure Pomerium to require the [HAProxy proxy protocol](https://www.haproxy.org/download/1.9/doc/proxy-protocol.txt) on incoming connections. Versions 1 and 2 of the protocol are supported.
+
+
 ## Authenticate Service
 
 ### Authenticate Callback Path
@@ -1227,7 +1236,7 @@ Remove Request Headers allows you to remove given request headers. This can be u
 - Optional
 - Example: `{ "host_redirect": "example.com" }`
 
-`Redirect` is used to redirect incoming requests to a new URL. The `redirect` field is an object with several optional,
+`Redirect` is used to redirect incoming requests to a new URL. The `redirect` field is an object with several possible
 options:
 
 - `https_redirect` (boolean): the incoming scheme will be swapped with "https".
@@ -1236,7 +1245,6 @@ options:
 - `port_redirect` (integer): the incoming port will be swapped with the given value.
 - `path_redirect` (string): the incoming path portion of the URL will be swapped with the given value.
 - `prefix_rewrite` (string): the incoming matched prefix will be swapped with the given value.
-- `regex_rewrite_pattern`, `regex_rewrite_substitution` (string): the incoming matched regex will be swapped with this value.
 - `response_code` (integer): the response code to use for the redirect. Defaults to 301.
 - `strip_query` (boolean): indicates that during redirection, the query portion of the URL will be removed. Defaults to false.
 

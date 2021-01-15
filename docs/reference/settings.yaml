@@ -661,6 +661,15 @@ settings:
           #### Example
 
           ![jaeger example trace](./img/jaeger.png)
+      - name: "Use Proxy Protocol"
+        keys: ["use_proxy_protocol"]
+        attributes: |
+          - Environment Variable: `USE_PROXY_PROTOCOL`
+          - Config File Key: `use_proxy_protocol`
+          - Type: `bool`
+          - Optional
+        doc: |
+          Setting `use_proxy_protocol` will configure Pomerium to require the [HAProxy proxy protocol](https://www.haproxy.org/download/1.9/doc/proxy-protocol.txt) on incoming connections. Versions 1 and 2 of the protocol are supported.
   - name: "Authenticate Service"
     settings:
       - name: "Authenticate Callback Path"
