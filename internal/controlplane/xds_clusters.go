@@ -34,17 +34,17 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 	}
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
-		buildInternalCluster(options, "pomerium-control-plane-grpc", grpcURL, true),
-		buildInternalCluster(options, "pomerium-control-plane-http", httpURL, false),
+		srv.buildInternalCluster(options, "pomerium-control-plane-grpc", grpcURL, true),
+		srv.buildInternalCluster(options, "pomerium-control-plane-http", httpURL, false),
 	}
 
-	clusters = append(clusters, buildInternalCluster(options, authzURL.Host, authzURL, true))
+	clusters = append(clusters, srv.buildInternalCluster(options, authzURL.Host, authzURL, true))
 
 	if config.IsProxy(options.Services) {
 		for i := range options.Policies {
 			policy := options.Policies[i]
 			if policy.Destination != nil {
-				clusters = append(clusters, buildPolicyCluster(options, &policy))
+				clusters = append(clusters, srv.buildPolicyCluster(options, &policy))
 			}
 		}
 	}
@@ -52,21 +52,21 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 	return clusters
 }
 
-func buildInternalCluster(options *config.Options, name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
+func (srv *Server) buildInternalCluster(options *config.Options, name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
 	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
-	return buildCluster(name, endpoint, buildInternalTransportSocket(options, endpoint), forceHTTP2, dnsLookupFamily)
+	return buildCluster(name, endpoint, srv.buildInternalTransportSocket(options, endpoint), forceHTTP2, dnsLookupFamily)
 }
 
-func buildPolicyCluster(options *config.Options, policy *config.Policy) *envoy_config_cluster_v3.Cluster {
+func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Policy) *envoy_config_cluster_v3.Cluster {
 	name := getPolicyName(policy)
 	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
 	if policy.EnableGoogleCloudServerlessAuthentication {
 		dnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 	}
-	return buildCluster(name, policy.Destination, buildPolicyTransportSocket(policy), false, dnsLookupFamily)
+	return buildCluster(name, policy.Destination, srv.buildPolicyTransportSocket(policy), false, dnsLookupFamily)
 }
 
-func buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *envoy_config_core_v3.TransportSocket {
+func (srv *Server) buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *envoy_config_core_v3.TransportSocket {
 	if endpoint.Scheme != "https" {
 		return nil
 	}
@@ -82,19 +82,19 @@ func buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *e
 		}},
 	}
 	if options.CAFile != "" {
-		validationContext.TrustedCa = inlineFilename(options.CAFile)
+		validationContext.TrustedCa = srv.filemgr.FileDataSource(options.CAFile)
 	} else if options.CA != "" {
 		bs, err := base64.StdEncoding.DecodeString(options.CA)
 		if err != nil {
 			log.Error().Err(err).Msg("invalid custom CA certificate")
 		}
-		validationContext.TrustedCa = inlineBytesAsFilename("custom-ca.pem", bs)
+		validationContext.TrustedCa = srv.filemgr.BytesDataSource("custom-ca.pem", bs)
 	} else {
 		rootCA, err := getRootCertificateAuthority()
 		if err != nil {
 			log.Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 		} else {
-			validationContext.TrustedCa = inlineFilename(rootCA)
+			validationContext.TrustedCa = srv.filemgr.FileDataSource(rootCA)
 		}
 	}
 	tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
@@ -115,7 +115,7 @@ func buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *e
 	}
 }
 
-func buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.TransportSocket {
+func (srv *Server) buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.TransportSocket {
 	if policy.Destination == nil || policy.Destination.Scheme != "https" {
 		return nil
 	}
@@ -136,14 +136,14 @@ func buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.Tra
 			},
 			AlpnProtocols: []string{"http/1.1"},
 			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-				ValidationContext: buildPolicyValidationContext(policy),
+				ValidationContext: srv.buildPolicyValidationContext(policy),
 			},
 		},
 		Sni: sni,
 	}
 	if policy.ClientCertificate != nil {
 		tlsContext.CommonTlsContext.TlsCertificates = append(tlsContext.CommonTlsContext.TlsCertificates,
-			envoyTLSCertificateFromGoTLSCertificate(policy.ClientCertificate))
+			srv.envoyTLSCertificateFromGoTLSCertificate(policy.ClientCertificate))
 	}
 
 	tlsConfig := marshalAny(tlsContext)
@@ -155,7 +155,7 @@ func buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.Tra
 	}
 }
 
-func buildPolicyValidationContext(policy *config.Policy) *envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext {
+func (srv *Server) buildPolicyValidationContext(policy *config.Policy) *envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext {
 	if policy.Destination == nil {
 		return nil
 	}
@@ -172,19 +172,19 @@ func buildPolicyValidationContext(policy *config.Policy) *envoy_extensions_trans
 		}},
 	}
 	if policy.TLSCustomCAFile != "" {
-		validationContext.TrustedCa = inlineFilename(policy.TLSCustomCAFile)
+		validationContext.TrustedCa = srv.filemgr.FileDataSource(policy.TLSCustomCAFile)
 	} else if policy.TLSCustomCA != "" {
 		bs, err := base64.StdEncoding.DecodeString(policy.TLSCustomCA)
 		if err != nil {
 			log.Error().Err(err).Msg("invalid custom CA certificate")
 		}
-		validationContext.TrustedCa = inlineBytesAsFilename("custom-ca.pem", bs)
+		validationContext.TrustedCa = srv.filemgr.BytesDataSource("custom-ca.pem", bs)
 	} else {
 		rootCA, err := getRootCertificateAuthority()
 		if err != nil {
 			log.Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 		} else {
-			validationContext.TrustedCa = inlineFilename(rootCA)
+			validationContext.TrustedCa = srv.filemgr.FileDataSource(rootCA)
 		}
 	}
 

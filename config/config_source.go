@@ -1,9 +1,14 @@
 package config
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"io/ioutil"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
+
+	"github.com/pomerium/pomerium/internal/fileutil"
 )
 
 // Config holds pomerium configuration options.
@@ -124,4 +129,84 @@ func (src *FileOrEnvironmentSource) GetConfig() *Config {
 	defer src.mu.RUnlock()
 
 	return src.config
+}
+
+// FileWatcherSource is a config source which triggers a change any time a file in the options changes.
+type FileWatcherSource struct {
+	underlying Source
+	watcher    *fileutil.Watcher
+
+	mu             sync.RWMutex
+	computedConfig *Config
+	version        string
+
+	ChangeDispatcher
+}
+
+// NewFileWatcherSource creates a new FileWatcherSource.
+func NewFileWatcherSource(underlying Source) *FileWatcherSource {
+	src := &FileWatcherSource{
+		underlying: underlying,
+		watcher:    fileutil.NewWatcher(),
+	}
+
+	ch := src.watcher.Bind()
+	go func() {
+		for range ch {
+			src.check(underlying.GetConfig())
+		}
+	}()
+	underlying.OnConfigChange(func(cfg *Config) {
+		src.check(cfg)
+	})
+	src.check(underlying.GetConfig())
+
+	return src
+}
+
+// GetConfig gets the underlying config.
+func (src *FileWatcherSource) GetConfig() *Config {
+	src.mu.RLock()
+	defer src.mu.RUnlock()
+	return src.computedConfig
+}
+
+func (src *FileWatcherSource) check(cfg *Config) {
+	src.mu.Lock()
+	defer src.mu.Unlock()
+
+	src.watcher.Clear()
+
+	h := sha256.New()
+	fs := []string{
+		cfg.Options.CAFile,
+		cfg.Options.CertFile,
+		cfg.Options.ClientCAFile,
+		cfg.Options.DataBrokerStorageCAFile,
+		cfg.Options.DataBrokerStorageCertFile,
+		cfg.Options.DataBrokerStorageCertKeyFile,
+		cfg.Options.KeyFile,
+		cfg.Options.PolicyFile,
+	}
+	for _, f := range fs {
+		_, _ = h.Write([]byte{0})
+		bs, err := ioutil.ReadFile(f)
+		if err == nil {
+			src.watcher.Add(f)
+			_, _ = h.Write(bs)
+		}
+	}
+
+	version := hex.EncodeToString(h.Sum(nil))
+	if src.version != version {
+		src.version = version
+
+		// update the computed config
+		src.computedConfig = cfg.Clone()
+		src.computedConfig.Options.Certificates = nil
+		_ = src.computedConfig.Options.Validate()
+
+		// trigger a change
+		src.Trigger(src.computedConfig)
+	}
 }

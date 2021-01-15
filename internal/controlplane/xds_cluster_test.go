@@ -14,10 +14,15 @@ import (
 )
 
 func Test_buildPolicyTransportSocket(t *testing.T) {
-	rootCA, _ := getRootCertificateAuthority()
 	cacheDir, _ := os.UserCacheDir()
+	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-32484c314b584447463735303142374c31414145374650305a525539554938594d524855353757313942494d473847535231.pem")
+
+	srv, _ := NewServer("TEST")
+	rootCAPath, _ := getRootCertificateAuthority()
+	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
+
 	t.Run("insecure", func(t *testing.T) {
-		assert.Nil(t, buildPolicyTransportSocket(&config.Policy{
+		assert.Nil(t, srv.buildPolicyTransportSocket(&config.Policy{
 			Destination: mustParseURL("http://example.com"),
 		}))
 	})
@@ -49,7 +54,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"sni": "example.com"
 				}
 			}
-		`, buildPolicyTransportSocket(&config.Policy{
+		`, srv.buildPolicyTransportSocket(&config.Policy{
 			Destination: mustParseURL("https://example.com"),
 		}))
 	})
@@ -81,7 +86,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"sni": "use-this-name.example.com"
 				}
 			}
-		`, buildPolicyTransportSocket(&config.Policy{
+		`, srv.buildPolicyTransportSocket(&config.Policy{
 			Destination:   mustParseURL("https://example.com"),
 			TLSServerName: "use-this-name.example.com",
 		}))
@@ -115,7 +120,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"sni": "example.com"
 				}
 			}
-		`, buildPolicyTransportSocket(&config.Policy{
+		`, srv.buildPolicyTransportSocket(&config.Policy{
 			Destination:   mustParseURL("https://example.com"),
 			TLSSkipVerify: true,
 		}))
@@ -141,14 +146,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"exact": "example.com"
 							}],
 							"trustedCa": {
-								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-3aefa6fd5cf2deb4.pem")+`"
+								"filename": "`+customCA+`"
 							}
 						}
 					},
 					"sni": "example.com"
 				}
 			}
-		`, buildPolicyTransportSocket(&config.Policy{
+		`, srv.buildPolicyTransportSocket(&config.Policy{
 			Destination: mustParseURL("https://example.com"),
 			TLSCustomCA: base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
 		}))
@@ -172,10 +177,10 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 						},
 						"tlsCertificates": [{
 							"certificateChain":{
-								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-921a8294d2e2ec54.pem")+`"
+								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")+`"
 							},
 							"privateKey": {
-								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-d5cf35b1e8533e4a.pem")+`"
+								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")+`"
 							}
 						}],
 						"validationContext": {
@@ -190,7 +195,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"sni": "example.com"
 				}
 			}
-		`, buildPolicyTransportSocket(&config.Policy{
+		`, srv.buildPolicyTransportSocket(&config.Policy{
 			Destination:       mustParseURL("https://example.com"),
 			ClientCertificate: clientCert,
 		}))
@@ -198,7 +203,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 }
 
 func Test_buildCluster(t *testing.T) {
-	rootCA, _ := getRootCertificateAuthority()
+	srv, _ := NewServer("TEST")
+	rootCAPath, _ := getRootCertificateAuthority()
+	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
 	t.Run("insecure", func(t *testing.T) {
 		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true, config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyV4Only))
 		testutil.AssertProtoJSONEqual(t, `
@@ -232,7 +239,7 @@ func Test_buildCluster(t *testing.T) {
 	})
 	t.Run("secure", func(t *testing.T) {
 		u := mustParseURL("https://example.com")
-		transportSocket := buildPolicyTransportSocket(&config.Policy{
+		transportSocket := srv.buildPolicyTransportSocket(&config.Policy{
 			Destination: u,
 		})
 		cluster := buildCluster("example", u, transportSocket, true, config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto))
