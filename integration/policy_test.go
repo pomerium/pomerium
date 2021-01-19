@@ -405,7 +405,7 @@ func TestSNIMismatch(t *testing.T) {
 	}
 	defer res.Body.Close()
 
-	assert.Equal(t, http.StatusOK, res.StatusCode)
+	assert.Equal(t, http.StatusMisdirectedRequest, res.StatusCode)
 }
 
 func TestAttestationJWT(t *testing.T) {
