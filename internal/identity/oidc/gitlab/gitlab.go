@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc/v3/oidc"
 
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
