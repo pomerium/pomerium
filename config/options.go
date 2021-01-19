@@ -262,6 +262,9 @@ type Options struct {
 	// If unset, the GCP metadata server will be used to query for identity tokens.
 	GoogleCloudServerlessAuthenticationServiceAccount string `mapstructure:"google_cloud_serverless_authentication_service_account" yaml:"google_cloud_serverless_authentication_service_account,omitempty"` //nolint
 
+	// UseProxyProtocol configures the HTTP listener to require the HAProxy proxy protocol (either v1 or v2) on incoming requests.
+	UseProxyProtocol bool `mapstructure:"require_proxy_protocol" yaml:"require_proxy_protocol,omitempty" json:"require_proxy_protocol,omitempty"`
+
 	viper *viper.Viper
 
 	AutocertOptions `mapstructure:",squash" yaml:",inline"`

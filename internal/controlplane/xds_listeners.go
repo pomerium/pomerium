@@ -12,6 +12,7 @@ import (
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
 	envoy_extensions_filters_http_lua_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/lua/v3"
+	envoy_extensions_filters_listener_proxy_protocol_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/proxy_protocol/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
@@ -52,13 +53,25 @@ func (srv *Server) buildListeners(options *config.Options) []*envoy_config_liste
 }
 
 func (srv *Server) buildMainListener(options *config.Options) *envoy_config_listener_v3.Listener {
+	listenerFilters := []*envoy_config_listener_v3.ListenerFilter{}
+	if options.UseProxyProtocol {
+		proxyCfg := marshalAny(&envoy_extensions_filters_listener_proxy_protocol_v3.ProxyProtocol{})
+		listenerFilters = append(listenerFilters, &envoy_config_listener_v3.ListenerFilter{
+			Name: "envoy.filters.listener.proxy_protocol",
+			ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
+				TypedConfig: proxyCfg,
+			},
+		})
+	}
+
 	if options.InsecureServer {
 		filter := buildMainHTTPConnectionManagerFilter(options,
 			getAllRouteableDomains(options, options.Addr))
 
 		return &envoy_config_listener_v3.Listener{
-			Name:    "http-ingress",
-			Address: buildAddress(options.Addr, 80),
+			Name:            "http-ingress",
+			Address:         buildAddress(options.Addr, 80),
+			ListenerFilters: listenerFilters,
 			FilterChains: []*envoy_config_listener_v3.FilterChain{{
 				Filters: []*envoy_config_listener_v3.Filter{
 					filter,
@@ -68,15 +81,17 @@ func (srv *Server) buildMainListener(options *config.Options) *envoy_config_list
 	}
 
 	tlsInspectorCfg := marshalAny(new(emptypb.Empty))
+	listenerFilters = append(listenerFilters, &envoy_config_listener_v3.ListenerFilter{
+		Name: "envoy.filters.listener.tls_inspector",
+		ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
+			TypedConfig: tlsInspectorCfg,
+		},
+	})
+
 	li := &envoy_config_listener_v3.Listener{
-		Name:    "https-ingress",
-		Address: buildAddress(options.Addr, 443),
-		ListenerFilters: []*envoy_config_listener_v3.ListenerFilter{{
-			Name: "envoy.filters.listener.tls_inspector",
-			ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
-				TypedConfig: tlsInspectorCfg,
-			},
-		}},
+		Name:            "https-ingress",
+		Address:         buildAddress(options.Addr, 443),
+		ListenerFilters: listenerFilters,
 		FilterChains: buildFilterChains(options, options.Addr,
 			func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain {
 				filter := buildMainHTTPConnectionManagerFilter(options, httpDomains)
