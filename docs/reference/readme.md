@@ -1172,6 +1172,17 @@ If set, the route will only match incoming requests with a path that matches the
 If set, the URL path will be rewritten according to the pattern and substitution, similar to `prefix_rewrite`.
 
 
+### Outlier Detection
+- `yaml`/`json` setting: `outlier_detection`
+- Type: `object`
+- Optional
+- Example: `{ "consecutive_5xx": 12 }`
+
+Outlier detection and ejection is the process of dynamically determining whether some number of hosts in an upstream cluster are performing unlike the others and removing them from the healthy load balancing set.
+
+See the [envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier#arch-overview-outlier-detection) for more details.
+
+
 ### Route Timeout
 - `yaml`/`json` setting: `timeout`
 - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
