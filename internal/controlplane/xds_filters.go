@@ -28,7 +28,7 @@ func getHTTPConnectionManagerFilters(options *config.Options, tlsDomain string) 
 	}
 
 	fs = append(fs, &envoy_http_connection_manager.HttpFilter{
-		Name: "envoy.filters.http.router",
+		Name: wellknown.Router,
 	})
 
 	return fs
