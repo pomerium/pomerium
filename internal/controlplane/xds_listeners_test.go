@@ -22,7 +22,7 @@ const (
 
 func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options := config.NewDefaultOptions()
-	filter := buildMainHTTPConnectionManagerFilter(options, []string{"example.com"})
+	filter := buildMainHTTPConnectionManagerFilter(options, []string{"example.com"}, "*")
 	testutil.AssertProtoJSONEqual(t, `{
 		"name": "envoy.filters.network.http_connection_manager",
 		"typedConfig": {
