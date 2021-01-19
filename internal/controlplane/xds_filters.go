@@ -103,30 +103,7 @@ func getCleanUpstreamFilter() *envoy_http_connection_manager.HttpFilter {
 
 func getFixMisdirectedFilter(fqdn string) *envoy_http_connection_manager.HttpFilter {
 	// based on https://github.com/projectcontour/contour/pull/2483/files#diff-7b5eca045986ae5cb249a53591b132b2db720095fa9fa24715178f660383b6c6R303
-	code := fmt.Sprintf(`
-function envoy_on_request(request_handle)
-	local headers = request_handle:headers()
-	local dynamic_meta = request_handle:streamInfo():dynamicMetadata()
-
-	local authority = headers:get(":authority")
-
-	# store the authority header in the metadata so we can retrieve it in the response
-	dynamic_meta:set("envoy.filters.http.lua", "request.authority", authority)
-end
-
-function envoy_on_response(response_handle)
-	local headers = response_handle:headers()
-	local dynamic_meta = response_handle:streamInfo():dynamicMetadata()
-
-	local authority = dynamic_meta:get("envoy.filters.http.lua")["request.authority"]
-
-	# if we got a 404 (no route found) and the authority header doens't match
-	# assume we've coalesced http/2 connections and return a 421
-	if headers:get(":status") == "404" and authority ~= "%s" then
-		headers:replace(":status", "421")
-	end
-end
-`, fqdn)
+	code := fmt.Sprintf(luascripts.FixMisdirected, fqdn)
 	data := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
 		InlineCode: code,
 	})
