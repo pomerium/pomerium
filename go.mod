@@ -13,7 +13,7 @@ require (
 	github.com/caddyserver/certmagic v0.12.0
 	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/cespare/xxhash/v2 v2.1.1
-	github.com/coreos/go-oidc v2.2.1+incompatible
+	github.com/coreos/go-oidc/v3 v3.0.0
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/envoyproxy/go-control-plane v0.9.8
 	github.com/fsnotify/fsnotify v1.4.9
@@ -43,7 +43,6 @@ require (
 	github.com/ory/dockertest/v3 v3.6.3
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
-	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/prometheus/client_golang v1.9.0
 	github.com/rakyll/statik v0.1.7
 	github.com/rjeczalik/notify v0.9.3-0.20201210012515-e2a77dcc14cf

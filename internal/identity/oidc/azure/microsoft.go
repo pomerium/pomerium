@@ -11,7 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	go_oidc "github.com/coreos/go-oidc"
+	go_oidc "github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/identity/oauth"
