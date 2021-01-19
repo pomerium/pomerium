@@ -5,6 +5,7 @@ option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
+import "google/protobuf/wrappers.proto";
 
 message Config {
   string name = 1;
@@ -21,6 +22,29 @@ message RouteRedirect {
   optional string prefix_rewrite = 6;
   optional int32 response_code = 7;
   optional bool strip_query = 8;
+}
+
+message OutlierDetection {
+  google.protobuf.UInt32Value consecutive_5xx = 1;
+  google.protobuf.Duration interval = 2;
+  google.protobuf.Duration base_ejection_time = 3;
+  google.protobuf.UInt32Value max_ejection_percent = 4;
+  google.protobuf.UInt32Value enforcing_consecutive_5xx = 5;
+  google.protobuf.UInt32Value enforcing_success_rate = 6;
+  google.protobuf.UInt32Value success_rate_minimum_hosts = 7;
+  google.protobuf.UInt32Value success_rate_request_volume = 8;
+  google.protobuf.UInt32Value success_rate_stdev_factor = 9;
+  google.protobuf.UInt32Value consecutive_gateway_failure = 10;
+  google.protobuf.UInt32Value enforcing_consecutive_gateway_failure = 11;
+  bool split_external_local_origin_errors = 12;
+  google.protobuf.UInt32Value consecutive_local_origin_failure = 13;
+  google.protobuf.UInt32Value enforcing_consecutive_local_origin_failure = 14;
+  google.protobuf.UInt32Value enforcing_local_origin_success_rate = 15;
+  google.protobuf.UInt32Value failure_percentage_threshold = 16;
+  google.protobuf.UInt32Value enforcing_failure_percentage = 17;
+  google.protobuf.UInt32Value enforcing_failure_percentage_local_origin = 18;
+  google.protobuf.UInt32Value failure_percentage_minimum_hosts = 19;
+  google.protobuf.UInt32Value failure_percentage_request_volume = 20;
 }
 
 message Route {
@@ -68,6 +92,8 @@ message Route {
   bool pass_identity_headers = 25;
 
   string kubernetes_service_account_token = 26;
+
+  OutlierDetection outlier_detection = 35;
 
   repeated Policy policies = 27;
   string id = 28;

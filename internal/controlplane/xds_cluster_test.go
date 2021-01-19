@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -207,7 +209,9 @@ func Test_buildCluster(t *testing.T) {
 	rootCAPath, _ := getRootCertificateAuthority()
 	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
 	t.Run("insecure", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true, config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyV4Only))
+		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true,
+			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyV4Only),
+			nil)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -242,7 +246,9 @@ func Test_buildCluster(t *testing.T) {
 		transportSocket := srv.buildPolicyTransportSocket(&config.Policy{
 			Destination: u,
 		})
-		cluster := buildCluster("example", u, transportSocket, true, config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto))
+		cluster := buildCluster("example", u, transportSocket, true,
+			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
+			nil)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -298,7 +304,9 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("ip address", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://127.0.0.1"), nil, true, config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto))
+		cluster := buildCluster("example", mustParseURL("http://127.0.0.1"), nil, true,
+			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
+			nil)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -328,7 +336,9 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("localhost", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://localhost"), nil, true, config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto))
+		cluster := buildCluster("example", mustParseURL("http://localhost"), nil, true,
+			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
+			nil)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -346,6 +356,46 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "127.0.0.1",
+										"ipv4Compat": true,
+										"portValue": 80
+									}
+								}
+							}
+						}]
+					}]
+				}
+			}
+		`, cluster)
+	})
+	t.Run("outlier", func(t *testing.T) {
+		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true,
+			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyV4Only),
+			&envoy_config_cluster_v3.OutlierDetection{
+				EnforcingConsecutive_5Xx:       wrapperspb.UInt32(17),
+				SplitExternalLocalOriginErrors: true,
+			})
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"name": "example",
+				"type": "STRICT_DNS",
+				"connectTimeout": "10s",
+				"respectDnsTtl": true,
+				"http2ProtocolOptions": {
+					"allowConnect": true
+				},
+				"dnsLookupFamily": "V4_ONLY",
+				"outlierDetection": {
+					"enforcingConsecutive5xx": 17,
+					"splitExternalLocalOriginErrors": true
+				},
+				"loadAssignment": {
+					"clusterName": "example",
+					"endpoints": [{
+						"lbEndpoints": [{
+							"endpoint": {
+								"address": {
+									"socketAddress": {
+										"address": "example.com",
 										"ipv4Compat": true,
 										"portValue": 80
 									}
