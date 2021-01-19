@@ -5,11 +5,13 @@ import (
 	"net"
 	"net/url"
 	"sort"
+	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
+	envoy_extensions_filters_http_lua_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/lua/v3"
 	envoy_extensions_filters_listener_proxy_protocol_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/proxy_protocol/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
@@ -64,7 +66,7 @@ func (srv *Server) buildMainListener(options *config.Options) *envoy_config_list
 
 	if options.InsecureServer {
 		filter := buildMainHTTPConnectionManagerFilter(options,
-			getAllRouteableDomains(options, options.Addr), "")
+			getAllRouteableDomains(options, options.Addr))
 
 		return &envoy_config_listener_v3.Listener{
 			Name:            "http-ingress",
@@ -92,7 +94,7 @@ func (srv *Server) buildMainListener(options *config.Options) *envoy_config_list
 		ListenerFilters: listenerFilters,
 		FilterChains: buildFilterChains(options, options.Addr,
 			func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain {
-				filter := buildMainHTTPConnectionManagerFilter(options, httpDomains, tlsDomain)
+				filter := buildMainHTTPConnectionManagerFilter(options, httpDomains)
 				filterChain := &envoy_config_listener_v3.FilterChain{
 					Filters: []*envoy_config_listener_v3.Filter{filter},
 				}
@@ -126,14 +128,14 @@ func buildFilterChains(
 	var chains []*envoy_config_listener_v3.FilterChain
 	for _, domain := range tlsDomains {
 		// first we match on SNI
-		chains = append(chains, callback(domain, []string{domain}))
+		chains = append(chains, callback(domain, allDomains))
 	}
 	// if there are no SNI matches we match on HTTP host
 	chains = append(chains, callback("*", allDomains))
 	return chains
 }
 
-func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []string, tlsDomain string) *envoy_config_listener_v3.Filter {
+func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []string) *envoy_config_listener_v3.Filter {
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, domain := range domains {
 		vh := &envoy_config_route_v3.VirtualHost{
@@ -161,13 +163,45 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 			virtualHosts = append(virtualHosts, vh)
 		}
 	}
-	if tlsDomain == "*" {
-		virtualHosts = append(virtualHosts, &envoy_config_route_v3.VirtualHost{
-			Name:    "catch-all",
-			Domains: []string{"*"},
-			Routes:  buildPomeriumHTTPRoutes(options, "*"),
-		})
+	virtualHosts = append(virtualHosts, &envoy_config_route_v3.VirtualHost{
+		Name:    "catch-all",
+		Domains: []string{"*"},
+		Routes:  buildPomeriumHTTPRoutes(options, "*"),
+	})
+
+	var grpcClientTimeout *durationpb.Duration
+	if options.GRPCClientTimeout != 0 {
+		grpcClientTimeout = ptypes.DurationProto(options.GRPCClientTimeout)
+	} else {
+		grpcClientTimeout = ptypes.DurationProto(30 * time.Second)
 	}
+
+	extAuthZ := marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthz{
+		StatusOnError: &envoy_type_v3.HttpStatus{
+			Code: envoy_type_v3.StatusCode_InternalServerError,
+		},
+		Services: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthz_GrpcService{
+			GrpcService: &envoy_config_core_v3.GrpcService{
+				Timeout: grpcClientTimeout,
+				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+						ClusterName: options.GetAuthorizeURL().Host,
+					},
+				},
+			},
+		},
+		IncludePeerCertificate: true,
+	})
+
+	extAuthzSetCookieLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
+		InlineCode: luascripts.ExtAuthzSetCookie,
+	})
+	cleanUpstreamLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
+		InlineCode: luascripts.CleanUpstream,
+	})
+	removeImpersonateHeadersLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
+		InlineCode: luascripts.RemoveImpersonateHeaders,
+	})
 
 	var maxStreamDuration *durationpb.Duration
 	if options.WriteTimeout > 0 {
@@ -180,8 +214,36 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
 			RouteConfig: buildRouteConfiguration("main", virtualHosts),
 		},
-		HttpFilters: getHTTPConnectionManagerFilters(options, tlsDomain),
-		AccessLog:   buildAccessLogs(options),
+		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
+			{
+				Name: "envoy.filters.http.lua",
+				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+					TypedConfig: removeImpersonateHeadersLua,
+				},
+			},
+			{
+				Name: "envoy.filters.http.ext_authz",
+				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+					TypedConfig: extAuthZ,
+				},
+			},
+			{
+				Name: "envoy.filters.http.lua",
+				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+					TypedConfig: extAuthzSetCookieLua,
+				},
+			},
+			{
+				Name: "envoy.filters.http.lua",
+				ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+					TypedConfig: cleanUpstreamLua,
+				},
+			},
+			{
+				Name: "envoy.filters.http.router",
+			},
+		},
+		AccessLog: buildAccessLogs(options),
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
 			IdleTimeout:       ptypes.DurationProto(options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
