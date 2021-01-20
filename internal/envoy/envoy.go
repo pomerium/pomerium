@@ -24,9 +24,8 @@ import (
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_config_metrics_v3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
 	envoy_config_trace_v3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 	"github.com/natefinch/atomic"
 	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/encoding/protojson"

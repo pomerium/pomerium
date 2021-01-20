@@ -1296,6 +1296,17 @@ settings:
           - Example: `{ "regex_rewrite_pattern":"^/service/([^/]+)(/.*)$", "regex_rewrite_substitution": "\\2/instance/\\1" }`
         doc: |
           If set, the URL path will be rewritten according to the pattern and substitution, similar to `prefix_rewrite`.
+      - name: "Outlier Detection"
+        keys: ["outlier_detection"]
+        attributes: |
+          - `yaml`/`json` setting: `outlier_detection`
+          - Type: `object`
+          - Optional
+          - Example: `{ "consecutive_5xx": 12 }`
+        doc: |
+          Outlier detection and ejection is the process of dynamically determining whether some number of hosts in an upstream cluster are performing unlike the others and removing them from the healthy load balancing set.
+
+          See the [envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier#arch-overview-outlier-detection) for more details.
       - name: "Route Timeout"
         keys: ["timeout"]
         attributes: |

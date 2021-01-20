@@ -54,7 +54,9 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 
 func (srv *Server) buildInternalCluster(options *config.Options, name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
 	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
-	return buildCluster(name, endpoint, srv.buildInternalTransportSocket(options, endpoint), forceHTTP2, dnsLookupFamily)
+	return buildCluster(name, endpoint, srv.buildInternalTransportSocket(options, endpoint), forceHTTP2,
+		dnsLookupFamily,
+		nil)
 }
 
 func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Policy) *envoy_config_cluster_v3.Cluster {
@@ -63,7 +65,9 @@ func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Po
 	if policy.EnableGoogleCloudServerlessAuthentication {
 		dnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 	}
-	return buildCluster(name, policy.Destination, srv.buildPolicyTransportSocket(policy), false, dnsLookupFamily)
+	return buildCluster(name, policy.Destination, srv.buildPolicyTransportSocket(policy), false,
+		dnsLookupFamily,
+		(*envoy_config_cluster_v3.OutlierDetection)(policy.OutlierDetection))
 }
 
 func (srv *Server) buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *envoy_config_core_v3.TransportSocket {
@@ -201,6 +205,7 @@ func buildCluster(
 	transportSocket *envoy_config_core_v3.TransportSocket,
 	forceHTTP2 bool,
 	dnsLookupFamily envoy_config_cluster_v3.Cluster_DnsLookupFamily,
+	outlierDetection *envoy_config_cluster_v3.OutlierDetection,
 ) *envoy_config_cluster_v3.Cluster {
 	if endpoint == nil {
 		return nil
@@ -233,9 +238,10 @@ func buildCluster(
 				}},
 			}},
 		},
-		RespectDnsTtl:   true,
-		TransportSocket: transportSocket,
-		DnsLookupFamily: dnsLookupFamily,
+		RespectDnsTtl:    true,
+		TransportSocket:  transportSocket,
+		DnsLookupFamily:  dnsLookupFamily,
+		OutlierDetection: outlierDetection,
 	}
 
 	if forceHTTP2 {
