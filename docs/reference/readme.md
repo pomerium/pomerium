@@ -846,6 +846,15 @@ Secure service communication can fail if the external certificate does not match
 Refresh cooldown is the minimum amount of time between allowed manually refreshed sessions.
 
 
+### X-Forwarded-For HTTP Header
+- Environmental Variable: `SKIP_XFF_APPEND`
+- Config File Key: `skip_xff_append`
+- Type: `bool`
+- Default: `false`
+
+Do not append proxy IP address to `x-forwarded-for` HTTP header. See [Envoy](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=skip_xff_append#x-forwarded-for) docs for more detail.
+
+
 ## Cache Service
 The cache service is used for storing user session data.
 

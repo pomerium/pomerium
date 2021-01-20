@@ -254,7 +254,7 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		},
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
 		UseRemoteAddress: &wrappers.BoolValue{Value: true},
-		SkipXffAppend:    false,
+		SkipXffAppend:    options.SkipXffAppend,
 	})
 
 	return &envoy_config_listener_v3.Filter{
