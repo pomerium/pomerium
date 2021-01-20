@@ -13,6 +13,7 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/golang/protobuf/ptypes"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -141,6 +142,8 @@ type Policy struct {
 	// OutlierDetection configures outlier detection for the upstream cluster.
 	OutlierDetection *PolicyOutlierDetection `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
 
+	HealthCheck *HealthCheck `mapstructure:"health_check" yaml:"health_check,omitempty" json:"health_check,omitempty"`
+
 	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
 }
 
@@ -168,6 +171,27 @@ type PolicyRedirect struct {
 }
 
 type PolicyOutlierDetection envoy_config_cluster_v3.OutlierDetection
+
+// HealthCheck allows to specify upstream health check rules.
+// see https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#config-core-v3-healthcheck for more details
+type HealthCheck struct {
+	envoy_config_core_v3.HealthCheck `mapstructure:",squash"`
+	HTTPHealthCheck                  envoy_config_core_v3.HealthCheck_HttpHealthCheck `mapstructure:"http_health_check" yaml:"http_health_check" json:"http_health_check"`
+}
+
+func (hc *HealthCheck) embed() {
+	if hc == nil {
+		return
+	}
+	hc.HealthCheck.HealthChecker = &envoy_config_core_v3.HealthCheck_HttpHealthCheck_{&hc.HTTPHealthCheck}
+}
+
+func (hc *HealthCheck) GetHealthCheck() *envoy_config_core_v3.HealthCheck {
+	if hc == nil {
+		return nil
+	}
+	return &hc.HealthCheck
+}
 
 // NewPolicyFromProto creates a new Policy from a protobuf policy config route.
 func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
@@ -427,6 +451,12 @@ func (p *Policy) Validate() error {
 
 	if p.PrefixRewrite != "" && p.RegexRewritePattern != "" {
 		return fmt.Errorf("config: only prefix_rewrite or regex_rewrite_pattern can be specified, but not both")
+	}
+
+	if p.HealthCheck != nil {
+		if err := p.HealthCheck.GetHealthCheck().Validate(); err != nil {
+			return fmt.Errorf("health check: %+v, %+v: %w", p.HealthCheck.HealthCheck, p.HealthCheck.HTTPHealthCheck, err)
+		}
 	}
 
 	return nil
