@@ -33,7 +33,7 @@ func NewEndpoint(u *url.URL, ts *envoy_config_core_v3.TransportSocket) Endpoint 
 	return Endpoint{url: u, transportSocket: ts}
 }
 
-// TransportSocketMatch return the TransportSocketMatch for this endpoint.
+// TransportSocketName return the name for this endpoint.
 func (e Endpoint) TransportSocketName() string {
 	if e.transportSocket == nil {
 		return ""
