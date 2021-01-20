@@ -22,6 +22,7 @@ const (
 
 func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options := config.NewDefaultOptions()
+	options.SkipXffAppend = true
 	filter := buildMainHTTPConnectionManagerFilter(options, []string{"example.com"})
 	testutil.AssertProtoJSONEqual(t, `{
 		"name": "envoy.filters.network.http_connection_manager",
@@ -375,7 +376,8 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 					"value": 0.01
 				}
 			},
-			"useRemoteAddress": true
+			"useRemoteAddress": true,
+			"skipXffAppend": true
 		}
 	}`, filter)
 }

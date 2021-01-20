@@ -268,6 +268,10 @@ type Options struct {
 	viper *viper.Viper
 
 	AutocertOptions `mapstructure:",squash" yaml:",inline"`
+
+	// SkipXffAppend instructs proxy not to append its IP address to x-forwarded-for header.
+	// see https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=skip_xff_append#x-forwarded-for
+	SkipXffAppend bool `mapstructure:"skip_xff_append" yaml:"skip_xff_append" json:"skip_xff_append"`
 }
 
 type certificateFilePair struct {
@@ -311,6 +315,7 @@ var defaultOptions = Options{
 		Folder: dataDir(),
 	},
 	DataBrokerStorageType: "memory",
+	SkipXffAppend:         false,
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -937,6 +942,9 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.AutocertDir != nil {
 		o.AutocertOptions.Folder = settings.GetAutocertDir()
+	}
+	if settings.SkipXffAppend != nil {
+		o.SkipXffAppend = settings.GetSkipXffAppend()
 	}
 }
 

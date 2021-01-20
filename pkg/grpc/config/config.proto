@@ -176,4 +176,5 @@ message Settings {
   optional bool autocert_use_staging = 57;
   optional bool autocert_must_staple = 58;
   optional string autocert_dir = 59;
+  optional bool skip_xff_append = 61;
 }
