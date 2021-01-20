@@ -246,7 +246,10 @@ func Test_buildCluster(t *testing.T) {
 	})
 	t.Run("secure", func(t *testing.T) {
 		endpoints := srv.buildPolicyEndpoints(&config.Policy{
-			Destinations: mustParseURLs("https://example.com"),
+			Destinations: mustParseURLs(
+				"https://example.com",
+				"https://example.com",
+			),
 		})
 		cluster := buildCluster("example", endpoints, true,
 			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
@@ -296,6 +299,23 @@ func Test_buildCluster(t *testing.T) {
 					"clusterName": "example",
 					"endpoints": [{
 						"lbEndpoints": [{
+							"endpoint": {
+								"address": {
+									"socketAddress": {
+										"address": "example.com",
+										"ipv4Compat": true,
+										"portValue": 443
+									}
+								}
+							},
+							"metadata": {
+								"filterMetadata": {
+									"envoy.transport_socket_match": {
+										"`+endpoints[0].TransportSocketName()+`": true
+									}
+								}
+							}
+						},{
 							"endpoint": {
 								"address": {
 									"socketAddress": {
