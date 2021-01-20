@@ -1401,12 +1401,19 @@ settings:
         keys: ["to"]
         attributes: |
           - `yaml`/`json` setting: `to`
-          - Type: `URL` (must contain a scheme and hostname)
+          - Type: `URL` or list of `URL`s (must contain a scheme and hostname)
           - Schemes: `http`, `https`, `tcp`
           - Optional
-          - Example: `http://verify` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://verify.pomerium.com/anything/`
+          - Example: `http://verify` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://verify.pomerium.com/anything/`, `["http://a", "http://b"]
         doc: |
-          `To` is the destination of a proxied request. It can be an internal resource, or an external resource.
+          `To` is the destination(s) of a proxied request. It can be an internal resource, or an external resource. Multiple upstream resources can be targeted by using a list instead of a single URL:
+
+          ```yaml
+          - from: https://example.com
+            to:
+            - https://a.example.com
+            - https://b.example.com
+          ```
 
           Must be `tcp` if `from` is `tcp+https`.
 

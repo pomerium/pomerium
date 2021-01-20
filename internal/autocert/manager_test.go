@@ -145,7 +145,7 @@ func TestConfig(t *testing.T) {
 	_ = li.Close()
 
 	p1 := config.Policy{
-		From: "http://from.example.com", To: "http://to.example.com",
+		From: "http://from.example.com", To: config.NewStringSlice("http://to.example.com"),
 	}
 	_ = p1.Validate()
 

@@ -50,7 +50,7 @@ func TestConfigSource(t *testing.T) {
 		Routes: []*configpb.Route{
 			{
 				From: "https://from.example.com",
-				To:   "https://to.example.com",
+				To:   []string{"https://to.example.com"},
 			},
 		},
 	})

@@ -133,7 +133,11 @@ func (a *Authorize) getGoogleCloudServerlessAuthenticationHeaders(reply *evaluat
 	}
 
 	serviceAccount := a.currentOptions.Load().GoogleCloudServerlessAuthenticationServiceAccount
-	audience := fmt.Sprintf("https://%s", reply.MatchingPolicy.Destination.Hostname())
+	var hostname string
+	if len(reply.MatchingPolicy.Destinations) > 0 {
+		hostname = reply.MatchingPolicy.Destinations[0].Hostname()
+	}
+	audience := fmt.Sprintf("https://%s", hostname)
 
 	src, err := getGoogleCloudServerlessTokenSource(serviceAccount, audience)
 	if err != nil {

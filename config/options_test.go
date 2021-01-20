@@ -161,7 +161,17 @@ func Test_parsePolicyFile(t *testing.T) {
 		want        []Policy
 		wantErr     bool
 	}{
-		{"simple json", []byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, dest)), []Policy{{From: source, To: dest, Source: &StringURL{sourceURL}, Destination: destURL}}, false},
+		{
+			"simple json",
+			[]byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, dest)),
+			[]Policy{{
+				From:         source,
+				To:           NewStringSlice(dest),
+				Source:       &StringURL{sourceURL},
+				Destinations: []*url.URL{destURL},
+			}},
+			false,
+		},
 		{"bad from", []byte(`{"policy":[{"from": "%","to":"httpbin.org"}]}`), nil, true},
 		{"bad to", []byte(`{"policy":[{"from": "pomerium.io","to":"%"}]}`), nil, true},
 	}
@@ -214,7 +224,7 @@ func Test_Checksum(t *testing.T) {
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURL", "AuthorizeURL", "AuthorizeURLString", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate"),
-		cmpopts.IgnoreFields(Policy{}, "Source", "Destination"),
+		cmpopts.IgnoreFields(Policy{}, "Source", "Destinations"),
 		cmpOptIgnoreUnexported,
 	}
 
@@ -228,7 +238,7 @@ func TestOptionsFromViper(t *testing.T) {
 			"good",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				Policies:                        []Policy{{From: "https://from.example", To: "https://to.example"}},
+				Policies:                        []Policy{{From: "https://from.example", To: NewStringSlice("https://to.example")}},
 				CookieName:                      "_pomerium",
 				CookieSecure:                    true,
 				InsecureServer:                  true,
@@ -252,7 +262,7 @@ func TestOptionsFromViper(t *testing.T) {
 			"good disable header",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				Policies:                        []Policy{{From: "https://from.example", To: "https://to.example"}},
+				Policies:                        []Policy{{From: "https://from.example", To: NewStringSlice("https://to.example")}},
 				CookieName:                      "_pomerium",
 				AuthenticateCallbackPath:        "/oauth2/callback",
 				CookieSecure:                    true,

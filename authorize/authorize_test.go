@@ -124,7 +124,11 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 }
 
 func testPolicies(t *testing.T) []config.Policy {
-	testPolicy := config.Policy{From: "https://pomerium.io", To: "http://httpbin.org", AllowedUsers: []string{"test@gmail.com"}}
+	testPolicy := config.Policy{
+		From:         "https://pomerium.io",
+		To:           config.NewStringSlice("http://httpbin.org"),
+		AllowedUsers: []string{"test@gmail.com"},
+	}
 	err := testPolicy.Validate()
 	if err != nil {
 		t.Fatal(err)

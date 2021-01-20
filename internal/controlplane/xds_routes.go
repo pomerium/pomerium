@@ -404,8 +404,8 @@ func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrit
 			},
 			Substitution: policy.RegexRewriteSubstitution,
 		}
-	} else if policy.Destination != nil && policy.Destination.Path != "" {
-		prefixRewrite = policy.Destination.Path
+	} else if len(policy.Destinations) > 0 && policy.Destinations[0].Path != "" {
+		prefixRewrite = policy.Destinations[0].Path
 	}
 
 	return prefixRewrite, regexRewrite
@@ -459,4 +459,12 @@ func mustParseURL(str string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func mustParseURLs(strs ...string) []*url.URL {
+	var us []*url.URL
+	for _, str := range strs {
+		us = append(us, mustParseURL(str))
+	}
+	return us
 }
