@@ -16,8 +16,8 @@ import (
 
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
-	"github.com/pomerium/pomerium/cache"
 	"github.com/pomerium/pomerium/config"
+	databroker_service "github.com/pomerium/pomerium/databroker"
 	"github.com/pomerium/pomerium/internal/autocert"
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/databroker"
@@ -91,7 +91,7 @@ func Run(ctx context.Context, configFile string) error {
 			return err
 		}
 	}
-	var cacheServer *cache.Cache
+	var cacheServer *databroker_service.Cache
 	if config.IsCache(src.GetConfig().Options.Services) {
 		cacheServer, err = setupCache(src, controlPlane)
 		if err != nil {
@@ -174,13 +174,13 @@ func setupAuthorize(src config.Source, controlPlane *controlplane.Server) (*auth
 	return svc, nil
 }
 
-func setupCache(src config.Source, controlPlane *controlplane.Server) (*cache.Cache, error) {
-	svc, err := cache.New(src.GetConfig())
+func setupCache(src config.Source, controlPlane *controlplane.Server) (*databroker_service.Cache, error) {
+	svc, err := databroker_service.New(src.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("error creating config service: %w", err)
 	}
 	svc.Register(controlPlane.GRPCServer)
-	log.Info().Msg("enabled cache service")
+	log.Info().Msg("enabled databroker service")
 	src.OnConfigChange(svc.OnConfigChange)
 	svc.OnConfigChange(src.GetConfig())
 	return svc, nil
