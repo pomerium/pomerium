@@ -271,7 +271,7 @@ type Options struct {
 
 	// SkipXffAppend instructs proxy not to append its IP address to x-forwarded-for header.
 	// see https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=skip_xff_append#x-forwarded-for
-	SkipXffAppend bool `mapstructure:"skip_xff_append" yaml:"skip_xff_append" json:"skip_xff_append"`
+	SkipXffAppend bool `mapstructure:"skip_xff_append" yaml:"skip_xff_append,omitempty" json:"skip_xff_append,omitempty"`
 }
 
 type certificateFilePair struct {
