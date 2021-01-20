@@ -11,20 +11,6 @@ import (
 	"github.com/pomerium/pomerium/internal/fileutil"
 )
 
-// Config holds pomerium configuration options.
-type Config struct {
-	Options *Options
-}
-
-// Clone creates a clone of the config.
-func (cfg *Config) Clone() *Config {
-	newOptions := new(Options)
-	*newOptions = *cfg.Options
-	return &Config{
-		Options: newOptions,
-	}
-}
-
 // A ChangeListener is called when configuration changes.
 type ChangeListener = func(*Config)
 

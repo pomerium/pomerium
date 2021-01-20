@@ -38,23 +38,23 @@ func init() {
 	})
 }
 
-func (srv *Server) buildListeners(options *config.Options) []*envoy_config_listener_v3.Listener {
+func (srv *Server) buildListeners(cfg *config.Config) []*envoy_config_listener_v3.Listener {
 	var listeners []*envoy_config_listener_v3.Listener
 
-	if config.IsAuthenticate(options.Services) || config.IsProxy(options.Services) {
-		listeners = append(listeners, srv.buildMainListener(options))
+	if config.IsAuthenticate(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
+		listeners = append(listeners, srv.buildMainListener(cfg))
 	}
 
-	if config.IsAuthorize(options.Services) || config.IsCache(options.Services) {
-		listeners = append(listeners, srv.buildGRPCListener(options))
+	if config.IsAuthorize(cfg.Options.Services) || config.IsCache(cfg.Options.Services) {
+		listeners = append(listeners, srv.buildGRPCListener(cfg))
 	}
 
 	return listeners
 }
 
-func (srv *Server) buildMainListener(options *config.Options) *envoy_config_listener_v3.Listener {
+func (srv *Server) buildMainListener(cfg *config.Config) *envoy_config_listener_v3.Listener {
 	listenerFilters := []*envoy_config_listener_v3.ListenerFilter{}
-	if options.UseProxyProtocol {
+	if cfg.Options.UseProxyProtocol {
 		proxyCfg := marshalAny(&envoy_extensions_filters_listener_proxy_protocol_v3.ProxyProtocol{})
 		listenerFilters = append(listenerFilters, &envoy_config_listener_v3.ListenerFilter{
 			Name: "envoy.filters.listener.proxy_protocol",
@@ -64,13 +64,13 @@ func (srv *Server) buildMainListener(options *config.Options) *envoy_config_list
 		})
 	}
 
-	if options.InsecureServer {
-		filter := buildMainHTTPConnectionManagerFilter(options,
-			getAllRouteableDomains(options, options.Addr))
+	if cfg.Options.InsecureServer {
+		filter := buildMainHTTPConnectionManagerFilter(cfg.Options,
+			getAllRouteableDomains(cfg.Options, cfg.Options.Addr))
 
 		return &envoy_config_listener_v3.Listener{
 			Name:            "http-ingress",
-			Address:         buildAddress(options.Addr, 80),
+			Address:         buildAddress(cfg.Options.Addr, 80),
 			ListenerFilters: listenerFilters,
 			FilterChains: []*envoy_config_listener_v3.FilterChain{{
 				Filters: []*envoy_config_listener_v3.Filter{
@@ -90,11 +90,11 @@ func (srv *Server) buildMainListener(options *config.Options) *envoy_config_list
 
 	li := &envoy_config_listener_v3.Listener{
 		Name:            "https-ingress",
-		Address:         buildAddress(options.Addr, 443),
+		Address:         buildAddress(cfg.Options.Addr, 443),
 		ListenerFilters: listenerFilters,
-		FilterChains: buildFilterChains(options, options.Addr,
+		FilterChains: buildFilterChains(cfg.Options, cfg.Options.Addr,
 			func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain {
-				filter := buildMainHTTPConnectionManagerFilter(options, httpDomains)
+				filter := buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains)
 				filterChain := &envoy_config_listener_v3.FilterChain{
 					Filters: []*envoy_config_listener_v3.Filter{filter},
 				}
@@ -103,7 +103,7 @@ func (srv *Server) buildMainListener(options *config.Options) *envoy_config_list
 						ServerNames: []string{tlsDomain},
 					}
 				}
-				tlsContext := srv.buildDownstreamTLSContext(options, tlsDomain)
+				tlsContext := srv.buildDownstreamTLSContext(cfg, tlsDomain)
 				if tlsContext != nil {
 					tlsConfig := marshalAny(tlsContext)
 					filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
@@ -265,13 +265,13 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 	}
 }
 
-func (srv *Server) buildGRPCListener(options *config.Options) *envoy_config_listener_v3.Listener {
+func (srv *Server) buildGRPCListener(cfg *config.Config) *envoy_config_listener_v3.Listener {
 	filter := buildGRPCHTTPConnectionManagerFilter()
 
-	if options.GRPCInsecure {
+	if cfg.Options.GRPCInsecure {
 		return &envoy_config_listener_v3.Listener{
 			Name:    "grpc-ingress",
-			Address: buildAddress(options.GRPCAddr, 80),
+			Address: buildAddress(cfg.Options.GRPCAddr, 80),
 			FilterChains: []*envoy_config_listener_v3.FilterChain{{
 				Filters: []*envoy_config_listener_v3.Filter{
 					filter,
@@ -283,14 +283,14 @@ func (srv *Server) buildGRPCListener(options *config.Options) *envoy_config_list
 	tlsInspectorCfg := marshalAny(new(emptypb.Empty))
 	li := &envoy_config_listener_v3.Listener{
 		Name:    "grpc-ingress",
-		Address: buildAddress(options.GRPCAddr, 443),
+		Address: buildAddress(cfg.Options.GRPCAddr, 443),
 		ListenerFilters: []*envoy_config_listener_v3.ListenerFilter{{
 			Name: "envoy.filters.listener.tls_inspector",
 			ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
 				TypedConfig: tlsInspectorCfg,
 			},
 		}},
-		FilterChains: buildFilterChains(options, options.Addr,
+		FilterChains: buildFilterChains(cfg.Options, cfg.Options.Addr,
 			func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain {
 				filterChain := &envoy_config_listener_v3.FilterChain{
 					Filters: []*envoy_config_listener_v3.Filter{filter},
@@ -300,7 +300,7 @@ func (srv *Server) buildGRPCListener(options *config.Options) *envoy_config_list
 						ServerNames: []string{tlsDomain},
 					}
 				}
-				tlsContext := srv.buildDownstreamTLSContext(options, tlsDomain)
+				tlsContext := srv.buildDownstreamTLSContext(cfg, tlsDomain)
 				if tlsContext != nil {
 					tlsConfig := marshalAny(tlsContext)
 					filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
@@ -372,22 +372,22 @@ func buildRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.
 	}
 }
 
-func (srv *Server) buildDownstreamTLSContext(options *config.Options, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
-	cert, err := cryptutil.GetCertificateForDomain(options.Certificates, domain)
+func (srv *Server) buildDownstreamTLSContext(cfg *config.Config, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
+	cert, err := cryptutil.GetCertificateForDomain(cfg.AllCertificates(), domain)
 	if err != nil {
 		log.Warn().Str("domain", domain).Err(err).Msg("failed to get certificate for domain")
 		return nil
 	}
 
 	var trustedCA *envoy_config_core_v3.DataSource
-	if options.ClientCA != "" {
-		bs, err := base64.StdEncoding.DecodeString(options.ClientCA)
+	if cfg.Options.ClientCA != "" {
+		bs, err := base64.StdEncoding.DecodeString(cfg.Options.ClientCA)
 		if err != nil {
 			log.Warn().Msg("client_ca does not appear to be a base64 encoded string")
 		}
 		trustedCA = srv.filemgr.BytesDataSource("client-ca", bs)
-	} else if options.ClientCAFile != "" {
-		trustedCA = srv.filemgr.FileDataSource(options.ClientCAFile)
+	} else if cfg.Options.ClientCAFile != "" {
+		trustedCA = srv.filemgr.FileDataSource(cfg.Options.ClientCAFile)
 	}
 
 	var validationContext *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext

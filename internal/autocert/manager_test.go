@@ -171,12 +171,12 @@ func TestConfig(t *testing.T) {
 	var certs []tls.Certificate
 	for i := 0; i < 10; i++ {
 		cfg := mgr.GetConfig()
-		assert.LessOrEqual(t, len(cfg.Options.Certificates), 1)
-		if len(cfg.Options.Certificates) == 1 && certs == nil {
-			certs = cfg.Options.Certificates
+		assert.LessOrEqual(t, len(cfg.AutoCertificates), 1)
+		if len(cfg.AutoCertificates) == 1 && certs == nil {
+			certs = cfg.AutoCertificates
 		}
 
-		if !cmp.Equal(certs, cfg.Options.Certificates) {
+		if !cmp.Equal(certs, cfg.AutoCertificates) {
 			return
 		}
 

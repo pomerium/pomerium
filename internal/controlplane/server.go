@@ -24,21 +24,21 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
-type versionedOptions struct {
-	config.Options
+type versionedConfig struct {
+	*config.Config
 	version int64
 }
 
-type atomicVersionedOptions struct {
+type atomicVersionedConfig struct {
 	value atomic.Value
 }
 
-func (avo *atomicVersionedOptions) Load() versionedOptions {
-	return avo.value.Load().(versionedOptions)
+func (avo *atomicVersionedConfig) Load() versionedConfig {
+	return avo.value.Load().(versionedConfig)
 }
 
-func (avo *atomicVersionedOptions) Store(options versionedOptions) {
-	avo.value.Store(options)
+func (avo *atomicVersionedConfig) Store(cfg versionedConfig) {
+	avo.value.Store(cfg)
 }
 
 // A Server is the control-plane gRPC and HTTP servers.
@@ -48,7 +48,7 @@ type Server struct {
 	HTTPListener net.Listener
 	HTTPRouter   *mux.Router
 
-	currentConfig atomicVersionedOptions
+	currentConfig atomicVersionedConfig
 	name          string
 	xdsmgr        *xdsmgr.Manager
 	filemgr       *filemgr.Manager
@@ -57,7 +57,9 @@ type Server struct {
 // NewServer creates a new Server. Listener ports are chosen by the OS.
 func NewServer(name string) (*Server, error) {
 	srv := &Server{}
-	srv.currentConfig.Store(versionedOptions{})
+	srv.currentConfig.Store(versionedConfig{
+		Config: &config.Config{Options: &config.Options{}},
+	})
 
 	var err error
 
@@ -158,8 +160,8 @@ func (srv *Server) Run(ctx context.Context) error {
 // OnConfigChange updates the pomerium config options.
 func (srv *Server) OnConfigChange(cfg *config.Config) {
 	prev := srv.currentConfig.Load()
-	srv.currentConfig.Store(versionedOptions{
-		Options: *cfg.Options,
+	srv.currentConfig.Store(versionedConfig{
+		Config:  cfg,
 		version: prev.version + 1,
 	})
 	srv.xdsmgr.Update(srv.buildDiscoveryResources())

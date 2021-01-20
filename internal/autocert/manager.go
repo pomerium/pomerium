@@ -98,19 +98,19 @@ func newManager(ctx context.Context,
 	return mgr, nil
 }
 
-func (mgr *Manager) getCertMagicConfig(options *config.Options) (*certmagic.Config, error) {
-	mgr.certmagic.MustStaple = options.AutocertOptions.MustStaple
+func (mgr *Manager) getCertMagicConfig(cfg *config.Config) (*certmagic.Config, error) {
+	mgr.certmagic.MustStaple = cfg.Options.AutocertOptions.MustStaple
 	mgr.certmagic.OnDemand = nil // disable on-demand
-	mgr.certmagic.Storage = &certmagic.FileStorage{Path: options.AutocertOptions.Folder}
+	mgr.certmagic.Storage = &certmagic.FileStorage{Path: cfg.Options.AutocertOptions.Folder}
 	// add existing certs to the cache, and staple OCSP
-	for _, cert := range options.Certificates {
+	for _, cert := range cfg.AllCertificates() {
 		if err := mgr.certmagic.CacheUnmanagedTLSCertificate(cert, nil); err != nil {
 			return nil, fmt.Errorf("config: failed caching cert: %w", err)
 		}
 	}
 	acmeMgr := certmagic.NewACMEManager(mgr.certmagic, mgr.acmeTemplate)
 	acmeMgr.Agreed = true
-	if options.AutocertOptions.UseStaging {
+	if cfg.Options.AutocertOptions.UseStaging {
 		acmeMgr.CA = acmeMgr.TestCA
 	}
 	acmeMgr.DisableTLSALPNChallenge = true
@@ -125,7 +125,7 @@ func (mgr *Manager) renewConfigCerts() error {
 	defer mgr.mu.Unlock()
 
 	cfg := mgr.config
-	cm, err := mgr.getCertMagicConfig(cfg.Options)
+	cm, err := mgr.getCertMagicConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,7 @@ func (mgr *Manager) updateAutocert(cfg *config.Config) error {
 		return nil
 	}
 
-	cm, err := mgr.getCertMagicConfig(cfg.Options)
+	cm, err := mgr.getCertMagicConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func (mgr *Manager) updateAutocert(cfg *config.Config) error {
 		}
 
 		log.Info().Strs("names", cert.Names).Msg("autocert: added certificate")
-		cfg.Options.Certificates = append(cfg.Options.Certificates, cert.Certificate)
+		cfg.AutoCertificates = append(cfg.AutoCertificates, cert.Certificate)
 	}
 
 	return nil
