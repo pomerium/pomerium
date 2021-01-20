@@ -101,7 +101,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			ForwardAuthURL:           mustParseURL("https://forward-auth.example.com"),
 			Policies: []config.Policy{{
 				From: "https://from.example.com",
-				To:   config.StringSlice{"https://to.example.com"},
+				To:   config.NewStringSlice("https://to.example.com"),
 			}},
 		}
 		_ = options.Policies[0].Validate()
@@ -129,7 +129,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			ForwardAuthURL:           mustParseURL("https://forward-auth.example.com"),
 			Policies: []config.Policy{{
 				From:                             "https://from.example.com",
-				To:                               config.StringSlice{"https://to.example.com"},
+				To:                               config.NewStringSlice("https://to.example.com"),
 				AllowPublicUnauthenticatedAccess: true,
 			}},
 		}

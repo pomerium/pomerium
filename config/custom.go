@@ -12,6 +12,11 @@ import (
 // A StringSlice is a slice of strings.
 type StringSlice []string
 
+// NewStringSlice creatse a new StringSlice.
+func NewStringSlice(values ...string) StringSlice {
+	return StringSlice(values)
+}
+
 const (
 	array = iota
 	arrayValue
@@ -68,7 +73,7 @@ func (slc *StringSlice) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	*slc = vals
+	*slc = StringSlice(vals)
 	return nil
 }
 
@@ -87,20 +92,44 @@ func (slc *StringSlice) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return slc.UnmarshalJSON(bs)
 }
 
-// AnyToStringSliceHookFunc returns a decode hook that will attempt to convert any type to a StringSlice.
-func AnyToStringSliceHookFunc() mapstructure.DecodeHookFunc {
+// DecodeOptionsHookFunc returns a decode hook that will attempt to convert any type to a StringSlice.
+func DecodeOptionsHookFunc() mapstructure.DecodeHookFunc {
 	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
-		if t != reflect.TypeOf(StringSlice{}) {
+		if t != reflect.TypeOf(Options{}) {
 			return data, nil
 		}
 
-		bs, err := json.Marshal(data)
-		if err != nil {
-			return nil, err
+		m, ok := data.(map[string]interface{})
+		if !ok {
+			return data, nil
 		}
 
-		var slc StringSlice
-		err = json.Unmarshal(bs, &slc)
-		return slc, err
+		ps, ok := m["policy"].([]interface{})
+		if !ok {
+			return data, nil
+		}
+
+		for _, p := range ps {
+			pm, ok := p.(map[interface{}]interface{})
+			if !ok {
+				continue
+			}
+			rawTo, ok := pm["to"]
+			if !ok {
+				continue
+			}
+			rawBS, err := json.Marshal(rawTo)
+			if err != nil {
+				return nil, err
+			}
+			var slc StringSlice
+			err = json.Unmarshal(rawBS, &slc)
+			if err != nil {
+				return nil, err
+			}
+			pm["to"] = slc
+		}
+
+		return data, nil
 	}
 }

@@ -166,7 +166,7 @@ func Test_parsePolicyFile(t *testing.T) {
 			[]byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, dest)),
 			[]Policy{{
 				From:         source,
-				To:           StringSlice{dest},
+				To:           NewStringSlice(dest),
 				Source:       &StringURL{sourceURL},
 				Destinations: []*url.URL{destURL},
 			}},
@@ -238,7 +238,7 @@ func TestOptionsFromViper(t *testing.T) {
 			"good",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				Policies:                        []Policy{{From: "https://from.example", To: StringSlice{"https://to.example"}}},
+				Policies:                        []Policy{{From: "https://from.example", To: NewStringSlice("https://to.example")}},
 				CookieName:                      "_pomerium",
 				CookieSecure:                    true,
 				InsecureServer:                  true,
@@ -262,7 +262,7 @@ func TestOptionsFromViper(t *testing.T) {
 			"good disable header",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				Policies:                        []Policy{{From: "https://from.example", To: StringSlice{"https://to.example"}}},
+				Policies:                        []Policy{{From: "https://from.example", To: NewStringSlice("https://to.example")}},
 				CookieName:                      "_pomerium",
 				AuthenticateCallbackPath:        "/oauth2/callback",
 				CookieSecure:                    true,

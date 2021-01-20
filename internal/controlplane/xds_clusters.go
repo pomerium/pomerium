@@ -13,11 +13,34 @@ import (
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/martinlindhe/base36"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
+
+// An Endpoint is a URL with its corresponding Transport Socket.
+type Endpoint struct {
+	url             *url.URL
+	transportSocket *envoy_config_core_v3.TransportSocket
+}
+
+// NewEndpoint creates a new Endpoint.
+func NewEndpoint(u *url.URL, ts *envoy_config_core_v3.TransportSocket) Endpoint {
+	return Endpoint{url: u, transportSocket: ts}
+}
+
+// TransportSocketMatch return the TransportSocketMatch for this endpoint.
+func (e Endpoint) TransportSocketName() string {
+	if e.transportSocket == nil {
+		return ""
+	}
+	h := cryptutil.HashProto(e.transportSocket)
+	return "ts-" + base36.EncodeBytes(h)
+}
 
 func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluster_v3.Cluster {
 	grpcURL := &url.URL{
@@ -43,35 +66,38 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 	if config.IsProxy(options.Services) {
 		for i := range options.Policies {
 			policy := options.Policies[i]
-			clusters = append(clusters, srv.buildPolicyClusters(options, &policy)...)
+			if len(policy.Destinations) > 0 {
+				clusters = append(clusters, srv.buildPolicyCluster(options, &policy))
+			}
 		}
 	}
 
 	return clusters
 }
 
-func (srv *Server) buildInternalCluster(options *config.Options, name string, endpoint *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
+func (srv *Server) buildInternalCluster(options *config.Options, name string, dst *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
+	endpoints := []Endpoint{NewEndpoint(dst, srv.buildInternalTransportSocket(options, dst))}
 	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
-	return buildCluster(name, endpoint, srv.buildInternalTransportSocket(options, endpoint), forceHTTP2,
-		dnsLookupFamily,
-		nil)
+	return buildCluster(name, endpoints, forceHTTP2, dnsLookupFamily, nil)
 }
 
-func (srv *Server) buildPolicyClusters(options *config.Options, policy *config.Policy) []*envoy_config_cluster_v3.Cluster {
+func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Policy) *envoy_config_cluster_v3.Cluster {
 	name := getPolicyName(policy)
+	endpoints := srv.buildPolicyEndpoints(policy)
 	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
 	if policy.EnableGoogleCloudServerlessAuthentication {
 		dnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 	}
-	var clusters []*envoy_config_cluster_v3.Cluster
+	outlierDetection := (*envoy_config_cluster_v3.OutlierDetection)(policy.OutlierDetection)
+	return buildCluster(name, endpoints, false, dnsLookupFamily, outlierDetection)
+}
+
+func (srv *Server) buildPolicyEndpoints(policy *config.Policy) []Endpoint {
+	var endpoints []Endpoint
 	for _, dst := range policy.Destinations {
-		clusters = append(clusters,
-			buildCluster(name, dst, srv.buildPolicyTransportSocket(policy, dst), false,
-				dnsLookupFamily,
-				(*envoy_config_cluster_v3.OutlierDetection)(policy.OutlierDetection)),
-		)
+		endpoints = append(endpoints, NewEndpoint(dst, srv.buildPolicyTransportSocket(policy, dst)))
 	}
-	return clusters
+	return endpoints
 }
 
 func (srv *Server) buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *envoy_config_core_v3.TransportSocket {
@@ -205,47 +231,29 @@ func (srv *Server) buildPolicyValidationContext(policy *config.Policy, dst *url.
 
 func buildCluster(
 	name string,
-	endpoint *url.URL,
-	transportSocket *envoy_config_core_v3.TransportSocket,
+	endpoints []Endpoint,
 	forceHTTP2 bool,
 	dnsLookupFamily envoy_config_cluster_v3.Cluster_DnsLookupFamily,
 	outlierDetection *envoy_config_cluster_v3.OutlierDetection,
 ) *envoy_config_cluster_v3.Cluster {
-	if endpoint == nil {
+	if len(endpoints) == 0 {
 		return nil
 	}
 
-	defaultPort := 80
-	if transportSocket != nil && transportSocket.Name == "tls" {
-		defaultPort = 443
-	}
-
-	if endpoint.Hostname() == "localhost" {
-		u := new(url.URL)
-		*u = *endpoint
-		u.Host = strings.Replace(endpoint.Host, "localhost", "127.0.0.1", -1)
-		endpoint = u
-	}
-
+	lbEndpoints := buildLbEndpoints(endpoints)
 	cluster := &envoy_config_cluster_v3.Cluster{
 		Name:           name,
 		ConnectTimeout: ptypes.DurationProto(time.Second * 10),
 		LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
 			ClusterName: name,
 			Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{{
-				LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{{
-					HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
-						Endpoint: &envoy_config_endpoint_v3.Endpoint{
-							Address: buildAddress(endpoint.Host, defaultPort),
-						},
-					},
-				}},
+				LbEndpoints: lbEndpoints,
 			}},
 		},
-		RespectDnsTtl:    true,
-		TransportSocket:  transportSocket,
-		DnsLookupFamily:  dnsLookupFamily,
-		OutlierDetection: outlierDetection,
+		RespectDnsTtl:          true,
+		TransportSocketMatches: buildTransportSocketMatches(endpoints),
+		DnsLookupFamily:        dnsLookupFamily,
+		OutlierDetection:       outlierDetection,
 	}
 
 	if forceHTTP2 {
@@ -255,11 +263,84 @@ func buildCluster(
 	}
 
 	// for IPs we use a static discovery type, otherwise we use DNS
-	if net.ParseIP(urlutil.StripPort(endpoint.Host)) != nil {
+	isIP := false
+	for _, lbe := range lbEndpoints {
+		if net.ParseIP(urlutil.StripPort(lbe.GetEndpoint().GetAddress().GetSocketAddress().GetAddress())) != nil {
+			isIP = true
+		}
+	}
+	if isIP {
 		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STATIC}
 	} else {
 		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STRICT_DNS}
 	}
 
 	return cluster
+}
+
+func buildLbEndpoints(endpoints []Endpoint) []*envoy_config_endpoint_v3.LbEndpoint {
+	var lbes []*envoy_config_endpoint_v3.LbEndpoint
+	for _, e := range endpoints {
+		defaultPort := 80
+		if e.transportSocket != nil && e.transportSocket.Name == "tls" {
+			defaultPort = 443
+		}
+
+		u := e.url
+		if e.url.Hostname() == "localhost" {
+			u = new(url.URL)
+			*u = *e.url
+			u.Host = strings.Replace(e.url.Host, "localhost", "127.0.0.1", -1)
+		}
+
+		lbe := &envoy_config_endpoint_v3.LbEndpoint{
+			HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
+				Endpoint: &envoy_config_endpoint_v3.Endpoint{
+					Address: buildAddress(u.Host, defaultPort),
+				},
+			},
+		}
+
+		if e.transportSocket != nil {
+			lbe.Metadata = &envoy_config_core_v3.Metadata{
+				FilterMetadata: map[string]*structpb.Struct{
+					"envoy.transport_socket_match": {
+						Fields: map[string]*structpb.Value{
+							e.TransportSocketName(): structpb.NewBoolValue(true),
+						},
+					},
+				},
+			}
+		}
+		lbes = append(lbes, lbe)
+	}
+	return lbes
+}
+
+func buildTransportSocketMatches(endpoints []Endpoint) []*envoy_config_cluster_v3.Cluster_TransportSocketMatch {
+	var tsms []*envoy_config_cluster_v3.Cluster_TransportSocketMatch
+	seen := map[string]struct{}{}
+	for _, e := range endpoints {
+		if e.transportSocket == nil {
+			continue
+		}
+
+		// only add unique transport sockets
+		nm := e.TransportSocketName()
+		if _, ok := seen[nm]; ok {
+			continue
+		}
+		seen[nm] = struct{}{}
+
+		tsms = append(tsms, &envoy_config_cluster_v3.Cluster_TransportSocketMatch{
+			Name: nm,
+			Match: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					nm: structpb.NewBoolValue(true),
+				},
+			},
+			TransportSocket: e.transportSocket,
+		})
+	}
+	return tsms
 }

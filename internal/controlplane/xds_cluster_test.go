@@ -209,7 +209,10 @@ func Test_buildCluster(t *testing.T) {
 	rootCAPath, _ := getRootCertificateAuthority()
 	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
 	t.Run("insecure", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true,
+		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+			Destinations: mustParseURLs("http://example.com"),
+		})
+		cluster := buildCluster("example", endpoints, true,
 			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyV4Only),
 			nil)
 		testutil.AssertProtoJSONEqual(t, `
@@ -242,11 +245,10 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("secure", func(t *testing.T) {
-		us := mustParseURLs("https://example.com")
-		transportSocket := srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations: us,
-		}, us[0])
-		cluster := buildCluster("example", us[0], transportSocket, true,
+		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+			Destinations: mustParseURLs("https://example.com"),
+		})
+		cluster := buildCluster("example", endpoints, true,
 			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
 			nil)
 		testutil.AssertProtoJSONEqual(t, `
@@ -255,32 +257,38 @@ func Test_buildCluster(t *testing.T) {
 				"type": "STRICT_DNS",
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
-				"transportSocket": {
-					"name": "tls",
-					"typedConfig": {
-						"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
-						"commonTlsContext": {
-							"alpnProtocols": ["http/1.1"],
-							"tlsParams": {
-							"ecdhCurves": [
-								"X25519",
-								"P-256",
-								"P-384",
-								"P-521"
-							]
-						},
-							"validationContext": {
-								"matchSubjectAltNames": [{
-									"exact": "example.com"
-								}],
-								"trustedCa": {
-									"filename": "`+rootCA+`"
+				"transportSocketMatches": [{
+					"name": "`+endpoints[0].TransportSocketName()+`",
+					"match": {
+						"`+endpoints[0].TransportSocketName()+`": true
+					},
+					"transportSocket": {
+						"name": "tls",
+						"typedConfig": {
+							"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
+							"commonTlsContext": {
+								"alpnProtocols": ["http/1.1"],
+								"tlsParams": {
+								"ecdhCurves": [
+									"X25519",
+									"P-256",
+									"P-384",
+									"P-521"
+								]
+							},
+								"validationContext": {
+									"matchSubjectAltNames": [{
+										"exact": "example.com"
+									}],
+									"trustedCa": {
+										"filename": "`+rootCA+`"
+									}
 								}
-							}
-						},
-						"sni": "example.com"
+							},
+							"sni": "example.com"
+						}
 					}
-				},
+				}],
 				"http2ProtocolOptions": {
 					"allowConnect": true
 				},
@@ -296,6 +304,13 @@ func Test_buildCluster(t *testing.T) {
 										"portValue": 443
 									}
 								}
+							},
+							"metadata": {
+								"filterMetadata": {
+									"envoy.transport_socket_match": {
+										"`+endpoints[0].TransportSocketName()+`": true
+									}
+								}
 							}
 						}]
 					}]
@@ -304,7 +319,10 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("ip address", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://127.0.0.1"), nil, true,
+		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+			Destinations: mustParseURLs("http://127.0.0.1"),
+		})
+		cluster := buildCluster("example", endpoints, true,
 			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
 			nil)
 		testutil.AssertProtoJSONEqual(t, `
@@ -336,7 +354,10 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("localhost", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://localhost"), nil, true,
+		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+			Destinations: mustParseURLs("http://localhost"),
+		})
+		cluster := buildCluster("example", endpoints, true,
 			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
 			nil)
 		testutil.AssertProtoJSONEqual(t, `
@@ -368,7 +389,10 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("outlier", func(t *testing.T) {
-		cluster := buildCluster("example", mustParseURL("http://example.com"), nil, true,
+		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+			Destinations: mustParseURLs("http://example.com"),
+		})
+		cluster := buildCluster("example", endpoints, true,
 			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyV4Only),
 			&envoy_config_cluster_v3.OutlierDetection{
 				EnforcingConsecutive_5Xx:       wrapperspb.UInt32(17),

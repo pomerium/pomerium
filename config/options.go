@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 
@@ -360,7 +361,11 @@ func optionsFromViper(configFile string) (*Options, error) {
 		}
 	}
 
-	if err := v.Unmarshal(o, viper.DecodeHook(AnyToStringSliceHookFunc())); err != nil {
+	if err := v.Unmarshal(o, viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
+		mapstructure.StringToTimeDurationHookFunc(),
+		mapstructure.StringToSliceHookFunc(","),
+		DecodeOptionsHookFunc(),
+	))); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 

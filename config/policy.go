@@ -175,7 +175,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 
 	p := &Policy{
 		From:                             pb.GetFrom(),
-		To:                               StringSlice(pb.GetTo()),
+		To:                               NewStringSlice(pb.GetTo()...),
 		AllowedUsers:                     pb.GetAllowedUsers(),
 		AllowedGroups:                    pb.GetAllowedGroups(),
 		AllowedDomains:                   pb.GetAllowedDomains(),
@@ -273,7 +273,7 @@ func (p *Policy) ToProto() *configpb.Route {
 	pb := &configpb.Route{
 		Name:                             fmt.Sprint(p.RouteID()),
 		From:                             p.From,
-		To:                               []string(p.To),
+		To:                               p.To,
 		AllowedUsers:                     p.AllowedUsers,
 		AllowedGroups:                    p.AllowedGroups,
 		AllowedDomains:                   p.AllowedDomains,
