@@ -360,7 +360,7 @@ func TestSync(t *testing.T) {
 	}
 	o := &config.Options{
 		AuthenticateURL: mustParseURL("https://authN.example.com"),
-		DataBrokerURL:   mustParseURL("https://cache.example.com"),
+		DataBrokerURL:   mustParseURL("https://databroker.example.com"),
 		SharedKey:       "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=",
 		Policies:        testPolicies(t),
 	}

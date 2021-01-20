@@ -511,7 +511,7 @@ Proxy log level sets the logging level for the pomerium proxy service access log
 - Config File Key: `services`
 - Type: `string`
 - Default: `all`
-- Options: `all` `authenticate` `authorize` `cache` or `proxy`
+- Options: `all` `authenticate` `authorize` `databroker` or `proxy`
 
 Service mode sets which service(s) to run. If testing, you may want to set to `all` and run pomerium in "all-in-one mode." In production, you'll likely want to spin up several instances of each service mode for high availability.
 
@@ -855,26 +855,26 @@ Refresh cooldown is the minimum amount of time between allowed manually refreshe
 Do not append proxy IP address to `x-forwarded-for` HTTP header. See [Envoy](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=skip_xff_append#x-forwarded-for) docs for more detail.
 
 
-## Cache Service
-The cache service is used for storing user session data.
+## Data Broker Service
+The databroker service is used for storing user session data.
 
 
 ### Data Broker Service URL
 - Environmental Variable: `DATABROKER_SERVICE_URL`
 - Config File Key: `databroker_service_url`
 - Type: `URL`
-- Example: `https://cache.corp.example.com`
+- Example: `https://databroker.corp.example.com`
 - Default: in all-in-one mode, `http://localhost:5443`
 
 The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups).
 
-By default, the `cache` service uses an in-memory databroker.
+By default, the `databroker` service uses an in-memory databroker.
 
 To create your own data broker, implement the following gRPC interface:
 
 - [pkg/grpc/databroker/databroker.proto](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
 
-For an example implementation, the in-memory database used by the cache service can be found here:
+For an example implementation, the in-memory database used by the databroker service can be found here:
 
 - [pkg/databroker/memory](https://github.com/pomerium/pomerium/tree/master/pkg/databroker/memory)
 

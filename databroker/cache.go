@@ -1,7 +1,7 @@
-// Package cache is a pomerium service that handles the storage of user
+// Package databroker is a pomerium service that handles the storage of user
 // session state. It communicates over RPC with other pomerium services,
-// and can be configured to use a number of different backend cache stores.
-package cache
+// and can be configured to use a number of different backend databroker stores.
+package databroker
 
 import (
 	"context"
@@ -27,9 +27,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
-// Cache represents the cache service. The cache service is a simple interface
+// DataBroker represents the databroker service. The databroker service is a simple interface
 // for storing keyed blobs (bytes) of unstructured data.
-type Cache struct {
+type DataBroker struct {
 	dataBrokerServer *dataBrokerServer
 	manager          *manager.Manager
 
@@ -43,8 +43,8 @@ type Cache struct {
 	directoryProvider directory.Provider
 }
 
-// New creates a new cache service.
-func New(cfg *config.Config) (*Cache, error) {
+// New creates a new databroker service.
+func New(cfg *config.Config) (*DataBroker, error) {
 	localListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -82,7 +82,7 @@ func New(cfg *config.Config) (*Cache, error) {
 
 	dataBrokerServer := newDataBrokerServer(cfg)
 
-	c := &Cache{
+	c := &DataBroker{
 		dataBrokerServer:             dataBrokerServer,
 		localListener:                localListener,
 		localGRPCServer:              localGRPCServer,
@@ -101,23 +101,23 @@ func New(cfg *config.Config) (*Cache, error) {
 }
 
 // OnConfigChange is called whenever configuration is changed.
-func (c *Cache) OnConfigChange(cfg *config.Config) {
+func (c *DataBroker) OnConfigChange(cfg *config.Config) {
 	err := c.update(cfg)
 	if err != nil {
-		log.Error().Err(err).Msg("cache: error updating configuration")
+		log.Error().Err(err).Msg("databroker: error updating configuration")
 	}
 
 	c.dataBrokerServer.OnConfigChange(cfg)
 }
 
 // Register registers all the gRPC services with the given server.
-func (c *Cache) Register(grpcServer *grpc.Server) {
+func (c *DataBroker) Register(grpcServer *grpc.Server) {
 	databroker.RegisterDataBrokerServiceServer(grpcServer, c.dataBrokerServer)
 	directory.RegisterDirectoryServiceServer(grpcServer, c)
 }
 
-// Run runs the cache components.
-func (c *Cache) Run(ctx context.Context) error {
+// Run runs the databroker components.
+func (c *DataBroker) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return c.localGRPCServer.Serve(c.localListener)
@@ -133,14 +133,14 @@ func (c *Cache) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (c *Cache) update(cfg *config.Config) error {
+func (c *DataBroker) update(cfg *config.Config) error {
 	if err := validate(cfg.Options); err != nil {
-		return fmt.Errorf("cache: bad option: %w", err)
+		return fmt.Errorf("databroker: bad option: %w", err)
 	}
 
 	authenticator, err := identity.NewAuthenticator(cfg.Options.GetOauthOptions())
 	if err != nil {
-		return fmt.Errorf("cache: failed to create authenticator: %w", err)
+		return fmt.Errorf("databroker: failed to create authenticator: %w", err)
 	}
 
 	directoryProvider := directory.GetProvider(directory.Options{
@@ -175,7 +175,7 @@ func (c *Cache) update(cfg *config.Config) error {
 }
 
 // validate checks that proper configuration settings are set to create
-// a cache instance
+// a databroker instance
 func validate(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)

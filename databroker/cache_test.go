@@ -1,4 +1,4 @@
-package cache
+package databroker
 
 import (
 	"io/ioutil"
@@ -25,7 +25,7 @@ func TestNew(t *testing.T) {
 	}{
 		{"good", config.Options{SharedKey: cryptutil.NewBase64Key(), DataBrokerURL: &url.URL{Scheme: "http", Host: "example"}}, false},
 		{"bad shared secret", config.Options{SharedKey: string([]byte(cryptutil.NewBase64Key())[:31]), DataBrokerURL: &url.URL{Scheme: "http", Host: "example"}}, true},
-		{"bad cache url", config.Options{SharedKey: cryptutil.NewBase64Key(), DataBrokerURL: &url.URL{}}, true},
+		{"bad databroker url", config.Options{SharedKey: cryptutil.NewBase64Key(), DataBrokerURL: &url.URL{}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

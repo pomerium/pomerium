@@ -518,7 +518,7 @@ func (o *Options) Validate() error {
 		return errors.New("config: unknown databroker storage backend type")
 	}
 
-	if IsAuthorize(o.Services) || IsCache(o.Services) {
+	if IsAuthorize(o.Services) || IsDataBroker(o.Services) {
 		// if authorize is set, we don't really need a http server
 		// but we'll still set one up incase the user wants to use
 		// the HTTP health check api
@@ -563,7 +563,7 @@ func (o *Options) Validate() error {
 	if o.DataBrokerURLString != "" {
 		u, err := urlutil.ParseAndValidateURL(o.DataBrokerURLString)
 		if err != nil {
-			return fmt.Errorf("config: bad cache service url %s : %w", o.DataBrokerURLString, err)
+			return fmt.Errorf("config: bad databroker service url %s : %w", o.DataBrokerURLString, err)
 		}
 		o.DataBrokerURL = u
 	}

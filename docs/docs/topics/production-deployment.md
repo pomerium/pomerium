@@ -28,7 +28,7 @@ In dedicated service mode, you have the opportunity to scale the components of P
 
 All of Pomerium's components are designed to be stateless, and may all be scaled horizontally or vertically. In general, horizontal scaling is recommended.  Vertical scaling will lead to diminished returns after ~8 vCPUs.
 
-The Cache service, which is responsible for session and identity related data, must be [configured for external persistence](/docs/topics/data-storage.md) to be fully stateless.
+The Data Broker service, which is responsible for session and identity related data, must be [configured for external persistence](/docs/topics/data-storage.md) to be fully stateless.
 
 ### Proxy
 
@@ -44,18 +44,18 @@ Authorize will need resources scaled in conjunction with request count. Request 
 
 ### Authenticate
 
-The Authenticate service handles session cookie setup, session storage, and authentication with your Identity Provider. 
+The Authenticate service handles session cookie setup, session storage, and authentication with your Identity Provider.
 
 Authenticate requires significantly fewer resources than other components due to the only-occasional requirement to establish new sessions.  Add resources to the Authenticate service if you have a high session/user churn rate. The requests should be constant time and complexity, but may vary by Identity Provider implementation.
 
-### Cache
+### Data Broker
 
-The Cache service is responsible for background identity data retrieval and storage.  It is in the hot path for user authentication.  However, it does not directly handle user traffic and is not in-path for authorization decisions.
+The Data Broker service is responsible for background identity data retrieval and storage.  It is in the hot path for user authentication.  However, it does not directly handle user traffic and is not in-path for authorization decisions.
 
-The Cache service does not require significant resources, as it provides streaming updates of state changes to the Authorize service.  There will be utilization spikes when Authorize services are restarted and perform an initial synchronization.  Add resources if running many Authorize services and performing restarts in large batches.  In many deployments, 2 replicas of Cache is enough to provide resilient service.
+The Data Broker service does not require significant resources, as it provides streaming updates of state changes to the Authorize service.  There will be utilization spikes when Authorize services are restarted and perform an initial synchronization.  Add resources if running many Authorize services and performing restarts in large batches.  In many deployments, 2 replicas of Data Broker is enough to provide resilient service.
 
 ::: warning
-In a production configuration, Cache CPU/IO utilization also translates to IO load on the [underlying storage system](/docs/topics/data-storage.md).  Ensure it is scaled accordingly!
+In a production configuration, Data Broker CPU/IO utilization also translates to IO load on the [underlying storage system](/docs/topics/data-storage.md).  Ensure it is scaled accordingly!
 :::
 
 ## Load Balancing
@@ -74,11 +74,11 @@ You should provide a TCP or HTTP(s) load balancer between end users and the Auth
 
 Authenticate is compatible with any L4 or L7/HTTP load balancer. Session stickiness should not be required and it is typical to have Authenticate be a named vhost on the same L7 load balancer as the Proxy service.
 
-### Authorize and Cache
+### Authorize and Data Broker
 
-You do **not** need to provide a load balancer in front of Authorize and Cache services. Both utilize GRPC, and thus has special requirements if you should choose to use an external load balancer. GRPC can perform client based load balancing, and in most configurations is the best architecture.
+You do **not** need to provide a load balancer in front of Authorize and Data Broker services. Both utilize GRPC, and thus has special requirements if you should choose to use an external load balancer. GRPC can perform client based load balancing, and in most configurations is the best architecture.
 
-By default, Pomerium gRPC clients will automatically connect to all IPs returned by a DNS query for the name of an upstream service. They will then regularly re-query DNS for changes to the Authorize or Cache service cluster. Health checks and failover are automatic.
+By default, Pomerium gRPC clients will automatically connect to all IPs returned by a DNS query for the name of an upstream service. They will then regularly re-query DNS for changes to the Authorize or Data Broker service cluster. Health checks and failover are automatic.
 
 **Many load balancers do not support HTTP2 yet. Please verify with your hardware, software or cloud provider**
 
@@ -99,8 +99,8 @@ Regardless of the service mode, it is recommended you run 2+ instances of Pomeri
 Ensure that you have enough spare capacity to handle the scope of your failure domains.
 
 ::: warning
-Multiple replicas of Cache or all-in-one service are only supported with [external storage](/docs/topics/data-storage.md) configured
-::: 
+Multiple replicas of Data Broker or all-in-one service are only supported with [external storage](/docs/topics/data-storage.md) configured
+:::
 
 ## SSL/TLS Certificates
 

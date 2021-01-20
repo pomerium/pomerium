@@ -91,9 +91,9 @@ func Run(ctx context.Context, configFile string) error {
 			return err
 		}
 	}
-	var cacheServer *databroker_service.Cache
-	if config.IsCache(src.GetConfig().Options.Services) {
-		cacheServer, err = setupCache(src, controlPlane)
+	var dataBrokerServer *databroker_service.DataBroker
+	if config.IsDataBroker(src.GetConfig().Options.Services) {
+		dataBrokerServer, err = setupDataBroker(src, controlPlane)
 		if err != nil {
 			return err
 		}
@@ -125,7 +125,7 @@ func Run(ctx context.Context, configFile string) error {
 		})
 		// in non-all-in-one mode we will wait for the initial sync to complete before starting
 		// the control plane
-		if cacheServer == nil {
+		if dataBrokerServer == nil {
 			if err := authorizeServer.WaitForInitialSync(ctx); err != nil {
 				return err
 			}
@@ -134,9 +134,9 @@ func Run(ctx context.Context, configFile string) error {
 	eg.Go(func() error {
 		return controlPlane.Run(ctx)
 	})
-	if cacheServer != nil {
+	if dataBrokerServer != nil {
 		eg.Go(func() error {
-			return cacheServer.Run(ctx)
+			return dataBrokerServer.Run(ctx)
 		})
 	}
 	return eg.Wait()
@@ -174,10 +174,10 @@ func setupAuthorize(src config.Source, controlPlane *controlplane.Server) (*auth
 	return svc, nil
 }
 
-func setupCache(src config.Source, controlPlane *controlplane.Server) (*databroker_service.Cache, error) {
+func setupDataBroker(src config.Source, controlPlane *controlplane.Server) (*databroker_service.DataBroker, error) {
 	svc, err := databroker_service.New(src.GetConfig())
 	if err != nil {
-		return nil, fmt.Errorf("error creating config service: %w", err)
+		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
 	svc.Register(controlPlane.GRPCServer)
 	log.Info().Msg("enabled databroker service")
