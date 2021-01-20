@@ -24,8 +24,8 @@ import (
 
 // Policy contains route specific configuration and access settings.
 type Policy struct {
-	From string `mapstructure:"from" yaml:"from"`
-	To   string `mapstructure:"to" yaml:"to"`
+	From string      `mapstructure:"from" yaml:"from"`
+	To   StringSlice `mapstructure:"to" yaml:"to"`
 
 	// Redirect is used for a redirect action instead of `To`
 	Redirect *PolicyRedirect `mapstructure:"redirect" yaml:"redirect"`
@@ -36,8 +36,8 @@ type Policy struct {
 	AllowedDomains   []string                 `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 	AllowedIDPClaims identity.FlattenedClaims `mapstructure:"allowed_idp_claims" yaml:"allowed_idp_claims,omitempty" json:"allowed_idp_claims,omitempty"`
 
-	Source      *StringURL `yaml:",omitempty" json:"source,omitempty" hash:"ignore"`
-	Destination *url.URL   `yaml:",omitempty" json:"destination,omitempty" hash:"ignore"`
+	Source       *StringURL `yaml:",omitempty" json:"source,omitempty" hash:"ignore"`
+	Destinations []*url.URL `yaml:",omitempty" json:"destinations,omitempty" hash:"ignore"`
 
 	// Additional route matching options
 	Prefix string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
@@ -175,7 +175,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 
 	p := &Policy{
 		From:                             pb.GetFrom(),
-		To:                               pb.GetTo(),
+		To:                               StringSlice(pb.GetTo()),
 		AllowedUsers:                     pb.GetAllowedUsers(),
 		AllowedGroups:                    pb.GetAllowedGroups(),
 		AllowedDomains:                   pb.GetAllowedDomains(),
@@ -273,7 +273,7 @@ func (p *Policy) ToProto() *configpb.Route {
 	pb := &configpb.Route{
 		Name:                             fmt.Sprint(p.RouteID()),
 		From:                             p.From,
-		To:                               p.To,
+		To:                               []string(p.To),
 		AllowedUsers:                     p.AllowedUsers,
 		AllowedGroups:                    p.AllowedGroups,
 		AllowedDomains:                   p.AllowedDomains,
@@ -360,10 +360,14 @@ func (p *Policy) Validate() error {
 	p.Source = &StringURL{source}
 
 	switch {
-	case p.To != "":
-		p.Destination, err = urlutil.ParseAndValidateURL(p.To)
-		if err != nil {
-			return fmt.Errorf("config: policy bad destination url %w", err)
+	case len(p.To) > 0:
+		p.Destinations = nil
+		for _, to := range p.To {
+			dst, err := urlutil.ParseAndValidateURL(to)
+			if err != nil {
+				return fmt.Errorf("config: policy bad destination url %w", err)
+			}
+			p.Destinations = append(p.Destinations, dst)
 		}
 	case p.Redirect != nil:
 	default:
@@ -436,21 +440,25 @@ func (p *Policy) Checksum() uint64 {
 // RouteID returns a unique identifier for a route
 func (p *Policy) RouteID() uint64 {
 	id := routeID{
-		Source:      p.Source,
-		Destination: p.Destination,
-		Prefix:      p.Prefix,
-		Path:        p.Path,
-		Regex:       p.Regex,
+		Source:       p.Source,
+		Destinations: p.Destinations,
+		Prefix:       p.Prefix,
+		Path:         p.Path,
+		Regex:        p.Regex,
 	}
 
 	return hashutil.MustHash(id)
 }
 
 func (p *Policy) String() string {
-	if p.Source == nil || p.Destination == nil {
-		return fmt.Sprintf("%s → %s", p.From, p.To)
+	if p.Source == nil || len(p.Destinations) == 0 {
+		return fmt.Sprintf("%s → %s", p.From, strings.Join(p.To, ","))
 	}
-	return fmt.Sprintf("%s → %s", p.Source.String(), p.Destination.String())
+	var dsts []string
+	for _, dst := range p.Destinations {
+		dsts = append(dsts, dst.String())
+	}
+	return fmt.Sprintf("%s → %s", p.Source.String(), strings.Join(dsts, ","))
 }
 
 // Matches returns true if the policy would match the given URL.
@@ -497,9 +505,9 @@ func (u *StringURL) MarshalJSON() ([]byte, error) {
 }
 
 type routeID struct {
-	Source      *StringURL
-	Destination *url.URL
-	Prefix      string
-	Path        string
-	Regex       string
+	Source       *StringURL
+	Destinations []*url.URL
+	Prefix       string
+	Path         string
+	Regex        string
 }

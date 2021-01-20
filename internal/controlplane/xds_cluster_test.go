@@ -25,8 +25,8 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 
 	t.Run("insecure", func(t *testing.T) {
 		assert.Nil(t, srv.buildPolicyTransportSocket(&config.Policy{
-			Destination: mustParseURL("http://example.com"),
-		}))
+			Destinations: mustParseURLs("http://example.com"),
+		}, mustParseURL("http://example.com")))
 	})
 	t.Run("host as sni", func(t *testing.T) {
 		testutil.AssertProtoJSONEqual(t, `
@@ -57,8 +57,8 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 				}
 			}
 		`, srv.buildPolicyTransportSocket(&config.Policy{
-			Destination: mustParseURL("https://example.com"),
-		}))
+			Destinations: mustParseURLs("https://example.com"),
+		}, mustParseURL("https://example.com")))
 	})
 	t.Run("tls_server_name as sni", func(t *testing.T) {
 		testutil.AssertProtoJSONEqual(t, `
@@ -89,9 +89,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 				}
 			}
 		`, srv.buildPolicyTransportSocket(&config.Policy{
-			Destination:   mustParseURL("https://example.com"),
+			Destinations:  mustParseURLs("https://example.com"),
 			TLSServerName: "use-this-name.example.com",
-		}))
+		}, mustParseURL("https://example.com")))
 	})
 	t.Run("tls_skip_verify", func(t *testing.T) {
 		testutil.AssertProtoJSONEqual(t, `
@@ -123,9 +123,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 				}
 			}
 		`, srv.buildPolicyTransportSocket(&config.Policy{
-			Destination:   mustParseURL("https://example.com"),
+			Destinations:  mustParseURLs("https://example.com"),
 			TLSSkipVerify: true,
-		}))
+		}, mustParseURL("https://example.com")))
 	})
 	t.Run("custom ca", func(t *testing.T) {
 		testutil.AssertProtoJSONEqual(t, `
@@ -156,9 +156,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 				}
 			}
 		`, srv.buildPolicyTransportSocket(&config.Policy{
-			Destination: mustParseURL("https://example.com"),
-			TLSCustomCA: base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
-		}))
+			Destinations: mustParseURLs("https://example.com"),
+			TLSCustomCA:  base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
+		}, mustParseURL("https://example.com")))
 	})
 	t.Run("client certificate", func(t *testing.T) {
 		clientCert, _ := cryptutil.CertificateFromBase64(aExampleComCert, aExampleComKey)
@@ -198,9 +198,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 				}
 			}
 		`, srv.buildPolicyTransportSocket(&config.Policy{
-			Destination:       mustParseURL("https://example.com"),
+			Destinations:      mustParseURLs("https://example.com"),
 			ClientCertificate: clientCert,
-		}))
+		}, mustParseURL("https://example.com")))
 	})
 }
 
@@ -242,11 +242,11 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("secure", func(t *testing.T) {
-		u := mustParseURL("https://example.com")
+		us := mustParseURLs("https://example.com")
 		transportSocket := srv.buildPolicyTransportSocket(&config.Policy{
-			Destination: u,
-		})
-		cluster := buildCluster("example", u, transportSocket, true,
+			Destinations: us,
+		}, us[0])
+		cluster := buildCluster("example", us[0], transportSocket, true,
 			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
 			nil)
 		testutil.AssertProtoJSONEqual(t, `

@@ -43,9 +43,7 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 	if config.IsProxy(options.Services) {
 		for i := range options.Policies {
 			policy := options.Policies[i]
-			if policy.Destination != nil {
-				clusters = append(clusters, srv.buildPolicyCluster(options, &policy))
-			}
+			clusters = append(clusters, srv.buildPolicyClusters(options, &policy)...)
 		}
 	}
 
@@ -59,15 +57,21 @@ func (srv *Server) buildInternalCluster(options *config.Options, name string, en
 		nil)
 }
 
-func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Policy) *envoy_config_cluster_v3.Cluster {
+func (srv *Server) buildPolicyClusters(options *config.Options, policy *config.Policy) []*envoy_config_cluster_v3.Cluster {
 	name := getPolicyName(policy)
 	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
 	if policy.EnableGoogleCloudServerlessAuthentication {
 		dnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 	}
-	return buildCluster(name, policy.Destination, srv.buildPolicyTransportSocket(policy), false,
-		dnsLookupFamily,
-		(*envoy_config_cluster_v3.OutlierDetection)(policy.OutlierDetection))
+	var clusters []*envoy_config_cluster_v3.Cluster
+	for _, dst := range policy.Destinations {
+		clusters = append(clusters,
+			buildCluster(name, dst, srv.buildPolicyTransportSocket(policy, dst), false,
+				dnsLookupFamily,
+				(*envoy_config_cluster_v3.OutlierDetection)(policy.OutlierDetection)),
+		)
+	}
+	return clusters
 }
 
 func (srv *Server) buildInternalTransportSocket(options *config.Options, endpoint *url.URL) *envoy_config_core_v3.TransportSocket {
@@ -119,12 +123,12 @@ func (srv *Server) buildInternalTransportSocket(options *config.Options, endpoin
 	}
 }
 
-func (srv *Server) buildPolicyTransportSocket(policy *config.Policy) *envoy_config_core_v3.TransportSocket {
-	if policy.Destination == nil || policy.Destination.Scheme != "https" {
+func (srv *Server) buildPolicyTransportSocket(policy *config.Policy, dst *url.URL) *envoy_config_core_v3.TransportSocket {
+	if dst == nil || dst.Scheme != "https" {
 		return nil
 	}
 
-	sni := policy.Destination.Hostname()
+	sni := dst.Hostname()
 	if policy.TLSServerName != "" {
 		sni = policy.TLSServerName
 	}
@@ -140,7 +144,7 @@ func (srv *Server) buildPolicyTransportSocket(policy *config.Policy) *envoy_conf
 			},
 			AlpnProtocols: []string{"http/1.1"},
 			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-				ValidationContext: srv.buildPolicyValidationContext(policy),
+				ValidationContext: srv.buildPolicyValidationContext(policy, dst),
 			},
 		},
 		Sni: sni,
@@ -159,12 +163,12 @@ func (srv *Server) buildPolicyTransportSocket(policy *config.Policy) *envoy_conf
 	}
 }
 
-func (srv *Server) buildPolicyValidationContext(policy *config.Policy) *envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext {
-	if policy.Destination == nil {
+func (srv *Server) buildPolicyValidationContext(policy *config.Policy, dst *url.URL) *envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext {
+	if dst == nil {
 		return nil
 	}
 
-	sni := policy.Destination.Hostname()
+	sni := dst.Hostname()
 	if policy.TLSServerName != "" {
 		sni = policy.TLSServerName
 	}

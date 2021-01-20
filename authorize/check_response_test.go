@@ -157,7 +157,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 				SignedJWT: "valid-signed-jwt",
 				MatchingPolicy: &config.Policy{
 					EnableGoogleCloudServerlessAuthentication: true,
-					Destination: mustParseURL("https://example.com"),
+					Destinations: mustParseURLs("https://example.com"),
 				},
 			},
 			&envoy_service_auth_v2.CheckResponse{
