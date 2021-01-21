@@ -89,7 +89,7 @@ func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Po
 		dnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 	}
 	outlierDetection := (*envoy_config_cluster_v3.OutlierDetection)(policy.OutlierDetection)
-	return buildCluster(name, endpoints, false, dnsLookupFamily, outlierDetection, policy.HealthCheck.GetHealthCheck())
+	return buildCluster(name, endpoints, false, dnsLookupFamily, outlierDetection, policy.HealthCheck)
 }
 
 func (srv *Server) buildPolicyEndpoints(policy *config.Policy) []Endpoint {

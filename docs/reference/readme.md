@@ -1370,6 +1370,15 @@ When enabled, this option will pass identity headers to upstream applications. T
 If set, enables proxying of SPDY protocol upgrades.
 
 
+### Health Check
+- Config File Key: `health_check`
+- Type: `object`
+- Optional
+
+When defined, will issue periodic health check requests to upstream servers.
+See [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/health_checking) for a list of supported parameters.
+
+
 ### Websocket Connections
 - Config File Key: `allow_websockets`
 - Type: `bool`

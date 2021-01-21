@@ -361,6 +361,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 		}
 	}
 
+	v.GetStringMap("policy")
 	if err := v.Unmarshal(o, viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 		mapstructure.StringToTimeDurationHookFunc(),
 		mapstructure.StringToSliceHookFunc(","),
@@ -400,7 +401,6 @@ func (o *Options) parsePolicy() error {
 	// Finish initializing policies
 	for i := range o.Policies {
 		p := &o.Policies[i]
-		p.HealthCheck.embed()
 		if err := p.Validate(); err != nil {
 			return err
 		}
