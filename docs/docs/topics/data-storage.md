@@ -19,11 +19,11 @@ Pomerium keeps persistent state out of most components, but an identity-aware ac
 - Group membership was fixed from session creation
 - Slow initial authentication flow to fetch user data
 
-To address these limitations, the Pomerium `cache` service runs a number of internal services responsible for maintaining data and state.
+To address these limitations, the Pomerium `databroker` service runs a number of internal services responsible for maintaining data and state.
 
 #### Design
 
-Internal to the `cache` service, the `databroker` is responsible for providing a stateful storage layer.  Services which require high performance maintain a streaming local cache of the contents of the `databroker`, while others may call `databroker` in real time.  Only the `databroker` is expected to maintain authoritative state.
+The `databroker` is responsible for providing a stateful storage layer.  Services which require high performance maintain a streaming local cache of the contents of the `databroker`, while others may call `databroker` in real time.  Only the `databroker` is expected to maintain authoritative state.
 
 
 ## Persistence
@@ -33,27 +33,27 @@ To prevent early session loss in production deployments, persistent storage back
 
 ## Backends
 
-Configuration options for each backend are detailed in [cache configuration reference](/reference/#cache-service).
+Configuration options for each backend are detailed in [databroker configuration reference](/reference/#databroker-service).
 
 In all backends, Pomerium encrypts record values.  This ensures security of all records at rest, regardless of data store capabilities.  While this prevents many classes of attack vector, additional security measures should always be taken to secure data in transit and minimize access to the backends themselves.
 
 Please see Pomerium backend and upstream storage system documentation for best practices.
 
 ### In-Memory
-- Cache Service HA: `no`
+- Data Broker Service HA: `no`
 - Data Store HA: `no`
 - Data Persistence: `no`
 
 The default storage backend for `databroker` is memory based.  This backend provides
-easy deployment semantics but is not persistent or highly available.  Running more than one `cache` instance configured for memory backed storage is not supported and will lead to non-deterministic behavior.
+easy deployment semantics but is not persistent or highly available.  Running more than one `databroker` instance configured for memory backed storage is not supported and will lead to non-deterministic behavior.
 
 ### Redis
 
-- Cache Service HA: `yes`
+- Data Broker Service HA: `yes`
 - Data Store HA: `yes`
 - Data Persistence: `yes`
 
-The Redis based backend supports multiple `cache` instances and persistence across restarts.  We recommend a dedicated redis instance for Pomerium to provide the strongest security and performance guarantees.
+The Redis based backend supports multiple `databroker` instances and persistence across restarts.  We recommend a dedicated redis instance for Pomerium to provide the strongest security and performance guarantees.
 
 #### High Availability
 Redis should be configured to provide high availability via [replication](https://redis.io/topics/replication) and failover.  Sentinal and cluster are not supported at this time.

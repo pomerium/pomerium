@@ -115,7 +115,7 @@ func TestNew(t *testing.T) {
 		{"empty opts", &config.Options{}, true},
 		{"fails to validate", badRedirectURL, true},
 		{"bad provider", badProvider, true},
-		{"bad cache url", badGRPCConn, true},
+		{"bad databroker url", badGRPCConn, true},
 		{"empty provider url", emptyProviderURL, true},
 		{"good signing key", goodSigningKey, false},
 		{"bad signing key", badSigningKey, true},

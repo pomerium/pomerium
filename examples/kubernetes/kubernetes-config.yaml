@@ -6,7 +6,7 @@ grpc_address: ":80"
 
 authenticate_service_url: https://authenticate.localhost.pomerium.io
 authorize_service_url: http://pomerium-authorize-service.default.svc.cluster.local
-databroker_service_url: http://pomerium-cache-service.default.svc.cluster.local
+databroker_service_url: http://pomerium-databroker-service.default.svc.cluster.local
 
 override_certificate_name: "*.localhost.pomerium.io"
 

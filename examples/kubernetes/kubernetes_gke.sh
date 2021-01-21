@@ -32,7 +32,7 @@ echo "=> deploy pomerium proxy, authorize, and authenticate"
 kubectl apply -f pomerium-proxy.yml
 kubectl apply -f pomerium-authenticate.yml
 kubectl apply -f pomerium-authorize.yml
-kubectl apply -f pomerium-cache.yml
+kubectl apply -f pomerium-databroker.yml
 
 echo "=> deploy our test app, httpbin"
 kubectl apply -f httpbin.yml

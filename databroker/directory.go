@@ -1,4 +1,4 @@
-package cache
+package databroker
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 )
 
 // RefreshUser refreshes a user's directory information.
-func (c *Cache) RefreshUser(ctx context.Context, req *directory.RefreshUserRequest) (*emptypb.Empty, error) {
+func (c *DataBroker) RefreshUser(ctx context.Context, req *directory.RefreshUserRequest) (*emptypb.Empty, error) {
 	c.mu.Lock()
 	dp := c.directoryProvider
 	c.mu.Unlock()

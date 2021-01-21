@@ -4,7 +4,9 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
+        exclude: "docs/.*"
       - id: check-yaml
+        exclude: "examples/.*"
       - id: check-added-large-files
   - repo: https://github.com/syntaqx/git-hooks
     rev: v0.0.16

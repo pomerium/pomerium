@@ -11,6 +11,8 @@ const (
 	ServiceAuthenticate = "authenticate"
 	// ServiceCache represents running the cache service component
 	ServiceCache = "cache"
+	// ServiceDataBroker represents running the databroker service component
+	ServiceDataBroker = "databroker"
 	// StorageRedisName is the name of the redis storage backend
 	StorageRedisName = "redis"
 	// StorageInMemoryName is the name of the in-memory storage backend
@@ -25,6 +27,7 @@ func IsValidService(s string) bool {
 		ServiceAuthenticate,
 		ServiceAuthorize,
 		ServiceCache,
+		ServiceDataBroker,
 		ServiceProxy:
 		return true
 	}
@@ -64,12 +67,13 @@ func IsProxy(s string) bool {
 	return false
 }
 
-// IsCache checks to see if we should be running the proxy service
-func IsCache(s string) bool {
+// IsDataBroker checks to see if we should be running the databroker service
+func IsDataBroker(s string) bool {
 	switch s {
 	case
 		ServiceAll,
-		ServiceCache:
+		ServiceCache,
+		ServiceDataBroker:
 		return true
 	}
 	return false
