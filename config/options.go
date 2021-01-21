@@ -399,7 +399,8 @@ func (o *Options) parsePolicy() error {
 	}
 	// Finish initializing policies
 	for i := range o.Policies {
-		if err := (&o.Policies[i]).Validate(); err != nil {
+		p := &o.Policies[i]
+		if err := p.Validate(); err != nil {
 			return err
 		}
 	}

@@ -214,7 +214,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		cluster := buildCluster("example", endpoints, true,
 			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyV4Only),
-			nil)
+			nil, nil)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -253,7 +253,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		cluster := buildCluster("example", endpoints, true,
 			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
-			nil)
+			nil, nil)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -344,7 +344,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		cluster := buildCluster("example", endpoints, true,
 			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
-			nil)
+			nil, nil)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -379,7 +379,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		cluster := buildCluster("example", endpoints, true,
 			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
-			nil)
+			nil, nil)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -417,7 +417,7 @@ func Test_buildCluster(t *testing.T) {
 			&envoy_config_cluster_v3.OutlierDetection{
 				EnforcingConsecutive_5Xx:       wrapperspb.UInt32(17),
 				SplitExternalLocalOriginErrors: true,
-			})
+			}, nil)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",

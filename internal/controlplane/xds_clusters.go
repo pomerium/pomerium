@@ -78,7 +78,7 @@ func (srv *Server) buildClusters(options *config.Options) []*envoy_config_cluste
 func (srv *Server) buildInternalCluster(options *config.Options, name string, dst *url.URL, forceHTTP2 bool) *envoy_config_cluster_v3.Cluster {
 	endpoints := []Endpoint{NewEndpoint(dst, srv.buildInternalTransportSocket(options, dst))}
 	dnsLookupFamily := config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
-	return buildCluster(name, endpoints, forceHTTP2, dnsLookupFamily, nil)
+	return buildCluster(name, endpoints, forceHTTP2, dnsLookupFamily, nil, nil)
 }
 
 func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Policy) *envoy_config_cluster_v3.Cluster {
@@ -89,7 +89,7 @@ func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Po
 		dnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 	}
 	outlierDetection := (*envoy_config_cluster_v3.OutlierDetection)(policy.OutlierDetection)
-	return buildCluster(name, endpoints, false, dnsLookupFamily, outlierDetection)
+	return buildCluster(name, endpoints, false, dnsLookupFamily, outlierDetection, policy.HealthCheck)
 }
 
 func (srv *Server) buildPolicyEndpoints(policy *config.Policy) []Endpoint {
@@ -235,6 +235,7 @@ func buildCluster(
 	forceHTTP2 bool,
 	dnsLookupFamily envoy_config_cluster_v3.Cluster_DnsLookupFamily,
 	outlierDetection *envoy_config_cluster_v3.OutlierDetection,
+	healthCheck *envoy_config_core_v3.HealthCheck,
 ) *envoy_config_cluster_v3.Cluster {
 	if len(endpoints) == 0 {
 		return nil
@@ -254,6 +255,10 @@ func buildCluster(
 		TransportSocketMatches: buildTransportSocketMatches(endpoints),
 		DnsLookupFamily:        dnsLookupFamily,
 		OutlierDetection:       outlierDetection,
+	}
+
+	if healthCheck != nil {
+		cluster.HealthChecks = append(cluster.HealthChecks, healthCheck)
 	}
 
 	if forceHTTP2 {

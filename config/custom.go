@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"reflect"
 
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/mitchellh/mapstructure"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // A StringSlice is a slice of strings.
@@ -104,7 +107,7 @@ func DecodeOptionsHookFunc() mapstructure.DecodeHookFunc {
 			return data, nil
 		}
 
-		ps, ok := m["policy"].([]interface{})
+		ps, ok := m[policyKey].([]interface{})
 		if !ok {
 			return data, nil
 		}
@@ -114,7 +117,15 @@ func DecodeOptionsHookFunc() mapstructure.DecodeHookFunc {
 			if !ok {
 				continue
 			}
-			rawTo, ok := pm["to"]
+			raw, ok := pm[healthCheckKey]
+			if ok {
+				hc := new(envoy_config_core_v3.HealthCheck)
+				if err := parseJSONPB(raw, hc); err != nil {
+					return nil, fmt.Errorf("%s: %w", healthCheckKey, err)
+				}
+				pm[healthCheckKey] = hc
+			}
+			rawTo, ok := pm[toKey]
 			if !ok {
 				continue
 			}
@@ -127,9 +138,57 @@ func DecodeOptionsHookFunc() mapstructure.DecodeHookFunc {
 			if err != nil {
 				return nil, err
 			}
-			pm["to"] = slc
+			pm[toKey] = slc
 		}
 
 		return data, nil
+	}
+}
+
+// parseJSONPB takes an intermediate representation and parses it using protobuf parser
+// that correctly handles oneof and other data types
+func parseJSONPB(raw interface{}, dst proto.Message) error {
+	ms, err := serializable(raw)
+	if err != nil {
+		return err
+	}
+
+	data, err := json.Marshal(ms)
+	if err != nil {
+		return err
+	}
+
+	return protojson.Unmarshal(data, dst)
+}
+
+// serializable converts mapstructure nested map into map[string]interface{} that is serializable to JSON
+func serializable(in interface{}) (interface{}, error) {
+	switch typed := in.(type) {
+	case map[interface{}]interface{}:
+		m := make(map[string]interface{})
+		for k, v := range typed {
+			kstr, ok := k.(string)
+			if !ok {
+				return nil, errKeysMustBeStrings
+			}
+			val, err := serializable(v)
+			if err != nil {
+				return nil, err
+			}
+			m[kstr] = val
+		}
+		return m, nil
+	case []interface{}:
+		out := make([]interface{}, 0, len(typed))
+		for _, elem := range typed {
+			val, err := serializable(elem)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, val)
+		}
+		return out, nil
+	default:
+		return in, nil
 	}
 }

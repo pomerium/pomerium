@@ -13,6 +13,7 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/golang/protobuf/ptypes"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -140,6 +141,9 @@ type Policy struct {
 
 	// OutlierDetection configures outlier detection for the upstream cluster.
 	OutlierDetection *PolicyOutlierDetection `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
+
+	// HealthCheck defines active health checks. See https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto
+	HealthCheck *envoy_config_core_v3.HealthCheck `mapstructure:"health_check" yaml:"health_check,omitempty" json:"health_check,omitempty"`
 
 	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
 }
@@ -427,6 +431,12 @@ func (p *Policy) Validate() error {
 
 	if p.PrefixRewrite != "" && p.RegexRewritePattern != "" {
 		return fmt.Errorf("config: only prefix_rewrite or regex_rewrite_pattern can be specified, but not both")
+	}
+
+	if p.HealthCheck != nil {
+		if err := p.HealthCheck.Validate(); err != nil {
+			return err
+		}
 	}
 
 	return nil
