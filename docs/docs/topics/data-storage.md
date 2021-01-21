@@ -23,7 +23,7 @@ To address these limitations, the Pomerium `databroker` service runs a number of
 
 #### Design
 
-Internal to the `databroker` service, the `databroker` is responsible for providing a stateful storage layer.  Services which require high performance maintain a streaming local cache of the contents of the `databroker`, while others may call `databroker` in real time.  Only the `databroker` is expected to maintain authoritative state.
+The `databroker` is responsible for providing a stateful storage layer.  Services which require high performance maintain a streaming local cache of the contents of the `databroker`, while others may call `databroker` in real time.  Only the `databroker` is expected to maintain authoritative state.
 
 
 ## Persistence
