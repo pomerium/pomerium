@@ -34,7 +34,7 @@ const (
 func (srv *Server) buildDiscoveryResources() map[string][]*envoy_service_discovery_v3.Resource {
 	resources := map[string][]*envoy_service_discovery_v3.Resource{}
 	cfg := srv.currentConfig.Load()
-	for _, cluster := range srv.buildClusters(&cfg.Options) {
+	for _, cluster := range srv.buildClusters(cfg.Options) {
 		any, _ := anypb.New(cluster)
 		resources[clusterTypeURL] = append(resources[clusterTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     cluster.Name,
@@ -42,7 +42,7 @@ func (srv *Server) buildDiscoveryResources() map[string][]*envoy_service_discove
 			Resource: any,
 		})
 	}
-	for _, listener := range srv.buildListeners(&cfg.Options) {
+	for _, listener := range srv.buildListeners(cfg.Config) {
 		any, _ := anypb.New(listener)
 		resources[listenerTypeURL] = append(resources[listenerTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     listener.Name,

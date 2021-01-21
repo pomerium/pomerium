@@ -390,9 +390,9 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 
 	srv, _ := NewServer("TEST")
 
-	downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Options{
+	downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
 		Certificates: []tls.Certificate{*certA},
-	}, "a.example.com")
+	}}, "a.example.com")
 
 	cacheDir, _ := os.UserCacheDir()
 	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")
@@ -509,10 +509,10 @@ func Test_requireProxyProtocol(t *testing.T) {
 		filemgr: filemgr.NewManager(),
 	}
 	t.Run("required", func(t *testing.T) {
-		li := srv.buildMainListener(&config.Options{
+		li := srv.buildMainListener(&config.Config{Options: &config.Options{
 			UseProxyProtocol: true,
 			InsecureServer:   true,
-		})
+		}})
 		testutil.AssertProtoJSONEqual(t, `[
 			{
 				"name": "envoy.filters.listener.proxy_protocol",
@@ -523,10 +523,10 @@ func Test_requireProxyProtocol(t *testing.T) {
 		]`, li.GetListenerFilters())
 	})
 	t.Run("not required", func(t *testing.T) {
-		li := srv.buildMainListener(&config.Options{
+		li := srv.buildMainListener(&config.Config{Options: &config.Options{
 			UseProxyProtocol: false,
 			InsecureServer:   true,
-		})
+		}})
 		assert.Len(t, li.GetListenerFilters(), 0)
 	})
 }
