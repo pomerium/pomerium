@@ -63,7 +63,6 @@ func TestResolver(t *testing.T) {
 		assert.NoError(t, err)
 		usernames[res.GetUsername()]++
 	}
-	assert.Equal(t, 500, usernames["srv1"])
-	assert.Equal(t, 500, usernames["srv2"])
-
+	assert.Greater(t, usernames["srv1"], 0)
+	assert.Greater(t, usernames["srv2"], 0)
 }
