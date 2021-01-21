@@ -159,11 +159,10 @@ type Options struct {
 	// (sudo) access including the ability to impersonate other users' access
 	Administrators []string `mapstructure:"administrators" yaml:"administrators,omitempty"`
 
-	// AuthorizeURL is the routable destination of the authorize service's
+	// AuthorizeURLString is the routable destination of the authorize service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
-	AuthorizeURLString string   `mapstructure:"authorize_service_url" yaml:"authorize_service_url,omitempty"`
-	AuthorizeURL       *url.URL `yaml:",omitempty"`
+	AuthorizeURLString string `mapstructure:"authorize_service_url" yaml:"authorize_service_url,omitempty"`
 
 	// Settings to enable custom behind-the-ingress service communication
 	OverrideCertificateName string `mapstructure:"override_certificate_name" yaml:"override_certificate_name,omitempty"`
@@ -239,9 +238,8 @@ type Options struct {
 	ForwardAuthURLString string   `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
 	ForwardAuthURL       *url.URL `yaml:",omitempty"`
 
-	// DataBrokerURL is the routable destination of the databroker service's gRPC endpiont.
-	DataBrokerURLString string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
-	DataBrokerURL       *url.URL `yaml:",omitempty"`
+	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
+	DataBrokerURLString string `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
 	// DataBrokerStorageType is the storage backend type that databroker will use.
 	// Supported type: memory, redis
 	DataBrokerStorageType string `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitempty"`
@@ -559,19 +557,17 @@ func (o *Options) Validate() error {
 	}
 
 	if o.AuthorizeURLString != "" {
-		u, err := urlutil.ParseAndValidateURL(o.AuthorizeURLString)
+		_, err := urlutil.ParseAndValidateURL(o.AuthorizeURLString)
 		if err != nil {
 			return fmt.Errorf("config: bad authorize-url %s : %w", o.AuthorizeURLString, err)
 		}
-		o.AuthorizeURL = u
 	}
 
 	if o.DataBrokerURLString != "" {
-		u, err := urlutil.ParseAndValidateURL(o.DataBrokerURLString)
+		_, err := urlutil.ParseAndValidateURL(o.DataBrokerURLString)
 		if err != nil {
 			return fmt.Errorf("config: bad databroker service url %s : %w", o.DataBrokerURLString, err)
 		}
-		o.DataBrokerURL = u
 	}
 
 	if o.ForwardAuthURLString != "" {
@@ -711,8 +707,11 @@ func (o *Options) GetAuthenticateURL() *url.URL {
 
 // GetAuthorizeURL returns the AuthorizeURL in the options or 127.0.0.1:5443.
 func (o *Options) GetAuthorizeURL() *url.URL {
-	if o != nil && o.AuthorizeURL != nil {
-		return o.AuthorizeURL
+	if o != nil {
+		u, err := urlutil.ParseAndValidateURL(o.AuthorizeURLString)
+		if err == nil {
+			return u
+		}
 	}
 	u, _ := url.Parse("http://127.0.0.1" + DefaultAlternativeAddr)
 	return u
@@ -720,8 +719,11 @@ func (o *Options) GetAuthorizeURL() *url.URL {
 
 // GetDataBrokerURL returns the DataBrokerURL in the options or 127.0.0.1:5443.
 func (o *Options) GetDataBrokerURL() *url.URL {
-	if o != nil && o.DataBrokerURL != nil {
-		return o.DataBrokerURL
+	if o != nil {
+		u, err := urlutil.ParseAndValidateURL(o.DataBrokerURLString)
+		if err == nil {
+			return u
+		}
 	}
 	u, _ := url.Parse("http://127.0.0.1" + DefaultAlternativeAddr)
 	return u

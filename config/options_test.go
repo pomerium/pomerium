@@ -229,7 +229,7 @@ func Test_Checksum(t *testing.T) {
 
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURL", "AuthorizeURL", "AuthorizeURLString", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate"),
+		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "AuthorizeURLString", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate"),
 		cmpopts.IgnoreFields(Policy{}, "Source", "Destinations"),
 		cmpOptIgnoreUnexported,
 	}
@@ -491,10 +491,10 @@ func TestOptions_DefaultURL(t *testing.T) {
 
 	defaultOptions := &Options{}
 	opts := &Options{
-		AuthenticateURL: mustParseURL("https://authenticate.example.com"),
-		AuthorizeURL:    mustParseURL("https://authorize.example.com"),
-		DataBrokerURL:   mustParseURL("https://databroker.example.com"),
-		ForwardAuthURL:  mustParseURL("https://forwardauth.example.com"),
+		AuthenticateURL:     mustParseURL("https://authenticate.example.com"),
+		AuthorizeURLString:  "https://authorize.example.com",
+		DataBrokerURLString: "https://databroker.example.com",
+		ForwardAuthURL:      mustParseURL("https://forwardauth.example.com"),
 	}
 	tests := []struct {
 		name           string

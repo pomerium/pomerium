@@ -359,10 +359,10 @@ func TestSync(t *testing.T) {
 		},
 	}
 	o := &config.Options{
-		AuthenticateURL: mustParseURL("https://authN.example.com"),
-		DataBrokerURL:   mustParseURL("https://databroker.example.com"),
-		SharedKey:       "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=",
-		Policies:        testPolicies(t),
+		AuthenticateURL:     mustParseURL("https://authN.example.com"),
+		DataBrokerURLString: "https://databroker.example.com",
+		SharedKey:           "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=",
+		Policies:            testPolicies(t),
 	}
 
 	ctx := context.Background()
@@ -477,7 +477,7 @@ func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.Get
 func TestAuthorize_Check(t *testing.T) {
 	opt := config.NewDefaultOptions()
 	opt.AuthenticateURL = mustParseURL("https://authenticate.example.com")
-	opt.DataBrokerURL = mustParseURL("https://databroker.example.com")
+	opt.DataBrokerURLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
 	a, err := New(&config.Config{Options: opt})
 	if err != nil {

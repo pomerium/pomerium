@@ -180,7 +180,7 @@ func validate(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
 	}
-	if err := urlutil.ValidateURL(o.DataBrokerURL); err != nil {
+	if _, err := urlutil.ParseAndValidateURL(o.DataBrokerURLString); err != nil {
 		return fmt.Errorf("invalid 'DATA_BROKER_SERVICE_URL': %w", err)
 	}
 	return nil
