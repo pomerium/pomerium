@@ -20,7 +20,6 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/manager"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -175,9 +174,6 @@ func (c *DataBroker) update(cfg *config.Config) error {
 func validate(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
-	}
-	if _, err := urlutil.ParseAndValidateURL(o.DataBrokerURLString); err != nil {
-		return fmt.Errorf("invalid 'DATA_BROKER_SERVICE_URL': %w", err)
 	}
 	return nil
 }

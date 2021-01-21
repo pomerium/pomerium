@@ -40,9 +40,6 @@ func ValidateOptions(o *config.Options) error {
 	if o.AuthenticateCallbackPath == "" {
 		return errors.New("authenticate: 'AUTHENTICATE_CALLBACK_PATH' is required")
 	}
-	if _, err := urlutil.ParseAndValidateURL(o.DataBrokerURLString); err != nil {
-		return fmt.Errorf("authenticate: invalid 'DATABROKER_SERVICE_URL': %w", err)
-	}
 	return nil
 }
 

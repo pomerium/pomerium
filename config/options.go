@@ -506,10 +506,10 @@ func (o *Options) Validate() error {
 			o.GRPCAddr = DefaultAlternativeAddr
 		}
 		// and we can set the corresponding client
-		if o.AuthorizeURLString == "" {
+		if o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {
 			o.AuthorizeURLString = "http://127.0.0.1" + DefaultAlternativeAddr
 		}
-		if o.DataBrokerURLString == "" {
+		if o.DataBrokerURLString == "" && len(o.DataBrokerURLStrings) == 0 {
 			o.DataBrokerURLString = "http://127.0.0.1" + DefaultAlternativeAddr
 		}
 	}
@@ -873,8 +873,8 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	if len(settings.Administrators) > 0 {
 		o.Administrators = settings.Administrators
 	}
-	if settings.AuthorizeServiceUrl != nil {
-		o.AuthorizeURLString = settings.GetAuthorizeServiceUrl()
+	if len(settings.AuthorizeServiceUrls) > 0 {
+		o.AuthorizeURLStrings = settings.GetAuthorizeServiceUrls()
 	}
 	if settings.OverrideCertificateName != nil {
 		o.OverrideCertificateName = settings.GetOverrideCertificateName()
@@ -933,8 +933,8 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	if settings.ForwardAuthUrl != nil {
 		o.ForwardAuthURLString = settings.GetForwardAuthUrl()
 	}
-	if settings.DatabrokerServiceUrl != nil {
-		o.DataBrokerURLString = settings.GetDatabrokerServiceUrl()
+	if len(settings.DatabrokerServiceUrls) > 0 {
+		o.DataBrokerURLStrings = settings.GetDatabrokerServiceUrls()
 	}
 	if settings.ClientCa != nil {
 		o.ClientCA = settings.GetClientCa()

@@ -60,9 +60,6 @@ func validateOptions(o *config.Options) error {
 	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
 		return fmt.Errorf("authorize: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
 	}
-	if _, err := urlutil.ParseAndValidateURL(o.DataBrokerURLString); err != nil {
-		return fmt.Errorf("authorize: invalid 'DATABROKER_SERVICE_URL': %w", err)
-	}
 	return nil
 }
 

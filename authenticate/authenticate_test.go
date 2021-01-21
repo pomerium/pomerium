@@ -89,7 +89,6 @@ func TestNew(t *testing.T) {
 	badProvider.Provider = ""
 	badProvider.CookieName = "C"
 	badGRPCConn := newTestOptions(t)
-	badGRPCConn.DataBrokerURLString = ""
 	badGRPCConn.CookieName = "D"
 
 	emptyProviderURL := newTestOptions(t)
@@ -115,7 +114,6 @@ func TestNew(t *testing.T) {
 		{"empty opts", &config.Options{}, true},
 		{"fails to validate", badRedirectURL, true},
 		{"bad provider", badProvider, true},
-		{"bad databroker url", badGRPCConn, true},
 		{"empty provider url", emptyProviderURL, true},
 		{"good signing key", goodSigningKey, false},
 		{"bad signing key", badSigningKey, true},
