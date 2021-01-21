@@ -45,7 +45,7 @@ func (srv *Server) buildListeners(cfg *config.Config) []*envoy_config_listener_v
 		listeners = append(listeners, srv.buildMainListener(cfg))
 	}
 
-	if config.IsAuthorize(cfg.Options.Services) || config.IsCache(cfg.Options.Services) {
+	if config.IsAuthorize(cfg.Options.Services) || config.IsDataBroker(cfg.Options.Services) {
 		listeners = append(listeners, srv.buildGRPCListener(cfg))
 	}
 
@@ -146,7 +146,7 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 		if options.Addr == options.GRPCAddr {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
 			if (config.IsAuthorize(options.Services) && hostMatchesDomain(options.GetAuthorizeURL(), domain)) ||
-				(config.IsCache(options.Services) && hostMatchesDomain(options.GetDataBrokerURL(), domain)) {
+				(config.IsDataBroker(options.Services) && hostMatchesDomain(options.GetDataBrokerURL(), domain)) {
 				vh.Routes = append(vh.Routes, buildGRPCRoutes()...)
 			}
 		}
@@ -433,7 +433,7 @@ func getAllRouteableDomains(options *config.Options, addr string) []string {
 			lookup[h] = struct{}{}
 		}
 	}
-	if config.IsCache(options.Services) && addr == options.GRPCAddr {
+	if config.IsDataBroker(options.Services) && addr == options.GRPCAddr {
 		for _, h := range urlutil.GetDomainsForURL(options.GetDataBrokerURL()) {
 			lookup[h] = struct{}{}
 		}

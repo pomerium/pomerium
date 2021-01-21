@@ -29,13 +29,13 @@ Pomerium is composed of 4 logical components:
   - Handles authentication flow to your IdP as needed
   - Handles identity verification after initial Authentication
   - Establishes user session cookie
-  - Stores user OIDC tokens in cache service
+  - Stores user OIDC tokens in databroker service
 - Authorization Service
   - Processes policy to determine permissions for each service
   - Handles authorization check for all user sessions
   - Directs Proxy service to initiate Authentication flow as required
   - Provides additional security releated headers for upstream services to consume
-- Cache Service
+- Data Broker Service
   - Retrieves identity provider related data such as group membership
   - Stores and refreshes identity provider access and refresh tokens
   - Provides streaming authoritative session and identity data to Authorize service

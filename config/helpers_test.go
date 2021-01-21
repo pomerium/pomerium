@@ -16,7 +16,7 @@ func Test_isValidService(t *testing.T) {
 		{"authenticate bad case", "AuThenticate", false},
 		{"authorize implemented", "authorize", true},
 		{"jiberish", "xd23", false},
-		{"cache", "cache", true},
+		{"databroker", "databroker", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -94,7 +94,7 @@ func Test_IsProxy(t *testing.T) {
 	}
 }
 
-func Test_IsCache(t *testing.T) {
+func Test_IsDataBroker(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name    string
@@ -107,11 +107,12 @@ func Test_IsCache(t *testing.T) {
 		{"proxy bad case", "PrOxY", false},
 		{"jiberish", "xd23", false},
 		{"cache", "cache", true},
+		{"databroker", "databroker", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := IsCache(tt.service); got != tt.want {
-				t.Errorf("IsCache() = %v, want %v", got, tt.want)
+			if got := IsDataBroker(tt.service); got != tt.want {
+				t.Errorf("IsDataBroker() = %v, want %v", got, tt.want)
 			}
 		})
 	}

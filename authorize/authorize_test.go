@@ -22,7 +22,7 @@ func TestNew(t *testing.T) {
 			"good",
 			config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
-				DataBrokerURL:   mustParseURL("https://cache.example.com"),
+				DataBrokerURL:   mustParseURL("https://databroker.example.com"),
 				SharedKey:       "2p/Wi2Q6bYDfzmoSEbKqYKtg+DUoLWTEHHs7vOhvL7w=",
 				Policies:        policies,
 			},
@@ -32,7 +32,7 @@ func TestNew(t *testing.T) {
 			"bad shared secret",
 			config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
-				DataBrokerURL:   mustParseURL("https://cache.example.com"),
+				DataBrokerURL:   mustParseURL("https://databroker.example.com"),
 				SharedKey:       "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
 				Policies:        policies,
 			},
@@ -42,7 +42,7 @@ func TestNew(t *testing.T) {
 			"really bad shared secret",
 			config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
-				DataBrokerURL:   mustParseURL("https://cache.example.com"),
+				DataBrokerURL:   mustParseURL("https://databroker.example.com"),
 				SharedKey:       "sup",
 				Policies:        policies,
 			},
@@ -52,7 +52,7 @@ func TestNew(t *testing.T) {
 			"validation error, short secret",
 			config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
-				DataBrokerURL:   mustParseURL("https://cache.example.com"),
+				DataBrokerURL:   mustParseURL("https://databroker.example.com"),
 				SharedKey:       "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
 				Policies:        policies,
 			},
@@ -60,7 +60,7 @@ func TestNew(t *testing.T) {
 		},
 		{"empty options", config.Options{}, true},
 		{
-			"bad cache url",
+			"bad databroker url",
 			config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
 				DataBrokerURL:   &url.URL{},
@@ -101,7 +101,7 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 			t.Parallel()
 			o := &config.Options{
 				AuthenticateURL: mustParseURL("https://authN.example.com"),
-				DataBrokerURL:   mustParseURL("https://cache.example.com"),
+				DataBrokerURL:   mustParseURL("https://databroker.example.com"),
 				SharedKey:       tc.SharedKey,
 				Policies:        tc.Policies,
 			}

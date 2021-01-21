@@ -31,7 +31,7 @@ services:
       - VIRTUAL_PROTO=http
       - VIRTUAL_HOST=authenticate.corp.beyondperimeter.com
       - VIRTUAL_PORT=443
-      - DATABROKER_SERVICE_URL=http://pomerium-cache:443
+      - DATABROKER_SERVICE_URL=http://pomerium-databroker:443
     volumes:
       - ../config/config.example.yaml:/pomerium/config.yaml:ro
 
@@ -76,11 +76,11 @@ services:
     expose:
       - 443
 
-  pomerium-cache:
+  pomerium-databroker:
     image: pomerium/pomerium:latest # or `build: .` to build from source
     restart: always
     environment:
-      - SERVICES=cache
+      - SERVICES=databroker
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=
       - GRPC_INSECURE=TRUE
       - GRPC_ADDRESS=:443
