@@ -361,7 +361,6 @@ func optionsFromViper(configFile string) (*Options, error) {
 		}
 	}
 
-	v.GetStringMap("policy")
 	if err := v.Unmarshal(o, viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 		mapstructure.StringToTimeDurationHookFunc(),
 		mapstructure.StringToSliceHookFunc(","),
