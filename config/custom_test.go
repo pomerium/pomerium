@@ -45,7 +45,7 @@ func TestSerializable(t *testing.T) {
 
 	var mi map[interface{}]interface{}
 
-	err = yaml.Unmarshal([]byte(data), &mi)
+	err = yaml.Unmarshal(data, &mi)
 	require.NoError(t, err, "unmarshal")
 
 	ms, err := serializable(mi)
