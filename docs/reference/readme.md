@@ -1128,9 +1128,7 @@ A request to `https://from.example.com/admin` would be forwarded to `https://to.
 The `host` header can be preserved via the `preserve_host_header` setting or customized via 3 mutually exclusive options:
 
 1. `preserve_host_header` when enabled, this option will pass the host header from the incoming request to the proxied host, instead of the destination hostname. It's an optional parameter of type `bool` that defaults to `false`.
-
     See [ProxyPreserveHost](http://httpd.apache.org/docs/2.0/mod/mod_proxy.html#proxypreservehost).
-    
 2. `host_rewrite` which will rewrite the host to a new literal value.
 3. `host_rewrite_header` which will rewrite the host to match an incoming header value.
 4. `host_path_regex_rewrite_pattern`, `host_path_regex_rewrite_substitution` which will rewrite the host according to a regex matching the path. For example with the following config:
