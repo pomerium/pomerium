@@ -49,7 +49,7 @@ func Test_Validate(t *testing.T) {
 
 	missingSharedSecretWithPersistence := testOptions()
 	missingSharedSecretWithPersistence.SharedKey = ""
-	missingSharedSecretWithPersistence.DataBrokerStorageType = "redis"
+	missingSharedSecretWithPersistence.DataBrokerStorageType = StorageRedisName
 	missingSharedSecretWithPersistence.DataBrokerStorageConnectionString = "redis://somehost:6379"
 
 	tests := []struct {
