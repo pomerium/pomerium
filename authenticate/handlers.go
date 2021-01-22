@@ -293,7 +293,11 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	enc := cryptutil.Encrypt(state.cookieCipher, []byte(redirectURL.String()), b)
 	b = append(b, enc...)
 	encodedState := base64.URLEncoding.EncodeToString(b)
-	httputil.Redirect(w, r, a.provider.Load().GetSignInURL(encodedState), http.StatusFound)
+	signinURL, err := a.provider.Load().GetSignInURL(encodedState)
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+	httputil.Redirect(w, r, signinURL, http.StatusFound)
 	return nil
 }
 
