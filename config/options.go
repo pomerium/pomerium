@@ -496,7 +496,7 @@ func (o *Options) Validate() error {
 
 	if IsAll(o.Services) {
 		// mutual auth between services on the same host can be generated at runtime
-		if o.SharedKey == "" {
+		if o.SharedKey == "" && o.DataBrokerStorageType == StorageInMemoryName {
 			o.SharedKey = cryptutil.NewBase64Key()
 		}
 		// in all in one mode we are running just over the local socket
