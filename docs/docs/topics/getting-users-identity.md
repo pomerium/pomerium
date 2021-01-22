@@ -109,13 +109,16 @@ In an actual client, you'll want to ensure that all the other claims values are 
 
 ### Automatic verification
 
-In the future, we will be adding example client implementations for:
+We currently maintain SDKs for the following languages:
 
+- [Go](https://github.com/pomerium/sdk-go)
+
+In the future, we will add implementations for:
+
+- Nodejs
 - Python
-- Go
 - Java
-- C#
-- PHP
+- .NET
 
 [developer tools]: https://developers.google.com/web/tools/chrome-devtools/open
 [docker-compose.yml]: https://github.com/pomerium/pomerium/blob/master/docker-compose.yml
