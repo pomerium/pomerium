@@ -332,7 +332,7 @@ func NewDefaultOptions() *Options {
 func newOptionsFromConfig(configFile string) (*Options, error) {
 	o, err := optionsFromViper(configFile)
 	if err != nil {
-		return nil, fmt.Errorf("config: options from config file %w", err)
+		return nil, fmt.Errorf("config: options from config file %q: %w", configFile, err)
 	}
 	serviceName := telemetry.ServiceName(o.Services)
 	metrics.AddPolicyCountCallback(serviceName, func() int64 {

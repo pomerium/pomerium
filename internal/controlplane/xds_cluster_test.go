@@ -8,6 +8,7 @@ import (
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
@@ -212,9 +213,10 @@ func Test_buildCluster(t *testing.T) {
 		endpoints := srv.buildPolicyEndpoints(&config.Policy{
 			Destinations: mustParseURLs("http://example.com"),
 		})
-		cluster := buildCluster("example", endpoints, true,
-			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyV4Only),
-			nil, nil)
+		cluster := newDefaultEnvoyClusterConfig()
+		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
+		err := buildCluster(cluster, "example", endpoints, true)
+		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -251,9 +253,9 @@ func Test_buildCluster(t *testing.T) {
 				"https://example.com",
 			),
 		})
-		cluster := buildCluster("example", endpoints, true,
-			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
-			nil, nil)
+		cluster := newDefaultEnvoyClusterConfig()
+		err := buildCluster(cluster, "example", endpoints, true)
+		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -342,9 +344,9 @@ func Test_buildCluster(t *testing.T) {
 		endpoints := srv.buildPolicyEndpoints(&config.Policy{
 			Destinations: mustParseURLs("http://127.0.0.1"),
 		})
-		cluster := buildCluster("example", endpoints, true,
-			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
-			nil, nil)
+		cluster := newDefaultEnvoyClusterConfig()
+		err := buildCluster(cluster, "example", endpoints, true)
+		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -377,9 +379,9 @@ func Test_buildCluster(t *testing.T) {
 		endpoints := srv.buildPolicyEndpoints(&config.Policy{
 			Destinations: mustParseURLs("http://localhost"),
 		})
-		cluster := buildCluster("example", endpoints, true,
-			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyAuto),
-			nil, nil)
+		cluster := newDefaultEnvoyClusterConfig()
+		err := buildCluster(cluster, "example", endpoints, true)
+		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",
@@ -412,12 +414,14 @@ func Test_buildCluster(t *testing.T) {
 		endpoints := srv.buildPolicyEndpoints(&config.Policy{
 			Destinations: mustParseURLs("http://example.com"),
 		})
-		cluster := buildCluster("example", endpoints, true,
-			config.GetEnvoyDNSLookupFamily(config.DNSLookupFamilyV4Only),
-			&envoy_config_cluster_v3.OutlierDetection{
-				EnforcingConsecutive_5Xx:       wrapperspb.UInt32(17),
-				SplitExternalLocalOriginErrors: true,
-			}, nil)
+		cluster := newDefaultEnvoyClusterConfig()
+		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
+		cluster.OutlierDetection = &envoy_config_cluster_v3.OutlierDetection{
+			EnforcingConsecutive_5Xx:       wrapperspb.UInt32(17),
+			SplitExternalLocalOriginErrors: true,
+		}
+		err := buildCluster(cluster, "example", endpoints, true)
+		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "example",

@@ -64,8 +64,15 @@ func Run(ctx context.Context, configFile string) error {
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
-	src.OnConfigChange(controlPlane.OnConfigChange)
-	controlPlane.OnConfigChange(src.GetConfig())
+	src.OnConfigChange(func(cfg *config.Config) {
+		if err := controlPlane.OnConfigChange(cfg); err != nil {
+			log.Error().Err(err).Msg("config change")
+		}
+	})
+
+	if err = controlPlane.OnConfigChange(src.GetConfig()); err != nil {
+		return fmt.Errorf("applying config: %w", err)
+	}
 
 	_, grpcPort, _ := net.SplitHostPort(controlPlane.GRPCListener.Addr().String())
 	_, httpPort, _ := net.SplitHostPort(controlPlane.HTTPListener.Addr().String())
