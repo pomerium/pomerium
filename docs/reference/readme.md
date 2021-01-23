@@ -1390,7 +1390,7 @@ In presence of multiple upstreams, defines load balancing strategy between them.
 - Optional
 
 When defined, will issue periodic health check requests to upstream servers. When health checks are defined, unhealthy upstream servers would not serve traffic.
-See also `outlier_detection` for automatic upstream server health detection. 
+See also `outlier_detection` for automatic upstream server health detection.
 In presence of multiple upstream servers, it is recommended to set up either `health_checks` or `outlier_detection` or both.
 See [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/health_checking) for a list of supported parameters.
 

@@ -15,7 +15,7 @@ You may specify multiple servers for your upstream application, and Pomerium wou
 ```yaml
 policy:
   - from: https://myapp.localhost.pomerium.io
-    to: 
+    to:
       - http://myapp-srv-1:8080
       - http://myapp-srv-2:8080
 ```
@@ -26,13 +26,13 @@ policy:
 
 ### Active Health Checks
 
-Active health checks issue periodic requests to each upstream to determine its health. 
+Active health checks issue periodic requests to each upstream to determine its health.
 See [Health Checking](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/health_checking) for a comprehensive overview.
 
 ```yaml
 policy:
   - from: https://myapp.localhost.pomerium.io
-    to: 
+    to:
       - http://myapp-srv-1:8080
       - http://myapp-srv-2:8080
     health_checks:
@@ -45,7 +45,7 @@ policy:
 ```
 ### Passive Health Checks
 
-Passive health check tries to deduce upstream server health based on recent observed responses. 
+Passive health check tries to deduce upstream server health based on recent observed responses.
 See [Outlier Detection](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier) for a comprehensive overview.
 
 ## Load Balancing Method
