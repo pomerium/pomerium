@@ -166,8 +166,6 @@ type PolicyRedirect struct {
 	StripQuery     *bool   `mapstructure:"strip_query" yaml:"strip_query,omitempty" json:"strip_query,omitempty"`
 }
 
-type PolicyOutlierDetection envoy_config_cluster_v3.OutlierDetection
-
 // NewPolicyFromProto creates a new Policy from a protobuf policy config route.
 func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	timeout, _ := ptypes.Duration(pb.GetTimeout())
@@ -216,6 +214,12 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			StripQuery:     pb.Redirect.StripQuery,
 		}
 	}
+
+	if p.EnvoyOpts == nil {
+		p.EnvoyOpts = new(envoy_config_cluster_v3.Cluster)
+	}
+
+	p.EnvoyOpts.OutlierDetection = pb.OutlierDetection
 
 	for _, sp := range pb.GetPolicies() {
 		p.SubPolicies = append(p.SubPolicies, SubPolicy{

@@ -5,21 +5,46 @@ _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 _protoc_version="4.0.0-rc2"
 _protoc_version_filename="4.0.0-rc-2"
 _protoc_path="/tmp/pomerium-protoc/protoc-$_protoc_version"
+_protoc_3pp_path="/tmp/pomerium-protoc-3pp"
 _os="linux"
 if [ "$(uname -s)" == "Darwin" ]; then
   _os="osx"
 fi
 
-mkdir -p "$_protoc_path"
+
+# fetch_zip dir name url
+download() {
+  local dst=$1/$2
+  if [ -d $dst ]; then
+    return
+  fi
+
+  echo downloading $2
+  local archive=`mktemp`
+  curl -L -o $archive $3
+  mkdir -p $dst
+  tar xzf $archive -C $dst --strip-components=1
+  rm ${archive}
+}
+
+download $_protoc_3pp_path protoc-gen-validate https://github.com/envoyproxy/protoc-gen-validate/tarball/v0.4.1
+download $_protoc_3pp_path data-plane-api https://github.com/envoyproxy/data-plane-api/tarball/main
+download $_protoc_3pp_path udpa https://github.com/cncf/udpa/tarball/v0.0.1
+
+mkdir -p "$_protoc_path" "$_protoc_3pp_path"
 if [ ! -f "$_protoc_path/bin/protoc" ]; then
-  echo "downloading protoc"
+  echo "downloading protoc"  
   curl -L \
     -o protoc.zip \
     "https://github.com/protocolbuffers/protobuf/releases/download/v$_protoc_version/protoc-$_protoc_version_filename-$_os-x86_64.zip"
   unzip -o -d "$_protoc_path" protoc.zip
   rm protoc.zip
 fi
+
 exec "$_protoc_path/bin/protoc" \
+  -I "$_protoc_3pp_path/data-plane-api" \
+  -I "$_protoc_3pp_path/udpa" \
+  -I "$_protoc_3pp_path/protoc-gen-validate" \
   --experimental_allow_proto3_optional \
   --plugin="protoc-gen-go=$_dir/protoc-gen-go" \
   --plugin="protoc-gen-grpc-web=$_dir/protoc-gen-grpc-web" \
