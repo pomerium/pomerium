@@ -211,7 +211,7 @@ func Test_buildCluster(t *testing.T) {
 	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
 	t.Run("insecure", func(t *testing.T) {
 		endpoints := srv.buildPolicyEndpoints(&config.Policy{
-			Destinations: mustParseURLs("http://example.com"),
+			Destinations: mustParseURLs("http://example.com", "http://1.2.3.4"),
 		})
 		cluster := newDefaultEnvoyClusterConfig()
 		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
@@ -235,6 +235,16 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "example.com",
+										"ipv4Compat": true,
+										"portValue": 80
+									}
+								}
+							}
+						}, {
+							"endpoint": {
+								"address": {
+									"socketAddress": {
+										"address": "1.2.3.4",
 										"ipv4Compat": true,
 										"portValue": 80
 									}
@@ -340,9 +350,9 @@ func Test_buildCluster(t *testing.T) {
 			}
 		`, cluster)
 	})
-	t.Run("ip address", func(t *testing.T) {
+	t.Run("ip addresses", func(t *testing.T) {
 		endpoints := srv.buildPolicyEndpoints(&config.Policy{
-			Destinations: mustParseURLs("http://127.0.0.1"),
+			Destinations: mustParseURLs("http://127.0.0.1", "http://127.0.0.2"),
 		})
 		cluster := newDefaultEnvoyClusterConfig()
 		err := buildCluster(cluster, "example", endpoints, true)
@@ -364,6 +374,16 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "127.0.0.1",
+										"ipv4Compat": true,
+										"portValue": 80
+									}
+								}
+							}
+						},{
+							"endpoint": {
+								"address": {
+									"socketAddress": {
+										"address": "127.0.0.2",
 										"ipv4Compat": true,
 										"portValue": 80
 									}
