@@ -45,9 +45,10 @@ policy:
         http_health_check:
           path: "/"
 ```
+
 ### Passive Health Checks
 
-Passive health check tries to deduce upstream server health based on recent observed responses. 
+Passive health check tries to deduce upstream server health based on recent observed responses.
 See [Outlier Detection](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier) for comprehensive overview.
 
 ```yaml
