@@ -33,11 +33,9 @@ type DataBroker struct {
 	dataBrokerServer *dataBrokerServer
 	manager          *manager.Manager
 
-	localListener                net.Listener
-	localGRPCServer              *grpc.Server
-	localGRPCConnection          *grpc.ClientConn
-	dataBrokerStorageType        string // TODO remove in v0.11
-	deprecatedCacheClusterDomain string // TODO: remove in v0.11
+	localListener       net.Listener
+	localGRPCServer     *grpc.Server
+	localGRPCConnection *grpc.ClientConn
 
 	mu                sync.Mutex
 	directoryProvider directory.Provider
@@ -83,12 +81,10 @@ func New(cfg *config.Config) (*DataBroker, error) {
 	dataBrokerServer := newDataBrokerServer(cfg)
 
 	c := &DataBroker{
-		dataBrokerServer:             dataBrokerServer,
-		localListener:                localListener,
-		localGRPCServer:              localGRPCServer,
-		localGRPCConnection:          localGRPCConnection,
-		deprecatedCacheClusterDomain: cfg.Options.GetDataBrokerURL().Hostname(),
-		dataBrokerStorageType:        cfg.Options.DataBrokerStorageType,
+		dataBrokerServer:    dataBrokerServer,
+		localListener:       localListener,
+		localGRPCServer:     localGRPCServer,
+		localGRPCConnection: localGRPCConnection,
 	}
 	c.Register(c.localGRPCServer)
 

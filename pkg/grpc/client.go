@@ -4,16 +4,15 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/credentials"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -30,8 +29,8 @@ const (
 
 // Options contains options for connecting to a pomerium rpc service.
 type Options struct {
-	// Addr is the location of the service.  e.g. "service.corp.example:8443"
-	Addr *url.URL
+	// Addrs are the locations of the service.  e.g. "service.corp.example:8443,another.corp.example:8443"
+	Addrs []*url.URL
 	// OverrideCertificateName overrides the server name used to verify the hostname on the
 	// returned certificates from the server. gRPC internals also use it to override the virtual
 	// hosting name if it is set.
@@ -58,19 +57,25 @@ type Options struct {
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
 func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
-	if opts.Addr == nil {
+	if len(opts.Addrs) == 0 {
 		return nil, errors.New("internal/grpc: connection address required")
 	}
-	connAddr := opts.Addr.Host
 
-	// no colon exists in the connection string, assume one must be added manually
-	if _, _, err := net.SplitHostPort(connAddr); err != nil {
-		if opts.Addr.Scheme == "https" {
-			connAddr = net.JoinHostPort(connAddr, strconv.Itoa(defaultGRPCSecurePort))
-		} else {
-			connAddr = net.JoinHostPort(connAddr, strconv.Itoa(defaultGRPCInsecurePort))
+	var addrs []string
+	for _, u := range opts.Addrs {
+		hostport := u.Host
+		// no colon exists in the connection string, assume one must be added manually
+		if _, _, err := net.SplitHostPort(hostport); err != nil {
+			if u.Scheme == "https" {
+				hostport = net.JoinHostPort(hostport, strconv.Itoa(defaultGRPCSecurePort))
+			} else {
+				hostport = net.JoinHostPort(hostport, strconv.Itoa(defaultGRPCInsecurePort))
+			}
 		}
+		addrs = append(addrs, hostport)
 	}
+
+	connAddr := "pomerium:///" + strings.Join(addrs, ",")
 
 	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.ServiceName)
 
@@ -92,6 +97,8 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
 		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
 		grpc.WithStatsHandler(clientStatsHandler.Handler),
+		grpc.WithDefaultServiceConfig(roundRobinServiceConfig),
+		grpc.WithDisableServiceConfig(),
 	}
 
 	if opts.WithInsecure {
@@ -115,11 +122,6 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		}
 		// finally add our credential
 		dialOptions = append(dialOptions, grpc.WithTransportCredentials(cert))
-	}
-
-	if opts.ClientDNSRoundRobin {
-		dialOptions = append(dialOptions, grpc.WithBalancerName(roundrobin.Name), grpc.WithDisableServiceConfig())
-		connAddr = fmt.Sprintf("dns:///%s", connAddr)
 	}
 
 	return grpc.Dial(connAddr, dialOptions...)

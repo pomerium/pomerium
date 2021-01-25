@@ -50,20 +50,16 @@ func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_clust
 		Scheme: "http",
 		Host:   srv.HTTPListener.Addr().String(),
 	}
-	authzURL := &url.URL{
-		Scheme: options.GetAuthorizeURL().Scheme,
-		Host:   options.GetAuthorizeURL().Host,
-	}
 
-	controlGRPC, err := srv.buildInternalCluster(options, "pomerium-control-plane-grpc", grpcURL, true)
+	controlGRPC, err := srv.buildInternalCluster(options, "pomerium-control-plane-grpc", []*url.URL{grpcURL}, true)
 	if err != nil {
 		return nil, err
 	}
-	controlHTTP, err := srv.buildInternalCluster(options, "pomerium-control-plane-http", httpURL, false)
+	controlHTTP, err := srv.buildInternalCluster(options, "pomerium-control-plane-http", []*url.URL{httpURL}, false)
 	if err != nil {
 		return nil, err
 	}
-	authZ, err := srv.buildInternalCluster(options, authzURL.Host, authzURL, true)
+	authZ, err := srv.buildInternalCluster(options, "pomerium-authorize", options.GetAuthorizeURLs(), true)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +69,6 @@ func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_clust
 		controlHTTP,
 		authZ,
 	}
-
 	if config.IsProxy(options.Services) {
 		for i := range options.Policies {
 			policy := options.Policies[i]
@@ -93,10 +88,13 @@ func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_clust
 	return clusters, nil
 }
 
-func (srv *Server) buildInternalCluster(options *config.Options, name string, dst *url.URL, forceHTTP2 bool) (*envoy_config_cluster_v3.Cluster, error) {
+func (srv *Server) buildInternalCluster(options *config.Options, name string, dsts []*url.URL, forceHTTP2 bool) (*envoy_config_cluster_v3.Cluster, error) {
 	cluster := newDefaultEnvoyClusterConfig()
 	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
-	endpoints := []Endpoint{NewEndpoint(dst, srv.buildInternalTransportSocket(options, dst))}
+	var endpoints []Endpoint
+	for _, dst := range dsts {
+		endpoints = append(endpoints, NewEndpoint(dst, srv.buildInternalTransportSocket(options, dst)))
+	}
 	if err := buildCluster(cluster, name, endpoints, forceHTTP2); err != nil {
 		return nil, err
 	}

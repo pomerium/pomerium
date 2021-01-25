@@ -506,8 +506,8 @@ func TestOptions_DefaultURL(t *testing.T) {
 		{"default databroker url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
 		{"default forward auth url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
 		{"good authenticate url", opts.GetAuthenticateURL, "https://authenticate.example.com"},
-		{"good authorize url", opts.GetAuthorizeURL, "https://authorize.example.com"},
-		{"good databroker url", opts.GetDataBrokerURL, "https://databroker.example.com"},
+		{"good authorize url", func() *url.URL { return opts.GetAuthorizeURLs()[0] }, "https://authorize.example.com"},
+		{"good databroker url", func() *url.URL { return opts.GetDataBrokerURLs()[0] }, "https://databroker.example.com"},
 		{"good forward auth url", opts.GetForwardAuthURL, "https://forwardauth.example.com"},
 	}
 

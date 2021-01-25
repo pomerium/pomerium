@@ -145,8 +145,8 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 
 		if options.Addr == options.GRPCAddr {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && hostMatchesDomain(options.GetAuthorizeURL(), domain)) ||
-				(config.IsDataBroker(options.Services) && hostMatchesDomain(options.GetDataBrokerURL(), domain)) {
+			if (config.IsAuthorize(options.Services) && hostMatchesDomains(options.GetAuthorizeURLs(), domain)) ||
+				(config.IsDataBroker(options.Services) && hostMatchesDomains(options.GetDataBrokerURLs(), domain)) {
 				vh.Routes = append(vh.Routes, buildGRPCRoutes()...)
 			}
 		}
@@ -185,7 +185,7 @@ func buildMainHTTPConnectionManagerFilter(options *config.Options, domains []str
 				Timeout: grpcClientTimeout,
 				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
 					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-						ClusterName: options.GetAuthorizeURL().Host,
+						ClusterName: "pomerium-authorize",
 					},
 				},
 			},
@@ -429,13 +429,17 @@ func getAllRouteableDomains(options *config.Options, addr string) []string {
 		}
 	}
 	if config.IsAuthorize(options.Services) && addr == options.GRPCAddr {
-		for _, h := range urlutil.GetDomainsForURL(options.GetAuthorizeURL()) {
-			lookup[h] = struct{}{}
+		for _, u := range options.GetAuthorizeURLs() {
+			for _, h := range urlutil.GetDomainsForURL(u) {
+				lookup[h] = struct{}{}
+			}
 		}
 	}
 	if config.IsDataBroker(options.Services) && addr == options.GRPCAddr {
-		for _, h := range urlutil.GetDomainsForURL(options.GetDataBrokerURL()) {
-			lookup[h] = struct{}{}
+		for _, u := range options.GetDataBrokerURLs() {
+			for _, h := range urlutil.GetDomainsForURL(u) {
+				lookup[h] = struct{}{}
+			}
 		}
 	}
 	if config.IsProxy(options.Services) && addr == options.Addr {
@@ -477,6 +481,15 @@ func getAllTLSDomains(options *config.Options, addr string) []string {
 	sort.Strings(domains)
 
 	return domains
+}
+
+func hostMatchesDomains(urls []*url.URL, host string) bool {
+	for _, u := range urls {
+		if hostMatchesDomain(u, host) {
+			return true
+		}
+	}
+	return false
 }
 
 func hostMatchesDomain(u *url.URL, host string) bool {

@@ -59,7 +59,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz",
 						"grpcService": {
 							"envoyGrpc": {
-								"clusterName": "127.0.0.1:5443"
+								"clusterName": "pomerium-authorize"
 							},
 							"timeout": "10s"
 						},

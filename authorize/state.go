@@ -41,7 +41,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 
 	cc, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
-		Addr:                    cfg.Options.GetDataBrokerURL(),
+		Addrs:                   cfg.Options.GetDataBrokerURLs(),
 		OverrideCertificateName: cfg.Options.OverrideCertificateName,
 		CA:                      cfg.Options.CA,
 		CAFile:                  cfg.Options.CAFile,

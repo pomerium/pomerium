@@ -139,7 +139,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 	connectionOptions := &grpc.Options{
-		Addr:                    cfg.Options.GetDataBrokerURL(),
+		Addrs:                   cfg.Options.GetDataBrokerURLs(),
 		OverrideCertificateName: cfg.Options.OverrideCertificateName,
 		CA:                      cfg.Options.CA,
 		CAFile:                  cfg.Options.CAFile,
