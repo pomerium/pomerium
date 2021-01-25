@@ -47,8 +47,8 @@ policy:
 ```
 ### Passive Health Checks
 
-Passive health check tries to deduce upstream server health based on recent observed responses. The configuration comes with sane defaults, 
-see [Outlier Detection](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier) if you need to fine-tune the parameters.
+Passive health check tries to deduce upstream server health based on recent observed responses. 
+See [Outlier Detection](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier) for comprehensive overview.
 
 ```yaml
 policy:
