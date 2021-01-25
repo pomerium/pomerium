@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/mitchellh/mapstructure"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -117,14 +117,13 @@ func DecodeOptionsHookFunc() mapstructure.DecodeHookFunc {
 			if !ok {
 				continue
 			}
-			raw, ok := pm[healthCheckKey]
-			if ok {
-				hc := new(envoy_config_core_v3.HealthCheck)
-				if err := parseJSONPB(raw, hc); err != nil {
-					return nil, fmt.Errorf("%s: %w", healthCheckKey, err)
-				}
-				pm[healthCheckKey] = hc
+
+			envoyOpts, err := parseEnvoyClusterOpts(pm)
+			if err != nil {
+				return nil, err
 			}
+			pm[envoyOptsKey] = envoyOpts
+
 			rawTo, ok := pm[toKey]
 			if !ok {
 				continue
@@ -145,9 +144,20 @@ func DecodeOptionsHookFunc() mapstructure.DecodeHookFunc {
 	}
 }
 
+// parseEnvoyClusterOpts parses src as envoy cluster spec https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto
+// on top of some pre-filled default values
+func parseEnvoyClusterOpts(src interface{}) (*envoy_config_cluster_v3.Cluster, error) {
+	c := new(envoy_config_cluster_v3.Cluster)
+	if err := parseJSONPB(src, c, protoPartial); err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
 // parseJSONPB takes an intermediate representation and parses it using protobuf parser
 // that correctly handles oneof and other data types
-func parseJSONPB(raw interface{}, dst proto.Message) error {
+func parseJSONPB(raw interface{}, dst proto.Message, opts protojson.UnmarshalOptions) error {
 	ms, err := serializable(raw)
 	if err != nil {
 		return err
@@ -158,7 +168,7 @@ func parseJSONPB(raw interface{}, dst proto.Message) error {
 		return err
 	}
 
-	return protojson.Unmarshal(data, dst)
+	return opts.Unmarshal(data, dst)
 }
 
 // serializable converts mapstructure nested map into map[string]interface{} that is serializable to JSON

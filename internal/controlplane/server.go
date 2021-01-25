@@ -88,7 +88,12 @@ func NewServer(name string) (*Server, error) {
 	srv.HTTPRouter = mux.NewRouter()
 	srv.addHTTPMiddleware()
 
-	srv.xdsmgr = xdsmgr.NewManager(srv.buildDiscoveryResources())
+	res, err := srv.buildDiscoveryResources()
+	if err != nil {
+		return nil, err
+	}
+
+	srv.xdsmgr = xdsmgr.NewManager(res)
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv.GRPCServer, srv.xdsmgr)
 
 	srv.filemgr = filemgr.NewManager()
@@ -158,11 +163,16 @@ func (srv *Server) Run(ctx context.Context) error {
 }
 
 // OnConfigChange updates the pomerium config options.
-func (srv *Server) OnConfigChange(cfg *config.Config) {
+func (srv *Server) OnConfigChange(cfg *config.Config) error {
 	prev := srv.currentConfig.Load()
 	srv.currentConfig.Store(versionedConfig{
 		Config:  cfg,
 		version: prev.version + 1,
 	})
-	srv.xdsmgr.Update(srv.buildDiscoveryResources())
+	res, err := srv.buildDiscoveryResources()
+	if err != nil {
+		return err
+	}
+	srv.xdsmgr.Update(res)
+	return nil
 }

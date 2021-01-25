@@ -13,7 +13,6 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/golang/protobuf/ptypes"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -139,13 +138,9 @@ type Policy struct {
 	// to upstream requests.
 	EnableGoogleCloudServerlessAuthentication bool `mapstructure:"enable_google_cloud_serverless_authentication" yaml:"enable_google_cloud_serverless_authentication,omitempty"` //nolint
 
-	// OutlierDetection configures outlier detection for the upstream cluster.
-	OutlierDetection *PolicyOutlierDetection `mapstructure:"outlier_detection" yaml:"outlier_detection,omitempty" json:"outlier_detection,omitempty"`
-
-	// HealthCheck defines active health checks. See https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto
-	HealthCheck *envoy_config_core_v3.HealthCheck `mapstructure:"health_check" yaml:"health_check,omitempty" json:"health_check,omitempty"`
-
 	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
+
+	EnvoyOpts *envoy_config_cluster_v3.Cluster `mapstructure:"_envoy_opts" yaml:"-" json:"-"`
 }
 
 // A SubPolicy is a protobuf Policy within a protobuf Route.
@@ -221,30 +216,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			StripQuery:     pb.Redirect.StripQuery,
 		}
 	}
-	if pb.OutlierDetection != nil {
-		p.OutlierDetection = &PolicyOutlierDetection{
-			Consecutive_5Xx:                        pb.OutlierDetection.Consecutive_5Xx,
-			Interval:                               pb.OutlierDetection.Interval,
-			BaseEjectionTime:                       pb.OutlierDetection.BaseEjectionTime,
-			MaxEjectionPercent:                     pb.OutlierDetection.MaxEjectionPercent,
-			EnforcingConsecutive_5Xx:               pb.OutlierDetection.EnforcingConsecutive_5Xx,
-			EnforcingSuccessRate:                   pb.OutlierDetection.EnforcingSuccessRate,
-			SuccessRateMinimumHosts:                pb.OutlierDetection.SuccessRateMinimumHosts,
-			SuccessRateRequestVolume:               pb.OutlierDetection.SuccessRateRequestVolume,
-			SuccessRateStdevFactor:                 pb.OutlierDetection.SuccessRateStdevFactor,
-			ConsecutiveGatewayFailure:              pb.OutlierDetection.ConsecutiveGatewayFailure,
-			EnforcingConsecutiveGatewayFailure:     pb.OutlierDetection.EnforcingConsecutiveGatewayFailure,
-			SplitExternalLocalOriginErrors:         pb.OutlierDetection.SplitExternalLocalOriginErrors,
-			ConsecutiveLocalOriginFailure:          pb.OutlierDetection.ConsecutiveLocalOriginFailure,
-			EnforcingConsecutiveLocalOriginFailure: pb.OutlierDetection.EnforcingConsecutiveLocalOriginFailure,
-			EnforcingLocalOriginSuccessRate:        pb.OutlierDetection.EnforcingLocalOriginSuccessRate,
-			FailurePercentageThreshold:             pb.OutlierDetection.FailurePercentageThreshold,
-			EnforcingFailurePercentage:             pb.OutlierDetection.EnforcingFailurePercentage,
-			EnforcingFailurePercentageLocalOrigin:  pb.OutlierDetection.EnforcingFailurePercentageLocalOrigin,
-			FailurePercentageMinimumHosts:          pb.OutlierDetection.FailurePercentageMinimumHosts,
-			FailurePercentageRequestVolume:         pb.OutlierDetection.FailurePercentageRequestVolume,
-		}
-	}
+
 	for _, sp := range pb.GetPolicies() {
 		p.SubPolicies = append(p.SubPolicies, SubPolicy{
 			ID:               sp.GetId(),
@@ -320,30 +292,7 @@ func (p *Policy) ToProto() *configpb.Route {
 			StripQuery:     p.Redirect.StripQuery,
 		}
 	}
-	if p.OutlierDetection != nil {
-		pb.OutlierDetection = &configpb.OutlierDetection{
-			Consecutive_5Xx:                        p.OutlierDetection.Consecutive_5Xx,
-			Interval:                               p.OutlierDetection.Interval,
-			BaseEjectionTime:                       p.OutlierDetection.BaseEjectionTime,
-			MaxEjectionPercent:                     p.OutlierDetection.MaxEjectionPercent,
-			EnforcingConsecutive_5Xx:               p.OutlierDetection.EnforcingConsecutive_5Xx,
-			EnforcingSuccessRate:                   p.OutlierDetection.EnforcingSuccessRate,
-			SuccessRateMinimumHosts:                p.OutlierDetection.SuccessRateMinimumHosts,
-			SuccessRateRequestVolume:               p.OutlierDetection.SuccessRateRequestVolume,
-			SuccessRateStdevFactor:                 p.OutlierDetection.SuccessRateStdevFactor,
-			ConsecutiveGatewayFailure:              p.OutlierDetection.ConsecutiveGatewayFailure,
-			EnforcingConsecutiveGatewayFailure:     p.OutlierDetection.EnforcingConsecutiveGatewayFailure,
-			SplitExternalLocalOriginErrors:         p.OutlierDetection.SplitExternalLocalOriginErrors,
-			ConsecutiveLocalOriginFailure:          p.OutlierDetection.ConsecutiveLocalOriginFailure,
-			EnforcingConsecutiveLocalOriginFailure: p.OutlierDetection.EnforcingConsecutiveLocalOriginFailure,
-			EnforcingLocalOriginSuccessRate:        p.OutlierDetection.EnforcingLocalOriginSuccessRate,
-			FailurePercentageThreshold:             p.OutlierDetection.FailurePercentageThreshold,
-			EnforcingFailurePercentage:             p.OutlierDetection.EnforcingFailurePercentage,
-			EnforcingFailurePercentageLocalOrigin:  p.OutlierDetection.EnforcingFailurePercentageLocalOrigin,
-			FailurePercentageMinimumHosts:          p.OutlierDetection.FailurePercentageMinimumHosts,
-			FailurePercentageRequestVolume:         p.OutlierDetection.FailurePercentageRequestVolume,
-		}
-	}
+
 	return pb
 }
 
@@ -431,12 +380,6 @@ func (p *Policy) Validate() error {
 
 	if p.PrefixRewrite != "" && p.RegexRewritePattern != "" {
 		return fmt.Errorf("config: only prefix_rewrite or regex_rewrite_pattern can be specified, but not both")
-	}
-
-	if p.HealthCheck != nil {
-		if err := p.HealthCheck.Validate(); err != nil {
-			return err
-		}
 	}
 
 	return nil

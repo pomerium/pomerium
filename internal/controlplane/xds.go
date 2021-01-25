@@ -31,10 +31,15 @@ const (
 	listenerTypeURL = "type.googleapis.com/envoy.config.listener.v3.Listener"
 )
 
-func (srv *Server) buildDiscoveryResources() map[string][]*envoy_service_discovery_v3.Resource {
+func (srv *Server) buildDiscoveryResources() (map[string][]*envoy_service_discovery_v3.Resource, error) {
 	resources := map[string][]*envoy_service_discovery_v3.Resource{}
 	cfg := srv.currentConfig.Load()
-	for _, cluster := range srv.buildClusters(cfg.Options) {
+
+	clusters, err := srv.buildClusters(cfg.Options)
+	if err != nil {
+		return nil, err
+	}
+	for _, cluster := range clusters {
 		any, _ := anypb.New(cluster)
 		resources[clusterTypeURL] = append(resources[clusterTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     cluster.Name,
@@ -50,7 +55,7 @@ func (srv *Server) buildDiscoveryResources() map[string][]*envoy_service_discove
 			Resource: any,
 		})
 	}
-	return resources
+	return resources, nil
 }
 
 func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.AccessLog {
