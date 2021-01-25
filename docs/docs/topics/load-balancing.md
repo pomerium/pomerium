@@ -22,7 +22,7 @@ policy:
 
 ::: tip
 
-In presence of multiple upstreams, make sure to specify either an active or passive health check, or both, to avoid requests served to unhealthy backend.
+In the presence of multiple upstreams, make sure to specify either an active or passive health check, or both, to avoid requests being served to an unhealthy backend.
 
 :::
 
