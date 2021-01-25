@@ -1,4 +1,5 @@
 ## Summary
+
 <!--  For example...
 The existing implementation has poor numerical properties for
 large arguments, so use the McGillicutty algorithm to improve
@@ -8,14 +9,17 @@ The algorithm is described at https://wikipedia.org/wiki/McGillicutty_Algorithm
 -->
 
 ## Related issues
+
 <!-- For example...
-Fixes #159 
+Fixes #159
 -->
 
 
-**Checklist**:
-- [ ] add related issues
+## Checklist
+
+- [ ] reference any related issues
 - [ ] updated docs
 - [ ] updated unit tests
 - [ ] updated UPGRADING.md
+- [ ] add appropriate tag (`improvement` / `bug` / etc)
 - [ ] ready for review
