@@ -35,7 +35,7 @@ require (
 	github.com/lithammer/shortuuid/v3 v3.0.5
 	github.com/martinlindhe/base36 v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.1
-	github.com/mitchellh/mapstructure v1.1.2
+	github.com/mitchellh/mapstructure v1.4.1
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
 	github.com/nsf/jsondiff v0.0.0-20200515183724-f29ed568f4ce
 	github.com/onsi/gocleanup v0.0.0-20140331211545-c1a5478700b5
