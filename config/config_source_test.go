@@ -24,11 +24,13 @@ func TestFileWatcherSource(t *testing.T) {
 		return
 	}
 
-	src := NewFileWatcherSource(NewStaticSource(&Config{
+	ssrc := NewStaticSource(&Config{
 		Options: &Options{
 			CAFile: filepath.Join(tmpdir, "example.txt"),
 		},
-	}))
+	})
+
+	src := NewFileWatcherSource(ssrc)
 	var closeOnce sync.Once
 	ch := make(chan struct{})
 	src.OnConfigChange(func(cfg *Config) {
@@ -46,5 +48,17 @@ func TestFileWatcherSource(t *testing.T) {
 	case <-ch:
 	case <-time.After(time.Second):
 		t.Error("expected OnConfigChange to be fired after modifying a file")
+	}
+
+	ssrc.SetConfig(&Config{
+		Options: &Options{
+			CAFile: filepath.Join(tmpdir, "example.txt"),
+		},
+	})
+
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Error("expected OnConfigChange to be fired after triggering a change to the underlying source")
 	}
 }

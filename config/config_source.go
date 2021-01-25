@@ -2,7 +2,6 @@ package config
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
 	"io/ioutil"
 	"sync"
 
@@ -124,7 +123,6 @@ type FileWatcherSource struct {
 
 	mu             sync.RWMutex
 	computedConfig *Config
-	version        string
 
 	ChangeDispatcher
 }
@@ -183,16 +181,11 @@ func (src *FileWatcherSource) check(cfg *Config) {
 		}
 	}
 
-	version := hex.EncodeToString(h.Sum(nil))
-	if src.version != version {
-		src.version = version
+	// update the computed config
+	src.computedConfig = cfg.Clone()
+	src.computedConfig.Options.Certificates = nil
+	_ = src.computedConfig.Options.Validate()
 
-		// update the computed config
-		src.computedConfig = cfg.Clone()
-		src.computedConfig.Options.Certificates = nil
-		_ = src.computedConfig.Options.Validate()
-
-		// trigger a change
-		src.Trigger(src.computedConfig)
-	}
+	// trigger a change
+	src.Trigger(src.computedConfig)
 }
