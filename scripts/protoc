@@ -34,7 +34,7 @@ download $_protoc_3pp_path googleapis https://github.com/googleapis/googleapis/t
 
 mkdir -p "$_protoc_path" "$_protoc_3pp_path"
 if [ ! -f "$_protoc_path/bin/protoc" ]; then
-  echo "downloading protoc"  
+  echo "downloading protoc"
   curl -L \
     -o protoc.zip \
     "https://github.com/protocolbuffers/protobuf/releases/download/v$_protoc_version/protoc-$_protoc_version_filename-$_os-x86_64.zip"
