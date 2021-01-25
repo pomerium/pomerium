@@ -71,7 +71,7 @@ func New(cfg *config.Config) (*Proxy, error) {
 	p.currentRouter.Store(httputil.NewRouter())
 
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
-		return int64(len(p.currentOptions.Load().Policies))
+		return int64(len(p.currentOptions.Load().GetAllPolicies()))
 	})
 
 	return p, nil
@@ -94,7 +94,7 @@ func (p *Proxy) OnConfigChange(cfg *config.Config) {
 }
 
 func (p *Proxy) setHandlers(opts *config.Options) {
-	if len(opts.Policies) == 0 {
+	if len(opts.GetAllPolicies()) == 0 {
 		log.Warn().Msg("proxy: configuration has no policies")
 	}
 	r := httputil.NewRouter()

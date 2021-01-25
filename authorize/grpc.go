@@ -245,7 +245,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v
 func (a *Authorize) getMatchingPolicy(requestURL *url.URL) *config.Policy {
 	options := a.currentOptions.Load()
 
-	for _, p := range options.Policies {
+	for _, p := range options.GetAllPolicies() {
 		if p.Matches(requestURL) {
 			return &p
 		}

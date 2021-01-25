@@ -181,8 +181,8 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 	var routes []*envoy_config_route_v3.Route
 	responseHeadersToAdd := toEnvoyHeaders(options.Headers)
 
-	for i := range options.Policies {
-		policy := options.Policies[i]
+	for i, p := range options.GetAllPolicies() {
+		policy := p
 		if !hostMatchesDomain(policy.Source.URL, domain) {
 			continue
 		}
@@ -445,7 +445,7 @@ func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.
 }
 
 func hasPublicPolicyMatchingURL(options *config.Options, requestURL *url.URL) bool {
-	for _, policy := range options.Policies {
+	for _, policy := range options.GetAllPolicies() {
 		if policy.AllowPublicUnauthenticatedAccess && policy.Matches(requestURL) {
 			return true
 		}

@@ -75,8 +75,8 @@ func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_clust
 	}
 
 	if config.IsProxy(options.Services) {
-		for i := range options.Policies {
-			policy := options.Policies[i]
+		for i, p := range options.GetAllPolicies() {
+			policy := p
 			if policy.EnvoyOpts == nil {
 				policy.EnvoyOpts = newDefaultEnvoyClusterConfig()
 			}

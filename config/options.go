@@ -112,6 +112,9 @@ type Options struct {
 	PolicyEnv  string   `yaml:",omitempty"`
 	PolicyFile string   `mapstructure:"policy_file" yaml:"policy_file,omitempty"`
 
+	// AdditionalPolicies are any additional policies added to the options.
+	AdditionalPolicies []Policy `yaml:"-"`
+
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
 	AuthenticateURLString string   `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
@@ -336,7 +339,7 @@ func newOptionsFromConfig(configFile string) (*Options, error) {
 	}
 	serviceName := telemetry.ServiceName(o.Services)
 	metrics.AddPolicyCountCallback(serviceName, func() int64 {
-		return int64(len(o.Policies))
+		return int64(len(o.GetAllPolicies()))
 	})
 
 	metrics.SetConfigChecksum(serviceName, o.Checksum())
@@ -400,6 +403,12 @@ func (o *Options) parsePolicy() error {
 	// Finish initializing policies
 	for i := range o.Policies {
 		p := &o.Policies[i]
+		if err := p.Validate(); err != nil {
+			return err
+		}
+	}
+	for i := range o.AdditionalPolicies {
+		p := &o.AdditionalPolicies[i]
 		if err := p.Validate(); err != nil {
 			return err
 		}
@@ -654,7 +663,7 @@ func (o *Options) Validate() error {
 	// assert group membership (except for azure which can be derived from the client
 	// id, secret and provider url)
 	if o.ServiceAccount == "" && o.Provider != "azure" {
-		for _, p := range o.Policies {
+		for _, p := range o.GetAllPolicies() {
 			if len(p.AllowedGroups) != 0 {
 				return fmt.Errorf("config: `allowed_groups` requires `idp_service_account`")
 			}
@@ -749,6 +758,17 @@ func (o *Options) GetOauthOptions() oauth.Options {
 		Scopes:         o.Scopes,
 		ServiceAccount: o.ServiceAccount,
 	}
+}
+
+// GetAllPolicies gets all the policies in the options.
+func (o *Options) GetAllPolicies() []Policy {
+	if o == nil {
+		return nil
+	}
+	policies := make([]Policy, 0, len(o.Policies)+len(o.AdditionalPolicies))
+	policies = append(policies, o.Policies...)
+	policies = append(policies, o.AdditionalPolicies...)
+	return policies
 }
 
 // Checksum returns the checksum of the current options struct

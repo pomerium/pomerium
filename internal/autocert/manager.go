@@ -283,12 +283,14 @@ func (mgr *Manager) GetConfig() *config.Config {
 }
 
 func sourceHostnames(cfg *config.Config) []string {
-	if len(cfg.Options.Policies) == 0 {
+	policies := cfg.Options.GetAllPolicies()
+
+	if len(policies) == 0 {
 		return nil
 	}
 
 	dedupe := map[string]struct{}{}
-	for _, p := range cfg.Options.Policies {
+	for _, p := range policies {
 		dedupe[p.Source.Hostname()] = struct{}{}
 	}
 	if cfg.Options.AuthenticateURL != nil {

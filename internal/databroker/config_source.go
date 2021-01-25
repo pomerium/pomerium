@@ -82,7 +82,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 	src.runUpdater(cfg)
 
 	seen := map[uint64]struct{}{}
-	for _, policy := range cfg.Options.Policies {
+	for _, policy := range cfg.Options.GetAllPolicies() {
 		seen[policy.RouteID()] = struct{}{}
 	}
 
@@ -128,7 +128,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 	}
 
 	// add the additional policies here since calling `Validate` will reset them.
-	cfg.Options.Policies = append(cfg.Options.Policies, additionalPolicies...)
+	cfg.Options.AdditionalPolicies = append(cfg.Options.AdditionalPolicies, additionalPolicies...)
 
 	src.computedConfig = cfg
 	if !firstTime {

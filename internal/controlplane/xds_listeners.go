@@ -439,7 +439,7 @@ func getAllRouteableDomains(options *config.Options, addr string) []string {
 		}
 	}
 	if config.IsProxy(options.Services) && addr == options.Addr {
-		for _, policy := range options.Policies {
+		for _, policy := range options.GetAllPolicies() {
 			for _, h := range urlutil.GetDomainsForURL(policy.Source.URL) {
 				lookup[h] = struct{}{}
 			}
