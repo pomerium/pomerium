@@ -215,11 +215,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		}
 	}
 
-	if p.EnvoyOpts == nil {
-		p.EnvoyOpts = new(envoy_config_cluster_v3.Cluster)
-	}
-
-	p.EnvoyOpts.OutlierDetection = pb.OutlierDetection
+	p.EnvoyOpts = pb.EnvoyOpts
 
 	for _, sp := range pb.GetPolicies() {
 		p.SubPolicies = append(p.SubPolicies, SubPolicy{

@@ -87,3 +87,5 @@ docs/.vuepress/dist/
 !.pre-commit-config.yaml
 
 .service-accounts
+
+/bazel-*
