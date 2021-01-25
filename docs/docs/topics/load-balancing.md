@@ -21,7 +21,9 @@ policy:
 ```
 
 ::: tip
-    In presence of multiple upstreams, make sure to specify either an active or passive health check, or both, to avoid requests served to unhealthy backend.
+
+In presence of multiple upstreams, make sure to specify either an active or passive health check, or both, to avoid requests served to unhealthy backend.
+
 :::
 
 ### Active Health Checks
@@ -45,12 +47,21 @@ policy:
 ```
 ### Passive Health Checks
 
-Passive health check tries to deduce upstream server health based on recent observed responses.
-See [Outlier Detection](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier) for a comprehensive overview.
+Passive health check tries to deduce upstream server health based on recent observed responses. The configuration comes with sane defaults, 
+see [Outlier Detection](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier) if you need to fine-tune the parameters.
+
+```yaml
+policy:
+  - from: https://myapp.localhost.pomerium.io
+    to:
+      - http://myapp-srv-1:8080
+      - http://myapp-srv-2:8080
+    outlier_detection: {}
+```
 
 ## Load Balancing Method
 
-`lb_policy` should be set to one of the values:
+`lb_policy` should be set to [one of the values](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers):
 
 - [`ROUND_ROBIN`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#weighted-round-robin) (default)
 - [`LEAST_REQUEST`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#weighted-least-request) and may be further configured using [``](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-leastrequestlbconfig)
@@ -58,3 +69,6 @@ See [Outlier Detection](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_o
 - [`RANDOM`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#random)
 - [`MAGLEV`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#maglev) and may be further configured using [`maglev_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-maglevlbconfig) option
 
+## Further reading
+
+- [Introduction to modern network load balancing and proxying](https://blog.envoyproxy.io/introduction-to-modern-network-load-balancing-and-proxying-a57f6ff80236)

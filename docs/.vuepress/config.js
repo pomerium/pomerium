@@ -125,6 +125,7 @@ module.exports = {
             "topics/programmatic-access",
             "topics/tcp-support",
             "topics/single-sign-out",
+            "topics/load-balancing",
           ],
         },
         {
