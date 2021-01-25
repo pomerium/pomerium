@@ -84,8 +84,8 @@ jobs:
       - name: Publish latest tag
         if: "steps.latestTag.outputs.tag == steps.tagName.outputs.tag"
         run: |
-          docker manifest create -a pomerium/pomerium:latest pomerium/pomerium:amd64-${{ env.LATEST_TAG }} pomerium/pomerium:arm64v8-${{ env.LATEST_TAG }}
+          docker manifest create -a pomerium/pomerium:latest pomerium/pomerium:amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:arm64v8-${{ steps.tagName.outputs.tag }}
           docker manifest push pomerium/pomerium:latest
 
-          docker tag gcr.io/pomerium-io/pomerium:${{ env.LATEST_TAG }}-cloudrun gcr.io/pomerium-io/pomerium:latest-cloudrun
+          docker tag gcr.io/pomerium-io/pomerium:${{ steps.tagName.outputs.tag }}-cloudrun gcr.io/pomerium-io/pomerium:latest-cloudrun
           docker push gcr.io/pomerium-io/pomerium:latest-cloudrun
