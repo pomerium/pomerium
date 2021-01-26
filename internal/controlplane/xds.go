@@ -47,7 +47,12 @@ func (srv *Server) buildDiscoveryResources() (map[string][]*envoy_service_discov
 			Resource: any,
 		})
 	}
-	for _, listener := range srv.buildListeners(cfg.Config) {
+
+	listeners, err := srv.buildListeners(cfg.Config)
+	if err != nil {
+		return nil, err
+	}
+	for _, listener := range listeners {
 		any, _ := anypb.New(listener)
 		resources[listenerTypeURL] = append(resources[listenerTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     listener.Name,

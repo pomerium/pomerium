@@ -8,6 +8,7 @@ import (
 
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/controlplane/filemgr"
@@ -21,9 +22,12 @@ const (
 )
 
 func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
+	srv, _ := NewServer("TEST")
+
 	options := config.NewDefaultOptions()
 	options.SkipXffAppend = true
-	filter := buildMainHTTPConnectionManagerFilter(options, []string{"example.com"}, "*")
+	filter, err := srv.buildMainHTTPConnectionManagerFilter(options, []string{"example.com"}, "*")
+	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `{
 		"name": "envoy.filters.network.http_connection_manager",
 		"typedConfig": {
@@ -497,8 +501,10 @@ func Test_hostMatchesDomain(t *testing.T) {
 }
 
 func Test_buildRouteConfiguration(t *testing.T) {
+	srv := &Server{filemgr: filemgr.NewManager()}
 	virtualHosts := make([]*envoy_config_route_v3.VirtualHost, 10)
-	routeConfig := buildRouteConfiguration("test-route-configuration", virtualHosts)
+	routeConfig, err := srv.buildRouteConfiguration("test-route-configuration", virtualHosts)
+	require.NoError(t, err)
 	assert.Equal(t, "test-route-configuration", routeConfig.GetName())
 	assert.Equal(t, virtualHosts, routeConfig.GetVirtualHosts())
 	assert.False(t, routeConfig.GetValidateClusters().GetValue())
@@ -509,10 +515,11 @@ func Test_requireProxyProtocol(t *testing.T) {
 		filemgr: filemgr.NewManager(),
 	}
 	t.Run("required", func(t *testing.T) {
-		li := srv.buildMainListener(&config.Config{Options: &config.Options{
+		li, err := srv.buildMainListener(&config.Config{Options: &config.Options{
 			UseProxyProtocol: true,
 			InsecureServer:   true,
 		}})
+		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `[
 			{
 				"name": "envoy.filters.listener.proxy_protocol",
@@ -523,10 +530,11 @@ func Test_requireProxyProtocol(t *testing.T) {
 		]`, li.GetListenerFilters())
 	})
 	t.Run("not required", func(t *testing.T) {
-		li := srv.buildMainListener(&config.Config{Options: &config.Options{
+		li, err := srv.buildMainListener(&config.Config{Options: &config.Options{
 			UseProxyProtocol: false,
 			InsecureServer:   true,
 		}})
+		require.NoError(t, err)
 		assert.Len(t, li.GetListenerFilters(), 0)
 	})
 }

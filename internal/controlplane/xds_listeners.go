@@ -39,21 +39,29 @@ func init() {
 	})
 }
 
-func (srv *Server) buildListeners(cfg *config.Config) []*envoy_config_listener_v3.Listener {
+func (srv *Server) buildListeners(cfg *config.Config) ([]*envoy_config_listener_v3.Listener, error) {
 	var listeners []*envoy_config_listener_v3.Listener
 
 	if config.IsAuthenticate(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
-		listeners = append(listeners, srv.buildMainListener(cfg))
+		if li, err := srv.buildMainListener(cfg); err != nil {
+			return nil, err
+		} else {
+			listeners = append(listeners, li)
+		}
 	}
 
 	if config.IsAuthorize(cfg.Options.Services) || config.IsDataBroker(cfg.Options.Services) {
-		listeners = append(listeners, srv.buildGRPCListener(cfg))
+		if li, err := srv.buildGRPCListener(cfg); err != nil {
+			return nil, err
+		} else {
+			listeners = append(listeners, li)
+		}
 	}
 
-	return listeners
+	return listeners, nil
 }
 
-func (srv *Server) buildMainListener(cfg *config.Config) *envoy_config_listener_v3.Listener {
+func (srv *Server) buildMainListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	listenerFilters := []*envoy_config_listener_v3.ListenerFilter{}
 	if cfg.Options.UseProxyProtocol {
 		proxyCfg := marshalAny(&envoy_extensions_filters_listener_proxy_protocol_v3.ProxyProtocol{})
@@ -66,8 +74,11 @@ func (srv *Server) buildMainListener(cfg *config.Config) *envoy_config_listener_
 	}
 
 	if cfg.Options.InsecureServer {
-		filter := buildMainHTTPConnectionManagerFilter(cfg.Options,
+		filter, err := srv.buildMainHTTPConnectionManagerFilter(cfg.Options,
 			getAllRouteableDomains(cfg.Options, cfg.Options.Addr), "")
+		if err != nil {
+			return nil, err
+		}
 
 		return &envoy_config_listener_v3.Listener{
 			Name:            "http-ingress",
@@ -78,7 +89,7 @@ func (srv *Server) buildMainListener(cfg *config.Config) *envoy_config_listener_
 					filter,
 				},
 			}},
-		}
+		}, nil
 	}
 
 	tlsInspectorCfg := marshalAny(new(emptypb.Empty))
@@ -89,58 +100,75 @@ func (srv *Server) buildMainListener(cfg *config.Config) *envoy_config_listener_
 		},
 	})
 
+	chains, err := srv.buildFilterChains(cfg.Options, cfg.Options.Addr,
+		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
+			filter, err := srv.buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains, tlsDomain)
+			if err != nil {
+				return nil, err
+			}
+			filterChain := &envoy_config_listener_v3.FilterChain{
+				Filters: []*envoy_config_listener_v3.Filter{filter},
+			}
+			if tlsDomain != "*" {
+				filterChain.FilterChainMatch = &envoy_config_listener_v3.FilterChainMatch{
+					ServerNames: []string{tlsDomain},
+				}
+			}
+			tlsContext := srv.buildDownstreamTLSContext(cfg, tlsDomain)
+			if tlsContext != nil {
+				tlsConfig := marshalAny(tlsContext)
+				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
+					Name: "tls",
+					ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+						TypedConfig: tlsConfig,
+					},
+				}
+			}
+			return filterChain, nil
+		})
+	if err != nil {
+		return nil, err
+	}
+
 	li := &envoy_config_listener_v3.Listener{
 		Name:            "https-ingress",
 		Address:         buildAddress(cfg.Options.Addr, 443),
 		ListenerFilters: listenerFilters,
-		FilterChains: buildFilterChains(cfg.Options, cfg.Options.Addr,
-			func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain {
-				filter := buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains, tlsDomain)
-				filterChain := &envoy_config_listener_v3.FilterChain{
-					Filters: []*envoy_config_listener_v3.Filter{filter},
-				}
-				if tlsDomain != "*" {
-					filterChain.FilterChainMatch = &envoy_config_listener_v3.FilterChainMatch{
-						ServerNames: []string{tlsDomain},
-					}
-				}
-				tlsContext := srv.buildDownstreamTLSContext(cfg, tlsDomain)
-				if tlsContext != nil {
-					tlsConfig := marshalAny(tlsContext)
-					filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
-						Name: "tls",
-						ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-							TypedConfig: tlsConfig,
-						},
-					}
-				}
-				return filterChain
-			}),
+		FilterChains:    chains,
 	}
-	return li
+	return li, nil
 }
 
-func buildFilterChains(
+func (srv *Server) buildFilterChains(
 	options *config.Options, addr string,
-	callback func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain,
-) []*envoy_config_listener_v3.FilterChain {
+	callback func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error),
+) ([]*envoy_config_listener_v3.FilterChain, error) {
 	allDomains := getAllRouteableDomains(options, addr)
 	tlsDomains := getAllTLSDomains(options, addr)
 	var chains []*envoy_config_listener_v3.FilterChain
 	for _, domain := range tlsDomains {
 		// first we match on SNI
-		chains = append(chains, callback(domain, getRouteableDomainsForTLSDomain(options, addr, domain)))
+		if chain, err := callback(domain, getRouteableDomainsForTLSDomain(options, addr, domain)); err != nil {
+			return nil, err
+		} else {
+			chains = append(chains, chain)
+		}
 	}
+
 	// if there are no SNI matches we match on HTTP host
-	chains = append(chains, callback("*", allDomains))
-	return chains
+	if chain, err := callback("*", allDomains); err != nil {
+		return nil, err
+	} else {
+		chains = append(chains, chain)
+	}
+	return chains, nil
 }
 
-func buildMainHTTPConnectionManagerFilter(
+func (srv *Server) buildMainHTTPConnectionManagerFilter(
 	options *config.Options,
 	domains []string,
 	tlsDomain string,
-) *envoy_config_listener_v3.Filter {
+) (*envoy_config_listener_v3.Filter, error) {
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, domain := range domains {
 		vh := &envoy_config_route_v3.VirtualHost{
@@ -152,27 +180,44 @@ func buildMainHTTPConnectionManagerFilter(
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
 			if (config.IsAuthorize(options.Services) && hostMatchesDomain(options.GetAuthorizeURL(), domain)) ||
 				(config.IsDataBroker(options.Services) && hostMatchesDomain(options.GetDataBrokerURL(), domain)) {
-				vh.Routes = append(vh.Routes, buildGRPCRoutes()...)
+				if rs, err := srv.buildGRPCRoutes(); err != nil {
+					return nil, err
+				} else {
+					vh.Routes = append(vh.Routes, rs...)
+				}
 			}
 		}
 
 		// these routes match /.pomerium/... and similar paths
-		vh.Routes = append(vh.Routes, buildPomeriumHTTPRoutes(options, domain)...)
+		if rs, err := srv.buildPomeriumHTTPRoutes(options, domain); err != nil {
+			return nil, err
+		} else {
+			vh.Routes = append(vh.Routes, rs...)
+		}
 
 		// if we're the proxy, add all the policy routes
 		if config.IsProxy(options.Services) {
-			vh.Routes = append(vh.Routes, buildPolicyRoutes(options, domain)...)
+			if rs, err := srv.buildPolicyRoutes(options, domain); err != nil {
+				return nil, err
+			} else {
+				vh.Routes = append(vh.Routes, rs...)
+			}
 		}
 
 		if len(vh.Routes) > 0 {
 			virtualHosts = append(virtualHosts, vh)
 		}
 	}
-	virtualHosts = append(virtualHosts, &envoy_config_route_v3.VirtualHost{
-		Name:    "catch-all",
-		Domains: []string{"*"},
-		Routes:  buildPomeriumHTTPRoutes(options, "*"),
-	})
+
+	if rs, err := srv.buildPomeriumHTTPRoutes(options, "*"); err != nil {
+		return nil, err
+	} else {
+		virtualHosts = append(virtualHosts, &envoy_config_route_v3.VirtualHost{
+			Name:    "catch-all",
+			Domains: []string{"*"},
+			Routes:  rs,
+		})
+	}
 
 	var grpcClientTimeout *durationpb.Duration
 	if options.GRPCClientTimeout != 0 {
@@ -254,11 +299,15 @@ func buildMainHTTPConnectionManagerFilter(
 		maxStreamDuration = ptypes.DurationProto(options.WriteTimeout)
 	}
 
+	rc, err := srv.buildRouteConfiguration("main", virtualHosts)
+	if err != nil {
+		return nil, err
+	}
 	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "ingress",
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
-			RouteConfig: buildRouteConfiguration("main", virtualHosts),
+			RouteConfig: rc,
 		},
 		HttpFilters: filters,
 		AccessLog:   buildAccessLogs(options),
@@ -280,11 +329,14 @@ func buildMainHTTPConnectionManagerFilter(
 		ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
 			TypedConfig: tc,
 		},
-	}
+	}, nil
 }
 
-func (srv *Server) buildGRPCListener(cfg *config.Config) *envoy_config_listener_v3.Listener {
-	filter := buildGRPCHTTPConnectionManagerFilter()
+func (srv *Server) buildGRPCListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+	filter, err := srv.buildGRPCHTTPConnectionManagerFilter()
+	if err != nil {
+		return nil, err
+	}
 
 	if cfg.Options.GRPCInsecure {
 		return &envoy_config_listener_v3.Listener{
@@ -295,7 +347,33 @@ func (srv *Server) buildGRPCListener(cfg *config.Config) *envoy_config_listener_
 					filter,
 				},
 			}},
-		}
+		}, nil
+	}
+
+	chains, err := srv.buildFilterChains(cfg.Options, cfg.Options.Addr,
+		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
+			filterChain := &envoy_config_listener_v3.FilterChain{
+				Filters: []*envoy_config_listener_v3.Filter{filter},
+			}
+			if tlsDomain != "*" {
+				filterChain.FilterChainMatch = &envoy_config_listener_v3.FilterChainMatch{
+					ServerNames: []string{tlsDomain},
+				}
+			}
+			tlsContext := srv.buildDownstreamTLSContext(cfg, tlsDomain)
+			if tlsContext != nil {
+				tlsConfig := marshalAny(tlsContext)
+				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
+					Name: "tls",
+					ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+						TypedConfig: tlsConfig,
+					},
+				}
+			}
+			return filterChain, nil
+		})
+	if err != nil {
+		return nil, err
 	}
 
 	tlsInspectorCfg := marshalAny(new(emptypb.Empty))
@@ -308,33 +386,41 @@ func (srv *Server) buildGRPCListener(cfg *config.Config) *envoy_config_listener_
 				TypedConfig: tlsInspectorCfg,
 			},
 		}},
-		FilterChains: buildFilterChains(cfg.Options, cfg.Options.Addr,
-			func(tlsDomain string, httpDomains []string) *envoy_config_listener_v3.FilterChain {
-				filterChain := &envoy_config_listener_v3.FilterChain{
-					Filters: []*envoy_config_listener_v3.Filter{filter},
-				}
-				if tlsDomain != "*" {
-					filterChain.FilterChainMatch = &envoy_config_listener_v3.FilterChainMatch{
-						ServerNames: []string{tlsDomain},
-					}
-				}
-				tlsContext := srv.buildDownstreamTLSContext(cfg, tlsDomain)
-				if tlsContext != nil {
-					tlsConfig := marshalAny(tlsContext)
-					filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
-						Name: "tls",
-						ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-							TypedConfig: tlsConfig,
-						},
-					}
-				}
-				return filterChain
-			}),
+		FilterChains: chains,
 	}
-	return li
+	return li, nil
 }
 
-func buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
+func (srv *Server) buildGRPCHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
+	rc, err := srv.buildRouteConfiguration("grpc", []*envoy_config_route_v3.VirtualHost{{
+		Name:    "grpc",
+		Domains: []string{"*"},
+		Routes: []*envoy_config_route_v3.Route{{
+			Name: "grpc",
+			Match: &envoy_config_route_v3.RouteMatch{
+				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"},
+				Grpc:          &envoy_config_route_v3.RouteMatch_GrpcRouteMatchOptions{},
+			},
+			Action: &envoy_config_route_v3.Route_Route{
+				Route: &envoy_config_route_v3.RouteAction{
+					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+						Cluster: "pomerium-control-plane-grpc",
+					},
+					// disable the timeout to support grpc streaming
+					Timeout: &durationpb.Duration{
+						Seconds: 0,
+					},
+					IdleTimeout: &durationpb.Duration{
+						Seconds: 0,
+					},
+				},
+			},
+		}},
+	}})
+	if err != nil {
+		return nil, err
+	}
+
 	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "grpc_ingress",
@@ -343,31 +429,7 @@ func buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
 			Seconds: 15,
 		},
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
-			RouteConfig: buildRouteConfiguration("grpc", []*envoy_config_route_v3.VirtualHost{{
-				Name:    "grpc",
-				Domains: []string{"*"},
-				Routes: []*envoy_config_route_v3.Route{{
-					Name: "grpc",
-					Match: &envoy_config_route_v3.RouteMatch{
-						PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"},
-						Grpc:          &envoy_config_route_v3.RouteMatch_GrpcRouteMatchOptions{},
-					},
-					Action: &envoy_config_route_v3.Route_Route{
-						Route: &envoy_config_route_v3.RouteAction{
-							ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-								Cluster: "pomerium-control-plane-grpc",
-							},
-							// disable the timeout to support grpc streaming
-							Timeout: &durationpb.Duration{
-								Seconds: 0,
-							},
-							IdleTimeout: &durationpb.Duration{
-								Seconds: 0,
-							},
-						},
-					},
-				}},
-			}}),
+			RouteConfig: rc,
 		},
 		HttpFilters: []*envoy_http_connection_manager.HttpFilter{{
 			Name: "envoy.filters.http.router",
@@ -378,16 +440,16 @@ func buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_v3.Filter {
 		ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
 			TypedConfig: tc,
 		},
-	}
+	}, nil
 }
 
-func buildRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.VirtualHost) *envoy_config_route_v3.RouteConfiguration {
+func (srv *Server) buildRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.VirtualHost) (*envoy_config_route_v3.RouteConfiguration, error) {
 	return &envoy_config_route_v3.RouteConfiguration{
 		Name:         name,
 		VirtualHosts: virtualHosts,
 		// disable cluster validation since the order of LDS/CDS updates isn't guaranteed
 		ValidateClusters: &wrappers.BoolValue{Value: false},
-	}
+	}, nil
 }
 
 func (srv *Server) buildDownstreamTLSContext(cfg *config.Config, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
