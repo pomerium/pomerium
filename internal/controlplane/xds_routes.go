@@ -243,7 +243,8 @@ func (srv *Server) buildControlPlanePrefixRoute(prefix string, protected bool) (
 }
 
 var getPolicyName = func(policy *config.Policy) string {
-	return fmt.Sprintf("policy-%x", policy.RouteID())
+	id, _ := policy.RouteID()
+	return fmt.Sprintf("policy-%x", id)
 }
 
 func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
@@ -479,8 +480,8 @@ func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrit
 			},
 			Substitution: policy.RegexRewriteSubstitution,
 		}
-	} else if len(policy.Destinations) > 0 && policy.Destinations[0].Path != "" {
-		prefixRewrite = policy.Destinations[0].Path
+	} else if len(policy.To) > 0 && policy.To[0].URL.Path != "" {
+		prefixRewrite = policy.To[0].URL.Path
 	}
 
 	return prefixRewrite, regexRewrite

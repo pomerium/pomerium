@@ -9,7 +9,6 @@ import (
 const (
 	policyKey    = "policy"
 	toKey        = "to"
-	weightsKey   = "_to_weights"
 	envoyOptsKey = "_envoy_opts"
 )
 

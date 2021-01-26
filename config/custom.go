@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -97,6 +98,77 @@ func (slc *StringSlice) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return slc.UnmarshalJSON(bs)
 }
 
+// WeightedURL is a way to specify an upstream with load balancing weight attached to it
+type WeightedURL struct {
+	URL url.URL
+	// LbWeight is a relative load balancer weight for this upstream URL
+	// zero means not assigned
+	LbWeight uint32
+}
+
+// ParseWeightedURL parses url that has an optional weight appended to it
+func ParseWeightedURL(dst string) (*WeightedURL, error) {
+	to, w, err := weightedString(dst)
+	if err != nil {
+		return nil, err
+	}
+
+	u, err := url.Parse(to)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", to, err)
+	}
+
+	return &WeightedURL{*u, w}, nil
+}
+
+// ParseWeightedUrls parses
+func ParseWeightedUrls(urls []string) ([]WeightedURL, error) {
+	out := make([]WeightedURL, 0, len(urls))
+
+	for _, dst := range urls {
+		u, err := ParseWeightedURL(dst)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *u)
+	}
+
+	if _, _, err := FlattenURLs(out); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+// FlattenURLs converts weighted url array into indidual arrays of urls and weights
+func FlattenURLs(urls []WeightedURL) ([]string, []uint32, error) {
+	noWeight := false
+	hasWeight := false
+
+	str := make([]string, 0, len(urls))
+	wghts := make([]uint32, 0, len(urls))
+
+	for i := range urls {
+		str = append(str, urls[i].URL.String())
+		wghts = append(wghts, urls[i].LbWeight)
+
+		if wghts[i] == 0 {
+			noWeight = true
+		} else {
+			hasWeight = true
+		}
+	}
+
+	if noWeight == hasWeight {
+		return nil, nil, errEndpointWeightsSpec
+	}
+
+	if noWeight {
+		return str, nil, nil
+	}
+	return str, wghts, nil
+}
+
 // DecodeOptionsHookFunc returns a decode hook that will attempt to convert any type to a StringSlice.
 func DecodeOptionsHookFunc() mapstructure.DecodeHookFunc {
 	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
@@ -130,30 +202,29 @@ func DecodeOptionsHookFunc() mapstructure.DecodeHookFunc {
 			if !ok {
 				continue
 			}
-			to, weights, err := parseTo(rawTo)
+			to, err := parseTo(rawTo)
 			if err != nil {
 				return nil, err
 			}
 			pm[toKey] = to
-			pm[weightsKey] = weights
 		}
 
 		return data, nil
 	}
 }
 
-func parseTo(raw interface{}) (endpoints StringSlice, weights []uint32, err error) {
+func parseTo(raw interface{}) ([]WeightedURL, error) {
 	rawBS, err := json.Marshal(raw)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	var slc StringSlice
 	err = json.Unmarshal(rawBS, &slc)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return weightedStrings(slc)
+	return ParseWeightedUrls(slc)
 }
 
 func weightedStrings(src StringSlice) (endpoints StringSlice, weights []uint32, err error) {

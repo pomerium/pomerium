@@ -83,7 +83,14 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 
 	seen := map[uint64]struct{}{}
 	for _, policy := range cfg.Options.GetAllPolicies() {
-		seen[policy.RouteID()] = struct{}{}
+		id, err := policy.RouteID()
+		if err != nil {
+			log.Warn().Err(err).
+				Str("policy", policy.String()).
+				Msg("databroker: processing policy, ignoring")
+			return
+		}
+		seen[id] = struct{}{}
 	}
 
 	var additionalPolicies []config.Policy
@@ -113,7 +120,13 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 				continue
 			}
 
-			routeID := policy.RouteID()
+			routeID, err := policy.RouteID()
+			if err != nil {
+				log.Warn().Err(err).
+					Str("policy", policy.String()).
+					Msg("databroker: cannot establish policy route ID, ignoring")
+				continue
+			}
 
 			if _, ok := seen[routeID]; ok {
 				log.Warn().Err(err).

@@ -24,14 +24,18 @@ import (
 
 // An Endpoint is a URL with its corresponding Transport Socket.
 type Endpoint struct {
-	url                *url.URL
+	url                url.URL
 	transportSocket    *envoy_config_core_v3.TransportSocket
 	loadBalancerWeight *wrappers.UInt32Value
 }
 
 // NewEndpoint creates a new Endpoint.
-func NewEndpoint(u *url.URL, ts *envoy_config_core_v3.TransportSocket, weight *wrappers.UInt32Value) Endpoint {
-	return Endpoint{url: u, transportSocket: ts, loadBalancerWeight: weight}
+func NewEndpoint(u url.URL, ts *envoy_config_core_v3.TransportSocket, weight uint32) Endpoint {
+	var w *wrappers.UInt32Value
+	if weight > 0 {
+		w = &wrappers.UInt32Value{Value: weight}
+	}
+	return Endpoint{url: u, transportSocket: ts, loadBalancerWeight: w}
 }
 
 // TransportSocketName return the name for this endpoint.
@@ -44,11 +48,11 @@ func (e Endpoint) TransportSocketName() string {
 }
 
 func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_cluster_v3.Cluster, error) {
-	grpcURL := &url.URL{
+	grpcURL := url.URL{
 		Scheme: "http",
 		Host:   srv.GRPCListener.Addr().String(),
 	}
-	httpURL := &url.URL{
+	httpURL := url.URL{
 		Scheme: "http",
 		Host:   srv.HTTPListener.Addr().String(),
 	}
@@ -82,7 +86,7 @@ func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_clust
 			if policy.EnvoyOpts == nil {
 				policy.EnvoyOpts = newDefaultEnvoyClusterConfig()
 			}
-			if len(policy.Destinations) > 0 {
+			if len(policy.To) > 0 {
 				cluster, err := srv.buildPolicyCluster(options, &policy)
 				if err != nil {
 					return nil, fmt.Errorf("policy #%d: %w", i, err)
@@ -95,7 +99,7 @@ func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_clust
 	return clusters, nil
 }
 
-func (srv *Server) buildInternalCluster(options *config.Options, name string, dst *url.URL, forceHTTP2 bool) (*envoy_config_cluster_v3.Cluster, error) {
+func (srv *Server) buildInternalCluster(options *config.Options, name string, dst url.URL, forceHTTP2 bool) (*envoy_config_cluster_v3.Cluster, error) {
 	cluster := newDefaultEnvoyClusterConfig()
 	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
 	endpoints, err := srv.buildInternalEndpoints(options, dst)
@@ -149,7 +153,7 @@ func (srv *Server) buildPolicyEndpoints(policy *config.Policy) ([]Endpoint, erro
 		if err != nil {
 			return nil, err
 		}
-		endpoints = append(endpoints, NewEndpoint(dst, ts))
+		endpoints = append(endpoints, NewEndpoint(dst, ts), dst.LbWeight)
 	}
 	return endpoints, nil
 }
@@ -352,8 +356,7 @@ func (srv *Server) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpo
 
 		u := e.url
 		if e.url.Hostname() == "localhost" {
-			u = new(url.URL)
-			*u = *e.url
+			u := e.url
 			u.Host = strings.Replace(e.url.Host, "localhost", "127.0.0.1", -1)
 		}
 
@@ -363,6 +366,7 @@ func (srv *Server) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpo
 					Address: buildAddress(u.Host, defaultPort),
 				},
 			},
+			// LoadBalancingWeight: e.loadBalancerWeight,
 		}
 
 		if e.transportSocket != nil {

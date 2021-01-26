@@ -22,16 +22,10 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
-type WeightedDestination struct {
-	URL url.URL
-	// load balancer weight to be assigned
-	LbWeight uint32
-}
-
 // Policy contains route specific configuration and access settings.
 type Policy struct {
-	From string      `mapstructure:"from" yaml:"from"`
-	To   StringSlice `mapstructure:"to" yaml:"to"`
+	From string        `mapstructure:"from" yaml:"from"`
+	To   []WeightedURL `mapstructure:"to" yaml:"to"`
 
 	// LbWeights are optional load balancing weights applied to endpoints specified in To
 	// this field exists for compatibility with mapstructure
@@ -47,9 +41,6 @@ type Policy struct {
 	AllowedIDPClaims identity.FlattenedClaims `mapstructure:"allowed_idp_claims" yaml:"allowed_idp_claims,omitempty" json:"allowed_idp_claims,omitempty"`
 
 	Source *StringURL `yaml:",omitempty" json:"source,omitempty" hash:"ignore"`
-
-	// Destination is calculated from To
-	Destinations []WeightedDestination `yaml:",omitempty" json:"destinations,omitempty" hash:"ignore"`
 
 	// Additional route matching options
 	Prefix string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
@@ -182,9 +173,14 @@ type PolicyRedirect struct {
 func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	timeout, _ := ptypes.Duration(pb.GetTimeout())
 
+	to, err := ParseWeightedUrls(pb.GetTo())
+	if err != nil {
+		return nil, err
+	}
+
 	p := &Policy{
 		From:                             pb.GetFrom(),
-		To:                               NewStringSlice(pb.GetTo()...),
+		To:                               to,
 		AllowedUsers:                     pb.GetAllowedUsers(),
 		AllowedGroups:                    pb.GetAllowedGroups(),
 		AllowedDomains:                   pb.GetAllowedDomains(),
@@ -244,7 +240,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 }
 
 // ToProto converts the policy to a protobuf type.
-func (p *Policy) ToProto() *configpb.Route {
+func (p *Policy) ToProto() (*configpb.Route, error) {
 	timeout := ptypes.DurationProto(p.UpstreamTimeout)
 	sps := make([]*configpb.Policy, 0, len(p.SubPolicies))
 	for _, sp := range p.SubPolicies {
@@ -258,10 +254,17 @@ func (p *Policy) ToProto() *configpb.Route {
 			Rego:             sp.Rego,
 		})
 	}
+
+	to, weights, err := FlattenURLs(p.To)
+	if err != nil {
+		return nil, err
+	}
+
 	pb := &configpb.Route{
 		Name:                             fmt.Sprint(p.RouteID()),
 		From:                             p.From,
-		To:                               p.To,
+		To:                               to,
+		LoadBalancingWeights:             weights,
 		AllowedUsers:                     p.AllowedUsers,
 		AllowedGroups:                    p.AllowedGroups,
 		AllowedDomains:                   p.AllowedDomains,
@@ -305,7 +308,7 @@ func (p *Policy) ToProto() *configpb.Route {
 		}
 	}
 
-	return pb
+	return pb, nil
 }
 
 // Validate checks the validity of a policy.
@@ -324,22 +327,7 @@ func (p *Policy) Validate() error {
 
 	p.Source = &StringURL{source}
 
-	switch {
-	case len(p.To) > 0:
-		p.Destinations = nil
-		for i, to := range p.To {
-			u, err := urlutil.ParseAndValidateURL(to)
-			if err != nil {
-				return fmt.Errorf("config: policy bad destination url %w", err)
-			}
-			var w *uint32
-			if p.LbWeights != nil {
-				w = &p.LbWeights[i]
-			}
-			p.Destinations = append(p.Destinations, WeightedDestination{URL: *u, LbWeight: w})
-		}
-	case p.Redirect != nil:
-	default:
+	if len(p.To) == 0 && p.Redirect == nil {
 		return fmt.Errorf("config: policy must have either a `to` or `redirect`")
 	}
 
@@ -407,25 +395,27 @@ func (p *Policy) Checksum() uint64 {
 }
 
 // RouteID returns a unique identifier for a route
-func (p *Policy) RouteID() uint64 {
-	id := routeID{
-		Source:       p.Source,
-		Destinations: p.Destinations,
-		Prefix:       p.Prefix,
-		Path:         p.Path,
-		Regex:        p.Regex,
+func (p *Policy) RouteID() (uint64, error) {
+	to, _, err := FlattenURLs(p.To)
+	if err != nil {
+		return 0, err
 	}
 
-	return hashutil.MustHash(id)
+	id := routeID{
+		Source: p.Source,
+		To:     to,
+		Prefix: p.Prefix,
+		Path:   p.Path,
+		Regex:  p.Regex,
+	}
+
+	return hashutil.Hash(id)
 }
 
 func (p *Policy) String() string {
-	if p.Source == nil || len(p.Destinations) == 0 {
-		return fmt.Sprintf("%s → %s", p.From, strings.Join(p.To, ","))
-	}
 	var dsts []string
-	for _, dst := range p.Destinations {
-		dsts = append(dsts, dst.String())
+	for _, dst := range p.To {
+		dsts = append(dsts, dst.URL.String())
 	}
 	return fmt.Sprintf("%s → %s", p.Source.String(), strings.Join(dsts, ","))
 }
@@ -468,15 +458,22 @@ type StringURL struct {
 	*url.URL
 }
 
+func (su *StringURL) String() string {
+	if su == nil || su.URL == nil {
+		return "nil"
+	}
+	return su.URL.String()
+}
+
 // MarshalJSON returns the URLs host as json.
 func (u *StringURL) MarshalJSON() ([]byte, error) {
 	return json.Marshal(u.String())
 }
 
 type routeID struct {
-	Source       *StringURL
-	Destinations []*url.URL
-	Prefix       string
-	Path         string
-	Regex        string
+	Source *StringURL
+	To     []string
+	Prefix string
+	Path   string
+	Regex  string
 }

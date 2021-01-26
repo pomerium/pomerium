@@ -6,11 +6,10 @@ import (
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/wrappers"
 )
 
 var (
-	noLbWeight *wrappers.UInt32Value = nil
+	noLbWeight uint32 = 0
 )
 
 var (
