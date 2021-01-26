@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net"
 	"net/url"
 	"strconv"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/credentials"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -72,6 +70,8 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		}
 	}
 
+	connAddr = "pomerium:///" + connAddr
+
 	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.ServiceName)
 
 	unaryClientInterceptors := []grpc.UnaryClientInterceptor{
@@ -92,6 +92,8 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
 		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
 		grpc.WithStatsHandler(clientStatsHandler.Handler),
+		grpc.WithDefaultServiceConfig(roundRobinServiceConfig),
+		grpc.WithDisableServiceConfig(),
 	}
 
 	if opts.WithInsecure {
@@ -115,11 +117,6 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		}
 		// finally add our credential
 		dialOptions = append(dialOptions, grpc.WithTransportCredentials(cert))
-	}
-
-	if opts.ClientDNSRoundRobin {
-		dialOptions = append(dialOptions, grpc.WithBalancerName(roundrobin.Name), grpc.WithDisableServiceConfig())
-		connAddr = fmt.Sprintf("dns:///%s", connAddr)
 	}
 
 	return grpc.Dial(connAddr, dialOptions...)
