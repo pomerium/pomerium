@@ -52,7 +52,7 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 	e := &Evaluator{
 		custom:           NewCustomEvaluator(store.opaStore),
 		authenticateHost: options.AuthenticateURL.Host,
-		policies:         options.Policies,
+		policies:         options.GetAllPolicies(),
 	}
 	if options.ClientCA != "" {
 		e.clientCA = options.ClientCA
@@ -75,7 +75,7 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 	}
 
 	store.UpdateAdmins(options.Administrators)
-	store.UpdateRoutePolicies(options.Policies)
+	store.UpdateRoutePolicies(options.GetAllPolicies())
 
 	e.rego = rego.New(
 		rego.Store(store.opaStore),

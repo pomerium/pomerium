@@ -65,7 +65,7 @@ func TestConfigSource(t *testing.T) {
 		assert.NoError(t, ctx.Err())
 		return
 	case cfg := <-cfgs:
-		assert.Len(t, cfg.Options.Policies, 0)
+		assert.Len(t, cfg.Options.AdditionalPolicies, 0)
 	}
 
 	select {
@@ -73,7 +73,7 @@ func TestConfigSource(t *testing.T) {
 		assert.NoError(t, ctx.Err())
 		return
 	case cfg := <-cfgs:
-		assert.Len(t, cfg.Options.Policies, 1)
+		assert.Len(t, cfg.Options.AdditionalPolicies, 1)
 	}
 }
 
