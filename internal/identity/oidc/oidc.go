@@ -300,9 +300,12 @@ func (p *Provider) GetProvider() (*go_oidc.Provider, error) {
 		return p.provider, nil
 	}
 
-	var err error
-	p.provider, err = p.cfg.getProvider()
-	return p.provider, err
+	pp, err := p.cfg.getProvider()
+	if err != nil {
+		return nil, err
+	}
+	p.provider = pp
+	return pp, nil
 }
 
 // GetVerifier gets the verifier.

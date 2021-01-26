@@ -296,7 +296,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	signinURL, err := a.provider.Load().GetSignInURL(encodedState)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError,
-			fmt.Errorf("failed to get sign in url: %w"))
+			fmt.Errorf("failed to get sign in url: %w", err))
 	}
 	httputil.Redirect(w, r, signinURL, http.StatusFound)
 	return nil
