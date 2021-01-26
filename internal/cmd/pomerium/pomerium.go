@@ -158,9 +158,15 @@ func setupAuthenticate(src config.Source, controlPlane *controlplane.Server) err
 	if err != nil {
 		return fmt.Errorf("error creating authenticate service: %w", err)
 	}
+
+	authenticateURL, err := src.GetConfig().Options.GetAuthenticateURL()
+	if err != nil {
+		return fmt.Errorf("error getting authenticate URL: %w", err)
+	}
+
 	src.OnConfigChange(svc.OnConfigChange)
 	svc.OnConfigChange(src.GetConfig())
-	host := urlutil.StripPort(src.GetConfig().Options.GetAuthenticateURL().Host)
+	host := urlutil.StripPort(authenticateURL.Host)
 	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
 	svc.Mount(sr)
 	log.Info().Str("host", host).Msg("enabled authenticate service")

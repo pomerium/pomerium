@@ -446,7 +446,8 @@ func Test_getAllDomains(t *testing.T) {
 	}
 	t.Run("routable", func(t *testing.T) {
 		t.Run("http", func(t *testing.T) {
-			actual := getAllRouteableDomains(options, "127.0.0.1:9000")
+			actual, err := getAllRouteableDomains(options, "127.0.0.1:9000")
+			require.NoError(t, err)
 			expect := []string{
 				"a.example.com",
 				"a.example.com:80",
@@ -460,7 +461,8 @@ func Test_getAllDomains(t *testing.T) {
 			assert.Equal(t, expect, actual)
 		})
 		t.Run("grpc", func(t *testing.T) {
-			actual := getAllRouteableDomains(options, "127.0.0.1:9001")
+			actual, err := getAllRouteableDomains(options, "127.0.0.1:9001")
+			require.NoError(t, err)
 			expect := []string{
 				"authorize.example.com:9001",
 				"cache.example.com:9001",
@@ -470,7 +472,8 @@ func Test_getAllDomains(t *testing.T) {
 	})
 	t.Run("tls", func(t *testing.T) {
 		t.Run("http", func(t *testing.T) {
-			actual := getAllTLSDomains(options, "127.0.0.1:9000")
+			actual, err := getAllTLSDomains(options, "127.0.0.1:9000")
+			require.NoError(t, err)
 			expect := []string{
 				"a.example.com",
 				"authenticate.example.com",
@@ -480,7 +483,8 @@ func Test_getAllDomains(t *testing.T) {
 			assert.Equal(t, expect, actual)
 		})
 		t.Run("grpc", func(t *testing.T) {
-			actual := getAllTLSDomains(options, "127.0.0.1:9001")
+			actual, err := getAllTLSDomains(options, "127.0.0.1:9001")
+			require.NoError(t, err)
 			expect := []string{
 				"authorize.example.com",
 				"cache.example.com",

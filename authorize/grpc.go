@@ -78,11 +78,11 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 		return a.okResponse(reply), nil
 	case reply.Status == http.StatusUnauthorized:
 		if isForwardAuth && hreq.URL.Path == "/verify" {
-			return a.deniedResponse(in, http.StatusUnauthorized, "Unauthenticated", nil), nil
+			return a.deniedResponse(in, http.StatusUnauthorized, "Unauthenticated", nil)
 		}
-		return a.redirectResponse(in), nil
+		return a.redirectResponse(in)
 	}
-	return a.deniedResponse(in, int32(reply.Status), reply.Message, nil), nil
+	return a.deniedResponse(in, int32(reply.Status), reply.Message, nil)
 }
 
 func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) error {
@@ -212,9 +212,14 @@ func (a *Authorize) isForwardAuth(req *envoy_service_auth_v2.CheckRequest) bool 
 		return false
 	}
 
+	forwardAuthURL, err := opts.GetForwardAuthURL()
+	if err != nil {
+		return false
+	}
+
 	checkURL := getCheckRequestURL(req)
 
-	return urlutil.StripPort(checkURL.Host) == urlutil.StripPort(opts.GetForwardAuthURL().Host)
+	return urlutil.StripPort(checkURL.Host) == urlutil.StripPort(forwardAuthURL.Host)
 }
 
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v2.CheckRequest, sessionState *sessions.State) *evaluator.Request {

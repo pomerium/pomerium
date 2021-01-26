@@ -81,13 +81,17 @@ func New(cfg *config.Config) (*DataBroker, error) {
 	}
 
 	dataBrokerServer := newDataBrokerServer(cfg)
+	dataBrokerURL, err := cfg.Options.GetDataBrokerURL()
+	if err != nil {
+		return nil, err
+	}
 
 	c := &DataBroker{
 		dataBrokerServer:             dataBrokerServer,
 		localListener:                localListener,
 		localGRPCServer:              localGRPCServer,
 		localGRPCConnection:          localGRPCConnection,
-		deprecatedCacheClusterDomain: cfg.Options.GetDataBrokerURL().Hostname(),
+		deprecatedCacheClusterDomain: dataBrokerURL.Hostname(),
 		dataBrokerStorageType:        cfg.Options.DataBrokerStorageType,
 	}
 	c.Register(c.localGRPCServer)
@@ -138,7 +142,12 @@ func (c *DataBroker) update(cfg *config.Config) error {
 		return fmt.Errorf("databroker: bad option: %w", err)
 	}
 
-	authenticator, err := identity.NewAuthenticator(cfg.Options.GetOauthOptions())
+	oauthOptions, err := cfg.Options.GetOauthOptions()
+	if err != nil {
+		return fmt.Errorf("databroker: invalid oauth options: %w", err)
+	}
+
+	authenticator, err := identity.NewAuthenticator(oauthOptions)
 	if err != nil {
 		return fmt.Errorf("databroker: failed to create authenticator: %w", err)
 	}

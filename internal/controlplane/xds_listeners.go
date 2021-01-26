@@ -43,19 +43,19 @@ func (srv *Server) buildListeners(cfg *config.Config) ([]*envoy_config_listener_
 	var listeners []*envoy_config_listener_v3.Listener
 
 	if config.IsAuthenticate(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
-		if li, err := srv.buildMainListener(cfg); err != nil {
+		li, err := srv.buildMainListener(cfg)
+		if err != nil {
 			return nil, err
-		} else {
-			listeners = append(listeners, li)
 		}
+		listeners = append(listeners, li)
 	}
 
 	if config.IsAuthorize(cfg.Options.Services) || config.IsDataBroker(cfg.Options.Services) {
-		if li, err := srv.buildGRPCListener(cfg); err != nil {
+		li, err := srv.buildGRPCListener(cfg)
+		if err != nil {
 			return nil, err
-		} else {
-			listeners = append(listeners, li)
 		}
+		listeners = append(listeners, li)
 	}
 
 	return listeners, nil
@@ -74,8 +74,12 @@ func (srv *Server) buildMainListener(cfg *config.Config) (*envoy_config_listener
 	}
 
 	if cfg.Options.InsecureServer {
-		filter, err := srv.buildMainHTTPConnectionManagerFilter(cfg.Options,
-			getAllRouteableDomains(cfg.Options, cfg.Options.Addr), "")
+		allDomains, err := getAllRouteableDomains(cfg.Options, cfg.Options.Addr)
+		if err != nil {
+			return nil, err
+		}
+
+		filter, err := srv.buildMainHTTPConnectionManagerFilter(cfg.Options, allDomains, "")
 		if err != nil {
 			return nil, err
 		}
@@ -143,24 +147,37 @@ func (srv *Server) buildFilterChains(
 	options *config.Options, addr string,
 	callback func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error),
 ) ([]*envoy_config_listener_v3.FilterChain, error) {
-	allDomains := getAllRouteableDomains(options, addr)
-	tlsDomains := getAllTLSDomains(options, addr)
+	allDomains, err := getAllRouteableDomains(options, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsDomains, err := getAllTLSDomains(options, addr)
+	if err != nil {
+		return nil, err
+	}
+
 	var chains []*envoy_config_listener_v3.FilterChain
 	for _, domain := range tlsDomains {
-		// first we match on SNI
-		if chain, err := callback(domain, getRouteableDomainsForTLSDomain(options, addr, domain)); err != nil {
+		routeableDomains, err := getRouteableDomainsForTLSDomain(options, addr, domain)
+		if err != nil {
 			return nil, err
-		} else {
-			chains = append(chains, chain)
 		}
+
+		// first we match on SNI
+		chain, err := callback(domain, routeableDomains)
+		if err != nil {
+			return nil, err
+		}
+		chains = append(chains, chain)
 	}
 
 	// if there are no SNI matches we match on HTTP host
-	if chain, err := callback("*", allDomains); err != nil {
+	chain, err := callback("*", allDomains)
+	if err != nil {
 		return nil, err
-	} else {
-		chains = append(chains, chain)
 	}
+	chains = append(chains, chain)
 	return chains, nil
 }
 
@@ -169,6 +186,16 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 	domains []string,
 	tlsDomain string,
 ) (*envoy_config_listener_v3.Filter, error) {
+	authorizeURL, err := options.GetAuthorizeURL()
+	if err != nil {
+		return nil, err
+	}
+
+	dataBrokerURL, err := options.GetDataBrokerURL()
+	if err != nil {
+		return nil, err
+	}
+
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, domain := range domains {
 		vh := &envoy_config_route_v3.VirtualHost{
@@ -178,30 +205,30 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 
 		if options.Addr == options.GRPCAddr {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && hostMatchesDomain(options.GetAuthorizeURL(), domain)) ||
-				(config.IsDataBroker(options.Services) && hostMatchesDomain(options.GetDataBrokerURL(), domain)) {
-				if rs, err := srv.buildGRPCRoutes(); err != nil {
+			if (config.IsAuthorize(options.Services) && hostMatchesDomain(authorizeURL, domain)) ||
+				(config.IsDataBroker(options.Services) && hostMatchesDomain(dataBrokerURL, domain)) {
+				rs, err := srv.buildGRPCRoutes()
+				if err != nil {
 					return nil, err
-				} else {
-					vh.Routes = append(vh.Routes, rs...)
 				}
+				vh.Routes = append(vh.Routes, rs...)
 			}
 		}
 
 		// these routes match /.pomerium/... and similar paths
-		if rs, err := srv.buildPomeriumHTTPRoutes(options, domain); err != nil {
+		rs, err := srv.buildPomeriumHTTPRoutes(options, domain)
+		if err != nil {
 			return nil, err
-		} else {
-			vh.Routes = append(vh.Routes, rs...)
 		}
+		vh.Routes = append(vh.Routes, rs...)
 
 		// if we're the proxy, add all the policy routes
 		if config.IsProxy(options.Services) {
-			if rs, err := srv.buildPolicyRoutes(options, domain); err != nil {
+			rs, err := srv.buildPolicyRoutes(options, domain)
+			if err != nil {
 				return nil, err
-			} else {
-				vh.Routes = append(vh.Routes, rs...)
 			}
+			vh.Routes = append(vh.Routes, rs...)
 		}
 
 		if len(vh.Routes) > 0 {
@@ -209,15 +236,15 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 		}
 	}
 
-	if rs, err := srv.buildPomeriumHTTPRoutes(options, "*"); err != nil {
+	rs, err := srv.buildPomeriumHTTPRoutes(options, "*")
+	if err != nil {
 		return nil, err
-	} else {
-		virtualHosts = append(virtualHosts, &envoy_config_route_v3.VirtualHost{
-			Name:    "catch-all",
-			Domains: []string{"*"},
-			Routes:  rs,
-		})
 	}
+	virtualHosts = append(virtualHosts, &envoy_config_route_v3.VirtualHost{
+		Name:    "catch-all",
+		Domains: []string{"*"},
+		Routes:  rs,
+	})
 
 	var grpcClientTimeout *durationpb.Duration
 	if options.GRPCClientTimeout != 0 {
@@ -235,7 +262,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 				Timeout: grpcClientTimeout,
 				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
 					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-						ClusterName: options.GetAuthorizeURL().Host,
+						ClusterName: authorizeURL.Host,
 					},
 				},
 			},
@@ -501,31 +528,55 @@ func (srv *Server) buildDownstreamTLSContext(cfg *config.Config, domain string) 
 	}
 }
 
-func getRouteableDomainsForTLSDomain(options *config.Options, addr string, tlsDomain string) []string {
-	allDomains := getAllRouteableDomains(options, addr)
+func getRouteableDomainsForTLSDomain(options *config.Options, addr string, tlsDomain string) ([]string, error) {
+	allDomains, err := getAllRouteableDomains(options, addr)
+	if err != nil {
+		return nil, err
+	}
+
 	var filtered []string
 	for _, domain := range allDomains {
 		if urlutil.StripPort(domain) == tlsDomain {
 			filtered = append(filtered, domain)
 		}
 	}
-	return filtered
+	return filtered, nil
 }
 
-func getAllRouteableDomains(options *config.Options, addr string) []string {
+func getAllRouteableDomains(options *config.Options, addr string) ([]string, error) {
+	authenticateURL, err := options.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+
+	authorizeURL, err := options.GetAuthorizeURL()
+	if err != nil {
+		return nil, err
+	}
+
+	dataBrokerURL, err := options.GetDataBrokerURL()
+	if err != nil {
+		return nil, err
+	}
+
+	forwardAuthURL, err := options.GetForwardAuthURL()
+	if err != nil {
+		return nil, err
+	}
+
 	lookup := map[string]struct{}{}
 	if config.IsAuthenticate(options.Services) && addr == options.Addr {
-		for _, h := range urlutil.GetDomainsForURL(options.GetAuthenticateURL()) {
+		for _, h := range urlutil.GetDomainsForURL(authenticateURL) {
 			lookup[h] = struct{}{}
 		}
 	}
 	if config.IsAuthorize(options.Services) && addr == options.GRPCAddr {
-		for _, h := range urlutil.GetDomainsForURL(options.GetAuthorizeURL()) {
+		for _, h := range urlutil.GetDomainsForURL(authorizeURL) {
 			lookup[h] = struct{}{}
 		}
 	}
 	if config.IsDataBroker(options.Services) && addr == options.GRPCAddr {
-		for _, h := range urlutil.GetDomainsForURL(options.GetDataBrokerURL()) {
+		for _, h := range urlutil.GetDomainsForURL(dataBrokerURL) {
 			lookup[h] = struct{}{}
 		}
 	}
@@ -536,7 +587,7 @@ func getAllRouteableDomains(options *config.Options, addr string) []string {
 			}
 		}
 		if options.ForwardAuthURL != nil {
-			for _, h := range urlutil.GetDomainsForURL(options.GetForwardAuthURL()) {
+			for _, h := range urlutil.GetDomainsForURL(forwardAuthURL) {
 				lookup[h] = struct{}{}
 			}
 		}
@@ -548,12 +599,17 @@ func getAllRouteableDomains(options *config.Options, addr string) []string {
 	}
 	sort.Strings(domains)
 
-	return domains
+	return domains, nil
 }
 
-func getAllTLSDomains(options *config.Options, addr string) []string {
+func getAllTLSDomains(options *config.Options, addr string) ([]string, error) {
+	allDomains, err := getAllRouteableDomains(options, addr)
+	if err != nil {
+		return nil, err
+	}
+
 	lookup := map[string]struct{}{}
-	for _, hp := range getAllRouteableDomains(options, addr) {
+	for _, hp := range allDomains {
 		if d, _, err := net.SplitHostPort(hp); err == nil {
 			lookup[d] = struct{}{}
 		} else {
@@ -567,7 +623,7 @@ func getAllTLSDomains(options *config.Options, addr string) []string {
 	}
 	sort.Strings(domains)
 
-	return domains
+	return domains, nil
 }
 
 func hostMatchesDomain(u *url.URL, host string) bool {

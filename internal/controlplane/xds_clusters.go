@@ -50,9 +50,9 @@ func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_clust
 		Scheme: "http",
 		Host:   srv.HTTPListener.Addr().String(),
 	}
-	authzURL := &url.URL{
-		Scheme: options.GetAuthorizeURL().Scheme,
-		Host:   options.GetAuthorizeURL().Host,
+	authzURL, err := options.GetAuthorizeURL()
+	if err != nil {
+		return nil, err
 	}
 
 	controlGRPC, err := srv.buildInternalCluster(options, "pomerium-control-plane-grpc", grpcURL, true)
@@ -132,22 +132,22 @@ func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Po
 
 func (srv *Server) buildInternalEndpoints(options *config.Options, dst *url.URL) ([]Endpoint, error) {
 	var endpoints []Endpoint
-	if ts, err := srv.buildInternalTransportSocket(options, dst); err != nil {
+	ts, err := srv.buildInternalTransportSocket(options, dst)
+	if err != nil {
 		return nil, err
-	} else {
-		endpoints = append(endpoints, NewEndpoint(dst, ts))
 	}
+	endpoints = append(endpoints, NewEndpoint(dst, ts))
 	return endpoints, nil
 }
 
 func (srv *Server) buildPolicyEndpoints(policy *config.Policy) ([]Endpoint, error) {
 	var endpoints []Endpoint
 	for _, dst := range policy.Destinations {
-		if ts, err := srv.buildPolicyTransportSocket(policy, dst); err != nil {
+		ts, err := srv.buildPolicyTransportSocket(policy, dst)
+		if err != nil {
 			return nil, err
-		} else {
-			endpoints = append(endpoints, NewEndpoint(dst, ts))
 		}
+		endpoints = append(endpoints, NewEndpoint(dst, ts))
 	}
 	return endpoints, nil
 }
@@ -246,7 +246,9 @@ func (srv *Server) buildPolicyTransportSocket(policy *config.Policy, dst *url.UR
 	}, nil
 }
 
-func (srv *Server) buildPolicyValidationContext(policy *config.Policy, dst *url.URL) (*envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext, error) {
+func (srv *Server) buildPolicyValidationContext(
+	policy *config.Policy, dst *url.URL,
+) (*envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext, error) {
 	if dst == nil {
 		return nil, nil
 	}
