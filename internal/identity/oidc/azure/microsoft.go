@@ -46,18 +46,19 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 	if o.ProviderURL == "" {
 		o.ProviderURL = defaultProviderURL
 	}
-	genericOidc, err := newProvider(ctx, o)
+	genericOidc, err := newProvider(ctx, o,
+		pom_oidc.WithGetVerifier(func(provider *go_oidc.Provider) *go_oidc.IDTokenVerifier {
+			return provider.Verifier(&go_oidc.Config{
+				ClientID: o.ClientID,
+				// If using the common endpoint, the verification provider URI will not match.
+				// https://github.com/pomerium/pomerium/issues/1605
+				SkipIssuerCheck: o.ProviderURL == defaultProviderURL,
+			})
+		}))
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed creating oidc provider: %w", Name, err)
 	}
 	p.Provider = genericOidc
-
-	genericOidc.Verifier = genericOidc.Provider.Verifier(&go_oidc.Config{
-		ClientID: o.ClientID,
-		// If using the common endpoint, the verification provider URI will not match.
-		// https://github.com/pomerium/pomerium/issues/1605
-		SkipIssuerCheck: o.ProviderURL == defaultProviderURL,
-	})
 
 	p.AuthCodeOptions = defaultAuthCodeOptions
 	if len(o.AuthCodeOptions) != 0 {
@@ -79,7 +80,7 @@ func (p *Provider) Name() string {
 // If {tenantid} is in the issuer string, we force the issuer to match the defaultURL.
 //
 // https://github.com/pomerium/pomerium/issues/1605
-func newProvider(ctx context.Context, o *oauth.Options) (*pom_oidc.Provider, error) {
+func newProvider(ctx context.Context, o *oauth.Options, options ...pom_oidc.Option) (*pom_oidc.Provider, error) {
 	originalClient := http.DefaultClient
 	if c, ok := ctx.Value(oauth2.HTTPClient).(*http.Client); ok {
 		originalClient = c
@@ -90,7 +91,7 @@ func newProvider(ctx context.Context, o *oauth.Options) (*pom_oidc.Provider, err
 	client.Transport = &wellKnownConfiguration{underlying: client.Transport}
 
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, client)
-	return pom_oidc.New(ctx, o)
+	return pom_oidc.New(ctx, o, options...)
 }
 
 type wellKnownConfiguration struct {

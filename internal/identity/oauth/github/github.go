@@ -231,8 +231,8 @@ func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
 
 // GetSignInURL returns a URL to OAuth 2.0 provider's consent page
 // that asks for permissions for the required scopes explicitly.
-func (p *Provider) GetSignInURL(state string) string {
-	return p.Oauth.AuthCodeURL(state, oauth2.AccessTypeOffline)
+func (p *Provider) GetSignInURL(state string) (string, error) {
+	return p.Oauth.AuthCodeURL(state, oauth2.AccessTypeOffline), nil
 }
 
 // LogOut is not implemented by github.
