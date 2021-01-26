@@ -70,8 +70,8 @@ func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_clust
 		authZ,
 	}
 	if config.IsProxy(options.Services) {
-		for i := range options.Policies {
-			policy := options.Policies[i]
+		for i, p := range options.GetAllPolicies() {
+			policy := p
 			if policy.EnvoyOpts == nil {
 				policy.EnvoyOpts = newDefaultEnvoyClusterConfig()
 			}
@@ -290,13 +290,13 @@ func buildCluster(
 	}
 
 	// for IPs we use a static discovery type, otherwise we use DNS
-	isIP := false
+	allIP := true
 	for _, lbe := range lbEndpoints {
-		if net.ParseIP(urlutil.StripPort(lbe.GetEndpoint().GetAddress().GetSocketAddress().GetAddress())) != nil {
-			isIP = true
+		if net.ParseIP(urlutil.StripPort(lbe.GetEndpoint().GetAddress().GetSocketAddress().GetAddress())) == nil {
+			allIP = false
 		}
 	}
-	if isIP {
+	if allIP {
 		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STATIC}
 	} else {
 		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STRICT_DNS}

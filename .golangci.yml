@@ -162,7 +162,10 @@ issues:
         - scopelint
         - gosec
         - gosimple
-
+    # Exclude lll issues for long lines with go:generate
+    - linters:
+        - lll
+      source: "^//go:generate "
     # erroneously thinks google api url is a cred
     - path: internal/identity/google.go
       text: "Potential hardcoded credentials"
