@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/mitchellh/mapstructure"
@@ -128,20 +130,77 @@ func DecodeOptionsHookFunc() mapstructure.DecodeHookFunc {
 			if !ok {
 				continue
 			}
-			rawBS, err := json.Marshal(rawTo)
+			to, weights, err := parseTo(rawTo)
 			if err != nil {
 				return nil, err
 			}
-			var slc StringSlice
-			err = json.Unmarshal(rawBS, &slc)
-			if err != nil {
-				return nil, err
-			}
-			pm[toKey] = slc
+			pm[toKey] = to
+			pm[weightsKey] = weights
 		}
 
 		return data, nil
 	}
+}
+
+func parseTo(raw interface{}) (endpoints StringSlice, weights []uint32, err error) {
+	rawBS, err := json.Marshal(raw)
+	if err != nil {
+		return nil, nil, err
+	}
+	var slc StringSlice
+	err = json.Unmarshal(rawBS, &slc)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return weightedStrings(slc)
+}
+
+func weightedStrings(src StringSlice) (endpoints StringSlice, weights []uint32, err error) {
+	weights = make([]uint32, len(src))
+	endpoints = make([]string, len(src))
+
+	noWeight := false
+	hasWeight := false
+	for i, str := range src {
+		endpoints[i], weights[i], err = weightedString(str)
+		if err != nil {
+			return nil, nil, err
+		}
+		if weights[i] == 0 {
+			noWeight = true
+		} else {
+			hasWeight = true
+		}
+	}
+
+	if noWeight == hasWeight {
+		return nil, nil, errEndpointWeightsSpec
+	}
+
+	if noWeight {
+		return endpoints, nil, nil
+	}
+	return endpoints, weights, nil
+}
+
+// parses URL followed by weighted
+func weightedString(str string) (string, uint32, error) {
+	i := strings.IndexRune(str, ',')
+	if i < 0 {
+		return str, 0, nil
+	}
+
+	w, err := strconv.ParseUint(str[i+1:], 10, 32)
+	if err != nil {
+		return "", 0, err
+	}
+
+	if w == 0 {
+		return "", 0, errZeroWeight
+	}
+
+	return str[:i], uint32(w), nil
 }
 
 // parseEnvoyClusterOpts parses src as envoy cluster spec https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto

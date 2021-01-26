@@ -22,10 +22,20 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
+type WeightedDestination struct {
+	URL url.URL
+	// load balancer weight to be assigned
+	LbWeight uint32
+}
+
 // Policy contains route specific configuration and access settings.
 type Policy struct {
 	From string      `mapstructure:"from" yaml:"from"`
 	To   StringSlice `mapstructure:"to" yaml:"to"`
+
+	// LbWeights are optional load balancing weights applied to endpoints specified in To
+	// this field exists for compatibility with mapstructure
+	LbWeights []uint32 `mapstructure:"_to_weights,omitempty" json:"-" yaml:"-"`
 
 	// Redirect is used for a redirect action instead of `To`
 	Redirect *PolicyRedirect `mapstructure:"redirect" yaml:"redirect"`
@@ -36,8 +46,10 @@ type Policy struct {
 	AllowedDomains   []string                 `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 	AllowedIDPClaims identity.FlattenedClaims `mapstructure:"allowed_idp_claims" yaml:"allowed_idp_claims,omitempty" json:"allowed_idp_claims,omitempty"`
 
-	Source       *StringURL `yaml:",omitempty" json:"source,omitempty" hash:"ignore"`
-	Destinations []*url.URL `yaml:",omitempty" json:"destinations,omitempty" hash:"ignore"`
+	Source *StringURL `yaml:",omitempty" json:"source,omitempty" hash:"ignore"`
+
+	// Destination is calculated from To
+	Destinations []WeightedDestination `yaml:",omitempty" json:"destinations,omitempty" hash:"ignore"`
 
 	// Additional route matching options
 	Prefix string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
@@ -315,12 +327,16 @@ func (p *Policy) Validate() error {
 	switch {
 	case len(p.To) > 0:
 		p.Destinations = nil
-		for _, to := range p.To {
-			dst, err := urlutil.ParseAndValidateURL(to)
+		for i, to := range p.To {
+			u, err := urlutil.ParseAndValidateURL(to)
 			if err != nil {
 				return fmt.Errorf("config: policy bad destination url %w", err)
 			}
-			p.Destinations = append(p.Destinations, dst)
+			var w *uint32
+			if p.LbWeights != nil {
+				w = &p.LbWeights[i]
+			}
+			p.Destinations = append(p.Destinations, WeightedDestination{URL: *u, LbWeight: w})
 		}
 	case p.Redirect != nil:
 	default:
