@@ -24,7 +24,7 @@ const (
 	httpCluster = "pomerium-control-plane-http"
 )
 
-func buildGRPCRoutes() []*envoy_config_route_v3.Route {
+func (srv *Server) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 	action := &envoy_config_route_v3.Route_Route{
 		Route: &envoy_config_route_v3.RouteAction{
 			ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
@@ -44,47 +44,107 @@ func buildGRPCRoutes() []*envoy_config_route_v3.Route {
 		TypedPerFilterConfig: map[string]*any.Any{
 			"envoy.filters.http.ext_authz": disableExtAuthz,
 		},
-	}}
+	}}, nil
 }
 
-func buildPomeriumHTTPRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
-	routes := []*envoy_config_route_v3.Route{
-		// enable ext_authz
-		buildControlPlanePathRoute("/.pomerium/jwt", true),
-		// disable ext_authz and passthrough to proxy handlers
-		buildControlPlanePathRoute("/ping", false),
-		buildControlPlanePathRoute("/healthz", false),
-		buildControlPlanePathRoute("/.pomerium/admin", true),
-		buildControlPlanePrefixRoute("/.pomerium/admin/", true),
-		buildControlPlanePathRoute("/.pomerium", false),
-		buildControlPlanePrefixRoute("/.pomerium/", false),
-		buildControlPlanePathRoute("/.well-known/pomerium", false),
-		buildControlPlanePrefixRoute("/.well-known/pomerium/", false),
+func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
+	var routes []*envoy_config_route_v3.Route
+	// enable ext_authz
+	if r, err := srv.buildControlPlanePathRoute("/.pomerium/jwt", true); err != nil {
+		return nil, err
+	} else {
+		routes = append(routes, r)
+	}
+
+	// disable ext_authz and passthrough to proxy handlers
+	if r, err := srv.buildControlPlanePathRoute("/ping", false); err != nil {
+		return nil, err
+	} else {
+		routes = append(routes, r)
+	}
+	if r, err := srv.buildControlPlanePathRoute("/healthz", false); err != nil {
+		return nil, err
+	} else {
+		routes = append(routes, r)
+	}
+	if r, err := srv.buildControlPlanePathRoute("/.pomerium/admin", true); err != nil {
+		return nil, err
+	} else {
+		routes = append(routes, r)
+	}
+	if r, err := srv.buildControlPlanePrefixRoute("/.pomerium/admin/", true); err != nil {
+		return nil, err
+	} else {
+		routes = append(routes, r)
+	}
+	if r, err := srv.buildControlPlanePathRoute("/.pomerium", false); err != nil {
+		return nil, err
+	} else {
+		routes = append(routes, r)
+	}
+	if r, err := srv.buildControlPlanePrefixRoute("/.pomerium/", false); err != nil {
+		return nil, err
+	} else {
+		routes = append(routes, r)
+	}
+	if r, err := srv.buildControlPlanePathRoute("/.well-known/pomerium", false); err != nil {
+		return nil, err
+	} else {
+		routes = append(routes, r)
+	}
+	if r, err := srv.buildControlPlanePrefixRoute("/.well-known/pomerium/", false); err != nil {
+		return nil, err
+	} else {
+		routes = append(routes, r)
 	}
 	// per #837, only add robots.txt if there are no unauthenticated routes
 	if !hasPublicPolicyMatchingURL(options, mustParseURL("https://"+domain+"/robots.txt")) {
-		routes = append(routes, buildControlPlanePathRoute("/robots.txt", false))
+		if r, err := srv.buildControlPlanePathRoute("/robots.txt", false); err != nil {
+			return nil, err
+		} else {
+			routes = append(routes, r)
+		}
 	}
 	// if we're handling authentication, add the oauth2 callback url
 	if config.IsAuthenticate(options.Services) && hostMatchesDomain(options.GetAuthenticateURL(), domain) {
-		routes = append(routes, buildControlPlanePathRoute(options.AuthenticateCallbackPath, false))
+		if r, err := srv.buildControlPlanePathRoute(options.AuthenticateCallbackPath, false); err != nil {
+			return nil, err
+		} else {
+			routes = append(routes, r)
+		}
 	}
 	// if we're the proxy and this is the forward-auth url
 	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {
-		routes = append(routes,
-			// disable ext_authz and pass request to proxy handlers that enable authN flow
-			buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}),
-			buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}),
-			buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI}),
-			// otherwise, enforce ext_authz; pass all other requests through to an upstream
-			// handler that will simply respond with http status 200 / OK indicating that
-			// the fronting forward-auth proxy can continue.
-			buildControlPlaneProtectedPrefixRoute("/"))
+		// disable ext_authz and pass request to proxy handlers that enable authN flow
+		if r, err := srv.buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}); err != nil {
+			return nil, err
+		} else {
+			routes = append(routes, r)
+		}
+		if r, err := srv.buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}); err != nil {
+			return nil, err
+		} else {
+			routes = append(routes, r)
+		}
+		if r, err := srv.buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI}); err != nil {
+			return nil, err
+		} else {
+			routes = append(routes, r)
+		}
+
+		// otherwise, enforce ext_authz; pass all other requests through to an upstream
+		// handler that will simply respond with http status 200 / OK indicating that
+		// the fronting forward-auth proxy can continue.
+		if r, err := srv.buildControlPlaneProtectedPrefixRoute("/"); err != nil {
+			return nil, err
+		} else {
+			routes = append(routes, r)
+		}
 	}
-	return routes
+	return routes, nil
 }
 
-func buildControlPlaneProtectedPrefixRoute(prefix string) *envoy_config_route_v3.Route {
+func (srv *Server) buildControlPlaneProtectedPrefixRoute(prefix string) (*envoy_config_route_v3.Route, error) {
 	return &envoy_config_route_v3.Route{
 		Name: "pomerium-protected-prefix-" + prefix,
 		Match: &envoy_config_route_v3.RouteMatch{
@@ -97,10 +157,10 @@ func buildControlPlaneProtectedPrefixRoute(prefix string) *envoy_config_route_v3
 				},
 			},
 		},
-	}
+	}, nil
 }
 
-func buildControlPlanePathAndQueryRoute(path string, queryparams []string) *envoy_config_route_v3.Route {
+func (srv *Server) buildControlPlanePathAndQueryRoute(path string, queryparams []string) (*envoy_config_route_v3.Route, error) {
 	var queryParameterMatchers []*envoy_config_route_v3.QueryParameterMatcher
 	for _, q := range queryparams {
 		queryParameterMatchers = append(queryParameterMatchers,
@@ -126,10 +186,10 @@ func buildControlPlanePathAndQueryRoute(path string, queryparams []string) *envo
 		TypedPerFilterConfig: map[string]*any.Any{
 			"envoy.filters.http.ext_authz": disableExtAuthz,
 		},
-	}
+	}, nil
 }
 
-func buildControlPlanePathRoute(path string, protected bool) *envoy_config_route_v3.Route {
+func (srv *Server) buildControlPlanePathRoute(path string, protected bool) (*envoy_config_route_v3.Route, error) {
 	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-path-" + path,
 		Match: &envoy_config_route_v3.RouteMatch{
@@ -148,10 +208,10 @@ func buildControlPlanePathRoute(path string, protected bool) *envoy_config_route
 			"envoy.filters.http.ext_authz": disableExtAuthz,
 		}
 	}
-	return r
+	return r, nil
 }
 
-func buildControlPlanePrefixRoute(prefix string, protected bool) *envoy_config_route_v3.Route {
+func (srv *Server) buildControlPlanePrefixRoute(prefix string, protected bool) (*envoy_config_route_v3.Route, error) {
 	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-prefix-" + prefix,
 		Match: &envoy_config_route_v3.RouteMatch{
@@ -170,14 +230,14 @@ func buildControlPlanePrefixRoute(prefix string, protected bool) *envoy_config_r
 			"envoy.filters.http.ext_authz": disableExtAuthz,
 		}
 	}
-	return r
+	return r, nil
 }
 
 var getPolicyName = func(policy *config.Policy) string {
 	return fmt.Sprintf("policy-%x", policy.RouteID())
 }
 
-func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_route_v3.Route {
+func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 	responseHeadersToAdd := toEnvoyHeaders(options.Headers)
 
@@ -222,19 +282,25 @@ func buildPolicyRoutes(options *config.Options, domain string) []*envoy_config_r
 			ResponseHeadersToAdd:   responseHeadersToAdd,
 		}
 		if policy.Redirect != nil {
-			envoyRoute.Action = &envoy_config_route_v3.Route_Redirect{
-				Redirect: buildPolicyRouteRedirectAction(policy.Redirect),
+			action, err := srv.buildPolicyRouteRedirectAction(policy.Redirect)
+			if err != nil {
+				return nil, err
 			}
+			envoyRoute.Action = &envoy_config_route_v3.Route_Redirect{Redirect: action}
 		} else {
-			envoyRoute.Action = &envoy_config_route_v3.Route_Route{Route: buildPolicyRouteRouteAction(options, &policy)}
+			action, err := srv.buildPolicyRouteRouteAction(options, &policy)
+			if err != nil {
+				return nil, err
+			}
+			envoyRoute.Action = &envoy_config_route_v3.Route_Route{Route: action}
 		}
 
 		routes = append(routes, envoyRoute)
 	}
-	return routes
+	return routes, nil
 }
 
-func buildPolicyRouteRedirectAction(r *config.PolicyRedirect) *envoy_config_route_v3.RedirectAction {
+func (srv *Server) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*envoy_config_route_v3.RedirectAction, error) {
 	action := &envoy_config_route_v3.RedirectAction{}
 	switch {
 	case r.HTTPSRedirect != nil:
@@ -268,10 +334,10 @@ func buildPolicyRouteRedirectAction(r *config.PolicyRedirect) *envoy_config_rout
 	if r.StripQuery != nil {
 		action.StripQuery = *r.StripQuery
 	}
-	return action
+	return action, nil
 }
 
-func buildPolicyRouteRouteAction(options *config.Options, policy *config.Policy) *envoy_config_route_v3.RouteAction {
+func (srv *Server) buildPolicyRouteRouteAction(options *config.Options, policy *config.Policy) (*envoy_config_route_v3.RouteAction, error) {
 	clusterName := getPolicyName(policy)
 	routeTimeout := getRouteTimeout(options, policy)
 	idleTimeout := getRouteIdleTimeout(policy)
@@ -307,7 +373,7 @@ func buildPolicyRouteRouteAction(options *config.Options, policy *config.Policy)
 		RegexRewrite:  regexRewrite,
 	}
 	setHostRewriteOptions(policy, action)
-	return action
+	return action, nil
 }
 
 func mkEnvoyHeader(k, v string) *envoy_config_core_v3.HeaderValueOption {

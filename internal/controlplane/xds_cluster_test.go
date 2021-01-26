@@ -25,11 +25,17 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
 
 	t.Run("insecure", func(t *testing.T) {
-		assert.Nil(t, srv.buildPolicyTransportSocket(&config.Policy{
+		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
 			Destinations: mustParseURLs("http://example.com"),
-		}, mustParseURL("http://example.com")))
+		}, mustParseURL("http://example.com"))
+		require.NoError(t, err)
+		assert.Nil(t, ts)
 	})
 	t.Run("host as sni", func(t *testing.T) {
+		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
+			Destinations: mustParseURLs("https://example.com"),
+		}, mustParseURL("https://example.com"))
+		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "tls",
@@ -57,11 +63,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"sni": "example.com"
 				}
 			}
-		`, srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations: mustParseURLs("https://example.com"),
-		}, mustParseURL("https://example.com")))
+		`, ts)
 	})
 	t.Run("tls_server_name as sni", func(t *testing.T) {
+		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
+			Destinations:  mustParseURLs("https://example.com"),
+			TLSServerName: "use-this-name.example.com",
+		}, mustParseURL("https://example.com"))
+		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "tls",
@@ -89,12 +98,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"sni": "use-this-name.example.com"
 				}
 			}
-		`, srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations:  mustParseURLs("https://example.com"),
-			TLSServerName: "use-this-name.example.com",
-		}, mustParseURL("https://example.com")))
+		`, ts)
 	})
 	t.Run("tls_skip_verify", func(t *testing.T) {
+		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
+			Destinations:  mustParseURLs("https://example.com"),
+			TLSSkipVerify: true,
+		}, mustParseURL("https://example.com"))
+		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "tls",
@@ -123,12 +134,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"sni": "example.com"
 				}
 			}
-		`, srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations:  mustParseURLs("https://example.com"),
-			TLSSkipVerify: true,
-		}, mustParseURL("https://example.com")))
+		`, ts)
 	})
 	t.Run("custom ca", func(t *testing.T) {
+		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
+			Destinations: mustParseURLs("https://example.com"),
+			TLSCustomCA:  base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
+		}, mustParseURL("https://example.com"))
+		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "tls",
@@ -156,13 +169,15 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"sni": "example.com"
 				}
 			}
-		`, srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations: mustParseURLs("https://example.com"),
-			TLSCustomCA:  base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
-		}, mustParseURL("https://example.com")))
+		`, ts)
 	})
 	t.Run("client certificate", func(t *testing.T) {
 		clientCert, _ := cryptutil.CertificateFromBase64(aExampleComCert, aExampleComKey)
+		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
+			Destinations:      mustParseURLs("https://example.com"),
+			ClientCertificate: clientCert,
+		}, mustParseURL("https://example.com"))
+		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"name": "tls",
@@ -198,10 +213,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 					"sni": "example.com"
 				}
 			}
-		`, srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations:      mustParseURLs("https://example.com"),
-			ClientCertificate: clientCert,
-		}, mustParseURL("https://example.com")))
+		`, ts)
 	})
 }
 
@@ -210,12 +222,13 @@ func Test_buildCluster(t *testing.T) {
 	rootCAPath, _ := getRootCertificateAuthority()
 	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
 	t.Run("insecure", func(t *testing.T) {
-		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
 			Destinations: mustParseURLs("http://example.com", "http://1.2.3.4"),
 		})
+		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
 		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
-		err := buildCluster(cluster, "example", endpoints, true)
+		err = srv.buildCluster(cluster, "example", endpoints, true)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -257,14 +270,15 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("secure", func(t *testing.T) {
-		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
 			Destinations: mustParseURLs(
 				"https://example.com",
 				"https://example.com",
 			),
 		})
+		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err := buildCluster(cluster, "example", endpoints, true)
+		err = srv.buildCluster(cluster, "example", endpoints, true)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -351,11 +365,12 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("ip addresses", func(t *testing.T) {
-		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
 			Destinations: mustParseURLs("http://127.0.0.1", "http://127.0.0.2"),
 		})
+		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err := buildCluster(cluster, "example", endpoints, true)
+		err = srv.buildCluster(cluster, "example", endpoints, true)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -396,11 +411,12 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("localhost", func(t *testing.T) {
-		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
 			Destinations: mustParseURLs("http://localhost"),
 		})
+		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err := buildCluster(cluster, "example", endpoints, true)
+		err = srv.buildCluster(cluster, "example", endpoints, true)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -431,16 +447,17 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("outlier", func(t *testing.T) {
-		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
 			Destinations: mustParseURLs("http://example.com"),
 		})
+		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
 		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 		cluster.OutlierDetection = &envoy_config_cluster_v3.OutlierDetection{
 			EnforcingConsecutive_5Xx:       wrapperspb.UInt32(17),
 			SplitExternalLocalOriginErrors: true,
 		}
-		err := buildCluster(cluster, "example", endpoints, true)
+		err = srv.buildCluster(cluster, "example", endpoints, true)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
