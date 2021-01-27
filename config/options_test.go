@@ -157,10 +157,17 @@ func Test_parseHeaders(t *testing.T) {
 
 func Test_parsePolicyFile(t *testing.T) {
 	t.Parallel()
+
+	opts := []cmp.Option{
+		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
+		cmpOptIgnoreUnexported,
+	}
+
 	source := "https://pomerium.io"
 	sourceURL, _ := url.ParseRequestURI(source)
-	dest := "https://httpbin.org"
-	destURL, _ := url.ParseRequestURI(dest)
+
+	to, err := ParseWeightedURL("https://httpbin.org")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name        string
@@ -170,12 +177,11 @@ func Test_parsePolicyFile(t *testing.T) {
 	}{
 		{
 			"simple json",
-			[]byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, dest)),
+			[]byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, to.URL.String())),
 			[]Policy{{
-				From:         source,
-				To:           NewStringSlice(dest),
-				Source:       &StringURL{sourceURL},
-				Destinations: []*url.URL{destURL},
+				From:   source,
+				To:     []WeightedURL{*to},
+				Source: &StringURL{sourceURL},
 			}},
 			false,
 		},
@@ -200,7 +206,7 @@ func Test_parsePolicyFile(t *testing.T) {
 				return
 			}
 			if err == nil {
-				if diff := cmp.Diff(o.Policies, tt.want); diff != "" {
+				if diff := cmp.Diff(o.Policies, tt.want, opts...); diff != "" {
 					t.Errorf("parsePolicyEnv() = diff:%s", diff)
 				}
 			}
@@ -231,7 +237,7 @@ func Test_Checksum(t *testing.T) {
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURL", "AuthorizeURL", "AuthorizeURLString", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate"),
-		cmpopts.IgnoreFields(Policy{}, "Source", "Destinations"),
+		cmpopts.IgnoreFields(Policy{}, "Source", "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
 
@@ -245,7 +251,7 @@ func TestOptionsFromViper(t *testing.T) {
 			"good",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				Policies:                        []Policy{{From: "https://from.example", To: NewStringSlice("https://to.example")}},
+				Policies:                        []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:                      "_pomerium",
 				CookieSecure:                    true,
 				InsecureServer:                  true,
@@ -269,7 +275,7 @@ func TestOptionsFromViper(t *testing.T) {
 			"good disable header",
 			[]byte(`{"autocert_dir":"","insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
-				Policies:                        []Policy{{From: "https://from.example", To: NewStringSlice("https://to.example")}},
+				Policies:                        []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:                      "_pomerium",
 				AuthenticateCallbackPath:        "/oauth2/callback",
 				CookieSecure:                    true,
@@ -538,4 +544,10 @@ func TestOptions_GetOauthOptions(t *testing.T) {
 
 	// Test that oauth redirect url hostname must point to authenticate url hostname.
 	assert.Equal(t, opts.AuthenticateURL.Hostname(), oauthOptions.RedirectURL.Hostname())
+}
+
+func mustParseWeightedURLs(t *testing.T, urls ...string) []WeightedURL {
+	wu, err := ParseWeightedUrls(urls...)
+	require.NoError(t, err)
+	return wu
 }

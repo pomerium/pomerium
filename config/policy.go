@@ -24,8 +24,8 @@ import (
 
 // Policy contains route specific configuration and access settings.
 type Policy struct {
-	From string        `mapstructure:"from" yaml:"from"`
-	To   []WeightedURL `mapstructure:"to" yaml:"to"`
+	From string       `mapstructure:"from" yaml:"from"`
+	To   WeightedURLs `mapstructure:"to" yaml:"to"`
 
 	// LbWeights are optional load balancing weights applied to endpoints specified in To
 	// this field exists for compatibility with mapstructure
@@ -173,7 +173,7 @@ type PolicyRedirect struct {
 func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	timeout, _ := ptypes.Duration(pb.GetTimeout())
 
-	to, err := ParseWeightedUrls(pb.GetTo())
+	to, err := ParseWeightedUrls(pb.GetTo()...)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		})
 	}
 
-	to, weights, err := FlattenURLs(p.To)
+	to, weights, err := p.To.Flatten()
 	if err != nil {
 		return nil, err
 	}
@@ -331,6 +331,12 @@ func (p *Policy) Validate() error {
 		return fmt.Errorf("config: policy must have either a `to` or `redirect`")
 	}
 
+	for _, u := range p.To {
+		if err = u.Validate(); err != nil {
+			return fmt.Errorf("config: %s: %w", u.URL.String(), err)
+		}
+	}
+
 	// Only allow public access if no other whitelists are in place
 	if p.AllowPublicUnauthenticatedAccess && (p.AllowAnyAuthenticatedUser || p.AllowedDomains != nil || p.AllowedGroups != nil || p.AllowedUsers != nil) {
 		return fmt.Errorf("config: policy route marked as public but contains whitelists")
@@ -396,14 +402,14 @@ func (p *Policy) Checksum() uint64 {
 
 // RouteID returns a unique identifier for a route
 func (p *Policy) RouteID() (uint64, error) {
-	to, _, err := FlattenURLs(p.To)
+	dst, _, err := p.To.Flatten()
 	if err != nil {
 		return 0, err
 	}
 
 	id := routeID{
 		Source: p.Source,
-		To:     to,
+		To:     dst,
 		Prefix: p.Prefix,
 		Path:   p.Path,
 		Regex:  p.Regex,
@@ -413,11 +419,16 @@ func (p *Policy) RouteID() (uint64, error) {
 }
 
 func (p *Policy) String() string {
-	var dsts []string
-	for _, dst := range p.To {
-		dsts = append(dsts, dst.URL.String())
+	to := "?"
+	if len(p.To) > 0 {
+		var dsts []string
+		for _, dst := range p.To {
+			dsts = append(dsts, dst.URL.String())
+		}
+		to = strings.Join(dsts, ",")
 	}
-	return fmt.Sprintf("%s → %s", p.Source.String(), strings.Join(dsts, ","))
+
+	return fmt.Sprintf("%s → %s", p.Source.String(), to)
 }
 
 // Matches returns true if the policy would match the given URL.
@@ -460,7 +471,7 @@ type StringURL struct {
 
 func (su *StringURL) String() string {
 	if su == nil || su.URL == nil {
-		return "nil"
+		return "?"
 	}
 	return su.URL.String()
 }

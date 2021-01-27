@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -106,6 +107,16 @@ type WeightedURL struct {
 	LbWeight uint32
 }
 
+func (u *WeightedURL) Validate() error {
+	if u.URL.Hostname() == "" {
+		return errHostnameMustBeSpecified
+	}
+	if u.URL.Scheme == "" {
+		return errSchemeMustBeSpecified
+	}
+	return nil
+}
+
 // ParseWeightedURL parses url that has an optional weight appended to it
 func ParseWeightedURL(dst string) (*WeightedURL, error) {
 	to, w, err := weightedString(dst)
@@ -118,11 +129,25 @@ func ParseWeightedURL(dst string) (*WeightedURL, error) {
 		return nil, fmt.Errorf("%s: %w", to, err)
 	}
 
+	if u.Hostname() == "" {
+		return nil, errHostnameMustBeSpecified
+	}
+
 	return &WeightedURL{*u, w}, nil
 }
 
+func (u *WeightedURL) String() string {
+	str := u.URL.String()
+	if u.LbWeight == 0 {
+		return str
+	}
+	return fmt.Sprintf("{url=%s, weight=%d}", str, u.LbWeight)
+}
+
+type WeightedURLs []WeightedURL
+
 // ParseWeightedUrls parses
-func ParseWeightedUrls(urls []string) ([]WeightedURL, error) {
+func ParseWeightedUrls(urls ...string) (WeightedURLs, error) {
 	out := make([]WeightedURL, 0, len(urls))
 
 	for _, dst := range urls {
@@ -133,26 +158,26 @@ func ParseWeightedUrls(urls []string) ([]WeightedURL, error) {
 		out = append(out, *u)
 	}
 
-	if _, _, err := FlattenURLs(out); err != nil {
+	if err, _ := WeightedURLs(out).Validate(); err != nil {
 		return nil, err
 	}
 
 	return out, nil
 }
 
-// FlattenURLs converts weighted url array into indidual arrays of urls and weights
-func FlattenURLs(urls []WeightedURL) ([]string, []uint32, error) {
+// HasWeight indicates if url group has weights assigned
+type HasWeight bool
+
+// Validate checks that URLs are valid, and either all or none have weights assigned
+func (urls WeightedURLs) Validate() (error, HasWeight) {
 	noWeight := false
 	hasWeight := false
 
-	str := make([]string, 0, len(urls))
-	wghts := make([]uint32, 0, len(urls))
-
 	for i := range urls {
-		str = append(str, urls[i].URL.String())
-		wghts = append(wghts, urls[i].LbWeight)
-
-		if wghts[i] == 0 {
+		if err := urls[i].Validate(); err != nil {
+			return fmt.Errorf("%s: %w", urls[i].String(), err), false
+		}
+		if urls[i].LbWeight == 0 {
 			noWeight = true
 		} else {
 			hasWeight = true
@@ -160,57 +185,102 @@ func FlattenURLs(urls []WeightedURL) ([]string, []uint32, error) {
 	}
 
 	if noWeight == hasWeight {
-		return nil, nil, errEndpointWeightsSpec
+		return errEndpointWeightsSpec, false
 	}
 
 	if noWeight {
+		return nil, HasWeight(false)
+	}
+	return nil, HasWeight(true)
+}
+
+// Flatten converts weighted url array into indidual arrays of urls and weights
+func (urls WeightedURLs) Flatten() ([]string, []uint32, error) {
+	err, hasWeight := urls.Validate()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	str := make([]string, 0, len(urls))
+	wghts := make([]uint32, 0, len(urls))
+
+	for i := range urls {
+		str = append(str, urls[i].URL.String())
+		wghts = append(wghts, urls[i].LbWeight)
+	}
+
+	if !hasWeight {
 		return str, nil, nil
 	}
 	return str, wghts, nil
 }
 
-// DecodeOptionsHookFunc returns a decode hook that will attempt to convert any type to a StringSlice.
-func DecodeOptionsHookFunc() mapstructure.DecodeHookFunc {
+func DecodePolicyHookFunc() mapstructure.DecodeHookFunc {
 	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
-		if t != reflect.TypeOf(Options{}) {
+		if t != reflect.TypeOf(Policy{}) {
 			return data, nil
 		}
 
-		m, ok := data.(map[string]interface{})
+		log.Printf("POLICY HOOK %#v\n", data)
+
+		mp, err := serializable(data)
+		if err != nil {
+			return nil, err
+		}
+		ms, ok := mp.(map[string]interface{})
 		if !ok {
-			return data, nil
+			return nil, errKeysMustBeStrings
 		}
 
-		ps, ok := m[policyKey].([]interface{})
-		if !ok {
-			return data, nil
-		}
-
-		for _, p := range ps {
-			pm, ok := p.(map[interface{}]interface{})
-			if !ok {
-				continue
-			}
-
-			envoyOpts, err := parseEnvoyClusterOpts(pm)
-			if err != nil {
-				return nil, err
-			}
-			pm[envoyOptsKey] = envoyOpts
-
-			rawTo, ok := pm[toKey]
-			if !ok {
-				continue
-			}
-			to, err := parseTo(rawTo)
-			if err != nil {
-				return nil, err
-			}
-			pm[toKey] = to
-		}
-
-		return data, nil
+		return parsePolicy(ms)
 	}
+}
+
+func parsePolicy(src map[string]interface{}) (out map[string]interface{}, err error) {
+	out = make(map[string]interface{}, len(src))
+	for k, v := range src {
+		if k == toKey {
+			if v, err = parseTo(v); err != nil {
+				return nil, err
+			}
+		}
+		out[k] = v
+	}
+
+	// also, interpret the entire policy as Envoy's Cluster document to derive its options
+	out[envoyOptsKey], err = parseEnvoyClusterOpts(src)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+// toMap tries to convert into map[string]interface{}
+// as mapstructure decode hook would return either map[string]interface{} in case source file is JSON
+// and map[interface{}]interface{} in case of YAML
+// as this would have to be converted into JSONPB to deserialize back into protobuf
+// we can only support string based keys and should raise an error
+func toMap(raw interface{}) (map[string]interface{}, error) {
+	if ps, ok := raw.(map[string]interface{}); ok {
+		return ps, nil
+	}
+
+	pm, ok := raw.(map[interface{}]interface{})
+	if !ok {
+		return nil, nil // some regular type we should ignore
+	}
+
+	ps := make(map[string]interface{}, len(pm))
+	for ki, v := range pm {
+		ks, ok := ki.(string)
+		if !ok {
+			return nil, errKeysMustBeStrings
+		}
+		ps[ks] = v
+	}
+
+	return ps, nil
 }
 
 func parseTo(raw interface{}) ([]WeightedURL, error) {
@@ -224,7 +294,7 @@ func parseTo(raw interface{}) ([]WeightedURL, error) {
 		return nil, err
 	}
 
-	return ParseWeightedUrls(slc)
+	return ParseWeightedUrls(slc...)
 }
 
 func weightedStrings(src StringSlice) (endpoints StringSlice, weights []uint32, err error) {
@@ -276,7 +346,7 @@ func weightedString(str string) (string, uint32, error) {
 
 // parseEnvoyClusterOpts parses src as envoy cluster spec https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto
 // on top of some pre-filled default values
-func parseEnvoyClusterOpts(src interface{}) (*envoy_config_cluster_v3.Cluster, error) {
+func parseEnvoyClusterOpts(src map[string]interface{}) (*envoy_config_cluster_v3.Cluster, error) {
 	c := new(envoy_config_cluster_v3.Cluster)
 	if err := parseJSONPB(src, c, protoPartial); err != nil {
 		return nil, err
@@ -287,13 +357,8 @@ func parseEnvoyClusterOpts(src interface{}) (*envoy_config_cluster_v3.Cluster, e
 
 // parseJSONPB takes an intermediate representation and parses it using protobuf parser
 // that correctly handles oneof and other data types
-func parseJSONPB(raw interface{}, dst proto.Message, opts protojson.UnmarshalOptions) error {
-	ms, err := serializable(raw)
-	if err != nil {
-		return err
-	}
-
-	data, err := json.Marshal(ms)
+func parseJSONPB(src map[string]interface{}, dst proto.Message, opts protojson.UnmarshalOptions) error {
+	data, err := json.Marshal(src)
 	if err != nil {
 		return err
 	}

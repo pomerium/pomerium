@@ -26,7 +26,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 
 	t.Run("insecure", func(t *testing.T) {
 		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations: mustParseURLs("http://example.com"),
+			To: mustParseWeightedURLs(t, "http://example.com"),
 		}, mustParseURL("http://example.com"))
 		require.NoError(t, err)
 		assert.Nil(t, ts)
@@ -67,7 +67,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	})
 	t.Run("tls_server_name as sni", func(t *testing.T) {
 		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations:  mustParseURLs("https://example.com"),
+			To:            mustParseWeightedURLs(t, "https://example.com"),
 			TLSServerName: "use-this-name.example.com",
 		}, mustParseURL("https://example.com"))
 		require.NoError(t, err)
@@ -102,7 +102,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	})
 	t.Run("tls_skip_verify", func(t *testing.T) {
 		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations:  mustParseURLs("https://example.com"),
+			To:            mustParseWeightedURLs(t, "https://example.com"),
 			TLSSkipVerify: true,
 		}, mustParseURL("https://example.com"))
 		require.NoError(t, err)
@@ -138,8 +138,8 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	})
 	t.Run("custom ca", func(t *testing.T) {
 		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations: mustParseURLs("https://example.com"),
-			TLSCustomCA:  base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
+			To:          mustParseWeightedURLs(t, "https://example.com"),
+			TLSCustomCA: base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
 		}, mustParseURL("https://example.com"))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
@@ -174,7 +174,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	t.Run("client certificate", func(t *testing.T) {
 		clientCert, _ := cryptutil.CertificateFromBase64(aExampleComCert, aExampleComKey)
 		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations:      mustParseURLs("https://example.com"),
+			To:                mustParseWeightedURLs(t, "https://example.com"),
 			ClientCertificate: clientCert,
 		}, mustParseURL("https://example.com"))
 		require.NoError(t, err)
@@ -223,7 +223,7 @@ func Test_buildCluster(t *testing.T) {
 	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
 	t.Run("insecure", func(t *testing.T) {
 		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
-			Destinations: mustParseURLs("http://example.com", "http://1.2.3.4"),
+			To: mustParseWeightedURLs(t, "http://example.com", "http://1.2.3.4"),
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
@@ -271,7 +271,7 @@ func Test_buildCluster(t *testing.T) {
 	})
 	t.Run("secure", func(t *testing.T) {
 		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
-			Destinations: mustParseURLs(
+			To: mustParseWeightedURLs(t,
 				"https://example.com",
 				"https://example.com",
 			),
@@ -366,7 +366,7 @@ func Test_buildCluster(t *testing.T) {
 	})
 	t.Run("ip addresses", func(t *testing.T) {
 		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
-			Destinations: mustParseURLs("http://127.0.0.1", "http://127.0.0.2"),
+			To: mustParseWeightedURLs(t, "http://127.0.0.1", "http://127.0.0.2"),
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
@@ -412,7 +412,7 @@ func Test_buildCluster(t *testing.T) {
 	})
 	t.Run("localhost", func(t *testing.T) {
 		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
-			Destinations: mustParseURLs("http://localhost"),
+			To: mustParseWeightedURLs(t, "http://localhost"),
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
@@ -448,7 +448,7 @@ func Test_buildCluster(t *testing.T) {
 	})
 	t.Run("outlier", func(t *testing.T) {
 		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
-			Destinations: mustParseURLs("http://example.com"),
+			To: mustParseWeightedURLs(t, "http://example.com"),
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
@@ -492,4 +492,10 @@ func Test_buildCluster(t *testing.T) {
 			}
 		`, cluster)
 	})
+}
+
+func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
+	wu, err := config.ParseWeightedUrls(urls...)
+	require.NoError(t, err)
+	return wu
 }

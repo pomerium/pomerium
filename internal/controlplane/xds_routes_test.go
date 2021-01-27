@@ -107,7 +107,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			ForwardAuthURL:           mustParseURL("https://forward-auth.example.com"),
 			Policies: []config.Policy{{
 				From: "https://from.example.com",
-				To:   config.NewStringSlice("https://to.example.com"),
+				To:   mustParseWeightedURLs(t, "https://to.example.com"),
 			}},
 		}
 		_ = options.Policies[0].Validate()
@@ -136,7 +136,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			ForwardAuthURL:           mustParseURL("https://forward-auth.example.com"),
 			Policies: []config.Policy{{
 				From:                             "https://from.example.com",
-				To:                               config.NewStringSlice("https://to.example.com"),
+				To:                               mustParseWeightedURLs(t, "https://to.example.com"),
 				AllowPublicUnauthenticatedAccess: true,
 			}},
 		}
@@ -634,37 +634,37 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 		Policies: []config.Policy{
 			{
 				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
-				Destinations:        mustParseURLs("https://foo.example.com/bar"),
+				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders: true,
 			},
 			{
 				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
-				Destinations:        mustParseURLs("https://foo.example.com/bar"),
+				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders: true,
 				PrefixRewrite:       "/foo",
 			},
 			{
 				Source:                   &config.StringURL{URL: mustParseURL("https://example.com")},
-				Destinations:             mustParseURLs("https://foo.example.com/bar"),
+				To:                       mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders:      true,
 				RegexRewritePattern:      "^/service/([^/]+)(/.*)$",
 				RegexRewriteSubstitution: "\\2/instance/\\1",
 			},
 			{
 				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
-				Destinations:        mustParseURLs("https://foo.example.com/bar"),
+				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders: true,
 				HostRewrite:         "literal.example.com",
 			},
 			{
 				Source:              &config.StringURL{URL: mustParseURL("https://example.com")},
-				Destinations:        mustParseURLs("https://foo.example.com/bar"),
+				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders: true,
 				HostRewriteHeader:   "HOST_HEADER",
 			},
 			{
 				Source:                           &config.StringURL{URL: mustParseURL("https://example.com")},
-				Destinations:                     mustParseURLs("https://foo.example.com/bar"),
+				To:                               mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders:              true,
 				HostPathRegexRewritePattern:      "^/(.+)/.+$",
 				HostPathRegexRewriteSubstitution: "\\1",

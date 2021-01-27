@@ -356,7 +356,6 @@ func (srv *Server) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpo
 
 		u := e.url
 		if e.url.Hostname() == "localhost" {
-			u := e.url
 			u.Host = strings.Replace(e.url.Host, "localhost", "127.0.0.1", -1)
 		}
 
