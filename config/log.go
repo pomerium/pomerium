@@ -26,6 +26,10 @@ func (mgr *LogManager) Close() error {
 
 // OnConfigChange is called whenever configuration changes.
 func (mgr *LogManager) OnConfigChange(cfg *Config) {
+	if cfg == nil || cfg.Options == nil {
+		return
+	}
+
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 

@@ -328,7 +328,7 @@ func (p *Policy) Validate() error {
 	p.Source = &StringURL{source}
 
 	if len(p.To) == 0 && p.Redirect == nil {
-		return fmt.Errorf("config: policy must have either a `to` or `redirect`")
+		return errEitherToOrRedirectRequired
 	}
 
 	for _, u := range p.To {
@@ -402,17 +402,23 @@ func (p *Policy) Checksum() uint64 {
 
 // RouteID returns a unique identifier for a route
 func (p *Policy) RouteID() (uint64, error) {
-	dst, _, err := p.To.Flatten()
-	if err != nil {
-		return 0, err
-	}
-
 	id := routeID{
 		Source: p.Source,
-		To:     dst,
 		Prefix: p.Prefix,
 		Path:   p.Path,
 		Regex:  p.Regex,
+	}
+
+	if len(p.To) > 0 {
+		dst, _, err := p.To.Flatten()
+		if err != nil {
+			return 0, err
+		}
+		id.To = dst
+	} else if p.Redirect != nil {
+		id.Redirect = p.Redirect
+	} else {
+		return 0, errEitherToOrRedirectRequired
 	}
 
 	return hashutil.Hash(id)
@@ -482,9 +488,10 @@ func (su *StringURL) MarshalJSON() ([]byte, error) {
 }
 
 type routeID struct {
-	Source *StringURL
-	To     []string
-	Prefix string
-	Path   string
-	Regex  string
+	Source   *StringURL
+	To       []string
+	Prefix   string
+	Path     string
+	Regex    string
+	Redirect *PolicyRedirect
 }

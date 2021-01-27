@@ -169,6 +169,10 @@ type HasWeight bool
 
 // Validate checks that URLs are valid, and either all or none have weights assigned
 func (urls WeightedURLs) Validate() (HasWeight, error) {
+	if len(urls) == 0 {
+		return false, errEmptyUrls
+	}
+
 	noWeight := false
 	hasWeight := false
 

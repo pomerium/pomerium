@@ -156,6 +156,10 @@ func (src *FileWatcherSource) GetConfig() *Config {
 }
 
 func (src *FileWatcherSource) check(cfg *Config) {
+	if cfg == nil || cfg.Options == nil {
+		return
+	}
+
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
