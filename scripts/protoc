@@ -2,8 +2,7 @@
 set -euo pipefail
 
 _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-_protoc_version="4.0.0-rc2"
-_protoc_version_filename="4.0.0-rc-2"
+_protoc_version="3.14.0"
 _protoc_path="/tmp/pomerium-protoc/protoc-$_protoc_version"
 _protoc_3pp_path="/tmp/pomerium-protoc-3pp"
 _os="linux"
@@ -11,20 +10,20 @@ if [ "$(uname -s)" == "Darwin" ]; then
   _os="osx"
 fi
 
-
 # fetch_zip dir name url
 download() {
-  local dst=$1/$2
-  if [ -d $dst ]; then
+  local dst="$1/$2"
+  if [ -d "$dst" ]; then
     return
   fi
 
-  echo downloading $2
-  local archive=`mktemp`
-  curl -L -o $archive $3
-  mkdir -p $dst
-  tar xzf $archive -C $dst --strip-components=1
-  rm ${archive}
+  echo downloading "$2"
+  local archive
+  archive="$(mktemp)"
+  curl -L -o "$archive" "$3"
+  mkdir -p "$dst"
+  tar xzf "$archive" -C "$dst" --strip-components=1
+  rm "$archive"
 }
 
 download $_protoc_3pp_path protoc-gen-validate https://github.com/envoyproxy/protoc-gen-validate/tarball/v0.4.1
@@ -37,7 +36,7 @@ if [ ! -f "$_protoc_path/bin/protoc" ]; then
   echo "downloading protoc"
   curl -L \
     -o protoc.zip \
-    "https://github.com/protocolbuffers/protobuf/releases/download/v$_protoc_version/protoc-$_protoc_version_filename-$_os-x86_64.zip"
+    "https://github.com/protocolbuffers/protobuf/releases/download/v$_protoc_version/protoc-$_protoc_version-$_os-x86_64.zip"
   unzip -o -d "$_protoc_path" protoc.zip
   rm protoc.zip
 fi
