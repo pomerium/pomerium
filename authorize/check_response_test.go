@@ -280,7 +280,8 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := a.deniedResponse(tc.in, tc.code, tc.reason, tc.headers)
+			got, err := a.deniedResponse(tc.in, tc.code, tc.reason, tc.headers)
+			require.NoError(t, err)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
 			assert.Equal(t, tc.want.GetDeniedResponse().GetHeaders(), got.GetDeniedResponse().GetHeaders())

@@ -710,45 +710,46 @@ func (o *Options) Validate() error {
 }
 
 // GetAuthenticateURL returns the AuthenticateURL in the options or 127.0.0.1.
-func (o *Options) GetAuthenticateURL() *url.URL {
+func (o *Options) GetAuthenticateURL() (*url.URL, error) {
 	if o != nil && o.AuthenticateURL != nil {
-		return o.AuthenticateURL
+		return o.AuthenticateURL, nil
 	}
-	u, _ := url.Parse("https://127.0.0.1")
-	return u
+	return url.Parse("https://127.0.0.1")
 }
 
 // GetAuthorizeURL returns the AuthorizeURL in the options or 127.0.0.1:5443.
-func (o *Options) GetAuthorizeURL() *url.URL {
+func (o *Options) GetAuthorizeURL() (*url.URL, error) {
 	if o != nil && o.AuthorizeURL != nil {
-		return o.AuthorizeURL
+		return o.AuthorizeURL, nil
 	}
-	u, _ := url.Parse("http://127.0.0.1" + DefaultAlternativeAddr)
-	return u
+	return url.Parse("http://127.0.0.1" + DefaultAlternativeAddr)
 }
 
 // GetDataBrokerURL returns the DataBrokerURL in the options or 127.0.0.1:5443.
-func (o *Options) GetDataBrokerURL() *url.URL {
+func (o *Options) GetDataBrokerURL() (*url.URL, error) {
 	if o != nil && o.DataBrokerURL != nil {
-		return o.DataBrokerURL
+		return o.DataBrokerURL, nil
 	}
-	u, _ := url.Parse("http://127.0.0.1" + DefaultAlternativeAddr)
-	return u
+	return url.Parse("http://127.0.0.1" + DefaultAlternativeAddr)
 }
 
 // GetForwardAuthURL returns the ForwardAuthURL in the options or 127.0.0.1.
-func (o *Options) GetForwardAuthURL() *url.URL {
+func (o *Options) GetForwardAuthURL() (*url.URL, error) {
 	if o != nil && o.ForwardAuthURL != nil {
-		return o.ForwardAuthURL
+		return o.ForwardAuthURL, nil
 	}
-	u, _ := url.Parse("https://127.0.0.1")
-	return u
+	return url.Parse("https://127.0.0.1")
 }
 
 // GetOauthOptions gets the oauth.Options for the given config options.
-func (o *Options) GetOauthOptions() oauth.Options {
-	redirectURL := o.GetAuthenticateURL()
-	redirectURL.Path = o.AuthenticateCallbackPath
+func (o *Options) GetOauthOptions() (oauth.Options, error) {
+	redirectURL, err := o.GetAuthenticateURL()
+	if err != nil {
+		return oauth.Options{}, err
+	}
+	redirectURL = redirectURL.ResolveReference(&url.URL{
+		Path: o.AuthenticateCallbackPath,
+	})
 	return oauth.Options{
 		RedirectURL:    redirectURL,
 		ProviderName:   o.Provider,
@@ -757,7 +758,7 @@ func (o *Options) GetOauthOptions() oauth.Options {
 		ClientSecret:   o.ClientSecret,
 		Scopes:         o.Scopes,
 		ServiceAccount: o.ServiceAccount,
-	}
+	}, nil
 }
 
 // GetAllPolicies gets all the policies in the options.

@@ -50,96 +50,105 @@ func (srv *Server) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 	// enable ext_authz
-	if r, err := srv.buildControlPlanePathRoute("/.pomerium/jwt", true); err != nil {
+	r, err := srv.buildControlPlanePathRoute("/.pomerium/jwt", true)
+	if err != nil {
 		return nil, err
-	} else {
-		routes = append(routes, r)
 	}
+	routes = append(routes, r)
 
 	// disable ext_authz and passthrough to proxy handlers
-	if r, err := srv.buildControlPlanePathRoute("/ping", false); err != nil {
+	r, err = srv.buildControlPlanePathRoute("/ping", false)
+	if err != nil {
 		return nil, err
-	} else {
-		routes = append(routes, r)
 	}
-	if r, err := srv.buildControlPlanePathRoute("/healthz", false); err != nil {
+	routes = append(routes, r)
+	r, err = srv.buildControlPlanePathRoute("/healthz", false)
+	if err != nil {
 		return nil, err
-	} else {
-		routes = append(routes, r)
 	}
-	if r, err := srv.buildControlPlanePathRoute("/.pomerium/admin", true); err != nil {
+	routes = append(routes, r)
+	r, err = srv.buildControlPlanePathRoute("/.pomerium/admin", true)
+	if err != nil {
 		return nil, err
-	} else {
-		routes = append(routes, r)
 	}
-	if r, err := srv.buildControlPlanePrefixRoute("/.pomerium/admin/", true); err != nil {
+	routes = append(routes, r)
+
+	r, err = srv.buildControlPlanePrefixRoute("/.pomerium/admin/", true)
+	if err != nil {
 		return nil, err
-	} else {
-		routes = append(routes, r)
 	}
-	if r, err := srv.buildControlPlanePathRoute("/.pomerium", false); err != nil {
+	routes = append(routes, r)
+	r, err = srv.buildControlPlanePathRoute("/.pomerium", false)
+	if err != nil {
 		return nil, err
-	} else {
-		routes = append(routes, r)
 	}
-	if r, err := srv.buildControlPlanePrefixRoute("/.pomerium/", false); err != nil {
+	routes = append(routes, r)
+	r, err = srv.buildControlPlanePrefixRoute("/.pomerium/", false)
+	if err != nil {
 		return nil, err
-	} else {
-		routes = append(routes, r)
 	}
-	if r, err := srv.buildControlPlanePathRoute("/.well-known/pomerium", false); err != nil {
+	routes = append(routes, r)
+	r, err = srv.buildControlPlanePathRoute("/.well-known/pomerium", false)
+	if err != nil {
 		return nil, err
-	} else {
-		routes = append(routes, r)
 	}
-	if r, err := srv.buildControlPlanePrefixRoute("/.well-known/pomerium/", false); err != nil {
+	routes = append(routes, r)
+	r, err = srv.buildControlPlanePrefixRoute("/.well-known/pomerium/", false)
+	if err != nil {
 		return nil, err
-	} else {
-		routes = append(routes, r)
 	}
+	routes = append(routes, r)
 	// per #837, only add robots.txt if there are no unauthenticated routes
 	if !hasPublicPolicyMatchingURL(options, mustParseURL("https://"+domain+"/robots.txt")) {
-		if r, err := srv.buildControlPlanePathRoute("/robots.txt", false); err != nil {
+		r, err := srv.buildControlPlanePathRoute("/robots.txt", false)
+		if err != nil {
 			return nil, err
-		} else {
-			routes = append(routes, r)
 		}
+		routes = append(routes, r)
 	}
 	// if we're handling authentication, add the oauth2 callback url
-	if config.IsAuthenticate(options.Services) && hostMatchesDomain(options.GetAuthenticateURL(), domain) {
-		if r, err := srv.buildControlPlanePathRoute(options.AuthenticateCallbackPath, false); err != nil {
+	authenticateURL, err := options.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+	if config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, domain) {
+		r, err := srv.buildControlPlanePathRoute(options.AuthenticateCallbackPath, false)
+		if err != nil {
 			return nil, err
-		} else {
-			routes = append(routes, r)
 		}
+		routes = append(routes, r)
 	}
 	// if we're the proxy and this is the forward-auth url
-	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(options.GetForwardAuthURL(), domain) {
+	forwardAuthURL, err := options.GetForwardAuthURL()
+	if err != nil {
+		return nil, err
+	}
+	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(forwardAuthURL, domain) {
 		// disable ext_authz and pass request to proxy handlers that enable authN flow
-		if r, err := srv.buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}); err != nil {
+		r, err := srv.buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI})
+		if err != nil {
 			return nil, err
-		} else {
-			routes = append(routes, r)
 		}
-		if r, err := srv.buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI}); err != nil {
+		routes = append(routes, r)
+		r, err = srv.buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI})
+		if err != nil {
 			return nil, err
-		} else {
-			routes = append(routes, r)
 		}
-		if r, err := srv.buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI}); err != nil {
+		routes = append(routes, r)
+		r, err = srv.buildControlPlanePathAndQueryRoute("/", []string{urlutil.QueryForwardAuthURI})
+		if err != nil {
 			return nil, err
-		} else {
-			routes = append(routes, r)
 		}
+		routes = append(routes, r)
 
 		// otherwise, enforce ext_authz; pass all other requests through to an upstream
 		// handler that will simply respond with http status 200 / OK indicating that
 		// the fronting forward-auth proxy can continue.
-		if r, err := srv.buildControlPlaneProtectedPrefixRoute("/"); err != nil {
+		r, err = srv.buildControlPlaneProtectedPrefixRoute("/")
+		if err != nil {
 			return nil, err
-		} else {
-			routes = append(routes, r)
 		}
+		routes = append(routes, r)
 	}
 	return routes, nil
 }

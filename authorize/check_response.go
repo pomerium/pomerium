@@ -49,7 +49,7 @@ func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.C
 func (a *Authorize) deniedResponse(
 	in *envoy_service_auth_v2.CheckRequest,
 	code int32, reason string, headers map[string]string,
-) *envoy_service_auth_v2.CheckResponse {
+) (*envoy_service_auth_v2.CheckResponse, error) {
 	returnHTMLError := true
 	inHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
 	if inHeaders != nil {
@@ -59,15 +59,19 @@ func (a *Authorize) deniedResponse(
 	if returnHTMLError {
 		return a.htmlDeniedResponse(in, code, reason, headers)
 	}
-	return a.plainTextDeniedResponse(code, reason, headers)
+	return a.plainTextDeniedResponse(code, reason, headers), nil
 }
 
 func (a *Authorize) htmlDeniedResponse(
 	in *envoy_service_auth_v2.CheckRequest,
 	code int32, reason string, headers map[string]string,
-) *envoy_service_auth_v2.CheckResponse {
+) (*envoy_service_auth_v2.CheckResponse, error) {
 	opts := a.currentOptions.Load()
-	debugEndpoint := opts.GetAuthenticateURL().ResolveReference(&url.URL{Path: "/.pomerium/"})
+	authenticateURL, err := opts.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+	debugEndpoint := authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/"})
 
 	// create go-style http request
 	r := getHTTPRequestFromCheckRequest(in)
@@ -97,7 +101,7 @@ func (a *Authorize) htmlDeniedResponse(
 	}
 
 	var buf bytes.Buffer
-	err := a.templates.ExecuteTemplate(&buf, "error.html", map[string]interface{}{
+	err = a.templates.ExecuteTemplate(&buf, "error.html", map[string]interface{}{
 		"Status":     code,
 		"StatusText": reason,
 		"CanDebug":   code/100 == 4,
@@ -127,7 +131,7 @@ func (a *Authorize) htmlDeniedResponse(
 				Body:    buf.String(),
 			},
 		},
-	}
+	}, nil
 }
 
 func (a *Authorize) plainTextDeniedResponse(code int32, reason string, headers map[string]string) *envoy_service_auth_v2.CheckResponse {
@@ -152,10 +156,16 @@ func (a *Authorize) plainTextDeniedResponse(code int32, reason string, headers m
 	}
 }
 
-func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) *envoy_service_auth_v2.CheckResponse {
+func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) (*envoy_service_auth_v2.CheckResponse, error) {
 	opts := a.currentOptions.Load()
+	authenticateURL, err := opts.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
 
-	signinURL := opts.GetAuthenticateURL().ResolveReference(&url.URL{Path: "/.pomerium/sign_in"})
+	signinURL := authenticateURL.ResolveReference(&url.URL{
+		Path: "/.pomerium/sign_in",
+	})
 	q := signinURL.Query()
 
 	// always assume https scheme

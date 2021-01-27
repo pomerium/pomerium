@@ -14,6 +14,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var cmpOptIgnoreUnexported = cmpopts.IgnoreUnexported(Options{})
@@ -498,7 +499,7 @@ func TestOptions_DefaultURL(t *testing.T) {
 	}
 	tests := []struct {
 		name           string
-		f              func() *url.URL
+		f              func() (*url.URL, error)
 		expectedURLStr string
 	}{
 		{"default authenticate url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
@@ -515,7 +516,9 @@ func TestOptions_DefaultURL(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.expectedURLStr, tc.f().String())
+			u, err := tc.f()
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedURLStr, u.String())
 		})
 	}
 }
@@ -530,7 +533,9 @@ func mustParseURL(str string) *url.URL {
 
 func TestOptions_GetOauthOptions(t *testing.T) {
 	opts := &Options{AuthenticateURL: mustParseURL("https://authenticate.example.com")}
+	oauthOptions, err := opts.GetOauthOptions()
+	require.NoError(t, err)
 
 	// Test that oauth redirect url hostname must point to authenticate url hostname.
-	assert.Equal(t, opts.AuthenticateURL.Hostname(), opts.GetOauthOptions().RedirectURL.Hostname())
+	assert.Equal(t, opts.AuthenticateURL.Hostname(), oauthOptions.RedirectURL.Hostname())
 }
