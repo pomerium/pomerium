@@ -438,9 +438,9 @@ func (p *Policy) String() string {
 }
 
 // Matches returns true if the policy would match the given URL.
-func (p *Policy) Matches(requestURL *url.URL) bool {
+func (p *Policy) Matches(requestURL url.URL) bool {
 	// handle nils by always returning false
-	if p.Source == nil || requestURL == nil {
+	if p.Source == nil {
 		return false
 	}
 

@@ -566,28 +566,28 @@ func getAllRouteableDomains(options *config.Options, addr string) ([]string, err
 
 	lookup := map[string]struct{}{}
 	if config.IsAuthenticate(options.Services) && addr == options.Addr {
-		for _, h := range urlutil.GetDomainsForURL(authenticateURL) {
+		for _, h := range urlutil.GetDomainsForURL(*authenticateURL) {
 			lookup[h] = struct{}{}
 		}
 	}
 	if config.IsAuthorize(options.Services) && addr == options.GRPCAddr {
-		for _, h := range urlutil.GetDomainsForURL(authorizeURL) {
+		for _, h := range urlutil.GetDomainsForURL(*authorizeURL) {
 			lookup[h] = struct{}{}
 		}
 	}
 	if config.IsDataBroker(options.Services) && addr == options.GRPCAddr {
-		for _, h := range urlutil.GetDomainsForURL(dataBrokerURL) {
+		for _, h := range urlutil.GetDomainsForURL(*dataBrokerURL) {
 			lookup[h] = struct{}{}
 		}
 	}
 	if config.IsProxy(options.Services) && addr == options.Addr {
 		for _, policy := range options.GetAllPolicies() {
-			for _, h := range urlutil.GetDomainsForURL(policy.Source.URL) {
+			for _, h := range urlutil.GetDomainsForURL(*policy.Source.URL) {
 				lookup[h] = struct{}{}
 			}
 		}
 		if options.ForwardAuthURL != nil {
-			for _, h := range urlutil.GetDomainsForURL(forwardAuthURL) {
+			for _, h := range urlutil.GetDomainsForURL(*forwardAuthURL) {
 				lookup[h] = struct{}{}
 			}
 		}

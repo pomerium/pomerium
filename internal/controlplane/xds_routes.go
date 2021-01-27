@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"testing"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -11,6 +12,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -99,7 +101,7 @@ func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain strin
 	}
 	routes = append(routes, r)
 	// per #837, only add robots.txt if there are no unauthenticated routes
-	if !hasPublicPolicyMatchingURL(options, mustParseURL("https://"+domain+"/robots.txt")) {
+	if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: domain, Path: "/robots.txt"}) {
 		r, err := srv.buildControlPlanePathRoute("/robots.txt", false)
 		if err != nil {
 			return nil, err
@@ -520,7 +522,7 @@ func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.
 	}
 }
 
-func hasPublicPolicyMatchingURL(options *config.Options, requestURL *url.URL) bool {
+func hasPublicPolicyMatchingURL(options *config.Options, requestURL url.URL) bool {
 	for _, policy := range options.GetAllPolicies() {
 		if policy.AllowPublicUnauthenticatedAccess && policy.Matches(requestURL) {
 			return true
@@ -529,10 +531,8 @@ func hasPublicPolicyMatchingURL(options *config.Options, requestURL *url.URL) bo
 	return false
 }
 
-func mustParseURL(str string) *url.URL {
+func mustParseURL(t *testing.T, str string) *url.URL {
 	u, err := url.Parse(str)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err, str)
 	return u
 }

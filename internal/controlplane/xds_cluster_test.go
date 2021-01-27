@@ -27,14 +27,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	t.Run("insecure", func(t *testing.T) {
 		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
 			To: mustParseWeightedURLs(t, "http://example.com"),
-		}, mustParseURL("http://example.com"))
+		}, *mustParseURL(t, "http://example.com"))
 		require.NoError(t, err)
 		assert.Nil(t, ts)
 	})
 	t.Run("host as sni", func(t *testing.T) {
 		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
-			Destinations: mustParseURLs("https://example.com"),
-		}, mustParseURL("https://example.com"))
+			To: mustParseWeightedURLs(t, "https://example.com"),
+		}, *mustParseURL(t, "https://example.com"))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -69,7 +69,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
 			To:            mustParseWeightedURLs(t, "https://example.com"),
 			TLSServerName: "use-this-name.example.com",
-		}, mustParseURL("https://example.com"))
+		}, *mustParseURL(t, "https://example.com"))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -104,7 +104,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
 			To:            mustParseWeightedURLs(t, "https://example.com"),
 			TLSSkipVerify: true,
-		}, mustParseURL("https://example.com"))
+		}, *mustParseURL(t, "https://example.com"))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -140,7 +140,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
 			To:          mustParseWeightedURLs(t, "https://example.com"),
 			TLSCustomCA: base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
-		}, mustParseURL("https://example.com"))
+		}, *mustParseURL(t, "https://example.com"))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -176,7 +176,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		ts, err := srv.buildPolicyTransportSocket(&config.Policy{
 			To:                mustParseWeightedURLs(t, "https://example.com"),
 			ClientCertificate: clientCert,
-		}, mustParseURL("https://example.com"))
+		}, *mustParseURL(t, "https://example.com"))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -411,11 +411,12 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("weights", func(t *testing.T) {
-		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
 			To: mustParseWeightedURLs(t, "http://127.0.0.1:8080,1", "http://127.0.0.2,2"),
 		})
+		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err := buildCluster(cluster, "example", endpoints, true)
+		err = srv.buildCluster(cluster, "example", endpoints, true)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{

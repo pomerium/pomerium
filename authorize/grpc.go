@@ -247,7 +247,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v
 	return req
 }
 
-func (a *Authorize) getMatchingPolicy(requestURL *url.URL) *config.Policy {
+func (a *Authorize) getMatchingPolicy(requestURL url.URL) *config.Policy {
 	options := a.currentOptions.Load()
 
 	for _, p := range options.GetAllPolicies() {
@@ -261,9 +261,10 @@ func (a *Authorize) getMatchingPolicy(requestURL *url.URL) *config.Policy {
 
 func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v2.CheckRequest) *http.Request {
 	hattrs := req.GetAttributes().GetRequest().GetHttp()
+	u := getCheckRequestURL(req)
 	hreq := &http.Request{
 		Method:     hattrs.GetMethod(),
-		URL:        getCheckRequestURL(req),
+		URL:        &u,
 		Header:     make(http.Header),
 		Body:       ioutil.NopCloser(strings.NewReader(hattrs.GetBody())),
 		Host:       hattrs.GetHost(),
@@ -284,9 +285,9 @@ func getCheckRequestHeaders(req *envoy_service_auth_v2.CheckRequest) map[string]
 	return hdrs
 }
 
-func getCheckRequestURL(req *envoy_service_auth_v2.CheckRequest) *url.URL {
+func getCheckRequestURL(req *envoy_service_auth_v2.CheckRequest) url.URL {
 	h := req.GetAttributes().GetRequest().GetHttp()
-	u := &url.URL{
+	u := url.URL{
 		Scheme: h.GetScheme(),
 		Host:   h.GetHost(),
 	}
