@@ -536,11 +536,3 @@ func mustParseURL(str string) *url.URL {
 	}
 	return u
 }
-
-func mustParseURLs(strs ...string) []*url.URL {
-	var us []*url.URL
-	for _, str := range strs {
-		us = append(us, mustParseURL(str))
-	}
-	return us
-}

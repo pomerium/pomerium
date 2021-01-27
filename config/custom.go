@@ -158,7 +158,7 @@ func ParseWeightedUrls(urls ...string) (WeightedURLs, error) {
 		out = append(out, *u)
 	}
 
-	if err, _ := WeightedURLs(out).Validate(); err != nil {
+	if _, err := WeightedURLs(out).Validate(); err != nil {
 		return nil, err
 	}
 
@@ -169,13 +169,13 @@ func ParseWeightedUrls(urls ...string) (WeightedURLs, error) {
 type HasWeight bool
 
 // Validate checks that URLs are valid, and either all or none have weights assigned
-func (urls WeightedURLs) Validate() (error, HasWeight) {
+func (urls WeightedURLs) Validate() (HasWeight, error) {
 	noWeight := false
 	hasWeight := false
 
 	for i := range urls {
 		if err := urls[i].Validate(); err != nil {
-			return fmt.Errorf("%s: %w", urls[i].String(), err), false
+			return false, fmt.Errorf("%s: %w", urls[i].String(), err)
 		}
 		if urls[i].LbWeight == 0 {
 			noWeight = true
@@ -185,18 +185,18 @@ func (urls WeightedURLs) Validate() (error, HasWeight) {
 	}
 
 	if noWeight == hasWeight {
-		return errEndpointWeightsSpec, false
+		return false, errEndpointWeightsSpec
 	}
 
 	if noWeight {
-		return nil, HasWeight(false)
+		return HasWeight(false), nil
 	}
-	return nil, HasWeight(true)
+	return HasWeight(true), nil
 }
 
 // Flatten converts weighted url array into indidual arrays of urls and weights
 func (urls WeightedURLs) Flatten() ([]string, []uint32, error) {
-	err, hasWeight := urls.Validate()
+	hasWeight, err := urls.Validate()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -254,33 +254,6 @@ func parsePolicy(src map[string]interface{}) (out map[string]interface{}, err er
 	}
 
 	return out, nil
-}
-
-// toMap tries to convert into map[string]interface{}
-// as mapstructure decode hook would return either map[string]interface{} in case source file is JSON
-// and map[interface{}]interface{} in case of YAML
-// as this would have to be converted into JSONPB to deserialize back into protobuf
-// we can only support string based keys and should raise an error
-func toMap(raw interface{}) (map[string]interface{}, error) {
-	if ps, ok := raw.(map[string]interface{}); ok {
-		return ps, nil
-	}
-
-	pm, ok := raw.(map[interface{}]interface{})
-	if !ok {
-		return nil, nil // some regular type we should ignore
-	}
-
-	ps := make(map[string]interface{}, len(pm))
-	for ki, v := range pm {
-		ks, ok := ki.(string)
-		if !ok {
-			return nil, errKeysMustBeStrings
-		}
-		ps[ks] = v
-	}
-
-	return ps, nil
 }
 
 func parseTo(raw interface{}) ([]WeightedURL, error) {

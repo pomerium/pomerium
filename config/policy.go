@@ -477,8 +477,8 @@ func (su *StringURL) String() string {
 }
 
 // MarshalJSON returns the URLs host as json.
-func (u *StringURL) MarshalJSON() ([]byte, error) {
-	return json.Marshal(u.String())
+func (su *StringURL) MarshalJSON() ([]byte, error) {
+	return json.Marshal(su.String())
 }
 
 type routeID struct {

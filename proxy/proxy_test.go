@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/config"
+
 	"github.com/stretchr/testify/require"
 )
 

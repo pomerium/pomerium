@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	policyKey    = "policy"
 	toKey        = "to"
 	envoyOptsKey = "_envoy_opts"
 )
@@ -20,7 +19,6 @@ var (
 	errEndpointWeightsSpec     = errors.New("either no weights should be provided, or all endpoints must have non-zero weight specified")
 	errHostnameMustBeSpecified = errors.New("endpoint hostname must be specified")
 	errSchemeMustBeSpecified   = errors.New("url scheme must be provided")
-	errMalformedPolicy         = errors.New("policy syntax error")
 )
 
 var (
