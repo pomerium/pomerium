@@ -365,7 +365,7 @@ func (srv *Server) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpo
 					Address: buildAddress(u.Host, defaultPort),
 				},
 			},
-			// LoadBalancingWeight: e.loadBalancerWeight,
+			LoadBalancingWeight: e.loadBalancerWeight,
 		}
 
 		if e.transportSocket != nil {

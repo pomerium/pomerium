@@ -410,6 +410,53 @@ func Test_buildCluster(t *testing.T) {
 			}
 		`, cluster)
 	})
+	t.Run("weights", func(t *testing.T) {
+		endpoints := srv.buildPolicyEndpoints(&config.Policy{
+			To: mustParseWeightedURLs(t, "http://127.0.0.1:8080,1", "http://127.0.0.2,2"),
+		})
+		cluster := newDefaultEnvoyClusterConfig()
+		err := buildCluster(cluster, "example", endpoints, true)
+		require.NoErrorf(t, err, "cluster %+v", cluster)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"name": "example",
+				"type": "STATIC",
+				"connectTimeout": "10s",
+				"respectDnsTtl": true,
+				"http2ProtocolOptions": {
+					"allowConnect": true
+				},
+				"loadAssignment": {
+					"clusterName": "example",
+					"endpoints": [{
+						"lbEndpoints": [{
+							"endpoint": {
+								"address": {
+									"socketAddress": {
+										"address": "127.0.0.1",
+										"ipv4Compat": true,
+										"portValue": 8080
+									}
+								}
+							},
+							"loadBalancingWeight": 1
+						},{
+							"endpoint": {
+								"address": {
+									"socketAddress": {
+										"address": "127.0.0.2",
+										"ipv4Compat": true,
+										"portValue": 80
+									}
+								}
+							},
+							"loadBalancingWeight": 2
+						}]
+					}]
+				}
+			}
+		`, cluster)
+	})
 	t.Run("localhost", func(t *testing.T) {
 		endpoints, err := srv.buildPolicyEndpoints(&config.Policy{
 			To: mustParseWeightedURLs(t, "http://localhost"),

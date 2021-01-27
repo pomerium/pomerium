@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -220,8 +219,6 @@ func DecodePolicyHookFunc() mapstructure.DecodeHookFunc {
 		if t != reflect.TypeOf(Policy{}) {
 			return data, nil
 		}
-
-		log.Printf("POLICY HOOK %#v\n", data)
 
 		mp, err := serializable(data)
 		if err != nil {

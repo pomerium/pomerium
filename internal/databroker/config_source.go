@@ -87,7 +87,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 		if err != nil {
 			log.Warn().Err(err).
 				Str("policy", policy.String()).
-				Msg("databroker: processing policy, ignoring")
+				Msg("databroker: invalid policy config, ignoring")
 			return
 		}
 		seen[id] = struct{}{}
