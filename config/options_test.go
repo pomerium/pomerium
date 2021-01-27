@@ -88,13 +88,13 @@ func Test_bindEnvs(t *testing.T) {
 	defer os.Unsetenv("POLICY")
 	defer os.Unsetenv("HEADERS")
 	os.Setenv("POMERIUM_DEBUG", "true")
-	os.Setenv("POLICY", "mypolicy")
+	os.Setenv("POLICY", "LSBmcm9tOiBodHRwczovL2h0dHBiaW4ubG9jYWxob3N0LnBvbWVyaXVtLmlvCiAgdG86IAogICAgLSBodHRwOi8vbG9jYWxob3N0OjgwODEsMQo=")
 	os.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
 	err := bindEnvs(o, v)
 	if err != nil {
 		t.Fatalf("failed to bind options to env vars: %s", err)
 	}
-	err = v.Unmarshal(o)
+	err = v.Unmarshal(o, viperPolicyHooks)
 	if err != nil {
 		t.Errorf("Could not unmarshal %#v: %s", o, err)
 	}
@@ -102,11 +102,11 @@ func Test_bindEnvs(t *testing.T) {
 	if !o.Debug {
 		t.Errorf("Failed to load POMERIUM_DEBUG from environment")
 	}
+	if len(o.Policies) != 1 {
+		t.Error("failed to bind POLICY env")
+	}
 	if o.Services != "" {
 		t.Errorf("Somehow got SERVICES from environment without configuring it")
-	}
-	if o.PolicyEnv != "mypolicy" {
-		t.Errorf("Failed to bind policy env var to PolicyEnv")
 	}
 	if o.HeadersEnv != `{"X-Custom-1":"foo", "X-Custom-2":"bar"}` {
 		t.Errorf("Failed to bind headers env var to HeadersEnv")

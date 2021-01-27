@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v2"
 
 	"github.com/pomerium/pomerium/internal/directory/azure"
 	"github.com/pomerium/pomerium/internal/directory/github"
@@ -107,8 +106,7 @@ type Options struct {
 	IdleTimeout  time.Duration `mapstructure:"timeout_idle" yaml:"timeout_idle,omitempty"`
 
 	// Policies define per-route configuration and access control policies.
-	Policies   []Policy `yaml:"policy,omitempty"`
-	PolicyEnv  string   `yaml:",omitempty"`
+	Policies   []Policy `mapstructure:"policy"`
 	PolicyFile string   `mapstructure:"policy_file" yaml:"policy_file,omitempty"`
 
 	// AdditionalPolicies are any additional policies added to the options.
@@ -376,20 +374,23 @@ func optionsFromViper(configFile string) (*Options, error) {
 	return o, nil
 }
 
+/*
+func parsePoliciesFromBytes() ([]Policy, error) {
+	policyBytes, err := base64.StdEncoding.DecodeString(o.PolicyEnv)
+	if err != nil {
+		return fmt.Errorf("could not decode POLICY env var: %w", err)
+	}
+	if err := yaml.Unmarshal(policyBytes, &policies); err != nil {
+		return fmt.Errorf("could not unmarshal policy yaml: %w", err)
+	}
+}
+*/
+
 // parsePolicy initializes policy to the options from either base64 environmental
 // variables or from a file
 func (o *Options) parsePolicy() error {
 	var policies []Policy
-	// Parse from base64 env var
-	if o.PolicyEnv != "" {
-		policyBytes, err := base64.StdEncoding.DecodeString(o.PolicyEnv)
-		if err != nil {
-			return fmt.Errorf("could not decode POLICY env var: %w", err)
-		}
-		if err := yaml.Unmarshal(policyBytes, &policies); err != nil {
-			return fmt.Errorf("could not unmarshal policy yaml: %w", err)
-		}
-	} else if err := o.viper.UnmarshalKey("policy", &policies, viperPolicyHooks); err != nil {
+	if err := o.viper.UnmarshalKey("policy", &policies, viperPolicyHooks); err != nil {
 		return err
 	}
 	if len(policies) != 0 {
@@ -466,9 +467,9 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 	}
 
 	// Statically bind fields
-	err := v.BindEnv("PolicyEnv", "POLICY")
+	err := v.BindEnv("Policy", "POLICY")
 	if err != nil {
-		return fmt.Errorf("failed to bind field 'PolicyEnv' to env var 'POLICY': %w", err)
+		return fmt.Errorf("failed to bind field 'Policy' to env var 'POLICY': %w", err)
 	}
 	err = v.BindEnv("HeadersEnv", "HEADERS")
 	if err != nil {

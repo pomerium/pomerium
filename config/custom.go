@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"gopkg.in/yaml.v2"
 )
 
 // A StringSlice is a slice of strings.
@@ -216,6 +218,35 @@ func (urls WeightedURLs) Flatten() ([]string, []uint32, error) {
 		return str, nil, nil
 	}
 	return str, wghts, nil
+}
+
+func DecodePolicyBase64Hook() mapstructure.DecodeHookFunc {
+	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+		if t != reflect.TypeOf([]Policy{}) {
+			return data, nil
+		}
+
+		str, ok := data.([]string)
+		if !ok {
+			return data, nil
+		}
+
+		if len(str) != 1 {
+			return nil, fmt.Errorf("base64 policy data: expecting 1, got %d", len(str))
+		}
+
+		bytes, err := base64.StdEncoding.DecodeString(str[0])
+		if err != nil {
+			return nil, fmt.Errorf("base64 decoding policy data: %w", err)
+		}
+
+		out := []map[interface{}]interface{}{}
+		if err = yaml.Unmarshal(bytes, &out); err != nil {
+			return nil, fmt.Errorf("parsing base64-encoded policy data as yaml: %w", err)
+		}
+
+		return out, nil
+	}
 }
 
 func DecodePolicyHookFunc() mapstructure.DecodeHookFunc {

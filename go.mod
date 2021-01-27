@@ -42,7 +42,6 @@ require (
 	github.com/open-policy-agent/opa v0.26.0
 	github.com/openzipkin/zipkin-go v0.2.5
 	github.com/ory/dockertest/v3 v3.6.3
-	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
 	github.com/prometheus/client_golang v1.9.0
 	github.com/rakyll/statik v0.1.7
@@ -72,4 +71,5 @@ require (
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1
 	gopkg.in/yaml.v2 v2.4.0
+	sigs.k8s.io/kind v0.9.0 // indirect
 )

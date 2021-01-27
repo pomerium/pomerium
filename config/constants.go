@@ -32,5 +32,6 @@ var (
 		mapstructure.StringToTimeDurationHookFunc(),
 		mapstructure.StringToSliceHookFunc(","),
 		DecodePolicyHookFunc(),
+		DecodePolicyBase64Hook(),
 	))
 )
