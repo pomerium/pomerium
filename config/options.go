@@ -374,18 +374,6 @@ func optionsFromViper(configFile string) (*Options, error) {
 	return o, nil
 }
 
-/*
-func parsePoliciesFromBytes() ([]Policy, error) {
-	policyBytes, err := base64.StdEncoding.DecodeString(o.PolicyEnv)
-	if err != nil {
-		return fmt.Errorf("could not decode POLICY env var: %w", err)
-	}
-	if err := yaml.Unmarshal(policyBytes, &policies); err != nil {
-		return fmt.Errorf("could not unmarshal policy yaml: %w", err)
-	}
-}
-*/
-
 // parsePolicy initializes policy to the options from either base64 environmental
 // variables or from a file
 func (o *Options) parsePolicy() error {
