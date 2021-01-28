@@ -83,8 +83,8 @@ func GetAbsoluteURL(r *http.Request) *url.URL {
 //
 // For standard HTTP (80)/HTTPS (443) ports, it returns `example.com` and `example.com:<port>`.
 // Otherwise, return the URL.Host value.
-func GetDomainsForURL(u *url.URL) []string {
-	if IsTCP(u) {
+func GetDomainsForURL(u url.URL) []string {
+	if IsTCP(&u) {
 		return []string{u.Host}
 	}
 

@@ -28,6 +28,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
 )
@@ -144,8 +145,11 @@ func TestConfig(t *testing.T) {
 	addr := li.Addr().String()
 	_ = li.Close()
 
+	to, err := config.ParseWeightedUrls("http://to.example.com")
+	require.NoError(t, err)
+
 	p1 := config.Policy{
-		From: "http://from.example.com", To: config.NewStringSlice("http://to.example.com"),
+		From: "http://from.example.com", To: to,
 	}
 	_ = p1.Validate()
 

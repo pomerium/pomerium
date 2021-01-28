@@ -157,7 +157,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 				SignedJWT: "valid-signed-jwt",
 				MatchingPolicy: &config.Policy{
 					EnableGoogleCloudServerlessAuthentication: true,
-					Destinations: mustParseURLs("https://example.com"),
+					To: mustParseWeightedURLs(t, "https://example.com"),
 				},
 			},
 			&envoy_service_auth_v2.CheckResponse{
@@ -287,4 +287,10 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 			assert.Equal(t, tc.want.GetDeniedResponse().GetHeaders(), got.GetDeniedResponse().GetHeaders())
 		})
 	}
+}
+
+func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
+	wu, err := config.ParseWeightedUrls(urls...)
+	require.NoError(t, err)
+	return wu
 }

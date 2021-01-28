@@ -435,13 +435,13 @@ func Test_getAllDomains(t *testing.T) {
 		Addr:            "127.0.0.1:9000",
 		GRPCAddr:        "127.0.0.1:9001",
 		Services:        "all",
-		AuthenticateURL: mustParseURL("https://authenticate.example.com"),
-		AuthorizeURL:    mustParseURL("https://authorize.example.com:9001"),
-		DataBrokerURL:   mustParseURL("https://cache.example.com:9001"),
+		AuthenticateURL: mustParseURL(t, "https://authenticate.example.com"),
+		AuthorizeURL:    mustParseURL(t, "https://authorize.example.com:9001"),
+		DataBrokerURL:   mustParseURL(t, "https://cache.example.com:9001"),
 		Policies: []config.Policy{
-			{Source: &config.StringURL{URL: mustParseURL("http://a.example.com")}},
-			{Source: &config.StringURL{URL: mustParseURL("https://b.example.com")}},
-			{Source: &config.StringURL{URL: mustParseURL("https://c.example.com")}},
+			{Source: &config.StringURL{URL: mustParseURL(t, "http://a.example.com")}},
+			{Source: &config.StringURL{URL: mustParseURL(t, "https://b.example.com")}},
+			{Source: &config.StringURL{URL: mustParseURL(t, "https://c.example.com")}},
 		},
 	}
 	t.Run("routable", func(t *testing.T) {
@@ -495,13 +495,13 @@ func Test_getAllDomains(t *testing.T) {
 }
 
 func Test_hostMatchesDomain(t *testing.T) {
-	assert.True(t, hostMatchesDomain(mustParseURL("http://example.com"), "example.com"))
-	assert.True(t, hostMatchesDomain(mustParseURL("http://example.com"), "example.com:80"))
-	assert.True(t, hostMatchesDomain(mustParseURL("https://example.com"), "example.com:443"))
-	assert.True(t, hostMatchesDomain(mustParseURL("https://example.com:443"), "example.com:443"))
-	assert.True(t, hostMatchesDomain(mustParseURL("https://example.com:443"), "example.com"))
-	assert.False(t, hostMatchesDomain(mustParseURL("http://example.com:81"), "example.com"))
-	assert.False(t, hostMatchesDomain(mustParseURL("http://example.com:81"), "example.com:80"))
+	assert.True(t, hostMatchesDomain(mustParseURL(t, "http://example.com"), "example.com"))
+	assert.True(t, hostMatchesDomain(mustParseURL(t, "http://example.com"), "example.com:80"))
+	assert.True(t, hostMatchesDomain(mustParseURL(t, "https://example.com"), "example.com:443"))
+	assert.True(t, hostMatchesDomain(mustParseURL(t, "https://example.com:443"), "example.com:443"))
+	assert.True(t, hostMatchesDomain(mustParseURL(t, "https://example.com:443"), "example.com"))
+	assert.False(t, hostMatchesDomain(mustParseURL(t, "http://example.com:81"), "example.com"))
+	assert.False(t, hostMatchesDomain(mustParseURL(t, "http://example.com:81"), "example.com:80"))
 }
 
 func Test_buildRouteConfiguration(t *testing.T) {

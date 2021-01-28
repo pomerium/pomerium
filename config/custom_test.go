@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,4 +54,50 @@ func TestSerializable(t *testing.T) {
 
 	_, err = json.Marshal(ms)
 	require.NoError(t, err, "json marshal")
+}
+
+func TestWeightedStringSlice(t *testing.T) {
+	tcases := []struct {
+		In      StringSlice
+		Out     StringSlice
+		Weights []uint32
+		Error   bool
+	}{
+		{
+			StringSlice{"https://srv-1.int.corp.com,1", "https://srv-2.int.corp.com,2", "http://10.0.1.1:8080,3", "http://localhost:8000,4"},
+			StringSlice{"https://srv-1.int.corp.com", "https://srv-2.int.corp.com", "http://10.0.1.1:8080", "http://localhost:8000"},
+			[]uint32{1, 2, 3, 4},
+			false,
+		},
+		{ // all should be provided
+			StringSlice{"https://srv-1.int.corp.com,1", "https://srv-2.int.corp.com", "http://10.0.1.1:8080,3", "http://localhost:8000,4"},
+			nil,
+			nil,
+			true,
+		},
+		{ // or none
+			StringSlice{"https://srv-1.int.corp.com", "https://srv-2.int.corp.com", "http://10.0.1.1:8080", "http://localhost:8000"},
+			StringSlice{"https://srv-1.int.corp.com", "https://srv-2.int.corp.com", "http://10.0.1.1:8080", "http://localhost:8000"},
+			nil,
+			false,
+		},
+		{ // IPv6 https://tools.ietf.org/html/rfc2732
+			StringSlice{"http://[::FFFF:129.144.52.38]:8080,1", "http://[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:8080/,2"},
+			StringSlice{"http://[::FFFF:129.144.52.38]:8080", "http://[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:8080/"},
+			[]uint32{1, 2},
+			false,
+		},
+	}
+
+	for _, tc := range tcases {
+		name := fmt.Sprintf("%s", tc.In)
+		out, weights, err := weightedStrings(tc.In)
+		if tc.Error {
+			assert.Error(t, err, name)
+		} else {
+			assert.NoError(t, err, name)
+		}
+		assert.Equal(t, tc.Out, out, name)
+		assert.Equal(t, tc.Weights, weights, name)
+	}
 }

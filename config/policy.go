@@ -24,8 +24,12 @@ import (
 
 // Policy contains route specific configuration and access settings.
 type Policy struct {
-	From string      `mapstructure:"from" yaml:"from"`
-	To   StringSlice `mapstructure:"to" yaml:"to"`
+	From string       `mapstructure:"from" yaml:"from"`
+	To   WeightedURLs `mapstructure:"to" yaml:"to"`
+
+	// LbWeights are optional load balancing weights applied to endpoints specified in To
+	// this field exists for compatibility with mapstructure
+	LbWeights []uint32 `mapstructure:"_to_weights,omitempty" json:"-" yaml:"-"`
 
 	// Redirect is used for a redirect action instead of `To`
 	Redirect *PolicyRedirect `mapstructure:"redirect" yaml:"redirect"`
@@ -36,8 +40,7 @@ type Policy struct {
 	AllowedDomains   []string                 `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 	AllowedIDPClaims identity.FlattenedClaims `mapstructure:"allowed_idp_claims" yaml:"allowed_idp_claims,omitempty" json:"allowed_idp_claims,omitempty"`
 
-	Source       *StringURL `yaml:",omitempty" json:"source,omitempty" hash:"ignore"`
-	Destinations []*url.URL `yaml:",omitempty" json:"destinations,omitempty" hash:"ignore"`
+	Source *StringURL `yaml:",omitempty" json:"source,omitempty" hash:"ignore"`
 
 	// Additional route matching options
 	Prefix string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
@@ -170,9 +173,14 @@ type PolicyRedirect struct {
 func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	timeout, _ := ptypes.Duration(pb.GetTimeout())
 
+	to, err := ParseWeightedUrls(pb.GetTo()...)
+	if err != nil {
+		return nil, err
+	}
+
 	p := &Policy{
 		From:                             pb.GetFrom(),
-		To:                               NewStringSlice(pb.GetTo()...),
+		To:                               to,
 		AllowedUsers:                     pb.GetAllowedUsers(),
 		AllowedGroups:                    pb.GetAllowedGroups(),
 		AllowedDomains:                   pb.GetAllowedDomains(),
@@ -232,7 +240,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 }
 
 // ToProto converts the policy to a protobuf type.
-func (p *Policy) ToProto() *configpb.Route {
+func (p *Policy) ToProto() (*configpb.Route, error) {
 	timeout := ptypes.DurationProto(p.UpstreamTimeout)
 	sps := make([]*configpb.Policy, 0, len(p.SubPolicies))
 	for _, sp := range p.SubPolicies {
@@ -246,10 +254,17 @@ func (p *Policy) ToProto() *configpb.Route {
 			Rego:             sp.Rego,
 		})
 	}
+
+	to, weights, err := p.To.Flatten()
+	if err != nil {
+		return nil, err
+	}
+
 	pb := &configpb.Route{
 		Name:                             fmt.Sprint(p.RouteID()),
 		From:                             p.From,
-		To:                               p.To,
+		To:                               to,
+		LoadBalancingWeights:             weights,
 		AllowedUsers:                     p.AllowedUsers,
 		AllowedGroups:                    p.AllowedGroups,
 		AllowedDomains:                   p.AllowedDomains,
@@ -293,7 +308,7 @@ func (p *Policy) ToProto() *configpb.Route {
 		}
 	}
 
-	return pb
+	return pb, nil
 }
 
 // Validate checks the validity of a policy.
@@ -312,19 +327,14 @@ func (p *Policy) Validate() error {
 
 	p.Source = &StringURL{source}
 
-	switch {
-	case len(p.To) > 0:
-		p.Destinations = nil
-		for _, to := range p.To {
-			dst, err := urlutil.ParseAndValidateURL(to)
-			if err != nil {
-				return fmt.Errorf("config: policy bad destination url %w", err)
-			}
-			p.Destinations = append(p.Destinations, dst)
+	if len(p.To) == 0 && p.Redirect == nil {
+		return errEitherToOrRedirectRequired
+	}
+
+	for _, u := range p.To {
+		if err = u.Validate(); err != nil {
+			return fmt.Errorf("config: %s: %w", u.URL.String(), err)
 		}
-	case p.Redirect != nil:
-	default:
-		return fmt.Errorf("config: policy must have either a `to` or `redirect`")
 	}
 
 	// Only allow public access if no other whitelists are in place
@@ -391,33 +401,46 @@ func (p *Policy) Checksum() uint64 {
 }
 
 // RouteID returns a unique identifier for a route
-func (p *Policy) RouteID() uint64 {
+func (p *Policy) RouteID() (uint64, error) {
 	id := routeID{
-		Source:       p.Source,
-		Destinations: p.Destinations,
-		Prefix:       p.Prefix,
-		Path:         p.Path,
-		Regex:        p.Regex,
+		Source: p.Source,
+		Prefix: p.Prefix,
+		Path:   p.Path,
+		Regex:  p.Regex,
 	}
 
-	return hashutil.MustHash(id)
+	if len(p.To) > 0 {
+		dst, _, err := p.To.Flatten()
+		if err != nil {
+			return 0, err
+		}
+		id.To = dst
+	} else if p.Redirect != nil {
+		id.Redirect = p.Redirect
+	} else {
+		return 0, errEitherToOrRedirectRequired
+	}
+
+	return hashutil.Hash(id)
 }
 
 func (p *Policy) String() string {
-	if p.Source == nil || len(p.Destinations) == 0 {
-		return fmt.Sprintf("%s → %s", p.From, strings.Join(p.To, ","))
+	to := "?"
+	if len(p.To) > 0 {
+		var dsts []string
+		for _, dst := range p.To {
+			dsts = append(dsts, dst.URL.String())
+		}
+		to = strings.Join(dsts, ",")
 	}
-	var dsts []string
-	for _, dst := range p.Destinations {
-		dsts = append(dsts, dst.String())
-	}
-	return fmt.Sprintf("%s → %s", p.Source.String(), strings.Join(dsts, ","))
+
+	return fmt.Sprintf("%s → %s", p.Source.String(), to)
 }
 
 // Matches returns true if the policy would match the given URL.
-func (p *Policy) Matches(requestURL *url.URL) bool {
+func (p *Policy) Matches(requestURL url.URL) bool {
 	// handle nils by always returning false
-	if p.Source == nil || requestURL == nil {
+	if p.Source == nil {
 		return false
 	}
 
@@ -452,15 +475,23 @@ type StringURL struct {
 	*url.URL
 }
 
+func (su *StringURL) String() string {
+	if su == nil || su.URL == nil {
+		return "?"
+	}
+	return su.URL.String()
+}
+
 // MarshalJSON returns the URLs host as json.
-func (u *StringURL) MarshalJSON() ([]byte, error) {
-	return json.Marshal(u.String())
+func (su *StringURL) MarshalJSON() ([]byte, error) {
+	return json.Marshal(su.String())
 }
 
 type routeID struct {
-	Source       *StringURL
-	Destinations []*url.URL
-	Prefix       string
-	Path         string
-	Regex        string
+	Source   *StringURL
+	To       []string
+	Prefix   string
+	Path     string
+	Regex    string
+	Redirect *PolicyRedirect
 }

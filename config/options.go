@@ -15,9 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v2"
 
 	"github.com/pomerium/pomerium/internal/directory/azure"
 	"github.com/pomerium/pomerium/internal/directory/github"
@@ -108,8 +106,7 @@ type Options struct {
 	IdleTimeout  time.Duration `mapstructure:"timeout_idle" yaml:"timeout_idle,omitempty"`
 
 	// Policies define per-route configuration and access control policies.
-	Policies   []Policy `yaml:"policy,omitempty"`
-	PolicyEnv  string   `yaml:",omitempty"`
+	Policies   []Policy `mapstructure:"policy"`
 	PolicyFile string   `mapstructure:"policy_file" yaml:"policy_file,omitempty"`
 
 	// AdditionalPolicies are any additional policies added to the options.
@@ -364,11 +361,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 		}
 	}
 
-	if err := v.Unmarshal(o, viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
-		mapstructure.StringToTimeDurationHookFunc(),
-		mapstructure.StringToSliceHookFunc(","),
-		DecodeOptionsHookFunc(),
-	))); err != nil {
+	if err := v.Unmarshal(o, viperPolicyHooks); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
@@ -385,16 +378,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 // variables or from a file
 func (o *Options) parsePolicy() error {
 	var policies []Policy
-	// Parse from base64 env var
-	if o.PolicyEnv != "" {
-		policyBytes, err := base64.StdEncoding.DecodeString(o.PolicyEnv)
-		if err != nil {
-			return fmt.Errorf("could not decode POLICY env var: %w", err)
-		}
-		if err := yaml.Unmarshal(policyBytes, &policies); err != nil {
-			return fmt.Errorf("could not unmarshal policy yaml: %w", err)
-		}
-	} else if err := o.viperUnmarshalKey("policy", &policies); err != nil {
+	if err := o.viper.UnmarshalKey("policy", &policies, viperPolicyHooks); err != nil {
 		return err
 	}
 	if len(policies) != 0 {
@@ -414,10 +398,6 @@ func (o *Options) parsePolicy() error {
 		}
 	}
 	return nil
-}
-
-func (o *Options) viperUnmarshalKey(key string, rawVal interface{}) error {
-	return o.viper.UnmarshalKey(key, &rawVal)
 }
 
 func (o *Options) viperSet(key string, value interface{}) {
@@ -450,7 +430,7 @@ func (o *Options) parseHeaders() error {
 		}
 		o.Headers = headers
 	} else if o.viperIsSet("headers") {
-		if err := o.viperUnmarshalKey("headers", &headers); err != nil {
+		if err := o.viper.UnmarshalKey("headers", &headers); err != nil {
 			return fmt.Errorf("header %s failed to parse: %w", o.viper.Get("headers"), err)
 		}
 		o.Headers = headers
@@ -475,9 +455,9 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 	}
 
 	// Statically bind fields
-	err := v.BindEnv("PolicyEnv", "POLICY")
+	err := v.BindEnv("Policy", "POLICY")
 	if err != nil {
-		return fmt.Errorf("failed to bind field 'PolicyEnv' to env var 'POLICY': %w", err)
+		return fmt.Errorf("failed to bind field 'Policy' to env var 'POLICY': %w", err)
 	}
 	err = v.BindEnv("HeadersEnv", "HEADERS")
 	if err != nil {

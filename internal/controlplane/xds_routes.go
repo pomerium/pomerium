@@ -99,7 +99,7 @@ func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain strin
 	}
 	routes = append(routes, r)
 	// per #837, only add robots.txt if there are no unauthenticated routes
-	if !hasPublicPolicyMatchingURL(options, mustParseURL("https://"+domain+"/robots.txt")) {
+	if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: domain, Path: "/robots.txt"}) {
 		r, err := srv.buildControlPlanePathRoute("/robots.txt", false)
 		if err != nil {
 			return nil, err
@@ -243,7 +243,8 @@ func (srv *Server) buildControlPlanePrefixRoute(prefix string, protected bool) (
 }
 
 var getPolicyName = func(policy *config.Policy) string {
-	return fmt.Sprintf("policy-%x", policy.RouteID())
+	id, _ := policy.RouteID()
+	return fmt.Sprintf("policy-%x", id)
 }
 
 func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
@@ -479,8 +480,8 @@ func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrit
 			},
 			Substitution: policy.RegexRewriteSubstitution,
 		}
-	} else if len(policy.Destinations) > 0 && policy.Destinations[0].Path != "" {
-		prefixRewrite = policy.Destinations[0].Path
+	} else if len(policy.To) > 0 && policy.To[0].URL.Path != "" {
+		prefixRewrite = policy.To[0].URL.Path
 	}
 
 	return prefixRewrite, regexRewrite
@@ -519,27 +520,11 @@ func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.
 	}
 }
 
-func hasPublicPolicyMatchingURL(options *config.Options, requestURL *url.URL) bool {
+func hasPublicPolicyMatchingURL(options *config.Options, requestURL url.URL) bool {
 	for _, policy := range options.GetAllPolicies() {
 		if policy.AllowPublicUnauthenticatedAccess && policy.Matches(requestURL) {
 			return true
 		}
 	}
 	return false
-}
-
-func mustParseURL(str string) *url.URL {
-	u, err := url.Parse(str)
-	if err != nil {
-		panic(err)
-	}
-	return u
-}
-
-func mustParseURLs(strs ...string) []*url.URL {
-	var us []*url.URL
-	for _, str := range strs {
-		us = append(us, mustParseURL(str))
-	}
-	return us
 }

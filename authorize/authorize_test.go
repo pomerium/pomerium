@@ -126,7 +126,7 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 func testPolicies(t *testing.T) []config.Policy {
 	testPolicy := config.Policy{
 		From:         "https://pomerium.io",
-		To:           config.NewStringSlice("http://httpbin.org"),
+		To:           mustParseWeightedURLs(t, "http://httpbin.org"),
 		AllowedUsers: []string{"test@gmail.com"},
 	}
 	err := testPolicy.Validate()
