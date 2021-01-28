@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
-	"testing"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -12,7 +11,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -529,10 +527,4 @@ func hasPublicPolicyMatchingURL(options *config.Options, requestURL url.URL) boo
 		}
 	}
 	return false
-}
-
-func mustParseURL(t *testing.T, str string) *url.URL {
-	u, err := url.Parse(str)
-	require.NoError(t, err, str)
-	return u
 }

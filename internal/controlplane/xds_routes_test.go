@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 	"time"
 
@@ -933,4 +934,10 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 			StripQuery: true,
 		}, action)
 	})
+}
+
+func mustParseURL(t *testing.T, str string) *url.URL {
+	u, err := url.Parse(str)
+	require.NoError(t, err, str)
+	return u
 }

@@ -255,6 +255,8 @@ func DecodePolicyHookFunc() mapstructure.DecodeHookFunc {
 			return data, nil
 		}
 
+		// convert all keys to strings so that it can be serialized back to JSON
+		// and read by jsonproto package into Envoy's cluster structure
 		mp, err := serializable(data)
 		if err != nil {
 			return nil, err
