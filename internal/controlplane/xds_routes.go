@@ -67,17 +67,6 @@ func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain strin
 		return nil, err
 	}
 	routes = append(routes, r)
-	r, err = srv.buildControlPlanePathRoute("/.pomerium/admin", true)
-	if err != nil {
-		return nil, err
-	}
-	routes = append(routes, r)
-
-	r, err = srv.buildControlPlanePrefixRoute("/.pomerium/admin/", true)
-	if err != nil {
-		return nil, err
-	}
-	routes = append(routes, r)
 	r, err = srv.buildControlPlanePathRoute("/.pomerium", false)
 	if err != nil {
 		return nil, err

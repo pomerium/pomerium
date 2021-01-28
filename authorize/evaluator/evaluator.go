@@ -63,7 +63,6 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 		return nil, fmt.Errorf("error loading rego policy: %w", err)
 	}
 
-	store.UpdateAdmins(options.Administrators)
 	store.UpdateRoutePolicies(options.GetAllPolicies())
 
 	e.rego = rego.New(

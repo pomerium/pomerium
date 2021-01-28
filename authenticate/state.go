@@ -26,8 +26,6 @@ import (
 
 type authenticateState struct {
 	redirectURL *url.URL
-	// administrators keeps track of administrator users.
-	administrators map[string]struct{}
 	// sharedEncoder is the encoder to use to serialize data to be consumed
 	// by other services
 	sharedEncoder encoding.MarshalUnmarshaler
@@ -55,8 +53,7 @@ type authenticateState struct {
 
 func newAuthenticateState() *authenticateState {
 	return &authenticateState{
-		administrators: map[string]struct{}{},
-		jwk:            new(jose.JSONWebKeySet),
+		jwk: new(jose.JSONWebKeySet),
 	}
 }
 
@@ -70,11 +67,6 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 
 	state.redirectURL, _ = urlutil.DeepCopy(cfg.Options.AuthenticateURL)
 	state.redirectURL.Path = cfg.Options.AuthenticateCallbackPath
-
-	state.administrators = make(map[string]struct{}, len(cfg.Options.Administrators))
-	for _, admin := range cfg.Options.Administrators {
-		state.administrators[admin] = struct{}{}
-	}
 
 	// shared state encoder setup
 	state.sharedEncoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey))

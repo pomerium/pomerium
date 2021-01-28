@@ -134,7 +134,6 @@ message Settings {
   optional google.protobuf.Duration idp_refresh_directory_timeout = 28;
   optional google.protobuf.Duration idp_refresh_directory_interval = 29;
   map<string, string> request_params = 30;
-  repeated string administrators = 31;
   optional string authorize_service_url = 32;
   optional string override_certificate_name = 33;
   optional string certificate_authority = 34;

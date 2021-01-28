@@ -18,18 +18,6 @@ func TestStore(t *testing.T) {
 	defer clearTimeout()
 
 	s := NewStore()
-
-	t.Run("admins", func(t *testing.T) {
-		s.UpdateAdmins([]string{"admin1", "admin2"})
-		v, err := storage.ReadOne(ctx, s.opaStore, storage.MustParsePath("/admins"))
-		assert.NoError(t, err)
-		assert.Equal(t, []interface{}{"admin1", "admin2"}, v)
-
-		s.UpdateAdmins([]string{"admin3"})
-		v, err = storage.ReadOne(ctx, s.opaStore, storage.MustParsePath("/admins"))
-		assert.NoError(t, err)
-		assert.Equal(t, []interface{}{"admin3"}, v)
-	})
 	t.Run("records", func(t *testing.T) {
 		u := &user.User{
 			Version: "v1",

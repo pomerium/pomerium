@@ -430,12 +430,6 @@ func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) erro
 	return session.Delete(ctx, state.dataBrokerClient, sessionID)
 }
 
-func (a *Authenticate) isAdmin(user string) bool {
-	state := a.state.Load()
-	_, ok := state.administrators[user]
-	return ok
-}
-
 func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.userInfo")
 	defer span.End()

@@ -156,10 +156,6 @@ type Options struct {
 	// https://openid.net/specs/openid-connect-basic-1_0.html#RequestParameters
 	RequestParams map[string]string `mapstructure:"idp_request_params" yaml:"idp_request_params,omitempty"`
 
-	// Administrators contains a set of emails with users who have super user
-	// (sudo) access including the ability to impersonate other users' access
-	Administrators []string `mapstructure:"administrators" yaml:"administrators,omitempty"`
-
 	// AuthorizeURL is the routable destination of the authorize service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
@@ -865,9 +861,6 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.RequestParams != nil && len(settings.RequestParams) > 0 {
 		o.RequestParams = settings.RequestParams
-	}
-	if len(settings.Administrators) > 0 {
-		o.Administrators = settings.Administrators
 	}
 	if settings.AuthorizeServiceUrl != nil {
 		o.AuthorizeURLString = settings.GetAuthorizeServiceUrl()
