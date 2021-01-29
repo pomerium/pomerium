@@ -243,6 +243,10 @@ func (srv *Server) buildControlPlanePrefixRoute(prefix string, protected bool) (
 }
 
 var getPolicyName = func(policy *config.Policy) string {
+	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
+		return policy.EnvoyOpts.Name
+	}
+
 	id, _ := policy.RouteID()
 	return fmt.Sprintf("policy-%x", id)
 }

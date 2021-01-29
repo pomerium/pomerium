@@ -224,6 +224,12 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	}
 
 	p.EnvoyOpts = pb.EnvoyOpts
+	if p.EnvoyOpts == nil {
+		p.EnvoyOpts = new(envoy_config_cluster_v3.Cluster)
+	}
+	if pb.Name != "" && p.EnvoyOpts.Name == "" {
+		p.EnvoyOpts.Name = pb.Name
+	}
 
 	for _, sp := range pb.GetPolicies() {
 		p.SubPolicies = append(p.SubPolicies, SubPolicy{

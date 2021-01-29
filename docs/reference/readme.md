@@ -1361,6 +1361,14 @@ When enabled, this option will pass identity headers to upstream applications. T
 If set, enables proxying of SPDY protocol upgrades.
 
 
+### Cluster Name
+- Config File Key: `name`
+- Type: `string`
+- Optional
+
+Runtime metrics for this policy would be available under `envoy_cluster_`*`name`* prefix.
+
+
 ### Load Balancing
 - Config File Key: `lb_policy`
 - Type: `enum`
