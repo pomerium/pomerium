@@ -1,7 +1,6 @@
 package controlplane
 
 import (
-	"encoding/base64"
 	"fmt"
 	"net"
 	"net/url"
@@ -486,25 +485,11 @@ func (srv *Server) buildDownstreamTLSContext(cfg *config.Config, domain string) 
 		return nil
 	}
 
-	var trustedCA *envoy_config_core_v3.DataSource
-	if cfg.Options.ClientCA != "" {
-		bs, err := base64.StdEncoding.DecodeString(cfg.Options.ClientCA)
-		if err != nil {
-			log.Warn().Msg("client_ca does not appear to be a base64 encoded string")
-		}
-		trustedCA = srv.filemgr.BytesDataSource("client-ca", bs)
-	} else if cfg.Options.ClientCAFile != "" {
-		trustedCA = srv.filemgr.FileDataSource(cfg.Options.ClientCAFile)
-	}
-
-	var validationContext *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext
-	if trustedCA != nil {
-		validationContext = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-			ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-				TrustedCa:              trustedCA,
-				TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED,
-			},
-		}
+	// trusted_ca is left blank because we verify the client certificate in the authorize service
+	validationContext := &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+			TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED,
+		},
 	}
 
 	envoyCert := srv.envoyTLSCertificateFromGoTLSCertificate(cert)

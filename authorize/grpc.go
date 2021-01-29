@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -65,7 +66,12 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	a.dataBrokerDataLock.RLock()
 	defer a.dataBrokerDataLock.RUnlock()
 
-	req := a.getEvaluatorRequestFromCheckRequest(in, sessionState)
+	req, err := a.getEvaluatorRequestFromCheckRequest(in, sessionState)
+	if err != nil {
+		log.Warn().Err(err).Msg("error building evaluator request")
+		return nil, err
+	}
+
 	reply, err := state.evaluator.Evaluate(ctx, req)
 	if err != nil {
 		log.Error().Err(err).Msg("error during OPA evaluation")
@@ -222,7 +228,10 @@ func (a *Authorize) isForwardAuth(req *envoy_service_auth_v2.CheckRequest) bool 
 	return urlutil.StripPort(checkURL.Host) == urlutil.StripPort(forwardAuthURL.Host)
 }
 
-func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v2.CheckRequest, sessionState *sessions.State) *evaluator.Request {
+func (a *Authorize) getEvaluatorRequestFromCheckRequest(
+	in *envoy_service_auth_v2.CheckRequest,
+	sessionState *sessions.State,
+) (*evaluator.Request, error) {
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
 		DataBrokerData: a.dataBrokerData,
@@ -244,7 +253,33 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(in *envoy_service_auth_v
 			req.CustomPolicies = append(req.CustomPolicies, sp.Rego...)
 		}
 	}
-	return req
+
+	ca, err := a.getDownstreamClientCA(p)
+	if err != nil {
+		return nil, err
+	}
+	req.ClientCA = ca
+
+	return req, nil
+}
+
+func (a *Authorize) getDownstreamClientCA(policy *config.Policy) (string, error) {
+	options := a.currentOptions.Load()
+	switch {
+	case policy != nil && policy.TLSDownstreamClientCA != "":
+		bs, err := base64.StdEncoding.DecodeString(policy.TLSDownstreamClientCA)
+		if err != nil {
+			return "", err
+		}
+		return string(bs), nil
+	case options.ClientCA != "":
+		bs, err := base64.StdEncoding.DecodeString(options.ClientCA)
+		if err != nil {
+			return "", err
+		}
+		return string(bs), nil
+	}
+	return "", nil
 }
 
 func (a *Authorize) getMatchingPolicy(requestURL url.URL) *config.Policy {

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 
@@ -41,7 +40,6 @@ type Evaluator struct {
 	query    rego.PreparedEvalQuery
 	policies []config.Policy
 
-	clientCA         string
 	authenticateHost string
 	jwk              *jose.JSONWebKey
 	signer           jose.Signer
@@ -53,15 +51,6 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 		custom:           NewCustomEvaluator(store.opaStore),
 		authenticateHost: options.AuthenticateURL.Host,
 		policies:         options.GetAllPolicies(),
-	}
-	if options.ClientCA != "" {
-		e.clientCA = options.ClientCA
-	} else if options.ClientCAFile != "" {
-		bs, err := ioutil.ReadFile(options.ClientCAFile)
-		if err != nil {
-			return nil, err
-		}
-		e.clientCA = string(bs)
 	}
 	var err error
 	e.signer, e.jwk, err = newSigner(options)
@@ -93,7 +82,7 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 
 // Evaluate evaluates the policy against the request.
 func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error) {
-	isValid, err := isValidClientCertificate(e.clientCA, req.HTTP.ClientCertificate)
+	isValid, err := isValidClientCertificate(req.ClientCA, req.HTTP.ClientCertificate)
 	if err != nil {
 		return nil, fmt.Errorf("error validating client certificate: %w", err)
 	}

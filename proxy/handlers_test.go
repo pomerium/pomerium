@@ -497,7 +497,7 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 }
 
 func TestProxy_jwt(t *testing.T) {
-	// without downstream headers being set
+	// without upstream headers being set
 	req, _ := http.NewRequest("GET", "https://www.example.com/.pomerium/jwt", nil)
 	w := httptest.NewRecorder()
 
@@ -509,7 +509,7 @@ func TestProxy_jwt(t *testing.T) {
 		return
 	}
 
-	// with downstream request headers being set
+	// with upstream request headers being set
 	req, _ = http.NewRequest("GET", "https://www.example.com/.pomerium/jwt", nil)
 	w = httptest.NewRecorder()
 	req.Header.Set(httputil.HeaderPomeriumJWTAssertion, "MOCK_JWT")

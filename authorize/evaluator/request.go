@@ -17,6 +17,7 @@ type (
 		HTTP           RequestHTTP    `json:"http"`
 		Session        RequestSession `json:"session"`
 		CustomPolicies []string
+		ClientCA       string // pem-encoded certificate authority
 	}
 
 	// RequestHTTP is the HTTP field in the request.

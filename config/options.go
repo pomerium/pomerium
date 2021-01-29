@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -634,9 +635,11 @@ func (o *Options) Validate() error {
 	}
 
 	if o.ClientCAFile != "" {
-		if _, err := os.Stat(o.ClientCAFile); err != nil {
+		bs, err := ioutil.ReadFile(o.ClientCAFile)
+		if err != nil {
 			return fmt.Errorf("config: bad client ca file: %w", err)
 		}
+		o.ClientCA = base64.StdEncoding.EncodeToString(bs)
 	}
 
 	// if no service account was defined, there should not be any policies that

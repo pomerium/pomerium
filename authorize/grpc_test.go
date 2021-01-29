@@ -62,7 +62,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 		}},
 	})
 
-	actual := a.getEvaluatorRequestFromCheckRequest(
+	actual, err := a.getEvaluatorRequestFromCheckRequest(
 		&envoy_service_auth_v2.CheckRequest{
 			Attributes: &envoy_service_auth_v2.AttributeContext{
 				Source: &envoy_service_auth_v2.AttributeContext_Peer{
@@ -88,6 +88,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 			ID: "SESSION_ID",
 		},
 	)
+	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Session: evaluator.RequestSession{
 			ID: "SESSION_ID",
@@ -278,7 +279,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 		}},
 	})
 
-	actual := a.getEvaluatorRequestFromCheckRequest(&envoy_service_auth_v2.CheckRequest{
+	actual, err := a.getEvaluatorRequestFromCheckRequest(&envoy_service_auth_v2.CheckRequest{
 		Attributes: &envoy_service_auth_v2.AttributeContext{
 			Source: &envoy_service_auth_v2.AttributeContext_Peer{
 				Certificate: url.QueryEscape(certPEM),
@@ -299,6 +300,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 			},
 		},
 	}, nil)
+	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Session: evaluator.RequestSession{},
 		HTTP: evaluator.RequestHTTP{
