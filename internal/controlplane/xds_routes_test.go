@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -934,6 +935,11 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 			StripQuery: true,
 		}, action)
 	})
+}
+
+func TestPolicyName(t *testing.T) {
+	assert.Greater(t, getPolicyName(&config.Policy{}), "policy-")
+	assert.Equal(t, getPolicyName(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
 }
 
 func mustParseURL(t *testing.T, str string) *url.URL {
