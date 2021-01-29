@@ -1333,6 +1333,15 @@ TLS Custom Certificate Authority defines a set of root certificate authorities t
 Note: This setting will replace (not append) the system's trust store for a given route.
 
 
+### TLS Downstream Client Certificate Authority
+- Config File Key: `tls_downstream_client_ca` or `tls_downstream_client_ca_file`
+- Type: [base64 encoded] `string` or relative file location
+- Optional
+
+If specified downstream clients (eg a user's browser) will be required to provide a valid client TLS
+certificate. This overrides the global `client_ca` option for this route.
+
+
 ### TLS Client Certificate
 - Config File Key: `tls_client_cert` and `tls_client_key` or `tls_client_cert_file` and `tls_client_key_file`
 - Type: [base64 encoded] `string` or relative file location
