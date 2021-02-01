@@ -485,13 +485,6 @@ func (srv *Server) buildDownstreamTLSContext(cfg *config.Config, domain string) 
 		return nil
 	}
 
-	// trusted_ca is left blank because we verify the client certificate in the authorize service
-	validationContext := &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-			TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED,
-		},
-	}
-
 	envoyCert := srv.envoyTLSCertificateFromGoTLSCertificate(cert)
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
@@ -508,7 +501,7 @@ func (srv *Server) buildDownstreamTLSContext(cfg *config.Config, domain string) 
 			},
 			TlsCertificates:       []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{envoyCert},
 			AlpnProtocols:         []string{"h2", "http/1.1"},
-			ValidationContextType: validationContext,
+			ValidationContextType: getDownstreamValidationContext(cfg, domain),
 		},
 	}
 }
@@ -632,4 +625,44 @@ func hostMatchesDomain(u *url.URL, host string) bool {
 	}
 
 	return h1 == h2 && p1 == p2
+}
+
+func getDownstreamValidationContext(
+	cfg *config.Config,
+	domain string,
+) *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext {
+	needsClientCert := false
+
+	if cfg.Options.ClientCA != "" {
+		needsClientCert = true
+	}
+	if !needsClientCert {
+		for _, p := range getPoliciesForDomain(cfg.Options, domain) {
+			if p.TLSDownstreamClientCA != "" {
+				needsClientCert = true
+				break
+			}
+		}
+	}
+
+	if !needsClientCert {
+		return nil
+	}
+
+	// trusted_ca is left blank because we verify the client certificate in the authorize service
+	return &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+			TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED,
+		},
+	}
+}
+
+func getPoliciesForDomain(options *config.Options, domain string) []config.Policy {
+	var policies []config.Policy
+	for _, p := range options.GetAllPolicies() {
+		if p.Source != nil && hostMatchesDomain(p.Source.URL, domain) {
+			policies = append(policies, p)
+		}
+	}
+	return policies
 }

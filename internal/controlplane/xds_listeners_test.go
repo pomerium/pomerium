@@ -394,43 +394,119 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 
 	srv, _ := NewServer("TEST")
 
-	downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
-		Certificates: []tls.Certificate{*certA},
-	}}, "a.example.com")
-
 	cacheDir, _ := os.UserCacheDir()
 	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
 
-	testutil.AssertProtoJSONEqual(t, `{
-		"commonTlsContext": {
-			"tlsParams": {
-				"cipherSuites": [
-					"ECDHE-ECDSA-AES256-GCM-SHA384",
-					"ECDHE-RSA-AES256-GCM-SHA384",
-					"ECDHE-ECDSA-AES128-GCM-SHA256",
-					"ECDHE-RSA-AES128-GCM-SHA256",
-					"ECDHE-ECDSA-CHACHA20-POLY1305",
-					"ECDHE-RSA-CHACHA20-POLY1305"
-				],
-				"tlsMinimumProtocolVersion": "TLSv1_2"
-			},
-			"validationContext": {
-				"trustChainVerification": "ACCEPT_UNTRUSTED"
-			},
-			"alpnProtocols": ["h2", "http/1.1"],
-			"tlsCertificates": [
-				{
-					"certificateChain": {
-						"filename": "`+certFileName+`"
-					},
-					"privateKey": {
-						"filename": "`+keyFileName+`"
+	t.Run("no-validation", func(t *testing.T) {
+		downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
+			Certificates: []tls.Certificate{*certA},
+		}}, "a.example.com")
+
+		testutil.AssertProtoJSONEqual(t, `{
+			"commonTlsContext": {
+				"tlsParams": {
+					"cipherSuites": [
+						"ECDHE-ECDSA-AES256-GCM-SHA384",
+						"ECDHE-RSA-AES256-GCM-SHA384",
+						"ECDHE-ECDSA-AES128-GCM-SHA256",
+						"ECDHE-RSA-AES128-GCM-SHA256",
+						"ECDHE-ECDSA-CHACHA20-POLY1305",
+						"ECDHE-RSA-CHACHA20-POLY1305"
+					],
+					"tlsMinimumProtocolVersion": "TLSv1_2"
+				},
+				"alpnProtocols": ["h2", "http/1.1"],
+				"tlsCertificates": [
+					{
+						"certificateChain": {
+							"filename": "`+certFileName+`"
+						},
+						"privateKey": {
+							"filename": "`+keyFileName+`"
+						}
 					}
+				]
+			}
+		}`, downstreamTLSContext)
+	})
+	t.Run("client-ca", func(t *testing.T) {
+		downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
+			Certificates: []tls.Certificate{*certA},
+			ClientCA:     "TEST",
+		}}, "a.example.com")
+
+		testutil.AssertProtoJSONEqual(t, `{
+			"commonTlsContext": {
+				"tlsParams": {
+					"cipherSuites": [
+						"ECDHE-ECDSA-AES256-GCM-SHA384",
+						"ECDHE-RSA-AES256-GCM-SHA384",
+						"ECDHE-ECDSA-AES128-GCM-SHA256",
+						"ECDHE-RSA-AES128-GCM-SHA256",
+						"ECDHE-ECDSA-CHACHA20-POLY1305",
+						"ECDHE-RSA-CHACHA20-POLY1305"
+					],
+					"tlsMinimumProtocolVersion": "TLSv1_2"
+				},
+				"alpnProtocols": ["h2", "http/1.1"],
+				"tlsCertificates": [
+					{
+						"certificateChain": {
+							"filename": "`+certFileName+`"
+						},
+						"privateKey": {
+							"filename": "`+keyFileName+`"
+						}
+					}
+				],
+				"validationContext": {
+					"trustChainVerification": "ACCEPT_UNTRUSTED"
 				}
-			]
-		}
-	}`, downstreamTLSContext)
+			}
+		}`, downstreamTLSContext)
+	})
+	t.Run("policy-client-ca", func(t *testing.T) {
+		downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
+			Certificates: []tls.Certificate{*certA},
+			Policies: []config.Policy{
+				{
+					Source:                &config.StringURL{URL: mustParseURL(t, "https://a.example.com")},
+					TLSDownstreamClientCA: "TEST",
+				},
+			},
+		}}, "a.example.com")
+
+		testutil.AssertProtoJSONEqual(t, `{
+			"commonTlsContext": {
+				"tlsParams": {
+					"cipherSuites": [
+						"ECDHE-ECDSA-AES256-GCM-SHA384",
+						"ECDHE-RSA-AES256-GCM-SHA384",
+						"ECDHE-ECDSA-AES128-GCM-SHA256",
+						"ECDHE-RSA-AES128-GCM-SHA256",
+						"ECDHE-ECDSA-CHACHA20-POLY1305",
+						"ECDHE-RSA-CHACHA20-POLY1305"
+					],
+					"tlsMinimumProtocolVersion": "TLSv1_2"
+				},
+				"alpnProtocols": ["h2", "http/1.1"],
+				"tlsCertificates": [
+					{
+						"certificateChain": {
+							"filename": "`+certFileName+`"
+						},
+						"privateKey": {
+							"filename": "`+keyFileName+`"
+						}
+					}
+				],
+				"validationContext": {
+					"trustChainVerification": "ACCEPT_UNTRUSTED"
+				}
+			}
+		}`, downstreamTLSContext)
+	})
 }
 
 func Test_getAllDomains(t *testing.T) {
