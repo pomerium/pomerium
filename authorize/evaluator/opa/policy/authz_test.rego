@@ -248,17 +248,6 @@ test_pomerium_allowed {
 		}] with
 		input.http as { "url": "http://example.com/.pomerium/" }
 }
-test_pomerium_denied {
-	not allow with
-		data.route_policies as [{
-			"source": "example.com",
-			"allowed_users": ["bob@example.com"]
-		}] with
-		input.http as {
-			"url": "http://example.com/.pomerium/admin",
-			"host": "example.com"
-		}
-}
 
 test_cors_preflight_allowed {
 	allow with

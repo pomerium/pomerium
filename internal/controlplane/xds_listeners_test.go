@@ -139,24 +139,6 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 								}
 							},
 							{
-								"name": "pomerium-path-/.pomerium/admin",
-								"match": {
-									"path": "/.pomerium/admin"
-								},
-								"route": {
-									"cluster": "pomerium-control-plane-http"
-								}
-							},
-							{
-								"name": "pomerium-prefix-/.pomerium/admin/",
-								"match": {
-									"prefix": "/.pomerium/admin/"
-								},
-								"route": {
-									"cluster": "pomerium-control-plane-http"
-								}
-							},
-							{
 								"name": "pomerium-path-/.pomerium",
 								"match": {
 									"path": "/.pomerium"
@@ -274,24 +256,6 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
 										"disabled": true
 									}
-								}
-							},
-							{
-								"name": "pomerium-path-/.pomerium/admin",
-								"match": {
-									"path": "/.pomerium/admin"
-								},
-								"route": {
-									"cluster": "pomerium-control-plane-http"
-								}
-							},
-							{
-								"name": "pomerium-prefix-/.pomerium/admin/",
-								"match": {
-									"prefix": "/.pomerium/admin/"
-								},
-								"route": {
-									"cluster": "pomerium-control-plane-http"
 								}
 							},
 							{

@@ -13,6 +13,10 @@ description: >-
 
 With the v0.13.0 release, user impersonation has been removed.
 
+### Administrators option removed
+
+The `administrators` configuration option has been removed.
+
 # Since 0.11.0
 
 ## New

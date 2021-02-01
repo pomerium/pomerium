@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/pomerium/pomerium/integration/internal/flows"
 )
 
 func TestDashboard(t *testing.T) {
@@ -17,28 +15,6 @@ func TestDashboard(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
-	t.Run("admin impersonate", func(t *testing.T) {
-		client := testcluster.NewHTTPClient()
-
-		_, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-user"),
-			flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/.pomerium/admin/impersonate", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
-
-		assertDeniedAccess(t, res)
-	})
 	t.Run("user dashboard", func(t *testing.T) {
 		client := testcluster.NewHTTPClient()
 

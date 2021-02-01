@@ -3,9 +3,6 @@ package authenticate
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/pomerium/pomerium/config"
 )
 
@@ -128,32 +125,6 @@ func TestNew(t *testing.T) {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-		})
-	}
-}
-
-func TestIsAdmin(t *testing.T) {
-	tests := []struct {
-		name    string
-		user    string
-		admins  []string
-		isAdmin bool
-	}{
-		{"Is admin", "foo@bar.com", []string{"foo@bar.com"}, true},
-		{"Is not admin", "foo@bar.com", []string{"baz@bar.com"}, false},
-		{"Empty admin groups", "foo@bar.com", []string{}, false},
-		{"Empty user", "", []string{"foo@bar.com"}, false},
-	}
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			opts := newTestOptions(t)
-			opts.Administrators = tc.admins
-			a, err := New(&config.Config{Options: opts})
-			a.OnConfigChange(&config.Config{Options: opts})
-			require.NoError(t, err)
-			assert.True(t, a.isAdmin(tc.user) == tc.isAdmin)
 		})
 	}
 }
