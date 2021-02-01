@@ -98,20 +98,24 @@ type Policy struct {
 	TLSCustomCA     string `mapstructure:"tls_custom_ca" yaml:"tls_custom_ca,omitempty"`
 	TLSCustomCAFile string `mapstructure:"tls_custom_ca_file" yaml:"tls_custom_ca_file,omitempty"`
 
-	// Contains the x.509 client certificate to present to the downstream
-	// host.
+	// Contains the x.509 client certificate to present to the upstream host.
 	TLSClientCert     string           `mapstructure:"tls_client_cert" yaml:"tls_client_cert,omitempty"`
 	TLSClientKey      string           `mapstructure:"tls_client_key" yaml:"tls_client_key,omitempty"`
 	TLSClientCertFile string           `mapstructure:"tls_client_cert_file" yaml:"tls_client_cert_file,omitempty"`
 	TLSClientKeyFile  string           `mapstructure:"tls_client_key_file" yaml:"tls_client_key_file,omitempty"`
 	ClientCertificate *tls.Certificate `yaml:",omitempty" hash:"ignore"`
 
-	// SetRequestHeaders adds a collection of headers to the downstream request
+	// TLSDownstreamClientCA defines the root certificate to use with a given route to verify
+	// downstream client certificates (e.g. from a user's browser).
+	TLSDownstreamClientCA     string `mapstructure:"tls_downstream_client_ca" yaml:"tls_downstream_client_ca,omitempty"`
+	TLSDownstreamClientCAFile string `mapstructure:"tls_downstream_client_ca_file" yaml:"tls_downstream_client_ca_file,omitempty"`
+
+	// SetRequestHeaders adds a collection of headers to the upstream request
 	// in the form of key value pairs. Note bene, this will overwrite the
 	// value of any existing value of a given header key.
 	SetRequestHeaders map[string]string `mapstructure:"set_request_headers" yaml:"set_request_headers,omitempty"`
 
-	// RemoveRequestHeaders removes a collection of headers from a downstream request.
+	// RemoveRequestHeaders removes a collection of headers from an upstream request.
 	// Note that this has lower priority than `SetRequestHeaders`, if you specify `X-Custom-Header` in both
 	// `SetRequestHeaders` and `RemoveRequestHeaders`, then the header won't be removed.
 	RemoveRequestHeaders []string `mapstructure:"remove_request_headers" yaml:"remove_request_headers,omitempty"`
@@ -124,7 +128,7 @@ type Policy struct {
 	// https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header
 	PreserveHostHeader bool `mapstructure:"preserve_host_header" yaml:"preserve_host_header,omitempty"`
 
-	// PassIdentityHeaders controls whether to add a user's identity headers to the downstream request.
+	// PassIdentityHeaders controls whether to add a user's identity headers to the upstream request.
 	// These includes:
 	//
 	//  - X-Pomerium-Jwt-Assertion
@@ -204,6 +208,8 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		TLSClientKey:                     pb.GetTlsClientKey(),
 		TLSClientCertFile:                pb.GetTlsClientCertFile(),
 		TLSClientKeyFile:                 pb.GetTlsClientKeyFile(),
+		TLSDownstreamClientCA:            pb.GetTlsDownstreamClientCa(),
+		TLSDownstreamClientCAFile:        pb.GetTlsDownstreamClientCaFile(),
 		SetRequestHeaders:                pb.GetSetRequestHeaders(),
 		RemoveRequestHeaders:             pb.GetRemoveRequestHeaders(),
 		PreserveHostHeader:               pb.GetPreserveHostHeader(),
@@ -294,6 +300,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		TlsClientKey:                     p.TLSClientKey,
 		TlsClientCertFile:                p.TLSClientCertFile,
 		TlsClientKeyFile:                 p.TLSClientKeyFile,
+		TlsDownstreamClientCa:            p.TLSDownstreamClientCA,
+		TlsDownstreamClientCaFile:        p.TLSDownstreamClientCAFile,
 		SetRequestHeaders:                p.SetRequestHeaders,
 		RemoveRequestHeaders:             p.RemoveRequestHeaders,
 		PreserveHostHeader:               p.PreserveHostHeader,
@@ -380,6 +388,21 @@ func (p *Policy) Validate() error {
 		if err != nil {
 			return fmt.Errorf("config: couldn't load client ca file: %w", err)
 		}
+	}
+
+	if p.TLSDownstreamClientCA != "" {
+		_, err := base64.StdEncoding.DecodeString(p.TLSDownstreamClientCA)
+		if err != nil {
+			return fmt.Errorf("config: couldn't decode downstream client ca: %w", err)
+		}
+	}
+
+	if p.TLSDownstreamClientCAFile != "" {
+		bs, err := ioutil.ReadFile(p.TLSDownstreamClientCAFile)
+		if err != nil {
+			return fmt.Errorf("config: couldn't load downstream client ca: %w", err)
+		}
+		p.TLSDownstreamClientCA = base64.StdEncoding.EncodeToString(bs)
 	}
 
 	if p.KubernetesServiceAccountTokenFile != "" {

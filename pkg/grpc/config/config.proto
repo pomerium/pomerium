@@ -68,6 +68,8 @@ message Route {
   string tls_client_key = 19;
   string tls_client_cert_file = 20;
   string tls_client_key_file = 21;
+  string tls_downstream_client_ca = 38;
+  string tls_downstream_client_ca_file = 39;
 
   map<string, string> set_request_headers = 22;
   repeated string remove_request_headers = 23;
