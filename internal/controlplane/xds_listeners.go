@@ -636,9 +636,12 @@ func getDownstreamValidationContext(
 	if cfg.Options.ClientCA != "" {
 		needsClientCert = true
 	}
-	for _, p := range getPoliciesForDomain(cfg.Options, domain) {
-		if p.TLSDownstreamClientCA != "" {
-			needsClientCert = true
+	if !needsClientCert {
+		for _, p := range getPoliciesForDomain(cfg.Options, domain) {
+			if p.TLSDownstreamClientCA != "" {
+				needsClientCert = true
+				break
+			}
 		}
 	}
 
