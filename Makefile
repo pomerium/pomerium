@@ -13,7 +13,7 @@ BUILDTAGS :=
 
 # Populate version variables
 # Add to compile time flags
-VERSION := $(shell git describe --abbrev=0 --tags)
+VERSION := $(shell git describe --tags)
 GITCOMMIT := $(shell git rev-parse --short HEAD)
 BUILDMETA:=
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
