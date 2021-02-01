@@ -2,16 +2,22 @@ package pomerium.authz
 
 default allow = false
 
-
 route_policy_idx := first_allowed_route_policy_idx(input.http.url)
+
 route_policy := data.route_policies[route_policy_idx]
+
 session := input.databroker_data.session
+
 user := input.databroker_data.user
+
 groups := input.databroker_data.groups
 
 all_allowed_domains := get_allowed_domains(route_policy)
+
 all_allowed_groups := get_allowed_groups(route_policy)
+
 all_allowed_users := get_allowed_users(route_policy)
+
 all_allowed_idp_claims := get_allowed_idp_claims(route_policy)
 
 is_impersonating := count(session.impersonate_email) > 0
@@ -31,8 +37,8 @@ allow {
 
 # allow any authenticated user
 allow {
-    route_policy.AllowAnyAuthenticatedUser == true
-    session.user_id != ""
+	route_policy.AllowAnyAuthenticatedUser == true
+	session.user_id != ""
 }
 
 # allow by email
@@ -79,10 +85,11 @@ allow {
 
 # allow by arbitrary idp claims
 allow {
-    are_claims_allowed(all_allowed_idp_claims[_], session.claims)
+	are_claims_allowed(all_allowed_idp_claims[_], session.claims)
 }
+
 allow {
-    are_claims_allowed(all_allowed_idp_claims[_], user.claims)
+	are_claims_allowed(all_allowed_idp_claims[_], user.claims)
 }
 
 # allow pomerium urls
@@ -101,7 +108,7 @@ first_allowed_route_policy_idx(input_url) = first_policy_idx {
 	first_policy_idx := [idx | some idx, policy; policy = data.route_policies[idx]; allowed_route(input.http.url, policy)][0]
 }
 
-allowed_route(input_url, policy){
+allowed_route(input_url, policy) {
 	input_url_obj := parse_url(input_url)
 	allowed_route_source(input_url_obj, policy)
 	allowed_route_prefix(input_url_obj, policy)
@@ -112,6 +119,7 @@ allowed_route(input_url, policy){
 allowed_route_source(input_url_obj, policy) {
 	object.get(policy, "source", "") == ""
 }
+
 allowed_route_source(input_url_obj, policy) {
 	object.get(policy, "source", "") != ""
 	source_url_obj := parse_url(policy.source)
@@ -121,6 +129,7 @@ allowed_route_source(input_url_obj, policy) {
 allowed_route_prefix(input_url_obj, policy) {
 	object.get(policy, "prefix", "") == ""
 }
+
 allowed_route_prefix(input_url_obj, policy) {
 	object.get(policy, "prefix", "") != ""
 	startswith(input_url_obj.path, policy.prefix)
@@ -129,6 +138,7 @@ allowed_route_prefix(input_url_obj, policy) {
 allowed_route_path(input_url_obj, policy) {
 	object.get(policy, "path", "") == ""
 }
+
 allowed_route_path(input_url_obj, policy) {
 	object.get(policy, "path", "") != ""
 	policy.path == input_url_obj.path
@@ -137,21 +147,22 @@ allowed_route_path(input_url_obj, policy) {
 allowed_route_regex(input_url_obj, policy) {
 	object.get(policy, "regex", "") == ""
 }
+
 allowed_route_regex(input_url_obj, policy) {
 	object.get(policy, "regex", "") != ""
 	re_match(policy.regex, input_url_obj.path)
 }
 
-parse_url(str) = { "scheme": scheme, "host": host, "path": path } {
-	[_, scheme, host, rawpath] = regex.find_all_string_submatch_n(
-		`(?:((?:tcp[+])?http[s]?)://)?([^/]+)([^?#]*)`,
-		str, 1)[0]
+parse_url(str) = {"scheme": scheme, "host": host, "path": path} {
+	[_, scheme, host, rawpath] = regex.find_all_string_submatch_n(`(?:((?:tcp[+])?http[s]?)://)?([^/]+)([^?#]*)`, str, 1)[0]
+
 	path = normalize_url_path(rawpath)
 }
 
 normalize_url_path(str) = "/" {
 	str == ""
 }
+
 normalize_url_path(str) = str {
 	str != ""
 }
@@ -163,45 +174,33 @@ email_in_domain(email, domain) {
 }
 
 element_in_list(list, elem) {
-  list[_] = elem
+	list[_] = elem
 }
 
 get_allowed_users(policy) = v {
-    sub_allowed_users = [sp.allowed_users | sp := policy.sub_policies[_]]
-    v := { x | x = array.concat(
-        policy.allowed_users,
-        [u | u := policy.sub_policies[_].allowed_users[_]]
-    )[_] }
+	sub_allowed_users = [sp.allowed_users | sp := policy.sub_policies[_]]
+	v := {x | x = array.concat(policy.allowed_users, [u | u := policy.sub_policies[_].allowed_users[_]])[_]}
 }
 
 get_allowed_domains(policy) = v {
-    v := { x | x = array.concat(
-        policy.allowed_domains,
-        [u | u := policy.sub_policies[_].allowed_domains[_]]
-    )[_] }
+	v := {x | x = array.concat(policy.allowed_domains, [u | u := policy.sub_policies[_].allowed_domains[_]])[_]}
 }
 
 get_allowed_groups(policy) = v {
-    v := { x | x = array.concat(
-        policy.allowed_groups,
-        [u | u := policy.sub_policies[_].allowed_groups[_]]
-    )[_] }
+	v := {x | x = array.concat(policy.allowed_groups, [u | u := policy.sub_policies[_].allowed_groups[_]])[_]}
 }
 
 get_allowed_idp_claims(policy) = v {
-    v := array.concat(
-        [policy.allowed_idp_claims],
-        [u | u := policy.sub_policies[_].allowed_idp_claims]
-     )
+	v := array.concat([policy.allowed_idp_claims], [u | u := policy.sub_policies[_].allowed_idp_claims])
 }
 
 are_claims_allowed(a, b) {
-    is_object(a)
-    is_object(b)
-    avs := a[ak]
-    bvs := object.get(b, ak, null)
+	is_object(a)
+	is_object(b)
+	avs := a[ak]
+	bvs := object.get(b, ak, null)
 
-    is_array(avs)
-    is_array(bvs)
-    avs[_] == bvs[_]
+	is_array(avs)
+	is_array(bvs)
+	avs[_] == bvs[_]
 }
