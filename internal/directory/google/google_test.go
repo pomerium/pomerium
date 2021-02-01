@@ -69,70 +69,72 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 			"refresh_token": "REFRESHTOKEN",
 		})
 	})
-	r.Route("/groups", func(r chi.Router) {
-		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			switch r.URL.Query().Get("userKey") {
-			case "user1":
-				_ = json.NewEncoder(w).Encode(M{
-					"kind": "admin#directory#groups",
-					"groups": []M{
-						{"id": "group1"},
-						{"id": "group2"},
-					},
-				})
-			default:
-				_ = json.NewEncoder(w).Encode(M{
-					"kind": "admin#directory#groups",
-					"groups": []M{
-						{"id": "group1", "directMembersCount": "1"},
-						{"id": "group2"},
-					},
-				})
-			}
+	r.Route("/admin/directory/v1", func(r chi.Router) {
+		r.Route("/groups", func(r chi.Router) {
+			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Query().Get("userKey") {
+				case "user1":
+					_ = json.NewEncoder(w).Encode(M{
+						"kind": "admin#directory#groups",
+						"groups": []M{
+							{"id": "group1"},
+							{"id": "group2"},
+						},
+					})
+				default:
+					_ = json.NewEncoder(w).Encode(M{
+						"kind": "admin#directory#groups",
+						"groups": []M{
+							{"id": "group1", "directMembersCount": "1"},
+							{"id": "group2"},
+						},
+					})
+				}
+			})
+			r.Get("/{groupKey}/members", func(w http.ResponseWriter, r *http.Request) {
+				switch chi.URLParam(r, "groupKey") {
+				case "group1":
+					_ = json.NewEncoder(w).Encode(M{
+						"members": []M{
+							{
+								"kind": "admin#directory#member",
+								"id":   "user1",
+							},
+						},
+					})
+				}
+			})
 		})
-		r.Get("/{groupKey}/members", func(w http.ResponseWriter, r *http.Request) {
-			switch chi.URLParam(r, "groupKey") {
-			case "group1":
+		r.Route("/users", func(r chi.Router) {
+			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 				_ = json.NewEncoder(w).Encode(M{
-					"members": []M{
+					"kind": "admin#directory#users",
+					"users": []M{
 						{
-							"kind": "admin#directory#member",
-							"id":   "user1",
+							"kind":         "admin#directory#user",
+							"id":           "user1",
+							"primaryEmail": "user1@example.com",
 						},
 					},
 				})
-			}
-		})
-	})
-	r.Route("/users", func(r chi.Router) {
-		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			_ = json.NewEncoder(w).Encode(M{
-				"kind": "admin#directory#users",
-				"users": []M{
-					{
-						"kind":         "admin#directory#user",
-						"id":           "user1",
-						"primaryEmail": "user1@example.com",
-					},
-				},
 			})
-		})
-		r.Get("/{user_id}", func(w http.ResponseWriter, r *http.Request) {
-			switch chi.URLParam(r, "user_id") {
-			case "user1":
-				_ = json.NewEncoder(w).Encode(M{
-					"kind": "admin#directory#user",
-					"id":   "user1",
-					"name": M{
-						"fullName": "User 1",
-					},
-					"primaryEmail": "user1@example.com",
-				})
-			case "user2":
-				http.Error(w, "forbidden", http.StatusForbidden)
-			default:
-				http.Error(w, "not found", http.StatusNotFound)
-			}
+			r.Get("/{user_id}", func(w http.ResponseWriter, r *http.Request) {
+				switch chi.URLParam(r, "user_id") {
+				case "user1":
+					_ = json.NewEncoder(w).Encode(M{
+						"kind": "admin#directory#user",
+						"id":   "user1",
+						"name": M{
+							"fullName": "User 1",
+						},
+						"primaryEmail": "user1@example.com",
+					})
+				case "user2":
+					http.Error(w, "forbidden", http.StatusForbidden)
+				default:
+					http.Error(w, "not found", http.StatusNotFound)
+				}
+			})
 		})
 	})
 
