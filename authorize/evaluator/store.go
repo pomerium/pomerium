@@ -60,7 +60,7 @@ func (s *Store) ClearRecords(typeURL string) {
 	s.delete(rawPath)
 }
 
-// GetRecord gets a record's data from the store. `nil` is returned
+// GetRecordData gets a record's data from the store. `nil` is returned
 // if no record exists for the given type and id.
 func (s *Store) GetRecordData(typeURL, id string) proto.Message {
 	rawPath := fmt.Sprintf("/databroker_data/%s/%s", typeURL, id)
