@@ -109,6 +109,68 @@ func TestOPA(t *testing.T) {
 			assert.False(t, res.Bindings["result"].(M)["allow"].(bool))
 		})
 	})
+	t.Run("impersonate email", func(t *testing.T) {
+		t.Run("allowed", func(t *testing.T) {
+			res := eval([]config.Policy{
+				{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					AllowedUsers: []string{"b@example.com"},
+				},
+			}, []proto.Message{
+				&session.Session{
+					Id:               "session1",
+					UserId:           "user1",
+					ImpersonateEmail: proto.String("b@example.com"),
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com",
+				},
+			}, true)
+			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
+		})
+		t.Run("denied", func(t *testing.T) {
+			res := eval([]config.Policy{
+				{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					AllowedUsers: []string{"a@example.com"},
+				},
+			}, []proto.Message{
+				&session.Session{
+					Id:               "session1",
+					UserId:           "user1",
+					ImpersonateEmail: proto.String("b@example.com"),
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com",
+				},
+			}, true)
+			assert.False(t, res.Bindings["result"].(M)["allow"].(bool))
+		})
+	})
 	t.Run("domain", func(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
 			res := eval([]config.Policy{
@@ -152,6 +214,68 @@ func TestOPA(t *testing.T) {
 				&session.Session{
 					Id:     "session1",
 					UserId: "user1",
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com",
+				},
+			}, true)
+			assert.False(t, res.Bindings["result"].(M)["allow"].(bool))
+		})
+	})
+	t.Run("impersonate domain", func(t *testing.T) {
+		t.Run("allowed", func(t *testing.T) {
+			res := eval([]config.Policy{
+				{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					AllowedDomains: []string{"example.com"},
+				},
+			}, []proto.Message{
+				&session.Session{
+					Id:               "session1",
+					UserId:           "user1",
+					ImpersonateEmail: proto.String("a@example.com"),
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@notexample.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com",
+				},
+			}, true)
+			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
+		})
+		t.Run("denied", func(t *testing.T) {
+			res := eval([]config.Policy{
+				{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					AllowedDomains: []string{"example.com"},
+				},
+			}, []proto.Message{
+				&session.Session{
+					Id:               "session1",
+					UserId:           "user1",
+					ImpersonateEmail: proto.String("a@notexample.com"),
 				},
 				&user.User{
 					Id:    "user1",
@@ -246,5 +370,70 @@ func TestOPA(t *testing.T) {
 			}, true)
 			assert.False(t, res.Bindings["result"].(M)["allow"].(bool))
 		})
+	})
+	t.Run("impersonate groups", func(t *testing.T) {
+		res := eval([]config.Policy{
+			{
+				Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+				To: config.WeightedURLs{
+					{URL: *mustParseURL("https://to.example.com")},
+				},
+				AllowedGroups: []string{"group1"},
+			},
+		}, []proto.Message{
+			&session.Session{
+				Id:                "session1",
+				UserId:            "user1",
+				ImpersonateEmail:  proto.String("a@example.com"),
+				ImpersonateGroups: []string{"group1"},
+			},
+			&user.User{
+				Id:    "user1",
+				Email: "a@example.com",
+			},
+			&directory.Group{
+				Id:    "group1",
+				Name:  "group-1",
+				Email: "group1@example.com",
+			},
+		}, &Request{
+			Session: RequestSession{
+				ID: "session1",
+			},
+			HTTP: RequestHTTP{
+				Method: "GET",
+				URL:    "https://from.example.com",
+			},
+		}, true)
+		assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
+	})
+	t.Run("any authenticated user", func(t *testing.T) {
+		res := eval([]config.Policy{
+			{
+				Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+				To: config.WeightedURLs{
+					{URL: *mustParseURL("https://to.example.com")},
+				},
+				AllowAnyAuthenticatedUser: true,
+			},
+		}, []proto.Message{
+			&session.Session{
+				Id:     "session1",
+				UserId: "user1",
+			},
+			&user.User{
+				Id:    "user1",
+				Email: "a@example.com",
+			},
+		}, &Request{
+			Session: RequestSession{
+				ID: "session1",
+			},
+			HTTP: RequestHTTP{
+				Method: "GET",
+				URL:    "https://from.example.com",
+			},
+		}, true)
+		assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
 	})
 }
