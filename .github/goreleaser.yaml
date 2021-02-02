@@ -218,7 +218,7 @@ nfpms:
     vendor: Pomerium, Inc.
     homepage: https://www.pomerium.com
     description: Identity Aware Proxy
-    maintainer:
+    maintainer: Pomerium <info@pomerium.com>
     license: Apache 2.0
     epoch: 1
     release: 1
@@ -264,7 +264,7 @@ nfpms:
     vendor: Pomerium, Inc.
     homepage: https://www.pomerium.com
     description: Identity Aware Proxy
-    maintainer:
+    maintainer: Pomerium <info@pomerium.com>
     license: Apache 2.0
     epoch: 1
     release: 1
