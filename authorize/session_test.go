@@ -120,41 +120,33 @@ func TestAuthorize_getJWTClaimHeaders(t *testing.T) {
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
 	a.currentOptions.Store(opt)
-	a.store = evaluator.NewStore()
+	a.store = evaluator.NewStoreFromProtos(
+		&session.Session{
+			Id:     "SESSION_ID",
+			UserId: "USER_ID",
+		},
+		&user.User{
+			Id:    "USER_ID",
+			Name:  "foo",
+			Email: "foo@example.com",
+		},
+		&directory.User{
+			Id:       "USER_ID",
+			GroupIds: []string{"admin_id", "test_id"},
+		},
+		&directory.Group{
+			Id:   "admin_id",
+			Name: "admin",
+		},
+		&directory.Group{
+			Id:   "test_id",
+			Name: "test",
+		},
+	)
 	pe, err := newPolicyEvaluator(opt, a.store)
 	require.NoError(t, err)
 	a.state.Load().evaluator = pe
 	signedJWT, _ := pe.SignedJWT(pe.JWTPayload(&evaluator.Request{
-		DataBrokerData: evaluator.DataBrokerData{
-			"type.googleapis.com/session.Session": map[string]interface{}{
-				"SESSION_ID": &session.Session{
-					UserId: "USER_ID",
-				},
-			},
-			"type.googleapis.com/user.User": map[string]interface{}{
-				"USER_ID": &user.User{
-					Id:    "USER_ID",
-					Name:  "foo",
-					Email: "foo@example.com",
-				},
-			},
-			"type.googleapis.com/directory.User": map[string]interface{}{
-				"USER_ID": &directory.User{
-					Id:       "USER_ID",
-					GroupIds: []string{"admin_id", "test_id"},
-				},
-			},
-			"type.googleapis.com/directory.Group": map[string]interface{}{
-				"admin_id": &directory.Group{
-					Id:   "admin_id",
-					Name: "admin",
-				},
-				"test_id": &directory.Group{
-					Id:   "test_id",
-					Name: "test",
-				},
-			},
-		},
 		HTTP: evaluator.RequestHTTP{URL: "https://example.com"},
 		Session: evaluator.RequestSession{
 			ID: "SESSION_ID",

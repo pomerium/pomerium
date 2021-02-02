@@ -436,15 +436,7 @@ func TestSync(t *testing.T) {
 			t.Parallel()
 			a, err := New(&config.Config{Options: o})
 			require.NoError(t, err)
-			a.dataBrokerData = evaluator.DataBrokerData{
-				"type.googleapis.com/session.Session": map[string]interface{}{
-					"dbd_session_id": &session.Session{UserId: "dbd_user1"},
-				},
-				"type.googleapis.com/user.User": map[string]interface{}{
-					"dbd_user1": &user.User{Id: "dbd_user1"},
-				},
-			}
-			a.state.Load().dataBrokerClient = tc.databrokerClient
+			a.state.Load().dataBrokerClient = dbdClient
 			assert.True(t, (a.forceSync(ctx, tc.sessionState) != nil) == tc.wantErr)
 		})
 	}

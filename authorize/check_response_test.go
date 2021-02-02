@@ -15,11 +15,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
@@ -39,25 +41,21 @@ func TestAuthorize_okResponse(t *testing.T) {
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
 	a.currentOptions.Store(opt)
-	a.store = evaluator.NewStore()
+	a.store = evaluator.NewStoreFromProtos(
+		&session.Session{
+			Id:     "SESSION_ID",
+			UserId: "USER_ID",
+		},
+		&user.User{
+			Id:    "USER_ID",
+			Name:  "foo",
+			Email: "foo@example.com",
+		},
+	)
 	pe, err := newPolicyEvaluator(opt, a.store)
 	require.NoError(t, err)
 	a.state.Load().evaluator = pe
 	validJWT, _ := pe.SignedJWT(pe.JWTPayload(&evaluator.Request{
-		DataBrokerData: evaluator.DataBrokerData{
-			"type.googleapis.com/session.Session": map[string]interface{}{
-				"SESSION_ID": &session.Session{
-					UserId: "USER_ID",
-				},
-			},
-			"type.googleapis.com/user.User": map[string]interface{}{
-				"USER_ID": &user.User{
-					Id:    "USER_ID",
-					Name:  "foo",
-					Email: "foo@example.com",
-				},
-			},
-		},
 		HTTP: evaluator.RequestHTTP{URL: "https://example.com"},
 		Session: evaluator.RequestSession{
 			ID: "SESSION_ID",
@@ -198,7 +196,8 @@ func TestAuthorize_okResponse(t *testing.T) {
 			got := a.okResponse(tc.reply)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
-			assert.Equal(t, tc.want.GetOkResponse().GetHeaders(), got.GetOkResponse().GetHeaders())
+			want, _ := protojson.Marshal(tc.want.GetOkResponse())
+			testutil.AssertProtoJSONEqual(t, string(want), got.GetOkResponse())
 		})
 	}
 }

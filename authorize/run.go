@@ -121,15 +121,12 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error
 		serverVersion = res.GetServerVersion()
 
 		for _, record := range res.GetRecords() {
-			a.updateRecord(record)
+			a.store.UpdateRecord(record)
 			recordVersion = record.GetVersion()
 		}
 
 		break
 	}
-	a.dataBrokerDataLock.Lock()
-	log.Info().Str("type_url", typeURL).Int("count", a.dataBrokerData.Count(typeURL)).Msg("initial data load complete")
-	a.dataBrokerDataLock.Unlock()
 	span.End()
 
 	if ch, ok := a.dataBrokerInitialSync[typeURL]; ok {
@@ -169,7 +166,7 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error
 					Msg("detected new server version, clearing data")
 				serverVersion = res.GetServerVersion()
 				recordVersion = ""
-				a.clearRecords(typeURL)
+				a.store.ClearRecords(typeURL)
 			}
 			for _, record := range res.GetRecords() {
 				if record.GetVersion() > recordVersion {
@@ -178,24 +175,10 @@ func (a *Authorize) runDataTypeSyncer(ctx context.Context, typeURL string) error
 			}
 
 			for _, record := range res.GetRecords() {
-				a.updateRecord(record)
+				a.store.UpdateRecord(record)
 			}
 		}
 	})
-}
-
-func (a *Authorize) clearRecords(typeURL string) {
-	a.store.ClearRecords(typeURL)
-	a.dataBrokerDataLock.Lock()
-	a.dataBrokerData.Clear(typeURL)
-	a.dataBrokerDataLock.Unlock()
-}
-
-func (a *Authorize) updateRecord(record *databroker.Record) {
-	a.store.UpdateRecord(record)
-	a.dataBrokerDataLock.Lock()
-	a.dataBrokerData.Update(record)
-	a.dataBrokerDataLock.Unlock()
 }
 
 func tryForever(ctx context.Context, callback func(onSuccess interface{ Reset() }) error) error {

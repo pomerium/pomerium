@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"html/template"
-	"sync"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -25,9 +24,6 @@ type Authorize struct {
 	currentOptions *config.AtomicOptions
 	templates      *template.Template
 
-	dataBrokerDataLock sync.RWMutex
-	dataBrokerData     evaluator.DataBrokerData
-
 	dataBrokerInitialSync map[string]chan struct{}
 }
 
@@ -37,7 +33,6 @@ func New(cfg *config.Config) (*Authorize, error) {
 		currentOptions: config.NewAtomicOptions(),
 		store:          evaluator.NewStore(),
 		templates:      template.Must(frontend.NewTemplates()),
-		dataBrokerData: make(evaluator.DataBrokerData),
 		dataBrokerInitialSync: map[string]chan struct{}{
 			"type.googleapis.com/directory.Group": make(chan struct{}, 1),
 			"type.googleapis.com/directory.User":  make(chan struct{}, 1),
