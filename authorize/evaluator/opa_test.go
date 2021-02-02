@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
@@ -95,6 +96,144 @@ func TestOPA(t *testing.T) {
 				&user.User{
 					Id:    "user1",
 					Email: "b@example.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com",
+				},
+			}, true)
+			assert.False(t, res.Bindings["result"].(M)["allow"].(bool))
+		})
+	})
+	t.Run("domain", func(t *testing.T) {
+		t.Run("allowed", func(t *testing.T) {
+			res := eval([]config.Policy{
+				{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					AllowedDomains: []string{"example.com"},
+				},
+			}, []proto.Message{
+				&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com",
+				},
+			}, true)
+			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
+		})
+		t.Run("denied", func(t *testing.T) {
+			res := eval([]config.Policy{
+				{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					AllowedDomains: []string{"notexample.com"},
+				},
+			}, []proto.Message{
+				&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com",
+				},
+			}, true)
+			assert.False(t, res.Bindings["result"].(M)["allow"].(bool))
+		})
+	})
+	t.Run("groups", func(t *testing.T) {
+		t.Run("allowed", func(t *testing.T) {
+			res := eval([]config.Policy{
+				{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					AllowedGroups: []string{"group1"},
+				},
+			}, []proto.Message{
+				&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+				&directory.User{
+					Id:       "user1",
+					GroupIds: []string{"group1"},
+				},
+				&directory.Group{
+					Id:    "group1",
+					Name:  "group-1",
+					Email: "group1@example.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com",
+				},
+			}, true)
+			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
+		})
+		t.Run("denied", func(t *testing.T) {
+			res := eval([]config.Policy{
+				{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					AllowedGroups: []string{"group1"},
+				},
+			}, []proto.Message{
+				&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+				&directory.User{
+					Id:       "user1",
+					GroupIds: []string{"group2"},
+				},
+				&directory.Group{
+					Id:    "group1",
+					Name:  "group-1",
+					Email: "group1@example.com",
 				},
 			}, &Request{
 				Session: RequestSession{
