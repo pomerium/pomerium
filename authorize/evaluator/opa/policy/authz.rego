@@ -6,11 +6,39 @@ route_policy_idx := first_allowed_route_policy_idx(input.http.url)
 
 route_policy := data.route_policies[route_policy_idx]
 
-session := input.databroker_data.session
+session = s {
+	s = object_get(data.databroker_data["type.googleapis.com"]["user.ServiceAccount"], input.session.id, null)
+} else = s {
+	s = object_get(data.databroker_data["type.googleapis.com"]["session.Session"], input.session.id, null)
+} else = {} {
+	true
+}
 
-user := input.databroker_data.user
+user = u {
+	u = object_get(data.databroker_data["type.googleapis.com"]["user.User"], session.impersonate_user_id, null)
+} else = u {
+	u = object_get(data.databroker_data["type.googleapis.com"]["user.User"], session.user_id, null)
+} else = {} {
+	true
+}
 
-groups := input.databroker_data.groups
+directory_user = du {
+	du = object_get(data.databroker_data["type.googleapis.com"]["directory.User"], session.impersonate_user_id, null)
+} else = du {
+	du = object_get(data.databroker_data["type.googleapis.com"]["directory.User"], session.user_id, null)
+} else = {} {
+	true
+}
+
+group_ids = gs {
+	gs = session.impersonate_group_ids
+} else = gs {
+	gs = directory_user.group_ids
+} else = [] {
+	true
+}
+
+groups := array.concat(group_ids, array.concat(get_databroker_group_names(group_ids), get_databroker_group_emails(group_ids)))
 
 all_allowed_domains := get_allowed_domains(route_policy)
 
@@ -203,4 +231,44 @@ are_claims_allowed(a, b) {
 	is_array(avs)
 	is_array(bvs)
 	avs[_] == bvs[_]
+}
+
+get_databroker_group_names(ids) = gs {
+	gs := [name | id := ids[i]; group := data.databroker_data["type.googleapis.com"]["directory.Group"][id]; name := group.name]
+}
+
+get_databroker_group_emails(ids) = gs {
+	gs := [email | id := ids[i]; group := data.databroker_data["type.googleapis.com"]["directory.Group"][id]; email := group.email]
+}
+
+# object_get is like object.get, but supports converting "/" in keys to separate lookups
+# rego doesn't support recursion, so we hard code a limited number of /'s
+object_get(obj, key, def) = value {
+	segments := split(key, "/")
+	count(segments) == 2
+	o1 := object.get(obj, segments[0], {})
+	value = object.get(o1, segments[1], def)
+} else = value {
+	segments := split(key, "/")
+	count(segments) == 3
+	o1 := object.get(obj, segments[0], {})
+	o2 := object.get(o1, segments[1], {})
+	value = object.get(o2, segments[2], def)
+} else = value {
+	segments := split(key, "/")
+	count(segments) == 4
+	o1 := object.get(obj, segments[0], {})
+	o2 := object.get(o1, segments[1], {})
+	o3 := object.get(o2, segments[2], {})
+	value = object.get(o3, segments[3], def)
+} else = value {
+	segments := split(key, "/")
+	count(segments) == 5
+	o1 := object.get(obj, segments[0], {})
+	o2 := object.get(o1, segments[1], {})
+	o3 := object.get(o2, segments[2], {})
+	o4 := object.get(o3, segments[3], {})
+	value = object.get(o4, segments[4], def)
+} else = value {
+	value = object.get(obj, key, def)
 }

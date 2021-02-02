@@ -15,17 +15,8 @@ import (
 	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-)
-
-const (
-	directoryGroupTypeURL = "type.googleapis.com/directory.Group"
-	directoryUserTypeURL  = "type.googleapis.com/directory.User"
-	serviceAccountTypeURL = "type.googleapis.com/user.ServiceAccount"
-	sessionTypeURL        = "type.googleapis.com/session.Session"
-	userTypeURL           = "type.googleapis.com/user.User"
 )
 
 // Evaluator specifies the interface for a policy engine.
@@ -230,52 +221,13 @@ func (e *Evaluator) SignedJWT(payload map[string]interface{}) (string, error) {
 }
 
 type input struct {
-	DataBrokerData           dataBrokerDataInput `json:"databroker_data"`
-	HTTP                     RequestHTTP         `json:"http"`
-	Session                  RequestSession      `json:"session"`
-	IsValidClientCertificate bool                `json:"is_valid_client_certificate"`
-}
-
-type dataBrokerDataInput struct {
-	Session interface{} `json:"session,omitempty"`
-	User    interface{} `json:"user,omitempty"`
-	Groups  interface{} `json:"groups,omitempty"`
+	HTTP                     RequestHTTP    `json:"http"`
+	Session                  RequestSession `json:"session"`
+	IsValidClientCertificate bool           `json:"is_valid_client_certificate"`
 }
 
 func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input {
 	i := new(input)
-	i.DataBrokerData.Session = e.store.GetRecordData(sessionTypeURL, req.Session.ID)
-	if i.DataBrokerData.Session == nil {
-		i.DataBrokerData.Session = e.store.GetRecordData(serviceAccountTypeURL, req.Session.ID)
-	}
-	var userIDs []string
-	if obj, ok := i.DataBrokerData.Session.(interface{ GetUserId() string }); ok && obj.GetUserId() != "" {
-		userIDs = append(userIDs, obj.GetUserId())
-	}
-	if obj, ok := i.DataBrokerData.Session.(interface{ GetImpersonateUserId() string }); ok && obj.GetImpersonateUserId() != "" {
-		userIDs = append(userIDs, obj.GetImpersonateUserId())
-	}
-
-	for _, userID := range userIDs {
-		i.DataBrokerData.User = e.store.GetRecordData(userTypeURL, userID)
-
-		user, ok := e.store.GetRecordData(directoryUserTypeURL, userID).(*directory.User)
-		if ok {
-			var groups []string
-			for _, groupID := range user.GetGroupIds() {
-				if dg, ok := e.store.GetRecordData(directoryGroupTypeURL, groupID).(*directory.Group); ok {
-					if dg.Name != "" {
-						groups = append(groups, dg.Name)
-					}
-					if dg.Email != "" {
-						groups = append(groups, dg.Email)
-					}
-				}
-			}
-			groups = append(groups, user.GetGroupIds()...)
-			i.DataBrokerData.Groups = groups
-		}
-	}
 	i.HTTP = req.HTTP
 	i.Session = req.Session
 	i.IsValidClientCertificate = isValidClientCertificate
