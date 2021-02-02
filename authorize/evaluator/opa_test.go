@@ -120,7 +120,7 @@ func TestOPA(t *testing.T) {
 					AllowedUsers: []string{"b@example.com"},
 				},
 			}, []proto.Message{
-				&session.Session{
+				&user.ServiceAccount{
 					Id:               "session1",
 					UserId:           "user1",
 					ImpersonateEmail: proto.String("b@example.com"),
@@ -295,42 +295,46 @@ func TestOPA(t *testing.T) {
 	})
 	t.Run("groups", func(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
-			res := eval([]config.Policy{
-				{
-					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
-					To: config.WeightedURLs{
-						{URL: *mustParseURL("https://to.example.com")},
-					},
-					AllowedGroups: []string{"group1"},
-				},
-			}, []proto.Message{
-				&session.Session{
-					Id:     "session1",
-					UserId: "user1",
-				},
-				&user.User{
-					Id:    "user1",
-					Email: "a@example.com",
-				},
-				&directory.User{
-					Id:       "user1",
-					GroupIds: []string{"group1"},
-				},
-				&directory.Group{
-					Id:    "group1",
-					Name:  "group-1",
-					Email: "group1@example.com",
-				},
-			}, &Request{
-				Session: RequestSession{
-					ID: "session1",
-				},
-				HTTP: RequestHTTP{
-					Method: "GET",
-					URL:    "https://from.example.com",
-				},
-			}, true)
-			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
+			for _, nm := range []string{"group1", "group1name", "group1@example.com"} {
+				t.Run(nm, func(t *testing.T) {
+					res := eval([]config.Policy{
+						{
+							Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+							To: config.WeightedURLs{
+								{URL: *mustParseURL("https://to.example.com")},
+							},
+							AllowedGroups: []string{nm},
+						},
+					}, []proto.Message{
+						&session.Session{
+							Id:     "session1",
+							UserId: "user1",
+						},
+						&user.User{
+							Id:    "user1",
+							Email: "a@example.com",
+						},
+						&directory.User{
+							Id:       "user1",
+							GroupIds: []string{"group1"},
+						},
+						&directory.Group{
+							Id:    "group1",
+							Name:  "group1name",
+							Email: "group1@example.com",
+						},
+					}, &Request{
+						Session: RequestSession{
+							ID: "session1",
+						},
+						HTTP: RequestHTTP{
+							Method: "GET",
+							URL:    "https://from.example.com",
+						},
+					}, true)
+					assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
+				})
+			}
 		})
 		t.Run("denied", func(t *testing.T) {
 			res := eval([]config.Policy{

@@ -6,11 +6,13 @@ route_policy_idx := first_allowed_route_policy_idx(input.http.url)
 
 route_policy := data.route_policies[route_policy_idx]
 
-session := input.databroker_data.session
+session := get_databroker_session()
 
-user := input.databroker_data.user
+user := get_databroker_user()
 
-groups := input.databroker_data.groups
+group_ids := get_databroker_group_ids()
+
+groups := array.concat(group_ids, array.concat(get_databroker_group_names(group_ids), get_databroker_group_emails(group_ids)))
 
 all_allowed_domains := get_allowed_domains(route_policy)
 
@@ -204,3 +206,48 @@ are_claims_allowed(a, b) {
 	is_array(bvs)
 	avs[_] == bvs[_]
 }
+
+get_databroker_session = s {
+	s := data.databroker_data["type.googleapis.com"]["user.ServiceAccount"][input.session.id]
+} else = s {
+	s := data.databroker_data["type.googleapis.com"]["session.Session"][input.session.id]
+}
+
+get_databroker_user = u {
+	s := get_databroker_session()
+	u := data.databroker_data["type.googleapis.com"]["user.User"][s.impersonate_user_id]
+} else = u {
+	s := get_databroker_session()
+	u := data.databroker_data["type.googleapis.com"]["user.User"][s.user_id]
+}
+
+get_databroker_directory_user = du {
+	s := get_databroker_session()
+	du := data.databroker_data["type.googleapis.com"]["directory.User"][s.impersonate_user_id]
+} else = du {
+	s := get_databroker_session()
+	du := data.databroker_data["type.googleapis.com"]["directory.User"][s.user_id]
+}
+
+get_databroker_group_ids = gs {
+	s := get_databroker_session()
+	gs := s.impersonate_group_ids
+} else = gs {
+	du := get_databroker_directory_user()
+	gs := du.group_ids
+}
+
+get_databroker_group_names(ids) = gs {
+	gs := [name | id := ids[i]; group := data.databroker_data["type.googleapis.com"]["directory.Group"][id]; name := group.name]
+}
+
+get_databroker_group_emails(ids) = gs {
+	gs := [email | id := ids[i]; group := data.databroker_data["type.googleapis.com"]["directory.Group"][id]; email := group.email]
+}
+
+#emails := [id | id := ids[i]]
+#emails := []
+#gs := array.concat(ids, emails)
+# else = gs {
+# 	gs := []
+# }
