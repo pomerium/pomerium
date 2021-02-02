@@ -244,10 +244,3 @@ get_databroker_group_names(ids) = gs {
 get_databroker_group_emails(ids) = gs {
 	gs := [email | id := ids[i]; group := data.databroker_data["type.googleapis.com"]["directory.Group"][id]; email := group.email]
 }
-
-#emails := [id | id := ids[i]]
-#emails := []
-#gs := array.concat(ids, emails)
-# else = gs {
-# 	gs := []
-# }
