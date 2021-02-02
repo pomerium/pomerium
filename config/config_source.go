@@ -44,6 +44,7 @@ type Source interface {
 
 // A StaticSource always returns the same config. Useful for testing.
 type StaticSource struct {
+	mu  sync.Mutex
 	cfg *Config
 	lis []ChangeListener
 }
@@ -55,11 +56,17 @@ func NewStaticSource(cfg *Config) *StaticSource {
 
 // GetConfig gets the config.
 func (src *StaticSource) GetConfig() *Config {
+	src.mu.Lock()
+	defer src.mu.Unlock()
+
 	return src.cfg
 }
 
 // SetConfig sets the config.
 func (src *StaticSource) SetConfig(cfg *Config) {
+	src.mu.Lock()
+	defer src.mu.Unlock()
+
 	src.cfg = cfg
 	for _, li := range src.lis {
 		li(cfg)
@@ -68,6 +75,9 @@ func (src *StaticSource) SetConfig(cfg *Config) {
 
 // OnConfigChange is ignored for the StaticSource.
 func (src *StaticSource) OnConfigChange(li ChangeListener) {
+	src.mu.Lock()
+	defer src.mu.Unlock()
+
 	src.lis = append(src.lis, li)
 }
 
