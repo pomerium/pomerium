@@ -11,18 +11,13 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/open-policy-agent/opa/rego"
-	"google.golang.org/protobuf/reflect/protoregistry"
-	"google.golang.org/protobuf/types/known/anypb"
 	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 const (
@@ -39,6 +34,7 @@ type Evaluator struct {
 	rego     *rego.Rego
 	query    rego.PreparedEvalQuery
 	policies []config.Policy
+	store    *Store
 
 	authenticateHost string
 	jwk              *jose.JSONWebKey
@@ -51,6 +47,7 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 		custom:           NewCustomEvaluator(store.opaStore),
 		authenticateHost: options.AuthenticateURL.Host,
 		policies:         options.GetAllPolicies(),
+		store:            store,
 	}
 	var err error
 	e.signer, e.jwk, err = newSigner(options)
@@ -165,7 +162,7 @@ func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
 	payload := map[string]interface{}{
 		"iss": e.authenticateHost,
 	}
-	req.fillJWTPayload(payload)
+	req.fillJWTPayload(e.store, payload)
 	return payload
 }
 
@@ -247,9 +244,9 @@ type dataBrokerDataInput struct {
 
 func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input {
 	i := new(input)
-	i.DataBrokerData.Session = req.DataBrokerData.Get(sessionTypeURL, req.Session.ID)
+	i.DataBrokerData.Session = e.store.GetRecordData(sessionTypeURL, req.Session.ID)
 	if i.DataBrokerData.Session == nil {
-		i.DataBrokerData.Session = req.DataBrokerData.Get(serviceAccountTypeURL, req.Session.ID)
+		i.DataBrokerData.Session = e.store.GetRecordData(serviceAccountTypeURL, req.Session.ID)
 	}
 	var userIDs []string
 	if obj, ok := i.DataBrokerData.Session.(interface{ GetUserId() string }); ok && obj.GetUserId() != "" {
@@ -260,13 +257,13 @@ func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input
 	}
 
 	for _, userID := range userIDs {
-		i.DataBrokerData.User = req.DataBrokerData.Get(userTypeURL, userID)
+		i.DataBrokerData.User = e.store.GetRecordData(userTypeURL, userID)
 
-		user, ok := req.DataBrokerData.Get(directoryUserTypeURL, userID).(*directory.User)
+		user, ok := e.store.GetRecordData(directoryUserTypeURL, userID).(*directory.User)
 		if ok {
 			var groups []string
 			for _, groupID := range user.GetGroupIds() {
-				if dg, ok := req.DataBrokerData.Get(directoryGroupTypeURL, groupID).(*directory.Group); ok {
+				if dg, ok := e.store.GetRecordData(directoryGroupTypeURL, groupID).(*directory.Group); ok {
 					if dg.Name != "" {
 						groups = append(groups, dg.Name)
 					}
@@ -358,55 +355,4 @@ func getDenyVar(vars rego.Vars) []Result {
 		})
 	}
 	return results
-}
-
-// DataBrokerData stores the data broker data by type => id => record
-type DataBrokerData map[string]map[string]interface{}
-
-// Clear removes all the data for the given type URL from the databroekr data.
-func (dbd DataBrokerData) Clear(typeURL string) {
-	delete(dbd, typeURL)
-}
-
-// Count returns the number of entries for the given type URL.
-func (dbd DataBrokerData) Count(typeURL string) int {
-	return len(dbd[typeURL])
-}
-
-// Get gets a record from the DataBrokerData.
-func (dbd DataBrokerData) Get(typeURL, id string) interface{} {
-	m, ok := dbd[typeURL]
-	if !ok {
-		return nil
-	}
-	return m[id]
-}
-
-// Update updates a record in the DataBrokerData.
-func (dbd DataBrokerData) Update(record *databroker.Record) {
-	db, ok := dbd[record.GetType()]
-	if !ok {
-		db = make(map[string]interface{})
-		dbd[record.GetType()] = db
-	}
-
-	if record.GetDeletedAt() != nil {
-		delete(db, record.GetId())
-	} else {
-		if obj, err := unmarshalAny(record.GetData()); err == nil {
-			db[record.GetId()] = obj
-		} else {
-			log.Warn().Err(err).Msg("failed to unmarshal unknown any type")
-			delete(db, record.GetId())
-		}
-	}
-}
-
-func unmarshalAny(any *anypb.Any) (proto.Message, error) {
-	messageType, err := protoregistry.GlobalTypes.FindMessageByURL(any.GetTypeUrl())
-	if err != nil {
-		return nil, err
-	}
-	msg := proto.MessageV1(messageType.New())
-	return msg, ptypes.UnmarshalAny(any, msg)
 }

@@ -13,7 +13,6 @@ import (
 type (
 	// Request is the request data used for the evaluator.
 	Request struct {
-		DataBrokerData DataBrokerData `json:"databroker_data"`
 		HTTP           RequestHTTP    `json:"http"`
 		Session        RequestSession `json:"session"`
 		CustomPolicies []string
@@ -44,21 +43,21 @@ type sessionOrServiceAccount interface {
 	GetImpersonateUserId() string
 }
 
-func (req *Request) fillJWTPayload(payload map[string]interface{}) {
+func (req *Request) fillJWTPayload(store *Store, payload map[string]interface{}) {
 	if u, err := url.Parse(req.HTTP.URL); err == nil {
 		payload["aud"] = u.Hostname()
 	}
 
-	if s, ok := req.DataBrokerData.Get("type.googleapis.com/session.Session", req.Session.ID).(*session.Session); ok {
-		req.fillJWTPayloadSessionOrServiceAccount(payload, s)
+	if s, ok := store.GetRecordData("type.googleapis.com/session.Session", req.Session.ID).(*session.Session); ok {
+		req.fillJWTPayloadSessionOrServiceAccount(store, payload, s)
 	}
 
-	if sa, ok := req.DataBrokerData.Get("type.googleapis.com/user.ServiceAccount", req.Session.ID).(*user.ServiceAccount); ok {
-		req.fillJWTPayloadSessionOrServiceAccount(payload, sa)
+	if sa, ok := store.GetRecordData("type.googleapis.com/user.ServiceAccount", req.Session.ID).(*user.ServiceAccount); ok {
+		req.fillJWTPayloadSessionOrServiceAccount(store, payload, sa)
 	}
 }
 
-func (req *Request) fillJWTPayloadSessionOrServiceAccount(payload map[string]interface{}, s sessionOrServiceAccount) {
+func (req *Request) fillJWTPayloadSessionOrServiceAccount(store *Store, payload map[string]interface{}, s sessionOrServiceAccount) {
 	payload["jti"] = s.GetId()
 	if s.GetExpiresAt().IsValid() {
 		payload["exp"] = s.GetExpiresAt().AsTime().Unix()
@@ -71,18 +70,18 @@ func (req *Request) fillJWTPayloadSessionOrServiceAccount(payload map[string]int
 	if s.GetImpersonateUserId() != "" {
 		userID = s.GetImpersonateUserId()
 	}
-	if u, ok := req.DataBrokerData.Get("type.googleapis.com/user.User", userID).(*user.User); ok {
+	if u, ok := store.GetRecordData("type.googleapis.com/user.User", userID).(*user.User); ok {
 		payload["sub"] = u.GetId()
 		payload["user"] = u.GetId()
 		payload["email"] = u.GetEmail()
 	}
-	if du, ok := req.DataBrokerData.Get("type.googleapis.com/directory.User", userID).(*directory.User); ok {
+	if du, ok := store.GetRecordData("type.googleapis.com/directory.User", userID).(*directory.User); ok {
 		if du.GetEmail() != "" {
 			payload["email"] = du.GetEmail()
 		}
 		var groupNames []string
 		for _, groupID := range du.GetGroupIds() {
-			if dg, ok := req.DataBrokerData.Get("type.googleapis.com/directory.Group", groupID).(*directory.Group); ok {
+			if dg, ok := store.GetRecordData("type.googleapis.com/directory.Group", groupID).(*directory.Group); ok {
 				groupNames = append(groupNames, dg.Name)
 			}
 		}

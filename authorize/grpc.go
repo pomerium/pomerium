@@ -63,9 +63,6 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 		sessionState = nil
 	}
 
-	a.dataBrokerDataLock.RLock()
-	defer a.dataBrokerDataLock.RUnlock()
-
 	req, err := a.getEvaluatorRequestFromCheckRequest(in, sessionState)
 	if err != nil {
 		log.Warn().Err(err).Msg("error building evaluator request")
@@ -111,16 +108,12 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) inte
 
 	state := a.state.Load()
 
-	a.dataBrokerDataLock.RLock()
-	s, ok := a.dataBrokerData.Get(sessionTypeURL, sessionID).(*session.Session)
-	a.dataBrokerDataLock.RUnlock()
+	s, ok := a.store.GetRecordData(sessionTypeURL, sessionID).(*session.Session)
 	if ok {
 		return s
 	}
 
-	a.dataBrokerDataLock.RLock()
-	sa, ok := a.dataBrokerData.Get(serviceAccountTypeURL, sessionID).(*user.ServiceAccount)
-	a.dataBrokerDataLock.RUnlock()
+	sa, ok := a.store.GetRecordData(serviceAccountTypeURL, sessionID).(*user.ServiceAccount)
 	if ok {
 		return sa
 	}
@@ -134,12 +127,10 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) inte
 		return nil
 	}
 
-	a.dataBrokerDataLock.Lock()
-	if current := a.dataBrokerData.Get(sessionTypeURL, sessionID); current == nil {
-		a.dataBrokerData.Update(res.GetRecord())
+	if current := a.store.GetRecordData(sessionTypeURL, sessionID); current == nil {
+		a.store.UpdateRecord(res.GetRecord())
 	}
-	s, _ = a.dataBrokerData.Get(sessionTypeURL, sessionID).(*session.Session)
-	a.dataBrokerDataLock.Unlock()
+	s, _ = a.store.GetRecordData(sessionTypeURL, sessionID).(*session.Session)
 
 	return s
 }
@@ -150,9 +141,7 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 
 	state := a.state.Load()
 
-	a.dataBrokerDataLock.RLock()
-	u, ok := a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
-	a.dataBrokerDataLock.RUnlock()
+	u, ok := a.store.GetRecordData(userTypeURL, userID).(*user.User)
 	if ok {
 		return u
 	}
@@ -166,12 +155,10 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 		return nil
 	}
 
-	a.dataBrokerDataLock.Lock()
-	if current := a.dataBrokerData.Get(userTypeURL, userID); current == nil {
-		a.dataBrokerData.Update(res.GetRecord())
+	if current := a.store.GetRecordData(userTypeURL, userID); current == nil {
+		a.store.UpdateRecord(res.GetRecord())
 	}
-	u, _ = a.dataBrokerData.Get(userTypeURL, userID).(*user.User)
-	a.dataBrokerDataLock.Unlock()
+	u, _ = a.store.GetRecordData(userTypeURL, userID).(*user.User)
 
 	return u
 }
@@ -234,7 +221,6 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 ) (*evaluator.Request, error) {
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
-		DataBrokerData: a.dataBrokerData,
 		HTTP: evaluator.RequestHTTP{
 			Method:            in.GetAttributes().GetRequest().GetHttp().GetMethod(),
 			URL:               requestURL.String(),

@@ -23,33 +23,28 @@ import (
 )
 
 func TestJSONMarshal(t *testing.T) {
-	dbd := DataBrokerData{
-		"type.googleapis.com/session.Session": map[string]interface{}{
-			"SESSION_ID": &session.Session{
-				UserId: "user1",
-			},
+	opt := config.NewDefaultOptions()
+	opt.AuthenticateURL = mustParseURL("https://authenticate.example.com")
+	e, err := New(opt, NewStoreFromProtos(
+		&session.Session{
+			UserId: "user1",
 		},
-		"type.googleapis.com/directory.User": map[string]interface{}{
-			"user1": &directory.User{
-				Id:       "user1",
-				GroupIds: []string{"group1", "group2"},
-			},
+		&directory.User{
+			Id:       "user1",
+			GroupIds: []string{"group1", "group2"},
 		},
-		"type.googleapis.com/directory.Group": map[string]interface{}{
-			"group1": &directory.Group{
-				Id:    "group1",
-				Name:  "admin",
-				Email: "admin@example.com",
-			},
-			"group2": &directory.Group{
-				Id:   "group2",
-				Name: "test",
-			},
+		&directory.Group{
+			Id:    "group1",
+			Name:  "admin",
+			Email: "admin@example.com",
 		},
-	}
-
-	bs, _ := json.Marshal(new(Evaluator).newInput(&Request{
-		DataBrokerData: dbd,
+		&directory.Group{
+			Id:   "group2",
+			Name: "test",
+		},
+	))
+	require.NoError(t, err)
+	bs, _ := json.Marshal(e.newInput(&Request{
 		HTTP: RequestHTTP{
 			Method: "GET",
 			URL:    "https://example.com",
@@ -63,12 +58,7 @@ func TestJSONMarshal(t *testing.T) {
 		},
 	}, true))
 	assert.JSONEq(t, `{
-		"databroker_data": {
-			"groups": ["admin", "admin@example.com", "test", "group1", "group2"],
-			"session": {
-				"user_id": "user1"
-			}
-		},
+		"databroker_data": {},
 		"http": {
 			"client_certificate": "CLIENT_CERTIFICATE",
 			"headers": {
@@ -130,12 +120,14 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 	nowPb := ptypes.TimestampNow()
 	now, _ := ptypes.Timestamp(nowPb)
 	tests := []struct {
-		name string
-		req  *Request
-		want map[string]interface{}
+		name  string
+		store *Store
+		req   *Request
+		want  map[string]interface{}
 	}{
 		{
 			"iss and aud",
+			NewStore(),
 			&Request{
 				HTTP: RequestHTTP{URL: "https://example.com"},
 			},
@@ -146,19 +138,15 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 		},
 		{
 			"with session",
-			&Request{
-				DataBrokerData: DataBrokerData{
-					"type.googleapis.com/session.Session": map[string]interface{}{
-						"SESSION_ID": &session.Session{
-							Id: "SESSION_ID",
-							IdToken: &session.IDToken{
-								ExpiresAt: nowPb,
-								IssuedAt:  nowPb,
-							},
-							ExpiresAt: nowPb,
-						},
-					},
+			NewStoreFromProtos(&session.Session{
+				Id: "SESSION_ID",
+				IdToken: &session.IDToken{
+					ExpiresAt: nowPb,
+					IssuedAt:  nowPb,
 				},
+				ExpiresAt: nowPb,
+			}),
+			&Request{
 				HTTP: RequestHTTP{URL: "https://example.com"},
 				Session: RequestSession{
 					ID: "SESSION_ID",
@@ -174,16 +162,12 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 		},
 		{
 			"with service account",
+			NewStoreFromProtos(&user.ServiceAccount{
+				Id:        "SERVICE_ACCOUNT_ID",
+				IssuedAt:  nowPb,
+				ExpiresAt: nowPb,
+			}),
 			&Request{
-				DataBrokerData: DataBrokerData{
-					"type.googleapis.com/user.ServiceAccount": map[string]interface{}{
-						"SERVICE_ACCOUNT_ID": &user.ServiceAccount{
-							Id:        "SERVICE_ACCOUNT_ID",
-							IssuedAt:  nowPb,
-							ExpiresAt: nowPb,
-						},
-					},
-				},
 				HTTP: RequestHTTP{URL: "https://example.com"},
 				Session: RequestSession{
 					ID: "SERVICE_ACCOUNT_ID",
@@ -199,22 +183,15 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 		},
 		{
 			"with user",
+			NewStoreFromProtos(&session.Session{
+				Id:     "SESSION_ID",
+				UserId: "USER_ID",
+			}, &user.User{
+				Id:    "USER_ID",
+				Name:  "foo",
+				Email: "foo@example.com",
+			}),
 			&Request{
-				DataBrokerData: DataBrokerData{
-					"type.googleapis.com/session.Session": map[string]interface{}{
-						"SESSION_ID": &session.Session{
-							Id:     "SESSION_ID",
-							UserId: "USER_ID",
-						},
-					},
-					"type.googleapis.com/user.User": map[string]interface{}{
-						"USER_ID": &user.User{
-							Id:    "USER_ID",
-							Name:  "foo",
-							Email: "foo@example.com",
-						},
-					},
-				},
 				HTTP: RequestHTTP{URL: "https://example.com"},
 				Session: RequestSession{
 					ID: "SESSION_ID",
@@ -231,33 +208,27 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 		},
 		{
 			"with directory user",
-			&Request{
-				DataBrokerData: DataBrokerData{
-					"type.googleapis.com/session.Session": map[string]interface{}{
-						"SESSION_ID": &session.Session{
-							Id:     "SESSION_ID",
-							UserId: "USER_ID",
-						},
-					},
-					"type.googleapis.com/directory.User": map[string]interface{}{
-						"USER_ID": &directory.User{
-							Id:       "USER_ID",
-							GroupIds: []string{"group1", "group2"},
-						},
-					},
-					"type.googleapis.com/directory.Group": map[string]interface{}{
-						"group1": &directory.Group{
-							Id:    "group1",
-							Name:  "admin",
-							Email: "admin@example.com",
-						},
-						"group2": &directory.Group{
-							Id:    "group2",
-							Name:  "test",
-							Email: "test@example.com",
-						},
-					},
+			NewStoreFromProtos(
+				&session.Session{
+					Id:     "SESSION_ID",
+					UserId: "USER_ID",
 				},
+				&directory.User{
+					Id:       "USER_ID",
+					GroupIds: []string{"group1", "group2"},
+				},
+				&directory.Group{
+					Id:    "group1",
+					Name:  "admin",
+					Email: "admin@example.com",
+				},
+				&directory.Group{
+					Id:    "group2",
+					Name:  "test",
+					Email: "test@example.com",
+				},
+			),
+			&Request{
 				HTTP: RequestHTTP{URL: "https://example.com"},
 				Session: RequestSession{
 					ID: "SESSION_ID",
@@ -272,20 +243,18 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 		},
 		{
 			"with impersonate",
+			NewStoreFromProtos(
+				&session.Session{
+					Id:                "SESSION_ID",
+					UserId:            "USER_ID",
+					ImpersonateEmail:  proto.String("user@example.com"),
+					ImpersonateGroups: []string{"admin", "test"},
+				},
+			),
 			&Request{
 				HTTP: RequestHTTP{URL: "https://example.com"},
 				Session: RequestSession{
 					ID: "SESSION_ID",
-				},
-				DataBrokerData: DataBrokerData{
-					"type.googleapis.com/session.Session": map[string]interface{}{
-						"SESSION_ID": &session.Session{
-							Id:                "SESSION_ID",
-							UserId:            "USER_ID",
-							ImpersonateEmail:  proto.String("user@example.com"),
-							ImpersonateGroups: []string{"admin", "test"},
-						},
-					},
 				},
 			},
 			map[string]interface{}{
@@ -304,7 +273,7 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 			t.Parallel()
 			e, err := New(&config.Options{
 				AuthenticateURL: mustParseURL("https://authn.example.com"),
-			}, NewStore())
+			}, tc.store)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, e.JWTPayload(tc.req))
 		})
@@ -312,41 +281,8 @@ func TestEvaluator_JWTPayload(t *testing.T) {
 }
 
 func TestEvaluator_Evaluate(t *testing.T) {
-	dbd := make(DataBrokerData)
 	sessionID := uuid.New().String()
 	userID := uuid.New().String()
-	data, _ := ptypes.MarshalAny(&session.Session{
-		Version: "1",
-		Id:      sessionID,
-		UserId:  userID,
-		IdToken: &session.IDToken{
-			Issuer:   "TestEvaluatorEvaluate",
-			Subject:  userID,
-			IssuedAt: ptypes.TimestampNow(),
-		},
-		OauthToken: &session.OAuthToken{
-			AccessToken:  "ACCESS TOKEN",
-			TokenType:    "Bearer",
-			RefreshToken: "REFRESH TOKEN",
-		},
-	})
-	dbd.Update(&databroker.Record{
-		Version: "1",
-		Type:    "type.googleapis.com/session.Session",
-		Id:      sessionID,
-		Data:    data,
-	})
-	data, _ = ptypes.MarshalAny(&user.User{
-		Version: "1",
-		Id:      userID,
-		Email:   "foo@example.com",
-	})
-	dbd.Update(&databroker.Record{
-		Version: "1",
-		Type:    "type.googleapis.com/user.User",
-		Id:      userID,
-		Data:    data,
-	})
 
 	ctx := context.Background()
 	allowedPolicy := []config.Policy{{From: "https://foo.com", AllowedUsers: []string{"foo@example.com"}}}
@@ -370,13 +306,47 @@ func TestEvaluator_Evaluate(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
+			store := NewStoreFromProtos()
+			data, _ := ptypes.MarshalAny(&session.Session{
+				Version: "1",
+				Id:      sessionID,
+				UserId:  userID,
+				IdToken: &session.IDToken{
+					Issuer:   "TestEvaluatorEvaluate",
+					Subject:  userID,
+					IssuedAt: ptypes.TimestampNow(),
+				},
+				OauthToken: &session.OAuthToken{
+					AccessToken:  "ACCESS TOKEN",
+					TokenType:    "Bearer",
+					RefreshToken: "REFRESH TOKEN",
+				},
+			})
+			store.UpdateRecord(&databroker.Record{
+				Version: "1",
+				Type:    "type.googleapis.com/session.Session",
+				Id:      sessionID,
+				Data:    data,
+			})
+			data, _ = ptypes.MarshalAny(&user.User{
+				Version: "1",
+				Id:      userID,
+				Email:   "foo@example.com",
+			})
+			store.UpdateRecord(&databroker.Record{
+				Version: "1",
+				Type:    "type.googleapis.com/user.User",
+				Id:      userID,
+				Data:    data,
+			})
+
 			e, err := New(&config.Options{
 				AuthenticateURL: mustParseURL("https://authn.example.com"),
 				Policies:        tc.policies,
-			}, NewStore())
+			}, store)
 			require.NoError(t, err)
 			res, err := e.Evaluate(ctx, &Request{
-				DataBrokerData: dbd,
 				HTTP:           RequestHTTP{Method: "GET", URL: tc.reqURL},
 				Session:        RequestSession{ID: tc.sessionID},
 				CustomPolicies: tc.customPolicies,
@@ -397,16 +367,16 @@ func mustParseURL(str string) *url.URL {
 }
 
 func BenchmarkEvaluator_Evaluate(b *testing.B) {
+	store := NewStore()
 	e, err := New(&config.Options{
 		AuthenticateURL: mustParseURL("https://authn.example.com"),
-	}, NewStore())
+	}, store)
 	if !assert.NoError(b, err) {
 		return
 	}
 
 	lastSessionID := ""
 
-	dbd := make(DataBrokerData)
 	for i := 0; i < 100; i++ {
 		sessionID := uuid.New().String()
 		lastSessionID = sessionID
@@ -426,7 +396,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 				RefreshToken: "REFRESH TOKEN",
 			},
 		})
-		dbd.Update(&databroker.Record{
+		store.UpdateRecord(&databroker.Record{
 			Version: fmt.Sprint(i),
 			Type:    "type.googleapis.com/session.Session",
 			Id:      sessionID,
@@ -436,7 +406,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Version: fmt.Sprint(i),
 			Id:      userID,
 		})
-		dbd.Update(&databroker.Record{
+		store.UpdateRecord(&databroker.Record{
 			Version: fmt.Sprint(i),
 			Type:    "type.googleapis.com/user.User",
 			Id:      userID,
@@ -448,7 +418,6 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
 		e.Evaluate(ctx, &Request{
-			DataBrokerData: dbd,
 			HTTP: RequestHTTP{
 				Method:  "GET",
 				URL:     "https://example.com/path",
