@@ -42,12 +42,9 @@ func TestOPA(t *testing.T) {
 
 	t.Run("client certificate", func(t *testing.T) {
 		res := eval(nil, nil, &Request{}, false)
-		assert.Equal(t, rego.Vars{
-			"result": M{
-				"allow": false,
-				"deny":  A{A{json.Number("495"), "invalid client certificate"}},
-			},
-		}, res.Bindings)
+		assert.Equal(t,
+			A{A{json.Number("495"), "invalid client certificate"}},
+			res.Bindings["result"].(M)["deny"])
 	})
 	t.Run("email", func(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
@@ -184,10 +181,10 @@ func TestOPA(t *testing.T) {
 			}, []proto.Message{
 				&session.Session{
 					Id:     "session1",
-					UserId: "user1",
+					UserId: "example/user1",
 				},
 				&user.User{
-					Id:    "user1",
+					Id:    "example/user1",
 					Email: "a@example.com",
 				},
 			}, &Request{
