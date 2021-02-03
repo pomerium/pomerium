@@ -179,6 +179,7 @@ func TestOPA(t *testing.T) {
 					AllowedDomains: []string{"example.com"},
 				},
 			}, []proto.Message{
+				&user.ServiceAccount{Id: "serviceaccount1"},
 				&session.Session{
 					Id:     "session1",
 					UserId: "example/user1",
