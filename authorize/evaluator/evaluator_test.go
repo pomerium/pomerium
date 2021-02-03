@@ -58,6 +58,7 @@ func TestJSONMarshal(t *testing.T) {
 		},
 	}, true))
 	assert.JSONEq(t, `{
+		"databroker_data": {},
 		"http": {
 			"client_certificate": "CLIENT_CERTIFICATE",
 			"headers": {
