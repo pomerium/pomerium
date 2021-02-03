@@ -216,7 +216,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		PassIdentityHeaders:              pb.GetPassIdentityHeaders(),
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
 	}
-	if pb.Redirect != nil {
+	if pb.Redirect.IsSet() {
 		p.Redirect = &PolicyRedirect{
 			HTTPSRedirect:  pb.Redirect.HttpsRedirect,
 			SchemeRedirect: pb.Redirect.SchemeRedirect,

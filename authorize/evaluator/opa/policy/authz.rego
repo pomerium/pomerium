@@ -77,10 +77,16 @@ allow {
 	session.user_id != ""
 }
 
-# allow by email
+# allow by user email
 allow {
 	not is_impersonating
 	user.email == all_allowed_users[_]
+}
+
+# allow by user id
+allow {
+	not is_impersonating
+	user.id == all_allowed_users[_]
 }
 
 # allow group
