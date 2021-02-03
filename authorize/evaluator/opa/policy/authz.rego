@@ -8,32 +8,40 @@ route_policy := data.route_policies[route_policy_idx]
 
 session = s {
 	s = object_get(data.databroker_data["type.googleapis.com"]["user.ServiceAccount"], input.session.id, null)
+	s != null
 } else = s {
 	s = object_get(data.databroker_data["type.googleapis.com"]["session.Session"], input.session.id, null)
+	s != null
 } else = {} {
 	true
 }
 
 user = u {
 	u = object_get(data.databroker_data["type.googleapis.com"]["user.User"], session.impersonate_user_id, null)
+	u != null
 } else = u {
 	u = object_get(data.databroker_data["type.googleapis.com"]["user.User"], session.user_id, null)
+	u != null
 } else = {} {
 	true
 }
 
 directory_user = du {
 	du = object_get(data.databroker_data["type.googleapis.com"]["directory.User"], session.impersonate_user_id, null)
+	du != null
 } else = du {
 	du = object_get(data.databroker_data["type.googleapis.com"]["directory.User"], session.user_id, null)
+	du != null
 } else = {} {
 	true
 }
 
 group_ids = gs {
 	gs = session.impersonate_group_ids
+	gs != null
 } else = gs {
 	gs = directory_user.group_ids
+	gs != null
 } else = [] {
 	true
 }
