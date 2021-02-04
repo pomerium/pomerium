@@ -1,12 +1,10 @@
 package authorize
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -84,42 +82,4 @@ func getJWTSetCookieHeaders(cookieStore sessions.SessionStore, rawjwt []byte) (m
 		}
 	}
 	return hdrs, nil
-}
-
-func (a *Authorize) getJWTClaimHeaders(options *config.Options, signedJWT string) (map[string]string, error) {
-	if len(signedJWT) == 0 {
-		return make(map[string]string), nil
-	}
-
-	state := a.state.Load()
-
-	var claims map[string]interface{}
-	payload, err := state.evaluator.ParseSignedJWT(signedJWT)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return nil, err
-	}
-
-	hdrs := make(map[string]string)
-	for _, name := range options.JWTClaimsHeaders {
-		if claim, ok := claims[name]; ok {
-			switch value := claim.(type) {
-			case string:
-				hdrs["x-pomerium-claim-"+name] = value
-			case []interface{}:
-				hdrs["x-pomerium-claim-"+name] = strings.Join(toSliceStrings(value), ",")
-			}
-		}
-	}
-	return hdrs, nil
-}
-
-func toSliceStrings(sliceIfaces []interface{}) []string {
-	sliceStrings := make([]string, 0, len(sliceIfaces))
-	for _, e := range sliceIfaces {
-		sliceStrings = append(sliceStrings, fmt.Sprint(e))
-	}
-	return sliceStrings
 }

@@ -23,7 +23,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 
-	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 )
 
@@ -161,20 +160,6 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 	u, _ = a.store.GetRecordData(userTypeURL, userID).(*user.User)
 
 	return u
-}
-
-func (a *Authorize) getEnvoyRequestHeaders(signedJWT string) ([]*envoy_api_v2_core.HeaderValueOption, error) {
-	var hvos []*envoy_api_v2_core.HeaderValueOption
-
-	hdrs, err := a.getJWTClaimHeaders(a.currentOptions.Load(), signedJWT)
-	if err != nil {
-		return nil, err
-	}
-	for k, v := range hdrs {
-		hvos = append(hvos, mkHeader(k, v, false))
-	}
-
-	return hvos, nil
 }
 
 func getForwardAuthURL(r *http.Request) *url.URL {
@@ -350,8 +335,6 @@ func logAuthorizeCheck(
 		evt = evt.Bool("allow", reply.Status == http.StatusOK)
 		evt = evt.Int("status", reply.Status)
 		evt = evt.Str("message", reply.Message)
-		evt = evt.Str("user", reply.UserEmail)
-		evt = evt.Strs("groups", reply.UserGroups)
 	}
 
 	// potentially sensitive, only log if debug mode

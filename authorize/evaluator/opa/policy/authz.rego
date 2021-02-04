@@ -230,15 +230,28 @@ jwt_payload = {key: value |
 signed_jwt = io.jwt.encode_sign(jwt_headers, jwt_payload, data.signing_key)
 
 kubernetes_headers = h {
-	route_policy.KubernetesServiceAccountToken == ""
-	h := []
-} else = h {
+	route_policy.KubernetesServiceAccountToken != ""
 	h := [
 		["Authorization", concat(" ", ["Bearer", route_policy.KubernetesServiceAccountToken])],
 		["Impersonate-User", jwt_payload_email],
 		["Impersonate-Group", get_header_string_value(jwt_payload_groups)],
 	]
 } else = [] {
+	true
+}
+
+google_cloud_serverless_authentication_service_account = s {
+	s := data.google_cloud_serverless_authentication_service_account
+} else = "" {
+	true
+}
+
+google_cloud_serverless_headers = h {
+	route_policy.EnableGoogleCloudServerlessAuthentication
+	[hostname, _] := parse_host_port(route_policy.To[0].URL.Host)
+	audience := concat("", ["https://", hostname])
+	h := get_google_cloud_serverless_headers(google_cloud_serverless_authentication_service_account, audience)
+} else = {} {
 	true
 }
 
@@ -257,7 +270,10 @@ identity_headers := {key: value |
 		v := get_header_string_value(claim_value)
 	]
 
-	h := array.concat(array.concat(h1, h2), kubernetes_headers)
+	h3 := kubernetes_headers
+	h4 := [[k, v] | v := google_cloud_serverless_headers[k]]
+
+	h := array.concat(array.concat(array.concat(h1, h2), h3), h4)
 	[key, value] := h[_]
 }
 

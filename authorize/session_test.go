@@ -7,15 +7,10 @@ import (
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
-	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 func TestLoadSession(t *testing.T) {
@@ -104,66 +99,4 @@ func TestLoadSession(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, sess)
 	})
-}
-
-func TestAuthorize_getJWTClaimHeaders(t *testing.T) {
-	opt := &config.Options{
-		AuthenticateURL: mustParseURL("https://authenticate.example.com"),
-		Policies: []config.Policy{{
-			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
-			SubPolicies: []config.SubPolicy{{
-				Rego: []string{"allow = true"},
-			}},
-		}},
-	}
-	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
-	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
-	a.state.Load().encoder = encoder
-	a.currentOptions.Store(opt)
-	a.store = evaluator.NewStoreFromProtos(
-		&session.Session{
-			Id:     "SESSION_ID",
-			UserId: "USER_ID",
-		},
-		&user.User{
-			Id:    "USER_ID",
-			Name:  "foo",
-			Email: "foo@example.com",
-		},
-		&directory.User{
-			Id:       "USER_ID",
-			GroupIds: []string{"admin_id", "test_id"},
-		},
-		&directory.Group{
-			Id:   "admin_id",
-			Name: "admin",
-		},
-		&directory.Group{
-			Id:   "test_id",
-			Name: "test",
-		},
-	)
-	pe, err := newPolicyEvaluator(opt, a.store)
-	require.NoError(t, err)
-	a.state.Load().evaluator = pe
-
-	tests := []struct {
-		name            string
-		signedJWT       string
-		jwtHeaders      []string
-		expectedHeaders map[string]string
-	}{
-		{"good with email", "", []string{"email"}, map[string]string{"x-pomerium-claim-email": "foo@example.com"}},
-		{"good with groups", "", []string{"groups"}, map[string]string{"x-pomerium-claim-groups": "admin_id,test_id,admin,test"}},
-		{"empty signed JWT", "", nil, make(map[string]string)},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			opt.JWTClaimsHeaders = tc.jwtHeaders
-			gotHeaders, err := a.getJWTClaimHeaders(opt, tc.signedJWT)
-			require.NoError(t, err)
-			assert.Equal(t, tc.expectedHeaders, gotHeaders)
-		})
-	}
 }

@@ -46,6 +46,7 @@ func TestOPA(t *testing.T) {
 			rego.Store(store.opaStore),
 			rego.Module("pomerium.authz", string(authzPolicy)),
 			rego.Query("result = data.pomerium.authz"),
+			getGoogleCloudServerlessHeadersRegoOption,
 		)
 		q, err := r.PrepareForEval(context.Background())
 		require.NoError(t, err)
@@ -94,6 +95,37 @@ func TestOPA(t *testing.T) {
 			assert.NotEmpty(t, headers["Authorization"])
 			assert.Equal(t, "a@example.com", headers["Impersonate-User"])
 			assert.Equal(t, "i1,i2", headers["Impersonate-Group"])
+		})
+		t.Run("google_cloud_serverless", func(t *testing.T) {
+			withMockGCP(t, func() {
+				res := eval([]config.Policy{{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					EnableGoogleCloudServerlessAuthentication: true,
+				}}, []proto.Message{
+					&session.Session{
+						Id:                "session1",
+						UserId:            "user1",
+						ImpersonateGroups: []string{"i1", "i2"},
+					},
+					&user.User{
+						Id:    "user1",
+						Email: "a@example.com",
+					},
+				}, &Request{
+					Session: RequestSession{
+						ID: "session1",
+					},
+					HTTP: RequestHTTP{
+						Method: "GET",
+						URL:    "https://from.example.com",
+					},
+				}, true)
+				headers := res.Bindings["result"].(M)["identity_headers"].(M)
+				assert.NotEmpty(t, headers["Authorization"])
+			})
 		})
 	})
 	t.Run("jwt", func(t *testing.T) {
@@ -180,8 +212,8 @@ func TestOPA(t *testing.T) {
 				"aud":    "authenticate.example.com",
 				"iss":    "from.example.com",
 				"jti":    "session1",
-				"exp":    1609462861,
-				"iat":    1612141261,
+				"exp":    1609462861.0,
+				"iat":    1612141261.0,
 				"sub":    "user1",
 				"user":   "user1",
 				"email":  "a@example.com",

@@ -24,22 +24,16 @@ type Evaluator struct {
 	query    rego.PreparedEvalQuery
 	policies []config.Policy
 	store    *Store
-
-	authenticateHost string
-	jwk              *jose.JSONWebKey
-	signer           jose.Signer
 }
 
 // New creates a new Evaluator.
 func New(options *config.Options, store *Store) (*Evaluator, error) {
 	e := &Evaluator{
-		custom:           NewCustomEvaluator(store.opaStore),
-		authenticateHost: options.AuthenticateURL.Host,
-		policies:         options.GetAllPolicies(),
-		store:            store,
+		custom:   NewCustomEvaluator(store.opaStore),
+		policies: options.GetAllPolicies(),
+		store:    store,
 	}
-	var err error
-	e.signer, e.jwk, err = newSigner(options)
+	jwk, err := getJWK(options)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: couldn't create signer: %w", err)
 	}
@@ -49,14 +43,15 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 		return nil, fmt.Errorf("error loading rego policy: %w", err)
 	}
 
-	store.UpdateAudience(e.authenticateHost)
+	store.UpdateAudience(options.AuthenticateURL.Host)
 	store.UpdateRoutePolicies(options.GetAllPolicies())
-	store.UpdateSigningKey(e.jwk)
+	store.UpdateSigningKey(jwk)
 
 	e.rego = rego.New(
 		rego.Store(store.opaStore),
 		rego.Module("pomerium.authz", string(authzPolicy)),
 		rego.Query("result = data.pomerium.authz"),
+		getGoogleCloudServerlessHeadersRegoOption,
 	)
 
 	e.query, err = e.rego.PrepareForEval(context.Background())
@@ -89,14 +84,8 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		SignedJWT:      getSignedJWTVar(res[0].Bindings.WithoutWildcards()),
 		Headers:        getHeadersVar(res[0].Bindings.WithoutWildcards()),
 	}
-	//if e, ok := payload["email"].(string); ok {
-	//	evalResult.UserEmail = e
-	//}
-	//if gs, ok := payload["groups"].([]string); ok {
-	//	evalResult.UserGroups = gs
-	//}
 
-	allow := allowed(res[0].Bindings.WithoutWildcards())
+	allow := getAllowVar(res[0].Bindings.WithoutWildcards())
 	// evaluate any custom policies
 	if allow {
 		for _, src := range req.CustomPolicies {
@@ -111,6 +100,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 			allow = allow && (cres.Allowed && !cres.Denied)
 			if cres.Reason != "" {
 				evalResult.Message = cres.Reason
+			}
+			for k, v := range cres.Headers {
+				evalResult.Headers[k] = v
 			}
 		}
 	}
@@ -133,32 +125,23 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	return evalResult, nil
 }
 
-// ParseSignedJWT parses the input signature and return its payload.
-func (e *Evaluator) ParseSignedJWT(signature string) ([]byte, error) {
-	object, err := jose.ParseSigned(signature)
-	if err != nil {
-		return nil, err
-	}
-	return object.Verify(e.jwk.Public())
-}
-
-func newSigner(options *config.Options) (jose.Signer, *jose.JSONWebKey, error) {
+func getJWK(options *config.Options) (*jose.JSONWebKey, error) {
 	var decodedCert []byte
 	// if we don't have a signing key, generate one
 	if options.SigningKey == "" {
 		key, err := cryptutil.NewSigningKey()
 		if err != nil {
-			return nil, nil, fmt.Errorf("couldn't generate signing key: %w", err)
+			return nil, fmt.Errorf("couldn't generate signing key: %w", err)
 		}
 		decodedCert, err = cryptutil.EncodePrivateKey(key)
 		if err != nil {
-			return nil, nil, fmt.Errorf("bad signing key: %w", err)
+			return nil, fmt.Errorf("bad signing key: %w", err)
 		}
 	} else {
 		var err error
 		decodedCert, err = base64.StdEncoding.DecodeString(options.SigningKey)
 		if err != nil {
-			return nil, nil, fmt.Errorf("bad signing key: %w", err)
+			return nil, fmt.Errorf("bad signing key: %w", err)
 		}
 	}
 	signingKeyAlgorithm := options.SigningKeyAlgorithm
@@ -168,22 +151,14 @@ func newSigner(options *config.Options) (jose.Signer, *jose.JSONWebKey, error) {
 
 	jwk, err := cryptutil.PrivateJWKFromBytes(decodedCert, jose.SignatureAlgorithm(signingKeyAlgorithm))
 	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't generate signing key: %w", err)
+		return nil, fmt.Errorf("couldn't generate signing key: %w", err)
 	}
 	log.Info().Str("Algorithm", jwk.Algorithm).
 		Str("KeyID", jwk.KeyID).
 		Interface("Public Key", jwk.Public()).
 		Msg("authorize: signing key")
 
-	signerOpt := &jose.SignerOptions{}
-	signer, err := jose.NewSigner(jose.SigningKey{
-		Algorithm: jose.SignatureAlgorithm(jwk.Algorithm),
-		Key:       jwk,
-	}, signerOpt.WithHeader("kid", jwk.KeyID))
-	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't create signer: %w", err)
-	}
-	return signer, jwk, nil
+	return jwk, nil
 }
 
 type input struct {
@@ -207,9 +182,6 @@ type Result struct {
 	SignedJWT      string
 	Headers        map[string]string
 	MatchingPolicy *config.Policy
-
-	UserEmail  string
-	UserGroups []string
 }
 
 func getMatchingPolicy(vars rego.Vars, policies []config.Policy) *config.Policy {
@@ -230,7 +202,7 @@ func getMatchingPolicy(vars rego.Vars, policies []config.Policy) *config.Policy 
 	return &policies[idx]
 }
 
-func allowed(vars rego.Vars) bool {
+func getAllowVar(vars rego.Vars) bool {
 	result, ok := vars["result"].(map[string]interface{})
 	if !ok {
 		return false

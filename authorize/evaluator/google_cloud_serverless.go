@@ -1,4 +1,4 @@
-package authorize
+package evaluator
 
 import (
 	"context"
@@ -12,19 +12,49 @@ import (
 	"sync"
 	"time"
 
-	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/types"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/api/idtoken"
-
-	"github.com/pomerium/pomerium/authorize/evaluator"
 )
 
+// GCP pre-defined values.
 var (
-	gpcIdentityTokenExpiration       = time.Minute * 45 // tokens expire after one hour according to the GCP docs
-	gcpIdentityDocURL                = "http://metadata/computeMetadata/v1/instance/service-accounts/default/identity"
-	gcpIdentityNow                   = time.Now
-	gcpIdentityMaxBodySize     int64 = 1024 * 1024 * 10
+	GCPIdentityTokenExpiration       = time.Minute * 45 // tokens expire after one hour according to the GCP docs
+	GCPIdentityDocURL                = "http://metadata/computeMetadata/v1/instance/service-accounts/default/identity"
+	GCPIdentityNow                   = time.Now
+	GCPIdentityMaxBodySize     int64 = 1024 * 1024 * 10
+
+	getGoogleCloudServerlessHeadersRegoOption = rego.Function2(&rego.Function{
+		Name: "get_google_cloud_serverless_headers",
+		Decl: types.NewFunction(
+			types.Args(types.S, types.S),
+			types.NewObject(nil, types.NewDynamicProperty(types.S, types.S)),
+		),
+	}, func(bctx rego.BuiltinContext, op1 *ast.Term, op2 *ast.Term) (*ast.Term, error) {
+		serviceAccount, ok := op1.Value.(ast.String)
+		if !ok {
+			return nil, fmt.Errorf("invalid service account type: %T", op1)
+		}
+
+		audience, ok := op2.Value.(ast.String)
+		if !ok {
+			return nil, fmt.Errorf("invalid audience type: %T", op2)
+		}
+
+		headers, err := getGoogleCloudServerlessHeaders(string(serviceAccount), string(audience))
+		if err != nil {
+			return nil, fmt.Errorf("failed to get google cloud serverless headers: %w", err)
+		}
+		var kvs [][2]*ast.Term
+		for k, v := range headers {
+			kvs = append(kvs, [2]*ast.Term{ast.StringTerm(k), ast.StringTerm(v)})
+		}
+
+		return ast.ObjectTerm(kvs...), nil
+	})
 )
 
 type gcpIdentityTokenSource struct {
@@ -34,7 +64,7 @@ type gcpIdentityTokenSource struct {
 
 func (src *gcpIdentityTokenSource) Token() (*oauth2.Token, error) {
 	res, err, _ := src.singleflight.Do("", func() (interface{}, error) {
-		req, err := http.NewRequestWithContext(context.Background(), "GET", gcpIdentityDocURL+"?"+url.Values{
+		req, err := http.NewRequestWithContext(context.Background(), "GET", GCPIdentityDocURL+"?"+url.Values{
 			"format":   {"full"},
 			"audience": {src.audience},
 		}.Encode(), nil)
@@ -49,7 +79,7 @@ func (src *gcpIdentityTokenSource) Token() (*oauth2.Token, error) {
 		}
 		defer func() { _ = res.Body.Close() }()
 
-		bs, err := ioutil.ReadAll(io.LimitReader(res.Body, gcpIdentityMaxBodySize))
+		bs, err := ioutil.ReadAll(io.LimitReader(res.Body, GCPIdentityMaxBodySize))
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +92,7 @@ func (src *gcpIdentityTokenSource) Token() (*oauth2.Token, error) {
 	return &oauth2.Token{
 		AccessToken: strings.TrimSpace(res.(string)),
 		TokenType:   "bearer",
-		Expiry:      gcpIdentityNow().Add(gpcIdentityTokenExpiration),
+		Expiry:      GCPIdentityNow().Add(GCPIdentityTokenExpiration),
 	}, nil
 }
 
@@ -127,18 +157,7 @@ func getGoogleCloudServerlessTokenSource(serviceAccount, audience string) (oauth
 	return src, nil
 }
 
-func (a *Authorize) getGoogleCloudServerlessAuthenticationHeaders(reply *evaluator.Result) ([]*envoy_api_v2_core.HeaderValueOption, error) {
-	if reply.MatchingPolicy == nil || !reply.MatchingPolicy.EnableGoogleCloudServerlessAuthentication {
-		return nil, nil
-	}
-
-	serviceAccount := a.currentOptions.Load().GoogleCloudServerlessAuthenticationServiceAccount
-	var hostname string
-	if len(reply.MatchingPolicy.To) > 0 {
-		hostname = reply.MatchingPolicy.To[0].URL.Hostname()
-	}
-	audience := fmt.Sprintf("https://%s", hostname)
-
+func getGoogleCloudServerlessHeaders(serviceAccount, audience string) (map[string]string, error) {
 	src, err := getGoogleCloudServerlessTokenSource(serviceAccount, audience)
 	if err != nil {
 		return nil, err
@@ -149,7 +168,7 @@ func (a *Authorize) getGoogleCloudServerlessAuthenticationHeaders(reply *evaluat
 		return nil, err
 	}
 
-	return []*envoy_api_v2_core.HeaderValueOption{
-		mkHeader("Authorization", "Bearer "+tok.AccessToken, false),
+	return map[string]string{
+		"Authorization": "Bearer " + tok.AccessToken,
 	}, nil
 }
