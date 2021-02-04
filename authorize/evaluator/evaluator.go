@@ -5,8 +5,6 @@ package evaluator
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -51,7 +49,9 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 		return nil, fmt.Errorf("error loading rego policy: %w", err)
 	}
 
+	store.UpdateAudience(e.authenticateHost)
 	store.UpdateRoutePolicies(options.GetAllPolicies())
+	store.UpdateSigningKey(e.jwk)
 
 	e.rego = rego.New(
 		rego.Store(store.opaStore),
@@ -84,23 +84,18 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return &deny[0], nil
 	}
 
-	payload := e.JWTPayload(req)
-
-	signedJWT, err := e.SignedJWT(payload)
-	if err != nil {
-		return nil, fmt.Errorf("error signing JWT: %w", err)
-	}
+	signedJWT := getSignedJWTVar(res[0].Bindings.WithoutWildcards())
 
 	evalResult := &Result{
 		MatchingPolicy: getMatchingPolicy(res[0].Bindings.WithoutWildcards(), e.policies),
 		SignedJWT:      signedJWT,
 	}
-	if e, ok := payload["email"].(string); ok {
-		evalResult.UserEmail = e
-	}
-	if gs, ok := payload["groups"].([]string); ok {
-		evalResult.UserGroups = gs
-	}
+	//if e, ok := payload["email"].(string); ok {
+	//	evalResult.UserEmail = e
+	//}
+	//if gs, ok := payload["groups"].([]string); ok {
+	//	evalResult.UserGroups = gs
+	//}
 
 	allow := allowed(res[0].Bindings.WithoutWildcards())
 	// evaluate any custom policies
@@ -148,15 +143,6 @@ func (e *Evaluator) ParseSignedJWT(signature string) ([]byte, error) {
 	return object.Verify(e.jwk.Public())
 }
 
-// JWTPayload returns the JWT payload for a request.
-func (e *Evaluator) JWTPayload(req *Request) map[string]interface{} {
-	payload := map[string]interface{}{
-		"iss": e.authenticateHost,
-	}
-	req.fillJWTPayload(e.store, payload)
-	return payload
-}
-
 func newSigner(options *config.Options) (jose.Signer, *jose.JSONWebKey, error) {
 	var decodedCert []byte
 	// if we don't have a signing key, generate one
@@ -199,25 +185,6 @@ func newSigner(options *config.Options) (jose.Signer, *jose.JSONWebKey, error) {
 		return nil, nil, fmt.Errorf("couldn't create signer: %w", err)
 	}
 	return signer, jwk, nil
-}
-
-// SignedJWT returns the signature of given request.
-func (e *Evaluator) SignedJWT(payload map[string]interface{}) (string, error) {
-	if e.signer == nil {
-		return "", errors.New("evaluator: signer cannot be nil")
-	}
-
-	bs, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-
-	jws, err := e.signer.Sign(bs)
-	if err != nil {
-		return "", err
-	}
-
-	return jws.CompactSerialize()
 }
 
 type input struct {
@@ -307,4 +274,18 @@ func getDenyVar(vars rego.Vars) []Result {
 		})
 	}
 	return results
+}
+
+func getSignedJWTVar(vars rego.Vars) string {
+	result, ok := vars["result"].(map[string]interface{})
+	if !ok {
+		return ""
+	}
+
+	signedJWT, ok := result["signed_jwt"].(string)
+	if !ok {
+		return ""
+	}
+
+	return signedJWT
 }

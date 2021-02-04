@@ -37,7 +37,7 @@ directory_user = du {
 }
 
 group_ids = gs {
-	gs = session.impersonate_group_ids
+	gs = session.impersonate_groups
 	gs != null
 } else = gs {
 	gs = directory_user.group_ids
@@ -145,6 +145,90 @@ deny[reason] {
 	not input.is_valid_client_certificate
 }
 
+jwt_headers = {
+	"typ": "JWT",
+	"alg": data.signing_key.alg,
+	"kid": data.signing_key.kid,
+}
+
+jwt_payload_aud = data.audience
+
+jwt_payload_iss = v {
+	v = parse_url(input.http.url).hostname
+} else = "" {
+	true
+}
+
+jwt_payload_jti = v {
+	v = session.id
+} else = "" {
+	true
+}
+
+jwt_payload_exp = v {
+	v = session.expires_at.seconds
+} else = null {
+	true
+}
+
+jwt_payload_iat = v {
+	# sessions store the issued_at on the id_token
+	v = session.id_token.issued_at.seconds
+} else = v {
+	# service accounts store the issued at directly
+	v = session.issued_at.seconds
+} else = null {
+	true
+}
+
+jwt_payload_sub = v {
+	v = user.id
+} else = "" {
+	true
+}
+
+jwt_payload_user = v {
+	v = user.id
+} else = "" {
+	true
+}
+
+jwt_payload_email = v {
+	v = session.impersonate_email
+} else = v {
+	v = directory_user.email
+} else = v {
+	v = user.email
+} else = "" {
+	true
+}
+
+jwt_payload_groups = v {
+	v = array.concat(group_ids, get_databroker_group_names(group_ids))
+} else = [] {
+	true
+}
+
+jwt_payload = {key: value |
+	# use a comprehension over an array to remove nil values
+	payload := [
+		["iss", jwt_payload_iss],
+		["aud", jwt_payload_aud],
+		["jti", jwt_payload_jti],
+		["exp", jwt_payload_exp],
+		["iat", jwt_payload_iat],
+		["sub", jwt_payload_sub],
+		["user", jwt_payload_user],
+		["email", jwt_payload_email],
+		["groups", jwt_payload_groups],
+	]
+
+	[key, value] := payload[_]
+	value != null
+}
+
+signed_jwt = io.jwt.encode_sign(jwt_headers, jwt_payload, data.signing_key)
+
 # returns the first matching route
 first_allowed_route_policy_idx(input_url) = first_policy_idx {
 	first_policy_idx := [idx | some idx, policy; policy = data.route_policies[idx]; allowed_route(input.http.url, policy)][0]
@@ -195,10 +279,18 @@ allowed_route_regex(input_url_obj, policy) {
 	re_match(policy.regex, input_url_obj.path)
 }
 
-parse_url(str) = {"scheme": scheme, "host": host, "path": path} {
+parse_url(str) = {"scheme": scheme, "host": host, "hostname": hostname, "path": path} {
 	[_, scheme, host, rawpath] = regex.find_all_string_submatch_n(`(?:((?:tcp[+])?http[s]?)://)?([^/]+)([^?#]*)`, str, 1)[0]
-
+	[hostname, _] = parse_host_port(host)
 	path = normalize_url_path(rawpath)
+}
+
+parse_host_port(str) = [host, port] {
+	contains(str, ":")
+	[host, port] = split(str, ":")
+} else = [host, port] {
+	host = str
+	port = "80"
 }
 
 normalize_url_path(str) = "/" {
