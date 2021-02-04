@@ -1,6 +1,6 @@
 name: Backport
 on:
-  pull_request:
+  pull_request_target:
     types:
       - closed
       - labeled
@@ -14,3 +14,4 @@ jobs:
         uses: tibdex/backport@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          title_template: "{{originalTitle}}"
