@@ -95,6 +95,11 @@ func (s *Store) UpdateAudience(audience string) {
 	s.write("/audience", audience)
 }
 
+// UpdateJWTClaimHeaders updates the jwt claim headers in the store.
+func (s *Store) UpdateJWTClaimHeaders(jwtClaimHeaders []string) {
+	s.write("/jwt_claim_headers", jwtClaimHeaders)
+}
+
 // UpdateRoutePolicies updates the route policies in the store.
 func (s *Store) UpdateRoutePolicies(routePolicies []config.Policy) {
 	s.write("/route_policies", routePolicies)

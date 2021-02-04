@@ -84,11 +84,10 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return &deny[0], nil
 	}
 
-	signedJWT := getSignedJWTVar(res[0].Bindings.WithoutWildcards())
-
 	evalResult := &Result{
 		MatchingPolicy: getMatchingPolicy(res[0].Bindings.WithoutWildcards(), e.policies),
-		SignedJWT:      signedJWT,
+		SignedJWT:      getSignedJWTVar(res[0].Bindings.WithoutWildcards()),
+		Headers:        getHeadersVar(res[0].Bindings.WithoutWildcards()),
 	}
 	//if e, ok := payload["email"].(string); ok {
 	//	evalResult.UserEmail = e
@@ -206,6 +205,7 @@ type Result struct {
 	Status         int
 	Message        string
 	SignedJWT      string
+	Headers        map[string]string
 	MatchingPolicy *config.Policy
 
 	UserEmail  string
@@ -288,4 +288,24 @@ func getSignedJWTVar(vars rego.Vars) string {
 	}
 
 	return signedJWT
+}
+
+func getHeadersVar(vars rego.Vars) map[string]string {
+	headers := make(map[string]string)
+
+	result, ok := vars["result"].(map[string]interface{})
+	if !ok {
+		return headers
+	}
+
+	m, ok := result["identity_headers"].(map[string]interface{})
+	if !ok {
+		return headers
+	}
+
+	for k, v := range m {
+		headers[k] = fmt.Sprint(v)
+	}
+
+	return headers
 }

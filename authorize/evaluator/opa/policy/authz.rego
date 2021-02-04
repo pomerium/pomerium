@@ -209,25 +209,57 @@ jwt_payload_groups = v {
 	true
 }
 
+jwt_claims := [
+	["iss", jwt_payload_iss],
+	["aud", jwt_payload_aud],
+	["jti", jwt_payload_jti],
+	["exp", jwt_payload_exp],
+	["iat", jwt_payload_iat],
+	["sub", jwt_payload_sub],
+	["user", jwt_payload_user],
+	["email", jwt_payload_email],
+	["groups", jwt_payload_groups],
+]
+
 jwt_payload = {key: value |
 	# use a comprehension over an array to remove nil values
-	payload := [
-		["iss", jwt_payload_iss],
-		["aud", jwt_payload_aud],
-		["jti", jwt_payload_jti],
-		["exp", jwt_payload_exp],
-		["iat", jwt_payload_iat],
-		["sub", jwt_payload_sub],
-		["user", jwt_payload_user],
-		["email", jwt_payload_email],
-		["groups", jwt_payload_groups],
-	]
-
-	[key, value] := payload[_]
+	[key, value] := jwt_claims[_]
 	value != null
 }
 
 signed_jwt = io.jwt.encode_sign(jwt_headers, jwt_payload, data.signing_key)
+
+kubernetes_headers = h {
+	route_policy.KubernetesServiceAccountToken == ""
+	h := []
+} else = h {
+	h := [
+		["Authorization", concat(" ", ["Bearer", route_policy.KubernetesServiceAccountToken])],
+		["Impersonate-User", jwt_payload_email],
+		["Impersonate-Group", get_header_string_value(jwt_payload_groups)],
+	]
+} else = [] {
+	true
+}
+
+identity_headers := {key: value |
+	h1 := [["x-pomerium-jwt-assertion", signed_jwt]]
+	h2 := [[k, v] |
+		[claim_key, claim_value] := jwt_claims[_]
+		claim_value != null
+
+		# only include those headers requested by the user
+		available := data.jwt_claim_headers[_]
+		available == claim_key
+
+		# create the header key and value
+		k := concat("", ["x-pomerium-claim-", claim_key])
+		v := get_header_string_value(claim_value)
+	]
+
+	h := array.concat(array.concat(h1, h2), kubernetes_headers)
+	[key, value] := h[_]
+}
 
 # returns the first matching route
 first_allowed_route_policy_idx(input_url) = first_policy_idx {
@@ -345,6 +377,13 @@ get_databroker_group_names(ids) = gs {
 
 get_databroker_group_emails(ids) = gs {
 	gs := [email | id := ids[i]; group := data.databroker_data["type.googleapis.com"]["directory.Group"][id]; email := group.email]
+}
+
+get_header_string_value(obj) = s {
+	is_array(obj)
+	s := concat(",", obj)
+} else = s {
+	s := concat(",", [obj])
 }
 
 # object_get is like object.get, but supports converting "/" in keys to separate lookups

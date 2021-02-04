@@ -167,8 +167,9 @@ func TestAuthorize_okResponse(t *testing.T) {
 		{
 			"ok reply with jwt claims header",
 			&evaluator.Result{
-				Status:  0,
-				Message: "ok",
+				Status:    0,
+				Message:   "ok",
+				SignedJWT: "valid-signed-jwt",
 			},
 			&envoy_service_auth_v2.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "ok"},
@@ -176,6 +177,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 					OkResponse: &envoy_service_auth_v2.OkHttpResponse{
 						Headers: []*envoy_api_v2_core.HeaderValueOption{
 							mkHeader("x-pomerium-claim-email", "foo@example.com", false),
+							mkHeader("x-pomerium-jwt-assertion", "valid-signed-jwt", false),
 						},
 					},
 				},

@@ -146,12 +146,6 @@ func TestAuthorize_getJWTClaimHeaders(t *testing.T) {
 	pe, err := newPolicyEvaluator(opt, a.store)
 	require.NoError(t, err)
 	a.state.Load().evaluator = pe
-	signedJWT, _ := pe.SignedJWT(pe.JWTPayload(&evaluator.Request{
-		HTTP: evaluator.RequestHTTP{URL: "https://example.com"},
-		Session: evaluator.RequestSession{
-			ID: "SESSION_ID",
-		},
-	}))
 
 	tests := []struct {
 		name            string
@@ -159,8 +153,8 @@ func TestAuthorize_getJWTClaimHeaders(t *testing.T) {
 		jwtHeaders      []string
 		expectedHeaders map[string]string
 	}{
-		{"good with email", signedJWT, []string{"email"}, map[string]string{"x-pomerium-claim-email": "foo@example.com"}},
-		{"good with groups", signedJWT, []string{"groups"}, map[string]string{"x-pomerium-claim-groups": "admin_id,test_id,admin,test"}},
+		{"good with email", "", []string{"email"}, map[string]string{"x-pomerium-claim-email": "foo@example.com"}},
+		{"good with groups", "", []string{"groups"}, map[string]string{"x-pomerium-claim-groups": "admin_id,test_id,admin,test"}},
 		{"empty signed JWT", "", nil, make(map[string]string)},
 	}
 

@@ -39,6 +39,7 @@ func TestOPA(t *testing.T) {
 		require.NoError(t, err)
 		store := NewStoreFromProtos(data...)
 		store.UpdateAudience("authenticate.example.com")
+		store.UpdateJWTClaimHeaders([]string{"email", "groups", "user"})
 		store.UpdateRoutePolicies(policies)
 		store.UpdateSigningKey(privateJWK)
 		r := rego.New(
@@ -61,6 +62,39 @@ func TestOPA(t *testing.T) {
 		assert.Equal(t,
 			A{A{json.Number("495"), "invalid client certificate"}},
 			res.Bindings["result"].(M)["deny"])
+	})
+	t.Run("identity_headers", func(t *testing.T) {
+		t.Run("kubernetes", func(t *testing.T) {
+			res := eval([]config.Policy{{
+				Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+				To: config.WeightedURLs{
+					{URL: *mustParseURL("https://to.example.com")},
+				},
+				KubernetesServiceAccountToken: "KUBERNETES",
+			}}, []proto.Message{
+				&session.Session{
+					Id:                "session1",
+					UserId:            "user1",
+					ImpersonateGroups: []string{"i1", "i2"},
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com",
+				},
+			}, true)
+			headers := res.Bindings["result"].(M)["identity_headers"].(M)
+			assert.NotEmpty(t, headers["Authorization"])
+			assert.Equal(t, "a@example.com", headers["Impersonate-User"])
+			assert.Equal(t, "i1,i2", headers["Impersonate-Group"])
+		})
 	})
 	t.Run("jwt", func(t *testing.T) {
 		evalJWT := func(msgs ...proto.Message) M {
@@ -146,8 +180,8 @@ func TestOPA(t *testing.T) {
 				"aud":    "authenticate.example.com",
 				"iss":    "from.example.com",
 				"jti":    "session1",
-				"exp":    json.Number("1609462861"),
-				"iat":    json.Number("1612141261"),
+				"exp":    1609462861,
+				"iat":    1612141261,
 				"sub":    "user1",
 				"user":   "user1",
 				"email":  "a@example.com",
