@@ -151,13 +151,13 @@ jwt_headers = {
 	"kid": data.signing_key.kid,
 }
 
-jwt_payload_aud = data.audience
-
-jwt_payload_iss = v {
+jwt_payload_aud = v {
 	v = parse_url(input.http.url).hostname
 } else = "" {
 	true
 }
+
+jwt_payload_iss = data.issuer
 
 jwt_payload_jti = v {
 	v = session.id

@@ -38,7 +38,7 @@ func TestOPA(t *testing.T) {
 		authzPolicy, err := readPolicy("/authz.rego")
 		require.NoError(t, err)
 		store := NewStoreFromProtos(data...)
-		store.UpdateAudience("authenticate.example.com")
+		store.UpdateIssuer("authenticate.example.com")
 		store.UpdateJWTClaimHeaders([]string{"email", "groups", "user"})
 		store.UpdateRoutePolicies(policies)
 		store.UpdateSigningKey(privateJWK)
@@ -175,8 +175,8 @@ func TestOPA(t *testing.T) {
 				},
 			)
 			assert.Equal(t, M{
-				"aud":    "authenticate.example.com",
-				"iss":    "from.example.com",
+				"aud":    "from.example.com",
+				"iss":    "authenticate.example.com",
 				"jti":    "session1",
 				"sub":    "user1",
 				"user":   "user1",
@@ -209,8 +209,8 @@ func TestOPA(t *testing.T) {
 				},
 			)
 			assert.Equal(t, M{
-				"aud":    "authenticate.example.com",
-				"iss":    "from.example.com",
+				"aud":    "from.example.com",
+				"iss":    "authenticate.example.com",
 				"jti":    "session1",
 				"exp":    1609462861.0,
 				"iat":    1612141261.0,
@@ -220,7 +220,6 @@ func TestOPA(t *testing.T) {
 				"groups": A{"group1", "group1name"},
 			}, payload)
 		})
-
 	})
 	t.Run("email", func(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {

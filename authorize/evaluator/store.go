@@ -90,9 +90,9 @@ func (s *Store) GetRecordData(typeURL, id string) proto.Message {
 	return msg
 }
 
-// UpdateAudience updates the audience in the store. The audience is used as part of JWT construction.
-func (s *Store) UpdateAudience(audience string) {
-	s.write("/audience", audience)
+// UpdateIssuer updates the issuer in the store. The issuer is used as part of JWT construction.
+func (s *Store) UpdateIssuer(issuer string) {
+	s.write("/issuer", issuer)
 }
 
 // UpdateGoogleCloudServerlessAuthenticationServiceAccount updates the google cloud serverless authentication
