@@ -1,5 +1,11 @@
 package pomerium.authz
 
+get_google_cloud_serverless_headers(serviceAccount, audience) = h {
+    h := {
+        "Authorization": "Bearer xxx"
+    }
+}
+
 test_email_allowed {
 	allow with data.route_policies as [{
 		"source": "example.com",
