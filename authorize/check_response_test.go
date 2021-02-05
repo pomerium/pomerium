@@ -61,7 +61,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 	}{
 		{
 			"ok reply",
-			&evaluator.Result{Status: 0, Message: "ok", SignedJWT: "valid-signed-jwt"},
+			&evaluator.Result{Status: 0, Message: "ok"},
 			&envoy_service_auth_v2.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "ok"},
 			},
@@ -69,9 +69,8 @@ func TestAuthorize_okResponse(t *testing.T) {
 		{
 			"ok reply with k8s svc",
 			&evaluator.Result{
-				Status:    0,
-				Message:   "ok",
-				SignedJWT: "valid-signed-jwt",
+				Status:  0,
+				Message: "ok",
 				MatchingPolicy: &config.Policy{
 					KubernetesServiceAccountToken: "k8s-svc-account",
 				},
@@ -83,9 +82,8 @@ func TestAuthorize_okResponse(t *testing.T) {
 		{
 			"ok reply with k8s svc impersonate",
 			&evaluator.Result{
-				Status:    0,
-				Message:   "ok",
-				SignedJWT: "valid-signed-jwt",
+				Status:  0,
+				Message: "ok",
 				MatchingPolicy: &config.Policy{
 					KubernetesServiceAccountToken: "k8s-svc-account",
 				},
@@ -97,9 +95,8 @@ func TestAuthorize_okResponse(t *testing.T) {
 		{
 			"ok reply with jwt claims header",
 			&evaluator.Result{
-				Status:    0,
-				Message:   "ok",
-				SignedJWT: "valid-signed-jwt",
+				Status:  0,
+				Message: "ok",
 			},
 			&envoy_service_auth_v2.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "ok"},

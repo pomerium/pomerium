@@ -81,7 +81,6 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 
 	evalResult := &Result{
 		MatchingPolicy: getMatchingPolicy(res[0].Bindings.WithoutWildcards(), e.policies),
-		SignedJWT:      getSignedJWTVar(res[0].Bindings.WithoutWildcards()),
 		Headers:        getHeadersVar(res[0].Bindings.WithoutWildcards()),
 	}
 
@@ -179,7 +178,6 @@ func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input
 type Result struct {
 	Status         int
 	Message        string
-	SignedJWT      string
 	Headers        map[string]string
 	MatchingPolicy *config.Policy
 }
@@ -246,20 +244,6 @@ func getDenyVar(vars rego.Vars) []Result {
 		})
 	}
 	return results
-}
-
-func getSignedJWTVar(vars rego.Vars) string {
-	result, ok := vars["result"].(map[string]interface{})
-	if !ok {
-		return ""
-	}
-
-	signedJWT, ok := result["signed_jwt"].(string)
-	if !ok {
-		return ""
-	}
-
-	return signedJWT
 }
 
 func getHeadersVar(vars rego.Vars) map[string]string {
