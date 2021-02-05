@@ -104,10 +104,9 @@ spellcheck: # Spellcheck docs
 cover: ## Runs go test with coverage
 	@echo "==> $@"
 	$(GO) test -race -coverprofile=coverage.txt -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
-	@sed -i.bak '/.pb.go\:/d' coverage.txt
-	@sed -i.bak '/statik.go\:/d' coverage.txt
-	@sed -i.bak '/mock.go\:/d' coverage.txt
-
+	@sed -i.bak '/\.pb\.go\:/d' coverage.txt
+	@sed -i.bak '/\/statik\.go\:/d' coverage.txt
+	@sed -i.bak '/\/mock\.go\:/d' coverage.txt
 
 .PHONY: clean
 clean: ## Cleanup any build binaries or packages.
