@@ -95,6 +95,12 @@ func (s *Store) UpdateAudience(audience string) {
 	s.write("/audience", audience)
 }
 
+// UpdateGoogleCloudServerlessAuthenticationServiceAccount updates the google cloud serverless authentication
+// service account in the store.
+func (s *Store) UpdateGoogleCloudServerlessAuthenticationServiceAccount(serviceAccount string) {
+	s.write("/google_cloud_serverless_authentication_service_account", serviceAccount)
+}
+
 // UpdateJWTClaimHeaders updates the jwt claim headers in the store.
 func (s *Store) UpdateJWTClaimHeaders(jwtClaimHeaders []string) {
 	s.write("/jwt_claim_headers", jwtClaimHeaders)

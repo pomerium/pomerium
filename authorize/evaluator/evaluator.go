@@ -44,6 +44,7 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 	}
 
 	store.UpdateAudience(options.AuthenticateURL.Host)
+	store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(options.GoogleCloudServerlessAuthenticationServiceAccount)
 	store.UpdateRoutePolicies(options.GetAllPolicies())
 	store.UpdateSigningKey(jwk)
 
