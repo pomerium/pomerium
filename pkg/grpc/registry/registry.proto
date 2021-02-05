@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package registry; 
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/registry";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/any.proto";
+import "validate/validate.proto";
+
+enum ServiceKind {
+    UNDEFINED_DO_NOT_USE = 0;
+
+    // databroker grpc service
+    DATABROKER = 1;
+    // authorize grpc service
+    AUTHORIZE = 2;
+    // authentication http(s) service
+    AUTHENTICATE = 3;
+    // proxy service
+    PROXY = 4;
+    // registry service
+    REGISTRY = 5;
+    // console grpc service
+    CONSOLE = 6;
+    // prometheus metrics compatible http endpoint
+    PROMETHEUS_METRICS = 7;
+}
+
+message Service {
+    // kind is service kind
+    ServiceKind kind = 1 [(validate.rules).enum = {not_in: [ServiceKind.UNDEFINED_DO_NOT_USE]}];
+    // network endpoints this service may be reachable at    
+    repeated string endpoint = 3 [(validate.rules).repeated.min_items = 1];
+}
+
+message RegisterRequest {
+    // services this deployment runs
+    repeated Service service = 1 [(validate.rules).repeated.min_items = 1];
+
+    // service may optionally provide certain metadata, such as
+    // - build version
+    // - startup time
+    // - bootstrap configuration
+    // - OS, OS version, OS hostname
+    // - etc
+    // this information is not distributed back to the inquiring nodes
+    // and may also have a different storage and time to live
+    optional map <string, google.protobuf.Any> metadata = 2;
+}
+
+message RegisterResponse {
+    // indicates when to report back again
+    google.protobuf.Duration call_back_after = 2;
+}
+
+message ListRequest {
+    repeated ServiceKind kinds = 1 [(validate.rules).repeated.min_items = 1];
+}
+
+message ServiceRegistration {
+    Service service = 1;
+    google.protobuf.Timestamp expires_at = 2;
+}
+
+message ListResponse {
+    repeated ServiceRegistration registrations = 1;
+}
+
+// RegistryReporter is invoked by services to inform 
+service RegistryReporter {
+    // Register is periodically sent by each service to confirm it is still serving with the registry
+    // data is persisted with a certain TTL 
+    rpc Report(RegisterRequest) returns (RegisterResponse);
+}
+
+// RegistryQuery allows to query and watch for changes in the registry
+// and is intended to be used by i.e. management console in order to present current application services to operator
+service RegistryQuery {
+    // List returns current snapshot of the services known to the registry
+    rpc List(ListRequest) returns (ListResponse);
+    // Watch returns a stream of updates
+    // for the simplicity of consumer its delivered as full snapshots
+    rpc Watch(ListRequest) return (stream ListResponse);
+}
