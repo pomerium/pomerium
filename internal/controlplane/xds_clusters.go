@@ -12,6 +12,7 @@ import (
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/martinlindhe/base36"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -117,7 +118,9 @@ func (srv *Server) buildInternalCluster(options *config.Options, name string, ds
 }
 
 func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Policy) (*envoy_config_cluster_v3.Cluster, error) {
-	cluster := policy.EnvoyOpts
+	cluster := new(envoy_config_cluster_v3.Cluster)
+	proto.Merge(cluster, policy.EnvoyOpts)
+
 	cluster.AltStatName = getClusterStatsName(policy)
 
 	name := getClusterID(policy)
