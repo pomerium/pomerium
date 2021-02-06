@@ -96,6 +96,10 @@ func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_clust
 		}
 	}
 
+	if err = validateClusters(clusters); err != nil {
+		return nil, err
+	}
+
 	return clusters, nil
 }
 
@@ -114,8 +118,9 @@ func (srv *Server) buildInternalCluster(options *config.Options, name string, ds
 
 func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Policy) (*envoy_config_cluster_v3.Cluster, error) {
 	cluster := policy.EnvoyOpts
+	cluster.AltStatName = getClusterStatsName(policy)
 
-	name := getPolicyName(policy)
+	name := getClusterID(policy)
 	endpoints, err := srv.buildPolicyEndpoints(policy)
 	if err != nil {
 		return nil, err
@@ -406,4 +411,23 @@ func (srv *Server) buildTransportSocketMatches(endpoints []Endpoint) ([]*envoy_c
 		})
 	}
 	return tsms, nil
+}
+
+// validateClusters contains certain rules that must match
+func validateClusters(clusters []*envoy_config_cluster_v3.Cluster) error {
+	return validateClusterNamesUnique(clusters)
+}
+
+// validateClusterNamesUnique checks cluster names are unique, as they're effectively IDs
+func validateClusterNamesUnique(clusters []*envoy_config_cluster_v3.Cluster) error {
+	names := make(map[string]bool, len(clusters))
+
+	for _, c := range clusters {
+		if _, there := names[c.Name]; there {
+			return fmt.Errorf("cluster name %s is not unique", c.Name)
+		}
+		names[c.Name] = true
+	}
+
+	return nil
 }

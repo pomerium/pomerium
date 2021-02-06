@@ -202,9 +202,9 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 
 func Test_buildPolicyRoutes(t *testing.T) {
 	defer func(f func(*config.Policy) string) {
-		getPolicyName = f
-	}(getPolicyName)
-	getPolicyName = policyNameFunc()
+		getClusterID = f
+	}(getClusterID)
+	getClusterID = policyNameFunc()
 
 	srv := &Server{filemgr: filemgr.NewManager()}
 	routes, err := srv.buildPolicyRoutes(&config.Options{
@@ -564,9 +564,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 // See also https://github.com/pomerium/pomerium/issues/901
 func TestAddOptionsHeadersToResponse(t *testing.T) {
 	defer func(f func(*config.Policy) string) {
-		getPolicyName = f
-	}(getPolicyName)
-	getPolicyName = policyNameFunc()
+		getClusterID = f
+	}(getClusterID)
+	getClusterID = policyNameFunc()
 	srv := &Server{filemgr: filemgr.NewManager()}
 	routes, err := srv.buildPolicyRoutes(&config.Options{
 		CookieName:             "pomerium",
@@ -620,9 +620,9 @@ func TestAddOptionsHeadersToResponse(t *testing.T) {
 
 func Test_buildPolicyRoutesRewrite(t *testing.T) {
 	defer func(f func(*config.Policy) string) {
-		getPolicyName = f
-	}(getPolicyName)
-	getPolicyName = policyNameFunc()
+		getClusterID = f
+	}(getClusterID)
+	getClusterID = policyNameFunc()
 	srv := &Server{filemgr: filemgr.NewManager()}
 	routes, err := srv.buildPolicyRoutes(&config.Options{
 		CookieName:             "pomerium",
@@ -932,8 +932,8 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 }
 
 func TestPolicyName(t *testing.T) {
-	assert.Greater(t, getPolicyName(&config.Policy{}), "policy-")
-	assert.Equal(t, getPolicyName(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
+	assert.Greater(t, getClusterID(&config.Policy{}), "policy-")
+	assert.Equal(t, getClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
 }
 
 func mustParseURL(t *testing.T, str string) *url.URL {
