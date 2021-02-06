@@ -3,6 +3,7 @@ package controlplane
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -932,8 +933,13 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 }
 
 func TestPolicyName(t *testing.T) {
-	assert.Greater(t, getClusterID(&config.Policy{}), "policy-")
-	assert.Equal(t, getClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
+	// policy names should form a unique ID when converted to envoy cluster names
+	// however for metrics purposes we keep original name if present
+	assert.NotEmpty(t, getClusterID(&config.Policy{}))
+	assert.Empty(t, getClusterStatsName(&config.Policy{}))
+	assert.True(t, strings.HasPrefix(getClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster"))
+	assert.NotEqual(t, getClusterID(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
+	assert.Equal(t, getClusterStatsName(&config.Policy{EnvoyOpts: &envoy_config_cluster_v3.Cluster{Name: "my-pomerium-cluster"}}), "my-pomerium-cluster")
 }
 
 func mustParseURL(t *testing.T, str string) *url.URL {
