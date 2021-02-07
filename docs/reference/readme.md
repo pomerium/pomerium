@@ -803,7 +803,7 @@ Default Upstream Timeout is the default timeout applied to a proxied route when 
   Strict-Transport-Security:max-age=31536000; includeSubDomains; preload,
   ```
 
-Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added to proxied requests. _Nota bene_ Downstream application headers will be overwritten by Pomerium's headers on conflict.
+Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added globally to all managed routes and pomerium's authenticate service.
 
 By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
 
