@@ -118,7 +118,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 								"key": "X-XSS-Protection",
 								"value": "1; mode=block"
 							}
-						}],		
+						}],
 						"routes": [
 							{
 								"name": "pomerium-path-/.pomerium/jwt",
