@@ -198,8 +198,9 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, domain := range domains {
 		vh := &envoy_config_route_v3.VirtualHost{
-			Name:    domain,
-			Domains: []string{domain},
+			Name:                 domain,
+			Domains:              []string{domain},
+			ResponseHeadersToAdd: toEnvoyHeaders(options.Headers),
 		}
 
 		if options.Addr == options.GRPCAddr {
