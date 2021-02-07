@@ -198,9 +198,8 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, domain := range domains {
 		vh := &envoy_config_route_v3.VirtualHost{
-			Name:                 domain,
-			Domains:              []string{domain},
-			ResponseHeadersToAdd: toEnvoyHeaders(options.Headers),
+			Name:    domain,
+			Domains: []string{domain},
 		}
 
 		if options.Addr == options.GRPCAddr {
@@ -229,6 +228,11 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 				return nil, err
 			}
 			vh.Routes = append(vh.Routes, rs...)
+		}
+
+		// if we're the proxy or authenticate service, add our global headers
+		if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
+			vh.ResponseHeadersToAdd = toEnvoyHeaders(options.Headers)
 		}
 
 		if len(vh.Routes) > 0 {
