@@ -542,6 +542,26 @@ func Test_buildCluster(t *testing.T) {
 	})
 }
 
+func Test_validateClusters(t *testing.T) {
+	type c []*envoy_config_cluster_v3.Cluster
+	testCases := []struct {
+		clusters    c
+		expectError bool
+	}{
+		{c{{Name: "one"}, {Name: "one"}}, true},
+		{c{{Name: "one"}, {Name: "two"}}, false},
+	}
+
+	for _, tc := range testCases {
+		err := validateClusters(tc.clusters)
+		if tc.expectError {
+			assert.Error(t, err, "%#v", tc.clusters)
+		} else {
+			assert.NoError(t, err, "%#v", tc.clusters)
+		}
+	}
+}
+
 func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
 	wu, err := config.ParseWeightedUrls(urls...)
 	require.NoError(t, err)

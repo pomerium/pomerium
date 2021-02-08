@@ -231,13 +231,23 @@ func (srv *Server) buildControlPlanePrefixRoute(prefix string, protected bool) (
 	return r, nil
 }
 
-var getPolicyName = func(policy *config.Policy) string {
-	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
-		return policy.EnvoyOpts.Name
+// getClusterID returns a cluster ID
+var getClusterID = func(policy *config.Policy) string {
+	prefix := getClusterStatsName(policy)
+	if prefix == "" {
+		prefix = "route"
 	}
 
 	id, _ := policy.RouteID()
-	return fmt.Sprintf("policy-%x", id)
+	return fmt.Sprintf("%s-%x", prefix, id)
+}
+
+// getClusterStatsName returns human readable name that would be used by envoy to emit statistics, available as envoy_cluster_name label
+func getClusterStatsName(policy *config.Policy) string {
+	if policy.EnvoyOpts != nil && policy.EnvoyOpts.Name != "" {
+		return policy.EnvoyOpts.Name
+	}
+	return ""
 }
 
 func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
@@ -341,7 +351,7 @@ func (srv *Server) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*en
 }
 
 func (srv *Server) buildPolicyRouteRouteAction(options *config.Options, policy *config.Policy) (*envoy_config_route_v3.RouteAction, error) {
-	clusterName := getPolicyName(policy)
+	clusterName := getClusterID(policy)
 	routeTimeout := getRouteTimeout(options, policy)
 	idleTimeout := getRouteIdleTimeout(policy)
 	prefixRewrite, regexRewrite := getRewriteOptions(policy)
