@@ -549,6 +549,7 @@ func Test_validateClusters(t *testing.T) {
 		expectError bool
 	}{
 		{c{{Name: "one"}, {Name: "one"}}, true},
+		{c{{Name: "one"}, {Name: "two"}}, false},
 	}
 
 	for _, tc := range testCases {
