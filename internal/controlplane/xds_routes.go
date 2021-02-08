@@ -49,57 +49,63 @@ func (srv *Server) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 
 func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
-	// enable ext_authz
-	r, err := srv.buildControlPlanePathRoute("/.pomerium/jwt", true)
-	if err != nil {
-		return nil, err
-	}
-	routes = append(routes, r)
 
-	// disable ext_authz and passthrough to proxy handlers
-	r, err = srv.buildControlPlanePathRoute("/ping", false)
-	if err != nil {
-		return nil, err
-	}
-	routes = append(routes, r)
-	r, err = srv.buildControlPlanePathRoute("/healthz", false)
-	if err != nil {
-		return nil, err
-	}
-	routes = append(routes, r)
-	r, err = srv.buildControlPlanePathRoute("/.pomerium", false)
-	if err != nil {
-		return nil, err
-	}
-	routes = append(routes, r)
-	r, err = srv.buildControlPlanePrefixRoute("/.pomerium/", false)
-	if err != nil {
-		return nil, err
-	}
-	routes = append(routes, r)
-	r, err = srv.buildControlPlanePathRoute("/.well-known/pomerium", false)
-	if err != nil {
-		return nil, err
-	}
-	routes = append(routes, r)
-	r, err = srv.buildControlPlanePrefixRoute("/.well-known/pomerium/", false)
-	if err != nil {
-		return nil, err
-	}
-	routes = append(routes, r)
-	// per #837, only add robots.txt if there are no unauthenticated routes
-	if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: domain, Path: "/robots.txt"}) {
-		r, err := srv.buildControlPlanePathRoute("/robots.txt", false)
-		if err != nil {
-			return nil, err
-		}
-		routes = append(routes, r)
-	}
-	// if we're handling authentication, add the oauth2 callback url
 	authenticateURL, err := options.GetAuthenticateURL()
 	if err != nil {
 		return nil, err
 	}
+
+	// if this is the pomerium proxy in front of the the authenticate service, don't add
+	// these routes since they will be handled by authenticate
+	if !isProxyFrontingAuthenticate(options, authenticateURL, domain) {
+		// enable ext_authz
+		r, err := srv.buildControlPlanePathRoute("/.pomerium/jwt", true)
+		if err != nil {
+			return nil, err
+		}
+		routes = append(routes, r)
+
+		// disable ext_authz and passthrough to proxy handlers
+		r, err = srv.buildControlPlanePathRoute("/ping", false)
+		if err != nil {
+			return nil, err
+		}
+		routes = append(routes, r)
+		r, err = srv.buildControlPlanePathRoute("/healthz", false)
+		if err != nil {
+			return nil, err
+		}
+		routes = append(routes, r)
+		r, err = srv.buildControlPlanePathRoute("/.pomerium", false)
+		if err != nil {
+			return nil, err
+		}
+		routes = append(routes, r)
+		r, err = srv.buildControlPlanePrefixRoute("/.pomerium/", false)
+		if err != nil {
+			return nil, err
+		}
+		routes = append(routes, r)
+		r, err = srv.buildControlPlanePathRoute("/.well-known/pomerium", false)
+		if err != nil {
+			return nil, err
+		}
+		routes = append(routes, r)
+		r, err = srv.buildControlPlanePrefixRoute("/.well-known/pomerium/", false)
+		if err != nil {
+			return nil, err
+		}
+		routes = append(routes, r)
+		// per #837, only add robots.txt if there are no unauthenticated routes
+		if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: domain, Path: "/robots.txt"}) {
+			r, err := srv.buildControlPlanePathRoute("/robots.txt", false)
+			if err != nil {
+				return nil, err
+			}
+			routes = append(routes, r)
+		}
+	}
+	// if we're handling authentication, add the oauth2 callback url
 	if config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, domain) {
 		r, err := srv.buildControlPlanePathRoute(options.AuthenticateCallbackPath, false)
 		if err != nil {
@@ -251,6 +257,11 @@ func getClusterStatsName(policy *config.Policy) string {
 }
 
 func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
+	authenticateURL, err := options.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+
 	var routes []*envoy_config_route_v3.Route
 
 	for i, p := range options.GetAllPolicies() {
@@ -264,31 +275,9 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]
 		requestHeadersToRemove := getRequestHeadersToRemove(options, &policy)
 
 		envoyRoute := &envoy_config_route_v3.Route{
-			Name:  fmt.Sprintf("policy-%d", i),
-			Match: match,
-			Metadata: &envoy_config_core_v3.Metadata{
-				FilterMetadata: map[string]*structpb.Struct{
-					"envoy.filters.http.lua": {
-						Fields: map[string]*structpb.Value{
-							"remove_pomerium_cookie": {
-								Kind: &structpb.Value_StringValue{
-									StringValue: options.CookieName,
-								},
-							},
-							"remove_pomerium_authorization": {
-								Kind: &structpb.Value_BoolValue{
-									BoolValue: true,
-								},
-							},
-							"remove_impersonate_headers": {
-								Kind: &structpb.Value_BoolValue{
-									BoolValue: policy.KubernetesServiceAccountTokenFile != "" || policy.KubernetesServiceAccountToken != "",
-								},
-							},
-						},
-					},
-				},
-			},
+			Name:                   fmt.Sprintf("policy-%d", i),
+			Match:                  match,
+			Metadata:               &envoy_config_core_v3.Metadata{},
 			RequestHeadersToAdd:    requestHeadersToAdd,
 			RequestHeadersToRemove: requestHeadersToRemove,
 		}
@@ -304,6 +293,35 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]
 				return nil, err
 			}
 			envoyRoute.Action = &envoy_config_route_v3.Route_Route{Route: action}
+		}
+
+		// disable authentication entirely when the proxy is fronting authenticate
+		if isProxyFrontingAuthenticate(options, authenticateURL, domain) {
+			envoyRoute.TypedPerFilterConfig = map[string]*any.Any{
+				"envoy.filters.http.ext_authz": disableExtAuthz,
+			}
+		} else {
+			envoyRoute.Metadata.FilterMetadata = map[string]*structpb.Struct{
+				"envoy.filters.http.lua": {
+					Fields: map[string]*structpb.Value{
+						"remove_pomerium_cookie": {
+							Kind: &structpb.Value_StringValue{
+								StringValue: options.CookieName,
+							},
+						},
+						"remove_pomerium_authorization": {
+							Kind: &structpb.Value_BoolValue{
+								BoolValue: true,
+							},
+						},
+						"remove_impersonate_headers": {
+							Kind: &structpb.Value_BoolValue{
+								BoolValue: policy.KubernetesServiceAccountTokenFile != "" || policy.KubernetesServiceAccountToken != "",
+							},
+						},
+					},
+				},
+			}
 		}
 
 		routes = append(routes, envoyRoute)
@@ -527,5 +545,13 @@ func hasPublicPolicyMatchingURL(options *config.Options, requestURL url.URL) boo
 			return true
 		}
 	}
+	return false
+}
+
+func isProxyFrontingAuthenticate(options *config.Options, authenticateURL *url.URL, domain string) bool {
+	if !config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, domain) {
+		return true
+	}
+
 	return false
 }

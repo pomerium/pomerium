@@ -99,6 +99,16 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			`+routeString("path", "/oauth2/callback", false)+`
 		]`, routes)
 	})
+	t.Run("proxy fronting authenticate", func(t *testing.T) {
+		options := &config.Options{
+			Services:                 "proxy",
+			AuthenticateURL:          mustParseURL(t, "https://authenticate.example.com"),
+			AuthenticateCallbackPath: "/oauth2/callback",
+		}
+		routes, err := srv.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		require.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, "null", routes)
+	})
 
 	t.Run("with robots", func(t *testing.T) {
 		options := &config.Options{
@@ -484,6 +494,50 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		]
 	`, routes)
 
+	t.Run("fronting-authenticate", func(t *testing.T) {
+		routes, err := srv.buildPolicyRoutes(&config.Options{
+			AuthenticateURL:        mustParseURL(t, "https://authenticate.example.com"),
+			Services:               "proxy",
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			Policies: []config.Policy{
+				{
+					Source:              &config.StringURL{URL: mustParseURL(t, "https://authenticate.example.com")},
+					PassIdentityHeaders: true,
+				},
+			},
+		}, "authenticate.example.com")
+		require.NoError(t, err)
+
+		testutil.AssertProtoJSONEqual(t, `
+			[
+				{
+					"name": "policy-0",
+					"match": {
+						"prefix": "/"
+					},
+					"metadata": {
+					},
+					"route": {
+						"autoHostRewrite": true,
+						"cluster": "policy-9",
+						"timeout": "3s",
+						"upgradeConfigs": [
+							{ "enabled": false, "upgradeType": "websocket"},
+							{ "enabled": false, "upgradeType": "spdy/3.1"}
+						]
+					},
+					"typedPerFilterConfig": {
+						"envoy.filters.http.ext_authz": {
+							"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+							"disabled": true
+						}
+					}
+				}
+			]
+		`, routes)
+	})
+
 	t.Run("tcp", func(t *testing.T) {
 		routes, err := srv.buildPolicyRoutes(&config.Options{
 			CookieName:             "pomerium",
@@ -520,7 +574,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-9",
+					"cluster": "policy-10",
 					"idleTimeout": "0s",
 					"timeout": "0s",
 					"upgradeConfigs": [
@@ -546,7 +600,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				},
 				"route": {
 					"autoHostRewrite": true,
-					"cluster": "policy-10",
+					"cluster": "policy-11",
 					"idleTimeout": "0s",
 					"timeout": "10s",
 					"upgradeConfigs": [
