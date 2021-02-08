@@ -231,7 +231,7 @@ func (srv *Server) buildControlPlanePrefixRoute(prefix string, protected bool) (
 	return r, nil
 }
 
-// getClusterID returns cluster ID
+// getClusterID returns a cluster ID
 var getClusterID = func(policy *config.Policy) string {
 	prefix := getClusterStatsName(policy)
 	if prefix == "" {
