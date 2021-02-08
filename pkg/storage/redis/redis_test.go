@@ -144,11 +144,14 @@ func testDB(t *testing.T) {
 		}
 	})
 	t.Run("delete record", func(t *testing.T) {
+		original, err := db.Get(ctx, id)
+		require.NoError(t, err)
 		assert.NoError(t, db.Delete(ctx, id))
 		record, err := db.Get(ctx, id)
 		require.NoError(t, err)
 		require.NotNil(t, record)
 		assert.NotNil(t, record.DeletedAt)
+		assert.NotEqual(t, original.GetVersion(), record.GetVersion())
 	})
 	t.Run("clear deleted", func(t *testing.T) {
 		db.ClearDeleted(ctx, time.Now().Add(time.Second))
