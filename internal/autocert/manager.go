@@ -245,10 +245,6 @@ func (mgr *Manager) updateServer(cfg *config.Config) {
 	hsrv := &http.Server{
 		Addr: cfg.Options.HTTPRedirectAddr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			for k, v := range cfg.Options.Headers {
-				w.Header().Set(k, v)
-			}
-
 			if mgr.handleHTTPChallenge(w, r) {
 				return
 			}

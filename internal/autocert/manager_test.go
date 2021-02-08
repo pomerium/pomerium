@@ -230,7 +230,7 @@ func TestRedirect(t *testing.T) {
 
 	assert.Equal(t, http.StatusMovedPermanently, res.StatusCode, "should redirect to https")
 	for k, v := range src.GetConfig().Options.Headers {
-		assert.Equal(t, v, res.Header.Get(k), "should add header")
+		assert.NotEqual(t, v, res.Header.Get(k), "should ignore options header")
 	}
 }
 
