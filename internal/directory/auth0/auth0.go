@@ -11,7 +11,7 @@ import (
 	"sort"
 
 	"github.com/rs/zerolog"
-	"gopkg.in/auth0.v4/management"
+	"gopkg.in/auth0.v5/management"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -24,20 +24,22 @@ const Name = "auth0"
 type (
 	// RoleManager defines what is needed to get role info from Auth0.
 	RoleManager interface {
-		List(opts ...management.ListOption) (r *management.RoleList, err error)
-		Users(id string, opts ...management.ListOption) (u *management.UserList, err error)
+		List(opts ...management.RequestOption) (r *management.RoleList, err error)
+		Users(id string, opts ...management.RequestOption) (u *management.UserList, err error)
 	}
 	// UserManager defines what is needed to get user info from Auth0.
 	UserManager interface {
-		Read(id string) (*management.User, error)
-		Roles(id string, opts ...management.ListOption) (r *management.RoleList, err error)
+		Read(id string, opts ...management.RequestOption) (*management.User, error)
+		Roles(id string, opts ...management.RequestOption) (r *management.RoleList, err error)
 	}
 )
 
 type newManagersFunc = func(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, UserManager, error)
 
 func defaultNewManagersFunc(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, UserManager, error) {
-	m, err := management.New(domain, serviceAccount.ClientID, serviceAccount.Secret, management.WithContext(ctx))
+	m, err := management.New(domain,
+		management.WithClientCredentials(serviceAccount.ClientID, serviceAccount.Secret),
+		management.WithContext(ctx))
 	if err != nil {
 		return nil, nil, fmt.Errorf("auth0: could not build management: %w", err)
 	}

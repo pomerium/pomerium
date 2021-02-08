@@ -5,10 +5,9 @@
 package mock_auth0
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
-	management "gopkg.in/auth0.v4/management"
+	management "gopkg.in/auth0.v5/management"
+	reflect "reflect"
 )
 
 // MockRoleManager is a mock of RoleManager interface
@@ -35,7 +34,7 @@ func (m *MockRoleManager) EXPECT() *MockRoleManagerMockRecorder {
 }
 
 // List mocks base method
-func (m *MockRoleManager) List(arg0 ...management.ListOption) (*management.RoleList, error) {
+func (m *MockRoleManager) List(arg0 ...management.RequestOption) (*management.RoleList, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{}
 	for _, a := range arg0 {
@@ -54,7 +53,7 @@ func (mr *MockRoleManagerMockRecorder) List(arg0 ...interface{}) *gomock.Call {
 }
 
 // Users mocks base method
-func (m *MockRoleManager) Users(arg0 string, arg1 ...management.ListOption) (*management.UserList, error) {
+func (m *MockRoleManager) Users(arg0 string, arg1 ...management.RequestOption) (*management.UserList, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0}
 	for _, a := range arg1 {
