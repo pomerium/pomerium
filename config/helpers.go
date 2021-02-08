@@ -79,6 +79,11 @@ func IsDataBroker(s string) bool {
 	return false
 }
 
+// IsRegistry checks if this node should run registry service
+func IsRegistry(s string) bool {
+	return IsDataBroker(s)
+}
+
 // IsAll checks to see if we should be running all services
 func IsAll(s string) bool {
 	return s == ServiceAll

@@ -29,14 +29,14 @@ enum ServiceKind {
 
 message Service {
     // kind is service kind
-    ServiceKind kind = 1 [(validate.rules).enum = {not_in: [ServiceKind.UNDEFINED_DO_NOT_USE]}];
+    ServiceKind kind = 1 [(validate.rules).enum = {not_in: [0]}];
     // network endpoints this service may be reachable at    
-    repeated string endpoint = 3 [(validate.rules).repeated.min_items = 1];
+    string endpoint = 3 [(validate.rules).repeated.min_items = 1];
 }
 
 message RegisterRequest {
     // services this deployment runs
-    repeated Service service = 1 [(validate.rules).repeated.min_items = 1];
+    repeated Service services = 1 [(validate.rules).repeated.min_items = 1];
 
     // service may optionally provide certain metadata, such as
     // - build version
@@ -46,7 +46,7 @@ message RegisterRequest {
     // - etc
     // this information is not distributed back to the inquiring nodes
     // and may also have a different storage and time to live
-    optional map <string, google.protobuf.Any> metadata = 2;
+    map <string, google.protobuf.Any> metadata = 2;
 }
 
 message RegisterResponse {
@@ -67,19 +67,14 @@ message ListResponse {
     repeated ServiceRegistration registrations = 1;
 }
 
-// RegistryReporter is invoked by services to inform 
-service RegistryReporter {
+// Registry is invoked by services to inform 
+service Registry {
     // Register is periodically sent by each service to confirm it is still serving with the registry
     // data is persisted with a certain TTL 
     rpc Report(RegisterRequest) returns (RegisterResponse);
-}
-
-// RegistryQuery allows to query and watch for changes in the registry
-// and is intended to be used by i.e. management console in order to present current application services to operator
-service RegistryQuery {
     // List returns current snapshot of the services known to the registry
     rpc List(ListRequest) returns (ListResponse);
     // Watch returns a stream of updates
     // for the simplicity of consumer its delivered as full snapshots
-    rpc Watch(ListRequest) return (stream ListResponse);
+    rpc Watch(ListRequest) returns (stream ListResponse);
 }
