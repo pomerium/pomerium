@@ -437,7 +437,8 @@ func TestSync(t *testing.T) {
 			a, err := New(&config.Config{Options: o})
 			require.NoError(t, err)
 			a.state.Load().dataBrokerClient = dbdClient
-			assert.True(t, (a.forceSync(ctx, tc.sessionState) != nil) == tc.wantErr)
+			_, err = a.forceSync(ctx, tc.sessionState)
+			assert.True(t, (err != nil) == tc.wantErr)
 		})
 	}
 }

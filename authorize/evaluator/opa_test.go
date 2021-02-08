@@ -4,13 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"gopkg.in/square/go-jose.v2"
+	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -20,15 +25,28 @@ func TestOPA(t *testing.T) {
 	type A = []interface{}
 	type M = map[string]interface{}
 
+	signingKey, err := cryptutil.NewSigningKey()
+	require.NoError(t, err)
+	encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
+	require.NoError(t, err)
+	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey, jose.ES256)
+	require.NoError(t, err)
+	publicJWK, err := cryptutil.PublicJWKFromBytes(encodedSigningKey, jose.ES256)
+	require.NoError(t, err)
+
 	eval := func(policies []config.Policy, data []proto.Message, req *Request, isValidClientCertificate bool) rego.Result {
 		authzPolicy, err := readPolicy("/authz.rego")
 		require.NoError(t, err)
 		store := NewStoreFromProtos(data...)
+		store.UpdateIssuer("authenticate.example.com")
+		store.UpdateJWTClaimHeaders([]string{"email", "groups", "user"})
 		store.UpdateRoutePolicies(policies)
+		store.UpdateSigningKey(privateJWK)
 		r := rego.New(
 			rego.Store(store.opaStore),
 			rego.Module("pomerium.authz", string(authzPolicy)),
 			rego.Query("result = data.pomerium.authz"),
+			getGoogleCloudServerlessHeadersRegoOption,
 		)
 		q, err := r.PrepareForEval(context.Background())
 		require.NoError(t, err)
@@ -46,11 +64,168 @@ func TestOPA(t *testing.T) {
 			A{A{json.Number("495"), "invalid client certificate"}},
 			res.Bindings["result"].(M)["deny"])
 	})
+	t.Run("identity_headers", func(t *testing.T) {
+		t.Run("kubernetes", func(t *testing.T) {
+			res := eval([]config.Policy{{
+				Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+				To: config.WeightedURLs{
+					{URL: *mustParseURL("https://to.example.com")},
+				},
+				KubernetesServiceAccountToken: "KUBERNETES",
+			}}, []proto.Message{
+				&session.Session{
+					Id:                "session1",
+					UserId:            "user1",
+					ImpersonateGroups: []string{"i1", "i2"},
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com",
+				},
+			}, true)
+			headers := res.Bindings["result"].(M)["identity_headers"].(M)
+			assert.NotEmpty(t, headers["Authorization"])
+			assert.Equal(t, "a@example.com", headers["Impersonate-User"])
+			assert.Equal(t, "i1,i2", headers["Impersonate-Group"])
+		})
+		t.Run("google_cloud_serverless", func(t *testing.T) {
+			withMockGCP(t, func() {
+				res := eval([]config.Policy{{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					EnableGoogleCloudServerlessAuthentication: true,
+				}}, []proto.Message{
+					&session.Session{
+						Id:                "session1",
+						UserId:            "user1",
+						ImpersonateGroups: []string{"i1", "i2"},
+					},
+					&user.User{
+						Id:    "user1",
+						Email: "a@example.com",
+					},
+				}, &Request{
+					Session: RequestSession{
+						ID: "session1",
+					},
+					HTTP: RequestHTTP{
+						Method: "GET",
+						URL:    "https://from.example.com",
+					},
+				}, true)
+				headers := res.Bindings["result"].(M)["identity_headers"].(M)
+				assert.NotEmpty(t, headers["Authorization"])
+			})
+		})
+	})
+	t.Run("jwt", func(t *testing.T) {
+		evalJWT := func(msgs ...proto.Message) M {
+			res := eval([]config.Policy{{
+				Source: &config.StringURL{URL: mustParseURL("https://from.example.com:8000")},
+				To: config.WeightedURLs{
+					{URL: *mustParseURL("https://to.example.com")},
+				},
+			}}, msgs, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com:8000",
+				},
+			}, true)
+			signedCompactJWTStr := res.Bindings["result"].(M)["signed_jwt"].(string)
+			authJWT, err := jwt.ParseSigned(signedCompactJWTStr)
+			require.NoError(t, err)
+			var claims M
+			err = authJWT.Claims(publicJWK, &claims)
+			require.NoError(t, err)
+			return claims
+		}
+
+		t.Run("impersonate groups", func(t *testing.T) {
+			payload := evalJWT(
+				&session.Session{
+					Id:                "session1",
+					UserId:            "user1",
+					ImpersonateGroups: []string{"i1", "i2"},
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+				&directory.User{
+					Id:       "user1",
+					GroupIds: []string{"group1"},
+				},
+				&directory.Group{
+					Id:    "group1",
+					Name:  "group1name",
+					Email: "group1@example.com",
+				},
+			)
+			assert.Equal(t, M{
+				"aud":    "from.example.com",
+				"iss":    "authenticate.example.com",
+				"jti":    "session1",
+				"sub":    "user1",
+				"user":   "user1",
+				"email":  "a@example.com",
+				"groups": []interface{}{"i1", "i2"},
+			}, payload)
+		})
+		t.Run("directory", func(t *testing.T) {
+			payload := evalJWT(
+				&session.Session{
+					Id:        "session1",
+					UserId:    "user1",
+					ExpiresAt: timestamppb.New(time.Date(2021, 1, 1, 1, 1, 1, 1, time.UTC)),
+					IdToken: &session.IDToken{
+						IssuedAt: timestamppb.New(time.Date(2021, 2, 1, 1, 1, 1, 1, time.UTC)),
+					},
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+				&directory.User{
+					Id:       "user1",
+					GroupIds: []string{"group1"},
+				},
+				&directory.Group{
+					Id:    "group1",
+					Name:  "group1name",
+					Email: "group1@example.com",
+				},
+			)
+			assert.Equal(t, M{
+				"aud":    "from.example.com",
+				"iss":    "authenticate.example.com",
+				"jti":    "session1",
+				"exp":    1609462861.0,
+				"iat":    1612141261.0,
+				"sub":    "user1",
+				"user":   "user1",
+				"email":  "a@example.com",
+				"groups": A{"group1", "group1name"},
+			}, payload)
+		})
+	})
 	t.Run("email", func(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
 			res := eval([]config.Policy{
 				{
-					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com:8000")},
 					To: config.WeightedURLs{
 						{URL: *mustParseURL("https://to.example.com")},
 					},
@@ -71,7 +246,7 @@ func TestOPA(t *testing.T) {
 				},
 				HTTP: RequestHTTP{
 					Method: "GET",
-					URL:    "https://from.example.com",
+					URL:    "https://from.example.com:8000",
 				},
 			}, true)
 			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))

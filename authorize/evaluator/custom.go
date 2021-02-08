@@ -24,6 +24,7 @@ type CustomEvaluatorResponse struct {
 	Allowed bool
 	Denied  bool
 	Reason  string
+	Headers map[string]string
 }
 
 // A CustomEvaluator evaluates custom rego policies.
@@ -65,7 +66,9 @@ func (ce *CustomEvaluator) Evaluate(ctx context.Context, req *CustomEvaluatorReq
 		vars = make(map[string]interface{})
 	}
 
-	res := &CustomEvaluatorResponse{}
+	res := &CustomEvaluatorResponse{
+		Headers: getHeadersVar(resultSet[0].Bindings.WithoutWildcards()),
+	}
 	res.Allowed, _ = vars["allow"].(bool)
 	if v, ok := vars["deny"]; ok {
 		// support `deny = true`

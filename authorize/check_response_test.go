@@ -3,10 +3,8 @@ package authorize
 import (
 	"html/template"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"testing"
-	"time"
 
 	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
@@ -55,29 +53,6 @@ func TestAuthorize_okResponse(t *testing.T) {
 	pe, err := newPolicyEvaluator(opt, a.store)
 	require.NoError(t, err)
 	a.state.Load().evaluator = pe
-	validJWT, _ := pe.SignedJWT(pe.JWTPayload(&evaluator.Request{
-		HTTP: evaluator.RequestHTTP{URL: "https://example.com"},
-		Session: evaluator.RequestSession{
-			ID: "SESSION_ID",
-		},
-	}))
-
-	originalGCPIdentityDocURL := gcpIdentityDocURL
-	defer func() {
-		gcpIdentityDocURL = originalGCPIdentityDocURL
-		gcpIdentityNow = time.Now
-	}()
-
-	now := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
-	gcpIdentityNow = func() time.Time {
-		return now
-	}
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(now.Format(time.RFC3339)))
-	}))
-	defer srv.Close()
-	gcpIdentityDocURL = srv.URL
 
 	tests := []struct {
 		name  string
@@ -86,107 +61,45 @@ func TestAuthorize_okResponse(t *testing.T) {
 	}{
 		{
 			"ok reply",
-			&evaluator.Result{Status: 0, Message: "ok", SignedJWT: "valid-signed-jwt"},
+			&evaluator.Result{Status: 0, Message: "ok"},
 			&envoy_service_auth_v2.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "ok"},
-				HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
-					OkResponse: &envoy_service_auth_v2.OkHttpResponse{
-						Headers: []*envoy_api_v2_core.HeaderValueOption{
-							mkHeader("x-pomerium-jwt-assertion", "valid-signed-jwt", false),
-						},
-					},
-				},
 			},
 		},
 		{
 			"ok reply with k8s svc",
 			&evaluator.Result{
-				Status:    0,
-				Message:   "ok",
-				SignedJWT: "valid-signed-jwt",
+				Status:  0,
+				Message: "ok",
 				MatchingPolicy: &config.Policy{
 					KubernetesServiceAccountToken: "k8s-svc-account",
 				},
 			},
 			&envoy_service_auth_v2.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "ok"},
-				HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
-					OkResponse: &envoy_service_auth_v2.OkHttpResponse{
-						Headers: []*envoy_api_v2_core.HeaderValueOption{
-							mkHeader("x-pomerium-jwt-assertion", "valid-signed-jwt", false),
-							mkHeader("Authorization", "Bearer k8s-svc-account", false),
-						},
-					},
-				},
 			},
 		},
 		{
 			"ok reply with k8s svc impersonate",
 			&evaluator.Result{
-				Status:    0,
-				Message:   "ok",
-				SignedJWT: "valid-signed-jwt",
+				Status:  0,
+				Message: "ok",
 				MatchingPolicy: &config.Policy{
 					KubernetesServiceAccountToken: "k8s-svc-account",
 				},
-				UserEmail:  "foo@example.com",
-				UserGroups: []string{"admin", "test"},
 			},
 			&envoy_service_auth_v2.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "ok"},
-				HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
-					OkResponse: &envoy_service_auth_v2.OkHttpResponse{
-						Headers: []*envoy_api_v2_core.HeaderValueOption{
-							mkHeader("x-pomerium-jwt-assertion", "valid-signed-jwt", false),
-							mkHeader("Authorization", "Bearer k8s-svc-account", false),
-							mkHeader("Impersonate-User", "foo@example.com", false),
-							mkHeader("Impersonate-Group", "admin", false),
-							mkHeader("Impersonate-Group", "test", true),
-						},
-					},
-				},
-			},
-		},
-		{
-			"ok reply with google cloud serverless",
-			&evaluator.Result{
-				Status:    0,
-				Message:   "ok",
-				SignedJWT: "valid-signed-jwt",
-				MatchingPolicy: &config.Policy{
-					EnableGoogleCloudServerlessAuthentication: true,
-					To: mustParseWeightedURLs(t, "https://example.com"),
-				},
-			},
-			&envoy_service_auth_v2.CheckResponse{
-				Status: &status.Status{Code: 0, Message: "ok"},
-				HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
-					OkResponse: &envoy_service_auth_v2.OkHttpResponse{
-						Headers: []*envoy_api_v2_core.HeaderValueOption{
-							mkHeader("x-pomerium-jwt-assertion", "valid-signed-jwt", false),
-							mkHeader("Authorization", "Bearer 2020-01-01T01:00:00Z", false),
-						},
-					},
-				},
 			},
 		},
 		{
 			"ok reply with jwt claims header",
 			&evaluator.Result{
-				Status:    0,
-				Message:   "ok",
-				SignedJWT: validJWT,
+				Status:  0,
+				Message: "ok",
 			},
 			&envoy_service_auth_v2.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "ok"},
-				HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
-					OkResponse: &envoy_service_auth_v2.OkHttpResponse{
-						Headers: []*envoy_api_v2_core.HeaderValueOption{
-							mkHeader("x-pomerium-claim-email", "foo@example.com", false),
-							mkHeader("x-pomerium-jwt-assertion", validJWT, false),
-						},
-					},
-				},
 			},
 		},
 	}

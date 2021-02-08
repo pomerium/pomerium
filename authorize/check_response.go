@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -20,22 +21,14 @@ import (
 )
 
 func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.CheckResponse {
-	requestHeaders, err := a.getEnvoyRequestHeaders(reply.SignedJWT)
-	if err != nil {
-		log.Warn().Err(err).Msg("authorize: error generating new request headers")
+	var requestHeaders []*envoy_api_v2_core.HeaderValueOption
+	for k, v := range reply.Headers {
+		requestHeaders = append(requestHeaders, mkHeader(k, v, false))
 	}
-
-	requestHeaders = append(requestHeaders,
-		mkHeader(httputil.HeaderPomeriumJWTAssertion, reply.SignedJWT, false))
-
-	requestHeaders = append(requestHeaders, getKubernetesHeaders(reply)...)
-
-	if hdrs, err := a.getGoogleCloudServerlessAuthenticationHeaders(reply); err == nil {
-		requestHeaders = append(requestHeaders, hdrs...)
-	} else {
-		log.Warn().Err(err).Msg("error getting google cloud serverless authentication headers")
-	}
-
+	// ensure request headers are sorted by key for deterministic output
+	sort.Slice(requestHeaders, func(i, j int) bool {
+		return requestHeaders[i].Header.Key < requestHeaders[j].Header.Value
+	})
 	return &envoy_service_auth_v2.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: reply.Message},
 		HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
@@ -179,22 +172,6 @@ func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) (*e
 	return a.deniedResponse(in, http.StatusFound, "Login", map[string]string{
 		"Location": redirectTo,
 	})
-}
-
-func getKubernetesHeaders(reply *evaluator.Result) []*envoy_api_v2_core.HeaderValueOption {
-	var requestHeaders []*envoy_api_v2_core.HeaderValueOption
-	if reply.MatchingPolicy != nil && (reply.MatchingPolicy.KubernetesServiceAccountTokenFile != "" || reply.MatchingPolicy.KubernetesServiceAccountToken != "") {
-		requestHeaders = append(requestHeaders,
-			mkHeader("Authorization", "Bearer "+reply.MatchingPolicy.KubernetesServiceAccountToken, false))
-
-		if reply.UserEmail != "" {
-			requestHeaders = append(requestHeaders, mkHeader("Impersonate-User", reply.UserEmail, false))
-		}
-		for i, group := range reply.UserGroups {
-			requestHeaders = append(requestHeaders, mkHeader("Impersonate-Group", group, i > 0))
-		}
-	}
-	return requestHeaders
 }
 
 func mkHeader(k, v string, shouldAppend bool) *envoy_api_v2_core.HeaderValueOption {

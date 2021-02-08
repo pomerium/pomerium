@@ -37,7 +37,7 @@ directory_user = du {
 }
 
 group_ids = gs {
-	gs = session.impersonate_group_ids
+	gs = session.impersonate_groups
 	gs != null
 } else = gs {
 	gs = directory_user.group_ids
@@ -145,6 +145,138 @@ deny[reason] {
 	not input.is_valid_client_certificate
 }
 
+jwt_headers = {
+	"typ": "JWT",
+	"alg": data.signing_key.alg,
+	"kid": data.signing_key.kid,
+}
+
+jwt_payload_aud = v {
+	v = parse_url(input.http.url).hostname
+} else = "" {
+	true
+}
+
+jwt_payload_iss = data.issuer
+
+jwt_payload_jti = v {
+	v = session.id
+} else = "" {
+	true
+}
+
+jwt_payload_exp = v {
+	v = session.expires_at.seconds
+} else = null {
+	true
+}
+
+jwt_payload_iat = v {
+	# sessions store the issued_at on the id_token
+	v = session.id_token.issued_at.seconds
+} else = v {
+	# service accounts store the issued at directly
+	v = session.issued_at.seconds
+} else = null {
+	true
+}
+
+jwt_payload_sub = v {
+	v = user.id
+} else = "" {
+	true
+}
+
+jwt_payload_user = v {
+	v = user.id
+} else = "" {
+	true
+}
+
+jwt_payload_email = v {
+	v = session.impersonate_email
+} else = v {
+	v = directory_user.email
+} else = v {
+	v = user.email
+} else = "" {
+	true
+}
+
+jwt_payload_groups = v {
+	v = array.concat(group_ids, get_databroker_group_names(group_ids))
+} else = [] {
+	true
+}
+
+jwt_claims := [
+	["iss", jwt_payload_iss],
+	["aud", jwt_payload_aud],
+	["jti", jwt_payload_jti],
+	["exp", jwt_payload_exp],
+	["iat", jwt_payload_iat],
+	["sub", jwt_payload_sub],
+	["user", jwt_payload_user],
+	["email", jwt_payload_email],
+	["groups", jwt_payload_groups],
+]
+
+jwt_payload = {key: value |
+	# use a comprehension over an array to remove nil values
+	[key, value] := jwt_claims[_]
+	value != null
+}
+
+signed_jwt = io.jwt.encode_sign(jwt_headers, jwt_payload, data.signing_key)
+
+kubernetes_headers = h {
+	route_policy.KubernetesServiceAccountToken != ""
+	h := [
+		["Authorization", concat(" ", ["Bearer", route_policy.KubernetesServiceAccountToken])],
+		["Impersonate-User", jwt_payload_email],
+		["Impersonate-Group", get_header_string_value(jwt_payload_groups)],
+	]
+} else = [] {
+	true
+}
+
+google_cloud_serverless_authentication_service_account = s {
+	s := data.google_cloud_serverless_authentication_service_account
+} else = "" {
+	true
+}
+
+google_cloud_serverless_headers = h {
+	route_policy.EnableGoogleCloudServerlessAuthentication
+	[hostname, _] := parse_host_port(route_policy.To[0].URL.Host)
+	audience := concat("", ["https://", hostname])
+	h := get_google_cloud_serverless_headers(google_cloud_serverless_authentication_service_account, audience)
+} else = {} {
+	true
+}
+
+identity_headers := {key: value |
+	h1 := [["x-pomerium-jwt-assertion", signed_jwt]]
+	h2 := [[k, v] |
+		[claim_key, claim_value] := jwt_claims[_]
+		claim_value != null
+
+		# only include those headers requested by the user
+		available := data.jwt_claim_headers[_]
+		available == claim_key
+
+		# create the header key and value
+		k := concat("", ["x-pomerium-claim-", claim_key])
+		v := get_header_string_value(claim_value)
+	]
+
+	h3 := kubernetes_headers
+	h4 := [[k, v] | v := google_cloud_serverless_headers[k]]
+
+	h := array.concat(array.concat(array.concat(h1, h2), h3), h4)
+	[key, value] := h[_]
+}
+
 # returns the first matching route
 first_allowed_route_policy_idx(input_url) = first_policy_idx {
 	first_policy_idx := [idx | some idx, policy; policy = data.route_policies[idx]; allowed_route(input.http.url, policy)][0]
@@ -195,10 +327,18 @@ allowed_route_regex(input_url_obj, policy) {
 	re_match(policy.regex, input_url_obj.path)
 }
 
-parse_url(str) = {"scheme": scheme, "host": host, "path": path} {
+parse_url(str) = {"scheme": scheme, "host": host, "hostname": hostname, "path": path} {
 	[_, scheme, host, rawpath] = regex.find_all_string_submatch_n(`(?:((?:tcp[+])?http[s]?)://)?([^/]+)([^?#]*)`, str, 1)[0]
-
+	[hostname, _] = parse_host_port(host)
 	path = normalize_url_path(rawpath)
+}
+
+parse_host_port(str) = [host, port] {
+	contains(str, ":")
+	[host, port] = split(str, ":")
+} else = [host, port] {
+	host = str
+	port = "443"
 }
 
 normalize_url_path(str) = "/" {
@@ -253,6 +393,13 @@ get_databroker_group_names(ids) = gs {
 
 get_databroker_group_emails(ids) = gs {
 	gs := [email | id := ids[i]; group := data.databroker_data["type.googleapis.com"]["directory.Group"][id]; email := group.email]
+}
+
+get_header_string_value(obj) = s {
+	is_array(obj)
+	s := concat(",", obj)
+} else = s {
+	s := concat(",", [obj])
 }
 
 # object_get is like object.get, but supports converting "/" in keys to separate lookups

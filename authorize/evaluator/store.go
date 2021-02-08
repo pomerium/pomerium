@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -89,6 +90,22 @@ func (s *Store) GetRecordData(typeURL, id string) proto.Message {
 	return msg
 }
 
+// UpdateIssuer updates the issuer in the store. The issuer is used as part of JWT construction.
+func (s *Store) UpdateIssuer(issuer string) {
+	s.write("/issuer", issuer)
+}
+
+// UpdateGoogleCloudServerlessAuthenticationServiceAccount updates the google cloud serverless authentication
+// service account in the store.
+func (s *Store) UpdateGoogleCloudServerlessAuthenticationServiceAccount(serviceAccount string) {
+	s.write("/google_cloud_serverless_authentication_service_account", serviceAccount)
+}
+
+// UpdateJWTClaimHeaders updates the jwt claim headers in the store.
+func (s *Store) UpdateJWTClaimHeaders(jwtClaimHeaders []string) {
+	s.write("/jwt_claim_headers", jwtClaimHeaders)
+}
+
 // UpdateRoutePolicies updates the route policies in the store.
 func (s *Store) UpdateRoutePolicies(routePolicies []config.Policy) {
 	s.write("/route_policies", routePolicies)
@@ -142,6 +159,12 @@ func (s *Store) delete(rawPath string) {
 		log.Error().Err(err).Msg("opa-store: error deleting data")
 		return
 	}
+}
+
+// UpdateSigningKey updates the signing key stored in the database. Signing operations
+// in rego use JWKs, so we take in that format.
+func (s *Store) UpdateSigningKey(signingKey *jose.JSONWebKey) {
+	s.write("/signing_key", signingKey)
 }
 
 func (s *Store) get(rawPath string) (value interface{}) {

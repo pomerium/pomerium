@@ -23,7 +23,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 
-	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 )
 
@@ -58,7 +57,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), state.encoder)
 	sessionState, _ := loadSession(state.encoder, rawJWT)
 
-	if err := a.forceSync(ctx, sessionState); err != nil {
+	u, err := a.forceSync(ctx, sessionState)
+	if err != nil {
 		log.Warn().Err(err).Msg("clearing session due to force sync failed")
 		sessionState = nil
 	}
@@ -74,7 +74,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 		log.Error().Err(err).Msg("error during OPA evaluation")
 		return nil, err
 	}
-	logAuthorizeCheck(ctx, in, reply)
+	logAuthorizeCheck(ctx, in, reply, u)
 
 	switch {
 	case reply.Status == http.StatusOK:
@@ -88,18 +88,18 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 	return a.deniedResponse(in, int32(reply.Status), reply.Message, nil)
 }
 
-func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) error {
+func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) (*user.User, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.forceSync")
 	defer span.End()
 	if ss == nil {
-		return nil
+		return nil, nil
 	}
 	s := a.forceSyncSession(ctx, ss.ID)
 	if s == nil {
-		return errors.New("session not found")
+		return nil, errors.New("session not found")
 	}
-	a.forceSyncUser(ctx, s.GetUserId())
-	return nil
+	u := a.forceSyncUser(ctx, s.GetUserId())
+	return u, nil
 }
 
 func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) interface{ GetUserId() string } {
@@ -161,20 +161,6 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 	u, _ = a.store.GetRecordData(userTypeURL, userID).(*user.User)
 
 	return u
-}
-
-func (a *Authorize) getEnvoyRequestHeaders(signedJWT string) ([]*envoy_api_v2_core.HeaderValueOption, error) {
-	var hvos []*envoy_api_v2_core.HeaderValueOption
-
-	hdrs, err := a.getJWTClaimHeaders(a.currentOptions.Load(), signedJWT)
-	if err != nil {
-		return nil, err
-	}
-	for k, v := range hdrs {
-		hvos = append(hvos, mkHeader(k, v, false))
-	}
-
-	return hvos, nil
 }
 
 func getForwardAuthURL(r *http.Request) *url.URL {
@@ -334,6 +320,7 @@ func logAuthorizeCheck(
 	ctx context.Context,
 	in *envoy_service_auth_v2.CheckRequest,
 	reply *evaluator.Result,
+	u *user.User,
 ) {
 	hdrs := getCheckRequestHeaders(in)
 	hattrs := in.GetAttributes().GetRequest().GetHttp()
@@ -350,8 +337,8 @@ func logAuthorizeCheck(
 		evt = evt.Bool("allow", reply.Status == http.StatusOK)
 		evt = evt.Int("status", reply.Status)
 		evt = evt.Str("message", reply.Message)
-		evt = evt.Str("user", reply.UserEmail)
-		evt = evt.Strs("groups", reply.UserGroups)
+		evt = evt.Str("user", u.GetId())
+		evt = evt.Str("email", u.GetEmail())
 	}
 
 	// potentially sensitive, only log if debug mode
