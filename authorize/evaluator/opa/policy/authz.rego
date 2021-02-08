@@ -338,7 +338,7 @@ parse_host_port(str) = [host, port] {
 	[host, port] = split(str, ":")
 } else = [host, port] {
 	host = str
-	port = "80"
+	port = "443"
 }
 
 normalize_url_path(str) = "/" {
