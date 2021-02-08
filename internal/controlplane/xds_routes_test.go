@@ -561,64 +561,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 }
 
-// Make sure default Headers are set for response.
-// See also https://github.com/pomerium/pomerium/issues/901
-func TestAddOptionsHeadersToResponse(t *testing.T) {
-	defer func(f func(*config.Policy) string) {
-		getClusterID = f
-	}(getClusterID)
-	getClusterID = policyNameFunc()
-	srv := &Server{filemgr: filemgr.NewManager()}
-	routes, err := srv.buildPolicyRoutes(&config.Options{
-		CookieName:             "pomerium",
-		DefaultUpstreamTimeout: time.Second * 3,
-		Policies: []config.Policy{
-			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
-				PassIdentityHeaders: true,
-			},
-		},
-		Headers: map[string]string{"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"},
-	}, "example.com")
-	require.NoError(t, err)
-
-	testutil.AssertProtoJSONEqual(t, `
-		[
-			{
-				"name": "policy-0",
-				"match": {
-					"prefix": "/"
-				},
-				"metadata": {
-					"filterMetadata": {
-						"envoy.filters.http.lua": {
-							"remove_impersonate_headers": false,
-							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
-						}
-					}
-				},
-				"route": {
-					"autoHostRewrite": true,
-					"cluster": "policy-1",
-					"timeout": "3s",
-					"upgradeConfigs": [
-						{ "enabled": false, "upgradeType": "websocket"},
-						{ "enabled": false, "upgradeType": "spdy/3.1"}
-					]
-				},
-				"responseHeadersToAdd": [{
-					"append": false,
-					"header": {
-						"key": "Strict-Transport-Security",
-						"value": "max-age=31536000; includeSubDomains; preload"
-					}
-				}]
-			}
-		]
-	`, routes)
-}
-
 func Test_buildPolicyRoutesRewrite(t *testing.T) {
 	defer func(f func(*config.Policy) string) {
 		getClusterID = f

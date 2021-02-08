@@ -252,7 +252,6 @@ func getClusterStatsName(policy *config.Policy) string {
 
 func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
-	responseHeadersToAdd := toEnvoyHeaders(options.Headers)
 
 	for i, p := range options.GetAllPolicies() {
 		policy := p
@@ -292,7 +291,6 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]
 			},
 			RequestHeadersToAdd:    requestHeadersToAdd,
 			RequestHeadersToRemove: requestHeadersToRemove,
-			ResponseHeadersToAdd:   responseHeadersToAdd,
 		}
 		if policy.Redirect != nil {
 			action, err := srv.buildPolicyRouteRedirectAction(policy.Redirect)
