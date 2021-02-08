@@ -230,6 +230,11 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 			vh.Routes = append(vh.Routes, rs...)
 		}
 
+		// if we're the proxy or authenticate service, add our global headers
+		if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
+			vh.ResponseHeadersToAdd = toEnvoyHeaders(options.Headers)
+		}
+
 		if len(vh.Routes) > 0 {
 			virtualHosts = append(virtualHosts, vh)
 		}
