@@ -55,7 +55,7 @@ func TestAuthorization(t *testing.T) {
 					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
 						withAPI, flows.WithEmail("joe@cats.test"), flows.WithGroups("user"))
 					if assert.NoError(t, err) {
-						assertDeniedAccess(t, res, "expected Forbidden for cats.test")
+						assert.Equal(t, http.StatusNotFound, res.StatusCode, "expected Not Found for cats.test")
 					}
 				})
 			})
@@ -73,7 +73,7 @@ func TestAuthorization(t *testing.T) {
 					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-user"),
 						withAPI, flows.WithEmail("joe@cats.test"), flows.WithGroups("user"))
 					if assert.NoError(t, err) {
-						assertDeniedAccess(t, res, "expected Forbidden for joe@cats.test")
+						assert.Equal(t, http.StatusNotFound, res.StatusCode, "expected Not Found for joe@cats.test")
 					}
 				})
 			})
@@ -87,10 +87,4 @@ func mustParseURL(str string) *url.URL {
 		panic(err)
 	}
 	return u
-}
-
-func assertDeniedAccess(t *testing.T, res *http.Response, msgAndArgs ...interface{}) bool {
-	return assert.Condition(t, func() bool {
-		return res.StatusCode == http.StatusForbidden || res.StatusCode == http.StatusUnauthorized
-	}, msgAndArgs...)
 }
