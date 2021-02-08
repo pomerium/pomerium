@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/auth0.v4/management"
+	"gopkg.in/auth0.v5/management"
 
 	"github.com/pomerium/pomerium/internal/directory/auth0/mock_auth0"
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -132,18 +131,19 @@ func (m *mockNewRoleManagerFunc) f(ctx context.Context, domain string, serviceAc
 }
 
 type listOptionMatcher struct {
-	expected management.ListOption
+	expected management.RequestOption
 }
 
-func buildValues(opt management.ListOption) map[string][]string {
-	v := url.Values{}
-	opt(v)
-
-	return v
+func buildValues(opt management.RequestOption) map[string][]string {
+	req, err := (&management.Management{}).NewRequest("GET", "example.com", nil, opt)
+	if err != nil {
+		panic(err)
+	}
+	return req.URL.Query()
 }
 
 func (lom listOptionMatcher) Matches(actual interface{}) bool {
-	return gomock.Eq(buildValues(lom.expected)).Matches(buildValues(actual.(management.ListOption)))
+	return gomock.Eq(buildValues(lom.expected)).Matches(buildValues(actual.(management.RequestOption)))
 }
 
 func (lom listOptionMatcher) String() string {
