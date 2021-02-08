@@ -25,6 +25,7 @@ func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.C
 	for k, v := range reply.Headers {
 		requestHeaders = append(requestHeaders, mkHeader(k, v, false))
 	}
+	// ensure request headers are sorted by key for deterministic output
 	sort.Slice(requestHeaders, func(i, j int) bool {
 		return requestHeaders[i].Header.Key < requestHeaders[j].Header.Value
 	})
