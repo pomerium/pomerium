@@ -88,9 +88,9 @@ func TestEvaluator_Evaluate(t *testing.T) {
 		expectedStatus int
 	}{
 		{"allowed", "https://foo.com/path", allowedPolicy, nil, sessionID, http.StatusOK},
-		{"forbidden", "https://bar.com/path", forbiddenPolicy, nil, sessionID, http.StatusForbidden},
+		{"forbidden", "https://bar.com/path", forbiddenPolicy, nil, sessionID, http.StatusNotFound},
 		{"unauthorized", "https://foo.com/path", allowedPolicy, nil, "", http.StatusUnauthorized},
-		{"custom policy overwrite main policy", "https://foo.com/path", allowedPolicy, []string{"deny = true"}, sessionID, http.StatusForbidden},
+		{"custom policy overwrite main policy", "https://foo.com/path", allowedPolicy, []string{"deny = true"}, sessionID, http.StatusNotFound},
 	}
 
 	for _, tc := range tests {

@@ -81,11 +81,11 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRe
 		return a.okResponse(reply), nil
 	case reply.Status == http.StatusUnauthorized:
 		if isForwardAuth && hreq.URL.Path == "/verify" {
-			return a.deniedResponse(in, http.StatusUnauthorized, "Unauthenticated", nil)
+			return a.deniedResponse(in, http.StatusUnauthorized, nil), nil
 		}
 		return a.redirectResponse(in)
 	}
-	return a.deniedResponse(in, int32(reply.Status), reply.Message, nil)
+	return a.deniedResponse(in, int32(reply.Status), nil), nil
 }
 
 func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) (*user.User, error) {
@@ -336,7 +336,6 @@ func logAuthorizeCheck(
 	if reply != nil {
 		evt = evt.Bool("allow", reply.Status == http.StatusOK)
 		evt = evt.Int("status", reply.Status)
-		evt = evt.Str("message", reply.Message)
 		evt = evt.Str("user", u.GetId())
 		evt = evt.Str("email", u.GetEmail())
 	}

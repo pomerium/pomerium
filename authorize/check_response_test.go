@@ -61,45 +61,42 @@ func TestAuthorize_okResponse(t *testing.T) {
 	}{
 		{
 			"ok reply",
-			&evaluator.Result{Status: 0, Message: "ok"},
+			&evaluator.Result{Status: 0},
 			&envoy_service_auth_v2.CheckResponse{
-				Status: &status.Status{Code: 0, Message: "ok"},
+				Status: &status.Status{Code: 0},
 			},
 		},
 		{
 			"ok reply with k8s svc",
 			&evaluator.Result{
-				Status:  0,
-				Message: "ok",
+				Status: 0,
 				MatchingPolicy: &config.Policy{
 					KubernetesServiceAccountToken: "k8s-svc-account",
 				},
 			},
 			&envoy_service_auth_v2.CheckResponse{
-				Status: &status.Status{Code: 0, Message: "ok"},
+				Status: &status.Status{Code: 0},
 			},
 		},
 		{
 			"ok reply with k8s svc impersonate",
 			&evaluator.Result{
-				Status:  0,
-				Message: "ok",
+				Status: 0,
 				MatchingPolicy: &config.Policy{
 					KubernetesServiceAccountToken: "k8s-svc-account",
 				},
 			},
 			&envoy_service_auth_v2.CheckResponse{
-				Status: &status.Status{Code: 0, Message: "ok"},
+				Status: &status.Status{Code: 0},
 			},
 		},
 		{
 			"ok reply with jwt claims header",
 			&evaluator.Result{
-				Status:  0,
-				Message: "ok",
+				Status: 0,
 			},
 			&envoy_service_auth_v2.CheckResponse{
-				Status: &status.Status{Code: 0, Message: "ok"},
+				Status: &status.Status{Code: 0},
 			},
 		},
 	}
@@ -108,7 +105,6 @@ func TestAuthorize_okResponse(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := a.okResponse(tc.reply)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
-			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
 			want, _ := protojson.Marshal(tc.want.GetOkResponse())
 			testutil.AssertProtoJSONEqual(t, string(want), got.GetOkResponse())
 		})
@@ -133,7 +129,6 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 		name    string
 		in      *envoy_service_auth_v2.CheckRequest
 		code    int32
-		reason  string
 		headers map[string]string
 		want    *envoy_service_auth_v2.CheckResponse
 	}{
@@ -141,19 +136,17 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 			"html denied",
 			nil,
 			http.StatusBadRequest,
-			"Access Denied",
 			nil,
 			&envoy_service_auth_v2.CheckResponse{
 				Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
 				HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
 					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
 						Status: &envoy_type.HttpStatus{
-							Code: envoy_type.StatusCode(codes.InvalidArgument),
+							Code: envoy_type.StatusCode_NotFound,
 						},
 						Headers: []*envoy_api_v2_core.HeaderValueOption{
-							mkHeader("Content-Type", "text/html", false),
+							mkHeader("Content-Type", "text/plain", false),
 						},
-						Body: "Access Denied",
 					},
 				},
 			},
@@ -170,19 +163,17 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 				},
 			},
 			http.StatusBadRequest,
-			"Access Denied",
 			map[string]string{},
 			&envoy_service_auth_v2.CheckResponse{
 				Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
 				HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
 					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
 						Status: &envoy_type.HttpStatus{
-							Code: envoy_type.StatusCode(codes.InvalidArgument),
+							Code: envoy_type.StatusCode_NotFound,
 						},
 						Headers: []*envoy_api_v2_core.HeaderValueOption{
 							mkHeader("Content-Type", "text/plain", false),
 						},
-						Body: "Access Denied",
 					},
 				},
 			},
@@ -192,8 +183,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := a.deniedResponse(tc.in, tc.code, tc.reason, tc.headers)
-			require.NoError(t, err)
+			got := a.deniedResponse(tc.in, tc.code, tc.headers)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
 			assert.Equal(t, tc.want.GetDeniedResponse().GetHeaders(), got.GetDeniedResponse().GetHeaders())

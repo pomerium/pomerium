@@ -99,9 +99,6 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 				return nil, err
 			}
 			allow = allow && (cres.Allowed && !cres.Denied)
-			if cres.Reason != "" {
-				evalResult.Message = cres.Reason
-			}
 			for k, v := range cres.Headers {
 				evalResult.Headers[k] = v
 			}
@@ -109,20 +106,16 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	}
 	if allow {
 		evalResult.Status = http.StatusOK
-		evalResult.Message = http.StatusText(http.StatusOK)
 		return evalResult, nil
 	}
 
 	if req.Session.ID == "" {
 		evalResult.Status = http.StatusUnauthorized
-		evalResult.Message = "login required"
 		return evalResult, nil
 	}
 
-	evalResult.Status = http.StatusForbidden
-	if evalResult.Message == "" {
-		evalResult.Message = http.StatusText(http.StatusForbidden)
-	}
+	// we use 404 to avoid leaking the existence of a route
+	evalResult.Status = http.StatusNotFound
 	return evalResult, nil
 }
 
@@ -179,7 +172,6 @@ func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input
 // Result is the result of evaluation.
 type Result struct {
 	Status         int
-	Message        string
 	Headers        map[string]string
 	MatchingPolicy *config.Policy
 }
@@ -238,11 +230,9 @@ func getDenyVar(vars rego.Vars) []Result {
 			log.Error().Err(err).Msg("invalid type in deny")
 			continue
 		}
-		msg := fmt.Sprint(denial[1])
 
 		results = append(results, Result{
-			Status:  status,
-			Message: msg,
+			Status: status,
 		})
 	}
 	return results
