@@ -50,14 +50,13 @@ func (srv *Server) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 
-	authenticateURL, err := options.GetAuthenticateURL()
+	// if this is the pomerium proxy in front of the the authenticate service, don't add
+	// these routes since they will be handled by authenticate
+	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, domain)
 	if err != nil {
 		return nil, err
 	}
-
-	// if this is the pomerium proxy in front of the the authenticate service, don't add
-	// these routes since they will be handled by authenticate
-	if !isProxyFrontingAuthenticate(options, authenticateURL, domain) {
+	if !isFrontingAuthenticate {
 		// enable ext_authz
 		r, err := srv.buildControlPlanePathRoute("/.pomerium/jwt", true)
 		if err != nil {
@@ -106,6 +105,10 @@ func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain strin
 		}
 	}
 	// if we're handling authentication, add the oauth2 callback url
+	authenticateURL, err := options.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
 	if config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, domain) {
 		r, err := srv.buildControlPlanePathRoute(options.AuthenticateCallbackPath, false)
 		if err != nil {
@@ -257,11 +260,6 @@ func getClusterStatsName(policy *config.Policy) string {
 }
 
 func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
-	authenticateURL, err := options.GetAuthenticateURL()
-	if err != nil {
-		return nil, err
-	}
-
 	var routes []*envoy_config_route_v3.Route
 
 	for i, p := range options.GetAllPolicies() {
@@ -271,15 +269,12 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]
 		}
 
 		match := mkRouteMatch(&policy)
-		requestHeadersToAdd := toEnvoyHeaders(policy.SetRequestHeaders)
-		requestHeadersToRemove := getRequestHeadersToRemove(options, &policy)
-
 		envoyRoute := &envoy_config_route_v3.Route{
 			Name:                   fmt.Sprintf("policy-%d", i),
 			Match:                  match,
 			Metadata:               &envoy_config_core_v3.Metadata{},
-			RequestHeadersToAdd:    requestHeadersToAdd,
-			RequestHeadersToRemove: requestHeadersToRemove,
+			RequestHeadersToAdd:    toEnvoyHeaders(policy.SetRequestHeaders),
+			RequestHeadersToRemove: getRequestHeadersToRemove(options, &policy),
 		}
 		if policy.Redirect != nil {
 			action, err := srv.buildPolicyRouteRedirectAction(policy.Redirect)
@@ -296,7 +291,11 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]
 		}
 
 		// disable authentication entirely when the proxy is fronting authenticate
-		if isProxyFrontingAuthenticate(options, authenticateURL, domain) {
+		isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, domain)
+		if err != nil {
+			return nil, err
+		}
+		if isFrontingAuthenticate {
 			envoyRoute.TypedPerFilterConfig = map[string]*any.Any{
 				"envoy.filters.http.ext_authz": disableExtAuthz,
 			}
@@ -548,10 +547,15 @@ func hasPublicPolicyMatchingURL(options *config.Options, requestURL url.URL) boo
 	return false
 }
 
-func isProxyFrontingAuthenticate(options *config.Options, authenticateURL *url.URL, domain string) bool {
-	if !config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, domain) {
-		return true
+func isProxyFrontingAuthenticate(options *config.Options, domain string) (bool, error) {
+	authenticateURL, err := options.GetAuthenticateURL()
+	if err != nil {
+		return false, err
 	}
 
-	return false
+	if !config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, domain) {
+		return true, nil
+	}
+
+	return false, nil
 }
