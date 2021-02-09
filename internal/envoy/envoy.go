@@ -132,7 +132,7 @@ func (srv *Server) update(cfg *config.Config) {
 	}
 	srv.options = options
 
-	if err := srv.writeConfig(); err != nil {
+	if err := srv.writeConfig(cfg); err != nil {
 		log.Error().Err(err).Str("service", "envoy").Msg("envoy: failed to write envoy config")
 		return
 	}
@@ -195,8 +195,8 @@ func (srv *Server) run() error {
 	return nil
 }
 
-func (srv *Server) writeConfig() error {
-	confBytes, err := srv.buildBootstrapConfig()
+func (srv *Server) writeConfig(cfg *config.Config) error {
+	confBytes, err := srv.buildBootstrapConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -207,24 +207,20 @@ func (srv *Server) writeConfig() error {
 	return atomic.WriteFile(cfgPath, bytes.NewReader(confBytes))
 }
 
-func (srv *Server) buildBootstrapConfig() ([]byte, error) {
+func (srv *Server) buildBootstrapConfig(cfg *config.Config) ([]byte, error) {
 	nodeCfg := &envoy_config_core_v3.Node{
 		Id:      "proxy",
 		Cluster: "proxy",
 	}
 
+	adminAddr, err := ParseAddress(cfg.Options.EnvoyAdminAddress)
+	if err != nil {
+		return nil, err
+	}
 	adminCfg := &envoy_config_bootstrap_v3.Admin{
-		AccessLogPath: "/tmp/admin_access.log",
-		Address: &envoy_config_core_v3.Address{
-			Address: &envoy_config_core_v3.Address_SocketAddress{
-				SocketAddress: &envoy_config_core_v3.SocketAddress{
-					Address: "127.0.0.1",
-					PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
-						PortValue: 9901,
-					},
-				},
-			},
-		},
+		AccessLogPath: cfg.Options.EnvoyAdminAccessLogPath,
+		ProfilePath:   cfg.Options.EnvoyAdminProfilePath,
+		Address:       adminAddr,
 	}
 
 	dynamicCfg := &envoy_config_bootstrap_v3.Bootstrap_DynamicResources{
@@ -352,7 +348,7 @@ func (srv *Server) buildBootstrapConfig() ([]byte, error) {
 		})
 	}
 
-	cfg := &envoy_config_bootstrap_v3.Bootstrap{
+	bcfg := &envoy_config_bootstrap_v3.Bootstrap{
 		Node:             nodeCfg,
 		Admin:            adminCfg,
 		DynamicResources: dynamicCfg,
@@ -360,11 +356,11 @@ func (srv *Server) buildBootstrapConfig() ([]byte, error) {
 		StatsConfig:      srv.buildStatsConfig(),
 	}
 
-	if err := srv.addTraceConfig(cfg); err != nil {
+	if err := srv.addTraceConfig(bcfg); err != nil {
 		return nil, fmt.Errorf("failed to add tracing config: %w", err)
 	}
 
-	jsonBytes, err := protojson.Marshal(proto.MessageV2(cfg))
+	jsonBytes, err := protojson.Marshal(proto.MessageV2(bcfg))
 	if err != nil {
 		return nil, err
 	}

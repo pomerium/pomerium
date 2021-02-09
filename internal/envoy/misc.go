@@ -1,8 +1,12 @@
 package envoy
 
 import (
+	"fmt"
 	"io/ioutil"
+	"net"
 	"strconv"
+
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 )
 
 const baseIDPath = "/tmp/pomerium-envoy-base-id"
@@ -28,4 +32,23 @@ func readBaseID() (int, bool) {
 	}
 
 	return baseID, true
+}
+
+// ParseAddress parses a string address into an envoy address.
+func ParseAddress(raw string) (*envoy_config_core_v3.Address, error) {
+	if host, portstr, err := net.SplitHostPort(raw); err == nil {
+		if port, err := strconv.Atoi(portstr); err == nil {
+			return &envoy_config_core_v3.Address{
+				Address: &envoy_config_core_v3.Address_SocketAddress{
+					SocketAddress: &envoy_config_core_v3.SocketAddress{
+						Address: host,
+						PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+							PortValue: uint32(port),
+						},
+					},
+				},
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("unknown address format: %s", raw)
 }
