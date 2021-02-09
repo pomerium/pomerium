@@ -8,6 +8,7 @@ import (
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/test/bufconn"
@@ -108,9 +109,11 @@ func TestManager(t *testing.T) {
 			typeURL: nil,
 		})
 
-		msg, err = stream.Recv()
-		assert.NoError(t, err)
-		assert.Equal(t, []string{"r1"}, msg.GetRemovedResources())
-		ack(msg.Nonce)
+		assert.Eventually(t, func() bool {
+			msg, err = stream.Recv()
+			require.NoError(t, err)
+			ack(msg.Nonce)
+			return assert.ObjectsAreEqual([]string{"r1"}, msg.GetRemovedResources())
+		}, time.Second*5, time.Millisecond)
 	})
 }
