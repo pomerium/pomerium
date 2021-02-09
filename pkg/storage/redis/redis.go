@@ -116,6 +116,7 @@ func (db *DB) Delete(ctx context.Context, id string) (err error) {
 
 			// mark it as deleted
 			record.DeletedAt = timestamppb.Now()
+			record.Version = formatVersion(version)
 
 			return nil
 		},
