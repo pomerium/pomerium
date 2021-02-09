@@ -1,13 +1,19 @@
-package registry
+package registry_test
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
+	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/pomerium/pomerium/internal/registry"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -20,15 +26,19 @@ func TestRegistry(t *testing.T) {
 		return l.Dial()
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	gs := grpc.NewServer()
-	pb.RegisterRegistryServer(gs, &inMemoryServer{})
+
+	ttl := time.Second
+	pb.RegisterRegistryServer(gs, registry.NewInMemoryServer(ctx, ttl))
 
 	go func() {
 		err := gs.Serve(l)
 		assert.NoError(t, err)
 	}()
 
-	ctx := context.Background()
 	conn, err := grpc.DialContext(ctx, "inmem", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
@@ -41,17 +51,49 @@ func TestRegistry(t *testing.T) {
 		svc         []*pb.Service
 		expectError bool
 	}{
-		{[]*pb.Service{{Endpoint: []string{"http://localhost"}}}, true},
+		{[]*pb.Service{{Kind: pb.ServiceKind_DATABROKER, Endpoint: "http://localhost"}}, false},
 	}
 
-	for _, tc := range registerTC {
-		_, err := client.Report(ctx, &pb.RegisterRequest{
-			Service: tc.svc,
-		})
-		if tc.expectError {
-			assert.Error(t, err, "%v", tc)
-		} else {
+	cmpOpts := cmpopts.IgnoreUnexported(pb.Service{})
+
+	for i, tc := range registerTC {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			kinds := []pb.ServiceKind{pb.ServiceKind_DATABROKER}
+			wc, err := client.Watch(ctx, &pb.ListRequest{Kinds: kinds})
+			require.NoError(t, err)
+
+			entries, err := wc.Recv()
+			require.NoError(t, err)
+			assert.Empty(t, entries.Services)
+
+			reportResp, err := client.Report(ctx, &pb.RegisterRequest{Services: tc.svc})
+			if tc.expectError {
+				assert.Error(t, err, "%v", tc)
+				return
+			}
 			assert.NoError(t, err, "%v", tc)
-		}
+			assert.LessOrEqual(t, reportResp.CallBackAfter.AsDuration(), ttl)
+
+			entries, err = client.List(ctx, &pb.ListRequest{Kinds: kinds})
+			require.NoError(t, err)
+			diff := cmp.Diff(tc.svc, entries.Services, cmpOpts)
+			assert.Empty(t, diff)
+
+			entries, err = wc.Recv()
+			assert.NoError(t, err)
+			diff = cmp.Diff(tc.svc, entries.Services, cmpOpts)
+			assert.Empty(t, diff)
+
+			entries, err = wc.Recv()
+			assert.NoError(t, err)
+			assert.Empty(t, entries.Services)
+
+			entries, err = client.List(ctx, &pb.ListRequest{Kinds: kinds})
+			require.NoError(t, err)
+			assert.Empty(t, entries.Services)
+		})
 	}
 }

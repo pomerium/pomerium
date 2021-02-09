@@ -63,8 +63,9 @@ message ServiceRegistration {
     google.protobuf.Timestamp expires_at = 2;
 }
 
-message ListResponse {
-    repeated ServiceRegistration registrations = 1;
+// RegistrationSnapshot represents current state of the services
+message ServiceList {
+    repeated Service services = 1;
 }
 
 // Registry is invoked by services to inform 
@@ -73,8 +74,9 @@ service Registry {
     // data is persisted with a certain TTL 
     rpc Report(RegisterRequest) returns (RegisterResponse);
     // List returns current snapshot of the services known to the registry
-    rpc List(ListRequest) returns (ListResponse);
+    rpc List(ListRequest) returns (ServiceList);
     // Watch returns a stream of updates
     // for the simplicity of consumer its delivered as full snapshots
-    rpc Watch(ListRequest) returns (stream ListResponse);
+    // and is only sent when change is detected
+    rpc Watch(ListRequest) returns (stream ServiceList);
 }
