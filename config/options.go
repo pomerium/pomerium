@@ -270,6 +270,11 @@ type Options struct {
 	// SkipXffAppend instructs proxy not to append its IP address to x-forwarded-for header.
 	// see https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=skip_xff_append#x-forwarded-for
 	SkipXffAppend bool `mapstructure:"skip_xff_append" yaml:"skip_xff_append,omitempty" json:"skip_xff_append,omitempty"`
+
+	// Envoy bootstrap admin options. These do not support dynamic updates.
+	EnvoyAdminAccessLogPath string `mapstructure:"envoy_admin_access_log_path" yaml:"envoy_admin_access_log_path"`
+	EnvoyAdminProfilePath   string `mapstructure:"envoy_admin_profile_path" yaml:"envoy_admin_profile_path"`
+	EnvoyAdminAddress       string `mapstructure:"envoy_admin_address" yaml:"envoy_admin_address"`
 }
 
 type certificateFilePair struct {
@@ -312,8 +317,11 @@ var defaultOptions = Options{
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
 	},
-	DataBrokerStorageType: "memory",
-	SkipXffAppend:         false,
+	DataBrokerStorageType:   "memory",
+	SkipXffAppend:           false,
+	EnvoyAdminAccessLogPath: os.DevNull,
+	EnvoyAdminProfilePath:   os.DevNull,
+	EnvoyAdminAddress:       "127.0.0.1:9901",
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
