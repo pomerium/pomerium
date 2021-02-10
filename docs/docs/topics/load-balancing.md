@@ -51,7 +51,7 @@ policy:
 ```yaml
 policies:
   - from: tcp+https://tcp-service.localhost.pomerium.io
-    to: 
+    to:
       - tcp://tcp-1.local
       - tcp://tcp-2.local
     health_checks:
@@ -60,7 +60,7 @@ policies:
         unhealthy_threshold: 3
         healthy_threshold: 1
         tcp_health_check:
-          send: 
+          send:
             text: "50494E47" #PING
           receive:
             text: "504F4E47" #PONG
