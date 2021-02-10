@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
 
@@ -42,12 +43,17 @@ func NewInMemoryServer(ctx context.Context, ttl time.Duration) pb.RegistryServer
 }
 
 func (s *inMemoryServer) periodicCheck(ctx context.Context) {
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(s.ttl * purgeAfterTTLFactor):
-		if s.lockAndRmExpired() {
-			s.onchange.Broadcast()
+	after := s.ttl * purgeAfterTTLFactor
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info().Msg("grpc.service_registry.PeriodicCheck/Stop")
+			return
+		case <-time.After(after):
+			log.Info().Msgf("grpc.service_registry.PeriodicCheck/Run %+v", s.getServices(nil))
+			if s.lockAndRmExpired() {
+				s.onchange.Broadcast()
+			}
 		}
 	}
 }
@@ -172,6 +178,10 @@ func (s *inMemoryServer) getServices(kinds map[pb.ServiceKind]bool) []*pb.Servic
 func (s *inMemoryServer) getServicesLocked(kinds map[pb.ServiceKind]bool) []*pb.Service {
 	out := make([]*pb.Service, 0, len(s.regs))
 	for k := range s.regs {
+		if len(kinds) == 0 {
+		} else if _, exists := kinds[k.kind]; !exists {
+			continue
+		}
 		out = append(out, &pb.Service{Kind: k.kind, Endpoint: k.endpoint})
 	}
 	return out

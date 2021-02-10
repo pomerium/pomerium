@@ -26,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
+	registry_pb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/proxy"
 )
 
@@ -103,10 +104,17 @@ func Run(ctx context.Context, configFile string) error {
 	if config.IsDataBroker(src.GetConfig().Options.Services) {
 		dataBrokerServer, err = setupDataBroker(src, controlPlane)
 		if err != nil {
-			return err
+			return fmt.Errorf("setting up databroker: %w", err)
+		}
+
+		if err = setupRegistryServer(src, controlPlane); err != nil {
+			return fmt.Errorf("setting up registry: %w", err)
 		}
 	}
-	var registryServer registry
+
+	if err = setupRegistryReporter(src); err != nil {
+		return fmt.Errorf("setting up registry reporter: %w", err)
+	}
 	if err := setupProxy(src, controlPlane); err != nil {
 		return err
 	}
@@ -201,16 +209,21 @@ func setupDataBroker(src config.Source, controlPlane *controlplane.Server) (*dat
 	return svc, nil
 }
 
-func setupRegistry(src config.Source, controlPlane *controlplane.Server) (*registry.Server, error) {
-	cfg := src.GetConfig()
-	svc, err := registry.NewServer()
-	if err != nil {
-		return nil, fmt.Errorf("creating registry service: %w", err)
-	}
-	svc.Register(controlPlane.GRPCServer)
+func setupRegistryServer(src config.Source, controlPlane *controlplane.Server) error {
+	svc := registry.NewInMemoryServer(context.TODO(), registryTTL)
+	registry_pb.RegisterRegistryServer(controlPlane.GRPCServer, svc)
 	log.Info().Msg("enabled registry service")
 	// TODO: on config change
-	return svc, nil
+	return nil
+}
+
+func setupRegistryReporter(src config.Source) error {
+	svc, err := registry.NewReporter(src.GetConfig())
+	if err != nil {
+		return err
+	}
+	src.OnConfigChange(svc.OnConfigChange)
+	return nil
 }
 
 func setupProxy(src config.Source, controlPlane *controlplane.Server) error {
