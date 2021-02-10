@@ -3,6 +3,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -12,15 +13,21 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
+// Errors
+var (
+	ErrNotFound     = errors.New("record not found")
+	ErrStreamClosed = errors.New("record stream closed")
+)
+
 // A RecordStream is a stream of records.
 type RecordStream interface {
-	// HasMore returns true if there's another record available.
-	HasMore() bool
+	// Close closes the record stream and releases any underlying resources.
+	Close() error
 	// Next is called to retrieve the next record. If one is available it will
-	// be returned immediately. If none is available the method will block
-	// until one is available or an error occurs. The error should be checked
-	// with a call to `.Err()`.
-	Next() bool
+	// be returned immediately. If none is available and block is true, the method
+	// will block until one is available or an error occurs. The error should be
+	// checked with a call to `.Err()`.
+	Next(block bool) bool
 	// Record returns the current record.
 	Record() *databroker.Record
 	// Err returns any error that occurred while streaming.
@@ -38,7 +45,7 @@ type Backend interface {
 	// Put is used to insert or update a record.
 	Put(ctx context.Context, record *databroker.Record) error
 	// Sync syncs record changes after the specified version.
-	Sync(ctx context.Context, version uint64) (RecordStream, error)
+	Sync(ctx context.Context, version string) (RecordStream, error)
 }
 
 // MatchAny searches any data with a query.

@@ -100,7 +100,7 @@ func (srv *Server) initVersion() {
 	if r, _ := dbServerVersion.Get(context.Background(), serverVersionKey); r != nil {
 		var sv databroker.ServerVersion
 		if err := ptypes.UnmarshalAny(r.GetData(), &sv); err == nil {
-			srv.log.Debug().Str("server_version", sv.Version).Msg("got db version from DB")
+			srv.log.Debug().Str("server_version", sv.Version).Msg("got db version from Backend")
 			srv.version = sv.Version
 		}
 		return

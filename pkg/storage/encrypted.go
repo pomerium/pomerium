@@ -18,12 +18,12 @@ type encryptedRecordStream struct {
 	err        error
 }
 
-func (e *encryptedRecordStream) HasMore() bool {
-	return e.underlying.HasMore()
+func (e *encryptedRecordStream) Close() error {
+	return e.underlying.Close()
 }
 
-func (e *encryptedRecordStream) Next() bool {
-	return e.underlying.Next()
+func (e *encryptedRecordStream) Next(wait bool) bool {
+	return e.underlying.Next(wait)
 }
 
 func (e *encryptedRecordStream) Record() *databroker.Record {
@@ -105,7 +105,7 @@ func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) e
 	return e.underlying.Put(ctx, newRecord)
 }
 
-func (e *encryptedBackend) Sync(ctx context.Context, version uint64) (RecordStream, error) {
+func (e *encryptedBackend) Sync(ctx context.Context, version string) (RecordStream, error) {
 	stream, err := e.underlying.Sync(ctx, version)
 	if err != nil {
 		return nil, err
