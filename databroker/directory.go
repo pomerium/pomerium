@@ -31,10 +31,12 @@ func (c *DataBroker) RefreshUser(ctx context.Context, req *directory.RefreshUser
 		return nil, err
 	}
 
-	_, err = c.dataBrokerServer.Set(ctx, &databroker.SetRequest{
-		Type: any.GetTypeUrl(),
-		Id:   u.GetId(),
-		Data: any,
+	_, err = c.dataBrokerServer.Put(ctx, &databroker.PutRequest{
+		Record: &databroker.Record{
+			Type: any.GetTypeUrl(),
+			Id:   u.GetId(),
+			Data: any,
+		},
 	})
 	if err != nil {
 		return nil, err

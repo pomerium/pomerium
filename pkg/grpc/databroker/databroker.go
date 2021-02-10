@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // GetUserID gets the databroker user id from a provider user id.
@@ -37,18 +37,15 @@ func ApplyOffsetAndLimit(all []*Record, offset, limit int) (records []*Record, t
 	return records, len(all)
 }
 
-// InitialSync performs a sync with no_wait set to true and then returns all the results.
-func InitialSync(ctx context.Context, client DataBrokerServiceClient, in *SyncRequest) (*SyncResponse, error) {
-	dup := new(SyncRequest)
-	proto.Merge(dup, in)
-	dup.NoWait = true
-
-	stream, err := client.Sync(ctx, dup)
+// InitialSync performs a sync latest and then returns all the results.
+func InitialSync(
+	ctx context.Context,
+	client DataBrokerServiceClient,
+) (records []*Record, serverVersion uint64, err error) {
+	stream, err := client.SyncLatest(ctx, new(emptypb.Empty))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-
-	finalRes := &SyncResponse{}
 
 loop:
 	for {
@@ -57,12 +54,12 @@ loop:
 		case err == io.EOF:
 			break loop
 		case err != nil:
-			return nil, err
+			return nil, 0, err
 		}
 
-		finalRes.ServerVersion = res.GetServerVersion()
-		finalRes.Records = append(finalRes.Records, res.GetRecords()...)
+		serverVersion = res.GetServerVersion()
+		records = append(records, res.GetRecord())
 	}
 
-	return finalRes, nil
+	return records, serverVersion, nil
 }

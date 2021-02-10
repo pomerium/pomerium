@@ -32,13 +32,15 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID 
 	return &u, nil
 }
 
-// Set sets a user in the databroker.
-func Set(ctx context.Context, client databroker.DataBrokerServiceClient, u *User) (*databroker.Record, error) {
+// Put sets a user in the databroker.
+func Put(ctx context.Context, client databroker.DataBrokerServiceClient, u *User) (*databroker.Record, error) {
 	any, _ := anypb.New(u)
-	res, err := client.Set(ctx, &databroker.SetRequest{
-		Type: any.GetTypeUrl(),
-		Id:   u.Id,
-		Data: any,
+	res, err := client.Put(ctx, &databroker.PutRequest{
+		Record: &databroker.Record{
+			Type: any.GetTypeUrl(),
+			Id:   u.Id,
+			Data: any,
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -46,13 +48,15 @@ func Set(ctx context.Context, client databroker.DataBrokerServiceClient, u *User
 	return res.GetRecord(), nil
 }
 
-// SetServiceAccount sets a service account in the databroker.
-func SetServiceAccount(ctx context.Context, client databroker.DataBrokerServiceClient, sa *ServiceAccount) (*databroker.Record, error) {
+// PutServiceAccount sets a service account in the databroker.
+func PutServiceAccount(ctx context.Context, client databroker.DataBrokerServiceClient, sa *ServiceAccount) (*databroker.Record, error) {
 	any, _ := anypb.New(sa)
-	res, err := client.Set(ctx, &databroker.SetRequest{
-		Type: any.GetTypeUrl(),
-		Id:   sa.GetId(),
-		Data: any,
+	res, err := client.Put(ctx, &databroker.PutRequest{
+		Record: &databroker.Record{
+			Type: any.GetTypeUrl(),
+			Id:   sa.GetId(),
+			Data: any,
+		},
 	})
 	if err != nil {
 		return nil, err

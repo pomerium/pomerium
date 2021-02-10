@@ -27,7 +27,7 @@ func TestStore(t *testing.T) {
 		}
 		any, _ := ptypes.MarshalAny(u)
 		s.UpdateRecord(&databroker.Record{
-			Version: "v1",
+			Version: 1,
 			Type:    any.GetTypeUrl(),
 			Id:      u.GetId(),
 			Data:    any,
@@ -43,7 +43,7 @@ func TestStore(t *testing.T) {
 		}, v)
 
 		s.UpdateRecord(&databroker.Record{
-			Version:   "v2",
+			Version:   2,
 			Type:      any.GetTypeUrl(),
 			Id:        u.GetId(),
 			Data:      any,
@@ -55,7 +55,7 @@ func TestStore(t *testing.T) {
 		assert.Nil(t, v)
 
 		s.UpdateRecord(&databroker.Record{
-			Version: "v1",
+			Version: 3,
 			Type:    any.GetTypeUrl(),
 			Id:      u.GetId(),
 			Data:    any,

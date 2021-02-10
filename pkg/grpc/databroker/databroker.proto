@@ -7,23 +7,14 @@ import "google/protobuf/any.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-message ServerVersion {
-  string version = 1;
-}
 
 message Record {
-  string version = 1;
+  uint64 version = 1;
   string type = 2;
   string id = 3;
   google.protobuf.Any data = 4;
-  google.protobuf.Timestamp created_at = 5;
-  google.protobuf.Timestamp modified_at = 6;
-  google.protobuf.Timestamp deleted_at = 7;
-}
-
-message DeleteRequest {
-  string type = 1;
-  string id = 2;
+  google.protobuf.Timestamp modified_at = 5;
+  google.protobuf.Timestamp deleted_at = 6;
 }
 
 message GetRequest {
@@ -32,17 +23,6 @@ message GetRequest {
 }
 message GetResponse {
   Record record = 1;
-}
-
-message GetAllRequest {
-  string type = 1;
-  string page_token = 2;
-}
-message GetAllResponse {
-  repeated Record records = 1;
-  string server_version = 2;
-  string record_version = 3;
-  string next_page_token = 4;
 }
 
 message QueryRequest {
@@ -56,39 +36,30 @@ message QueryResponse {
   int64 total_count = 2;
 }
 
-message SetRequest {
-  string type = 1;
-  string id = 2;
-  google.protobuf.Any data = 3;
-}
-message SetResponse {
+message PutRequest {
   Record record = 1;
-  string server_version = 2;
+}
+message PutResponse {
+  uint64 server_version = 1;
+  Record record = 2;
 }
 
 message SyncRequest {
-  string server_version = 1;
-  string record_version = 2;
-  string type = 3;
-  bool no_wait = 4;
+  uint64 server_version = 1;
+  uint64 record_version = 2;
 }
 message SyncResponse {
-  string server_version = 1;
-  repeated Record records = 2;
+  uint64 server_version = 1;
+  Record record = 2;
 }
 
-message GetTypesResponse {
-  repeated string types = 1;
+message SyncLatestRequest {
 }
 
 service DataBrokerService {
-  rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
   rpc Get(GetRequest) returns (GetResponse);
-  rpc GetAll(GetAllRequest) returns (GetAllResponse);
+  rpc Put(PutRequest) returns (PutResponse);
   rpc Query(QueryRequest) returns (QueryResponse);
-  rpc Set(SetRequest) returns (SetResponse);
   rpc Sync(SyncRequest) returns (stream SyncResponse);
-
-  rpc GetTypes(google.protobuf.Empty) returns (GetTypesResponse);
-  rpc SyncTypes(google.protobuf.Empty) returns (stream GetTypesResponse);
+  rpc SyncLatest(google.protobuf.Empty) returns (stream SyncResponse);
 }

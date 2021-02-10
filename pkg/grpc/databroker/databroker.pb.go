@@ -32,71 +32,23 @@ const (
 // of the legacy proto package is being used.
 const _ = proto.ProtoPackageIsVersion4
 
-type ServerVersion struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Version string `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
-}
-
-func (x *ServerVersion) Reset() {
-	*x = ServerVersion{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[0]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ServerVersion) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ServerVersion) ProtoMessage() {}
-
-func (x *ServerVersion) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[0]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ServerVersion.ProtoReflect.Descriptor instead.
-func (*ServerVersion) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *ServerVersion) GetVersion() string {
-	if x != nil {
-		return x.Version
-	}
-	return ""
-}
-
 type Record struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Version    string                 `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	Version    uint64                 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
 	Type       string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
 	Id         string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
 	Data       *anypb.Any             `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
-	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	ModifiedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
-	DeletedAt  *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
+	ModifiedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	DeletedAt  *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
 }
 
 func (x *Record) Reset() {
 	*x = Record{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[1]
+		mi := &file_databroker_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -109,7 +61,7 @@ func (x *Record) String() string {
 func (*Record) ProtoMessage() {}
 
 func (x *Record) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[1]
+	mi := &file_databroker_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -122,14 +74,14 @@ func (x *Record) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Record.ProtoReflect.Descriptor instead.
 func (*Record) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{1}
+	return file_databroker_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Record) GetVersion() string {
+func (x *Record) GetVersion() uint64 {
 	if x != nil {
 		return x.Version
 	}
-	return ""
+	return 0
 }
 
 func (x *Record) GetType() string {
@@ -153,13 +105,6 @@ func (x *Record) GetData() *anypb.Any {
 	return nil
 }
 
-func (x *Record) GetCreatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return nil
-}
-
 func (x *Record) GetModifiedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ModifiedAt
@@ -174,61 +119,6 @@ func (x *Record) GetDeletedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-type DeleteRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
-	Id   string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
-}
-
-func (x *DeleteRequest) Reset() {
-	*x = DeleteRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[2]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DeleteRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeleteRequest) ProtoMessage() {}
-
-func (x *DeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[2]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeleteRequest.ProtoReflect.Descriptor instead.
-func (*DeleteRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *DeleteRequest) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *DeleteRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
 type GetRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -241,7 +131,7 @@ type GetRequest struct {
 func (x *GetRequest) Reset() {
 	*x = GetRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[3]
+		mi := &file_databroker_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -254,7 +144,7 @@ func (x *GetRequest) String() string {
 func (*GetRequest) ProtoMessage() {}
 
 func (x *GetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[3]
+	mi := &file_databroker_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -267,7 +157,7 @@ func (x *GetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRequest.ProtoReflect.Descriptor instead.
 func (*GetRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{3}
+	return file_databroker_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetRequest) GetType() string {
@@ -295,7 +185,7 @@ type GetResponse struct {
 func (x *GetResponse) Reset() {
 	*x = GetResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[4]
+		mi := &file_databroker_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -308,7 +198,7 @@ func (x *GetResponse) String() string {
 func (*GetResponse) ProtoMessage() {}
 
 func (x *GetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[4]
+	mi := &file_databroker_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -321,7 +211,7 @@ func (x *GetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResponse.ProtoReflect.Descriptor instead.
 func (*GetResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{4}
+	return file_databroker_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetResponse) GetRecord() *Record {
@@ -329,132 +219,6 @@ func (x *GetResponse) GetRecord() *Record {
 		return x.Record
 	}
 	return nil
-}
-
-type GetAllRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Type      string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
-	PageToken string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-}
-
-func (x *GetAllRequest) Reset() {
-	*x = GetAllRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[5]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GetAllRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetAllRequest) ProtoMessage() {}
-
-func (x *GetAllRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[5]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetAllRequest.ProtoReflect.Descriptor instead.
-func (*GetAllRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *GetAllRequest) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *GetAllRequest) GetPageToken() string {
-	if x != nil {
-		return x.PageToken
-	}
-	return ""
-}
-
-type GetAllResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Records       []*Record `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
-	ServerVersion string    `protobuf:"bytes,2,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
-	RecordVersion string    `protobuf:"bytes,3,opt,name=record_version,json=recordVersion,proto3" json:"record_version,omitempty"`
-	NextPageToken string    `protobuf:"bytes,4,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-}
-
-func (x *GetAllResponse) Reset() {
-	*x = GetAllResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[6]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GetAllResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetAllResponse) ProtoMessage() {}
-
-func (x *GetAllResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[6]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetAllResponse.ProtoReflect.Descriptor instead.
-func (*GetAllResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *GetAllResponse) GetRecords() []*Record {
-	if x != nil {
-		return x.Records
-	}
-	return nil
-}
-
-func (x *GetAllResponse) GetServerVersion() string {
-	if x != nil {
-		return x.ServerVersion
-	}
-	return ""
-}
-
-func (x *GetAllResponse) GetRecordVersion() string {
-	if x != nil {
-		return x.RecordVersion
-	}
-	return ""
-}
-
-func (x *GetAllResponse) GetNextPageToken() string {
-	if x != nil {
-		return x.NextPageToken
-	}
-	return ""
 }
 
 type QueryRequest struct {
@@ -471,7 +235,7 @@ type QueryRequest struct {
 func (x *QueryRequest) Reset() {
 	*x = QueryRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[7]
+		mi := &file_databroker_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -484,7 +248,7 @@ func (x *QueryRequest) String() string {
 func (*QueryRequest) ProtoMessage() {}
 
 func (x *QueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[7]
+	mi := &file_databroker_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -497,7 +261,7 @@ func (x *QueryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryRequest.ProtoReflect.Descriptor instead.
 func (*QueryRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{7}
+	return file_databroker_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *QueryRequest) GetType() string {
@@ -540,7 +304,7 @@ type QueryResponse struct {
 func (x *QueryResponse) Reset() {
 	*x = QueryResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[8]
+		mi := &file_databroker_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -553,7 +317,7 @@ func (x *QueryResponse) String() string {
 func (*QueryResponse) ProtoMessage() {}
 
 func (x *QueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[8]
+	mi := &file_databroker_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -566,7 +330,7 @@ func (x *QueryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryResponse.ProtoReflect.Descriptor instead.
 func (*QueryResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{8}
+	return file_databroker_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *QueryResponse) GetRecords() []*Record {
@@ -583,33 +347,31 @@ func (x *QueryResponse) GetTotalCount() int64 {
 	return 0
 }
 
-type SetRequest struct {
+type PutRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Type string     `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
-	Id   string     `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
-	Data *anypb.Any `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	Record *Record `protobuf:"bytes,1,opt,name=record,proto3" json:"record,omitempty"`
 }
 
-func (x *SetRequest) Reset() {
-	*x = SetRequest{}
+func (x *PutRequest) Reset() {
+	*x = PutRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[9]
+		mi := &file_databroker_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
 }
 
-func (x *SetRequest) String() string {
+func (x *PutRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetRequest) ProtoMessage() {}
+func (*PutRequest) ProtoMessage() {}
 
-func (x *SetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[9]
+func (x *PutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_databroker_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -620,85 +382,71 @@ func (x *SetRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetRequest.ProtoReflect.Descriptor instead.
-func (*SetRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{9}
+// Deprecated: Use PutRequest.ProtoReflect.Descriptor instead.
+func (*PutRequest) Descriptor() ([]byte, []int) {
+	return file_databroker_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *SetRequest) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *SetRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *SetRequest) GetData() *anypb.Any {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
-type SetResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Record        *Record `protobuf:"bytes,1,opt,name=record,proto3" json:"record,omitempty"`
-	ServerVersion string  `protobuf:"bytes,2,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
-}
-
-func (x *SetResponse) Reset() {
-	*x = SetResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[10]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *SetResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetResponse) ProtoMessage() {}
-
-func (x *SetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[10]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetResponse.ProtoReflect.Descriptor instead.
-func (*SetResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *SetResponse) GetRecord() *Record {
+func (x *PutRequest) GetRecord() *Record {
 	if x != nil {
 		return x.Record
 	}
 	return nil
 }
 
-func (x *SetResponse) GetServerVersion() string {
+type PutResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ServerVersion uint64  `protobuf:"varint,1,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
+	Record        *Record `protobuf:"bytes,2,opt,name=record,proto3" json:"record,omitempty"`
+}
+
+func (x *PutResponse) Reset() {
+	*x = PutResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_databroker_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PutResponse) ProtoMessage() {}
+
+func (x *PutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_databroker_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PutResponse.ProtoReflect.Descriptor instead.
+func (*PutResponse) Descriptor() ([]byte, []int) {
+	return file_databroker_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PutResponse) GetServerVersion() uint64 {
 	if x != nil {
 		return x.ServerVersion
 	}
-	return ""
+	return 0
+}
+
+func (x *PutResponse) GetRecord() *Record {
+	if x != nil {
+		return x.Record
+	}
+	return nil
 }
 
 type SyncRequest struct {
@@ -706,16 +454,14 @@ type SyncRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ServerVersion string `protobuf:"bytes,1,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
-	RecordVersion string `protobuf:"bytes,2,opt,name=record_version,json=recordVersion,proto3" json:"record_version,omitempty"`
-	Type          string `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	NoWait        bool   `protobuf:"varint,4,opt,name=no_wait,json=noWait,proto3" json:"no_wait,omitempty"`
+	ServerVersion uint64 `protobuf:"varint,1,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
+	RecordVersion uint64 `protobuf:"varint,2,opt,name=record_version,json=recordVersion,proto3" json:"record_version,omitempty"`
 }
 
 func (x *SyncRequest) Reset() {
 	*x = SyncRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[11]
+		mi := &file_databroker_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -728,7 +474,7 @@ func (x *SyncRequest) String() string {
 func (*SyncRequest) ProtoMessage() {}
 
 func (x *SyncRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[11]
+	mi := &file_databroker_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -741,35 +487,21 @@ func (x *SyncRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncRequest.ProtoReflect.Descriptor instead.
 func (*SyncRequest) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{11}
+	return file_databroker_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *SyncRequest) GetServerVersion() string {
+func (x *SyncRequest) GetServerVersion() uint64 {
 	if x != nil {
 		return x.ServerVersion
 	}
-	return ""
+	return 0
 }
 
-func (x *SyncRequest) GetRecordVersion() string {
+func (x *SyncRequest) GetRecordVersion() uint64 {
 	if x != nil {
 		return x.RecordVersion
 	}
-	return ""
-}
-
-func (x *SyncRequest) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *SyncRequest) GetNoWait() bool {
-	if x != nil {
-		return x.NoWait
-	}
-	return false
+	return 0
 }
 
 type SyncResponse struct {
@@ -777,14 +509,14 @@ type SyncResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ServerVersion string    `protobuf:"bytes,1,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
-	Records       []*Record `protobuf:"bytes,2,rep,name=records,proto3" json:"records,omitempty"`
+	ServerVersion uint64  `protobuf:"varint,1,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
+	Record        *Record `protobuf:"bytes,2,opt,name=record,proto3" json:"record,omitempty"`
 }
 
 func (x *SyncResponse) Reset() {
 	*x = SyncResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[12]
+		mi := &file_databroker_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -797,7 +529,7 @@ func (x *SyncResponse) String() string {
 func (*SyncResponse) ProtoMessage() {}
 
 func (x *SyncResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[12]
+	mi := &file_databroker_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -810,48 +542,46 @@ func (x *SyncResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncResponse.ProtoReflect.Descriptor instead.
 func (*SyncResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{12}
+	return file_databroker_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *SyncResponse) GetServerVersion() string {
+func (x *SyncResponse) GetServerVersion() uint64 {
 	if x != nil {
 		return x.ServerVersion
 	}
-	return ""
+	return 0
 }
 
-func (x *SyncResponse) GetRecords() []*Record {
+func (x *SyncResponse) GetRecord() *Record {
 	if x != nil {
-		return x.Records
+		return x.Record
 	}
 	return nil
 }
 
-type GetTypesResponse struct {
+type SyncLatestRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
-
-	Types []string `protobuf:"bytes,1,rep,name=types,proto3" json:"types,omitempty"`
 }
 
-func (x *GetTypesResponse) Reset() {
-	*x = GetTypesResponse{}
+func (x *SyncLatestRequest) Reset() {
+	*x = SyncLatestRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_databroker_proto_msgTypes[13]
+		mi := &file_databroker_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
 }
 
-func (x *GetTypesResponse) String() string {
+func (x *SyncLatestRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetTypesResponse) ProtoMessage() {}
+func (*SyncLatestRequest) ProtoMessage() {}
 
-func (x *GetTypesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_databroker_proto_msgTypes[13]
+func (x *SyncLatestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_databroker_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -862,16 +592,9 @@ func (x *GetTypesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetTypesResponse.ProtoReflect.Descriptor instead.
-func (*GetTypesResponse) Descriptor() ([]byte, []int) {
-	return file_databroker_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *GetTypesResponse) GetTypes() []string {
-	if x != nil {
-		return x.Types
-	}
-	return nil
+// Deprecated: Use SyncLatestRequest.ProtoReflect.Descriptor instead.
+func (*SyncLatestRequest) Descriptor() ([]byte, []int) {
+	return file_databroker_proto_rawDescGZIP(), []int{9}
 }
 
 var File_databroker_proto protoreflect.FileDescriptor
@@ -884,128 +607,84 @@ var file_databroker_proto_rawDesc = []byte{
 	0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x65, 0x6d, 0x70, 0x74, 0x79,
 	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x1f, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70,
 	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d,
-	0x70, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x29, 0x0a, 0x0d, 0x53, 0x65, 0x72, 0x76, 0x65,
-	0x72, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73,
-	0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69,
-	0x6f, 0x6e, 0x22, 0xa3, 0x02, 0x0a, 0x06, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x12, 0x18, 0x0a,
-	0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07,
-	0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18,
-	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x69,
-	0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x28, 0x0a, 0x04, 0x64,
-	0x61, 0x74, 0x61, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x67, 0x6f, 0x6f, 0x67,
-	0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x41, 0x6e, 0x79, 0x52,
-	0x04, 0x64, 0x61, 0x74, 0x61, 0x12, 0x39, 0x0a, 0x0a, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64,
-	0x5f, 0x61, 0x74, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67,
-	0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65,
-	0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x09, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64, 0x41, 0x74,
-	0x12, 0x3b, 0x0a, 0x0b, 0x6d, 0x6f, 0x64, 0x69, 0x66, 0x69, 0x65, 0x64, 0x5f, 0x61, 0x74, 0x18,
-	0x06, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d,
-	0x70, 0x52, 0x0a, 0x6d, 0x6f, 0x64, 0x69, 0x66, 0x69, 0x65, 0x64, 0x41, 0x74, 0x12, 0x39, 0x0a,
-	0x0a, 0x64, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x64, 0x5f, 0x61, 0x74, 0x18, 0x07, 0x20, 0x01, 0x28,
-	0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x09, 0x64,
-	0x65, 0x6c, 0x65, 0x74, 0x65, 0x64, 0x41, 0x74, 0x22, 0x33, 0x0a, 0x0d, 0x44, 0x65, 0x6c, 0x65,
-	0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70,
-	0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x0e, 0x0a,
-	0x02, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0x30, 0x0a,
-	0x0a, 0x47, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x74,
-	0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12,
-	0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22,
-	0x39, 0x0a, 0x0b, 0x47, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2a,
-	0x0a, 0x06, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12,
-	0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x52, 0x65, 0x63, 0x6f,
-	0x72, 0x64, 0x52, 0x06, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x22, 0x42, 0x0a, 0x0d, 0x47, 0x65,
-	0x74, 0x41, 0x6c, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x74,
-	0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12,
-	0x1d, 0x0a, 0x0a, 0x70, 0x61, 0x67, 0x65, 0x5f, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x18, 0x02, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x09, 0x70, 0x61, 0x67, 0x65, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x22, 0xb4,
-	0x01, 0x0a, 0x0e, 0x47, 0x65, 0x74, 0x41, 0x6c, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x12, 0x2c, 0x0a, 0x07, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x73, 0x18, 0x01, 0x20, 0x03,
-	0x28, 0x0b, 0x32, 0x12, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e,
-	0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x07, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x73, 0x12,
-	0x25, 0x0a, 0x0e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f,
-	0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x56,
-	0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x25, 0x0a, 0x0e, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64,
-	0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d,
-	0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x26, 0x0a,
-	0x0f, 0x6e, 0x65, 0x78, 0x74, 0x5f, 0x70, 0x61, 0x67, 0x65, 0x5f, 0x74, 0x6f, 0x6b, 0x65, 0x6e,
-	0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x6e, 0x65, 0x78, 0x74, 0x50, 0x61, 0x67, 0x65,
-	0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x22, 0x66, 0x0a, 0x0c, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x71, 0x75, 0x65,
-	0x72, 0x79, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x71, 0x75, 0x65, 0x72, 0x79, 0x12,
-	0x16, 0x0a, 0x06, 0x6f, 0x66, 0x66, 0x73, 0x65, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x03, 0x52,
-	0x06, 0x6f, 0x66, 0x66, 0x73, 0x65, 0x74, 0x12, 0x14, 0x0a, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74,
-	0x18, 0x04, 0x20, 0x01, 0x28, 0x03, 0x52, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x22, 0x5e, 0x0a,
-	0x0d, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2c,
-	0x0a, 0x07, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32,
-	0x12, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x52, 0x65, 0x63,
-	0x6f, 0x72, 0x64, 0x52, 0x07, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x73, 0x12, 0x1f, 0x0a, 0x0b,
-	0x74, 0x6f, 0x74, 0x61, 0x6c, 0x5f, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28,
-	0x03, 0x52, 0x0a, 0x74, 0x6f, 0x74, 0x61, 0x6c, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x22, 0x5a, 0x0a,
-	0x0a, 0x53, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x74,
-	0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12,
-	0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12,
-	0x28, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e,
-	0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e,
-	0x41, 0x6e, 0x79, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x22, 0x60, 0x0a, 0x0b, 0x53, 0x65, 0x74,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2a, 0x0a, 0x06, 0x72, 0x65, 0x63, 0x6f,
-	0x72, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62,
-	0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x06, 0x72, 0x65,
-	0x63, 0x6f, 0x72, 0x64, 0x12, 0x25, 0x0a, 0x0e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x76,
-	0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x73, 0x65,
-	0x72, 0x76, 0x65, 0x72, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x88, 0x01, 0x0a, 0x0b,
-	0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x25, 0x0a, 0x0e, 0x73,
-	0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x0d, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x56, 0x65, 0x72, 0x73, 0x69,
-	0x6f, 0x6e, 0x12, 0x25, 0x0a, 0x0e, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x5f, 0x76, 0x65, 0x72,
-	0x73, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x72, 0x65, 0x63, 0x6f,
-	0x72, 0x64, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70,
-	0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x17, 0x0a,
-	0x07, 0x6e, 0x6f, 0x5f, 0x77, 0x61, 0x69, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06,
-	0x6e, 0x6f, 0x57, 0x61, 0x69, 0x74, 0x22, 0x63, 0x0a, 0x0c, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x25, 0x0a, 0x0e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72,
-	0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d,
-	0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x2c, 0x0a,
-	0x07, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x12,
-	0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x52, 0x65, 0x63, 0x6f,
-	0x72, 0x64, 0x52, 0x07, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x73, 0x22, 0x28, 0x0a, 0x10, 0x47,
-	0x65, 0x74, 0x54, 0x79, 0x70, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
-	0x14, 0x0a, 0x05, 0x74, 0x79, 0x70, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x05,
-	0x74, 0x79, 0x70, 0x65, 0x73, 0x32, 0x83, 0x04, 0x0a, 0x11, 0x44, 0x61, 0x74, 0x61, 0x42, 0x72,
-	0x6f, 0x6b, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x3b, 0x0a, 0x06, 0x44,
-	0x65, 0x6c, 0x65, 0x74, 0x65, 0x12, 0x19, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b,
-	0x65, 0x72, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
-	0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x12, 0x36, 0x0a, 0x03, 0x47, 0x65, 0x74, 0x12,
-	0x16, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x74,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x17, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72,
-	0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x12, 0x3f, 0x0a, 0x06, 0x47, 0x65, 0x74, 0x41, 0x6c, 0x6c, 0x12, 0x19, 0x2e, 0x64, 0x61, 0x74,
-	0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x74, 0x41, 0x6c, 0x6c, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b,
-	0x65, 0x72, 0x2e, 0x47, 0x65, 0x74, 0x41, 0x6c, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x12, 0x3c, 0x0a, 0x05, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x18, 0x2e, 0x64, 0x61, 0x74,
-	0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65,
-	0x72, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
-	0x36, 0x0a, 0x03, 0x53, 0x65, 0x74, 0x12, 0x16, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f,
-	0x6b, 0x65, 0x72, 0x2e, 0x53, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x17,
-	0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x53, 0x65, 0x74, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x3b, 0x0a, 0x04, 0x53, 0x79, 0x6e, 0x63, 0x12,
-	0x17, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x53, 0x79, 0x6e,
-	0x63, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62,
-	0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
-	0x73, 0x65, 0x30, 0x01, 0x12, 0x40, 0x0a, 0x08, 0x47, 0x65, 0x74, 0x54, 0x79, 0x70, 0x65, 0x73,
-	0x12, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
-	0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x1c, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62,
-	0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x79, 0x70, 0x65, 0x73, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x43, 0x0a, 0x09, 0x53, 0x79, 0x6e, 0x63, 0x54, 0x79,
-	0x70, 0x65, 0x73, 0x12, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x1c, 0x2e, 0x64, 0x61,
-	0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x74, 0x54, 0x79, 0x70, 0x65,
-	0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x30, 0x01, 0x42, 0x32, 0x5a, 0x30, 0x67,
+	0x70, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0xe8, 0x01, 0x0a, 0x06, 0x52, 0x65, 0x63, 0x6f,
+	0x72, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x04, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x12, 0x0a, 0x04,
+	0x74, 0x79, 0x70, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65,
+	0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64,
+	0x12, 0x28, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x14,
+	0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66,
+	0x2e, 0x41, 0x6e, 0x79, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x12, 0x3b, 0x0a, 0x0b, 0x6d, 0x6f,
+	0x64, 0x69, 0x66, 0x69, 0x65, 0x64, 0x5f, 0x61, 0x74, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
+	0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x0a, 0x6d, 0x6f, 0x64,
+	0x69, 0x66, 0x69, 0x65, 0x64, 0x41, 0x74, 0x12, 0x39, 0x0a, 0x0a, 0x64, 0x65, 0x6c, 0x65, 0x74,
+	0x65, 0x64, 0x5f, 0x61, 0x74, 0x18, 0x06, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f,
+	0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69,
+	0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x09, 0x64, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x64,
+	0x41, 0x74, 0x22, 0x30, 0x0a, 0x0a, 0x47, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04,
+	0x74, 0x79, 0x70, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x02, 0x69, 0x64, 0x22, 0x39, 0x0a, 0x0b, 0x47, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x2a, 0x0a, 0x06, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72,
+	0x2e, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x06, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x22,
+	0x66, 0x0a, 0x0c, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
+	0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74,
+	0x79, 0x70, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x71, 0x75, 0x65, 0x72, 0x79, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x05, 0x71, 0x75, 0x65, 0x72, 0x79, 0x12, 0x16, 0x0a, 0x06, 0x6f, 0x66, 0x66,
+	0x73, 0x65, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x03, 0x52, 0x06, 0x6f, 0x66, 0x66, 0x73, 0x65,
+	0x74, 0x12, 0x14, 0x0a, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x03,
+	0x52, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x22, 0x5e, 0x0a, 0x0d, 0x51, 0x75, 0x65, 0x72, 0x79,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2c, 0x0a, 0x07, 0x72, 0x65, 0x63, 0x6f,
+	0x72, 0x64, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x64, 0x61, 0x74, 0x61,
+	0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x07, 0x72,
+	0x65, 0x63, 0x6f, 0x72, 0x64, 0x73, 0x12, 0x1f, 0x0a, 0x0b, 0x74, 0x6f, 0x74, 0x61, 0x6c, 0x5f,
+	0x63, 0x6f, 0x75, 0x6e, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0a, 0x74, 0x6f, 0x74,
+	0x61, 0x6c, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x22, 0x38, 0x0a, 0x0a, 0x50, 0x75, 0x74, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x2a, 0x0a, 0x06, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b,
+	0x65, 0x72, 0x2e, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x06, 0x72, 0x65, 0x63, 0x6f, 0x72,
+	0x64, 0x22, 0x60, 0x0a, 0x0b, 0x50, 0x75, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x12, 0x25, 0x0a, 0x0e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69,
+	0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0d, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72,
+	0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x2a, 0x0a, 0x06, 0x72, 0x65, 0x63, 0x6f, 0x72,
+	0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72,
+	0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x06, 0x72, 0x65, 0x63,
+	0x6f, 0x72, 0x64, 0x22, 0x5b, 0x0a, 0x0b, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x12, 0x25, 0x0a, 0x0e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x76, 0x65, 0x72,
+	0x73, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0d, 0x73, 0x65, 0x72, 0x76,
+	0x65, 0x72, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x25, 0x0a, 0x0e, 0x72, 0x65, 0x63,
+	0x6f, 0x72, 0x64, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x04, 0x52, 0x0d, 0x72, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e,
+	0x22, 0x61, 0x0a, 0x0c, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x12, 0x25, 0x0a, 0x0e, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69,
+	0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0d, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72,
+	0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x2a, 0x0a, 0x06, 0x72, 0x65, 0x63, 0x6f, 0x72,
+	0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72,
+	0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x06, 0x72, 0x65, 0x63,
+	0x6f, 0x72, 0x64, 0x22, 0x13, 0x0a, 0x11, 0x53, 0x79, 0x6e, 0x63, 0x4c, 0x61, 0x74, 0x65, 0x73,
+	0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x32, 0xc0, 0x02, 0x0a, 0x11, 0x44, 0x61, 0x74,
+	0x61, 0x42, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x36,
+	0x0a, 0x03, 0x47, 0x65, 0x74, 0x12, 0x16, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b,
+	0x65, 0x72, 0x2e, 0x47, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x17, 0x2e,
+	0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x47, 0x65, 0x74, 0x52, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x36, 0x0a, 0x03, 0x50, 0x75, 0x74, 0x12, 0x16, 0x2e,
+	0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x50, 0x75, 0x74, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x17, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b,
+	0x65, 0x72, 0x2e, 0x50, 0x75, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x3c,
+	0x0a, 0x05, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x18, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72,
+	0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x19, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x51,
+	0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x3b, 0x0a, 0x04,
+	0x53, 0x79, 0x6e, 0x63, 0x12, 0x17, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65,
+	0x72, 0x2e, 0x53, 0x79, 0x6e, 0x63, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e,
+	0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x53, 0x79, 0x6e, 0x63, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x30, 0x01, 0x12, 0x40, 0x0a, 0x0a, 0x53, 0x79, 0x6e,
+	0x63, 0x4c, 0x61, 0x74, 0x65, 0x73, 0x74, 0x12, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a,
+	0x18, 0x2e, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x2e, 0x53, 0x79, 0x6e,
+	0x63, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x30, 0x01, 0x42, 0x32, 0x5a, 0x30, 0x67,
 	0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69,
 	0x75, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6b, 0x67, 0x2f,
 	0x67, 0x72, 0x70, 0x63, 0x2f, 0x64, 0x61, 0x74, 0x61, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x72, 0x62,
@@ -1024,58 +703,46 @@ func file_databroker_proto_rawDescGZIP() []byte {
 	return file_databroker_proto_rawDescData
 }
 
-var file_databroker_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_databroker_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_databroker_proto_goTypes = []interface{}{
-	(*ServerVersion)(nil),         // 0: databroker.ServerVersion
-	(*Record)(nil),                // 1: databroker.Record
-	(*DeleteRequest)(nil),         // 2: databroker.DeleteRequest
-	(*GetRequest)(nil),            // 3: databroker.GetRequest
-	(*GetResponse)(nil),           // 4: databroker.GetResponse
-	(*GetAllRequest)(nil),         // 5: databroker.GetAllRequest
-	(*GetAllResponse)(nil),        // 6: databroker.GetAllResponse
-	(*QueryRequest)(nil),          // 7: databroker.QueryRequest
-	(*QueryResponse)(nil),         // 8: databroker.QueryResponse
-	(*SetRequest)(nil),            // 9: databroker.SetRequest
-	(*SetResponse)(nil),           // 10: databroker.SetResponse
-	(*SyncRequest)(nil),           // 11: databroker.SyncRequest
-	(*SyncResponse)(nil),          // 12: databroker.SyncResponse
-	(*GetTypesResponse)(nil),      // 13: databroker.GetTypesResponse
-	(*anypb.Any)(nil),             // 14: google.protobuf.Any
-	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),         // 16: google.protobuf.Empty
+	(*Record)(nil),                // 0: databroker.Record
+	(*GetRequest)(nil),            // 1: databroker.GetRequest
+	(*GetResponse)(nil),           // 2: databroker.GetResponse
+	(*QueryRequest)(nil),          // 3: databroker.QueryRequest
+	(*QueryResponse)(nil),         // 4: databroker.QueryResponse
+	(*PutRequest)(nil),            // 5: databroker.PutRequest
+	(*PutResponse)(nil),           // 6: databroker.PutResponse
+	(*SyncRequest)(nil),           // 7: databroker.SyncRequest
+	(*SyncResponse)(nil),          // 8: databroker.SyncResponse
+	(*SyncLatestRequest)(nil),     // 9: databroker.SyncLatestRequest
+	(*anypb.Any)(nil),             // 10: google.protobuf.Any
+	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),         // 12: google.protobuf.Empty
 }
 var file_databroker_proto_depIdxs = []int32{
-	14, // 0: databroker.Record.data:type_name -> google.protobuf.Any
-	15, // 1: databroker.Record.created_at:type_name -> google.protobuf.Timestamp
-	15, // 2: databroker.Record.modified_at:type_name -> google.protobuf.Timestamp
-	15, // 3: databroker.Record.deleted_at:type_name -> google.protobuf.Timestamp
-	1,  // 4: databroker.GetResponse.record:type_name -> databroker.Record
-	1,  // 5: databroker.GetAllResponse.records:type_name -> databroker.Record
-	1,  // 6: databroker.QueryResponse.records:type_name -> databroker.Record
-	14, // 7: databroker.SetRequest.data:type_name -> google.protobuf.Any
-	1,  // 8: databroker.SetResponse.record:type_name -> databroker.Record
-	1,  // 9: databroker.SyncResponse.records:type_name -> databroker.Record
-	2,  // 10: databroker.DataBrokerService.Delete:input_type -> databroker.DeleteRequest
-	3,  // 11: databroker.DataBrokerService.Get:input_type -> databroker.GetRequest
-	5,  // 12: databroker.DataBrokerService.GetAll:input_type -> databroker.GetAllRequest
-	7,  // 13: databroker.DataBrokerService.Query:input_type -> databroker.QueryRequest
-	9,  // 14: databroker.DataBrokerService.Set:input_type -> databroker.SetRequest
-	11, // 15: databroker.DataBrokerService.Sync:input_type -> databroker.SyncRequest
-	16, // 16: databroker.DataBrokerService.GetTypes:input_type -> google.protobuf.Empty
-	16, // 17: databroker.DataBrokerService.SyncTypes:input_type -> google.protobuf.Empty
-	16, // 18: databroker.DataBrokerService.Delete:output_type -> google.protobuf.Empty
-	4,  // 19: databroker.DataBrokerService.Get:output_type -> databroker.GetResponse
-	6,  // 20: databroker.DataBrokerService.GetAll:output_type -> databroker.GetAllResponse
-	8,  // 21: databroker.DataBrokerService.Query:output_type -> databroker.QueryResponse
-	10, // 22: databroker.DataBrokerService.Set:output_type -> databroker.SetResponse
-	12, // 23: databroker.DataBrokerService.Sync:output_type -> databroker.SyncResponse
-	13, // 24: databroker.DataBrokerService.GetTypes:output_type -> databroker.GetTypesResponse
-	13, // 25: databroker.DataBrokerService.SyncTypes:output_type -> databroker.GetTypesResponse
-	18, // [18:26] is the sub-list for method output_type
-	10, // [10:18] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	10, // 0: databroker.Record.data:type_name -> google.protobuf.Any
+	11, // 1: databroker.Record.modified_at:type_name -> google.protobuf.Timestamp
+	11, // 2: databroker.Record.deleted_at:type_name -> google.protobuf.Timestamp
+	0,  // 3: databroker.GetResponse.record:type_name -> databroker.Record
+	0,  // 4: databroker.QueryResponse.records:type_name -> databroker.Record
+	0,  // 5: databroker.PutRequest.record:type_name -> databroker.Record
+	0,  // 6: databroker.PutResponse.record:type_name -> databroker.Record
+	0,  // 7: databroker.SyncResponse.record:type_name -> databroker.Record
+	1,  // 8: databroker.DataBrokerService.Get:input_type -> databroker.GetRequest
+	5,  // 9: databroker.DataBrokerService.Put:input_type -> databroker.PutRequest
+	3,  // 10: databroker.DataBrokerService.Query:input_type -> databroker.QueryRequest
+	7,  // 11: databroker.DataBrokerService.Sync:input_type -> databroker.SyncRequest
+	12, // 12: databroker.DataBrokerService.SyncLatest:input_type -> google.protobuf.Empty
+	2,  // 13: databroker.DataBrokerService.Get:output_type -> databroker.GetResponse
+	6,  // 14: databroker.DataBrokerService.Put:output_type -> databroker.PutResponse
+	4,  // 15: databroker.DataBrokerService.Query:output_type -> databroker.QueryResponse
+	8,  // 16: databroker.DataBrokerService.Sync:output_type -> databroker.SyncResponse
+	8,  // 17: databroker.DataBrokerService.SyncLatest:output_type -> databroker.SyncResponse
+	13, // [13:18] is the sub-list for method output_type
+	8,  // [8:13] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_databroker_proto_init() }
@@ -1085,18 +752,6 @@ func file_databroker_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_databroker_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ServerVersion); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_databroker_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Record); i {
 			case 0:
 				return &v.state
@@ -1108,19 +763,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DeleteRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_databroker_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetRequest); i {
 			case 0:
 				return &v.state
@@ -1132,7 +775,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetResponse); i {
 			case 0:
 				return &v.state
@@ -1144,31 +787,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetAllRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_databroker_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetAllResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_databroker_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*QueryRequest); i {
 			case 0:
 				return &v.state
@@ -1180,7 +799,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*QueryResponse); i {
 			case 0:
 				return &v.state
@@ -1192,8 +811,8 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetRequest); i {
+		file_databroker_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PutRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1204,8 +823,8 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetResponse); i {
+		file_databroker_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PutResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1216,7 +835,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*SyncRequest); i {
 			case 0:
 				return &v.state
@@ -1228,7 +847,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*SyncResponse); i {
 			case 0:
 				return &v.state
@@ -1240,8 +859,8 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetTypesResponse); i {
+		file_databroker_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SyncLatestRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1259,7 +878,7 @@ func file_databroker_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_databroker_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
@@ -1285,14 +904,11 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type DataBrokerServiceClient interface {
-	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
-	GetAll(ctx context.Context, in *GetAllRequest, opts ...grpc.CallOption) (*GetAllResponse, error)
+	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
 	Query(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*QueryResponse, error)
-	Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*SetResponse, error)
 	Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (DataBrokerService_SyncClient, error)
-	GetTypes(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetTypesResponse, error)
-	SyncTypes(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (DataBrokerService_SyncTypesClient, error)
+	SyncLatest(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (DataBrokerService_SyncLatestClient, error)
 }
 
 type dataBrokerServiceClient struct {
@@ -1301,15 +917,6 @@ type dataBrokerServiceClient struct {
 
 func NewDataBrokerServiceClient(cc grpc.ClientConnInterface) DataBrokerServiceClient {
 	return &dataBrokerServiceClient{cc}
-}
-
-func (c *dataBrokerServiceClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/databroker.DataBrokerService/Delete", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *dataBrokerServiceClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
@@ -1321,9 +928,9 @@ func (c *dataBrokerServiceClient) Get(ctx context.Context, in *GetRequest, opts 
 	return out, nil
 }
 
-func (c *dataBrokerServiceClient) GetAll(ctx context.Context, in *GetAllRequest, opts ...grpc.CallOption) (*GetAllResponse, error) {
-	out := new(GetAllResponse)
-	err := c.cc.Invoke(ctx, "/databroker.DataBrokerService/GetAll", in, out, opts...)
+func (c *dataBrokerServiceClient) Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error) {
+	out := new(PutResponse)
+	err := c.cc.Invoke(ctx, "/databroker.DataBrokerService/Put", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1333,15 +940,6 @@ func (c *dataBrokerServiceClient) GetAll(ctx context.Context, in *GetAllRequest,
 func (c *dataBrokerServiceClient) Query(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*QueryResponse, error) {
 	out := new(QueryResponse)
 	err := c.cc.Invoke(ctx, "/databroker.DataBrokerService/Query", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *dataBrokerServiceClient) Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*SetResponse, error) {
-	out := new(SetResponse)
-	err := c.cc.Invoke(ctx, "/databroker.DataBrokerService/Set", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1380,21 +978,12 @@ func (x *dataBrokerServiceSyncClient) Recv() (*SyncResponse, error) {
 	return m, nil
 }
 
-func (c *dataBrokerServiceClient) GetTypes(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetTypesResponse, error) {
-	out := new(GetTypesResponse)
-	err := c.cc.Invoke(ctx, "/databroker.DataBrokerService/GetTypes", in, out, opts...)
+func (c *dataBrokerServiceClient) SyncLatest(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (DataBrokerService_SyncLatestClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_DataBrokerService_serviceDesc.Streams[1], "/databroker.DataBrokerService/SyncLatest", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
-}
-
-func (c *dataBrokerServiceClient) SyncTypes(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (DataBrokerService_SyncTypesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_DataBrokerService_serviceDesc.Streams[1], "/databroker.DataBrokerService/SyncTypes", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &dataBrokerServiceSyncTypesClient{stream}
+	x := &dataBrokerServiceSyncLatestClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -1404,17 +993,17 @@ func (c *dataBrokerServiceClient) SyncTypes(ctx context.Context, in *emptypb.Emp
 	return x, nil
 }
 
-type DataBrokerService_SyncTypesClient interface {
-	Recv() (*GetTypesResponse, error)
+type DataBrokerService_SyncLatestClient interface {
+	Recv() (*SyncResponse, error)
 	grpc.ClientStream
 }
 
-type dataBrokerServiceSyncTypesClient struct {
+type dataBrokerServiceSyncLatestClient struct {
 	grpc.ClientStream
 }
 
-func (x *dataBrokerServiceSyncTypesClient) Recv() (*GetTypesResponse, error) {
-	m := new(GetTypesResponse)
+func (x *dataBrokerServiceSyncLatestClient) Recv() (*SyncResponse, error) {
+	m := new(SyncResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -1423,65 +1012,35 @@ func (x *dataBrokerServiceSyncTypesClient) Recv() (*GetTypesResponse, error) {
 
 // DataBrokerServiceServer is the server API for DataBrokerService service.
 type DataBrokerServiceServer interface {
-	Delete(context.Context, *DeleteRequest) (*emptypb.Empty, error)
 	Get(context.Context, *GetRequest) (*GetResponse, error)
-	GetAll(context.Context, *GetAllRequest) (*GetAllResponse, error)
+	Put(context.Context, *PutRequest) (*PutResponse, error)
 	Query(context.Context, *QueryRequest) (*QueryResponse, error)
-	Set(context.Context, *SetRequest) (*SetResponse, error)
 	Sync(*SyncRequest, DataBrokerService_SyncServer) error
-	GetTypes(context.Context, *emptypb.Empty) (*GetTypesResponse, error)
-	SyncTypes(*emptypb.Empty, DataBrokerService_SyncTypesServer) error
+	SyncLatest(*emptypb.Empty, DataBrokerService_SyncLatestServer) error
 }
 
 // UnimplementedDataBrokerServiceServer can be embedded to have forward compatible implementations.
 type UnimplementedDataBrokerServiceServer struct {
 }
 
-func (*UnimplementedDataBrokerServiceServer) Delete(context.Context, *DeleteRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
-}
 func (*UnimplementedDataBrokerServiceServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
-func (*UnimplementedDataBrokerServiceServer) GetAll(context.Context, *GetAllRequest) (*GetAllResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAll not implemented")
+func (*UnimplementedDataBrokerServiceServer) Put(context.Context, *PutRequest) (*PutResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Put not implemented")
 }
 func (*UnimplementedDataBrokerServiceServer) Query(context.Context, *QueryRequest) (*QueryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Query not implemented")
 }
-func (*UnimplementedDataBrokerServiceServer) Set(context.Context, *SetRequest) (*SetResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Set not implemented")
-}
 func (*UnimplementedDataBrokerServiceServer) Sync(*SyncRequest, DataBrokerService_SyncServer) error {
 	return status.Errorf(codes.Unimplemented, "method Sync not implemented")
 }
-func (*UnimplementedDataBrokerServiceServer) GetTypes(context.Context, *emptypb.Empty) (*GetTypesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTypes not implemented")
-}
-func (*UnimplementedDataBrokerServiceServer) SyncTypes(*emptypb.Empty, DataBrokerService_SyncTypesServer) error {
-	return status.Errorf(codes.Unimplemented, "method SyncTypes not implemented")
+func (*UnimplementedDataBrokerServiceServer) SyncLatest(*emptypb.Empty, DataBrokerService_SyncLatestServer) error {
+	return status.Errorf(codes.Unimplemented, "method SyncLatest not implemented")
 }
 
 func RegisterDataBrokerServiceServer(s *grpc.Server, srv DataBrokerServiceServer) {
 	s.RegisterService(&_DataBrokerService_serviceDesc, srv)
-}
-
-func _DataBrokerService_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DataBrokerServiceServer).Delete(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/databroker.DataBrokerService/Delete",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DataBrokerServiceServer).Delete(ctx, req.(*DeleteRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _DataBrokerService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -1502,20 +1061,20 @@ func _DataBrokerService_Get_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DataBrokerService_GetAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAllRequest)
+func _DataBrokerService_Put_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DataBrokerServiceServer).GetAll(ctx, in)
+		return srv.(DataBrokerServiceServer).Put(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/databroker.DataBrokerService/GetAll",
+		FullMethod: "/databroker.DataBrokerService/Put",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DataBrokerServiceServer).GetAll(ctx, req.(*GetAllRequest))
+		return srv.(DataBrokerServiceServer).Put(ctx, req.(*PutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1534,24 +1093,6 @@ func _DataBrokerService_Query_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataBrokerServiceServer).Query(ctx, req.(*QueryRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DataBrokerService_Set_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DataBrokerServiceServer).Set(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/databroker.DataBrokerService/Set",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DataBrokerServiceServer).Set(ctx, req.(*SetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1577,42 +1118,24 @@ func (x *dataBrokerServiceSyncServer) Send(m *SyncResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _DataBrokerService_GetTypes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DataBrokerServiceServer).GetTypes(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/databroker.DataBrokerService/GetTypes",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DataBrokerServiceServer).GetTypes(ctx, req.(*emptypb.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DataBrokerService_SyncTypes_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _DataBrokerService_SyncLatest_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(emptypb.Empty)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(DataBrokerServiceServer).SyncTypes(m, &dataBrokerServiceSyncTypesServer{stream})
+	return srv.(DataBrokerServiceServer).SyncLatest(m, &dataBrokerServiceSyncLatestServer{stream})
 }
 
-type DataBrokerService_SyncTypesServer interface {
-	Send(*GetTypesResponse) error
+type DataBrokerService_SyncLatestServer interface {
+	Send(*SyncResponse) error
 	grpc.ServerStream
 }
 
-type dataBrokerServiceSyncTypesServer struct {
+type dataBrokerServiceSyncLatestServer struct {
 	grpc.ServerStream
 }
 
-func (x *dataBrokerServiceSyncTypesServer) Send(m *GetTypesResponse) error {
+func (x *dataBrokerServiceSyncLatestServer) Send(m *SyncResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -1621,28 +1144,16 @@ var _DataBrokerService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*DataBrokerServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Delete",
-			Handler:    _DataBrokerService_Delete_Handler,
-		},
-		{
 			MethodName: "Get",
 			Handler:    _DataBrokerService_Get_Handler,
 		},
 		{
-			MethodName: "GetAll",
-			Handler:    _DataBrokerService_GetAll_Handler,
+			MethodName: "Put",
+			Handler:    _DataBrokerService_Put_Handler,
 		},
 		{
 			MethodName: "Query",
 			Handler:    _DataBrokerService_Query_Handler,
-		},
-		{
-			MethodName: "Set",
-			Handler:    _DataBrokerService_Set_Handler,
-		},
-		{
-			MethodName: "GetTypes",
-			Handler:    _DataBrokerService_GetTypes_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
@@ -1652,8 +1163,8 @@ var _DataBrokerService_serviceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 		{
-			StreamName:    "SyncTypes",
-			Handler:       _DataBrokerService_SyncTypes_Handler,
+			StreamName:    "SyncLatest",
+			Handler:       _DataBrokerService_SyncLatest_Handler,
 			ServerStreams: true,
 		},
 	},

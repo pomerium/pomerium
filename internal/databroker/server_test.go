@@ -57,7 +57,7 @@ func TestServer_initVersion(t *testing.T) {
 
 		srv := newServer(cfg)
 		ctx := context.Background()
-		db, _, err := srv.getDB(recordTypeServerVersion, false)
+		db, _, err := srv.getBackend(recordTypeServerVersion, false)
 		require.NoError(t, err)
 		r, err := db.Get(ctx, serverVersionKey)
 		assert.Error(t, err)
@@ -74,7 +74,7 @@ func TestServer_initVersion(t *testing.T) {
 	t.Run("init version twice should get the same version", func(t *testing.T) {
 		srv := newServer(cfg)
 		ctx := context.Background()
-		db, _, err := srv.getDB(recordTypeServerVersion, false)
+		db, _, err := srv.getBackend(recordTypeServerVersion, false)
 		require.NoError(t, err)
 		r, err := db.Get(ctx, serverVersionKey)
 		assert.Error(t, err)

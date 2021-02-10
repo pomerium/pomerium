@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"sync/atomic"
 
-	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
@@ -52,25 +52,11 @@ func (srv *dataBrokerServer) setKey(cfg *config.Config) {
 	srv.sharedKey.Store(bs)
 }
 
-func (srv *dataBrokerServer) Delete(ctx context.Context, req *databrokerpb.DeleteRequest) (*empty.Empty, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
-		return nil, err
-	}
-	return srv.server.Delete(ctx, req)
-}
-
 func (srv *dataBrokerServer) Get(ctx context.Context, req *databrokerpb.GetRequest) (*databrokerpb.GetResponse, error) {
 	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
 		return nil, err
 	}
 	return srv.server.Get(ctx, req)
-}
-
-func (srv *dataBrokerServer) GetAll(ctx context.Context, req *databrokerpb.GetAllRequest) (*databrokerpb.GetAllResponse, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
-		return nil, err
-	}
-	return srv.server.GetAll(ctx, req)
 }
 
 func (srv *dataBrokerServer) Query(ctx context.Context, req *databrokerpb.QueryRequest) (*databrokerpb.QueryResponse, error) {
@@ -80,11 +66,11 @@ func (srv *dataBrokerServer) Query(ctx context.Context, req *databrokerpb.QueryR
 	return srv.server.Query(ctx, req)
 }
 
-func (srv *dataBrokerServer) Set(ctx context.Context, req *databrokerpb.SetRequest) (*databrokerpb.SetResponse, error) {
+func (srv *dataBrokerServer) Put(ctx context.Context, req *databrokerpb.PutRequest) (*databrokerpb.PutResponse, error) {
 	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
 		return nil, err
 	}
-	return srv.server.Set(ctx, req)
+	return srv.server.Put(ctx, req)
 }
 
 func (srv *dataBrokerServer) Sync(req *databrokerpb.SyncRequest, stream databrokerpb.DataBrokerService_SyncServer) error {
@@ -94,16 +80,9 @@ func (srv *dataBrokerServer) Sync(req *databrokerpb.SyncRequest, stream databrok
 	return srv.server.Sync(req, stream)
 }
 
-func (srv *dataBrokerServer) GetTypes(ctx context.Context, req *empty.Empty) (*databrokerpb.GetTypesResponse, error) {
-	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
-		return nil, err
-	}
-	return srv.server.GetTypes(ctx, req)
-}
-
-func (srv *dataBrokerServer) SyncTypes(req *empty.Empty, stream databrokerpb.DataBrokerService_SyncTypesServer) error {
+func (srv *dataBrokerServer) SyncLatest(req *emptypb.Empty, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
 	if err := grpcutil.RequireSignedJWT(stream.Context(), srv.sharedKey.Load().([]byte)); err != nil {
 		return err
 	}
-	return srv.server.SyncTypes(req, stream)
+	return srv.server.SyncLatest(req, stream)
 }

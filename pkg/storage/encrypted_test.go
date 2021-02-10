@@ -18,8 +18,8 @@ func TestEncryptedBackend(t *testing.T) {
 
 	m := map[string]*anypb.Any{}
 	backend := &mockBackend{
-		put: func(ctx context.Context, id string, data *anypb.Any) error {
-			m[id] = data
+		put: func(ctx context.Context, record *databroker.Record) error {
+			m[record.GetId()] = record.GetData()
 			return nil
 		},
 		get: func(ctx context.Context, id string) (*databroker.Record, error) {

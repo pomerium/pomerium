@@ -105,7 +105,7 @@ func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) e
 	return e.underlying.Put(ctx, newRecord)
 }
 
-func (e *encryptedBackend) Sync(ctx context.Context, version string) (RecordStream, error) {
+func (e *encryptedBackend) Sync(ctx context.Context, version uint64) (RecordStream, error) {
 	stream, err := e.underlying.Sync(ctx, version)
 	if err != nil {
 		return nil, err
@@ -127,7 +127,6 @@ func (e *encryptedBackend) decryptRecord(in *databroker.Record) (out *databroker
 		Type:       data.TypeUrl,
 		Id:         in.Id,
 		Data:       data,
-		CreatedAt:  in.CreatedAt,
 		ModifiedAt: in.ModifiedAt,
 		DeletedAt:  in.DeletedAt,
 	}, nil

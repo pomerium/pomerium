@@ -45,7 +45,7 @@ type Backend interface {
 	// Put is used to insert or update a record.
 	Put(ctx context.Context, record *databroker.Record) error
 	// Sync syncs record changes after the specified version.
-	Sync(ctx context.Context, version string) (RecordStream, error)
+	Sync(ctx context.Context, version uint64) (RecordStream, error)
 }
 
 // MatchAny searches any data with a query.

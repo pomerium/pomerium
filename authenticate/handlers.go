@@ -99,7 +99,7 @@ func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 	state := a.state.Load()
 
 	wellKnownURLS := struct {
-		// URL string referencing the client's JSON Web Key (JWK) Set
+		// URL string referencing the client's JSON Web Key (JWK) Put
 		// RFC7517 document, which contains the client's public keys.
 		JSONWebKeySetURL      string `json:"jwks_uri"`
 		OAuth2Callback        string `json:"authentication_callback_endpoint"`
@@ -534,13 +534,13 @@ func (a *Authenticate) saveSessionToDataBroker(
 		if err != nil {
 			return fmt.Errorf("authenticate: error retrieving user info: %w", err)
 		}
-		_, err = user.Set(ctx, state.dataBrokerClient, mu.User)
+		_, err = user.Put(ctx, state.dataBrokerClient, mu.User)
 		if err != nil {
 			return fmt.Errorf("authenticate: error saving user: %w", err)
 		}
 	}
 
-	res, err := session.Set(ctx, state.dataBrokerClient, s)
+	res, err := session.Put(ctx, state.dataBrokerClient, s)
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving session: %w", err)
 	}

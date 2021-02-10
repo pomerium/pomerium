@@ -16,7 +16,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -167,7 +166,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 
 							return &databroker.GetResponse{
 								Record: &databroker.Record{
-									Version: "0001",
+									Version: 1,
 									Type:    data.GetTypeUrl(),
 									Id:      "SESSION_ID",
 									Data:    data,
@@ -246,9 +245,6 @@ func TestAuthenticate_SignOut(t *testing.T) {
 					encryptedEncoder: mock.Encoder{},
 					sharedEncoder:    mock.Encoder{},
 					dataBrokerClient: mockDataBrokerServiceClient{
-						delete: func(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-							return nil, nil
-						},
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							data, err := ptypes.MarshalAny(&session.Session{
 								Id: "SESSION_ID",
@@ -259,7 +255,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 
 							return &databroker.GetResponse{
 								Record: &databroker.Record{
-									Version: "0001",
+									Version: 1,
 									Type:    data.GetTypeUrl(),
 									Id:      "SESSION_ID",
 									Data:    data,
@@ -367,9 +363,6 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							return nil, fmt.Errorf("not implemented")
-						},
-						set: func(ctx context.Context, in *databroker.SetRequest, opts ...grpc.CallOption) (*databroker.SetResponse, error) {
-							return &databroker.SetResponse{Record: &databroker.Record{Data: in.Data}}, nil
 						},
 					},
 					directoryClient:  new(mockDirectoryServiceClient),
@@ -514,7 +507,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 
 							return &databroker.GetResponse{
 								Record: &databroker.Record{
-									Version: "0001",
+									Version: 1,
 									Type:    data.GetTypeUrl(),
 									Id:      "SESSION_ID",
 									Data:    data,
@@ -633,7 +626,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 
 							return &databroker.GetResponse{
 								Record: &databroker.Record{
-									Version: "0001",
+									Version: 1,
 									Type:    data.GetTypeUrl(),
 									Id:      "SESSION_ID",
 									Data:    data,
@@ -697,9 +690,6 @@ func TestAuthenticate_FrontchannelLogout(t *testing.T) {
 					encryptedEncoder: mock.Encoder{},
 					sharedEncoder:    mock.Encoder{},
 					dataBrokerClient: mockDataBrokerServiceClient{
-						delete: func(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-							return nil, nil
-						},
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							if !tt.widthSession {
 								return nil, nil
@@ -717,7 +707,7 @@ func TestAuthenticate_FrontchannelLogout(t *testing.T) {
 
 							return &databroker.GetResponse{
 								Record: &databroker.Record{
-									Version: "0001",
+									Version: 1,
 									Type:    data.GetTypeUrl(),
 									Id:      "SESSION_ID",
 									Data:    data,
@@ -750,21 +740,16 @@ func TestAuthenticate_FrontchannelLogout(t *testing.T) {
 type mockDataBrokerServiceClient struct {
 	databroker.DataBrokerServiceClient
 
-	delete func(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	get    func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error)
-	set    func(ctx context.Context, in *databroker.SetRequest, opts ...grpc.CallOption) (*databroker.SetResponse, error)
-}
-
-func (m mockDataBrokerServiceClient) Delete(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	return m.delete(ctx, in, opts...)
+	get func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error)
+	put func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error)
 }
 
 func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 	return m.get(ctx, in, opts...)
 }
 
-func (m mockDataBrokerServiceClient) Set(ctx context.Context, in *databroker.SetRequest, opts ...grpc.CallOption) (*databroker.SetResponse, error) {
-	return m.set(ctx, in, opts...)
+func (m mockDataBrokerServiceClient) Set(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
+	return m.put(ctx, in, opts...)
 }
 
 type mockDirectoryServiceClient struct {

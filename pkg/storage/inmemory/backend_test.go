@@ -34,13 +34,12 @@ func TestBackend(t *testing.T) {
 		record, err := backend.Get(ctx, "TYPE", "abcd")
 		require.NoError(t, err)
 		if assert.NotNil(t, record) {
-			assert.NotNil(t, record.CreatedAt)
 			assert.Equal(t, data, record.Data)
 			assert.Nil(t, record.DeletedAt)
 			assert.Equal(t, "abcd", record.Id)
 			assert.NotNil(t, record.ModifiedAt)
 			assert.Equal(t, "TYPE", record.Type)
-			assert.Equal(t, "000000000001", record.Version)
+			assert.Equal(t, uint64(1), record.Version)
 		}
 	})
 	t.Run("delete record", func(t *testing.T) {
@@ -77,7 +76,7 @@ func TestExpiry(t *testing.T) {
 			Id:   fmt.Sprint(i),
 		}))
 	}
-	stream, err := backend.Sync(ctx, "")
+	stream, err := backend.Sync(ctx, 0)
 	require.NoError(t, err)
 	var records []*databroker.Record
 	for stream.Next(false) {
@@ -88,7 +87,7 @@ func TestExpiry(t *testing.T) {
 
 	backend.removeChangesBefore(time.Now().Add(time.Second))
 
-	stream, err = backend.Sync(ctx, "")
+	stream, err = backend.Sync(ctx, 0)
 	require.NoError(t, err)
 	records = nil
 	for stream.Next(false) {
@@ -125,7 +124,7 @@ func TestStream(t *testing.T) {
 	backend := New()
 	defer func() { _ = backend.Close() }()
 
-	stream, err := backend.Sync(ctx, "")
+	stream, err := backend.Sync(ctx, 0)
 	require.NoError(t, err)
 	defer func() { _ = stream.Close() }()
 
@@ -135,7 +134,7 @@ func TestStream(t *testing.T) {
 			assert.True(t, stream.Next(true))
 			assert.Equal(t, "TYPE", stream.Record().GetType())
 			assert.Equal(t, fmt.Sprint(i), stream.Record().GetId())
-			assert.Equal(t, fmt.Sprintf("%012X", i+1), stream.Record().GetVersion())
+			assert.Equal(t, uint64(i+1), stream.Record().GetVersion())
 		}
 		return nil
 	})

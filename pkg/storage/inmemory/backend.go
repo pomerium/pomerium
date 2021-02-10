@@ -142,9 +142,6 @@ func (backend *Backend) Put(_ context.Context, record *databroker.Record) error 
 	defer backend.mu.Unlock()
 	defer backend.onChange.Broadcast()
 
-	if record.CreatedAt == nil {
-		record.CreatedAt = timestamppb.New(timeNow())
-	}
 	record.ModifiedAt = timestamppb.New(timeNow())
 	record.Version = backend.nextVersion()
 	backend.changes.ReplaceOrInsert(recordChange{record: record})
@@ -159,11 +156,11 @@ func (backend *Backend) Put(_ context.Context, record *databroker.Record) error 
 	return nil
 }
 
-func (backend *Backend) Sync(ctx context.Context, version string) (storage.RecordStream, error) {
+func (backend *Backend) Sync(ctx context.Context, version uint64) (storage.RecordStream, error) {
 	return newRecordStream(ctx, backend, version), nil
 }
 
-func (backend *Backend) getSince(version string) []*databroker.Record {
+func (backend *Backend) getSince(version uint64) []*databroker.Record {
 	backend.mu.RLock()
 	defer backend.mu.RUnlock()
 
@@ -184,6 +181,6 @@ func (backend *Backend) getSince(version string) []*databroker.Record {
 	return records
 }
 
-func (backend *Backend) nextVersion() string {
-	return fmt.Sprintf("%012X", atomic.AddUint64(&backend.lastVersion, 1))
+func (backend *Backend) nextVersion() uint64 {
+	return atomic.AddUint64(&backend.lastVersion, 1)
 }

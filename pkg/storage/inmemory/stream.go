@@ -14,13 +14,13 @@ type recordStream struct {
 
 	changed chan struct{}
 	ready   []*databroker.Record
-	version string
+	version uint64
 
 	closeOnce sync.Once
 	closed    chan struct{}
 }
 
-func newRecordStream(ctx context.Context, backend *Backend, version string) *recordStream {
+func newRecordStream(ctx context.Context, backend *Backend, version uint64) *recordStream {
 	stream := &recordStream{
 		ctx:     ctx,
 		backend: backend,

@@ -17,9 +17,13 @@ import (
 // Delete deletes a session from the databroker.
 func Delete(ctx context.Context, client databroker.DataBrokerServiceClient, sessionID string) error {
 	any, _ := ptypes.MarshalAny(new(Session))
-	_, err := client.Delete(ctx, &databroker.DeleteRequest{
-		Type: any.GetTypeUrl(),
-		Id:   sessionID,
+	_, err := client.Put(ctx, &databroker.PutRequest{
+		Record: &databroker.Record{
+			Type:      any.GetTypeUrl(),
+			Id:        sessionID,
+			Data:      any,
+			DeletedAt: timestamppb.Now(),
+		},
 	})
 	return err
 }
@@ -44,13 +48,15 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, session
 	return &s, nil
 }
 
-// Set sets a session in the databroker.
-func Set(ctx context.Context, client databroker.DataBrokerServiceClient, s *Session) (*databroker.SetResponse, error) {
+// Put sets a session in the databroker.
+func Put(ctx context.Context, client databroker.DataBrokerServiceClient, s *Session) (*databroker.PutResponse, error) {
 	any, _ := anypb.New(s)
-	res, err := client.Set(ctx, &databroker.SetRequest{
-		Type: any.GetTypeUrl(),
-		Id:   s.Id,
-		Data: any,
+	res, err := client.Put(ctx, &databroker.PutRequest{
+		Record: &databroker.Record{
+			Type: any.GetTypeUrl(),
+			Id:   s.Id,
+			Data: any,
+		},
 	})
 	return res, err
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestApplyOffsetAndLimit(t *testing.T) {
@@ -61,18 +62,16 @@ func TestInitialSync(t *testing.T) {
 
 	r1 := new(Record)
 	r2 := new(Record)
-	r3 := new(Record)
 
 	m := &mockServer{
-		sync: func(req *SyncRequest, stream DataBrokerService_SyncServer) error {
-			assert.Equal(t, true, req.GetNoWait())
+		syncLatest: func(req *emptypb.Empty, stream DataBrokerService_SyncLatestServer) error {
 			stream.Send(&SyncResponse{
-				ServerVersion: "a",
-				Records:       []*Record{r1, r2},
+				ServerVersion: 1,
+				Record:        r1,
 			})
 			stream.Send(&SyncResponse{
-				ServerVersion: "b",
-				Records:       []*Record{r3},
+				ServerVersion: 1,
+				Record:        r2,
 			})
 			return nil
 		},
@@ -90,20 +89,18 @@ func TestInitialSync(t *testing.T) {
 
 	c := NewDataBrokerServiceClient(cc)
 
-	res, err := InitialSync(ctx, c, &SyncRequest{
-		Type: "TEST",
-	})
+	records, serverVersion, err := InitialSync(ctx, c)
 	assert.NoError(t, err)
-	assert.Equal(t, "b", res.GetServerVersion())
-	assert.Equal(t, []*Record{r1, r2, r3}, res.GetRecords())
+	assert.Equal(t, uint64(1), serverVersion)
+	assert.Equal(t, []*Record{r1, r2}, records)
 }
 
 type mockServer struct {
 	DataBrokerServiceServer
 
-	sync func(*SyncRequest, DataBrokerService_SyncServer) error
+	syncLatest func(empty *emptypb.Empty, server DataBrokerService_SyncLatestServer) error
 }
 
-func (m *mockServer) Sync(req *SyncRequest, stream DataBrokerService_SyncServer) error {
-	return m.sync(req, stream)
+func (m *mockServer) SyncLatest(req *emptypb.Empty, stream DataBrokerService_SyncLatestServer) error {
+	return m.syncLatest(req, stream)
 }

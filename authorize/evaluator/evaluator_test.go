@@ -115,7 +115,7 @@ func TestEvaluator_Evaluate(t *testing.T) {
 				},
 			})
 			store.UpdateRecord(&databroker.Record{
-				Version: "1",
+				Version: 1,
 				Type:    "type.googleapis.com/session.Session",
 				Id:      sessionID,
 				Data:    data,
@@ -126,7 +126,7 @@ func TestEvaluator_Evaluate(t *testing.T) {
 				Email:   "foo@example.com",
 			})
 			store.UpdateRecord(&databroker.Record{
-				Version: "1",
+				Version: 1,
 				Type:    "type.googleapis.com/user.User",
 				Id:      userID,
 				Data:    data,
@@ -188,7 +188,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			},
 		})
 		store.UpdateRecord(&databroker.Record{
-			Version: fmt.Sprint(i),
+			Version: uint64(i),
 			Type:    "type.googleapis.com/session.Session",
 			Id:      sessionID,
 			Data:    data,
@@ -198,7 +198,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Id:      userID,
 		})
 		store.UpdateRecord(&databroker.Record{
-			Version: fmt.Sprint(i),
+			Version: uint64(i),
 			Type:    "type.googleapis.com/user.User",
 			Id:      userID,
 			Data:    data,

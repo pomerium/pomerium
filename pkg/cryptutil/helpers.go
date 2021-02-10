@@ -3,6 +3,7 @@ package cryptutil
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/binary"
 )
 
 // DefaultKeySize is the default key size in bytes.
@@ -27,6 +28,13 @@ func NewBase64Key() string {
 // Panics if source of randomness fails.
 func NewRandomStringN(c int) string {
 	return base64.StdEncoding.EncodeToString(randomBytes(c))
+}
+
+// NewRandomUInt64 returns a random uint64.
+//
+// Panics if source of randomness fails.
+func NewRandomUInt64() uint64 {
+	return binary.LittleEndian.Uint64(randomBytes(8))
 }
 
 // randomBytes generates C number of random bytes suitable for cryptographic

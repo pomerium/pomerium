@@ -35,8 +35,8 @@ type ConfigSource struct {
 	dbConfigs        map[string]*configpb.Config
 	updaterHash      uint64
 	cancel           func()
-	serverVersion    string
-	recordVersion    string
+	serverVersion    uint64
+	recordVersion    uint64
 
 	config.ChangeDispatcher
 }
@@ -194,7 +194,6 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 		src.mu.Unlock()
 
 		stream, err := client.Sync(ctx, &databroker.SyncRequest{
-			Type:          configTypeURL,
 			ServerVersion: serverVersion,
 			RecordVersion: recordVersion,
 		})
@@ -209,11 +208,10 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 			}
 			onSuccess()
 
-			if len(res.GetRecords()) > 0 {
-				src.onSync(res.GetRecords())
-				for _, record := range res.GetRecords() {
-					recordVersion = record.GetVersion()
-				}
+			serverVersion = res.GetServerVersion()
+			recordVersion = res.GetRecord().GetVersion()
+			if res.GetRecord().GetType() == "type.googleapis.com/config.Config" {
+				src.onSync(res.GetRecord())
 			}
 
 			src.mu.Lock()
@@ -223,7 +221,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	})
 }
 
-func (src *ConfigSource) onSync(records []*databroker.Record) {
+func (src *ConfigSource) onSync(records ...*databroker.Record) {
 	src.mu.Lock()
 	for _, record := range records {
 		if record.GetDeletedAt() != nil {
