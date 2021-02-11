@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -13,14 +12,10 @@ import (
 )
 
 type mockBackend struct {
-	put          func(ctx context.Context, record *databroker.Record) error
-	get          func(ctx context.Context, id string) (*databroker.Record, error)
-	getAll       func(ctx context.Context) ([]*databroker.Record, error)
-	list         func(ctx context.Context, sinceVersion string) ([]*databroker.Record, error)
-	delete       func(ctx context.Context, id string) error
-	clearDeleted func(ctx context.Context, cutoff time.Time)
-	query        func(ctx context.Context, query string, offset, limit int) ([]*databroker.Record, int, error)
-	watch        func(ctx context.Context) <-chan struct{}
+	put    func(ctx context.Context, record *databroker.Record) error
+	get    func(ctx context.Context, recordType, id string) (*databroker.Record, error)
+	getAll func(ctx context.Context) ([]*databroker.Record, error)
+	query  func(ctx context.Context, query string, offset, limit int) ([]*databroker.Record, int, error)
 }
 
 func (m *mockBackend) Close() error {
@@ -31,32 +26,16 @@ func (m *mockBackend) Put(ctx context.Context, record *databroker.Record) error 
 	return m.put(ctx, record)
 }
 
-func (m *mockBackend) Get(ctx context.Context, id string) (*databroker.Record, error) {
-	return m.get(ctx, id)
+func (m *mockBackend) Get(ctx context.Context, recordType, id string) (*databroker.Record, error) {
+	return m.get(ctx, recordType, id)
 }
 
 func (m *mockBackend) GetAll(ctx context.Context) ([]*databroker.Record, error) {
 	return m.getAll(ctx)
 }
 
-func (m *mockBackend) List(ctx context.Context, sinceVersion string) ([]*databroker.Record, error) {
-	return m.list(ctx, sinceVersion)
-}
-
-func (m *mockBackend) Delete(ctx context.Context, id string) error {
-	return m.delete(ctx, id)
-}
-
-func (m *mockBackend) ClearDeleted(ctx context.Context, cutoff time.Time) {
-	m.clearDeleted(ctx, cutoff)
-}
-
-func (m *mockBackend) Query(ctx context.Context, query string, offset, limit int) ([]*databroker.Record, int, error) {
-	return m.query(ctx, query, offset, limit)
-}
-
-func (m *mockBackend) Watch(ctx context.Context) <-chan struct{} {
-	return m.watch(ctx)
+func (m *mockBackend) Sync(ctx context.Context, version uint64) (RecordStream, error) {
+	panic("implement me")
 }
 
 func TestMatchAny(t *testing.T) {

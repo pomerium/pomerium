@@ -22,7 +22,7 @@ func TestEncryptedBackend(t *testing.T) {
 			m[record.GetId()] = record.GetData()
 			return nil
 		},
-		get: func(ctx context.Context, id string) (*databroker.Record, error) {
+		get: func(ctx context.Context, recordType, id string) (*databroker.Record, error) {
 			data, ok := m[id]
 			if !ok {
 				return nil, errors.New("not found")
@@ -61,7 +61,11 @@ func TestEncryptedBackend(t *testing.T) {
 
 	any, _ := anypb.New(wrapperspb.String("HELLO WORLD"))
 
-	err = e.Put(ctx, "TEST-1", any)
+	err = e.Put(ctx, &databroker.Record{
+		Type: "",
+		Id:   "TEST-1",
+		Data: any,
+	})
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -70,7 +74,7 @@ func TestEncryptedBackend(t *testing.T) {
 		assert.NotEqual(t, any.Value, m["TEST-1"].Value, "value should be encrypted")
 	}
 
-	record, err := e.Get(ctx, "TEST-1")
+	record, err := e.Get(ctx, "", "TEST-1")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -78,7 +82,7 @@ func TestEncryptedBackend(t *testing.T) {
 	assert.Equal(t, any.Value, record.Data.Value, "value should be preserved")
 	assert.Equal(t, any.TypeUrl, record.Type, "record type should be preserved")
 
-	records, err := e.List(ctx, "")
+	records, err := e.GetAll(ctx)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -88,13 +92,4 @@ func TestEncryptedBackend(t *testing.T) {
 		assert.Equal(t, any.TypeUrl, records[0].Type, "record type should be preserved")
 	}
 
-	records, err = e.List(ctx, "")
-	if !assert.NoError(t, err) {
-		return
-	}
-	if assert.Len(t, records, 1) {
-		assert.Equal(t, any.TypeUrl, records[0].Data.TypeUrl, "type should be preserved")
-		assert.Equal(t, any.Value, records[0].Data.Value, "value should be preserved")
-		assert.Equal(t, any.TypeUrl, records[0].Type, "record type should be preserved")
-	}
 }
