@@ -5,8 +5,6 @@ import (
 	"encoding/base64"
 	"sync"
 
-	"github.com/golang/protobuf/ptypes"
-
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -16,12 +14,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-var configTypeURL string
-
-func init() {
-	any, _ := ptypes.MarshalAny(new(configpb.Config))
-	configTypeURL = any.GetTypeUrl()
-}
+var configTypeURL = "type.googleapis.com/pomerium.config.Config"
 
 // ConfigSource provides a new Config source that decorates an underlying config with
 // configuration derived from the data broker.
@@ -206,15 +199,25 @@ func (s *syncerHandler) ClearRecords(ctx context.Context) {
 }
 
 func (s *syncerHandler) UpdateRecords(ctx context.Context, records []*databroker.Record) {
-	s.src.mu.Lock()
+	var configRecords []*databroker.Record
 	for _, record := range records {
+		if record.GetType() == configTypeURL {
+			configRecords = append(configRecords, record)
+		}
+	}
+	if len(configRecords) == 0 {
+		return
+	}
+
+	s.src.mu.Lock()
+	for _, record := range configRecords {
 		if record.GetDeletedAt() != nil {
 			delete(s.src.dbConfigs, record.GetId())
 			continue
 		}
 
 		var cfgpb configpb.Config
-		err := ptypes.UnmarshalAny(record.GetData(), &cfgpb)
+		err := record.GetData().UnmarshalTo(&cfgpb)
 		if err != nil {
 			log.Warn().Err(err).Msg("databroker: error decoding config")
 			delete(s.src.dbConfigs, record.GetId())
