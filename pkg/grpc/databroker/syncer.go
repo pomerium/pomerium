@@ -2,6 +2,7 @@ package databroker
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -79,14 +80,14 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 }
 
 func (syncer *Syncer) init(ctx context.Context, recordVersion, serverVersion *uint64) error {
-	// reset the records as we have to sync latest
-	syncer.handler.ClearRecords(ctx)
-
 	records, v, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient())
 	if err != nil {
 		return err
 	}
 	syncer.backoff.Reset()
+
+	// reset the records as we have to sync latest
+	syncer.handler.ClearRecords(ctx)
 
 	*serverVersion = v
 	for _, record := range records {
@@ -104,21 +105,24 @@ func (syncer *Syncer) sync(ctx context.Context, recordVersion, serverVersion *ui
 		ServerVersion: *serverVersion,
 		RecordVersion: *recordVersion,
 	})
-	if status.Code(err) == codes.Aborted {
-		// reset versions
-		*serverVersion = 0
-		*recordVersion = 0
-	}
 	if err != nil {
 		return err
 	}
 
 	for {
 		res, err := stream.Recv()
-		if err != nil {
+		if status.Code(err) == codes.Aborted {
+			// server version changed, so re-init
+			*serverVersion = 0
+			return nil
+		} else if err != nil {
 			return err
 		}
 
+		if *recordVersion != res.GetRecord().GetVersion()-1 {
+			*serverVersion = 0
+			return fmt.Errorf("missing record version")
+		}
 		*recordVersion = res.GetRecord().GetVersion()
 		syncer.handler.UpdateRecords(ctx, []*Record{res.GetRecord()})
 	}
