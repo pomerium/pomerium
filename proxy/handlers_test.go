@@ -64,7 +64,7 @@ func TestProxy_Signout(t *testing.T) {
 	}
 }
 
-func TestProxy_UserDashboard(t *testing.T) {
+func TestProxy_userInfo(t *testing.T) {
 	opts := testOptions(t)
 	err := ValidateOptions(opts)
 	if err != nil {
@@ -76,7 +76,7 @@ func TestProxy_UserDashboard(t *testing.T) {
 	}
 	req := httptest.NewRequest(http.MethodGet, "/.pomerium/sign_out", nil)
 	rr := httptest.NewRecorder()
-	proxy.UserDashboard(rr, req)
+	proxy.userInfo(rr, req)
 	if status := rr.Code; status != http.StatusFound {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusFound)
 	}

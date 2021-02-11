@@ -106,7 +106,7 @@ func TestAuthenticate_Handler(t *testing.T) {
 	expected = fmt.Sprintf("User-agent: *\nDisallow: /")
 	code := rr.Code
 	if code != http.StatusOK {
-		t.Errorf("bad preflight code")
+		t.Errorf("bad preflight code %v", code)
 	}
 	resp := rr.Result()
 	body = resp.Header.Get("vary")
@@ -566,7 +566,7 @@ func TestWellKnownEndpoint(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	body := rr.Body.String()
-	expected := "{\"jwks_uri\":\"https://auth.example.com/.well-known/pomerium/jwks.json\",\"authentication_callback_endpoint\":\"https://auth.example.com/oauth2/callback\",\"frontchannel_logout_uri\":\"https://auth.example.com/.pomerium/frontchannel-logout\"}\n"
+	expected := "{\"authentication_callback_endpoint\":\"https://auth.example.com/oauth2/callback\",\"jwks_uri\":\"https://auth.example.com/.well-known/pomerium/jwks.json\",\"frontchannel_logout_uri\":\"https://auth.example.com/.pomerium/sign_out\"}\n"
 	assert.Equal(t, body, expected)
 }
 
@@ -664,84 +664,6 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			body := w.Body.String()
 			if !strings.Contains(body, tt.wantBody) {
 				t.Errorf("Unexpected body, contains: %s, got: %s", tt.wantBody, body)
-			}
-		})
-	}
-}
-
-func TestAuthenticate_FrontchannelLogout(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-
-		logoutIssuer string
-		tokenIssuer  string
-		widthSession bool
-		sessionStore sessions.SessionStore
-		provider     identity.MockProvider
-
-		wantCode int
-	}{
-		{"good", "https://idp.pomerium.io", "https://idp.pomerium.io", true, &mstore.Store{}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, http.StatusOK},
-		{"good no session", "https://idp.pomerium.io", "https://idp.pomerium.io", false, &mstore.Store{SaveError: errors.New("error")}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, http.StatusOK},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			a := &Authenticate{
-				state: newAtomicAuthenticateState(&authenticateState{
-					sessionStore:     tt.sessionStore,
-					encryptedEncoder: mock.Encoder{},
-					sharedEncoder:    mock.Encoder{},
-					dataBrokerClient: mockDataBrokerServiceClient{
-						delete: func(ctx context.Context, in *databroker.DeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-							return nil, nil
-						},
-						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-							if !tt.widthSession {
-								return nil, nil
-							}
-
-							data, err := ptypes.MarshalAny(&session.Session{
-								Id: "SESSION_ID",
-								IdToken: &session.IDToken{
-									Issuer: tt.tokenIssuer,
-								},
-							})
-							if err != nil {
-								return nil, err
-							}
-
-							return &databroker.GetResponse{
-								Record: &databroker.Record{
-									Version: "0001",
-									Type:    data.GetTypeUrl(),
-									Id:      "SESSION_ID",
-									Data:    data,
-								},
-							}, nil
-						},
-					},
-					directoryClient: new(mockDirectoryServiceClient),
-				}),
-				options:  config.NewAtomicOptions(),
-				provider: identity.NewAtomicAuthenticator(),
-			}
-
-			a.provider.Store(tt.provider)
-			u, _ := url.Parse("/.pomerium/frontchannel-logout")
-			params, _ := url.ParseQuery(u.RawQuery)
-			params.Add("iss", tt.logoutIssuer)
-			u.RawQuery = params.Encode()
-			r := httptest.NewRequest(http.MethodGet, u.String(), nil)
-
-			w := httptest.NewRecorder()
-			httputil.HandlerFunc(a.FrontchannelLogout).ServeHTTP(w, r)
-			if status := w.Code; status != tt.wantCode {
-				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
 			}
 		})
 	}

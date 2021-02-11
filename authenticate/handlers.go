@@ -48,13 +48,20 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Use(func(h http.Handler) http.Handler {
 		options := a.options.Load()
 		state := a.state.Load()
+		csrfKey := fmt.Sprintf("%s_csrf", options.CookieName)
 		return csrf.Protect(
 			state.cookieSecret,
 			csrf.Secure(options.CookieSecure),
 			csrf.Path("/"),
-			csrf.UnsafePaths([]string{state.redirectURL.Path}), // enforce CSRF on "safe" handler
-			csrf.FormValueName("state"),                        // rfc6749 section-10.12
-			csrf.CookieName(fmt.Sprintf("%s_csrf", options.CookieName)),
+			csrf.UnsafePaths(
+				[]string{
+					state.redirectURL.Path, // rfc6749#section-10.12 accepts GET
+					"/.pomerium/sign_out",  // https://openid.net/specs/openid-connect-frontchannel-1_0.html
+				}),
+			csrf.FormValueName("state"), // rfc6749#section-10.12
+			csrf.CookieName(csrfKey),
+			csrf.FieldName(csrfKey),
+			csrf.SameSite(csrf.SameSiteLaxMode),
 			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
 		)(h)
 	})
@@ -62,11 +69,6 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Path("/robots.txt").HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
 	// Identity Provider (IdP) endpoints
 	r.Path("/oauth2/callback").Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet)
-
-	// Proxy service endpoints
-	s := r.PathPrefix("/.pomerium/frontchannel-logout").Subrouter()
-	s.Use(a.RetrieveSession)
-	s.Path("/").Handler(httputil.HandlerFunc(a.FrontchannelLogout)).Methods(http.MethodGet)
 
 	v := r.PathPrefix("/.pomerium").Subrouter()
 	c := cors.New(cors.Options{
@@ -93,26 +95,28 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	wk.Path("/").Handler(httputil.HandlerFunc(a.wellKnown)).Methods(http.MethodGet)
 }
 
-// Well-Known Uniform Resource Identifiers (URIs)
+// wellKnown returns a list of well known URLS for Pomerium.
+//
 // https://en.wikipedia.org/wiki/List_of_/.well-known/_services_offered_by_webservers
 func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 	state := a.state.Load()
-
 	wellKnownURLS := struct {
-		// URL string referencing the client's JSON Web Key (JWK) Set
-		// RFC7517 document, which contains the client's public keys.
-		JSONWebKeySetURL      string `json:"jwks_uri"`
-		OAuth2Callback        string `json:"authentication_callback_endpoint"`
-		FrontchannelLogoutURI string `json:"frontchannel_logout_uri"`
+		OAuth2Callback        string `json:"authentication_callback_endpoint"` // RFC6749
+		JSONWebKeySetURL      string `json:"jwks_uri"`                         // RFC7517
+		FrontchannelLogoutURI string `json:"frontchannel_logout_uri"`          // https://openid.net/specs/openid-connect-frontchannel-1_0.html
 	}{
-		state.redirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
 		state.redirectURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
-		state.redirectURL.ResolveReference(&url.URL{Path: "/.pomerium/frontchannel-logout"}).String(),
+		state.redirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
+		state.redirectURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
 	}
 	httputil.RenderJSON(w, http.StatusOK, wellKnownURLS)
 	return nil
 }
 
+// jwks returns the signing key(s) the client can use to validate signatures
+// from the authorization server.
+//
+// https://tools.ietf.org/html/rfc8414
 func (a *Authenticate) jwks(w http.ResponseWriter, r *http.Request) error {
 	httputil.RenderJSON(w, http.StatusOK, a.state.Load().jwk)
 	return nil
@@ -262,10 +266,11 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	} else if !errors.Is(err, oidc.ErrSignoutNotImplemented) {
 		log.Warn().Err(err).Msg("authenticate.SignOut: failed getting session")
 	}
-
-	httputil.Redirect(w, r, redirectString, http.StatusFound)
-
-	return nil
+	if redirectString != "" {
+		httputil.Redirect(w, r, redirectString, http.StatusFound)
+		return nil
+	}
+	return httputil.NewError(http.StatusOK, errors.New("user logged out"))
 }
 
 // reauthenticateOrFail starts the authenticate process by redirecting the
@@ -479,17 +484,8 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		"DirectoryGroups": groups,          // user's groups inferred from idp directory
 		"csrfField":       csrf.TemplateField(r),
 		"RedirectURL":     r.URL.Query().Get(urlutil.QueryRedirectURI),
+		"SignOutURL":      "/.pomerium/sign_out",
 	}
-
-	if redirectURL, err := url.Parse(r.URL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
-		input["RedirectURL"] = redirectURL.String()
-		signOutURL := redirectURL.ResolveReference(new(url.URL))
-		signOutURL.Path = "/.pomerium/sign_out"
-		input["SignOutURL"] = signOutURL.String()
-	} else {
-		input["SignOutURL"] = "/.pomerium/sign_out"
-	}
-
 	return a.templates.ExecuteTemplate(w, "userInfo.html", input)
 }
 
@@ -554,27 +550,6 @@ func (a *Authenticate) saveSessionToDataBroker(
 		log.Error().Err(err).Msg("directory: failed to refresh user data")
 	}
 
-	return nil
-}
-
-// FrontchannelLogout uses HTTP GETs to Relying Party URLs (Pomerium) to clear a user's login state.
-// This endpoint implements OpenID Connect Front-Channel Logout and reuses the Relying
-// Party-initiated logout functionality specified in Section 5 of OpenID Connect Session Management
-// 1.0 (RP-Initiated Logout).
-//
-// https://openid.net/specs/openid-connect-frontchannel-1_0.html
-// https://ldapwiki.com/wiki/OpenID%20Connect%20Front-Channel%20Logout
-func (a *Authenticate) FrontchannelLogout(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.FrontchannelLogout")
-	defer span.End()
-
-	_ = a.revokeSession(ctx, w, r)
-
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache, no-store")
-	w.Header().Set("Pragma", "no-cache")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, http.StatusText(http.StatusOK))
 	return nil
 }
 
