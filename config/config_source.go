@@ -186,6 +186,11 @@ func (src *FileWatcherSource) check(cfg *Config) {
 		cfg.Options.KeyFile,
 		cfg.Options.PolicyFile,
 	}
+
+	for _, pair := range cfg.Options.CertificateFiles {
+		fs = append(fs, pair.CertFile, pair.KeyFile)
+	}
+
 	for _, f := range fs {
 		_, _ = h.Write([]byte{0})
 		bs, err := ioutil.ReadFile(f)
