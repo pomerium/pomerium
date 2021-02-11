@@ -49,8 +49,9 @@ type Backend struct {
 
 // New creates a new redis storage backend.
 func New(rawURL string, options ...Option) (*Backend, error) {
+	cfg := getConfig(options...)
 	backend := &Backend{
-		cfg:      getConfig(options...),
+		cfg:      cfg,
 		closed:   make(chan struct{}),
 		onChange: signal.New(),
 	}
@@ -65,6 +66,21 @@ func New(rawURL string, options ...Option) (*Backend, error) {
 	backend.client = redis.NewClient(opts)
 	metrics.AddRedisMetrics(backend.client.PoolStats)
 	go backend.listenForVersionChanges()
+	if cfg.expiry != 0 {
+		go func() {
+			ticker := time.NewTicker(time.Minute)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-backend.closed:
+					return
+				case <-ticker.C:
+				}
+
+				backend.removeChangesBefore(time.Now().Add(-cfg.expiry))
+			}
+		}()
+	}
 	return backend, nil
 }
 

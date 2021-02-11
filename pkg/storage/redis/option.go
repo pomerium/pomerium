@@ -29,6 +29,7 @@ func WithExpiry(expiry time.Duration) Option {
 
 func getConfig(options ...Option) *config {
 	cfg := new(config)
+	WithExpiry(time.Hour * 24)(cfg)
 	for _, o := range options {
 		o(cfg)
 	}
