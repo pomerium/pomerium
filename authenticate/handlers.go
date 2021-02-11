@@ -55,8 +55,8 @@ func (a *Authenticate) Mount(r *mux.Router) {
 			csrf.Path("/"),
 			csrf.UnsafePaths(
 				[]string{
-					state.redirectURL.Path, // rfc6749#section-10.12 accepts GET
-					"/.pomerium/sign_out",  // https://openid.net/specs/openid-connect-frontchannel-1_0.html
+					"/oauth2/callback",    // rfc6749#section-10.12 accepts GET
+					"/.pomerium/sign_out", // https://openid.net/specs/openid-connect-frontchannel-1_0.html
 				}),
 			csrf.FormValueName("state"), // rfc6749#section-10.12
 			csrf.CookieName(csrfKey),
@@ -430,11 +430,6 @@ func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, 
 	return &s, nil
 }
 
-func (a *Authenticate) deleteSession(ctx context.Context, sessionID string) error {
-	state := a.state.Load()
-	return session.Delete(ctx, state.dataBrokerClient, sessionID)
-}
-
 func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.userInfo")
 	defer span.End()
@@ -573,7 +568,7 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 			log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
 		}
 	}
-	if err := a.deleteSession(ctx, sessionState.ID); err != nil {
+	if err := session.Delete(ctx, state.dataBrokerClient, sessionState.ID); err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to delete session from session store")
 	}
 
