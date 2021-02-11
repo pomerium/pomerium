@@ -105,6 +105,23 @@ policy:
     least_request_lb_config:
       choice_count: 2 # current envoy default
 ```
+## Load Balancing Weight
+When a list of upstream URLs is specified in the `to` field, you may append an optional load balancing weight parameter.  The individual [`lb_policy`](#load-balancing-method) settings will take this weighting into account when making routing decisions.
+
+### Example
+
+This configuration uses the default `round_robin` load balancer policy but specifies different frequency of selection be applied to the upstreams.
+
+```yaml
+policy:
+  - from: https://myapp.localhost.pomerium.io
+    to:
+      - http://myapp-srv-1:8080,10
+      - http://myapp-srv-2:8080,20
+      - http://myapp-srv-3:8080,30
+      - http://myapp-srv-4:8080,20
+      - http://myapp-srv-5:8080,10
+```
 ## Further reading
 
 - [Introduction to modern network load balancing and proxying](https://blog.envoyproxy.io/introduction-to-modern-network-load-balancing-and-proxying-a57f6ff80236)
