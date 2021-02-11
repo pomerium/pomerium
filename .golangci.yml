@@ -98,6 +98,7 @@ linters:
     # - wsl
 
 issues:
+  exclude-use-default: false
   # List of regexps of issue texts to exclude, empty list by default.
   # But independently from this option we use default exclude patterns,
   # it can be disabled by `exclude-use-default: false`. To list all
@@ -140,6 +141,10 @@ issues:
     # good job Protobuffs!
     - "method XXX"
     - "SA1019"
+    # EXC0001 errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
+    - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
+
+
 
   exclude-rules:
     # https://github.com/go-critic/go-critic/issues/926
@@ -179,6 +184,8 @@ issues:
       text: "Potential hardcoded credentials"
       linters:
         - gosec
+    - linters: [golint]
+      text: "should have a package comment"
 
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration

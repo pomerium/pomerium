@@ -45,10 +45,12 @@ func New(cfg *config.Config) (*Authorize, error) {
 	return &a, nil
 }
 
+// Run runs the authorize service.
 func (a *Authorize) Run(ctx context.Context) error {
 	return newDataBrokerSyncer(a).Run(ctx)
 }
 
+// WaitForInitialSync blocks until the initial sync is complete.
 func (a *Authorize) WaitForInitialSync(ctx context.Context) error {
 	select {
 	case <-ctx.Done():

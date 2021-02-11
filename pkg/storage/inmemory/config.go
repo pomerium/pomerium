@@ -7,6 +7,7 @@ type config struct {
 	expiry time.Duration
 }
 
+// An Option customizes the in-memory backend.
 type Option func(cfg *config)
 
 func getConfig(options ...Option) *config {

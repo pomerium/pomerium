@@ -43,7 +43,7 @@ func loadCachedCredential(serverURL string) *ExecCredential {
 	if err != nil {
 		return nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var creds ExecCredential
 	err = json.NewDecoder(f).Decode(&creds)

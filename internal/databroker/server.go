@@ -231,6 +231,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	return recordStream.Err()
 }
 
+// SyncLatest returns the latest value of every record in the databroker as a stream of records.
 func (srv *Server) SyncLatest(_ *emptypb.Empty, stream databroker.DataBrokerService_SyncLatestServer) error {
 	_, span := trace.StartSpan(stream.Context(), "databroker.grpc.SyncLatest")
 	defer span.End()

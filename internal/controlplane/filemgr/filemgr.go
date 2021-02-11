@@ -1,3 +1,4 @@
+// Package filemgr defines a Manager for managing files for the controlplane.
 package filemgr
 
 import (

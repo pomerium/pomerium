@@ -61,6 +61,7 @@ func main() {
 	}
 }
 
+// Result is a result used for rendering.
 type Result struct {
 	Headers    map[string]string `json:"headers"`
 	Method     string            `json:"method"`

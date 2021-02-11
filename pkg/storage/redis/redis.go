@@ -174,6 +174,7 @@ func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (err
 		})
 }
 
+// Sync returns a record stream of any records changed after the specified version.
 func (backend *Backend) Sync(ctx context.Context, version uint64) (storage.RecordStream, error) {
 	return newRecordStream(ctx, backend, version), nil
 }

@@ -1,3 +1,4 @@
+// Package inmemory contains an in-memory implementation of the databroker backend.
 package inmemory
 
 import (
@@ -96,6 +97,7 @@ func (backend *Backend) removeChangesBefore(cutoff time.Time) {
 	}
 }
 
+// Close closes the in-memory store and erases any stored data.
 func (backend *Backend) Close() error {
 	backend.closeOnce.Do(func() {
 		close(backend.closed)
@@ -109,6 +111,7 @@ func (backend *Backend) Close() error {
 	return nil
 }
 
+// Get gets a record from the in-memory store.
 func (backend *Backend) Get(_ context.Context, recordType, id string) (*databroker.Record, error) {
 	backend.mu.RLock()
 	defer backend.mu.RUnlock()
@@ -122,6 +125,7 @@ func (backend *Backend) Get(_ context.Context, recordType, id string) (*databrok
 	return record, nil
 }
 
+// GetAll gets all the records from the in-memory store.
 func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, error) {
 	backend.mu.RLock()
 	defer backend.mu.RUnlock()
@@ -133,6 +137,7 @@ func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, error) 
 	return records, nil
 }
 
+// Put puts a record into the in-memory store.
 func (backend *Backend) Put(_ context.Context, record *databroker.Record) error {
 	if record == nil {
 		return fmt.Errorf("records cannot be nil")
@@ -156,6 +161,7 @@ func (backend *Backend) Put(_ context.Context, record *databroker.Record) error 
 	return nil
 }
 
+// Sync returns a record stream for any changes after version.
 func (backend *Backend) Sync(ctx context.Context, version uint64) (storage.RecordStream, error) {
 	return newRecordStream(ctx, backend, version), nil
 }

@@ -1,3 +1,4 @@
+// Package databroker contains the databroker service.
 package databroker
 
 import (
