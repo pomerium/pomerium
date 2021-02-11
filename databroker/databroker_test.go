@@ -7,9 +7,10 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
 	internal_databroker "github.com/pomerium/pomerium/internal/databroker"
@@ -51,44 +52,44 @@ func TestServerSync(t *testing.T) {
 	any, _ := ptypes.MarshalAny(new(user.User))
 	numRecords := 200
 
+	var serverVersion uint64
+
 	for i := 0; i < numRecords; i++ {
-		c.Set(ctx, &databroker.SetRequest{Type: any.TypeUrl, Id: strconv.Itoa(i), Data: any})
+		res, err := c.Put(ctx, &databroker.PutRequest{
+			Record: &databroker.Record{
+				Type: any.TypeUrl,
+				Id:   strconv.Itoa(i),
+				Data: any,
+			},
+		})
+		require.NoError(t, err)
+		serverVersion = res.GetServerVersion()
 	}
 
 	t.Run("Sync ok", func(t *testing.T) {
-		client, _ := c.Sync(ctx, &databroker.SyncRequest{Type: any.GetTypeUrl()})
+		client, _ := c.Sync(ctx, &databroker.SyncRequest{
+			ServerVersion: serverVersion,
+		})
 		count := 0
 		for {
-			res, err := client.Recv()
+			_, err := client.Recv()
 			if err != nil {
 				break
 			}
-			count += len(res.Records)
+			count++
 			if count == numRecords {
 				break
 			}
 		}
 	})
-	t.Run("Error occurred while syncing", func(t *testing.T) {
-		ctx, cancelFunc := context.WithCancel(ctx)
-		defer cancelFunc()
-
-		client, _ := c.Sync(ctx, &databroker.SyncRequest{Type: any.GetTypeUrl()})
-		count := 0
-		numRecordsWanted := 100
-		cancelFuncCalled := false
-		for {
-			res, err := client.Recv()
-			if err != nil {
-				assert.True(t, cancelFuncCalled)
-				break
-			}
-			count += len(res.Records)
-			if count == numRecordsWanted {
-				cancelFunc()
-				cancelFuncCalled = true
-			}
-		}
+	t.Run("Aborted", func(t *testing.T) {
+		client, err := c.Sync(ctx, &databroker.SyncRequest{
+			ServerVersion: 0,
+		})
+		require.NoError(t, err)
+		_, err = client.Recv()
+		require.Error(t, err)
+		require.Equal(t, codes.Aborted, status.Code(err))
 	})
 }
 
@@ -104,19 +105,25 @@ func BenchmarkSync(b *testing.B) {
 	numRecords := 10000
 
 	for i := 0; i < numRecords; i++ {
-		c.Set(ctx, &databroker.SetRequest{Type: any.TypeUrl, Id: strconv.Itoa(i), Data: any})
+		_, _ = c.Put(ctx, &databroker.PutRequest{
+			Record: &databroker.Record{
+				Type: any.TypeUrl,
+				Id:   strconv.Itoa(i),
+				Data: any,
+			},
+		})
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		client, _ := c.Sync(ctx, &databroker.SyncRequest{Type: any.GetTypeUrl()})
+		client, _ := c.Sync(ctx, &databroker.SyncRequest{})
 		count := 0
 		for {
-			res, err := client.Recv()
+			_, err := client.Recv()
 			if err != nil {
 				break
 			}
-			count += len(res.Records)
+			count++
 			if count == numRecords {
 				break
 			}

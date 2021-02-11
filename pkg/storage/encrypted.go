@@ -27,7 +27,7 @@ func (e *encryptedRecordStream) Next(wait bool) bool {
 }
 
 func (e *encryptedRecordStream) Record() *databroker.Record {
-	r := e.Record()
+	r := e.underlying.Record()
 	if r != nil {
 		var err error
 		r, err = e.backend.decryptRecord(r)

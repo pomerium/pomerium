@@ -544,7 +544,7 @@ func (a *Authenticate) saveSessionToDataBroker(
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving session: %w", err)
 	}
-	sessionState.Version = sessions.Version(res.GetServerVersion())
+	sessionState.Version = sessions.Version(fmt.Sprint(res.GetServerVersion()))
 
 	_, err = state.directoryClient.RefreshUser(ctx, &directory.RefreshUserRequest{
 		UserId:      s.UserId,

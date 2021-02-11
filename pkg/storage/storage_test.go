@@ -15,7 +15,6 @@ type mockBackend struct {
 	put    func(ctx context.Context, record *databroker.Record) error
 	get    func(ctx context.Context, recordType, id string) (*databroker.Record, error)
 	getAll func(ctx context.Context) ([]*databroker.Record, error)
-	query  func(ctx context.Context, query string, offset, limit int) ([]*databroker.Record, int, error)
 }
 
 func (m *mockBackend) Close() error {

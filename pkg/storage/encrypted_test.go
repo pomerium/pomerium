@@ -42,16 +42,6 @@ func TestEncryptedBackend(t *testing.T) {
 			}
 			return records, nil
 		},
-		list: func(ctx context.Context, sinceVersion string) ([]*databroker.Record, error) {
-			var records []*databroker.Record
-			for id, data := range m {
-				records = append(records, &databroker.Record{
-					Id:   id,
-					Data: data,
-				})
-			}
-			return records, nil
-		},
 	}
 
 	e, err := NewEncryptedBackend(cryptutil.NewKey(), backend)

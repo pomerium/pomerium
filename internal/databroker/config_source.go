@@ -3,11 +3,8 @@ package databroker
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"sync"
-	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/golang/protobuf/ptypes"
 
 	"github.com/pomerium/pomerium/config"
@@ -35,8 +32,6 @@ type ConfigSource struct {
 	dbConfigs        map[string]*configpb.Config
 	updaterHash      uint64
 	cancel           func()
-	serverVersion    uint64
-	recordVersion    uint64
 
 	config.ChangeDispatcher
 }
@@ -188,44 +183,33 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	ctx := context.Background()
 	ctx, src.cancel = context.WithCancel(ctx)
 
-	go tryForever(ctx, func(onSuccess func()) error {
-		src.mu.Lock()
-		serverVersion, recordVersion := src.serverVersion, src.recordVersion
-		src.mu.Unlock()
-
-		stream, err := client.Sync(ctx, &databroker.SyncRequest{
-			ServerVersion: serverVersion,
-			RecordVersion: recordVersion,
-		})
-		if err != nil {
-			return err
-		}
-
-		for {
-			res, err := stream.Recv()
-			if err != nil {
-				return err
-			}
-			onSuccess()
-
-			serverVersion = res.GetServerVersion()
-			recordVersion = res.GetRecord().GetVersion()
-			if res.GetRecord().GetType() == "type.googleapis.com/config.Config" {
-				src.onSync(res.GetRecord())
-			}
-
-			src.mu.Lock()
-			src.serverVersion, src.recordVersion = res.GetServerVersion(), recordVersion
-			src.mu.Unlock()
-		}
+	syncer := databroker.NewSyncer(&syncerHandler{
+		client: client,
+		src:    src,
 	})
+	go func() { _ = syncer.Run(ctx) }()
 }
 
-func (src *ConfigSource) onSync(records ...*databroker.Record) {
-	src.mu.Lock()
+type syncerHandler struct {
+	src    *ConfigSource
+	client databroker.DataBrokerServiceClient
+}
+
+func (s *syncerHandler) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return s.client
+}
+
+func (s *syncerHandler) ClearRecords(ctx context.Context) {
+	s.src.mu.Lock()
+	s.src.dbConfigs = map[string]*configpb.Config{}
+	s.src.mu.Unlock()
+}
+
+func (s *syncerHandler) UpdateRecords(ctx context.Context, records []*databroker.Record) {
+	s.src.mu.Lock()
 	for _, record := range records {
 		if record.GetDeletedAt() != nil {
-			delete(src.dbConfigs, record.GetId())
+			delete(s.src.dbConfigs, record.GetId())
 			continue
 		}
 
@@ -233,31 +217,13 @@ func (src *ConfigSource) onSync(records ...*databroker.Record) {
 		err := ptypes.UnmarshalAny(record.GetData(), &cfgpb)
 		if err != nil {
 			log.Warn().Err(err).Msg("databroker: error decoding config")
-			delete(src.dbConfigs, record.GetId())
+			delete(s.src.dbConfigs, record.GetId())
 			continue
 		}
 
-		src.dbConfigs[record.GetId()] = &cfgpb
+		s.src.dbConfigs[record.GetId()] = &cfgpb
 	}
-	src.mu.Unlock()
+	s.src.mu.Unlock()
 
-	src.rebuild(false)
-}
-
-func tryForever(ctx context.Context, callback func(onSuccess func()) error) {
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0
-	for {
-		err := callback(bo.Reset)
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return
-		} else if err != nil {
-			log.Warn().Err(err).Msg("sync error")
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(bo.NextBackOff()):
-		}
-	}
+	s.src.rebuild(false)
 }

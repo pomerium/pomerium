@@ -9,6 +9,7 @@ require (
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/caddyserver/certmagic v0.12.0
+	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coreos/go-oidc/v3 v3.0.0

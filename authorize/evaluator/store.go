@@ -56,8 +56,8 @@ func NewStoreFromProtos(msgs ...proto.Message) *Store {
 }
 
 // ClearRecords removes all the records from the store.
-func (s *Store) ClearRecords(typeURL string) {
-	rawPath := fmt.Sprintf("/databroker_data/%s", typeURL)
+func (s *Store) ClearRecords() {
+	rawPath := "/databroker_data"
 	s.delete(rawPath)
 }
 

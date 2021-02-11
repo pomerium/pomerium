@@ -54,10 +54,12 @@ func TestConfigSource(t *testing.T) {
 			},
 		},
 	})
-	_, _ = dataBrokerServer.Set(ctx, &databroker.SetRequest{
-		Type: configTypeURL,
-		Id:   "1",
-		Data: data,
+	_, _ = dataBrokerServer.Put(ctx, &databroker.PutRequest{
+		Record: &databroker.Record{
+			Type: configTypeURL,
+			Id:   "1",
+			Data: data,
+		},
 	})
 
 	select {

@@ -25,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
+	"github.com/pomerium/pomerium/pkg/storage/redis"
 )
 
 const (
@@ -166,14 +167,14 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 
 // Put updates a record in the in-memory list, or adds a new one.
 func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databroker.PutResponse, error) {
-	_, span := trace.StartSpan(ctx, "databroker.grpc.Set")
+	_, span := trace.StartSpan(ctx, "databroker.grpc.Put")
 	defer span.End()
 	record := req.GetRecord()
 
 	srv.log.Info().
 		Str("type", record.GetType()).
 		Str("id", record.GetId()).
-		Msg("set")
+		Msg("put")
 
 	db, version, err := srv.getBackend(true)
 	if err != nil {
@@ -204,7 +205,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 
 	// reset record version if the server versions don't match
 	if req.GetServerVersion() != serverVersion {
-		return status.Errorf(codes.Aborted, "invalid server version, expected: %s", req.GetServerVersion())
+		return status.Errorf(codes.Aborted, "invalid server version, expected: %d", req.GetServerVersion())
 	}
 
 	ctx := stream.Context()
@@ -313,14 +314,14 @@ func (srv *Server) newBackend() (backend storage.Backend, err error) {
 	switch srv.cfg.storageType {
 	case config.StorageInMemoryName:
 		return inmemory.New(), nil
-	//case config.StorageRedisName:
-	//	backend, err = redis.New(
-	//		srv.cfg.storageConnectionString,
-	//		redis.WithTLSConfig(tlsConfig),
-	//	)
-	//	if err != nil {
-	//		return nil, fmt.Errorf("failed to create new redis storage: %w", err)
-	//	}
+	case config.StorageRedisName:
+		backend, err = redis.New(
+			srv.cfg.storageConnectionString,
+			redis.WithTLSConfig(tlsConfig),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create new redis storage: %w", err)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)
 	}

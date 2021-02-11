@@ -262,6 +262,9 @@ func TestAuthenticate_SignOut(t *testing.T) {
 								},
 							}, nil
 						},
+						put: func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
+							return nil, nil
+						},
 					},
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
@@ -363,6 +366,9 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							return nil, fmt.Errorf("not implemented")
+						},
+						put: func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
+							return nil, nil
 						},
 					},
 					directoryClient:  new(mockDirectoryServiceClient),
@@ -714,6 +720,9 @@ func TestAuthenticate_FrontchannelLogout(t *testing.T) {
 								},
 							}, nil
 						},
+						put: func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
+							return nil, nil
+						},
 					},
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
@@ -748,7 +757,7 @@ func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.Get
 	return m.get(ctx, in, opts...)
 }
 
-func (m mockDataBrokerServiceClient) Set(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
+func (m mockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
 	return m.put(ctx, in, opts...)
 }
 

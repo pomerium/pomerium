@@ -24,19 +24,16 @@ type Authorize struct {
 	currentOptions *config.AtomicOptions
 	templates      *template.Template
 
-	dataBrokerInitialSync map[string]chan struct{}
+	dataBrokerInitialSync chan struct{}
 }
 
 // New validates and creates a new Authorize service from a set of config options.
 func New(cfg *config.Config) (*Authorize, error) {
 	a := Authorize{
-		currentOptions: config.NewAtomicOptions(),
-		store:          evaluator.NewStore(),
-		templates:      template.Must(frontend.NewTemplates()),
-		dataBrokerInitialSync: map[string]chan struct{}{
-			"type.googleapis.com/directory.Group": make(chan struct{}, 1),
-			"type.googleapis.com/directory.User":  make(chan struct{}, 1),
-		},
+		currentOptions:        config.NewAtomicOptions(),
+		store:                 evaluator.NewStore(),
+		templates:             template.Must(frontend.NewTemplates()),
+		dataBrokerInitialSync: make(chan struct{}),
 	}
 
 	state, err := newAuthorizeStateFromConfig(cfg, a.store)
@@ -46,6 +43,19 @@ func New(cfg *config.Config) (*Authorize, error) {
 	a.state = newAtomicAuthorizeState(state)
 
 	return &a, nil
+}
+
+func (a *Authorize) Run(ctx context.Context) error {
+	return newDataBrokerSyncer(a).Run(ctx)
+}
+
+func (a *Authorize) WaitForInitialSync(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-a.dataBrokerInitialSync:
+	}
+	return nil
 }
 
 func validateOptions(o *config.Options) error {

@@ -45,12 +45,6 @@ type (
 		record *databroker.Record
 		user   *user.User
 	}
-	initMessage struct {
-		sessions        sessionCollection
-		users           userCollection
-		directoryUsers  map[string]*directory.User
-		directoryGroups map[string]*directory.Group
-	}
 )
 
 // A Manager refreshes identity information using session and user data.
