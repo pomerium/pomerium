@@ -93,23 +93,23 @@ func TestSyncer(t *testing.T) {
 			syncLatestCount++
 			switch syncLatestCount {
 			case 1:
-				_ = server.Send(&SyncResponse{
+				_ = server.Send(&SyncLatestResponse{
 					ServerVersion: 2000,
 					Record:        r1,
 				})
 			case 2:
-				_ = server.Send(&SyncResponse{
+				_ = server.Send(&SyncLatestResponse{
 					ServerVersion: 2001,
 					Record:        r2,
 				})
 			case 3:
 				return status.Error(codes.Internal, "SOME INTERNAL ERROR")
 			case 4:
-				_ = server.Send(&SyncResponse{
+				_ = server.Send(&SyncLatestResponse{
 					ServerVersion: 2001,
 					Record:        r3,
 				})
-				_ = server.Send(&SyncResponse{
+				_ = server.Send(&SyncLatestResponse{
 					ServerVersion: 2001,
 					Record:        r5,
 				})

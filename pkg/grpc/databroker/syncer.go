@@ -7,8 +7,11 @@ import (
 	"time"
 
 	backoff "github.com/cenkalti/backoff/v4"
+	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 type syncerConfig struct {
@@ -49,6 +52,9 @@ type Syncer struct {
 	handler SyncerHandler
 	backoff *backoff.ExponentialBackOff
 
+	recordVersion uint64
+	serverVersion uint64
+
 	closeOnce sync.Once
 	closed    chan struct{}
 }
@@ -82,13 +88,12 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 		cancel()
 	}()
 
-	var recordVersion, serverVersion uint64
 	for {
 		var err error
-		if serverVersion == 0 {
-			err = syncer.init(ctx, &recordVersion, &serverVersion)
+		if syncer.serverVersion == 0 {
+			err = syncer.init(ctx)
 		} else {
-			err = syncer.sync(ctx, &recordVersion, &serverVersion)
+			err = syncer.sync(ctx)
 		}
 
 		if err != nil {
@@ -103,11 +108,13 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 	}
 }
 
-func (syncer *Syncer) init(ctx context.Context, recordVersion, serverVersion *uint64) error {
+func (syncer *Syncer) init(ctx context.Context) error {
+	syncer.log().Info().Msg("syncing latest records")
 	records, v, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
 	})
 	if err != nil {
+		syncer.log().Error().Err(err).Msg("error during initial sync")
 		return err
 	}
 	syncer.backoff.Reset()
@@ -115,10 +122,10 @@ func (syncer *Syncer) init(ctx context.Context, recordVersion, serverVersion *ui
 	// reset the records as we have to sync latest
 	syncer.handler.ClearRecords(ctx)
 
-	*serverVersion = v
+	syncer.serverVersion = v
 	for _, record := range records {
-		if record.GetVersion() > *recordVersion {
-			*recordVersion = record.GetVersion()
+		if record.GetVersion() > syncer.recordVersion {
+			syncer.recordVersion = record.GetVersion()
 		}
 	}
 	syncer.handler.UpdateRecords(ctx, records)
@@ -126,32 +133,45 @@ func (syncer *Syncer) init(ctx context.Context, recordVersion, serverVersion *ui
 	return nil
 }
 
-func (syncer *Syncer) sync(ctx context.Context, recordVersion, serverVersion *uint64) error {
+func (syncer *Syncer) sync(ctx context.Context) error {
 	stream, err := syncer.handler.GetDataBrokerServiceClient().Sync(ctx, &SyncRequest{
-		ServerVersion: *serverVersion,
-		RecordVersion: *recordVersion,
+		ServerVersion: syncer.serverVersion,
+		RecordVersion: syncer.recordVersion,
 	})
 	if err != nil {
+		syncer.log().Error().Err(err).Msg("error during sync")
 		return err
 	}
 
 	for {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
+			syncer.log().Error().Err(err).Msg("aborted sync due to mismatched server version")
 			// server version changed, so re-init
-			*serverVersion = 0
+			syncer.serverVersion = 0
 			return nil
 		} else if err != nil {
 			return err
 		}
 
-		if *recordVersion != res.GetRecord().GetVersion()-1 {
-			*serverVersion = 0
+		if syncer.recordVersion != res.GetRecord().GetVersion()-1 {
+			syncer.log().Error().Err(err).
+				Uint64("received", res.GetRecord().GetVersion()).
+				Msg("aborted sync due to missing record")
+			syncer.serverVersion = 0
 			return fmt.Errorf("missing record version")
 		}
-		*recordVersion = res.GetRecord().GetVersion()
+		syncer.recordVersion = res.GetRecord().GetVersion()
 		if syncer.cfg.typeURL == "" || syncer.cfg.typeURL == res.GetRecord().GetType() {
 			syncer.handler.UpdateRecords(ctx, []*Record{res.GetRecord()})
 		}
 	}
+}
+
+func (syncer *Syncer) log() *zerolog.Logger {
+	l := log.With().Str("service", "syncer").
+		Str("type", syncer.cfg.typeURL).
+		Uint64("server_version", syncer.serverVersion).
+		Uint64("record_version", syncer.recordVersion).Logger()
+	return &l
 }

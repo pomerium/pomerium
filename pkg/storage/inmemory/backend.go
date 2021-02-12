@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"github.com/google/btree"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
-
-var timeNow = time.Now
 
 type recordKey struct {
 	Type string
@@ -71,7 +70,7 @@ func New(options ...Option) *Backend {
 				case <-ticker.C:
 				}
 
-				backend.removeChangesBefore(timeNow().Add(-cfg.expiry))
+				backend.removeChangesBefore(time.Now().Add(-cfg.expiry))
 			}
 		}()
 	}
@@ -93,7 +92,11 @@ func (backend *Backend) removeChangesBefore(cutoff time.Time) {
 		}
 		if change.record.GetModifiedAt().AsTime().Before(cutoff) {
 			_ = backend.changes.DeleteMin()
+			continue
 		}
+
+		// nothing left to remove
+		break
 	}
 }
 
@@ -122,7 +125,7 @@ func (backend *Backend) Get(_ context.Context, recordType, id string) (*databrok
 		return nil, storage.ErrNotFound
 	}
 
-	return record, nil
+	return dup(record), nil
 }
 
 // GetAll gets all the records from the in-memory store.
@@ -132,7 +135,7 @@ func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, error) 
 
 	var records []*databroker.Record
 	for _, record := range backend.lookup {
-		records = append(records, record)
+		records = append(records, dup(record))
 	}
 	return records, nil
 }
@@ -147,15 +150,15 @@ func (backend *Backend) Put(_ context.Context, record *databroker.Record) error 
 	defer backend.mu.Unlock()
 	defer backend.onChange.Broadcast()
 
-	record.ModifiedAt = timestamppb.New(timeNow())
+	record.ModifiedAt = timestamppb.Now()
 	record.Version = backend.nextVersion()
-	backend.changes.ReplaceOrInsert(recordChange{record: record})
+	backend.changes.ReplaceOrInsert(recordChange{record: dup(record)})
 
 	key := recordKey{Type: record.GetType(), ID: record.GetId()}
 	if record.GetDeletedAt() != nil {
 		delete(backend.lookup, key)
 	} else {
-		backend.lookup[key] = record
+		backend.lookup[key] = dup(record)
 	}
 
 	return nil
@@ -180,7 +183,7 @@ func (backend *Backend) getSince(version uint64) []*databroker.Record {
 		record := change.record
 		// skip the pivoting version as we only want records after it
 		if record.GetVersion() != version {
-			records = append(records, record)
+			records = append(records, dup(record))
 		}
 		return true
 	})
@@ -189,4 +192,8 @@ func (backend *Backend) getSince(version uint64) []*databroker.Record {
 
 func (backend *Backend) nextVersion() uint64 {
 	return atomic.AddUint64(&backend.lastVersion, 1)
+}
+
+func dup(record *databroker.Record) *databroker.Record {
+	return proto.Clone(record).(*databroker.Record)
 }

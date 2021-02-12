@@ -18,10 +18,10 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
 	"github.com/pomerium/pomerium/pkg/storage/redis"
@@ -37,17 +37,15 @@ type Server struct {
 	cfg *serverConfig
 	log zerolog.Logger
 
-	mu           sync.RWMutex
-	version      uint64
-	backend      storage.Backend
-	onTypechange *signal.Signal
+	mu      sync.RWMutex
+	version uint64
+	backend storage.Backend
 }
 
 // New creates a new server.
 func New(options ...ServerOption) *Server {
 	srv := &Server{
-		log:          log.With().Str("service", "databroker").Logger(),
-		onTypechange: signal.New(),
+		log: log.With().Str("service", "databroker").Logger(),
 	}
 	srv.UpdateConfig(options...)
 	return srv
@@ -109,6 +107,7 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 	_, span := trace.StartSpan(ctx, "databroker.grpc.Get")
 	defer span.End()
 	srv.log.Info().
+		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
 		Msg("get")
@@ -132,6 +131,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 	_, span := trace.StartSpan(ctx, "databroker.grpc.Query")
 	defer span.End()
 	srv.log.Info().
+		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("type", req.GetType()).
 		Str("query", req.GetQuery()).
 		Int64("offset", req.GetOffset()).
@@ -175,6 +175,7 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 	record := req.GetRecord()
 
 	srv.log.Info().
+		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("type", record.GetType()).
 		Str("id", record.GetId()).
 		Msg("put")
@@ -197,6 +198,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	_, span := trace.StartSpan(stream.Context(), "databroker.grpc.Sync")
 	defer span.End()
 	srv.log.Info().
+		Str("peer", grpcutil.GetPeerAddr(stream.Context())).
 		Uint64("server_version", req.GetServerVersion()).
 		Uint64("record_version", req.GetRecordVersion()).
 		Msg("sync")
@@ -239,6 +241,8 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 	_, span := trace.StartSpan(stream.Context(), "databroker.grpc.SyncLatest")
 	defer span.End()
 	srv.log.Info().
+		Str("peer", grpcutil.GetPeerAddr(stream.Context())).
+		Str("type", req.GetType()).
 		Msg("sync latest")
 
 	backend, serverVersion, err := srv.getBackend(true)
@@ -260,7 +264,7 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 		if req.GetType() != "" && req.GetType() != record.GetType() {
 			continue
 		}
-		err = stream.Send(&databroker.SyncResponse{
+		err = stream.Send(&databroker.SyncLatestResponse{
 			ServerVersion: serverVersion,
 			Record:        record,
 		})
@@ -269,7 +273,8 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 		}
 	}
 
-	return nil
+	// always send the server version last in case there are no records
+	return stream.Send(&databroker.SyncLatestResponse{ServerVersion: serverVersion})
 }
 
 func (srv *Server) getBackend(lock bool) (backend storage.Backend, version uint64, err error) {
@@ -293,7 +298,6 @@ func (srv *Server) getBackend(lock bool) (backend storage.Backend, version uint6
 		if backend == nil {
 			backend, err = srv.newBackend()
 			srv.backend = backend
-			defer srv.onTypechange.Broadcast()
 		}
 		if lock {
 			srv.mu.Unlock()
@@ -321,8 +325,10 @@ func (srv *Server) newBackend() (backend storage.Backend, err error) {
 
 	switch srv.cfg.storageType {
 	case config.StorageInMemoryName:
+		srv.log.Info().Msg("using in-memory store")
 		return inmemory.New(), nil
 	case config.StorageRedisName:
+		srv.log.Info().Msg("using redis store")
 		backend, err = redis.New(
 			srv.cfg.storageConnectionString,
 			redis.WithTLSConfig(tlsConfig),

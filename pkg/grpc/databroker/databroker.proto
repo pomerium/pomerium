@@ -4,7 +4,6 @@ package databroker;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
 
 import "google/protobuf/any.proto";
-import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 
@@ -56,11 +55,15 @@ message SyncResponse {
 message SyncLatestRequest {
   string type = 1;
 }
+message SyncLatestResponse {
+  uint64 server_version = 1;
+  optional Record record = 2;
+}
 
 service DataBrokerService {
   rpc Get(GetRequest) returns (GetResponse);
   rpc Put(PutRequest) returns (PutResponse);
   rpc Query(QueryRequest) returns (QueryResponse);
   rpc Sync(SyncRequest) returns (stream SyncResponse);
-  rpc SyncLatest(SyncLatestRequest) returns (stream SyncResponse);
+  rpc SyncLatest(SyncLatestRequest) returns (stream SyncLatestResponse);
 }

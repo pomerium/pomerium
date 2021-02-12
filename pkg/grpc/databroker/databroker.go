@@ -57,7 +57,9 @@ loop:
 		}
 
 		serverVersion = res.GetServerVersion()
-		records = append(records, res.GetRecord())
+		if res.Record != nil {
+			records = append(records, res.GetRecord())
+		}
 	}
 
 	return records, serverVersion, nil

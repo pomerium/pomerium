@@ -57,6 +57,7 @@ func (a *Authorize) WaitForInitialSync(ctx context.Context) error {
 		return ctx.Err()
 	case <-a.dataBrokerInitialSync:
 	}
+	log.Info().Msg("initial sync from databroker complete")
 	return nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 )
 
 // SessionIDMetadataKey is the key in the metadata.
@@ -51,4 +52,13 @@ func JWTFromGRPCRequest(ctx context.Context) (rawjwt string, ok bool) {
 	}
 
 	return rawjwts[0], true
+}
+
+// GetPeerAddr returns the peer address.
+func GetPeerAddr(ctx context.Context) string {
+	p, ok := peer.FromContext(ctx)
+	if ok {
+		return p.Addr.String()
+	}
+	return ""
 }
