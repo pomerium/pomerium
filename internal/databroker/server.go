@@ -153,9 +153,13 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 
 	var filtered []*databroker.Record
 	for _, record := range all {
-		if record.DeletedAt == nil && storage.MatchAny(record.GetData(), query) {
-			filtered = append(filtered, record)
+		if record.GetType() != req.GetType() {
+			continue
 		}
+		if query != "" && !storage.MatchAny(record.GetData(), query) {
+			continue
+		}
+		filtered = append(filtered, record)
 	}
 
 	records, totalCount := databroker.ApplyOffsetAndLimit(filtered, int(req.GetOffset()), int(req.GetLimit()))
