@@ -2,15 +2,10 @@ package manager
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/rs/zerolog"
 
-	"github.com/pomerium/pomerium/internal/directory"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 var (
@@ -24,11 +19,8 @@ type dataBrokerSyncer struct {
 	cfg *atomicConfig
 	log zerolog.Logger
 
-	updatedDirectoryGroup chan<- *directory.Group
-	updatedDirectoryUser  chan<- *directory.User
-	updatedSession        chan<- sessionMessage
-	updatedUser           chan<- userMessage
-	clear                 chan<- struct{}
+	update chan<- updateRecordsMessage
+	clear  chan<- struct{}
 
 	syncer *databroker.Syncer
 }
@@ -36,21 +28,15 @@ type dataBrokerSyncer struct {
 func newDataBrokerSyncer(
 	cfg *atomicConfig,
 	log zerolog.Logger,
-	updatedDirectoryGroup chan<- *directory.Group,
-	updatedDirectoryUser chan<- *directory.User,
-	updatedSession chan<- sessionMessage,
-	updatedUser chan<- userMessage,
+	update chan<- updateRecordsMessage,
 	clear chan<- struct{},
 ) *dataBrokerSyncer {
 	syncer := &dataBrokerSyncer{
 		cfg: cfg,
 		log: log,
 
-		updatedDirectoryGroup: updatedDirectoryGroup,
-		updatedDirectoryUser:  updatedDirectoryUser,
-		updatedSession:        updatedSession,
-		updatedUser:           updatedUser,
-		clear:                 clear,
+		update: update,
+		clear:  clear,
 	}
 	syncer.syncer = databroker.NewSyncer(syncer)
 	return syncer
@@ -72,60 +58,8 @@ func (syncer *dataBrokerSyncer) GetDataBrokerServiceClient() databroker.DataBrok
 }
 
 func (syncer *dataBrokerSyncer) UpdateRecords(ctx context.Context, records []*databroker.Record) {
-	for _, record := range records {
-		err := syncer.handleRecord(ctx, record)
-		if err != nil {
-			log.Warn().Err(err).Msg("databroker record update error")
-		}
+	select {
+	case <-ctx.Done():
+	case syncer.update <- updateRecordsMessage{records: records}:
 	}
-}
-
-func (syncer *dataBrokerSyncer) handleRecord(ctx context.Context, record *databroker.Record) error {
-	switch record.GetType() {
-	case directoryGroupTypeURL:
-		var pbDirectoryGroup directory.Group
-		err := record.GetData().UnmarshalTo(&pbDirectoryGroup)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling directory group: %w", err)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case syncer.updatedDirectoryGroup <- &pbDirectoryGroup:
-		}
-	case directoryUserTypeURL:
-		var pbDirectoryUser directory.User
-		err := record.GetData().UnmarshalTo(&pbDirectoryUser)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling directory user: %w", err)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case syncer.updatedDirectoryUser <- &pbDirectoryUser:
-		}
-	case sessionTypeURL:
-		var pbSession session.Session
-		err := record.GetData().UnmarshalTo(&pbSession)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling session: %w", err)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case syncer.updatedSession <- sessionMessage{record: record, session: &pbSession}:
-		}
-	case userTypeURL:
-		var pbUser user.User
-		err := record.GetData().UnmarshalTo(&pbUser)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling user: %w", err)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case syncer.updatedUser <- userMessage{record: record, user: &pbUser}:
-		}
-	}
-	return nil
 }
