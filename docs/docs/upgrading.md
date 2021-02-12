@@ -9,6 +9,10 @@ description: >-
 
 ## Breaking
 
+### Sign-out endpoint requires CSRF Token
+
+The frontchannel-logout endpoint will now require a CSRF token for both `GET` and `POST` requests.
+
 ### User impersonation removed
 
 With the v0.13.0 release, user impersonation has been removed.

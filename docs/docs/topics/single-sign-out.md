@@ -1,6 +1,8 @@
 ---
 title: Single Sign-out
-description: This article describes Pomerium's support for Single Sign-out according to OpenID Connect Front-Channel Logout 1.0.
+description: >-
+  This article describes Pomerium's support for Single Sign-out according to
+  OpenID Connect Front-Channel Logout 1.0.
 ---
 
 # Single Sign-out
@@ -23,4 +25,21 @@ To find out if your identity provider (IdP) supports Front-Channel Logout, have 
 
 ### Configuration
 
-You need to register a `frontchannel_logout_uri` in your OAuth 2.0 Client settings. The url gets handled by the Authenticate Service under the path `/.pomerium/frontchannel-logout` (e.g `https://authenticate.localhost.pomerium.io/.pomerium/frontchannel-logout`).
+You need to register a `frontchannel_logout_uri` in your OAuth 2.0 Client settings. The url gets handled by the Authenticate Service under the path `/.pomerium/sign_out` (e.g `https://authenticate.localhost.pomerium.io/.pomerium/sign_out`).
+
+
+### The endpoint
+
+See Pomerium's `/.well-known/pomerium` endpoint for the sign-out page's uri. For example,
+
+```json
+{
+  "authentication_callback_endpoint": "https://authenticate.localhost.pomerium.io/oauth2/callback",
+  "jwks_uri": "https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json",
+  "frontchannel_logout_uri": "https://authenticate.localhost.pomerium.io/.pomerium/sign_out"
+}
+```
+
+Note, a CSRF token is required for the single sign out endpoint (despite supporting `GET` and `POST`) and can be retrieved from the
+`X-CSRF-Token` response header on the well known endpoint above or using the `_pomerium_csrf` session set.
+

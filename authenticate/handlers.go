@@ -109,6 +109,7 @@ func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
 		state.redirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
 		state.redirectURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
 	}
+	w.Header().Set("X-CSRF-Token", csrf.Token(r))
 	httputil.RenderJSON(w, http.StatusOK, wellKnownURLS)
 	return nil
 }
