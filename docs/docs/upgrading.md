@@ -7,7 +7,21 @@ description: >-
 
 # Since 0.12.0
 
+## New
+
+### Upstream load balancing
+
+With the v0.13 release, routes may contain [multiple `to` URLs](/reference/#to), and Pomerium will load balance between the endpoints.  This allows Pomerium to fill the role of an edge proxy without the need for additional HTTP load balancers.
+
+* Active [health checks](/reference/#health-checks) and passive [outlier detection](/reference/#outlier-detection)
+* Configurable [load balancing algorithms](/reference/#load-balancing-policy)
+
+See [Load Balancing](/docs/topics/load-balancing) for more information on using this feature set.
 ## Breaking
+
+### Sign-out endpoint requires CSRF Token
+
+The frontchannel-logout endpoint will now require a CSRF token for both `GET` and `POST` requests.
 
 ### User impersonation removed
 
