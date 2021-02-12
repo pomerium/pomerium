@@ -3,6 +3,8 @@ package testutil
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -31,4 +33,29 @@ func toProtoJSON(protoMsg interface{}) json.RawMessage {
 	v2 := proto.MessageV2(protoMsg)
 	bs, _ := protojson.Marshal(v2)
 	return bs
+}
+
+// ModRoot returns the directory containing the go.mod file.
+func ModRoot() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		panic("error getting working directory")
+	}
+
+	for {
+		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
+			return dir
+		}
+		d := filepath.Dir(dir)
+		if d == dir {
+			break
+		}
+		dir = d
+	}
+	return ""
+}
+
+// TestDataRoot returns the testdata directory.
+func TestDataRoot() string {
+	return filepath.Join(ModRoot(), "internal", "testutil", "testdata")
 }
