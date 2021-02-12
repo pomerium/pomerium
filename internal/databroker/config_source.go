@@ -179,7 +179,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	syncer := databroker.NewSyncer(&syncerHandler{
 		client: client,
 		src:    src,
-	})
+	}, databroker.WithTypeURL(configTypeURL))
 	go func() { _ = syncer.Run(ctx) }()
 }
 
@@ -199,18 +199,12 @@ func (s *syncerHandler) ClearRecords(ctx context.Context) {
 }
 
 func (s *syncerHandler) UpdateRecords(ctx context.Context, records []*databroker.Record) {
-	var configRecords []*databroker.Record
-	for _, record := range records {
-		if record.GetType() == configTypeURL {
-			configRecords = append(configRecords, record)
-		}
-	}
-	if len(configRecords) == 0 {
+	if len(records) == 0 {
 		return
 	}
 
 	s.src.mu.Lock()
-	for _, record := range configRecords {
+	for _, record := range records {
 		if record.GetDeletedAt() != nil {
 			delete(s.src.dbConfigs, record.GetId())
 			continue

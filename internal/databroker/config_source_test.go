@@ -24,7 +24,7 @@ func TestConfigSource(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer li.Close()
+	defer func() { _ = li.Close() }()
 
 	dataBrokerServer := New()
 	srv := grpc.NewServer()

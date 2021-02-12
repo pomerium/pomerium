@@ -54,6 +54,7 @@ message SyncResponse {
 }
 
 message SyncLatestRequest {
+  string type = 1;
 }
 
 service DataBrokerService {
@@ -61,5 +62,5 @@ service DataBrokerService {
   rpc Put(PutRequest) returns (PutResponse);
   rpc Query(QueryRequest) returns (QueryResponse);
   rpc Sync(SyncRequest) returns (stream SyncResponse);
-  rpc SyncLatest(google.protobuf.Empty) returns (stream SyncResponse);
+  rpc SyncLatest(SyncLatestRequest) returns (stream SyncResponse);
 }

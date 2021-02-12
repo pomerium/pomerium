@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/internal/testutil"
 )
@@ -38,15 +37,15 @@ func (t testSyncerHandler) UpdateRecords(ctx context.Context, records []*Record)
 type testServer struct {
 	DataBrokerServiceServer
 	sync       func(request *SyncRequest, server DataBrokerService_SyncServer) error
-	syncLatest func(empty *emptypb.Empty, server DataBrokerService_SyncLatestServer) error
+	syncLatest func(req *SyncLatestRequest, server DataBrokerService_SyncLatestServer) error
 }
 
 func (t testServer) Sync(request *SyncRequest, server DataBrokerService_SyncServer) error {
 	return t.sync(request, server)
 }
 
-func (t testServer) SyncLatest(empty *emptypb.Empty, server DataBrokerService_SyncLatestServer) error {
-	return t.syncLatest(empty, server)
+func (t testServer) SyncLatest(req *SyncLatestRequest, server DataBrokerService_SyncLatestServer) error {
+	return t.syncLatest(req, server)
 }
 
 func TestSyncer(t *testing.T) {
@@ -90,7 +89,7 @@ func TestSyncer(t *testing.T) {
 			}
 			return nil
 		},
-		syncLatest: func(empty *emptypb.Empty, server DataBrokerService_SyncLatestServer) error {
+		syncLatest: func(req *SyncLatestRequest, server DataBrokerService_SyncLatestServer) error {
 			syncLatestCount++
 			switch syncLatestCount {
 			case 1:

@@ -11,6 +11,28 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+type syncerConfig struct {
+	typeURL string
+}
+
+// A SyncerOption customizes the syncer configuration.
+type SyncerOption func(cfg *syncerConfig)
+
+func getSyncerConfig(options ...SyncerOption) *syncerConfig {
+	cfg := new(syncerConfig)
+	for _, option := range options {
+		option(cfg)
+	}
+	return cfg
+}
+
+// WithTypeURL restricts the sync'd results to the given type.
+func WithTypeURL(typeURL string) SyncerOption {
+	return func(cfg *syncerConfig) {
+		cfg.typeURL = typeURL
+	}
+}
+
 // A SyncerHandler receives sync events from the Syncer.
 type SyncerHandler interface {
 	GetDataBrokerServiceClient() DataBrokerServiceClient
@@ -23,6 +45,7 @@ type SyncerHandler interface {
 // to Sync. If the server version changes `ClearRecords` will be called and the process
 // will start over.
 type Syncer struct {
+	cfg     *syncerConfig
 	handler SyncerHandler
 	backoff *backoff.ExponentialBackOff
 
@@ -31,10 +54,11 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new Syncer.
-func NewSyncer(handler SyncerHandler) *Syncer {
+func NewSyncer(handler SyncerHandler, options ...SyncerOption) *Syncer {
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
 	return &Syncer{
+		cfg:     getSyncerConfig(options...),
 		handler: handler,
 		backoff: bo,
 
@@ -80,7 +104,9 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 }
 
 func (syncer *Syncer) init(ctx context.Context, recordVersion, serverVersion *uint64) error {
-	records, v, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient())
+	records, v, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
+		Type: syncer.cfg.typeURL,
+	})
 	if err != nil {
 		return err
 	}
@@ -124,6 +150,8 @@ func (syncer *Syncer) sync(ctx context.Context, recordVersion, serverVersion *ui
 			return fmt.Errorf("missing record version")
 		}
 		*recordVersion = res.GetRecord().GetVersion()
-		syncer.handler.UpdateRecords(ctx, []*Record{res.GetRecord()})
+		if syncer.cfg.typeURL == "" || syncer.cfg.typeURL == res.GetRecord().GetType() {
+			syncer.handler.UpdateRecords(ctx, []*Record{res.GetRecord()})
+		}
 	}
 }

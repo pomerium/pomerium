@@ -6,8 +6,6 @@ import (
 	"encoding/base64"
 	"sync/atomic"
 
-	"google.golang.org/protobuf/types/known/emptypb"
-
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -81,7 +79,7 @@ func (srv *dataBrokerServer) Sync(req *databrokerpb.SyncRequest, stream databrok
 	return srv.server.Sync(req, stream)
 }
 
-func (srv *dataBrokerServer) SyncLatest(req *emptypb.Empty, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
+func (srv *dataBrokerServer) SyncLatest(req *databrokerpb.SyncLatestRequest, stream databrokerpb.DataBrokerService_SyncLatestServer) error {
 	if err := grpcutil.RequireSignedJWT(stream.Context(), srv.sharedKey.Load().([]byte)); err != nil {
 		return err
 	}

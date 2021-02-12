@@ -5,8 +5,6 @@ import (
 	"context"
 	"io"
 	"strings"
-
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // GetUserID gets the databroker user id from a provider user id.
@@ -41,8 +39,9 @@ func ApplyOffsetAndLimit(all []*Record, offset, limit int) (records []*Record, t
 func InitialSync(
 	ctx context.Context,
 	client DataBrokerServiceClient,
+	req *SyncLatestRequest,
 ) (records []*Record, serverVersion uint64, err error) {
-	stream, err := client.SyncLatest(ctx, new(emptypb.Empty))
+	stream, err := client.SyncLatest(ctx, req)
 	if err != nil {
 		return nil, 0, err
 	}

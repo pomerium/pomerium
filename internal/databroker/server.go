@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
@@ -236,7 +235,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 }
 
 // SyncLatest returns the latest value of every record in the databroker as a stream of records.
-func (srv *Server) SyncLatest(_ *emptypb.Empty, stream databroker.DataBrokerService_SyncLatestServer) error {
+func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databroker.DataBrokerService_SyncLatestServer) error {
 	_, span := trace.StartSpan(stream.Context(), "databroker.grpc.SyncLatest")
 	defer span.End()
 	srv.log.Info().
@@ -257,6 +256,10 @@ func (srv *Server) SyncLatest(_ *emptypb.Empty, stream databroker.DataBrokerServ
 	}
 
 	for _, record := range records {
+		// only return records that match the passed in type.
+		if req.GetType() != "" && req.GetType() != record.GetType() {
+			continue
+		}
 		err = stream.Send(&databroker.SyncResponse{
 			ServerVersion: serverVersion,
 			Record:        record,
