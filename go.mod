@@ -40,7 +40,7 @@ require (
 	github.com/openzipkin/zipkin-go v0.2.5
 	github.com/ory/dockertest/v3 v3.6.3
 	github.com/pelletier/go-toml v1.8.0 // indirect
-	github.com/pomerium/csrf v1.6.2-0.20190918035251-f3318380bad3
+	github.com/pomerium/csrf v1.7.0
 	github.com/prometheus/client_golang v1.9.0
 	github.com/rakyll/statik v0.1.7
 	github.com/rjeczalik/notify v0.9.3-0.20201210012515-e2a77dcc14cf

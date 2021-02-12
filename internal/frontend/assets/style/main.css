@@ -458,6 +458,7 @@ table tbody tr:nth-child(2n + 1) td {
   background: #f6f9fc;
 }
 
+input,
 button,
 a.button {
   background: #6e43e8;
@@ -468,22 +469,10 @@ a.button {
   color: #f6f9fc;
   font-weight: 500;
   padding: 0 12px;
-  /* line-height: 32px; */
   cursor: pointer;
   outline: none;
   display: inline-block;
   text-decoration: none;
   text-transform: none;
-}
-
-.button {
-  background: white;
-  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px,
-    rgba(0, 0, 0, 0.12) 0px 1px 1px 0px, rgba(60, 66, 87, 0.16) 0px 0px 0px 1px,
-    rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px,
-    rgba(60, 66, 87, 0.12) 0px 2px 5px 0px;
-  /* box-shadow: 0 2px 5px 0 rgba(50, 50, 93, .20), 0 1px 1px 0 rgba(0, 0, 0, .14); */
-  color: var(--sail-color-text);
-  margin-top: 2px;
   transition: box-shadow 150ms ease-in-out;
 }
