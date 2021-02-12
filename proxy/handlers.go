@@ -21,14 +21,13 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	h := r.PathPrefix(dashboardPath).Subrouter()
 	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 
-	// dashboard endpoints can be used by user's to view, or modify their session
-	h.Path("/").HandlerFunc(p.UserDashboard).Methods(http.MethodGet)
+	// special pomerium endpoints for users to view their session
+	h.Path("/").HandlerFunc(p.userInfo).Methods(http.MethodGet)
 	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
 	h.Path("/jwt").Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
 
-	// Authenticate service callback handlers and middleware
-	// callback used to set route-scoped session and redirect back to destination
-	// only accept signed requests (hmac) from other trusted pomerium services
+	// called following authenticate auth flow to grab a new or existing session
+	// the route specific cookie is returned in a signed query params
 	c := r.PathPrefix(dashboardPath + "/callback").Subrouter()
 	c.Use(func(h http.Handler) http.Handler {
 		return middleware.ValidateSignature(p.state.Load().sharedKey)(h)
@@ -52,9 +51,9 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
-// SignOut redirects the request to the sign out url. It's the responsibility
-// of the authenticate service to revoke the remote session and clear
-// the local session state.
+// SignOut clears the local session and redirects the request to the sign out url.
+// It's the responsibility of the authenticate service to revoke the remote session and clear
+// the authenticate service's session state.
 func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	state := p.state.Load()
 
@@ -75,8 +74,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &signoutURL).String(), http.StatusFound)
 }
 
-// UserDashboard redirects to the authenticate dashboard.
-func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) userInfo(w http.ResponseWriter, r *http.Request) {
 	state := p.state.Load()
 
 	redirectURL := urlutil.GetAbsoluteURL(r).String()
@@ -93,7 +91,7 @@ func (p *Proxy) UserDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 // Callback handles the result of a successful call to the authenticate service
-// and is responsible setting returned per-route session.
+// and is responsible setting per-route sessions.
 func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
 	redirectURLString := r.FormValue(urlutil.QueryRedirectURI)
 	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
@@ -118,7 +116,7 @@ func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// saveCallbackSession takes an encrypted per-route session token, and decrypts
+// saveCallbackSession takes an encrypted per-route session token, decrypts
 // it using the shared service key, then stores it the local session store.
 func (p *Proxy) saveCallbackSession(w http.ResponseWriter, r *http.Request, enctoken string) ([]byte, error) {
 	state := p.state.Load()
@@ -165,8 +163,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	return nil
 }
 
-// jwtAssertion returns the current user's/request's JWT (rfc7519#section-10.3.1) that should be
-// added to the upstream request.
+// jwtAssertion returns the current request's JWT assertion (rfc7519#section-10.3.1).
 func (p *Proxy) jwtAssertion(w http.ResponseWriter, r *http.Request) error {
 	assertionJWT := r.Header.Get(httputil.HeaderPomeriumJWTAssertion)
 	if assertionJWT == "" {
