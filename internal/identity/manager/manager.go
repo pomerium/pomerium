@@ -76,6 +76,11 @@ func New(
 		sessionScheduler: scheduler.New(),
 		userScheduler:    scheduler.New(),
 
+		directoryGroups: make(map[string]*directory.Group),
+		directoryUsers:  make(map[string]*directory.User),
+		sessions:        sessionCollection{BTree: btree.New(8)},
+		users:           userCollection{BTree: btree.New(8)},
+
 		dataBrokerSemaphore: semaphore.NewWeighted(dataBrokerParallelism),
 	}
 	mgr.UpdateConfig(options...)
@@ -106,12 +111,11 @@ func (mgr *Manager) Run(ctx context.Context) error {
 	)
 
 	eg, ctx := errgroup.WithContext(ctx)
-	reinit := make(chan struct{}, 1)
 	eg.Go(func() error {
 		return syncer.Run(ctx)
 	})
 	eg.Go(func() error {
-		return mgr.refreshLoop(ctx, updatedSession, updatedUser, updatedDirectoryUser, updatedDirectoryGroup, reinit)
+		return mgr.refreshLoop(ctx, updatedSession, updatedUser, updatedDirectoryUser, updatedDirectoryGroup, clear)
 	})
 
 	return eg.Wait()

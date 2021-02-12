@@ -17,6 +17,7 @@ func newDataBrokerSyncer(authorize *Authorize) *dataBrokerSyncer {
 	syncer := &dataBrokerSyncer{
 		authorize: authorize,
 	}
+	syncer.Syncer = databroker.NewSyncer(syncer)
 	return syncer
 }
 
