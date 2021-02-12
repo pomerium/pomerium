@@ -3,6 +3,8 @@ package redis
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -16,6 +18,10 @@ import (
 )
 
 func TestBackend(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
 	for _, useTLS := range []bool{true, false} {
 		require.NoError(t, testutil.WithTestRedis(useTLS, func(rawURL string) error {
 			ctx := context.Background()
@@ -76,6 +82,10 @@ func TestBackend(t *testing.T) {
 }
 
 func TestChangeSignal(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
 	ctx := context.Background()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*10)
 	defer clearTimeout()
@@ -121,6 +131,10 @@ func TestChangeSignal(t *testing.T) {
 }
 
 func TestExpiry(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
 	ctx := context.Background()
 	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
 		backend, err := New(rawURL, WithExpiry(0))
