@@ -19,6 +19,10 @@ With the v0.13 release, routes may contain [multiple `to` URLs](/reference/#to),
 See [Load Balancing](/docs/topics/load-balancing) for more information on using this feature set.
 ## Breaking
 
+### Sign-out endpoint requires CSRF Token
+
+The frontchannel-logout endpoint will now require a CSRF token for both `GET` and `POST` requests.
+
 ### User impersonation removed
 
 With the v0.13.0 release, user impersonation has been removed.

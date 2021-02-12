@@ -12,7 +12,13 @@
     <div class="header clearfix">
       <div class="heading">
         <a href="{{.RedirectURL}}" class="logo"></a>
-        <span><a class="button" href="{{.SignOutURL}}">Logout</a></span>
+            <span>
+              <form action="{{.SignOutURL}}" method="post">
+                {{.csrfField}}
+                <input type="hidden" name="pomerium_redirect_uri" value="{{.RedirectURL}}">
+                <input class="button" type="submit" value="Logout"/>
+              </form>
+            </span>
       </div>
     </div>
     <div class="content">
