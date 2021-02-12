@@ -15,6 +15,10 @@ message Record {
   google.protobuf.Timestamp modified_at = 5;
   google.protobuf.Timestamp deleted_at = 6;
 }
+message Versions {
+  uint64 server_version = 1;
+  uint64 latest_record_version = 2;
+}
 
 message GetRequest {
   string type = 1;
@@ -56,8 +60,10 @@ message SyncLatestRequest {
   string type = 1;
 }
 message SyncLatestResponse {
-  uint64 server_version = 1;
-  optional Record record = 2;
+  oneof response {
+    Record record = 1;
+    Versions versions = 2;
+  }
 }
 
 service DataBrokerService {

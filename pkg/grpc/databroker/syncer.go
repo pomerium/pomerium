@@ -110,7 +110,7 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 
 func (syncer *Syncer) init(ctx context.Context) error {
 	syncer.log().Info().Msg("syncing latest records")
-	records, v, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
+	records, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
 	})
 	if err != nil {
@@ -122,12 +122,8 @@ func (syncer *Syncer) init(ctx context.Context) error {
 	// reset the records as we have to sync latest
 	syncer.handler.ClearRecords(ctx)
 
-	syncer.serverVersion = v
-	for _, record := range records {
-		if record.GetVersion() > syncer.recordVersion {
-			syncer.recordVersion = record.GetVersion()
-		}
-	}
+	syncer.recordVersion = recordVersion
+	syncer.serverVersion = serverVersion
 	syncer.handler.UpdateRecords(ctx, records)
 
 	return nil

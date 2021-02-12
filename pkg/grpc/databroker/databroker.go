@@ -3,6 +3,7 @@ package databroker
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -40,10 +41,10 @@ func InitialSync(
 	ctx context.Context,
 	client DataBrokerServiceClient,
 	req *SyncLatestRequest,
-) (records []*Record, serverVersion uint64, err error) {
+) (records []*Record, recordVersion, serverVersion uint64, err error) {
 	stream, err := client.SyncLatest(ctx, req)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, 0, err
 	}
 
 loop:
@@ -53,14 +54,19 @@ loop:
 		case err == io.EOF:
 			break loop
 		case err != nil:
-			return nil, 0, err
+			return nil, 0, 0, err
 		}
 
-		serverVersion = res.GetServerVersion()
-		if res.Record != nil {
-			records = append(records, res.GetRecord())
+		switch res := res.GetResponse().(type) {
+		case *SyncLatestResponse_Versions:
+			recordVersion = res.Versions.GetLatestRecordVersion()
+			serverVersion = res.Versions.GetServerVersion()
+		case *SyncLatestResponse_Record:
+			records = append(records, res.Record)
+		default:
+			panic(fmt.Sprintf("unexpected response: %T", res))
 		}
 	}
 
-	return records, serverVersion, nil
+	return records, recordVersion, serverVersion, nil
 }

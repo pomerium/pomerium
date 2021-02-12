@@ -259,22 +259,33 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 		return err
 	}
 
+	var latestRecordVersion uint64
 	for _, record := range records {
-		// only return records that match the passed in type.
-		if req.GetType() != "" && req.GetType() != record.GetType() {
-			continue
+		if record.GetVersion() > latestRecordVersion {
+			latestRecordVersion = record.GetVersion()
 		}
-		err = stream.Send(&databroker.SyncLatestResponse{
-			ServerVersion: serverVersion,
-			Record:        record,
-		})
-		if err != nil {
-			return err
+
+		if req.GetType() == "" || req.GetType() == record.GetType() {
+			err = stream.Send(&databroker.SyncLatestResponse{
+				Response: &databroker.SyncLatestResponse_Record{
+					Record: record,
+				},
+			})
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	// always send the server version last in case there are no records
-	return stream.Send(&databroker.SyncLatestResponse{ServerVersion: serverVersion})
+	return stream.Send(&databroker.SyncLatestResponse{
+		Response: &databroker.SyncLatestResponse_Versions{
+			Versions: &databroker.Versions{
+				ServerVersion:       serverVersion,
+				LatestRecordVersion: latestRecordVersion,
+			},
+		},
+	})
 }
 
 func (srv *Server) getBackend(lock bool) (backend storage.Backend, version uint64, err error) {

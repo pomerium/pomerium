@@ -65,12 +65,22 @@ func TestInitialSync(t *testing.T) {
 	m := &mockServer{
 		syncLatest: func(req *SyncLatestRequest, stream DataBrokerService_SyncLatestServer) error {
 			stream.Send(&SyncLatestResponse{
-				ServerVersion: 1,
-				Record:        r1,
+				Response: &SyncLatestResponse_Record{
+					Record: r1,
+				},
 			})
 			stream.Send(&SyncLatestResponse{
-				ServerVersion: 1,
-				Record:        r2,
+				Response: &SyncLatestResponse_Record{
+					Record: r2,
+				},
+			})
+			stream.Send(&SyncLatestResponse{
+				Response: &SyncLatestResponse_Versions{
+					Versions: &Versions{
+						LatestRecordVersion: 2,
+						ServerVersion:       1,
+					},
+				},
 			})
 			return nil
 		},
@@ -88,8 +98,9 @@ func TestInitialSync(t *testing.T) {
 
 	c := NewDataBrokerServiceClient(cc)
 
-	records, serverVersion, err := InitialSync(ctx, c, new(SyncLatestRequest))
+	records, recordVersion, serverVersion, err := InitialSync(ctx, c, new(SyncLatestRequest))
 	assert.NoError(t, err)
+	assert.Equal(t, uint64(2), recordVersion)
 	assert.Equal(t, uint64(1), serverVersion)
 	assert.Equal(t, []*Record{r1, r2}, records)
 }

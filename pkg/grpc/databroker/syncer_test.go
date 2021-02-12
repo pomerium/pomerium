@@ -94,24 +94,52 @@ func TestSyncer(t *testing.T) {
 			switch syncLatestCount {
 			case 1:
 				_ = server.Send(&SyncLatestResponse{
-					ServerVersion: 2000,
-					Record:        r1,
+					Response: &SyncLatestResponse_Record{
+						Record: r1,
+					},
+				})
+				_ = server.Send(&SyncLatestResponse{
+					Response: &SyncLatestResponse_Versions{
+						Versions: &Versions{
+							LatestRecordVersion: r1.Version,
+							ServerVersion:       2000,
+						},
+					},
 				})
 			case 2:
 				_ = server.Send(&SyncLatestResponse{
-					ServerVersion: 2001,
-					Record:        r2,
+					Response: &SyncLatestResponse_Record{
+						Record: r2,
+					},
+				})
+				_ = server.Send(&SyncLatestResponse{
+					Response: &SyncLatestResponse_Versions{
+						Versions: &Versions{
+							LatestRecordVersion: r2.Version,
+							ServerVersion:       2001,
+						},
+					},
 				})
 			case 3:
 				return status.Error(codes.Internal, "SOME INTERNAL ERROR")
 			case 4:
 				_ = server.Send(&SyncLatestResponse{
-					ServerVersion: 2001,
-					Record:        r3,
+					Response: &SyncLatestResponse_Record{
+						Record: r3,
+					},
 				})
 				_ = server.Send(&SyncLatestResponse{
-					ServerVersion: 2001,
-					Record:        r5,
+					Response: &SyncLatestResponse_Record{
+						Record: r5,
+					},
+				})
+				_ = server.Send(&SyncLatestResponse{
+					Response: &SyncLatestResponse_Versions{
+						Versions: &Versions{
+							LatestRecordVersion: r5.Version,
+							ServerVersion:       2001,
+						},
+					},
 				})
 			default:
 				t.Fatal("unexpected call to sync latest")
