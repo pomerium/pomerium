@@ -34,10 +34,8 @@ func TestRegistry(t *testing.T) {
 	ttl := time.Second
 	pb.RegisterRegistryServer(gs, registry.NewInMemoryServer(ctx, ttl))
 
-	go func() {
-		err := gs.Serve(l)
-		assert.NoError(t, err)
-	}()
+	go gs.Serve(l)
+	defer gs.Stop()
 
 	conn, err := grpc.DialContext(ctx, "inmem", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	if err != nil {

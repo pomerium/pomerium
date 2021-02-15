@@ -52,6 +52,7 @@ func (r *Reporter) OnConfigChange(cfg *config.Config) {
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("connecting to registry")
+		return
 	}
 
 	ctx, cancel := context.WithCancel(context.TODO())
