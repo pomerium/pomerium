@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package registry; 
+package registry;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/registry";
 
 import "google/protobuf/timestamp.proto";
@@ -30,7 +30,7 @@ enum ServiceKind {
 message Service {
     // kind is service kind
     ServiceKind kind = 1 [(validate.rules).enum = {not_in: [0]}];
-    // network endpoints this service may be reachable at    
+    // network endpoints this service may be reachable at
     string endpoint = 3 [(validate.rules).repeated.min_items = 1];
 }
 
@@ -68,10 +68,10 @@ message ServiceList {
     repeated Service services = 1;
 }
 
-// Registry is invoked by services to inform 
+// Registry is invoked by services to inform
 service Registry {
     // Register is periodically sent by each service to confirm it is still serving with the registry
-    // data is persisted with a certain TTL 
+    // data is persisted with a certain TTL
     rpc Report(RegisterRequest) returns (RegisterResponse);
     // List returns current snapshot of the services known to the registry
     rpc List(ListRequest) returns (ServiceList);
