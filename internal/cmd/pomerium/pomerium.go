@@ -218,11 +218,9 @@ func setupRegistryServer(src config.Source, controlPlane *controlplane.Server) e
 }
 
 func setupRegistryReporter(src config.Source) error {
-	svc, err := registry.NewReporter(src.GetConfig())
-	if err != nil {
-		return err
-	}
-	src.OnConfigChange(svc.OnConfigChange)
+	reporter := new(registry.Reporter)
+	src.OnConfigChange(reporter.OnConfigChange)
+	reporter.OnConfigChange(src.GetConfig())
 	return nil
 }
 

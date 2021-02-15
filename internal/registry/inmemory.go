@@ -70,7 +70,7 @@ func (s *inMemoryServer) Report(ctx context.Context, req *pb.RegisterRequest) (*
 		s.onchange.Broadcast()
 	}
 
-	return &pb.RegisterResponse{CallBackAfter: ptypes.DurationProto(s.ttl / 2)}, nil
+	return &pb.RegisterResponse{CallBackAfter: ptypes.DurationProto(s.ttl / callAfterTTLFactor)}, nil
 }
 
 func (s *inMemoryServer) lockAndRmExpired() bool {

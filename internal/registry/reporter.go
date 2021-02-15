@@ -4,30 +4,39 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net"
+	"net/url"
+	"os"
 	"time"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
+
+	"github.com/cenkalti/backoff/v4"
 )
 
 type Reporter struct {
 	cancel func()
 }
 
-func NewReporter(cfg *config.Config) (*Reporter, error) {
-	return fromConfig(cfg)
-}
-
+// OnConfigChange applies configuration changes to the reporter
 func (r *Reporter) OnConfigChange(cfg *config.Config) {
-	log.Info().Msg("registry reporter - on config change")
-}
+	if r.cancel != nil {
+		r.cancel()
+	}
 
-func fromConfig(cfg *config.Config) (*Reporter, error) {
+	services, err := getReportedServices(cfg)
+	if err != nil {
+		log.Error().Err(err).Msg("applying config")
+		return
+	}
+
 	sharedKey, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 	if err != nil {
-		return nil, fmt.Errorf("decoding shared key: %w", err)
+		log.Error().Err(err).Msg("decoding shared key")
+		return
 	}
 
 	registryConn, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
@@ -42,17 +51,52 @@ func fromConfig(cfg *config.Config) (*Reporter, error) {
 		SignedJWTKey:            sharedKey,
 	})
 	if err != nil {
-		return nil, err
+		log.Error().Err(err).Msg("connecting to registry")
 	}
 
 	ctx, cancel := context.WithCancel(context.TODO())
-	go runReporter(ctx, pb.NewRegistryClient(registryConn),
-		[]*pb.Service{{
-			Endpoint: fmt.Sprintf("http://%s", cfg.Options.MetricsAddr),
-			Kind:     pb.ServiceKind_PROMETHEUS_METRICS,
-		}})
+	go runReporter(ctx, pb.NewRegistryClient(registryConn), services)
+	r.cancel = cancel
+}
 
-	return &Reporter{cancel: cancel}, nil
+func getReportedServices(cfg *config.Config) ([]*pb.Service, error) {
+	mu, err := metricsURL(cfg.Options.MetricsAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	return []*pb.Service{
+		{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: mu.String()},
+	}, nil
+}
+
+func metricsURL(addr string) (*url.URL, error) {
+	if addr == "" {
+		return nil, errNoMetricsAddr
+	}
+
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid metrics address: %w", err)
+	}
+
+	if port == "" {
+		return nil, errNoMetricsPort
+	}
+
+	if host == "" {
+		host, err = os.Hostname()
+		if err != nil {
+			return nil, fmt.Errorf("metrics address is missing hostname, error obtaining it from OS: %w", err)
+		}
+	}
+
+	return &url.URL{
+		// TODO: TLS selector https://github.com/pomerium/internal/issues/272
+		Scheme: "http",
+		Path:   defaultMetricsPath,
+		Host:   net.JoinHostPort(host, port),
+	}, nil
 }
 
 func runReporter(
@@ -60,15 +104,18 @@ func runReporter(
 	client pb.RegistryClient,
 	services []*pb.Service,
 ) {
+	backoff := backoff.NewExponentialBackOff()
+	backoff.MaxElapsedTime = 0
+
 	req := &pb.RegisterRequest{Services: services}
-	after := time.Duration(minTTL)
+	after := minTTL
 	for {
 		select {
 		case <-time.After(after):
-			log.Info().Msg("grpc.service_registry.Report")
 			resp, err := client.Report(ctx, req)
 			if err != nil {
 				log.Error().Err(err).Msg("grpc.service_registry.Report")
+				after = backoff.NextBackOff()
 				continue
 			}
 			after = resp.CallBackAfter.AsDuration()
