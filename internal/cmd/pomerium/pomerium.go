@@ -212,8 +212,7 @@ func setupDataBroker(src config.Source, controlPlane *controlplane.Server) (*dat
 func setupRegistryServer(src config.Source, controlPlane *controlplane.Server) error {
 	svc := registry.NewInMemoryServer(context.TODO(), registryTTL)
 	registry_pb.RegisterRegistryServer(controlPlane.GRPCServer, svc)
-	log.Info().Msg("enabled registry service")
-	// TODO: on config change
+	log.Info().Msg("enabled service discovery")
 	return nil
 }
 
