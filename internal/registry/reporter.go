@@ -120,6 +120,7 @@ func runReporter(
 				continue
 			}
 			after = resp.CallBackAfter.AsDuration()
+			backoff.Reset()
 		case <-ctx.Done():
 			log.Info().Msg("service registry reporter stopping")
 			return

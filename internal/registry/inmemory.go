@@ -12,6 +12,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -19,10 +20,11 @@ type inMemoryServer struct {
 	ttl time.Duration
 	// onchange is used to broadcast changes to listeners
 	onchange *signal.Signal
-	// regs is {service,endpoint} -> expiration time mapping
-	regs map[inMemoryKey]*timestamppb.Timestamp
+
 	// mu holds lock for regs
 	mu sync.RWMutex
+	// regs is {service,endpoint} -> expiration time mapping
+	regs map[inMemoryKey]*timestamppb.Timestamp
 }
 
 type inMemoryKey struct {
@@ -50,7 +52,7 @@ func (s *inMemoryServer) periodicCheck(ctx context.Context) {
 			log.Info().Msg("grpc.service_registry.PeriodicCheck/Stop")
 			return
 		case <-time.After(after):
-			log.Debug().Msgf("grpc.service_registry.PeriodicCheck/Run %+v", s.getServices(nil))
+			log.Info().Msgf("grpc.service_registry.PeriodicCheck/Run %+v", s.getServices(nil))
 			if s.lockAndRmExpired() {
 				s.onchange.Broadcast()
 			}
@@ -70,7 +72,9 @@ func (s *inMemoryServer) Report(ctx context.Context, req *pb.RegisterRequest) (*
 		s.onchange.Broadcast()
 	}
 
-	return &pb.RegisterResponse{CallBackAfter: ptypes.DurationProto(s.ttl / callAfterTTLFactor)}, nil
+	return &pb.RegisterResponse{
+		CallBackAfter: durationpb.New(s.ttl / callAfterTTLFactor),
+	}, nil
 }
 
 func (s *inMemoryServer) lockAndRmExpired() bool {
