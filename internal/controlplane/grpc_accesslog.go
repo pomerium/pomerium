@@ -1,6 +1,8 @@
 package controlplane
 
 import (
+	"strings"
+
 	envoy_service_accesslog_v2 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v2"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/rs/zerolog"
@@ -35,9 +37,9 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v2.AccessLogS
 			// request properties
 			evt = evt.Str("method", entry.GetRequest().GetRequestMethod().String())
 			evt = evt.Str("authority", entry.GetRequest().GetAuthority())
-			evt = evt.Str("path", reqPath)
+			evt = evt.Str("path", stripQueryString(reqPath))
 			evt = evt.Str("user-agent", entry.GetRequest().GetUserAgent())
-			evt = evt.Str("referer", entry.GetRequest().GetReferer())
+			evt = evt.Str("referer", stripQueryString(entry.GetRequest().GetReferer()))
 			evt = evt.Str("forwarded-for", entry.GetRequest().GetForwardedFor())
 			evt = evt.Str("request-id", entry.GetRequest().GetRequestId())
 			// response properties
@@ -49,4 +51,11 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v2.AccessLogS
 			evt.Msg("http-request")
 		}
 	}
+}
+
+func stripQueryString(str string) string {
+	if idx := strings.Index(str, "?"); idx != -1 {
+		str = str[:idx]
+	}
+	return str
 }
