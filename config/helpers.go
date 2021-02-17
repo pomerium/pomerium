@@ -79,7 +79,7 @@ func IsDataBroker(s string) bool {
 	return false
 }
 
-// IsRegistry checks if this node should run registry service
+// IsRegistry checks if this node should run the registry service
 func IsRegistry(s string) bool {
 	return IsDataBroker(s)
 }
