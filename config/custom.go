@@ -15,7 +15,60 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v2"
+
+	"github.com/pomerium/pomerium/internal/httputil"
 )
+
+// JWTClaimHeaders are headers to add to a request based on IDP claims.
+type JWTClaimHeaders map[string]string
+
+// NewJWTClaimHeaders creates a JWTClaimHeaders map from a slice of claims.
+func NewJWTClaimHeaders(claims ...string) JWTClaimHeaders {
+	hdrs := make(JWTClaimHeaders)
+	for _, claim := range claims {
+		k := httputil.PomeriumJWTHeaderName(claim)
+		hdrs[k] = claim
+	}
+	return hdrs
+}
+
+// UnmarshalJSON unmarshals JSON data into the JWTClaimHeaders.
+func (hdrs *JWTClaimHeaders) UnmarshalJSON(data []byte) error {
+	var m map[string]interface{}
+	if json.Unmarshal(data, &m) == nil {
+		*hdrs = make(map[string]string)
+		for k, v := range m {
+			str := fmt.Sprint(v)
+			(*hdrs)[k] = str
+		}
+		return nil
+	}
+
+	var a []interface{}
+	if json.Unmarshal(data, &a) == nil {
+		var vs []string
+		for _, v := range a {
+			vs = append(vs, fmt.Sprint(v))
+		}
+		*hdrs = NewJWTClaimHeaders(vs...)
+	}
+
+	return fmt.Errorf("JWTClaimHeaders must be an object or an array of values")
+}
+
+// UnmarshalYAML uses UnmarshalJSON to unmarshal YAML data into the JWTClaimHeaders.
+func (hdrs *JWTClaimHeaders) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var i interface{}
+	err := unmarshal(&i)
+	if err != nil {
+		return err
+	}
+	bs, err := json.Marshal(i)
+	if err != nil {
+		return err
+	}
+	return hdrs.UnmarshalJSON(bs)
+}
 
 // A StringSlice is a slice of strings.
 type StringSlice []string
@@ -108,6 +161,7 @@ type WeightedURL struct {
 	LbWeight uint32
 }
 
+// Validate validates the WeightedURL.
 func (u *WeightedURL) Validate() error {
 	if u.URL.Hostname() == "" {
 		return errHostnameMustBeSpecified
@@ -145,6 +199,7 @@ func (u *WeightedURL) String() string {
 	return fmt.Sprintf("{url=%s, weight=%d}", str, u.LbWeight)
 }
 
+// WeightedURLs is a slice of WeightedURL.
 type WeightedURLs []WeightedURL
 
 // ParseWeightedUrls parses
@@ -220,53 +275,66 @@ func (urls WeightedURLs) Flatten() ([]string, []uint32, error) {
 	return str, wghts, nil
 }
 
+// DecodePolicyBase64Hook creates a mapstructure DecodeHookFunc.
 func DecodePolicyBase64Hook() mapstructure.DecodeHookFunc {
 	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
-		if t != reflect.TypeOf([]Policy{}) {
-			return data, nil
-		}
+		switch t {
+		case reflect.TypeOf([]Policy{}):
+			str, ok := data.([]string)
+			if !ok {
+				return data, nil
+			}
 
-		str, ok := data.([]string)
-		if !ok {
-			return data, nil
-		}
+			if len(str) != 1 {
+				return nil, fmt.Errorf("base64 policy data: expecting 1, got %d", len(str))
+			}
 
-		if len(str) != 1 {
-			return nil, fmt.Errorf("base64 policy data: expecting 1, got %d", len(str))
-		}
+			bs, err := base64.StdEncoding.DecodeString(str[0])
+			if err != nil {
+				return nil, fmt.Errorf("base64 decoding policy data: %w", err)
+			}
 
-		bytes, err := base64.StdEncoding.DecodeString(str[0])
-		if err != nil {
-			return nil, fmt.Errorf("base64 decoding policy data: %w", err)
-		}
+			out := []map[interface{}]interface{}{}
+			if err = yaml.Unmarshal(bs, &out); err != nil {
+				return nil, fmt.Errorf("parsing base64-encoded policy data as yaml: %w", err)
+			}
 
-		out := []map[interface{}]interface{}{}
-		if err = yaml.Unmarshal(bytes, &out); err != nil {
-			return nil, fmt.Errorf("parsing base64-encoded policy data as yaml: %w", err)
+			return out, nil
 		}
-
-		return out, nil
+		return data, nil
 	}
 }
 
+// DecodePolicyHookFunc creates a mapstructure DecodeHookFunc.
 func DecodePolicyHookFunc() mapstructure.DecodeHookFunc {
 	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
-		if t != reflect.TypeOf(Policy{}) {
-			return data, nil
-		}
+		switch t {
+		case reflect.TypeOf(Policy{}):
+			// convert all keys to strings so that it can be serialized back to JSON
+			// and read by jsonproto package into Envoy's cluster structure
+			mp, err := serializable(data)
+			if err != nil {
+				return nil, err
+			}
+			ms, ok := mp.(map[string]interface{})
+			if !ok {
+				return nil, errKeysMustBeStrings
+			}
 
-		// convert all keys to strings so that it can be serialized back to JSON
-		// and read by jsonproto package into Envoy's cluster structure
-		mp, err := serializable(data)
-		if err != nil {
-			return nil, err
+			return parsePolicy(ms)
+		case reflect.TypeOf(JWTClaimHeaders{}):
+			bs, err := json.Marshal(data)
+			if err != nil {
+				return nil, err
+			}
+			var hdrs JWTClaimHeaders
+			err = json.Unmarshal(bs, &hdrs)
+			if err != nil {
+				return nil, err
+			}
+			return hdrs, nil
 		}
-		ms, ok := mp.(map[string]interface{})
-		if !ok {
-			return nil, errKeysMustBeStrings
-		}
-
-		return parsePolicy(ms)
+		return data, nil
 	}
 }
 

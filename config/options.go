@@ -177,7 +177,7 @@ type Options struct {
 	Headers    map[string]string `yaml:",omitempty"`
 
 	// List of JWT claims to insert as x-pomerium-claim-* headers on proxied requests
-	JWTClaimsHeaders []string `mapstructure:"jwt_claims_headers" yaml:"jwt_claims_headers,omitempty"`
+	JWTClaimsHeaders JWTClaimHeaders `mapstructure:"jwt_claims_headers" yaml:"jwt_claims_headers,omitempty"`
 
 	// RefreshCooldown limits the rate a user can refresh her session
 	RefreshCooldown time.Duration `mapstructure:"refresh_cooldown" yaml:"refresh_cooldown,omitempty"`

@@ -34,7 +34,7 @@ type proxyState struct {
 	refreshCooldown time.Duration
 	sessionStore    sessions.SessionStore
 	sessionLoaders  []sessions.SessionLoader
-	jwtClaimHeaders []string
+	jwtClaimHeaders config.JWTClaimHeaders
 }
 
 func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
