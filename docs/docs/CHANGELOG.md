@@ -1,8 +1,8 @@
 # Changelog
 
-## [v0.13.0](https://github.com/pomerium/pomerium/tree/v0.13.0) (2021-02-12)
+## [v0.13.0](https://github.com/pomerium/pomerium/tree/v0.13.0) (2021-02-17)
 
-[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.12.1...v0.13.0)
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.12.2...v0.13.0)
 
 ## Breaking
 
@@ -13,7 +13,6 @@
 
 - authorize: allow access by user id [\#1850](https://github.com/pomerium/pomerium/pull/1850) (@calebdoxsey)
 - authorize: remove DataBrokerData input [\#1847](https://github.com/pomerium/pomerium/pull/1847) (@calebdoxsey)
-- authorize: remove DataBrokerData [\#1846](https://github.com/pomerium/pomerium/pull/1846) (@calebdoxsey)
 - opa: format rego files [\#1845](https://github.com/pomerium/pomerium/pull/1845) (@calebdoxsey)
 - policy: add new certificate-authority option for downstream mTLS client certificates [\#1835](https://github.com/pomerium/pomerium/pull/1835) (@calebdoxsey)
 - metrics: human readable cluster name [\#1834](https://github.com/pomerium/pomerium/pull/1834) (@wasaga)
@@ -53,6 +52,7 @@
 - updated host rewrite docs [\#1799](https://github.com/pomerium/pomerium/pull/1799) (@vihardesu)
 - docs: update menu for v0.12 [\#1755](https://github.com/pomerium/pomerium/pull/1755) (@travisgroth)
 - Update GitLab provider docs [\#1591](https://github.com/pomerium/pomerium/pull/1591) (@bradjones1)
+- Fix command in Kubernetes Quick start docs [\#1582](https://github.com/pomerium/pomerium/pull/1582) (@wesleyw72)
 
 ## Dependency
 
@@ -103,7 +103,18 @@
 - config: support multiple destination addresses [\#1789](https://github.com/pomerium/pomerium/pull/1789) (@calebdoxsey)
 - ci: license check action [\#1773](https://github.com/pomerium/pomerium/pull/1773) (@travisgroth)
 - authorize: move impersonation into session/service account [\#1765](https://github.com/pomerium/pomerium/pull/1765) (@calebdoxsey)
+## [v0.12.2](https://github.com/pomerium/pomerium/tree/v0.12.2) (2021-02-02)
 
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.12.1...v0.12.2)
+
+## Fixed
+
+- \[Backport 0-12-0\] deployment: set maintainer field in packages [\#1849](https://github.com/pomerium/pomerium/pull/1849) (@github-actions[bot])
+
+## Changed
+
+- \[Backport 0-12-0\] ci: fix usage of env variable in latest tag [\#1806](https://github.com/pomerium/pomerium/pull/1806) (@github-actions[bot])
+- \[Backport 0-12-0\] docs: add reference to the go-sdk [\#1803](https://github.com/pomerium/pomerium/pull/1803) (@github-actions[bot])
 ## [v0.12.1](https://github.com/pomerium/pomerium/tree/v0.12.1) (2021-01-13)
 
 [Full Changelog](https://github.com/pomerium/pomerium/compare/v0.12.0...v0.12.1)
