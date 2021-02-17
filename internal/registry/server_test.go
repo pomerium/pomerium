@@ -2,6 +2,7 @@ package registry_test
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sort"
 	"testing"
@@ -18,16 +19,134 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
-func TestRegistry(t *testing.T) {
+const (
+	ttl = time.Second
+)
+
+func TestRegistryExpiration(t *testing.T) {
+	t.Parallel()
+
+	brSvc := &pb.Service{Kind: pb.ServiceKind_DATABROKER, Endpoint: "http://localhost"}
+	kinds := []pb.ServiceKind{pb.ServiceKind_DATABROKER}
+	svc := []*pb.Service{brSvc}
+
+	ctx, client, cancel, err := newTestRegistry()
+	require.NoError(t, err)
+	defer cancel()
+
+	wc, err := client.Watch(ctx, &pb.ListRequest{Kinds: kinds})
+	require.NoError(t, err)
+
+	entries, err := wc.Recv()
+	require.NoError(t, err)
+	assert.Empty(t, entries.Services)
+
+	reportResp, err := client.Report(ctx, &pb.RegisterRequest{Services: svc})
+	require.NoError(t, err)
+	assert.LessOrEqual(t, reportResp.CallBackAfter.AsDuration(), ttl)
+
+	entries, err = client.List(ctx, &pb.ListRequest{Kinds: kinds})
+	require.NoError(t, err)
+	assertEqual(t, svc, entries.Services)
+
+	entries, err = wc.Recv()
+	assert.NoError(t, err)
+	assertEqual(t, svc, entries.Services)
+
+	// wait to expire - an empty list should arrive
+	entries, err = wc.Recv()
+	assert.NoError(t, err)
+	assert.Empty(t, entries.Services)
+
+	entries, err = client.List(ctx, &pb.ListRequest{Kinds: kinds})
+	require.NoError(t, err)
+	assert.Empty(t, entries.Services)
+}
+
+func TestRegistryFilter(t *testing.T) {
+	t.Parallel()
+
+	ctx, client, cancel, err := newTestRegistry()
+	require.NoError(t, err)
+	defer cancel()
+
+	brSvc := &pb.Service{Kind: pb.ServiceKind_DATABROKER, Endpoint: "http://localhost"}
+	authSvc := &pb.Service{Kind: pb.ServiceKind_AUTHENTICATE, Endpoint: "http://localhost"}
+	mtrcsSvc := &pb.Service{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: "http://localhost/metrics"}
+
+	reportResp, err := client.Report(ctx, &pb.RegisterRequest{Services: []*pb.Service{brSvc, authSvc, mtrcsSvc}})
+	assert.NoError(t, err, "%v")
+	assert.LessOrEqual(t, reportResp.CallBackAfter.AsDuration(), ttl)
+
+	entries, err := client.List(ctx, &pb.ListRequest{Kinds: []pb.ServiceKind{pb.ServiceKind_DATABROKER}})
+	require.NoError(t, err)
+	assertEqual(t, []*pb.Service{brSvc}, entries.Services)
+
+	entries, err = client.List(ctx, &pb.ListRequest{Kinds: []pb.ServiceKind{pb.ServiceKind_DATABROKER, pb.ServiceKind_PROMETHEUS_METRICS}})
+	require.NoError(t, err)
+	assertEqual(t, []*pb.Service{brSvc, mtrcsSvc}, entries.Services)
+
+	entries, err = client.List(ctx, &pb.ListRequest{Kinds: []pb.ServiceKind{}}) // nil filter means all
+	require.NoError(t, err)
+	assertEqual(t, []*pb.Service{brSvc, mtrcsSvc, authSvc}, entries.Services)
+}
+func TestRegistryReplacement(t *testing.T) {
+	t.Parallel()
+
+	svcA := &pb.Service{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: "http://host-a/metrics"}
+	svcB := &pb.Service{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: "http://host-b/metrics"}
+
+	ctx, client, cancel, err := newTestRegistry()
+	require.NoError(t, err)
+	defer cancel()
+
+	wc, err := client.Watch(ctx, &pb.ListRequest{Kinds: []pb.ServiceKind{pb.ServiceKind_PROMETHEUS_METRICS}})
+	require.NoError(t, err)
+
+	entries, err := wc.Recv()
+	require.NoError(t, err)
+	assert.Empty(t, entries.Services)
+
+	reportResp, err := client.Report(ctx, &pb.RegisterRequest{Services: []*pb.Service{svcA}})
+	require.NoError(t, err)
+
+	entries, err = wc.Recv()
+	assert.NoError(t, err)
+	assertEqual(t, []*pb.Service{svcA}, entries.Services)
+
+	time.Sleep(reportResp.CallBackAfter.AsDuration())
+
+	reportResp, err = client.Report(ctx, &pb.RegisterRequest{Services: []*pb.Service{svcB}})
+	require.NoError(t, err)
+
+	// first, both services should be reported
+	entries, err = wc.Recv()
+	assert.NoError(t, err)
+	assertEqual(t, []*pb.Service{svcA, svcB}, entries.Services)
+
+	// then, svcA expires
+	entries, err = wc.Recv()
+	assert.NoError(t, err)
+	assertEqual(t, []*pb.Service{svcB}, entries.Services)
+
+	// finally, both expire
+	entries, err = wc.Recv()
+	assert.NoError(t, err)
+	assert.Empty(t, entries.Services)
+}
+
+func newTestRegistry() (context.Context, pb.RegistryClient, func(), error) {
+	cancel := new(cancelAll)
+
 	l := bufconn.Listen(1024)
-	defer l.Close()
+	cancel.Append(func() { l.Close() })
 
 	dialer := func(context.Context, string) (net.Conn, error) {
 		return l.Dial()
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, ctxCancel := context.WithCancel(context.Background())
+	cancel.Append(ctxCancel)
 
 	gs := grpc.NewServer()
 
@@ -35,72 +154,25 @@ func TestRegistry(t *testing.T) {
 	pb.RegisterRegistryServer(gs, registry.NewInMemoryServer(ctx, ttl))
 
 	go gs.Serve(l)
-	defer gs.Stop()
+	cancel.Append(gs.Stop)
 
 	conn, err := grpc.DialContext(ctx, "inmem", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
+		cancel.Cancel()
+		return nil, nil, nil, fmt.Errorf("Failed to dial bufnet: %w", err)
 	}
-	defer conn.Close()
+	cancel.Append(func() { conn.Close() })
 
-	client := pb.NewRegistryClient(conn)
+	return ctx, pb.NewRegistryClient(conn), cancel.Cancel, nil
+}
 
-	brSvc := &pb.Service{Kind: pb.ServiceKind_DATABROKER, Endpoint: "http://localhost"}
-	authSvc := &pb.Service{Kind: pb.ServiceKind_AUTHORIZE, Endpoint: "http://localhost"}
-	mtrcsSvc := &pb.Service{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: "http://localhost/metrics"}
+type cancelAll []func()
 
-	t.Run("expiration", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		kinds := []pb.ServiceKind{pb.ServiceKind_DATABROKER}
-		svc := []*pb.Service{brSvc}
-
-		wc, err := client.Watch(ctx, &pb.ListRequest{Kinds: kinds})
-		require.NoError(t, err)
-
-		entries, err := wc.Recv()
-		require.NoError(t, err)
-		assert.Empty(t, entries.Services)
-
-		reportResp, err := client.Report(ctx, &pb.RegisterRequest{Services: svc})
-		require.NoError(t, err)
-		assert.LessOrEqual(t, reportResp.CallBackAfter.AsDuration(), ttl)
-
-		entries, err = client.List(ctx, &pb.ListRequest{Kinds: kinds})
-		require.NoError(t, err)
-		assertEqual(t, svc, entries.Services)
-
-		entries, err = wc.Recv()
-		assert.NoError(t, err)
-		assertEqual(t, svc, entries.Services)
-
-		// wait to expire - an empty list should arrive
-		entries, err = wc.Recv()
-		assert.NoError(t, err)
-		assert.Empty(t, entries.Services)
-
-		entries, err = client.List(ctx, &pb.ListRequest{Kinds: kinds})
-		require.NoError(t, err)
-		assert.Empty(t, entries.Services)
-	})
-	t.Run("filters", func(t *testing.T) {
-		reportResp, err := client.Report(ctx, &pb.RegisterRequest{Services: []*pb.Service{brSvc, authSvc, mtrcsSvc}})
-		assert.NoError(t, err, "%v")
-		assert.LessOrEqual(t, reportResp.CallBackAfter.AsDuration(), ttl)
-
-		entries, err := client.List(ctx, &pb.ListRequest{Kinds: []pb.ServiceKind{pb.ServiceKind_DATABROKER}})
-		require.NoError(t, err)
-		assertEqual(t, []*pb.Service{brSvc}, entries.Services)
-
-		entries, err = client.List(ctx, &pb.ListRequest{Kinds: []pb.ServiceKind{pb.ServiceKind_DATABROKER, pb.ServiceKind_PROMETHEUS_METRICS}})
-		require.NoError(t, err)
-		assertEqual(t, []*pb.Service{brSvc, mtrcsSvc}, entries.Services)
-
-		entries, err = client.List(ctx, &pb.ListRequest{Kinds: []pb.ServiceKind{}}) // nil filter means all
-		require.NoError(t, err)
-		assertEqual(t, []*pb.Service{brSvc, mtrcsSvc, authSvc}, entries.Services)
-	})
+func (c *cancelAll) Append(fn func()) { *c = append(*c, fn) }
+func (c *cancelAll) Cancel() {
+	for _, fn := range *c {
+		fn()
+	}
 }
 
 type serviceList []*pb.Service
