@@ -17,6 +17,15 @@ With the v0.13 release, routes may contain [multiple `to` URLs](/reference/#to),
 * Configurable [load balancing algorithms](/reference/#load-balancing-policy)
 
 See [Load Balancing](/docs/topics/load-balancing) for more information on using this feature set.
+
+### Dynamic certificate updates
+
+With the v0.13 release, all TLS files referenced from Pomerium's configuration are reloaded automatically when updating.  This improves availability in environments which automate short lived TLS certificate rotation via [certbot](https://certbot.eff.org/) or similar tools.
+
+### Proxy Protocol support
+
+The Pomerium HTTP listener now [supports](/reference/#use-proxy-protocol) HAPROXY's [proxy protocol](https://www.haproxy.org/download/1.9/doc/proxy-protocol.txt) to update `X-Forwarded-For` accurately when behind another proxy service.
+
 ## Breaking
 
 ### Sign-out endpoint requires CSRF Token
