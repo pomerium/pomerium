@@ -116,7 +116,7 @@ func runReporter(
 		case <-time.After(after):
 			resp, err := client.Report(ctx, req)
 			if err != nil {
-				log.log.Ctx(ctx).Error().Err(err).Msg("grpc.service_registry.Report")
+				log.Ctx(ctx).Error().Err(err).Msg("grpc.service_registry.Report")
 				after = backoff.NextBackOff()
 				continue
 			}
