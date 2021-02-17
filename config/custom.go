@@ -73,11 +73,37 @@ func (hdrs *JWTClaimHeaders) UnmarshalYAML(unmarshal func(interface{}) error) er
 	if err != nil {
 		return err
 	}
-	bs, err := json.Marshal(i)
+
+	m, err := serializable(i)
 	if err != nil {
 		return err
 	}
+
+	bs, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+
 	return hdrs.UnmarshalJSON(bs)
+}
+
+func decodeJWTClaimHeadersHookFunc() mapstructure.DecodeHookFunc {
+	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+		if t != reflect.TypeOf(JWTClaimHeaders{}) {
+			return data, nil
+		}
+
+		bs, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+		var hdrs JWTClaimHeaders
+		err = json.Unmarshal(bs, &hdrs)
+		if err != nil {
+			return nil, err
+		}
+		return hdrs, nil
+	}
 }
 
 // A StringSlice is a slice of strings.
@@ -288,63 +314,52 @@ func (urls WeightedURLs) Flatten() ([]string, []uint32, error) {
 // DecodePolicyBase64Hook creates a mapstructure DecodeHookFunc.
 func DecodePolicyBase64Hook() mapstructure.DecodeHookFunc {
 	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
-		switch t {
-		case reflect.TypeOf([]Policy{}):
-			str, ok := data.([]string)
-			if !ok {
-				return data, nil
-			}
-
-			if len(str) != 1 {
-				return nil, fmt.Errorf("base64 policy data: expecting 1, got %d", len(str))
-			}
-
-			bs, err := base64.StdEncoding.DecodeString(str[0])
-			if err != nil {
-				return nil, fmt.Errorf("base64 decoding policy data: %w", err)
-			}
-
-			out := []map[interface{}]interface{}{}
-			if err = yaml.Unmarshal(bs, &out); err != nil {
-				return nil, fmt.Errorf("parsing base64-encoded policy data as yaml: %w", err)
-			}
-
-			return out, nil
+		if t != reflect.TypeOf([]Policy{}) {
+			return data, nil
 		}
-		return data, nil
+
+		str, ok := data.([]string)
+		if !ok {
+			return data, nil
+		}
+
+		if len(str) != 1 {
+			return nil, fmt.Errorf("base64 policy data: expecting 1, got %d", len(str))
+		}
+
+		bytes, err := base64.StdEncoding.DecodeString(str[0])
+		if err != nil {
+			return nil, fmt.Errorf("base64 decoding policy data: %w", err)
+		}
+
+		out := []map[interface{}]interface{}{}
+		if err = yaml.Unmarshal(bytes, &out); err != nil {
+			return nil, fmt.Errorf("parsing base64-encoded policy data as yaml: %w", err)
+		}
+
+		return out, nil
 	}
 }
 
 // DecodePolicyHookFunc creates a mapstructure DecodeHookFunc.
 func DecodePolicyHookFunc() mapstructure.DecodeHookFunc {
 	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
-		switch t {
-		case reflect.TypeOf(Policy{}):
-			// convert all keys to strings so that it can be serialized back to JSON
-			// and read by jsonproto package into Envoy's cluster structure
-			mp, err := serializable(data)
-			if err != nil {
-				return nil, err
-			}
-			ms, ok := mp.(map[string]interface{})
-			if !ok {
-				return nil, errKeysMustBeStrings
-			}
-
-			return parsePolicy(ms)
-		case reflect.TypeOf(JWTClaimHeaders{}):
-			bs, err := json.Marshal(data)
-			if err != nil {
-				return nil, err
-			}
-			var hdrs JWTClaimHeaders
-			err = json.Unmarshal(bs, &hdrs)
-			if err != nil {
-				return nil, err
-			}
-			return hdrs, nil
+		if t != reflect.TypeOf(Policy{}) {
+			return data, nil
 		}
-		return data, nil
+
+		// convert all keys to strings so that it can be serialized back to JSON
+		// and read by jsonproto package into Envoy's cluster structure
+		mp, err := serializable(data)
+		if err != nil {
+			return nil, err
+		}
+		ms, ok := mp.(map[string]interface{})
+		if !ok {
+			return nil, errKeysMustBeStrings
+		}
+
+		return parsePolicy(ms)
 	}
 }
 

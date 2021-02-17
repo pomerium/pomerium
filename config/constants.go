@@ -38,5 +38,6 @@ var (
 		DecodePolicyHookFunc(),
 		// parse base-64 encoded POLICY that is bound to environment variable
 		DecodePolicyBase64Hook(),
+		decodeJWTClaimHeadersHookFunc(),
 	))
 )
