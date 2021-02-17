@@ -11,17 +11,17 @@ description: >-
 
 ### Upstream load balancing
 
-With the v0.13 release, routes may contain [multiple `to` URLs](/reference/#to), and Pomerium will load balance between the endpoints.  This allows Pomerium to fill the role of an edge proxy without the need for additional HTTP load balancers.
+With the v0.13 release, routes may contain [multiple `to` URLs](/reference/#to), and Pomerium will load balance between the endpoints. This allows Pomerium to fill the role of an edge proxy without the need for additional HTTP load balancers.
 
-* Active [health checks](/reference/#health-checks) and passive [outlier detection](/reference/#outlier-detection)
-* Configurable [load balancing policies](/reference/#load-balancing-policy)
-* Configurable [load balancing weight](/reference/#to)
+- Active [health checks](/reference/#health-checks) and passive [outlier detection](/reference/#outlier-detection)
+- Configurable [load balancing policies](/reference/#load-balancing-policy)
+- Configurable [load balancing weight](/reference/#to)
 
 See [Load Balancing](/docs/topics/load-balancing) for more information on using this feature set.
 
 ### Dynamic certificate updates
 
-With the v0.13 release, all TLS files referenced from Pomerium's configuration are reloaded automatically when updating.  This improves availability in environments which automate short lived TLS certificate rotation via [certbot](https://certbot.eff.org/) or similar tools.
+With the v0.13 release, all TLS files referenced from Pomerium's configuration are reloaded automatically when updating. This improves availability in environments which automate short lived TLS certificate rotation via [certbot](https://certbot.eff.org/) or similar tools.
 
 ### Proxy Protocol support
 
@@ -35,7 +35,7 @@ The frontchannel-logout endpoint will now require a CSRF token for both `GET` an
 
 ### User impersonation removed
 
-With the v0.13.0 release, user impersonation has been removed.
+Prior to the v0.13 release, it was possible for an administrative user to temporarily impersonate another user. This was done by adding an additional set of claims to that user's session token. Having additional identity state stored client-side significantly expands the attack surface of Pomerium and complicates policy enforcement by having multiple sources of truth for identity. User impersonation was removed to shrink that attack surface and simplify policy enforcement. Pomerium now stores all identity state server-side and encrypted in the databroker.
 
 ### Administrators option removed
 
