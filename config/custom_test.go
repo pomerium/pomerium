@@ -11,6 +11,27 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+func TestJWTClaimHeaders_UnmarshalJSON(t *testing.T) {
+	t.Run("object", func(t *testing.T) {
+		var hdrs JWTClaimHeaders
+		err := json.Unmarshal([]byte(`{"x":"y"}`), &hdrs)
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{"x": "y"}, hdrs)
+	})
+	t.Run("array", func(t *testing.T) {
+		var hdrs JWTClaimHeaders
+		err := json.Unmarshal([]byte(`["x", "y"]`), &hdrs)
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{"x-pomerium-claim-x": "x", "x-pomerium-claim-y": "y"}, hdrs)
+	})
+	t.Run("string", func(t *testing.T) {
+		var hdrs JWTClaimHeaders
+		err := json.Unmarshal([]byte(`"x, y"`), &hdrs)
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{"x-pomerium-claim-x": "x", "x-pomerium-claim-y": "y"}, hdrs)
+	})
+}
+
 func TestStringSlice_UnmarshalJSON(t *testing.T) {
 	t.Run("string", func(t *testing.T) {
 		var slc StringSlice

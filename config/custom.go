@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/mitchellh/mapstructure"
@@ -51,9 +52,18 @@ func (hdrs *JWTClaimHeaders) UnmarshalJSON(data []byte) error {
 			vs = append(vs, fmt.Sprint(v))
 		}
 		*hdrs = NewJWTClaimHeaders(vs...)
+		return nil
 	}
 
-	return fmt.Errorf("JWTClaimHeaders must be an object or an array of values")
+	var s string
+	if json.Unmarshal(data, &s) == nil {
+		*hdrs = NewJWTClaimHeaders(strings.FieldsFunc(s, func(r rune) bool {
+			return r == ',' || unicode.IsSpace(r)
+		})...)
+		return nil
+	}
+
+	return fmt.Errorf("JWTClaimHeaders must be an object or an array of values, got: %s", data)
 }
 
 // UnmarshalYAML uses UnmarshalJSON to unmarshal YAML data into the JWTClaimHeaders.
