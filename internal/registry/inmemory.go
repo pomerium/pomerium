@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
 
@@ -49,10 +48,8 @@ func (s *inMemoryServer) periodicCheck(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Debug().Msg("grpc.service_registry.PeriodicCheck/Stop")
 			return
 		case <-time.After(after):
-			log.Debug().Msgf("grpc.service_registry.PeriodicCheck/Run %+v", s.getServices(nil))
 			if s.lockAndRmExpired() {
 				s.onchange.Broadcast()
 			}

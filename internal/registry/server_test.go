@@ -20,10 +20,10 @@ import (
 )
 
 const (
-	ttl = time.Second
+	ttl = time.Second * 2
 )
 
-func TestRegistryExpiration(t *testing.T) {
+func TestRegistryListWatch(t *testing.T) {
 	t.Parallel()
 
 	brSvc := &pb.Service{Kind: pb.ServiceKind_DATABROKER, Endpoint: "http://localhost"}
@@ -90,7 +90,8 @@ func TestRegistryFilter(t *testing.T) {
 	require.NoError(t, err)
 	assertEqual(t, []*pb.Service{brSvc, mtrcsSvc, authSvc}, entries.Services)
 }
-func TestRegistryReplacement(t *testing.T) {
+
+func TestRegistryExpiration(t *testing.T) {
 	t.Parallel()
 
 	svcA := &pb.Service{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: "http://host-a/metrics"}
@@ -107,29 +108,38 @@ func TestRegistryReplacement(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, entries.Services)
 
-	reportResp, err := client.Report(ctx, &pb.RegisterRequest{Services: []*pb.Service{svcA}})
+	_, err = client.Report(ctx, &pb.RegisterRequest{Services: []*pb.Service{svcA, svcB}})
 	require.NoError(t, err)
 
-	entries, err = wc.Recv()
-	assert.NoError(t, err)
-	assertEqual(t, []*pb.Service{svcA}, entries.Services)
-
-	time.Sleep(reportResp.CallBackAfter.AsDuration())
-
-	reportResp, err = client.Report(ctx, &pb.RegisterRequest{Services: []*pb.Service{svcB}})
-	require.NoError(t, err)
+	ctxB, cancelB := context.WithCancel(ctx)
+	go func(ctx context.Context) {
+		for {
+			after := time.Duration(time.Microsecond)
+			select {
+			case <-time.After(after):
+				resp, err := client.Report(ctx, &pb.RegisterRequest{Services: []*pb.Service{svcB}})
+				if err != nil {
+					return
+				}
+				after = resp.CallBackAfter.AsDuration()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}(ctxB)
 
 	// first, both services should be reported
 	entries, err = wc.Recv()
 	assert.NoError(t, err)
 	assertEqual(t, []*pb.Service{svcA, svcB}, entries.Services)
 
-	// then, svcA expires
+	// then, svcA should expire as it is not sending updates anymore
 	entries, err = wc.Recv()
 	assert.NoError(t, err)
 	assertEqual(t, []*pb.Service{svcB}, entries.Services)
 
-	// finally, both expire
+	// now we cancel updates for B, and both registration should expire
+	cancelB()
 	entries, err = wc.Recv()
 	assert.NoError(t, err)
 	assert.Empty(t, entries.Services)
