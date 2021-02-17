@@ -25,6 +25,7 @@ With the v0.13 release, all TLS files referenced from Pomerium's configuration a
 ### Proxy Protocol support
 
 The Pomerium HTTP listener now [supports](/reference/#use-proxy-protocol) HAPROXY's [proxy protocol](https://www.haproxy.org/download/1.9/doc/proxy-protocol.txt) to update `X-Forwarded-For` accurately when behind another proxy service.
+
 ## Breaking
 
 ### Sign-out endpoint requires CSRF Token
