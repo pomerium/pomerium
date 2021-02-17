@@ -7,11 +7,38 @@ meta:
     content: pomerium security disclosure vulnerabilities
 ---
 
-# Security
+# Security Policy
 
-We deeply appreciate any effort to discover and disclose security vulnerabilities responsibly.
+## Receiving Security Updates
 
-If you would like to report a vulnerability, or have any security concerns, please e-mail security@pomerium.com or reach out on [keybase](https://keybase.io/bdesimone).
+The best way to receive security announcements is to subscribe to the [pomerium-announce](https://groups.google.com/g/pomerium-announce) mailing list. Any messages pertaining to a security issue will be prefixed with [security].
+
+## Disclosure Process
+
+In general, Pomerium follows [Go's security policy](https://golang.org/security) and uses the following disclosure process:
+
+1. Once the security report is received it is assigned a primary handler. This person coordinates the fix and release process.
+2. The issue is confirmed and a list of affected software is determined.
+3. Code is audited to find any potential similar problems.
+4. Fixes are prepared for the most recent major releases and the head/master revision.
+5. When the fixes are applied, announcements are sent to [pomerium-announce](https://groups.google.com/g/pomerium-announce).
+
+This process can take some time. Every effort will be made to handle the bug in as timely a manner as possible, however it's important that we follow the process described above to ensure that disclosures are handled consistently.
+
+## Reporting a Security Bug
+
+If you believe you've found a security vulnerability in Pomerium, please notify us; we will work with you to resolve the issue promptly. Thank you for helping to keep Pomerium and our users safe! We deeply appreciate any effort to discover and disclose security vulnerabilities responsibly.
+
+All security bugs in Pomerium should be reported by email to security@pomerium.com . Your email will be acknowledged within 48 hours, and you'll receive a more detailed response to your email within 72 hours indicating the next steps in handling your report.
+
+While researching, we'd like you to refrain from:
+
+- Any form of Denial of Service (DoS)
+- Spamming
+- Social engineering or phishing of Pomerium employees or contractors
+- Any attacks against Pomerium's physical property or data centers
+
+We may revise these guidelines from time to time. The most current version of the guidelines will be available at <https://pomerium.com/docs/community/security>.
 
 Though we accept PGP-encrypted email, please only use it for critical security reports.
 
