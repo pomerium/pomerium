@@ -113,8 +113,8 @@ func TestRegistryExpiration(t *testing.T) {
 
 	ctxB, cancelB := context.WithCancel(ctx)
 	go func(ctx context.Context) {
+		after := time.Microsecond
 		for {
-			after := time.Duration(time.Microsecond)
 			select {
 			case <-time.After(after):
 				resp, err := client.Report(ctx, &pb.RegisterRequest{Services: []*pb.Service{svcB}})
