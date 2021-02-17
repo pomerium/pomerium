@@ -63,6 +63,10 @@ func (s *inMemoryServer) periodicCheck(ctx context.Context) {
 // Report is periodically sent by each service to confirm it is still serving with the registry
 // data is persisted with a certain TTL
 func (s *inMemoryServer) Report(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
+	if err := req.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	updated, err := s.lockAndReport(req.Services)
 	if err != nil {
 		return nil, err
@@ -128,6 +132,10 @@ func (s *inMemoryServer) reportLocked(services []*pb.Service) (bool, error) {
 
 // List returns current snapshot of the services known to the registry
 func (s *inMemoryServer) List(ctx context.Context, req *pb.ListRequest) (*pb.ServiceList, error) {
+	if err := req.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	return &pb.ServiceList{Services: s.getServices(kindsMap(req.Kinds))}, nil
 }
 
@@ -139,9 +147,12 @@ func kindsMap(kinds []pb.ServiceKind) map[pb.ServiceKind]bool {
 	return out
 }
 
-// Watch returns a stream of updates
-// for the simplicity of consumer its delivered as full snapshots
+// Watch returns a stream of updates as full snapshots
 func (s *inMemoryServer) Watch(req *pb.ListRequest, srv pb.Registry_WatchServer) error {
+	if err := req.Validate(); err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	kinds := kindsMap(req.Kinds)
 	ctx := srv.Context()
 
@@ -183,6 +194,7 @@ func (s *inMemoryServer) getServicesLocked(kinds map[pb.ServiceKind]bool) []*pb.
 	out := make([]*pb.Service, 0, len(s.regs))
 	for k := range s.regs {
 		if len(kinds) == 0 {
+			// all catch empty filter
 		} else if _, exists := kinds[k.kind]; !exists {
 			continue
 		}

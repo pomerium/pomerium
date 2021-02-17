@@ -17,6 +17,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 )
 
+// Reporter periodically submits a list of services available on this instance to the service registry
 type Reporter struct {
 	cancel func()
 }

@@ -2,8 +2,8 @@ package registry_test
 
 import (
 	"context"
-	"fmt"
 	"net"
+	"sort"
 	"testing"
 	"time"
 
@@ -45,53 +45,78 @@ func TestRegistry(t *testing.T) {
 
 	client := pb.NewRegistryClient(conn)
 
-	registerTC := []struct {
-		svc         []*pb.Service
-		expectError bool
-	}{
-		{[]*pb.Service{{Kind: pb.ServiceKind_DATABROKER, Endpoint: "http://localhost"}}, false},
-	}
+	brSvc := &pb.Service{Kind: pb.ServiceKind_DATABROKER, Endpoint: "http://localhost"}
+	authSvc := &pb.Service{Kind: pb.ServiceKind_AUTHORIZE, Endpoint: "http://localhost"}
+	mtrcsSvc := &pb.Service{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: "http://localhost/metrics"}
 
-	cmpOpts := cmpopts.IgnoreUnexported(pb.Service{})
+	t.Run("expiration", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	for i, tc := range registerTC {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+		kinds := []pb.ServiceKind{pb.ServiceKind_DATABROKER}
+		svc := []*pb.Service{brSvc}
 
-			kinds := []pb.ServiceKind{pb.ServiceKind_DATABROKER}
-			wc, err := client.Watch(ctx, &pb.ListRequest{Kinds: kinds})
-			require.NoError(t, err)
+		wc, err := client.Watch(ctx, &pb.ListRequest{Kinds: kinds})
+		require.NoError(t, err)
 
-			entries, err := wc.Recv()
-			require.NoError(t, err)
-			assert.Empty(t, entries.Services)
+		entries, err := wc.Recv()
+		require.NoError(t, err)
+		assert.Empty(t, entries.Services)
 
-			reportResp, err := client.Report(ctx, &pb.RegisterRequest{Services: tc.svc})
-			if tc.expectError {
-				assert.Error(t, err, "%v", tc)
-				return
-			}
-			assert.NoError(t, err, "%v", tc)
-			assert.LessOrEqual(t, reportResp.CallBackAfter.AsDuration(), ttl)
+		reportResp, err := client.Report(ctx, &pb.RegisterRequest{Services: svc})
+		require.NoError(t, err)
+		assert.LessOrEqual(t, reportResp.CallBackAfter.AsDuration(), ttl)
 
-			entries, err = client.List(ctx, &pb.ListRequest{Kinds: kinds})
-			require.NoError(t, err)
-			diff := cmp.Diff(tc.svc, entries.Services, cmpOpts)
-			assert.Empty(t, diff)
+		entries, err = client.List(ctx, &pb.ListRequest{Kinds: kinds})
+		require.NoError(t, err)
+		assertEqual(t, svc, entries.Services)
 
-			entries, err = wc.Recv()
-			assert.NoError(t, err)
-			diff = cmp.Diff(tc.svc, entries.Services, cmpOpts)
-			assert.Empty(t, diff)
+		entries, err = wc.Recv()
+		assert.NoError(t, err)
+		assertEqual(t, svc, entries.Services)
 
-			entries, err = wc.Recv()
-			assert.NoError(t, err)
-			assert.Empty(t, entries.Services)
+		// wait to expire - an empty list should arrive
+		entries, err = wc.Recv()
+		assert.NoError(t, err)
+		assert.Empty(t, entries.Services)
 
-			entries, err = client.List(ctx, &pb.ListRequest{Kinds: kinds})
-			require.NoError(t, err)
-			assert.Empty(t, entries.Services)
-		})
+		entries, err = client.List(ctx, &pb.ListRequest{Kinds: kinds})
+		require.NoError(t, err)
+		assert.Empty(t, entries.Services)
+	})
+	t.Run("filters", func(t *testing.T) {
+		reportResp, err := client.Report(ctx, &pb.RegisterRequest{Services: []*pb.Service{brSvc, authSvc, mtrcsSvc}})
+		assert.NoError(t, err, "%v")
+		assert.LessOrEqual(t, reportResp.CallBackAfter.AsDuration(), ttl)
+
+		entries, err := client.List(ctx, &pb.ListRequest{Kinds: []pb.ServiceKind{pb.ServiceKind_DATABROKER}})
+		require.NoError(t, err)
+		assertEqual(t, []*pb.Service{brSvc}, entries.Services)
+
+		entries, err = client.List(ctx, &pb.ListRequest{Kinds: []pb.ServiceKind{pb.ServiceKind_DATABROKER, pb.ServiceKind_PROMETHEUS_METRICS}})
+		require.NoError(t, err)
+		assertEqual(t, []*pb.Service{brSvc, mtrcsSvc}, entries.Services)
+
+		entries, err = client.List(ctx, &pb.ListRequest{Kinds: []pb.ServiceKind{}}) // nil filter means all
+		require.NoError(t, err)
+		assertEqual(t, []*pb.Service{brSvc, mtrcsSvc, authSvc}, entries.Services)
+	})
+}
+
+type serviceList []*pb.Service
+
+func (l serviceList) Len() int           { return len(l) }
+func (l serviceList) Less(i, j int) bool { return l[i].Kind < l[j].Kind }
+func (l serviceList) Swap(i, j int)      { t := l[i]; l[i] = l[j]; l[j] = t }
+
+func assertEqual(t *testing.T, want, got []*pb.Service) {
+	t.Helper()
+
+	sort.Sort(serviceList(want))
+	sort.Sort(serviceList(got))
+
+	diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(pb.Service{}))
+	if diff != "" {
+		t.Errorf("(-want +got):\n%s", diff)
 	}
 }

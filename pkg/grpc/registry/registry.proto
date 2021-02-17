@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package registry;
-option go_package = "github.com/pomerium/pomerium/pkg/grpc/registry";
+option go_package = ".;registry";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
@@ -31,7 +31,7 @@ message Service {
     // kind is service kind
     ServiceKind kind = 1 [(validate.rules).enum = {not_in: [0]}];
     // network endpoints this service may be reachable at
-    string endpoint = 3 [(validate.rules).repeated.min_items = 1];
+    string endpoint = 3 [(validate.rules).string.uri = true];
 }
 
 message RegisterRequest {
@@ -55,7 +55,7 @@ message RegisterResponse {
 }
 
 message ListRequest {
-    repeated ServiceKind kinds = 1 [(validate.rules).repeated.min_items = 1];
+    repeated ServiceKind kinds = 1;
 }
 
 message ServiceRegistration {
