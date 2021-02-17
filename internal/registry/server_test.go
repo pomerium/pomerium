@@ -135,6 +135,27 @@ func TestRegistryReplacement(t *testing.T) {
 	assert.Empty(t, entries.Services)
 }
 
+func TestRegistryErrors(t *testing.T) {
+	t.Parallel()
+
+	ctx, client, cancel, err := newTestRegistry()
+	require.NoError(t, err)
+	defer cancel()
+
+	tc := [][]*pb.Service{
+		{{Kind: pb.ServiceKind_UNDEFINED_DO_NOT_USE, Endpoint: "http://localhost"}},
+		{{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: ""}},
+		{{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: "/metrics"}},
+		{},
+		nil,
+	}
+
+	for _, svc := range tc {
+		_, err := client.Report(ctx, &pb.RegisterRequest{Services: svc})
+		assert.Error(t, err, svc)
+	}
+}
+
 func newTestRegistry() (context.Context, pb.RegistryClient, func(), error) {
 	cancel := new(cancelAll)
 
@@ -159,7 +180,7 @@ func newTestRegistry() (context.Context, pb.RegistryClient, func(), error) {
 	conn, err := grpc.DialContext(ctx, "inmem", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	if err != nil {
 		cancel.Cancel()
-		return nil, nil, nil, fmt.Errorf("Failed to dial bufnet: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to dial bufnet: %w", err)
 	}
 	cancel.Append(func() { conn.Close() })
 
