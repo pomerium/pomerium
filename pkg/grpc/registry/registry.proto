@@ -63,14 +63,14 @@ message ServiceRegistration {
     google.protobuf.Timestamp expires_at = 2;
 }
 
-// RegistrationSnapshot represents current state of the services
+// RegistrationSnapshot represents the current state of the services
 message ServiceList {
     repeated Service services = 1;
 }
 
 // Registry is invoked by services to inform
 service Registry {
-    // Register is periodically sent by each service to confirm it is still serving with the registry
+    // Report is periodically sent by each service to confirm it is still serving with the registry
     // data is persisted with a certain TTL
     rpc Report(RegisterRequest) returns (RegisterResponse);
     // List returns current snapshot of the services known to the registry

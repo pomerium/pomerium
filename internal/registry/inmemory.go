@@ -32,7 +32,7 @@ type inMemoryKey struct {
 	endpoint string
 }
 
-// NewInMemoryServer constructs new registry tracking service that operates in RAM
+// NewInMemoryServer constructs a new registry tracking service that operates in RAM
 // as such, it is not usable for multi-node deployment where REDIS or other alternative should be used
 func NewInMemoryServer(ctx context.Context, ttl time.Duration) pb.RegistryServer {
 	srv := &inMemoryServer{
