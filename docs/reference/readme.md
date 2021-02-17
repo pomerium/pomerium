@@ -1273,10 +1273,10 @@ Either `redirect` or `to` must be set.
 
 ### To
 - `yaml`/`json` setting: `to`
-- Type: `URL` or list of `URL`s (must contain a scheme and hostname)
+- Type: `URL` or list of `URL`s (must contain a scheme and hostname) with an optional weight
 - Schemes: `http`, `https`, `tcp`
 - Optional
-- Example: `http://verify` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://verify.pomerium.com/anything/`, `["http://a", "http://b"]
+- Example: `http://verify` , `https://192.1.20.12:8080`, `http://neverssl.com`, `https://verify.pomerium.com/anything/`, `["http://a", "http://b"]`, `["http://a,10", "http://b,20"]`
 
 `To` is the destination(s) of a proxied request. It can be an internal resource, or an external resource. Multiple upstream resources can be targeted by using a list instead of a single URL:
 
@@ -1286,6 +1286,8 @@ Either `redirect` or `to` must be set.
   - https://a.example.com
   - https://b.example.com
 ```
+
+A load balancing weight may be associated with a particular upstream by appending `,[weight]` to the URL.  The exact behavior depends on your [`lb_policy`](#load-balancing-policy) setting.  See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.html#load-balancing-weight).
 
 Must be `tcp` if `from` is `tcp+https`.
 
