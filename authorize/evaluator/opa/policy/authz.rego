@@ -262,11 +262,12 @@ identity_headers := {key: value |
 		claim_value != null
 
 		# only include those headers requested by the user
-		available := data.jwt_claim_headers[_]
+		some header_name
+		available := data.jwt_claim_headers[header_name]
 		available == claim_key
 
 		# create the header key and value
-		k := concat("", ["x-pomerium-claim-", claim_key])
+		k := header_name
 		v := get_header_string_value(claim_value)
 	]
 

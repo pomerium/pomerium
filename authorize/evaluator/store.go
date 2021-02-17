@@ -102,7 +102,7 @@ func (s *Store) UpdateGoogleCloudServerlessAuthenticationServiceAccount(serviceA
 }
 
 // UpdateJWTClaimHeaders updates the jwt claim headers in the store.
-func (s *Store) UpdateJWTClaimHeaders(jwtClaimHeaders []string) {
+func (s *Store) UpdateJWTClaimHeaders(jwtClaimHeaders map[string]string) {
 	s.write("/jwt_claim_headers", jwtClaimHeaders)
 }
 

@@ -832,6 +832,15 @@ Any claim in the pomerium session JWT can be placed into a corresponding header 
 
 `X-Pomerium-Claim-{Name}` where `{Name}` is the name of the claim requested.
 
+This option also supports a nested object to customize the header name. For example:
+
+```yaml
+jwt_claims_headers:
+  X-Email: email
+```
+
+Will add an `X-Email` header with a value of the `email` claim.
+
 Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}`.
 
 
