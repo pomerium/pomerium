@@ -61,16 +61,16 @@ func (stream *recordStream) Next(block bool) bool {
 			Offset: 0,
 			Count:  1,
 		})
-		raws, err := cmd.Result()
+		results, err := cmd.Result()
 		if err != nil {
 			stream.err = err
 			return false
 		}
 
-		if len(raws) > 0 {
-			raw := raws[0]
+		if len(results) > 0 {
+			result := results[0]
 			var record databroker.Record
-			err = proto.Unmarshal([]byte(raw), &record)
+			err = proto.Unmarshal([]byte(result), &record)
 			if err != nil {
 				log.Warn().Err(err).Msg("redis: invalid record detected")
 			} else {

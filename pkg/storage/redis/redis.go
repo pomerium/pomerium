@@ -125,14 +125,14 @@ func (backend *Backend) GetAll(ctx context.Context) (records []*databroker.Recor
 	defer func(start time.Time) { recordOperation(ctx, start, "getall", err) }(time.Now())
 
 	cmd := backend.client.HVals(ctx, recordHashKey)
-	raws, err := cmd.Result()
+	results, err := cmd.Result()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, raw := range raws {
+	for _, result := range results {
 		var record databroker.Record
-		err := proto.Unmarshal([]byte(raw), &record)
+		err := proto.Unmarshal([]byte(result), &record)
 		if err != nil {
 			log.Warn().Err(err).Msg("redis: invalid record detected")
 			continue
@@ -277,19 +277,19 @@ func (backend *Backend) removeChangesBefore(cutoff time.Time) {
 			Offset: 0,
 			Count:  1,
 		})
-		raws, err := cmd.Result()
+		results, err := cmd.Result()
 		if err != nil {
 			log.Error().Err(err).Msg("redis: error retrieving changes for expiration")
 			return
 		}
 
 		// nothing left to do
-		if len(raws) == 0 {
+		if len(results) == 0 {
 			return
 		}
 
 		var record databroker.Record
-		err = proto.Unmarshal([]byte(raws[0]), &record)
+		err = proto.Unmarshal([]byte(results[0]), &record)
 		if err != nil {
 			log.Warn().Err(err).Msg("redis: invalid record detected")
 			record.ModifiedAt = timestamppb.New(cutoff.Add(-time.Second)) // set the modified so will delete it
@@ -301,7 +301,7 @@ func (backend *Backend) removeChangesBefore(cutoff time.Time) {
 		}
 
 		// remove the record
-		err = backend.client.ZRem(ctx, changesSetKey, raws[0]).Err()
+		err = backend.client.ZRem(ctx, changesSetKey, results[0]).Err()
 		if err != nil {
 			log.Error().Err(err).Msg("redis: error removing member")
 			return
