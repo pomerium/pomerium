@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
@@ -373,8 +372,8 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 		return
 	}
 
-	expiry, err := ptypes.Timestamp(s.GetExpiresAt())
-	if err == nil && !expiry.After(time.Now()) {
+	expiry := s.GetExpiresAt().AsTime()
+	if !expiry.After(time.Now()) {
 		mgr.log.Info().
 			Str("user_id", userID).
 			Str("session_id", sessionID).
