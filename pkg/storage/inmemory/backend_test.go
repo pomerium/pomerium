@@ -59,9 +59,10 @@ func TestBackend(t *testing.T) {
 				Id:   fmt.Sprint(i),
 			}))
 		}
-		records, err := backend.GetAll(ctx)
+		records, version, err := backend.GetAll(ctx)
 		assert.NoError(t, err)
 		assert.Len(t, records, 1000)
+		assert.Equal(t, uint64(1002), version)
 	})
 }
 
@@ -104,7 +105,7 @@ func TestConcurrency(t *testing.T) {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		for i := 0; i < 1000; i++ {
-			_, _ = backend.GetAll(ctx)
+			_, _, _ = backend.GetAll(ctx)
 		}
 		return nil
 	})

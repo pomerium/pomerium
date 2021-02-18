@@ -129,7 +129,7 @@ func (backend *Backend) Get(_ context.Context, recordType, id string) (*databrok
 }
 
 // GetAll gets all the records from the in-memory store.
-func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, error) {
+func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, uint64, error) {
 	backend.mu.RLock()
 	defer backend.mu.RUnlock()
 
@@ -137,7 +137,7 @@ func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, error) 
 	for _, record := range backend.lookup {
 		records = append(records, dup(record))
 	}
-	return records, nil
+	return records, backend.lastVersion, nil
 }
 
 // Put puts a record into the in-memory store.

@@ -119,15 +119,29 @@ func (backend *Backend) Get(ctx context.Context, recordType, id string) (_ *data
 }
 
 // GetAll gets all the records from redis.
-func (backend *Backend) GetAll(ctx context.Context) (records []*databroker.Record, err error) {
+func (backend *Backend) GetAll(ctx context.Context) (records []*databroker.Record, latestRecordVersion uint64, err error) {
 	_, span := trace.StartSpan(ctx, "databroker.redis.GetAll")
 	defer span.End()
 	defer func(start time.Time) { recordOperation(ctx, start, "getall", err) }(time.Now())
 
-	cmd := backend.client.HVals(ctx, recordHashKey)
-	results, err := cmd.Result()
+	p := backend.client.Pipeline()
+	lastVersionCmd := p.Get(ctx, lastVersionKey)
+	resultsCmd := p.HVals(ctx, recordHashKey)
+	_, err = p.Exec(ctx)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
+	}
+
+	latestRecordVersion, err = lastVersionCmd.Uint64()
+	if errors.Is(err, redis.Nil) {
+		latestRecordVersion = 0
+	} else if err != nil {
+		return nil, 0, err
+	}
+
+	results, err := resultsCmd.Result()
+	if err != nil {
+		return nil, 0, err
 	}
 
 	for _, result := range results {
@@ -139,7 +153,7 @@ func (backend *Backend) GetAll(ctx context.Context) (records []*databroker.Recor
 		}
 		records = append(records, &record)
 	}
-	return records, nil
+	return records, latestRecordVersion, nil
 }
 
 // Put puts a record into redis.

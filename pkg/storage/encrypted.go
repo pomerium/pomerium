@@ -79,18 +79,18 @@ func (e *encryptedBackend) Get(ctx context.Context, recordType, id string) (*dat
 	return record, nil
 }
 
-func (e *encryptedBackend) GetAll(ctx context.Context) ([]*databroker.Record, error) {
-	records, err := e.underlying.GetAll(ctx)
+func (e *encryptedBackend) GetAll(ctx context.Context) ([]*databroker.Record, uint64, error) {
+	records, version, err := e.underlying.GetAll(ctx)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	for i := range records {
 		records[i], err = e.decryptRecord(records[i])
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 	}
-	return records, nil
+	return records, version, nil
 }
 
 func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) error {

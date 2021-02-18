@@ -14,7 +14,7 @@ import (
 type mockBackend struct {
 	put    func(ctx context.Context, record *databroker.Record) error
 	get    func(ctx context.Context, recordType, id string) (*databroker.Record, error)
-	getAll func(ctx context.Context) ([]*databroker.Record, error)
+	getAll func(ctx context.Context) ([]*databroker.Record, uint64, error)
 }
 
 func (m *mockBackend) Close() error {
@@ -29,7 +29,7 @@ func (m *mockBackend) Get(ctx context.Context, recordType, id string) (*databrok
 	return m.get(ctx, recordType, id)
 }
 
-func (m *mockBackend) GetAll(ctx context.Context) ([]*databroker.Record, error) {
+func (m *mockBackend) GetAll(ctx context.Context) ([]*databroker.Record, uint64, error) {
 	return m.getAll(ctx)
 }
 

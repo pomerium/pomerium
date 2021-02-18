@@ -153,7 +153,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 		return nil, err
 	}
 
-	all, err := db.GetAll(ctx)
+	all, _, err := db.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -262,17 +262,12 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	records, err := backend.GetAll(ctx)
+	records, latestRecordVersion, err := backend.GetAll(ctx)
 	if err != nil {
 		return err
 	}
 
-	var latestRecordVersion uint64
 	for _, record := range records {
-		if record.GetVersion() > latestRecordVersion {
-			latestRecordVersion = record.GetVersion()
-		}
-
 		if req.GetType() == "" || req.GetType() == record.GetType() {
 			err = stream.Send(&databroker.SyncLatestResponse{
 				Response: &databroker.SyncLatestResponse_Record{

@@ -72,9 +72,10 @@ func TestBackend(t *testing.T) {
 						Id:   fmt.Sprint(i),
 					}))
 				}
-				records, err := backend.GetAll(ctx)
+				records, version, err := backend.GetAll(ctx)
 				assert.NoError(t, err)
 				assert.Len(t, records, 1000)
+				assert.Equal(t, uint64(1002), version)
 			})
 			return nil
 		}))
