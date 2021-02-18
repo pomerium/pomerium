@@ -4,9 +4,12 @@ package envoy
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -43,6 +46,9 @@ const (
 	configFileName       = "envoy-config.yaml"
 )
 
+// Checksum is the embedded envoy binary checksum. This value is populated by `make build`.
+var Checksum string
+
 type serverOptions struct {
 	services       string
 	logLevel       string
@@ -76,6 +82,27 @@ func NewServer(src config.Source, grpcPort, httpPort string) (*Server, error) {
 		envoyPath = "envoy"
 	}
 
+	fullEnvoyPath, err := exec.LookPath(envoyPath)
+	if err != nil {
+		return nil, fmt.Errorf("no envoy binary found: %w", err)
+	}
+
+	// Checksum is written at build time, if it's not empty we verify the binary
+	if Checksum != "" {
+		bs, err := ioutil.ReadFile(fullEnvoyPath)
+		if err != nil {
+			return nil, fmt.Errorf("error reading envoy binary for checksum verification: %w", err)
+		}
+		h := sha256.New()
+		h.Write(bs)
+		s := hex.EncodeToString(h.Sum(nil))
+		if Checksum != s {
+			return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", Checksum, s)
+		}
+	} else {
+		log.Info().Msg("no checksum defined, envoy binary will not be verified!")
+	}
+
 	srv := &Server{
 		wd:        wd,
 		grpcPort:  grpcPort,
@@ -85,6 +112,11 @@ func NewServer(src config.Source, grpcPort, httpPort string) (*Server, error) {
 
 	src.OnConfigChange(srv.onConfigChange)
 	srv.onConfigChange(src.GetConfig())
+
+	log.Info().
+		Str("path", envoyPath).
+		Str("checksum", Checksum).
+		Msg("running envoy")
 
 	return srv, nil
 }
