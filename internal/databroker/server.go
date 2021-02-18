@@ -52,7 +52,7 @@ func New(options ...ServerOption) *Server {
 }
 
 func (srv *Server) initVersion() {
-	db, _, err := srv.getBackend()
+	db, _, err := srv.getBackendLocked()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to init server version")
 		return
@@ -118,7 +118,7 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 		Str("id", req.GetId()).
 		Msg("get")
 
-	db, _, err := srv.getBackendLocked()
+	db, _, err := srv.getBackend()
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 
 	query := strings.ToLower(req.GetQuery())
 
-	db, _, err := srv.getBackendLocked()
+	db, _, err := srv.getBackend()
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 		Str("id", record.GetId()).
 		Msg("put")
 
-	db, version, err := srv.getBackendLocked()
+	db, version, err := srv.getBackend()
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +211,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 		Uint64("record_version", req.GetRecordVersion()).
 		Msg("sync")
 
-	backend, serverVersion, err := srv.getBackendLocked()
+	backend, serverVersion, err := srv.getBackend()
 	if err != nil {
 		return err
 	}
@@ -253,7 +253,7 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 		Str("type", req.GetType()).
 		Msg("sync latest")
 
-	backend, serverVersion, err := srv.getBackendLocked()
+	backend, serverVersion, err := srv.getBackend()
 	if err != nil {
 		return err
 	}
@@ -297,20 +297,6 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 }
 
 func (srv *Server) getBackend() (backend storage.Backend, version uint64, err error) {
-	backend = srv.backend
-	version = srv.version
-	if backend == nil {
-		var err error
-		backend, err = srv.newBackend()
-		srv.backend = backend
-		if err != nil {
-			return nil, 0, err
-		}
-	}
-	return backend, version, nil
-}
-
-func (srv *Server) getBackendLocked() (backend storage.Backend, version uint64, err error) {
 	// double-checked locking:
 	// first try the read lock, then re-try with the write lock, and finally create a new backend if nil
 	srv.mu.RLock()
@@ -323,7 +309,7 @@ func (srv *Server) getBackendLocked() (backend storage.Backend, version uint64, 
 		version = srv.version
 		var err error
 		if backend == nil {
-			backend, err = srv.newBackend()
+			backend, err = srv.newBackendLocked()
 			srv.backend = backend
 		}
 		srv.mu.Unlock()
@@ -334,7 +320,21 @@ func (srv *Server) getBackendLocked() (backend storage.Backend, version uint64, 
 	return backend, version, nil
 }
 
-func (srv *Server) newBackend() (backend storage.Backend, err error) {
+func (srv *Server) getBackendLocked() (backend storage.Backend, version uint64, err error) {
+	backend = srv.backend
+	version = srv.version
+	if backend == nil {
+		var err error
+		backend, err = srv.newBackendLocked()
+		srv.backend = backend
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+	return backend, version, nil
+}
+
+func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 	caCertPool, err := cryptutil.GetCertPool("", srv.cfg.storageCAFile)
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to read databroker CA file")
