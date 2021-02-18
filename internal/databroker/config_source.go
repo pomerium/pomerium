@@ -14,8 +14,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-var configTypeURL = "type.googleapis.com/pomerium.config.Config"
-
 // ConfigSource provides a new Config source that decorates an underlying config with
 // configuration derived from the data broker.
 type ConfigSource struct {
@@ -179,7 +177,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	syncer := databroker.NewSyncer(&syncerHandler{
 		client: client,
 		src:    src,
-	}, databroker.WithTypeURL(configTypeURL))
+	}, databroker.WithTypeURL(databroker.ConfigTypeURL))
 	go func() { _ = syncer.Run(ctx) }()
 }
 

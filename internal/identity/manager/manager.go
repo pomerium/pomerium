@@ -491,7 +491,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessage) {
 	for _, record := range msg.records {
 		switch record.GetType() {
-		case directoryGroupTypeURL:
+		case databroker.DirectoryGroupTypeURL:
 			var pbDirectoryGroup directory.Group
 			err := record.GetData().UnmarshalTo(&pbDirectoryGroup)
 			if err != nil {
@@ -499,7 +499,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 				continue
 			}
 			mgr.onUpdateDirectoryGroup(ctx, &pbDirectoryGroup)
-		case directoryUserTypeURL:
+		case databroker.DirectoryUserTypeURL:
 			var pbDirectoryUser directory.User
 			err := record.GetData().UnmarshalTo(&pbDirectoryUser)
 			if err != nil {
@@ -507,7 +507,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 				continue
 			}
 			mgr.onUpdateDirectoryUser(ctx, &pbDirectoryUser)
-		case sessionTypeURL:
+		case databroker.SessionTypeURL:
 			var pbSession session.Session
 			err := record.GetData().UnmarshalTo(&pbSession)
 			if err != nil {
@@ -515,7 +515,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 				continue
 			}
 			mgr.onUpdateSession(ctx, record, &pbSession)
-		case userTypeURL:
+		case databroker.UserTypeURL:
 			var pbUser user.User
 			err := record.GetData().UnmarshalTo(&pbUser)
 			if err != nil {

@@ -8,13 +8,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-var (
-	directoryGroupTypeURL = "type.googleapis.com/directory.Group"
-	directoryUserTypeURL  = "type.googleapis.com/directory.User"
-	sessionTypeURL        = "type.googleapis.com/session.Session"
-	userTypeURL           = "type.googleapis.com/user.User"
-)
-
 type dataBrokerSyncer struct {
 	cfg *atomicConfig
 	log zerolog.Logger

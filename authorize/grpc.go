@@ -26,12 +26,6 @@ import (
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 )
 
-const (
-	serviceAccountTypeURL = "type.googleapis.com/user.ServiceAccount"
-	sessionTypeURL        = "type.googleapis.com/session.Session"
-	userTypeURL           = "type.googleapis.com/user.User"
-)
-
 // Check implements the envoy auth server gRPC endpoint.
 func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRequest) (*envoy_service_auth_v2.CheckResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
@@ -108,18 +102,18 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) inte
 
 	state := a.state.Load()
 
-	s, ok := a.store.GetRecordData(sessionTypeURL, sessionID).(*session.Session)
+	s, ok := a.store.GetRecordData(databroker.SessionTypeURL, sessionID).(*session.Session)
 	if ok {
 		return s
 	}
 
-	sa, ok := a.store.GetRecordData(serviceAccountTypeURL, sessionID).(*user.ServiceAccount)
+	sa, ok := a.store.GetRecordData(databroker.ServiceAccountTypeURL, sessionID).(*user.ServiceAccount)
 	if ok {
 		return sa
 	}
 
 	res, err := state.dataBrokerClient.Get(ctx, &databroker.GetRequest{
-		Type: sessionTypeURL,
+		Type: databroker.SessionTypeURL,
 		Id:   sessionID,
 	})
 	if err != nil {
@@ -127,10 +121,10 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) inte
 		return nil
 	}
 
-	if current := a.store.GetRecordData(sessionTypeURL, sessionID); current == nil {
+	if current := a.store.GetRecordData(databroker.SessionTypeURL, sessionID); current == nil {
 		a.store.UpdateRecord(res.GetRecord())
 	}
-	s, _ = a.store.GetRecordData(sessionTypeURL, sessionID).(*session.Session)
+	s, _ = a.store.GetRecordData(databroker.SessionTypeURL, sessionID).(*session.Session)
 
 	return s
 }
@@ -141,13 +135,13 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 
 	state := a.state.Load()
 
-	u, ok := a.store.GetRecordData(userTypeURL, userID).(*user.User)
+	u, ok := a.store.GetRecordData(databroker.UserTypeURL, userID).(*user.User)
 	if ok {
 		return u
 	}
 
 	res, err := state.dataBrokerClient.Get(ctx, &databroker.GetRequest{
-		Type: userTypeURL,
+		Type: databroker.UserTypeURL,
 		Id:   userID,
 	})
 	if err != nil {
@@ -155,10 +149,10 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 		return nil
 	}
 
-	if current := a.store.GetRecordData(userTypeURL, userID); current == nil {
+	if current := a.store.GetRecordData(databroker.UserTypeURL, userID); current == nil {
 		a.store.UpdateRecord(res.GetRecord())
 	}
-	u, _ = a.store.GetRecordData(userTypeURL, userID).(*user.User)
+	u, _ = a.store.GetRecordData(databroker.UserTypeURL, userID).(*user.User)
 
 	return u
 }
