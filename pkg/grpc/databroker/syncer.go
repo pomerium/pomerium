@@ -3,7 +3,6 @@ package databroker
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	backoff "github.com/cenkalti/backoff/v4"
@@ -55,12 +54,14 @@ type Syncer struct {
 	recordVersion uint64
 	serverVersion uint64
 
-	closeOnce sync.Once
-	closed    chan struct{}
+	closeCtx       context.Context
+	closeCtxCancel func()
 }
 
 // NewSyncer creates a new Syncer.
 func NewSyncer(handler SyncerHandler, options ...SyncerOption) *Syncer {
+	closeCtx, closeCtxCancel := context.WithCancel(context.Background())
+
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
 	return &Syncer{
@@ -68,15 +69,14 @@ func NewSyncer(handler SyncerHandler, options ...SyncerOption) *Syncer {
 		handler: handler,
 		backoff: bo,
 
-		closed: make(chan struct{}),
+		closeCtx:       closeCtx,
+		closeCtxCancel: closeCtxCancel,
 	}
 }
 
 // Close closes the Syncer.
 func (syncer *Syncer) Close() error {
-	syncer.closeOnce.Do(func() {
-		close(syncer.closed)
-	})
+	syncer.closeCtxCancel()
 	return nil
 }
 
@@ -84,7 +84,7 @@ func (syncer *Syncer) Close() error {
 func (syncer *Syncer) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
-		<-syncer.closed
+		<-syncer.closeCtx.Done()
 		cancel()
 	}()
 
@@ -101,8 +101,6 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-time.After(syncer.backoff.NextBackOff()):
-			case <-syncer.closed:
-				return context.Canceled
 			}
 		}
 	}
