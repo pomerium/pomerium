@@ -12,6 +12,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 // ConfigSource provides a new Config source that decorates an underlying config with
@@ -177,7 +178,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	syncer := databroker.NewSyncer(&syncerHandler{
 		client: client,
 		src:    src,
-	}, databroker.WithTypeURL(databroker.ConfigTypeURL))
+	}, databroker.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))))
 	go func() { _ = syncer.Run(ctx) }()
 }
 

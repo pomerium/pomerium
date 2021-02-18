@@ -8,16 +8,6 @@ import (
 	"strings"
 )
 
-// TypeURLs for Any.
-const (
-	ConfigTypeURL         = "type.googleapis.com/pomerium.config.Config"
-	DirectoryGroupTypeURL = "type.googleapis.com/directory.Group"
-	DirectoryUserTypeURL  = "type.googleapis.com/directory.User"
-	SessionTypeURL        = "type.googleapis.com/session.Session"
-	ServiceAccountTypeURL = "type.googleapis.com/user.ServiceAccount"
-	UserTypeURL           = "type.googleapis.com/user.User"
-)
-
 // GetUserID gets the databroker user id from a provider user id.
 func GetUserID(provider, providerUserID string) string {
 	return provider + "/" + providerUserID

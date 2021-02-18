@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 const (
@@ -494,7 +495,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessage) {
 	for _, record := range msg.records {
 		switch record.GetType() {
-		case databroker.DirectoryGroupTypeURL:
+		case grpcutil.GetTypeURL(new(directory.Group)):
 			var pbDirectoryGroup directory.Group
 			err := record.GetData().UnmarshalTo(&pbDirectoryGroup)
 			if err != nil {
@@ -502,7 +503,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 				continue
 			}
 			mgr.onUpdateDirectoryGroup(ctx, &pbDirectoryGroup)
-		case databroker.DirectoryUserTypeURL:
+		case grpcutil.GetTypeURL(new(directory.User)):
 			var pbDirectoryUser directory.User
 			err := record.GetData().UnmarshalTo(&pbDirectoryUser)
 			if err != nil {
@@ -510,7 +511,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 				continue
 			}
 			mgr.onUpdateDirectoryUser(ctx, &pbDirectoryUser)
-		case databroker.SessionTypeURL:
+		case grpcutil.GetTypeURL(new(session.Session)):
 			var pbSession session.Session
 			err := record.GetData().UnmarshalTo(&pbSession)
 			if err != nil {
@@ -518,7 +519,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 				continue
 			}
 			mgr.onUpdateSession(ctx, record, &pbSession)
-		case databroker.UserTypeURL:
+		case grpcutil.GetTypeURL(new(user.User)):
 			var pbUser user.User
 			err := record.GetData().UnmarshalTo(&pbUser)
 			if err != nil {

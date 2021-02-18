@@ -72,11 +72,10 @@ func TestEncryptedBackend(t *testing.T) {
 	assert.Equal(t, any.Value, record.Data.Value, "value should be preserved")
 	assert.Equal(t, any.TypeUrl, record.Type, "record type should be preserved")
 
-	records, version, err := e.GetAll(ctx)
+	records, _, err := e.GetAll(ctx)
 	if !assert.NoError(t, err) {
 		return
 	}
-	assert.Equal(t, 1, version)
 	if assert.Len(t, records, 1) {
 		assert.Equal(t, any.TypeUrl, records[0].Data.TypeUrl, "type should be preserved")
 		assert.Equal(t, any.Value, records[0].Data.Value, "value should be preserved")
