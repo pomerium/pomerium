@@ -123,6 +123,7 @@ type Versions struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// the server version indicates the version of the server storing the data
 	ServerVersion       uint64 `protobuf:"varint,1,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
 	LatestRecordVersion uint64 `protobuf:"varint,2,opt,name=latest_record_version,json=latestRecordVersion,proto3" json:"latest_record_version,omitempty"`
 }
@@ -1093,10 +1094,15 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type DataBrokerServiceClient interface {
+	// Get gets a record.
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	// Put saves a record.
 	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
+	// Query queries for records.
 	Query(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*QueryResponse, error)
+	// Sync streams changes to records after the specified version.
 	Sync(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (DataBrokerService_SyncClient, error)
+	// SyncLatest streams the latest version of every record.
 	SyncLatest(ctx context.Context, in *SyncLatestRequest, opts ...grpc.CallOption) (DataBrokerService_SyncLatestClient, error)
 }
 
@@ -1201,10 +1207,15 @@ func (x *dataBrokerServiceSyncLatestClient) Recv() (*SyncLatestResponse, error) 
 
 // DataBrokerServiceServer is the server API for DataBrokerService service.
 type DataBrokerServiceServer interface {
+	// Get gets a record.
 	Get(context.Context, *GetRequest) (*GetResponse, error)
+	// Put saves a record.
 	Put(context.Context, *PutRequest) (*PutResponse, error)
+	// Query queries for records.
 	Query(context.Context, *QueryRequest) (*QueryResponse, error)
+	// Sync streams changes to records after the specified version.
 	Sync(*SyncRequest, DataBrokerService_SyncServer) error
+	// SyncLatest streams the latest version of every record.
 	SyncLatest(*SyncLatestRequest, DataBrokerService_SyncLatestServer) error
 }
 

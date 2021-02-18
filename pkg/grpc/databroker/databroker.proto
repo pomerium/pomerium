@@ -6,7 +6,6 @@ option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
 import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 
-
 message Record {
   uint64 version = 1;
   string type = 2;
@@ -16,6 +15,7 @@ message Record {
   google.protobuf.Timestamp deleted_at = 6;
 }
 message Versions {
+  // the server version indicates the version of the server storing the data
   uint64 server_version = 1;
   uint64 latest_record_version = 2;
 }
@@ -24,9 +24,7 @@ message GetRequest {
   string type = 1;
   string id = 2;
 }
-message GetResponse {
-  Record record = 1;
-}
+message GetResponse { Record record = 1; }
 
 message QueryRequest {
   string type = 1;
@@ -39,9 +37,7 @@ message QueryResponse {
   int64 total_count = 2;
 }
 
-message PutRequest {
-  Record record = 1;
-}
+message PutRequest { Record record = 1; }
 message PutResponse {
   uint64 server_version = 1;
   Record record = 2;
@@ -56,9 +52,7 @@ message SyncResponse {
   Record record = 2;
 }
 
-message SyncLatestRequest {
-  string type = 1;
-}
+message SyncLatestRequest { string type = 1; }
 message SyncLatestResponse {
   oneof response {
     Record record = 1;
@@ -66,10 +60,16 @@ message SyncLatestResponse {
   }
 }
 
+// The DataBrokerService stores key-value data.
 service DataBrokerService {
+  // Get gets a record.
   rpc Get(GetRequest) returns (GetResponse);
+  // Put saves a record.
   rpc Put(PutRequest) returns (PutResponse);
+  // Query queries for records.
   rpc Query(QueryRequest) returns (QueryResponse);
+  // Sync streams changes to records after the specified version.
   rpc Sync(SyncRequest) returns (stream SyncResponse);
+  // SyncLatest streams the latest version of every record.
   rpc SyncLatest(SyncLatestRequest) returns (stream SyncLatestResponse);
 }
