@@ -213,10 +213,16 @@ func (backend *Backend) incrementVersion(ctx context.Context,
 		return err
 	}
 
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
 	for i := 0; i < maxTransactionRetries; i++ {
 		err := backend.client.Watch(ctx, txf, lastVersionKey)
 		if errors.Is(err, redis.TxFailedErr) {
-			time.Sleep(time.Millisecond * 10)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(bo.NextBackOff()):
+			}
 			continue // retry
 		} else if err != nil {
 			return err
