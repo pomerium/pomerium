@@ -4,11 +4,11 @@ package databroker
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
@@ -52,25 +52,31 @@ func New(options ...ServerOption) *Server {
 }
 
 func (srv *Server) initVersion() {
-	dbServerVersion, _, err := srv.getBackend()
+	db, _, err := srv.getBackend()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to init server version")
 		return
 	}
 
 	// Get version from storage first.
-	if r, _ := dbServerVersion.Get(context.Background(), recordTypeServerVersion, serverVersionKey); r != nil {
+	r, err := db.Get(context.Background(), recordTypeServerVersion, serverVersionKey)
+	switch {
+	case err == nil:
 		var sv wrapperspb.UInt64Value
-		if err := ptypes.UnmarshalAny(r.GetData(), &sv); err == nil {
+		if err := r.GetData().UnmarshalTo(&sv); err == nil {
 			srv.log.Debug().Uint64("server_version", sv.Value).Msg("got db version from Backend")
 			srv.version = sv.Value
 		}
+		return
+	case errors.Is(err, storage.ErrNotFound): // no server version, so we'll create a new one
+	case err != nil:
+		log.Error().Err(err).Msg("failed to retrieve server version")
 		return
 	}
 
 	srv.version = cryptutil.NewRandomUInt64()
 	data, _ := anypb.New(wrapperspb.UInt64(srv.version))
-	if err := dbServerVersion.Put(context.Background(), &databroker.Record{
+	if err := db.Put(context.Background(), &databroker.Record{
 		Type: recordTypeServerVersion,
 		Id:   serverVersionKey,
 		Data: data,
