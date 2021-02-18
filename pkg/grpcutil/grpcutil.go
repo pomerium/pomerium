@@ -5,6 +5,8 @@ import (
 	"context"
 
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/proto"
 )
 
 // SessionIDMetadataKey is the key in the metadata.
@@ -51,4 +53,20 @@ func JWTFromGRPCRequest(ctx context.Context) (rawjwt string, ok bool) {
 	}
 
 	return rawjwts[0], true
+}
+
+// GetPeerAddr returns the peer address.
+func GetPeerAddr(ctx context.Context) string {
+	p, ok := peer.FromContext(ctx)
+	if ok {
+		return p.Addr.String()
+	}
+	return ""
+}
+
+// GetTypeURL gets the TypeURL for a protobuf message.
+func GetTypeURL(msg proto.Message) string {
+	// taken from the anypb package
+	const urlPrefix = "type.googleapis.com/"
+	return urlPrefix + string(msg.ProtoReflect().Descriptor().FullName())
 }

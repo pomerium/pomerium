@@ -2,192 +2,172 @@ package redis
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/directory"
+	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-var db *DB
-
-func cleanup(ctx context.Context, db *DB, t *testing.T) {
-	require.NoError(t, db.client.FlushAll(ctx).Err())
-}
-
-func tlsConfig(rawURL string, t *testing.T) *tls.Config {
-	if !strings.HasPrefix(rawURL, "rediss") {
-		return nil
-	}
-	cert, err := cryptutil.CertificateFromFile("./testdata/tls/redis.crt", "./testdata/tls/redis.key")
-	require.NoError(t, err)
-	caCertPool := x509.NewCertPool()
-	caCert, err := ioutil.ReadFile("./testdata/tls/ca.crt")
-	require.NoError(t, err)
-	caCertPool.AppendCertsFromPEM(caCert)
-	tlsConfig := &tls.Config{
-		RootCAs:      caCertPool,
-		Certificates: []tls.Certificate{*cert},
-	}
-	return tlsConfig
-}
-
-func runWithRedisDockerImage(t *testing.T, runOpts *dockertest.RunOptions, withTLS bool, testFunc func(t *testing.T)) {
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		t.Fatalf("Could not connect to docker: %s", err)
-	}
-	resource, err := pool.RunWithOptions(runOpts)
-	if err != nil {
-		t.Fatalf("Could not start resource: %s", err)
-	}
-	resource.Expire(30)
-
-	defer func() {
-		if err := pool.Purge(resource); err != nil {
-			t.Fatalf("Could not purge resource: %s", err)
-		}
-	}()
-
-	scheme := "redis"
-	if withTLS {
-		scheme = "rediss"
-	}
-	address := fmt.Sprintf(scheme+"://localhost:%s/0", resource.GetPort("6379/tcp"))
-	if err := pool.Retry(func() error {
-		var err error
-		db, err = New(address, WithRecordType("record_type"), WithTLSConfig(tlsConfig(address, t)))
-		if err != nil {
-			return err
-		}
-		err = db.client.Ping(context.Background()).Err()
-		return err
-	}); err != nil {
-		t.Fatalf("Could not connect to docker: %s", err)
-	}
-
-	testFunc(t)
-}
-
-func TestDB(t *testing.T) {
+func TestBackend(t *testing.T) {
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	cwd, err := os.Getwd()
-	assert.NoError(t, err)
-
-	tlsCmd := []string{
-		"--port", "0",
-		"--tls-port", "6379",
-		"--tls-cert-file", "/tls/redis.crt",
-		"--tls-key-file", "/tls/redis.key",
-		"--tls-ca-cert-file", "/tls/ca.crt",
-	}
-	tests := []struct {
-		name    string
-		withTLS bool
-		runOpts *dockertest.RunOptions
-	}{
-		{"redis", false, &dockertest.RunOptions{Repository: "redis", Tag: "latest"}},
-		{"redis TLS", true, &dockertest.RunOptions{Repository: "redis", Tag: "latest", Cmd: tlsCmd, Mounts: []string{cwd + "/testdata/tls:/tls"}}},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			runWithRedisDockerImage(t, tc.runOpts, tc.withTLS, testDB)
-		})
+	for _, useTLS := range []bool{true, false} {
+		require.NoError(t, testutil.WithTestRedis(useTLS, func(rawURL string) error {
+			ctx := context.Background()
+			var opts []Option
+			if useTLS {
+				opts = append(opts, WithTLSConfig(testutil.RedisTLSConfig()))
+			}
+			backend, err := New(rawURL, opts...)
+			require.NoError(t, err)
+			defer func() { _ = backend.Close() }()
+			t.Run("get missing record", func(t *testing.T) {
+				record, err := backend.Get(ctx, "TYPE", "abcd")
+				require.Error(t, err)
+				assert.Nil(t, record)
+			})
+			t.Run("get record", func(t *testing.T) {
+				data := new(anypb.Any)
+				assert.NoError(t, backend.Put(ctx, &databroker.Record{
+					Type: "TYPE",
+					Id:   "abcd",
+					Data: data,
+				}))
+				record, err := backend.Get(ctx, "TYPE", "abcd")
+				require.NoError(t, err)
+				if assert.NotNil(t, record) {
+					assert.Equal(t, data, record.Data)
+					assert.Nil(t, record.DeletedAt)
+					assert.Equal(t, "abcd", record.Id)
+					assert.NotNil(t, record.ModifiedAt)
+					assert.Equal(t, "TYPE", record.Type)
+					assert.Equal(t, uint64(1), record.Version)
+				}
+			})
+			t.Run("delete record", func(t *testing.T) {
+				assert.NoError(t, backend.Put(ctx, &databroker.Record{
+					Type:      "TYPE",
+					Id:        "abcd",
+					DeletedAt: timestamppb.Now(),
+				}))
+				record, err := backend.Get(ctx, "TYPE", "abcd")
+				assert.Error(t, err)
+				assert.Nil(t, record)
+			})
+			t.Run("get all records", func(t *testing.T) {
+				for i := 0; i < 1000; i++ {
+					assert.NoError(t, backend.Put(ctx, &databroker.Record{
+						Type: "TYPE",
+						Id:   fmt.Sprint(i),
+					}))
+				}
+				records, version, err := backend.GetAll(ctx)
+				assert.NoError(t, err)
+				assert.Len(t, records, 1000)
+				assert.Equal(t, uint64(1002), version)
+			})
+			return nil
+		}))
 	}
 }
 
-func testDB(t *testing.T) {
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	users := []*directory.User{
-		{Id: "u1", GroupIds: []string{"test", "admin"}},
-		{Id: "u2"},
-		{Id: "u3", GroupIds: []string{"test"}},
+func TestChangeSignal(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
 	}
-	ids := []string{"a", "b", "c"}
-	id := ids[0]
 
-	t.Run("get missing record", func(t *testing.T) {
-		record, err := db.Get(ctx, id)
-		assert.Error(t, err)
-		assert.Nil(t, record)
-	})
-	t.Run("get record", func(t *testing.T) {
-		data, _ := anypb.New(users[0])
-		assert.NoError(t, db.Put(ctx, id, data))
-		record, err := db.Get(ctx, id)
+	ctx := context.Background()
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*10)
+	defer clearTimeout()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
+		backend1, err := New(rawURL)
 		require.NoError(t, err)
-		if assert.NotNil(t, record) {
-			assert.NotNil(t, record.CreatedAt)
-			assert.NotEmpty(t, record.Data)
-			assert.Nil(t, record.DeletedAt)
-			assert.Equal(t, "a", record.Id)
-			assert.NotNil(t, record.ModifiedAt)
-			assert.Equal(t, "000000000001", record.Version)
-		}
-	})
-	t.Run("delete record", func(t *testing.T) {
-		original, err := db.Get(ctx, id)
+		defer func() { _ = backend1.Close() }()
+
+		backend2, err := New(rawURL)
 		require.NoError(t, err)
-		assert.NoError(t, db.Delete(ctx, id))
-		record, err := db.Get(ctx, id)
-		require.NoError(t, err)
-		require.NotNil(t, record)
-		assert.NotNil(t, record.DeletedAt)
-		assert.NotEqual(t, original.GetVersion(), record.GetVersion())
-	})
-	t.Run("clear deleted", func(t *testing.T) {
-		db.ClearDeleted(ctx, time.Now().Add(time.Second))
-		record, err := db.Get(ctx, id)
-		assert.Error(t, err)
-		assert.Nil(t, record)
-	})
-	t.Run("list", func(t *testing.T) {
-		cleanup(ctx, db, t)
+		defer func() { _ = backend2.Close() }()
 
-		for i := 0; i < 10; i++ {
-			id := fmt.Sprintf("%02d", i)
-			data := new(anypb.Any)
-			assert.NoError(t, db.Put(ctx, id, data))
-		}
+		ch := backend1.onChange.Bind()
+		defer backend1.onChange.Unbind(ch)
 
-		records, err := db.List(ctx, "")
-		assert.NoError(t, err)
-		assert.Len(t, records, 10)
-		records, err = db.List(ctx, "000000000005")
-		assert.NoError(t, err)
-		assert.Len(t, records, 5)
-		records, err = db.List(ctx, "000000000010")
-		assert.NoError(t, err)
-		assert.Len(t, records, 0)
-	})
-	t.Run("watch", func(t *testing.T) {
-		ch := db.Watch(ctx)
-		time.Sleep(time.Second)
-
-		go db.Put(ctx, "WATCH", new(anypb.Any))
+		go func() {
+			ticker := time.NewTicker(time.Millisecond * 100)
+			defer ticker.Stop()
+			for {
+				_ = backend2.Put(ctx, &databroker.Record{
+					Type: "TYPE",
+					Id:   "ID",
+				})
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+				}
+			}
+		}()
 
 		select {
 		case <-ch:
-		case <-time.After(time.Second * 10):
-			t.Error("expected watch signal on put")
+		case <-ctx.Done():
+			t.Fatal("expected signal to be fired when another backend triggers a change")
 		}
-	})
+
+		return nil
+	}))
+}
+
+func TestExpiry(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
+	ctx := context.Background()
+	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
+		backend, err := New(rawURL, WithExpiry(0))
+		require.NoError(t, err)
+		defer func() { _ = backend.Close() }()
+
+		for i := 0; i < 1000; i++ {
+			assert.NoError(t, backend.Put(ctx, &databroker.Record{
+				Type: "TYPE",
+				Id:   fmt.Sprint(i),
+			}))
+		}
+		stream, err := backend.Sync(ctx, 0)
+		require.NoError(t, err)
+		var records []*databroker.Record
+		for stream.Next(false) {
+			records = append(records, stream.Record())
+		}
+		_ = stream.Close()
+		require.Len(t, records, 1000)
+
+		backend.removeChangesBefore(time.Now().Add(time.Second))
+
+		stream, err = backend.Sync(ctx, 0)
+		require.NoError(t, err)
+		records = nil
+		for stream.Next(false) {
+			records = append(records, stream.Record())
+		}
+		_ = stream.Close()
+		require.Len(t, records, 0)
+
+		return nil
+	}))
 }

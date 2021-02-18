@@ -9,27 +9,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var statsHandler = &ocgrpc.ServerHandler{}
-
-type testProto struct {
-	message string
-}
-
-func (t testProto) Reset()        {}
-func (t testProto) ProtoMessage() {}
-func (t testProto) String() string {
-	return t.message
-}
-
-func (t testProto) XXX_Size() int {
-	return len([]byte(t.message))
-}
-
-func (t testProto) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return []byte(t.message), nil
-}
 
 type testInvoker struct {
 	invokeResult error
@@ -37,12 +20,12 @@ type testInvoker struct {
 }
 
 func (t testInvoker) UnaryInvoke(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
-	r := reply.(*testProto)
-	r.message = "hello"
+	r := reply.(*wrapperspb.StringValue)
+	r.Value = "hello"
 
 	ctx = t.statsHandler.TagRPC(ctx, &stats.RPCTagInfo{FullMethodName: method})
-	t.statsHandler.HandleRPC(ctx, &stats.InPayload{Client: true, Length: len(r.message)})
-	t.statsHandler.HandleRPC(ctx, &stats.OutPayload{Client: true, Length: len(r.message)})
+	t.statsHandler.HandleRPC(ctx, &stats.InPayload{Client: true, Length: len(r.Value)})
+	t.statsHandler.HandleRPC(ctx, &stats.OutPayload{Client: true, Length: len(r.Value)})
 	t.statsHandler.HandleRPC(ctx, &stats.End{Client: true, Error: t.invokeResult})
 
 	return t.invokeResult
@@ -106,7 +89,7 @@ func Test_GRPCClientInterceptor(t *testing.T) {
 				invokeResult: tt.errorCode,
 				statsHandler: &ocgrpc.ClientHandler{},
 			}
-			var reply testProto
+			var reply wrapperspb.StringValue
 
 			interceptor(context.Background(), tt.method, nil, &reply, newTestCC(t), invoker.UnaryInvoke)
 

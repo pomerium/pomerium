@@ -13,8 +13,6 @@ var (
 	// DefaultDeletePermanentlyAfter is the default amount of time to wait before deleting
 	// a record permanently.
 	DefaultDeletePermanentlyAfter = time.Hour
-	// DefaultBTreeDegree is the default number of items to store in each node of the BTree.
-	DefaultBTreeDegree = 8
 	// DefaultStorageType is the default storage type that Server use
 	DefaultStorageType = "memory"
 	// DefaultGetAllPageSize is the default page size for GetAll calls.
@@ -23,7 +21,6 @@ var (
 
 type serverConfig struct {
 	deletePermanentlyAfter  time.Duration
-	btreeDegree             int
 	secret                  []byte
 	storageType             string
 	storageConnectionString string
@@ -36,7 +33,6 @@ type serverConfig struct {
 func newServerConfig(options ...ServerOption) *serverConfig {
 	cfg := new(serverConfig)
 	WithDeletePermanentlyAfter(DefaultDeletePermanentlyAfter)(cfg)
-	WithBTreeDegree(DefaultBTreeDegree)(cfg)
 	WithStorageType(DefaultStorageType)(cfg)
 	WithGetAllPageSize(DefaultGetAllPageSize)(cfg)
 	for _, option := range options {
@@ -47,13 +43,6 @@ func newServerConfig(options ...ServerOption) *serverConfig {
 
 // A ServerOption customizes the server.
 type ServerOption func(*serverConfig)
-
-// WithBTreeDegree sets the number of items to store in each node of the BTree.
-func WithBTreeDegree(degree int) ServerOption {
-	return func(cfg *serverConfig) {
-		cfg.btreeDegree = degree
-	}
-}
 
 // WithDeletePermanentlyAfter sets the deletePermanentlyAfter duration.
 // If a record is deleted via Delete, it will be permanently deleted after

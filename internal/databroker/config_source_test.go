@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/config"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -24,7 +24,7 @@ func TestConfigSource(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer li.Close()
+	defer func() { _ = li.Close() }()
 
 	dataBrokerServer := New()
 	srv := grpc.NewServer()
@@ -45,7 +45,7 @@ func TestConfigSource(t *testing.T) {
 	})
 	cfgs <- src.GetConfig()
 
-	data, _ := ptypes.MarshalAny(&configpb.Config{
+	data, _ := anypb.New(&configpb.Config{
 		Name: "config",
 		Routes: []*configpb.Route{
 			{
@@ -54,10 +54,12 @@ func TestConfigSource(t *testing.T) {
 			},
 		},
 	})
-	_, _ = dataBrokerServer.Set(ctx, &databroker.SetRequest{
-		Type: configTypeURL,
-		Id:   "1",
-		Data: data,
+	_, _ = dataBrokerServer.Put(ctx, &databroker.PutRequest{
+		Record: &databroker.Record{
+			Type: data.TypeUrl,
+			Id:   "1",
+			Data: data,
+		},
 	})
 
 	select {

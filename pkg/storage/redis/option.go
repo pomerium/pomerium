@@ -2,32 +2,34 @@ package redis
 
 import (
 	"crypto/tls"
+	"time"
 )
 
-type dbConfig struct {
-	tls        *tls.Config
-	recordType string
+type config struct {
+	tls    *tls.Config
+	expiry time.Duration
 }
 
-// Option customizes a DB.
-type Option func(*dbConfig)
+// Option customizes a Backend.
+type Option func(*config)
 
-// WithRecordType sets the record type in the config.
-func WithRecordType(recordType string) Option {
-	return func(cfg *dbConfig) {
-		cfg.recordType = recordType
-	}
-}
-
-// WithTLSConfig sets the tls.Config which DB uses.
+// WithTLSConfig sets the tls.Config which Backend uses.
 func WithTLSConfig(tlsConfig *tls.Config) Option {
-	return func(cfg *dbConfig) {
+	return func(cfg *config) {
 		cfg.tls = tlsConfig
 	}
 }
 
-func getConfig(options ...Option) *dbConfig {
-	cfg := new(dbConfig)
+// WithExpiry sets the expiry for changes.
+func WithExpiry(expiry time.Duration) Option {
+	return func(cfg *config) {
+		cfg.expiry = expiry
+	}
+}
+
+func getConfig(options ...Option) *config {
+	cfg := new(config)
+	WithExpiry(time.Hour * 24)(cfg)
 	for _, o := range options {
 		o(cfg)
 	}

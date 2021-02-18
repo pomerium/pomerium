@@ -325,7 +325,7 @@ func TestSync(t *testing.T) {
 		})
 		return &databroker.GetResponse{
 			Record: &databroker.Record{
-				Version: "0001",
+				Version: 1,
 				Type:    data.GetTypeUrl(),
 				Id:      in.GetId(),
 				Data:    data,
@@ -336,7 +336,7 @@ func TestSync(t *testing.T) {
 		data, _ := ptypes.MarshalAny(&user.User{Id: in.GetId()})
 		return &databroker.GetResponse{
 			Record: &databroker.Record{
-				Version: "0001",
+				Version: 1,
 				Type:    data.GetTypeUrl(),
 				Id:      in.GetId(),
 				Data:    data,
@@ -391,7 +391,7 @@ func TestSync(t *testing.T) {
 					}
 					return &databroker.GetResponse{
 						Record: &databroker.Record{
-							Version: "0001",
+							Version: 1,
 							Type:    data.GetTypeUrl(),
 							Id:      in.GetId(),
 							Data:    data,
@@ -418,7 +418,7 @@ func TestSync(t *testing.T) {
 					})
 					return &databroker.GetResponse{
 						Record: &databroker.Record{
-							Version: "0001",
+							Version: 1,
 							Type:    data.GetTypeUrl(),
 							Id:      in.GetId(),
 							Data:    data,

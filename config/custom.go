@@ -109,9 +109,9 @@ func decodeJWTClaimHeadersHookFunc() mapstructure.DecodeHookFunc {
 // A StringSlice is a slice of strings.
 type StringSlice []string
 
-// NewStringSlice creatse a new StringSlice.
+// NewStringSlice creates a new StringSlice.
 func NewStringSlice(values ...string) StringSlice {
-	return StringSlice(values)
+	return values
 }
 
 const (
@@ -197,7 +197,7 @@ type WeightedURL struct {
 	LbWeight uint32
 }
 
-// Validate validates the WeightedURL.
+// Validate validates that the WeightedURL is valid.
 func (u *WeightedURL) Validate() error {
 	if u.URL.Hostname() == "" {
 		return errHostnameMustBeSpecified
@@ -227,6 +227,7 @@ func ParseWeightedURL(dst string) (*WeightedURL, error) {
 	return &WeightedURL{*u, w}, nil
 }
 
+// String returns the WeightedURL as a string.
 func (u *WeightedURL) String() string {
 	str := u.URL.String()
 	if u.LbWeight == 0 {
@@ -235,7 +236,7 @@ func (u *WeightedURL) String() string {
 	return fmt.Sprintf("{url=%s, weight=%d}", str, u.LbWeight)
 }
 
-// WeightedURLs is a slice of WeightedURL.
+// WeightedURLs is a slice of WeightedURLs.
 type WeightedURLs []WeightedURL
 
 // ParseWeightedUrls parses
@@ -285,9 +286,9 @@ func (urls WeightedURLs) Validate() (HasWeight, error) {
 	}
 
 	if noWeight {
-		return HasWeight(false), nil
+		return false, nil
 	}
-	return HasWeight(true), nil
+	return true, nil
 }
 
 // Flatten converts weighted url array into indidual arrays of urls and weights
@@ -311,7 +312,7 @@ func (urls WeightedURLs) Flatten() ([]string, []uint32, error) {
 	return str, wghts, nil
 }
 
-// DecodePolicyBase64Hook creates a mapstructure DecodeHookFunc.
+// DecodePolicyBase64Hook returns a mapstructure decode hook for base64 data.
 func DecodePolicyBase64Hook() mapstructure.DecodeHookFunc {
 	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
 		if t != reflect.TypeOf([]Policy{}) {
@@ -332,7 +333,7 @@ func DecodePolicyBase64Hook() mapstructure.DecodeHookFunc {
 			return nil, fmt.Errorf("base64 decoding policy data: %w", err)
 		}
 
-		out := []map[interface{}]interface{}{}
+		var out []map[interface{}]interface{}
 		if err = yaml.Unmarshal(bytes, &out); err != nil {
 			return nil, fmt.Errorf("parsing base64-encoded policy data as yaml: %w", err)
 		}
@@ -341,7 +342,7 @@ func DecodePolicyBase64Hook() mapstructure.DecodeHookFunc {
 	}
 }
 
-// DecodePolicyHookFunc creates a mapstructure DecodeHookFunc.
+// DecodePolicyHookFunc returns a Decode Hook for mapstructure.
 func DecodePolicyHookFunc() mapstructure.DecodeHookFunc {
 	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
 		if t != reflect.TypeOf(Policy{}) {

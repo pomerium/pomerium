@@ -1,3 +1,4 @@
+// Package main implements the pomerium-cli.
 package main
 
 import (

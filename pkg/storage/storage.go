@@ -3,8 +3,8 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"strings"
-	"time"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -13,30 +13,39 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
+// Errors
+var (
+	ErrNotFound     = errors.New("record not found")
+	ErrStreamClosed = errors.New("record stream closed")
+)
+
+// A RecordStream is a stream of records.
+type RecordStream interface {
+	// Close closes the record stream and releases any underlying resources.
+	Close() error
+	// Next is called to retrieve the next record. If one is available it will
+	// be returned immediately. If none is available and block is true, the method
+	// will block until one is available or an error occurs. The error should be
+	// checked with a call to `.Err()`.
+	Next(block bool) bool
+	// Record returns the current record.
+	Record() *databroker.Record
+	// Err returns any error that occurred while streaming.
+	Err() error
+}
+
 // Backend is the interface required for a storage backend.
 type Backend interface {
 	// Close closes the backend.
 	Close() error
-
-	// Put is used to insert or update a record.
-	Put(ctx context.Context, id string, data *anypb.Any) error
-
 	// Get is used to retrieve a record.
-	Get(ctx context.Context, id string) (*databroker.Record, error)
-
-	// List is used to retrieve all the records since a version.
-	List(ctx context.Context, sinceVersion string) ([]*databroker.Record, error)
-
-	// Delete is used to mark a record as deleted.
-	Delete(ctx context.Context, id string) error
-
-	// ClearDeleted is used clear marked delete records.
-	ClearDeleted(ctx context.Context, cutoff time.Time)
-
-	// Watch returns a channel to the caller. The channel is used to notify
-	// about changes that happen in storage. When ctx is finished, Watch will close
-	// the channel.
-	Watch(ctx context.Context) <-chan struct{}
+	Get(ctx context.Context, recordType, id string) (*databroker.Record, error)
+	// GetAll gets all the records.
+	GetAll(ctx context.Context) (records []*databroker.Record, version uint64, err error)
+	// Put is used to insert or update a record.
+	Put(ctx context.Context, record *databroker.Record) error
+	// Sync syncs record changes after the specified version.
+	Sync(ctx context.Context, version uint64) (RecordStream, error)
 }
 
 // MatchAny searches any data with a query.

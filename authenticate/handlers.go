@@ -526,17 +526,17 @@ func (a *Authenticate) saveSessionToDataBroker(
 		if err != nil {
 			return fmt.Errorf("authenticate: error retrieving user info: %w", err)
 		}
-		_, err = user.Set(ctx, state.dataBrokerClient, mu.User)
+		_, err = user.Put(ctx, state.dataBrokerClient, mu.User)
 		if err != nil {
 			return fmt.Errorf("authenticate: error saving user: %w", err)
 		}
 	}
 
-	res, err := session.Set(ctx, state.dataBrokerClient, s)
+	res, err := session.Put(ctx, state.dataBrokerClient, s)
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving session: %w", err)
 	}
-	sessionState.Version = sessions.Version(res.GetServerVersion())
+	sessionState.Version = sessions.Version(fmt.Sprint(res.GetServerVersion()))
 
 	_, err = state.directoryClient.RefreshUser(ctx, &directory.RefreshUserRequest{
 		UserId:      s.UserId,

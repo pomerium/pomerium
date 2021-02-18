@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -40,9 +41,8 @@ func NewStoreFromProtos(msgs ...proto.Message) *Store {
 		}
 
 		record := new(databroker.Record)
-		record.CreatedAt = timestamppb.Now()
 		record.ModifiedAt = timestamppb.Now()
-		record.Version = uuid.New().String()
+		record.Version = cryptutil.NewRandomUInt64()
 		record.Id = uuid.New().String()
 		record.Data = any
 		record.Type = any.TypeUrl
@@ -56,8 +56,8 @@ func NewStoreFromProtos(msgs ...proto.Message) *Store {
 }
 
 // ClearRecords removes all the records from the store.
-func (s *Store) ClearRecords(typeURL string) {
-	rawPath := fmt.Sprintf("/databroker_data/%s", typeURL)
+func (s *Store) ClearRecords() {
+	rawPath := "/databroker_data"
 	s.delete(rawPath)
 }
 

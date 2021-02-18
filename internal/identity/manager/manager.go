@@ -7,14 +7,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/identity/identity"
@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 const (
@@ -37,13 +38,8 @@ type Authenticator interface {
 }
 
 type (
-	sessionMessage struct {
-		record  *databroker.Record
-		session *session.Session
-	}
-	userMessage struct {
-		record *databroker.Record
-		user   *user.User
+	updateRecordsMessage struct {
+		records []*databroker.Record
 	}
 )
 
@@ -52,19 +48,13 @@ type Manager struct {
 	cfg *atomicConfig
 	log zerolog.Logger
 
-	sessions         sessionCollection
 	sessionScheduler *scheduler.Scheduler
+	userScheduler    *scheduler.Scheduler
 
-	users         userCollection
-	userScheduler *scheduler.Scheduler
-
-	directoryUsers              map[string]*directory.User
-	directoryUsersServerVersion string
-	directoryUsersRecordVersion string
-
-	directoryGroups              map[string]*directory.Group
-	directoryGroupsServerVersion string
-	directoryGroupsRecordVersion string
+	sessions        sessionCollection
+	users           userCollection
+	directoryUsers  map[string]*directory.User
+	directoryGroups map[string]*directory.Group
 
 	directoryNextRefresh time.Time
 
@@ -79,14 +69,8 @@ func New(
 		cfg: newAtomicConfig(newConfig()),
 		log: log.With().Str("service", "identity_manager").Logger(),
 
-		sessions: sessionCollection{
-			BTree: btree.New(8),
-		},
 		sessionScheduler: scheduler.New(),
-		users: userCollection{
-			BTree: btree.New(8),
-		},
-		userScheduler: scheduler.New(),
+		userScheduler:    scheduler.New(),
 
 		dataBrokerSemaphore: semaphore.NewWeighted(dataBrokerParallelism),
 	}
@@ -101,52 +85,47 @@ func (mgr *Manager) UpdateConfig(options ...Option) {
 
 // Run runs the manager. This method blocks until an error occurs or the given context is canceled.
 func (mgr *Manager) Run(ctx context.Context) error {
-	err := mgr.initDirectoryGroups(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to initialize directory groups: %w", err)
-	}
+	update := make(chan updateRecordsMessage, 1)
+	clear := make(chan struct{}, 1)
 
-	err = mgr.initDirectoryUsers(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to initialize directory users: %w", err)
-	}
+	syncer := newDataBrokerSyncer(mgr.cfg, mgr.log, update, clear)
 
 	eg, ctx := errgroup.WithContext(ctx)
-
-	updatedSession := make(chan sessionMessage, 1)
 	eg.Go(func() error {
-		return mgr.syncSessions(ctx, updatedSession)
+		return syncer.Run(ctx)
 	})
-
-	updatedUser := make(chan userMessage, 1)
 	eg.Go(func() error {
-		return mgr.syncUsers(ctx, updatedUser)
-	})
-
-	updatedDirectoryGroup := make(chan *directory.Group, 1)
-	eg.Go(func() error {
-		return mgr.syncDirectoryGroups(ctx, updatedDirectoryGroup)
-	})
-
-	updatedDirectoryUser := make(chan *directory.User, 1)
-	eg.Go(func() error {
-		return mgr.syncDirectoryUsers(ctx, updatedDirectoryUser)
-	})
-
-	eg.Go(func() error {
-		return mgr.refreshLoop(ctx, updatedSession, updatedUser, updatedDirectoryUser, updatedDirectoryGroup)
+		return mgr.refreshLoop(ctx, update, clear)
 	})
 
 	return eg.Wait()
 }
 
-func (mgr *Manager) refreshLoop(
-	ctx context.Context,
-	updatedSession <-chan sessionMessage,
-	updatedUser <-chan userMessage,
-	updatedDirectoryUser <-chan *directory.User,
-	updatedDirectoryGroup <-chan *directory.Group,
-) error {
+func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecordsMessage, clear <-chan struct{}) error {
+	// wait for initial sync
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-clear:
+		mgr.directoryGroups = make(map[string]*directory.Group)
+		mgr.directoryUsers = make(map[string]*directory.User)
+		mgr.sessions = sessionCollection{BTree: btree.New(8)}
+		mgr.users = userCollection{BTree: btree.New(8)}
+	}
+	select {
+	case <-ctx.Done():
+	case msg := <-update:
+		mgr.onUpdateRecords(ctx, msg)
+	}
+
+	mgr.log.Info().
+		Int("directory_groups", len(mgr.directoryGroups)).
+		Int("directory_users", len(mgr.directoryUsers)).
+		Int("sessions", mgr.sessions.Len()).
+		Int("users", mgr.users.Len()).
+		Msg("initial sync complete")
+
+	// start refreshing
 	maxWait := time.Minute * 10
 	nextTime := time.Now().Add(maxWait)
 	if mgr.directoryNextRefresh.Before(nextTime) {
@@ -160,14 +139,13 @@ func (mgr *Manager) refreshLoop(
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case s := <-updatedSession:
-			mgr.onUpdateSession(ctx, s)
-		case u := <-updatedUser:
-			mgr.onUpdateUser(ctx, u)
-		case du := <-updatedDirectoryUser:
-			mgr.onUpdateDirectoryUser(ctx, du)
-		case dg := <-updatedDirectoryGroup:
-			mgr.onUpdateDirectoryGroup(ctx, dg)
+		case <-clear:
+			mgr.directoryGroups = make(map[string]*directory.Group)
+			mgr.directoryUsers = make(map[string]*directory.User)
+			mgr.sessions = sessionCollection{BTree: btree.New(8)}
+			mgr.users = userCollection{BTree: btree.New(8)}
+		case msg := <-update:
+			mgr.onUpdateRecords(ctx, msg)
 		case <-timer.C:
 		}
 
@@ -249,7 +227,7 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 		curDG, ok := mgr.directoryGroups[groupID]
 		if !ok || !proto.Equal(newDG, curDG) {
 			id := newDG.GetId()
-			any, err := ptypes.MarshalAny(newDG)
+			any, err := anypb.New(newDG)
 			if err != nil {
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory group")
 				return
@@ -260,10 +238,12 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 				}
 				defer mgr.dataBrokerSemaphore.Release(1)
 
-				_, err = mgr.cfg.Load().dataBrokerClient.Set(ctx, &databroker.SetRequest{
-					Type: any.GetTypeUrl(),
-					Id:   id,
-					Data: any,
+				_, err = mgr.cfg.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
+					Record: &databroker.Record{
+						Type: any.GetTypeUrl(),
+						Id:   id,
+						Data: any,
+					},
 				})
 				if err != nil {
 					return fmt.Errorf("failed to update directory group: %s", id)
@@ -277,7 +257,7 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 		_, ok := lookup[groupID]
 		if !ok {
 			id := curDG.GetId()
-			any, err := ptypes.MarshalAny(curDG)
+			any, err := anypb.New(curDG)
 			if err != nil {
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory group")
 				return
@@ -288,9 +268,12 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 				}
 				defer mgr.dataBrokerSemaphore.Release(1)
 
-				_, err = mgr.cfg.Load().dataBrokerClient.Delete(ctx, &databroker.DeleteRequest{
-					Type: any.GetTypeUrl(),
-					Id:   id,
+				_, err = mgr.cfg.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
+					Record: &databroker.Record{
+						Type:      any.GetTypeUrl(),
+						Id:        id,
+						DeletedAt: timestamppb.Now(),
+					},
 				})
 				if err != nil {
 					return fmt.Errorf("failed to delete directory group: %s", id)
@@ -298,6 +281,10 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 				return nil
 			})
 		}
+	}
+
+	if err := eg.Wait(); err != nil {
+		mgr.log.Warn().Err(err).Msg("manager: failed to merge groups")
 	}
 }
 
@@ -313,7 +300,7 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 		curDU, ok := mgr.directoryUsers[userID]
 		if !ok || !proto.Equal(newDU, curDU) {
 			id := newDU.GetId()
-			any, err := ptypes.MarshalAny(newDU)
+			any, err := anypb.New(newDU)
 			if err != nil {
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory user")
 				return
@@ -325,10 +312,12 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 				defer mgr.dataBrokerSemaphore.Release(1)
 
 				client := mgr.cfg.Load().dataBrokerClient
-				if _, err := client.Set(ctx, &databroker.SetRequest{
-					Type: any.GetTypeUrl(),
-					Id:   id,
-					Data: any,
+				if _, err := client.Put(ctx, &databroker.PutRequest{
+					Record: &databroker.Record{
+						Type: any.GetTypeUrl(),
+						Id:   id,
+						Data: any,
+					},
 				}); err != nil {
 					return fmt.Errorf("failed to update directory user: %s", id)
 				}
@@ -341,7 +330,7 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 		_, ok := lookup[userID]
 		if !ok {
 			id := curDU.GetId()
-			any, err := ptypes.MarshalAny(curDU)
+			any, err := anypb.New(curDU)
 			if err != nil {
 				mgr.log.Warn().Err(err).Msg("failed to marshal directory user")
 				return
@@ -353,9 +342,13 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 				defer mgr.dataBrokerSemaphore.Release(1)
 
 				client := mgr.cfg.Load().dataBrokerClient
-				if _, err := client.Delete(ctx, &databroker.DeleteRequest{
-					Type: any.GetTypeUrl(),
-					Id:   id,
+				if _, err := client.Put(ctx, &databroker.PutRequest{
+					Record: &databroker.Record{
+						Type:      any.GetTypeUrl(),
+						Id:        id,
+						Data:      any,
+						DeletedAt: timestamppb.Now(),
+					},
 				}); err != nil {
 					return fmt.Errorf("failed to delete directory user (%s): %w", id, err)
 				}
@@ -384,8 +377,8 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 		return
 	}
 
-	expiry, err := ptypes.Timestamp(s.GetExpiresAt())
-	if err == nil && !expiry.After(time.Now()) {
+	expiry := s.GetExpiresAt().AsTime()
+	if !expiry.After(time.Now()) {
 		mgr.log.Info().
 			Str("user_id", userID).
 			Str("session_id", sessionID).
@@ -435,7 +428,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 		return
 	}
 
-	res, err := session.Set(ctx, mgr.cfg.Load().dataBrokerClient, s.Session)
+	res, err := session.Put(ctx, mgr.cfg.Load().dataBrokerClient, s.Session)
 	if err != nil {
 		mgr.log.Error().Err(err).
 			Str("user_id", s.GetUserId()).
@@ -444,7 +437,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 		return
 	}
 
-	mgr.onUpdateSession(ctx, sessionMessage{record: res.GetRecord(), session: s.Session})
+	mgr.onUpdateSession(ctx, res.GetRecord(), s.Session)
 }
 
 func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
@@ -486,7 +479,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 			continue
 		}
 
-		record, err := user.Set(ctx, mgr.cfg.Load().dataBrokerClient, u.User)
+		record, err := user.Put(ctx, mgr.cfg.Load().dataBrokerClient, u.User)
 		if err != nil {
 			mgr.log.Error().Err(err).
 				Str("user_id", s.GetUserId()).
@@ -495,257 +488,78 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 			continue
 		}
 
-		mgr.onUpdateUser(ctx, userMessage{record: record, user: u.User})
+		mgr.onUpdateUser(ctx, record, u.User)
 	}
 }
 
-func (mgr *Manager) syncSessions(ctx context.Context, ch chan<- sessionMessage) error {
-	mgr.log.Info().Msg("syncing sessions")
-
-	any, err := ptypes.MarshalAny(new(session.Session))
-	if err != nil {
-		return err
-	}
-
-	client, err := mgr.cfg.Load().dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
-		Type: any.GetTypeUrl(),
-	})
-	if err != nil {
-		return fmt.Errorf("error syncing sessions: %w", err)
-	}
-	for {
-		res, err := client.Recv()
-		if err != nil {
-			return fmt.Errorf("error receiving sessions: %w", err)
-		}
-
-		for _, record := range res.GetRecords() {
+func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessage) {
+	for _, record := range msg.records {
+		switch record.GetType() {
+		case grpcutil.GetTypeURL(new(directory.Group)):
+			var pbDirectoryGroup directory.Group
+			err := record.GetData().UnmarshalTo(&pbDirectoryGroup)
+			if err != nil {
+				mgr.log.Warn().Msgf("error unmarshaling directory group: %s", err)
+				continue
+			}
+			mgr.onUpdateDirectoryGroup(ctx, &pbDirectoryGroup)
+		case grpcutil.GetTypeURL(new(directory.User)):
+			var pbDirectoryUser directory.User
+			err := record.GetData().UnmarshalTo(&pbDirectoryUser)
+			if err != nil {
+				mgr.log.Warn().Msgf("error unmarshaling directory user: %s", err)
+				continue
+			}
+			mgr.onUpdateDirectoryUser(ctx, &pbDirectoryUser)
+		case grpcutil.GetTypeURL(new(session.Session)):
 			var pbSession session.Session
-			err := ptypes.UnmarshalAny(record.GetData(), &pbSession)
+			err := record.GetData().UnmarshalTo(&pbSession)
 			if err != nil {
-				return fmt.Errorf("error unmarshaling session: %w", err)
+				mgr.log.Warn().Msgf("error unmarshaling session: %s", err)
+				continue
 			}
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case ch <- sessionMessage{record: record, session: &pbSession}:
-			}
-		}
-	}
-}
-
-func (mgr *Manager) syncUsers(ctx context.Context, ch chan<- userMessage) error {
-	mgr.log.Info().Msg("syncing users")
-
-	any, err := ptypes.MarshalAny(new(user.User))
-	if err != nil {
-		return err
-	}
-
-	client, err := mgr.cfg.Load().dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
-		Type: any.GetTypeUrl(),
-	})
-	if err != nil {
-		return fmt.Errorf("error syncing users: %w", err)
-	}
-	for {
-		res, err := client.Recv()
-		if err != nil {
-			return fmt.Errorf("error receiving users: %w", err)
-		}
-
-		for _, record := range res.GetRecords() {
+			mgr.onUpdateSession(ctx, record, &pbSession)
+		case grpcutil.GetTypeURL(new(user.User)):
 			var pbUser user.User
-			err := ptypes.UnmarshalAny(record.GetData(), &pbUser)
+			err := record.GetData().UnmarshalTo(&pbUser)
 			if err != nil {
-				return fmt.Errorf("error unmarshaling user: %w", err)
-			}
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case ch <- userMessage{record: record, user: &pbUser}:
+				mgr.log.Warn().Msgf("error unmarshaling user: %s", err)
+				continue
 			}
 		}
 	}
 }
 
-func (mgr *Manager) initDirectoryUsers(ctx context.Context) error {
-	mgr.log.Info().Msg("initializing directory users")
+func (mgr *Manager) onUpdateSession(_ context.Context, record *databroker.Record, session *session.Session) {
+	mgr.sessionScheduler.Remove(toSessionSchedulerKey(session.GetUserId(), session.GetId()))
 
-	any, err := ptypes.MarshalAny(new(directory.User))
-	if err != nil {
-		return err
-	}
-
-	return exponentialTry(ctx, func() error {
-		res, err := databroker.InitialSync(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.SyncRequest{
-			Type: any.GetTypeUrl(),
-		})
-		if err != nil {
-			return fmt.Errorf("error getting all directory users: %w", err)
-		}
-
-		mgr.directoryUsers = map[string]*directory.User{}
-		for _, record := range res.GetRecords() {
-			var pbDirectoryUser directory.User
-			err := ptypes.UnmarshalAny(record.GetData(), &pbDirectoryUser)
-			if err != nil {
-				return fmt.Errorf("error unmarshaling directory user: %w", err)
-			}
-
-			mgr.directoryUsers[pbDirectoryUser.GetId()] = &pbDirectoryUser
-			mgr.directoryUsersRecordVersion = record.GetVersion()
-		}
-		mgr.directoryUsersServerVersion = res.GetServerVersion()
-
-		mgr.log.Info().Int("count", len(mgr.directoryUsers)).Msg("initialized directory users")
-
-		return nil
-	})
-}
-
-func (mgr *Manager) syncDirectoryUsers(ctx context.Context, ch chan<- *directory.User) error {
-	mgr.log.Info().Msg("syncing directory users")
-
-	any, err := ptypes.MarshalAny(new(directory.User))
-	if err != nil {
-		return err
-	}
-
-	client, err := mgr.cfg.Load().dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
-		Type:          any.GetTypeUrl(),
-		ServerVersion: mgr.directoryUsersServerVersion,
-		RecordVersion: mgr.directoryUsersRecordVersion,
-	})
-	if err != nil {
-		return fmt.Errorf("error syncing directory users: %w", err)
-	}
-	for {
-		res, err := client.Recv()
-		if err != nil {
-			return fmt.Errorf("error receiving directory users: %w", err)
-		}
-
-		for _, record := range res.GetRecords() {
-			var pbDirectoryUser directory.User
-			err := ptypes.UnmarshalAny(record.GetData(), &pbDirectoryUser)
-			if err != nil {
-				return fmt.Errorf("error unmarshaling directory user: %w", err)
-			}
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case ch <- &pbDirectoryUser:
-			}
-		}
-	}
-}
-
-func (mgr *Manager) initDirectoryGroups(ctx context.Context) error {
-	mgr.log.Info().Msg("initializing directory groups")
-
-	any, err := ptypes.MarshalAny(new(directory.Group))
-	if err != nil {
-		return err
-	}
-	return exponentialTry(ctx, func() error {
-		res, err := databroker.InitialSync(ctx, mgr.cfg.Load().dataBrokerClient, &databroker.SyncRequest{
-			Type: any.GetTypeUrl(),
-		})
-		if err != nil {
-			return fmt.Errorf("error getting all directory groups: %w", err)
-		}
-
-		mgr.directoryGroups = map[string]*directory.Group{}
-		for _, record := range res.GetRecords() {
-			var pbDirectoryGroup directory.Group
-			err := ptypes.UnmarshalAny(record.GetData(), &pbDirectoryGroup)
-			if err != nil {
-				return fmt.Errorf("error unmarshaling directory group: %w", err)
-			}
-
-			mgr.directoryGroups[pbDirectoryGroup.GetId()] = &pbDirectoryGroup
-			mgr.directoryGroupsRecordVersion = record.GetVersion()
-		}
-		mgr.directoryGroupsServerVersion = res.GetServerVersion()
-
-		mgr.log.Info().Int("count", len(mgr.directoryGroups)).Msg("initialized directory groups")
-
-		return nil
-	})
-}
-
-func (mgr *Manager) syncDirectoryGroups(ctx context.Context, ch chan<- *directory.Group) error {
-	mgr.log.Info().Msg("syncing directory groups")
-
-	any, err := ptypes.MarshalAny(new(directory.Group))
-	if err != nil {
-		return err
-	}
-
-	client, err := mgr.cfg.Load().dataBrokerClient.Sync(ctx, &databroker.SyncRequest{
-		Type:          any.GetTypeUrl(),
-		ServerVersion: mgr.directoryGroupsServerVersion,
-		RecordVersion: mgr.directoryGroupsRecordVersion,
-	})
-	if err != nil {
-		return fmt.Errorf("error syncing directory groups: %w", err)
-	}
-	for {
-		res, err := client.Recv()
-		if err != nil {
-			return fmt.Errorf("error receiving directory groups: %w", err)
-		}
-
-		for _, record := range res.GetRecords() {
-			var pbDirectoryGroup directory.Group
-			err := ptypes.UnmarshalAny(record.GetData(), &pbDirectoryGroup)
-			if err != nil {
-				return fmt.Errorf("error unmarshaling directory group: %w", err)
-			}
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case ch <- &pbDirectoryGroup:
-			}
-		}
-	}
-}
-
-func (mgr *Manager) onUpdateSession(_ context.Context, msg sessionMessage) {
-	mgr.sessionScheduler.Remove(toSessionSchedulerKey(msg.session.GetUserId(), msg.session.GetId()))
-
-	if msg.record.GetDeletedAt() != nil {
-		mgr.sessions.Delete(msg.session.GetUserId(), msg.session.GetId())
+	if record.GetDeletedAt() != nil {
+		mgr.sessions.Delete(session.GetUserId(), session.GetId())
 		return
 	}
 
 	// update session
-	s, _ := mgr.sessions.Get(msg.session.GetUserId(), msg.session.GetId())
+	s, _ := mgr.sessions.Get(session.GetUserId(), session.GetId())
 	s.lastRefresh = time.Now()
 	s.gracePeriod = mgr.cfg.Load().sessionRefreshGracePeriod
 	s.coolOffDuration = mgr.cfg.Load().sessionRefreshCoolOffDuration
-	s.Session = msg.session
+	s.Session = session
 	mgr.sessions.ReplaceOrInsert(s)
-	mgr.sessionScheduler.Add(s.NextRefresh(), toSessionSchedulerKey(msg.session.GetUserId(), msg.session.GetId()))
+	mgr.sessionScheduler.Add(s.NextRefresh(), toSessionSchedulerKey(session.GetUserId(), session.GetId()))
 }
 
-func (mgr *Manager) onUpdateUser(_ context.Context, msg userMessage) {
-	mgr.userScheduler.Remove(msg.user.GetId())
+func (mgr *Manager) onUpdateUser(_ context.Context, record *databroker.Record, user *user.User) {
+	mgr.userScheduler.Remove(user.GetId())
 
-	if msg.record.GetDeletedAt() != nil {
-		mgr.users.Delete(msg.user.GetId())
+	if record.GetDeletedAt() != nil {
+		mgr.users.Delete(user.GetId())
 		return
 	}
 
-	u, _ := mgr.users.Get(msg.user.GetId())
+	u, _ := mgr.users.Get(user.GetId())
 	u.lastRefresh = time.Now()
 	u.refreshInterval = mgr.cfg.Load().groupRefreshInterval
-	u.User = msg.user
+	u.User = user
 	mgr.users.ReplaceOrInsert(u)
 	mgr.userScheduler.Add(u.NextRefresh(), u.GetId())
 }
@@ -778,23 +592,4 @@ func isTemporaryError(err error) bool {
 		return true
 	}
 	return false
-}
-
-// exponentialTry executes f until it succeeds or ctx is Done.
-func exponentialTry(ctx context.Context, f func() error) error {
-	backoff := backoff.NewExponentialBackOff()
-	backoff.MaxElapsedTime = 0
-	for {
-		err := f()
-		if err == nil {
-			return nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(backoff.NextBackOff()):
-		}
-		continue
-	}
 }
