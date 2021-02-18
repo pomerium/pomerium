@@ -74,14 +74,14 @@ frontend: ## Runs go generate on the static assets package.
 build: ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
 	./scripts/get-envoy.bash
-	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -ldflags="-X github.com/pomerium/pomerium/internal/envoy.Checksum=$(shell cat ./bin/envoy.sha256 | tr -d '\n')" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -ldflags="-X github.com/pomerium/pomerium/internal/envoy.Checksum=$$(cat ./bin/envoy.sha256 | tr -d '\n')" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 	./scripts/embed-envoy.bash $(BINDIR)/$(NAME)
 
 .PHONY: build-debug
 build-debug: ## Builds binaries appropriate for debugging
 	@echo "==> $@"
 	./scripts/get-envoy.bash
-	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -ldflags="-X github.com/pomerium/pomerium/internal/envoy.Checksum=$(shell cat ./bin/envoy.sha256 | tr -d '\n')" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -ldflags="-X github.com/pomerium/pomerium/internal/envoy.Checksum=$$(cat ./bin/envoy.sha256 | tr -d '\n')" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 	./scripts/embed-envoy.bash $(BINDIR)/$(NAME)
 
 
