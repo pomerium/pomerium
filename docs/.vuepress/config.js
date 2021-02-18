@@ -37,10 +37,11 @@ module.exports = {
         rel: "",
       },
       {
-        text: "v0.12.x", // current tagged version
+        text: "v0.13.x", // current tagged version
         ariaLabel: "Version menu",
         items: [
           { text: "🚧Dev", link: "https://master.docs.pomerium.io/docs" },
+          { text: "v0.13.x", link: "https://0-13-0.docs.pomerium.io/docs" },
           { text: "v0.12.x", link: "https://0-12-0.docs.pomerium.io/docs" },
           { text: "v0.11.x", link: "https://0-11-0.docs.pomerium.io/docs" },
           { text: "v0.10.x", link: "https://0-10-0.docs.pomerium.io/docs" },
