@@ -281,6 +281,10 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 			})
 		}
 	}
+
+	if err := eg.Wait(); err != nil {
+		mgr.log.Warn().Err(err).Msg("manager: failed to merge groups")
+	}
 }
 
 func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.User) {
