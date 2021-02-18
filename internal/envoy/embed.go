@@ -7,8 +7,6 @@ import (
 
 	"github.com/natefinch/atomic"
 	resources "gopkg.in/cookieo9/resources-go.v2"
-
-	"github.com/pomerium/pomerium/internal/log"
 )
 
 var embeddedFilesDirectory = filepath.Join(os.TempDir(), "pomerium-embedded-files")
@@ -61,11 +59,6 @@ func extractEmbeddedEnvoy() (outPath string, err error) {
 	if zfi != nil {
 		_ = os.Chtimes(outPath, zfi.ModTime(), zfi.ModTime())
 	}
-
-	log.Info().
-		Str("path", outPath).
-		Str("checksum", Checksum).
-		Msg("extracted embedded envoy")
 
 	return outPath, nil
 }

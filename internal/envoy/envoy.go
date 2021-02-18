@@ -99,6 +99,8 @@ func NewServer(src config.Source, grpcPort, httpPort string) (*Server, error) {
 		if Checksum != s {
 			return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", Checksum, s)
 		}
+	} else {
+		log.Error().Msg("no checksum defined, envoy binary will not be verified!")
 	}
 
 	srv := &Server{
@@ -110,6 +112,11 @@ func NewServer(src config.Source, grpcPort, httpPort string) (*Server, error) {
 
 	src.OnConfigChange(srv.onConfigChange)
 	srv.onConfigChange(src.GetConfig())
+
+	log.Info().
+		Str("path", envoyPath).
+		Str("checksum", Checksum).
+		Msg("running envoy")
 
 	return srv, nil
 }
