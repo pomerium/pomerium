@@ -208,9 +208,15 @@ func (c *cancelAll) Cancel() {
 
 type serviceList []*pb.Service
 
-func (l serviceList) Len() int           { return len(l) }
-func (l serviceList) Less(i, j int) bool { return l[i].Kind < l[j].Kind }
-func (l serviceList) Swap(i, j int)      { t := l[i]; l[i] = l[j]; l[j] = t }
+func (l serviceList) Len() int { return len(l) }
+func (l serviceList) Less(i, j int) bool {
+	if l[i].Kind == l[j].Kind {
+		return l[i].Endpoint < l[j].Endpoint
+	}
+	return l[i].Kind < l[j].Kind
+}
+
+func (l serviceList) Swap(i, j int) { t := l[i]; l[i] = l[j]; l[j] = t }
 
 func assertEqual(t *testing.T, want, got []*pb.Service) {
 	t.Helper()
@@ -222,4 +228,18 @@ func assertEqual(t *testing.T, want, got []*pb.Service) {
 	if diff != "" {
 		t.Errorf("(-want +got):\n%s", diff)
 	}
+}
+
+func TestAssertEqual(t *testing.T) {
+	svcA := &pb.Service{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: "http://host-a/metrics"}
+	svcB := &pb.Service{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: "http://host-b/metrics"}
+	svcC := &pb.Service{Kind: pb.ServiceKind_AUTHENTICATE, Endpoint: "http://host-a/"}
+	svcD := &pb.Service{Kind: pb.ServiceKind_AUTHORIZE, Endpoint: "http://host-a/"}
+	svcE := &pb.Service{Kind: pb.ServiceKind_AUTHENTICATE, Endpoint: "http://host-e/"}
+	svcF := &pb.Service{Kind: pb.ServiceKind_AUTHORIZE, Endpoint: "http://host-f/"}
+
+	assertEqual(t, []*pb.Service{svcA, svcB}, []*pb.Service{svcA, svcB})
+	assertEqual(t, []*pb.Service{svcB, svcA}, []*pb.Service{svcA, svcB})
+	assertEqual(t, []*pb.Service{svcC, svcD}, []*pb.Service{svcD, svcC})
+	assertEqual(t, []*pb.Service{svcE, svcF}, []*pb.Service{svcF, svcE})
 }
