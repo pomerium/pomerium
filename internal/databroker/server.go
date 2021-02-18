@@ -123,10 +123,12 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 		return nil, err
 	}
 	record, err := db.Get(ctx, req.GetType(), req.GetId())
-	if err != nil {
+	switch {
+	case errors.Is(err, storage.ErrNotFound):
 		return nil, status.Error(codes.NotFound, "record not found")
-	}
-	if record.DeletedAt != nil {
+	case err != nil:
+		return nil, status.Error(codes.Internal, err.Error())
+	case record.DeletedAt != nil:
 		return nil, status.Error(codes.NotFound, "record not found")
 	}
 	return &databroker.GetResponse{Record: record}, nil
