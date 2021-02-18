@@ -6,10 +6,98 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
+
+func TestJWTClaimHeaders_UnmarshalJSON(t *testing.T) {
+	t.Run("object", func(t *testing.T) {
+		var hdrs JWTClaimHeaders
+		err := json.Unmarshal([]byte(`{"x":"y"}`), &hdrs)
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{"x": "y"}, hdrs)
+	})
+	t.Run("array", func(t *testing.T) {
+		var hdrs JWTClaimHeaders
+		err := json.Unmarshal([]byte(`["x", "y"]`), &hdrs)
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{"x-pomerium-claim-x": "x", "x-pomerium-claim-y": "y"}, hdrs)
+	})
+	t.Run("string", func(t *testing.T) {
+		var hdrs JWTClaimHeaders
+		err := json.Unmarshal([]byte(`"x, y"`), &hdrs)
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{"x-pomerium-claim-x": "x", "x-pomerium-claim-y": "y"}, hdrs)
+	})
+}
+
+func TestJWTClaimHeaders_UnmarshalYAML(t *testing.T) {
+	t.Run("object", func(t *testing.T) {
+		var hdrs JWTClaimHeaders
+		err := yaml.Unmarshal([]byte(`
+x: "y"
+`), &hdrs)
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{"x": "y"}, hdrs)
+	})
+	t.Run("array", func(t *testing.T) {
+		var hdrs JWTClaimHeaders
+		err := yaml.Unmarshal([]byte(`
+- x
+- "y"
+`), &hdrs)
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{"x-pomerium-claim-x": "x", "x-pomerium-claim-y": "y"}, hdrs)
+	})
+	t.Run("string", func(t *testing.T) {
+		var hdrs JWTClaimHeaders
+		err := yaml.Unmarshal([]byte(`"x, y"`), &hdrs)
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{"x-pomerium-claim-x": "x", "x-pomerium-claim-y": "y"}, hdrs)
+	})
+}
+
+func TestDecodeJWTClaimHeadersHookFunc(t *testing.T) {
+	var withClaims struct {
+		Claims JWTClaimHeaders `mapstructure:"claims"`
+	}
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook: decodeJWTClaimHeadersHookFunc(),
+		Result:     &withClaims,
+	})
+	require.NoError(t, err)
+
+	t.Run("object", func(t *testing.T) {
+		err := decoder.Decode(struct {
+			Claims map[string]string `mapstructure:"claims"`
+		}{
+			Claims: map[string]string{"a": "b", "c": "d"},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{
+			"a": "b",
+			"c": "d",
+		}, withClaims.Claims)
+	})
+
+	withClaims.Claims = nil
+
+	t.Run("array", func(t *testing.T) {
+		err := decoder.Decode(struct {
+			Claims []string `mapstructure:"claims"`
+		}{
+			Claims: []string{"a", "b", "c"},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, JWTClaimHeaders{
+			"x-pomerium-claim-a": "a",
+			"x-pomerium-claim-b": "b",
+			"x-pomerium-claim-c": "c",
+		}, withClaims.Claims)
+	})
+}
 
 func TestStringSlice_UnmarshalJSON(t *testing.T) {
 	t.Run("string", func(t *testing.T) {
@@ -40,6 +128,7 @@ func TestStringSlice_UnmarshalYAML(t *testing.T) {
 		assert.Equal(t, NewStringSlice("a", "b", "c"), slc)
 	})
 }
+
 func TestSerializable(t *testing.T) {
 	data, err := base64.StdEncoding.DecodeString("aGVhbHRoX2NoZWNrOgogIHRpbWVvdXQ6IDVzCiAgaW50ZXJ2YWw6IDYwcwogIGhlYWx0aHlUaHJlc2hvbGQ6IDEKICB1bmhlYWx0aHlUaHJlc2hvbGQ6IDIKICBodHRwX2hlYWx0aF9jaGVjazogCiAgICBob3N0OiAiaHR0cDovL2xvY2FsaG9zdDo4MDgwIgogICAgcGF0aDogIi8iCg==")
 	require.NoError(t, err, "decode")

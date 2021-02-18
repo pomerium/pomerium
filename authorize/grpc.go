@@ -329,7 +329,7 @@ func logAuthorizeCheck(
 	evt = evt.Str("request-id", requestid.FromContext(ctx))
 	evt = evt.Str("check-request-id", hdrs["X-Request-Id"])
 	evt = evt.Str("method", hattrs.GetMethod())
-	evt = evt.Str("path", hattrs.GetPath())
+	evt = evt.Str("path", stripQueryString(hattrs.GetPath()))
 	evt = evt.Str("host", hattrs.GetHost())
 	evt = evt.Str("query", hattrs.GetQuery())
 	// reply
@@ -347,4 +347,11 @@ func logAuthorizeCheck(
 	}
 
 	evt.Msg("authorize check")
+}
+
+func stripQueryString(str string) string {
+	if idx := strings.Index(str, "?"); idx != -1 {
+		str = str[:idx]
+	}
+	return str
 }

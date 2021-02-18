@@ -14,10 +14,11 @@ function envoy_on_response(response_handle)
 
     local authority =
         dynamic_meta:get("envoy.filters.http.lua")["request.authority"]
+    local expected_authority = "%s"
 
-    -- if we got a 404 (no route found) and the authority header doens't match
+    -- if we got a 404 (no route found) and the authority header doesn't match
     -- assume we've coalesced http/2 connections and return a 421
-    if headers:get(":status") == "404" and authority ~= "%s" then
+    if headers:get(":status") == "404" and authority ~= expected_authority then
         headers:replace(":status", "421")
     end
 end

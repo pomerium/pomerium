@@ -39,7 +39,7 @@ func TestOPA(t *testing.T) {
 		require.NoError(t, err)
 		store := NewStoreFromProtos(data...)
 		store.UpdateIssuer("authenticate.example.com")
-		store.UpdateJWTClaimHeaders([]string{"email", "groups", "user"})
+		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user"))
 		store.UpdateRoutePolicies(policies)
 		store.UpdateSigningKey(privateJWK)
 		r := rego.New(

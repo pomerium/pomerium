@@ -33,7 +33,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 				Rego: []string{"allow = true"},
 			}},
 		}},
-		JWTClaimsHeaders: []string{"email"},
+		JWTClaimsHeaders: config.NewJWTClaimHeaders("email"),
 	}
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})

@@ -312,7 +312,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 	}
 	if tlsDomain != "" && tlsDomain != "*" {
 		fixMisdirectedLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
-			InlineCode: fmt.Sprintf(luascripts.FixMisdirected),
+			InlineCode: fmt.Sprintf(luascripts.FixMisdirected, tlsDomain),
 		})
 		filters = append(filters, &envoy_http_connection_manager.HttpFilter{
 			Name: "envoy.filters.http.lua",
