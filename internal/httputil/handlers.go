@@ -77,8 +77,6 @@ func RequireBasicAuth(handler http.Handler, username, password string) http.Hand
 			return
 		}
 
-		fmt.Println("USERNAME", username, "PASSWORD", password, "U", u, "P", p)
-
 		if u != username || p != password {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
