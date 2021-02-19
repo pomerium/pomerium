@@ -37,6 +37,11 @@ The frontchannel-logout endpoint will now require a CSRF token for both `GET` an
 
 Prior to the v0.13 release, it was possible for an administrative user to temporarily impersonate another user. This was done by adding an additional set of claims to that user's session token. Having additional identity state stored client-side significantly expands the attack surface of Pomerium and complicates policy enforcement by having multiple sources of truth for identity. User impersonation was removed to shrink that attack surface and simplify policy enforcement. Pomerium now stores all identity state server-side and encrypted in the databroker.
 
+### Client-side service accounts removed
+
+Prior to the v0.13 release, it was possible to create service accounts via Pomerium's CLI tool. These service accounts were signed with Pomerium's shared secret key. As with user impersonation, having session state stored client-side significantly expands the attack surface of Pomerium and complicates policy enforcement. Client side service accounts were removed to shrink that attack surface area, and to simplify policy enforcement.
+
+
 ### Administrators option removed
 
 The `administrators` configuration option has been removed.
