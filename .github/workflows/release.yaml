@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DOCKER_CLI_EXPERIMENTAL: "enabled"
+    outputs:
+      tag: ${{ steps.tagName.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -89,3 +91,27 @@ jobs:
 
           docker tag gcr.io/pomerium-io/pomerium:${{ steps.tagName.outputs.tag }}-cloudrun gcr.io/pomerium-io/pomerium:latest-cloudrun
           docker push gcr.io/pomerium-io/pomerium:latest-cloudrun
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: goreleaser
+    steps:
+      - name: Checkout Helmfile Repo
+        uses: actions/checkout@v2
+        with:
+          repository: pomerium/helmfile
+          token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
+
+      - name: Bump test environment
+        uses: mikefarah/yq@v4.5.1
+        with:
+          cmd: yq eval '.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i environments/internal-prd/values/pomerium-demo.yaml
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          branch: master
+          commit_message: |
+            Bump test environment pomerium/pomerium
+            Image tag: ${{ needs.goreleaser.outputs.tag }}
+            Source Repo: ${{ github.repository }}@${{ github.sha }}
