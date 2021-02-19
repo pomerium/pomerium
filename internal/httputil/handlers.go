@@ -64,3 +64,26 @@ func (f HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		e.ErrorResponse(w, r)
 	}
 }
+
+// RequireBasicAuth creates a new handler that requires basic auth from the client before
+// calling the underlying handler.
+func RequireBasicAuth(handler http.Handler, username, password string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+
+		u, p, ok := r.BasicAuth()
+		if !ok {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+
+		fmt.Println("USERNAME", username, "PASSWORD", password, "U", u, "P", p)
+
+		if u != username || p != password {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+
+		handler.ServeHTTP(w, r)
+	})
+}
