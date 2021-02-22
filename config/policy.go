@@ -177,14 +177,8 @@ type PolicyRedirect struct {
 func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	timeout, _ := ptypes.Duration(pb.GetTimeout())
 
-	to, err := ParseWeightedUrls(pb.GetTo()...)
-	if err != nil {
-		return nil, err
-	}
-
 	p := &Policy{
 		From:                             pb.GetFrom(),
-		To:                               to,
 		AllowedUsers:                     pb.GetAllowedUsers(),
 		AllowedGroups:                    pb.GetAllowedGroups(),
 		AllowedDomains:                   pb.GetAllowedDomains(),
@@ -216,6 +210,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		PassIdentityHeaders:              pb.GetPassIdentityHeaders(),
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
 	}
+
 	if pb.Redirect.IsSet() {
 		p.Redirect = &PolicyRedirect{
 			HTTPSRedirect:  pb.Redirect.HttpsRedirect,
@@ -227,6 +222,13 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			ResponseCode:   pb.Redirect.ResponseCode,
 			StripQuery:     pb.Redirect.StripQuery,
 		}
+	} else {
+		to, err := ParseWeightedUrls(pb.GetTo()...)
+		if err != nil {
+			return nil, err
+		}
+
+		p.To = to
 	}
 
 	p.EnvoyOpts = pb.EnvoyOpts
@@ -267,16 +269,9 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		})
 	}
 
-	to, weights, err := p.To.Flatten()
-	if err != nil {
-		return nil, err
-	}
-
 	pb := &configpb.Route{
 		Name:                             fmt.Sprint(p.RouteID()),
 		From:                             p.From,
-		To:                               to,
-		LoadBalancingWeights:             weights,
 		AllowedUsers:                     p.AllowedUsers,
 		AllowedGroups:                    p.AllowedGroups,
 		AllowedDomains:                   p.AllowedDomains,
@@ -320,6 +315,14 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			ResponseCode:   p.Redirect.ResponseCode,
 			StripQuery:     p.Redirect.StripQuery,
 		}
+	} else {
+		to, weights, err := p.To.Flatten()
+		if err != nil {
+			return nil, err
+		}
+
+		pb.To = to
+		pb.LoadBalancingWeights = weights
 	}
 
 	return pb, nil
