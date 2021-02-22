@@ -2,6 +2,7 @@ package httputil
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -77,7 +78,8 @@ func RequireBasicAuth(handler http.Handler, username, password string) http.Hand
 			return
 		}
 
-		if u != username || p != password {
+		if subtle.ConstantTimeCompare([]byte(u), []byte(username)) != 1 ||
+			subtle.ConstantTimeCompare([]byte(p), []byte(password)) != 1 {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
