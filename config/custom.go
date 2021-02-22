@@ -15,7 +15,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 )
