@@ -30,7 +30,7 @@ const (
 )
 
 const (
-	defaultProviderURL = "https://www.googleapis.com/admin/directory/v1/"
+	defaultProviderURL = "https://www.googleapis.com/"
 )
 
 type config struct {
