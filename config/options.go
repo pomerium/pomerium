@@ -186,6 +186,8 @@ type Options struct {
 
 	// Address/Port to bind to for prometheus metrics
 	MetricsAddr string `mapstructure:"metrics_address" yaml:"metrics_address,omitempty"`
+	// - require basic auth for prometheus metrics, base64 encoded user:pass string
+	MetricsBasicAuth string `mapstructure:"metrics_basic_auth" yaml:"metrics_basic_auth,omitempty"`
 
 	// Tracing shared settings
 	TracingProvider   string  `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
@@ -693,6 +695,18 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: %w", err)
 	}
 
+	// validate metrics basic auth
+	if o.MetricsBasicAuth != "" {
+		str, err := base64.StdEncoding.DecodeString(o.MetricsBasicAuth)
+		if err != nil {
+			return fmt.Errorf("config: metrics_basic_auth must be a base64 encoded string")
+		}
+
+		if !strings.Contains(string(str), ":") {
+			return fmt.Errorf("config: metrics_basic_auth should contain a user name and password separated by a colon")
+		}
+	}
+
 	return nil
 }
 
@@ -757,6 +771,25 @@ func (o *Options) GetAllPolicies() []Policy {
 	policies = append(policies, o.Policies...)
 	policies = append(policies, o.AdditionalPolicies...)
 	return policies
+}
+
+// GetMetricsBasicAuth gets the metrics basic auth username and password.
+func (o *Options) GetMetricsBasicAuth() (username, password string, ok bool) {
+	if o.MetricsBasicAuth == "" {
+		return "", "", false
+	}
+
+	bs, err := base64.StdEncoding.DecodeString(o.MetricsBasicAuth)
+	if err != nil {
+		return "", "", false
+	}
+
+	idx := bytes.Index(bs, []byte{':'})
+	if idx == -1 {
+		return "", "", false
+	}
+
+	return string(bs[:idx]), string(bs[idx+1:]), true
 }
 
 // Checksum returns the checksum of the current options struct
@@ -899,6 +932,9 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.MetricsAddress != nil {
 		o.MetricsAddr = settings.GetMetricsAddress()
+	}
+	if settings.MetricsBasicAuth != nil {
+		o.MetricsBasicAuth = settings.GetMetricsBasicAuth()
 	}
 	if settings.TracingProvider != nil {
 		o.TracingProvider = settings.GetTracingProvider()

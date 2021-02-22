@@ -15,6 +15,7 @@ type MetricsManager struct {
 	mu          sync.Mutex
 	serviceName string
 	addr        string
+	basicAuth   string
 	srv         *http.Server
 }
 
@@ -60,7 +61,7 @@ func (mgr *MetricsManager) updateInfo(cfg *Config) {
 }
 
 func (mgr *MetricsManager) updateServer(cfg *Config) {
-	if cfg.Options.MetricsAddr == mgr.addr {
+	if cfg.Options.MetricsAddr == mgr.addr && cfg.Options.MetricsBasicAuth == mgr.basicAuth {
 		return
 	}
 
@@ -73,6 +74,7 @@ func (mgr *MetricsManager) updateServer(cfg *Config) {
 	}
 
 	mgr.addr = cfg.Options.MetricsAddr
+	mgr.basicAuth = cfg.Options.MetricsBasicAuth
 	if mgr.addr == "" {
 		log.Info().Msg("metrics: http server disabled")
 		return
@@ -84,6 +86,10 @@ func (mgr *MetricsManager) updateServer(cfg *Config) {
 	if err != nil {
 		log.Error().Err(err).Msg("metrics: failed to create prometheus handler")
 		return
+	}
+
+	if username, password, ok := cfg.Options.GetMetricsBasicAuth(); ok {
+		handler = httputil.RequireBasicAuth(handler, username, password)
 	}
 
 	mgr.srv, err = httputil.NewServer(&httputil.ServerOptions{

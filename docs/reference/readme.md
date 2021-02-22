@@ -496,6 +496,20 @@ As of `v0.9`, Pomerium uses [envoy](https://www.envoyproxy.io/) for the data pla
 All metrics coming from envoy will be labeled with `service="pomerium"` or `service="pomerium-proxy"`, depending if you're running all-in-one or distributed service mode.
 
 
+### Metrics Basic Authentication
+- Environmental Variable: `METRICS_BASIC_AUTH`
+- Config File Key: `metrics_basic_auth`
+- Type: base64 encoded `string` of `username:password`
+- Example: `eDp5` (for username: x, and password: y)
+- Default: ``
+- Optional
+
+Require [Basic HTTP Authentication](https://tools.ietf.org/html/rfc7617) to access the metrics endpoint.
+
+To support this in Prometheus, consult the `basic_auth` option in the [`scrape_config`](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config)
+documentation.
+
+
 ### Proxy Log Level
 - Environmental Variable: `PROXY_LOG_LEVEL`
 - Config File Key: `proxy_log_level`

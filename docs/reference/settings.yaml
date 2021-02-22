@@ -562,6 +562,20 @@ settings:
           All metrics coming from envoy will be labeled with `service="pomerium"` or `service="pomerium-proxy"`, depending if you're running all-in-one or distributed service mode.
         shortdoc: |
           Expose a prometheus format HTTP endpoint on the specified port.
+      - name: "Metrics Basic Authentication"
+        keys: ["metrics_basic_auth"]
+        attributes: |
+          - Environmental Variable: `METRICS_BASIC_AUTH`
+          - Config File Key: `metrics_basic_auth`
+          - Type: base64 encoded `string` of `username:password`
+          - Example: `eDp5` (for username: x, and password: y)
+          - Default: ``
+          - Optional
+        doc: |
+          Require [Basic HTTP Authentication](https://tools.ietf.org/html/rfc7617) to access the metrics endpoint.
+
+          To support this in Prometheus, consult the `basic_auth` option in the [`scrape_config`](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config)
+          documentation.
       - name: "Proxy Log Level"
         keys: ["proxy_log_level"]
         attributes: |

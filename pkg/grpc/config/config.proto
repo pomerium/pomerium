@@ -34,7 +34,8 @@ message Route {
   // https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/endpoint/v3/endpoint_components.proto#envoy-v3-api-msg-config-endpoint-v3-lbendpoint
   // optional load balancing weights assigned to upstream servers defined in TO
   // if not specified, all upstream servers would be assigned the same weight
-  // if provided, load_balancing_weights[i] >= 1 and len(to) == len(load_balancing_weights)
+  // if provided, load_balancing_weights[i] >= 1 and len(to) ==
+  // len(load_balancing_weights)
   repeated uint32 load_balancing_weights = 37;
 
   RouteRedirect redirect = 34;
@@ -83,7 +84,6 @@ message Route {
 
   repeated Policy policies = 27;
   string id = 28;
-
 }
 
 message Policy {
@@ -145,6 +145,7 @@ message Settings {
   optional google.protobuf.Duration refresh_cooldown = 38;
   optional google.protobuf.Duration default_upstream_timeout = 39;
   optional string metrics_address = 40;
+  optional string metrics_basic_auth = 64;
   optional string tracing_provider = 41;
   optional double tracing_sample_rate = 42;
   optional string tracing_jaeger_collector_endpoint = 43;
