@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -213,5 +214,21 @@ func TestPolicy_FromToPb(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedPolicyName, policyFromPb.EnvoyOpts.Name)
 		}
+	})
+
+	t.Run("redirect route", func(t *testing.T) {
+		p := &Policy{
+			From: "https://pomerium.io",
+			Redirect: &PolicyRedirect{
+				HTTPSRedirect: proto.Bool(true),
+			},
+		}
+
+		pbPolicy, err := p.ToProto()
+		require.NoError(t, err)
+
+		policyFromProto, err := NewPolicyFromProto(pbPolicy)
+		assert.NoError(t, err)
+		assert.Equal(t, p.Redirect.HTTPSRedirect, policyFromProto.Redirect.HTTPSRedirect)
 	})
 }
