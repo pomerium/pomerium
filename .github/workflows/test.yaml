@@ -51,6 +51,30 @@ jobs:
           # The token below is used exclusively for uploading coverage reports.
           token: "d82eb1d7-5990-4a31-baa4-156473402105"
           file: ./coverage.txt
+      - name: install mkcert
+        if: runner.os == 'Linux'
+        run: |
+          #!/bin/bash
+          if [ ! -f mkcert ]; then
+            echo "downloading mkcert"
+            sudo curl -Lo mkcert https://github.com/FiloSottile/mkcert/releases/download/v1.4.1/mkcert-v1.4.1-linux-amd64
+            sudo chmod +x mkcert
+          fi
+          sudo install mkcert /usr/local/bin/
+      - name: Create kind cluster
+        if: runner.os == 'Linux'
+        uses: helm/kind-action@v1.1.0
+        with:
+          cluster_name: kind
+
+      - name: build dev docker image
+        run: |
+          ./scripts/build-dev-docker.bash
+        if: runner.os == 'Linux'
+
+      - name: test
+        run: go test -v ./integration/...
+        if: runner.os == 'Linux'
 
   build:
     strategy:
@@ -92,48 +116,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: build
         run: docker build .
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: install mkcert
-        run: |
-          #!/bin/bash
-          if [ ! -f mkcert ]; then
-            echo "downloading mkcert"
-            sudo curl -Lo mkcert https://github.com/FiloSottile/mkcert/releases/download/v1.4.1/mkcert-v1.4.1-linux-amd64
-            sudo chmod +x mkcert
-          fi
-          sudo install mkcert /usr/local/bin/
-
-      - name: Create kind cluster
-        uses: helm/kind-action@v1.0.0-rc.1
-        with:
-          cluster_name: kind
-
-      - uses: actions/setup-go@v2
-        with:
-          go-version: 1.16.x
-
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: build dev docker image
-        run: |
-          ./scripts/build-dev-docker.bash
-
-      - name: test
-        run: go test -v ./integration/...
 
   precommit:
     runs-on: ubuntu-latest
