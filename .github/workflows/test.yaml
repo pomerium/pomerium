@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
+      - name: Set env vars
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -32,18 +34,12 @@ jobs:
         run: make build-deps
       - name: Lint
         if: matrix.os == 'Linux'
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          make lint
+        run: make lint
       - name: Spellcheck
         if: matrix.os == 'Linux'
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          make spellcheck
+        run: make spellcheck
       - name: Test
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          make test
+        run: make test
       - name: cover
         if: matrix.os == 'Linux'
         run: make cover
