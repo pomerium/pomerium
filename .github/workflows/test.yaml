@@ -24,7 +24,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
-            ~/go/pkg/mod
+            ~/go/pkg
             ~/.cache/go-build
             ~/Library/Caches/go-build
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -51,6 +51,31 @@ jobs:
           # The token below is used exclusively for uploading coverage reports.
           token: "d82eb1d7-5990-4a31-baa4-156473402105"
           file: ./coverage.txt
+
+  integration:
+    strategy:
+      matrix:
+        go-version: [1.16.x]
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: set env vars
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - name: install mkcert
         if: runner.os == 'Linux'
         run: |
@@ -62,7 +87,6 @@ jobs:
           fi
           sudo install mkcert /usr/local/bin/
       - name: Create kind cluster
-        if: runner.os == 'Linux'
         uses: helm/kind-action@v1.1.0
         with:
           cluster_name: kind
@@ -70,11 +94,9 @@ jobs:
       - name: build dev docker image
         run: |
           ./scripts/build-dev-docker.bash
-        if: runner.os == 'Linux'
 
-      - name: test
+      - name: integration tests
         run: go test -v ./integration/...
-        if: runner.os == 'Linux'
 
   build:
     strategy:
