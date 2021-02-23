@@ -39,6 +39,7 @@ jobs:
         if: runner.os == 'Linux'
         run: make spellcheck
       - name: test
+        if: runner.os != 'Linux'
         run: make test
       - name: cover
         if: runner.os == 'Linux'
