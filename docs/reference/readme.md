@@ -510,6 +510,27 @@ To support this in Prometheus, consult the `basic_auth` option in the [`scrape_c
 documentation.
 
 
+### Metrics Certificate
+- Config File Key: `metrics_certificate` / `metrics_certificate_key`
+- Config File Key: `metrics_certificate_file` / `metrics_certificate_key_file`
+- Environmental Variable: `METRICS_CERTIFICATE` / `METRICS_CERTIFICATE_KEY`
+- Environmental Variable: `METRICS_CERTIFICATE_FILE` / `METRICS_CERTIFICATE_KEY_FILE`
+- Type: [base64 encoded] `string`
+- Type: certificate relative file location `string`
+- Optional
+
+Certificates are the x509 _public-key_ and _private-key_ used to secure the metrics endpoint.
+
+
+### Metrics Client Certificate Authority
+- Environment Variable: `METRICS_CLIENT_CA` / `METRICS_CLIENT_CA_FILE`
+- Config File Key: `metrics_client_ca` / `metrics_client_ca_file`
+- Type: [base64 encoded] `string` or relative file location
+- Optional
+
+The Client Certificate Authority is the x509 _public-key_ used to validate [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) client certificates for the metrics endpoint. If not set, no client certificate will be required.
+
+
 ### Proxy Log Level
 - Environmental Variable: `PROXY_LOG_LEVEL`
 - Config File Key: `proxy_log_level`
