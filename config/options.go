@@ -969,6 +969,24 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	if settings.MetricsBasicAuth != nil {
 		o.MetricsBasicAuth = settings.GetMetricsBasicAuth()
 	}
+	if len(settings.GetMetricsCertificate().GetCertBytes()) > 0 {
+		o.MetricsCertificate = base64.StdEncoding.EncodeToString(settings.GetMetricsCertificate().GetCertBytes())
+	}
+	if len(settings.GetMetricsCertificate().GetKeyBytes()) > 0 {
+		o.MetricsCertificateKey = base64.StdEncoding.EncodeToString(settings.GetMetricsCertificate().GetKeyBytes())
+	}
+	if settings.GetMetricsCertificate().GetCertFile() != "" {
+		o.MetricsCertificateFile = settings.GetMetricsCertificate().GetCertFile()
+	}
+	if settings.GetMetricsCertificate().GetKeyFile() != "" {
+		o.MetricsCertificateKeyFile = settings.GetMetricsCertificate().GetKeyFile()
+	}
+	if settings.GetMetricsClientCa() != "" {
+		o.MetricsClientCA = settings.GetMetricsClientCa()
+	}
+	if settings.GetMetricsClientCaFile() != "" {
+		o.MetricsClientCAFile = settings.GetMetricsClientCaFile()
+	}
 	if settings.TracingProvider != nil {
 		o.TracingProvider = settings.GetTracingProvider()
 	}
