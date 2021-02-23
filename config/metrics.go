@@ -6,6 +6,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
@@ -89,7 +90,7 @@ func (mgr *MetricsManager) updateServer(cfg *Config) {
 	}
 
 	if username, password, ok := cfg.Options.GetMetricsBasicAuth(); ok {
-		handler = httputil.RequireBasicAuth(handler, username, password)
+		handler = middleware.RequireBasicAuth(username, password)(handler)
 	}
 
 	mgr.srv, err = httputil.NewServer(&httputil.ServerOptions{
