@@ -188,6 +188,13 @@ type Options struct {
 	MetricsAddr string `mapstructure:"metrics_address" yaml:"metrics_address,omitempty"`
 	// - require basic auth for prometheus metrics, base64 encoded user:pass string
 	MetricsBasicAuth string `mapstructure:"metrics_basic_auth" yaml:"metrics_basic_auth,omitempty"`
+	// - TLS options
+	MetricsCertificate        string `mapstructure:"metrics_certificate" yaml:"metrics_certificate,omitempty"`
+	MetricsCertificateKey     string `mapstructure:"metrics_certificate_key" yaml:"metrics_certificate_key,omitempty"`
+	MetricsCertificateFile    string `mapstructure:"metrics_certificate_file" yaml:"metrics_certificate_file,omitempty"`
+	MetricsCertificateKeyFile string `mapstructure:"metrics_certificate_key_file" yaml:"metrics_certificate_key_file,omitempty"`
+	MetricsClientCA           string `mapstructure:"metrics_client_ca" yaml:"metrics_client_ca,omitempty"`
+	MetricsClientCAFile       string `mapstructure:"metrics_client_ca_file" yaml:"metrics_client_ca_file,omitempty"`
 
 	// Tracing shared settings
 	TracingProvider   string  `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
@@ -707,6 +714,20 @@ func (o *Options) Validate() error {
 		}
 	}
 
+	if o.MetricsCertificate != "" && o.MetricsCertificateKey != "" {
+		_, err := cryptutil.CertificateFromBase64(o.MetricsCertificate, o.MetricsCertificateKey)
+		if err != nil {
+			return fmt.Errorf("config: invalid metrics_certificate or metrics_certificate_key: %w", err)
+		}
+	}
+
+	if o.MetricsCertificateFile != "" && o.MetricsCertificateKeyFile != "" {
+		_, err := cryptutil.CertificateFromFile(o.MetricsCertificateFile, o.MetricsCertificateKeyFile)
+		if err != nil {
+			return fmt.Errorf("config: invalid metrics_certificate_file or metrics_certificate_key_file: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -740,6 +761,18 @@ func (o *Options) GetForwardAuthURL() (*url.URL, error) {
 		return o.ForwardAuthURL, nil
 	}
 	return url.Parse("https://127.0.0.1")
+}
+
+// GetMetricsCertificate returns the metrics certificate to use for TLS. `nil` will be
+// returned if there is no certificate.
+func (o *Options) GetMetricsCertificate() (*tls.Certificate, error) {
+	if o.MetricsCertificate != "" && o.MetricsCertificateKey != "" {
+		return cryptutil.CertificateFromBase64(o.MetricsCertificate, o.MetricsCertificateKey)
+	}
+	if o.MetricsCertificateFile != "" && o.MetricsCertificateKeyFile != "" {
+		return cryptutil.CertificateFromFile(o.MetricsCertificateFile, o.MetricsCertificateKeyFile)
+	}
+	return nil, nil
 }
 
 // GetOauthOptions gets the oauth.Options for the given config options.

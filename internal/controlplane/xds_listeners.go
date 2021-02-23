@@ -1,6 +1,7 @@
 package controlplane
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net"
 	"net/url"
@@ -21,6 +22,7 @@ import (
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -29,6 +31,17 @@ import (
 )
 
 var disableExtAuthz *any.Any
+var tlsParams = &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
+	CipherSuites: []string{
+		"ECDHE-ECDSA-AES256-GCM-SHA384",
+		"ECDHE-RSA-AES256-GCM-SHA384",
+		"ECDHE-ECDSA-AES128-GCM-SHA256",
+		"ECDHE-RSA-AES128-GCM-SHA256",
+		"ECDHE-ECDSA-CHACHA20-POLY1305",
+		"ECDHE-RSA-CHACHA20-POLY1305",
+	},
+	TlsMinimumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_2,
+}
 
 func init() {
 	disableExtAuthz = marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute{
@@ -156,14 +169,63 @@ func (srv *Server) buildMetricsListener(cfg *config.Config) (*envoy_config_liste
 		return nil, err
 	}
 
-	li := &envoy_config_listener_v3.Listener{
-		Name:    "metrics-ingress",
-		Address: buildAddress(cfg.Options.MetricsAddr, 9902),
-		FilterChains: []*envoy_config_listener_v3.FilterChain{{
-			Filters: []*envoy_config_listener_v3.Filter{
-				filter,
+	filterChain := &envoy_config_listener_v3.FilterChain{
+		Filters: []*envoy_config_listener_v3.Filter{
+			filter,
+		},
+	}
+
+	cert, err := cfg.Options.GetMetricsCertificate()
+	if err != nil {
+		return nil, err
+	}
+	if cert != nil {
+		dtc := &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
+			CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
+				TlsParams: tlsParams,
+				TlsCertificates: []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{
+					srv.envoyTLSCertificateFromGoTLSCertificate(cert),
+				},
+				AlpnProtocols: []string{"h2", "http/1.1"},
 			},
-		}},
+		}
+
+		if cfg.Options.MetricsClientCA != "" {
+			bs, err := base64.StdEncoding.DecodeString(cfg.Options.MetricsClientCA)
+			if err != nil {
+				return nil, fmt.Errorf("xds: invalid metrics_client_ca: %w", err)
+			}
+
+			dtc.RequireClientCertificate = wrapperspb.Bool(true)
+			dtc.CommonTlsContext.ValidationContextType = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+				ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+					TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_VERIFY_TRUST_CHAIN,
+					TrustedCa:              srv.filemgr.BytesDataSource("metrics_client_ca.pem", bs),
+				},
+			}
+		} else if cfg.Options.MetricsClientCAFile != "" {
+			dtc.RequireClientCertificate = wrapperspb.Bool(true)
+			dtc.CommonTlsContext.ValidationContextType = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+				ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+					TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_VERIFY_TRUST_CHAIN,
+					TrustedCa:              srv.filemgr.FileDataSource(cfg.Options.MetricsClientCAFile),
+				},
+			}
+		}
+
+		tc := marshalAny(dtc)
+		filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
+			Name: "tls",
+			ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+				TypedConfig: tc,
+			},
+		}
+	}
+
+	li := &envoy_config_listener_v3.Listener{
+		Name:         "metrics-ingress",
+		Address:      buildAddress(cfg.Options.MetricsAddr, 9902),
+		FilterChains: []*envoy_config_listener_v3.FilterChain{filterChain},
 	}
 	return li, nil
 }
@@ -560,17 +622,7 @@ func (srv *Server) buildDownstreamTLSContext(cfg *config.Config, domain string) 
 	envoyCert := srv.envoyTLSCertificateFromGoTLSCertificate(cert)
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
-			TlsParams: &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
-				CipherSuites: []string{
-					"ECDHE-ECDSA-AES256-GCM-SHA384",
-					"ECDHE-RSA-AES256-GCM-SHA384",
-					"ECDHE-ECDSA-AES128-GCM-SHA256",
-					"ECDHE-RSA-AES128-GCM-SHA256",
-					"ECDHE-ECDSA-CHACHA20-POLY1305",
-					"ECDHE-RSA-CHACHA20-POLY1305",
-				},
-				TlsMinimumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_2,
-			},
+			TlsParams:             tlsParams,
 			TlsCertificates:       []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{envoyCert},
 			AlpnProtocols:         []string{"h2", "http/1.1"},
 			ValidationContextType: getDownstreamValidationContext(cfg, domain),

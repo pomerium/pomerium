@@ -185,6 +185,9 @@ func (src *FileWatcherSource) check(cfg *Config) {
 		cfg.Options.DataBrokerStorageCertKeyFile,
 		cfg.Options.KeyFile,
 		cfg.Options.PolicyFile,
+		cfg.Options.MetricsClientCAFile,
+		cfg.Options.MetricsCertificateFile,
+		cfg.Options.MetricsCertificateKeyFile,
 	}
 
 	for _, pair := range cfg.Options.CertificateFiles {
