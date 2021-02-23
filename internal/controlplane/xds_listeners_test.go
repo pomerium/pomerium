@@ -21,6 +21,92 @@ const (
 	aExampleComKey  = `LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2Z0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktnd2dnU2tBZ0VBQW9JQkFRRFpodFdpWXNPUDZFZEsKb3o5OVVlRnN1bmZSSTNjUGZtTnMwNjlBcFhGeSt0UlRMaGhmdnRrSzFNM0JFMzFiN1hPZmJENUMzUTdKb0JlbApWUWZmZGdxZmwvVzZvTjJYZENMNXBWSjlxTHQvY2dnMjdyd2dPc0Y5SlhCdjIzUTllelE1Q2lZZjhmUjk5MHNjClI1MDQ0aWJUMnA1THRRZTQrNWhYUFRYT2JhNDJxRDZSWVVZOWRydnhsWStHbUpPeVBvbDdZbmFYSHM3OG5BamcKcGdVZE9NdDhwY2dwTlNIQ3pCMWZBT2MyajJWS3pNbmlvQ3pEaTRnaDlEc2NXa3ZMZWphRGVwN2UzL1NiakMwdQozc2lTM1FKdlpZZUxEcjJxVGxTRm55QWZtVzh2WncrYm9zZTdyWk1ubU5UY1RQUjFXa1gwZ3UvczkvQzlGZThpCkgyUWVnQ3FuQWdNQkFBRUNnZ0VCQUsrclFrLzNyck5EQkgvMFFrdTBtbll5U0p6dkpUR3dBaDlhL01jYVZQcGsKTXFCU000RHZJVnlyNnRZb0pTN2VIbWY3QkhUL0RQZ3JmNjBYZEZvMGUvUFN4ckhIUSswUjcwVHBEQ3RLM3REWAppR2JFZWMwVlpqam95VnFzUWIxOUIvbWdocFY1MHRiL3BQcmJvczdUWkVQbTQ3dUVJUTUwc055VEpDYm5VSy8xCnhla2ZmZ3hMbmZlRUxoaXhDNE1XYjMzWG9GNU5VdWduQ2pUakthUFNNUmpISm9YSFlGWjdZdEdlSEd1aDR2UGwKOU5TM0YxT2l0MWNnQzNCSm1BM28yZmhYbTRGR1FhQzNjYUdXTzE5eHAwRWE1eXQ0RHZOTWp5WlgvSkx1Qko0NQpsZU5jUSs3c3U0dW0vY0hqcFFVenlvZmoydFBIU085QXczWGY0L2lmN0hFQ2dZRUE1SWMzMzVKUUhJVlQwc003CnhkY3haYmppbUE5alBWMDFXSXh0di8zbzFJWm5TUGFocEFuYXVwZGZqRkhKZmJTYlZXaUJTaUZpb2RTR3pIdDgKTlZNTGFyVzVreDl5N1luYXdnZjJuQjc2VG03aFl6L3h5T3AxNXFRbmswVW9DdnQ2MHp6dDl5UE5KQ1pWalFwNgp4cUw4T1c4emNlUGpxZzJBTHRtcVhpNitZRXNDZ1lFQTg2ME5zSHMzNktFZE91Q1o1TXF6NVRLSmVYSzQ5ZkdBCjdxcjM5Sm9RcWYzbEhSSWozUlFlNERkWmQ5NUFXcFRKUEJXdnp6NVROOWdwNHVnb3VGc0tCaG82YWtsUEZTUFIKRkZwWCtGZE56eHJGTlAwZHhydmN0bXU2OW91MFR0QU1jd1hYWFJuR1BuK0xDTnVUUHZndHZTTnRwSEZMb0dzUQorVDFpTjhpWS9aVUNnWUJpMVJQVjdkb1ZxNWVuNCtWYTE0azJlL0lMWDBSRkNxV0NpU0VCMGxhNmF2SUtQUmVFCjhQb1dqbGExUWIzSlRxMkxEMm95M0NOaTU1M3dtMHNKYU1QY1A0RmxYa2wrNzRxYk5ZUnkybmJZS3QzdzVYdTAKcjZtVHVOU2d2VnptK3dHUWo1NCtyczRPWDBIS2dJaStsVWhOc29qbUxXK05ZTTlaODZyWmxvK2c1d0tCZ0VMQQplRXlOSko2c2JCWng2cFo3Vk5hSGhwTm5jdldreDc0WnhiMFM2MWUxL3FwOUNxZ0lXQUR5Q0tkR2tmaCtZN1g2Cjl1TmQzbXdnNGpDUGlvQWVLRnZObVl6K01oVEhjQUlVVVo3dFE1cGxhZnAvRUVZZHRuT2VoV1ArbDFFenV3VlQKWjFEUXU3YnBONHdnb25DUWllOFRJbmoydEZIb29vaTBZUkNJK2lnVkFvR0JBSUxaOXd4WDlnMmVNYU9xUFk1dgo5RGxxNFVEZlpaYkprNFZPbmhjR0pWQUNXbmlpNTU0Y1RCSEkxUTdBT0ZQOHRqK3d3YWJBOWRMaUpDdzJzd0E2ClQrdnhiK1NySGxEUnFON3NNRUQ1Z091REo0eHJxRVdLZ3ZkSEsvME9EMC9ZMUFvSCt2aDlJMHVaV0RRNnNLcXcKeFcrbDk0UTZXSW1xYnpDODZsa3JXa0lCCi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K`
 )
 
+func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
+	cacheDir, _ := os.UserCacheDir()
+	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")
+	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
+
+	srv, _ := NewServer("TEST", nil)
+	li, err := srv.buildMetricsListener(&config.Config{
+		Options: &config.Options{
+			MetricsAddr:           "127.0.0.1:9902",
+			MetricsCertificate:    aExampleComCert,
+			MetricsCertificateKey: aExampleComKey,
+		},
+	})
+	require.NoError(t, err)
+	testutil.AssertProtoJSONEqual(t, `
+{
+	"name": "metrics-ingress",
+	"address": {
+		"socketAddress": {
+			"address": "127.0.0.1",
+			"ipv4Compat": true,
+			"portValue": 9902
+		}
+	},
+	"filterChains": [{
+		"filters": [{
+			"name": "envoy.filters.network.http_connection_manager",
+			"typedConfig": {
+				"@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager",
+				"httpFilters": [{
+					"name": "envoy.filters.http.router"
+				}],
+				"routeConfig": {
+					"name": "metrics",
+					"validateClusters": false,
+					"virtualHosts": [{
+						"name": "metrics",
+						"domains": ["*"],
+						"routes": [{
+							"name": "metrics",
+							"match": {
+								"prefix": "/"
+							},
+							"route": {
+								"cluster": "pomerium-control-plane-http"
+							}
+						}]
+					}]
+				},
+				"statPrefix": "metrics"
+			}
+		}],
+		"transportSocket": {
+			"name": "tls",
+			"typedConfig": {
+				"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext",
+				"commonTlsContext": {
+					"tlsParams": {
+						"cipherSuites": [
+							"ECDHE-ECDSA-AES256-GCM-SHA384",
+							"ECDHE-RSA-AES256-GCM-SHA384",
+							"ECDHE-ECDSA-AES128-GCM-SHA256",
+							"ECDHE-RSA-AES128-GCM-SHA256",
+							"ECDHE-ECDSA-CHACHA20-POLY1305",
+							"ECDHE-RSA-CHACHA20-POLY1305"
+						],
+						"tlsMinimumProtocolVersion": "TLSv1_2"
+					},
+					"alpnProtocols": ["h2", "http/1.1"],
+					"tlsCertificates": [
+						{
+							"certificateChain": {
+								"filename": "`+certFileName+`"
+							},
+							"privateKey": {
+								"filename": "`+keyFileName+`"
+							}
+						}
+					]
+				}
+			}
+		}
+	}]
+}`, li)
+}
+
 func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	srv, _ := NewServer("TEST", nil)
 
