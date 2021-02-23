@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/identity"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/scheduler"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -213,6 +214,8 @@ func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) {
 
 	mgr.mergeGroups(ctx, directoryGroups)
 	mgr.mergeUsers(ctx, directoryUsers)
+
+	metrics.RecordIdentityManagerLastRefresh()
 }
 
 func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*directory.Group) {

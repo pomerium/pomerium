@@ -15,7 +15,11 @@ import (
 var (
 	// InfoViews contains opencensus views for informational metrics about
 	// pomerium itself.
-	InfoViews = []*view.View{ConfigLastReloadView, ConfigLastReloadSuccessView}
+	InfoViews = []*view.View{
+		ConfigLastReloadView,
+		ConfigLastReloadSuccessView,
+		IdentityManagerLastRefreshView,
+	}
 
 	configLastReload = stats.Int64(
 		"config_last_reload_success_timestamp",
@@ -25,6 +29,11 @@ var (
 		"config_last_reload_success",
 		"Returns 1 if last reload was successful",
 		"1")
+	identityManagerLastRefresh = stats.Int64(
+		"identity_manager_last_refresh_timestamp",
+		"Timestamp of last directory refresh",
+		"seconds",
+	)
 
 	// ConfigLastReloadView contains the timestamp the configuration was last
 	// reloaded, labeled by service.
@@ -45,7 +54,21 @@ var (
 		TagKeys:     []tag.Key{TagKeyService},
 		Aggregation: view.LastValue(),
 	}
+
+	// IdentityManagerLastRefreshView contains the timestamp the identity manager
+	// was last refreshed, labeled by service.
+	IdentityManagerLastRefreshView = &view.View{
+		Name:        identityManagerLastRefresh.Name(),
+		Description: identityManagerLastRefresh.Description(),
+		Measure:     identityManagerLastRefresh,
+		Aggregation: view.LastValue(),
+	}
 )
+
+// RecordIdentityManagerLastRefresh records that the identity manager refreshed users and groups.
+func RecordIdentityManagerLastRefresh() {
+	stats.Record(context.Background(), identityManagerLastRefresh.M(time.Now().Unix()))
+}
 
 // SetConfigInfo records the status, checksum and timestamp of a configuration
 // reload. You must register InfoViews or the related config views before calling
