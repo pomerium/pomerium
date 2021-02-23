@@ -61,7 +61,7 @@ deps-build: ## Install build dependencies
 .PHONY: deps-release
 deps-release: ## Install release dependencies
 	@echo "==> $@"
-	@$(GO) install github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
+	@cd /tmp; GO111MODULE=on $(GO) get github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
 
 .PHONY: build-deps
 build-deps: deps-lint deps-build deps-release
