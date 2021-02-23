@@ -30,8 +30,8 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: build dependencies
-        run: make build-deps
+      - run: make deps-lint
+      - run: make deps-build
       - name: Lint
         if: runner.os == 'Linux'
         run: make lint
