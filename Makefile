@@ -35,7 +35,7 @@ MISSPELL_VERSION = v0.3.4
 GOLANGCI_VERSION = v1.34.1
 OPA_VERSION = v0.25.2
 GETENVOY_VERSION = v0.2.0
-GORELEASER_VERSION = v0.150.0
+GORELEASER_VERSION = v0.157.0
 
 .PHONY: all
 all: clean build-deps test lint spellcheck build ## Runs a clean, build, fmt, lint, test, and vet.
@@ -46,14 +46,26 @@ generate-mocks: ## Generate mocks
 	@echo "==> $@"
 	@go run github.com/golang/mock/mockgen -destination internal/directory/auth0/mock_auth0/mock.go github.com/pomerium/pomerium/internal/directory/auth0 RoleManager
 
-.PHONY: build-deps
-build-deps: ## Install build dependencies
+.PHONY: build-lint
+deps-lint: ## Install lint dependencies
 	@echo "==> $@"
 	@$(GO) install github.com/client9/misspell/cmd/misspell@${MISSPELL_VERSION}
 	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_VERSION}
+
+.PHONY: deps-build
+deps-build: ## Install build dependencies
+	@echo "==> $@"
 	@$(GO) install github.com/open-policy-agent/opa@${OPA_VERSION}
 	@$(GO) install github.com/tetratelabs/getenvoy/cmd/getenvoy@${GETENVOY_VERSION}
+
+.PHONY: deps-release
+deps-release: ## Install release dependencies
+	@echo "==> $@"
 	@$(GO) install github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
+
+.PHONY: build-deps
+build-deps: deps-lint deps-build deps-release
+	@echo "==> $@"
 
 .PHONY: docs
 docs: ## Start the vuepress docs development server
