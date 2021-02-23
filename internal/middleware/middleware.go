@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
 	"net/http"
 	"strings"
 	"time"
@@ -72,6 +74,34 @@ func TimeoutHandlerFunc(timeout time.Duration, timeoutError string) func(next ht
 			ctx, span := trace.StartSpan(r.Context(), "middleware.TimeoutHandlerFunc")
 			defer span.End()
 			http.TimeoutHandler(next, timeout, timeoutError).ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// RequireBasicAuth creates a new handler that requires basic auth from the client before
+// calling the underlying handler.
+func RequireBasicAuth(username, password string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			u, p, ok := r.BasicAuth()
+			if !ok {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+
+			givenUser := sha256.Sum256([]byte(u))
+			givenPass := sha256.Sum256([]byte(p))
+			requiredUser := sha256.Sum256([]byte(username))
+			requiredPass := sha256.Sum256([]byte(password))
+
+			if subtle.ConstantTimeCompare(givenUser[:], requiredUser[:]) != 1 ||
+				subtle.ConstantTimeCompare(givenPass[:], requiredPass[:]) != 1 {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }
