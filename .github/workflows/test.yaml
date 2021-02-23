@@ -21,17 +21,26 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: cache go binaries
+        uses: actions/cache@v2
+        id: cache-go-bin
+        with:
+          path: ~/go/bin
+          key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
+
       - uses: actions/cache@v2
         with:
           path: |
-            ~/go/pkg
+            ~/go/pkg/mod
             ~/.cache/go-build
             ~/Library/Caches/go-build
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
       - run: make deps-lint
+        if: steps.cache-go-pkg-mod.outputs.cache-hit != 'true' || steps.cache-go-pkg-mod.outcome == 'failure'
       - run: make deps-build
+        if: steps.cache-go-bin.outputs.cache-hit != 'true' || steps.cache-go-bin.outcome == 'failure'
       - name: Lint
         if: runner.os == 'Linux'
         run: make lint
