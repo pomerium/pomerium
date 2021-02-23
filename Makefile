@@ -49,11 +49,11 @@ generate-mocks: ## Generate mocks
 .PHONY: build-deps
 build-deps: ## Install build dependencies
 	@echo "==> $@"
-	@cd /tmp; GO111MODULE=on $(GO) get github.com/client9/misspell/cmd/misspell@${MISSPELL_VERSION}
-	@cd /tmp; GO111MODULE=on $(GO) get github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_VERSION}
-	@cd /tmp; GO111MODULE=on $(GO) get github.com/open-policy-agent/opa@${OPA_VERSION}
-	@cd /tmp; GO111MODULE=on $(GO) get github.com/tetratelabs/getenvoy/cmd/getenvoy@${GETENVOY_VERSION}
-	@cd /tmp; GO111MODULE=on $(GO) get github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
+	@$(GO) install github.com/client9/misspell/cmd/misspell@${MISSPELL_VERSION}
+	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_VERSION}
+	@$(GO) install github.com/open-policy-agent/opa@${OPA_VERSION}
+	@$(GO) install github.com/tetratelabs/getenvoy/cmd/getenvoy@${GETENVOY_VERSION}
+	@$(GO) install github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
 
 .PHONY: docs
 docs: ## Start the vuepress docs development server

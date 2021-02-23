@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
-      - name: Set env vars
+      - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - uses: actions/checkout@v2
         with:
@@ -30,20 +30,20 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Lint Dependencies
+      - name: build dependencies
         run: make build-deps
       - name: Lint
         if: matrix.os == 'Linux'
         run: make lint
-      - name: Spellcheck
+      - name: spellcheck
         if: matrix.os == 'Linux'
         run: make spellcheck
-      - name: Test
+      - name: test
         run: make test
       - name: cover
         if: matrix.os == 'Linux'
         run: make cover
-      - name: CodeCov
+      - name: upload code coverage
         if: matrix.os == 'Linux'
         uses: codecov/codecov-action@v1.2.1
         with:
