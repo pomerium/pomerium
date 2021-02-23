@@ -33,18 +33,18 @@ jobs:
       - name: build dependencies
         run: make build-deps
       - name: Lint
-        if: matrix.os == 'Linux'
+        if: runner.os == 'Linux'
         run: make lint
       - name: spellcheck
-        if: matrix.os == 'Linux'
+        if: runner.os == 'Linux'
         run: make spellcheck
       - name: test
         run: make test
       - name: cover
-        if: matrix.os == 'Linux'
+        if: runner.os == 'Linux'
         run: make cover
       - name: upload code coverage
-        if: matrix.os == 'Linux'
+        if: runner.os == 'Linux'
         uses: codecov/codecov-action@v1.2.1
         with:
           # The token below is used exclusively for uploading coverage reports.
