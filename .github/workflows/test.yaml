@@ -6,33 +6,6 @@ on:
 
 name: Test
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/setup-go@v2
-        with:
-          go-version: 1.16.x
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Lint Dependencies
-        run: make build-deps
-      - name: Lint
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          make lint
-      - name: Spellcheck
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          make spellcheck
   test:
     strategy:
       matrix:
@@ -44,6 +17,8 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - uses: actions/cache@v2
         with:
           path: |
@@ -53,37 +28,27 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Lint Dependencies
+        run: make build-deps
+      - name: Lint
+        if: matrix.os == 'Linux'
+        run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          make lint
+      - name: Spellcheck
+        if: matrix.os == 'Linux'
+        run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          make spellcheck
       - name: Test
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
           make test
-
-  cover:
-    needs:
-      - test
-    strategy:
-      matrix:
-        go-version: [1.16.x]
-        platform: [ubuntu-latest]
-    runs-on: ${{ matrix.platform }}
-    steps:
-      - uses: actions/setup-go@v2
-        with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Test
+      - name: cover
+        if: matrix.os == 'Linux'
         run: make cover
       - name: CodeCov
+        if: matrix.os == 'Linux'
         uses: codecov/codecov-action@v1.2.1
         with:
           # The token below is used exclusively for uploading coverage reports.
@@ -101,7 +66,8 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v2
-
+        with:
+          fetch-depth: 0
       - uses: actions/cache@v2
         with:
           path: |
