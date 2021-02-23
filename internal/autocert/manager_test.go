@@ -167,7 +167,7 @@ func TestConfig(t *testing.T) {
 	}), certmagic.ACMEManager{
 		CA:     srv.URL + "/acme/directory",
 		TestCA: srv.URL + "/acme/directory",
-	}, time.Second)
+	}, time.Millisecond*100)
 	if !assert.NoError(t, err) {
 		return
 	}

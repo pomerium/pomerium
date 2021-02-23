@@ -109,6 +109,7 @@ cover: ## Runs go test with coverage
 	@sed -i.bak '/\.pb\.go\:/d' coverage.txt
 	@sed -i.bak '/\/statik\.go\:/d' coverage.txt
 	@sed -i.bak '/\/mock\.go\:/d' coverage.txt
+	@sort -o coverage.txt coverage.txt
 
 .PHONY: clean
 clean: ## Cleanup any build binaries or packages.
