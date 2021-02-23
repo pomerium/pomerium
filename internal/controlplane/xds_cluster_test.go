@@ -20,7 +20,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	cacheDir, _ := os.UserCacheDir()
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-32484c314b584447463735303142374c31414145374650305a525539554938594d524855353757313942494d473847535231.pem")
 
-	srv, _ := NewServer("TEST")
+	srv, _ := NewServer("TEST", nil)
 	rootCAPath, _ := getRootCertificateAuthority()
 	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
 
@@ -218,7 +218,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 }
 
 func Test_buildCluster(t *testing.T) {
-	srv, _ := NewServer("TEST")
+	srv, _ := NewServer("TEST", nil)
 	rootCAPath, _ := getRootCertificateAuthority()
 	rootCA := srv.filemgr.FileDataSource(rootCAPath).GetFilename()
 	t.Run("insecure", func(t *testing.T) {

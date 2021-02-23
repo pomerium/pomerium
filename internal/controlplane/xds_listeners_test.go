@@ -22,7 +22,7 @@ const (
 )
 
 func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
-	srv, _ := NewServer("TEST")
+	srv, _ := NewServer("TEST", nil)
 
 	options := config.NewDefaultOptions()
 	options.SkipXffAppend = true
@@ -377,7 +377,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		return
 	}
 
-	srv, _ := NewServer("TEST")
+	srv, _ := NewServer("TEST", nil)
 
 	cacheDir, _ := os.UserCacheDir()
 	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")

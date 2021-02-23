@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -13,11 +12,11 @@ import (
 
 // A MetricsManager manages metrics for a given configuration.
 type MetricsManager struct {
-	mu          sync.Mutex
+	mu          sync.RWMutex
 	serviceName string
 	addr        string
 	basicAuth   string
-	srv         *http.Server
+	handler     http.Handler
 }
 
 // NewMetricsManager creates a new MetricsManager.
@@ -31,15 +30,7 @@ func NewMetricsManager(src Source) *MetricsManager {
 
 // Close closes any underlying http server.
 func (mgr *MetricsManager) Close() error {
-	mgr.mu.Lock()
-	defer mgr.mu.Unlock()
-
-	var err error
-	if mgr.srv != nil {
-		err = mgr.srv.Close()
-		mgr.srv = nil
-	}
-	return err
+	return nil
 }
 
 // OnConfigChange updates the metrics manager when configuration is changed.
@@ -49,6 +40,17 @@ func (mgr *MetricsManager) OnConfigChange(cfg *Config) {
 
 	mgr.updateInfo(cfg)
 	mgr.updateServer(cfg)
+}
+
+func (mgr *MetricsManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	mgr.mu.RLock()
+	defer mgr.mu.RUnlock()
+
+	if mgr.handler == nil {
+		http.NotFound(w, r)
+		return
+	}
+	mgr.handler.ServeHTTP(w, r)
 }
 
 func (mgr *MetricsManager) updateInfo(cfg *Config) {
@@ -66,22 +68,14 @@ func (mgr *MetricsManager) updateServer(cfg *Config) {
 		return
 	}
 
-	if mgr.srv != nil {
-		err := mgr.srv.Close()
-		if err != nil {
-			log.Warn().Err(err).Msg("metrics: error closing http server")
-		}
-		mgr.srv = nil
-	}
-
 	mgr.addr = cfg.Options.MetricsAddr
 	mgr.basicAuth = cfg.Options.MetricsBasicAuth
+	mgr.handler = nil
+
 	if mgr.addr == "" {
 		log.Info().Msg("metrics: http server disabled")
 		return
 	}
-
-	log.Info().Str("addr", mgr.addr).Msg("metrics: starting http server")
 
 	handler, err := metrics.PrometheusHandler(EnvoyAdminURL)
 	if err != nil {
@@ -93,13 +87,5 @@ func (mgr *MetricsManager) updateServer(cfg *Config) {
 		handler = middleware.RequireBasicAuth(username, password)(handler)
 	}
 
-	mgr.srv, err = httputil.NewServer(&httputil.ServerOptions{
-		Addr:     mgr.addr,
-		Insecure: true,
-		Service:  "metrics",
-	}, handler, new(sync.WaitGroup))
-	if err != nil {
-		log.Error().Err(err).Msg("metrics: failed to create metrics http server")
-		return
-	}
+	mgr.handler = handler
 }

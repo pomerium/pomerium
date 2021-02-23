@@ -57,6 +57,14 @@ func (srv *Server) buildListeners(cfg *config.Config) ([]*envoy_config_listener_
 		listeners = append(listeners, li)
 	}
 
+	if cfg.Options.MetricsAddr != "" {
+		li, err := srv.buildMetricsListener(cfg)
+		if err != nil {
+			return nil, err
+		}
+		listeners = append(listeners, li)
+	}
+
 	return listeners, nil
 }
 
@@ -138,6 +146,24 @@ func (srv *Server) buildMainListener(cfg *config.Config) (*envoy_config_listener
 		Address:         buildAddress(cfg.Options.Addr, 443),
 		ListenerFilters: listenerFilters,
 		FilterChains:    chains,
+	}
+	return li, nil
+}
+
+func (srv *Server) buildMetricsListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+	filter, err := srv.buildMetricsHTTPConnectionManagerFilter()
+	if err != nil {
+		return nil, err
+	}
+
+	li := &envoy_config_listener_v3.Listener{
+		Name:    "metrics-ingress",
+		Address: buildAddress(cfg.Options.MetricsAddr, 9902),
+		FilterChains: []*envoy_config_listener_v3.FilterChain{{
+			Filters: []*envoy_config_listener_v3.Filter{
+				filter,
+			},
+		}},
 	}
 	return li, nil
 }
@@ -353,6 +379,47 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
 		UseRemoteAddress: &wrappers.BoolValue{Value: true},
 		SkipXffAppend:    options.SkipXffAppend,
+	})
+
+	return &envoy_config_listener_v3.Filter{
+		Name: "envoy.filters.network.http_connection_manager",
+		ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
+			TypedConfig: tc,
+		},
+	}, nil
+}
+
+func (srv *Server) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
+	rc, err := srv.buildRouteConfiguration("metrics", []*envoy_config_route_v3.VirtualHost{{
+		Name:    "metrics",
+		Domains: []string{"*"},
+		Routes: []*envoy_config_route_v3.Route{{
+			Name: "metrics",
+			Match: &envoy_config_route_v3.RouteMatch{
+				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"},
+			},
+			Action: &envoy_config_route_v3.Route_Route{
+				Route: &envoy_config_route_v3.RouteAction{
+					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+						Cluster: "pomerium-control-plane-http",
+					},
+				},
+			},
+		}},
+	}})
+	if err != nil {
+		return nil, err
+	}
+
+	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
+		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
+		StatPrefix: "metrics",
+		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
+			RouteConfig: rc,
+		},
+		HttpFilters: []*envoy_http_connection_manager.HttpFilter{{
+			Name: "envoy.filters.http.router",
+		}},
 	})
 
 	return &envoy_config_listener_v3.Filter{
