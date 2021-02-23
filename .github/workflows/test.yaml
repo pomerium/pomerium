@@ -6,80 +6,121 @@ on:
 
 name: Test
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.15.x
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Lint Dependencies
-        run: make build-deps
-      - name: Lint
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          make lint
-      - name: Spellcheck
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          make spellcheck
   test:
     strategy:
       matrix:
-        go-version: [1.15.x]
-        platform: [ubuntu-latest, macos-latest, ubuntu-16.04]
+        go-version: [1.16.x]
+        platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - name: Install Go
-        uses: actions/setup-go@v2
+      - uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build dependencies
-        run: make build-deps
-      - name: Test
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          make test
-
-  cover:
-    strategy:
-      matrix:
-        go-version: [1.15.x]
-        platform: [ubuntu-latest]
-    runs-on: ${{ matrix.platform }}
-    steps:
-      - name: Install Go
-        uses: actions/setup-go@v2
+      - name: set env vars
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      - uses: actions/checkout@v2
         with:
-          go-version: ${{ matrix.go-version }}
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Test
+          fetch-depth: 0
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - run: make deps-lint
+      - run: make deps-build
+      - name: Lint
+        if: runner.os == 'Linux'
+        run: make lint
+      - name: spellcheck
+        if: runner.os == 'Linux'
+        run: make spellcheck
+      - name: test
+        if: runner.os != 'Linux'
+        run: make test
+      - name: cover
+        if: runner.os == 'Linux'
         run: make cover
-      - name: CodeCov
+      - name: upload code coverage
+        if: runner.os == 'Linux'
         uses: codecov/codecov-action@v1.2.1
         with:
           # The token below is used exclusively for uploading coverage reports.
           token: "d82eb1d7-5990-4a31-baa4-156473402105"
           file: ./coverage.txt
 
+  integration:
+    strategy:
+      matrix:
+        go-version: [1.16.x]
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: set env vars
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: install mkcert
+        if: runner.os == 'Linux'
+        run: |
+          #!/bin/bash
+          if [ ! -f mkcert ]; then
+            echo "downloading mkcert"
+            sudo curl -Lo mkcert https://github.com/FiloSottile/mkcert/releases/download/v1.4.1/mkcert-v1.4.1-linux-amd64
+            sudo chmod +x mkcert
+          fi
+          sudo install mkcert /usr/local/bin/
+      - name: Create kind cluster
+        uses: helm/kind-action@v1.1.0
+        with:
+          cluster_name: kind
+
+      - name: build dev docker image
+        run: |
+          ./scripts/build-dev-docker.bash
+
+      - name: integration tests
+        run: go test -v ./integration/...
+
   build:
     strategy:
       matrix:
-        go-version: [1.15.x]
-        platform: [ubuntu-latest, macos-latest, ubuntu-16.04]
+        go-version: [1.16.x]
+        platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - name: Install Go
-        uses: actions/setup-go@v2
+      - uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
       - name: build
         run: |
           make build-deps
@@ -96,50 +137,17 @@ jobs:
   build-docker:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: build
         run: docker build .
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: install mkcert
-        run: |
-          #!/bin/bash
-          if [ ! -f mkcert ]; then
-            echo "downloading mkcert"
-            sudo curl -Lo mkcert https://github.com/FiloSottile/mkcert/releases/download/v1.4.1/mkcert-v1.4.1-linux-amd64
-            sudo chmod +x mkcert
-          fi
-          sudo install mkcert /usr/local/bin/
-
-      - name: Create kind cluster
-        uses: helm/kind-action@v1.0.0-rc.1
-        with:
-          cluster_name: kind
-
-      - name: install go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.15.x
-
-      - name: checkout code
-        uses: actions/checkout@v2
-
-      - name: build dev docker image
-        run: |
-          ./scripts/build-dev-docker.bash
-
-      - name: test
-        run: go test -v ./integration/...
 
   precommit:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - name: checkout code
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v2
@@ -153,14 +161,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.15.x]
+        go-version: [1.16.x]
         platform: [ubuntu-latest]
     needs:
       - build
     steps:
       - uses: actions/setup-go@v2
         with:
-          go-version: 1.15.x
+          go-version: 1.16.x
 
       - uses: actions/checkout@v2
 

@@ -86,7 +86,6 @@ func TestStripCookie(t *testing.T) {
 func TestTimeoutHandlerFunc(t *testing.T) {
 	t.Parallel()
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		fmt.Fprint(w, http.StatusText(http.StatusOK))
 		w.WriteHeader(http.StatusOK)
 	})
@@ -120,7 +119,6 @@ func TestTimeoutHandlerFunc(t *testing.T) {
 func TestValidateSignature(t *testing.T) {
 	t.Parallel()
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		fmt.Fprint(w, http.StatusText(http.StatusOK))
 		w.WriteHeader(http.StatusOK)
 	})
