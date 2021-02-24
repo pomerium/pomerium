@@ -1,3 +1,5 @@
+// Package metrics declares metrics names and labels that pomerium exposes
+// as constants that could be referred to from other projects
 package metrics
 
 // metrics
