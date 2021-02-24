@@ -46,9 +46,10 @@ func Test_SetBuildInfo(t *testing.T) {
 		{Value: version.FullVersion(), Present: true},
 		{Value: version.GitCommit, Present: true},
 		{Value: runtime.Version(), Present: true},
+		{Value: "test_host", Present: true},
 	}
 
-	SetBuildInfo("test_service")
+	SetBuildInfo("test_service", "test_host")
 	testMetricRetrieval(registry.registry.Read(), t, wantLabels, int64(1), metrics.BuildInfo)
 }
 

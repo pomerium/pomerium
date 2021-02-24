@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"os"
 	"runtime"
 	"sync"
 
@@ -73,14 +72,9 @@ func (r *metricRegistry) init() {
 
 // SetBuildInfo records the pomerium build info. You must call RegisterInfoMetrics to
 // have this exported
-func (r *metricRegistry) setBuildInfo(service string) {
+func (r *metricRegistry) setBuildInfo(service, hostname string) {
 	if registry.buildInfo == nil {
 		return
-	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Error().Err(err).Msg("telemetry/metrics: failed to get OS hostname")
-		hostname = "__unknown__"
 	}
 	m, err := registry.buildInfo.GetEntry(
 		metricdata.NewLabelValue(service),

@@ -98,8 +98,8 @@ func SetConfigInfo(service string, success bool) {
 
 // SetBuildInfo records the pomerium build info. You must call RegisterInfoMetrics to
 // have this exported
-func SetBuildInfo(service string) {
-	registry.setBuildInfo(service)
+func SetBuildInfo(service, hostname string) {
+	registry.setBuildInfo(service, hostname)
 }
 
 // RegisterInfoMetrics registers non-view based metrics registry globally for export

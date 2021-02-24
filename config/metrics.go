@@ -2,6 +2,7 @@ package config
 
 import (
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -57,7 +58,13 @@ func (mgr *MetricsManager) updateInfo(cfg *Config) {
 		return
 	}
 
-	metrics.SetBuildInfo(serviceName)
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Error().Err(err).Msg("telemetry/metrics: failed to get OS hostname")
+		hostname = "__unknown__"
+	}
+
+	metrics.SetBuildInfo(serviceName, hostname)
 	mgr.serviceName = serviceName
 }
 

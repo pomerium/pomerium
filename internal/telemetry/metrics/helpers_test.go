@@ -8,6 +8,8 @@ import (
 )
 
 func testMetricRetrieval(metrics []*metricdata.Metric, t *testing.T, labels []metricdata.LabelValue, value interface{}, name string) {
+	t.Helper()
+
 	switch value.(type) {
 	case int64:
 	case float64:
