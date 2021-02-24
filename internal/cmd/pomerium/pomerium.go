@@ -62,7 +62,7 @@ func Run(ctx context.Context, configFile string) error {
 	defer traceMgr.Close()
 
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(src.GetConfig().Options.Services)
+	controlPlane, err := controlplane.NewServer(src.GetConfig().Options.Services, metricsMgr)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}

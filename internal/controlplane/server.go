@@ -52,11 +52,14 @@ type Server struct {
 	name          string
 	xdsmgr        *xdsmgr.Manager
 	filemgr       *filemgr.Manager
+	metricsMgr    *config.MetricsManager
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
-func NewServer(name string) (*Server, error) {
-	srv := &Server{}
+func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) {
+	srv := &Server{
+		metricsMgr: metricsMgr,
+	}
 	srv.currentConfig.Store(versionedConfig{
 		Config: &config.Config{Options: &config.Options{}},
 	})

@@ -46,4 +46,7 @@ func (srv *Server) addHTTPMiddleware() {
 	root.Path("/debug/pprof/symbol").HandlerFunc(pprof.Symbol)
 	root.Path("/debug/pprof/trace").HandlerFunc(pprof.Trace)
 	root.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+
+	// metrics
+	root.Handle("/metrics", srv.metricsMgr)
 }

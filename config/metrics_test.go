@@ -3,8 +3,8 @@ package config
 import (
 	"encoding/base64"
 	"fmt"
-	"net"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,73 +12,45 @@ import (
 )
 
 func TestMetricsManager(t *testing.T) {
-	li1, err := net.Listen("tcp", "127.0.0.1:0")
-	if !assert.NoError(t, err) {
-		return
-	}
-	addr1 := li1.Addr().String()
-
-	li2, err := net.Listen("tcp", "127.0.0.1:0")
-	if !assert.NoError(t, err) {
-		return
-	}
-	addr2 := li2.Addr().String()
-
-	li1.Close()
-	li2.Close()
-
 	src := NewStaticSource(&Config{
 		Options: &Options{
-			MetricsAddr: addr1,
+			MetricsAddr: "ADDRESS",
 		},
 	})
 	mgr := NewMetricsManager(src)
-	defer mgr.Close()
+	srv1 := httptest.NewServer(mgr)
+	defer srv1.Close()
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "ERROR", http.StatusInternalServerError)
+	}))
+	defer srv2.Close()
 
 	getStatusCode := func(addr string) int {
-		res, err := http.Get(fmt.Sprintf("http://%s/metrics", addr))
-		if err != nil {
-			return 500
-		}
-		defer res.Body.Close()
+		res, err := http.Get(fmt.Sprintf("%s/metrics", addr))
+		require.NoError(t, err)
 		return res.StatusCode
 	}
 
-	assert.Equal(t, 200, getStatusCode(addr1))
-	assert.Equal(t, 500, getStatusCode(addr2))
-
-	src.SetConfig(&Config{
-		Options: &Options{
-			MetricsAddr: addr2,
-		},
-	})
-
-	assert.Equal(t, 500, getStatusCode(addr1))
-	assert.Equal(t, 200, getStatusCode(addr2))
+	assert.Equal(t, 200, getStatusCode(srv1.URL))
+	assert.Equal(t, 500, getStatusCode(srv2.URL))
 }
 
 func TestMetricsManagerBasicAuth(t *testing.T) {
-	li1, err := net.Listen("tcp", "127.0.0.1:0")
-	if !assert.NoError(t, err) {
-		return
-	}
-	addr1 := li1.Addr().String()
-	li1.Close()
-
 	src := NewStaticSource(&Config{
 		Options: &Options{
-			MetricsAddr:      addr1,
+			MetricsAddr:      "ADDRESS",
 			MetricsBasicAuth: base64.StdEncoding.EncodeToString([]byte("x:y")),
 		},
 	})
 	mgr := NewMetricsManager(src)
-	defer mgr.Close()
+	srv1 := httptest.NewServer(mgr)
+	defer srv1.Close()
 
-	res, err := http.Get(fmt.Sprintf("http://%s/metrics", addr1))
+	res, err := http.Get(fmt.Sprintf("%s/metrics", srv1.URL))
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/metrics", addr1), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/metrics", srv1.URL), nil)
 	require.NoError(t, err)
 	req.SetBasicAuth("x", "y")
 	res, err = http.DefaultClient.Do(req)

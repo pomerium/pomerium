@@ -146,6 +146,9 @@ message Settings {
   optional google.protobuf.Duration default_upstream_timeout = 39;
   optional string metrics_address = 40;
   optional string metrics_basic_auth = 64;
+  optional Certificate metrics_certificate = 65;
+  optional string metrics_client_ca = 66;
+  optional string metrics_client_ca_file = 67;
   optional string tracing_provider = 41;
   optional double tracing_sample_rate = 42;
   optional string tracing_jaeger_collector_endpoint = 43;
