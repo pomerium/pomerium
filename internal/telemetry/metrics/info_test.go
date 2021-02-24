@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/metrics"
 
 	"go.opencensus.io/metric/metricdata"
 	"go.opencensus.io/metric/metricproducer"
@@ -48,7 +49,7 @@ func Test_SetBuildInfo(t *testing.T) {
 	}
 
 	SetBuildInfo("test_service")
-	testMetricRetrieval(registry.registry.Read(), t, wantLabels, int64(1), "build_info")
+	testMetricRetrieval(registry.registry.Read(), t, wantLabels, int64(1), metrics.BuildInfo)
 }
 
 func Test_AddPolicyCountCallback(t *testing.T) {
@@ -58,7 +59,7 @@ func Test_AddPolicyCountCallback(t *testing.T) {
 	wantLabels := []metricdata.LabelValue{{Value: "test_service", Present: true}}
 	AddPolicyCountCallback("test_service", func() int64 { return wantValue })
 
-	testMetricRetrieval(registry.registry.Read(), t, wantLabels, wantValue, "policy_count_total")
+	testMetricRetrieval(registry.registry.Read(), t, wantLabels, wantValue, metrics.PolicyCountTotal)
 }
 
 func Test_SetConfigChecksum(t *testing.T) {
@@ -68,7 +69,7 @@ func Test_SetConfigChecksum(t *testing.T) {
 	wantLabels := []metricdata.LabelValue{{Value: "test_service", Present: true}}
 	SetConfigChecksum("test_service", wantValue)
 
-	testMetricRetrieval(registry.registry.Read(), t, wantLabels, float64(wantValue), "config_checksum_decimal")
+	testMetricRetrieval(registry.registry.Read(), t, wantLabels, float64(wantValue), metrics.ConfigChecksumDecimal)
 }
 
 func Test_RegisterInfoMetrics(t *testing.T) {

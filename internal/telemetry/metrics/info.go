@@ -10,6 +10,7 @@ import (
 	"go.opencensus.io/tag"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/metrics"
 )
 
 var (
@@ -22,15 +23,15 @@ var (
 	}
 
 	configLastReload = stats.Int64(
-		"config_last_reload_success_timestamp",
+		metrics.ConfigLastReloadTimestampSeconds,
 		"Timestamp of last successful config reload",
 		"seconds")
 	configLastReloadSuccess = stats.Int64(
-		"config_last_reload_success",
+		metrics.ConfigLastReloadSuccess,
 		"Returns 1 if last reload was successful",
 		"1")
 	identityManagerLastRefresh = stats.Int64(
-		"identity_manager_last_refresh_timestamp",
+		metrics.IdentityManagerLastRefreshTimestamp,
 		"Timestamp of last directory refresh",
 		"seconds",
 	)
