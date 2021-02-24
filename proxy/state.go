@@ -26,7 +26,6 @@ type proxyState struct {
 	authenticateURL          *url.URL
 	authenticateDashboardURL *url.URL
 	authenticateSigninURL    *url.URL
-	authenticateSignoutURL   *url.URL
 	authenticateRefreshURL   *url.URL
 
 	encoder         encoding.MarshalUnmarshaler
@@ -61,7 +60,6 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	state.authenticateURL, _ = urlutil.DeepCopy(cfg.Options.AuthenticateURL)
 	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: dashboardPath})
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
-	state.authenticateSignoutURL = state.authenticateURL.ResolveReference(&url.URL{Path: signoutURL})
 	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
 
 	state.sessionStore, err = cookie.NewStore(func() cookie.Options {
