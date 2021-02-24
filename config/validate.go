@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -36,4 +37,18 @@ func GetEnvoyDNSLookupFamily(value string) envoy_config_cluster_v3.Cluster_DnsLo
 		return envoy_config_cluster_v3.Cluster_V6_ONLY
 	}
 	return envoy_config_cluster_v3.Cluster_AUTO
+}
+
+// ValidateListenerAddress validates that a listener address is ip:port, not host:port.
+func ValidateListenerAddress(addr string) error {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("invalid address, expected host:port")
+	}
+
+	if host != "" && net.ParseIP(host) == nil {
+		return fmt.Errorf("invalid address, expected ip for host")
+	}
+
+	return nil
 }

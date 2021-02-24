@@ -702,6 +702,10 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: %w", err)
 	}
 
+	if err := ValidateListenerAddress(o.MetricsAddr); err != nil {
+		return fmt.Errorf("config: invalid metrics_addr: %w", err)
+	}
+
 	// validate metrics basic auth
 	if o.MetricsBasicAuth != "" {
 		str, err := base64.StdEncoding.DecodeString(o.MetricsBasicAuth)
