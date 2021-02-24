@@ -71,6 +71,7 @@ Pomerium supports and strongly encourages [TLS](https://redis.io/topics/encrypti
 Example secure configuration:
 
 ```yaml
+databroker_storage_type: redis
 databroker_storage_connection_string: rediss://pomerium:MYSECUREPASSWORD@[HOST]:6379/
 databroker_storage_cert_file: /tls/client.pem
 databroker_storage_key_file: /tls/client.key
