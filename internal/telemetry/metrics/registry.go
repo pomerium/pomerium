@@ -9,6 +9,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/metrics"
 )
 
 var registry = newMetricRegistry()
@@ -37,25 +38,31 @@ func (r *metricRegistry) init() {
 		func() {
 			r.registry = metric.NewRegistry()
 			var err error
-			r.buildInfo, err = r.registry.AddInt64Gauge("build_info",
+			r.buildInfo, err = r.registry.AddInt64Gauge(metrics.BuildInfo,
 				metric.WithDescription("Build Metadata"),
-				metric.WithLabelKeys("service", "version", "revision", "goversion"),
+				metric.WithLabelKeys(
+					metrics.ServiceLabel,
+					metrics.VersionLabel,
+					metrics.RevisionLabel,
+					metrics.GoVersionLabel,
+					metrics.HostLabel,
+				),
 			)
 			if err != nil {
 				log.Error().Err(err).Msg("telemetry/metrics: failed to register build info metric")
 			}
 
-			r.configChecksum, err = r.registry.AddFloat64Gauge("config_checksum_decimal",
+			r.configChecksum, err = r.registry.AddFloat64Gauge(metrics.ConfigChecksumDecimal,
 				metric.WithDescription("Config checksum represented in decimal notation"),
-				metric.WithLabelKeys("service"),
+				metric.WithLabelKeys(metrics.ServiceLabel),
 			)
 			if err != nil {
 				log.Error().Err(err).Msg("telemetry/metrics: failed to register config checksum metric")
 			}
 
-			r.policyCount, err = r.registry.AddInt64DerivedGauge("policy_count_total",
+			r.policyCount, err = r.registry.AddInt64DerivedGauge(metrics.PolicyCountTotal,
 				metric.WithDescription("Total number of policies loaded"),
-				metric.WithLabelKeys("service"),
+				metric.WithLabelKeys(metrics.ServiceLabel),
 			)
 			if err != nil {
 				log.Error().Err(err).Msg("telemetry/metrics: failed to register policy count metric")
@@ -65,7 +72,7 @@ func (r *metricRegistry) init() {
 
 // SetBuildInfo records the pomerium build info. You must call RegisterInfoMetrics to
 // have this exported
-func (r *metricRegistry) setBuildInfo(service string) {
+func (r *metricRegistry) setBuildInfo(service, hostname string) {
 	if registry.buildInfo == nil {
 		return
 	}
@@ -74,6 +81,7 @@ func (r *metricRegistry) setBuildInfo(service string) {
 		metricdata.NewLabelValue(version.FullVersion()),
 		metricdata.NewLabelValue(version.GitCommit),
 		metricdata.NewLabelValue((runtime.Version())),
+		metricdata.NewLabelValue(hostname),
 	)
 	if err != nil {
 		log.Error().Err(err).Msg("telemetry/metrics: failed to get build info metric")
