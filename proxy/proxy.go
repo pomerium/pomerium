@@ -25,7 +25,6 @@ const (
 	// authenticate urls
 	dashboardPath = "/.pomerium"
 	signinURL     = "/.pomerium/sign_in"
-	signoutURL    = "/.pomerium/sign_out"
 	refreshURL    = "/.pomerium/refresh"
 )
 
