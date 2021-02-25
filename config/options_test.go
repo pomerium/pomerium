@@ -94,7 +94,7 @@ func Test_bindEnvs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to bind options to env vars: %s", err)
 	}
-	err = v.Unmarshal(o, viperPolicyHooks)
+	err = v.Unmarshal(o, ViperPolicyHooks)
 	if err != nil {
 		t.Errorf("Could not unmarshal %#v: %s", o, err)
 	}

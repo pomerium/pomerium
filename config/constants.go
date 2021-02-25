@@ -29,8 +29,8 @@ var (
 
 var (
 
-	// viperPolicyHooks are used to decode options and policy coming from YAML and env vars
-	viperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
+	// ViperPolicyHooks are used to decode options and policy coming from YAML and env vars
+	ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 		mapstructure.StringToTimeDurationHookFunc(),
 		mapstructure.StringToSliceHookFunc(","),
 		// decode policy including all protobuf-native notations - i.e. duration as `1s`

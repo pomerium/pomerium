@@ -375,7 +375,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 		}
 	}
 
-	if err := v.Unmarshal(o, viperPolicyHooks); err != nil {
+	if err := v.Unmarshal(o, ViperPolicyHooks); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
@@ -392,7 +392,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 // variables or from a file
 func (o *Options) parsePolicy() error {
 	var policies []Policy
-	if err := o.viper.UnmarshalKey("policy", &policies, viperPolicyHooks); err != nil {
+	if err := o.viper.UnmarshalKey("policy", &policies, ViperPolicyHooks); err != nil {
 		return err
 	}
 	if len(policies) != 0 {
