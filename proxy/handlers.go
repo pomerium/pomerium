@@ -65,13 +65,13 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 		redirectURL = uri
 	}
 
-	signoutURL := *state.authenticateSignoutURL
-	q := signoutURL.Query()
+	dashboardURL := *state.authenticateDashboardURL
+	q := dashboardURL.Query()
 	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
-	signoutURL.RawQuery = q.Encode()
+	dashboardURL.RawQuery = q.Encode()
 
 	state.sessionStore.ClearSession(w, r)
-	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &signoutURL).String(), http.StatusFound)
+	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &dashboardURL).String(), http.StatusFound)
 }
 
 func (p *Proxy) userInfo(w http.ResponseWriter, r *http.Request) {
