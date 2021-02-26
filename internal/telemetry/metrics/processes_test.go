@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http/httptest"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,10 @@ import (
 )
 
 func TestProcessCollector(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		t.SkipNow()
+	}
+
 	exp, err := getGlobalExporter()
 	require.NoError(t, err)
 

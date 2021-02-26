@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -537,13 +538,21 @@ func (srv *Server) handleLogs(rc io.ReadCloser) {
 }
 
 func (srv *Server) runProcessCollector() {
+	// macos is not supported
+	if runtime.GOOS == "darwin" {
+		return
+	}
+
 	pc := metrics.NewProcessCollector("envoy")
 	if err := view.Register(pc.Views()...); err != nil {
 		log.Error().Err(err).Msg("failed to register envoy process metric views")
 	}
 
 	const collectInterval = time.Second * 20
-	for range time.Tick(collectInterval) {
+	ticker := time.NewTicker(collectInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
 		var pid int
 		srv.mu.Lock()
 		if srv.cmd != nil && srv.cmd.Process != nil {
