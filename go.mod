@@ -15,7 +15,7 @@ require (
 	github.com/envoyproxy/go-control-plane v0.9.9-0.20201210154907-fd9021fe5dad
 	github.com/envoyproxy/protoc-gen-validate v0.4.1
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/go-chi/chi v4.1.2+incompatible
+	github.com/go-chi/chi v1.5.4
 	github.com/go-redis/redis/v8 v8.6.0
 	github.com/golang/mock v1.5.0
 	github.com/golang/protobuf v1.4.3
