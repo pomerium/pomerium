@@ -30,18 +30,20 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
-var disableExtAuthz *any.Any
-var tlsParams = &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
-	CipherSuites: []string{
-		"ECDHE-ECDSA-AES256-GCM-SHA384",
-		"ECDHE-RSA-AES256-GCM-SHA384",
-		"ECDHE-ECDSA-AES128-GCM-SHA256",
-		"ECDHE-RSA-AES128-GCM-SHA256",
-		"ECDHE-ECDSA-CHACHA20-POLY1305",
-		"ECDHE-RSA-CHACHA20-POLY1305",
-	},
-	TlsMinimumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_2,
-}
+var (
+	disableExtAuthz *any.Any
+	tlsParams       = &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
+		CipherSuites: []string{
+			"ECDHE-ECDSA-AES256-GCM-SHA384",
+			"ECDHE-RSA-AES256-GCM-SHA384",
+			"ECDHE-ECDSA-AES128-GCM-SHA256",
+			"ECDHE-RSA-AES128-GCM-SHA256",
+			"ECDHE-ECDSA-CHACHA20-POLY1305",
+			"ECDHE-RSA-CHACHA20-POLY1305",
+		},
+		TlsMinimumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_2,
+	}
+)
 
 func init() {
 	disableExtAuthz = marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute{
@@ -273,12 +275,12 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 	domains []string,
 	tlsDomain string,
 ) (*envoy_config_listener_v3.Filter, error) {
-	authorizeURL, err := options.GetAuthorizeURL()
+	authorizeURLs, err := options.GetAuthorizeURLs()
 	if err != nil {
 		return nil, err
 	}
 
-	dataBrokerURL, err := options.GetDataBrokerURL()
+	dataBrokerURLs, err := options.GetDataBrokerURLs()
 	if err != nil {
 		return nil, err
 	}
@@ -292,8 +294,8 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 
 		if options.Addr == options.GRPCAddr {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && hostMatchesDomain(authorizeURL, domain)) ||
-				(config.IsDataBroker(options.Services) && hostMatchesDomain(dataBrokerURL, domain)) {
+			if (config.IsAuthorize(options.Services) && hostsMatchDomain(authorizeURLs, domain)) ||
+				(config.IsDataBroker(options.Services) && hostsMatchDomain(dataBrokerURLs, domain)) {
 				rs, err := srv.buildGRPCRoutes()
 				if err != nil {
 					return nil, err
@@ -354,7 +356,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 				Timeout: grpcClientTimeout,
 				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
 					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-						ClusterName: authorizeURL.Host,
+						ClusterName: "pomerium-authorize",
 					},
 				},
 			},
@@ -651,12 +653,12 @@ func getAllRouteableDomains(options *config.Options, addr string) ([]string, err
 		return nil, err
 	}
 
-	authorizeURL, err := options.GetAuthorizeURL()
+	authorizeURLs, err := options.GetAuthorizeURLs()
 	if err != nil {
 		return nil, err
 	}
 
-	dataBrokerURL, err := options.GetDataBrokerURL()
+	dataBrokerURLs, err := options.GetDataBrokerURLs()
 	if err != nil {
 		return nil, err
 	}
@@ -673,13 +675,17 @@ func getAllRouteableDomains(options *config.Options, addr string) ([]string, err
 		}
 	}
 	if config.IsAuthorize(options.Services) && addr == options.GRPCAddr {
-		for _, h := range urlutil.GetDomainsForURL(*authorizeURL) {
-			lookup[h] = struct{}{}
+		for _, u := range authorizeURLs {
+			for _, h := range urlutil.GetDomainsForURL(*u) {
+				lookup[h] = struct{}{}
+			}
 		}
 	}
 	if config.IsDataBroker(options.Services) && addr == options.GRPCAddr {
-		for _, h := range urlutil.GetDomainsForURL(*dataBrokerURL) {
-			lookup[h] = struct{}{}
+		for _, u := range dataBrokerURLs {
+			for _, h := range urlutil.GetDomainsForURL(*u) {
+				lookup[h] = struct{}{}
+			}
 		}
 	}
 	if config.IsProxy(options.Services) && addr == options.Addr {
@@ -726,6 +732,15 @@ func getAllTLSDomains(options *config.Options, addr string) ([]string, error) {
 	sort.Strings(domains)
 
 	return domains, nil
+}
+
+func hostsMatchDomain(urls []*url.URL, host string) bool {
+	for _, u := range urls {
+		if hostMatchesDomain(u, host) {
+			return true
+		}
+	}
+	return false
 }
 
 func hostMatchesDomain(u *url.URL, host string) bool {

@@ -40,8 +40,14 @@ func (r *Reporter) OnConfigChange(cfg *config.Config) {
 		return
 	}
 
+	urls, err := cfg.Options.GetDataBrokerURLs()
+	if err != nil {
+		log.Error().Err(err).Msg("invalid databroker urls")
+		return
+	}
+
 	registryConn, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
-		Addr:                    cfg.Options.DataBrokerURL,
+		Addrs:                   urls,
 		OverrideCertificateName: cfg.Options.OverrideCertificateName,
 		CA:                      cfg.Options.CA,
 		CAFile:                  cfg.Options.CAFile,

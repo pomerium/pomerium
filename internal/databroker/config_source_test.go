@@ -34,7 +34,7 @@ func TestConfigSource(t *testing.T) {
 	cfgs := make(chan *config.Config, 10)
 
 	base := config.NewDefaultOptions()
-	base.DataBrokerURL = mustParse("http://" + li.Addr().String())
+	base.DataBrokerURLString = "http://" + li.Addr().String()
 	base.InsecureServer = true
 	base.GRPCInsecure = true
 
