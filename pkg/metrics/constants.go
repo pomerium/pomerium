@@ -21,6 +21,7 @@ const (
 // labels
 const (
 	ServiceLabel   = "service"
+	ConfigLabel    = "config"
 	VersionLabel   = "version"
 	RevisionLabel  = "revision"
 	GoVersionLabel = "goversion"

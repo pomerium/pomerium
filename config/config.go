@@ -1,6 +1,10 @@
 package config
 
-import "crypto/tls"
+import (
+	"crypto/tls"
+
+	"github.com/pomerium/pomerium/internal/hashutil"
+)
 
 // Config holds pomerium configuration options.
 type Config struct {
@@ -24,4 +28,9 @@ func (cfg *Config) AllCertificates() []tls.Certificate {
 	certs = append(certs, cfg.Options.Certificates...)
 	certs = append(certs, cfg.AutoCertificates...)
 	return certs
+}
+
+// Checksum returns the config checksum.
+func (cfg *Config) Checksum() uint64 {
+	return hashutil.MustHash(cfg)
 }

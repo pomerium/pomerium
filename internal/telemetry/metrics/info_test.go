@@ -27,7 +27,7 @@ func Test_SetConfigInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			view.Unregister(InfoViews...)
 			view.Register(InfoViews...)
-			SetConfigInfo("test_service", tt.success)
+			SetConfigInfo("test_service", "test config", 0, tt.success)
 
 			testDataRetrieval(ConfigLastReloadView, t, tt.wantLastReload)
 			testDataRetrieval(ConfigLastReloadSuccessView, t, tt.wantLastReloadSuccess)
@@ -61,16 +61,6 @@ func Test_AddPolicyCountCallback(t *testing.T) {
 	AddPolicyCountCallback("test_service", func() int64 { return wantValue })
 
 	testMetricRetrieval(registry.registry.Read(), t, wantLabels, wantValue, metrics.PolicyCountTotal)
-}
-
-func Test_SetConfigChecksum(t *testing.T) {
-	registry = newMetricRegistry()
-
-	wantValue := uint64(42)
-	wantLabels := []metricdata.LabelValue{{Value: "test_service", Present: true}}
-	SetConfigChecksum("test_service", wantValue)
-
-	testMetricRetrieval(registry.registry.Read(), t, wantLabels, float64(wantValue), metrics.ConfigChecksumDecimal)
 }
 
 func Test_RegisterInfoMetrics(t *testing.T) {

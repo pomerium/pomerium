@@ -82,7 +82,6 @@ func (p *Proxy) OnConfigChange(cfg *config.Config) {
 		return
 	}
 
-	log.Info().Str("checksum", fmt.Sprintf("%x", cfg.Options.Checksum())).Msg("proxy: updating options")
 	p.currentOptions.Store(cfg.Options)
 	p.setHandlers(cfg.Options)
 	if state, err := newProxyStateFromConfig(cfg); err != nil {

@@ -6,8 +6,10 @@ import (
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/rs/zerolog/log"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 
 // A ChangeListener is called when configuration changes.
@@ -98,9 +100,12 @@ func NewFileOrEnvironmentSource(configFile string) (*FileOrEnvironmentSource, er
 		return nil, err
 	}
 
+	cfg := &Config{Options: options}
+	metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), true)
+
 	src := &FileOrEnvironmentSource{
 		configFile: configFile,
-		config:     &Config{Options: options},
+		config:     cfg,
 	}
 	options.viper.OnConfigChange(src.onConfigChange)
 	go options.viper.WatchConfig()
@@ -110,9 +115,15 @@ func NewFileOrEnvironmentSource(configFile string) (*FileOrEnvironmentSource, er
 
 func (src *FileOrEnvironmentSource) onConfigChange(evt fsnotify.Event) {
 	src.mu.Lock()
-	newOptions := handleConfigUpdate(src.configFile, src.config.Options)
-	cfg := &Config{Options: newOptions}
-	src.config = cfg
+	cfg := src.config
+	options, err := newOptionsFromConfig(src.configFile)
+	if err == nil {
+		cfg = &Config{Options: options}
+		metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), true)
+	} else {
+		log.Error().Err(err).Msg("config: error updating config")
+		metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), false)
+	}
 	src.mu.Unlock()
 
 	src.Trigger(cfg)
