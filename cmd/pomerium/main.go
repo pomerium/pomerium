@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 
@@ -16,9 +17,10 @@ var (
 )
 
 func main() {
-	if err := run(context.Background()); err != nil {
+	if err := run(context.Background()); !errors.Is(err, context.Canceled) {
 		log.Fatal().Err(err).Msg("cmd/pomerium")
 	}
+	log.Info().Msg("cmd/pomerium: exiting")
 }
 
 func run(ctx context.Context) error {
