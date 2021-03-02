@@ -148,16 +148,6 @@ func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Po
 	return cluster, nil
 }
 
-func (srv *Server) buildInternalEndpoints(options *config.Options, dst *url.URL) ([]Endpoint, error) {
-	var endpoints []Endpoint
-	ts, err := srv.buildInternalTransportSocket(options, dst)
-	if err != nil {
-		return nil, err
-	}
-	endpoints = append(endpoints, NewEndpoint(dst, ts, noLbWeight))
-	return endpoints, nil
-}
-
 func (srv *Server) buildPolicyEndpoints(policy *config.Policy) ([]Endpoint, error) {
 	var endpoints []Endpoint
 	for _, dst := range policy.To {

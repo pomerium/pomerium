@@ -3,7 +3,6 @@ package databroker
 import (
 	"context"
 	"net"
-	"net/url"
 	"testing"
 	"time"
 
@@ -77,12 +76,4 @@ func TestConfigSource(t *testing.T) {
 	case cfg := <-cfgs:
 		assert.Len(t, cfg.Options.AdditionalPolicies, 1)
 	}
-}
-
-func mustParse(raw string) *url.URL {
-	u, err := url.Parse(raw)
-	if err != nil {
-		panic(err)
-	}
-	return u
 }
