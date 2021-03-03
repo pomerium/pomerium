@@ -539,7 +539,7 @@ func (srv *Server) handleLogs(rc io.ReadCloser) {
 
 func (srv *Server) runProcessCollector() {
 	// macos is not supported
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS != "linux" {
 		return
 	}
 
@@ -548,7 +548,7 @@ func (srv *Server) runProcessCollector() {
 		log.Error().Err(err).Msg("failed to register envoy process metric views")
 	}
 
-	const collectInterval = time.Second * 20
+	const collectInterval = time.Second * 10
 	ticker := time.NewTicker(collectInterval)
 	defer ticker.Stop()
 

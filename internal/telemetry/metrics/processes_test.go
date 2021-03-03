@@ -15,7 +15,7 @@ import (
 )
 
 func TestProcessCollector(t *testing.T) {
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS != "linux" {
 		t.SkipNow()
 	}
 
