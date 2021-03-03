@@ -353,8 +353,6 @@ func newOptionsFromConfig(configFile string) (*Options, error) {
 		return int64(len(o.GetAllPolicies()))
 	})
 
-	metrics.SetConfigChecksum(serviceName, o.Checksum())
-
 	return o, nil
 }
 
@@ -1063,31 +1061,6 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	if settings.SkipXffAppend != nil {
 		o.SkipXffAppend = settings.GetSkipXffAppend()
 	}
-}
-
-// handleConfigUpdate takes configuration file, an existing options struct, and
-// returns new options if any change is detected. If no change was detected, the
-// existing option will be returned.
-func handleConfigUpdate(configFile string, opt *Options) *Options {
-	serviceName := telemetry.ServiceName(opt.Services)
-
-	newOpt, err := newOptionsFromConfig(configFile)
-	if err != nil {
-		log.Error().Err(err).Msg("config: could not reload configuration")
-		metrics.SetConfigInfo(serviceName, false)
-		return opt
-	}
-	optChecksum := opt.Checksum()
-	newOptChecksum := newOpt.Checksum()
-
-	log.Debug().Str("old-checksum", fmt.Sprintf("%x", optChecksum)).Str("new-checksum", fmt.Sprintf("%x", newOptChecksum)).Msg("config: checksum change")
-
-	if newOptChecksum == optChecksum {
-		log.Debug().Msg("config: loaded configuration has not changed")
-		return opt
-	}
-
-	return newOpt
 }
 
 func dataDir() string {

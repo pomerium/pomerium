@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.opencensus.io/metric/metricproducer"
@@ -73,8 +74,10 @@ func RecordIdentityManagerLastRefresh() {
 
 // SetConfigInfo records the status, checksum and timestamp of a configuration
 // reload. You must register InfoViews or the related config views before calling
-func SetConfigInfo(service string, success bool) {
+func SetConfigInfo(service string, configName string, checksum uint64, success bool) {
 	if success {
+		registry.setConfigChecksum(service, configName, checksum)
+
 		serviceTag := tag.Insert(TagKeyService, service)
 		if err := stats.RecordWithTags(
 			context.Background(),
@@ -94,6 +97,11 @@ func SetConfigInfo(service string, success bool) {
 	} else {
 		stats.Record(context.Background(), configLastReloadSuccess.M(0))
 	}
+	log.Info().
+		Str("service", service).
+		Str("config", configName).
+		Str("checksum", fmt.Sprintf("%x", checksum)).
+		Msg("config: updated config")
 }
 
 // SetBuildInfo records the pomerium build info. You must call RegisterInfoMetrics to
@@ -105,12 +113,6 @@ func SetBuildInfo(service, hostname string) {
 // RegisterInfoMetrics registers non-view based metrics registry globally for export
 func RegisterInfoMetrics() {
 	metricproducer.GlobalManager().AddProducer(registry.registry)
-}
-
-// SetConfigChecksum creates the configuration checksum metric.  You must call RegisterInfoMetrics to
-// have this exported
-func SetConfigChecksum(service string, checksum uint64) {
-	registry.setConfigChecksum(service, checksum)
 }
 
 // AddPolicyCountCallback sets the function to call when exporting the

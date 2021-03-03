@@ -81,7 +81,6 @@ func (a *Authenticate) OnConfigChange(cfg *config.Config) {
 		return
 	}
 
-	log.Info().Str("checksum", fmt.Sprintf("%x", cfg.Options.Checksum())).Msg("authenticate: updating options")
 	a.options.Store(cfg.Options)
 	if state, err := newAuthenticateStateFromConfig(cfg); err != nil {
 		log.Error().Err(err).Msg("authenticate: failed to update state")

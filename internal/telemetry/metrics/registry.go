@@ -54,7 +54,7 @@ func (r *metricRegistry) init() {
 
 			r.configChecksum, err = r.registry.AddFloat64Gauge(metrics.ConfigChecksumDecimal,
 				metric.WithDescription("Config checksum represented in decimal notation"),
-				metric.WithLabelKeys(metrics.ServiceLabel),
+				metric.WithLabelKeys(metrics.ServiceLabel, metrics.ConfigLabel),
 			)
 			if err != nil {
 				log.Error().Err(err).Msg("telemetry/metrics: failed to register config checksum metric")
@@ -102,11 +102,11 @@ func (r *metricRegistry) addPolicyCountCallback(service string, f func() int64) 
 	}
 }
 
-func (r *metricRegistry) setConfigChecksum(service string, checksum uint64) {
+func (r *metricRegistry) setConfigChecksum(service string, configName string, checksum uint64) {
 	if r.configChecksum == nil {
 		return
 	}
-	m, err := r.configChecksum.GetEntry(metricdata.NewLabelValue(service))
+	m, err := r.configChecksum.GetEntry(metricdata.NewLabelValue(service), metricdata.NewLabelValue(configName))
 	if err != nil {
 		log.Error().Err(err).Msg("telemetry/metrics: failed to get config checksum metric")
 	}

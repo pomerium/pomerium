@@ -8,6 +8,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -134,6 +135,8 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 	if !firstTime {
 		src.Trigger(cfg)
 	}
+
+	metrics.SetConfigInfo(cfg.Options.Services, "databroker", cfg.Checksum(), true)
 }
 
 func (src *ConfigSource) runUpdater(cfg *config.Config) {
