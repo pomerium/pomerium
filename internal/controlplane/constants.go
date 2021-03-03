@@ -9,10 +9,6 @@ import (
 )
 
 var (
-	noLbWeight uint32 = 0
-)
-
-var (
 	errNoEndpoints           = errors.New("cluster must have endpoints")
 	defaultConnectionTimeout = ptypes.DurationProto(time.Second * 10)
 )

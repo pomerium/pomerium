@@ -20,7 +20,6 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/manager"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -81,7 +80,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 	}
 
 	dataBrokerServer := newDataBrokerServer(cfg)
-	dataBrokerURL, err := cfg.Options.GetDataBrokerURL()
+	dataBrokerURLs, err := cfg.Options.GetDataBrokerURLs()
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +90,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 		localListener:                localListener,
 		localGRPCServer:              localGRPCServer,
 		localGRPCConnection:          localGRPCConnection,
-		deprecatedCacheClusterDomain: dataBrokerURL.Hostname(),
+		deprecatedCacheClusterDomain: dataBrokerURLs[0].Hostname(),
 		dataBrokerStorageType:        cfg.Options.DataBrokerStorageType,
 	}
 	c.Register(c.localGRPCServer)
@@ -188,9 +187,6 @@ func (c *DataBroker) update(cfg *config.Config) error {
 func validate(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
-	}
-	if err := urlutil.ValidateURL(o.DataBrokerURL); err != nil {
-		return fmt.Errorf("invalid 'DATA_BROKER_SERVICE_URL': %w", err)
 	}
 	return nil
 }

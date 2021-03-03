@@ -913,13 +913,13 @@ The databroker service is used for storing user session data.
 
 
 ### Data Broker Service URL
-- Environmental Variable: `DATABROKER_SERVICE_URL`
-- Config File Key: `databroker_service_url`
+- Environmental Variable: `DATABROKER_SERVICE_URL` or `DATABROKER_SERVICE_URLS`
+- Config File Key: `databroker_service_url` or `databroker_service_urls`
 - Type: `URL`
 - Example: `https://databroker.corp.example.com`
 - Default: in all-in-one mode, `http://localhost:5443`
 
-The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups).
+The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups). Multiple URLs can be specified with `databroker_service_url`.
 
 By default, the `databroker` service uses an in-memory databroker.
 
@@ -1502,13 +1502,13 @@ If set, enables proxying of websocket connections.
 ## Authorize Service
 
 ### Authorize Service URL
-- Environmental Variable: `AUTHORIZE_SERVICE_URL`
-- Config File Key: `authorize_service_url`
+- Environmental Variable: `AUTHORIZE_SERVICE_URL` or `AUTHORIZE_SERVICE_URLS`
+- Config File Key: `authorize_service_url` or `authorize_service_urls`
 - Type: `URL`
 - Required
 - Example: `https://authorize.corp.example.com`
 
-Authorize Service URL is the location of the internally accessible authorize service.
+Authorize Service URL is the location of the internally accessible authorize service. Multiple URLs can be specified with `authorize_service_url`.
 
 
 ### Google Cloud Serverless Authentication Service Account

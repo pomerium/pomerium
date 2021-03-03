@@ -149,7 +149,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz",
 						"grpcService": {
 							"envoyGrpc": {
-								"clusterName": "127.0.0.1:5443"
+								"clusterName": "pomerium-authorize"
 							},
 							"timeout": "10s"
 						},
@@ -582,12 +582,12 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 
 func Test_getAllDomains(t *testing.T) {
 	options := &config.Options{
-		Addr:            "127.0.0.1:9000",
-		GRPCAddr:        "127.0.0.1:9001",
-		Services:        "all",
-		AuthenticateURL: mustParseURL(t, "https://authenticate.example.com"),
-		AuthorizeURL:    mustParseURL(t, "https://authorize.example.com:9001"),
-		DataBrokerURL:   mustParseURL(t, "https://cache.example.com:9001"),
+		Addr:                "127.0.0.1:9000",
+		GRPCAddr:            "127.0.0.1:9001",
+		Services:            "all",
+		AuthenticateURL:     mustParseURL(t, "https://authenticate.example.com"),
+		AuthorizeURLString:  "https://authorize.example.com:9001",
+		DataBrokerURLString: "https://cache.example.com:9001",
 		Policies: []config.Policy{
 			{Source: &config.StringURL{URL: mustParseURL(t, "http://a.example.com")}},
 			{Source: &config.StringURL{URL: mustParseURL(t, "https://b.example.com")}},

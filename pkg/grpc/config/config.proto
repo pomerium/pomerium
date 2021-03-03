@@ -134,7 +134,7 @@ message Settings {
   optional google.protobuf.Duration idp_refresh_directory_timeout = 28;
   optional google.protobuf.Duration idp_refresh_directory_interval = 29;
   map<string, string> request_params = 30;
-  optional string authorize_service_url = 32;
+  repeated string authorize_service_urls = 32;
   optional string override_certificate_name = 33;
   optional string certificate_authority = 34;
   optional string certificate_authority_file = 35;
@@ -159,7 +159,7 @@ message Settings {
   google.protobuf.Duration grpc_server_max_connection_age = 48;
   google.protobuf.Duration grpc_server_max_connection_age_grace = 49;
   optional string forward_auth_url = 50;
-  optional string databroker_service_url = 52;
+  repeated string databroker_service_urls = 52;
   optional string client_ca = 53;
   optional string client_ca_file = 54;
   optional string google_cloud_serverless_authentication_service_account = 55;

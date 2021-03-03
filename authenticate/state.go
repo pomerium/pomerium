@@ -118,8 +118,13 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 
 	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 
+	urls, err := cfg.Options.GetDataBrokerURLs()
+	if err != nil {
+		return nil, err
+	}
+
 	dataBrokerConn, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
-		Addr:                    cfg.Options.DataBrokerURL,
+		Addrs:                   urls,
 		OverrideCertificateName: cfg.Options.OverrideCertificateName,
 		CA:                      cfg.Options.CA,
 		CAFile:                  cfg.Options.CAFile,

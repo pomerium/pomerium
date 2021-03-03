@@ -236,7 +236,7 @@ func Test_Checksum(t *testing.T) {
 
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURL", "AuthorizeURL", "AuthorizeURLString", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate"),
+		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "RefreshCooldown", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate"),
 		cmpopts.IgnoreFields(Policy{}, "Source", "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
@@ -502,12 +502,24 @@ func TestCompareByteSliceSlice(t *testing.T) {
 func TestOptions_DefaultURL(t *testing.T) {
 	t.Parallel()
 
+	firstURL := func(f func() ([]*url.URL, error)) func() (*url.URL, error) {
+		return func() (*url.URL, error) {
+			urls, err := f()
+			if err != nil {
+				return nil, err
+			} else if len(urls) == 0 {
+				return nil, fmt.Errorf("no url defined")
+			}
+			return urls[0], nil
+		}
+	}
+
 	defaultOptions := &Options{}
 	opts := &Options{
-		AuthenticateURL: mustParseURL("https://authenticate.example.com"),
-		AuthorizeURL:    mustParseURL("https://authorize.example.com"),
-		DataBrokerURL:   mustParseURL("https://databroker.example.com"),
-		ForwardAuthURL:  mustParseURL("https://forwardauth.example.com"),
+		AuthenticateURL:     mustParseURL("https://authenticate.example.com"),
+		AuthorizeURLString:  "https://authorize.example.com",
+		DataBrokerURLString: "https://databroker.example.com",
+		ForwardAuthURL:      mustParseURL("https://forwardauth.example.com"),
 	}
 	tests := []struct {
 		name           string
@@ -519,8 +531,8 @@ func TestOptions_DefaultURL(t *testing.T) {
 		{"default databroker url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
 		{"default forward auth url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
 		{"good authenticate url", opts.GetAuthenticateURL, "https://authenticate.example.com"},
-		{"good authorize url", opts.GetAuthorizeURL, "https://authorize.example.com"},
-		{"good databroker url", opts.GetDataBrokerURL, "https://databroker.example.com"},
+		{"good authorize url", firstURL(opts.GetAuthorizeURLs), "https://authorize.example.com"},
+		{"good databroker url", firstURL(opts.GetDataBrokerURLs), "https://databroker.example.com"},
 		{"good forward auth url", opts.GetForwardAuthURL, "https://forwardauth.example.com"},
 	}
 

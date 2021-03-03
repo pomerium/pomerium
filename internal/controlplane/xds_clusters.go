@@ -31,12 +31,12 @@ type Endpoint struct {
 }
 
 // NewEndpoint creates a new Endpoint.
-func NewEndpoint(u url.URL, ts *envoy_config_core_v3.TransportSocket, weight uint32) Endpoint {
+func NewEndpoint(u *url.URL, ts *envoy_config_core_v3.TransportSocket, weight uint32) Endpoint {
 	var w *wrappers.UInt32Value
 	if weight > 0 {
 		w = &wrappers.UInt32Value{Value: weight}
 	}
-	return Endpoint{url: u, transportSocket: ts, loadBalancerWeight: w}
+	return Endpoint{url: *u, transportSocket: ts, loadBalancerWeight: w}
 }
 
 // TransportSocketName return the name for this endpoint.
@@ -49,28 +49,28 @@ func (e Endpoint) TransportSocketName() string {
 }
 
 func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_cluster_v3.Cluster, error) {
-	grpcURL := url.URL{
+	grpcURL := &url.URL{
 		Scheme: "http",
 		Host:   srv.GRPCListener.Addr().String(),
 	}
-	httpURL := url.URL{
+	httpURL := &url.URL{
 		Scheme: "http",
 		Host:   srv.HTTPListener.Addr().String(),
 	}
-	authzURL, err := options.GetAuthorizeURL()
+	authzURLs, err := options.GetAuthorizeURLs()
 	if err != nil {
 		return nil, err
 	}
 
-	controlGRPC, err := srv.buildInternalCluster(options, "pomerium-control-plane-grpc", grpcURL, true)
+	controlGRPC, err := srv.buildInternalCluster(options, "pomerium-control-plane-grpc", []*url.URL{grpcURL}, true)
 	if err != nil {
 		return nil, err
 	}
-	controlHTTP, err := srv.buildInternalCluster(options, "pomerium-control-plane-http", httpURL, false)
+	controlHTTP, err := srv.buildInternalCluster(options, "pomerium-control-plane-http", []*url.URL{httpURL}, false)
 	if err != nil {
 		return nil, err
 	}
-	authZ, err := srv.buildInternalCluster(options, authzURL.Host, *authzURL, true)
+	authZ, err := srv.buildInternalCluster(options, "pomerium-authorize", authzURLs, true)
 	if err != nil {
 		return nil, err
 	}
@@ -104,12 +104,16 @@ func (srv *Server) buildClusters(options *config.Options) ([]*envoy_config_clust
 	return clusters, nil
 }
 
-func (srv *Server) buildInternalCluster(options *config.Options, name string, dst url.URL, forceHTTP2 bool) (*envoy_config_cluster_v3.Cluster, error) {
+func (srv *Server) buildInternalCluster(options *config.Options, name string, dsts []*url.URL, forceHTTP2 bool) (*envoy_config_cluster_v3.Cluster, error) {
 	cluster := newDefaultEnvoyClusterConfig()
 	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
-	endpoints, err := srv.buildInternalEndpoints(options, dst)
-	if err != nil {
-		return nil, err
+	var endpoints []Endpoint
+	for _, dst := range dsts {
+		ts, err := srv.buildInternalTransportSocket(options, dst)
+		if err != nil {
+			return nil, err
+		}
+		endpoints = append(endpoints, NewEndpoint(dst, ts, 1))
 	}
 	if err := srv.buildCluster(cluster, name, endpoints, forceHTTP2); err != nil {
 		return nil, err
@@ -144,16 +148,6 @@ func (srv *Server) buildPolicyCluster(options *config.Options, policy *config.Po
 	return cluster, nil
 }
 
-func (srv *Server) buildInternalEndpoints(options *config.Options, dst url.URL) ([]Endpoint, error) {
-	var endpoints []Endpoint
-	ts, err := srv.buildInternalTransportSocket(options, dst)
-	if err != nil {
-		return nil, err
-	}
-	endpoints = append(endpoints, NewEndpoint(dst, ts, noLbWeight))
-	return endpoints, nil
-}
-
 func (srv *Server) buildPolicyEndpoints(policy *config.Policy) ([]Endpoint, error) {
 	var endpoints []Endpoint
 	for _, dst := range policy.To {
@@ -161,12 +155,12 @@ func (srv *Server) buildPolicyEndpoints(policy *config.Policy) ([]Endpoint, erro
 		if err != nil {
 			return nil, err
 		}
-		endpoints = append(endpoints, NewEndpoint(dst.URL, ts, dst.LbWeight))
+		endpoints = append(endpoints, NewEndpoint(&dst.URL, ts, dst.LbWeight))
 	}
 	return endpoints, nil
 }
 
-func (srv *Server) buildInternalTransportSocket(options *config.Options, endpoint url.URL) (*envoy_config_core_v3.TransportSocket, error) {
+func (srv *Server) buildInternalTransportSocket(options *config.Options, endpoint *url.URL) (*envoy_config_core_v3.TransportSocket, error) {
 	if endpoint.Scheme != "https" {
 		return nil, nil
 	}
