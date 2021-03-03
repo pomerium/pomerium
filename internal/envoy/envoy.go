@@ -4,6 +4,7 @@ package envoy
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,6 +33,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/natefinch/atomic"
 	"github.com/rs/zerolog"
+	"go.opencensus.io/stats/view"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -38,6 +41,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
@@ -109,6 +113,7 @@ func NewServer(src config.Source, grpcPort, httpPort string) (*Server, error) {
 		httpPort:  httpPort,
 		envoyPath: envoyPath,
 	}
+	go srv.runProcessCollector()
 
 	src.OnConfigChange(srv.onConfigChange)
 	srv.onConfigChange(src.GetConfig())
@@ -529,5 +534,37 @@ func (srv *Server) handleLogs(rc io.ReadCloser) {
 			Str("service", "envoy").
 			Str("name", name).
 			Msg(msg)
+	}
+}
+
+func (srv *Server) runProcessCollector() {
+	// macos is not supported
+	if runtime.GOOS != "linux" {
+		return
+	}
+
+	pc := metrics.NewProcessCollector("envoy")
+	if err := view.Register(pc.Views()...); err != nil {
+		log.Error().Err(err).Msg("failed to register envoy process metric views")
+	}
+
+	const collectInterval = time.Second * 10
+	ticker := time.NewTicker(collectInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		var pid int
+		srv.mu.Lock()
+		if srv.cmd != nil && srv.cmd.Process != nil {
+			pid = srv.cmd.Process.Pid
+		}
+		srv.mu.Unlock()
+
+		if pid > 0 {
+			err := pc.Measure(context.Background(), pid)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to measure envoy process metrics")
+			}
+		}
 	}
 }
