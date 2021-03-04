@@ -8,7 +8,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/pomerium/pomerium/authorize/evaluator/opa"
-
 	"github.com/pomerium/pomerium/internal/log"
 )
 
