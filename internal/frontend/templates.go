@@ -2,56 +2,49 @@
 // html templates.
 package frontend
 
-//go:generate go run github.com/rakyll/statik -m -src=./assets -include=*.svg,*.html,*.css,*.js -ns web
-//go:generate go fmt statik/statik.go
-
 import (
+	"embed"
 	"encoding/base64"
 	"fmt"
 	"html/template"
-	"io/ioutil"
+	"io/fs"
 	"mime"
 	"net/http"
 	"os"
 	"path"
 	"strings"
 	"time"
-
-	"github.com/rakyll/statik/fs"
-
-	_ "github.com/pomerium/pomerium/internal/frontend/statik" // load static assets
 )
 
-const statikNamespace = "web"
+// FS is the frontend assets file system.
+//go:embed assets
+var FS embed.FS
 
 // NewTemplates loads pomerium's templates. Panics on failure.
 func NewTemplates() (*template.Template, error) {
-	statikFS, err := fs.NewWithNamespace(statikNamespace)
+	assetsFS, err := fs.Sub(FS, "assets")
 	if err != nil {
-		return nil, fmt.Errorf("internal/frontend: error creating new file system: %w", err)
+		return nil, err
 	}
 
 	dataURLs := map[string]template.URL{}
+	err = fs.WalkDir(assetsFS, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 
-	err = fs.Walk(statikFS, "/", func(filePath string, fileInfo os.FileInfo, _ error) error {
-		if fileInfo.IsDir() {
+		if d.IsDir() {
 			return nil
 		}
 
-		file, err := statikFS.Open(filePath)
+		bs, err := fs.ReadFile(assetsFS, p)
 		if err != nil {
-			return fmt.Errorf("internal/frontend: error opening %s: %w", filePath, err)
-		}
-		defer file.Close()
-
-		bs, err := ioutil.ReadAll(file)
-		if err != nil {
-			return fmt.Errorf("internal/frontend: error reading %s: %w", filePath, err)
+			return fmt.Errorf("internal/frontend: error reading %s: %w", p, err)
 		}
 
 		encoded := base64.StdEncoding.EncodeToString(bs)
-		dataURLs[filePath] = template.URL(fmt.Sprintf(
-			"data:%s;base64,%s", mime.TypeByExtension(path.Ext(filePath)), encoded))
+		dataURLs[p] = template.URL(fmt.Sprintf(
+			"data:%s;base64,%s", mime.TypeByExtension(path.Ext(p)), encoded))
 
 		return nil
 	})
@@ -70,27 +63,27 @@ func NewTemplates() (*template.Template, error) {
 			return template.HTMLAttr(fmt.Sprint(arg))
 		},
 		"dataURL": func(p string) template.URL {
-			return dataURLs[strings.TrimPrefix(p, "/.pomerium/assets")]
+			return dataURLs[strings.TrimPrefix(p, "/.pomerium/assets/")]
 		},
 		"formatTime": func(tm time.Time) string {
 			return tm.Format("2006-01-02 15:04:05 MST")
 		},
 	})
 
-	err = fs.Walk(statikFS, "/html", func(filePath string, fileInfo os.FileInfo, err error) error {
-		if !fileInfo.IsDir() {
-			file, err := statikFS.Open(filePath)
+	err = fs.WalkDir(assetsFS, "html", func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !d.IsDir() {
+			bs, err := fs.ReadFile(assetsFS, p)
 			if err != nil {
-				return fmt.Errorf("internal/frontend: error opening %s: %w", filePath, err)
+				return fmt.Errorf("internal/frontend: error reading %s: %w", p, err)
 			}
 
-			buf, err := ioutil.ReadAll(file)
+			_, err = t.Parse(string(bs))
 			if err != nil {
-				return fmt.Errorf("internal/frontend: error reading %s: %w", filePath, err)
-			}
-			_, err = t.Parse(string(buf))
-			if err != nil {
-				return fmt.Errorf("internal/frontend: error parsing template %s: %w", filePath, err)
+				return fmt.Errorf("internal/frontend: error parsing template %s: %w", p, err)
 			}
 		}
 		return nil
@@ -105,9 +98,9 @@ func NewTemplates() (*template.Template, error) {
 // MustAssetHandler wraps a call to the embedded static file system and panics
 // if the error is non-nil. It is intended for use in variable initializations
 func MustAssetHandler() http.Handler {
-	statikFS, err := fs.NewWithNamespace(statikNamespace)
+	assetsFS, err := fs.Sub(FS, "assets")
 	if err != nil {
 		panic(err)
 	}
-	return http.FileServer(statikFS)
+	return http.FileServer(http.FS(assetsFS))
 }

@@ -38,7 +38,7 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 		return nil, fmt.Errorf("authorize: couldn't create signer: %w", err)
 	}
 
-	authzPolicy, err := readPolicy("/authz.rego")
+	authzPolicy, err := readPolicy()
 	if err != nil {
 		return nil, fmt.Errorf("error loading rego policy: %w", err)
 	}

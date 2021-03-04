@@ -35,7 +35,7 @@ func TestOPA(t *testing.T) {
 	require.NoError(t, err)
 
 	eval := func(policies []config.Policy, data []proto.Message, req *Request, isValidClientCertificate bool) rego.Result {
-		authzPolicy, err := readPolicy("/authz.rego")
+		authzPolicy, err := readPolicy()
 		require.NoError(t, err)
 		store := NewStoreFromProtos(data...)
 		store.UpdateIssuer("authenticate.example.com")

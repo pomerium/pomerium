@@ -1,16 +1,12 @@
 package controlplane
 
 import (
-	"os"
-
-	"github.com/rakyll/statik/fs"
-
-	// include luascripts source code
-	_ "github.com/pomerium/pomerium/internal/controlplane/luascripts"
+	"embed"
+	"io/fs"
 )
 
-//go:generate go run github.com/rakyll/statik -m -src=./luascripts -include=*.lua -p luascripts -ns luascripts
-//go:generate go fmt ./luascripts/statik.go
+//go:embed luascripts
+var luaFS embed.FS
 
 var luascripts struct {
 	ExtAuthzSetCookie        string
@@ -20,28 +16,23 @@ var luascripts struct {
 }
 
 func init() {
-	hfs, err := fs.NewWithNamespace("luascripts")
-	if err != nil {
-		panic(err)
-	}
-
 	fileToField := map[string]*string{
-		"/clean-upstream.lua":             &luascripts.CleanUpstream,
-		"/ext-authz-set-cookie.lua":       &luascripts.ExtAuthzSetCookie,
-		"/remove-impersonate-headers.lua": &luascripts.RemoveImpersonateHeaders,
-		"/fix-misdirected.lua":            &luascripts.FixMisdirected,
+		"luascripts/clean-upstream.lua":             &luascripts.CleanUpstream,
+		"luascripts/ext-authz-set-cookie.lua":       &luascripts.ExtAuthzSetCookie,
+		"luascripts/remove-impersonate-headers.lua": &luascripts.RemoveImpersonateHeaders,
+		"luascripts/fix-misdirected.lua":            &luascripts.FixMisdirected,
 	}
 
-	err = fs.Walk(hfs, "/", func(p string, fi os.FileInfo, err error) error {
+	err := fs.WalkDir(luaFS, "luascripts", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if fi.IsDir() {
+		if d.IsDir() {
 			return nil
 		}
 
-		bs, err := fs.ReadFile(hfs, p)
+		bs, err := luaFS.ReadFile(p)
 		if err != nil {
 			return err
 		}
