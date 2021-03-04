@@ -1,6 +1,6 @@
 module github.com/pomerium/pomerium
 
-go 1.14
+go 1.16
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
@@ -45,7 +45,6 @@ require (
 	github.com/pomerium/csrf v1.7.0
 	github.com/prometheus/client_golang v1.9.0
 	github.com/prometheus/procfs v0.2.0
-	github.com/rakyll/statik v0.1.7
 	github.com/rjeczalik/notify v0.9.3-0.20201210012515-e2a77dcc14cf
 	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.20.0

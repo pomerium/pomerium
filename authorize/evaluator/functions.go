@@ -4,12 +4,10 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/rakyll/statik/fs"
 
-	_ "github.com/pomerium/pomerium/authorize/evaluator/opa/policy" // load static assets
+	"github.com/pomerium/pomerium/authorize/evaluator/opa"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -67,17 +65,6 @@ func parseCertificate(pemStr string) (*x509.Certificate, error) {
 	return x509.ParseCertificate(block.Bytes)
 }
 
-const statikNamespace = "rego"
-
-func readPolicy(fn string) ([]byte, error) {
-	statikFS, err := fs.NewWithNamespace(statikNamespace)
-	if err != nil {
-		return nil, err
-	}
-	r, err := statikFS.Open(fn)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-	return ioutil.ReadAll(r)
+func readPolicy() ([]byte, error) {
+	return opa.FS.ReadFile("policy/authz.rego")
 }
