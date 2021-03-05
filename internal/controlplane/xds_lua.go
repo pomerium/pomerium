@@ -12,6 +12,7 @@ var luascripts struct {
 	ExtAuthzSetCookie        string
 	CleanUpstream            string
 	RemoveImpersonateHeaders string
+	RewriteHeaders           string
 	FixMisdirected           string
 }
 
@@ -20,6 +21,7 @@ func init() {
 		"luascripts/clean-upstream.lua":             &luascripts.CleanUpstream,
 		"luascripts/ext-authz-set-cookie.lua":       &luascripts.ExtAuthzSetCookie,
 		"luascripts/remove-impersonate-headers.lua": &luascripts.RemoveImpersonateHeaders,
+		"luascripts/rewrite-headers.lua":            &luascripts.RewriteHeaders,
 		"luascripts/fix-misdirected.lua":            &luascripts.FixMisdirected,
 	}
 

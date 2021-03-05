@@ -1,6 +1,7 @@
 package controlplane
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"sort"
@@ -290,6 +291,10 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]
 			envoyRoute.Action = &envoy_config_route_v3.Route_Route{Route: action}
 		}
 
+		luaMetadata := map[string]*structpb.Value{
+			"rewrite_response_headers": getRewriteHeadersMetadata(policy.RewriteResponseHeaders),
+		}
+
 		// disable authentication entirely when the proxy is fronting authenticate
 		isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, domain)
 		if err != nil {
@@ -300,27 +305,25 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]
 				"envoy.filters.http.ext_authz": disableExtAuthz,
 			}
 		} else {
-			envoyRoute.Metadata.FilterMetadata = map[string]*structpb.Struct{
-				"envoy.filters.http.lua": {
-					Fields: map[string]*structpb.Value{
-						"remove_pomerium_cookie": {
-							Kind: &structpb.Value_StringValue{
-								StringValue: options.CookieName,
-							},
-						},
-						"remove_pomerium_authorization": {
-							Kind: &structpb.Value_BoolValue{
-								BoolValue: true,
-							},
-						},
-						"remove_impersonate_headers": {
-							Kind: &structpb.Value_BoolValue{
-								BoolValue: policy.KubernetesServiceAccountTokenFile != "" || policy.KubernetesServiceAccountToken != "",
-							},
-						},
-					},
+			luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
+				Kind: &structpb.Value_StringValue{
+					StringValue: options.CookieName,
 				},
 			}
+			luaMetadata["remove_pomerium_authorization"] = &structpb.Value{
+				Kind: &structpb.Value_BoolValue{
+					BoolValue: true,
+				},
+			}
+			luaMetadata["remove_impersonate_headers"] = &structpb.Value{
+				Kind: &structpb.Value_BoolValue{
+					BoolValue: policy.KubernetesServiceAccountTokenFile != "" || policy.KubernetesServiceAccountToken != "",
+				},
+			}
+		}
+
+		envoyRoute.Metadata.FilterMetadata = map[string]*structpb.Struct{
+			"envoy.filters.http.lua": {Fields: luaMetadata},
 		}
 
 		routes = append(routes, envoyRoute)
@@ -558,4 +561,19 @@ func isProxyFrontingAuthenticate(options *config.Options, domain string) (bool, 
 	}
 
 	return false, nil
+}
+
+func getRewriteHeadersMetadata(headers []config.RewriteHeader) *structpb.Value {
+	if len(headers) == 0 {
+		return &structpb.Value{
+			Kind: &structpb.Value_ListValue{
+				ListValue: new(structpb.ListValue),
+			},
+		}
+	}
+	var obj interface{}
+	bs, _ := json.Marshal(headers)
+	_ = json.Unmarshal(bs, &obj)
+	v, _ := structpb.NewValue(obj)
+	return v
 }
