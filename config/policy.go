@@ -249,6 +249,14 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		p.EnvoyOpts.Name = pb.Name
 	}
 
+	for _, rwh := range pb.RewriteResponseHeaders {
+		p.RewriteResponseHeaders = append(p.RewriteResponseHeaders, RewriteHeader{
+			Header: rwh.GetHeader(),
+			Prefix: rwh.GetPrefix(),
+			Value:  rwh.GetValue(),
+		})
+	}
+
 	for _, sp := range pb.GetPolicies() {
 		p.SubPolicies = append(p.SubPolicies, SubPolicy{
 			ID:               sp.GetId(),
@@ -333,6 +341,16 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 
 		pb.To = to
 		pb.LoadBalancingWeights = weights
+	}
+
+	for _, rwh := range p.RewriteResponseHeaders {
+		pb.RewriteResponseHeaders = append(pb.RewriteResponseHeaders, &configpb.RouteRewriteHeader{
+			Header: rwh.Header,
+			Matcher: &configpb.RouteRewriteHeader_Prefix{
+				Prefix: rwh.Prefix,
+			},
+			Value: rwh.Value,
+		})
 	}
 
 	return pb, nil
