@@ -14,6 +14,12 @@ message Config {
   Settings settings = 3;
 }
 
+message RouteRewriteHeader {
+  string header = 1;
+  oneof matcher { string prefix = 3; }
+  string value = 2;
+}
+
 message RouteRedirect {
   optional bool https_redirect = 1;
   optional string scheme_redirect = 2;
@@ -74,6 +80,7 @@ message Route {
 
   map<string, string> set_request_headers = 22;
   repeated string remove_request_headers = 23;
+  repeated RouteRewriteHeader rewrite_response_headers = 40;
 
   bool preserve_host_header = 24;
   bool pass_identity_headers = 25;
