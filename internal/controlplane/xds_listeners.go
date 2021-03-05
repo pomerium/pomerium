@@ -373,6 +373,9 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 	removeImpersonateHeadersLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
 		InlineCode: luascripts.RemoveImpersonateHeaders,
 	})
+	rewriteHeadersLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
+		InlineCode: luascripts.RewriteHeaders,
+	})
 
 	filters := []*envoy_http_connection_manager.HttpFilter{
 		{
@@ -397,6 +400,12 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 			Name: "envoy.filters.http.lua",
 			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
 				TypedConfig: cleanUpstreamLua,
+			},
+		},
+		{
+			Name: "envoy.filters.http.lua",
+			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
+				TypedConfig: rewriteHeadersLua,
 			},
 		},
 	}

@@ -174,6 +174,13 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 					}
 				},
 				{
+					"name": "envoy.filters.http.lua",
+					"typedConfig": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+						"inlineCode": "function replace_prefix(str, prefix, value)\n    return str:gsub(\"^\"..prefix, value)\nend\n\nfunction envoy_on_request(request_handle)\nend\n\nfunction envoy_on_response(response_handle)\n    local headers = response_handle:headers()\n    local metadata = response_handle:metadata()\n\n    -- should be in the form:\n    -- [{\n    --   \"header\":\"Location\",\n    --   \"prefix\":\"http://localhost:8000/two/\",\n    --   \"value\":\"http://frontend/one/\"\n    -- }]\n    local rewrite_response_headers = metadata:get(\"rewrite_response_headers\")\n    if rewrite_response_headers then\n        for _, obj in pairs(rewrite_response_headers) do\n            local hdr = headers:get(obj.header)\n            if hdr ~= nil then\n                local newhdr = replace_prefix(hdr, obj.prefix, obj.value)\n                headers:replace(obj.header, newhdr)\n            end\n        end\n    end\nend\n"
+					}
+				},
+				{
 					"name": "envoy.filters.http.router"
 				}
 			],

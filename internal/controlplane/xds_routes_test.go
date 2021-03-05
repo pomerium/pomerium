@@ -295,7 +295,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -319,7 +320,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -344,7 +346,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -378,7 +381,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -402,7 +406,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -427,7 +432,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -451,7 +457,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -476,7 +483,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -517,6 +525,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"prefix": "/"
 					},
 					"metadata": {
+						"filterMetadata": {
+							"envoy.filters.http.lua": {
+								"rewrite_response_headers": []
+							}
+						}
 					},
 					"route": {
 						"autoHostRewrite": true,
@@ -568,7 +581,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -594,7 +608,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -678,7 +693,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -703,7 +719,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -728,7 +745,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -759,7 +777,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -784,7 +803,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},
@@ -809,7 +829,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"envoy.filters.http.lua": {
 							"remove_impersonate_headers": false,
 							"remove_pomerium_authorization": true,
-							"remove_pomerium_cookie": "pomerium"
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
 						}
 					}
 				},

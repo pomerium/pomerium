@@ -148,6 +148,16 @@ type Policy struct {
 	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
 
 	EnvoyOpts *envoy_config_cluster_v3.Cluster `mapstructure:"_envoy_opts" yaml:"-" json:"-"`
+
+	// RewriteResponseHeaders rewrites response headers. This can be used to change the Location header.
+	RewriteResponseHeaders []RewriteHeader `mapstructure:"rewrite_response_headers" yaml:"rewrite_response_headers,omitempty" json:"rewrite_response_headers,omitempty"` //nolint
+}
+
+// RewriteHeader is a policy configuration option to rewrite an HTTP header.
+type RewriteHeader struct {
+	Header string `mapstructure:"header" yaml:"header" json:"header"`
+	Prefix string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
+	Value  string `mapstructure:"value" yaml:"value,omitempty" json:"value,omitempty"`
 }
 
 // A SubPolicy is a protobuf Policy within a protobuf Route.
