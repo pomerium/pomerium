@@ -16,7 +16,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v0.4.1
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-chi/chi v1.5.4
-	github.com/go-redis/redis/v8 v8.6.0
+	github.com/go-redis/redis/v8 v8.7.1
 	github.com/golang/mock v1.5.0
 	github.com/golang/protobuf v1.4.3
 	github.com/google/btree v1.0.0
