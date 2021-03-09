@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oidc/google"
 	"github.com/pomerium/pomerium/internal/identity/oidc/okta"
 	"github.com/pomerium/pomerium/internal/identity/oidc/onelogin"
+	"github.com/pomerium/pomerium/internal/identity/oidc/ping"
 )
 
 // Authenticator is an interface representing the ability to authenticate with an identity provider.
@@ -53,6 +54,8 @@ func NewAuthenticator(o oauth.Options) (a Authenticator, err error) {
 		a, err = okta.New(ctx, &o)
 	case onelogin.Name:
 		a, err = onelogin.New(ctx, &o)
+	case ping.Name:
+		a, err = ping.New(ctx, &o)
 	default:
 		return nil, fmt.Errorf("identity: unknown provider: %s", o.ProviderName)
 	}
