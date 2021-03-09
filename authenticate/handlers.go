@@ -73,8 +73,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	v := r.PathPrefix("/.pomerium").Subrouter()
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
-			state := a.state.Load()
-			err := middleware.ValidateRequestURL(r, string(state.sharedSecret))
+			err := middleware.ValidateRequestURL(r, a.state.Load().sharedSecret)
 			if err != nil {
 				log.FromRequest(r).Info().Err(err).Msg("authenticate: origin blocked")
 			}
@@ -82,6 +81,9 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		},
 		AllowCredentials: true,
 		AllowedHeaders:   []string{"*"},
+	})
+	v.Use(func(h http.Handler) http.Handler {
+		return middleware.ValidateSignature(a.state.Load().sharedSecret)(h)
 	})
 	v.Use(c.Handler)
 	v.Use(a.RetrieveSession)
@@ -168,7 +170,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignIn")
 	defer span.End()
 
-	options := a.options.Load()
 	state := a.state.Load()
 
 	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
@@ -236,7 +237,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	// build our hmac-d redirect URL with our session, pointing back to the
 	// proxy's callback URL which is responsible for setting our new route-session
-	uri := urlutil.NewSignedURL(options.SharedKey, callbackURL)
+	uri := urlutil.NewSignedURL(state.sharedSecret, callbackURL)
 	httputil.Redirect(w, r, uri.String(), http.StatusFound)
 	return nil
 }

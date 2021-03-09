@@ -12,7 +12,7 @@ func TestSignedURL(t *testing.T) {
 	original := time.Unix(1574117851, 0) // ;-)
 	tests := []struct {
 		name     string
-		key      string
+		key      []byte
 		uri      url.URL
 		origTime func() time.Time
 		newTime  func() time.Time
@@ -21,7 +21,7 @@ func TestSignedURL(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			"good", "test-key",
+			"good", []byte("test-key"),
 			url.URL{Scheme: "https", Host: "pomerium.io"},
 			func() time.Time { return original }, func() time.Time { return original },
 			"https://pomerium.io?pomerium_expiry=1574118151&pomerium_issued=1574117851&pomerium_signature=XtvM-Y-oPvoGGV2Q5G0vrQ_CgNeYhVyTG5dHIqLsBOU%3D",

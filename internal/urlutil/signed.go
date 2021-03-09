@@ -7,13 +7,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // SignedURL is a shared-key HMAC wrapped URL.
 type SignedURL struct {
 	uri    url.URL
-	key    string
+	key    []byte
 	signed bool
 
 	// mockable time for testing
@@ -24,7 +25,7 @@ type SignedURL struct {
 //
 // N.B. It is the user's responsibility to make sure the key is 256 bits and
 // 		the url is not nil.
-func NewSignedURL(key string, uri *url.URL) *SignedURL {
+func NewSignedURL(key []byte, uri *url.URL) *SignedURL {
 	return &SignedURL{uri: *uri, key: key, timeNow: time.Now} // uri is copied
 }
 
@@ -40,6 +41,7 @@ func (su *SignedURL) Sign() *url.URL {
 	params.Set(QueryHmacSignature, hmacURL(su.key, su.uri.String(), issued, expiry))
 	su.uri.RawQuery = params.Encode()
 	su.signed = true
+	log.Info().Str("su", su.uri.String()).Msg("signed")
 	return &su.uri
 }
 
@@ -86,14 +88,14 @@ func (su *SignedURL) Validate() error {
 		sig,
 		su.key)
 	if !validHMAC {
-		return fmt.Errorf("internal/urlutil: hmac failed")
+		return fmt.Errorf("internal/urlutil: hmac failed %s, issued %s, expiry: %s", su.uri.String(), issued, expiry)
 	}
 	return nil
 }
 
 // hmacURL takes a redirect url string and timestamp and returns the base64
 // encoded HMAC result.
-func hmacURL(key string, data ...interface{}) string {
+func hmacURL(key []byte, data ...interface{}) string {
 	h := cryptutil.GenerateHMAC([]byte(fmt.Sprint(data...)), key)
 	return base64.URLEncoding.EncodeToString(h)
 }

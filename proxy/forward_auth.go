@@ -141,6 +141,6 @@ func (p *Proxy) startAuthN(w http.ResponseWriter, r *http.Request) error {
 	q.Set(urlutil.QueryRedirectURI, uri.String())              // final destination
 	q.Set(urlutil.QueryForwardAuth, urlutil.StripPort(r.Host)) // add fwd auth to trusted audience
 	authN.RawQuery = q.Encode()
-	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &authN).String(), http.StatusFound)
+	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedSecret, &authN).String(), http.StatusFound)
 	return nil
 }

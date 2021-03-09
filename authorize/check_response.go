@@ -167,7 +167,7 @@ func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) (*e
 
 	q.Set(urlutil.QueryRedirectURI, url.String())
 	signinURL.RawQuery = q.Encode()
-	redirectTo := urlutil.NewSignedURL(opts.SharedKey, signinURL).String()
+	redirectTo := urlutil.NewSignedURL(a.state.Load().sharedSecret, signinURL).String()
 
 	return a.deniedResponse(in, http.StatusFound, "Login", map[string]string{
 		"Location": redirectTo,

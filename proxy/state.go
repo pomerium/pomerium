@@ -20,7 +20,8 @@ import (
 )
 
 type proxyState struct {
-	sharedKey    string
+	// sharedSecret is the secret to encrypt and authenticate data shared between services
+	sharedSecret []byte
 	sharedCipher cipher.AEAD
 
 	authenticateURL          *url.URL
@@ -43,8 +44,9 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	}
 
 	state := new(proxyState)
-	state.sharedKey = cfg.Options.SharedKey
-	state.sharedCipher, _ = cryptutil.NewAEADCipherFromBase64(cfg.Options.SharedKey)
+	// shared cipher to encrypt data before passing data between services
+	state.sharedSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	state.sharedCipher, _ = cryptutil.NewAEADCipher(state.sharedSecret)
 	state.cookieSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
 
 	// used to load and verify JWT tokens signed by the authenticate service

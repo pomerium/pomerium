@@ -30,7 +30,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	// the route specific cookie is returned in a signed query params
 	c := r.PathPrefix(dashboardPath + "/callback").Subrouter()
 	c.Use(func(h http.Handler) http.Handler {
-		return middleware.ValidateSignature(p.state.Load().sharedKey)(h)
+		return middleware.ValidateSignature(p.state.Load().sharedSecret)(h)
 	})
 	c.Path("/").Handler(httputil.HandlerFunc(p.Callback)).Methods(http.MethodGet)
 
@@ -71,7 +71,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 	dashboardURL.RawQuery = q.Encode()
 
 	state.sessionStore.ClearSession(w, r)
-	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &dashboardURL).String(), http.StatusFound)
+	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedSecret, &dashboardURL).String(), http.StatusFound)
 }
 
 func (p *Proxy) userInfo(w http.ResponseWriter, r *http.Request) {
@@ -155,7 +155,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	q.Set(urlutil.QueryRedirectURI, redirectURI.String())
 	q.Set(urlutil.QueryIsProgrammatic, "true")
 	signinURL.RawQuery = q.Encode()
-	response := urlutil.NewSignedURL(state.sharedKey, &signinURL).String()
+	response := urlutil.NewSignedURL(state.sharedSecret, &signinURL).String()
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)

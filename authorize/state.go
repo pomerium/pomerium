@@ -14,6 +14,9 @@ import (
 )
 
 type authorizeState struct {
+	// sharedSecret is the secret to encrypt and authenticate data shared between services
+	sharedSecret []byte
+
 	evaluator        *evaluator.Evaluator
 	encoder          encoding.MarshalUnmarshaler
 	dataBrokerClient databroker.DataBrokerServiceClient
@@ -38,7 +41,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		return nil, err
 	}
 
-	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	state.sharedSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 	urls, err := cfg.Options.GetDataBrokerURLs()
 	if err != nil {
 		return nil, err
@@ -53,7 +56,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
 		WithInsecure:            cfg.Options.GRPCInsecure,
 		ServiceName:             cfg.Options.Services,
-		SignedJWTKey:            sharedKey,
+		SignedJWTKey:            state.sharedSecret,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error creating databroker connection: %w", err)
