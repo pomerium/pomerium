@@ -51,7 +51,7 @@ func (au apiUser) getDisplayName() string {
 
 func getAllGroups(ctx context.Context, client *http.Client, apiURL *url.URL, envID string) ([]apiGroup, error) {
 	nextURL := apiURL.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/v1/environments/%s/groups", envID),
+		Path: fmt.Sprintf("/v1/environments/%s/groups", url.PathEscape(envID)),
 	}).String()
 
 	var apiGroups []apiGroup
@@ -73,7 +73,7 @@ func getAllGroups(ctx context.Context, client *http.Client, apiURL *url.URL, env
 
 func getGroupUsers(ctx context.Context, client *http.Client, apiURL *url.URL, envID, groupID string) ([]apiUser, error) {
 	nextURL := apiURL.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/v1/environments/%s/users", envID),
+		Path: fmt.Sprintf("/v1/environments/%s/users", url.PathEscape(envID)),
 		RawQuery: (&url.Values{
 			"filter": {fmt.Sprintf(`memberOfGroups[id eq "%s"]`, groupID)},
 		}).Encode(),
@@ -98,7 +98,7 @@ func getGroupUsers(ctx context.Context, client *http.Client, apiURL *url.URL, en
 
 func getUser(ctx context.Context, client *http.Client, apiURL *url.URL, envID, userID string) (*apiUser, error) {
 	nextURL := apiURL.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/v1/environments/%s/users/%s", envID, userID),
+		Path: fmt.Sprintf("/v1/environments/%s/users/%s", url.PathEscape(envID), url.PathEscape(userID)),
 		RawQuery: (&url.Values{
 			"include": {"memberOfGroupIDs"},
 		}).Encode(),
