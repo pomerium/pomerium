@@ -85,7 +85,7 @@ func getConfig(options ...Option) *config {
 	return cfg
 }
 
-// A ServiceAccount is used by the OneLogin provider to query the API.
+// A ServiceAccount is used by the Ping provider to query the API.
 type ServiceAccount struct {
 	ClientID      string `json:"client_id"`
 	ClientSecret  string `json:"client_secret"`
