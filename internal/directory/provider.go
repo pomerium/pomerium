@@ -8,6 +8,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	"github.com/pomerium/pomerium/internal/directory/ping"
+
 	"github.com/pomerium/pomerium/internal/directory/auth0"
 	"github.com/pomerium/pomerium/internal/directory/azure"
 	"github.com/pomerium/pomerium/internal/directory/github"
@@ -138,6 +140,18 @@ func GetProvider(options Options) (provider Provider) {
 			Str("provider", options.Provider).
 			Err(err).
 			Msg("invalid service account for onelogin directory provider")
+	case ping.Name:
+		serviceAccount, err := ping.ParseServiceAccount(options.ServiceAccount)
+		if err == nil {
+			return ping.New(
+				ping.WithProviderURL(providerURL),
+				ping.WithServiceAccount(serviceAccount))
+		}
+		log.Warn().
+			Str("service", "directory").
+			Str("provider", options.Provider).
+			Err(err).
+			Msg("invalid service account for ping directory provider")
 	}
 
 	log.Warn().
