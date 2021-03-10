@@ -16,12 +16,12 @@ const (
 	Name = "ping"
 )
 
-// Provider is an OneLogin implementation of the Authenticator interface.
+// Provider is a Ping implementation of the Authenticator interface.
 type Provider struct {
 	*pom_oidc.Provider
 }
 
-// New instantiates an OpenID Connect (OIDC) provider for OneLogin.
+// New instantiates an OpenID Connect (OIDC) provider for Ping.
 func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 	var p Provider
 	var err error
