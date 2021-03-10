@@ -156,6 +156,7 @@ module.exports = {
             "argo",
             "cloud-run",
             "istio",
+            "jwt-verification",
             "kubernetes",
             "kubernetes-dashboard",
             "local-oidc",
