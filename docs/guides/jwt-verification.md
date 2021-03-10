@@ -9,7 +9,7 @@ description: >-
 ---
 
 # JWT Verification
-This example demonstrates how to verify the [Pomerium JWT assertion header](https://www.pomerium.io/reference/#pass-identity-headers) using [Envoy](https://www.envoyproxy.io/).
+This example demonstrates how to verify the [Pomerium JWT assertion header](https://www.pomerium.io/reference/#pass-identity-headers) using [Envoy](https://www.envoyproxy.io/). This is useful for legacy or 3rd party applications which can't be modified to perform verification themselves.
 
 ## Requirements
 - [Docker](https://www.docker.com/)
@@ -169,22 +169,22 @@ Envoy configuration can be quite verbose, but the crucial bit is the HTTP filter
   typed_config:
     "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
     providers:
-    pomerium:
+      pomerium:
         issuer: authenticate.localhost.pomerium.io
         audiences:
-        - verify.localhost.pomerium.io
+          - verify.localhost.pomerium.io
         from_headers:
-        - name: X-Pomerium-Jwt-Assertion
+          - name: X-Pomerium-Jwt-Assertion
         remote_jwks:
-        http_uri:
+          http_uri:
             uri: https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json
             cluster: egress-authenticate
             timeout: 1s
     rules:
-    - match:
-        prefix: /
+      - match:
+          prefix: /
         requires:
-        provider_name: pomerium
+          provider_name: pomerium
 ```
 
 This configuration pulls the JWT out of the `X-Pomerium-Jwt-Assertion` header, verifies the `iss` and `aud` claims and checks the signature via the public key defined at the `jwks.json` endpoint. Documentation for additional configuration options is available here: [Envoy JWT Authentication](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/jwt_authn_filter#config-http-filters-jwt-authn).
