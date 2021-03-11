@@ -108,6 +108,7 @@ module.exports = {
             "identity-providers/google",
             "identity-providers/okta",
             "identity-providers/one-login",
+            "identity-providers/ping",
           ],
         },
         {
