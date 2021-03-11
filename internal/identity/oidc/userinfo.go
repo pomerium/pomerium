@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
@@ -51,12 +52,19 @@ func (transport *userInfoRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 		return nil, err
 	}
 
-	// AWS Cognito returns email_verified as a string, so we'll make it a bool
 	var userInfo map[string]interface{}
 	if err := json.Unmarshal(bs, &userInfo); err == nil {
+		// AWS Cognito returns email_verified as a string, so we'll make it a bool
 		if ev, ok := userInfo["email_verified"]; ok {
 			userInfo["email_verified"], _ = strconv.ParseBool(fmt.Sprint(ev))
 		}
+
+		// Some providers (ping) have a "mail" claim instead of "email"
+		email, mail := userInfo["email"], userInfo["mail"]
+		if email == nil && mail != nil && strings.Contains(fmt.Sprint(mail), "@") {
+			userInfo["email"] = mail
+		}
+
 		bs, _ = json.Marshal(userInfo)
 	}
 
