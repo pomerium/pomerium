@@ -151,7 +151,7 @@ func TestOPA(t *testing.T) {
 			err = authJWT.Claims(publicJWK, &claims)
 			require.NoError(t, err)
 			assert.LessOrEqual(t, claims["exp"], float64(time.Now().Add(time.Minute*6).Unix()),
-				"JWT should expire after 5 minutes")
+				"JWT should expire within 5 minutes, but got: %v", claims["exp"])
 			delete(claims, "exp")
 			return claims
 		}

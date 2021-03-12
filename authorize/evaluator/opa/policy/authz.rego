@@ -2,6 +2,9 @@ package pomerium.authz
 
 default allow = false
 
+# 5 minutes from now
+five_minutes := (time.now_ns() / 1e9) + (60 * 5)
+
 route_policy_idx := first_allowed_route_policy_idx(input.http.url)
 
 route_policy := data.route_policies[route_policy_idx]
@@ -166,8 +169,9 @@ jwt_payload_jti = v {
 }
 
 jwt_payload_exp = v {
-	# 5 minutes from now
-	v = (time.now_ns() / 1e9) + (60 * 5)
+	v = min([five_minutes, session.id_token.expires_at.seconds])
+} else = v {
+	v = five_minutes
 } else = null {
 	true
 }
