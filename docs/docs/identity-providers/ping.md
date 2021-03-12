@@ -30,7 +30,7 @@ Underneath `Configuration` there are several options which will be used in the P
 
 ## Service Account
 
-To use `allowed_groups` in a policy an `idp_service_account` needs to be set in the Pomerium configuration. The service account for Ping uses a **different** application and client ID and client secret from the one configured above.
+To use `allowed_groups` in a policy, an `idp_service_account` needs to be set in the Pomerium configuration. The service account for Ping uses a **different** application and client ID and client secret from the one configured above.
 
 Click **Add Application**, but this time select **Worker**/**Worker App**.
 
