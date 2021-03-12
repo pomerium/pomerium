@@ -58,9 +58,14 @@ idp_service_account: ICB7CiAgICAiY2xpZW50X2lkIjogIldPUktFUl9DTElFTlRfSURfSEVSRSI
 
 ## Pomerium Configuration
 
-```bash
-IDP_PROVIDER="ping"
-IDP_PROVIDER_URL="https://auth.pingone.com/720dbe8a-83ed-48e1-9988-9928301ae668/as"
-IDP_CLIENT_ID="CLIENT_ID"
-IDP_CLIENT_SECRET="CLIENT_SECRET"
+```yaml
+idp_provider: "ping"
+idp_provider_url: "https://auth.pingone.com/720dbe8a-83ed-48e1-9988-9928301ae668/as"
+idp_client_id: "CLIENT_ID"
+idp_client_secret: "CLIENT_SECRET"
+idp_service_account: |
+  {
+    "client_id": "WORKER_CLIENT_ID",
+    "client_secret": "WORKER_CLIENT_SECRET"
+  }
 ```
