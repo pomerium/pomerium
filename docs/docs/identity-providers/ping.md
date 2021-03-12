@@ -19,7 +19,7 @@ Click **Connections** in the side menu, select **Applications** and click **Add 
 
 Name the application and use the Pomerium authenticate redirect URL. For example: `https://authenticate.localhost.pomerium.io/oauth2/callback`.
 
-Underneath `Configuration` are several options which will be used in the Pomerium configuration:
+Underneath `Configuration` there are several options which will be used in the Pomerium configuration:
 
 * The `idp_provider` is set to `ping`.
 * `Issuer`: used as the `idp_provider_url` (e.g. `https://auth.pingone.com/720dbe8a-83ed-48e1-9988-9928301ae668/as`)
