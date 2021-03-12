@@ -49,7 +49,7 @@ func TestUserInfoRoundTrip(t *testing.T) {
             }`)
 		case "/oauth2/userInfo":
 			w.Header().Set("Content-Type", "application/json")
-			io.WriteString(w, `{ "email_verified": "true" }`)
+			io.WriteString(w, `{ "email_verified": "true", "mail": "test@example.com" }`)
 		}
 	}))
 	defer srv.Close()
@@ -71,4 +71,5 @@ func TestUserInfoRoundTrip(t *testing.T) {
 		return
 	}
 	assert.True(t, userInfo.EmailVerified)
+	assert.Equal(t, "test@example.com", userInfo.Email)
 }
