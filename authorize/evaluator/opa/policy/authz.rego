@@ -166,7 +166,8 @@ jwt_payload_jti = v {
 }
 
 jwt_payload_exp = v {
-	v = session.expires_at.seconds
+	# 5 minutes from now
+	v = (time.now_ns() / 1e9) + (60 * 5)
 } else = null {
 	true
 }
