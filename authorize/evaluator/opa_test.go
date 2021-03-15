@@ -150,6 +150,8 @@ func TestOPA(t *testing.T) {
 			var claims M
 			err = authJWT.Claims(publicJWK, &claims)
 			require.NoError(t, err)
+			assert.LessOrEqual(t, claims["exp"], float64(time.Now().Add(time.Minute*6).Unix()),
+				"JWT should expire within 5 minutes, but got: %v", claims["exp"])
 			return claims
 		}
 
@@ -174,6 +176,7 @@ func TestOPA(t *testing.T) {
 					Email: "group1@example.com",
 				},
 			)
+			delete(payload, "exp")
 			assert.Equal(t, M{
 				"aud":    "from.example.com",
 				"iss":    "authenticate.example.com",
@@ -212,8 +215,8 @@ func TestOPA(t *testing.T) {
 				"aud":    "from.example.com",
 				"iss":    "authenticate.example.com",
 				"jti":    "session1",
-				"exp":    1609462861.0,
 				"iat":    1612141261.0,
+				"exp":    1609462861.0,
 				"sub":    "user1",
 				"user":   "user1",
 				"email":  "a@example.com",
