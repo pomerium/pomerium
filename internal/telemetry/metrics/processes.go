@@ -64,7 +64,7 @@ func NewProcessCollector(name string) *ProcessCollector {
 			Name:        pc.cpuTotal.Name(),
 			Description: pc.cpuTotal.Description(),
 			Measure:     pc.cpuTotal,
-			Aggregation: view.Sum(),
+			Aggregation: view.LastValue(),
 		},
 		{
 			Name:        pc.openFDs.Name(),
