@@ -99,6 +99,7 @@ func WithTestRedisSentinel(handler func(rawURL string) error) error {
 	redises := make([]*dockertest.Resource, 3)
 	for i := range redises {
 		r, err := pool.RunWithOptions(&dockertest.RunOptions{
+			Hostname:   fmt.Sprintf("redis%d", i),
 			Repository: "redis",
 			Tag:        "6",
 		})
@@ -128,6 +129,7 @@ func WithTestRedisSentinel(handler func(rawURL string) error) error {
 		}
 
 		r, err := pool.RunWithOptions(&dockertest.RunOptions{
+			Hostname:   fmt.Sprintf("sentineld%d", i),
 			Repository: "redis",
 			Tag:        "6",
 			Entrypoint: []string{
