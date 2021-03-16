@@ -118,18 +118,11 @@ func WithTestRedisSentinel(handler func(rawURL string) error) error {
 
 	sentinels := make([]*dockertest.Resource, len(redises))
 	for i := range sentinels {
-		h1, p1, err := net.SplitHostPort(redises[0].GetHostPort("6379/tcp"))
-		if err != nil {
-			return err
-		}
-
-		conf := fmt.Sprintf("sentinel monitor master %s %s %d\n", h1, p1, len(redises))
+		conf := fmt.Sprintf("sentinel monitor master %s 6379 %d\n",
+			redises[0].Container.NetworkSettings.IPAddress, len(redises))
 		if i > 0 {
-			h, p, err := net.SplitHostPort(redises[i].GetHostPort("6379/tcp"))
-			if err != nil {
-				return err
-			}
-			conf += fmt.Sprintf("sentinel known-slave master %s %s\n", h, p)
+			conf += fmt.Sprintf("sentinel known-slave master %s 6379\n",
+				redises[i].Container.NetworkSettings.IPAddress)
 		}
 
 		r, err := pool.RunWithOptions(&dockertest.RunOptions{
