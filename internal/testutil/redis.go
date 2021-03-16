@@ -96,12 +96,23 @@ func WithTestRedisSentinel(handler func(rawURL string) error) error {
 		return err
 	}
 
+	network, err := pool.Client.CreateNetwork(docker.CreateNetworkOptions{
+		Name: "redis-sentinel",
+	})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = pool.Client.RemoveNetwork("redis-sentinel")
+	}()
+
 	redises := make([]*dockertest.Resource, 3)
 	for i := range redises {
 		r, err := pool.RunWithOptions(&dockertest.RunOptions{
 			Hostname:   fmt.Sprintf("redis%d", i),
 			Repository: "redis",
 			Tag:        "6",
+			NetworkID:  network.ID,
 		})
 		if err != nil {
 			return err
@@ -139,6 +150,7 @@ func WithTestRedisSentinel(handler func(rawURL string) error) error {
 			ExposedPorts: []string{
 				"26379/tcp",
 			},
+			NetworkID: network.ID,
 		})
 		if err != nil {
 			return err
@@ -163,14 +175,21 @@ func WithTestRedisSentinel(handler func(rawURL string) error) error {
 
 	addrs := make([]string, len(sentinels))
 	for i, r := range sentinels {
-		addrs[i] = r.GetHostPort("26379/tcp")
+		addrs[i] = net.JoinHostPort(
+			r.Container.NetworkSettings.Networks[network.Name].IPAddress,
+			"26379",
+		)
 	}
 
 	redisURL := fmt.Sprintf("redis-sentinel://%s/master/0", strings.Join(addrs, ","))
 
 	for _, r := range redises {
+		addr := net.JoinHostPort(
+			r.Container.NetworkSettings.Networks[network.ID].IPAddress,
+			"6379",
+		)
 		if err := pool.Retry(func() error {
-			options, err := redis.ParseURL(fmt.Sprintf("redis://%s/0", r.GetHostPort("6379/tcp")))
+			options, err := redis.ParseURL(fmt.Sprintf("redis://%s/0", addr))
 			if err != nil {
 				return err
 			}
