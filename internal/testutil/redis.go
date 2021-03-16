@@ -6,11 +6,15 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"net"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v3/docker"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -76,6 +80,131 @@ func WithTestRedis(useTLS bool, handler func(rawURL string) error) error {
 
 	if err := pool.Purge(resource); err != nil {
 		return err
+	}
+
+	return e
+}
+
+// WithTestRedisSentinel creates a new redis sentinel 3 node cluster.
+func WithTestRedisSentinel(handler func(rawURL string) error) error {
+	ctx, clearTimeout := context.WithTimeout(context.Background(), maxWait)
+	defer clearTimeout()
+
+	// uses a sensible default on windows (tcp/http) and linux/osx (socket)
+	pool, err := dockertest.NewPool("")
+	if err != nil {
+		return err
+	}
+
+	redises := make([]*dockertest.Resource, 3)
+	for i := range redises {
+		r, err := pool.RunWithOptions(&dockertest.RunOptions{
+			Repository: "redis",
+			Tag:        "6",
+		})
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+		_ = r.Expire(uint(maxWait.Seconds()))
+
+		redises[i] = r
+	}
+
+	sentinels := make([]*dockertest.Resource, len(redises))
+	for i := range sentinels {
+		h1, p1, err := net.SplitHostPort(redises[0].GetHostPort("6379/tcp"))
+		if err != nil {
+			return err
+		}
+
+		conf := fmt.Sprintf("sentinel monitor master %s %s %d\n", h1, p1, len(redises))
+		if i > 0 {
+			h, p, err := net.SplitHostPort(redises[i].GetHostPort("6379/tcp"))
+			if err != nil {
+				return err
+			}
+			conf += fmt.Sprintf("sentinel known-slave master %s %s\n", h, p)
+		}
+
+		r, err := pool.RunWithOptions(&dockertest.RunOptions{
+			Repository: "redis",
+			Tag:        "6",
+			Entrypoint: []string{
+				"/bin/bash", "-c",
+				`echo "` + conf + `" >/tmp/sentinel.conf && chmod 0777 /tmp/sentinel.conf && exec docker-entrypoint.sh /tmp/sentinel.conf --sentinel`,
+			},
+			ExposedPorts: []string{
+				"26379/tcp",
+			},
+		})
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+		_ = r.Expire(uint(maxWait.Seconds()))
+
+		go func() {
+			_ = pool.Client.Logs(docker.LogsOptions{
+				Context:      ctx,
+				Stderr:       true,
+				Stdout:       true,
+				Follow:       true,
+				Timestamps:   true,
+				Container:    r.Container.ID,
+				OutputStream: os.Stderr,
+				ErrorStream:  os.Stderr,
+			})
+		}()
+		sentinels[i] = r
+	}
+
+	addrs := make([]string, len(sentinels))
+	for i, r := range sentinels {
+		addrs[i] = r.GetHostPort("26379/tcp")
+	}
+
+	redisURL := fmt.Sprintf("redis-sentinel://%s/master/0", strings.Join(addrs, ","))
+
+	for _, r := range redises {
+		if err := pool.Retry(func() error {
+			options, err := redis.ParseURL(fmt.Sprintf("redis://%s/0", r.GetHostPort("6379/tcp")))
+			if err != nil {
+				return err
+			}
+
+			client := redis.NewClient(options)
+			defer client.Close()
+
+			return client.Ping(ctx).Err()
+		}); err != nil {
+			_ = pool.Purge(r)
+			return err
+		}
+	}
+	for _, r := range sentinels {
+		if err := pool.Retry(func() error {
+			options, err := redis.ParseURL(fmt.Sprintf("redis://%s/0", r.GetHostPort("26379/tcp")))
+			if err != nil {
+				return err
+			}
+
+			client := redis.NewClient(options)
+			defer client.Close()
+
+			return client.Ping(ctx).Err()
+		}); err != nil {
+			_ = pool.Purge(r)
+			return err
+		}
+	}
+
+	e := handler(redisURL)
+
+	for _, r := range append(redises, sentinels...) {
+		if err := pool.Purge(r); err != nil {
+			return err
+		}
 	}
 
 	return e

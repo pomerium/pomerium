@@ -22,64 +22,80 @@ func TestBackend(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	for _, useTLS := range []bool{true, false} {
-		require.NoError(t, testutil.WithTestRedis(useTLS, func(rawURL string) error {
-			ctx := context.Background()
-			var opts []Option
-			if useTLS {
-				opts = append(opts, WithTLSConfig(testutil.RedisTLSConfig()))
-			}
-			backend, err := New(rawURL, opts...)
+	handler := func(t *testing.T, useTLS bool, rawURL string) error {
+		ctx := context.Background()
+		var opts []Option
+		if useTLS {
+			opts = append(opts, WithTLSConfig(testutil.RedisTLSConfig()))
+		}
+		backend, err := New(rawURL, opts...)
+		require.NoError(t, err)
+		defer func() { _ = backend.Close() }()
+		t.Run("get missing record", func(t *testing.T) {
+			record, err := backend.Get(ctx, "TYPE", "abcd")
+			require.Error(t, err)
+			assert.Nil(t, record)
+		})
+		t.Run("get record", func(t *testing.T) {
+			data := new(anypb.Any)
+			assert.NoError(t, backend.Put(ctx, &databroker.Record{
+				Type: "TYPE",
+				Id:   "abcd",
+				Data: data,
+			}))
+			record, err := backend.Get(ctx, "TYPE", "abcd")
 			require.NoError(t, err)
-			defer func() { _ = backend.Close() }()
-			t.Run("get missing record", func(t *testing.T) {
-				record, err := backend.Get(ctx, "TYPE", "abcd")
-				require.Error(t, err)
-				assert.Nil(t, record)
-			})
-			t.Run("get record", func(t *testing.T) {
-				data := new(anypb.Any)
-				assert.NoError(t, backend.Put(ctx, &databroker.Record{
+			if assert.NotNil(t, record) {
+				assert.Equal(t, data, record.Data)
+				assert.Nil(t, record.DeletedAt)
+				assert.Equal(t, "abcd", record.Id)
+				assert.NotNil(t, record.ModifiedAt)
+				assert.Equal(t, "TYPE", record.Type)
+				assert.Equal(t, uint64(1), record.Version)
+			}
+		})
+		t.Run("delete record", func(t *testing.T) {
+			assert.NoError(t, backend.Put(ctx, &databroker.Record{
+				Type:      "TYPE",
+				Id:        "abcd",
+				DeletedAt: timestamppb.Now(),
+			}))
+			record, err := backend.Get(ctx, "TYPE", "abcd")
+			assert.Error(t, err)
+			assert.Nil(t, record)
+		})
+		t.Run("get all records", func(t *testing.T) {
+			for i := 0; i < 1000; i++ {
+				require.NoError(t, backend.Put(ctx, &databroker.Record{
 					Type: "TYPE",
-					Id:   "abcd",
-					Data: data,
+					Id:   fmt.Sprint(i),
 				}))
-				record, err := backend.Get(ctx, "TYPE", "abcd")
-				require.NoError(t, err)
-				if assert.NotNil(t, record) {
-					assert.Equal(t, data, record.Data)
-					assert.Nil(t, record.DeletedAt)
-					assert.Equal(t, "abcd", record.Id)
-					assert.NotNil(t, record.ModifiedAt)
-					assert.Equal(t, "TYPE", record.Type)
-					assert.Equal(t, uint64(1), record.Version)
-				}
-			})
-			t.Run("delete record", func(t *testing.T) {
-				assert.NoError(t, backend.Put(ctx, &databroker.Record{
-					Type:      "TYPE",
-					Id:        "abcd",
-					DeletedAt: timestamppb.Now(),
-				}))
-				record, err := backend.Get(ctx, "TYPE", "abcd")
-				assert.Error(t, err)
-				assert.Nil(t, record)
-			})
-			t.Run("get all records", func(t *testing.T) {
-				for i := 0; i < 1000; i++ {
-					assert.NoError(t, backend.Put(ctx, &databroker.Record{
-						Type: "TYPE",
-						Id:   fmt.Sprint(i),
-					}))
-				}
-				records, version, err := backend.GetAll(ctx)
-				assert.NoError(t, err)
-				assert.Len(t, records, 1000)
-				assert.Equal(t, uint64(1002), version)
-			})
-			return nil
-		}))
+			}
+			records, version, err := backend.GetAll(ctx)
+			assert.NoError(t, err)
+			assert.Len(t, records, 1000)
+			assert.Equal(t, uint64(1002), version)
+		})
+		return nil
 	}
+
+	t.Run("no-tls", func(t *testing.T) {
+		require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
+			return handler(t, false, rawURL)
+		}))
+	})
+
+	t.Run("tls", func(t *testing.T) {
+		require.NoError(t, testutil.WithTestRedis(true, func(rawURL string) error {
+			return handler(t, true, rawURL)
+		}))
+	})
+
+	t.Run("sentinel", func(t *testing.T) {
+		require.NoError(t, testutil.WithTestRedisSentinel(func(rawURL string) error {
+			return handler(t, false, rawURL)
+		}))
+	})
 }
 
 func TestChangeSignal(t *testing.T) {
