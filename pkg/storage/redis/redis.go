@@ -55,15 +55,11 @@ func New(rawURL string, options ...Option) (*Backend, error) {
 		closed:   make(chan struct{}),
 		onChange: signal.New(),
 	}
-	opts, err := redis.ParseURL(rawURL)
+	var err error
+	backend.client, err = newClientFromURL(rawURL, backend.cfg.tls)
 	if err != nil {
 		return nil, err
 	}
-	// when using TLS, the TLS config will not be set to nil, in which case we replace it with our own
-	if opts.TLSConfig != nil {
-		opts.TLSConfig = backend.cfg.tls
-	}
-	backend.client = redis.NewClient(opts)
 	metrics.AddRedisMetrics(backend.client.PoolStats)
 	go backend.listenForVersionChanges()
 	if cfg.expiry != 0 {
