@@ -58,7 +58,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 
 	// errors checked in ValidateOptions
 	state.authenticateURL, _ = urlutil.DeepCopy(cfg.Options.AuthenticateURL)
-	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: dashboardPath})
+	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/"})
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
 
