@@ -952,6 +952,14 @@ The backend storage that databroker server will use.
 
 The connection string that the databroker service will use to connect to storage backend.
 
+For `redis`, the following URL types are supported:
+
+- simple: `redis://{username}:{password}@{host}:{port}/{db}`
+- sentinel: `redis+sentinel://[:password@]host:port[,host2:port2,...]/[master_name[/db]][?param1=value1[&param2=value2&...]]`
+- cluster: `redis+cluster://[username:password@]host:port[,host2:port2,...]/[?param1=value1[&param2=value=2&...]]`
+
+You can also enable TLS with `rediss://`, `rediss+sentinel://` and `rediss+cluster://`.
+
 
 ### Data Broker Storage Certificate File
 - Environment Variable: `DATABROKER_STORAGE_CERT_FILE`
