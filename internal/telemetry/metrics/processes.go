@@ -141,9 +141,9 @@ func (pc *ProcessCollector) Measure(ctx context.Context, pid int) error {
 	stats.Record(ctx,
 		pc.cpuTotal.M(procStat.CPUTime()),
 		pc.openFDs.M(int64(procFDLen)),
-		pc.maxFDs.M(procLimits.OpenFiles),
+		pc.maxFDs.M(int64(procLimits.OpenFiles)),
 		pc.vsize.M(int64(procStat.VSize)),
-		pc.maxVsize.M(procLimits.AddressSpace),
+		pc.maxVsize.M(int64(procLimits.AddressSpace)),
 		pc.rss.M(int64(procStat.RSS)),
 		pc.startTime.M(procStartTime),
 	)
