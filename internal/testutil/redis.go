@@ -85,6 +85,96 @@ func WithTestRedis(useTLS bool, handler func(rawURL string) error) error {
 	return e
 }
 
+// WithTestRedisCluster creates a new redis cluster 3 node cluster.
+func WithTestRedisCluster(handler func(rawURL string) error) error {
+	ctx, clearTimeout := context.WithTimeout(context.Background(), maxWait)
+	defer clearTimeout()
+
+	// uses a sensible default on windows (tcp/http) and linux/osx (socket)
+	pool, err := dockertest.NewPool("")
+	if err != nil {
+		return err
+	}
+
+	redises := make([]*dockertest.Resource, 3)
+	for i := range redises {
+		conf := "cluster-enabled yes\ncluster-config-file nodes.conf"
+		r, err := pool.RunWithOptions(&dockertest.RunOptions{
+			Hostname:   fmt.Sprintf("redis%d", i),
+			Repository: "redis",
+			Tag:        "6",
+			Entrypoint: []string{
+				"/bin/bash", "-c",
+				`echo "` + conf + `" >/tmp/redis.conf && chmod 0777 /tmp/redis.conf && exec docker-entrypoint.sh /tmp/redis.conf`,
+			},
+			ExposedPorts: []string{
+				"6379/tcp",
+				"26379/tcp",
+			},
+		})
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+		_ = r.Expire(uint(maxWait.Seconds()))
+
+		go func() {
+			_ = pool.Client.Logs(docker.LogsOptions{
+				Context:      ctx,
+				Stderr:       true,
+				Stdout:       true,
+				Follow:       true,
+				Timestamps:   true,
+				Container:    r.Container.ID,
+				OutputStream: os.Stderr,
+				ErrorStream:  os.Stderr,
+			})
+		}()
+
+		redises[i] = r
+	}
+	addrs := make([]string, 3)
+	for i, r := range redises {
+		addrs[i] = net.JoinHostPort(
+			r.Container.NetworkSettings.IPAddress,
+			"6379",
+		)
+	}
+
+	for _, addr := range addrs {
+		err := pool.Retry(func() error {
+			options, err := redis.ParseURL(fmt.Sprintf("redis://%s/0", addr))
+			if err != nil {
+				return err
+			}
+
+			client := redis.NewClient(options)
+			defer client.Close()
+
+			return client.Ping(ctx).Err()
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// join the nodes to the cluster
+	err = bootstrapRedisCluster(ctx, redises)
+	if err != nil {
+		return err
+	}
+
+	e := handler(fmt.Sprintf("redis+cluster://%s", strings.Join(addrs, ",")))
+
+	for _, r := range redises {
+		if err := pool.Purge(r); err != nil {
+			return err
+		}
+	}
+
+	return e
+}
+
 // WithTestRedisSentinel creates a new redis sentinel 3 node cluster.
 func WithTestRedisSentinel(handler func(rawURL string) error) error {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), maxWait)
@@ -167,7 +257,7 @@ func WithTestRedisSentinel(handler func(rawURL string) error) error {
 		)
 	}
 
-	redisURL := fmt.Sprintf("redis-sentinel://%s/master/0", strings.Join(addrs, ","))
+	redisURL := fmt.Sprintf("redis+sentinel://%s/master/0", strings.Join(addrs, ","))
 
 	for _, r := range redises {
 		addr := net.JoinHostPort(
@@ -238,4 +328,62 @@ func RedisTLSConfig() *tls.Config {
 		MinVersion:   tls.VersionTLS12,
 	}
 	return tlsConfig
+}
+
+func bootstrapRedisCluster(ctx context.Context, resources []*dockertest.Resource) error {
+	clients := make([]redis.UniversalClient, len(resources))
+	for i, r := range resources {
+		addr := net.JoinHostPort(r.Container.NetworkSettings.IPAddress, "6379")
+		options, err := redis.ParseURL(fmt.Sprintf("redis://%s/0", addr))
+		if err != nil {
+			return err
+		}
+		clients[i] = redis.NewClient(options)
+		defer func() { _ = clients[i].Close() }()
+
+		if i > 0 {
+			err := clients[i].ClusterMeet(ctx, resources[0].Container.NetworkSettings.IPAddress, "6379").Err()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// set slots
+	const redisSlotCount = 16384
+	assignments := make([][]int, len(resources))
+	for i := 0; i < redisSlotCount; i++ {
+		assignments[i%len(assignments)] = append(assignments[i%len(assignments)], i)
+	}
+	for i, c := range clients {
+		err := c.ClusterAddSlots(ctx, assignments[i]...).Err()
+		if err != nil {
+			return err
+		}
+	}
+
+	// wait for ready
+	ticker := time.NewTicker(time.Millisecond * 50)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+
+		ready := 0
+		for _, c := range clients {
+			str, err := c.ClusterInfo(ctx).Result()
+			if err != nil {
+				return err
+			}
+			if strings.Contains(str, "cluster_state:ok") {
+				ready++
+			}
+		}
+		if ready == len(clients) {
+			return nil
+		}
+	}
 }
