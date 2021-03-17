@@ -91,6 +91,12 @@ func TestBackend(t *testing.T) {
 		}))
 	})
 
+	t.Run("cluster", func(t *testing.T) {
+		require.NoError(t, testutil.WithTestRedisCluster(func(rawURL string) error {
+			return handler(t, false, rawURL)
+		}))
+	})
+
 	t.Run("sentinel", func(t *testing.T) {
 		require.NoError(t, testutil.WithTestRedisSentinel(func(rawURL string) error {
 			return handler(t, false, rawURL)

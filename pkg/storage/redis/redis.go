@@ -25,10 +25,12 @@ const (
 	maxTransactionRetries = 100
 	watchPollInterval     = 30 * time.Second
 
-	lastVersionKey   = "pomerium.last_version"
-	lastVersionChKey = "pomerium.last_version_ch"
-	recordHashKey    = "pomerium.records"
-	changesSetKey    = "pomerium.changes"
+	// we rely on transactions in redis, so all redis-cluster keys need to be
+	// on the same node. Using a `hash tag` gives us this capability.
+	lastVersionKey   = "{pomerium}.last_version"
+	lastVersionChKey = "{pomerium}.last_version_ch"
+	recordHashKey    = "{pomerium}.records"
+	changesSetKey    = "{pomerium}.changes"
 )
 
 // custom errors
@@ -40,7 +42,7 @@ var (
 type Backend struct {
 	cfg *config
 
-	client   *redis.Client
+	client   redis.UniversalClient
 	onChange *signal.Signal
 
 	closeOnce sync.Once
