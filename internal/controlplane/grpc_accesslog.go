@@ -3,7 +3,7 @@ package controlplane
 import (
 	"strings"
 
-	envoy_service_accesslog_v2 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v2"
+	envoy_service_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/rs/zerolog"
 
@@ -11,11 +11,11 @@ import (
 )
 
 func (srv *Server) registerAccessLogHandlers() {
-	envoy_service_accesslog_v2.RegisterAccessLogServiceServer(srv.GRPCServer, srv)
+	envoy_service_accesslog_v3.RegisterAccessLogServiceServer(srv.GRPCServer, srv)
 }
 
 // StreamAccessLogs receives logs from envoy and prints them to stdout.
-func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v2.AccessLogService_StreamAccessLogsServer) error {
+func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogService_StreamAccessLogsServer) error {
 	for {
 		msg, err := stream.Recv()
 		if err != nil {

@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"testing"
 
-	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -63,13 +63,13 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	})
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(
-		&envoy_service_auth_v2.CheckRequest{
-			Attributes: &envoy_service_auth_v2.AttributeContext{
-				Source: &envoy_service_auth_v2.AttributeContext_Peer{
+		&envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Source: &envoy_service_auth_v3.AttributeContext_Peer{
 					Certificate: url.QueryEscape(certPEM),
 				},
-				Request: &envoy_service_auth_v2.AttributeContext_Request{
-					Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 						Id:     "id-1234",
 						Method: "GET",
 						Headers: map[string]string{
@@ -110,19 +110,19 @@ func Test_getEvaluatorRequest(t *testing.T) {
 func Test_handleForwardAuth(t *testing.T) {
 	tests := []struct {
 		name           string
-		checkReq       *envoy_service_auth_v2.CheckRequest
+		checkReq       *envoy_service_auth_v3.CheckRequest
 		forwardAuthURL string
 		want           bool
 	}{
 		{
 			name: "enabled",
-			checkReq: &envoy_service_auth_v2.CheckRequest{
-				Attributes: &envoy_service_auth_v2.AttributeContext{
-					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+			checkReq: &envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Source: &envoy_service_auth_v3.AttributeContext_Peer{
 						Certificate: url.QueryEscape(certPEM),
 					},
-					Request: &envoy_service_auth_v2.AttributeContext_Request{
-						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 							Method: "GET",
 							Path:   "/verify?uri=" + url.QueryEscape("https://example.com/some/path?qs=1"),
 							Host:   "forward-auth.example.com",
@@ -142,13 +142,13 @@ func Test_handleForwardAuth(t *testing.T) {
 		},
 		{
 			name: "honor x-forwarded-uri set",
-			checkReq: &envoy_service_auth_v2.CheckRequest{
-				Attributes: &envoy_service_auth_v2.AttributeContext{
-					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+			checkReq: &envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Source: &envoy_service_auth_v3.AttributeContext_Peer{
 						Certificate: url.QueryEscape(certPEM),
 					},
-					Request: &envoy_service_auth_v2.AttributeContext_Request{
-						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 							Method: "GET",
 							Path:   "/",
 							Host:   "forward-auth.example.com",
@@ -167,13 +167,13 @@ func Test_handleForwardAuth(t *testing.T) {
 		},
 		{
 			name: "request with invalid forward auth url",
-			checkReq: &envoy_service_auth_v2.CheckRequest{
-				Attributes: &envoy_service_auth_v2.AttributeContext{
-					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+			checkReq: &envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Source: &envoy_service_auth_v3.AttributeContext_Peer{
 						Certificate: url.QueryEscape(certPEM),
 					},
-					Request: &envoy_service_auth_v2.AttributeContext_Request{
-						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 							Method: "GET",
 							Path:   "/verify?uri=" + url.QueryEscape("https://example.com?q=foo"),
 							Host:   "fake-forward-auth.example.com",
@@ -187,13 +187,13 @@ func Test_handleForwardAuth(t *testing.T) {
 		},
 		{
 			name: "request with invalid path",
-			checkReq: &envoy_service_auth_v2.CheckRequest{
-				Attributes: &envoy_service_auth_v2.AttributeContext{
-					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+			checkReq: &envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Source: &envoy_service_auth_v3.AttributeContext_Peer{
 						Certificate: url.QueryEscape(certPEM),
 					},
-					Request: &envoy_service_auth_v2.AttributeContext_Request{
-						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 							Method: "GET",
 							Path:   "/foo?uri=" + url.QueryEscape("https://example.com?q=foo"),
 							Host:   "forward-auth.example.com",
@@ -207,13 +207,13 @@ func Test_handleForwardAuth(t *testing.T) {
 		},
 		{
 			name: "request with empty uri",
-			checkReq: &envoy_service_auth_v2.CheckRequest{
-				Attributes: &envoy_service_auth_v2.AttributeContext{
-					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+			checkReq: &envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Source: &envoy_service_auth_v3.AttributeContext_Peer{
 						Certificate: url.QueryEscape(certPEM),
 					},
-					Request: &envoy_service_auth_v2.AttributeContext_Request{
-						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 							Method: "GET",
 							Path:   "/verify?uri=",
 							Host:   "forward-auth.example.com",
@@ -227,13 +227,13 @@ func Test_handleForwardAuth(t *testing.T) {
 		},
 		{
 			name: "request with invalid uri",
-			checkReq: &envoy_service_auth_v2.CheckRequest{
-				Attributes: &envoy_service_auth_v2.AttributeContext{
-					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+			checkReq: &envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Source: &envoy_service_auth_v3.AttributeContext_Peer{
 						Certificate: url.QueryEscape(certPEM),
 					},
-					Request: &envoy_service_auth_v2.AttributeContext_Request{
-						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 							Method: "GET",
 							Path:   "/verify?uri= http://example.com/foo",
 							Host:   "forward-auth.example.com",
@@ -279,13 +279,13 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 		}},
 	})
 
-	actual, err := a.getEvaluatorRequestFromCheckRequest(&envoy_service_auth_v2.CheckRequest{
-		Attributes: &envoy_service_auth_v2.AttributeContext{
-			Source: &envoy_service_auth_v2.AttributeContext_Peer{
+	actual, err := a.getEvaluatorRequestFromCheckRequest(&envoy_service_auth_v3.CheckRequest{
+		Attributes: &envoy_service_auth_v3.AttributeContext{
+			Source: &envoy_service_auth_v3.AttributeContext_Peer{
 				Certificate: url.QueryEscape(certPEM),
 			},
-			Request: &envoy_service_auth_v2.AttributeContext_Request{
-				Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+			Request: &envoy_service_auth_v3.AttributeContext_Request{
+				Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 					Id:     "id-1234",
 					Method: "GET",
 					Headers: map[string]string{
@@ -473,25 +473,25 @@ func TestAuthorize_Check(t *testing.T) {
 	a.currentOptions.Store(&config.Options{ForwardAuthURL: mustParseURL("https://forward-auth.example.com")})
 
 	cmpOpts := []cmp.Option{
-		cmpopts.IgnoreUnexported(envoy_service_auth_v2.CheckResponse{}),
+		cmpopts.IgnoreUnexported(envoy_service_auth_v3.CheckResponse{}),
 		cmpopts.IgnoreUnexported(status.Status{}),
-		cmpopts.IgnoreTypes(envoy_service_auth_v2.DeniedHttpResponse{}),
+		cmpopts.IgnoreTypes(envoy_service_auth_v3.DeniedHttpResponse{}),
 	}
 	tests := []struct {
 		name    string
-		in      *envoy_service_auth_v2.CheckRequest
-		want    *envoy_service_auth_v2.CheckResponse
+		in      *envoy_service_auth_v3.CheckRequest
+		want    *envoy_service_auth_v3.CheckResponse
 		wantErr bool
 	}{
 		{
 			"basic deny",
-			&envoy_service_auth_v2.CheckRequest{
-				Attributes: &envoy_service_auth_v2.AttributeContext{
-					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+			&envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Source: &envoy_service_auth_v3.AttributeContext_Peer{
 						Certificate: url.QueryEscape(certPEM),
 					},
-					Request: &envoy_service_auth_v2.AttributeContext_Request{
-						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 							Id:     "id-1234",
 							Method: "GET",
 							Headers: map[string]string{
@@ -506,23 +506,23 @@ func TestAuthorize_Check(t *testing.T) {
 					},
 				},
 			},
-			&envoy_service_auth_v2.CheckResponse{
+			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: 7, Message: "Access Denied"},
-				HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{},
+				HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
+					DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{},
 				},
 			},
 			false,
 		},
 		{
 			"basic forward-auth deny",
-			&envoy_service_auth_v2.CheckRequest{
-				Attributes: &envoy_service_auth_v2.AttributeContext{
-					Source: &envoy_service_auth_v2.AttributeContext_Peer{
+			&envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Source: &envoy_service_auth_v3.AttributeContext_Peer{
 						Certificate: url.QueryEscape(certPEM),
 					},
-					Request: &envoy_service_auth_v2.AttributeContext_Request{
-						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 							Method: "GET",
 							Path:   "/verify?uri=" + url.QueryEscape("https://example.com/some/path?qs=1"),
 							Host:   "forward-auth.example.com",
@@ -531,10 +531,10 @@ func TestAuthorize_Check(t *testing.T) {
 					},
 				},
 			},
-			&envoy_service_auth_v2.CheckResponse{
+			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: 7, Message: "Access Denied"},
-				HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{},
+				HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
+					DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{},
 				},
 			},
 			false,

@@ -89,6 +89,7 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 					},
 				},
 			},
+			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
 		},
 	})
 	return []*envoy_config_accesslog_v3.AccessLog{{

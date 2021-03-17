@@ -11,7 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/authenticate"
@@ -189,7 +189,7 @@ func setupAuthorize(src config.Source, controlPlane *controlplane.Server) (*auth
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)
 	}
-	envoy_service_auth_v2.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
+	envoy_service_auth_v3.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
 
 	log.Info().Msg("enabled authorize service")
 	src.OnConfigChange(svc.OnConfigChange)

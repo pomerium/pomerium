@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"testing"
 
-	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
-	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/genproto/googleapis/rpc/status"
@@ -57,12 +57,12 @@ func TestAuthorize_okResponse(t *testing.T) {
 	tests := []struct {
 		name  string
 		reply *evaluator.Result
-		want  *envoy_service_auth_v2.CheckResponse
+		want  *envoy_service_auth_v3.CheckResponse
 	}{
 		{
 			"ok reply",
 			&evaluator.Result{Status: 0, Message: "ok"},
-			&envoy_service_auth_v2.CheckResponse{
+			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "ok"},
 			},
 		},
@@ -75,7 +75,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 					KubernetesServiceAccountToken: "k8s-svc-account",
 				},
 			},
-			&envoy_service_auth_v2.CheckResponse{
+			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "ok"},
 			},
 		},
@@ -88,7 +88,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 					KubernetesServiceAccountToken: "k8s-svc-account",
 				},
 			},
-			&envoy_service_auth_v2.CheckResponse{
+			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "ok"},
 			},
 		},
@@ -98,7 +98,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 				Status:  0,
 				Message: "ok",
 			},
-			&envoy_service_auth_v2.CheckResponse{
+			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "ok"},
 			},
 		},
@@ -131,11 +131,11 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		in      *envoy_service_auth_v2.CheckRequest
+		in      *envoy_service_auth_v3.CheckRequest
 		code    int32
 		reason  string
 		headers map[string]string
-		want    *envoy_service_auth_v2.CheckResponse
+		want    *envoy_service_auth_v3.CheckResponse
 	}{
 		{
 			"html denied",
@@ -143,14 +143,14 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 			http.StatusBadRequest,
 			"Access Denied",
 			nil,
-			&envoy_service_auth_v2.CheckResponse{
+			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
-				HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-						Status: &envoy_type.HttpStatus{
-							Code: envoy_type.StatusCode(codes.InvalidArgument),
+				HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
+					DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{
+						Status: &envoy_type_v3.HttpStatus{
+							Code: envoy_type_v3.StatusCode(codes.InvalidArgument),
 						},
-						Headers: []*envoy_api_v2_core.HeaderValueOption{
+						Headers: []*envoy_config_core_v3.HeaderValueOption{
 							mkHeader("Content-Type", "text/html", false),
 						},
 						Body: "Access Denied",
@@ -160,10 +160,10 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 		},
 		{
 			"plain text denied",
-			&envoy_service_auth_v2.CheckRequest{
-				Attributes: &envoy_service_auth_v2.AttributeContext{
-					Request: &envoy_service_auth_v2.AttributeContext_Request{
-						Http: &envoy_service_auth_v2.AttributeContext_HttpRequest{
+			&envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 							Headers: map[string]string{},
 						},
 					},
@@ -172,14 +172,14 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 			http.StatusBadRequest,
 			"Access Denied",
 			map[string]string{},
-			&envoy_service_auth_v2.CheckResponse{
+			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
-				HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-					DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-						Status: &envoy_type.HttpStatus{
-							Code: envoy_type.StatusCode(codes.InvalidArgument),
+				HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
+					DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{
+						Status: &envoy_type_v3.HttpStatus{
+							Code: envoy_type_v3.StatusCode(codes.InvalidArgument),
 						},
-						Headers: []*envoy_api_v2_core.HeaderValueOption{
+						Headers: []*envoy_config_core_v3.HeaderValueOption{
 							mkHeader("Content-Type", "text/plain", false),
 						},
 						Body: "Access Denied",

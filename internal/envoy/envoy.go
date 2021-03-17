@@ -28,14 +28,12 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_config_metrics_v3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
-	envoy_config_trace_v3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/natefinch/atomic"
 	"github.com/rs/zerolog"
 	"go.opencensus.io/stats/view"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/config"
@@ -393,10 +391,6 @@ func (srv *Server) buildBootstrapConfig(cfg *config.Config) ([]byte, error) {
 		StatsConfig:      srv.buildStatsConfig(),
 	}
 
-	if err := srv.addTraceConfig(bcfg); err != nil {
-		return nil, fmt.Errorf("failed to add tracing config: %w", err)
-	}
-
 	jsonBytes, err := protojson.Marshal(proto.MessageV2(bcfg))
 	if err != nil {
 		return nil, err
@@ -416,63 +410,6 @@ func (srv *Server) buildStatsConfig() *envoy_config_metrics_v3.StatsConfig {
 		},
 	}
 	return cfg
-}
-
-func (srv *Server) addTraceConfig(bootCfg *envoy_config_bootstrap_v3.Bootstrap) error {
-	if !srv.options.tracingOptions.Enabled() {
-		return nil
-	}
-
-	switch srv.options.tracingOptions.Provider {
-	default:
-		return nil
-	case trace.DatadogTracingProviderName:
-		tracingTC, _ := anypb.New(&envoy_config_trace_v3.DatadogConfig{
-			CollectorCluster: "datadog-apm",
-			ServiceName:      srv.options.tracingOptions.Service,
-		})
-		bootCfg.Tracing = &envoy_config_trace_v3.Tracing{
-			Http: &envoy_config_trace_v3.Tracing_Http{
-				Name: "envoy.tracers.datadog",
-				ConfigType: &envoy_config_trace_v3.Tracing_Http_TypedConfig{
-					TypedConfig: tracingTC,
-				},
-			},
-		}
-	case trace.ZipkinTracingProviderName:
-		if srv.options.tracingOptions.ZipkinEndpoint.String() == "" {
-			return fmt.Errorf("missing zipkin url")
-		}
-		// TODO the outbound header list should be configurable when this moves to
-		// HTTPConnectionManager filters
-		tracingTC, _ := anypb.New(
-			&envoy_config_trace_v3.OpenCensusConfig{
-				ZipkinExporterEnabled: true,
-				ZipkinUrl:             srv.options.tracingOptions.ZipkinEndpoint.String(),
-				IncomingTraceContext: []envoy_config_trace_v3.OpenCensusConfig_TraceContext{
-					envoy_config_trace_v3.OpenCensusConfig_B3,
-					envoy_config_trace_v3.OpenCensusConfig_TRACE_CONTEXT,
-					envoy_config_trace_v3.OpenCensusConfig_CLOUD_TRACE_CONTEXT,
-					envoy_config_trace_v3.OpenCensusConfig_GRPC_TRACE_BIN,
-				},
-				OutgoingTraceContext: []envoy_config_trace_v3.OpenCensusConfig_TraceContext{
-					envoy_config_trace_v3.OpenCensusConfig_B3,
-					envoy_config_trace_v3.OpenCensusConfig_TRACE_CONTEXT,
-					envoy_config_trace_v3.OpenCensusConfig_GRPC_TRACE_BIN,
-				},
-			},
-		)
-		bootCfg.Tracing = &envoy_config_trace_v3.Tracing{
-			Http: &envoy_config_trace_v3.Tracing_Http{
-				Name: "envoy.tracers.opencensus",
-				ConfigType: &envoy_config_trace_v3.Tracing_Http_TypedConfig{
-					TypedConfig: tracingTC,
-				},
-			},
-		}
-	}
-
-	return nil
 }
 
 var fileNameAndNumberRE = regexp.MustCompile(`^(\[[a-zA-Z0-9/-_.]+:[0-9]+])\s(.*)$`)

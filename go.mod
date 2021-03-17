@@ -36,7 +36,6 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.1
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
-	github.com/nsf/jsondiff v0.0.0-20210303162244-6ea32392771e
 	github.com/onsi/gocleanup v0.0.0-20140331211545-c1a5478700b5
 	github.com/open-policy-agent/opa v0.27.1
 	github.com/openzipkin/zipkin-go v0.2.5

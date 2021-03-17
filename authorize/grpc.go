@@ -24,11 +24,11 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 
-	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 )
 
 // Check implements the envoy auth server gRPC endpoint.
-func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v2.CheckRequest) (*envoy_service_auth_v2.CheckResponse, error) {
+func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
 	defer span.End()
 
@@ -179,7 +179,7 @@ func getForwardAuthURL(r *http.Request) *url.URL {
 }
 
 // isForwardAuth returns if the current request is a forward auth route.
-func (a *Authorize) isForwardAuth(req *envoy_service_auth_v2.CheckRequest) bool {
+func (a *Authorize) isForwardAuth(req *envoy_service_auth_v3.CheckRequest) bool {
 	opts := a.currentOptions.Load()
 
 	if opts.ForwardAuthURL == nil {
@@ -197,7 +197,7 @@ func (a *Authorize) isForwardAuth(req *envoy_service_auth_v2.CheckRequest) bool 
 }
 
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(
-	in *envoy_service_auth_v2.CheckRequest,
+	in *envoy_service_auth_v3.CheckRequest,
 	sessionState *sessions.State,
 ) (*evaluator.Request, error) {
 	requestURL := getCheckRequestURL(in)
@@ -261,7 +261,7 @@ func (a *Authorize) getMatchingPolicy(requestURL url.URL) *config.Policy {
 	return nil
 }
 
-func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v2.CheckRequest) *http.Request {
+func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v3.CheckRequest) *http.Request {
 	hattrs := req.GetAttributes().GetRequest().GetHttp()
 	u := getCheckRequestURL(req)
 	hreq := &http.Request{
@@ -278,7 +278,7 @@ func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v2.CheckRequest) *ht
 	return hreq
 }
 
-func getCheckRequestHeaders(req *envoy_service_auth_v2.CheckRequest) map[string]string {
+func getCheckRequestHeaders(req *envoy_service_auth_v3.CheckRequest) map[string]string {
 	hdrs := make(map[string]string)
 	ch := req.GetAttributes().GetRequest().GetHttp().GetHeaders()
 	for k, v := range ch {
@@ -287,7 +287,7 @@ func getCheckRequestHeaders(req *envoy_service_auth_v2.CheckRequest) map[string]
 	return hdrs
 }
 
-func getCheckRequestURL(req *envoy_service_auth_v2.CheckRequest) url.URL {
+func getCheckRequestURL(req *envoy_service_auth_v3.CheckRequest) url.URL {
 	h := req.GetAttributes().GetRequest().GetHttp()
 	u := url.URL{
 		Scheme: h.GetScheme(),
@@ -305,7 +305,7 @@ func getCheckRequestURL(req *envoy_service_auth_v2.CheckRequest) url.URL {
 }
 
 // getPeerCertificate gets the PEM-encoded peer certificate from the check request
-func getPeerCertificate(in *envoy_service_auth_v2.CheckRequest) string {
+func getPeerCertificate(in *envoy_service_auth_v3.CheckRequest) string {
 	// ignore the error as we will just return the empty string in that case
 	cert, _ := url.QueryUnescape(in.GetAttributes().GetSource().GetCertificate())
 	return cert
@@ -313,7 +313,7 @@ func getPeerCertificate(in *envoy_service_auth_v2.CheckRequest) string {
 
 func logAuthorizeCheck(
 	ctx context.Context,
-	in *envoy_service_auth_v2.CheckRequest,
+	in *envoy_service_auth_v3.CheckRequest,
 	reply *evaluator.Result,
 	u *user.User,
 ) {

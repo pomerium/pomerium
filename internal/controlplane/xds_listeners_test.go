@@ -128,7 +128,8 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 								"clusterName": "pomerium-control-plane-grpc"
 							}
 						},
-						"logName": "ingress-http"
+						"logName": "ingress-http",
+						"transportApiVersion": "V3"
 					}
 				}
 			}],
@@ -156,7 +157,8 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						"includePeerCertificate": true,
 						"statusOnError": {
 							"code": "InternalServerError"
-						}
+						},
+						"transportApiVersion": "V3"
 					}
 				},
 				{
