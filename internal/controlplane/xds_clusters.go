@@ -15,6 +15,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/martinlindhe/base36"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/config"
@@ -233,7 +234,7 @@ func (srv *Server) buildPolicyTransportSocket(policy *config.Policy, dst url.URL
 					"P-521",
 				},
 			},
-			AlpnProtocols: []string{"http/1.1"},
+			AlpnProtocols: []string{"h2", "http/1.1"},
 			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 				ValidationContext: vc,
 			},
@@ -321,11 +322,14 @@ func (srv *Server) buildCluster(
 	if err != nil {
 		return err
 	}
+	// Set the default transport socket to the first socket match. This is necessary so that ALPN
+	// auto configuration works.
+	if len(cluster.TransportSocketMatches) > 0 {
+		cluster.TransportSocket = cluster.TransportSocketMatches[0].TransportSocket
+	}
 
-	if forceHTTP2 {
-		cluster.Http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{
-			AllowConnect: true,
-		}
+	cluster.TypedExtensionProtocolOptions = map[string]*anypb.Any{
+		"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": marshalAny(buildUpstreamProtocolOptions(endpoints, forceHTTP2)),
 	}
 
 	// for IPs we use a static discovery type, otherwise we use DNS
