@@ -362,6 +362,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 			},
 		},
 		IncludePeerCertificate: true,
+		TransportApiVersion:    envoy_config_core_v3.ApiVersion_V3,
 	})
 
 	extAuthzSetCookieLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
@@ -433,6 +434,10 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 	if err != nil {
 		return nil, err
 	}
+	tracingProvider, err := srv.buildTracingProvider(options)
+	if err != nil {
+		return nil, err
+	}
 	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "ingress",
@@ -448,6 +453,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 		RequestTimeout: ptypes.DurationProto(options.ReadTimeout),
 		Tracing: &envoy_http_connection_manager.HttpConnectionManager_Tracing{
 			RandomSampling: &envoy_type_v3.Percent{Value: options.TracingSampleRate * 100},
+			Provider:       tracingProvider,
 		},
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
 		UseRemoteAddress: &wrappers.BoolValue{Value: true},

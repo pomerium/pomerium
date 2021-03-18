@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"testing"
 
-	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/config"
@@ -25,10 +25,10 @@ func TestLoadSession(t *testing.T) {
 		return
 	}
 
-	load := func(t *testing.T, hattrs *envoy_service_auth_v2.AttributeContext_HttpRequest) (*sessions.State, error) {
-		req := getHTTPRequestFromCheckRequest(&envoy_service_auth_v2.CheckRequest{
-			Attributes: &envoy_service_auth_v2.AttributeContext{
-				Request: &envoy_service_auth_v2.AttributeContext_Request{
+	load := func(t *testing.T, hattrs *envoy_service_auth_v3.AttributeContext_HttpRequest) (*sessions.State, error) {
+		req := getHTTPRequestFromCheckRequest(&envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
 					Http: hattrs,
 				},
 			},
@@ -56,7 +56,7 @@ func TestLoadSession(t *testing.T) {
 		}
 		cookie := regexp.MustCompile(`^([^;]+)(;.*)?$`).ReplaceAllString(hdrs["Set-Cookie"], "$1")
 
-		hattrs := &envoy_service_auth_v2.AttributeContext_HttpRequest{
+		hattrs := &envoy_service_auth_v3.AttributeContext_HttpRequest{
 			Id:     "req-1",
 			Method: "GET",
 			Headers: map[string]string{
@@ -71,7 +71,7 @@ func TestLoadSession(t *testing.T) {
 		assert.NotNil(t, sess)
 	})
 	t.Run("header", func(t *testing.T) {
-		hattrs := &envoy_service_auth_v2.AttributeContext_HttpRequest{
+		hattrs := &envoy_service_auth_v3.AttributeContext_HttpRequest{
 			Id:     "req-1",
 			Method: "GET",
 			Headers: map[string]string{
@@ -86,7 +86,7 @@ func TestLoadSession(t *testing.T) {
 		assert.NotNil(t, sess)
 	})
 	t.Run("query param", func(t *testing.T) {
-		hattrs := &envoy_service_auth_v2.AttributeContext_HttpRequest{
+		hattrs := &envoy_service_auth_v3.AttributeContext_HttpRequest{
 			Id:     "req-1",
 			Method: "GET",
 			Path: "/hello/world?" + url.Values{

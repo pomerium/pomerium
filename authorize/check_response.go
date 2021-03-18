@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
-	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
@@ -20,8 +20,8 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.CheckResponse {
-	var requestHeaders []*envoy_api_v2_core.HeaderValueOption
+func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v3.CheckResponse {
+	var requestHeaders []*envoy_config_core_v3.HeaderValueOption
 	for k, v := range reply.Headers {
 		requestHeaders = append(requestHeaders, mkHeader(k, v, false))
 	}
@@ -29,10 +29,10 @@ func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.C
 	sort.Slice(requestHeaders, func(i, j int) bool {
 		return requestHeaders[i].Header.Key < requestHeaders[j].Header.Value
 	})
-	return &envoy_service_auth_v2.CheckResponse{
+	return &envoy_service_auth_v3.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: reply.Message},
-		HttpResponse: &envoy_service_auth_v2.CheckResponse_OkResponse{
-			OkResponse: &envoy_service_auth_v2.OkHttpResponse{
+		HttpResponse: &envoy_service_auth_v3.CheckResponse_OkResponse{
+			OkResponse: &envoy_service_auth_v3.OkHttpResponse{
 				Headers: requestHeaders,
 			},
 		},
@@ -40,9 +40,9 @@ func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v2.C
 }
 
 func (a *Authorize) deniedResponse(
-	in *envoy_service_auth_v2.CheckRequest,
+	in *envoy_service_auth_v3.CheckRequest,
 	code int32, reason string, headers map[string]string,
-) (*envoy_service_auth_v2.CheckResponse, error) {
+) (*envoy_service_auth_v3.CheckResponse, error) {
 	returnHTMLError := true
 	inHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
 	if inHeaders != nil {
@@ -56,9 +56,9 @@ func (a *Authorize) deniedResponse(
 }
 
 func (a *Authorize) htmlDeniedResponse(
-	in *envoy_service_auth_v2.CheckRequest,
+	in *envoy_service_auth_v3.CheckRequest,
 	code int32, reason string, headers map[string]string,
-) (*envoy_service_auth_v2.CheckResponse, error) {
+) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
 	authenticateURL, err := opts.GetAuthenticateURL()
 	if err != nil {
@@ -106,19 +106,19 @@ func (a *Authorize) htmlDeniedResponse(
 		log.Error().Err(err).Msg("error executing error template")
 	}
 
-	envoyHeaders := []*envoy_api_v2_core.HeaderValueOption{
+	envoyHeaders := []*envoy_config_core_v3.HeaderValueOption{
 		mkHeader("Content-Type", "text/html", false),
 	}
 	for k, v := range headers {
 		envoyHeaders = append(envoyHeaders, mkHeader(k, v, false))
 	}
 
-	return &envoy_service_auth_v2.CheckResponse{
+	return &envoy_service_auth_v3.CheckResponse{
 		Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
-		HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-			DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-				Status: &envoy_type.HttpStatus{
-					Code: envoy_type.StatusCode(code),
+		HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
+			DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{
+				Status: &envoy_type_v3.HttpStatus{
+					Code: envoy_type_v3.StatusCode(code),
 				},
 				Headers: envoyHeaders,
 				Body:    buf.String(),
@@ -127,20 +127,20 @@ func (a *Authorize) htmlDeniedResponse(
 	}, nil
 }
 
-func (a *Authorize) plainTextDeniedResponse(code int32, reason string, headers map[string]string) *envoy_service_auth_v2.CheckResponse {
-	envoyHeaders := []*envoy_api_v2_core.HeaderValueOption{
+func (a *Authorize) plainTextDeniedResponse(code int32, reason string, headers map[string]string) *envoy_service_auth_v3.CheckResponse {
+	envoyHeaders := []*envoy_config_core_v3.HeaderValueOption{
 		mkHeader("Content-Type", "text/plain", false),
 	}
 	for k, v := range headers {
 		envoyHeaders = append(envoyHeaders, mkHeader(k, v, false))
 	}
 
-	return &envoy_service_auth_v2.CheckResponse{
+	return &envoy_service_auth_v3.CheckResponse{
 		Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
-		HttpResponse: &envoy_service_auth_v2.CheckResponse_DeniedResponse{
-			DeniedResponse: &envoy_service_auth_v2.DeniedHttpResponse{
-				Status: &envoy_type.HttpStatus{
-					Code: envoy_type.StatusCode(code),
+		HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
+			DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{
+				Status: &envoy_type_v3.HttpStatus{
+					Code: envoy_type_v3.StatusCode(code),
 				},
 				Headers: envoyHeaders,
 				Body:    reason,
@@ -149,7 +149,7 @@ func (a *Authorize) plainTextDeniedResponse(code int32, reason string, headers m
 	}
 }
 
-func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) (*envoy_service_auth_v2.CheckResponse, error) {
+func (a *Authorize) redirectResponse(in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
 	authenticateURL, err := opts.GetAuthenticateURL()
 	if err != nil {
@@ -174,9 +174,9 @@ func (a *Authorize) redirectResponse(in *envoy_service_auth_v2.CheckRequest) (*e
 	})
 }
 
-func mkHeader(k, v string, shouldAppend bool) *envoy_api_v2_core.HeaderValueOption {
-	return &envoy_api_v2_core.HeaderValueOption{
-		Header: &envoy_api_v2_core.HeaderValue{
+func mkHeader(k, v string, shouldAppend bool) *envoy_config_core_v3.HeaderValueOption {
+	return &envoy_config_core_v3.HeaderValueOption{
+		Header: &envoy_config_core_v3.HeaderValue{
 			Key:   k,
 			Value: v,
 		},
