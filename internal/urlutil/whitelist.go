@@ -23,16 +23,13 @@ func IsRedirectAllowed(redirectURL *url.URL, whitelistDomains []string) bool {
 // IsLoopback returns true if the given URL corresponds with a loopback address.
 func IsLoopback(u *url.URL) bool {
 	hostname := u.Hostname()
-	ips, err := net.LookupIP(hostname)
-	if err != nil {
-		return false
+	if hostname == "localhost" {
+		return true
 	}
 
-	cnt := 0
-	for _, ip := range ips {
-		if ip.IsLoopback() {
-			cnt++
-		}
+	if ip := net.ParseIP(hostname); ip != nil {
+		return ip.IsLoopback()
 	}
-	return cnt > 0 && cnt == len(ips)
+
+	return false
 }

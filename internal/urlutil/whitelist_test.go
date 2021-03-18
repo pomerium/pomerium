@@ -530,7 +530,7 @@ func TestIsLoopback(t *testing.T) {
 		value  bool
 	}{
 		{"http://localhost", true},
-		{"http://test.localhost.pomerium.io", true},
+		{"http://test.localhost.pomerium.io", false},
 		{"http://127.0.0.1:9999", true},
 		{"http://127.22.0.1", true},
 		{"http://[::1]", true},
