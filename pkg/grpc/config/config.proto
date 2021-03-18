@@ -147,6 +147,7 @@ message Settings {
   optional string certificate_authority_file = 35;
   optional string signing_key = 36;
   optional string signing_key_algorithm = 62;
+  map<string, string> headers = 68;
   // repeated string jwt_claims_headers = 37;
   map<string, string> jwt_claims_headers = 63;
   optional google.protobuf.Duration refresh_cooldown = 38;
