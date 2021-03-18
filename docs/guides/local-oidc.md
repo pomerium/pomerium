@@ -104,7 +104,7 @@ policy:
 }
 ```
 
-### identityprovider-user.json
+### identityprovider-users.json
 
 ```json
 [
