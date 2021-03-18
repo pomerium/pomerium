@@ -42,7 +42,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 				"typedConfig": {
 					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 					"commonTlsContext": {
-						"alpnProtocols": ["http/1.1"],
+						"alpnProtocols": ["h2", "http/1.1"],
 						"tlsParams": {
 							"ecdhCurves": [
 								"X25519",
@@ -77,7 +77,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 				"typedConfig": {
 					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 					"commonTlsContext": {
-						"alpnProtocols": ["http/1.1"],
+						"alpnProtocols": ["h2", "http/1.1"],
 						"tlsParams": {
 							"ecdhCurves": [
 								"X25519",
@@ -112,7 +112,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 				"typedConfig": {
 					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 					"commonTlsContext": {
-						"alpnProtocols": ["http/1.1"],
+						"alpnProtocols": ["h2", "http/1.1"],
 						"tlsParams": {
 							"ecdhCurves": [
 								"X25519",
@@ -148,7 +148,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 				"typedConfig": {
 					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 					"commonTlsContext": {
-						"alpnProtocols": ["http/1.1"],
+						"alpnProtocols": ["h2", "http/1.1"],
 						"tlsParams": {
 							"ecdhCurves": [
 								"X25519",
@@ -184,7 +184,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 				"typedConfig": {
 					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 					"commonTlsContext": {
-						"alpnProtocols": ["http/1.1"],
+						"alpnProtocols": ["h2", "http/1.1"],
 						"tlsParams": {
 							"ecdhCurves": [
 								"X25519",
@@ -236,10 +236,17 @@ func Test_buildCluster(t *testing.T) {
 				"type": "STRICT_DNS",
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
-				"http2ProtocolOptions": {
-					"allowConnect": true
-				},
 				"dnsLookupFamily": "V4_ONLY",
+				"typedExtensionProtocolOptions": {
+					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+						"explicitHttpConfig": {
+							"http2ProtocolOptions": {
+								"allowConnect": true
+							}
+						}
+					}
+				},
 				"loadAssignment": {
 					"clusterName": "example",
 					"endpoints": [{
@@ -296,15 +303,15 @@ func Test_buildCluster(t *testing.T) {
 						"typedConfig": {
 							"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
 							"commonTlsContext": {
-								"alpnProtocols": ["http/1.1"],
-								"tlsParams": {
-								"ecdhCurves": [
-									"X25519",
-									"P-256",
-									"P-384",
-									"P-521"
-								]
-							},
+								"alpnProtocols": ["h2", "http/1.1"],
+									"tlsParams": {
+									"ecdhCurves": [
+										"X25519",
+										"P-256",
+										"P-384",
+										"P-521"
+									]
+								},
 								"validationContext": {
 									"matchSubjectAltNames": [{
 										"exact": "example.com"
@@ -318,8 +325,41 @@ func Test_buildCluster(t *testing.T) {
 						}
 					}
 				}],
-				"http2ProtocolOptions": {
-					"allowConnect": true
+				"transportSocket": {
+					"name": "tls",
+					"typedConfig": {
+						"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
+						"commonTlsContext": {
+							"alpnProtocols": ["h2", "http/1.1"],
+								"tlsParams": {
+								"ecdhCurves": [
+									"X25519",
+									"P-256",
+									"P-384",
+									"P-521"
+								]
+							},
+							"validationContext": {
+								"matchSubjectAltNames": [{
+									"exact": "example.com"
+								}],
+								"trustedCa": {
+									"filename": "`+rootCA+`"
+								}
+							}
+						},
+						"sni": "example.com"
+					}
+				},
+				"typedExtensionProtocolOptions": {
+					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+						"explicitHttpConfig": {
+							"http2ProtocolOptions": {
+								"allowConnect": true
+							}
+						}
+					}
 				},
 				"loadAssignment": {
 					"clusterName": "example",
@@ -378,8 +418,15 @@ func Test_buildCluster(t *testing.T) {
 				"type": "STATIC",
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
-				"http2ProtocolOptions": {
-					"allowConnect": true
+				"typedExtensionProtocolOptions": {
+					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+						"explicitHttpConfig": {
+							"http2ProtocolOptions": {
+								"allowConnect": true
+							}
+						}
+					}
 				},
 				"loadAssignment": {
 					"clusterName": "example",
@@ -424,8 +471,15 @@ func Test_buildCluster(t *testing.T) {
 				"type": "STATIC",
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
-				"http2ProtocolOptions": {
-					"allowConnect": true
+				"typedExtensionProtocolOptions": {
+					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+						"explicitHttpConfig": {
+							"http2ProtocolOptions": {
+								"allowConnect": true
+							}
+						}
+					}
 				},
 				"loadAssignment": {
 					"clusterName": "example",
@@ -472,8 +526,15 @@ func Test_buildCluster(t *testing.T) {
 				"type": "STATIC",
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
-				"http2ProtocolOptions": {
-					"allowConnect": true
+				"typedExtensionProtocolOptions": {
+					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+						"explicitHttpConfig": {
+							"http2ProtocolOptions": {
+								"allowConnect": true
+							}
+						}
+					}
 				},
 				"loadAssignment": {
 					"clusterName": "example",
@@ -513,8 +574,15 @@ func Test_buildCluster(t *testing.T) {
 				"type": "STRICT_DNS",
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
-				"http2ProtocolOptions": {
-					"allowConnect": true
+				"typedExtensionProtocolOptions": {
+					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+						"explicitHttpConfig": {
+							"http2ProtocolOptions": {
+								"allowConnect": true
+							}
+						}
+					}
 				},
 				"dnsLookupFamily": "V4_ONLY",
 				"outlierDetection": {
