@@ -709,7 +709,7 @@ func getAllRouteableDomains(options *config.Options, addr string) ([]string, err
 				lookup[h] = struct{}{}
 			}
 		}
-		if options.ForwardAuthURL != nil {
+		if forwardAuthURL != nil {
 			for _, h := range urlutil.GetDomainsForURL(*forwardAuthURL) {
 				lookup[h] = struct{}{}
 			}
@@ -759,6 +759,10 @@ func hostsMatchDomain(urls []*url.URL, host string) bool {
 }
 
 func hostMatchesDomain(u *url.URL, host string) bool {
+	if u == nil {
+		return false
+	}
+
 	var defaultPort string
 	if u.Scheme == "http" {
 		defaultPort = "80"

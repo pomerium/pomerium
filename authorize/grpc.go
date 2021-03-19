@@ -182,12 +182,8 @@ func getForwardAuthURL(r *http.Request) *url.URL {
 func (a *Authorize) isForwardAuth(req *envoy_service_auth_v3.CheckRequest) bool {
 	opts := a.currentOptions.Load()
 
-	if opts.ForwardAuthURL == nil {
-		return false
-	}
-
 	forwardAuthURL, err := opts.GetForwardAuthURL()
-	if err != nil {
+	if err != nil || forwardAuthURL == nil {
 		return false
 	}
 

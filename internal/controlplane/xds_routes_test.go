@@ -80,9 +80,9 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 	t.Run("authenticate", func(t *testing.T) {
 		options := &config.Options{
 			Services:                 "all",
-			AuthenticateURL:          mustParseURL(t, "https://authenticate.example.com"),
+			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
-			ForwardAuthURL:           mustParseURL(t, "https://forward-auth.example.com"),
+			ForwardAuthURLString:     "https://forward-auth.example.com",
 		}
 		routes, err := srv.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
 		require.NoError(t, err)
@@ -102,7 +102,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 	t.Run("proxy fronting authenticate", func(t *testing.T) {
 		options := &config.Options{
 			Services:                 "proxy",
-			AuthenticateURL:          mustParseURL(t, "https://authenticate.example.com"),
+			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
 		routes, err := srv.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
@@ -113,9 +113,9 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 	t.Run("with robots", func(t *testing.T) {
 		options := &config.Options{
 			Services:                 "all",
-			AuthenticateURL:          mustParseURL(t, "https://authenticate.example.com"),
+			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
-			ForwardAuthURL:           mustParseURL(t, "https://forward-auth.example.com"),
+			ForwardAuthURLString:     "https://forward-auth.example.com",
 			Policies: []config.Policy{{
 				From: "https://from.example.com",
 				To:   mustParseWeightedURLs(t, "https://to.example.com"),
@@ -140,9 +140,9 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 	t.Run("without robots", func(t *testing.T) {
 		options := &config.Options{
 			Services:                 "all",
-			AuthenticateURL:          mustParseURL(t, "https://authenticate.example.com"),
+			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
-			ForwardAuthURL:           mustParseURL(t, "https://forward-auth.example.com"),
+			ForwardAuthURLString:     "https://forward-auth.example.com",
 			Policies: []config.Policy{{
 				From:                             "https://from.example.com",
 				To:                               mustParseWeightedURLs(t, "https://to.example.com"),
@@ -504,7 +504,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 
 	t.Run("fronting-authenticate", func(t *testing.T) {
 		routes, err := srv.buildPolicyRoutes(&config.Options{
-			AuthenticateURL:        mustParseURL(t, "https://authenticate.example.com"),
+			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,

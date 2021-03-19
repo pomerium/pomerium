@@ -122,7 +122,7 @@ func (srv *Server) buildPomeriumHTTPRoutes(options *config.Options, domain strin
 	if err != nil {
 		return nil, err
 	}
-	if config.IsProxy(options.Services) && options.ForwardAuthURL != nil && hostMatchesDomain(forwardAuthURL, domain) {
+	if config.IsProxy(options.Services) && hostMatchesDomain(forwardAuthURL, domain) {
 		// disable ext_authz and pass request to proxy handlers that enable authN flow
 		r, err := srv.buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI})
 		if err != nil {

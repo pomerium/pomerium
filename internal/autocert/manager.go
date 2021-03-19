@@ -289,8 +289,11 @@ func sourceHostnames(cfg *config.Config) []string {
 	for _, p := range policies {
 		dedupe[p.Source.Hostname()] = struct{}{}
 	}
-	if cfg.Options.AuthenticateURL != nil {
-		dedupe[cfg.Options.AuthenticateURL.Hostname()] = struct{}{}
+	if cfg.Options.AuthenticateURLString != "" {
+		u, _ := cfg.Options.GetAuthenticateURL()
+		if u != nil {
+			dedupe[u.Hostname()] = struct{}{}
+		}
 	}
 
 	var h []string

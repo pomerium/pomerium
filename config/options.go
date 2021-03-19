@@ -115,11 +115,9 @@ type Options struct {
 
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
-	AuthenticateURLString string   `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
-	AuthenticateURL       *url.URL `yaml:"-"`
+	AuthenticateURLString string `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
 	// SignOutRedirectURL represents the url that  user will be redirected to after signing out.
-	SignOutRedirectURLString string   `mapstructure:"signout_redirect_url" yaml:"signout_redirect_url,omitempty"`
-	SignOutRedirectURL       *url.URL `yaml:"-"`
+	SignOutRedirectURLString string `mapstructure:"signout_redirect_url" yaml:"signout_redirect_url,omitempty"`
 
 	// AuthenticateCallbackPath is the path to the HTTP endpoint that will
 	// receive the response from your identity provider. The value must exactly
@@ -242,8 +240,7 @@ type Options struct {
 	// allow you to delegate and authenticate each request to your website
 	// with an external server or service. Pomerium can be configured to accept
 	// these requests with this switch
-	ForwardAuthURLString string   `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
-	ForwardAuthURL       *url.URL `yaml:",omitempty"`
+	ForwardAuthURLString string `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
 
 	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpiont.
 	DataBrokerURLString  string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
@@ -544,19 +541,17 @@ func (o *Options) Validate() error {
 	}
 
 	if o.AuthenticateURLString != "" {
-		u, err := urlutil.ParseAndValidateURL(o.AuthenticateURLString)
+		_, err := urlutil.ParseAndValidateURL(o.AuthenticateURLString)
 		if err != nil {
 			return fmt.Errorf("config: bad authenticate-url %s : %w", o.AuthenticateURLString, err)
 		}
-		o.AuthenticateURL = u
 	}
 
 	if o.SignOutRedirectURLString != "" {
-		u, err := urlutil.ParseAndValidateURL(o.SignOutRedirectURLString)
+		_, err := urlutil.ParseAndValidateURL(o.SignOutRedirectURLString)
 		if err != nil {
 			return fmt.Errorf("config: bad signout-redirect-url %s : %w", o.SignOutRedirectURLString, err)
 		}
-		o.SignOutRedirectURL = u
 	}
 
 	if o.AuthorizeURLString != "" {
@@ -574,11 +569,10 @@ func (o *Options) Validate() error {
 	}
 
 	if o.ForwardAuthURLString != "" {
-		u, err := urlutil.ParseAndValidateURL(o.ForwardAuthURLString)
+		_, err := urlutil.ParseAndValidateURL(o.ForwardAuthURLString)
 		if err != nil {
 			return fmt.Errorf("config: bad forward-auth-url %s : %w", o.ForwardAuthURLString, err)
 		}
-		o.ForwardAuthURL = u
 	}
 
 	if o.PolicyFile != "" {
@@ -735,10 +729,11 @@ func (o *Options) Validate() error {
 
 // GetAuthenticateURL returns the AuthenticateURL in the options or 127.0.0.1.
 func (o *Options) GetAuthenticateURL() (*url.URL, error) {
-	if o != nil && o.AuthenticateURL != nil {
-		return o.AuthenticateURL, nil
+	rawurl := o.AuthenticateURLString
+	if rawurl == "" {
+		rawurl = "https://127.0.0.1"
 	}
-	return url.Parse("https://127.0.0.1")
+	return urlutil.ParseAndValidateURL(rawurl)
 }
 
 // GetAuthorizeURLs returns the AuthorizeURLs in the options or 127.0.0.1:5443.
@@ -772,12 +767,22 @@ func (o *Options) getURLs(strs ...string) ([]*url.URL, error) {
 	return urls, nil
 }
 
-// GetForwardAuthURL returns the ForwardAuthURL in the options or 127.0.0.1.
+// GetForwardAuthURL returns the ForwardAuthURL.
 func (o *Options) GetForwardAuthURL() (*url.URL, error) {
-	if o != nil && o.ForwardAuthURL != nil {
-		return o.ForwardAuthURL, nil
+	rawurl := o.ForwardAuthURLString
+	if rawurl == "" {
+		return nil, nil
 	}
-	return url.Parse("https://127.0.0.1")
+	return urlutil.ParseAndValidateURL(rawurl)
+}
+
+// GetSignOutRedirectURL gets the SignOutRedirectURL.
+func (o *Options) GetSignOutRedirectURL() (*url.URL, error) {
+	rawurl := o.SignOutRedirectURLString
+	if rawurl == "" {
+		return nil, nil
+	}
+	return urlutil.ParseAndValidateURL(rawurl)
 }
 
 // GetMetricsCertificate returns the metrics certificate to use for TLS. `nil` will be

@@ -516,10 +516,10 @@ func TestOptions_DefaultURL(t *testing.T) {
 
 	defaultOptions := &Options{}
 	opts := &Options{
-		AuthenticateURL:     mustParseURL("https://authenticate.example.com"),
-		AuthorizeURLString:  "https://authorize.example.com",
-		DataBrokerURLString: "https://databroker.example.com",
-		ForwardAuthURL:      mustParseURL("https://forwardauth.example.com"),
+		AuthenticateURLString: "https://authenticate.example.com",
+		AuthorizeURLString:    "https://authorize.example.com",
+		DataBrokerURLString:   "https://databroker.example.com",
+		ForwardAuthURLString:  "https://forwardauth.example.com",
 	}
 	tests := []struct {
 		name           string
@@ -547,21 +547,15 @@ func TestOptions_DefaultURL(t *testing.T) {
 	}
 }
 
-func mustParseURL(str string) *url.URL {
-	u, err := url.Parse(str)
-	if err != nil {
-		panic(err)
-	}
-	return u
-}
-
 func TestOptions_GetOauthOptions(t *testing.T) {
-	opts := &Options{AuthenticateURL: mustParseURL("https://authenticate.example.com")}
+	opts := &Options{AuthenticateURLString: "https://authenticate.example.com"}
 	oauthOptions, err := opts.GetOauthOptions()
 	require.NoError(t, err)
 
 	// Test that oauth redirect url hostname must point to authenticate url hostname.
-	assert.Equal(t, opts.AuthenticateURL.Hostname(), oauthOptions.RedirectURL.Hostname())
+	u, err := opts.GetAuthenticateURL()
+	require.NoError(t, err)
+	assert.Equal(t, u.Hostname(), oauthOptions.RedirectURL.Hostname())
 }
 
 func mustParseWeightedURLs(t *testing.T, urls ...string) []WeightedURL {

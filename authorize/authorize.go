@@ -13,7 +13,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -65,7 +64,7 @@ func validateOptions(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
 		return fmt.Errorf("authorize: bad 'SHARED_SECRET': %w", err)
 	}
-	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
+	if _, err := o.GetAuthenticateURL(); err != nil {
 		return fmt.Errorf("authorize: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
 	}
 	return nil

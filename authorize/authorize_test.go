@@ -20,40 +20,40 @@ func TestNew(t *testing.T) {
 		{
 			"good",
 			config.Options{
-				AuthenticateURL:     mustParseURL("https://authN.example.com"),
-				DataBrokerURLString: "https://databroker.example.com",
-				SharedKey:           "2p/Wi2Q6bYDfzmoSEbKqYKtg+DUoLWTEHHs7vOhvL7w=",
-				Policies:            policies,
+				AuthenticateURLString: "https://authN.example.com",
+				DataBrokerURLString:   "https://databroker.example.com",
+				SharedKey:             "2p/Wi2Q6bYDfzmoSEbKqYKtg+DUoLWTEHHs7vOhvL7w=",
+				Policies:              policies,
 			},
 			false,
 		},
 		{
 			"bad shared secret",
 			config.Options{
-				AuthenticateURL:     mustParseURL("https://authN.example.com"),
-				DataBrokerURLString: "https://databroker.example.com",
-				SharedKey:           "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
-				Policies:            policies,
+				AuthenticateURLString: "https://authN.example.com",
+				DataBrokerURLString:   "https://databroker.example.com",
+				SharedKey:             "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
+				Policies:              policies,
 			},
 			true,
 		},
 		{
 			"really bad shared secret",
 			config.Options{
-				AuthenticateURL:     mustParseURL("https://authN.example.com"),
-				DataBrokerURLString: "https://databroker.example.com",
-				SharedKey:           "sup",
-				Policies:            policies,
+				AuthenticateURLString: "https://authN.example.com",
+				DataBrokerURLString:   "https://databroker.example.com",
+				SharedKey:             "sup",
+				Policies:              policies,
 			},
 			true,
 		},
 		{
 			"validation error, short secret",
 			config.Options{
-				AuthenticateURL:     mustParseURL("https://authN.example.com"),
-				DataBrokerURLString: "https://databroker.example.com",
-				SharedKey:           "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
-				Policies:            policies,
+				AuthenticateURLString: "https://authN.example.com",
+				DataBrokerURLString:   "https://databroker.example.com",
+				SharedKey:             "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
+				Policies:              policies,
 			},
 			true,
 		},
@@ -61,10 +61,10 @@ func TestNew(t *testing.T) {
 		{
 			"bad databroker url",
 			config.Options{
-				AuthenticateURL:     mustParseURL("https://authN.example.com"),
-				DataBrokerURLString: "BAD",
-				SharedKey:           "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
-				Policies:            policies,
+				AuthenticateURLString: "https://authN.example.com",
+				DataBrokerURLString:   "BAD",
+				SharedKey:             "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
+				Policies:              policies,
 			},
 			true,
 		},
@@ -99,10 +99,10 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			o := &config.Options{
-				AuthenticateURL:     mustParseURL("https://authN.example.com"),
-				DataBrokerURLString: "https://databroker.example.com",
-				SharedKey:           tc.SharedKey,
-				Policies:            tc.Policies,
+				AuthenticateURLString: "https://authN.example.com",
+				DataBrokerURLString:   "https://databroker.example.com",
+				SharedKey:             tc.SharedKey,
+				Policies:              tc.Policies,
 			}
 			a, err := New(&config.Config{Options: o})
 			require.NoError(t, err)

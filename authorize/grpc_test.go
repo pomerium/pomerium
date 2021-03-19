@@ -251,11 +251,7 @@ func Test_handleForwardAuth(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			a := &Authorize{currentOptions: config.NewAtomicOptions(), state: newAtomicAuthorizeState(new(authorizeState))}
-			var fau *url.URL
-			if tc.forwardAuthURL != "" {
-				fau = mustParseURL(tc.forwardAuthURL)
-			}
-			a.currentOptions.Store(&config.Options{ForwardAuthURL: fau})
+			a.currentOptions.Store(&config.Options{ForwardAuthURLString: tc.forwardAuthURL})
 
 			got := a.isForwardAuth(tc.checkReq)
 
@@ -361,10 +357,10 @@ func TestSync(t *testing.T) {
 		},
 	}
 	o := &config.Options{
-		AuthenticateURL:     mustParseURL("https://authN.example.com"),
-		DataBrokerURLString: "https://databroker.example.com",
-		SharedKey:           "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=",
-		Policies:            testPolicies(t),
+		AuthenticateURLString: "https://authN.example.com",
+		DataBrokerURLString:   "https://databroker.example.com",
+		SharedKey:             "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=",
+		Policies:              testPolicies(t),
 	}
 
 	ctx := context.Background()
@@ -443,14 +439,6 @@ func TestSync(t *testing.T) {
 	}
 }
 
-func mustParseURL(str string) *url.URL {
-	u, err := url.Parse(str)
-	if err != nil {
-		panic(err)
-	}
-	return u
-}
-
 type mockDataBrokerServiceClient struct {
 	databroker.DataBrokerServiceClient
 
@@ -463,14 +451,14 @@ func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.Get
 
 func TestAuthorize_Check(t *testing.T) {
 	opt := config.NewDefaultOptions()
-	opt.AuthenticateURL = mustParseURL("https://authenticate.example.com")
+	opt.AuthenticateURLString = "https://authenticate.example.com"
 	opt.DataBrokerURLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
 	a, err := New(&config.Config{Options: opt})
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.currentOptions.Store(&config.Options{ForwardAuthURL: mustParseURL("https://forward-auth.example.com")})
+	a.currentOptions.Store(&config.Options{ForwardAuthURLString: "https://forward-auth.example.com"})
 
 	cmpOpts := []cmp.Option{
 		cmpopts.IgnoreUnexported(envoy_service_auth_v3.CheckResponse{}),
