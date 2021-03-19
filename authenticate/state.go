@@ -65,7 +65,11 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 
 	state := &authenticateState{}
 
-	state.redirectURL, _ = urlutil.DeepCopy(cfg.Options.AuthenticateURL)
+	authenticateURL, err := cfg.Options.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+	state.redirectURL, _ = urlutil.DeepCopy(authenticateURL)
 	state.redirectURL.Path = cfg.Options.AuthenticateCallbackPath
 
 	// shared state encoder setup

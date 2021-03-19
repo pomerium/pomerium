@@ -43,7 +43,12 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 		return nil, fmt.Errorf("error loading rego policy: %w", err)
 	}
 
-	store.UpdateIssuer(options.AuthenticateURL.Host)
+	authenticateURL, err := options.GetAuthenticateURL()
+	if err != nil {
+		return nil, fmt.Errorf("authorize: invalid authenticate URL: %w", err)
+	}
+
+	store.UpdateIssuer(authenticateURL.Host)
 	store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(options.GoogleCloudServerlessAuthenticationServiceAccount)
 	store.UpdateJWTClaimHeaders(options.JWTClaimsHeaders)
 	store.UpdateRoutePolicies(options.GetAllPolicies())

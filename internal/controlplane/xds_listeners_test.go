@@ -591,12 +591,12 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 
 func Test_getAllDomains(t *testing.T) {
 	options := &config.Options{
-		Addr:                "127.0.0.1:9000",
-		GRPCAddr:            "127.0.0.1:9001",
-		Services:            "all",
-		AuthenticateURL:     mustParseURL(t, "https://authenticate.example.com"),
-		AuthorizeURLString:  "https://authorize.example.com:9001",
-		DataBrokerURLString: "https://cache.example.com:9001",
+		Addr:                  "127.0.0.1:9000",
+		GRPCAddr:              "127.0.0.1:9001",
+		Services:              "all",
+		AuthenticateURLString: "https://authenticate.example.com",
+		AuthorizeURLString:    "https://authorize.example.com:9001",
+		DataBrokerURLString:   "https://cache.example.com:9001",
 		Policies: []config.Policy{
 			{Source: &config.StringURL{URL: mustParseURL(t, "http://a.example.com")}},
 			{Source: &config.StringURL{URL: mustParseURL(t, "https://b.example.com")}},

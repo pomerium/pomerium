@@ -15,7 +15,6 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/sessions/header"
 	"github.com/pomerium/pomerium/internal/sessions/queryparam"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -57,7 +56,10 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	state.jwtClaimHeaders = cfg.Options.JWTClaimsHeaders
 
 	// errors checked in ValidateOptions
-	state.authenticateURL, _ = urlutil.DeepCopy(cfg.Options.AuthenticateURL)
+	state.authenticateURL, err = cfg.Options.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
 	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: dashboardPath})
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})

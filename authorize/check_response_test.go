@@ -26,7 +26,7 @@ import (
 
 func TestAuthorize_okResponse(t *testing.T) {
 	opt := &config.Options{
-		AuthenticateURL: mustParseURL("https://authenticate.example.com"),
+		AuthenticateURLString: "https://authenticate.example.com",
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
 			SubPolicies: []config.SubPolicy{{

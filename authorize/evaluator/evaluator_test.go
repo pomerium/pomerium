@@ -22,7 +22,7 @@ import (
 
 func TestJSONMarshal(t *testing.T) {
 	opt := config.NewDefaultOptions()
-	opt.AuthenticateURL = mustParseURL("https://authenticate.example.com")
+	opt.AuthenticateURLString = "https://authenticate.example.com"
 	e, err := New(opt, NewStoreFromProtos(
 		&session.Session{
 			UserId: "user1",
@@ -133,8 +133,8 @@ func TestEvaluator_Evaluate(t *testing.T) {
 			})
 
 			e, err := New(&config.Options{
-				AuthenticateURL: mustParseURL("https://authn.example.com"),
-				Policies:        tc.policies,
+				AuthenticateURLString: "https://authn.example.com",
+				Policies:              tc.policies,
 			}, store)
 			require.NoError(t, err)
 			res, err := e.Evaluate(ctx, &Request{
@@ -160,7 +160,7 @@ func mustParseURL(str string) *url.URL {
 func BenchmarkEvaluator_Evaluate(b *testing.B) {
 	store := NewStore()
 	e, err := New(&config.Options{
-		AuthenticateURL: mustParseURL("https://authn.example.com"),
+		AuthenticateURLString: "https://authn.example.com",
 	}, store)
 	if !assert.NoError(b, err) {
 		return

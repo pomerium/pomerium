@@ -23,7 +23,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 
 	// special pomerium endpoints for users to view their session
 	h.Path("/").HandlerFunc(p.userInfo).Methods(http.MethodGet)
-	h.Path("/sign_out").HandlerFunc(p.SignOut).Methods(http.MethodGet, http.MethodPost)
+	h.Path("/sign_out").Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
 	h.Path("/jwt").Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
 
 	// called following authenticate auth flow to grab a new or existing session
@@ -54,12 +54,16 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 // SignOut clears the local session and redirects the request to the sign out url.
 // It's the responsibility of the authenticate service to revoke the remote session and clear
 // the authenticate service's session state.
-func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
 
 	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/"}
-	if sru := p.currentOptions.Load().SignOutRedirectURL; sru != nil {
-		redirectURL = sru
+	signOutURL, err := p.currentOptions.Load().GetSignOutRedirectURL()
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+	if signOutURL != nil {
+		redirectURL = signOutURL
 	}
 	if uri, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI)); err == nil && uri.String() != "" {
 		redirectURL = uri
@@ -72,6 +76,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) {
 
 	state.sessionStore.ClearSession(w, r)
 	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &dashboardURL).String(), http.StatusFound)
+	return nil
 }
 
 func (p *Proxy) userInfo(w http.ResponseWriter, r *http.Request) {

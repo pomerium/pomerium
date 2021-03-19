@@ -274,7 +274,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			}
 			if tt.signoutRedirectURL != "" {
 				opts := a.options.Load()
-				opts.SignOutRedirectURL, _ = url.Parse(tt.signoutRedirectURL)
+				opts.SignOutRedirectURLString = tt.signoutRedirectURL
 				a.options.Store(opts)
 			}
 			a.provider.Store(tt.provider)

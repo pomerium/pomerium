@@ -250,8 +250,12 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	rawIDToken := a.revokeSession(ctx, w, r)
 
 	redirectString := ""
-	if sru := a.options.Load().SignOutRedirectURL; sru != nil {
-		redirectString = sru.String()
+	signOutURL, err := a.options.Load().GetSignOutRedirectURL()
+	if err != nil {
+		return err
+	}
+	if signOutURL != nil {
+		redirectString = signOutURL.String()
 	}
 	if uri := r.FormValue(urlutil.QueryRedirectURI); uri != "" {
 		redirectString = uri

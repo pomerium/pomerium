@@ -17,7 +17,6 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -39,7 +38,7 @@ func ValidateOptions(o *config.Options) error {
 		return fmt.Errorf("proxy: invalid 'COOKIE_SECRET': %w", err)
 	}
 
-	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
+	if _, err := o.GetAuthenticateURL(); err != nil {
 		return fmt.Errorf("proxy: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
 	}
 
@@ -83,7 +82,9 @@ func (p *Proxy) OnConfigChange(cfg *config.Config) {
 	}
 
 	p.currentOptions.Store(cfg.Options)
-	p.setHandlers(cfg.Options)
+	if err := p.setHandlers(cfg.Options); err != nil {
+		log.Error().Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
+	}
 	if state, err := newProxyStateFromConfig(cfg); err != nil {
 		log.Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
 	} else {
@@ -91,7 +92,7 @@ func (p *Proxy) OnConfigChange(cfg *config.Config) {
 	}
 }
 
-func (p *Proxy) setHandlers(opts *config.Options) {
+func (p *Proxy) setHandlers(opts *config.Options) error {
 	if len(opts.GetAllPolicies()) == 0 {
 		log.Warn().Msg("proxy: configuration has no policies")
 	}
@@ -105,13 +106,18 @@ func (p *Proxy) setHandlers(opts *config.Options) {
 	// dashboard handlers are registered to all routes
 	r = p.registerDashboardHandlers(r)
 
-	if opts.ForwardAuthURL != nil {
+	forwardAuthURL, err := opts.GetForwardAuthURL()
+	if err != nil {
+		return err
+	}
+	if forwardAuthURL != nil {
 		// if a forward auth endpoint is set, register its handlers
-		h := r.Host(opts.ForwardAuthURL.Hostname()).Subrouter()
+		h := r.Host(forwardAuthURL.Hostname()).Subrouter()
 		h.PathPrefix("/").Handler(p.registerFwdAuthHandlers())
 	}
 
 	p.currentRouter.Store(r)
+	return nil
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {

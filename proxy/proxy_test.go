@@ -37,10 +37,9 @@ func TestOptions_Validate(t *testing.T) {
 
 	good := testOptions(t)
 	badAuthURL := testOptions(t)
-	badAuthURL.AuthenticateURL = nil
-	authurl, _ := url.Parse("authenticate.corp.beyondperimeter.com")
+	badAuthURL.AuthenticateURLString = "BAD_URL"
 	authenticateBadScheme := testOptions(t)
-	authenticateBadScheme.AuthenticateURL = authurl
+	authenticateBadScheme.AuthenticateURLString = "authenticate.corp.beyondperimeter.com"
 	emptyCookieSecret := testOptions(t)
 	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := testOptions(t)
@@ -161,7 +160,7 @@ func Test_UpdateOptions(t *testing.T) {
 	disableAuth := testOptions(t)
 	disableAuth.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", AllowPublicUnauthenticatedAccess: true}}
 	fwdAuth := testOptions(t)
-	fwdAuth.ForwardAuthURL = &url.URL{Scheme: "https", Host: "corp.example.example"}
+	fwdAuth.ForwardAuthURLString = "https://corp.example.example"
 	reqHeaders := testOptions(t)
 	reqHeaders.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", SetRequestHeaders: map[string]string{"x": "y"}}}
 	preserveHostHeader := testOptions(t)

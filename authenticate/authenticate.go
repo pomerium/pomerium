@@ -25,8 +25,8 @@ func ValidateOptions(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.CookieSecret); err != nil {
 		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid %w", err)
 	}
-	if err := urlutil.ValidateURL(o.AuthenticateURL); err != nil {
-		return fmt.Errorf("authenticate: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
+	if _, err := o.GetAuthenticateURL(); err != nil {
+		return fmt.Errorf("authenticate: 'AUTHENTICATE_SERVICE_URL' invalid: %w", err)
 	}
 	if o.Provider == "" {
 		return errors.New("authenticate: 'IDP_PROVIDER' is required")
@@ -93,7 +93,12 @@ func (a *Authenticate) OnConfigChange(cfg *config.Config) {
 }
 
 func (a *Authenticate) updateProvider(cfg *config.Config) error {
-	redirectURL, _ := urlutil.DeepCopy(cfg.Options.AuthenticateURL)
+	u, err := cfg.Options.GetAuthenticateURL()
+	if err != nil {
+		return err
+	}
+
+	redirectURL, _ := urlutil.DeepCopy(u)
 	redirectURL.Path = cfg.Options.AuthenticateCallbackPath
 
 	// configure our identity provider

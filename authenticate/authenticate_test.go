@@ -26,10 +26,8 @@ func newTestOptions(t *testing.T) *config.Options {
 
 func TestOptions_Validate(t *testing.T) {
 	good := newTestOptions(t)
-	badRedirectURL := newTestOptions(t)
-	badRedirectURL.AuthenticateURL = nil
 	badScheme := newTestOptions(t)
-	badScheme.AuthenticateURL.Scheme = ""
+	badScheme.AuthenticateURLString = "BAD_SCHEME://"
 	emptyClientID := newTestOptions(t)
 	emptyClientID.ClientID = ""
 	emptyClientSecret := newTestOptions(t)
@@ -43,7 +41,7 @@ func TestOptions_Validate(t *testing.T) {
 	badSharedKey := newTestOptions(t)
 	badSharedKey.SharedKey = ""
 	badAuthenticateURL := newTestOptions(t)
-	badAuthenticateURL.AuthenticateURL = nil
+	badAuthenticateURL.AuthenticateURLString = "BAD_URL"
 	badCallbackPath := newTestOptions(t)
 	badCallbackPath.AuthenticateCallbackPath = ""
 
@@ -54,7 +52,6 @@ func TestOptions_Validate(t *testing.T) {
 	}{
 		{"minimum options", good, false},
 		{"nil options", &config.Options{}, true},
-		{"bad redirect  url", badRedirectURL, true},
 		{"bad scheme", badScheme, true},
 		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
@@ -79,7 +76,7 @@ func TestNew(t *testing.T) {
 	good.CookieName = "A"
 
 	badRedirectURL := newTestOptions(t)
-	badRedirectURL.AuthenticateURL = nil
+	badRedirectURL.AuthenticateURLString = "BAD URL"
 	badRedirectURL.CookieName = "B"
 
 	badProvider := newTestOptions(t)
