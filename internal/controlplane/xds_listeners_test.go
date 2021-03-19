@@ -1,7 +1,6 @@
 package controlplane
 
 import (
-	"crypto/tls"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,7 +12,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/controlplane/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 const (
@@ -467,11 +465,6 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 }
 
 func Test_buildDownstreamTLSContext(t *testing.T) {
-	certA, err := cryptutil.CertificateFromBase64(aExampleComCert, aExampleComKey)
-	if !assert.NoError(t, err) {
-		return
-	}
-
 	srv, _ := NewServer("TEST", nil)
 
 	cacheDir, _ := os.UserCacheDir()
@@ -480,7 +473,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 
 	t.Run("no-validation", func(t *testing.T) {
 		downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
-			Certificates: []tls.Certificate{*certA},
+			Cert: aExampleComCert,
+			Key:  aExampleComKey,
 		}}, "a.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `{
@@ -512,8 +506,9 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	})
 	t.Run("client-ca", func(t *testing.T) {
 		downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
-			Certificates: []tls.Certificate{*certA},
-			ClientCA:     "TEST",
+			Cert:     aExampleComCert,
+			Key:      aExampleComKey,
+			ClientCA: "TEST",
 		}}, "a.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `{
@@ -548,7 +543,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	})
 	t.Run("policy-client-ca", func(t *testing.T) {
 		downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
-			Certificates: []tls.Certificate{*certA},
+			Cert: aExampleComCert,
+			Key:  aExampleComKey,
 			Policies: []config.Policy{
 				{
 					Source:                &config.StringURL{URL: mustParseURL(t, "https://a.example.com")},

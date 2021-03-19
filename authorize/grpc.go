@@ -228,21 +228,20 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 
 func (a *Authorize) getDownstreamClientCA(policy *config.Policy) (string, error) {
 	options := a.currentOptions.Load()
-	switch {
-	case policy != nil && policy.TLSDownstreamClientCA != "":
+
+	if policy != nil && policy.TLSDownstreamClientCA != "" {
 		bs, err := base64.StdEncoding.DecodeString(policy.TLSDownstreamClientCA)
 		if err != nil {
 			return "", err
 		}
 		return string(bs), nil
-	case options.ClientCA != "":
-		bs, err := base64.StdEncoding.DecodeString(options.ClientCA)
-		if err != nil {
-			return "", err
-		}
-		return string(bs), nil
 	}
-	return "", nil
+
+	ca, err := options.GetClientCA()
+	if err != nil {
+		return "", err
+	}
+	return string(ca), nil
 }
 
 func (a *Authorize) getMatchingPolicy(requestURL url.URL) *config.Policy {

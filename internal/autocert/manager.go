@@ -102,8 +102,12 @@ func (mgr *Manager) getCertMagicConfig(cfg *config.Config) (*certmagic.Config, e
 	mgr.certmagic.MustStaple = cfg.Options.AutocertOptions.MustStaple
 	mgr.certmagic.OnDemand = nil // disable on-demand
 	mgr.certmagic.Storage = &certmagic.FileStorage{Path: cfg.Options.AutocertOptions.Folder}
+	certs, err := cfg.AllCertificates()
+	if err != nil {
+		return nil, err
+	}
 	// add existing certs to the cache, and staple OCSP
-	for _, cert := range cfg.AllCertificates() {
+	for _, cert := range certs {
 		if err := mgr.certmagic.CacheUnmanagedTLSCertificate(cert, nil); err != nil {
 			return nil, fmt.Errorf("config: failed caching cert: %w", err)
 		}
