@@ -73,7 +73,7 @@ type Server struct {
 // NewServer creates a new server with traffic routed by envoy.
 func NewServer(src config.Source, grpcPort, httpPort string) (*Server, error) {
 	wd := filepath.Join(os.TempDir(), workingDirectoryName)
-	err := os.MkdirAll(wd, 0o755)
+	err := os.MkdirAll(wd, embeddedEnvoyPermissions)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temporary working directory for envoy: %w", err)
 	}

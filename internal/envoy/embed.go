@@ -2,12 +2,15 @@ package envoy
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
 	"github.com/natefinch/atomic"
 	resources "gopkg.in/cookieo9/resources-go.v2"
 )
+
+const embeddedEnvoyPermissions fs.FileMode = 0o700
 
 var embeddedFilesDirectory = filepath.Join(os.TempDir(), "pomerium-embedded-files")
 
@@ -40,7 +43,7 @@ func extractEmbeddedEnvoy() (outPath string, err error) {
 	if zf, ok := rc.(interface{ FileInfo() os.FileInfo }); ok {
 		zfi = zf.FileInfo()
 		if fi, e := os.Stat(outPath); e == nil {
-			if fi.Size() == zfi.Size() && fi.ModTime() == zfi.ModTime() {
+			if fi.Size() == zfi.Size() && fi.ModTime() == zfi.ModTime() && zfi.Mode().Perm() == embeddedEnvoyPermissions {
 				return outPath, nil
 			}
 		}
@@ -51,7 +54,7 @@ func extractEmbeddedEnvoy() (outPath string, err error) {
 		return "", fmt.Errorf("error extracting embedded envoy binary to temporary directory (path=%s): %w", outPath, err)
 	}
 
-	err = os.Chmod(outPath, 0o755)
+	err = os.Chmod(outPath, embeddedEnvoyPermissions)
 	if err != nil {
 		return "", fmt.Errorf("error chmoding embedded envoy binary: %w", err)
 	}
