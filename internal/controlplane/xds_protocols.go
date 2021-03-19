@@ -1,12 +1,8 @@
 package controlplane
 
 import (
-	"encoding/json"
-
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_extensions_upstreams_http_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
-
-	"github.com/pomerium/pomerium/internal/log"
 )
 
 func buildUpstreamProtocolOptions(endpoints []Endpoint, forceHTTP2 bool) *envoy_extensions_upstreams_http_v3.HttpProtocolOptions {
@@ -33,13 +29,6 @@ func buildUpstreamProtocolOptions(endpoints []Endpoint, forceHTTP2 bool) *envoy_
 		}
 	}
 	if tlsCount > 0 && tlsCount == len(endpoints) {
-		for _, e := range endpoints {
-			bs, _ := json.Marshal(e.transportSocket)
-			log.Info().
-				Str("url", e.url.String()).
-				Str("endpoints", string(bs)).
-				Msg("<<<USE AUTO>>>")
-		}
 		return &envoy_extensions_upstreams_http_v3.HttpProtocolOptions{
 			UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoConfig{
 				AutoConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoHttpConfig{},
