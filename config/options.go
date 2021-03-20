@@ -276,6 +276,9 @@ type Options struct {
 	// SkipXffAppend instructs proxy not to append its IP address to x-forwarded-for header.
 	// see https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=skip_xff_append#x-forwarded-for
 	SkipXffAppend bool `mapstructure:"skip_xff_append" yaml:"skip_xff_append,omitempty" json:"skip_xff_append,omitempty"`
+	// XffNumTrustedHops determines the trusted client address from x-forwarded-for addresses.
+	// see https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=xff_num_trusted_hops#x-forwarded-for
+	XffNumTrustedHops uint32 `mapstructure:"xff_num_trusted_hops" yaml:"xff_num_trusted_hops,omitempty" json:"xff_num_trusted_hops,omitempty"`
 
 	// Envoy bootstrap admin options. These do not support dynamic updates.
 	EnvoyAdminAccessLogPath string `mapstructure:"envoy_admin_access_log_path" yaml:"envoy_admin_access_log_path"`
@@ -325,6 +328,7 @@ var defaultOptions = Options{
 	},
 	DataBrokerStorageType:   "memory",
 	SkipXffAppend:           false,
+	XffNumTrustedHops: 0,
 	EnvoyAdminAccessLogPath: os.DevNull,
 	EnvoyAdminProfilePath:   os.DevNull,
 	EnvoyAdminAddress:       "127.0.0.1:9901",
@@ -1068,6 +1072,9 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.SkipXffAppend != nil {
 		o.SkipXffAppend = settings.GetSkipXffAppend()
+	}
+	if settings.XffNumTrustedHops != nil {
+		o.XffNumTrustedHops = settings.GetXffNumTrustedHops()
 	}
 }
 

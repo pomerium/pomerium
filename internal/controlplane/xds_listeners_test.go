@@ -112,6 +112,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 
 	options := config.NewDefaultOptions()
 	options.SkipXffAppend = true
+	options.XffNumTrustedHops = 1
 	filter, err := srv.buildMainHTTPConnectionManagerFilter(options, []string{"example.com"}, "*")
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `{
@@ -461,7 +462,8 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 				}
 			},
 			"useRemoteAddress": true,
-			"skipXffAppend": true
+			"skipXffAppend": true,
+			"xffNumTrustedHops": 1
 		}
 	}`, filter)
 }
