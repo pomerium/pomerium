@@ -328,7 +328,7 @@ var defaultOptions = Options{
 	},
 	DataBrokerStorageType:   "memory",
 	SkipXffAppend:           false,
-	XffNumTrustedHops: 0,
+	XffNumTrustedHops:       0,
 	EnvoyAdminAccessLogPath: os.DevNull,
 	EnvoyAdminProfilePath:   os.DevNull,
 	EnvoyAdminAddress:       "127.0.0.1:9901",
