@@ -18,7 +18,7 @@ require (
 	github.com/go-chi/chi v1.5.4
 	github.com/go-redis/redis/v8 v8.7.1
 	github.com/golang/mock v1.5.0
-	github.com/golang/protobuf v1.4.3
+	github.com/golang/protobuf v1.5.0
 	github.com/google/btree v1.0.1
 	github.com/google/go-cmp v0.5.5
 	github.com/google/go-jsonnet v0.17.0
@@ -66,7 +66,7 @@ require (
 	google.golang.org/api v0.42.0
 	google.golang.org/genproto v0.0.0-20210315142602-88120395e650
 	google.golang.org/grpc v1.36.0
-	google.golang.org/protobuf v1.25.0
+	google.golang.org/protobuf v1.26.0
 	gopkg.in/auth0.v5 v5.11.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
 	gopkg.in/ini.v1 v1.62.0 // indirect
