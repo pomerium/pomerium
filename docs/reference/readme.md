@@ -908,6 +908,15 @@ Refresh cooldown is the minimum amount of time between allowed manually refreshe
 Do not append proxy IP address to `x-forwarded-for` HTTP header. See [Envoy](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=skip_xff_append#x-forwarded-for) docs for more detail.
 
 
+### The number of trusted hops
+- Environmental Variable: `XFF_NUM_TRUSTED_HOPS`
+- Config File Key: `xff_num_trusted_hops`
+- Type: `uint32`
+- Default: `0`
+
+The number of trusted reverse proxies in front of pomerium. This affects `x-forwarded-proto` header and [`x-envoy-external-address` header](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-envoy-external-address), which reports tursted client address. [Envoy](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=xff_num_trusted_hops#x-forwarded-for) docs for more detail.
+
+
 ## Data Broker Service
 The databroker service is used for storing user session data.
 

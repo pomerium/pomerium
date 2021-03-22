@@ -456,8 +456,9 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 			Provider:       tracingProvider,
 		},
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
-		UseRemoteAddress: &wrappers.BoolValue{Value: true},
-		SkipXffAppend:    options.SkipXffAppend,
+		UseRemoteAddress:  &wrappers.BoolValue{Value: true},
+		SkipXffAppend:     options.SkipXffAppend,
+		XffNumTrustedHops: options.XffNumTrustedHops,
 	})
 
 	return &envoy_config_listener_v3.Filter{
