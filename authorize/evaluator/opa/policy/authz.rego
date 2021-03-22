@@ -210,6 +210,10 @@ jwt_payload_email = v {
 
 jwt_payload_groups = v {
 	v = array.concat(group_ids, get_databroker_group_names(group_ids))
+	v != []
+} else = v {
+	v = session.claims["groups"]
+	v != null
 } else = [] {
 	true
 }
