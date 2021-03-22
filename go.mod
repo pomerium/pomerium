@@ -19,7 +19,7 @@ require (
 	github.com/go-redis/redis/v8 v8.7.1
 	github.com/golang/mock v1.5.0
 	github.com/golang/protobuf v1.4.3
-	github.com/google/btree v1.0.0
+	github.com/google/btree v1.0.1
 	github.com/google/go-cmp v0.5.5
 	github.com/google/go-jsonnet v0.17.0
 	github.com/google/uuid v1.2.0
