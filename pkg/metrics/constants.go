@@ -20,10 +20,11 @@ const (
 
 // labels
 const (
-	ServiceLabel   = "service"
-	ConfigLabel    = "config"
-	VersionLabel   = "version"
-	RevisionLabel  = "revision"
-	GoVersionLabel = "goversion"
-	HostLabel      = "host"
+	InstallationIDLabel = "installation_id"
+	ServiceLabel        = "service"
+	ConfigLabel         = "config"
+	VersionLabel        = "version"
+	RevisionLabel       = "revision"
+	GoVersionLabel      = "goversion"
+	HostLabel           = "host"
 )

@@ -75,7 +75,9 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 		metadata.Pairs(grpcutil.MetadataKeyPomeriumVersion, version.FullVersion()),
 	)
 	srv.GRPCServer = grpc.NewServer(
-		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(name)),
+		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(func() string {
+			return srv.currentConfig.Load().Options.InstallationID
+		}, name)),
 		grpc.ChainUnaryInterceptor(requestid.UnaryServerInterceptor(), ui),
 		grpc.ChainStreamInterceptor(requestid.StreamServerInterceptor(), si),
 	)

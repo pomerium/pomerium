@@ -40,7 +40,7 @@ func newTestCC(t *testing.T) *grpc.ClientConn {
 }
 
 func Test_GRPCClientInterceptor(t *testing.T) {
-	interceptor := GRPCClientInterceptor("test_service")
+	interceptor := GRPCClientInterceptor(func() string { return "test_installation_id" }, "test_service")
 
 	tests := []struct {
 		name                          string
@@ -55,28 +55,28 @@ func Test_GRPCClientInterceptor(t *testing.T) {
 			name:                          "ok authorize",
 			method:                        "/authorize.Authorizer/Authorize",
 			errorCode:                     nil,
-			wantgrpcClientResponseSize:    "{ { {grpc_client_status OK}{grpc_method Authorize}{grpc_service authorize.Authorizer}{host dns:localhost:9999}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wantgrpcClientRequestDuration: "{ { {grpc_client_status OK}{grpc_method Authorize}{grpc_service authorize.Authorizer}{host dns:localhost:9999}{service test_service} }",
-			wantgrpcClientRequestCount:    "{ { {grpc_client_status OK}{grpc_method Authorize}{grpc_service authorize.Authorizer}{host dns:localhost:9999}{service test_service} }",
-			wantgrpcClientRequestSize:     "{ { {grpc_client_status OK}{grpc_method Authorize}{grpc_service authorize.Authorizer}{host dns:localhost:9999}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcClientResponseSize:    "{ { {grpc_client_status OK}{grpc_method Authorize}{grpc_service authorize.Authorizer}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcClientRequestDuration: "{ { {grpc_client_status OK}{grpc_method Authorize}{grpc_service authorize.Authorizer}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcClientRequestCount:    "{ { {grpc_client_status OK}{grpc_method Authorize}{grpc_service authorize.Authorizer}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcClientRequestSize:     "{ { {grpc_client_status OK}{grpc_method Authorize}{grpc_service authorize.Authorizer}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
 		},
 		{
 			name:                          "unknown validate",
 			method:                        "/authenticate.Authenticator/Validate",
 			errorCode:                     status.Error(14, ""),
-			wantgrpcClientResponseSize:    "{ { {grpc_client_status UNAVAILABLE}{grpc_method Validate}{grpc_service authenticate.Authenticator}{host dns:localhost:9999}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wantgrpcClientRequestDuration: "{ { {grpc_client_status UNAVAILABLE}{grpc_method Validate}{grpc_service authenticate.Authenticator}{host dns:localhost:9999}{service test_service} }",
-			wantgrpcClientRequestCount:    "{ { {grpc_client_status UNAVAILABLE}{grpc_method Validate}{grpc_service authenticate.Authenticator}{host dns:localhost:9999}{service test_service} }",
-			wantgrpcClientRequestSize:     "{ { {grpc_client_status UNAVAILABLE}{grpc_method Validate}{grpc_service authenticate.Authenticator}{host dns:localhost:9999}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcClientResponseSize:    "{ { {grpc_client_status UNAVAILABLE}{grpc_method Validate}{grpc_service authenticate.Authenticator}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcClientRequestDuration: "{ { {grpc_client_status UNAVAILABLE}{grpc_method Validate}{grpc_service authenticate.Authenticator}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcClientRequestCount:    "{ { {grpc_client_status UNAVAILABLE}{grpc_method Validate}{grpc_service authenticate.Authenticator}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcClientRequestSize:     "{ { {grpc_client_status UNAVAILABLE}{grpc_method Validate}{grpc_service authenticate.Authenticator}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
 		},
 		{
 			name:                          "broken method parsing",
 			method:                        "f",
 			errorCode:                     status.Error(14, ""),
-			wantgrpcClientResponseSize:    "{ { {grpc_client_status UNAVAILABLE}{host dns:localhost:9999}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wantgrpcClientRequestDuration: "{ { {grpc_client_status UNAVAILABLE}{host dns:localhost:9999}{service test_service} }",
-			wantgrpcClientRequestCount:    "{ { {grpc_client_status UNAVAILABLE}{host dns:localhost:9999}{service test_service} }",
-			wantgrpcClientRequestSize:     "{ { {grpc_client_status UNAVAILABLE}{host dns:localhost:9999}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcClientResponseSize:    "{ { {grpc_client_status UNAVAILABLE}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcClientRequestDuration: "{ { {grpc_client_status UNAVAILABLE}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcClientRequestCount:    "{ { {grpc_client_status UNAVAILABLE}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcClientRequestSize:     "{ { {grpc_client_status UNAVAILABLE}{host dns:localhost:9999}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
 		},
 	}
 
@@ -125,28 +125,28 @@ func Test_GRPCServerMetricsHandler(t *testing.T) {
 			name:                          "ok authorize",
 			method:                        "/authorize.Authorizer/Authorize",
 			errorCode:                     nil,
-			wantgrpcServerResponseSize:    "{ { {grpc_method Authorize}{grpc_server_status OK}{grpc_service authorize.Authorizer}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wantgrpcServerRequestDuration: "{ { {grpc_method Authorize}{grpc_server_status OK}{grpc_service authorize.Authorizer}{service test_service} }",
-			wantgrpcServerRequestCount:    "{ { {grpc_method Authorize}{grpc_server_status OK}{grpc_service authorize.Authorizer}{service test_service} }",
-			wantgrpcServerRequestSizeView: "{ { {grpc_method Authorize}{grpc_server_status OK}{grpc_service authorize.Authorizer}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcServerResponseSize:    "{ { {grpc_method Authorize}{grpc_server_status OK}{grpc_service authorize.Authorizer}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcServerRequestDuration: "{ { {grpc_method Authorize}{grpc_server_status OK}{grpc_service authorize.Authorizer}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcServerRequestCount:    "{ { {grpc_method Authorize}{grpc_server_status OK}{grpc_service authorize.Authorizer}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcServerRequestSizeView: "{ { {grpc_method Authorize}{grpc_server_status OK}{grpc_service authorize.Authorizer}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
 		},
 		{
 			name:                          "unknown validate",
 			method:                        "/authenticate.Authenticator/Validate",
 			errorCode:                     status.Error(14, ""),
-			wantgrpcServerResponseSize:    "{ { {grpc_method Validate}{grpc_server_status UNAVAILABLE}{grpc_service authenticate.Authenticator}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wantgrpcServerRequestDuration: "{ { {grpc_method Validate}{grpc_server_status UNAVAILABLE}{grpc_service authenticate.Authenticator}{service test_service} }",
-			wantgrpcServerRequestCount:    "{ { {grpc_method Validate}{grpc_server_status UNAVAILABLE}{grpc_service authenticate.Authenticator}{service test_service} }",
-			wantgrpcServerRequestSizeView: "{ { {grpc_method Validate}{grpc_server_status UNAVAILABLE}{grpc_service authenticate.Authenticator}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcServerResponseSize:    "{ { {grpc_method Validate}{grpc_server_status UNAVAILABLE}{grpc_service authenticate.Authenticator}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcServerRequestDuration: "{ { {grpc_method Validate}{grpc_server_status UNAVAILABLE}{grpc_service authenticate.Authenticator}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcServerRequestCount:    "{ { {grpc_method Validate}{grpc_server_status UNAVAILABLE}{grpc_service authenticate.Authenticator}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcServerRequestSizeView: "{ { {grpc_method Validate}{grpc_server_status UNAVAILABLE}{grpc_service authenticate.Authenticator}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
 		},
 		{
 			name:                          "broken method parsing",
 			method:                        "f",
 			errorCode:                     status.Error(14, ""),
-			wantgrpcServerResponseSize:    "{ { {grpc_server_status UNAVAILABLE}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wantgrpcServerRequestDuration: "{ { {grpc_server_status UNAVAILABLE}{service test_service} }",
-			wantgrpcServerRequestCount:    "{ { {grpc_server_status UNAVAILABLE}{service test_service} }",
-			wantgrpcServerRequestSizeView: "{ { {grpc_server_status UNAVAILABLE}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcServerResponseSize:    "{ { {grpc_server_status UNAVAILABLE}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wantgrpcServerRequestDuration: "{ { {grpc_server_status UNAVAILABLE}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcServerRequestCount:    "{ { {grpc_server_status UNAVAILABLE}{installation_id test_installation_id}{service test_service} }",
+			wantgrpcServerRequestSizeView: "{ { {grpc_server_status UNAVAILABLE}{installation_id test_installation_id}{service test_service} }&{1 5 5 5 0 [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]",
 		},
 	}
 
@@ -155,7 +155,7 @@ func Test_GRPCServerMetricsHandler(t *testing.T) {
 			view.Unregister(GRPCServerViews...)
 			view.Register(GRPCServerViews...)
 
-			metricsHandler := NewGRPCServerMetricsHandler("test_service")
+			metricsHandler := NewGRPCServerMetricsHandler(func() string { return "test_installation_id" }, "test_service")
 			mockServerRPCHandle(metricsHandler, tt.method, tt.errorCode)
 
 			testDataRetrieval(GRPCServerResponseSizeView, t, tt.wantgrpcServerResponseSize)

@@ -66,7 +66,7 @@ func (mgr *MetricsManager) updateInfo(cfg *Config) {
 		hostname = "__unknown__"
 	}
 
-	metrics.SetBuildInfo(serviceName, hostname)
+	metrics.SetBuildInfo(cfg.Options.InstallationID, serviceName, hostname)
 	mgr.serviceName = serviceName
 }
 

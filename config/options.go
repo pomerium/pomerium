@@ -52,6 +52,9 @@ var EnvoyAdminURL = &url.URL{Host: "127.0.0.1:9901", Scheme: "http"}
 // Options are the global environmental flags used to set up pomerium's services.
 // Use NewXXXOptions() methods for a safely initialized data structure.
 type Options struct {
+	// InstallationID is used to indicate a unique installation of pomerium. Useful for telemetry.
+	InstallationID string `mapstructure:"installation_id" yaml:"installation_id,omitempty"`
+
 	// Debug outputs human-readable logs to Stdout.
 	Debug bool `mapstructure:"pomerium_debug" yaml:"pomerium_debug,omitempty"`
 
@@ -345,7 +348,7 @@ func newOptionsFromConfig(configFile string) (*Options, error) {
 		return nil, fmt.Errorf("config: options from config file %q: %w", configFile, err)
 	}
 	serviceName := telemetry.ServiceName(o.Services)
-	metrics.AddPolicyCountCallback(serviceName, func() int64 {
+	metrics.AddPolicyCountCallback(o.InstallationID, serviceName, func() int64 {
 		return int64(len(o.GetAllPolicies()))
 	})
 
@@ -903,6 +906,9 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 		return
 	}
 
+	if settings.InstallationId != nil {
+		o.InstallationID = settings.GetInstallationId()
+	}
 	if settings.Debug != nil {
 		o.Debug = settings.GetDebug()
 	}

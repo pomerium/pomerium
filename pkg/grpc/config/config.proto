@@ -111,6 +111,7 @@ message Settings {
     bytes key_bytes = 4;
   }
 
+  optional string installation_id = 70;
   optional bool debug = 2;
   optional string log_level = 3;
   optional string proxy_log_level = 4;

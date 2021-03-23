@@ -8,12 +8,13 @@ import (
 
 // The following tags are applied to stats recorded by this package.
 var (
-	TagKeyHTTPMethod  = tag.MustNewKey("http_method")
-	TagKeyService     = tag.MustNewKey("service")
-	TagKeyGRPCService = tag.MustNewKey("grpc_service")
-	TagKeyGRPCMethod  = tag.MustNewKey("grpc_method")
-	TagKeyHost        = tag.MustNewKey("host")
-	TagKeyDestination = tag.MustNewKey("destination")
+	TagKeyHTTPMethod     = tag.MustNewKey("http_method")
+	TagKeyInstallationID = tag.MustNewKey("installation_id")
+	TagKeyService        = tag.MustNewKey("service")
+	TagKeyGRPCService    = tag.MustNewKey("grpc_service")
+	TagKeyGRPCMethod     = tag.MustNewKey("grpc_method")
+	TagKeyHost           = tag.MustNewKey("host")
+	TagKeyDestination    = tag.MustNewKey("destination")
 
 	TagKeyStorageOperation = tag.MustNewKey("operation")
 	TagKeyStorageResult    = tag.MustNewKey("result")

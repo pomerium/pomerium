@@ -5,7 +5,7 @@ import (
 )
 
 // AddRedisMetrics registers a metrics handler against a redis Client's PoolStats() method
-func AddRedisMetrics(stats func() *redis.PoolStats) {
+func AddRedisMetrics(installationID string, stats func() *redis.PoolStats) {
 	gaugeMetrics := []struct {
 		name string
 		desc string
@@ -17,7 +17,7 @@ func AddRedisMetrics(stats func() *redis.PoolStats) {
 	}
 
 	for _, m := range gaugeMetrics {
-		registry.addInt64DerivedGaugeMetric(m.name, m.desc, "redis", m.f)
+		registry.addInt64DerivedGaugeMetric(m.name, m.desc, installationID, "redis", m.f)
 	}
 
 	cumulativeMetrics := []struct {
@@ -30,6 +30,6 @@ func AddRedisMetrics(stats func() *redis.PoolStats) {
 	}
 
 	for _, m := range cumulativeMetrics {
-		registry.addInt64DerivedCumulativeMetric(m.name, m.desc, "redis", m.f)
+		registry.addInt64DerivedCumulativeMetric(m.name, m.desc, installationID, "redis", m.f)
 	}
 }

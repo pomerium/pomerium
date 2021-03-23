@@ -48,6 +48,9 @@ type Options struct {
 	// Note that transport security is required unless WithInsecure is set.
 	WithInsecure bool
 
+	// InstallationID specifies the installation id for telemetry exposition.
+	InstallationID string
+
 	// ServiceName specifies the service name for telemetry exposition
 	ServiceName string
 
@@ -77,7 +80,9 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 
 	connAddr := "pomerium:///" + strings.Join(addrs, ",")
 
-	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.ServiceName)
+	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(func() string {
+		return opts.InstallationID
+	}, opts.ServiceName)
 
 	unaryClientInterceptors := []grpc.UnaryClientInterceptor{
 		requestid.UnaryClientInterceptor(),

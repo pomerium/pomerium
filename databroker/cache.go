@@ -62,7 +62,9 @@ func New(cfg *config.Config) (*DataBroker, error) {
 		grpc.UnaryInterceptor(ui),
 	)
 
-	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(cfg.Options.Services)
+	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(func() string {
+		return cfg.Options.InstallationID
+	}, cfg.Options.Services)
 	clientDialOptions := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithChainUnaryInterceptor(clientStatsHandler.UnaryInterceptor, grpcutil.WithUnarySignedJWT(sharedKey)),
