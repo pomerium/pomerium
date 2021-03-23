@@ -116,7 +116,7 @@ var (
 //
 // TODO: This handler will NOT currently propagate B3 headers to upstream servers.  See
 // GRPCServerStatsHandler for changes required
-func GRPCClientInterceptor(getInstallationID func() string, service string) grpc.UnaryClientInterceptor {
+func GRPCClientInterceptor(service string) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
@@ -153,15 +153,13 @@ func GRPCClientInterceptor(getInstallationID func() string, service string) grpc
 
 // GRPCServerMetricsHandler implements a telemetry tagRPCHandler methods for metrics
 type GRPCServerMetricsHandler struct {
-	getInstallationID func() string
-	service           string
+	service string
 }
 
 // NewGRPCServerMetricsHandler creates a new GRPCServerStatsHandler for a pomerium service
-func NewGRPCServerMetricsHandler(getInstallationID func() string, service string) *GRPCServerMetricsHandler {
+func NewGRPCServerMetricsHandler(service string) *GRPCServerMetricsHandler {
 	return &GRPCServerMetricsHandler{
-		getInstallationID: getInstallationID,
-		service:           service,
+		service: service,
 	}
 }
 

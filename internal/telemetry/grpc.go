@@ -30,11 +30,11 @@ func (h *GRPCServerStatsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.
 }
 
 // NewGRPCServerStatsHandler creates a new GRPCServerStatsHandler for a pomerium service
-func NewGRPCServerStatsHandler(getInstallationID func() string, service string) grpcstats.Handler {
+func NewGRPCServerStatsHandler(service string) grpcstats.Handler {
 	return &GRPCServerStatsHandler{
 		service:        ServiceName(service),
 		Handler:        &ocgrpc.ServerHandler{},
-		metricsHandler: metrics.NewGRPCServerMetricsHandler(getInstallationID, ServiceName(service)),
+		metricsHandler: metrics.NewGRPCServerMetricsHandler(ServiceName(service)),
 	}
 }
 
@@ -48,9 +48,9 @@ type GRPCClientStatsHandler struct {
 
 // NewGRPCClientStatsHandler returns a new GRPCClientStatsHandler used to create
 // telemetry related client DialOptions
-func NewGRPCClientStatsHandler(getInstallationID func() string, service string) *GRPCClientStatsHandler {
+func NewGRPCClientStatsHandler(service string) *GRPCClientStatsHandler {
 	return &GRPCClientStatsHandler{
 		Handler:          &ocgrpc.ClientHandler{},
-		UnaryInterceptor: metrics.GRPCClientInterceptor(getInstallationID, ServiceName(service)),
+		UnaryInterceptor: metrics.GRPCClientInterceptor(ServiceName(service)),
 	}
 }

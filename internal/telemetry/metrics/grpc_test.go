@@ -40,7 +40,7 @@ func newTestCC(t *testing.T) *grpc.ClientConn {
 }
 
 func Test_GRPCClientInterceptor(t *testing.T) {
-	interceptor := GRPCClientInterceptor(func() string { return "test_installation_id" }, "test_service")
+	interceptor := GRPCClientInterceptor("test_service")
 
 	tests := []struct {
 		name                          string
@@ -155,7 +155,7 @@ func Test_GRPCServerMetricsHandler(t *testing.T) {
 			view.Unregister(GRPCServerViews...)
 			view.Register(GRPCServerViews...)
 
-			metricsHandler := NewGRPCServerMetricsHandler(func() string { return "test_installation_id" }, "test_service")
+			metricsHandler := NewGRPCServerMetricsHandler("test_service")
 			mockServerRPCHandle(metricsHandler, tt.method, tt.errorCode)
 
 			testDataRetrieval(GRPCServerResponseSizeView, t, tt.wantgrpcServerResponseSize)

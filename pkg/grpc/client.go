@@ -80,9 +80,7 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 
 	connAddr := "pomerium:///" + strings.Join(addrs, ",")
 
-	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(func() string {
-		return opts.InstallationID
-	}, opts.ServiceName)
+	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.ServiceName)
 
 	unaryClientInterceptors := []grpc.UnaryClientInterceptor{
 		requestid.UnaryClientInterceptor(),
