@@ -136,7 +136,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 		src.Trigger(cfg)
 	}
 
-	metrics.SetConfigInfo(cfg.Options.InstallationID, cfg.Options.Services, "databroker", cfg.Checksum(), true)
+	metrics.SetConfigInfo(cfg.Options.Services, "databroker", cfg.Checksum(), true)
 }
 
 func (src *ConfigSource) runUpdater(cfg *config.Config) {

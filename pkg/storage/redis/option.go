@@ -6,20 +6,12 @@ import (
 )
 
 type config struct {
-	installationID string
-	tls            *tls.Config
-	expiry         time.Duration
+	tls    *tls.Config
+	expiry time.Duration
 }
 
 // Option customizes a Backend.
 type Option func(*config)
-
-// WithInstallationID sets the installation id in the config.
-func WithInstallationID(installationID string) Option {
-	return func(cfg *config) {
-		cfg.installationID = installationID
-	}
-}
 
 // WithTLSConfig sets the tls.Config which Backend uses.
 func WithTLSConfig(tlsConfig *tls.Config) Option {

@@ -62,7 +62,7 @@ func New(rawURL string, options ...Option) (*Backend, error) {
 	if err != nil {
 		return nil, err
 	}
-	metrics.AddRedisMetrics(cfg.installationID, backend.client.PoolStats)
+	metrics.AddRedisMetrics(backend.client.PoolStats)
 	go backend.listenForVersionChanges()
 	if cfg.expiry != 0 {
 		go func() {

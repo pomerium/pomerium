@@ -27,7 +27,7 @@ func Test_SetConfigInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			view.Unregister(InfoViews...)
 			view.Register(InfoViews...)
-			SetConfigInfo("test_installation_id", "test_service", "test config", 0, tt.success)
+			SetConfigInfo("test_service", "test config", 0, tt.success)
 
 			testDataRetrieval(ConfigLastReloadView, t, tt.wantLastReload)
 			testDataRetrieval(ConfigLastReloadSuccessView, t, tt.wantLastReloadSuccess)
@@ -42,7 +42,6 @@ func Test_SetBuildInfo(t *testing.T) {
 	version.GitCommit = "deadbeef"
 
 	wantLabels := []metricdata.LabelValue{
-		{Value: "test_installation_id", Present: true},
 		{Value: "test_service", Present: true},
 		{Value: version.FullVersion(), Present: true},
 		{Value: version.GitCommit, Present: true},
@@ -50,7 +49,7 @@ func Test_SetBuildInfo(t *testing.T) {
 		{Value: "test_host", Present: true},
 	}
 
-	SetBuildInfo("test_installation_id", "test_service", "test_host")
+	SetBuildInfo("test_service", "test_host")
 	testMetricRetrieval(registry.registry.Read(), t, wantLabels, int64(1), metrics.BuildInfo)
 }
 
@@ -59,10 +58,9 @@ func Test_AddPolicyCountCallback(t *testing.T) {
 
 	wantValue := int64(42)
 	wantLabels := []metricdata.LabelValue{
-		{Value: "test_installation_id", Present: true},
 		{Value: "test_service", Present: true},
 	}
-	AddPolicyCountCallback("test_installation_id", "test_service", func() int64 { return wantValue })
+	AddPolicyCountCallback("test_service", func() int64 { return wantValue })
 
 	testMetricRetrieval(registry.registry.Read(), t, wantLabels, wantValue, metrics.PolicyCountTotal)
 }

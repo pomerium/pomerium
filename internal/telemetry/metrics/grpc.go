@@ -36,7 +36,7 @@ var (
 		Name:        "grpc/server/requests_total",
 		Measure:     ocgrpc.ServerLatency,
 		Description: "Total grpc Requests",
-		TagKeys:     []tag.Key{TagKeyInstallationID, TagKeyService, TagKeyGRPCMethod, ocgrpc.KeyServerStatus, TagKeyGRPCService},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyGRPCMethod, ocgrpc.KeyServerStatus, TagKeyGRPCService},
 		Aggregation: view.Count(),
 	}
 
@@ -46,7 +46,7 @@ var (
 		Name:        "grpc/server/request_duration_ms",
 		Measure:     ocgrpc.ServerLatency,
 		Description: "grpc Request duration in ms",
-		TagKeys:     []tag.Key{TagKeyInstallationID, TagKeyService, TagKeyGRPCMethod, ocgrpc.KeyServerStatus, TagKeyGRPCService},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyGRPCMethod, ocgrpc.KeyServerStatus, TagKeyGRPCService},
 		Aggregation: DefaultMillisecondsDistribution,
 	}
 
@@ -56,7 +56,7 @@ var (
 		Name:        "grpc/server/response_size_bytes",
 		Measure:     ocgrpc.ServerSentBytesPerRPC,
 		Description: "grpc Server Response Size in bytes",
-		TagKeys:     []tag.Key{TagKeyInstallationID, TagKeyService, TagKeyGRPCMethod, ocgrpc.KeyServerStatus, TagKeyGRPCService},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyGRPCMethod, ocgrpc.KeyServerStatus, TagKeyGRPCService},
 		Aggregation: grpcSizeDistribution,
 	}
 
@@ -66,7 +66,7 @@ var (
 		Name:        "grpc/server/request_size_bytes",
 		Measure:     ocgrpc.ServerReceivedBytesPerRPC,
 		Description: "grpc Server Request Size in bytes",
-		TagKeys:     []tag.Key{TagKeyInstallationID, TagKeyService, TagKeyGRPCMethod, ocgrpc.KeyServerStatus, TagKeyGRPCService},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyGRPCMethod, ocgrpc.KeyServerStatus, TagKeyGRPCService},
 		Aggregation: grpcSizeDistribution,
 	}
 
@@ -76,7 +76,7 @@ var (
 		Name:        "grpc/client/requests_total",
 		Measure:     ocgrpc.ClientRoundtripLatency,
 		Description: "Total grpc Client Requests",
-		TagKeys:     []tag.Key{TagKeyInstallationID, TagKeyService, TagKeyHost, TagKeyGRPCMethod, TagKeyGRPCService, ocgrpc.KeyClientStatus},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyGRPCMethod, TagKeyGRPCService, ocgrpc.KeyClientStatus},
 		Aggregation: view.Count(),
 	}
 
@@ -86,7 +86,7 @@ var (
 		Name:        "grpc/client/request_duration_ms",
 		Measure:     ocgrpc.ClientRoundtripLatency,
 		Description: "grpc Client Request duration in ms",
-		TagKeys:     []tag.Key{TagKeyInstallationID, TagKeyService, TagKeyHost, TagKeyGRPCMethod, TagKeyGRPCService, ocgrpc.KeyClientStatus},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyGRPCMethod, TagKeyGRPCService, ocgrpc.KeyClientStatus},
 		Aggregation: DefaultMillisecondsDistribution,
 	}
 
@@ -96,7 +96,7 @@ var (
 		Name:        "grpc/client/response_size_bytes",
 		Measure:     ocgrpc.ClientReceivedBytesPerRPC,
 		Description: "grpc Client Response Size in bytes",
-		TagKeys:     []tag.Key{TagKeyInstallationID, TagKeyService, TagKeyHost, TagKeyGRPCMethod, TagKeyGRPCService, ocgrpc.KeyClientStatus},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyGRPCMethod, TagKeyGRPCService, ocgrpc.KeyClientStatus},
 		Aggregation: grpcSizeDistribution,
 	}
 
@@ -106,7 +106,7 @@ var (
 		Name:        "grpc/client/request_size_bytes",
 		Measure:     ocgrpc.ClientSentBytesPerRPC,
 		Description: "grpc Client Request Size in bytes",
-		TagKeys:     []tag.Key{TagKeyInstallationID, TagKeyService, TagKeyHost, TagKeyGRPCMethod, TagKeyGRPCService, ocgrpc.KeyClientStatus},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyGRPCMethod, TagKeyGRPCService, ocgrpc.KeyClientStatus},
 		Aggregation: grpcSizeDistribution,
 	}
 )
@@ -136,7 +136,6 @@ func GRPCClientInterceptor(getInstallationID func() string, service string) grpc
 
 		taggedCtx, tagErr := tag.New(
 			ctx,
-			tag.Upsert(TagKeyInstallationID, getInstallationID()),
 			tag.Upsert(TagKeyService, service),
 			tag.Upsert(TagKeyHost, cc.Target()),
 			tag.Upsert(TagKeyGRPCMethod, rpcMethod),
@@ -179,7 +178,6 @@ func (h *GRPCServerMetricsHandler) TagRPC(ctx context.Context, tagInfo *grpcstat
 
 	taggedCtx, tagErr := tag.New(
 		ctx,
-		tag.Upsert(TagKeyInstallationID, h.getInstallationID()),
 		tag.Upsert(TagKeyService, h.service),
 		tag.Upsert(TagKeyGRPCMethod, rpcMethod),
 		tag.Upsert(TagKeyGRPCService, rpcService),

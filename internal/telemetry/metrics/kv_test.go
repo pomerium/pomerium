@@ -21,13 +21,12 @@ func Test_AddRedisMetrics(t *testing.T) {
 	}
 
 	labelValues := []metricdata.LabelValue{
-		metricdata.NewLabelValue("test_installation_id"),
 		metricdata.NewLabelValue("redis"),
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			AddRedisMetrics("test_installation_id", func() *redis.PoolStats { return &tt.stat })
+			AddRedisMetrics(func() *redis.PoolStats { return &tt.stat })
 			testMetricRetrieval(registry.registry.Read(), t, labelValues, tt.want, tt.name)
 		})
 	}

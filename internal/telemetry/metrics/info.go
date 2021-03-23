@@ -74,15 +74,14 @@ func RecordIdentityManagerLastRefresh() {
 
 // SetConfigInfo records the status, checksum and timestamp of a configuration
 // reload. You must register InfoViews or the related config views before calling
-func SetConfigInfo(installationID, service, configName string, checksum uint64, success bool) {
+func SetConfigInfo(service, configName string, checksum uint64, success bool) {
 	if success {
-		registry.setConfigChecksum(installationID, service, configName, checksum)
+		registry.setConfigChecksum(service, configName, checksum)
 
-		installationIDTag := tag.Insert(TagKeyInstallationID, installationID)
 		serviceTag := tag.Insert(TagKeyService, service)
 		if err := stats.RecordWithTags(
 			context.Background(),
-			[]tag.Mutator{installationIDTag, serviceTag},
+			[]tag.Mutator{serviceTag},
 			configLastReload.M(time.Now().Unix()),
 		); err != nil {
 			log.Error().Err(err).Msg("telemetry/metrics: failed to record config checksum timestamp")
@@ -90,7 +89,7 @@ func SetConfigInfo(installationID, service, configName string, checksum uint64, 
 
 		if err := stats.RecordWithTags(
 			context.Background(),
-			[]tag.Mutator{installationIDTag, serviceTag},
+			[]tag.Mutator{serviceTag},
 			configLastReloadSuccess.M(1),
 		); err != nil {
 			log.Error().Err(err).Msg("telemetry/metrics: failed to record config reload")
@@ -99,7 +98,6 @@ func SetConfigInfo(installationID, service, configName string, checksum uint64, 
 		stats.Record(context.Background(), configLastReloadSuccess.M(0))
 	}
 	log.Info().
-		Str("installation_id", installationID).
 		Str("service", service).
 		Str("config", configName).
 		Str("checksum", fmt.Sprintf("%x", checksum)).
@@ -108,8 +106,8 @@ func SetConfigInfo(installationID, service, configName string, checksum uint64, 
 
 // SetBuildInfo records the pomerium build info. You must call RegisterInfoMetrics to
 // have this exported
-func SetBuildInfo(installationID, service, hostname string) {
-	registry.setBuildInfo(installationID, service, hostname)
+func SetBuildInfo(service, hostname string) {
+	registry.setBuildInfo(service, hostname)
 }
 
 // RegisterInfoMetrics registers non-view based metrics registry globally for export
@@ -120,6 +118,6 @@ func RegisterInfoMetrics() {
 // AddPolicyCountCallback sets the function to call when exporting the
 // policy count metric.   You must call RegisterInfoMetrics to have this
 // exported
-func AddPolicyCountCallback(installationID, service string, f func() int64) {
-	registry.addPolicyCountCallback(installationID, service, f)
+func AddPolicyCountCallback(service string, f func() int64) {
+	registry.addPolicyCountCallback(service, f)
 }

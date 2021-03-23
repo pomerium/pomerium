@@ -101,7 +101,7 @@ func NewFileOrEnvironmentSource(configFile string) (*FileOrEnvironmentSource, er
 	}
 
 	cfg := &Config{Options: options}
-	metrics.SetConfigInfo(cfg.Options.InstallationID, cfg.Options.Services, "local", cfg.Checksum(), true)
+	metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), true)
 
 	src := &FileOrEnvironmentSource{
 		configFile: configFile,
@@ -119,10 +119,10 @@ func (src *FileOrEnvironmentSource) onConfigChange(evt fsnotify.Event) {
 	options, err := newOptionsFromConfig(src.configFile)
 	if err == nil {
 		cfg = &Config{Options: options}
-		metrics.SetConfigInfo(cfg.Options.InstallationID, cfg.Options.Services, "local", cfg.Checksum(), true)
+		metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), true)
 	} else {
 		log.Error().Err(err).Msg("config: error updating config")
-		metrics.SetConfigInfo(cfg.Options.InstallationID, cfg.Options.Services, "local", cfg.Checksum(), false)
+		metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), false)
 	}
 	src.mu.Unlock()
 
