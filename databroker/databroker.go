@@ -33,12 +33,13 @@ func (srv *dataBrokerServer) OnConfigChange(cfg *config.Config) {
 }
 
 func (srv *dataBrokerServer) getOptions(cfg *config.Config) []databroker.ServerOption {
+	cert, _ := cfg.Options.GetDataBrokerCertificate()
 	return []databroker.ServerOption{
 		databroker.WithSharedKey(cfg.Options.SharedKey),
 		databroker.WithStorageType(cfg.Options.DataBrokerStorageType),
 		databroker.WithStorageConnectionString(cfg.Options.DataBrokerStorageConnectionString),
 		databroker.WithStorageCAFile(cfg.Options.DataBrokerStorageCAFile),
-		databroker.WithStorageCertificate(cfg.Options.DataBrokerCertificate),
+		databroker.WithStorageCertificate(cert),
 		databroker.WithStorageCertSkipVerify(cfg.Options.DataBrokerStorageCertSkipVerify),
 	}
 }

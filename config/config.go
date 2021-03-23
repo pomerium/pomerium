@@ -23,11 +23,16 @@ func (cfg *Config) Clone() *Config {
 }
 
 // AllCertificates returns all the certificates in the config.
-func (cfg *Config) AllCertificates() []tls.Certificate {
+func (cfg *Config) AllCertificates() ([]tls.Certificate, error) {
+	optionCertificates, err := cfg.Options.GetCertificates()
+	if err != nil {
+		return nil, err
+	}
+
 	var certs []tls.Certificate
-	certs = append(certs, cfg.Options.Certificates...)
+	certs = append(certs, optionCertificates...)
 	certs = append(certs, cfg.AutoCertificates...)
-	return certs
+	return certs, nil
 }
 
 // Checksum returns the config checksum.

@@ -631,7 +631,13 @@ func (srv *Server) buildRouteConfiguration(name string, virtualHosts []*envoy_co
 }
 
 func (srv *Server) buildDownstreamTLSContext(cfg *config.Config, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
-	cert, err := cryptutil.GetCertificateForDomain(cfg.AllCertificates(), domain)
+	certs, err := cfg.AllCertificates()
+	if err != nil {
+		log.Warn().Str("domain", domain).Err(err).Msg("failed to get all certificates from config")
+		return nil
+	}
+
+	cert, err := cryptutil.GetCertificateForDomain(certs, domain)
 	if err != nil {
 		log.Warn().Str("domain", domain).Err(err).Msg("failed to get certificate for domain")
 		return nil
@@ -792,7 +798,7 @@ func getDownstreamValidationContext(
 ) *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext {
 	needsClientCert := false
 
-	if cfg.Options.ClientCA != "" {
+	if ca, _ := cfg.Options.GetClientCA(); len(ca) > 0 {
 		needsClientCert = true
 	}
 	if !needsClientCert {

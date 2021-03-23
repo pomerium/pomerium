@@ -216,8 +216,6 @@ func (src *FileWatcherSource) check(cfg *Config) {
 
 	// update the computed config
 	src.computedConfig = cfg.Clone()
-	src.computedConfig.Options.Certificates = nil
-	_ = src.computedConfig.Options.Validate()
 
 	// trigger a change
 	src.Trigger(src.computedConfig)
