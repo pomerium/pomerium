@@ -57,7 +57,9 @@ func Test_AddPolicyCountCallback(t *testing.T) {
 	registry = newMetricRegistry()
 
 	wantValue := int64(42)
-	wantLabels := []metricdata.LabelValue{{Value: "test_service", Present: true}}
+	wantLabels := []metricdata.LabelValue{
+		{Value: "test_service", Present: true},
+	}
 	AddPolicyCountCallback("test_service", func() int64 { return wantValue })
 
 	testMetricRetrieval(registry.registry.Read(), t, wantLabels, wantValue, metrics.PolicyCountTotal)

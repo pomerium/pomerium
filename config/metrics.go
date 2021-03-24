@@ -13,11 +13,12 @@ import (
 
 // A MetricsManager manages metrics for a given configuration.
 type MetricsManager struct {
-	mu          sync.RWMutex
-	serviceName string
-	addr        string
-	basicAuth   string
-	handler     http.Handler
+	mu             sync.RWMutex
+	installationID string
+	serviceName    string
+	addr           string
+	basicAuth      string
+	handler        http.Handler
 }
 
 // NewMetricsManager creates a new MetricsManager.
@@ -71,12 +72,15 @@ func (mgr *MetricsManager) updateInfo(cfg *Config) {
 }
 
 func (mgr *MetricsManager) updateServer(cfg *Config) {
-	if cfg.Options.MetricsAddr == mgr.addr && cfg.Options.MetricsBasicAuth == mgr.basicAuth {
+	if cfg.Options.MetricsAddr == mgr.addr &&
+		cfg.Options.MetricsBasicAuth == mgr.basicAuth &&
+		cfg.Options.InstallationID == mgr.installationID {
 		return
 	}
 
 	mgr.addr = cfg.Options.MetricsAddr
 	mgr.basicAuth = cfg.Options.MetricsBasicAuth
+	mgr.installationID = cfg.Options.InstallationID
 	mgr.handler = nil
 
 	if mgr.addr == "" {
@@ -84,7 +88,7 @@ func (mgr *MetricsManager) updateServer(cfg *Config) {
 		return
 	}
 
-	handler, err := metrics.PrometheusHandler(EnvoyAdminURL)
+	handler, err := metrics.PrometheusHandler(EnvoyAdminURL, mgr.installationID)
 	if err != nil {
 		log.Error().Err(err).Msg("metrics: failed to create prometheus handler")
 		return

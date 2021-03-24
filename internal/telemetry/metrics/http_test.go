@@ -97,7 +97,7 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 			req := httptest.NewRequest(tt.verb, tt.url, new(bytes.Buffer))
 			rec := httptest.NewRecorder()
 
-			h := HTTPMetricsHandler("test_service")(newTestMux())
+			h := HTTPMetricsHandler(func() string { return "test_installation_id" }, "test_service")(newTestMux())
 			h.ServeHTTP(rec, req)
 
 			testDataRetrieval(HTTPServerRequestSizeView, t, tt.wanthttpServerRequestSize)
@@ -129,7 +129,7 @@ func newFailingTestTransport() http.RoundTripper {
 }
 
 func Test_HTTPMetricsRoundTripper(t *testing.T) {
-	chain := tripper.NewChain(HTTPMetricsRoundTripper("test_service", "test_destination"))
+	chain := tripper.NewChain(HTTPMetricsRoundTripper(func() string { return "test_installation_id" }, "test_service", "test_destination"))
 	rt := chain.Then(newTestTransport())
 	client := http.Client{Transport: rt}
 

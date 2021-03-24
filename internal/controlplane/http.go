@@ -35,7 +35,9 @@ func (srv *Server) addHTTPMiddleware() {
 	root.Use(log.UserAgentHandler("user_agent"))
 	root.Use(log.RefererHandler("referer"))
 	root.Use(log.RequestIDHandler("request-id"))
-	root.Use(telemetry.HTTPStatsHandler(srv.name))
+	root.Use(telemetry.HTTPStatsHandler(func() string {
+		return srv.currentConfig.Load().Options.InstallationID
+	}, srv.name))
 	root.HandleFunc("/healthz", httputil.HealthCheck)
 	root.HandleFunc("/ping", httputil.HealthCheck)
 	root.PathPrefix("/.pomerium/assets/").Handler(http.StripPrefix("/.pomerium/assets/", frontend.MustAssetHandler()))

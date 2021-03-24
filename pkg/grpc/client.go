@@ -48,6 +48,9 @@ type Options struct {
 	// Note that transport security is required unless WithInsecure is set.
 	WithInsecure bool
 
+	// InstallationID specifies the installation id for telemetry exposition.
+	InstallationID string
+
 	// ServiceName specifies the service name for telemetry exposition
 	ServiceName string
 

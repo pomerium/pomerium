@@ -74,7 +74,7 @@ func RecordIdentityManagerLastRefresh() {
 
 // SetConfigInfo records the status, checksum and timestamp of a configuration
 // reload. You must register InfoViews or the related config views before calling
-func SetConfigInfo(service string, configName string, checksum uint64, success bool) {
+func SetConfigInfo(service, configName string, checksum uint64, success bool) {
 	if success {
 		registry.setConfigChecksum(service, configName, checksum)
 

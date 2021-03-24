@@ -2,21 +2,27 @@ package metrics
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"sync"
 
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
 	prom "github.com/prometheus/client_golang/prometheus"
+	io_prometheus_client "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/expfmt"
 	"go.opencensus.io/stats/view"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/pkg/metrics"
 
 	log "github.com/pomerium/pomerium/internal/log"
 )
 
 // PrometheusHandler creates an exporter that exports stats to Prometheus
 // and returns a handler suitable for exporting metrics.
-func PrometheusHandler(envoyURL *url.URL) (http.Handler, error) {
+func PrometheusHandler(envoyURL *url.URL, installationID string) (http.Handler, error) {
 	exporter, err := getGlobalExporter()
 	if err != nil {
 		return nil, err
@@ -29,7 +35,7 @@ func PrometheusHandler(envoyURL *url.URL) (http.Handler, error) {
 		return nil, fmt.Errorf("telemetry/metrics: invalid proxy URL: %w", err)
 	}
 
-	mux.Handle("/metrics", newProxyMetricsHandler(exporter, *envoyMetricsURL))
+	mux.Handle("/metrics", newProxyMetricsHandler(exporter, *envoyMetricsURL, installationID))
 	return mux, nil
 }
 
@@ -73,32 +79,60 @@ func registerDefaultViews() error {
 
 // newProxyMetricsHandler creates a subrequest to the envoy control plane for metrics and
 // combines them with our own
-func newProxyMetricsHandler(promHandler http.Handler, envoyURL url.URL) http.HandlerFunc {
+func newProxyMetricsHandler(exporter *ocprom.Exporter, envoyURL url.URL, installationID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		defer promHandler.ServeHTTP(w, r)
-
 		// Ensure we don't get entangled with compression from ocprom
 		r.Header.Del("Accept-Encoding")
 
-		r, err := http.NewRequestWithContext(r.Context(), "GET", envoyURL.String(), nil)
+		rec := httptest.NewRecorder()
+		exporter.ServeHTTP(rec, r)
+
+		err := writeMetricsWithInstallationID(w, rec.Body, installationID)
+		if err != nil {
+			log.Error().Err(err).Send()
+			return
+		}
+
+		req, err := http.NewRequestWithContext(r.Context(), "GET", envoyURL.String(), nil)
 		if err != nil {
 			log.Error().Err(err).Msg("telemetry/metrics: failed to create request for envoy")
 			return
 		}
 
-		resp, err := http.DefaultClient.Do(r)
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Error().Err(err).Msg("telemetry/metrics: fail to fetch proxy metrics")
 			return
 		}
 		defer resp.Body.Close()
 
-		envoyBody, err := ioutil.ReadAll(resp.Body)
+		err = writeMetricsWithInstallationID(w, resp.Body, installationID)
 		if err != nil {
-			log.Error().Err(err).Msg("telemetry/metric: failed to read proxy metrics")
+			log.Error().Err(err).Send()
 			return
 		}
-
-		w.Write(envoyBody)
 	}
+}
+
+func writeMetricsWithInstallationID(w io.Writer, r io.Reader, installationID string) error {
+	var parser expfmt.TextParser
+	ms, err := parser.TextToMetricFamilies(r)
+	if err != nil {
+		return fmt.Errorf("telemetry/metric: failed to read prometheus metrics: %w", err)
+	}
+
+	for _, m := range ms {
+		for _, mm := range m.Metric {
+			mm.Label = append(mm.Label, &io_prometheus_client.LabelPair{
+				Name:  proto.String(metrics.InstallationIDLabel),
+				Value: proto.String(installationID),
+			})
+		}
+		_, err = expfmt.MetricFamilyToText(w, m)
+		if err != nil {
+			return fmt.Errorf("telemetry/metric: failed to write prometheus metrics: %w", err)
+		}
+	}
+
+	return nil
 }

@@ -158,7 +158,9 @@ type GRPCServerMetricsHandler struct {
 
 // NewGRPCServerMetricsHandler creates a new GRPCServerStatsHandler for a pomerium service
 func NewGRPCServerMetricsHandler(service string) *GRPCServerMetricsHandler {
-	return &GRPCServerMetricsHandler{service: service}
+	return &GRPCServerMetricsHandler{
+		service: service,
+	}
 }
 
 // TagRPC handles adding any metrics related values to the incoming context
