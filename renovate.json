@@ -1,14 +1,27 @@
 {
   "extends": [
-    "config:base",
-    "schedule:earlyMondays"
+    "config:base"
   ],
   "automerge": true,
   "prHourlyLimit": 0,
+  "schedule": [
+    "before 10am on Monday"
+  ],
   "labels": [
     "dependency"
   ],
   "postUpdateOptions": [
     "gomodTidy"
+  ],
+  "packageRules": [
+    {
+      "matchLanguages": [
+        "golang"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "groupName": "go patch dependencies"
+    }
   ]
 }
