@@ -3,6 +3,7 @@ package cryptutil
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,6 +15,20 @@ func TestDataEncryptionKey(t *testing.T) {
 		plaintext, err := dek.Decrypt(ciphertext)
 		require.NoError(t, err)
 		require.Equal(t, []byte("HELLO WORLD"), plaintext)
+	})
+	t.Run("roundtrip string", func(t *testing.T) {
+		dek, err := GenerateDataEncryptionKey()
+		require.NoError(t, err)
+		ciphertext := dek.EncryptString(("HELLO WORLD"))
+		plaintext, err := dek.DecryptString(ciphertext)
+		require.NoError(t, err)
+		require.Equal(t, ("HELLO WORLD"), plaintext)
+	})
+	t.Run("KeyBytes", func(t *testing.T) {
+		dek, err := GenerateDataEncryptionKey()
+		require.NoError(t, err)
+		assert.Equal(t, dek.data[:], dek.KeyBytes())
+		assert.NotSame(t, dek.data[:], dek.KeyBytes())
 	})
 	t.Run("invalid key", func(t *testing.T) {
 		dek, err := NewDataEncryptionKey([]byte("NOT BIG ENOUGH"))

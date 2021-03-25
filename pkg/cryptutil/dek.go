@@ -2,10 +2,8 @@ package cryptutil
 
 import (
 	"crypto/cipher"
-	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"io"
 
 	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -39,11 +37,7 @@ func NewDataEncryptionKey(raw []byte) (*DataEncryptionKey, error) {
 
 // GenerateDataEncryptionKey generates a new random data encryption key.
 func GenerateDataEncryptionKey() (*DataEncryptionKey, error) {
-	raw := make([]byte, DataEncryptionKeySize)
-	_, err := io.ReadFull(rand.Reader, raw)
-	if err != nil {
-		return nil, fmt.Errorf("cryptutil: error generating random data encryption key: %w", err)
-	}
+	raw := randomBytes(DataEncryptionKeySize)
 	return NewDataEncryptionKey(raw)
 }
 

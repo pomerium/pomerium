@@ -3,9 +3,8 @@ package cryptutil
 import (
 	"crypto/rand"
 	"fmt"
-	"io"
 
-	"github.com/google/uuid"
+	"github.com/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/nacl/box"
 )
@@ -57,12 +56,14 @@ func NewPrivateKeyEncryptionKey(id string, raw []byte) (*PrivateKeyEncryptionKey
 
 // GenerateKeyEncryptionKey generates a new random key encryption key.
 func GenerateKeyEncryptionKey() (*PrivateKeyEncryptionKey, error) {
-	raw := make([]byte, KeyEncryptionKeySize)
-	_, err := io.ReadFull(rand.Reader, raw)
-	if err != nil {
-		return nil, fmt.Errorf("cryptutil: error generating random data encryption key: %w", err)
-	}
-	return NewPrivateKeyEncryptionKey(uuid.New().String(), raw)
+	raw := randomBytes(KeyEncryptionKeySize)
+	id := GetKeyEncryptionKeyID(raw)
+	return NewPrivateKeyEncryptionKey(id, raw)
+}
+
+// GetKeyEncryptionKeyID derives an id from the key encryption key data itself.
+func GetKeyEncryptionKeyID(raw []byte) string {
+	return base58.Encode(Hash("KeyEncryptionKey", raw))
 }
 
 // Decrypt decrypts data from a NACL anonymous box.
