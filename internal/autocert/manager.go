@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 
 var (
@@ -177,6 +178,7 @@ func (mgr *Manager) obtainCert(domain string, cm *certmagic.Config) (certmagic.C
 			log.Error().Err(err).Msg("autocert failed to obtain client certificate")
 			return certmagic.Certificate{}, errObtainCertFailed
 		}
+		metrics.RecordAutocertRenewal()
 		cert, err = cm.CacheManagedCertificate(domain)
 	}
 	return cert, err
@@ -225,6 +227,8 @@ func (mgr *Manager) updateAutocert(cfg *config.Config) error {
 		log.Info().Strs("names", cert.Names).Msg("autocert: added certificate")
 		cfg.AutoCertificates = append(cfg.AutoCertificates, cert.Certificate)
 	}
+
+	metrics.RecordAutocertCertificates(cfg.AutoCertificates)
 
 	return nil
 }

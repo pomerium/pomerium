@@ -67,6 +67,11 @@ func (r *metricRegistry) init() {
 			if err != nil {
 				log.Error().Err(err).Msg("telemetry/metrics: failed to register policy count metric")
 			}
+
+			err = registerAutocertMetrics(r.registry)
+			if err != nil {
+				log.Error().Err(err).Msg("telemetry/metrics: failed to register autocert metrics")
+			}
 		})
 }
 

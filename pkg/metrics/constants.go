@@ -4,6 +4,9 @@ package metrics
 
 // metrics
 const (
+	AutocertRenewalsTotal                 = "autocert_renewals_total"
+	AutocertCertificatesTotal             = "autocert_certificates_total"
+	AutocertCertificateNextExpiresSeconds = "autocert_certificate_next_expires_seconds"
 	// ConfigLastReloadTimestampSeconds is unix timestamp when configuration was last reloaded
 	ConfigLastReloadTimestampSeconds = "config_last_reload_success_timestamp"
 	// ConfigLastReloadSuccess is set to 1 if last configuration was successfully reloaded
