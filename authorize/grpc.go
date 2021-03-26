@@ -3,7 +3,6 @@ package authorize
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -19,10 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
-	"github.com/pomerium/pomerium/pkg/grpcutil"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 )
@@ -81,81 +77,6 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return a.redirectResponse(in)
 	}
 	return a.deniedResponse(in, int32(reply.Status), reply.Message, nil)
-}
-
-func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) (*user.User, error) {
-	ctx, span := trace.StartSpan(ctx, "authorize.forceSync")
-	defer span.End()
-	if ss == nil {
-		return nil, nil
-	}
-	s := a.forceSyncSession(ctx, ss.ID)
-	if s == nil {
-		return nil, errors.New("session not found")
-	}
-	u := a.forceSyncUser(ctx, s.GetUserId())
-	return u, nil
-}
-
-func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) interface{ GetUserId() string } {
-	ctx, span := trace.StartSpan(ctx, "authorize.forceSyncSession")
-	defer span.End()
-
-	state := a.state.Load()
-
-	s, ok := a.store.GetRecordData(grpcutil.GetTypeURL(new(session.Session)), sessionID).(*session.Session)
-	if ok {
-		return s
-	}
-
-	sa, ok := a.store.GetRecordData(grpcutil.GetTypeURL(new(user.ServiceAccount)), sessionID).(*user.ServiceAccount)
-	if ok {
-		return sa
-	}
-
-	res, err := state.dataBrokerClient.Get(ctx, &databroker.GetRequest{
-		Type: grpcutil.GetTypeURL(new(session.Session)),
-		Id:   sessionID,
-	})
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to get session from databroker")
-		return nil
-	}
-
-	if current := a.store.GetRecordData(grpcutil.GetTypeURL(new(session.Session)), sessionID); current == nil {
-		a.store.UpdateRecord(res.GetRecord())
-	}
-	s, _ = a.store.GetRecordData(grpcutil.GetTypeURL(new(session.Session)), sessionID).(*session.Session)
-
-	return s
-}
-
-func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User {
-	ctx, span := trace.StartSpan(ctx, "authorize.forceSyncUser")
-	defer span.End()
-
-	state := a.state.Load()
-
-	u, ok := a.store.GetRecordData(grpcutil.GetTypeURL(new(user.User)), userID).(*user.User)
-	if ok {
-		return u
-	}
-
-	res, err := state.dataBrokerClient.Get(ctx, &databroker.GetRequest{
-		Type: grpcutil.GetTypeURL(new(user.User)),
-		Id:   userID,
-	})
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to get user from databroker")
-		return nil
-	}
-
-	if current := a.store.GetRecordData(grpcutil.GetTypeURL(new(user.User)), userID); current == nil {
-		a.store.UpdateRecord(res.GetRecord())
-	}
-	u, _ = a.store.GetRecordData(grpcutil.GetTypeURL(new(user.User)), userID).(*user.User)
-
-	return u
 }
 
 func getForwardAuthURL(r *http.Request) *url.URL {
@@ -329,6 +250,8 @@ func logAuthorizeCheck(
 		evt = evt.Str("message", reply.Message)
 		evt = evt.Str("user", u.GetId())
 		evt = evt.Str("email", u.GetEmail())
+		evt = evt.Uint64("databroker_server_version", reply.DataBrokerServerVersion)
+		evt = evt.Uint64("databroker_record_version", reply.DataBrokerRecordVersion)
 	}
 
 	// potentially sensitive, only log if debug mode

@@ -3,6 +3,7 @@ package evaluator
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
 
@@ -37,7 +39,7 @@ func TestOPA(t *testing.T) {
 	eval := func(policies []config.Policy, data []proto.Message, req *Request, isValidClientCertificate bool) rego.Result {
 		authzPolicy, err := readPolicy()
 		require.NoError(t, err)
-		store := NewStoreFromProtos(data...)
+		store := NewStoreFromProtos(math.MaxUint64, data...)
 		store.UpdateIssuer("authenticate.example.com")
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user"))
 		store.UpdateRoutePolicies(policies)
@@ -644,5 +646,13 @@ func TestOPA(t *testing.T) {
 			},
 		}, true)
 		assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
+	})
+	t.Run("databroker versions", func(t *testing.T) {
+		res := eval(nil, []proto.Message{
+			wrapperspb.String("test"),
+		}, &Request{}, false)
+		serverVersion, recordVersion := getDataBrokerVersions(res.Bindings)
+		assert.Equal(t, uint64(math.MaxUint64), serverVersion)
+		assert.NotEqual(t, uint64(0), recordVersion) // random
 	})
 }

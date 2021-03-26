@@ -50,7 +50,7 @@ func (syncer *dataBrokerSyncer) GetDataBrokerServiceClient() databroker.DataBrok
 	return syncer.cfg.Load().dataBrokerClient
 }
 
-func (syncer *dataBrokerSyncer) UpdateRecords(ctx context.Context, records []*databroker.Record) {
+func (syncer *dataBrokerSyncer) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
 	select {
 	case <-ctx.Done():
 	case syncer.update <- updateRecordsMessage{records: records}:

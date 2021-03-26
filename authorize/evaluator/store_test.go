@@ -26,7 +26,7 @@ func TestStore(t *testing.T) {
 			Email:   "name@example.com",
 		}
 		any, _ := ptypes.MarshalAny(u)
-		s.UpdateRecord(&databroker.Record{
+		s.UpdateRecord(0, &databroker.Record{
 			Version: 1,
 			Type:    any.GetTypeUrl(),
 			Id:      u.GetId(),
@@ -42,7 +42,7 @@ func TestStore(t *testing.T) {
 			"email":   "name@example.com",
 		}, v)
 
-		s.UpdateRecord(&databroker.Record{
+		s.UpdateRecord(0, &databroker.Record{
 			Version:   2,
 			Type:      any.GetTypeUrl(),
 			Id:        u.GetId(),
@@ -54,7 +54,7 @@ func TestStore(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, v)
 
-		s.UpdateRecord(&databroker.Record{
+		s.UpdateRecord(0, &databroker.Record{
 			Version: 3,
 			Type:    any.GetTypeUrl(),
 			Id:      u.GetId(),

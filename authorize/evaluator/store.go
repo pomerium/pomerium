@@ -32,7 +32,7 @@ func NewStore() *Store {
 }
 
 // NewStoreFromProtos creates a new Store from an existing set of protobuf messages.
-func NewStoreFromProtos(msgs ...proto.Message) *Store {
+func NewStoreFromProtos(serverVersion uint64, msgs ...proto.Message) *Store {
 	s := NewStore()
 	for _, msg := range msgs {
 		any, err := anypb.New(msg)
@@ -50,7 +50,7 @@ func NewStoreFromProtos(msgs ...proto.Message) *Store {
 			record.Id = hasID.GetId()
 		}
 
-		s.UpdateRecord(record)
+		s.UpdateRecord(serverVersion, record)
 	}
 	return s
 }
@@ -112,7 +112,7 @@ func (s *Store) UpdateRoutePolicies(routePolicies []config.Policy) {
 }
 
 // UpdateRecord updates a record in the store.
-func (s *Store) UpdateRecord(record *databroker.Record) {
+func (s *Store) UpdateRecord(serverVersion uint64, record *databroker.Record) {
 	rawPath := fmt.Sprintf("/databroker_data/%s/%s", record.GetType(), record.GetId())
 
 	if record.GetDeletedAt() != nil {
@@ -128,7 +128,25 @@ func (s *Store) UpdateRecord(record *databroker.Record) {
 		return
 	}
 
-	s.write(rawPath, msg)
+	err = storage.Txn(context.Background(), s.opaStore, storage.WriteParams, func(txn storage.Transaction) error {
+		err := s.writeTxn(txn, "/databroker_server_version", fmt.Sprint(serverVersion))
+		if err != nil {
+			return err
+		}
+		err = s.writeTxn(txn, "/databroker_record_version", fmt.Sprint(record.GetVersion()))
+		if err != nil {
+			return err
+		}
+		err = s.writeTxn(txn, rawPath, msg)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("opa-store: error writing record")
+		return
+	}
 }
 
 func (s *Store) delete(rawPath string) {
@@ -189,34 +207,35 @@ func (s *Store) get(rawPath string) (value interface{}) {
 }
 
 func (s *Store) write(rawPath string, value interface{}) {
-	p, ok := storage.ParsePath(rawPath)
-	if !ok {
-		log.Error().
-			Str("path", rawPath).
-			Msg("opa-store: invalid path, ignoring data")
-		return
-	}
-
 	err := storage.Txn(context.Background(), s.opaStore, storage.WriteParams, func(txn storage.Transaction) error {
-		if len(p) > 1 {
-			err := storage.MakeDir(context.Background(), s.opaStore, txn, p[:len(p)-1])
-			if err != nil {
-				return err
-			}
-		}
-
-		var op storage.PatchOp = storage.ReplaceOp
-		_, err := s.opaStore.Read(context.Background(), txn, p)
-		if storage.IsNotFound(err) {
-			op = storage.AddOp
-		} else if err != nil {
-			return err
-		}
-
-		return s.opaStore.Write(context.Background(), txn, op, p, value)
+		return s.writeTxn(txn, rawPath, value)
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("opa-store: error writing data")
 		return
 	}
+}
+
+func (s *Store) writeTxn(txn storage.Transaction, rawPath string, value interface{}) error {
+	p, ok := storage.ParsePath(rawPath)
+	if !ok {
+		return fmt.Errorf("invalid path")
+	}
+
+	if len(p) > 1 {
+		err := storage.MakeDir(context.Background(), s.opaStore, txn, p[:len(p)-1])
+		if err != nil {
+			return err
+		}
+	}
+
+	var op storage.PatchOp = storage.ReplaceOp
+	_, err := s.opaStore.Read(context.Background(), txn, p)
+	if storage.IsNotFound(err) {
+		op = storage.AddOp
+	} else if err != nil {
+		return err
+	}
+
+	return s.opaStore.Write(context.Background(), txn, op, p, value)
 }

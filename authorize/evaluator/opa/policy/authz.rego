@@ -5,6 +5,10 @@ default allow = false
 # 5 minutes from now in seconds
 five_minutes := (time.now_ns() / 1e9) + (60 * 5)
 
+# databroker versions to know which version of the data was evaluated
+databroker_server_version := data.databroker_server_version
+databroker_record_version := data.databroker_record_version
+
 route_policy_idx := first_allowed_route_policy_idx(input.http.url)
 
 route_policy := data.route_policies[route_policy_idx]
