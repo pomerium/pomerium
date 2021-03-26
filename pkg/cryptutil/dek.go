@@ -88,7 +88,7 @@ type DataEncryptionKeyCache struct {
 
 // NewDataEncryptionKeyCache creates a new DataEncryptionKeyCache.
 func NewDataEncryptionKeyCache() *DataEncryptionKeyCache {
-	c, _ := lru.New(DataEncryptionKeyCacheSize)
+	c, _ := lru.New(DataEncryptionKeyCacheSize) // only errors if size <= 0
 	return &DataEncryptionKeyCache{lru: c}
 }
 
