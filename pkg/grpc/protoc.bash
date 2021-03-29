@@ -27,11 +27,14 @@ _protos=(
   "envoy/config/endpoint/v3/endpoint_components.proto"
   "envoy/config/endpoint/v3/endpoint.proto"
   "envoy/config/route/v3/route_components.proto"
+  "envoy/service/auth/v3/attribute_context.proto"
+  "envoy/service/auth/v3/external_auth.proto"
   "envoy/type/matcher/v3/regex.proto"
   "envoy/type/matcher/v3/string.proto"
   "envoy/type/metadata/v3/metadata.proto"
   "envoy/type/tracing/v3/custom_tag.proto"
   "envoy/type/v3/http.proto"
+  "envoy/type/v3/http_status.proto"
   "envoy/type/v3/percent.proto"
   "envoy/type/v3/range.proto"
   "envoy/type/v3/semantic_version.proto"
@@ -56,9 +59,13 @@ _import_paths=$(join_by , "${_imports[@]}")
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./audit/." \
   ./audit/audit.proto
 
-../../scripts/protoc -I ./config/ \
+../../scripts/protoc -I "$GOPATH/src" -I ./config/ \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./config/." \
   ./config/config.proto
+
+../../scripts/protoc -I ./crypt/ \
+  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./crypt/." \
+  ./crypt/crypt.proto
 
 ../../scripts/protoc -I ./databroker/ \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./databroker/." \

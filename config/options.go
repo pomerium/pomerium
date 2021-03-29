@@ -282,6 +282,8 @@ type Options struct {
 	EnvoyAdminAccessLogPath string `mapstructure:"envoy_admin_access_log_path" yaml:"envoy_admin_access_log_path"`
 	EnvoyAdminProfilePath   string `mapstructure:"envoy_admin_profile_path" yaml:"envoy_admin_profile_path"`
 	EnvoyAdminAddress       string `mapstructure:"envoy_admin_address" yaml:"envoy_admin_address"`
+
+	AuditKey *PublicKeyEncryptionKeyOptions `mapstructure:"audit_key"`
 }
 
 type certificateFilePair struct {
@@ -1122,6 +1124,12 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.XffNumTrustedHops != nil {
 		o.XffNumTrustedHops = settings.GetXffNumTrustedHops()
+	}
+	if settings.AuditKey != nil {
+		o.AuditKey = &PublicKeyEncryptionKeyOptions{
+			ID:   settings.AuditKey.GetId(),
+			Data: base64.StdEncoding.EncodeToString(settings.AuditKey.GetData()),
+		}
 	}
 }
 

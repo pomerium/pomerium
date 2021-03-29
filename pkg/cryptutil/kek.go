@@ -121,7 +121,9 @@ func NewPublicKeyEncryptionKey(id string, raw []byte) (*PublicKeyEncryptionKey, 
 		return nil, fmt.Errorf("cryptutil: invalid key encryption key, expected %d bytes, got %d",
 			KeyEncryptionKeySize, len(raw))
 	}
-	kek := new(PublicKeyEncryptionKey)
+	kek := &PublicKeyEncryptionKey{
+		id: id,
+	}
 	copy(kek.data[:], raw)
 	return kek, nil
 }

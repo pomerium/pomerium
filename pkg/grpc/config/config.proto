@@ -5,8 +5,9 @@ option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
-
 import "envoy/config/cluster/v3/cluster.proto";
+
+import "github.com/pomerium/pomerium/pkg/grpc/crypt/crypt.proto";
 
 message Config {
   string name = 1;
@@ -178,4 +179,5 @@ message Settings {
   optional string autocert_dir = 59;
   optional bool skip_xff_append = 61;
   optional uint32 xff_num_trusted_hops = 69;
+  optional pomerium.crypt.PublicKeyEncryptionKey audit_key = 71;
 }

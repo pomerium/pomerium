@@ -11,12 +11,14 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 type authorizeState struct {
 	evaluator        *evaluator.Evaluator
 	encoder          encoding.MarshalUnmarshaler
 	dataBrokerClient databroker.DataBrokerServiceClient
+	auditEncryptor   *protoutil.Encryptor
 }
 
 func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*authorizeState, error) {
@@ -60,6 +62,14 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		return nil, fmt.Errorf("authorize: error creating databroker connection: %w", err)
 	}
 	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(cc)
+
+	auditKey, err := cfg.Options.GetAuditKey()
+	if err != nil {
+		return nil, fmt.Errorf("authorize: invalid audit key: %w", err)
+	}
+	if auditKey != nil {
+		state.auditEncryptor = protoutil.NewEncryptor(auditKey)
+	}
 
 	return state, nil
 }
