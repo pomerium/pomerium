@@ -16,7 +16,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v0.5.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-chi/chi v1.5.4
-	github.com/go-redis/redis/v8 v8.7.1
+	github.com/go-redis/redis/v8 v8.8.0
 	github.com/golang/mock v1.5.0
 	github.com/golang/protobuf v1.5.1
 	github.com/google/btree v1.0.1
@@ -44,11 +44,11 @@ require (
 	github.com/pomerium/csrf v1.7.0
 	github.com/prometheus/client_golang v1.10.0
 	github.com/prometheus/client_model v0.2.0
-	github.com/prometheus/common v0.18.0
+	github.com/prometheus/common v0.20.0
 	github.com/prometheus/procfs v0.6.0
 	github.com/rjeczalik/notify v0.9.3-0.20201210012515-e2a77dcc14cf
 	github.com/rs/cors v1.7.0
-	github.com/rs/zerolog v1.20.0
+	github.com/rs/zerolog v1.21.0
 	github.com/scylladb/go-set v1.0.2
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/afero v1.5.1 // indirect
@@ -61,15 +61,15 @@ require (
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.16.0
-	golang.org/x/crypto v0.0.0-20210317152858-513c2a44f670
-	golang.org/x/net v0.0.0-20210316092652-d523dce5a7f4
-	golang.org/x/oauth2 v0.0.0-20210313182246-cd4f82c27b84
+	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
+	golang.org/x/net v0.0.0-20210326220855-61e056675ecf
+	golang.org/x/oauth2 v0.0.0-20210323180902-22b0adad7558
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	google.golang.org/api v0.42.0
-	google.golang.org/genproto v0.0.0-20210319143718-93e7006c17a6
-	google.golang.org/grpc v1.36.0
+	google.golang.org/api v0.43.0
+	google.golang.org/genproto v0.0.0-20210329143202-679c6ae281ee
+	google.golang.org/grpc v1.36.1
 	google.golang.org/protobuf v1.26.0
-	gopkg.in/auth0.v5 v5.11.0
+	gopkg.in/auth0.v5 v5.13.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1
