@@ -221,7 +221,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 
 	// reset record version if the server versions don't match
 	if req.GetServerVersion() != serverVersion {
-		return status.Errorf(codes.Aborted, "invalid server version, expected: %d", req.GetServerVersion())
+		return status.Errorf(codes.Aborted, "invalid server version, got %d, expected: %d", req.GetServerVersion(), serverVersion)
 	}
 
 	ctx := stream.Context()
