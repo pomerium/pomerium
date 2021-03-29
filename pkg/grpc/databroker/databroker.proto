@@ -24,7 +24,10 @@ message GetRequest {
   string type = 1;
   string id = 2;
 }
-message GetResponse { Record record = 1; }
+message GetResponse {
+  Record record = 1;
+  uint64 server_version = 2;
+}
 
 message QueryRequest {
   string type = 1;
