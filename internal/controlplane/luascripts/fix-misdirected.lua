@@ -12,8 +12,12 @@ function envoy_on_response(response_handle)
     local headers = response_handle:headers()
     local dynamic_meta = response_handle:streamInfo():dynamicMetadata()
 
-    local authority =
-        dynamic_meta:get("envoy.filters.http.lua")["request.authority"]
+    local filter_meta = dynamic_meta:get("envoy.filters.http.lua")
+    if filter_meta == nil then
+        return
+    end
+
+    local authority = filter_meta["request.authority"]
     local expected_authority = "%s"
 
     -- if we got a 404 (no route found) and the authority header doesn't match
