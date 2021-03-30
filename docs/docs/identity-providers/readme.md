@@ -47,7 +47,7 @@ You must configure an IdP **[Service Account]** to write policy against group me
 
 3. It redirects the user to the auth provider for authentication
 
-4. Upon successful login, Pomerium provides an auth cookie to the user. In the picture you can see the dex approval page before that.
+4. Upon successful login, Pomerium provides an auth cookie to the user.
 
 5. Based on the cookie, Pomerium identifies the user and checks policy to determine whether to permit access. Authorization is based on identity factors like id, email,      group, role, or email domain.
 
