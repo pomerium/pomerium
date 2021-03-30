@@ -12,6 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -168,18 +170,18 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 
 	lastSessionID := ""
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 100000; i++ {
 		sessionID := uuid.New().String()
 		lastSessionID = sessionID
 		userID := uuid.New().String()
-		data, _ := ptypes.MarshalAny(&session.Session{
+		data, _ := anypb.New(&session.Session{
 			Version: fmt.Sprint(i),
 			Id:      sessionID,
 			UserId:  userID,
 			IdToken: &session.IDToken{
 				Issuer:   "benchmark",
 				Subject:  userID,
-				IssuedAt: ptypes.TimestampNow(),
+				IssuedAt: timestamppb.Now(),
 			},
 			OauthToken: &session.OAuthToken{
 				AccessToken:  "ACCESS TOKEN",
@@ -193,7 +195,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Id:      sessionID,
 			Data:    data,
 		})
-		data, _ = ptypes.MarshalAny(&user.User{
+		data, _ = anypb.New(&user.User{
 			Version: fmt.Sprint(i),
 			Id:      userID,
 		})
@@ -201,6 +203,29 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Version: uint64(i),
 			Type:    "type.googleapis.com/user.User",
 			Id:      userID,
+			Data:    data,
+		})
+
+		data, _ = anypb.New(&directory.User{
+			Version:  fmt.Sprint(i),
+			Id:       userID,
+			GroupIds: []string{"1", "2", "3", "4"},
+		})
+		store.UpdateRecord(0, &databroker.Record{
+			Version: uint64(i),
+			Type:    data.TypeUrl,
+			Id:      userID,
+			Data:    data,
+		})
+
+		data, _ = anypb.New(&directory.Group{
+			Version: fmt.Sprint(i),
+			Id:      fmt.Sprint(i),
+		})
+		store.UpdateRecord(0, &databroker.Record{
+			Version: uint64(i),
+			Type:    data.TypeUrl,
+			Id:      fmt.Sprint(i),
 			Data:    data,
 		})
 	}

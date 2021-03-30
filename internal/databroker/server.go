@@ -118,7 +118,7 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 		Str("id", req.GetId()).
 		Msg("get")
 
-	db, _, err := srv.getBackend()
+	db, version, err := srv.getBackend()
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,10 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 	case record.DeletedAt != nil:
 		return nil, status.Error(codes.NotFound, "record not found")
 	}
-	return &databroker.GetResponse{Record: record}, nil
+	return &databroker.GetResponse{
+		Record:        record,
+		ServerVersion: version,
+	}, nil
 }
 
 // Query queries for records.
@@ -218,7 +221,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 
 	// reset record version if the server versions don't match
 	if req.GetServerVersion() != serverVersion {
-		return status.Errorf(codes.Aborted, "invalid server version, expected: %d", req.GetServerVersion())
+		return status.Errorf(codes.Aborted, "invalid server version, got %d, expected: %d", req.GetServerVersion(), serverVersion)
 	}
 
 	ctx := stream.Context()

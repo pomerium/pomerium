@@ -14,30 +14,30 @@ route_policy_idx := first_allowed_route_policy_idx(input.http.url)
 route_policy := data.route_policies[route_policy_idx]
 
 session = s {
-	s = object_get(data.databroker_data["type.googleapis.com"]["user.ServiceAccount"], input.session.id, null)
+	s = get_databroker_record("type.googleapis.com/user.ServiceAccount", input.session.id)
 	s != null
 } else = s {
-	s = object_get(data.databroker_data["type.googleapis.com"]["session.Session"], input.session.id, null)
+	s = get_databroker_record("type.googleapis.com/session.Session", input.session.id)
 	s != null
 } else = {} {
 	true
 }
 
 user = u {
-	u = object_get(data.databroker_data["type.googleapis.com"]["user.User"], session.impersonate_user_id, null)
+	u = get_databroker_record("type.googleapis.com/user.User", session.impersonate_user_id)
 	u != null
 } else = u {
-	u = object_get(data.databroker_data["type.googleapis.com"]["user.User"], session.user_id, null)
+	u = get_databroker_record("type.googleapis.com/user.User", session.user_id)
 	u != null
 } else = {} {
 	true
 }
 
 directory_user = du {
-	du = object_get(data.databroker_data["type.googleapis.com"]["directory.User"], session.impersonate_user_id, null)
+	du = get_databroker_record("type.googleapis.com/directory.User", session.impersonate_user_id)
 	du != null
 } else = du {
-	du = object_get(data.databroker_data["type.googleapis.com"]["directory.User"], session.user_id, null)
+	du = get_databroker_record("type.googleapis.com/directory.User", session.user_id)
 	du != null
 } else = {} {
 	true
@@ -216,7 +216,7 @@ jwt_payload_groups = v {
 	v = array.concat(group_ids, get_databroker_group_names(group_ids))
 	v != []
 } else = v {
-	v = session.claims["groups"]
+	v = session.claims.groups
 	v != null
 } else = [] {
 	true
@@ -402,11 +402,11 @@ are_claims_allowed(a, b) {
 }
 
 get_databroker_group_names(ids) = gs {
-	gs := [name | id := ids[i]; group := data.databroker_data["type.googleapis.com"]["directory.Group"][id]; name := group.name]
+	gs := [name | id := ids[i]; group := get_databroker_record("type.googleapis.com/directory.Group", id); name := group.name]
 }
 
 get_databroker_group_emails(ids) = gs {
-	gs := [email | id := ids[i]; group := data.databroker_data["type.googleapis.com"]["directory.Group"][id]; email := group.email]
+	gs := [email | id := ids[i]; group := get_databroker_record("type.googleapis.com/directory.Group", id); email := group.email]
 }
 
 get_header_string_value(obj) = s {

@@ -58,6 +58,7 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 		rego.Module("pomerium.authz", string(authzPolicy)),
 		rego.Query("result = data.pomerium.authz"),
 		getGoogleCloudServerlessHeadersRegoOption,
+		store.GetDataBrokerRecordOption(),
 	)
 
 	e.query, err = e.rego.PrepareForEval(context.Background())
