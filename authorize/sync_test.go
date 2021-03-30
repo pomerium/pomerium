@@ -41,7 +41,7 @@ func TestAuthorize_waitForRecordSync(t *testing.T) {
 				panic("should never be called")
 			},
 		}
-		a.waitForRecordSync(ctx, grpcutil.GetTypeURL(new(session.Session)), "SESSION_ID", time.Second, time.Millisecond*100)
+		a.waitForRecordSync(ctx, grpcutil.GetTypeURL(new(session.Session)), "SESSION_ID")
 	})
 	t.Run("skip if not found", func(t *testing.T) {
 		a, err := New(&config.Config{Options: o})
@@ -54,7 +54,7 @@ func TestAuthorize_waitForRecordSync(t *testing.T) {
 				return nil, status.Error(codes.NotFound, "not found")
 			},
 		}
-		a.waitForRecordSync(ctx, grpcutil.GetTypeURL(new(session.Session)), "SESSION_ID", time.Second, time.Millisecond*100)
+		a.waitForRecordSync(ctx, grpcutil.GetTypeURL(new(session.Session)), "SESSION_ID")
 		assert.Equal(t, 1, callCount, "should be called once")
 	})
 	t.Run("poll", func(t *testing.T) {
@@ -75,26 +75,24 @@ func TestAuthorize_waitForRecordSync(t *testing.T) {
 				}
 			},
 		}
-		a.waitForRecordSync(ctx, grpcutil.GetTypeURL(new(session.Session)), "SESSION_ID", time.Second, time.Millisecond*100)
+		a.waitForRecordSync(ctx, grpcutil.GetTypeURL(new(session.Session)), "SESSION_ID")
 	})
 	t.Run("timeout", func(t *testing.T) {
 		a, err := New(&config.Config{Options: o})
 		require.NoError(t, err)
 
+		tctx, clearTimeout := context.WithTimeout(ctx, time.Millisecond*100)
+		defer clearTimeout()
+
 		callCount := 0
 		a.state.Load().dataBrokerClient = mockDataBrokerServiceClient{
 			get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 				callCount++
-				switch callCount {
-				case 1:
-					return nil, status.Error(codes.Internal, "some internal error")
-				default:
-					s := &session.Session{Id: "SESSION_ID"}
-					return &databroker.GetResponse{Record: newRecord(s)}, nil
-				}
+				s := &session.Session{Id: "SESSION_ID"}
+				return &databroker.GetResponse{Record: newRecord(s)}, nil
 			},
 		}
-		a.waitForRecordSync(ctx, grpcutil.GetTypeURL(new(session.Session)), "SESSION_ID", time.Millisecond*20, time.Millisecond)
+		a.waitForRecordSync(tctx, grpcutil.GetTypeURL(new(session.Session)), "SESSION_ID")
 		assert.Greater(t, callCount, 5) // should be ~ 20, but allow for non-determinism
 	})
 }

@@ -6,8 +6,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -19,8 +21,7 @@ import (
 )
 
 const (
-	forceSyncRecordMaxWait      = 5 * time.Second
-	forceSyncRecordPollInterval = 100 * time.Millisecond
+	forceSyncRecordMaxWait = 5 * time.Second
 )
 
 type sessionOrServiceAccount interface {
@@ -78,6 +79,9 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) sess
 	ctx, span := trace.StartSpan(ctx, "authorize.forceSyncSession")
 	defer span.End()
 
+	ctx, clearTimeout := context.WithTimeout(ctx, forceSyncRecordMaxWait)
+	defer clearTimeout()
+
 	s, ok := a.store.GetRecordData(grpcutil.GetTypeURL(new(session.Session)), sessionID).(*session.Session)
 	if ok {
 		return s
@@ -89,11 +93,11 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) sess
 	}
 
 	// wait for the session to show up
-	a.waitForRecordSync(ctx,
-		grpcutil.GetTypeURL(new(session.Session)), sessionID,
-		forceSyncRecordMaxWait, forceSyncRecordPollInterval,
-	)
-	s, ok = a.store.GetRecordData(grpcutil.GetTypeURL(new(session.Session)), sessionID).(*session.Session)
+	record, err := a.waitForRecordSync(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID)
+	if err != nil {
+		return nil
+	}
+	s, ok = record.(*session.Session)
 	if !ok {
 		return nil
 	}
@@ -104,17 +108,20 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 	ctx, span := trace.StartSpan(ctx, "authorize.forceSyncUser")
 	defer span.End()
 
+	ctx, clearTimeout := context.WithTimeout(ctx, forceSyncRecordMaxWait)
+	defer clearTimeout()
+
 	u, ok := a.store.GetRecordData(grpcutil.GetTypeURL(new(user.User)), userID).(*user.User)
 	if ok {
 		return u
 	}
 
 	// wait for the user to show up
-	a.waitForRecordSync(ctx,
-		grpcutil.GetTypeURL(new(user.User)), userID,
-		forceSyncRecordMaxWait, forceSyncRecordPollInterval,
-	)
-	u, ok = a.store.GetRecordData(grpcutil.GetTypeURL(new(user.User)), userID).(*user.User)
+	record, err := a.waitForRecordSync(ctx, grpcutil.GetTypeURL(new(user.User)), userID)
+	if err != nil {
+		return nil
+	}
+	u, ok = record.(*user.User)
 	if !ok {
 		return nil
 	}
@@ -122,21 +129,16 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 }
 
 // waitForRecordSync waits for the first sync of a record to complete
-func (a *Authorize) waitForRecordSync(ctx context.Context,
-	recordTypeURL, recordID string,
-	maxWait, pollInterval time.Duration,
-) {
-	ctx, clearTimeout := context.WithTimeout(ctx, maxWait)
-	defer clearTimeout()
-
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
+func (a *Authorize) waitForRecordSync(ctx context.Context, recordTypeURL, recordID string) (proto.Message, error) {
+	bo := backoff.NewExponentialBackOff()
+	bo.InitialInterval = time.Millisecond
+	bo.Reset()
 
 	for {
 		current := a.store.GetRecordData(recordTypeURL, recordID)
 		if current != nil {
 			// record found, so it's already synced
-			return
+			return current, nil
 		}
 
 		_, err := a.state.Load().dataBrokerClient.Get(ctx, &databroker.GetRequest{
@@ -145,13 +147,14 @@ func (a *Authorize) waitForRecordSync(ctx context.Context,
 		})
 		if status.Code(err) == codes.NotFound {
 			// record not found, so no need to wait
-			return
+			return nil, nil
 		} else if err != nil {
 			log.Error().
 				Err(err).
 				Str("type", recordTypeURL).
 				Str("id", recordID).
 				Msg("authorize: error retrieving record")
+			return nil, err
 		}
 
 		select {
@@ -160,8 +163,8 @@ func (a *Authorize) waitForRecordSync(ctx context.Context,
 				Str("type", recordTypeURL).
 				Str("id", recordID).
 				Msg("authorize: first sync of record did not complete")
-			return
-		case <-ticker.C:
+			return nil, ctx.Err()
+		case <-time.After(bo.NextBackOff()):
 		}
 	}
 }
