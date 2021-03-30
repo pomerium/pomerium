@@ -37,7 +37,7 @@ func TestLuaFixMisdirected(t *testing.T) {
 
 		assert.Equal(t, map[string]map[string]interface{}{
 			"envoy.filters.http.lua": {
-				"authority": "TEST",
+				"request.authority": "TEST",
 			},
 		}, dynamicMetadata)
 	})
