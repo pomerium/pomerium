@@ -1,9 +1,11 @@
 package pomerium.authz
 
 get_google_cloud_serverless_headers(serviceAccount, audience) = h {
-    h := {
-        "Authorization": "Bearer xxx"
-    }
+	h := {"Authorization": "Bearer xxx"}
+}
+
+get_databroker_record(typeURL, id) = v {
+	v := object_get(data.databroker_data, typeURL, null)[id]
 }
 
 test_email_allowed {

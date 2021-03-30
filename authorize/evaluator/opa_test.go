@@ -34,7 +34,7 @@ func TestOPA(t *testing.T) {
 	publicJWK, err := cryptutil.PublicJWKFromBytes(encodedSigningKey, jose.ES256)
 	require.NoError(t, err)
 
-	eval := func(policies []config.Policy, data []proto.Message, req *Request, isValidClientCertificate bool) rego.Result {
+	eval := func(t *testing.T, policies []config.Policy, data []proto.Message, req *Request, isValidClientCertificate bool) rego.Result {
 		authzPolicy, err := readPolicy()
 		require.NoError(t, err)
 		store := NewStoreFromProtos(data...)
@@ -47,6 +47,7 @@ func TestOPA(t *testing.T) {
 			rego.Module("pomerium.authz", string(authzPolicy)),
 			rego.Query("result = data.pomerium.authz"),
 			getGoogleCloudServerlessHeadersRegoOption,
+			store.GetDataBrokerRecordOption(),
 		)
 		q, err := r.PrepareForEval(context.Background())
 		require.NoError(t, err)
@@ -59,14 +60,14 @@ func TestOPA(t *testing.T) {
 	}
 
 	t.Run("client certificate", func(t *testing.T) {
-		res := eval(nil, nil, &Request{}, false)
+		res := eval(t, nil, nil, &Request{}, false)
 		assert.Equal(t,
 			A{A{json.Number("495"), "invalid client certificate"}},
 			res.Bindings["result"].(M)["deny"])
 	})
 	t.Run("identity_headers", func(t *testing.T) {
 		t.Run("kubernetes", func(t *testing.T) {
-			res := eval([]config.Policy{{
+			res := eval(t, []config.Policy{{
 				Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 				To: config.WeightedURLs{
 					{URL: *mustParseURL("https://to.example.com")},
@@ -98,7 +99,7 @@ func TestOPA(t *testing.T) {
 		})
 		t.Run("google_cloud_serverless", func(t *testing.T) {
 			withMockGCP(t, func() {
-				res := eval([]config.Policy{{
+				res := eval(t, []config.Policy{{
 					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 					To: config.WeightedURLs{
 						{URL: *mustParseURL("https://to.example.com")},
@@ -130,7 +131,7 @@ func TestOPA(t *testing.T) {
 	})
 	t.Run("jwt", func(t *testing.T) {
 		evalJWT := func(msgs ...proto.Message) M {
-			res := eval([]config.Policy{{
+			res := eval(t, []config.Policy{{
 				Source: &config.StringURL{URL: mustParseURL("https://from.example.com:8000")},
 				To: config.WeightedURLs{
 					{URL: *mustParseURL("https://to.example.com")},
@@ -226,7 +227,7 @@ func TestOPA(t *testing.T) {
 	})
 	t.Run("email", func(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
-			res := eval([]config.Policy{
+			res := eval(t, []config.Policy{
 				{
 					Source: &config.StringURL{URL: mustParseURL("https://from.example.com:8000")},
 					To: config.WeightedURLs{
@@ -255,7 +256,7 @@ func TestOPA(t *testing.T) {
 			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
 		})
 		t.Run("denied", func(t *testing.T) {
-			res := eval([]config.Policy{
+			res := eval(t, []config.Policy{
 				{
 					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 					To: config.WeightedURLs{
@@ -286,7 +287,7 @@ func TestOPA(t *testing.T) {
 	})
 	t.Run("impersonate email", func(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
-			res := eval([]config.Policy{
+			res := eval(t, []config.Policy{
 				{
 					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 					To: config.WeightedURLs{
@@ -316,7 +317,7 @@ func TestOPA(t *testing.T) {
 			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
 		})
 		t.Run("denied", func(t *testing.T) {
-			res := eval([]config.Policy{
+			res := eval(t, []config.Policy{
 				{
 					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 					To: config.WeightedURLs{
@@ -347,7 +348,7 @@ func TestOPA(t *testing.T) {
 		})
 	})
 	t.Run("user_id", func(t *testing.T) {
-		res := eval([]config.Policy{
+		res := eval(t, []config.Policy{
 			{
 				Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 				To: config.WeightedURLs{
@@ -377,7 +378,7 @@ func TestOPA(t *testing.T) {
 	})
 	t.Run("domain", func(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
-			res := eval([]config.Policy{
+			res := eval(t, []config.Policy{
 				{
 					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 					To: config.WeightedURLs{
@@ -407,7 +408,7 @@ func TestOPA(t *testing.T) {
 			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
 		})
 		t.Run("denied", func(t *testing.T) {
-			res := eval([]config.Policy{
+			res := eval(t, []config.Policy{
 				{
 					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 					To: config.WeightedURLs{
@@ -438,7 +439,7 @@ func TestOPA(t *testing.T) {
 	})
 	t.Run("impersonate domain", func(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
-			res := eval([]config.Policy{
+			res := eval(t, []config.Policy{
 				{
 					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 					To: config.WeightedURLs{
@@ -468,7 +469,7 @@ func TestOPA(t *testing.T) {
 			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
 		})
 		t.Run("denied", func(t *testing.T) {
-			res := eval([]config.Policy{
+			res := eval(t, []config.Policy{
 				{
 					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 					To: config.WeightedURLs{
@@ -502,7 +503,7 @@ func TestOPA(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
 			for _, nm := range []string{"group1", "group1name", "group1@example.com"} {
 				t.Run(nm, func(t *testing.T) {
-					res := eval([]config.Policy{
+					res := eval(t, []config.Policy{
 						{
 							Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 							To: config.WeightedURLs{
@@ -542,7 +543,7 @@ func TestOPA(t *testing.T) {
 			}
 		})
 		t.Run("denied", func(t *testing.T) {
-			res := eval([]config.Policy{
+			res := eval(t, []config.Policy{
 				{
 					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 					To: config.WeightedURLs{
@@ -581,7 +582,7 @@ func TestOPA(t *testing.T) {
 		})
 	})
 	t.Run("impersonate groups", func(t *testing.T) {
-		res := eval([]config.Policy{
+		res := eval(t, []config.Policy{
 			{
 				Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 				To: config.WeightedURLs{
@@ -617,7 +618,7 @@ func TestOPA(t *testing.T) {
 		assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
 	})
 	t.Run("any authenticated user", func(t *testing.T) {
-		res := eval([]config.Policy{
+		res := eval(t, []config.Policy{
 			{
 				Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
 				To: config.WeightedURLs{
