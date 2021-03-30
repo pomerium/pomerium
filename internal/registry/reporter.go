@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os"
+	"strings"
 	"time"
 
 	"github.com/pomerium/pomerium/config"
@@ -30,7 +30,7 @@ func (r *Reporter) OnConfigChange(cfg *config.Config) {
 
 	services, err := getReportedServices(cfg)
 	if err != nil {
-		log.Error().Err(err).Msg("applying config")
+		log.Error().Err(err).Msg("service registry reporter")
 		return
 	}
 
@@ -69,7 +69,7 @@ func (r *Reporter) OnConfigChange(cfg *config.Config) {
 }
 
 func getReportedServices(cfg *config.Config) ([]*pb.Service, error) {
-	mu, err := metricsURL(cfg.Options.MetricsAddr)
+	mu, err := metricsURL(*cfg.Options)
 	if err != nil {
 		return nil, err
 	}
@@ -79,12 +79,34 @@ func getReportedServices(cfg *config.Config) ([]*pb.Service, error) {
 	}, nil
 }
 
-func metricsURL(addr string) (*url.URL, error) {
-	if addr == "" {
+func metricsURL(o config.Options) (*url.URL, error) {
+	u := url.URL{
+		Scheme: "http",
+		Host:   o.MetricsAddr,
+		Path:   defaultMetricsPath,
+	}
+
+	if o.MetricsBasicAuth != "" {
+		txt, err := base64.StdEncoding.DecodeString(o.MetricsBasicAuth)
+		if err != nil {
+			return nil, fmt.Errorf("metrics basic auth: %w", err)
+		}
+		parts := strings.SplitN(string(txt), ":", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("expected username:password for basic auth")
+		}
+		u.User = url.UserPassword(parts[0], parts[1])
+	}
+
+	if o.MetricsCertificate != "" || o.MetricsCertificateFile != "" {
+		u.Scheme = "https"
+	}
+
+	if o.MetricsAddr == "" {
 		return nil, errNoMetricsAddr
 	}
 
-	host, port, err := net.SplitHostPort(addr)
+	host, port, err := net.SplitHostPort(o.MetricsAddr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid metrics address: %w", err)
 	}
@@ -94,18 +116,10 @@ func metricsURL(addr string) (*url.URL, error) {
 	}
 
 	if host == "" {
-		host, err = os.Hostname()
-		if err != nil {
-			return nil, fmt.Errorf("metrics address is missing hostname, error obtaining it from OS: %w", err)
-		}
+		return nil, errNoMetricsHost
 	}
 
-	return &url.URL{
-		// TODO: TLS selector https://github.com/pomerium/internal/issues/272
-		Scheme: "http",
-		Path:   defaultMetricsPath,
-		Host:   net.JoinHostPort(host, port),
-	}, nil
+	return &u, nil
 }
 
 func runReporter(

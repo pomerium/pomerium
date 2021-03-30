@@ -19,4 +19,5 @@ const (
 var (
 	errNoMetricsAddr = errors.New("no metrics address provided")
 	errNoMetricsPort = errors.New("no metrics port provided")
+	errNoMetricsHost = errors.New("no metrics host provided")
 )

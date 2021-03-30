@@ -690,7 +690,7 @@ func (o *Options) Validate() error {
 	}
 
 	if o.MetricsAddr != "" {
-		if err := ValidateListenerAddress(o.MetricsAddr); err != nil {
+		if err := ValidateMetricsAddress(o.MetricsAddr); err != nil {
 			return fmt.Errorf("config: invalid metrics_addr: %w", err)
 		}
 	}
