@@ -197,7 +197,3 @@ resources:
 ```
 
 
-For more details and example you can visit [banzaicloud-example](https://banzaicloud.com/blog/pomerium-authentication/)
-
-Thanks
-
