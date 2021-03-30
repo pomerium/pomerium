@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -87,10 +88,16 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 	originalHostname := url.Hostname()
 	var err error
 
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
 	if cfg.apiPath != "" {
+		srv.Start()
 		apiLogin := url
 		q := apiLogin.Query()
-		q.Set(urlutil.QueryRedirectURI, url.String())
+		q.Set(urlutil.QueryRedirectURI, srv.URL)
 		apiLogin.RawQuery = q.Encode()
 
 		apiLogin.Path = cfg.apiPath
