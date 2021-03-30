@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/pomerium/pomerium/config"
+
 	"github.com/stretchr/testify/assert"
 )
 
