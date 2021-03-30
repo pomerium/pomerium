@@ -88,9 +88,8 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 	originalHostname := url.Hostname()
 	var err error
 
-	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
+	// Serve a local callback for programmatic redirect flow
+	srv := httptest.NewUnstartedServer(http.RedirectHandler(url.String(), http.StatusFound))
 	defer srv.Close()
 
 	if cfg.apiPath != "" {
@@ -230,6 +229,22 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 	req, err = requestFromRedirectResponse(ctx, res, req)
 	if err != nil {
 		return nil, fmt.Errorf("expected redirect to %s: %w", originalHostname, err)
+	}
+
+	// Programmatic flow: Follow redirect from local callback
+	if cfg.apiPath != "" {
+		req, err = requestFromRedirectResponse(ctx, res, req)
+		if err != nil {
+			return nil, fmt.Errorf("expected redirect to %s: %w", srv.URL, err)
+		}
+		res, err = client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		req, err = requestFromRedirectResponse(ctx, res, req)
+		if err != nil {
+			return nil, fmt.Errorf("expected redirect to %s: %w", originalHostname, err)
+		}
 	}
 
 	return client.Do(req)
