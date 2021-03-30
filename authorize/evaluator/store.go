@@ -25,7 +25,7 @@ import (
 
 // A Store stores data for the OPA rego policy evaluation.
 type Store struct {
-	opaStore storage.Store
+	storage.Store
 
 	mu             sync.RWMutex
 	dataBrokerData map[string]map[string]proto.Message
@@ -34,7 +34,7 @@ type Store struct {
 // NewStore creates a new Store.
 func NewStore() *Store {
 	return &Store{
-		opaStore:       inmem.New(),
+		Store:          inmem.New(),
 		dataBrokerData: make(map[string]map[string]proto.Message),
 	}
 }
@@ -61,6 +61,29 @@ func NewStoreFromProtos(serverVersion uint64, msgs ...proto.Message) *Store {
 		s.UpdateRecord(serverVersion, record)
 	}
 	return s
+}
+
+// NewTransaction calls the underlying store NewTransaction and takes the transaction lock.
+func (s *Store) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
+	txn, err := s.Store.NewTransaction(ctx, params...)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.RLock()
+	return txn, err
+}
+
+// Commit calls the underlying store Commit and releases the transaction lock.
+func (s *Store) Commit(ctx context.Context, txn storage.Transaction) error {
+	err := s.Store.Commit(ctx, txn)
+	s.mu.RUnlock()
+	return err
+}
+
+// Abort calls the underlying store Abort and releases the transaction lock.
+func (s *Store) Abort(ctx context.Context, txn storage.Transaction) {
+	s.Store.Abort(ctx, txn)
+	s.mu.RUnlock()
 }
 
 // ClearRecords removes all the records from the store.
@@ -111,6 +134,9 @@ func (s *Store) UpdateRecord(serverVersion uint64, record *databroker.Record) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.write("/databroker_server_version", fmt.Sprint(serverVersion))
+	s.write("/databroker_record_version", fmt.Sprint(record.GetVersion()))
+
 	m, ok := s.dataBrokerData[record.GetType()]
 	if !ok {
 		m = make(map[string]proto.Message)
@@ -130,7 +156,7 @@ func (s *Store) UpdateSigningKey(signingKey *jose.JSONWebKey) {
 }
 
 func (s *Store) write(rawPath string, value interface{}) {
-	err := storage.Txn(context.Background(), s.opaStore, storage.WriteParams, func(txn storage.Transaction) error {
+	err := storage.Txn(context.Background(), s.Store, storage.WriteParams, func(txn storage.Transaction) error {
 		return s.writeTxn(txn, rawPath, value)
 	})
 	if err != nil {
@@ -146,21 +172,21 @@ func (s *Store) writeTxn(txn storage.Transaction, rawPath string, value interfac
 	}
 
 	if len(p) > 1 {
-		err := storage.MakeDir(context.Background(), s.opaStore, txn, p[:len(p)-1])
+		err := storage.MakeDir(context.Background(), s, txn, p[:len(p)-1])
 		if err != nil {
 			return err
 		}
 	}
 
 	var op storage.PatchOp = storage.ReplaceOp
-	_, err := s.opaStore.Read(context.Background(), txn, p)
+	_, err := s.Read(context.Background(), txn, p)
 	if storage.IsNotFound(err) {
 		op = storage.AddOp
 	} else if err != nil {
 		return err
 	}
 
-	return s.opaStore.Write(context.Background(), txn, op, p, value)
+	return s.Write(context.Background(), txn, op, p, value)
 }
 
 // GetDataBrokerRecordOption returns a function option that can retrieve databroker data.

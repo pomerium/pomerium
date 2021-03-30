@@ -45,7 +45,7 @@ func TestOPA(t *testing.T) {
 		store.UpdateRoutePolicies(policies)
 		store.UpdateSigningKey(privateJWK)
 		r := rego.New(
-			rego.Store(store.opaStore),
+			rego.Store(store),
 			rego.Module("pomerium.authz", string(authzPolicy)),
 			rego.Query("result = data.pomerium.authz"),
 			getGoogleCloudServerlessHeadersRegoOption,
