@@ -19,7 +19,7 @@ import (
 type testSyncerHandler struct {
 	getDataBrokerServiceClient func() DataBrokerServiceClient
 	clearRecords               func(ctx context.Context)
-	updateRecords              func(ctx context.Context, records []*Record)
+	updateRecords              func(ctx context.Context, serverVersion uint64, records []*Record)
 }
 
 func (t testSyncerHandler) GetDataBrokerServiceClient() DataBrokerServiceClient {
@@ -30,8 +30,8 @@ func (t testSyncerHandler) ClearRecords(ctx context.Context) {
 	t.clearRecords(ctx)
 }
 
-func (t testSyncerHandler) UpdateRecords(ctx context.Context, records []*Record) {
-	t.updateRecords(ctx, records)
+func (t testSyncerHandler) UpdateRecords(ctx context.Context, serverVersion uint64, records []*Record) {
+	t.updateRecords(ctx, serverVersion, records)
 }
 
 type testServer struct {
@@ -166,7 +166,7 @@ func TestSyncer(t *testing.T) {
 		clearRecords: func(ctx context.Context) {
 			clearCh <- struct{}{}
 		},
-		updateRecords: func(ctx context.Context, records []*Record) {
+		updateRecords: func(ctx context.Context, serverVersion uint64, records []*Record) {
 			updateCh <- records
 		},
 	})

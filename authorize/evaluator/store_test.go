@@ -21,7 +21,7 @@ func TestStore(t *testing.T) {
 			Email:   "name@example.com",
 		}
 		any, _ := anypb.New(u)
-		s.UpdateRecord(&databroker.Record{
+		s.UpdateRecord(0, &databroker.Record{
 			Version: 1,
 			Type:    any.GetTypeUrl(),
 			Id:      u.GetId(),
@@ -36,7 +36,7 @@ func TestStore(t *testing.T) {
 			"email":   "name@example.com",
 		}, toMap(v))
 
-		s.UpdateRecord(&databroker.Record{
+		s.UpdateRecord(0, &databroker.Record{
 			Version:   2,
 			Type:      any.GetTypeUrl(),
 			Id:        u.GetId(),
@@ -47,7 +47,7 @@ func TestStore(t *testing.T) {
 		v = s.GetRecordData(any.GetTypeUrl(), u.GetId())
 		assert.Nil(t, v)
 
-		s.UpdateRecord(&databroker.Record{
+		s.UpdateRecord(0, &databroker.Record{
 			Version: 3,
 			Type:    any.GetTypeUrl(),
 			Id:      u.GetId(),

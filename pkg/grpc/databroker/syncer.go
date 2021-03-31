@@ -39,7 +39,7 @@ func WithTypeURL(typeURL string) SyncerOption {
 type SyncerHandler interface {
 	GetDataBrokerServiceClient() DataBrokerServiceClient
 	ClearRecords(ctx context.Context)
-	UpdateRecords(ctx context.Context, records []*Record)
+	UpdateRecords(ctx context.Context, serverVersion uint64, records []*Record)
 }
 
 // A Syncer is a helper type for working with Sync and SyncLatest. It will make a call to
@@ -122,7 +122,7 @@ func (syncer *Syncer) init(ctx context.Context) error {
 
 	syncer.recordVersion = recordVersion
 	syncer.serverVersion = serverVersion
-	syncer.handler.UpdateRecords(ctx, records)
+	syncer.handler.UpdateRecords(ctx, serverVersion, records)
 
 	return nil
 }
@@ -157,7 +157,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		}
 		syncer.recordVersion = res.GetRecord().GetVersion()
 		if syncer.cfg.typeURL == "" || syncer.cfg.typeURL == res.GetRecord().GetType() {
-			syncer.handler.UpdateRecords(ctx, []*Record{res.GetRecord()})
+			syncer.handler.UpdateRecords(ctx, syncer.serverVersion, []*Record{res.GetRecord()})
 		}
 	}
 }

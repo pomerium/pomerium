@@ -206,7 +206,7 @@ func (s *syncerHandler) ClearRecords(ctx context.Context) {
 	s.src.mu.Unlock()
 }
 
-func (s *syncerHandler) UpdateRecords(ctx context.Context, records []*databroker.Record) {
+func (s *syncerHandler) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
 	if len(records) == 0 {
 		return
 	}

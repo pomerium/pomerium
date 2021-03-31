@@ -25,7 +25,7 @@ import (
 func TestJSONMarshal(t *testing.T) {
 	opt := config.NewDefaultOptions()
 	opt.AuthenticateURLString = "https://authenticate.example.com"
-	e, err := New(opt, NewStoreFromProtos(
+	e, err := New(opt, NewStoreFromProtos(0,
 		&session.Session{
 			UserId: "user1",
 		},
@@ -100,7 +100,7 @@ func TestEvaluator_Evaluate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			store := NewStoreFromProtos()
+			store := NewStoreFromProtos(0)
 			data, _ := ptypes.MarshalAny(&session.Session{
 				Version: "1",
 				Id:      sessionID,
@@ -116,7 +116,7 @@ func TestEvaluator_Evaluate(t *testing.T) {
 					RefreshToken: "REFRESH TOKEN",
 				},
 			})
-			store.UpdateRecord(&databroker.Record{
+			store.UpdateRecord(0, &databroker.Record{
 				Version: 1,
 				Type:    "type.googleapis.com/session.Session",
 				Id:      sessionID,
@@ -127,7 +127,7 @@ func TestEvaluator_Evaluate(t *testing.T) {
 				Id:      userID,
 				Email:   "foo@example.com",
 			})
-			store.UpdateRecord(&databroker.Record{
+			store.UpdateRecord(0, &databroker.Record{
 				Version: 1,
 				Type:    "type.googleapis.com/user.User",
 				Id:      userID,
@@ -189,7 +189,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 				RefreshToken: "REFRESH TOKEN",
 			},
 		})
-		store.UpdateRecord(&databroker.Record{
+		store.UpdateRecord(0, &databroker.Record{
 			Version: uint64(i),
 			Type:    "type.googleapis.com/session.Session",
 			Id:      sessionID,
@@ -199,7 +199,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Version: fmt.Sprint(i),
 			Id:      userID,
 		})
-		store.UpdateRecord(&databroker.Record{
+		store.UpdateRecord(0, &databroker.Record{
 			Version: uint64(i),
 			Type:    "type.googleapis.com/user.User",
 			Id:      userID,
@@ -211,7 +211,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Id:       userID,
 			GroupIds: []string{"1", "2", "3", "4"},
 		})
-		store.UpdateRecord(&databroker.Record{
+		store.UpdateRecord(0, &databroker.Record{
 			Version: uint64(i),
 			Type:    data.TypeUrl,
 			Id:      userID,
@@ -222,7 +222,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Version: fmt.Sprint(i),
 			Id:      fmt.Sprint(i),
 		})
-		store.UpdateRecord(&databroker.Record{
+		store.UpdateRecord(0, &databroker.Record{
 			Version: uint64(i),
 			Type:    data.TypeUrl,
 			Id:      fmt.Sprint(i),
