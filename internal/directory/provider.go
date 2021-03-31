@@ -59,7 +59,11 @@ func GetProvider(options Options) (provider Provider) {
 		globalProvider.options = options
 	}()
 
-	providerURL, _ := url.Parse(options.ProviderURL)
+	var providerURL *url.URL
+	// url.Parse will succeed even if we pass an empty string
+	if options.ProviderURL != "" {
+		providerURL, _ = url.Parse(options.ProviderURL)
+	}
 	switch options.Provider {
 	case auth0.Name:
 		serviceAccount, err := auth0.ParseServiceAccount(options)
