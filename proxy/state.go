@@ -60,7 +60,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	if err != nil {
 		return nil, err
 	}
-	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: dashboardPath})
+	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/"})
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
 
