@@ -836,6 +836,15 @@ Use this option if you previously relied on `x-pomerium-authenticated-user-{emai
 Secure service communication can fail if the external certificate does not match the internally routed service hostname/[SNI](https://en.wikipedia.org/wiki/Server_Name_Indication). This setting allows you to override that value.
 
 
+### Programmatic Redirect Domain Whitelist
+- Config File Key: `programmatic_redirect_domain_whitelist`
+- Type: array of `string`
+- Optional
+- Default: `localhost`
+
+The programmatic redirect domain whitelist is used to restrict the allowed redirect URLs when using programmatic login. By default only `localhost` URLs are allowed.
+
+
 ### Refresh Cooldown
 - Environmental Variable: `REFRESH_COOLDOWN`
 - Config File Key: `refresh_cooldown`

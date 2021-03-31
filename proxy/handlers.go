@@ -148,6 +148,11 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
+
+	if !urlutil.IsRedirectAllowed(redirectURI, state.programmaticRedirectDomainWhitelist) {
+		return httputil.NewError(http.StatusBadRequest, errors.New("invalid redirect uri"))
+	}
+
 	signinURL := *state.authenticateSigninURL
 	callbackURI := urlutil.GetAbsoluteURL(r)
 	callbackURI.Path = dashboardPath + "/callback/"

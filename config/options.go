@@ -270,6 +270,9 @@ type Options struct {
 	// SkipXffAppend instructs proxy not to append its IP address to x-forwarded-for header.
 	// see https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=skip_xff_append#x-forwarded-for
 	SkipXffAppend bool `mapstructure:"skip_xff_append" yaml:"skip_xff_append,omitempty" json:"skip_xff_append,omitempty"`
+
+	// ProgrammaticRedirectDomainWhitelist restricts the allowed redirect URLs when using programmatic login.
+	ProgrammaticRedirectDomainWhitelist []string `mapstructure:"programmatic_redirect_domain_whitelist" yaml:"programmatic_redirect_domain_whitelist,omitempty" json:"programmatic_redirect_domain_whitelist,omitempty"` //nolint
 }
 
 type certificateFilePair struct {
@@ -312,8 +315,9 @@ var defaultOptions = Options{
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
 	},
-	DataBrokerStorageType: "memory",
-	SkipXffAppend:         false,
+	DataBrokerStorageType:               "memory",
+	SkipXffAppend:                       false,
+	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -948,6 +952,9 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.SkipXffAppend != nil {
 		o.SkipXffAppend = settings.GetSkipXffAppend()
+	}
+	if len(settings.ProgrammaticRedirectDomainWhitelist) > 0 {
+		o.ProgrammaticRedirectDomainWhitelist = settings.GetProgrammaticRedirectDomainWhitelist()
 	}
 }
 

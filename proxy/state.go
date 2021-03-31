@@ -28,12 +28,13 @@ type proxyState struct {
 	authenticateSigninURL    *url.URL
 	authenticateRefreshURL   *url.URL
 
-	encoder         encoding.MarshalUnmarshaler
-	cookieSecret    []byte
-	refreshCooldown time.Duration
-	sessionStore    sessions.SessionStore
-	sessionLoaders  []sessions.SessionLoader
-	jwtClaimHeaders []string
+	encoder                             encoding.MarshalUnmarshaler
+	cookieSecret                        []byte
+	refreshCooldown                     time.Duration
+	sessionStore                        sessions.SessionStore
+	sessionLoaders                      []sessions.SessionLoader
+	jwtClaimHeaders                     []string
+	programmaticRedirectDomainWhitelist []string
 }
 
 func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
@@ -79,6 +80,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 		header.NewStore(state.encoder, httputil.AuthorizationTypePomerium),
 		queryparam.NewStore(state.encoder, "pomerium_session"),
 	}
+	state.programmaticRedirectDomainWhitelist = cfg.Options.ProgrammaticRedirectDomainWhitelist
 
 	return state, nil
 }
