@@ -132,6 +132,7 @@ func (a *Authorize) forceSyncUser(ctx context.Context, userID string) *user.User
 func (a *Authorize) waitForRecordSync(ctx context.Context, recordTypeURL, recordID string) (proto.Message, error) {
 	bo := backoff.NewExponentialBackOff()
 	bo.InitialInterval = time.Millisecond
+	bo.MaxElapsedTime = 0
 	bo.Reset()
 
 	for {
