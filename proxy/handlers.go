@@ -82,12 +82,13 @@ func (p *Proxy) userInfo(w http.ResponseWriter, r *http.Request) {
 		redirectURL = ref
 	}
 
-	url := state.authenticateDashboardURL.ResolveReference(&url.URL{
+	uri := state.authenticateDashboardURL.ResolveReference(&url.URL{
 		RawQuery: url.Values{
 			urlutil.QueryRedirectURI: {redirectURL},
 		}.Encode(),
 	})
-	httputil.Redirect(w, r, url.String(), http.StatusFound)
+	uri = urlutil.NewSignedURL(state.sharedKey, uri).Sign()
+	httputil.Redirect(w, r, uri.String(), http.StatusFound)
 }
 
 // Callback handles the result of a successful call to the authenticate service

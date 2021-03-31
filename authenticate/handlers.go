@@ -70,7 +70,12 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	// Identity Provider (IdP) endpoints
 	r.Path("/oauth2/callback").Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet)
 
-	v := r.PathPrefix("/.pomerium").Subrouter()
+	a.mountDashboard(r)
+	a.mountWellKnown(r)
+}
+
+func (a *Authenticate) mountDashboard(r *mux.Router) {
+	sr := r.PathPrefix("/.pomerium").Subrouter()
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
 			state := a.state.Load()
@@ -83,13 +88,15 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		AllowCredentials: true,
 		AllowedHeaders:   []string{"*"},
 	})
-	v.Use(c.Handler)
-	v.Use(a.RetrieveSession)
-	v.Use(a.VerifySession)
-	v.Path("/").Handler(httputil.HandlerFunc(a.userInfo))
-	v.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
-	v.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
+	sr.Use(c.Handler)
+	sr.Use(a.RetrieveSession)
+	sr.Use(a.VerifySession)
+	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
+	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
+	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
+}
 
+func (a *Authenticate) mountWellKnown(r *mux.Router) {
 	wk := r.PathPrefix("/.well-known/pomerium").Subrouter()
 	wk.Path("/jwks.json").Handler(httputil.HandlerFunc(a.jwks)).Methods(http.MethodGet)
 	wk.Path("/").Handler(httputil.HandlerFunc(a.wellKnown)).Methods(http.MethodGet)
@@ -479,8 +486,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		"DirectoryUser":   pbDirectoryUser, // user details inferred from idp directory
 		"DirectoryGroups": groups,          // user's groups inferred from idp directory
 		"csrfField":       csrf.TemplateField(r),
-		"RedirectURL":     r.URL.Query().Get(urlutil.QueryRedirectURI),
-		"SignOutURL":      "/.pomerium/sign_out",
+		"SignOutURL":      a.getSignOutURL(r),
 	}
 	return a.templates.ExecuteTemplate(w, "userInfo.html", input)
 }
@@ -574,4 +580,16 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 	}
 
 	return rawIDToken
+}
+
+func (a *Authenticate) getSignOutURL(r *http.Request) *url.URL {
+	uri := a.options.Load().AuthenticateURL.ResolveReference(&url.URL{
+		Path: "/.pomerium/sign_out",
+	})
+	if redirectURI := r.FormValue(urlutil.QueryRedirectURI); redirectURI != "" {
+		uri.RawQuery = (&url.Values{
+			urlutil.QueryRedirectURI: {redirectURI},
+		}).Encode()
+	}
+	return urlutil.NewSignedURL(a.options.Load().SharedKey, uri).Sign()
 }

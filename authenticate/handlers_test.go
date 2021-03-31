@@ -598,12 +598,36 @@ func TestAuthenticate_userInfo(t *testing.T) {
 	pbNow, _ := ptypes.TimestampProto(now)
 	tests := []struct {
 		name         string
+		url          *url.URL
 		method       string
 		sessionStore sessions.SessionStore
 		wantCode     int
 		wantBody     string
 	}{
-		{"good", http.MethodGet, &mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}}, http.StatusOK, ""},
+		{
+			"good",
+			mustParseURL("/"),
+			http.MethodGet,
+			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
+			http.StatusOK,
+			"",
+		},
+		{
+			"missing signature",
+			mustParseURL("/?pomerium_redirect_uri=http://example.com"),
+			http.MethodGet,
+			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
+			http.StatusBadRequest,
+			"",
+		},
+		{
+			"bad signature",
+			urlutil.NewSignedURL("BAD KEY", mustParseURL("/?pomerium_redirect_uri=http://example.com")).Sign(),
+			http.MethodGet,
+			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
+			http.StatusBadRequest,
+			"",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -614,8 +638,13 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			o := config.NewAtomicOptions()
+			o.Store(&config.Options{
+				AuthenticateURL: mustParseURL("https://authenticate.localhost.pomerium.io"),
+				SharedKey:       "SHARED KEY",
+			})
 			a := &Authenticate{
-				options: config.NewAtomicOptions(),
+				options: o,
 				state: newAtomicAuthenticateState(&authenticateState{
 					sessionStore:     tt.sessionStore,
 					encryptedEncoder: signer,
@@ -645,8 +674,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 				}),
 				templates: template.Must(frontend.NewTemplates()),
 			}
-			u, _ := url.Parse("/")
-			r := httptest.NewRequest(tt.method, u.String(), nil)
+			r := httptest.NewRequest(tt.method, tt.url.String(), nil)
 			state, err := tt.sessionStore.LoadSession(r)
 			if err != nil {
 				t.Fatal(err)
@@ -657,7 +685,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			r.Header.Set("Accept", "application/json")
 
 			w := httptest.NewRecorder()
-			httputil.HandlerFunc(a.userInfo).ServeHTTP(w, r)
+			a.requireValidSignatureOnRedirect(a.userInfo).ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantCode {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
 			}
@@ -784,4 +812,12 @@ func TestAuthenticate_SignOut_CSRF(t *testing.T) {
 			}
 		})
 	}
+}
+
+func mustParseURL(rawurl string) *url.URL {
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		panic(err)
+	}
+	return u
 }
