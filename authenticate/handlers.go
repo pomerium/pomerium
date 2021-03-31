@@ -483,6 +483,12 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		}
 		groups = append(groups, pbDirectoryGroup)
 	}
+
+	signoutURL, err := a.getSignOutURL(r)
+	if err != nil {
+		return fmt.Errorf("invalid signout url: %w", err)
+	}
+
 	input := map[string]interface{}{
 		"State":           s,               // local session state (cookie, header, etc)
 		"Session":         pbSession,       // current access, refresh, id token, & impersonation state
@@ -490,7 +496,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		"DirectoryUser":   pbDirectoryUser, // user details inferred from idp directory
 		"DirectoryGroups": groups,          // user's groups inferred from idp directory
 		"csrfField":       csrf.TemplateField(r),
-		"SignOutURL":      a.getSignOutURL(r),
+		"SignOutURL":      signoutURL,
 	}
 	return a.templates.ExecuteTemplate(w, "userInfo.html", input)
 }
@@ -586,8 +592,13 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 	return rawIDToken
 }
 
-func (a *Authenticate) getSignOutURL(r *http.Request) *url.URL {
-	uri := a.options.Load().AuthenticateURL.ResolveReference(&url.URL{
+func (a *Authenticate) getSignOutURL(r *http.Request) (*url.URL, error) {
+	uri, err := a.options.Load().GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+
+	uri.ResolveReference(&url.URL{
 		Path: "/.pomerium/sign_out",
 	})
 	if redirectURI := r.FormValue(urlutil.QueryRedirectURI); redirectURI != "" {
@@ -595,5 +606,5 @@ func (a *Authenticate) getSignOutURL(r *http.Request) *url.URL {
 			urlutil.QueryRedirectURI: {redirectURI},
 		}).Encode()
 	}
-	return urlutil.NewSignedURL(a.options.Load().SharedKey, uri).Sign()
+	return urlutil.NewSignedURL(a.options.Load().SharedKey, uri).Sign(), nil
 }

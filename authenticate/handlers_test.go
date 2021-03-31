@@ -639,8 +639,8 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			}
 			o := config.NewAtomicOptions()
 			o.Store(&config.Options{
-				AuthenticateURL: mustParseURL("https://authenticate.localhost.pomerium.io"),
-				SharedKey:       "SHARED KEY",
+				AuthenticateURLString: "https://authenticate.localhost.pomerium.io",
+				SharedKey:             "SHARED KEY",
 			})
 			a := &Authenticate{
 				options: o,
