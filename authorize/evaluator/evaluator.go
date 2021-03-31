@@ -28,7 +28,7 @@ type Evaluator struct {
 // New creates a new Evaluator.
 func New(options *config.Options, store *Store) (*Evaluator, error) {
 	e := &Evaluator{
-		custom:   NewCustomEvaluator(store.opaStore),
+		custom:   NewCustomEvaluator(store),
 		policies: options.GetAllPolicies(),
 		store:    store,
 	}
@@ -54,10 +54,11 @@ func New(options *config.Options, store *Store) (*Evaluator, error) {
 	store.UpdateSigningKey(jwk)
 
 	e.rego = rego.New(
-		rego.Store(store.opaStore),
+		rego.Store(store),
 		rego.Module("pomerium.authz", string(authzPolicy)),
 		rego.Query("result = data.pomerium.authz"),
 		getGoogleCloudServerlessHeadersRegoOption,
+		store.GetDataBrokerRecordOption(),
 	)
 
 	e.query, err = e.rego.PrepareForEval(context.Background())

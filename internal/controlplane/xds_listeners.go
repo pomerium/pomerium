@@ -224,9 +224,22 @@ func (srv *Server) buildMetricsListener(cfg *config.Config) (*envoy_config_liste
 		}
 	}
 
+	// we ignore the host part of the address, only binding to
+	host, port, err := net.SplitHostPort(cfg.Options.MetricsAddr)
+	if err != nil {
+		return nil, fmt.Errorf("metrics_addr %s: %w", cfg.Options.MetricsAddr, err)
+	}
+	if port == "" {
+		return nil, fmt.Errorf("metrics_addr %s: port is required", cfg.Options.MetricsAddr)
+	}
+	// unless an explicit IP address was provided, and bind to all interfaces if hostname was provided
+	if net.ParseIP(host) == nil {
+		host = ""
+	}
+
 	li := &envoy_config_listener_v3.Listener{
 		Name:         "metrics-ingress",
-		Address:      buildAddress(cfg.Options.MetricsAddr, 9902),
+		Address:      buildAddress(fmt.Sprintf("%s:%s", host, port), 9902),
 		FilterChains: []*envoy_config_listener_v3.FilterChain{filterChain},
 	}
 	return li, nil

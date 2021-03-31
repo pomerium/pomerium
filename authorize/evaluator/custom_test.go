@@ -14,7 +14,7 @@ func TestCustomEvaluator(t *testing.T) {
 
 	store := NewStore()
 	t.Run("bool deny", func(t *testing.T) {
-		ce := NewCustomEvaluator(store.opaStore)
+		ce := NewCustomEvaluator(store)
 		res, err := ce.Evaluate(ctx, &CustomEvaluatorRequest{
 			RegoPolicy: `
 				package pomerium.custom_policy
@@ -29,7 +29,7 @@ func TestCustomEvaluator(t *testing.T) {
 		assert.Empty(t, res.Reason)
 	})
 	t.Run("set deny", func(t *testing.T) {
-		ce := NewCustomEvaluator(store.opaStore)
+		ce := NewCustomEvaluator(store)
 		res, err := ce.Evaluate(ctx, &CustomEvaluatorRequest{
 			RegoPolicy: `
 				package pomerium.custom_policy
@@ -44,7 +44,7 @@ func TestCustomEvaluator(t *testing.T) {
 		assert.Equal(t, "test", res.Reason)
 	})
 	t.Run("missing package", func(t *testing.T) {
-		ce := NewCustomEvaluator(store.opaStore)
+		ce := NewCustomEvaluator(store)
 		res, err := ce.Evaluate(ctx, &CustomEvaluatorRequest{
 			RegoPolicy: `allow = true`,
 		})
