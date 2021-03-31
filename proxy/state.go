@@ -33,6 +33,8 @@ type proxyState struct {
 	sessionStore    sessions.SessionStore
 	sessionLoaders  []sessions.SessionLoader
 	jwtClaimHeaders config.JWTClaimHeaders
+
+	programmaticRedirectDomainWhitelist []string
 }
 
 func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
@@ -81,6 +83,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 		header.NewStore(state.encoder, httputil.AuthorizationTypePomerium),
 		queryparam.NewStore(state.encoder, "pomerium_session"),
 	}
+	state.programmaticRedirectDomainWhitelist = cfg.Options.ProgrammaticRedirectDomainWhitelist
 
 	return state, nil
 }

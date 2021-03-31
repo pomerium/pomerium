@@ -111,7 +111,7 @@ message Settings {
     bytes key_bytes = 4;
   }
 
-  optional string installation_id = 70;
+  optional string installation_id = 71;
   optional bool debug = 2;
   optional string log_level = 3;
   optional string proxy_log_level = 4;
@@ -148,7 +148,7 @@ message Settings {
   optional string certificate_authority_file = 35;
   optional string signing_key = 36;
   optional string signing_key_algorithm = 62;
-  map<string, string> headers = 68;
+  map<string, string> headers = 69;
   // repeated string jwt_claims_headers = 37;
   map<string, string> jwt_claims_headers = 63;
   optional google.protobuf.Duration refresh_cooldown = 38;
@@ -177,5 +177,6 @@ message Settings {
   optional bool autocert_must_staple = 58;
   optional string autocert_dir = 59;
   optional bool skip_xff_append = 61;
-  optional uint32 xff_num_trusted_hops = 69;
+  optional uint32 xff_num_trusted_hops = 70;
+  repeated string programmatic_redirect_domain_whitelist = 68;
 }

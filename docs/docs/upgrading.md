@@ -5,6 +5,13 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.13.0
+
+## Breaking
+
+### Programmatic login domain whitelist
+
+Programmatic login now restricts the allowed redirect URL domains. By default this is set to `localhost`, but can be changed via the `programmatic_redirect_domain_whitelist` option.
 # Since 0.12.0
 
 ## New
