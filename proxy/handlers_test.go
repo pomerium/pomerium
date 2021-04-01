@@ -305,11 +305,48 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 		wantStatus int
 		wantBody   string
 	}{
-		{"good body not checked", opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil, map[string]string{urlutil.QueryRedirectURI: "http://localhost"}, http.StatusOK, ""},
-		{"good body not checked", opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil, map[string]string{urlutil.QueryRedirectURI: "http://localhost"}, http.StatusOK, ""},
-		{"router miss, bad redirect_uri query", opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil, map[string]string{"bad_redirect_uri": "http://localhost"}, http.StatusNotFound, ""},
-		{"bad redirect_uri missing scheme", opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil, map[string]string{urlutil.QueryRedirectURI: "localhost"}, http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: localhost url does contain a valid scheme\"}\n"},
-		{"bad http method", opts, http.MethodPost, "https", "corp.example.example", "/.pomerium/api/v1/login", nil, map[string]string{urlutil.QueryRedirectURI: "http://localhost"}, http.StatusMethodNotAllowed, ""},
+		{
+			"good body not checked",
+			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			map[string]string{urlutil.QueryRedirectURI: "http://localhost"},
+			http.StatusOK,
+			"",
+		},
+		{
+			"good body not checked",
+			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			map[string]string{urlutil.QueryRedirectURI: "http://localhost"},
+			http.StatusOK,
+			"",
+		},
+		{
+			"router miss, bad redirect_uri query",
+			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			map[string]string{"bad_redirect_uri": "http://localhost"},
+			http.StatusNotFound,
+			"",
+		},
+		{
+			"bad redirect_uri missing scheme",
+			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			map[string]string{urlutil.QueryRedirectURI: "localhost"},
+			http.StatusBadRequest,
+			"{\"Status\":400,\"Error\":\"Bad Request: localhost url does contain a valid scheme\"}\n",
+		},
+		{
+			"bad redirect_uri not whitelisted",
+			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			map[string]string{urlutil.QueryRedirectURI: "https://example.com"},
+			http.StatusBadRequest,
+			"{\"Status\":400,\"Error\":\"Bad Request: invalid redirect uri\"}\n",
+		},
+		{
+			"bad http method",
+			opts, http.MethodPost, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
+			map[string]string{urlutil.QueryRedirectURI: "http://localhost"},
+			http.StatusMethodNotAllowed,
+			"",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

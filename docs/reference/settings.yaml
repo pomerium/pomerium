@@ -1003,6 +1003,15 @@ settings:
           Secure service communication can fail if the external certificate does not match the internally routed service hostname/[SNI](https://en.wikipedia.org/wiki/Server_Name_Indication). This setting allows you to override that value.
         shortdoc: |
           Secure service communication can fail if the external certificate does not match the internally routed service hostname/SNI.
+      - name: "Programmatic Redirect Domain Whitelist"
+        keys: ["programmatic_redirect_domain_whitelist"]
+        attributes: |
+          - Config File Key: `programmatic_redirect_domain_whitelist`
+          - Type: array of `string`
+          - Optional
+          - Default: `localhost`
+        doc: |
+          The programmatic redirect domain whitelist is used to restrict the allowed redirect URLs when using programmatic login. By default only `localhost` URLs are allowed.
       - name: "Refresh Cooldown"
         keys: ["refresh_cooldown"]
         attributes: |
