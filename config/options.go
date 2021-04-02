@@ -283,6 +283,9 @@ type Options struct {
 	EnvoyAdminProfilePath   string `mapstructure:"envoy_admin_profile_path" yaml:"envoy_admin_profile_path"`
 	EnvoyAdminAddress       string `mapstructure:"envoy_admin_address" yaml:"envoy_admin_address"`
 
+	// ProgrammaticRedirectDomainWhitelist restricts the allowed redirect URLs when using programmatic login.
+	ProgrammaticRedirectDomainWhitelist []string `mapstructure:"programmatic_redirect_domain_whitelist" yaml:"programmatic_redirect_domain_whitelist,omitempty" json:"programmatic_redirect_domain_whitelist,omitempty"` //nolint
+
 	AuditKey *PublicKeyEncryptionKeyOptions `mapstructure:"audit_key"`
 }
 
@@ -326,12 +329,13 @@ var defaultOptions = Options{
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
 	},
-	DataBrokerStorageType:   "memory",
-	SkipXffAppend:           false,
-	XffNumTrustedHops:       0,
-	EnvoyAdminAccessLogPath: os.DevNull,
-	EnvoyAdminProfilePath:   os.DevNull,
-	EnvoyAdminAddress:       "127.0.0.1:9901",
+	DataBrokerStorageType:               "memory",
+	SkipXffAppend:                       false,
+	XffNumTrustedHops:                   0,
+	EnvoyAdminAccessLogPath:             os.DevNull,
+	EnvoyAdminProfilePath:               os.DevNull,
+	EnvoyAdminAddress:                   "127.0.0.1:9901",
+	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -1124,6 +1128,9 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.XffNumTrustedHops != nil {
 		o.XffNumTrustedHops = settings.GetXffNumTrustedHops()
+	}
+	if len(settings.ProgrammaticRedirectDomainWhitelist) > 0 {
+		o.ProgrammaticRedirectDomainWhitelist = settings.GetProgrammaticRedirectDomainWhitelist()
 	}
 	if settings.AuditKey != nil {
 		o.AuditKey = &PublicKeyEncryptionKeyOptions{

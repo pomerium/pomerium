@@ -15,7 +15,6 @@
             <span>
               <form action="{{.SignOutURL}}" method="post">
                 {{.csrfField}}
-                <input type="hidden" name="pomerium_redirect_uri" value="{{.RedirectURL}}">
                 <input class="button" type="submit" value="Logout"/>
               </form>
             </span>
