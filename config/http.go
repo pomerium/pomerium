@@ -49,3 +49,8 @@ func (t *httpTransport) update(options *Options) {
 func (t *httpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return t.transport.Load().(http.RoundTripper).RoundTrip(req)
 }
+
+// Clone returns a clone of the transport.
+func (t *httpTransport) Clone() *http.Transport {
+	return t.transport.Load().(*http.Transport).Clone()
+}

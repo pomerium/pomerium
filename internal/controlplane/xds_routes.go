@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -322,6 +323,20 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]
 			}
 		}
 
+		if policy.KubernetesServiceAccountToken != "" || policy.KubernetesServiceAccountTokenFile != "" {
+			var dsts []string
+			for _, wu := range policy.To {
+				dsts = append(dsts, wu.URL.String())
+			}
+			envoyRoute.RequestHeadersToAdd = append(envoyRoute.RequestHeadersToAdd, &envoy_config_core_v3.HeaderValueOption{
+				Header: &envoy_config_core_v3.HeaderValue{
+					Key:   httputil.HeaderPomeriumReProxyDestination,
+					Value: strings.Join(dsts, ","),
+				},
+				Append: wrapperspb.Bool(false),
+			})
+		}
+
 		envoyRoute.Metadata.FilterMetadata = map[string]*structpb.Struct{
 			"envoy.filters.http.lua": {Fields: luaMetadata},
 		}
@@ -370,6 +385,9 @@ func (srv *Server) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*en
 
 func (srv *Server) buildPolicyRouteRouteAction(options *config.Options, policy *config.Policy) (*envoy_config_route_v3.RouteAction, error) {
 	clusterName := getClusterID(policy)
+	if policy.KubernetesServiceAccountTokenFile != "" || policy.KubernetesServiceAccountToken != "" {
+		clusterName = httpCluster
+	}
 	routeTimeout := getRouteTimeout(options, policy)
 	idleTimeout := getRouteIdleTimeout(policy)
 	prefixRewrite, regexRewrite := getRewriteOptions(policy)
@@ -464,6 +482,9 @@ func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) [
 		for _, claim := range options.JWTClaimsHeaders {
 			requestHeadersToRemove = append(requestHeadersToRemove, httputil.PomeriumJWTHeaderName(claim))
 		}
+	}
+	if policy.KubernetesServiceAccountToken != "" || policy.KubernetesServiceAccountTokenFile != "" {
+		requestHeadersToRemove = append(requestHeadersToRemove, httputil.HeaderPomeriumReProxyDestination)
 	}
 	return requestHeadersToRemove
 }
