@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/controlplane/filemgr"
 	"github.com/pomerium/pomerium/internal/controlplane/xdsmgr"
+	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
@@ -53,12 +54,14 @@ type Server struct {
 	xdsmgr        *xdsmgr.Manager
 	filemgr       *filemgr.Manager
 	metricsMgr    *config.MetricsManager
+	reproxy       *reproxy.Handler
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
 func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) {
 	srv := &Server{
 		metricsMgr: metricsMgr,
+		reproxy:    reproxy.New(),
 	}
 	srv.currentConfig.Store(versionedConfig{
 		Config: &config.Config{Options: &config.Options{}},
@@ -167,6 +170,7 @@ func (srv *Server) Run(ctx context.Context) error {
 
 // OnConfigChange updates the pomerium config options.
 func (srv *Server) OnConfigChange(cfg *config.Config) error {
+	srv.reproxy.Update(cfg)
 	prev := srv.currentConfig.Load()
 	srv.currentConfig.Store(versionedConfig{
 		Config:  cfg,

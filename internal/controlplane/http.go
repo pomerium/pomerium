@@ -17,7 +17,7 @@ import (
 
 func (srv *Server) addHTTPMiddleware() {
 	root := srv.HTTPRouter
-	root.Use(httputil.ReProxyMiddleware)
+	root.Use(srv.reproxy.Middleware)
 	root.Use(requestid.HTTPMiddleware())
 	root.Use(log.NewHandler(log.Logger))
 	root.Use(log.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {

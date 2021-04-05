@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
-	"strings"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -324,14 +323,13 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]
 		}
 
 		if policy.KubernetesServiceAccountToken != "" || policy.KubernetesServiceAccountTokenFile != "" {
-			var dsts []string
-			for _, wu := range policy.To {
-				dsts = append(dsts, wu.URL.String())
-			}
+			policyID, _ := policy.RouteID()
+			encryptedPolicyStr := srv.reproxy.EncryptPolicyID(policyID)
+
 			envoyRoute.RequestHeadersToAdd = append(envoyRoute.RequestHeadersToAdd, &envoy_config_core_v3.HeaderValueOption{
 				Header: &envoy_config_core_v3.HeaderValue{
-					Key:   httputil.HeaderPomeriumReProxyDestination,
-					Value: strings.Join(dsts, ","),
+					Key:   httputil.HeaderPomeriumReProxyPolicy,
+					Value: encryptedPolicyStr,
 				},
 				Append: wrapperspb.Bool(false),
 			})
@@ -484,7 +482,7 @@ func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) [
 		}
 	}
 	if policy.KubernetesServiceAccountToken != "" || policy.KubernetesServiceAccountTokenFile != "" {
-		requestHeadersToRemove = append(requestHeadersToRemove, httputil.HeaderPomeriumReProxyDestination)
+		requestHeadersToRemove = append(requestHeadersToRemove, httputil.HeaderPomeriumReProxyPolicy)
 	}
 	return requestHeadersToRemove
 }
