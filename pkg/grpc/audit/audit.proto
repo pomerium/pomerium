@@ -1,53 +1,13 @@
 syntax = "proto3";
 
-package audit;
+package pomerium.audit;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/audit";
 
-import "google/protobuf/empty.proto";
-import "google/protobuf/timestamp.proto";
+import "envoy/service/auth/v3/external_auth.proto";
 
 message Record {
-  string organization_id = 1;
-  string id = 2;
-  google.protobuf.Timestamp time = 3;
-  AuthenticationInfo authentication_info = 4;
-  string source = 5;
-  string destination = 6;
-  oneof request { HTTPRequest http_request = 7; }
-  oneof response { HTTPResponse http_response = 8; }
-  Status status = 9;
-  map<string, string> metadata = 10;
+  envoy.service.auth.v3.CheckRequest request = 1;
+  envoy.service.auth.v3.CheckResponse response = 2;
+  uint64 databroker_server_version = 3;
+  uint64 databroker_record_version = 4;
 }
-
-message AuthenticationInfo {
-  string session_id = 1;
-  string idp_provider = 2;
-  string idp_subject = 3;
-}
-
-message HTTPRequest {
-  string id = 1;
-  string method = 2;
-  map<string, string> headers = 3;
-  string path = 4;
-  string host = 5;
-  string scheme = 6;
-  string query = 7;
-  string fragment = 8;
-  int64 size = 9;
-  string protocol = 10;
-  string body = 11;
-}
-
-message HTTPResponse {
-  int32 status_code = 1;
-  map<string, string> headers = 2;
-  string body = 3;
-}
-
-message Status {
-  int32 code = 1;
-  string message = 2;
-}
-
-service Intake { rpc Publish(stream Record) returns (google.protobuf.Empty); }

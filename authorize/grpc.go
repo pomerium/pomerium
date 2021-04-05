@@ -8,23 +8,19 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/rs/zerolog"
+	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
-
-	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 )
 
 // Check implements the envoy auth server gRPC endpoint.
-func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
+func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (out *envoy_service_auth_v3.CheckResponse, err error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
 	defer span.End()
 
@@ -65,7 +61,9 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		log.Error().Err(err).Msg("error during OPA evaluation")
 		return nil, err
 	}
-	logAuthorizeCheck(ctx, in, reply, u)
+	defer func() {
+		a.logAuthorizeCheck(ctx, in, out, reply, u)
+	}()
 
 	switch {
 	case reply.Status == http.StatusOK:
@@ -225,46 +223,4 @@ func getPeerCertificate(in *envoy_service_auth_v3.CheckRequest) string {
 	// ignore the error as we will just return the empty string in that case
 	cert, _ := url.QueryUnescape(in.GetAttributes().GetSource().GetCertificate())
 	return cert
-}
-
-func logAuthorizeCheck(
-	ctx context.Context,
-	in *envoy_service_auth_v3.CheckRequest,
-	reply *evaluator.Result,
-	u *user.User,
-) {
-	hdrs := getCheckRequestHeaders(in)
-	hattrs := in.GetAttributes().GetRequest().GetHttp()
-	evt := log.Info().Str("service", "authorize")
-	// request
-	evt = evt.Str("request-id", requestid.FromContext(ctx))
-	evt = evt.Str("check-request-id", hdrs["X-Request-Id"])
-	evt = evt.Str("method", hattrs.GetMethod())
-	evt = evt.Str("path", stripQueryString(hattrs.GetPath()))
-	evt = evt.Str("host", hattrs.GetHost())
-	evt = evt.Str("query", hattrs.GetQuery())
-	// reply
-	if reply != nil {
-		evt = evt.Bool("allow", reply.Status == http.StatusOK)
-		evt = evt.Int("status", reply.Status)
-		evt = evt.Str("message", reply.Message)
-		evt = evt.Str("user", u.GetId())
-		evt = evt.Str("email", u.GetEmail())
-		evt = evt.Uint64("databroker_server_version", reply.DataBrokerServerVersion)
-		evt = evt.Uint64("databroker_record_version", reply.DataBrokerRecordVersion)
-	}
-
-	// potentially sensitive, only log if debug mode
-	if zerolog.GlobalLevel() <= zerolog.DebugLevel {
-		evt = evt.Interface("headers", hdrs)
-	}
-
-	evt.Msg("authorize check")
-}
-
-func stripQueryString(str string) string {
-	if idx := strings.Index(str, "?"); idx != -1 {
-		str = str[:idx]
-	}
-	return str
 }

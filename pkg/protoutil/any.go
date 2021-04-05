@@ -1,6 +1,7 @@
 package protoutil
 
 import (
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -105,4 +106,11 @@ func NewAnyUInt64(v uint64) *anypb.Any {
 func NewAnyUInt32(v uint32) *anypb.Any {
 	a, _ := anypb.New(wrapperspb.UInt32(v))
 	return a
+}
+
+// GetTypeURL gets the TypeURL for a protobuf message.
+func GetTypeURL(msg proto.Message) string {
+	// taken from the anypb package
+	const urlPrefix = "type.googleapis.com/"
+	return urlPrefix + string(msg.ProtoReflect().Descriptor().FullName())
 }

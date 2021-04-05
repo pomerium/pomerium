@@ -285,6 +285,8 @@ type Options struct {
 
 	// ProgrammaticRedirectDomainWhitelist restricts the allowed redirect URLs when using programmatic login.
 	ProgrammaticRedirectDomainWhitelist []string `mapstructure:"programmatic_redirect_domain_whitelist" yaml:"programmatic_redirect_domain_whitelist,omitempty" json:"programmatic_redirect_domain_whitelist,omitempty"` //nolint
+
+	AuditKey *PublicKeyEncryptionKeyOptions `mapstructure:"audit_key"`
 }
 
 type certificateFilePair struct {
@@ -1129,6 +1131,12 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if len(settings.ProgrammaticRedirectDomainWhitelist) > 0 {
 		o.ProgrammaticRedirectDomainWhitelist = settings.GetProgrammaticRedirectDomainWhitelist()
+	}
+	if settings.AuditKey != nil {
+		o.AuditKey = &PublicKeyEncryptionKeyOptions{
+			ID:   settings.AuditKey.GetId(),
+			Data: base64.StdEncoding.EncodeToString(settings.AuditKey.GetData()),
+		}
 	}
 }
 
