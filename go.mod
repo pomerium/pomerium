@@ -18,7 +18,7 @@ require (
 	github.com/go-chi/chi v1.5.4
 	github.com/go-redis/redis/v8 v8.8.0
 	github.com/golang/mock v1.5.0
-	github.com/golang/protobuf v1.5.1
+	github.com/golang/protobuf v1.5.2
 	github.com/google/btree v1.0.1
 	github.com/google/go-cmp v0.5.5
 	github.com/google/go-jsonnet v0.17.0
