@@ -1,6 +1,7 @@
 package protoutil
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -72,4 +74,28 @@ func assertProtoEqual(t *testing.T, x, y proto.Message) {
 	xbs, _ := protojson.Marshal(x)
 	ybs, _ := protojson.Marshal(y)
 	assert.True(t, proto.Equal(x, y), "%s != %s", xbs, ybs)
+}
+
+func BenchmarkEncrypt(b *testing.B) {
+	m := map[string]interface{}{}
+	for i := 0; i < 10; i++ {
+		mm := map[string]interface{}{}
+		for j := 0; j < 10; j++ {
+			mm[fmt.Sprintf("key%d", j)] = fmt.Sprintf("value%d", j)
+		}
+		m[fmt.Sprintf("key%d", i)] = mm
+	}
+
+	obj, err := structpb.NewStruct(m)
+	require.NoError(b, err)
+
+	kek, err := cryptutil.GenerateKeyEncryptionKey()
+	require.NoError(b, err)
+	enc := NewEncryptor(kek.Public())
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := enc.Encrypt(obj)
+		require.NoError(b, err)
+	}
 }
