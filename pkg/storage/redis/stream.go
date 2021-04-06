@@ -27,7 +27,7 @@ type recordStream struct {
 }
 
 func newRecordStream(ctx context.Context, backend *Backend, version uint64) *recordStream {
-	return &recordStream{
+	stream := &recordStream{
 		ctx:     ctx,
 		backend: backend,
 
@@ -36,6 +36,15 @@ func newRecordStream(ctx context.Context, backend *Backend, version uint64) *rec
 
 		closed: make(chan struct{}),
 	}
+	// if the backend is closed, close the stream
+	go func() {
+		select {
+		case <-stream.closed:
+		case <-backend.closed:
+			_ = stream.Close()
+		}
+	}()
+	return stream
 }
 
 func (stream *recordStream) Close() error {
