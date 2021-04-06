@@ -20,7 +20,6 @@ var (
 )
 
 type serverConfig struct {
-	installationID          string
 	deletePermanentlyAfter  time.Duration
 	secret                  []byte
 	storageType             string
@@ -58,13 +57,6 @@ func WithDeletePermanentlyAfter(dur time.Duration) ServerOption {
 func WithGetAllPageSize(pageSize int) ServerOption {
 	return func(cfg *serverConfig) {
 		cfg.getAllPageSize = pageSize
-	}
-}
-
-// WithInstallationID sets the installation id in the config.
-func WithInstallationID(installationID string) ServerOption {
-	return func(cfg *serverConfig) {
-		cfg.installationID = installationID
 	}
 }
 
