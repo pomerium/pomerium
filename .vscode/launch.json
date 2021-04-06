@@ -10,7 +10,10 @@
       "args": [
         "-config",
         "${workspaceRoot}/.config.yaml"
-      ]
+      ],
+      "env": {
+        "PATH": "${workspaceRoot}/bin/.getenvoy/builds/standard/1.17.1/darwin/bin/:${env:PATH}"
+      }
     },
     {
       "name": "Connect to server",

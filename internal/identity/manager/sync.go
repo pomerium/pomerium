@@ -31,7 +31,7 @@ func newDataBrokerSyncer(
 		update: update,
 		clear:  clear,
 	}
-	syncer.syncer = databroker.NewSyncer(syncer)
+	syncer.syncer = databroker.NewSyncer("identity_manager", syncer)
 	return syncer
 }
 

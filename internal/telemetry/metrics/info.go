@@ -21,21 +21,50 @@ var (
 		ConfigLastReloadView,
 		ConfigLastReloadSuccessView,
 		IdentityManagerLastRefreshView,
+		ConfigDbVersionView,
+		ConfigDbErrorsView,
 	}
 
 	configLastReload = stats.Int64(
 		metrics.ConfigLastReloadTimestampSeconds,
 		"Timestamp of last successful config reload",
-		"seconds")
+		stats.UnitSeconds)
+	configDbVersion = stats.Int64(
+		metrics.ConfigDbVersion,
+		metrics.ConfigDbVersionHelp,
+		stats.UnitDimensionless,
+	)
+	configDbErrors = stats.Int64(
+		metrics.ConfigDbErrors,
+		metrics.ConfigDbErrorsHelp,
+		stats.UnitDimensionless,
+	)
 	configLastReloadSuccess = stats.Int64(
 		metrics.ConfigLastReloadSuccess,
 		"Returns 1 if last reload was successful",
-		"1")
+		stats.UnitDimensionless)
 	identityManagerLastRefresh = stats.Int64(
 		metrics.IdentityManagerLastRefreshTimestamp,
 		"Timestamp of last directory refresh",
 		"seconds",
 	)
+
+	// ConfigDbVersionView contains last databroker config version that was processed
+	ConfigDbVersionView = &view.View{
+		Name:        configDbVersion.Name(),
+		Description: configDbVersion.Description(),
+		Measure:     configDbVersion,
+		TagKeys:     []tag.Key{TagKeyService, TagConfigID},
+		Aggregation: view.LastValue(),
+	}
+
+	ConfigDbErrorsView = &view.View{
+		Name:        configDbErrors.Name(),
+		Description: configDbErrors.Description(),
+		Measure:     configDbErrors,
+		TagKeys:     []tag.Key{TagKeyService, TagConfigID},
+		Aggregation: view.LastValue(),
+	}
 
 	// ConfigLastReloadView contains the timestamp the configuration was last
 	// reloaded, labeled by service.
@@ -70,6 +99,46 @@ var (
 // RecordIdentityManagerLastRefresh records that the identity manager refreshed users and groups.
 func RecordIdentityManagerLastRefresh() {
 	stats.Record(context.Background(), identityManagerLastRefresh.M(time.Now().Unix()))
+}
+
+// SetDbConfigInfo records status, databroker version and error count while parsing
+// the configuration from a databroker
+func SetDbConfigInfo(service, configID string, version uint64, errCount int64) {
+	log.Info().
+		Str("service", service).
+		Str("config_id", configID).
+		Uint64("version", version).
+		Int64("err_count", errCount).
+		Msg("set db config info")
+
+	if err := stats.RecordWithTags(
+		context.Background(),
+		[]tag.Mutator{
+			tag.Insert(TagKeyService, service),
+			tag.Insert(TagConfigID, configID),
+		},
+		configDbVersion.M(int64(version)),
+	); err != nil {
+		log.Error().Err(err).Msg("telemetry/metrics: failed to record config version number")
+	}
+
+	if err := stats.RecordWithTags(
+		context.Background(),
+		[]tag.Mutator{
+			tag.Insert(TagKeyService, service),
+			tag.Insert(TagConfigID, configID),
+		},
+		configDbErrors.M(errCount),
+	); err != nil {
+		log.Error().Err(err).Msg("telemetry/metrics: failed to record config error count")
+	}
+
+}
+
+// SetDbConfigInfo records that a certain databroker config version has been rejected
+func SetDbConfigRejected(service, configID string, version uint64, err error) {
+	log.Warn().Err(err).Msg("databroker: invalid config detected, ignoring")
+	SetDbConfigInfo(service, configID, version, -1)
 }
 
 // SetConfigInfo records the status, checksum and timestamp of a configuration

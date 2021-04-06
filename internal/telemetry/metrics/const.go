@@ -10,6 +10,7 @@ import (
 var (
 	TagKeyHTTPMethod  = tag.MustNewKey("http_method")
 	TagKeyService     = tag.MustNewKey("service")
+	TagConfigID       = tag.MustNewKey("config_id")
 	TagKeyGRPCService = tag.MustNewKey("grpc_service")
 	TagKeyGRPCMethod  = tag.MustNewKey("grpc_method")
 	TagKeyHost        = tag.MustNewKey("host")
