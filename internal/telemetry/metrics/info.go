@@ -21,22 +21,22 @@ var (
 		ConfigLastReloadView,
 		ConfigLastReloadSuccessView,
 		IdentityManagerLastRefreshView,
-		ConfigDbVersionView,
-		ConfigDbErrorsView,
+		ConfigDBVersionView,
+		ConfigDBErrorsView,
 	}
 
 	configLastReload = stats.Int64(
 		metrics.ConfigLastReloadTimestampSeconds,
 		"Timestamp of last successful config reload",
 		stats.UnitSeconds)
-	configDbVersion = stats.Int64(
-		metrics.ConfigDbVersion,
-		metrics.ConfigDbVersionHelp,
+	configDBVersion = stats.Int64(
+		metrics.ConfigDBVersion,
+		metrics.ConfigDBVersionHelp,
 		stats.UnitDimensionless,
 	)
-	configDbErrors = stats.Int64(
-		metrics.ConfigDbErrors,
-		metrics.ConfigDbErrorsHelp,
+	configDBErrors = stats.Int64(
+		metrics.ConfigDBErrors,
+		metrics.ConfigDBErrorsHelp,
 		stats.UnitDimensionless,
 	)
 	configLastReloadSuccess = stats.Int64(
@@ -49,19 +49,20 @@ var (
 		"seconds",
 	)
 
-	// ConfigDbVersionView contains last databroker config version that was processed
-	ConfigDbVersionView = &view.View{
-		Name:        configDbVersion.Name(),
-		Description: configDbVersion.Description(),
-		Measure:     configDbVersion,
+	// ConfigDBVersionView contains last databroker config version that was processed
+	ConfigDBVersionView = &view.View{
+		Name:        configDBVersion.Name(),
+		Description: configDBVersion.Description(),
+		Measure:     configDBVersion,
 		TagKeys:     []tag.Key{TagKeyService, TagConfigID},
 		Aggregation: view.LastValue(),
 	}
 
-	ConfigDbErrorsView = &view.View{
-		Name:        configDbErrors.Name(),
-		Description: configDbErrors.Description(),
-		Measure:     configDbErrors,
+	// ConfigDBErrorsView contains list of errors encountered while parsing this databroker config
+	ConfigDBErrorsView = &view.View{
+		Name:        configDBErrors.Name(),
+		Description: configDBErrors.Description(),
+		Measure:     configDBErrors,
 		TagKeys:     []tag.Key{TagKeyService, TagConfigID},
 		Aggregation: view.LastValue(),
 	}
@@ -101,9 +102,9 @@ func RecordIdentityManagerLastRefresh() {
 	stats.Record(context.Background(), identityManagerLastRefresh.M(time.Now().Unix()))
 }
 
-// SetDbConfigInfo records status, databroker version and error count while parsing
+// SetDBConfigInfo records status, databroker version and error count while parsing
 // the configuration from a databroker
-func SetDbConfigInfo(service, configID string, version uint64, errCount int64) {
+func SetDBConfigInfo(service, configID string, version uint64, errCount int64) {
 	log.Info().
 		Str("service", service).
 		Str("config_id", configID).
@@ -117,7 +118,7 @@ func SetDbConfigInfo(service, configID string, version uint64, errCount int64) {
 			tag.Insert(TagKeyService, service),
 			tag.Insert(TagConfigID, configID),
 		},
-		configDbVersion.M(int64(version)),
+		configDBVersion.M(int64(version)),
 	); err != nil {
 		log.Error().Err(err).Msg("telemetry/metrics: failed to record config version number")
 	}
@@ -128,17 +129,17 @@ func SetDbConfigInfo(service, configID string, version uint64, errCount int64) {
 			tag.Insert(TagKeyService, service),
 			tag.Insert(TagConfigID, configID),
 		},
-		configDbErrors.M(errCount),
+		configDBErrors.M(errCount),
 	); err != nil {
 		log.Error().Err(err).Msg("telemetry/metrics: failed to record config error count")
 	}
 
 }
 
-// SetDbConfigInfo records that a certain databroker config version has been rejected
-func SetDbConfigRejected(service, configID string, version uint64, err error) {
+// SetDBConfigRejected records that a certain databroker config version has been rejected
+func SetDBConfigRejected(service, configID string, version uint64, err error) {
 	log.Warn().Err(err).Msg("databroker: invalid config detected, ignoring")
-	SetDbConfigInfo(service, configID, version, -1)
+	SetDBConfigInfo(service, configID, version, -1)
 }
 
 // SetConfigInfo records the status, checksum and timestamp of a configuration

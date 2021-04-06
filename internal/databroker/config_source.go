@@ -95,7 +95,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 
 		err := cfg.Options.Validate()
 		if err != nil {
-			metrics.SetDbConfigRejected(cfg.Options.Services, id, cfgpb.version, err)
+			metrics.SetDBConfigRejected(cfg.Options.Services, id, cfgpb.version, err)
 			continue
 		}
 
@@ -141,7 +141,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 
 			additionalPolicies = append(additionalPolicies, *policy)
 		}
-		metrics.SetDbConfigInfo(cfg.Options.Services, id, cfgpb.version, int64(errCount))
+		metrics.SetDBConfigInfo(cfg.Options.Services, id, cfgpb.version, int64(errCount))
 	}
 
 	// add the additional policies here since calling `Validate` will reset them.

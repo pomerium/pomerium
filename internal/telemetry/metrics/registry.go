@@ -20,12 +20,10 @@ var registry = newMetricRegistry()
 //
 // It is not safe to use metricRegistry concurrently.
 type metricRegistry struct {
-	registry        *metric.Registry
-	buildInfo       *metric.Int64Gauge
-	policyCount     *metric.Int64DerivedGauge
-	configChecksum  *metric.Float64Gauge
-	configDbError   *metric.Int64Gauge
-	configDbVersion *metric.Int64Gauge
+	registry       *metric.Registry
+	buildInfo      *metric.Int64Gauge
+	policyCount    *metric.Int64DerivedGauge
+	configChecksum *metric.Float64Gauge
 	sync.Once
 }
 
