@@ -261,7 +261,7 @@ type Options struct {
 	GoogleCloudServerlessAuthenticationServiceAccount string `mapstructure:"google_cloud_serverless_authentication_service_account" yaml:"google_cloud_serverless_authentication_service_account,omitempty"` //nolint
 
 	// UseProxyProtocol configures the HTTP listener to require the HAProxy proxy protocol (either v1 or v2) on incoming requests.
-	UseProxyProtocol bool `mapstructure:"require_proxy_protocol" yaml:"require_proxy_protocol,omitempty" json:"require_proxy_protocol,omitempty"`
+	UseProxyProtocol bool `mapstructure:"use_proxy_protocol" yaml:"use_proxy_protocol,omitempty" json:"use_proxy_protocol,omitempty"`
 
 	viper *viper.Viper
 
