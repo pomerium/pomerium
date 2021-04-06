@@ -2,7 +2,6 @@
 package reproxy
 
 import (
-	"crypto/cipher"
 	"encoding/base64"
 	"math/rand"
 	"net/http"
@@ -22,10 +21,10 @@ import (
 // to the destination.
 //
 // This is used to forward requests to Kubernetes with headers split to multiple values instead of coalesced via a
-// comma.
+// comma. (https://github.com/kubernetes/kubernetes/issues/94683) If the upstream issue is fixed we will remove this.
 type Handler struct {
 	mu       sync.RWMutex
-	cipher   cipher.AEAD
+	key      []byte
 	options  *config.Options
 	policies map[uint64]*config.Policy
 }
@@ -33,53 +32,50 @@ type Handler struct {
 // New creates a new Handler.
 func New() *Handler {
 	h := new(Handler)
-	h.cipher, _ = cryptutil.NewAEADCipher(cryptutil.NewKey())
 	h.policies = make(map[uint64]*config.Policy)
 	return h
 }
 
-// DecryptPolicyID decrypts a policy id.
-func (h *Handler) DecryptPolicyID(encryptedPolicyStr string) (uint64, error) {
-	encryptedPolicy, err := base64.StdEncoding.DecodeString(encryptedPolicyStr)
+// GetPolicyIDFromHeaders gets a policy id from http headers. If no policy id is found
+// or the HMAC isn't valid, false will be returned.
+func (h *Handler) GetPolicyIDFromHeaders(headers http.Header) (uint64, bool) {
+	policyStr := headers.Get(httputil.HeaderPomeriumReproxyPolicy)
+	hmacStr := headers.Get(httputil.HeaderPomeriumReproxyPolicyHMAC)
+	hmac, err := base64.StdEncoding.DecodeString(hmacStr)
 	if err != nil {
-		return 0, err
+		return 0, false
+	}
+
+	policyID, err := strconv.ParseUint(policyStr, 10, 64)
+	if err != nil {
+		return 0, false
 	}
 
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	rawPolicy, err := cryptutil.Decrypt(h.cipher, encryptedPolicy, nil)
-	if err != nil {
-		return 0, err
-	}
-
-	return strconv.ParseUint(string(rawPolicy), 10, 64)
+	return policyID, cryptutil.CheckHMAC([]byte(policyStr), hmac, string(h.key))
 }
 
-// EncryptPolicyID encrypts a policy id.
-func (h *Handler) EncryptPolicyID(policyID uint64) string {
-	rawPolicy := []byte(strconv.FormatUint(policyID, 10))
-
+// GetPolicyIDHeaders returns http headers for the given policy id.
+func (h *Handler) GetPolicyIDHeaders(policyID uint64) [][2]string {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	encryptedPolicy := cryptutil.Encrypt(h.cipher, rawPolicy, nil)
-	encryptedPolicyStr := base64.StdEncoding.EncodeToString(encryptedPolicy)
-	return encryptedPolicyStr
+	s := strconv.FormatUint(policyID, 10)
+	hmac := base64.StdEncoding.EncodeToString(cryptutil.GenerateHMAC([]byte(s), string(h.key)))
+	return [][2]string{
+		{httputil.HeaderPomeriumReproxyPolicy, s},
+		{httputil.HeaderPomeriumReproxyPolicyHMAC, hmac},
+	}
 }
 
 // Middleware returns an HTTP middleware for handling reproxying.
 func (h *Handler) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		encryptedPolicyStr := r.Header.Get(httputil.HeaderPomeriumReProxyPolicy)
-		if encryptedPolicyStr == "" {
+		policyID, ok := h.GetPolicyIDFromHeaders(r.Header)
+		if !ok {
 			next.ServeHTTP(w, r)
-			return
-		}
-
-		policyID, err := h.DecryptPolicyID(encryptedPolicyStr)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -124,13 +120,7 @@ func (h *Handler) Update(cfg *config.Config) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	var err error
-	h.cipher, err = cryptutil.NewAEADCipherFromBase64(cfg.Options.SharedKey)
-	if err != nil {
-		log.Warn().Err(err).Msg("reproxy: error creating secret cipher")
-		return
-	}
-
+	h.key, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 	h.options = cfg.Options
 	h.policies = make(map[uint64]*config.Policy)
 	for i, p := range cfg.Options.Policies {

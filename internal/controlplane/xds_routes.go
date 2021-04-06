@@ -324,15 +324,16 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]
 
 		if policy.KubernetesServiceAccountToken != "" || policy.KubernetesServiceAccountTokenFile != "" {
 			policyID, _ := policy.RouteID()
-			encryptedPolicyStr := srv.reproxy.EncryptPolicyID(policyID)
-
-			envoyRoute.RequestHeadersToAdd = append(envoyRoute.RequestHeadersToAdd, &envoy_config_core_v3.HeaderValueOption{
-				Header: &envoy_config_core_v3.HeaderValue{
-					Key:   httputil.HeaderPomeriumReProxyPolicy,
-					Value: encryptedPolicyStr,
-				},
-				Append: wrapperspb.Bool(false),
-			})
+			for _, hdr := range srv.reproxy.GetPolicyIDHeaders(policyID) {
+				envoyRoute.RequestHeadersToAdd = append(envoyRoute.RequestHeadersToAdd,
+					&envoy_config_core_v3.HeaderValueOption{
+						Header: &envoy_config_core_v3.HeaderValue{
+							Key:   hdr[0],
+							Value: hdr[1],
+						},
+						Append: wrapperspb.Bool(false),
+					})
+			}
 		}
 
 		envoyRoute.Metadata.FilterMetadata = map[string]*structpb.Struct{
@@ -482,7 +483,7 @@ func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) [
 		}
 	}
 	if policy.KubernetesServiceAccountToken != "" || policy.KubernetesServiceAccountTokenFile != "" {
-		requestHeadersToRemove = append(requestHeadersToRemove, httputil.HeaderPomeriumReProxyPolicy)
+		requestHeadersToRemove = append(requestHeadersToRemove, httputil.HeaderPomeriumReproxyPolicy)
 	}
 	return requestHeadersToRemove
 }

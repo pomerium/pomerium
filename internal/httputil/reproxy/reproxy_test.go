@@ -15,14 +15,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
-func TestEncrypt(t *testing.T) {
-	h := New()
-	str := h.EncryptPolicyID(12345)
-	policyID, err := h.DecryptPolicyID(str)
-	assert.NoError(t, err)
-	assert.Equal(t, uint64(12345), policyID)
-}
-
 func TestMiddleware(t *testing.T) {
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "NEXT")
@@ -71,7 +63,9 @@ func TestMiddleware(t *testing.T) {
 
 		req, err := http.NewRequest("GET", srv2.URL, nil)
 		require.NoError(t, err)
-		req.Header.Set("x-pomerium-reproxy-policy", h.EncryptPolicyID(policyID))
+		for _, hdr := range h.GetPolicyIDHeaders(policyID) {
+			req.Header.Set(hdr[0], hdr[1])
+		}
 
 		res, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
