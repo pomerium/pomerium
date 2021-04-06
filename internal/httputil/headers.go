@@ -5,7 +5,8 @@ const AuthorizationTypePomerium = "Pomerium"
 
 // Standard headers
 const (
-	HeaderReferrer = "Referer"
+	HeaderReferrer         = "Referer"
+	HeaderImpersonateGroup = "Impersonate-Group"
 )
 
 // Pomerium headers contain information added to a request.
@@ -17,6 +18,10 @@ const (
 	HeaderPomeriumResponse = "x-pomerium-intercepted-response"
 	// HeaderPomeriumJWTAssertion is the header key containing JWT signed user details.
 	HeaderPomeriumJWTAssertion = "x-pomerium-jwt-assertion"
+	// HeaderPomeriumReproxyPolicy is the header key containing the policy to reproxy a request to.
+	HeaderPomeriumReproxyPolicy = "x-pomerium-reproxy-policy"
+	// HeaderPomeriumReproxyPolicyHMAC is an HMAC of the HeaderPomeriumReproxyPolicy header.
+	HeaderPomeriumReproxyPolicyHMAC = "x-pomerium-reproxy-policy-hmac"
 )
 
 // HeadersContentSecurityPolicy are the content security headers added to the service's handlers

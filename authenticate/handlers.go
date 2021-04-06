@@ -598,7 +598,7 @@ func (a *Authenticate) getSignOutURL(r *http.Request) (*url.URL, error) {
 		return nil, err
 	}
 
-	uri.ResolveReference(&url.URL{
+	uri = uri.ResolveReference(&url.URL{
 		Path: "/.pomerium/sign_out",
 	})
 	if redirectURI := r.FormValue(urlutil.QueryRedirectURI); redirectURI != "" {

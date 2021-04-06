@@ -35,7 +35,6 @@ func (srv *dataBrokerServer) OnConfigChange(cfg *config.Config) {
 func (srv *dataBrokerServer) getOptions(cfg *config.Config) []databroker.ServerOption {
 	cert, _ := cfg.Options.GetDataBrokerCertificate()
 	return []databroker.ServerOption{
-		databroker.WithInstallationID(cfg.Options.InstallationID),
 		databroker.WithSharedKey(cfg.Options.SharedKey),
 		databroker.WithStorageType(cfg.Options.DataBrokerStorageType),
 		databroker.WithStorageConnectionString(cfg.Options.DataBrokerStorageConnectionString),

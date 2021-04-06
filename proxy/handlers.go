@@ -57,7 +57,7 @@ func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
 
-	redirectURL := &url.URL{Scheme: "https", Host: r.Host, Path: "/"}
+	var redirectURL *url.URL
 	signOutURL, err := p.currentOptions.Load().GetSignOutRedirectURL()
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
@@ -71,7 +71,9 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 
 	dashboardURL := *state.authenticateDashboardURL
 	q := dashboardURL.Query()
-	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
+	if redirectURL != nil {
+		q.Set(urlutil.QueryRedirectURI, redirectURL.String())
+	}
 	dashboardURL.RawQuery = q.Encode()
 
 	state.sessionStore.ClearSession(w, r)
