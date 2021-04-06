@@ -530,6 +530,11 @@ func (p *Policy) Matches(requestURL url.URL) bool {
 	return true
 }
 
+// IsForKubernetes returns true if the policy is for kubernetes.
+func (p *Policy) IsForKubernetes() bool {
+	return p.KubernetesServiceAccountTokenFile != "" || p.KubernetesServiceAccountToken != ""
+}
+
 // StringURL stores a URL as a string in json.
 type StringURL struct {
 	*url.URL

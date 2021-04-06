@@ -85,9 +85,13 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 		policy, ok := h.policies[policyID]
 		h.mu.RUnlock()
 
-		if !ok {
+		if !ok || !policy.IsForKubernetes() {
 			return httputil.NewError(http.StatusNotFound, errors.New("policy not found"))
 		}
+
+		// remove these headers from the request to kubernetes
+		r.Header.Del(httputil.HeaderPomeriumReproxyPolicy)
+		r.Header.Del(httputil.HeaderPomeriumReproxyPolicyHMAC)
 
 		// fix the impersonate group header
 		if vs := r.Header.Values(httputil.HeaderImpersonateGroup); len(vs) > 0 {

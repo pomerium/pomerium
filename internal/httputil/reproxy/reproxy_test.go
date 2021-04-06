@@ -53,7 +53,8 @@ func TestMiddleware(t *testing.T) {
 			Options: &config.Options{
 				SharedKey: cryptutil.NewBase64Key(),
 				Policies: []config.Policy{{
-					To: config.WeightedURLs{{URL: *u}},
+					To:                            config.WeightedURLs{{URL: *u}},
+					KubernetesServiceAccountToken: "ABCD",
 				}},
 			},
 		}
