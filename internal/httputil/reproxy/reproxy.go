@@ -3,6 +3,7 @@ package reproxy
 
 import (
 	"encoding/base64"
+	"errors"
 	"math/rand"
 	"net/http"
 	stdhttputil "net/http/httputil"
@@ -72,11 +73,11 @@ func (h *Handler) GetPolicyIDHeaders(policyID uint64) [][2]string {
 
 // Middleware returns an HTTP middleware for handling reproxying.
 func (h *Handler) Middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		policyID, ok := h.GetPolicyIDFromHeaders(r.Header)
 		if !ok {
 			next.ServeHTTP(w, r)
-			return
+			return nil
 		}
 
 		h.mu.RLock()
@@ -85,8 +86,7 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 		h.mu.RUnlock()
 
 		if !ok {
-			http.Error(w, "policy not found", http.StatusNotFound)
-			return
+			return httputil.NewError(http.StatusNotFound, errors.New("policy not found"))
 		}
 
 		// fix the impersonate group header
@@ -103,8 +103,7 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 			dsts = append(dsts, wu.URL)
 		}
 		if len(dsts) == 0 {
-			http.Error(w, "policy destination not found", http.StatusNotFound)
-			return
+			return httputil.NewError(http.StatusNotFound, errors.New("policy destination not found"))
 		}
 		// regular rand is fine for this
 		dst := dsts[rand.Intn(len(dsts))] // nolint:gosec
@@ -112,6 +111,7 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 		h := stdhttputil.NewSingleHostReverseProxy(&dst)
 		h.Transport = config.NewPolicyHTTPTransport(options, policy)
 		h.ServeHTTP(w, r)
+		return nil
 	})
 }
 
@@ -126,7 +126,7 @@ func (h *Handler) Update(cfg *config.Config) {
 	for i, p := range cfg.Options.Policies {
 		id, err := p.RouteID()
 		if err != nil {
-			log.Warn().Err(err).Msg("httputil: error getting route id")
+			log.Warn().Err(err).Msg("reproxy: error getting route id")
 			continue
 		}
 		h.policies[id] = &cfg.Options.Policies[i]
