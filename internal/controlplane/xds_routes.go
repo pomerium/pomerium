@@ -317,8 +317,22 @@ func (srv *Server) buildPolicyRoutes(options *config.Options, domain string) ([]
 			}
 			luaMetadata["remove_impersonate_headers"] = &structpb.Value{
 				Kind: &structpb.Value_BoolValue{
-					BoolValue: policy.KubernetesServiceAccountTokenFile != "" || policy.KubernetesServiceAccountToken != "",
+					BoolValue: policy.IsForKubernetes(),
 				},
+			}
+		}
+
+		if policy.IsForKubernetes() {
+			policyID, _ := policy.RouteID()
+			for _, hdr := range srv.reproxy.GetPolicyIDHeaders(policyID) {
+				envoyRoute.RequestHeadersToAdd = append(envoyRoute.RequestHeadersToAdd,
+					&envoy_config_core_v3.HeaderValueOption{
+						Header: &envoy_config_core_v3.HeaderValue{
+							Key:   hdr[0],
+							Value: hdr[1],
+						},
+						Append: wrapperspb.Bool(false),
+					})
 			}
 		}
 
@@ -370,6 +384,10 @@ func (srv *Server) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*en
 
 func (srv *Server) buildPolicyRouteRouteAction(options *config.Options, policy *config.Policy) (*envoy_config_route_v3.RouteAction, error) {
 	clusterName := getClusterID(policy)
+	// kubernetes requests are sent to the http control plane to be reproxied
+	if policy.IsForKubernetes() {
+		clusterName = httpCluster
+	}
 	routeTimeout := getRouteTimeout(options, policy)
 	idleTimeout := getRouteIdleTimeout(policy)
 	prefixRewrite, regexRewrite := getRewriteOptions(policy)
@@ -465,6 +483,11 @@ func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) [
 			requestHeadersToRemove = append(requestHeadersToRemove, httputil.PomeriumJWTHeaderName(claim))
 		}
 	}
+	// remove these headers to prevent a user from re-proxying requests through the control plane
+	requestHeadersToRemove = append(requestHeadersToRemove,
+		httputil.HeaderPomeriumReproxyPolicy,
+		httputil.HeaderPomeriumReproxyPolicyHMAC,
+	)
 	return requestHeadersToRemove
 }
 

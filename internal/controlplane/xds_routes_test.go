@@ -308,7 +308,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-2",
@@ -334,7 +338,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						{ "enabled": true, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-3",
@@ -366,7 +374,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"key": "HEADER-KEY",
 						"value": "HEADER-VALUE"
 					}
-				}]
+				}],
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-4",
@@ -394,7 +406,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-5",
@@ -420,7 +436,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
 				},
-				"requestHeadersToRemove": ["HEADER-KEY"]
+				"requestHeadersToRemove": [
+					"HEADER-KEY",
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-6",
@@ -445,7 +465,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": true, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-7",
@@ -471,7 +495,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						{ "enabled": true, "upgradeType": "websocket"},
 						{ "enabled": true, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-8",
@@ -497,7 +525,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						{ "enabled": true, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			}
 		]
 	`, routes)
@@ -540,6 +572,10 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							{ "enabled": false, "upgradeType": "spdy/3.1"}
 						]
 					},
+        	        "requestHeadersToRemove": [
+        	           	"x-pomerium-reproxy-policy",
+        	           	"x-pomerium-reproxy-policy-hmac"
+					],
 					"typedPerFilterConfig": {
 						"envoy.filters.http.ext_authz": {
 							"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
@@ -596,7 +632,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
 						{ "enabled": true, "upgradeType": "CONNECT", "connectConfig": {} }
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-1",
@@ -623,7 +663,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
 						{ "enabled": true, "upgradeType": "CONNECT", "connectConfig": {} }
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			}
 		]
 	`, routes)
@@ -707,7 +751,11 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-1",
@@ -733,7 +781,11 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-2",
@@ -765,7 +817,11 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-3",
@@ -791,7 +847,11 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-4",
@@ -817,7 +877,11 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			},
 			{
 				"name": "policy-5",
@@ -849,7 +913,11 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
-				}
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				]
 			}
 		]
 	`, routes)
