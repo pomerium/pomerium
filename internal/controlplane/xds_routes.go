@@ -482,9 +482,10 @@ func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) [
 			requestHeadersToRemove = append(requestHeadersToRemove, httputil.PomeriumJWTHeaderName(claim))
 		}
 	}
-	if policy.KubernetesServiceAccountToken != "" || policy.KubernetesServiceAccountTokenFile != "" {
-		requestHeadersToRemove = append(requestHeadersToRemove, httputil.HeaderPomeriumReproxyPolicy)
-	}
+	requestHeadersToRemove = append(requestHeadersToRemove,
+		httputil.HeaderPomeriumReproxyPolicy,
+		httputil.HeaderPomeriumReproxyPolicyHMAC,
+	)
 	return requestHeadersToRemove
 }
 
