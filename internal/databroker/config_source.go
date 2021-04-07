@@ -96,7 +96,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 		err := cfg.Options.Validate()
 		if err != nil {
 			metrics.SetDBConfigRejected(cfg.Options.Services, id, cfgpb.version, err)
-			continue
+			return
 		}
 
 		for _, routepb := range cfgpb.GetRoutes() {
