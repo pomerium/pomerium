@@ -31,14 +31,14 @@ func TestSignedURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			signedURL := NewSignedURL(tt.key, &tt.uri)
+			signedURL := NewSignedURL([]byte(tt.key), &tt.uri)
 			signedURL.timeNow = tt.origTime
 
 			if diff := cmp.Diff(signedURL.String(), tt.wantStr); diff != "" {
 				t.Errorf("signedURL() = %v", diff)
 			}
 
-			signedURL = NewSignedURL(tt.key, &tt.uri)
+			signedURL = NewSignedURL([]byte(tt.key), &tt.uri)
 			signedURL.timeNow = tt.origTime
 			got := signedURL.Sign()
 
@@ -89,7 +89,7 @@ func TestSignedURL_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			out := NewSignedURL(tt.key, &tt.uri)
+			out := NewSignedURL([]byte(tt.key), &tt.uri)
 			out.timeNow = tt.timeNow
 
 			if err := out.Validate(); (err != nil) != tt.wantErr {

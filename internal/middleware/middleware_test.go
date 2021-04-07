@@ -125,13 +125,13 @@ func TestValidateSignature(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		secretA    string
-		secretB    string
+		secretA    []byte
+		secretB    []byte
 		wantStatus int
 		wantBody   string
 	}{
-		{"good", "secret", "secret", http.StatusOK, http.StatusText(http.StatusOK)},
-		{"secret mistmatch", "secret", "hunter42", http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: internal/urlutil: hmac failed\"}\n"},
+		{"good", []byte("secret"), []byte("secret"), http.StatusOK, http.StatusText(http.StatusOK)},
+		{"secret mistmatch", []byte("secret"), []byte("hunter42"), http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: internal/urlutil: hmac failed\"}\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

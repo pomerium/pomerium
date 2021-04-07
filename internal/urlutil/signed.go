@@ -13,7 +13,7 @@ import (
 // SignedURL is a shared-key HMAC wrapped URL.
 type SignedURL struct {
 	uri    url.URL
-	key    string
+	key    []byte
 	signed bool
 
 	// mockable time for testing
@@ -24,7 +24,7 @@ type SignedURL struct {
 //
 // N.B. It is the user's responsibility to make sure the key is 256 bits and
 // 		the url is not nil.
-func NewSignedURL(key string, uri *url.URL) *SignedURL {
+func NewSignedURL(key []byte, uri *url.URL) *SignedURL {
 	return &SignedURL{uri: *uri, key: key, timeNow: time.Now} // uri is copied
 }
 
@@ -93,7 +93,7 @@ func (su *SignedURL) Validate() error {
 
 // hmacURL takes a redirect url string and timestamp and returns the base64
 // encoded HMAC result.
-func hmacURL(key string, data ...interface{}) string {
+func hmacURL(key []byte, data ...interface{}) string {
 	h := cryptutil.GenerateHMAC([]byte(fmt.Sprint(data...)), key)
 	return base64.URLEncoding.EncodeToString(h)
 }

@@ -621,7 +621,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 		},
 		{
 			"bad signature",
-			urlutil.NewSignedURL("BAD KEY", mustParseURL("/?pomerium_redirect_uri=http://example.com")).Sign(),
+			urlutil.NewSignedURL([]byte("BAD KEY"), mustParseURL("/?pomerium_redirect_uri=http://example.com")).Sign(),
 			http.MethodGet,
 			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
 			http.StatusBadRequest,

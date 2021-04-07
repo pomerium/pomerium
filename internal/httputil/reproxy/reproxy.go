@@ -55,7 +55,7 @@ func (h *Handler) GetPolicyIDFromHeaders(headers http.Header) (uint64, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	return policyID, cryptutil.CheckHMAC([]byte(policyStr), hmac, string(h.key))
+	return policyID, cryptutil.CheckHMAC([]byte(policyStr), hmac, h.key)
 }
 
 // GetPolicyIDHeaders returns http headers for the given policy id.
@@ -64,7 +64,7 @@ func (h *Handler) GetPolicyIDHeaders(policyID uint64) [][2]string {
 	defer h.mu.RUnlock()
 
 	s := strconv.FormatUint(policyID, 10)
-	hmac := base64.StdEncoding.EncodeToString(cryptutil.GenerateHMAC([]byte(s), string(h.key)))
+	hmac := base64.StdEncoding.EncodeToString(cryptutil.GenerateHMAC([]byte(s), h.key))
 	return [][2]string{
 		{httputil.HeaderPomeriumReproxyPolicy, s},
 		{httputil.HeaderPomeriumReproxyPolicyHMAC, hmac},

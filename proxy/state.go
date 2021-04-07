@@ -19,7 +19,7 @@ import (
 )
 
 type proxyState struct {
-	sharedKey    string
+	sharedKey    []byte
 	sharedCipher cipher.AEAD
 
 	authenticateURL          *url.URL
@@ -44,7 +44,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	}
 
 	state := new(proxyState)
-	state.sharedKey = cfg.Options.SharedKey
+	state.sharedKey = []byte(cfg.Options.SharedKey)
 	state.sharedCipher, _ = cryptutil.NewAEADCipherFromBase64(cfg.Options.SharedKey)
 	state.cookieSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
 

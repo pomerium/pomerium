@@ -79,7 +79,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
 			state := a.state.Load()
-			err := middleware.ValidateRequestURL(r, string(state.sharedSecret))
+			err := middleware.ValidateRequestURL(r, state.sharedSecret)
 			if err != nil {
 				log.FromRequest(r).Info().Err(err).Msg("authenticate: origin blocked")
 			}
@@ -243,7 +243,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	// build our hmac-d redirect URL with our session, pointing back to the
 	// proxy's callback URL which is responsible for setting our new route-session
-	uri := urlutil.NewSignedURL(options.SharedKey, callbackURL)
+	uri := urlutil.NewSignedURL([]byte(options.SharedKey), callbackURL)
 	httputil.Redirect(w, r, uri.String(), http.StatusFound)
 	return nil
 }
@@ -606,5 +606,5 @@ func (a *Authenticate) getSignOutURL(r *http.Request) (*url.URL, error) {
 			urlutil.QueryRedirectURI: {redirectURI},
 		}).Encode()
 	}
-	return urlutil.NewSignedURL(a.options.Load().SharedKey, uri).Sign(), nil
+	return urlutil.NewSignedURL([]byte(a.options.Load().SharedKey), uri).Sign(), nil
 }

@@ -20,15 +20,15 @@ var (
 )
 
 // GenerateHMAC produces a symmetric signature using a shared secret key.
-func GenerateHMAC(data []byte, key string) []byte {
-	h := hmac.New(sha512.New512_256, []byte(key))
+func GenerateHMAC(data, key []byte) []byte {
+	h := hmac.New(sha512.New512_256, key)
 	h.Write(data)
 	return h.Sum(nil)
 }
 
 // CheckHMAC securely checks the supplied MAC against a message using the
 // shared secret key.
-func CheckHMAC(data, suppliedMAC []byte, key string) bool {
+func CheckHMAC(data, suppliedMAC, key []byte) bool {
 	expectedMAC := GenerateHMAC(data, key)
 	return hmac.Equal(expectedMAC, suppliedMAC)
 }
