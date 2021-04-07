@@ -155,7 +155,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 			return err
 		}
 
-		syncer.log().Info().
+		syncer.log().Debug().
 			Uint("version", uint(res.Record.GetVersion())).
 			Str("type", res.Record.Type).
 			Str("id", res.Record.Id).

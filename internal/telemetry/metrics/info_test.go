@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"runtime"
 	"testing"
 
@@ -35,6 +36,32 @@ func Test_SetConfigInfo(t *testing.T) {
 	}
 }
 
+func Test_SetDBConfigInfo(t *testing.T) {
+	tests := []struct {
+		version     uint64
+		errCount    int64
+		wantVersion string
+		wantErrors  string
+	}{
+		{
+			1,
+			2,
+			"{ { {config_id test_config}{service test_service} }&{1} }",
+			"{ { {config_id test_config}{service test_service} }&{2} }",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("version=%d errors=%d", tt.version, tt.errCount), func(t *testing.T) {
+			view.Unregister(InfoViews...)
+			view.Register(InfoViews...)
+			SetDBConfigInfo("test_service", "test_config", tt.version, tt.errCount)
+
+			testDataRetrieval(ConfigDBVersionView, t, tt.wantVersion)
+			testDataRetrieval(ConfigDBErrorsView, t, tt.wantErrors)
+		})
+	}
+}
 func Test_SetBuildInfo(t *testing.T) {
 	registry = newMetricRegistry()
 
