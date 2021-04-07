@@ -25,7 +25,7 @@ const (
 	ConfigDBVersionHelp = "databroker current config record version"
 	// ConfigDBErrors sets number of errors while parsing current config that were tolerated
 	ConfigDBErrors = "config_db_errors"
-	// ConfigDBErrorsHelp
+	// ConfigDBErrorsHelp is the help text for ConfigDBErrors.
 	ConfigDBErrorsHelp = "amount of errors observed while applying databroker config; -1 if validation failed and was rejected altogether"
 )
 
