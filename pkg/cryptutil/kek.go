@@ -36,20 +36,18 @@ const KeyEncryptionKeySize = curve25519.ScalarSize
 
 // PrivateKeyEncryptionKey is a Curve25519 asymmetric private encryption key used to decrypt data encryption keys.
 type PrivateKeyEncryptionKey struct {
-	id   string
 	data [KeyEncryptionKeySize]byte
 }
 
 func (*PrivateKeyEncryptionKey) isKeyEncryptionKey() {}
 
 // NewPrivateKeyEncryptionKey creates a new encryption key from existing bytes.
-func NewPrivateKeyEncryptionKey(id string, raw []byte) (*PrivateKeyEncryptionKey, error) {
+func NewPrivateKeyEncryptionKey(raw []byte) (*PrivateKeyEncryptionKey, error) {
 	if len(raw) != KeyEncryptionKeySize {
 		return nil, fmt.Errorf("cryptutil: invalid key encryption key, expected %d bytes, got %d",
 			KeyEncryptionKeySize, len(raw))
 	}
 	kek := new(PrivateKeyEncryptionKey)
-	kek.id = id
 	copy(kek.data[:], raw)
 	return kek, nil
 }
@@ -57,8 +55,7 @@ func NewPrivateKeyEncryptionKey(id string, raw []byte) (*PrivateKeyEncryptionKey
 // GenerateKeyEncryptionKey generates a new random key encryption key.
 func GenerateKeyEncryptionKey() (*PrivateKeyEncryptionKey, error) {
 	raw := randomBytes(KeyEncryptionKeySize)
-	id := GetKeyEncryptionKeyID(raw)
-	return NewPrivateKeyEncryptionKey(id, raw)
+	return NewPrivateKeyEncryptionKey(raw)
 }
 
 // GetKeyEncryptionKeyID derives an id from the key encryption key data itself.
@@ -89,7 +86,7 @@ func (kek *PrivateKeyEncryptionKey) DecryptDataEncryptionKey(ciphertext []byte) 
 
 // ID returns the private key's id.
 func (kek *PrivateKeyEncryptionKey) ID() string {
-	return kek.id
+	return kek.Public().id
 }
 
 // KeyBytes returns the private key encryption key's raw bytes.
@@ -104,7 +101,10 @@ func (kek *PrivateKeyEncryptionKey) Public() *PublicKeyEncryptionKey {
 	// taken from NACL box.GenerateKey
 	var publicKey [32]byte
 	curve25519.ScalarBaseMult(&publicKey, &kek.data)
-	return &PublicKeyEncryptionKey{id: kek.id, data: publicKey}
+	return &PublicKeyEncryptionKey{
+		id:   GetKeyEncryptionKeyID(kek.data[:]),
+		data: publicKey,
+	}
 }
 
 // PublicKeyEncryptionKey is a Curve25519 asymmetric public encryption key used to encrypt data encryption keys.
@@ -116,7 +116,12 @@ type PublicKeyEncryptionKey struct {
 func (*PublicKeyEncryptionKey) isKeyEncryptionKey() {}
 
 // NewPublicKeyEncryptionKey creates a new encryption key from existing bytes.
-func NewPublicKeyEncryptionKey(id string, raw []byte) (*PublicKeyEncryptionKey, error) {
+func NewPublicKeyEncryptionKey(raw []byte) (*PublicKeyEncryptionKey, error) {
+	return NewPublicKeyEncryptionKeyWithID(GetKeyEncryptionKeyID(raw), raw)
+}
+
+// NewPublicKeyEncryptionKeyWithID creates a new encryption key from an existing id and bytes.
+func NewPublicKeyEncryptionKeyWithID(id string, raw []byte) (*PublicKeyEncryptionKey, error) {
 	if len(raw) != KeyEncryptionKeySize {
 		return nil, fmt.Errorf("cryptutil: invalid key encryption key, expected %d bytes, got %d",
 			KeyEncryptionKeySize, len(raw))

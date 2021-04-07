@@ -21,7 +21,7 @@ func TestKeyEncryptionKey(t *testing.T) {
 	t.Run("anonymous", func(t *testing.T) {
 		kek, err := GenerateKeyEncryptionKey()
 		require.NoError(t, err)
-		kekPublic, err := NewPublicKeyEncryptionKey(kek.ID(), kek.Public().KeyBytes())
+		kekPublic, err := NewPublicKeyEncryptionKey(kek.Public().KeyBytes())
 		require.NoError(t, err)
 		ciphertext, err := kekPublic.Encrypt([]byte("HELLO WORLD"))
 		require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestKeyEncryptionKey(t *testing.T) {
 	t.Run("ID", func(t *testing.T) {
 		kek, err := GenerateKeyEncryptionKey()
 		require.NoError(t, err)
-		assert.Equal(t, kek.id, kek.ID())
+		assert.Equal(t, kek.Public().id, kek.ID())
 	})
 	t.Run("KeyBytes", func(t *testing.T) {
 		private, err := GenerateKeyEncryptionKey()
@@ -60,12 +60,12 @@ func TestKeyEncryptionKey(t *testing.T) {
 	})
 	t.Run("invalid key", func(t *testing.T) {
 		t.Run("private", func(t *testing.T) {
-			kek, err := NewPrivateKeyEncryptionKey("TEST", []byte("NOT BIG ENOUGH"))
+			kek, err := NewPrivateKeyEncryptionKey([]byte("NOT BIG ENOUGH"))
 			require.Nil(t, kek)
 			require.Error(t, err)
 		})
 		t.Run("public", func(t *testing.T) {
-			kek, err := NewPublicKeyEncryptionKey("TEST", []byte("NOT BIG ENOUGH"))
+			kek, err := NewPublicKeyEncryptionKey([]byte("NOT BIG ENOUGH"))
 			require.Nil(t, kek)
 			require.Error(t, err)
 		})

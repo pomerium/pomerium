@@ -22,5 +22,5 @@ func (o *Options) GetAuditKey() (*cryptutil.PublicKeyEncryptionKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return cryptutil.NewPublicKeyEncryptionKey(o.AuditKey.ID, raw)
+	return cryptutil.NewPublicKeyEncryptionKeyWithID(o.AuditKey.ID, raw)
 }
