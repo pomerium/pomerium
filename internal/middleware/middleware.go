@@ -28,7 +28,7 @@ func SetHeaders(headers map[string]string) func(next http.Handler) http.Handler 
 
 // ValidateSignature ensures the request is valid and has been signed with
 // the correspdoning client secret key
-func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler {
+func ValidateSignature(sharedSecret []byte) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateSignature")
@@ -44,7 +44,7 @@ func ValidateSignature(sharedSecret string) func(next http.Handler) http.Handler
 
 // ValidateRequestURL validates the current absolute request URL was signed
 // by a given shared key.
-func ValidateRequestURL(r *http.Request, key string) error {
+func ValidateRequestURL(r *http.Request, key []byte) error {
 	return urlutil.NewSignedURL(key, urlutil.GetAbsoluteURL(r)).Validate()
 }
 

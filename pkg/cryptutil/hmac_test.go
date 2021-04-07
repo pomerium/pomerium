@@ -34,11 +34,11 @@ func TestHMAC(t *testing.T) {
 		keyBytes := &[32]byte{}
 		copy(keyBytes[:], keySlice)
 
-		macDigest := GenerateHMAC(dataBytes, string(keyBytes[:]))
+		macDigest := GenerateHMAC(dataBytes, keyBytes[:])
 		if !bytes.Equal(macDigest, expectedDigest) {
 			t.Errorf("test %d generated unexpected mac", idx)
 		}
-		if !CheckHMAC(dataBytes, macDigest, string(keyBytes[:])) {
+		if !CheckHMAC(dataBytes, macDigest, keyBytes[:]) {
 			t.Errorf("test %d generated unexpected mac", idx)
 		}
 	}
