@@ -56,10 +56,12 @@ type Syncer struct {
 
 	closeCtx       context.Context
 	closeCtxCancel func()
+
+	id string
 }
 
 // NewSyncer creates a new Syncer.
-func NewSyncer(handler SyncerHandler, options ...SyncerOption) *Syncer {
+func NewSyncer(id string, handler SyncerHandler, options ...SyncerOption) *Syncer {
 	closeCtx, closeCtxCancel := context.WithCancel(context.Background())
 
 	bo := backoff.NewExponentialBackOff()
@@ -71,6 +73,8 @@ func NewSyncer(handler SyncerHandler, options ...SyncerOption) *Syncer {
 
 		closeCtx:       closeCtx,
 		closeCtxCancel: closeCtxCancel,
+
+		id: id,
 	}
 }
 
@@ -97,6 +101,7 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 		}
 
 		if err != nil {
+			syncer.log().Error().Err(err).Msg("sync")
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -107,7 +112,7 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 }
 
 func (syncer *Syncer) init(ctx context.Context) error {
-	syncer.log().Info().Msg("syncing latest records")
+	syncer.log().Info().Msg("initial sync")
 	records, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
 	})
@@ -137,6 +142,8 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		return err
 	}
 
+	syncer.log().Info().Msg("listening for updates")
+
 	for {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
@@ -147,6 +154,12 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		} else if err != nil {
 			return err
 		}
+
+		syncer.log().Debug().
+			Uint("version", uint(res.Record.GetVersion())).
+			Str("type", res.Record.Type).
+			Str("id", res.Record.Id).
+			Msg("syncer got record")
 
 		if syncer.recordVersion != res.GetRecord().GetVersion()-1 {
 			syncer.log().Error().Err(err).
@@ -163,7 +176,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 }
 
 func (syncer *Syncer) log() *zerolog.Logger {
-	l := log.With().Str("service", "syncer").
+	l := log.With().Str("syncer_id", syncer.id).
 		Str("type", syncer.cfg.typeURL).
 		Uint64("server_version", syncer.serverVersion).
 		Uint64("record_version", syncer.recordVersion).Logger()

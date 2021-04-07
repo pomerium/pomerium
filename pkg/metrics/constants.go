@@ -19,6 +19,14 @@ const (
 	PolicyCountTotal = "policy_count_total"
 	// ConfigChecksumDecimal should only be used to compare config on a single node, it will be different in multi-node environment
 	ConfigChecksumDecimal = "config_checksum_decimal"
+	// ConfigDBVersion sets currently loaded databroker config version config_db_version{service="service",id="config_id"}
+	ConfigDBVersion = "config_db_version"
+	// ConfigDBVersionHelp is the help text for ConfigDBVersion.
+	ConfigDBVersionHelp = "databroker current config record version"
+	// ConfigDBErrors sets number of errors while parsing current config that were tolerated
+	ConfigDBErrors = "config_db_errors"
+	// ConfigDBErrorsHelp is the help text for ConfigDBErrors.
+	ConfigDBErrorsHelp = "amount of errors observed while applying databroker config; -1 if validation failed and was rejected altogether"
 )
 
 // labels

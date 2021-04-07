@@ -159,7 +159,7 @@ func TestSyncer(t *testing.T) {
 
 	clearCh := make(chan struct{})
 	updateCh := make(chan []*Record)
-	syncer := NewSyncer(testSyncerHandler{
+	syncer := NewSyncer("test", testSyncerHandler{
 		getDataBrokerServiceClient: func() DataBrokerServiceClient {
 			return NewDataBrokerServiceClient(gc)
 		},
