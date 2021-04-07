@@ -14,7 +14,6 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -108,14 +107,12 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 		return nil, fmt.Errorf("azure: service account not defined")
 	}
 
-	_, providerUserID := databroker.FromUserID(userID)
-
 	du := &directory.User{
 		Id: userID,
 	}
 
 	userURL := p.cfg.graphURL.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/v1.0/users/%s", providerUserID),
+		Path: fmt.Sprintf("/v1.0/users/%s", userID),
 	}).String()
 
 	var u usersDeltaResponseUser
@@ -127,7 +124,7 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 	du.Email = u.getEmail()
 
 	groupURL := p.cfg.graphURL.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/v1.0/users/%s/transitiveMemberOf", providerUserID),
+		Path: fmt.Sprintf("/v1.0/users/%s/transitiveMemberOf", userID),
 	}).String()
 
 	var res struct {

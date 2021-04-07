@@ -130,12 +130,12 @@ func TestProvider_User(t *testing.T) {
 			PersonalAccessToken: "xyz",
 		}),
 	)
-	du, err := p.User(context.Background(), "github/user1", "")
+	du, err := p.User(context.Background(), "user1", "")
 	if !assert.NoError(t, err) {
 		return
 	}
 	testutil.AssertProtoJSONEqual(t, `{
-		"id": "github/user1",
+		"id": "user1",
 		"groupIds": ["1", "2", "3"],
 		"displayName": "User 1",
 		"email": "user1@example.com"
@@ -160,10 +160,10 @@ func TestProvider_UserGroups(t *testing.T) {
 	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "github/user1", "groupIds": ["1", "2", "3"], "displayName": "User 1", "email": "user1@example.com" },
-		{ "id": "github/user2", "groupIds": ["1", "3"], "displayName": "User 2", "email": "user2@example.com" },
-		{ "id": "github/user3", "groupIds": ["3"], "displayName": "User 3", "email": "user3@example.com" },
-		{ "id": "github/user4", "groupIds": ["4"], "displayName": "User 4", "email": "user4@example.com" }
+		{ "id": "user1", "groupIds": ["1", "2", "3"], "displayName": "User 1", "email": "user1@example.com" },
+		{ "id": "user2", "groupIds": ["1", "3"], "displayName": "User 2", "email": "user2@example.com" },
+		{ "id": "user3", "groupIds": ["3"], "displayName": "User 3", "email": "user3@example.com" },
+		{ "id": "user4", "groupIds": ["4"], "displayName": "User 4", "email": "user4@example.com" }
 	]`, users)
 	testutil.AssertProtoJSONEqual(t, `[
 		{ "id": "1", "name": "team1" },

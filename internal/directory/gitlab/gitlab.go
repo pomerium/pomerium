@@ -15,7 +15,6 @@ import (
 	"github.com/tomnomnom/linkheader"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -83,12 +82,11 @@ func New(options ...Option) *Provider {
 
 // User returns the user record for the given id.
 func (p *Provider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
-	_, providerUserID := databroker.FromUserID(userID)
 	du := &directory.User{
 		Id: userID,
 	}
 
-	au, err := p.getUser(ctx, providerUserID, accessToken)
+	au, err := p.getUser(ctx, userID, accessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +135,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	var users []*directory.User
 	for _, u := range userLookup {
 		user := &directory.User{
-			Id:          databroker.GetUserID(Name, fmt.Sprint(u.ID)),
+			Id:          fmt.Sprint(u.ID),
 			DisplayName: u.Name,
 			Email:       u.Email,
 		}

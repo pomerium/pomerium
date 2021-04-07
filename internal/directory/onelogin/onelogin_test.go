@@ -172,12 +172,12 @@ func TestProvider_User(t *testing.T) {
 		}),
 		WithURL(mustParseURL(srv.URL)),
 	)
-	user, err := p.User(context.Background(), "onelogin/111", "ACCESSTOKEN")
+	user, err := p.User(context.Background(), "111", "ACCESSTOKEN")
 	if !assert.NoError(t, err) {
 		return
 	}
 	testutil.AssertProtoJSONEqual(t, `{
-		"id": "onelogin/111",
+		"id": "111",
 		"groupIds": ["0"],
 		"displayName": "User 111",
 		"email": "admin@example.com"
@@ -206,9 +206,9 @@ func TestProvider_UserGroups(t *testing.T) {
 	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "onelogin/111", "groupIds": ["0"], "displayName": "User 111", "email": "admin@example.com" },
-		{ "id": "onelogin/222", "groupIds": ["1"], "displayName": "User 222", "email": "test@example.com" },
-		{ "id": "onelogin/333", "groupIds": ["2"], "displayName": "User 333", "email": "user@example.com" }
+		{ "id": "111", "groupIds": ["0"], "displayName": "User 111", "email": "admin@example.com" },
+		{ "id": "222", "groupIds": ["1"], "displayName": "User 222", "email": "test@example.com" },
+		{ "id": "333", "groupIds": ["2"], "displayName": "User 333", "email": "user@example.com" }
 	]`, users)
 	testutil.AssertProtoJSONEqual(t, `[
 		{ "id": "0", "name": "admin" },

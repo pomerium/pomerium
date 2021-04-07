@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"gopkg.in/square/go-jose.v2/jwt"
-
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 // ErrMissingID is the error for a session state that has no ID set.
@@ -86,9 +84,9 @@ func (s *State) IsExpired() bool {
 // UserID returns the corresponding user ID for a session.
 func (s *State) UserID(provider string) string {
 	if s.OID != "" {
-		return databroker.GetUserID(provider, s.OID)
+		return s.OID
 	}
-	return databroker.GetUserID(provider, s.Subject)
+	return s.Subject
 }
 
 // UnmarshalJSON returns a State struct from JSON. Additionally munges

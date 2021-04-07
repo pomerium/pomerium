@@ -14,7 +14,6 @@ import (
 	"gopkg.in/auth0.v5/management"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -104,12 +103,11 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 		return nil, fmt.Errorf("auth0: could not get the role manager: %w", err)
 	}
 
-	_, providerUserID := databroker.FromUserID(userID)
 	du := &directory.User{
 		Id: userID,
 	}
 
-	u, err := um.Read(providerUserID)
+	u, err := um.Read(userID)
 	if err != nil {
 		return nil, fmt.Errorf("auth0: error getting user info: %w", err)
 	}
@@ -117,7 +115,7 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 	du.Email = u.GetEmail()
 
 	for page, hasNext := 0, true; hasNext; page++ {
-		rl, err := um.Roles(providerUserID, management.IncludeTotals(true), management.Page(page))
+		rl, err := um.Roles(userID, management.IncludeTotals(true), management.Page(page))
 		if err != nil {
 			return nil, fmt.Errorf("auth0: error getting user roles: %w", err)
 		}
@@ -161,7 +159,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	for userID, groups := range userIDToGroups {
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:       databroker.GetUserID(Name, userID),
+			Id:       userID,
 			GroupIds: groups,
 		})
 	}

@@ -17,7 +17,6 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -99,7 +98,6 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 	if p.cfg.serviceAccount == nil {
 		return nil, fmt.Errorf("onelogin: service account not defined")
 	}
-	_, providerUserID := databroker.FromUserID(userID)
 	du := &directory.User{
 		Id: userID,
 	}
@@ -109,7 +107,7 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 		return nil, err
 	}
 
-	au, err := p.getUser(ctx, token.AccessToken, providerUserID)
+	au, err := p.getUser(ctx, token.AccessToken, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +144,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 	var users []*directory.User
 	for _, u := range apiUsers {
 		users = append(users, &directory.User{
-			Id:          databroker.GetUserID(Name, strconv.Itoa(u.ID)),
+			Id:          strconv.Itoa(u.ID),
 			GroupIds:    []string{strconv.Itoa(u.GroupID)},
 			DisplayName: u.FirstName + " " + u.LastName,
 			Email:       u.Email,

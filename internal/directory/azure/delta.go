@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -204,7 +203,7 @@ func (dc *deltaCollection) CurrentUserGroups() ([]*directory.Group, []*directory
 	var users []*directory.User
 	for _, u := range dc.users {
 		users = append(users, &directory.User{
-			Id:          databroker.GetUserID(Name, u.id),
+			Id:          u.id,
 			GroupIds:    groupLookup.getGroupIDsForUser(u.id),
 			DisplayName: u.displayName,
 			Email:       u.email,

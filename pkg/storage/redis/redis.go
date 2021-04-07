@@ -27,10 +27,10 @@ const (
 
 	// we rely on transactions in redis, so all redis-cluster keys need to be
 	// on the same node. Using a `hash tag` gives us this capability.
-	lastVersionKey   = "{pomerium}.last_version"
-	lastVersionChKey = "{pomerium}.last_version_ch"
-	recordHashKey    = "{pomerium}.records"
-	changesSetKey    = "{pomerium}.changes"
+	lastVersionKey   = "{pomerium_v2}.last_version"
+	lastVersionChKey = "{pomerium_v2}.last_version_ch"
+	recordHashKey    = "{pomerium_v2}.records"
+	changesSetKey    = "{pomerium_v2}.changes"
 )
 
 // custom errors
