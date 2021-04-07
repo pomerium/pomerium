@@ -21,7 +21,7 @@ const (
 	ConfigChecksumDecimal = "config_checksum_decimal"
 	// ConfigDBVersion sets currently loaded databroker config version config_db_version{service="service",id="config_id"}
 	ConfigDBVersion = "config_db_version"
-	// ConfigDBVersionHelp
+	// ConfigDBVersionHelp is the help text for ConfigDBVersion.
 	ConfigDBVersionHelp = "databroker current config record version"
 	// ConfigDBErrors sets number of errors while parsing current config that were tolerated
 	ConfigDBErrors = "config_db_errors"
