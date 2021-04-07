@@ -7,10 +7,7 @@
       "request": "launch",
       "mode": "debug",
       "program": "${workspaceRoot}/cmd/pomerium",
-      "args": [
-        "-config",
-        "${workspaceRoot}/.config.yaml"
-      ],
+      "args": ["-config", "${workspaceRoot}/.config.yaml"]
     },
     {
       "name": "Connect to server",
@@ -19,7 +16,7 @@
       "mode": "remote",
       "remotePath": "/go/src/github.com/pomerium/pomerium/",
       "port": 9999,
-      "host": "127.0.0.1",
+      "host": "127.0.0.1"
     }
   ]
 }
