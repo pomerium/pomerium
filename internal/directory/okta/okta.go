@@ -19,7 +19,6 @@ import (
 	"github.com/tomnomnom/linkheader"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -114,19 +113,18 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 		return nil, ErrServiceAccountNotDefined
 	}
 
-	_, providerUserID := databroker.FromUserID(userID)
 	du := &directory.User{
 		Id: userID,
 	}
 
-	au, err := p.getUser(ctx, providerUserID)
+	au, err := p.getUser(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	du.DisplayName = au.getDisplayName()
 	du.Email = au.Profile.Email
 
-	groups, err := p.listUserGroups(ctx, providerUserID)
+	groups, err := p.listUserGroups(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +185,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		groups := userIDToGroups[u.ID]
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:          databroker.GetUserID(Name, u.ID),
+			Id:          u.ID,
 			GroupIds:    groups,
 			DisplayName: u.getDisplayName(),
 			Email:       u.Profile.Email,

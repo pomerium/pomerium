@@ -118,12 +118,12 @@ func TestProvider_User(t *testing.T) {
 		}),
 	)
 
-	du, err := p.User(context.Background(), "azure/user-1", "")
+	du, err := p.User(context.Background(), "user-1", "")
 	if !assert.NoError(t, err) {
 		return
 	}
 	testutil.AssertProtoJSONEqual(t, `{
-		"id": "azure/user-1",
+		"id": "user-1",
 		"displayName": "User 1",
 		"email": "user1@example.com",
 		"groupIds": ["admin"]
@@ -151,19 +151,19 @@ func TestProvider_UserGroups(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:          "azure/user-1",
+			Id:          "user-1",
 			GroupIds:    []string{"admin"},
 			DisplayName: "User 1",
 			Email:       "user1@example.com",
 		},
 		{
-			Id:          "azure/user-2",
+			Id:          "user-2",
 			GroupIds:    []string{"test"},
 			DisplayName: "User 2",
 			Email:       "user2@example.com",
 		},
 		{
-			Id:          "azure/user-3",
+			Id:          "user-3",
 			GroupIds:    []string{"test"},
 			DisplayName: "User 3",
 			Email:       "user3@example.com",

@@ -200,6 +200,6 @@ func TestProvider_UserGroups(t *testing.T) {
 		{Id: "group1"},
 	}, dgs)
 	assert.Equal(t, []*directory.User{
-		{Id: "google/user1", Email: "user1@example.com", GroupIds: []string{"group1"}},
+		{Id: "user1", Email: "user1@example.com", GroupIds: []string{"group1"}},
 	}, dus)
 }

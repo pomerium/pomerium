@@ -100,12 +100,12 @@ func TestProvider_User(t *testing.T) {
 		WithDomain(srv.URL),
 		WithServiceAccount(&ServiceAccount{ClientID: "CLIENT_ID", Secret: "SECRET"}),
 	)
-	du, err := p.User(ctx, "auth0/user1", "")
+	du, err := p.User(ctx, "user1", "")
 	if !assert.NoError(t, err) {
 		return
 	}
 	testutil.AssertProtoJSONEqual(t, `{
-		"id": "auth0/user1",
+		"id": "user1",
 		"displayName": "User 1",
 		"email": "user1@example.com",
 		"groupIds": ["role1", "role2"]
@@ -359,15 +359,15 @@ func TestProvider_UserGroups(t *testing.T) {
 			},
 			expectedUsers: []*directory.User{
 				{
-					Id:       "auth0/i-am-user-id-1",
+					Id:       "i-am-user-id-1",
 					GroupIds: []string{"i-am-role-id-1"},
 				},
 				{
-					Id:       "auth0/i-am-user-id-2",
+					Id:       "i-am-user-id-2",
 					GroupIds: []string{"i-am-role-id-1"},
 				},
 				{
-					Id:       "auth0/i-am-user-id-3",
+					Id:       "i-am-user-id-3",
 					GroupIds: []string{"i-am-role-id-1"},
 				},
 			},
@@ -446,23 +446,23 @@ func TestProvider_UserGroups(t *testing.T) {
 			},
 			expectedUsers: []*directory.User{
 				{
-					Id:       "auth0/i-am-user-id-1",
+					Id:       "i-am-user-id-1",
 					GroupIds: []string{"i-am-role-id-1", "i-am-role-id-2"},
 				},
 				{
-					Id:       "auth0/i-am-user-id-2",
+					Id:       "i-am-user-id-2",
 					GroupIds: []string{"i-am-role-id-1"},
 				},
 				{
-					Id:       "auth0/i-am-user-id-3",
+					Id:       "i-am-user-id-3",
 					GroupIds: []string{"i-am-role-id-1"},
 				},
 				{
-					Id:       "auth0/i-am-user-id-4",
+					Id:       "i-am-user-id-4",
 					GroupIds: []string{"i-am-role-id-1", "i-am-role-id-2"},
 				},
 				{
-					Id:       "auth0/i-am-user-id-5",
+					Id:       "i-am-user-id-5",
 					GroupIds: []string{"i-am-role-id-2"},
 				},
 			},

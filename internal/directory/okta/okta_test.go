@@ -168,12 +168,12 @@ func TestProvider_User(t *testing.T) {
 		WithServiceAccount(&ServiceAccount{APIKey: "APITOKEN"}),
 		WithProviderURL(mustParseURL(srv.URL)),
 	)
-	user, err := p.User(context.Background(), "okta/a@example.com", "")
+	user, err := p.User(context.Background(), "a@example.com", "")
 	if !assert.NoError(t, err) {
 		return
 	}
 	testutil.AssertProtoJSONEqual(t, `{
-		"id": "okta/a@example.com",
+		"id": "a@example.com",
 		"groupIds": ["admin","user"],
 		"displayName": "first last",
 		"email": "a@example.com"
@@ -200,19 +200,19 @@ func TestProvider_UserGroups(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:          "okta/a@example.com",
+			Id:          "a@example.com",
 			GroupIds:    []string{"admin", "user"},
 			DisplayName: "first last",
 			Email:       "a@example.com",
 		},
 		{
-			Id:          "okta/b@example.com",
+			Id:          "b@example.com",
 			GroupIds:    []string{"test", "user"},
 			DisplayName: "first last",
 			Email:       "b@example.com",
 		},
 		{
-			Id:          "okta/c@example.com",
+			Id:          "c@example.com",
 			GroupIds:    []string{"user"},
 			DisplayName: "first last",
 			Email:       "c@example.com",
@@ -243,19 +243,19 @@ func TestProvider_UserGroupsQueryUpdated(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:          "okta/a@example.com",
+			Id:          "a@example.com",
 			GroupIds:    []string{"admin", "user"},
 			DisplayName: "first last",
 			Email:       "a@example.com",
 		},
 		{
-			Id:          "okta/b@example.com",
+			Id:          "b@example.com",
 			GroupIds:    []string{"test", "user"},
 			DisplayName: "first last",
 			Email:       "b@example.com",
 		},
 		{
-			Id:          "okta/c@example.com",
+			Id:          "c@example.com",
 			GroupIds:    []string{"user"},
 			DisplayName: "first last",
 			Email:       "c@example.com",
@@ -267,25 +267,25 @@ func TestProvider_UserGroupsQueryUpdated(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:          "okta/a@example.com",
+			Id:          "a@example.com",
 			GroupIds:    []string{"admin", "user"},
 			DisplayName: "first last",
 			Email:       "a@example.com",
 		},
 		{
-			Id:          "okta/b@example.com",
+			Id:          "b@example.com",
 			GroupIds:    []string{"test", "user"},
 			DisplayName: "first last",
 			Email:       "b@example.com",
 		},
 		{
-			Id:          "okta/c@example.com",
+			Id:          "c@example.com",
 			GroupIds:    []string{"user"},
 			DisplayName: "first last",
 			Email:       "c@example.com",
 		},
 		{
-			Id:          "okta/updated@example.com",
+			Id:          "updated@example.com",
 			GroupIds:    []string{"user-updated"},
 			DisplayName: "first last",
 			Email:       "updated@example.com",
@@ -299,25 +299,25 @@ func TestProvider_UserGroupsQueryUpdated(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []*directory.User{
 		{
-			Id:          "okta/a@example.com",
+			Id:          "a@example.com",
 			GroupIds:    []string{"admin", "user"},
 			DisplayName: "first last",
 			Email:       "a@example.com",
 		},
 		{
-			Id:          "okta/b@example.com",
+			Id:          "b@example.com",
 			GroupIds:    []string{"user"},
 			DisplayName: "first last",
 			Email:       "b@example.com",
 		},
 		{
-			Id:          "okta/c@example.com",
+			Id:          "c@example.com",
 			GroupIds:    []string{"user"},
 			DisplayName: "first last",
 			Email:       "c@example.com",
 		},
 		{
-			Id:          "okta/updated@example.com",
+			Id:          "updated@example.com",
 			GroupIds:    []string{"user-updated"},
 			DisplayName: "first last",
 			Email:       "updated@example.com",

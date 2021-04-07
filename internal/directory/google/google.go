@@ -18,7 +18,6 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -92,12 +91,11 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 		return nil, fmt.Errorf("google: error getting API client: %w", err)
 	}
 
-	_, providerUserID := databroker.FromUserID(userID)
 	du := &directory.User{
 		Id: userID,
 	}
 
-	au, err := apiClient.Users.Get(providerUserID).
+	au, err := apiClient.Users.Get(userID).
 		Context(ctx).
 		Do()
 	if isAccessDenied(err) {
@@ -114,7 +112,7 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 
 	err = apiClient.Groups.List().
 		Context(ctx).
-		UserKey(providerUserID).
+		UserKey(userID).
 		Pages(ctx, func(res *admin.Groups) error {
 			for _, g := range res.Groups {
 				du.GroupIds = append(du.GroupIds, g.Id)
@@ -204,7 +202,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		groups := userIDToGroups[u.ID]
 		sort.Strings(groups)
 		users = append(users, &directory.User{
-			Id:          databroker.GetUserID(Name, u.ID),
+			Id:          u.ID,
 			GroupIds:    groups,
 			DisplayName: u.DisplayName,
 			Email:       u.Email,
