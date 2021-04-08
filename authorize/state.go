@@ -36,13 +36,21 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
 	}
 
-	state.sharedKey, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	state.sharedKey, err = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	if err != nil {
+		return nil, err
+	}
+
 	state.encoder, err = jws.NewHS256Signer(state.sharedKey)
 	if err != nil {
 		return nil, err
 	}
 
-	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	sharedKey, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	if err != nil {
+		return nil, err
+	}
+
 	urls, err := cfg.Options.GetDataBrokerURLs()
 	if err != nil {
 		return nil, err
