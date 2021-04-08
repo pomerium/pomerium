@@ -15,6 +15,7 @@ import (
 )
 
 type authorizeState struct {
+	sharedKey        []byte
 	evaluator        *evaluator.Evaluator
 	encoder          encoding.MarshalUnmarshaler
 	dataBrokerClient databroker.DataBrokerServiceClient
@@ -35,7 +36,8 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
 	}
 
-	state.encoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey))
+	state.sharedKey, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	state.encoder, err = jws.NewHS256Signer(state.sharedKey)
 	if err != nil {
 		return nil, err
 	}

@@ -44,12 +44,12 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	}
 
 	state := new(proxyState)
-	state.sharedKey = []byte(cfg.Options.SharedKey)
+	state.sharedKey, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 	state.sharedCipher, _ = cryptutil.NewAEADCipherFromBase64(cfg.Options.SharedKey)
 	state.cookieSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
 
 	// used to load and verify JWT tokens signed by the authenticate service
-	state.encoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey))
+	state.encoder, err = jws.NewHS256Signer(state.sharedKey)
 	if err != nil {
 		return nil, err
 	}

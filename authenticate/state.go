@@ -29,8 +29,8 @@ type authenticateState struct {
 	// sharedEncoder is the encoder to use to serialize data to be consumed
 	// by other services
 	sharedEncoder encoding.MarshalUnmarshaler
-	// sharedSecret is the secret to encrypt and authenticate data shared between services
-	sharedSecret []byte
+	// sharedKey is the secret to encrypt and authenticate data shared between services
+	sharedKey []byte
 	// sharedCipher is the cipher to use to encrypt/decrypt data shared between services
 	sharedCipher cipher.AEAD
 	// cookieSecret is the secret to encrypt and authenticate session data
@@ -72,15 +72,15 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	state.redirectURL, _ = urlutil.DeepCopy(authenticateURL)
 	state.redirectURL.Path = cfg.Options.AuthenticateCallbackPath
 
+	// shared cipher to encrypt data before passing data between services
+	state.sharedKey, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	state.sharedCipher, _ = cryptutil.NewAEADCipher(state.sharedKey)
+
 	// shared state encoder setup
-	state.sharedEncoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey))
+	state.sharedEncoder, err = jws.NewHS256Signer(state.sharedKey)
 	if err != nil {
 		return nil, err
 	}
-
-	// shared cipher to encrypt data before passing data between services
-	state.sharedSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
-	state.sharedCipher, _ = cryptutil.NewAEADCipher(state.sharedSecret)
 
 	// private state encoder setup, used to encrypt oauth2 tokens
 	state.cookieSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)

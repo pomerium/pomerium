@@ -79,7 +79,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
 			state := a.state.Load()
-			err := middleware.ValidateRequestURL(r, state.sharedSecret)
+			err := middleware.ValidateRequestURL(r, state.sharedKey)
 			if err != nil {
 				log.FromRequest(r).Info().Err(err).Msg("authenticate: origin blocked")
 			}
@@ -175,7 +175,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignIn")
 	defer span.End()
 
-	options := a.options.Load()
 	state := a.state.Load()
 
 	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
@@ -243,7 +242,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	// build our hmac-d redirect URL with our session, pointing back to the
 	// proxy's callback URL which is responsible for setting our new route-session
-	uri := urlutil.NewSignedURL([]byte(options.SharedKey), callbackURL)
+	uri := urlutil.NewSignedURL(state.sharedKey, callbackURL)
 	httputil.Redirect(w, r, uri.String(), http.StatusFound)
 	return nil
 }
@@ -606,5 +605,5 @@ func (a *Authenticate) getSignOutURL(r *http.Request) (*url.URL, error) {
 			urlutil.QueryRedirectURI: {redirectURI},
 		}).Encode()
 	}
-	return urlutil.NewSignedURL([]byte(a.options.Load().SharedKey), uri).Sign(), nil
+	return urlutil.NewSignedURL(a.state.Load().sharedKey, uri).Sign(), nil
 }
