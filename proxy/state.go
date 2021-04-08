@@ -44,9 +44,20 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	}
 
 	state := new(proxyState)
-	state.sharedKey, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
-	state.sharedCipher, _ = cryptutil.NewAEADCipherFromBase64(cfg.Options.SharedKey)
-	state.cookieSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
+	state.sharedKey, err = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	if err != nil {
+		return nil, err
+	}
+
+	state.sharedCipher, err = cryptutil.NewAEADCipherFromBase64(cfg.Options.SharedKey)
+	if err != nil {
+		return nil, err
+	}
+
+	state.cookieSecret, err = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
+	if err != nil {
+		return nil, err
+	}
 
 	// used to load and verify JWT tokens signed by the authenticate service
 	state.encoder, err = jws.NewHS256Signer(state.sharedKey)
@@ -62,6 +73,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/"})
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
