@@ -45,3 +45,39 @@ func TestHTTPTransport(t *testing.T) {
 	_, err := client.Get(s.URL)
 	assert.NoError(t, err)
 }
+
+func TestPolicyHTTPTransport(t *testing.T) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer s.Close()
+
+	get := func(options *Options, policy *Policy) (*http.Response, error) {
+		transport := NewPolicyHTTPTransport(options, policy)
+		client := &http.Client{
+			Transport: transport,
+		}
+		return client.Get(s.URL)
+	}
+
+	t.Run("default", func(t *testing.T) {
+		_, err := get(&Options{}, &Policy{})
+		assert.Error(t, err)
+	})
+	t.Run("skip verify", func(t *testing.T) {
+		_, err := get(&Options{}, &Policy{TLSSkipVerify: true})
+		assert.NoError(t, err)
+	})
+	t.Run("ca", func(t *testing.T) {
+		_, err := get(&Options{
+			CA: base64.StdEncoding.EncodeToString([]byte(localCert)),
+		}, &Policy{})
+		assert.NoError(t, err)
+	})
+	t.Run("custom ca", func(t *testing.T) {
+		_, err := get(&Options{}, &Policy{
+			TLSCustomCA: base64.StdEncoding.EncodeToString([]byte(localCert)),
+		})
+		assert.NoError(t, err)
+	})
+}
