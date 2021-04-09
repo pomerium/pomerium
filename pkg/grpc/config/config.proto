@@ -7,7 +7,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 import "envoy/config/cluster/v3/cluster.proto";
 
-import "github.com/pomerium/pomerium/pkg/grpc/crypt/crypt.proto";
+import "crypt/crypt.proto";
 
 message Config {
   string name = 1;
