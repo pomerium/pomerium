@@ -151,6 +151,7 @@ func (a *Authorize) plainTextDeniedResponse(code int32, reason string, headers m
 
 func (a *Authorize) redirectResponse(in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
+	state := a.state.Load()
 	authenticateURL, err := opts.GetAuthenticateURL()
 	if err != nil {
 		return nil, err
@@ -167,7 +168,7 @@ func (a *Authorize) redirectResponse(in *envoy_service_auth_v3.CheckRequest) (*e
 
 	q.Set(urlutil.QueryRedirectURI, url.String())
 	signinURL.RawQuery = q.Encode()
-	redirectTo := urlutil.NewSignedURL([]byte(opts.SharedKey), signinURL).String()
+	redirectTo := urlutil.NewSignedURL(state.sharedKey, signinURL).String()
 
 	return a.deniedResponse(in, http.StatusFound, "Login", map[string]string{
 		"Location": redirectTo,

@@ -29,8 +29,8 @@ type authenticateState struct {
 	// sharedEncoder is the encoder to use to serialize data to be consumed
 	// by other services
 	sharedEncoder encoding.MarshalUnmarshaler
-	// sharedSecret is the secret to encrypt and authenticate data shared between services
-	sharedSecret []byte
+	// sharedKey is the secret to encrypt and authenticate data shared between services
+	sharedKey []byte
 	// sharedCipher is the cipher to use to encrypt/decrypt data shared between services
 	sharedCipher cipher.AEAD
 	// cookieSecret is the secret to encrypt and authenticate session data
@@ -69,22 +69,42 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	if err != nil {
 		return nil, err
 	}
-	state.redirectURL, _ = urlutil.DeepCopy(authenticateURL)
-	state.redirectURL.Path = cfg.Options.AuthenticateCallbackPath
 
-	// shared state encoder setup
-	state.sharedEncoder, err = jws.NewHS256Signer([]byte(cfg.Options.SharedKey))
+	state.redirectURL, err = urlutil.DeepCopy(authenticateURL)
 	if err != nil {
 		return nil, err
 	}
 
+	state.redirectURL.Path = cfg.Options.AuthenticateCallbackPath
+
 	// shared cipher to encrypt data before passing data between services
-	state.sharedSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
-	state.sharedCipher, _ = cryptutil.NewAEADCipher(state.sharedSecret)
+	state.sharedKey, err = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	if err != nil {
+		return nil, err
+	}
+
+	state.sharedCipher, err = cryptutil.NewAEADCipher(state.sharedKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// shared state encoder setup
+	state.sharedEncoder, err = jws.NewHS256Signer(state.sharedKey)
+	if err != nil {
+		return nil, err
+	}
 
 	// private state encoder setup, used to encrypt oauth2 tokens
-	state.cookieSecret, _ = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
-	state.cookieCipher, _ = cryptutil.NewAEADCipher(state.cookieSecret)
+	state.cookieSecret, err = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	state.cookieCipher, err = cryptutil.NewAEADCipher(state.cookieSecret)
+	if err != nil {
+		return nil, err
+	}
+
 	state.encryptedEncoder = ecjson.New(state.cookieCipher)
 
 	headerStore := header.NewStore(state.encryptedEncoder, httputil.AuthorizationTypePomerium)
@@ -120,7 +140,10 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		state.jwk.Keys = append(state.jwk.Keys, *jwk)
 	}
 
-	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	sharedKey, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	if err != nil {
+		return nil, err
+	}
 
 	urls, err := cfg.Options.GetDataBrokerURLs()
 	if err != nil {
