@@ -78,7 +78,18 @@ func NewPolicyHTTPTransport(options *Options, policy *Policy) http.RoundTripper 
 			tlsClientConfig.MinVersion = tls.VersionTLS12
 			isCustomClientConfig = true
 		} else {
-			log.Error().Err(err).Msg("config: error getting cert pool")
+			log.Error().Err(err).Msg("config: error getting ca cert pool")
+		}
+	}
+
+	if policy.TLSCustomCA != "" || policy.TLSCustomCAFile != "" {
+		rootCAs, err := cryptutil.GetCertPool(policy.TLSCustomCA, policy.TLSCustomCAFile)
+		if err == nil {
+			tlsClientConfig.RootCAs = rootCAs
+			tlsClientConfig.MinVersion = tls.VersionTLS12
+			isCustomClientConfig = true
+		} else {
+			log.Error().Err(err).Msg("config: error getting custom ca cert pool")
 		}
 	}
 
