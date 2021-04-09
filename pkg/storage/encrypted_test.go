@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -19,6 +20,8 @@ func TestEncryptedBackend(t *testing.T) {
 	m := map[string]*anypb.Any{}
 	backend := &mockBackend{
 		put: func(ctx context.Context, record *databroker.Record) error {
+			record.ModifiedAt = timestamppb.Now()
+			record.Version++
 			m[record.GetId()] = record.GetData()
 			return nil
 		},
@@ -28,16 +31,20 @@ func TestEncryptedBackend(t *testing.T) {
 				return nil, errors.New("not found")
 			}
 			return &databroker.Record{
-				Id:   id,
-				Data: data,
+				Id:         id,
+				Data:       data,
+				Version:    1,
+				ModifiedAt: timestamppb.Now(),
 			}, nil
 		},
 		getAll: func(ctx context.Context) ([]*databroker.Record, uint64, error) {
 			var records []*databroker.Record
 			for id, data := range m {
 				records = append(records, &databroker.Record{
-					Id:   id,
-					Data: data,
+					Id:         id,
+					Data:       data,
+					Version:    1,
+					ModifiedAt: timestamppb.Now(),
 				})
 			}
 			return records, 0, nil
@@ -51,17 +58,20 @@ func TestEncryptedBackend(t *testing.T) {
 
 	any, _ := anypb.New(wrapperspb.String("HELLO WORLD"))
 
-	err = e.Put(ctx, &databroker.Record{
+	rec := &databroker.Record{
 		Type: "",
 		Id:   "TEST-1",
 		Data: any,
-	})
+	}
+	err = e.Put(ctx, rec)
 	if !assert.NoError(t, err) {
 		return
 	}
 	if assert.NotNil(t, m["TEST-1"], "key should be set") {
 		assert.NotEqual(t, any.TypeUrl, m["TEST-1"].TypeUrl, "encrypted data should be a bytes type")
 		assert.NotEqual(t, any.Value, m["TEST-1"].Value, "value should be encrypted")
+		assert.NotNil(t, rec.ModifiedAt)
+		assert.NotZero(t, rec.Version)
 	}
 
 	record, err := e.Get(ctx, "", "TEST-1")
