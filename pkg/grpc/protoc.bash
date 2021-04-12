@@ -59,13 +59,13 @@ _import_paths=$(join_by , "${_imports[@]}")
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./audit/." \
   ./audit/audit.proto
 
-../../scripts/protoc -I "$GOPATH/src" -I ./config/ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./config/." \
-  ./config/config.proto
-
 ../../scripts/protoc -I ./crypt/ \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./crypt/." \
   ./crypt/crypt.proto
+
+../../scripts/protoc -I ./config/ -I ./ \
+  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./config/." \
+  ./config/config.proto
 
 ../../scripts/protoc -I ./databroker/ \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./databroker/." \
