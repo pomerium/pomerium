@@ -102,7 +102,14 @@ func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) e
 	newRecord := proto.Clone(record).(*databroker.Record)
 	newRecord.Data = encrypted
 
-	return e.underlying.Put(ctx, newRecord)
+	if err = e.underlying.Put(ctx, newRecord); err != nil {
+		return err
+	}
+
+	record.ModifiedAt = newRecord.ModifiedAt
+	record.Version = newRecord.Version
+
+	return nil
 }
 
 func (e *encryptedBackend) Sync(ctx context.Context, version uint64) (RecordStream, error) {
