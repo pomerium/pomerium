@@ -821,9 +821,9 @@ Be sure to include the intermediary certificate.
 Default Upstream Timeout is the default timeout applied to a proxied route when no `timeout` key is specified by the policy.
 
 
-### Headers
-- Environmental Variable: `HEADERS`
-- Config File Key: `headers`
+### Set Response Headers
+- Environmental Variable: `SET_RESPONSE_HEADERS`
+- Config File Key: `set_response_headers`
 - Type: map of `strings` key value pairs
 - Examples:
 
@@ -832,7 +832,7 @@ Default Upstream Timeout is the default timeout applied to a proxied route when 
   - YAML:
 
     ```yaml
-    headers:
+    set_response_headers:
       X-Test: X-Value
     ```
 
@@ -847,7 +847,7 @@ Default Upstream Timeout is the default timeout applied to a proxied route when 
   Strict-Transport-Security:max-age=31536000; includeSubDomains; preload,
   ```
 
-Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added globally to all managed routes and pomerium's authenticate service.
+Set Response Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added globally to all managed routes and pomerium's authenticate service.
 
 By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
 
@@ -972,7 +972,7 @@ The connection string that the databroker service will use to connect to storage
 
 For `redis`, the following URL types are supported:
 
-- simple: `redis://{username}:{password}@{host}:{port}/{db}`
+- simple: `redis://[username:password@]host:port/[db]`
 - sentinel: `redis+sentinel://[:password@]host:port[,host2:port2,...]/[master_name[/db]][?param1=value1[&param2=value2&...]]`
 - cluster: `redis+cluster://[username:password@]host:port[,host2:port2,...]/[?param1=value1[&param2=value=2&...]]`
 
