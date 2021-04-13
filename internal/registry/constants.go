@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"errors"
 	"time"
 )
 
@@ -14,10 +13,4 @@ const (
 	minTTL = time.Second
 	// path metrics are available at
 	defaultMetricsPath = "/metrics"
-)
-
-var (
-	errNoMetricsAddr = errors.New("no metrics address provided")
-	errNoMetricsPort = errors.New("no metrics port provided")
-	errNoMetricsHost = errors.New("no metrics host provided")
 )
