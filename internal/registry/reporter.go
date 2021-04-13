@@ -30,8 +30,7 @@ func (r *Reporter) OnConfigChange(cfg *config.Config) {
 
 	services, err := getReportedServices(cfg)
 	if err != nil {
-		log.Error().Err(err).Msg("service registry reporter")
-		return
+		log.Warn().Err(err).Msg("metrics announce to service registry is disabled")
 	}
 
 	sharedKey, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
@@ -63,9 +62,11 @@ func (r *Reporter) OnConfigChange(cfg *config.Config) {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(context.TODO())
-	go runReporter(ctx, pb.NewRegistryClient(registryConn), services)
-	r.cancel = cancel
+	if len(services) > 0 {
+		ctx, cancel := context.WithCancel(context.TODO())
+		go runReporter(ctx, pb.NewRegistryClient(registryConn), services)
+		r.cancel = cancel
+	}
 }
 
 func getReportedServices(cfg *config.Config) ([]*pb.Service, error) {
@@ -103,20 +104,20 @@ func metricsURL(o config.Options) (*url.URL, error) {
 	}
 
 	if o.MetricsAddr == "" {
-		return nil, errNoMetricsAddr
+		return nil, fmt.Errorf("no metrics address provided")
 	}
 
 	host, port, err := net.SplitHostPort(o.MetricsAddr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid metrics address: %w", err)
+		return nil, fmt.Errorf("invalid metrics address %q: %w", o.MetricsAddr, err)
 	}
 
 	if port == "" {
-		return nil, errNoMetricsPort
+		return nil, fmt.Errorf("invalid metrics value %q: port is required", o.MetricsAddr)
 	}
 
 	if host == "" {
-		return nil, errNoMetricsHost
+		return nil, fmt.Errorf("invalid metrics value %q: either host or IP address is required", o.MetricsAddr)
 	}
 
 	return &u, nil
