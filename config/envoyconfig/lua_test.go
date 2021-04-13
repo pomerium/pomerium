@@ -1,4 +1,4 @@
-package controlplane
+package envoyconfig
 
 import (
 	"encoding/json"

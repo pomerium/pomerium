@@ -1,4 +1,4 @@
-package controlplane
+package envoyconfig
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
-func (srv *Server) buildTracingProvider(options *config.Options) (*envoy_config_trace_v3.Tracing_Http, error) {
+func (b *Builder) buildTracingProvider(options *config.Options) (*envoy_config_trace_v3.Tracing_Http, error) {
 	tracingOptions, err := config.NewTracingOptions(options)
 	if err != nil {
 		return nil, fmt.Errorf("invalid tracing config: %w", err)
