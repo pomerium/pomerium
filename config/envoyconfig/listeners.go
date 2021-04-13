@@ -1,4 +1,4 @@
-package controlplane
+package envoyconfig
 
 import (
 	"encoding/base64"
@@ -53,11 +53,12 @@ func init() {
 	})
 }
 
-func (srv *Server) buildListeners(cfg *config.Config) ([]*envoy_config_listener_v3.Listener, error) {
+// BuildListeners builds envoy listeners from the given config.
+func (b *Builder) BuildListeners(cfg *config.Config) ([]*envoy_config_listener_v3.Listener, error) {
 	var listeners []*envoy_config_listener_v3.Listener
 
 	if config.IsAuthenticate(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
-		li, err := srv.buildMainListener(cfg)
+		li, err := b.buildMainListener(cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +66,7 @@ func (srv *Server) buildListeners(cfg *config.Config) ([]*envoy_config_listener_
 	}
 
 	if config.IsAuthorize(cfg.Options.Services) || config.IsDataBroker(cfg.Options.Services) {
-		li, err := srv.buildGRPCListener(cfg)
+		li, err := b.buildGRPCListener(cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +74,7 @@ func (srv *Server) buildListeners(cfg *config.Config) ([]*envoy_config_listener_
 	}
 
 	if cfg.Options.MetricsAddr != "" {
-		li, err := srv.buildMetricsListener(cfg)
+		li, err := b.buildMetricsListener(cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +84,7 @@ func (srv *Server) buildListeners(cfg *config.Config) ([]*envoy_config_listener_
 	return listeners, nil
 }
 
-func (srv *Server) buildMainListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildMainListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	listenerFilters := []*envoy_config_listener_v3.ListenerFilter{}
 	if cfg.Options.UseProxyProtocol {
 		proxyCfg := marshalAny(&envoy_extensions_filters_listener_proxy_protocol_v3.ProxyProtocol{})
@@ -101,7 +102,7 @@ func (srv *Server) buildMainListener(cfg *config.Config) (*envoy_config_listener
 			return nil, err
 		}
 
-		filter, err := srv.buildMainHTTPConnectionManagerFilter(cfg.Options, allDomains, "")
+		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, allDomains, "")
 		if err != nil {
 			return nil, err
 		}
@@ -126,9 +127,9 @@ func (srv *Server) buildMainListener(cfg *config.Config) (*envoy_config_listener
 		},
 	})
 
-	chains, err := srv.buildFilterChains(cfg.Options, cfg.Options.Addr,
+	chains, err := b.buildFilterChains(cfg.Options, cfg.Options.Addr,
 		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
-			filter, err := srv.buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains, tlsDomain)
+			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains, tlsDomain)
 			if err != nil {
 				return nil, err
 			}
@@ -140,7 +141,7 @@ func (srv *Server) buildMainListener(cfg *config.Config) (*envoy_config_listener
 					ServerNames: []string{tlsDomain},
 				}
 			}
-			tlsContext := srv.buildDownstreamTLSContext(cfg, tlsDomain)
+			tlsContext := b.buildDownstreamTLSContext(cfg, tlsDomain)
 			if tlsContext != nil {
 				tlsConfig := marshalAny(tlsContext)
 				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
@@ -165,8 +166,8 @@ func (srv *Server) buildMainListener(cfg *config.Config) (*envoy_config_listener
 	return li, nil
 }
 
-func (srv *Server) buildMetricsListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
-	filter, err := srv.buildMetricsHTTPConnectionManagerFilter()
+func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+	filter, err := b.buildMetricsHTTPConnectionManagerFilter()
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +187,7 @@ func (srv *Server) buildMetricsListener(cfg *config.Config) (*envoy_config_liste
 			CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 				TlsParams: tlsParams,
 				TlsCertificates: []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{
-					srv.envoyTLSCertificateFromGoTLSCertificate(cert),
+					b.envoyTLSCertificateFromGoTLSCertificate(cert),
 				},
 				AlpnProtocols: []string{"h2", "http/1.1"},
 			},
@@ -202,7 +203,7 @@ func (srv *Server) buildMetricsListener(cfg *config.Config) (*envoy_config_liste
 			dtc.CommonTlsContext.ValidationContextType = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 				ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
 					TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_VERIFY_TRUST_CHAIN,
-					TrustedCa:              srv.filemgr.BytesDataSource("metrics_client_ca.pem", bs),
+					TrustedCa:              b.filemgr.BytesDataSource("metrics_client_ca.pem", bs),
 				},
 			}
 		} else if cfg.Options.MetricsClientCAFile != "" {
@@ -210,7 +211,7 @@ func (srv *Server) buildMetricsListener(cfg *config.Config) (*envoy_config_liste
 			dtc.CommonTlsContext.ValidationContextType = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 				ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
 					TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_VERIFY_TRUST_CHAIN,
-					TrustedCa:              srv.filemgr.FileDataSource(cfg.Options.MetricsClientCAFile),
+					TrustedCa:              b.filemgr.FileDataSource(cfg.Options.MetricsClientCAFile),
 				},
 			}
 		}
@@ -245,7 +246,7 @@ func (srv *Server) buildMetricsListener(cfg *config.Config) (*envoy_config_liste
 	return li, nil
 }
 
-func (srv *Server) buildFilterChains(
+func (b *Builder) buildFilterChains(
 	options *config.Options, addr string,
 	callback func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error),
 ) ([]*envoy_config_listener_v3.FilterChain, error) {
@@ -283,7 +284,7 @@ func (srv *Server) buildFilterChains(
 	return chains, nil
 }
 
-func (srv *Server) buildMainHTTPConnectionManagerFilter(
+func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	options *config.Options,
 	domains []string,
 	tlsDomain string,
@@ -309,7 +310,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
 			if (config.IsAuthorize(options.Services) && hostsMatchDomain(authorizeURLs, domain)) ||
 				(config.IsDataBroker(options.Services) && hostsMatchDomain(dataBrokerURLs, domain)) {
-				rs, err := srv.buildGRPCRoutes()
+				rs, err := b.buildGRPCRoutes()
 				if err != nil {
 					return nil, err
 				}
@@ -318,7 +319,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 		}
 
 		// these routes match /.pomerium/... and similar paths
-		rs, err := srv.buildPomeriumHTTPRoutes(options, domain)
+		rs, err := b.buildPomeriumHTTPRoutes(options, domain)
 		if err != nil {
 			return nil, err
 		}
@@ -326,7 +327,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 
 		// if we're the proxy, add all the policy routes
 		if config.IsProxy(options.Services) {
-			rs, err := srv.buildPolicyRoutes(options, domain)
+			rs, err := b.buildPolicyRoutes(options, domain)
 			if err != nil {
 				return nil, err
 			}
@@ -343,7 +344,7 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 		}
 	}
 
-	rs, err := srv.buildPomeriumHTTPRoutes(options, "*")
+	rs, err := b.buildPomeriumHTTPRoutes(options, "*")
 	if err != nil {
 		return nil, err
 	}
@@ -443,11 +444,11 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 		maxStreamDuration = ptypes.DurationProto(options.WriteTimeout)
 	}
 
-	rc, err := srv.buildRouteConfiguration("main", virtualHosts)
+	rc, err := b.buildRouteConfiguration("main", virtualHosts)
 	if err != nil {
 		return nil, err
 	}
-	tracingProvider, err := srv.buildTracingProvider(options)
+	tracingProvider, err := b.buildTracingProvider(options)
 	if err != nil {
 		return nil, err
 	}
@@ -482,8 +483,8 @@ func (srv *Server) buildMainHTTPConnectionManagerFilter(
 	}, nil
 }
 
-func (srv *Server) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
-	rc, err := srv.buildRouteConfiguration("metrics", []*envoy_config_route_v3.VirtualHost{{
+func (b *Builder) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
+	rc, err := b.buildRouteConfiguration("metrics", []*envoy_config_route_v3.VirtualHost{{
 		Name:    "metrics",
 		Domains: []string{"*"},
 		Routes: []*envoy_config_route_v3.Route{{
@@ -523,8 +524,8 @@ func (srv *Server) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_list
 	}, nil
 }
 
-func (srv *Server) buildGRPCListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
-	filter, err := srv.buildGRPCHTTPConnectionManagerFilter()
+func (b *Builder) buildGRPCListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+	filter, err := b.buildGRPCHTTPConnectionManagerFilter()
 	if err != nil {
 		return nil, err
 	}
@@ -541,7 +542,7 @@ func (srv *Server) buildGRPCListener(cfg *config.Config) (*envoy_config_listener
 		}, nil
 	}
 
-	chains, err := srv.buildFilterChains(cfg.Options, cfg.Options.Addr,
+	chains, err := b.buildFilterChains(cfg.Options, cfg.Options.Addr,
 		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
 			filterChain := &envoy_config_listener_v3.FilterChain{
 				Filters: []*envoy_config_listener_v3.Filter{filter},
@@ -551,7 +552,7 @@ func (srv *Server) buildGRPCListener(cfg *config.Config) (*envoy_config_listener
 					ServerNames: []string{tlsDomain},
 				}
 			}
-			tlsContext := srv.buildDownstreamTLSContext(cfg, tlsDomain)
+			tlsContext := b.buildDownstreamTLSContext(cfg, tlsDomain)
 			if tlsContext != nil {
 				tlsConfig := marshalAny(tlsContext)
 				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
@@ -582,8 +583,8 @@ func (srv *Server) buildGRPCListener(cfg *config.Config) (*envoy_config_listener
 	return li, nil
 }
 
-func (srv *Server) buildGRPCHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
-	rc, err := srv.buildRouteConfiguration("grpc", []*envoy_config_route_v3.VirtualHost{{
+func (b *Builder) buildGRPCHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
+	rc, err := b.buildRouteConfiguration("grpc", []*envoy_config_route_v3.VirtualHost{{
 		Name:    "grpc",
 		Domains: []string{"*"},
 		Routes: []*envoy_config_route_v3.Route{{
@@ -634,7 +635,7 @@ func (srv *Server) buildGRPCHTTPConnectionManagerFilter() (*envoy_config_listene
 	}, nil
 }
 
-func (srv *Server) buildRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.VirtualHost) (*envoy_config_route_v3.RouteConfiguration, error) {
+func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.VirtualHost) (*envoy_config_route_v3.RouteConfiguration, error) {
 	return &envoy_config_route_v3.RouteConfiguration{
 		Name:         name,
 		VirtualHosts: virtualHosts,
@@ -643,7 +644,7 @@ func (srv *Server) buildRouteConfiguration(name string, virtualHosts []*envoy_co
 	}, nil
 }
 
-func (srv *Server) buildDownstreamTLSContext(cfg *config.Config, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
+func (b *Builder) buildDownstreamTLSContext(cfg *config.Config, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
 	certs, err := cfg.AllCertificates()
 	if err != nil {
 		log.Warn().Str("domain", domain).Err(err).Msg("failed to get all certificates from config")
@@ -656,7 +657,7 @@ func (srv *Server) buildDownstreamTLSContext(cfg *config.Config, domain string) 
 		return nil
 	}
 
-	envoyCert := srv.envoyTLSCertificateFromGoTLSCertificate(cert)
+	envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(cert)
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams:             tlsParams,

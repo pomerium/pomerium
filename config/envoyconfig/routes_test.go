@@ -1,4 +1,4 @@
-package controlplane
+package envoyconfig
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/controlplane/filemgr"
+	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
 )
 
@@ -27,8 +27,8 @@ func policyNameFunc() func(*config.Policy) string {
 }
 
 func Test_buildGRPCRoutes(t *testing.T) {
-	srv := &Server{filemgr: filemgr.NewManager()}
-	routes, err := srv.buildGRPCRoutes()
+	b := &Builder{filemgr: filemgr.NewManager()}
+	routes, err := b.buildGRPCRoutes()
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
 		[
@@ -53,7 +53,7 @@ func Test_buildGRPCRoutes(t *testing.T) {
 }
 
 func Test_buildPomeriumHTTPRoutes(t *testing.T) {
-	srv := &Server{filemgr: filemgr.NewManager()}
+	b := &Builder{filemgr: filemgr.NewManager()}
 	routeString := func(typ, name string, protected bool) string {
 		str := `{
 				"name": "pomerium-` + typ + `-` + name + `",
@@ -84,7 +84,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateCallbackPath: "/oauth2/callback",
 			ForwardAuthURLString:     "https://forward-auth.example.com",
 		}
-		routes, err := srv.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -105,7 +105,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := srv.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, "null", routes)
 	})
@@ -122,7 +122,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			}},
 		}
 		_ = options.Policies[0].Validate()
-		routes, err := srv.buildPomeriumHTTPRoutes(options, "from.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -150,7 +150,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			}},
 		}
 		_ = options.Policies[0].Validate()
-		routes, err := srv.buildPomeriumHTTPRoutes(options, "from.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -166,8 +166,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 }
 
 func Test_buildControlPlanePathRoute(t *testing.T) {
-	srv := &Server{filemgr: filemgr.NewManager()}
-	route, err := srv.buildControlPlanePathRoute("/hello/world", false)
+	b := &Builder{filemgr: filemgr.NewManager()}
+	route, err := b.buildControlPlanePathRoute("/hello/world", false)
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
 		{
@@ -189,8 +189,8 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 }
 
 func Test_buildControlPlanePrefixRoute(t *testing.T) {
-	srv := &Server{filemgr: filemgr.NewManager()}
-	route, err := srv.buildControlPlanePrefixRoute("/hello/world/", false)
+	b := &Builder{filemgr: filemgr.NewManager()}
+	route, err := b.buildControlPlanePrefixRoute("/hello/world/", false)
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
 		{
@@ -217,8 +217,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	}(getClusterID)
 	getClusterID = policyNameFunc()
 
-	srv := &Server{filemgr: filemgr.NewManager()}
-	routes, err := srv.buildPolicyRoutes(&config.Options{
+	b := &Builder{filemgr: filemgr.NewManager()}
+	routes, err := b.buildPolicyRoutes(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		Policies: []config.Policy{
@@ -535,7 +535,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	`, routes)
 
 	t.Run("fronting-authenticate", func(t *testing.T) {
-		routes, err := srv.buildPolicyRoutes(&config.Options{
+		routes, err := b.buildPolicyRoutes(&config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
@@ -588,7 +588,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("tcp", func(t *testing.T) {
-		routes, err := srv.buildPolicyRoutes(&config.Options{
+		routes, err := b.buildPolicyRoutes(&config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			Policies: []config.Policy{
@@ -679,8 +679,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 		getClusterID = f
 	}(getClusterID)
 	getClusterID = policyNameFunc()
-	srv := &Server{filemgr: filemgr.NewManager()}
-	routes, err := srv.buildPolicyRoutes(&config.Options{
+	b := &Builder{filemgr: filemgr.NewManager()}
+	routes, err := b.buildPolicyRoutes(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		Policies: []config.Policy{
@@ -924,9 +924,9 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 }
 
 func Test_buildPolicyRouteRedirectAction(t *testing.T) {
-	srv := &Server{filemgr: filemgr.NewManager()}
+	b := &Builder{filemgr: filemgr.NewManager()}
 	t.Run("HTTPSRedirect", func(t *testing.T) {
-		action, err := srv.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			HTTPSRedirect: proto.Bool(true),
 		})
 		require.NoError(t, err)
@@ -936,7 +936,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 			},
 		}, action)
 
-		action, err = srv.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err = b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			HTTPSRedirect: proto.Bool(false),
 		})
 		require.NoError(t, err)
@@ -947,7 +947,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("SchemeRedirect", func(t *testing.T) {
-		action, err := srv.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			SchemeRedirect: proto.String("https"),
 		})
 		require.NoError(t, err)
@@ -958,7 +958,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("HostRedirect", func(t *testing.T) {
-		action, err := srv.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			HostRedirect: proto.String("HOST"),
 		})
 		require.NoError(t, err)
@@ -967,7 +967,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("PortRedirect", func(t *testing.T) {
-		action, err := srv.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			PortRedirect: proto.Uint32(1234),
 		})
 		require.NoError(t, err)
@@ -976,7 +976,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("PathRedirect", func(t *testing.T) {
-		action, err := srv.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			PathRedirect: proto.String("PATH"),
 		})
 		require.NoError(t, err)
@@ -987,7 +987,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("PrefixRewrite", func(t *testing.T) {
-		action, err := srv.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			PrefixRewrite: proto.String("PREFIX_REWRITE"),
 		})
 		require.NoError(t, err)
@@ -998,7 +998,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("ResponseCode", func(t *testing.T) {
-		action, err := srv.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			ResponseCode: proto.Int32(301),
 		})
 		require.NoError(t, err)
@@ -1007,7 +1007,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("StripQuery", func(t *testing.T) {
-		action, err := srv.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			StripQuery: proto.Bool(true),
 		})
 		require.NoError(t, err)
