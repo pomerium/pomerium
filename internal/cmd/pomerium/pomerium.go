@@ -83,7 +83,7 @@ func Run(ctx context.Context, configFile string) error {
 	log.Info().Str("port", httpPort).Msg("HTTP server started")
 
 	// create envoy server
-	envoyServer, err := envoy.NewServer(src, grpcPort, httpPort)
+	envoyServer, err := envoy.NewServer(src, grpcPort, httpPort, controlPlane.Builder)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
 	}

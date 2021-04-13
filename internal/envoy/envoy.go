@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,21 +23,17 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
-	envoy_config_metrics_v3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/natefinch/atomic"
 	"github.com/rs/zerolog"
 	"go.opencensus.io/stats/view"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
@@ -62,6 +57,7 @@ type Server struct {
 	wd  string
 	cmd *exec.Cmd
 
+	builder            *envoyconfig.Builder
 	grpcPort, httpPort string
 	envoyPath          string
 	restartEpoch       int
@@ -71,7 +67,7 @@ type Server struct {
 }
 
 // NewServer creates a new server with traffic routed by envoy.
-func NewServer(src config.Source, grpcPort, httpPort string) (*Server, error) {
+func NewServer(src config.Source, grpcPort, httpPort string, builder *envoyconfig.Builder) (*Server, error) {
 	wd := filepath.Join(os.TempDir(), workingDirectoryName)
 	err := os.MkdirAll(wd, embeddedEnvoyPermissions)
 	if err != nil {
@@ -107,6 +103,7 @@ func NewServer(src config.Source, grpcPort, httpPort string) (*Server, error) {
 
 	srv := &Server{
 		wd:        wd,
+		builder:   builder,
 		grpcPort:  grpcPort,
 		httpPort:  httpPort,
 		envoyPath: envoyPath,
@@ -248,14 +245,9 @@ func (srv *Server) buildBootstrapConfig(cfg *config.Config) ([]byte, error) {
 		Cluster: "proxy",
 	}
 
-	adminAddr, err := ParseAddress(cfg.Options.EnvoyAdminAddress)
+	adminCfg, err := srv.builder.BuildBootstrapAdmin(cfg)
 	if err != nil {
 		return nil, err
-	}
-	adminCfg := &envoy_config_bootstrap_v3.Admin{
-		AccessLogPath: cfg.Options.EnvoyAdminAccessLogPath,
-		ProfilePath:   cfg.Options.EnvoyAdminProfilePath,
-		Address:       adminAddr,
 	}
 
 	dynamicCfg := &envoy_config_bootstrap_v3.Bootstrap_DynamicResources{
@@ -282,134 +274,29 @@ func (srv *Server) buildBootstrapConfig(cfg *config.Config) ([]byte, error) {
 		},
 	}
 
-	controlPlanePort, err := strconv.Atoi(srv.grpcPort)
+	staticCfg, err := srv.builder.BuildBootstrapStaticResources(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("invalid control plane port: %w", err)
+		return nil, err
 	}
 
-	controlPlaneEndpoint := &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
-		Endpoint: &envoy_config_endpoint_v3.Endpoint{
-			Address: &envoy_config_core_v3.Address{
-				Address: &envoy_config_core_v3.Address_SocketAddress{
-					SocketAddress: &envoy_config_core_v3.SocketAddress{
-						Address: "127.0.0.1",
-						PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
-							PortValue: uint32(controlPlanePort),
-						},
-					},
-				},
-			},
-		},
+	statsCfg, err := srv.builder.BuildBootstrapStatsConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	controlPlaneCluster := &envoy_config_cluster_v3.Cluster{
-		Name: "pomerium-control-plane-grpc",
-		ConnectTimeout: &durationpb.Duration{
-			Seconds: 5,
-		},
-		ClusterDiscoveryType: &envoy_config_cluster_v3.Cluster_Type{
-			Type: envoy_config_cluster_v3.Cluster_STATIC,
-		},
-		LbPolicy: envoy_config_cluster_v3.Cluster_ROUND_ROBIN,
-		LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
-			ClusterName: "pomerium-control-plane-grpc",
-			Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{
-				{
-					LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{
-						{
-							HostIdentifier: controlPlaneEndpoint,
-						},
-					},
-				},
-			},
-		},
-		Http2ProtocolOptions: &envoy_config_core_v3.Http2ProtocolOptions{},
-	}
-
-	staticCfg := &envoy_config_bootstrap_v3.Bootstrap_StaticResources{
-		Clusters: []*envoy_config_cluster_v3.Cluster{
-			controlPlaneCluster,
-		},
-	}
-
-	if srv.options.tracingOptions.Provider == trace.DatadogTracingProviderName {
-		addr := &envoy_config_core_v3.SocketAddress{
-			Address: "127.0.0.1",
-			PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
-				PortValue: 8126,
-			},
-		}
-		if srv.options.tracingOptions.DatadogAddress != "" {
-			a, p, err := net.SplitHostPort(srv.options.tracingOptions.DatadogAddress)
-			if err == nil {
-				addr.Address = a
-				if pv, err := strconv.ParseUint(p, 10, 32); err == nil {
-					addr.PortSpecifier = &envoy_config_core_v3.SocketAddress_PortValue{
-						PortValue: uint32(pv),
-					}
-				}
-			}
-		}
-
-		staticCfg.Clusters = append(staticCfg.Clusters, &envoy_config_cluster_v3.Cluster{
-			Name: "datadog-apm",
-			ConnectTimeout: &durationpb.Duration{
-				Seconds: 5,
-			},
-			ClusterDiscoveryType: &envoy_config_cluster_v3.Cluster_Type{
-				Type: envoy_config_cluster_v3.Cluster_STATIC,
-			},
-			LbPolicy: envoy_config_cluster_v3.Cluster_ROUND_ROBIN,
-			LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
-				ClusterName: "datadog-apm",
-				Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{
-					{
-						LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{
-							{
-								HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
-									Endpoint: &envoy_config_endpoint_v3.Endpoint{
-										Address: &envoy_config_core_v3.Address{
-											Address: &envoy_config_core_v3.Address_SocketAddress{
-												SocketAddress: addr,
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		})
-	}
-
-	bcfg := &envoy_config_bootstrap_v3.Bootstrap{
+	bootstrapCfg := &envoy_config_bootstrap_v3.Bootstrap{
 		Node:             nodeCfg,
 		Admin:            adminCfg,
 		DynamicResources: dynamicCfg,
 		StaticResources:  staticCfg,
-		StatsConfig:      srv.buildStatsConfig(),
+		StatsConfig:      statsCfg,
 	}
 
-	jsonBytes, err := protojson.Marshal(proto.MessageV2(bcfg))
+	jsonBytes, err := protojson.Marshal(proto.MessageV2(bootstrapCfg))
 	if err != nil {
 		return nil, err
 	}
 	return jsonBytes, nil
-}
-
-func (srv *Server) buildStatsConfig() *envoy_config_metrics_v3.StatsConfig {
-	cfg := &envoy_config_metrics_v3.StatsConfig{}
-
-	cfg.StatsTags = []*envoy_config_metrics_v3.TagSpecifier{
-		{
-			TagName: "service",
-			TagValue: &envoy_config_metrics_v3.TagSpecifier_FixedValue{
-				FixedValue: telemetry.ServiceName(srv.options.services),
-			},
-		},
-	}
-	return cfg
 }
 
 var fileNameAndNumberRE = regexp.MustCompile(`^(\[[a-zA-Z0-9/-_.]+:[0-9]+])\s(.*)$`)

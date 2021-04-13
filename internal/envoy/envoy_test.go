@@ -7,30 +7,7 @@ import (
 	"testing"
 
 	"github.com/rs/zerolog"
-
-	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/testutil"
 )
-
-func Test_buildStatsConfig(t *testing.T) {
-	tests := []struct {
-		name string
-		opts *config.Options
-		want string
-	}{
-		{"all-in-one", &config.Options{Services: config.ServiceAll}, `{"statsTags":[{"tagName":"service","fixedValue":"pomerium"}]}`},
-		{"authorize", &config.Options{Services: config.ServiceAuthorize}, `{"statsTags":[{"tagName":"service","fixedValue":"pomerium-authorize"}]}`},
-		{"proxy", &config.Options{Services: config.ServiceProxy}, `{"statsTags":[{"tagName":"service","fixedValue":"pomerium-proxy"}]}`},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			srv := &Server{options: serverOptions{services: tt.opts.Services}}
-
-			statsCfg := srv.buildStatsConfig()
-			testutil.AssertProtoJSONEqual(t, tt.want, statsCfg)
-		})
-	}
-}
 
 func TestServer_handleLogs(t *testing.T) {
 	logFormatRE := regexp.MustCompile(`^[[]LOG_FORMAT[]](.*?)--(.*?)--(.*?)$`)
