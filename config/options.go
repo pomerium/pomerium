@@ -450,7 +450,7 @@ func (o *Options) parseHeaders() error {
 	}
 
 	if o.viperIsSet("headers") {
-		log.Warn().Msg("config: headers has been renamed to set_response_headers and may be removed in the future")
+		log.Warn().Msg("config: headers has been renamed to set_response_headers, it will be removed in v0.16")
 	}
 
 	// option was renamed from `headers` to `set_response_headers`. Both config settings are supported.
