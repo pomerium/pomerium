@@ -49,6 +49,7 @@ type Server struct {
 	GRPCServer   *grpc.Server
 	HTTPListener net.Listener
 	HTTPRouter   *mux.Router
+	Builder      *envoyconfig.Builder
 
 	currentConfig atomicVersionedConfig
 	name          string
@@ -56,7 +57,6 @@ type Server struct {
 	filemgr       *filemgr.Manager
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
-	builder       *envoyconfig.Builder
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
@@ -99,7 +99,7 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 	srv.filemgr = filemgr.NewManager()
 	srv.filemgr.ClearCache()
 
-	srv.builder = envoyconfig.New(
+	srv.Builder = envoyconfig.New(
 		srv.GRPCListener.Addr().String(),
 		srv.HTTPListener.Addr().String(),
 		srv.filemgr,

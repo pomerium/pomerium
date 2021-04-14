@@ -205,3 +205,26 @@ func marshalAny(msg proto.Message) *anypb.Any {
 	})
 	return any
 }
+
+// parseAddress parses a string address into an envoy address.
+func parseAddress(raw string) (*envoy_config_core_v3.Address, error) {
+	if host, portstr, err := net.SplitHostPort(raw); err == nil {
+		if host == "localhost" {
+			host = "127.0.0.1"
+		}
+
+		if port, err := strconv.Atoi(portstr); err == nil {
+			return &envoy_config_core_v3.Address{
+				Address: &envoy_config_core_v3.Address_SocketAddress{
+					SocketAddress: &envoy_config_core_v3.SocketAddress{
+						Address: host,
+						PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+							PortValue: uint32(port),
+						},
+					},
+				},
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("unknown address format: %s", raw)
+}

@@ -23,10 +23,17 @@ func AssertProtoJSONEqual(t *testing.T, expected string, protoMsg interface{}, m
 			protoMsgs = append(protoMsgs, toProtoJSON(protoMsgVal.Index(i).Interface()))
 		}
 		bs, _ := json.Marshal(protoMsgs)
-		return assert.JSONEq(t, expected, string(bs), msgAndArgs...)
+		return assert.Equal(t, reformatJSON(json.RawMessage(expected)), reformatJSON(bs), msgAndArgs...)
 	}
 
-	return assert.JSONEq(t, expected, string(toProtoJSON(protoMsg)), msgAndArgs...)
+	return assert.Equal(t, reformatJSON(json.RawMessage(expected)), reformatJSON(toProtoJSON(protoMsg)), msgAndArgs...)
+}
+
+func reformatJSON(raw json.RawMessage) string {
+	var obj interface{}
+	_ = json.Unmarshal(raw, &obj)
+	bs, _ := json.MarshalIndent(obj, "", "  ")
+	return string(bs)
 }
 
 func toProtoJSON(protoMsg interface{}) json.RawMessage {

@@ -18,7 +18,7 @@ func (srv *Server) buildDiscoveryResources() (map[string][]*envoy_service_discov
 	resources := map[string][]*envoy_service_discovery_v3.Resource{}
 	cfg := srv.currentConfig.Load()
 
-	clusters, err := srv.builder.BuildClusters(cfg.Config)
+	clusters, err := srv.Builder.BuildClusters(cfg.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +31,7 @@ func (srv *Server) buildDiscoveryResources() (map[string][]*envoy_service_discov
 		})
 	}
 
-	listeners, err := srv.builder.BuildListeners(cfg.Config)
+	listeners, err := srv.Builder.BuildListeners(cfg.Config)
 	if err != nil {
 		return nil, err
 	}
