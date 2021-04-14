@@ -1,4 +1,4 @@
-package controlplane
+package envoyconfig
 
 import (
 	"os"
@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/controlplane/filemgr"
+	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
 )
 
@@ -24,8 +24,8 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
 
-	srv, _ := NewServer("TEST", nil)
-	li, err := srv.buildMetricsListener(&config.Config{
+	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
+	li, err := b.buildMetricsListener(&config.Config{
 		Options: &config.Options{
 			MetricsAddr:           "127.0.0.1:9902",
 			MetricsCertificate:    aExampleComCert,
@@ -106,12 +106,12 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 }
 
 func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
-	srv, _ := NewServer("TEST", nil)
+	b := New("local-grpc", "local-http", nil, nil)
 
 	options := config.NewDefaultOptions()
 	options.SkipXffAppend = true
 	options.XffNumTrustedHops = 1
-	filter, err := srv.buildMainHTTPConnectionManagerFilter(options, []string{"example.com"}, "*")
+	filter, err := b.buildMainHTTPConnectionManagerFilter(options, []string{"example.com"}, "*")
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `{
 		"name": "envoy.filters.network.http_connection_manager",
@@ -467,14 +467,14 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 }
 
 func Test_buildDownstreamTLSContext(t *testing.T) {
-	srv, _ := NewServer("TEST", nil)
+	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
 
 	cacheDir, _ := os.UserCacheDir()
 	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
 
 	t.Run("no-validation", func(t *testing.T) {
-		downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
 		}}, "a.example.com")
@@ -507,7 +507,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("client-ca", func(t *testing.T) {
-		downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
 			Cert:     aExampleComCert,
 			Key:      aExampleComKey,
 			ClientCA: "TEST",
@@ -544,7 +544,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("policy-client-ca", func(t *testing.T) {
-		downstreamTLSContext := srv.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
 			Policies: []config.Policy{
@@ -662,9 +662,9 @@ func Test_hostMatchesDomain(t *testing.T) {
 }
 
 func Test_buildRouteConfiguration(t *testing.T) {
-	srv := &Server{filemgr: filemgr.NewManager()}
+	b := New("local-grpc", "local-http", nil, nil)
 	virtualHosts := make([]*envoy_config_route_v3.VirtualHost, 10)
-	routeConfig, err := srv.buildRouteConfiguration("test-route-configuration", virtualHosts)
+	routeConfig, err := b.buildRouteConfiguration("test-route-configuration", virtualHosts)
 	require.NoError(t, err)
 	assert.Equal(t, "test-route-configuration", routeConfig.GetName())
 	assert.Equal(t, virtualHosts, routeConfig.GetVirtualHosts())
@@ -672,11 +672,9 @@ func Test_buildRouteConfiguration(t *testing.T) {
 }
 
 func Test_requireProxyProtocol(t *testing.T) {
-	srv := &Server{
-		filemgr: filemgr.NewManager(),
-	}
+	b := New("local-grpc", "local-http", nil, nil)
 	t.Run("required", func(t *testing.T) {
-		li, err := srv.buildMainListener(&config.Config{Options: &config.Options{
+		li, err := b.buildMainListener(&config.Config{Options: &config.Options{
 			UseProxyProtocol: true,
 			InsecureServer:   true,
 		}})
@@ -691,7 +689,7 @@ func Test_requireProxyProtocol(t *testing.T) {
 		]`, li.GetListenerFilters())
 	})
 	t.Run("not required", func(t *testing.T) {
-		li, err := srv.buildMainListener(&config.Config{Options: &config.Options{
+		li, err := b.buildMainListener(&config.Config{Options: &config.Options{
 			UseProxyProtocol: false,
 			InsecureServer:   true,
 		}})

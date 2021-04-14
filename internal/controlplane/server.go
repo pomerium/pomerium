@@ -15,7 +15,8 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/controlplane/filemgr"
+	"github.com/pomerium/pomerium/config/envoyconfig"
+	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/controlplane/xdsmgr"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
@@ -55,6 +56,7 @@ type Server struct {
 	filemgr       *filemgr.Manager
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
+	builder       *envoyconfig.Builder
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
@@ -94,6 +96,16 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 	srv.HTTPRouter = mux.NewRouter()
 	srv.addHTTPMiddleware()
 
+	srv.filemgr = filemgr.NewManager()
+	srv.filemgr.ClearCache()
+
+	srv.builder = envoyconfig.New(
+		srv.GRPCListener.Addr().String(),
+		srv.HTTPListener.Addr().String(),
+		srv.filemgr,
+		srv.reproxy,
+	)
+
 	res, err := srv.buildDiscoveryResources()
 	if err != nil {
 		return nil, err
@@ -101,9 +113,6 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 
 	srv.xdsmgr = xdsmgr.NewManager(res)
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv.GRPCServer, srv.xdsmgr)
-
-	srv.filemgr = filemgr.NewManager()
-	srv.filemgr.ClearCache()
 
 	return srv, nil
 }
