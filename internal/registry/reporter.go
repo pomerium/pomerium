@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/controlplane/xdsmgr"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
@@ -28,10 +29,7 @@ func (r *Reporter) OnConfigChange(cfg *config.Config) {
 		r.cancel()
 	}
 
-	services, err := getReportedServices(cfg)
-	if err != nil {
-		log.Warn().Err(err).Msg("metrics announce to service registry is disabled")
-	}
+	services := getReportedServices(cfg)
 
 	sharedKey, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 	if err != nil {
@@ -62,22 +60,24 @@ func (r *Reporter) OnConfigChange(cfg *config.Config) {
 		return
 	}
 
-	if len(services) > 0 {
-		ctx, cancel := context.WithCancel(context.TODO())
-		go runReporter(ctx, pb.NewRegistryClient(registryConn), services)
-		r.cancel = cancel
-	}
+	ctx, cancel := context.WithCancel(context.TODO())
+	go runReporter(ctx, pb.NewRegistryClient(registryConn), services)
+	r.cancel = cancel
 }
 
-func getReportedServices(cfg *config.Config) ([]*pb.Service, error) {
-	mu, err := metricsURL(*cfg.Options)
-	if err != nil {
-		return nil, err
+func getReportedServices(cfg *config.Config) []*pb.Service {
+	var services []*pb.Service
+
+	if mu, err := metricsURL(*cfg.Options); err == nil {
+		services = append(services, &pb.Service{
+			Kind:     pb.ServiceKind_PROMETHEUS_METRICS,
+			Endpoint: mu.String(),
+		})
+	} else {
+		log.Warn().Err(err).Msg("metrics announce to service registry is disabled")
 	}
 
-	return []*pb.Service{
-		{Kind: pb.ServiceKind_PROMETHEUS_METRICS, Endpoint: mu.String()},
-	}, nil
+	return services
 }
 
 func metricsURL(o config.Options) (*url.URL, error) {
@@ -128,25 +128,33 @@ func runReporter(
 	client pb.RegistryClient,
 	services []*pb.Service,
 ) {
-	backoff := backoff.NewExponentialBackOff()
-	backoff.MaxElapsedTime = 0
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
 
-	req := &pb.RegisterRequest{Services: services}
 	after := minTTL
 	for {
 		select {
 		case <-time.After(after):
-			resp, err := client.Report(ctx, req)
-			if err != nil {
-				log.Ctx(ctx).Error().Err(err).Msg("grpc.service_registry.Report")
-				after = backoff.NextBackOff()
-				continue
-			}
-			after = resp.CallBackAfter.AsDuration()
-			backoff.Reset()
 		case <-ctx.Done():
 			log.Info().Msg("service registry reporter stopping")
 			return
 		}
+
+		req := &pb.RegisterRequest{
+			Services: services,
+		}
+		if err := req.SetEnvoyConfigurationEvents(xdsmgr.GetEvents()); err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("error setting envoy configuration events in report metadata")
+		}
+
+		resp, err := client.Report(ctx, req)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("grpc.service_registry.Report")
+			after = bo.NextBackOff()
+			continue
+		}
+		bo.Reset()
+
+		after = resp.CallBackAfter.AsDuration()
 	}
 }

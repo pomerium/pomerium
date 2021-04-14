@@ -11,9 +11,11 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/pkg/grpc/registry"
 )
 
 type streamState struct {
@@ -113,6 +115,19 @@ func (mgr *Manager) DeltaAggregatedResources(
 				Err(errors.New(req.ErrorDetail.Message)).
 				Int32("code", req.ErrorDetail.Code).
 				RawJSON("details", bs).Msg("error applying configuration")
+			// - set the client resource versions to the current resource versions
+			state.clientResourceVersions = make(map[string]string)
+			for _, resource := range mgr.resources[req.GetTypeUrl()] {
+				state.clientResourceVersions[resource.Name] = resource.Version
+			}
+
+			AddEvent(&registry.EnvoyConfigurationEvent{
+				Time:    timestamppb.Now(),
+				Message: req.ErrorDetail.Message,
+				Code:    req.ErrorDetail.Code,
+				Details: req.ErrorDetail.Details,
+			})
+
 		case req.GetResponseNonce() == mgr.nonce:
 			// an ACK for the last response
 			// - set the client resource versions to the current resource versions
@@ -120,6 +135,12 @@ func (mgr *Manager) DeltaAggregatedResources(
 			for _, resource := range mgr.resources[req.GetTypeUrl()] {
 				state.clientResourceVersions[resource.Name] = resource.Version
 			}
+
+			AddEvent(&registry.EnvoyConfigurationEvent{
+				Time:    timestamppb.Now(),
+				Message: "OK",
+			})
+
 		default:
 			// an ACK for a response that's not the last response
 		}

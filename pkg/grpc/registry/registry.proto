@@ -64,6 +64,19 @@ message ServiceRegistration {
 // RegistrationSnapshot represents the current state of the services
 message ServiceList { repeated Service services = 1; }
 
+// EnvoyConfigurationEvents is a list of EnvoyConfigurationEvent.
+message EnvoyConfigurationEvents {
+  repeated EnvoyConfigurationEvent values = 1;
+}
+
+// EnvoyConfigurationEvent is an envoy configuration event.
+message EnvoyConfigurationEvent {
+  google.protobuf.Timestamp time = 1;
+  string message = 2;
+  int32 code = 3;
+  repeated google.protobuf.Any details = 4;
+}
+
 // Registry is invoked by services to inform
 service Registry {
   // Report is periodically sent by each service to confirm it is still serving
