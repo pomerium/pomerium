@@ -336,7 +336,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 		// if we're the proxy or authenticate service, add our global headers
 		if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
-			vh.ResponseHeadersToAdd = toEnvoyHeaders(options.Headers)
+			vh.ResponseHeadersToAdd = toEnvoyHeaders(options.SetResponseHeaders)
 		}
 
 		if len(vh.Routes) > 0 {

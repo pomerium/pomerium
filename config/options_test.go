@@ -116,18 +116,69 @@ func Test_bindEnvs(t *testing.T) {
 func Test_parseHeaders(t *testing.T) {
 	// t.Parallel()
 	tests := []struct {
-		name         string
-		want         map[string]string
-		envHeaders   string
-		viperHeaders interface{}
-		wantErr      bool
+		name           string
+		want           map[string]string
+		envHeaders     string
+		viperHeaderKey string
+		viperHeaders   interface{}
+		wantErr        bool
 	}{
-		{"good env", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`, map[string]string{"X": "foo"}, false},
-		{"good env not_json", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, `X-Custom-1:foo,X-Custom-2:bar`, map[string]string{"X": "foo"}, false},
-		{"bad env", map[string]string{}, "xyyyy", map[string]string{"X": "foo"}, true},
-		{"bad env not_json", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, `X-Custom-1:foo,X-Custom-2bar`, map[string]string{"X": "foo"}, true},
-		{"bad viper", map[string]string{}, "", "notaheaderstruct", true},
-		{"good viper", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, "", map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"}, false},
+		{
+			"good env",
+			map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"},
+			`{"X-Custom-1":"foo", "X-Custom-2":"bar"}`,
+			"headers",
+			map[string]string{"X": "foo"},
+			false,
+		},
+		{
+			"good env not_json",
+			map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"},
+			`X-Custom-1:foo,X-Custom-2:bar`,
+			"headers",
+			map[string]string{"X": "foo"},
+			false,
+		},
+		{
+			"bad env",
+			map[string]string{},
+			"xyyyy",
+			"headers",
+			map[string]string{"X": "foo"},
+			true,
+		},
+		{
+			"bad env not_json",
+			map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"},
+			`X-Custom-1:foo,X-Custom-2bar`,
+			"headers",
+			map[string]string{"X": "foo"},
+			true,
+		},
+		{
+			"bad viper",
+			map[string]string{},
+			"",
+			"headers",
+			"notaheaderstruct",
+			true,
+		},
+		{
+			"good viper",
+			map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"},
+			"",
+			"headers",
+			map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"},
+			false,
+		},
+		{
+			"new field name",
+			map[string]string{"X-Custom-1": "foo"},
+			"",
+			"set_response_headers",
+			map[string]string{"X-Custom-1": "foo"},
+			false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -148,8 +199,8 @@ func Test_parseHeaders(t *testing.T) {
 				t.Errorf("Error condition unexpected: err=%s", err)
 			}
 
-			if !tt.wantErr && !cmp.Equal(tt.want, o.Headers) {
-				t.Errorf("Did get expected headers: %s", cmp.Diff(tt.want, o.Headers))
+			if !tt.wantErr && !cmp.Equal(tt.want, o.SetResponseHeaders) {
+				t.Errorf("Did get expected headers: %s", cmp.Diff(tt.want, o.SetResponseHeaders))
 			}
 		})
 	}
@@ -259,7 +310,7 @@ func TestOptionsFromViper(t *testing.T) {
 				GRPCServerMaxConnectionAge:      5 * time.Minute,
 				GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
 				AuthenticateCallbackPath:        "/oauth2/callback",
-				Headers: map[string]string{
+				SetResponseHeaders: map[string]string{
 					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 					"X-Frame-Options":           "SAMEORIGIN",
 					"X-XSS-Protection":          "1; mode=block",
@@ -286,7 +337,7 @@ func TestOptionsFromViper(t *testing.T) {
 				InsecureServer:                  true,
 				GRPCServerMaxConnectionAge:      5 * time.Minute,
 				GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
-				Headers:                         map[string]string{},
+				SetResponseHeaders:              map[string]string{},
 				RefreshDirectoryTimeout:         1 * time.Minute,
 				RefreshDirectoryInterval:        10 * time.Minute,
 				QPS:                             1.0,

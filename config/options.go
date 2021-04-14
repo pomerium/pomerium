@@ -170,9 +170,9 @@ type Options struct {
 	SigningKey          string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
 	SigningKeyAlgorithm string `mapstructure:"signing_key_algorithm" yaml:"signing_key_algorithm,omitempty"`
 
-	// Headers to set on all proxied requests. Add a 'disable' key map to turn off.
-	HeadersEnv string            `yaml:",omitempty"`
-	Headers    map[string]string `yaml:",omitempty"`
+	HeadersEnv string `yaml:",omitempty"`
+	// SetResponseHeaders to set on all proxied requests. Add a 'disable' key map to turn off.
+	SetResponseHeaders map[string]string `yaml:",omitempty"`
 
 	// List of JWT claims to insert as x-pomerium-claim-* headers on proxied requests
 	JWTClaimsHeaders JWTClaimHeaders `mapstructure:"jwt_claims_headers" yaml:"jwt_claims_headers,omitempty"`
@@ -305,7 +305,7 @@ var defaultOptions = Options{
 	CookieExpire:           14 * time.Hour,
 	CookieName:             "_pomerium",
 	DefaultUpstreamTimeout: 30 * time.Second,
-	Headers: map[string]string{
+	SetResponseHeaders: map[string]string{
 		"X-Frame-Options":           "SAMEORIGIN",
 		"X-XSS-Protection":          "1; mode=block",
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
@@ -445,12 +445,23 @@ func (o *Options) parseHeaders() error {
 			}
 
 		}
-		o.Headers = headers
-	} else if o.viperIsSet("headers") {
-		if err := o.viper.UnmarshalKey("headers", &headers); err != nil {
-			return fmt.Errorf("header %s failed to parse: %w", o.viper.Get("headers"), err)
+		o.SetResponseHeaders = headers
+		return nil
+	}
+
+	if o.viperIsSet("headers") {
+		log.Warn().Msg("config: headers has been renamed to set_response_headers, it will be removed in v0.16")
+	}
+
+	// option was renamed from `headers` to `set_response_headers`. Both config settings are supported.
+	headerKeys := []string{"headers", "set_response_headers"}
+	for _, headerKey := range headerKeys {
+		if o.viperIsSet(headerKey) {
+			if err := o.viper.UnmarshalKey(headerKey, &headers); err != nil {
+				return fmt.Errorf("header %s failed to parse: %w", o.viper.Get(headerKey), err)
+			}
+			o.SetResponseHeaders = headers
 		}
-		o.Headers = headers
 	}
 	return nil
 }
@@ -594,8 +605,8 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: failed to parse headers: %w", err)
 	}
 
-	if _, disable := o.Headers[DisableHeaderKey]; disable {
-		o.Headers = make(map[string]string)
+	if _, disable := o.SetResponseHeaders[DisableHeaderKey]; disable {
+		o.SetResponseHeaders = make(map[string]string)
 	}
 
 	hasCert := false
@@ -1034,7 +1045,7 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 		o.SigningKeyAlgorithm = settings.GetSigningKeyAlgorithm()
 	}
 	if settings.Headers != nil && len(settings.Headers) > 0 {
-		o.Headers = settings.Headers
+		o.SetResponseHeaders = settings.Headers
 	}
 	if len(settings.JwtClaimsHeaders) > 0 {
 		o.JWTClaimsHeaders = settings.GetJwtClaimsHeaders()

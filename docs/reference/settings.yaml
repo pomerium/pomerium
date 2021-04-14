@@ -931,11 +931,11 @@ settings:
           Default Upstream Timeout is the default timeout applied to a proxied route when no `timeout` key is specified by the policy.
         shortdoc: |
           Default Upstream Timeout is the default timeout applied to a proxied route when no timeout key is specified by the policy.
-      - name: "Headers"
-        keys: ["headers"]
+      - name: "Set Response Headers"
+        keys: ["set_response_headers"]
         attributes: |
-          - Environmental Variable: `HEADERS`
-          - Config File Key: `headers`
+          - Environmental Variable: `SET_RESPONSE_HEADERS`
+          - Config File Key: `set_response_headers`
           - Type: map of `strings` key value pairs
           - Examples:
 
@@ -944,7 +944,7 @@ settings:
             - YAML:
 
               ```yaml
-              headers:
+              set_response_headers:
                 X-Test: X-Value
               ```
 
@@ -959,7 +959,7 @@ settings:
             Strict-Transport-Security:max-age=31536000; includeSubDomains; preload,
             ```
         doc: |
-          Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added globally to all managed routes and pomerium's authenticate service.
+          Set Response Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added globally to all managed routes and pomerium's authenticate service.
 
           By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
 
@@ -1038,7 +1038,7 @@ settings:
       - name: "The number of trusted hops"
         keys: ["xff_num_trusted_hops"]
         attributes: |
-          - Environmental Variable: `XFF_NUM_TRUSTED_HOPS
+          - Environmental Variable: `XFF_NUM_TRUSTED_HOPS`
           - Config File Key: `xff_num_trusted_hops`
           - Type: `uint32`
           - Default: `0`

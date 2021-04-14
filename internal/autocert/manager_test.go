@@ -200,7 +200,7 @@ func TestRedirect(t *testing.T) {
 	src := config.NewStaticSource(&config.Config{
 		Options: &config.Options{
 			HTTPRedirectAddr: addr,
-			Headers: map[string]string{
+			SetResponseHeaders: map[string]string{
 				"X-Frame-Options":           "SAMEORIGIN",
 				"X-XSS-Protection":          "1; mode=block",
 				"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
@@ -229,7 +229,7 @@ func TestRedirect(t *testing.T) {
 	defer res.Body.Close()
 
 	assert.Equal(t, http.StatusMovedPermanently, res.StatusCode, "should redirect to https")
-	for k, v := range src.GetConfig().Options.Headers {
+	for k, v := range src.GetConfig().Options.SetResponseHeaders {
 		assert.NotEqual(t, v, res.Header.Get(k), "should ignore options header")
 	}
 }
