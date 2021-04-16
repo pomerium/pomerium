@@ -541,16 +541,6 @@ func (o *Options) Validate() error {
 		return errors.New("config: unknown databroker storage backend type")
 	}
 
-	if IsAuthorize(o.Services) || IsDataBroker(o.Services) {
-		// if authorize is set, we don't really need a http server
-		// but we'll still set one up incase the user wants to use
-		// the HTTP health check api
-		if o.Addr == o.GRPCAddr {
-			o.Addr = DefaultAlternativeAddr
-			log.Warn().Str("Addr", o.Addr).Str("GRPCAddr", o.Addr).Msg("config: default http handler changed")
-		}
-	}
-
 	if o.SharedKey == "" {
 		return errors.New("config: shared-key cannot be empty")
 	}
