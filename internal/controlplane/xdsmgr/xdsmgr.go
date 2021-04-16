@@ -113,6 +113,11 @@ func (mgr *Manager) DeltaAggregatedResources(
 				Err(errors.New(req.ErrorDetail.Message)).
 				Int32("code", req.ErrorDetail.Code).
 				RawJSON("details", bs).Msg("error applying configuration")
+			// - set the client resource versions to the current resource versions
+			state.clientResourceVersions = make(map[string]string)
+			for _, resource := range mgr.resources[req.GetTypeUrl()] {
+				state.clientResourceVersions[resource.Name] = resource.Version
+			}
 		case req.GetResponseNonce() == mgr.nonce:
 			// an ACK for the last response
 			// - set the client resource versions to the current resource versions
