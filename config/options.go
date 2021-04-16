@@ -1044,8 +1044,8 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	if settings.SigningKeyAlgorithm != nil {
 		o.SigningKeyAlgorithm = settings.GetSigningKeyAlgorithm()
 	}
-	if settings.Headers != nil && len(settings.Headers) > 0 {
-		o.SetResponseHeaders = settings.Headers
+	if settings.SetResponseHeaders != nil && len(settings.SetResponseHeaders) > 0 {
+		o.SetResponseHeaders = settings.SetResponseHeaders
 	}
 	if len(settings.JwtClaimsHeaders) > 0 {
 		o.JWTClaimsHeaders = settings.GetJwtClaimsHeaders()

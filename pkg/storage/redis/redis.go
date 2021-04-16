@@ -154,6 +154,11 @@ func (backend *Backend) GetAll(ctx context.Context) (records []*databroker.Recor
 	return records, latestRecordVersion, nil
 }
 
+// GetOptions gets the options for the given record type.
+func (backend *Backend) GetOptions(ctx context.Context, recordType string) (*databroker.Options, error) {
+	panic("not implemented")
+}
+
 // Put puts a record into redis.
 func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (err error) {
 	_, span := trace.StartSpan(ctx, "databroker.redis.Put")
@@ -184,6 +189,11 @@ func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (err
 			})
 			return nil
 		})
+}
+
+// SetOptions sets the options for the given record type.
+func (backend *Backend) SetOptions(ctx context.Context, recordType string, options *databroker.Options) error {
+	panic("not implemented")
 }
 
 // Sync returns a record stream of any records changed after the specified version.

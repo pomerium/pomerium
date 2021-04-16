@@ -93,6 +93,10 @@ func (e *encryptedBackend) GetAll(ctx context.Context) ([]*databroker.Record, ui
 	return records, version, nil
 }
 
+func (e *encryptedBackend) GetOptions(ctx context.Context, recordType string) (*databroker.Options, error) {
+	return e.underlying.GetOptions(ctx, recordType)
+}
+
 func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) error {
 	encrypted, err := e.encrypt(record.GetData())
 	if err != nil {
@@ -110,6 +114,10 @@ func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) e
 	record.Version = newRecord.Version
 
 	return nil
+}
+
+func (e *encryptedBackend) SetOptions(ctx context.Context, recordType string, options *databroker.Options) error {
+	return e.underlying.SetOptions(ctx, recordType, options)
 }
 
 func (e *encryptedBackend) Sync(ctx context.Context, version uint64) (RecordStream, error) {
