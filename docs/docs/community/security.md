@@ -9,6 +9,79 @@ meta:
 
 # Security Policy
 
+## Security & Threat model
+
+As a context-aware access proxy, Pomerium's security model holds data confidentiality, integrity, accountability, authentication, authorization, and availability as the highest priority concerns. This page outlines Pomerium's security goals and threat model.
+
+Pomerium's threat model includes:
+
+- **Validating authentication.** Though not itself an Identity Provider, Pomerium incorporates Single-Sign-On flow with third party providers to delegate authentication, and populate identity details for authorization decisions. Pomerium ensures that a request is backed by a valid user session from a trusted Identity Provider.
+- **Enforcing authorization.** Pomerium ensures that only authorized users can access services, or applications to which they are entitled access.
+
+  - For HTTP based services, authorization will be made on a per request basis.
+  - Otherwise, for TCP based services, authorization will be made on a per session basis.
+
+- **Protecting data in transit**. All communication is encrypted and mutually authenticated when certificates are provided. This applies to communication between:
+
+  - Pomerium and its services.
+  - Pomerium and upstream services and applications.
+  - Pomerium and downstream clients (e.g. user's browser or device).
+  - Pomerium and the databroker's storage system.
+
+- **Protecting data at rest**. Sensitive data is encrypted. This applies to all data in the databroker including:
+
+  - Session, user, and directory data; as well as any other identity or contextual data.
+  - Service secrets (TLS certificates, Identity provider credentials)
+
+- **Ensuring availability**. Pomerium aims to be fault tolerant, and horizontally scalable. Pomerium inherits [Envoy's availability threat model](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/threat_model#confidentiality-integrity-and-availability).
+
+- **Providing auditability and accountability**. Pomerium provides logs with associated context for auditing purposes.
+
+Pomerium's threat model does not include:
+
+- Protecting against arbitrary control of a trusted third-party provider. For instance, if your identity provider is hacked, an attacker can impersonate a user in Pomerium.
+- Protecting against memory analysis of a running Pomerium instance. If an attacker can attach a debugger to a running instance of Pomerium, they can inspect confidential data in flight.
+- Protecting against arbitrary control of the storage backend. If an attacker controls your database, they can corrupt data.
+- Protecting an upstream application's internal access control system.
+- Protecting against physical access.
+
+### Cryptography
+
+Pomerium uses cryptography to secure data in transit, at rest, and to provide guarantees around confidentiality, authenticity, and integrity between its services and upstreams it manages access for.
+
+Encryption at rest:
+
+- Confidential data stored at rest is encrypted using the [authenticated encryption with associated data](https://en.wikipedia.org/wiki/Authenticated_encryption) construction [XChaCha20-Poly1305](https://libsodium.gitbook.io/doc/secret-key_cryptography/aead/chacha20-poly1305/xchacha20-poly1305_construction) with 196-bit nonces. Nonces are randomly generated for every encrypted object. When data is read, the authentication tag is checked for tampering.
+
+Encryption in transit:
+
+- Data in transit is protected by Transport Layer Security ([TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security)) . See our lab's [SSL Labs report](https://www.ssllabs.com/ssltest/analyze.html?d=authenticate.demo.pomerium.com&latest) .
+
+  - The minimum accepted version of TLS is 1.2.
+  - For TLS 1.3, the following cipher suites are offered:
+
+    - TLS_AES_128_GCM_SHA256
+    - TLS_AES_256_GCM_SHA384
+    - TLS_CHACHA20_POLY1305_SHA256
+
+  - For TLS 1.2, the following cipher suites are offered, in this order:
+
+    - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+
+  - The following elliptic curves are offered, in this order:
+
+    - X25519
+    - secp256r1
+    - X448
+    - secp521r1
+    - secp384r1
+
+- [HTTP Strict Transport Security](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) (HSTS) with a long duration is used by default.
+
+- [Mutually authenticated](https://en.wikipedia.org/wiki/Mutual_authentication) TLS is used when client side certificates are provided.
+
 ## Receiving Security Updates
 
 The best way to receive security announcements is to subscribe to the [pomerium-announce](https://groups.google.com/g/pomerium-announce) mailing list. Any messages pertaining to a security issue will be prefixed with [security].
