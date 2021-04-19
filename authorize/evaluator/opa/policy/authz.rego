@@ -7,6 +7,7 @@ five_minutes := (time.now_ns() / 1e9) + (60 * 5)
 
 # databroker versions to know which version of the data was evaluated
 databroker_server_version := data.databroker_server_version
+
 databroker_record_version := data.databroker_record_version
 
 route_policy_idx := first_allowed_route_policy_idx(input.http.url)
@@ -222,7 +223,7 @@ jwt_payload_groups = v {
 	true
 }
 
-jwt_claims := [
+base_jwt_claims := [
 	["iss", jwt_payload_iss],
 	["aud", jwt_payload_aud],
 	["jti", jwt_payload_jti],
@@ -233,6 +234,27 @@ jwt_claims := [
 	["email", jwt_payload_email],
 	["groups", jwt_payload_groups],
 ]
+
+additional_jwt_claims := [[k, v] |
+	some header_name
+	claim_key := data.jwt_claim_headers[header_name]
+
+	# exclude base_jwt_claims
+	count([1 |
+		[xk, xv] := base_jwt_claims[_]
+		xk == claim_key
+	]) == 0
+
+	# the claim value can come from session claims or user claims
+	# claim_value := object.get(session.claims, claim_key, object.get(user.claims, claim_key, null))
+	# claim_value != null
+	claim_value := object.get(session.claims, claim_key, object.get(user.claims, claim_key, null))
+
+	k := claim_key
+	v := get_header_string_value(claim_value)
+]
+
+jwt_claims := array.concat(base_jwt_claims, additional_jwt_claims)
 
 jwt_payload = {key: value |
 	# use a comprehension over an array to remove nil values
