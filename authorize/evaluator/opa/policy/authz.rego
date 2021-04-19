@@ -246,8 +246,6 @@ additional_jwt_claims := [[k, v] |
 	]) == 0
 
 	# the claim value can come from session claims or user claims
-	# claim_value := object.get(session.claims, claim_key, object.get(user.claims, claim_key, null))
-	# claim_value != null
 	claim_value := object.get(session.claims, claim_key, object.get(user.claims, claim_key, null))
 
 	k := claim_key
