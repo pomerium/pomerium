@@ -2,7 +2,6 @@ package databroker
 
 import (
 	"context"
-	"encoding/base64"
 	"sync"
 
 	"github.com/pomerium/pomerium/config"
@@ -162,7 +161,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 		return
 	}
 
-	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	sharedKey, _ := cfg.Options.GetSharedKey()
 	connectionOptions := &grpc.Options{
 		Addrs:                   urls,
 		OverrideCertificateName: cfg.Options.OverrideCertificateName,

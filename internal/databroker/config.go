@@ -2,7 +2,6 @@ package databroker
 
 import (
 	"crypto/tls"
-	"encoding/base64"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -60,15 +59,15 @@ func WithGetAllPageSize(pageSize int) ServerOption {
 	}
 }
 
-// WithSharedKey sets the secret in the config.
-func WithSharedKey(sharedKey string) ServerOption {
+// WithGetSharedKey sets the secret in the config.
+func WithGetSharedKey(getSharedKey func() ([]byte, error)) ServerOption {
 	return func(cfg *serverConfig) {
-		key, err := base64.StdEncoding.DecodeString(sharedKey)
-		if err != nil || len(key) != cryptutil.DefaultKeySize {
+		sharedKey, err := getSharedKey()
+		if err != nil {
 			log.Error().Err(err).Msgf("shared key is required and must be %d bytes long", cryptutil.DefaultKeySize)
 			return
 		}
-		cfg.secret = key
+		cfg.secret = sharedKey
 	}
 }
 

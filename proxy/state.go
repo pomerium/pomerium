@@ -44,12 +44,12 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	}
 
 	state := new(proxyState)
-	state.sharedKey, err = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	state.sharedKey, err = cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
 	}
 
-	state.sharedCipher, err = cryptutil.NewAEADCipherFromBase64(cfg.Options.SharedKey)
+	state.sharedCipher, err = cryptutil.NewAEADCipher(state.sharedKey)
 	if err != nil {
 		return nil, err
 	}

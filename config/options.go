@@ -49,6 +49,9 @@ const DefaultAlternativeAddr = ":5443"
 // EnvoyAdminURL indicates where the envoy control plane is listening
 var EnvoyAdminURL = &url.URL{Host: "127.0.0.1:9901", Scheme: "http"}
 
+// The randomSharedKey is used if no shared key is supplied in all-in-one mode.
+var randomSharedKey = cryptutil.NewBase64Key()
+
 // Options are the global environmental flags used to set up pomerium's services.
 // Use NewXXXOptions() methods for a safely initialized data structure.
 type Options struct {
@@ -512,10 +515,6 @@ func (o *Options) Validate() error {
 	}
 
 	if IsAll(o.Services) {
-		// mutual auth between services on the same host can be generated at runtime
-		if o.SharedKey == "" && o.DataBrokerStorageType == StorageInMemoryName {
-			o.SharedKey = cryptutil.NewBase64Key()
-		}
 		// in all in one mode we are running just over the local socket
 		o.GRPCInsecure = true
 		// to avoid port collision when running on localhost
@@ -541,12 +540,9 @@ func (o *Options) Validate() error {
 		return errors.New("config: unknown databroker storage backend type")
 	}
 
-	if o.SharedKey == "" {
-		return errors.New("config: shared-key cannot be empty")
-	}
-
-	if o.SharedKey != strings.TrimSpace(o.SharedKey) {
-		return errors.New("config: shared-key contains whitespace")
+	_, err := o.GetSharedKey()
+	if err != nil {
+		return fmt.Errorf("config: invalid shared-key: %w", err)
 	}
 
 	if o.AuthenticateURLString != "" {
@@ -900,6 +896,16 @@ func (o *Options) GetCertificates() ([]tls.Certificate, error) {
 		certs = append(certs, *cert)
 	}
 	return certs, nil
+}
+
+// GetSharedKey gets the decoded shared key.
+func (o *Options) GetSharedKey() ([]byte, error) {
+	sharedKey := o.SharedKey
+	// mutual auth between services on the same host can be generated at runtime
+	if IsAll(o.Services) && o.SharedKey == "" && o.DataBrokerStorageType == StorageInMemoryName {
+		sharedKey = randomSharedKey
+	}
+	return base64.StdEncoding.DecodeString(sharedKey)
 }
 
 // Checksum returns the checksum of the current options struct

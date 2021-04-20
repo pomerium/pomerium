@@ -3,7 +3,6 @@ package databroker
 
 import (
 	"context"
-	"encoding/base64"
 	"sync/atomic"
 
 	"github.com/pomerium/pomerium/config"
@@ -35,7 +34,7 @@ func (srv *dataBrokerServer) OnConfigChange(cfg *config.Config) {
 func (srv *dataBrokerServer) getOptions(cfg *config.Config) []databroker.ServerOption {
 	cert, _ := cfg.Options.GetDataBrokerCertificate()
 	return []databroker.ServerOption{
-		databroker.WithSharedKey(cfg.Options.SharedKey),
+		databroker.WithGetSharedKey(cfg.Options.GetSharedKey),
 		databroker.WithStorageType(cfg.Options.DataBrokerStorageType),
 		databroker.WithStorageConnectionString(cfg.Options.DataBrokerStorageConnectionString),
 		databroker.WithStorageCAFile(cfg.Options.DataBrokerStorageCAFile),
@@ -45,7 +44,7 @@ func (srv *dataBrokerServer) getOptions(cfg *config.Config) []databroker.ServerO
 }
 
 func (srv *dataBrokerServer) setKey(cfg *config.Config) {
-	bs, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	bs, _ := cfg.Options.GetSharedKey()
 	if bs == nil {
 		bs = make([]byte, 0)
 	}

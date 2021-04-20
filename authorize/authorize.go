@@ -61,7 +61,11 @@ func (a *Authorize) WaitForInitialSync(ctx context.Context) error {
 }
 
 func validateOptions(o *config.Options) error {
-	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
+	sharedKey, err := o.GetSharedKey()
+	if err != nil {
+		return fmt.Errorf("authorize: bad 'SHARED_SECRET': %w", err)
+	}
+	if _, err := cryptutil.NewAEADCipher(sharedKey); err != nil {
 		return fmt.Errorf("authorize: bad 'SHARED_SECRET': %w", err)
 	}
 	if _, err := o.GetAuthenticateURL(); err != nil {

@@ -33,7 +33,7 @@ func (r *Reporter) OnConfigChange(cfg *config.Config) {
 		log.Warn().Err(err).Msg("metrics announce to service registry is disabled")
 	}
 
-	sharedKey, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
 		log.Error().Err(err).Msg("decoding shared key")
 		return
