@@ -39,8 +39,8 @@ curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomeri
 
 Official packages can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page or from [Cloudsmith](https://cloudsmith.io/~pomerium/repos/pomerium/packages/).
 
-[RPM Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-rpm)
-[Deb Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-deb)
+- [RPM Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-rpm)
+- [Deb Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-deb)
 
 #### Example yum repo
 
@@ -59,10 +59,7 @@ pkg_gpgcheck=1
 
 ```bash
 curl -1sLf 'https://dl.cloudsmith.io/public/pomerium/pomerium/gpg.6E388440B94E1407.key' | apt-key add -
-```
-
-```
-deb https://dl.cloudsmith.io/public/pomerium/pomerium/deb/debian buster main
+echo "deb https://dl.cloudsmith.io/public/pomerium/pomerium/deb/debian buster main" > /etc/apt/sources.list.d/pomerium-pomerium.list
 ```
 
 ### Docker Image
