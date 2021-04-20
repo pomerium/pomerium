@@ -17,10 +17,11 @@ var (
 )
 
 func main() {
-	if err := run(context.Background()); !errors.Is(err, context.Canceled) {
+	ctx := context.Background()
+	if err := run(ctx); !errors.Is(err, context.Canceled) {
 		log.Fatal().Err(err).Msg("cmd/pomerium")
 	}
-	log.Info().Msg("cmd/pomerium: exiting")
+	log.Info(ctx).Msg("cmd/pomerium: exiting")
 }
 
 func run(ctx context.Context) error {

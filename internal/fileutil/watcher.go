@@ -1,6 +1,7 @@
 package fileutil
 
 import (
+	"context"
 	"sync"
 
 	"github.com/rjeczalik/notify"
@@ -29,6 +30,8 @@ func (watcher *Watcher) Add(filePath string) {
 	watcher.mu.Lock()
 	defer watcher.mu.Unlock()
 
+	ctx := context.TODO()
+
 	// already watching
 	if _, ok := watcher.filePaths[filePath]; ok {
 		return
@@ -37,18 +40,18 @@ func (watcher *Watcher) Add(filePath string) {
 	ch := make(chan notify.EventInfo, 1)
 	go func() {
 		for evt := range ch {
-			log.Info().Str("path", evt.Path()).Str("event", evt.Event().String()).Msg("filemgr: detected file change")
+			log.Info(ctx).Str("path", evt.Path()).Str("event", evt.Event().String()).Msg("filemgr: detected file change")
 			watcher.Signal.Broadcast()
 		}
 	}()
 	err := notify.Watch(filePath, ch, notify.All)
 	if err != nil {
-		log.Error().Err(err).Str("path", filePath).Msg("filemgr: error watching file path")
+		log.Error(ctx).Err(err).Str("path", filePath).Msg("filemgr: error watching file path")
 		notify.Stop(ch)
 		close(ch)
 		return
 	}
-	log.Debug().Str("path", filePath).Msg("filemgr: watching file for changes")
+	log.Debug(ctx).Str("path", filePath).Msg("filemgr: watching file for changes")
 
 	watcher.filePaths[filePath] = ch
 }

@@ -93,7 +93,6 @@ func getConfig(options ...Option) *config {
 // A Provider is an Okta user group directory provider.
 type Provider struct {
 	cfg         *config
-	log         zerolog.Logger
 	lastUpdated *time.Time
 	groups      map[string]*directory.Group
 }
@@ -102,13 +101,20 @@ type Provider struct {
 func New(options ...Option) *Provider {
 	return &Provider{
 		cfg:    getConfig(options...),
-		log:    log.With().Str("service", "directory").Str("provider", "okta").Logger(),
 		groups: make(map[string]*directory.Group),
 	}
 }
 
+func withLog(ctx context.Context) context.Context {
+	return log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "directory").Str("provider", "okta")
+	})
+}
+
 // User returns the user record for the given id.
 func (p *Provider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
+	ctx = withLog(ctx)
+
 	if p.cfg.serviceAccount == nil {
 		return nil, ErrServiceAccountNotDefined
 	}
@@ -139,11 +145,13 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 // UserGroups fetches the groups of which the user is a member
 // https://developer.okta.com/docs/reference/api/users/#get-user-s-groups
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
+	ctx = withLog(ctx)
+
 	if p.cfg.serviceAccount == nil {
 		return nil, nil, ErrServiceAccountNotDefined
 	}
 
-	p.log.Info().Msg("getting user groups")
+	log.Info(ctx).Msg("getting user groups")
 
 	if p.cfg.providerURL == nil {
 		return nil, nil, ErrProviderURLNotDefined
@@ -164,7 +172,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		// the cached lookup and the local groups list
 		var apiErr *APIError
 		if errors.As(err, &apiErr) && apiErr.HTTPStatusCode == http.StatusNotFound {
-			log.Debug().Str("group", group.Id).Msg("okta: group was removed")
+			log.Debug(ctx).Str("group", group.Id).Msg("okta: group was removed")
 			delete(p.groups, group.Id)
 			groups = append(groups[:i], groups[i+1:]...)
 			i--

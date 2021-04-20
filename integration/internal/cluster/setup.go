@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/google/go-jsonnet"
-	"github.com/rs/zerolog/log"
 
 	"github.com/pomerium/pomerium/integration/internal/netutil"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 var requiredDeployments = []string{
@@ -180,7 +180,7 @@ func applyManifests(ctx context.Context, jsonsrc string) error {
 		return fmt.Errorf("error applying manifests: %w", err)
 	}
 
-	log.Info().Msg("waiting for deployments to come up")
+	log.Info(ctx).Msg("waiting for deployments to come up")
 	ctx, clearTimeout := context.WithTimeout(ctx, 15*time.Minute)
 	defer clearTimeout()
 	ticker := time.NewTicker(time.Second * 5)
@@ -218,7 +218,7 @@ func applyManifests(ctx context.Context, jsonsrc string) error {
 		for _, dep := range requiredDeployments {
 			if byName[dep] < 1 {
 				done = false
-				log.Warn().Str("deployment", dep).Msg("deployment is not ready yet")
+				log.Warn(ctx).Str("deployment", dep).Msg("deployment is not ready yet")
 			}
 		}
 		if done {
@@ -233,7 +233,7 @@ func applyManifests(ctx context.Context, jsonsrc string) error {
 		<-ticker.C
 	}
 	time.Sleep(time.Minute)
-	log.Info().Msg("all deployments are ready")
+	log.Info(ctx).Msg("all deployments are ready")
 
 	return nil
 }

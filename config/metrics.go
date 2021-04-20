@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"sync"
@@ -63,7 +64,7 @@ func (mgr *MetricsManager) updateInfo(cfg *Config) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Error().Err(err).Msg("telemetry/metrics: failed to get OS hostname")
+		log.Error(context.TODO()).Err(err).Msg("telemetry/metrics: failed to get OS hostname")
 		hostname = "__unknown__"
 	}
 
@@ -84,13 +85,13 @@ func (mgr *MetricsManager) updateServer(cfg *Config) {
 	mgr.handler = nil
 
 	if mgr.addr == "" {
-		log.Info().Msg("metrics: http server disabled")
+		log.Info(context.TODO()).Msg("metrics: http server disabled")
 		return
 	}
 
 	handler, err := metrics.PrometheusHandler(EnvoyAdminURL, mgr.installationID)
 	if err != nil {
-		log.Error().Err(err).Msg("metrics: failed to create prometheus handler")
+		log.Error(context.TODO()).Err(err).Msg("metrics: failed to create prometheus handler")
 		return
 	}
 

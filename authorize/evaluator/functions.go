@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -46,7 +47,7 @@ func isValidClientCertificate(ca, cert string) (bool, error) {
 	valid := verifyErr == nil
 
 	if verifyErr != nil {
-		log.Debug().Err(verifyErr).Msg("client certificate failed verification: %w")
+		log.Debug(context.Background()).Err(verifyErr).Msg("client certificate failed verification: %w")
 	}
 
 	isValidClientCertificateCache.Add(cacheKey, valid)

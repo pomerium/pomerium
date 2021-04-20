@@ -1,6 +1,7 @@
 package cryptutil
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -14,9 +15,10 @@ import (
 
 // GetCertPool gets a cert pool for the given CA or CAFile.
 func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
+	ctx := context.TODO()
 	rootCAs, err := x509.SystemCertPool()
 	if err != nil {
-		log.Error().Err(err).Msg("pkg/cryptutil: failed getting system cert pool making new one")
+		log.Error(ctx).Err(err).Msg("pkg/cryptutil: failed getting system cert pool making new one")
 		rootCAs = x509.NewCertPool()
 	}
 	if ca == "" && caFile == "" {
@@ -38,7 +40,7 @@ func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
 	if ok := rootCAs.AppendCertsFromPEM(data); !ok {
 		return nil, fmt.Errorf("failed to append any PEM-encoded certificates")
 	}
-	log.Debug().Msg("pkg/cryptutil: added custom certificate authority")
+	log.Debug(ctx).Msg("pkg/cryptutil: added custom certificate authority")
 	return rootCAs, nil
 }
 

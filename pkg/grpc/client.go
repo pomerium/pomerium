@@ -60,6 +60,7 @@ type Options struct {
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
 func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
+	ctx := context.TODO()
 	if len(opts.Addrs) == 0 {
 		return nil, errors.New("internal/grpc: connection address required")
 	}
@@ -105,7 +106,7 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 	}
 
 	if opts.WithInsecure {
-		log.Info().Str("addr", connAddr).Msg("internal/grpc: grpc with insecure")
+		log.Info(ctx).Str("addr", connAddr).Msg("internal/grpc: grpc with insecure")
 		dialOptions = append(dialOptions, grpc.WithInsecure())
 	} else {
 		rootCAs, err := cryptutil.GetCertPool(opts.CA, opts.CAFile)
@@ -117,7 +118,7 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 
 		// override allowed certificate name string, typically used when doing behind ingress connection
 		if opts.OverrideCertificateName != "" {
-			log.Debug().Str("cert-override-name", opts.OverrideCertificateName).Msg("internal/grpc: grpc")
+			log.Debug(ctx).Str("cert-override-name", opts.OverrideCertificateName).Msg("internal/grpc: grpc")
 			err := cert.OverrideServerName(opts.OverrideCertificateName)
 			if err != nil {
 				return nil, err
@@ -169,7 +170,7 @@ func GetGRPCClientConn(name string, opts *Options) (*grpc.ClientConn, error) {
 
 		err := current.conn.Close()
 		if err != nil {
-			log.Error().Err(err).Msg("grpc: failed to close existing connection")
+			log.Error(context.TODO()).Err(err).Msg("grpc: failed to close existing connection")
 		}
 	}
 

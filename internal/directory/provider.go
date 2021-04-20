@@ -50,8 +50,9 @@ func GetProvider(options Options) (provider Provider) {
 	globalProvider.Lock()
 	defer globalProvider.Unlock()
 
+	ctx := context.TODO()
 	if globalProvider.provider != nil && cmp.Equal(globalProvider.options, options) {
-		log.Debug().Str("provider", options.Provider).Msg("directory: no change detected, reusing existing directory provider")
+		log.Debug(ctx).Str("provider", options.Provider).Msg("directory: no change detected, reusing existing directory provider")
 		return globalProvider.provider
 	}
 	defer func() {
@@ -72,7 +73,7 @@ func GetProvider(options Options) (provider Provider) {
 				auth0.WithDomain(options.ProviderURL),
 				auth0.WithServiceAccount(serviceAccount))
 		}
-		log.Warn().
+		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
 			Err(err).
@@ -82,7 +83,7 @@ func GetProvider(options Options) (provider Provider) {
 		if err == nil {
 			return azure.New(azure.WithServiceAccount(serviceAccount))
 		}
-		log.Warn().
+		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
 			Err(err).
@@ -92,7 +93,7 @@ func GetProvider(options Options) (provider Provider) {
 		if err == nil {
 			return github.New(github.WithServiceAccount(serviceAccount))
 		}
-		log.Warn().
+		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
 			Err(err).
@@ -107,7 +108,7 @@ func GetProvider(options Options) (provider Provider) {
 				gitlab.WithURL(providerURL),
 				gitlab.WithServiceAccount(serviceAccount))
 		}
-		log.Warn().
+		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
 			Err(err).
@@ -117,7 +118,7 @@ func GetProvider(options Options) (provider Provider) {
 		if err == nil {
 			return google.New(google.WithServiceAccount(serviceAccount))
 		}
-		log.Warn().
+		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
 			Err(err).
@@ -129,7 +130,7 @@ func GetProvider(options Options) (provider Provider) {
 				okta.WithProviderURL(providerURL),
 				okta.WithServiceAccount(serviceAccount))
 		}
-		log.Warn().
+		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
 			Err(err).
@@ -139,7 +140,7 @@ func GetProvider(options Options) (provider Provider) {
 		if err == nil {
 			return onelogin.New(onelogin.WithServiceAccount(serviceAccount))
 		}
-		log.Warn().
+		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
 			Err(err).
@@ -151,14 +152,14 @@ func GetProvider(options Options) (provider Provider) {
 				ping.WithProviderURL(providerURL),
 				ping.WithServiceAccount(serviceAccount))
 		}
-		log.Warn().
+		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
 			Err(err).
 			Msg("invalid service account for ping directory provider")
 	}
 
-	log.Warn().
+	log.Warn(ctx).
 		Str("provider", options.Provider).
 		Msg("no directory provider implementation found, disabling support for groups")
 	return nullProvider{}

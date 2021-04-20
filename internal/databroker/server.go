@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -35,7 +34,6 @@ const (
 // Server implements the databroker service using an in memory database.
 type Server struct {
 	cfg *serverConfig
-	log zerolog.Logger
 
 	mu      sync.RWMutex
 	version uint64
@@ -44,33 +42,31 @@ type Server struct {
 
 // New creates a new server.
 func New(options ...ServerOption) *Server {
-	srv := &Server{
-		log: log.With().Str("service", "databroker").Logger(),
-	}
+	srv := &Server{}
 	srv.UpdateConfig(options...)
 	return srv
 }
 
-func (srv *Server) initVersion() {
+func (srv *Server) initVersion(ctx context.Context) {
 	db, _, err := srv.getBackendLocked()
 	if err != nil {
-		log.Error().Err(err).Msg("failed to init server version")
+		log.Error(ctx).Err(err).Msg("failed to init server version")
 		return
 	}
 
 	// Get version from storage first.
-	r, err := db.Get(context.Background(), recordTypeServerVersion, serverVersionKey)
+	r, err := db.Get(ctx, recordTypeServerVersion, serverVersionKey)
 	switch {
 	case err == nil:
 		var sv wrapperspb.UInt64Value
 		if err := r.GetData().UnmarshalTo(&sv); err == nil {
-			srv.log.Debug().Uint64("server_version", sv.Value).Msg("got db version from Backend")
+			log.Debug(ctx).Uint64("server_version", sv.Value).Msg("got db version from Backend")
 			srv.version = sv.Value
 		}
 		return
 	case errors.Is(err, storage.ErrNotFound): // no server version, so we'll create a new one
 	case err != nil:
-		log.Error().Err(err).Msg("failed to retrieve server version")
+		log.Error(ctx).Err(err).Msg("failed to retrieve server version")
 		return
 	}
 
@@ -81,7 +77,7 @@ func (srv *Server) initVersion() {
 		Id:   serverVersionKey,
 		Data: data,
 	}); err != nil {
-		srv.log.Warn().Err(err).Msg("failed to save server version.")
+		log.Warn(ctx).Err(err).Msg("failed to save server version.")
 	}
 }
 
@@ -90,9 +86,11 @@ func (srv *Server) UpdateConfig(options ...ServerOption) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
+	ctx := context.TODO()
+
 	cfg := newServerConfig(options...)
 	if cmp.Equal(cfg, srv.cfg, cmp.AllowUnexported(serverConfig{})) {
-		log.Debug().Msg("databroker: no changes detected, re-using existing DBs")
+		log.Debug(ctx).Msg("databroker: no changes detected, re-using existing DBs")
 		return
 	}
 	srv.cfg = cfg
@@ -100,19 +98,19 @@ func (srv *Server) UpdateConfig(options ...ServerOption) {
 	if srv.backend != nil {
 		err := srv.backend.Close()
 		if err != nil {
-			log.Error().Err(err).Msg("databroker: error closing backend")
+			log.Error(ctx).Err(err).Msg("databroker: error closing backend")
 		}
 		srv.backend = nil
 	}
 
-	srv.initVersion()
+	srv.initVersion(ctx)
 }
 
 // Get gets a record from the in-memory list.
 func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
 	_, span := trace.StartSpan(ctx, "databroker.grpc.Get")
 	defer span.End()
-	srv.log.Info().
+	log.Info(ctx).
 		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
@@ -141,7 +139,7 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*databroker.QueryResponse, error) {
 	_, span := trace.StartSpan(ctx, "databroker.grpc.Query")
 	defer span.End()
-	srv.log.Info().
+	log.Info(ctx).
 		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("type", req.GetType()).
 		Str("query", req.GetQuery()).
@@ -185,7 +183,7 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 	defer span.End()
 	record := req.GetRecord()
 
-	srv.log.Info().
+	log.Info(ctx).
 		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("type", record.GetType()).
 		Str("id", record.GetId()).
@@ -208,7 +206,7 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBrokerService_SyncServer) error {
 	_, span := trace.StartSpan(stream.Context(), "databroker.grpc.Sync")
 	defer span.End()
-	srv.log.Info().
+	log.Info(stream.Context()).
 		Str("peer", grpcutil.GetPeerAddr(stream.Context())).
 		Uint64("server_version", req.GetServerVersion()).
 		Uint64("record_version", req.GetRecordVersion()).
@@ -251,7 +249,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databroker.DataBrokerService_SyncLatestServer) error {
 	_, span := trace.StartSpan(stream.Context(), "databroker.grpc.SyncLatest")
 	defer span.End()
-	srv.log.Info().
+	log.Info(stream.Context()).
 		Str("peer", grpcutil.GetPeerAddr(stream.Context())).
 		Str("type", req.GetType()).
 		Msg("sync latest")
@@ -333,9 +331,10 @@ func (srv *Server) getBackendLocked() (backend storage.Backend, version uint64, 
 }
 
 func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
+	ctx := context.Background()
 	caCertPool, err := cryptutil.GetCertPool("", srv.cfg.storageCAFile)
 	if err != nil {
-		log.Warn().Err(err).Msg("failed to read databroker CA file")
+		log.Warn(ctx).Err(err).Msg("failed to read databroker CA file")
 	}
 	tlsConfig := &tls.Config{
 		RootCAs: caCertPool,
@@ -348,10 +347,10 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 
 	switch srv.cfg.storageType {
 	case config.StorageInMemoryName:
-		srv.log.Info().Msg("using in-memory store")
+		log.Info(ctx).Msg("using in-memory store")
 		return inmemory.New(), nil
 	case config.StorageRedisName:
-		srv.log.Info().Msg("using redis store")
+		log.Info(ctx).Msg("using redis store")
 		backend, err = redis.New(
 			srv.cfg.storageConnectionString,
 			redis.WithTLSConfig(tlsConfig),

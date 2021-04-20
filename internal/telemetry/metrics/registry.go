@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"runtime"
 	"sync"
 
@@ -34,6 +35,7 @@ func newMetricRegistry() *metricRegistry {
 }
 
 func (r *metricRegistry) init() {
+	ctx := context.TODO()
 	r.Do(
 		func() {
 			r.registry = metric.NewRegistry()
@@ -49,7 +51,7 @@ func (r *metricRegistry) init() {
 				),
 			)
 			if err != nil {
-				log.Error().Err(err).Msg("telemetry/metrics: failed to register build info metric")
+				log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to register build info metric")
 			}
 
 			r.configChecksum, err = r.registry.AddFloat64Gauge(metrics.ConfigChecksumDecimal,
@@ -57,7 +59,7 @@ func (r *metricRegistry) init() {
 				metric.WithLabelKeys(metrics.ServiceLabel, metrics.ConfigLabel),
 			)
 			if err != nil {
-				log.Error().Err(err).Msg("telemetry/metrics: failed to register config checksum metric")
+				log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to register config checksum metric")
 			}
 
 			r.policyCount, err = r.registry.AddInt64DerivedGauge(metrics.PolicyCountTotal,
@@ -65,12 +67,12 @@ func (r *metricRegistry) init() {
 				metric.WithLabelKeys(metrics.ServiceLabel),
 			)
 			if err != nil {
-				log.Error().Err(err).Msg("telemetry/metrics: failed to register policy count metric")
+				log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to register policy count metric")
 			}
 
 			err = registerAutocertMetrics(r.registry)
 			if err != nil {
-				log.Error().Err(err).Msg("telemetry/metrics: failed to register autocert metrics")
+				log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to register autocert metrics")
 			}
 		})
 }
@@ -89,7 +91,7 @@ func (r *metricRegistry) setBuildInfo(service, hostname string) {
 		metricdata.NewLabelValue(hostname),
 	)
 	if err != nil {
-		log.Error().Err(err).Msg("telemetry/metrics: failed to get build info metric")
+		log.Error(context.TODO()).Err(err).Msg("telemetry/metrics: failed to get build info metric")
 	}
 
 	// This sets our build_info metric to a constant 1 per
@@ -103,7 +105,7 @@ func (r *metricRegistry) addPolicyCountCallback(service string, f func() int64) 
 	}
 	err := r.policyCount.UpsertEntry(f, metricdata.NewLabelValue(service))
 	if err != nil {
-		log.Error().Err(err).Msg("telemetry/metrics: failed to get policy count metric")
+		log.Error(context.TODO()).Err(err).Msg("telemetry/metrics: failed to get policy count metric")
 	}
 }
 
@@ -113,7 +115,7 @@ func (r *metricRegistry) setConfigChecksum(service string, configName string, ch
 	}
 	m, err := r.configChecksum.GetEntry(metricdata.NewLabelValue(service), metricdata.NewLabelValue(configName))
 	if err != nil {
-		log.Error().Err(err).Msg("telemetry/metrics: failed to get config checksum metric")
+		log.Error(context.TODO()).Err(err).Msg("telemetry/metrics: failed to get config checksum metric")
 	}
 	m.Set(float64(checksum))
 }
@@ -122,13 +124,13 @@ func (r *metricRegistry) addInt64DerivedGaugeMetric(name, desc, service string, 
 	m, err := r.registry.AddInt64DerivedGauge(name, metric.WithDescription(desc),
 		metric.WithLabelKeys(metrics.ServiceLabel))
 	if err != nil {
-		log.Error().Err(err).Str("service", service).Msg("telemetry/metrics: failed to register metric")
+		log.Error(context.TODO()).Err(err).Str("service", service).Msg("telemetry/metrics: failed to register metric")
 		return
 	}
 
 	err = m.UpsertEntry(f, metricdata.NewLabelValue(service))
 	if err != nil {
-		log.Error().Err(err).Str("service", service).Msg("telemetry/metrics: failed to update metric")
+		log.Error(context.TODO()).Err(err).Str("service", service).Msg("telemetry/metrics: failed to update metric")
 		return
 	}
 }
@@ -137,13 +139,13 @@ func (r *metricRegistry) addInt64DerivedCumulativeMetric(name, desc, service str
 	m, err := r.registry.AddInt64DerivedCumulative(name, metric.WithDescription(desc),
 		metric.WithLabelKeys(metrics.ServiceLabel))
 	if err != nil {
-		log.Error().Err(err).Str("service", service).Msg("telemetry/metrics: failed to register metric")
+		log.Error(context.TODO()).Err(err).Str("service", service).Msg("telemetry/metrics: failed to register metric")
 		return
 	}
 
 	err = m.UpsertEntry(f, metricdata.NewLabelValue(service))
 	if err != nil {
-		log.Error().Err(err).Str("service", service).Msg("telemetry/metrics: failed to update metric")
+		log.Error(context.TODO()).Err(err).Str("service", service).Msg("telemetry/metrics: failed to update metric")
 		return
 	}
 }

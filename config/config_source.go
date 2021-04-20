@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"crypto/sha256"
 	"io/ioutil"
 	"sync"
@@ -101,7 +102,7 @@ func NewFileOrEnvironmentSource(configFile string) (*FileOrEnvironmentSource, er
 	}
 
 	cfg := &Config{Options: options}
-	metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), true)
+	metrics.SetConfigInfo(context.TODO(), cfg.Options.Services, "local", cfg.Checksum(), true)
 
 	src := &FileOrEnvironmentSource{
 		configFile: configFile,
@@ -114,15 +115,16 @@ func NewFileOrEnvironmentSource(configFile string) (*FileOrEnvironmentSource, er
 }
 
 func (src *FileOrEnvironmentSource) onConfigChange(evt fsnotify.Event) {
+	ctx := context.TODO()
 	src.mu.Lock()
 	cfg := src.config
 	options, err := newOptionsFromConfig(src.configFile)
 	if err == nil {
 		cfg = &Config{Options: options}
-		metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), true)
+		metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 	} else {
-		log.Error().Err(err).Msg("config: error updating config")
-		metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), false)
+		log.Error(ctx).Err(err).Msg("config: error updating config")
+		metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), false)
 	}
 	src.mu.Unlock()
 

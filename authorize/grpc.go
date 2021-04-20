@@ -46,19 +46,19 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	u, err := a.forceSync(ctx, sessionState)
 	if err != nil {
-		log.Warn().Err(err).Msg("clearing session due to force sync failed")
+		log.Warn(ctx).Err(err).Msg("clearing session due to force sync failed")
 		sessionState = nil
 	}
 
 	req, err := a.getEvaluatorRequestFromCheckRequest(in, sessionState)
 	if err != nil {
-		log.Warn().Err(err).Msg("error building evaluator request")
+		log.Warn(ctx).Err(err).Msg("error building evaluator request")
 		return nil, err
 	}
 
 	reply, err := state.evaluator.Evaluate(ctx, req)
 	if err != nil {
-		log.Error().Err(err).Msg("error during OPA evaluation")
+		log.Error(ctx).Err(err).Msg("error during OPA evaluation")
 		return nil, err
 	}
 	defer func() {

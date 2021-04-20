@@ -3,6 +3,7 @@
 package authenticate
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"html/template"
@@ -77,18 +78,19 @@ func New(cfg *config.Config) (*Authenticate, error) {
 
 // OnConfigChange updates internal structures based on config.Options
 func (a *Authenticate) OnConfigChange(cfg *config.Config) {
+	ctx := context.TODO()
 	if a == nil {
 		return
 	}
 
 	a.options.Store(cfg.Options)
 	if state, err := newAuthenticateStateFromConfig(cfg); err != nil {
-		log.Error().Err(err).Msg("authenticate: failed to update state")
+		log.Error(ctx).Err(err).Msg("authenticate: failed to update state")
 	} else {
 		a.state.Store(state)
 	}
 	if err := a.updateProvider(cfg); err != nil {
-		log.Error().Err(err).Msg("authenticate: failed to update identity provider")
+		log.Error(ctx).Err(err).Msg("authenticate: failed to update identity provider")
 	}
 }
 

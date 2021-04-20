@@ -69,19 +69,25 @@ func getConfig(options ...Option) *config {
 // The Provider retrieves users and groups from gitlab.
 type Provider struct {
 	cfg *config
-	log zerolog.Logger
 }
 
 // New creates a new Provider.
 func New(options ...Option) *Provider {
 	return &Provider{
 		cfg: getConfig(options...),
-		log: log.With().Str("service", "directory").Str("provider", "gitlab").Logger(),
 	}
+}
+
+func withLog(ctx context.Context) context.Context {
+	return log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "directory").Str("provider", "gitlab")
+	})
 }
 
 // User returns the user record for the given id.
 func (p *Provider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
+	ctx = withLog(ctx)
+
 	du := &directory.User{
 		Id: userID,
 	}
@@ -107,11 +113,13 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 
 // UserGroups gets the directory user groups for gitlab.
 func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
+	ctx = withLog(ctx)
+
 	if p.cfg.serviceAccount == nil {
 		return nil, nil, fmt.Errorf("gitlab: service account not defined")
 	}
 
-	p.log.Info().Msg("getting user groups")
+	log.Info(ctx).Msg("getting user groups")
 
 	groups, err := p.listGroups(ctx, "")
 	if err != nil {

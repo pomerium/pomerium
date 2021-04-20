@@ -81,7 +81,7 @@ func (stream *recordStream) Next(block bool) bool {
 			var record databroker.Record
 			err = proto.Unmarshal([]byte(result), &record)
 			if err != nil {
-				log.Warn().Err(err).Msg("redis: invalid record detected")
+				log.Warn(stream.ctx).Err(err).Msg("redis: invalid record detected")
 			} else {
 				stream.record = &record
 			}

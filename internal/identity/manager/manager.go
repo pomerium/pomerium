@@ -47,7 +47,6 @@ type (
 // A Manager refreshes identity information using session and user data.
 type Manager struct {
 	cfg *atomicConfig
-	log zerolog.Logger
 
 	sessionScheduler *scheduler.Scheduler
 	userScheduler    *scheduler.Scheduler
@@ -68,7 +67,6 @@ func New(
 ) *Manager {
 	mgr := &Manager{
 		cfg: newAtomicConfig(newConfig()),
-		log: log.With().Str("service", "identity_manager").Logger(),
 
 		sessionScheduler: scheduler.New(),
 		userScheduler:    scheduler.New(),
@@ -79,6 +77,12 @@ func New(
 	return mgr
 }
 
+func withLog(ctx context.Context) context.Context {
+	return log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "identity_manager")
+	})
+}
+
 // UpdateConfig updates the manager with the new options.
 func (mgr *Manager) UpdateConfig(options ...Option) {
 	mgr.cfg.Store(newConfig(options...))
@@ -86,10 +90,11 @@ func (mgr *Manager) UpdateConfig(options ...Option) {
 
 // Run runs the manager. This method blocks until an error occurs or the given context is canceled.
 func (mgr *Manager) Run(ctx context.Context) error {
+	ctx = withLog(ctx)
 	update := make(chan updateRecordsMessage, 1)
 	clear := make(chan struct{}, 1)
 
-	syncer := newDataBrokerSyncer(mgr.cfg, mgr.log, update, clear)
+	syncer := newDataBrokerSyncer(ctx, mgr.cfg, update, clear)
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
@@ -119,7 +124,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 		mgr.onUpdateRecords(ctx, msg)
 	}
 
-	mgr.log.Info().
+	log.Info(ctx).
 		Int("directory_groups", len(mgr.directoryGroups)).
 		Int("directory_users", len(mgr.directoryUsers)).
 		Int("sessions", mgr.sessions.Len()).
@@ -196,7 +201,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 }
 
 func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) {
-	mgr.log.Info().Msg("refreshing directory users")
+	log.Info(ctx).Msg("refreshing directory users")
 
 	ctx, clearTimeout := context.WithTimeout(ctx, mgr.cfg.Load().groupRefreshTimeout)
 	defer clearTimeout()
@@ -208,7 +213,7 @@ func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) {
 			msg += ". You may need to increase the identity provider directory timeout setting"
 			msg += "(https://www.pomerium.io/reference/#identity-provider-refresh-directory-settings)"
 		}
-		mgr.log.Warn().Err(err).Msg(msg)
+		log.Warn(ctx).Err(err).Msg(msg)
 		return
 	}
 
@@ -232,7 +237,7 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 			id := newDG.GetId()
 			any, err := anypb.New(newDG)
 			if err != nil {
-				mgr.log.Warn().Err(err).Msg("failed to marshal directory group")
+				log.Warn(ctx).Err(err).Msg("failed to marshal directory group")
 				return
 			}
 			eg.Go(func() error {
@@ -262,7 +267,7 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 			id := curDG.GetId()
 			any, err := anypb.New(curDG)
 			if err != nil {
-				mgr.log.Warn().Err(err).Msg("failed to marshal directory group")
+				log.Warn(ctx).Err(err).Msg("failed to marshal directory group")
 				return
 			}
 			eg.Go(func() error {
@@ -287,7 +292,7 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 	}
 
 	if err := eg.Wait(); err != nil {
-		mgr.log.Warn().Err(err).Msg("manager: failed to merge groups")
+		log.Warn(ctx).Err(err).Msg("manager: failed to merge groups")
 	}
 }
 
@@ -305,7 +310,7 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 			id := newDU.GetId()
 			any, err := anypb.New(newDU)
 			if err != nil {
-				mgr.log.Warn().Err(err).Msg("failed to marshal directory user")
+				log.Warn(ctx).Err(err).Msg("failed to marshal directory user")
 				return
 			}
 			eg.Go(func() error {
@@ -335,7 +340,7 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 			id := curDU.GetId()
 			any, err := anypb.New(curDU)
 			if err != nil {
-				mgr.log.Warn().Err(err).Msg("failed to marshal directory user")
+				log.Warn(ctx).Err(err).Msg("failed to marshal directory user")
 				return
 			}
 			eg.Go(func() error {
@@ -361,19 +366,19 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 	}
 
 	if err := eg.Wait(); err != nil {
-		mgr.log.Warn().Err(err).Msg("manager: failed to merge users")
+		log.Warn(ctx).Err(err).Msg("manager: failed to merge users")
 	}
 }
 
 func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string) {
-	mgr.log.Info().
+	log.Info(ctx).
 		Str("user_id", userID).
 		Str("session_id", sessionID).
 		Msg("refreshing session")
 
 	s, ok := mgr.sessions.Get(userID, sessionID)
 	if !ok {
-		mgr.log.Warn().
+		log.Warn(ctx).
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("no session found for refresh")
@@ -382,7 +387,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 
 	expiry := s.GetExpiresAt().AsTime()
 	if !expiry.After(time.Now()) {
-		mgr.log.Info().
+		log.Info(ctx).
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("deleting expired session")
@@ -391,7 +396,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 	}
 
 	if s.Session == nil || s.Session.OauthToken == nil {
-		mgr.log.Warn().
+		log.Warn(ctx).
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("no session oauth2 token found for refresh")
@@ -400,13 +405,13 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 
 	newToken, err := mgr.cfg.Load().authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), &s)
 	if isTemporaryError(err) {
-		mgr.log.Error().Err(err).
+		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to refresh oauth2 token")
 		return
 	} else if err != nil {
-		mgr.log.Error().Err(err).
+		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to refresh oauth2 token, deleting session")
@@ -417,13 +422,13 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 
 	err = mgr.cfg.Load().authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &s)
 	if isTemporaryError(err) {
-		mgr.log.Error().Err(err).
+		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to update user info")
 		return
 	} else if err != nil {
-		mgr.log.Error().Err(err).
+		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to update user info, deleting session")
@@ -433,7 +438,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 
 	res, err := session.Put(ctx, mgr.cfg.Load().dataBrokerClient, s.Session)
 	if err != nil {
-		mgr.log.Error().Err(err).
+		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to update session")
@@ -444,13 +449,13 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 }
 
 func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
-	mgr.log.Info().
+	log.Info(ctx).
 		Str("user_id", userID).
 		Msg("refreshing user")
 
 	u, ok := mgr.users.Get(userID)
 	if !ok {
-		mgr.log.Warn().
+		log.Warn(ctx).
 			Str("user_id", userID).
 			Msg("no user found for refresh")
 		return
@@ -460,7 +465,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 
 	for _, s := range mgr.sessions.GetSessionsForUser(userID) {
 		if s.Session == nil || s.Session.OauthToken == nil {
-			mgr.log.Warn().
+			log.Warn(ctx).
 				Str("user_id", userID).
 				Msg("no session oauth2 token found for refresh")
 			continue
@@ -468,13 +473,13 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 
 		err := mgr.cfg.Load().authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &u)
 		if isTemporaryError(err) {
-			mgr.log.Error().Err(err).
+			log.Error(ctx).Err(err).
 				Str("user_id", s.GetUserId()).
 				Str("session_id", s.GetId()).
 				Msg("failed to update user info")
 			return
 		} else if err != nil {
-			mgr.log.Error().Err(err).
+			log.Error(ctx).Err(err).
 				Str("user_id", s.GetUserId()).
 				Str("session_id", s.GetId()).
 				Msg("failed to update user info, deleting session")
@@ -484,7 +489,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 
 		record, err := user.Put(ctx, mgr.cfg.Load().dataBrokerClient, u.User)
 		if err != nil {
-			mgr.log.Error().Err(err).
+			log.Error(ctx).Err(err).
 				Str("user_id", s.GetUserId()).
 				Str("session_id", s.GetId()).
 				Msg("failed to update user")
@@ -502,7 +507,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 			var pbDirectoryGroup directory.Group
 			err := record.GetData().UnmarshalTo(&pbDirectoryGroup)
 			if err != nil {
-				mgr.log.Warn().Msgf("error unmarshaling directory group: %s", err)
+				log.Warn(ctx).Msgf("error unmarshaling directory group: %s", err)
 				continue
 			}
 			mgr.onUpdateDirectoryGroup(ctx, &pbDirectoryGroup)
@@ -510,7 +515,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 			var pbDirectoryUser directory.User
 			err := record.GetData().UnmarshalTo(&pbDirectoryUser)
 			if err != nil {
-				mgr.log.Warn().Msgf("error unmarshaling directory user: %s", err)
+				log.Warn(ctx).Msgf("error unmarshaling directory user: %s", err)
 				continue
 			}
 			mgr.onUpdateDirectoryUser(ctx, &pbDirectoryUser)
@@ -518,7 +523,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 			var pbSession session.Session
 			err := record.GetData().UnmarshalTo(&pbSession)
 			if err != nil {
-				mgr.log.Warn().Msgf("error unmarshaling session: %s", err)
+				log.Warn(ctx).Msgf("error unmarshaling session: %s", err)
 				continue
 			}
 			mgr.onUpdateSession(ctx, record, &pbSession)
@@ -526,7 +531,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 			var pbUser user.User
 			err := record.GetData().UnmarshalTo(&pbUser)
 			if err != nil {
-				mgr.log.Warn().Msgf("error unmarshaling user: %s", err)
+				log.Warn(ctx).Msgf("error unmarshaling user: %s", err)
 				continue
 			}
 		}
@@ -578,7 +583,7 @@ func (mgr *Manager) onUpdateDirectoryGroup(_ context.Context, pbDirectoryGroup *
 func (mgr *Manager) deleteSession(ctx context.Context, pbSession *session.Session) {
 	err := session.Delete(ctx, mgr.cfg.Load().dataBrokerClient, pbSession.GetId())
 	if err != nil {
-		mgr.log.Error().Err(err).
+		log.Error(ctx).Err(err).
 			Str("session_id", pbSession.GetId()).
 			Msg("failed to delete session")
 	}

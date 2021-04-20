@@ -51,6 +51,6 @@ type loggingRoundTripper struct {
 
 func (rt *loggingRoundTripper) RoundTrip(req *http.Request) (res *http.Response, err error) {
 	res, err = rt.RoundTripper.RoundTrip(req)
-	log.Debug().Str("method", req.Method).Str("url", req.URL.String()).Msg("http request")
+	log.Debug(req.Context()).Str("method", req.Method).Str("url", req.URL.String()).Msg("http request")
 	return res, err
 }

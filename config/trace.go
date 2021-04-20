@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sync"
@@ -83,14 +84,16 @@ func (mgr *TraceManager) OnConfigChange(cfg *Config) {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
+	ctx := context.TODO()
+
 	traceOpts, err := NewTracingOptions(cfg.Options)
 	if err != nil {
-		log.Error().Err(err).Msg("trace: failed to build tracing options")
+		log.Error(ctx).Err(err).Msg("trace: failed to build tracing options")
 		return
 	}
 
 	if reflect.DeepEqual(traceOpts, mgr.traceOpts) {
-		log.Debug().Msg("no change detected in trace options")
+		log.Debug(ctx).Msg("no change detected in trace options")
 		return
 	}
 	mgr.traceOpts = traceOpts
@@ -104,11 +107,11 @@ func (mgr *TraceManager) OnConfigChange(cfg *Config) {
 		return
 	}
 
-	log.Info().Interface("options", traceOpts).Msg("trace: starting exporter")
+	log.Info(ctx).Interface("options", traceOpts).Msg("trace: starting exporter")
 
 	mgr.exporter, err = trace.RegisterTracing(traceOpts)
 	if err != nil {
-		log.Error().Err(err).Msg("trace: failed to register exporter")
+		log.Error(ctx).Err(err).Msg("trace: failed to register exporter")
 		return
 	}
 }

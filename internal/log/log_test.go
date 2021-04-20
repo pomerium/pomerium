@@ -1,6 +1,7 @@
 package log_test
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"time"
@@ -153,4 +154,26 @@ func ExampleSetLevel() {
 	// {"level":"warn","time":1199811905,"message":"Debug or Info or Warn"}
 	// {"level":"error","time":1199811905,"message":"Debug or Info or Warn or Error"}
 	// {"level":"debug","time":1199811905,"message":"Debug"}
+}
+
+func ExampleContext() {
+	setup()
+
+	bg := context.Background()
+	ctx1 := log.WithContext(bg, func(c zerolog.Context) zerolog.Context {
+		return c.Str("ctx", "one")
+	})
+	ctx2 := log.WithContext(bg, func(c zerolog.Context) zerolog.Context {
+		return c.Str("ctx", "two")
+	})
+
+	log.WarnContext(ctx1).Str("param", "first").Msg("first")
+	log.WarnContext(ctx2).Str("param", "second").Msg("second")
+	log.WarnContext(bg).Str("param", "third").Msg("third")
+
+	/*
+		{"level":"warn","ctx":"one","param":"first","time":1199811905,"message":"first"}
+		{"level":"warn","ctx":"two","param":"second","time":1199811905,"message":"second"}
+		{"level":"warn","param":"third","time":1199811905,"message":"third"}
+	*/
 }

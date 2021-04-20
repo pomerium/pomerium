@@ -15,7 +15,7 @@ type logger struct {
 }
 
 func (l logger) Printf(ctx context.Context, format string, v ...interface{}) {
-	log.Info().Str("service", "redis").Msgf(format, v...)
+	log.Info(ctx).Str("service", "redis").Msgf(format, v...)
 }
 
 func init() {

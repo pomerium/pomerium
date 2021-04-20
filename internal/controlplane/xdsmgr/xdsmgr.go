@@ -2,6 +2,7 @@
 package xdsmgr
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"sync"
@@ -109,7 +110,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 		case req.GetErrorDetail() != nil:
 			// a NACK
 			bs, _ := json.Marshal(req.ErrorDetail.Details)
-			log.Error().
+			log.Error(context.TODO()).
 				Err(errors.New(req.ErrorDetail.Message)).
 				Int32("code", req.ErrorDetail.Code).
 				RawJSON("details", bs).Msg("error applying configuration")

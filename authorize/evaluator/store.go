@@ -156,11 +156,12 @@ func (s *Store) UpdateSigningKey(signingKey *jose.JSONWebKey) {
 }
 
 func (s *Store) write(rawPath string, value interface{}) {
-	err := storage.Txn(context.Background(), s.Store, storage.WriteParams, func(txn storage.Transaction) error {
+	ctx := context.TODO()
+	err := storage.Txn(ctx, s.Store, storage.WriteParams, func(txn storage.Transaction) error {
 		return s.writeTxn(txn, rawPath, value)
 	})
 	if err != nil {
-		log.Error().Err(err).Msg("opa-store: error writing data")
+		log.Error(ctx).Err(err).Msg("opa-store: error writing data")
 		return
 	}
 }

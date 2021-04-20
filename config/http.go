@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
 	"sync/atomic"
@@ -40,7 +41,7 @@ func (t *httpTransport) update(options *Options) {
 				MinVersion: tls.VersionTLS12,
 			}
 		} else {
-			log.Error().Err(err).Msg("config: error getting cert pool")
+			log.Error(context.TODO()).Err(err).Msg("config: error getting cert pool")
 		}
 	}
 	t.transport.Store(nt)
@@ -78,7 +79,7 @@ func NewPolicyHTTPTransport(options *Options, policy *Policy) http.RoundTripper 
 			tlsClientConfig.MinVersion = tls.VersionTLS12
 			isCustomClientConfig = true
 		} else {
-			log.Error().Err(err).Msg("config: error getting ca cert pool")
+			log.Error(context.TODO()).Err(err).Msg("config: error getting ca cert pool")
 		}
 	}
 
@@ -89,7 +90,7 @@ func NewPolicyHTTPTransport(options *Options, policy *Policy) http.RoundTripper 
 			tlsClientConfig.MinVersion = tls.VersionTLS12
 			isCustomClientConfig = true
 		} else {
-			log.Error().Err(err).Msg("config: error getting custom ca cert pool")
+			log.Error(context.TODO()).Err(err).Msg("config: error getting custom ca cert pool")
 		}
 	}
 

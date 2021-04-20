@@ -107,7 +107,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 func (c *DataBroker) OnConfigChange(cfg *config.Config) {
 	err := c.update(cfg)
 	if err != nil {
-		log.Error().Err(err).Msg("databroker: error updating configuration")
+		log.Error(context.TODO()).Err(err).Msg("databroker: error updating configuration")
 	}
 
 	c.dataBrokerServer.OnConfigChange(cfg)

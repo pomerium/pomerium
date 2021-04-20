@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net"
@@ -154,13 +155,13 @@ func (b *Builder) buildInternalTransportSocket(options *config.Options, endpoint
 	} else if options.CA != "" {
 		bs, err := base64.StdEncoding.DecodeString(options.CA)
 		if err != nil {
-			log.Error().Err(err).Msg("invalid custom CA certificate")
+			log.Error(context.TODO()).Err(err).Msg("invalid custom CA certificate")
 		}
 		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
 	} else {
 		rootCA, err := getRootCertificateAuthority()
 		if err != nil {
-			log.Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
+			log.Error(context.TODO()).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 		} else {
 			validationContext.TrustedCa = b.filemgr.FileDataSource(rootCA)
 		}
@@ -216,7 +217,7 @@ func (b *Builder) buildPolicyTransportSocket(policy *config.Policy, dst url.URL)
 	}
 	if policy.ClientCertificate != nil {
 		tlsContext.CommonTlsContext.TlsCertificates = append(tlsContext.CommonTlsContext.TlsCertificates,
-			b.envoyTLSCertificateFromGoTLSCertificate(policy.ClientCertificate))
+			b.envoyTLSCertificateFromGoTLSCertificate(context.TODO(), policy.ClientCertificate))
 	}
 
 	tlsConfig := marshalAny(tlsContext)
@@ -247,13 +248,13 @@ func (b *Builder) buildPolicyValidationContext(
 	} else if policy.TLSCustomCA != "" {
 		bs, err := base64.StdEncoding.DecodeString(policy.TLSCustomCA)
 		if err != nil {
-			log.Error().Err(err).Msg("invalid custom CA certificate")
+			log.Error(context.TODO()).Err(err).Msg("invalid custom CA certificate")
 		}
 		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
 	} else {
 		rootCA, err := getRootCertificateAuthority()
 		if err != nil {
-			log.Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
+			log.Error(context.TODO()).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 		} else {
 			validationContext.TrustedCa = b.filemgr.FileDataSource(rootCA)
 		}

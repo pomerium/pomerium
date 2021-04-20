@@ -123,7 +123,7 @@ func (srv *Server) Run(ctx context.Context) error {
 
 	// start the gRPC server
 	eg.Go(func() error {
-		log.Info().Str("addr", srv.GRPCListener.Addr().String()).Msg("starting control-plane gRPC server")
+		log.Info(ctx).Str("addr", srv.GRPCListener.Addr().String()).Msg("starting control-plane gRPC server")
 		return srv.GRPCServer.Serve(srv.GRPCListener)
 	})
 
@@ -160,7 +160,7 @@ func (srv *Server) Run(ctx context.Context) error {
 
 	// start the HTTP server
 	eg.Go(func() error {
-		log.Info().Str("addr", srv.HTTPListener.Addr().String()).Msg("starting control-plane HTTP server")
+		log.Info(ctx).Str("addr", srv.HTTPListener.Addr().String()).Msg("starting control-plane HTTP server")
 		return hsrv.Serve(srv.HTTPListener)
 	})
 

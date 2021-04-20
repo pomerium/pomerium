@@ -275,7 +275,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 		endSessionURL.RawQuery = params.Encode()
 		redirectString = endSessionURL.String()
 	} else if !errors.Is(err, oidc.ErrSignoutNotImplemented) {
-		log.Warn().Err(err).Msg("authenticate.SignOut: failed getting session")
+		log.Warn(r.Context()).Err(err).Msg("authenticate.SignOut: failed getting session")
 	}
 	if redirectString != "" {
 		httputil.Redirect(w, r, redirectString, http.StatusFound)
@@ -558,7 +558,7 @@ func (a *Authenticate) saveSessionToDataBroker(
 		AccessToken: accessToken.AccessToken,
 	})
 	if err != nil {
-		log.Error().Err(err).Msg("directory: failed to refresh user data")
+		log.Error(ctx).Err(err).Msg("directory: failed to refresh user data")
 	}
 
 	return nil

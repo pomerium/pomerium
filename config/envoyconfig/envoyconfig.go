@@ -3,6 +3,7 @@ package envoyconfig
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -132,7 +133,7 @@ func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Addres
 	}
 }
 
-func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(cert *tls.Certificate) *envoy_extensions_transport_sockets_tls_v3.TlsCertificate {
+func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(ctx context.Context, cert *tls.Certificate) *envoy_extensions_transport_sockets_tls_v3.TlsCertificate {
 	envoyCert := &envoy_extensions_transport_sockets_tls_v3.TlsCertificate{}
 	var chain bytes.Buffer
 	for _, cbs := range cert.Certificate {
@@ -153,7 +154,7 @@ func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(cert *tls.Certificate)
 			},
 		))
 	} else {
-		log.Warn().Err(err).Msg("failed to marshal private key for tls config")
+		log.Warn(ctx).Err(err).Msg("failed to marshal private key for tls config")
 	}
 	for _, scts := range cert.SignedCertificateTimestamps {
 		envoyCert.SignedCertificateTimestamp = append(envoyCert.SignedCertificateTimestamp,
@@ -185,10 +186,10 @@ func getRootCertificateAuthority() (string, error) {
 			}
 		}
 		if rootCABundle.value == "" {
-			log.Error().Strs("known-locations", knownRootLocations).
+			log.Error(context.TODO()).Strs("known-locations", knownRootLocations).
 				Msgf("no root certificates were found in any of the known locations")
 		} else {
-			log.Info().Msgf("using %s as the system root certificate authority bundle", rootCABundle.value)
+			log.Info(context.TODO()).Msgf("using %s as the system root certificate authority bundle", rootCABundle.value)
 		}
 	})
 	if rootCABundle.value == "" {

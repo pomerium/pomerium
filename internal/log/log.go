@@ -88,35 +88,55 @@ func With() zerolog.Context {
 }
 
 // Level creates a child logger with the minimum accepted level set to level.
-func Level(level zerolog.Level) zerolog.Logger {
-	return Logger().Level(level)
+func Level(ctx context.Context, level zerolog.Level) *zerolog.Logger {
+	l := contextLogger(ctx).Level(level)
+	return &l
 }
 
 // Debug starts a new message with debug level.
 //
 // You must call Msg on the returned event in order to send the event.
-func Debug() *zerolog.Event {
-	return Logger().Debug()
+func Debug(ctx context.Context) *zerolog.Event {
+	return contextLogger(ctx).Debug()
 }
 
 // Info starts a new message with info level.
 //
 // You must call Msg on the returned event in order to send the event.
-func Info() *zerolog.Event {
-	return Logger().Info()
+func Info(ctx context.Context) *zerolog.Event {
+	return contextLogger(ctx).Info()
 }
 
 // Warn starts a new message with warn level.
 //
 // You must call Msg on the returned event in order to send the event.
-func Warn() *zerolog.Event {
-	return Logger().Warn()
+func Warn(ctx context.Context) *zerolog.Event {
+	return contextLogger(ctx).Warn()
+}
+
+func contextLogger(ctx context.Context) *zerolog.Logger {
+	global := Logger()
+	if global.GetLevel() == zerolog.Disabled {
+		return global
+	}
+	l := zerolog.Ctx(ctx)
+	if l.GetLevel() == zerolog.Disabled { // no logger associated with context
+		return global
+	}
+	return l
+}
+
+// WithContext returns a context that has an associated logger and extra fields set via update
+func WithContext(ctx context.Context, update func(c zerolog.Context) zerolog.Context) context.Context {
+	l := Logger().With().Logger()
+	l.UpdateContext(update)
+	return l.WithContext(ctx)
 }
 
 // Error starts a new message with error level.
 //
 // You must call Msg on the returned event in order to send the event.
-func Error() *zerolog.Event {
+func Error(ctx context.Context) *zerolog.Event {
 	return Logger().Error()
 }
 
@@ -136,18 +156,11 @@ func Panic() *zerolog.Event {
 	return Logger().Panic()
 }
 
-// WithLevel starts a new message with level.
-//
-// You must call Msg on the returned event in order to send the event.
-func WithLevel(level zerolog.Level) *zerolog.Event {
-	return Logger().WithLevel(level)
-}
-
 // Log starts a new message with no level. Setting zerolog.GlobalLevel to
 // zerolog.Disabled will still disable events produced by this method.
 //
 // You must call Msg on the returned event in order to send the event.
-func Log() *zerolog.Event {
+func Log(ctx context.Context) *zerolog.Event {
 	return Logger().Log()
 }
 

@@ -24,24 +24,25 @@ type Reporter struct {
 
 // OnConfigChange applies configuration changes to the reporter
 func (r *Reporter) OnConfigChange(cfg *config.Config) {
+	ctx := context.TODO()
 	if r.cancel != nil {
 		r.cancel()
 	}
 
 	services, err := getReportedServices(cfg)
 	if err != nil {
-		log.Warn().Err(err).Msg("metrics announce to service registry is disabled")
+		log.Warn(ctx).Err(err).Msg("metrics announce to service registry is disabled")
 	}
 
 	sharedKey, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
 	if err != nil {
-		log.Error().Err(err).Msg("decoding shared key")
+		log.Error(ctx).Err(err).Msg("decoding shared key")
 		return
 	}
 
 	urls, err := cfg.Options.GetDataBrokerURLs()
 	if err != nil {
-		log.Error().Err(err).Msg("invalid databroker urls")
+		log.Error(ctx).Err(err).Msg("invalid databroker urls")
 		return
 	}
 
@@ -58,7 +59,7 @@ func (r *Reporter) OnConfigChange(cfg *config.Config) {
 		SignedJWTKey:            sharedKey,
 	})
 	if err != nil {
-		log.Error().Err(err).Msg("connecting to registry")
+		log.Error(ctx).Err(err).Msg("connecting to registry")
 		return
 	}
 
@@ -145,7 +146,7 @@ func runReporter(
 			after = resp.CallBackAfter.AsDuration()
 			backoff.Reset()
 		case <-ctx.Done():
-			log.Info().Msg("service registry reporter stopping")
+			log.Info(ctx).Msg("service registry reporter stopping")
 			return
 		}
 	}

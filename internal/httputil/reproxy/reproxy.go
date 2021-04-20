@@ -2,6 +2,7 @@
 package reproxy
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"math/rand"
@@ -130,7 +131,7 @@ func (h *Handler) Update(cfg *config.Config) {
 	for i, p := range cfg.Options.Policies {
 		id, err := p.RouteID()
 		if err != nil {
-			log.Warn().Err(err).Msg("reproxy: error getting route id")
+			log.Warn(context.TODO()).Err(err).Msg("reproxy: error getting route id")
 			continue
 		}
 		h.policies[id] = &cfg.Options.Policies[i]

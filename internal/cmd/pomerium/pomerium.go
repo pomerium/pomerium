@@ -32,7 +32,7 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, configFile string) error {
-	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
+	log.Info(ctx).Str("version", version.FullVersion()).Msg("cmd/pomerium")
 
 	var src config.Source
 
@@ -68,7 +68,7 @@ func Run(ctx context.Context, configFile string) error {
 	}
 	src.OnConfigChange(func(cfg *config.Config) {
 		if err := controlPlane.OnConfigChange(cfg); err != nil {
-			log.Error().Err(err).Msg("config change")
+			log.Error(ctx).Err(err).Msg("config change")
 		}
 	})
 
@@ -79,8 +79,8 @@ func Run(ctx context.Context, configFile string) error {
 	_, grpcPort, _ := net.SplitHostPort(controlPlane.GRPCListener.Addr().String())
 	_, httpPort, _ := net.SplitHostPort(controlPlane.HTTPListener.Addr().String())
 
-	log.Info().Str("port", grpcPort).Msg("gRPC server started")
-	log.Info().Str("port", httpPort).Msg("HTTP server started")
+	log.Info(ctx).Str("port", grpcPort).Msg("gRPC server started")
+	log.Info(ctx).Str("port", httpPort).Msg("HTTP server started")
 
 	// create envoy server
 	envoyServer, err := envoy.NewServer(src, grpcPort, httpPort, controlPlane.Builder)
@@ -179,7 +179,7 @@ func setupAuthenticate(src config.Source, controlPlane *controlplane.Server) err
 	host := urlutil.StripPort(authenticateURL.Host)
 	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
 	svc.Mount(sr)
-	log.Info().Str("host", host).Msg("enabled authenticate service")
+	log.Info(context.TODO()).Str("host", host).Msg("enabled authenticate service")
 
 	return nil
 }
@@ -191,7 +191,7 @@ func setupAuthorize(src config.Source, controlPlane *controlplane.Server) (*auth
 	}
 	envoy_service_auth_v3.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
 
-	log.Info().Msg("enabled authorize service")
+	log.Info(context.TODO()).Msg("enabled authorize service")
 	src.OnConfigChange(svc.OnConfigChange)
 	svc.OnConfigChange(src.GetConfig())
 	return svc, nil
@@ -203,7 +203,7 @@ func setupDataBroker(src config.Source, controlPlane *controlplane.Server) (*dat
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
 	svc.Register(controlPlane.GRPCServer)
-	log.Info().Msg("enabled databroker service")
+	log.Info(context.TODO()).Msg("enabled databroker service")
 	src.OnConfigChange(svc.OnConfigChange)
 	svc.OnConfigChange(src.GetConfig())
 	return svc, nil
@@ -212,7 +212,7 @@ func setupDataBroker(src config.Source, controlPlane *controlplane.Server) (*dat
 func setupRegistryServer(src config.Source, controlPlane *controlplane.Server) error {
 	svc := registry.NewInMemoryServer(context.TODO(), registryTTL)
 	registry_pb.RegisterRegistryServer(controlPlane.GRPCServer, svc)
-	log.Info().Msg("enabled service discovery")
+	log.Info(context.TODO()).Msg("enabled service discovery")
 	return nil
 }
 
@@ -234,7 +234,7 @@ func setupProxy(src config.Source, controlPlane *controlplane.Server) error {
 	}
 	controlPlane.HTTPRouter.PathPrefix("/").Handler(svc)
 
-	log.Info().Msg("enabled proxy service")
+	log.Info(context.TODO()).Msg("enabled proxy service")
 	src.OnConfigChange(svc.OnConfigChange)
 	svc.OnConfigChange(src.GetConfig())
 
