@@ -157,7 +157,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		CAFile:                  cfg.Options.CAFile,
 		RequestTimeout:          cfg.Options.GRPCClientTimeout,
 		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GRPCInsecure,
+		WithInsecure:            cfg.Options.GetGRPCInsecure(),
 		InstallationID:          cfg.Options.InstallationID,
 		ServiceName:             cfg.Options.Services,
 		SignedJWTKey:            sharedKey,

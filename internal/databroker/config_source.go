@@ -169,7 +169,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 		CAFile:                  cfg.Options.CAFile,
 		RequestTimeout:          cfg.Options.GRPCClientTimeout,
 		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GRPCInsecure,
+		WithInsecure:            cfg.Options.GetGRPCInsecure(),
 		ServiceName:             cfg.Options.Services,
 		SignedJWTKey:            sharedKey,
 	}

@@ -514,22 +514,6 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: %s is an invalid service type", o.Services)
 	}
 
-	if IsAll(o.Services) {
-		// in all in one mode we are running just over the local socket
-		o.GRPCInsecure = true
-		// to avoid port collision when running on localhost
-		if o.GRPCAddr == defaultOptions.GRPCAddr {
-			o.GRPCAddr = DefaultAlternativeAddr
-		}
-		// and we can set the corresponding client
-		if o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {
-			o.AuthorizeURLString = "http://127.0.0.1" + DefaultAlternativeAddr
-		}
-		if o.DataBrokerURLString == "" && len(o.DataBrokerURLStrings) == 0 {
-			o.DataBrokerURLString = "http://127.0.0.1" + DefaultAlternativeAddr
-		}
-	}
-
 	switch o.DataBrokerStorageType {
 	case StorageInMemoryName:
 	case StorageRedisName:
@@ -738,11 +722,25 @@ func (o *Options) GetAuthenticateURL() (*url.URL, error) {
 
 // GetAuthorizeURLs returns the AuthorizeURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetAuthorizeURLs() ([]*url.URL, error) {
+	if IsAll(o.Services) && o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {
+		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + DefaultAlternativeAddr)
+		if err != nil {
+			return nil, err
+		}
+		return []*url.URL{u}, nil
+	}
 	return o.getURLs(append([]string{o.AuthorizeURLString}, o.AuthorizeURLStrings...)...)
 }
 
 // GetDataBrokerURLs returns the DataBrokerURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetDataBrokerURLs() ([]*url.URL, error) {
+	if IsAll(o.Services) && o.DataBrokerURLString == "" && len(o.DataBrokerURLStrings) == 0 {
+		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + DefaultAlternativeAddr)
+		if err != nil {
+			return nil, err
+		}
+		return []*url.URL{u}, nil
+	}
 	return o.getURLs(append([]string{o.DataBrokerURLString}, o.DataBrokerURLStrings...)...)
 }
 
@@ -774,6 +772,23 @@ func (o *Options) GetForwardAuthURL() (*url.URL, error) {
 		return nil, nil
 	}
 	return urlutil.ParseAndValidateURL(rawurl)
+}
+
+// GetGRPCAddr gets the gRPC address.
+func (o *Options) GetGRPCAddr() string {
+	// to avoid port collision when running on localhost
+	if IsAll(o.Services) && o.GRPCAddr == defaultOptions.GRPCAddr {
+		return DefaultAlternativeAddr
+	}
+	return o.GRPCAddr
+}
+
+// GetGRPCInsecure gets whether or not gRPC is insecure.
+func (o *Options) GetGRPCInsecure() bool {
+	if IsAll(o.Services) {
+		return true
+	}
+	return o.GRPCInsecure
 }
 
 // GetSignOutRedirectURL gets the SignOutRedirectURL.
