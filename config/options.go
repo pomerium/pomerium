@@ -905,6 +905,12 @@ func (o *Options) GetSharedKey() ([]byte, error) {
 	if IsAll(o.Services) && o.SharedKey == "" && o.DataBrokerStorageType == StorageInMemoryName {
 		sharedKey = randomSharedKey
 	}
+	if sharedKey == "" {
+		return nil, errors.New("empty shared-key")
+	}
+	if strings.TrimSpace(sharedKey) != sharedKey {
+		return nil, errors.New("shared-key contains whitespace")
+	}
 	return base64.StdEncoding.DecodeString(sharedKey)
 }
 

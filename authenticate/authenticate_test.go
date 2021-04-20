@@ -39,6 +39,7 @@ func TestOptions_Validate(t *testing.T) {
 	shortCookieLength := newTestOptions(t)
 	shortCookieLength.CookieSecret = "gN3xnvfsAwfCXxnJorGLKUG4l2wC8sS8nfLMhcStPg=="
 	badSharedKey := newTestOptions(t)
+	badSharedKey.Services = "authenticate"
 	badSharedKey.SharedKey = ""
 	badAuthenticateURL := newTestOptions(t)
 	badAuthenticateURL.AuthenticateURLString = "BAD_URL"
