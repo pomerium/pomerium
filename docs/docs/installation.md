@@ -41,6 +41,7 @@ Official packages can be found on our [GitHub Releases](https://github.com/pomer
 
 [RPM Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-rpm)
 [Deb Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-deb)
+
 #### Example yum repo
 
 ```
