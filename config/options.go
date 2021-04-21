@@ -575,10 +575,6 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: failed to parse headers: %w", err)
 	}
 
-	if _, disable := o.SetResponseHeaders[DisableHeaderKey]; disable {
-		o.SetResponseHeaders = make(map[string]string)
-	}
-
 	hasCert := false
 
 	if o.Cert != "" || o.Key != "" {
@@ -928,6 +924,14 @@ func (o *Options) GetGoogleCloudServerlessAuthenticationServiceAccount() string 
 		return o.ServiceAccount
 	}
 	return o.GoogleCloudServerlessAuthenticationServiceAccount
+}
+
+// GetSetResponseHeaders gets the SetResponseHeaders.
+func (o *Options) GetSetResponseHeaders() map[string]string {
+	if _, ok := o.SetResponseHeaders[DisableHeaderKey]; ok {
+		return map[string]string{}
+	}
+	return o.SetResponseHeaders
 }
 
 // Checksum returns the checksum of the current options struct
