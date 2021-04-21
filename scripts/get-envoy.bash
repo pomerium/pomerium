@@ -4,7 +4,7 @@ set -euo pipefail
 PATH="$PATH:$(go env GOPATH)/bin"
 export PATH
 
-_envoy_version=1.17.1
+_envoy_version=1.17.2
 _dir="${DIR:-"$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/../bin"}"
 _target="${TARGET:-"$(go env GOOS)-$(go env GOARCH)"}"
 
