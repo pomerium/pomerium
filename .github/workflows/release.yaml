@@ -56,26 +56,25 @@ jobs:
           echo ::set-output name=tag::${TAG}
           echo ::set-output name=version::${TAG#v}
 
-      - name: Install jfrog cli
-        uses: jfrog/setup-jfrog-cli@v1
-
-      - name: Configure jfrog cli
+      - name: Install Cloudsmith CLI
         run: |
-          jfrog bt config --user ${{ secrets.BINTRAY_USER }} --key ${{ secrets.BINTRAY_KEY }}
+          pip3 install cloudsmith-cli
 
-      - name: Upload packages to bintray beta channel
-        if: "contains(steps.tagName.outputs.version, 'rc') == 1"
-        run: |
-          VERSION=${{ steps.tagName.outputs.version }}
-          jfrog bt upload --publish dist/pomerium-${VERSION}-1.x86_64.rpm pomerium/enterprise-yum/pomerium/${VERSION} centos/8/x86_64/beta/
-          jfrog bt upload --publish dist/pomerium-cli-${VERSION}-1.x86_64.rpm pomerium/enterprise-yum/pomerium/${VERSION} centos/8/x86_64/beta/
-
-      - name: Upload packages to bintray stable channel
-        if: "contains(steps.tagName.outputs.version, 'rc') == 0"
+      - name: Publish to Cloudsmith
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+        working-directory: dist/
         run: |
           VERSION=${{ steps.tagName.outputs.version }}
-          jfrog bt upload --publish dist/pomerium-${VERSION}-1.x86_64.rpm pomerium/enterprise-yum/pomerium/${VERSION} centos/8/x86_64/stable/
-          jfrog bt upload --publish dist/pomerium-cli-${VERSION}-1.x86_64.rpm pomerium/enterprise-yum/pomerium/${VERSION} centos/8/x86_64/stable/
+          RPMS="pomerium-${VERSION}-1.x86_64.rpm pomerium-${VERSION}-1.aarch64.rpm pomerium-cli-${VERSION}-1.aarch64.rpm pomerium-cli-${VERSION}-1.x86_64.rpm pomerium-cli-${VERSION}-1.armhf.rpm"
+          for pkg in $(echo $RPMS); do
+            cloudsmith push rpm pomerium/pomerium/el/any-version $pkg
+          done
+
+          DEBS="pomerium-cli_${VERSION}-1_amd64.deb pomerium-cli_${VERSION}-1_arm64.deb pomerium-cli_${VERSION}-1_armhf.deb pomerium_${VERSION}-1_amd64.deb pomerium_${VERSION}-1_arm64.deb"
+          for pkg in $(echo $DEBS); do
+            cloudsmith push deb pomerium/pomerium/debian/any-version $pkg
+          done
 
       - name: Find latest tag
         id: latestTag
