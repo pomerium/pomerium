@@ -154,7 +154,7 @@ func (c *DataBroker) update(cfg *config.Config) error {
 		ServiceAccount: cfg.Options.ServiceAccount,
 		Provider:       cfg.Options.Provider,
 		ProviderURL:    cfg.Options.ProviderURL,
-		QPS:            cfg.Options.QPS,
+		QPS:            cfg.Options.GetQPS(),
 		ClientID:       cfg.Options.ClientID,
 		ClientSecret:   cfg.Options.ClientSecret,
 	})

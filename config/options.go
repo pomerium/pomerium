@@ -657,10 +657,6 @@ func (o *Options) Validate() error {
 	default:
 	}
 
-	if o.QPS < 1.0 {
-		o.QPS = 1.0
-	}
-
 	if err := ValidateDNSLookupFamily(o.DNSLookupFamily); err != nil {
 		return fmt.Errorf("config: %w", err)
 	}
@@ -932,6 +928,14 @@ func (o *Options) GetSetResponseHeaders() map[string]string {
 		return map[string]string{}
 	}
 	return o.SetResponseHeaders
+}
+
+// GetQPS gets the QPS.
+func (o *Options) GetQPS() float64 {
+	if o.QPS < 1 {
+		return 1
+	}
+	return o.QPS
 }
 
 // Checksum returns the checksum of the current options struct
