@@ -39,10 +39,13 @@ builds:
       - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://wwww.pomerium.io
 
     hooks:
+      pre:
+        - cmd: ./scripts/get-envoy.bash
+          env:
+            - TARGET={{ .Os }}-{{ .Arch }}
+            - DIR={{ dir .Path }}
       post:
         - cmd: ./scripts/embed-envoy.bash {{ .Path }}
-          env: # e.g. darwin_amd64
-            - TARGET={{ .Target }}
 
   - id: pomerium-cli
     main: ./cmd/pomerium-cli
