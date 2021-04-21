@@ -35,22 +35,22 @@ type dbConfig struct {
 }
 
 // NewConfigSource creates a new ConfigSource.
-func NewConfigSource(underlying config.Source, listeners ...config.ChangeListener) *ConfigSource {
+func NewConfigSource(ctx context.Context, underlying config.Source, listeners ...config.ChangeListener) *ConfigSource {
 	src := &ConfigSource{
 		dbConfigs: map[string]dbConfig{},
 	}
 	for _, li := range listeners {
-		src.OnConfigChange(li)
+		src.OnConfigChange(ctx, li)
 	}
-	underlying.OnConfigChange(func(cfg *config.Config) {
+	underlying.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
 		src.mu.Lock()
 		src.underlyingConfig = cfg.Clone()
 		src.mu.Unlock()
 
-		src.rebuild(false)
+		src.rebuild(ctx, firstTime(false))
 	})
 	src.underlyingConfig = underlying.GetConfig()
-	src.rebuild(true)
+	src.rebuild(ctx, firstTime(true))
 	return src
 }
 
@@ -62,8 +62,9 @@ func (src *ConfigSource) GetConfig() *config.Config {
 	return src.computedConfig
 }
 
-func (src *ConfigSource) rebuild(firstTime bool) {
-	ctx := context.TODO()
+type firstTime bool
+
+func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	_, span := trace.StartSpan(ctx, "databroker.config_source.rebuild")
 	defer span.End()
 
@@ -150,7 +151,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 
 	src.computedConfig = cfg
 	if !firstTime {
-		src.Trigger(cfg)
+		src.Trigger(ctx, cfg)
 	}
 
 	metrics.SetConfigInfo(ctx, cfg.Options.Services, "databroker", cfg.Checksum(), true)
@@ -247,5 +248,5 @@ func (s *syncerHandler) UpdateRecords(ctx context.Context, serverVersion uint64,
 	}
 	s.src.mu.Unlock()
 
-	s.src.rebuild(false)
+	s.src.rebuild(ctx, firstTime(false))
 }

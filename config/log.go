@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"sync"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -12,10 +13,10 @@ type LogManager struct {
 }
 
 // NewLogManager creates a new LogManager.
-func NewLogManager(src Source) *LogManager {
+func NewLogManager(ctx context.Context, src Source) *LogManager {
 	mgr := &LogManager{}
-	src.OnConfigChange(mgr.OnConfigChange)
-	mgr.OnConfigChange(src.GetConfig())
+	src.OnConfigChange(ctx, mgr.OnConfigChange)
+	mgr.OnConfigChange(ctx, src.GetConfig())
 	return mgr
 }
 
@@ -25,7 +26,7 @@ func (mgr *LogManager) Close() error {
 }
 
 // OnConfigChange is called whenever configuration changes.
-func (mgr *LogManager) OnConfigChange(cfg *Config) {
+func (mgr *LogManager) OnConfigChange(ctx context.Context, cfg *Config) {
 	if cfg == nil || cfg.Options == nil {
 		return
 	}

@@ -9,6 +9,7 @@ import (
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -106,7 +107,11 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 		srv.reproxy,
 	)
 
-	res, err := srv.buildDiscoveryResources()
+	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
+		return c.Str("server_name", name)
+	})
+
+	res, err := srv.buildDiscoveryResources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -178,17 +183,17 @@ func (srv *Server) Run(ctx context.Context) error {
 }
 
 // OnConfigChange updates the pomerium config options.
-func (srv *Server) OnConfigChange(cfg *config.Config) error {
-	srv.reproxy.Update(cfg)
+func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error {
+	srv.reproxy.Update(ctx, cfg)
 	prev := srv.currentConfig.Load()
 	srv.currentConfig.Store(versionedConfig{
 		Config:  cfg,
 		version: prev.version + 1,
 	})
-	res, err := srv.buildDiscoveryResources()
+	res, err := srv.buildDiscoveryResources(ctx)
 	if err != nil {
 		return err
 	}
-	srv.xdsmgr.Update(res)
+	srv.xdsmgr.Update(ctx, res)
 	return nil
 }

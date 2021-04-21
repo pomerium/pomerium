@@ -6,12 +6,13 @@ import (
 	"reflect"
 	"sync"
 
-	octrace "go.opencensus.io/trace"
-
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
+
+	"github.com/rs/zerolog"
+	octrace "go.opencensus.io/trace"
 )
 
 // TracingOptions are the options for tracing.
@@ -61,10 +62,13 @@ type TraceManager struct {
 }
 
 // NewTraceManager creates a new TraceManager.
-func NewTraceManager(src Source) *TraceManager {
+func NewTraceManager(ctx context.Context, src Source) *TraceManager {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "trace_manager")
+	})
 	mgr := &TraceManager{}
-	src.OnConfigChange(mgr.OnConfigChange)
-	mgr.OnConfigChange(src.GetConfig())
+	src.OnConfigChange(ctx, mgr.OnConfigChange)
+	mgr.OnConfigChange(ctx, src.GetConfig())
 	return mgr
 }
 
@@ -80,11 +84,9 @@ func (mgr *TraceManager) Close() error {
 }
 
 // OnConfigChange updates the manager whenever the configuration is changed.
-func (mgr *TraceManager) OnConfigChange(cfg *Config) {
+func (mgr *TraceManager) OnConfigChange(ctx context.Context, cfg *Config) {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
-
-	ctx := context.TODO()
 
 	traceOpts, err := NewTracingOptions(cfg.Options)
 	if err != nil {

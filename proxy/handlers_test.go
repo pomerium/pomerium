@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -240,7 +241,7 @@ func TestProxy_Callback(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.OnConfigChange(&config.Config{Options: tt.options})
+			p.OnConfigChange(context.Background(), &config.Config{Options: tt.options})
 			state := p.state.Load()
 			state.encoder = tt.cipher
 			state.sessionStore = tt.sessionStore
@@ -486,7 +487,7 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.OnConfigChange(&config.Config{Options: tt.options})
+			p.OnConfigChange(context.Background(), &config.Config{Options: tt.options})
 			state := p.state.Load()
 			state.encoder = tt.cipher
 			state.sessionStore = tt.sessionStore

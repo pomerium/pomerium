@@ -77,8 +77,7 @@ func New(cfg *config.Config) (*Authenticate, error) {
 }
 
 // OnConfigChange updates internal structures based on config.Options
-func (a *Authenticate) OnConfigChange(cfg *config.Config) {
-	ctx := context.TODO()
+func (a *Authenticate) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	if a == nil {
 		return
 	}

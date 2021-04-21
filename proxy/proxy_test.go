@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -197,7 +198,7 @@ func Test_UpdateOptions(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			p.OnConfigChange(&config.Config{Options: tt.updatedOptions})
+			p.OnConfigChange(context.Background(), &config.Config{Options: tt.updatedOptions})
 			r := httptest.NewRequest("GET", tt.host, nil)
 			w := httptest.NewRecorder()
 			p.ServeHTTP(w, r)
@@ -210,5 +211,5 @@ func Test_UpdateOptions(t *testing.T) {
 
 	// Test nil
 	var p *Proxy
-	p.OnConfigChange(&config.Config{})
+	p.OnConfigChange(context.Background(), &config.Config{})
 }

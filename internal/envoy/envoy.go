@@ -67,7 +67,7 @@ type Server struct {
 }
 
 // NewServer creates a new server with traffic routed by envoy.
-func NewServer(src config.Source, grpcPort, httpPort string, builder *envoyconfig.Builder) (*Server, error) {
+func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string, builder *envoyconfig.Builder) (*Server, error) {
 	wd := filepath.Join(os.TempDir(), workingDirectoryName)
 	err := os.MkdirAll(wd, embeddedEnvoyPermissions)
 	if err != nil {
@@ -110,10 +110,10 @@ func NewServer(src config.Source, grpcPort, httpPort string, builder *envoyconfi
 	}
 	go srv.runProcessCollector(context.TODO())
 
-	src.OnConfigChange(srv.onConfigChange)
-	srv.onConfigChange(src.GetConfig())
+	src.OnConfigChange(ctx, srv.onConfigChange)
+	srv.onConfigChange(ctx, src.GetConfig())
 
-	log.Info(context.TODO()).
+	log.Info(ctx).
 		Str("path", envoyPath).
 		Str("checksum", Checksum).
 		Msg("running envoy")
@@ -138,15 +138,14 @@ func (srv *Server) Close() error {
 	return err
 }
 
-func (srv *Server) onConfigChange(cfg *config.Config) {
-	srv.update(cfg)
+func (srv *Server) onConfigChange(ctx context.Context, cfg *config.Config) {
+	srv.update(ctx, cfg)
 }
 
-func (srv *Server) update(cfg *config.Config) {
+func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
-	ctx := context.TODO()
 	tracingOptions, err := config.NewTracingOptions(cfg.Options)
 	if err != nil {
 		log.Error(ctx).Err(err).Str("service", "envoy").Msg("invalid tracing config")
@@ -339,11 +338,9 @@ func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 			name = "envoy"
 		}
 
-		lvl := zerolog.DebugLevel
+		lvl := zerolog.ErrorLevel
 		if x, err := zerolog.ParseLevel(logLevel); err == nil {
 			lvl = x
-		} else {
-			lvl = zerolog.ErrorLevel
 		}
 		if msg == "" {
 			msg = ln

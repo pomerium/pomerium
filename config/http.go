@@ -9,6 +9,8 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+
+	"github.com/rs/zerolog"
 )
 
 type httpTransport struct {
@@ -19,16 +21,19 @@ type httpTransport struct {
 // NewHTTPTransport creates a new http transport. If CA or CAFile is set, the transport will
 // add the CA to system cert pool.
 func NewHTTPTransport(src Source) http.RoundTripper {
+	ctx := log.WithContext(context.TODO(), func(c zerolog.Context) zerolog.Context {
+		return c.Caller()
+	})
 	t := new(httpTransport)
 	t.underlying, _ = http.DefaultTransport.(*http.Transport)
-	src.OnConfigChange(func(cfg *Config) {
-		t.update(cfg.Options)
+	src.OnConfigChange(ctx, func(ctx context.Context, cfg *Config) {
+		t.update(ctx, cfg.Options)
 	})
-	t.update(src.GetConfig().Options)
+	t.update(ctx, src.GetConfig().Options)
 	return t
 }
 
-func (t *httpTransport) update(options *Options) {
+func (t *httpTransport) update(ctx context.Context, options *Options) {
 	nt := new(http.Transport)
 	if t.underlying != nil {
 		nt = t.underlying.Clone()
@@ -41,7 +46,7 @@ func (t *httpTransport) update(options *Options) {
 				MinVersion: tls.VersionTLS12,
 			}
 		} else {
-			log.Error(context.TODO()).Err(err).Msg("config: error getting cert pool")
+			log.Error(ctx).Err(err).Msg("config: error getting cert pool")
 		}
 	}
 	t.transport.Store(nt)

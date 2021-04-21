@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 
-	"github.com/rs/zerolog/log"
+	"github.com/pomerium/pomerium/internal/log"
+
 	"golang.org/x/net/publicsuffix"
 )
 

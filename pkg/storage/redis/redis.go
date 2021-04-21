@@ -51,6 +51,7 @@ type Backend struct {
 
 // New creates a new redis storage backend.
 func New(rawURL string, options ...Option) (*Backend, error) {
+	ctx := context.TODO()
 	cfg := getConfig(options...)
 	backend := &Backend{
 		cfg:      cfg,
@@ -63,7 +64,7 @@ func New(rawURL string, options ...Option) (*Backend, error) {
 		return nil, err
 	}
 	metrics.AddRedisMetrics(backend.client.PoolStats)
-	go backend.listenForVersionChanges()
+	go backend.listenForVersionChanges(ctx)
 	if cfg.expiry != 0 {
 		go func() {
 			ticker := time.NewTicker(time.Minute)
@@ -75,7 +76,7 @@ func New(rawURL string, options ...Option) (*Backend, error) {
 				case <-ticker.C:
 				}
 
-				backend.removeChangesBefore(time.Now().Add(-cfg.expiry))
+				backend.removeChangesBefore(ctx, time.Now().Add(-cfg.expiry))
 			}
 		}()
 	}
@@ -246,8 +247,8 @@ func (backend *Backend) incrementVersion(ctx context.Context,
 	return ErrExceededMaxRetries
 }
 
-func (backend *Backend) listenForVersionChanges() {
-	ctx, cancel := context.WithCancel(context.Background())
+func (backend *Backend) listenForVersionChanges(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
 	go func() {
 		<-backend.closed
 		cancel()
@@ -274,14 +275,13 @@ outer:
 
 			switch msg.(type) {
 			case *redis.Message:
-				backend.onChange.Broadcast()
+				backend.onChange.Broadcast(ctx)
 			}
 		}
 	}
 }
 
-func (backend *Backend) removeChangesBefore(cutoff time.Time) {
-	ctx := context.Background()
+func (backend *Backend) removeChangesBefore(ctx context.Context, cutoff time.Time) {
 	for {
 		cmd := backend.client.ZRangeByScore(ctx, changesSetKey, &redis.ZRangeBy{
 			Min:    "-inf",
@@ -291,7 +291,7 @@ func (backend *Backend) removeChangesBefore(cutoff time.Time) {
 		})
 		results, err := cmd.Result()
 		if err != nil {
-			log.Error(context.TODO()).Err(err).Msg("redis: error retrieving changes for expiration")
+			log.Error(ctx).Err(err).Msg("redis: error retrieving changes for expiration")
 			return
 		}
 
@@ -315,7 +315,7 @@ func (backend *Backend) removeChangesBefore(cutoff time.Time) {
 		// remove the record
 		err = backend.client.ZRem(ctx, changesSetKey, results[0]).Err()
 		if err != nil {
-			log.Error(context.TODO()).Err(err).Msg("redis: error removing member")
+			log.Error(ctx).Err(err).Msg("redis: error removing member")
 			return
 		}
 	}

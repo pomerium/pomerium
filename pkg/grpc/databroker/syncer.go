@@ -101,7 +101,7 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 		}
 
 		if err != nil {
-			syncer.log().Error().Err(err).Msg("sync")
+			log.Error(syncer.logCtx(ctx)).Err(err).Msg("sync")
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -112,42 +112,42 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 }
 
 func (syncer *Syncer) init(ctx context.Context) error {
-	syncer.log().Info().Msg("initial sync")
-	records, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
+	log.Info(syncer.logCtx(ctx)).Msg("initial sync")
+	records, recordVersion, serverVersion, err := InitialSync(syncer.logCtx(ctx), syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
 	})
 	if err != nil {
-		syncer.log().Error().Err(err).Msg("error during initial sync")
+		log.Error(syncer.logCtx(ctx)).Err(err).Msg("error during initial sync")
 		return err
 	}
 	syncer.backoff.Reset()
 
 	// reset the records as we have to sync latest
-	syncer.handler.ClearRecords(ctx)
+	syncer.handler.ClearRecords(syncer.logCtx(ctx))
 
 	syncer.recordVersion = recordVersion
 	syncer.serverVersion = serverVersion
-	syncer.handler.UpdateRecords(ctx, serverVersion, records)
+	syncer.handler.UpdateRecords(syncer.logCtx(ctx), serverVersion, records)
 
 	return nil
 }
 
 func (syncer *Syncer) sync(ctx context.Context) error {
-	stream, err := syncer.handler.GetDataBrokerServiceClient().Sync(ctx, &SyncRequest{
+	stream, err := syncer.handler.GetDataBrokerServiceClient().Sync(syncer.logCtx(ctx), &SyncRequest{
 		ServerVersion: syncer.serverVersion,
 		RecordVersion: syncer.recordVersion,
 	})
 	if err != nil {
-		syncer.log().Error().Err(err).Msg("error during sync")
+		log.Error(syncer.logCtx(ctx)).Err(err).Msg("error during sync")
 		return err
 	}
 
-	syncer.log().Info().Msg("listening for updates")
+	log.Info(syncer.logCtx(ctx)).Msg("listening for updates")
 
 	for {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
-			syncer.log().Error().Err(err).Msg("aborted sync due to mismatched server version")
+			log.Error(syncer.logCtx(ctx)).Err(err).Msg("aborted sync due to mismatched server version")
 			// server version changed, so re-init
 			syncer.serverVersion = 0
 			return nil
@@ -155,14 +155,13 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 			return err
 		}
 
-		syncer.log().Debug().
+		log.Debug(syncer.logCtx(ctx)).
 			Uint("version", uint(res.Record.GetVersion())).
-			Str("type", res.Record.Type).
 			Str("id", res.Record.Id).
 			Msg("syncer got record")
 
 		if syncer.recordVersion != res.GetRecord().GetVersion()-1 {
-			syncer.log().Error().Err(err).
+			log.Error(syncer.logCtx(ctx)).Err(err).
 				Uint64("received", res.GetRecord().GetVersion()).
 				Msg("aborted sync due to missing record")
 			syncer.serverVersion = 0
@@ -170,15 +169,17 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		}
 		syncer.recordVersion = res.GetRecord().GetVersion()
 		if syncer.cfg.typeURL == "" || syncer.cfg.typeURL == res.GetRecord().GetType() {
-			syncer.handler.UpdateRecords(ctx, syncer.serverVersion, []*Record{res.GetRecord()})
+			syncer.handler.UpdateRecords(syncer.logCtx(ctx), syncer.serverVersion, []*Record{res.GetRecord()})
 		}
 	}
 }
 
-func (syncer *Syncer) log() *zerolog.Logger {
-	l := log.With().Str("syncer_id", syncer.id).
-		Str("type", syncer.cfg.typeURL).
-		Uint64("server_version", syncer.serverVersion).
-		Uint64("record_version", syncer.recordVersion).Logger()
-	return &l
+// logCtx adds log params to context which
+func (syncer *Syncer) logCtx(ctx context.Context) context.Context {
+	return log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("syncer_id", syncer.id).
+			Str("type", syncer.cfg.typeURL).
+			Uint64("server_version", syncer.serverVersion).
+			Uint64("record_version", syncer.recordVersion)
+	})
 }

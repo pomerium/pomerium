@@ -82,7 +82,7 @@ func newPolicyEvaluator(opts *config.Options, store *evaluator.Store) (*evaluato
 }
 
 // OnConfigChange updates internal structures based on config.Options
-func (a *Authorize) OnConfigChange(cfg *config.Config) {
+func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	a.currentOptions.Store(cfg.Options)
 	if state, err := newAuthorizeStateFromConfig(cfg, a.store); err != nil {
 		log.Error(context.TODO()).Err(err).Msg("authorize: error updating state")

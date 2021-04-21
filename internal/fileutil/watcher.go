@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/rjeczalik/notify"
+	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
@@ -30,7 +31,9 @@ func (watcher *Watcher) Add(filePath string) {
 	watcher.mu.Lock()
 	defer watcher.mu.Unlock()
 
-	ctx := context.TODO()
+	ctx := log.WithContext(context.TODO(), func(c zerolog.Context) zerolog.Context {
+		return c.Str("watch_file", filePath)
+	})
 
 	// already watching
 	if _, ok := watcher.filePaths[filePath]; ok {
@@ -40,18 +43,18 @@ func (watcher *Watcher) Add(filePath string) {
 	ch := make(chan notify.EventInfo, 1)
 	go func() {
 		for evt := range ch {
-			log.Info(ctx).Str("path", evt.Path()).Str("event", evt.Event().String()).Msg("filemgr: detected file change")
-			watcher.Signal.Broadcast()
+			log.Info(ctx).Str("event", evt.Event().String()).Msg("filemgr: detected file change")
+			watcher.Signal.Broadcast(ctx)
 		}
 	}()
 	err := notify.Watch(filePath, ch, notify.All)
 	if err != nil {
-		log.Error(ctx).Err(err).Str("path", filePath).Msg("filemgr: error watching file path")
+		log.Error(ctx).Err(err).Msg("filemgr: error watching file path")
 		notify.Stop(ch)
 		close(ch)
 		return
 	}
-	log.Debug(ctx).Str("path", filePath).Msg("filemgr: watching file for changes")
+	log.Debug(ctx).Msg("filemgr: watching file for changes")
 
 	watcher.filePaths[filePath] = ch
 }

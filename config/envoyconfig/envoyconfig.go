@@ -133,7 +133,10 @@ func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Addres
 	}
 }
 
-func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(ctx context.Context, cert *tls.Certificate) *envoy_extensions_transport_sockets_tls_v3.TlsCertificate {
+func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(
+	ctx context.Context,
+	cert *tls.Certificate,
+) *envoy_extensions_transport_sockets_tls_v3.TlsCertificate {
 	envoyCert := &envoy_extensions_transport_sockets_tls_v3.TlsCertificate{}
 	var chain bytes.Buffer
 	for _, cbs := range cert.Certificate {

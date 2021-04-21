@@ -37,9 +37,9 @@ func TestConfigSource(t *testing.T) {
 	base.InsecureServer = true
 	base.GRPCInsecure = true
 
-	src := NewConfigSource(config.NewStaticSource(&config.Config{
+	src := NewConfigSource(ctx, config.NewStaticSource(&config.Config{
 		Options: base,
-	}), func(cfg *config.Config) {
+	}), func(_ context.Context, cfg *config.Config) {
 		cfgs <- cfg
 	})
 	cfgs <- src.GetConfig()

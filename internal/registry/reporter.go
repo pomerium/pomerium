@@ -23,8 +23,7 @@ type Reporter struct {
 }
 
 // OnConfigChange applies configuration changes to the reporter
-func (r *Reporter) OnConfigChange(cfg *config.Config) {
-	ctx := context.TODO()
+func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	if r.cancel != nil {
 		r.cancel()
 	}

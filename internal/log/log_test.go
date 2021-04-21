@@ -55,7 +55,7 @@ func ExamplePrintf() {
 // Example of a log with no particular "level"
 func ExampleLog() {
 	setup()
-	log.Log().Msg("hello world")
+	log.Log(context.Background()).Msg("hello world")
 
 	// Output: {"time":1199811905,"message":"hello world"}
 }
@@ -63,7 +63,7 @@ func ExampleLog() {
 // Example of a log at a particular "level" (in this case, "debug")
 func ExampleDebug() {
 	setup()
-	log.Debug().Msg("hello world")
+	log.Debug(context.Background()).Msg("hello world")
 
 	// Output: {"level":"debug","time":1199811905,"message":"hello world"}
 }
@@ -71,7 +71,7 @@ func ExampleDebug() {
 // Example of a log at a particular "level" (in this case, "info")
 func ExampleInfo() {
 	setup()
-	log.Info().Msg("hello world")
+	log.Info(context.Background()).Msg("hello world")
 
 	// Output: {"level":"info","time":1199811905,"message":"hello world"}
 }
@@ -79,7 +79,7 @@ func ExampleInfo() {
 // Example of a log at a particular "level" (in this case, "warn")
 func ExampleWarn() {
 	setup()
-	log.Warn().Msg("hello world")
+	log.Warn(context.Background()).Msg("hello world")
 
 	// Output: {"level":"warn","time":1199811905,"message":"hello world"}
 }
@@ -87,7 +87,7 @@ func ExampleWarn() {
 // Example of a log at a particular "level" (in this case, "error")
 func ExampleError() {
 	setup()
-	log.Error().Msg("hello world")
+	log.Error(context.Background()).Msg("hello world")
 
 	// Output: {"level":"error","time":1199811905,"message":"hello world"}
 }
@@ -120,10 +120,10 @@ func Example() {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
-	log.Debug().Msg("This message appears only when log level set to Debug")
-	log.Info().Msg("This message appears when log level set to Debug or Info")
+	log.Debug(context.Background()).Msg("This message appears only when log level set to Debug")
+	log.Info(context.Background()).Msg("This message appears when log level set to Debug or Info")
 
-	if e := log.Debug(); e.Enabled() {
+	if e := log.Debug(context.Background()); e.Enabled() {
 		// Compute log output only if enabled.
 		value := "bar"
 		e.Str("foo", value).Msg("some debug message")
@@ -135,19 +135,19 @@ func Example() {
 func ExampleSetLevel() {
 	setup()
 	log.SetLevel("info")
-	log.Debug().Msg("Debug")
-	log.Info().Msg("Debug or Info")
+	log.Debug(context.Background()).Msg("Debug")
+	log.Info(context.Background()).Msg("Debug or Info")
 	log.SetLevel("warn")
-	log.Debug().Msg("Debug")
-	log.Info().Msg("Debug or Info")
-	log.Warn().Msg("Debug or Info or Warn")
+	log.Debug(context.Background()).Msg("Debug")
+	log.Info(context.Background()).Msg("Debug or Info")
+	log.Warn(context.Background()).Msg("Debug or Info or Warn")
 	log.SetLevel("error")
-	log.Debug().Msg("Debug")
-	log.Info().Msg("Debug or Info")
-	log.Warn().Msg("Debug or Info or Warn")
-	log.Error().Msg("Debug or Info or Warn or Error")
+	log.Debug(context.Background()).Msg("Debug")
+	log.Info(context.Background()).Msg("Debug or Info")
+	log.Warn(context.Background()).Msg("Debug or Info or Warn")
+	log.Error(context.Background()).Msg("Debug or Info or Warn or Error")
 	log.SetLevel("default-fall-through")
-	log.Debug().Msg("Debug")
+	log.Debug(context.Background()).Msg("Debug")
 
 	// Output:
 	// {"level":"info","time":1199811905,"message":"Debug or Info"}
@@ -161,15 +161,22 @@ func ExampleContext() {
 
 	bg := context.Background()
 	ctx1 := log.WithContext(bg, func(c zerolog.Context) zerolog.Context {
-		return c.Str("ctx", "one")
+		return c.Str("param_one", "one")
 	})
-	ctx2 := log.WithContext(bg, func(c zerolog.Context) zerolog.Context {
-		return c.Str("ctx", "two")
+	ctx2 := log.WithContext(ctx1, func(c zerolog.Context) zerolog.Context {
+		return c.Str("param_two", "two")
 	})
 
-	log.WarnContext(ctx1).Str("param", "first").Msg("first")
-	log.WarnContext(ctx2).Str("param", "second").Msg("second")
-	log.WarnContext(bg).Str("param", "third").Msg("third")
+	log.Warn(bg).Str("non_context_param", "value").Msg("background")
+	log.Warn(ctx1).Str("non_context_param", "value").Msg("first")
+	log.Warn(ctx2).Str("non_context_param", "value").Msg("second")
+
+	for i := 0; i < 10; i++ {
+		ctx1 = log.WithContext(ctx1, func(c zerolog.Context) zerolog.Context {
+			return c.Int("counter", i)
+		})
+	}
+	log.Info(ctx1).Str("non_ctx_param", "value").Msg("after counter")
 
 	/*
 		{"level":"warn","ctx":"one","param":"first","time":1199811905,"message":"first"}

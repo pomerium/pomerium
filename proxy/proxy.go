@@ -77,7 +77,7 @@ func New(cfg *config.Config) (*Proxy, error) {
 }
 
 // OnConfigChange updates internal structures based on config.Options
-func (p *Proxy) OnConfigChange(cfg *config.Config) {
+func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	if p == nil {
 		return
 	}

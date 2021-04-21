@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/google/btree"
+	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -141,14 +143,20 @@ func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, uint64,
 }
 
 // Put puts a record into the in-memory store.
-func (backend *Backend) Put(_ context.Context, record *databroker.Record) error {
+func (backend *Backend) Put(ctx context.Context, record *databroker.Record) error {
 	if record == nil {
 		return fmt.Errorf("records cannot be nil")
 	}
 
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("db_op", "put").
+			Str("db_id", record.Id).
+			Str("db_type", record.Type)
+	})
+
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
-	defer backend.onChange.Broadcast()
+	defer backend.onChange.Broadcast(ctx)
 
 	record.ModifiedAt = timestamppb.Now()
 	record.Version = backend.nextVersion()

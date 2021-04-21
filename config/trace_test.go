@@ -123,12 +123,12 @@ func TestTraceManager(t *testing.T) {
 		TracingSampleRate: 1,
 	}})
 
-	_ = NewTraceManager(src)
+	_ = NewTraceManager(ctx, src)
 
 	_, span := trace.StartSpan(ctx, "Example")
 	span.End()
 
-	src.SetConfig(&Config{Options: &Options{
+	src.SetConfig(ctx, &Config{Options: &Options{
 		TracingProvider:   "zipkin",
 		ZipkinEndpoint:    srv2.URL,
 		TracingSampleRate: 1,

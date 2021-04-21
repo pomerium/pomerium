@@ -69,7 +69,7 @@ func newManager(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	mgr.src.OnConfigChange(func(cfg *config.Config) {
+	mgr.src.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
 		err := mgr.update(cfg)
 		if err != nil {
 			log.Error(context.TODO()).Err(err).Msg("autocert: error updating config")
@@ -77,7 +77,7 @@ func newManager(ctx context.Context,
 		}
 
 		cfg = mgr.GetConfig()
-		mgr.Trigger(cfg)
+		mgr.Trigger(ctx, cfg)
 	})
 	go func() {
 		ticker := time.NewTicker(checkInterval)
@@ -153,7 +153,7 @@ func (mgr *Manager) renewConfigCerts() error {
 	}
 
 	mgr.config = cfg
-	mgr.Trigger(cfg)
+	mgr.Trigger(context.TODO(), cfg)
 	return nil
 }
 
