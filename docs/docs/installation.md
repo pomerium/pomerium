@@ -37,7 +37,30 @@ curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomeri
 - Supported formats: `rpm`, `deb`
 - Requires `systemd` support
 
-Official packages can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page.
+Official packages can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page or from [Cloudsmith](https://cloudsmith.io/~pomerium/repos/pomerium/packages/).
+
+- [RPM Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-rpm)
+- [Deb Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-deb)
+
+#### Example yum repo
+
+```
+[pomerium-pomerium]
+name=pomerium-pomerium
+baseurl=https://dl.cloudsmith.io/public/pomerium/pomerium/rpm/el/$releasever/$basearch
+repo_gpgcheck=1
+enabled=1
+gpgkey=https://dl.cloudsmith.io/public/pomerium/pomerium/gpg.6E388440B94E1407.key
+gpgcheck=1
+sslverify=1
+pkg_gpgcheck=1
+```
+#### Example deb setup
+
+```bash
+curl -1sLf 'https://dl.cloudsmith.io/public/pomerium/pomerium/gpg.6E388440B94E1407.key' | apt-key add -
+echo "deb https://dl.cloudsmith.io/public/pomerium/pomerium/deb/debian buster main" > /etc/apt/sources.list.d/pomerium-pomerium.list
+```
 
 ### Docker Image
 
@@ -110,8 +133,30 @@ curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomeri
 
 - Supported formats: `rpm`, `deb`
 
-Official packages can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page.
+Official packages can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page or from [Cloudsmith](https://cloudsmith.io/~pomerium/repos/pomerium/packages/).
 
+- [RPM Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-rpm)
+- [Deb Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-deb)
+
+#### Example yum repo
+
+```
+[pomerium-pomerium]
+name=pomerium-pomerium
+baseurl=https://dl.cloudsmith.io/public/pomerium/pomerium/rpm/el/$releasever/$basearch
+repo_gpgcheck=1
+enabled=1
+gpgkey=https://dl.cloudsmith.io/public/pomerium/pomerium/gpg.6E388440B94E1407.key
+gpgcheck=1
+sslverify=1
+pkg_gpgcheck=1
+```
+#### Example deb setup
+
+```bash
+curl -1sLf 'https://dl.cloudsmith.io/public/pomerium/pomerium/gpg.6E388440B94E1407.key' | apt-key add -
+echo "deb https://dl.cloudsmith.io/public/pomerium/pomerium/deb/debian buster main" > /etc/apt/sources.list.d/pomerium-pomerium.list
+```
 ### Homebrew
 
 ```shell
