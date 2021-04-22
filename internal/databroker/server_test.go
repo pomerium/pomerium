@@ -10,7 +10,6 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
@@ -19,7 +18,6 @@ func newServer(cfg *serverConfig) *Server {
 	return &Server{
 		version: 11,
 		cfg:     cfg,
-		log:     log.With().Str("service", "databroker").Logger(),
 	}
 }
 

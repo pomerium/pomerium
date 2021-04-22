@@ -78,7 +78,6 @@ func getConfig(options ...Option) *config {
 // The Provider retrieves users and groups from onelogin.
 type Provider struct {
 	cfg *config
-	log zerolog.Logger
 
 	mu    sync.RWMutex
 	token *oauth2.Token
@@ -89,8 +88,13 @@ func New(options ...Option) *Provider {
 	cfg := getConfig(options...)
 	return &Provider{
 		cfg: cfg,
-		log: log.With().Str("service", "directory").Str("provider", "onelogin").Logger(),
 	}
+}
+
+func withLog(ctx context.Context) context.Context {
+	return log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "directory").Str("provider", "onelogin")
+	})
 }
 
 // User returns the user record for the given id.
@@ -101,6 +105,8 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 	du := &directory.User{
 		Id: userID,
 	}
+
+	ctx = withLog(ctx)
 
 	token, err := p.getToken(ctx)
 	if err != nil {
@@ -124,7 +130,9 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, fmt.Errorf("onelogin: service account not defined")
 	}
 
-	p.log.Info().Msg("getting user groups")
+	ctx = withLog(ctx)
+
+	log.Info(ctx).Msg("getting user groups")
 
 	token, err := p.getToken(ctx)
 	if err != nil {
@@ -252,7 +260,7 @@ func (p *Provider) apiGet(ctx context.Context, accessToken string, uri string, o
 		return "", err
 	}
 
-	p.log.Info().
+	log.Info(ctx).
 		Str("url", uri).
 		Interface("result", result).
 		Msg("api request")

@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -71,7 +72,7 @@ func getDenyVar(vars rego.Vars) []Result {
 
 		status, err := strconv.Atoi(fmt.Sprint(denial[0]))
 		if err != nil {
-			log.Error().Err(err).Msg("invalid type in deny")
+			log.Error(context.TODO()).Err(err).Msg("invalid type in deny")
 			continue
 		}
 		msg := fmt.Sprint(denial[1])

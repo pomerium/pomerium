@@ -56,7 +56,7 @@ func (a *Authorize) WaitForInitialSync(ctx context.Context) error {
 		return ctx.Err()
 	case <-a.dataBrokerInitialSync:
 	}
-	log.Info().Msg("initial sync from databroker complete")
+	log.Info(ctx).Msg("initial sync from databroker complete")
 	return nil
 }
 
@@ -82,10 +82,10 @@ func newPolicyEvaluator(opts *config.Options, store *evaluator.Store) (*evaluato
 }
 
 // OnConfigChange updates internal structures based on config.Options
-func (a *Authorize) OnConfigChange(cfg *config.Config) {
+func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	a.currentOptions.Store(cfg.Options)
 	if state, err := newAuthorizeStateFromConfig(cfg, a.store); err != nil {
-		log.Error().Err(err).Msg("authorize: error updating state")
+		log.Error(ctx).Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(state)
 	}

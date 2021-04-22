@@ -17,7 +17,7 @@ type recordStream struct {
 	ctx     context.Context
 	backend *Backend
 
-	changed chan struct{}
+	changed chan context.Context
 	version uint64
 	record  *databroker.Record
 	err     error
@@ -63,6 +63,7 @@ func (stream *recordStream) Next(block bool) bool {
 	ticker := time.NewTicker(watchPollInterval)
 	defer ticker.Stop()
 
+	changeCtx := context.Background()
 	for {
 		cmd := stream.backend.client.ZRangeByScore(stream.ctx, changesSetKey, &redis.ZRangeBy{
 			Min:    fmt.Sprintf("(%d", stream.version),
@@ -81,7 +82,7 @@ func (stream *recordStream) Next(block bool) bool {
 			var record databroker.Record
 			err = proto.Unmarshal([]byte(result), &record)
 			if err != nil {
-				log.Warn().Err(err).Msg("redis: invalid record detected")
+				log.Warn(changeCtx).Err(err).Msg("redis: invalid record detected")
 			} else {
 				stream.record = &record
 			}
@@ -97,7 +98,7 @@ func (stream *recordStream) Next(block bool) bool {
 			case <-stream.closed:
 				return false
 			case <-ticker.C: // check again
-			case <-stream.changed: // check again
+			case changeCtx = <-stream.changed: // check again
 			}
 		} else {
 			return false

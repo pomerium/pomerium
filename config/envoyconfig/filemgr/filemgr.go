@@ -2,6 +2,7 @@
 package filemgr
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -34,7 +35,7 @@ func (mgr *Manager) BytesDataSource(fileName string, data []byte) *envoy_config_
 	fileName = fmt.Sprintf("%s-%x%s", fileName[:len(fileName)-len(ext)], h, ext)
 
 	if err := os.MkdirAll(mgr.cfg.cacheDir, 0o700); err != nil {
-		log.Error().Err(err).Msg("filemgr: error creating cache directory, falling back to inline bytes")
+		log.Error(context.TODO()).Err(err).Msg("filemgr: error creating cache directory, falling back to inline bytes")
 		return inlineBytes(data)
 	}
 
@@ -42,11 +43,11 @@ func (mgr *Manager) BytesDataSource(fileName string, data []byte) *envoy_config_
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		err = ioutil.WriteFile(filePath, data, 0o600)
 		if err != nil {
-			log.Error().Err(err).Msg("filemgr: error writing cache file, falling back to inline bytes")
+			log.Error(context.TODO()).Err(err).Msg("filemgr: error writing cache file, falling back to inline bytes")
 			return inlineBytes(data)
 		}
 	} else if err != nil {
-		log.Error().Err(err).Msg("filemgr: error reading cache file, falling back to inline bytes")
+		log.Error(context.TODO()).Err(err).Msg("filemgr: error reading cache file, falling back to inline bytes")
 		return inlineBytes(data)
 	}
 
@@ -62,7 +63,7 @@ func (mgr *Manager) ClearCache() {
 		return os.Remove(p)
 	})
 	if err != nil {
-		log.Error().Err(err).Msg("failed to clear envoy file cache")
+		log.Error(context.TODO()).Err(err).Msg("failed to clear envoy file cache")
 	}
 }
 

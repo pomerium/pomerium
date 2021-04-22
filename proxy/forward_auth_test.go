@@ -35,6 +35,7 @@ func (m *mockCheckClient) Check(ctx context.Context, in *envoy_service_auth_v2.C
 }
 
 func TestProxy_ForwardAuth(t *testing.T) {
+	ctx := context.Background()
 	t.Parallel()
 
 	allowClient := &mockCheckClient{
@@ -85,7 +86,7 @@ func TestProxy_ForwardAuth(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.OnConfigChange(&config.Config{Options: tt.options})
+			p.OnConfigChange(ctx, &config.Config{Options: tt.options})
 			state := p.state.Load()
 			state.sessionStore = tt.sessionStore
 			signer, err := jws.NewHS256Signer(nil)

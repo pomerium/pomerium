@@ -43,7 +43,7 @@ func (tun *Tunnel) RunListener(ctx context.Context, listenerAddress string) erro
 		return err
 	}
 	defer func() { _ = li.Close() }()
-	log.Info().Msg("tcptunnel: listening on " + li.Addr().String())
+	log.Info(ctx).Msg("tcptunnel: listening on " + li.Addr().String())
 
 	go func() {
 		<-ctx.Done()
@@ -62,7 +62,7 @@ func (tun *Tunnel) RunListener(ctx context.Context, listenerAddress string) erro
 			}
 
 			if nerr, ok := err.(net.Error); ok && nerr.Temporary() {
-				log.Warn().Err(err).Msg("tcptunnel: temporarily failed to accept local connection")
+				log.Warn(ctx).Err(err).Msg("tcptunnel: temporarily failed to accept local connection")
 				select {
 				case <-time.After(bo.NextBackOff()):
 				case <-ctx.Done():
@@ -79,7 +79,7 @@ func (tun *Tunnel) RunListener(ctx context.Context, listenerAddress string) erro
 
 			err := tun.Run(ctx, conn)
 			if err != nil {
-				log.Error().Err(err).Msg("tcptunnel: error serving local connection")
+				log.Error(ctx).Err(err).Msg("tcptunnel: error serving local connection")
 			}
 		}()
 	}
@@ -102,7 +102,7 @@ func (tun *Tunnel) Run(ctx context.Context, local io.ReadWriter) error {
 }
 
 func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, retryCount int) error {
-	log.Info().
+	log.Info(ctx).
 		Str("dst", tun.cfg.dstHost).
 		Str("proxy", tun.cfg.proxyHost).
 		Bool("secure", tun.cfg.tlsConfig != nil).
@@ -132,7 +132,7 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, 
 	}
 	defer func() {
 		_ = remote.Close()
-		log.Info().Msg("tcptunnel: connection closed")
+		log.Info(ctx).Msg("tcptunnel: connection closed")
 	}()
 	if done := ctx.Done(); done != nil {
 		go func() {
@@ -189,7 +189,7 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, 
 		return fmt.Errorf("tcptunnel: invalid http response code: %d", res.StatusCode)
 	}
 
-	log.Info().Msg("tcptunnel: connection established")
+	log.Info(ctx).Msg("tcptunnel: connection established")
 
 	errc := make(chan error, 2)
 	go func() {

@@ -150,7 +150,7 @@ func (a *Authorize) waitForRecordSync(ctx context.Context, recordTypeURL, record
 			// record not found, so no need to wait
 			return nil, nil
 		} else if err != nil {
-			log.Error().
+			log.Error(ctx).
 				Err(err).
 				Str("type", recordTypeURL).
 				Str("id", recordID).
@@ -160,7 +160,7 @@ func (a *Authorize) waitForRecordSync(ctx context.Context, recordTypeURL, record
 
 		select {
 		case <-ctx.Done():
-			log.Warn().
+			log.Warn(ctx).
 				Str("type", recordTypeURL).
 				Str("id", recordID).
 				Msg("authorize: first sync of record did not complete")

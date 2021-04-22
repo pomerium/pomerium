@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 )
 
 func TestFileWatcherSource(t *testing.T) {
+	ctx := context.Background()
+
 	tmpdir := filepath.Join(os.TempDir(), uuid.New().String())
 	err := os.MkdirAll(tmpdir, 0o755)
 	if !assert.NoError(t, err) {
@@ -33,7 +36,7 @@ func TestFileWatcherSource(t *testing.T) {
 	src := NewFileWatcherSource(ssrc)
 	var closeOnce sync.Once
 	ch := make(chan struct{})
-	src.OnConfigChange(func(cfg *Config) {
+	src.OnConfigChange(context.Background(), func(ctx context.Context, cfg *Config) {
 		closeOnce.Do(func() {
 			close(ch)
 		})
@@ -50,7 +53,7 @@ func TestFileWatcherSource(t *testing.T) {
 		t.Error("expected OnConfigChange to be fired after modifying a file")
 	}
 
-	ssrc.SetConfig(&Config{
+	ssrc.SetConfig(ctx, &Config{
 		Options: &Options{
 			CAFile: filepath.Join(tmpdir, "example.txt"),
 		},

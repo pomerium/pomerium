@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"testing"
@@ -28,7 +29,7 @@ func Test_SetConfigInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			view.Unregister(InfoViews...)
 			view.Register(InfoViews...)
-			SetConfigInfo("test_service", "test config", 0, tt.success)
+			SetConfigInfo(context.Background(), "test_service", "test config", 0, tt.success)
 
 			testDataRetrieval(ConfigLastReloadView, t, tt.wantLastReload)
 			testDataRetrieval(ConfigLastReloadSuccessView, t, tt.wantLastReloadSuccess)
@@ -55,7 +56,7 @@ func Test_SetDBConfigInfo(t *testing.T) {
 		t.Run(fmt.Sprintf("version=%d errors=%d", tt.version, tt.errCount), func(t *testing.T) {
 			view.Unregister(InfoViews...)
 			view.Register(InfoViews...)
-			SetDBConfigInfo("test_service", "test_config", tt.version, tt.errCount)
+			SetDBConfigInfo(context.TODO(), "test_service", "test_config", tt.version, tt.errCount)
 
 			testDataRetrieval(ConfigDBVersionView, t, tt.wantVersion)
 			testDataRetrieval(ConfigDBErrorsView, t, tt.wantErrors)

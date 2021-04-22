@@ -26,7 +26,7 @@ func (a *Authorize) logAuthorizeCheck(
 
 	hdrs := getCheckRequestHeaders(in)
 	hattrs := in.GetAttributes().GetRequest().GetHttp()
-	evt := log.Info().Str("service", "authorize")
+	evt := log.Info(ctx).Str("service", "authorize")
 	// request
 	evt = evt.Str("request-id", requestid.FromContext(ctx))
 	evt = evt.Str("check-request-id", hdrs["X-Request-Id"])
@@ -66,10 +66,10 @@ func (a *Authorize) logAuthorizeCheck(
 		}
 		sealed, err := enc.Encrypt(record)
 		if err != nil {
-			log.Warn().Err(err).Msg("authorize: error encrypting audit record")
+			log.Warn(ctx).Err(err).Msg("authorize: error encrypting audit record")
 			return
 		}
-		log.Info().
+		log.Info(ctx).
 			Str("request-id", requestid.FromContext(ctx)).
 			EmbedObject(sealed).
 			Msg("audit log")

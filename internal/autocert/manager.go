@@ -69,15 +69,15 @@ func newManager(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	mgr.src.OnConfigChange(func(cfg *config.Config) {
+	mgr.src.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
 		err := mgr.update(cfg)
 		if err != nil {
-			log.Error().Err(err).Msg("autocert: error updating config")
+			log.Error(ctx).Err(err).Msg("autocert: error updating config")
 			return
 		}
 
 		cfg = mgr.GetConfig()
-		mgr.Trigger(cfg)
+		mgr.Trigger(ctx, cfg)
 	})
 	go func() {
 		ticker := time.NewTicker(checkInterval)
@@ -90,7 +90,7 @@ func newManager(ctx context.Context,
 			case <-ticker.C:
 				err := mgr.renewConfigCerts()
 				if err != nil {
-					log.Error().Err(err).Msg("autocert: error updating config")
+					log.Error(context.TODO()).Err(err).Msg("autocert: error updating config")
 					return
 				}
 			}
@@ -153,7 +153,7 @@ func (mgr *Manager) renewConfigCerts() error {
 	}
 
 	mgr.config = cfg
-	mgr.Trigger(cfg)
+	mgr.Trigger(context.TODO(), cfg)
 	return nil
 }
 
@@ -172,10 +172,10 @@ func (mgr *Manager) update(cfg *config.Config) error {
 func (mgr *Manager) obtainCert(domain string, cm *certmagic.Config) (certmagic.Certificate, error) {
 	cert, err := cm.CacheManagedCertificate(domain)
 	if err != nil {
-		log.Info().Str("domain", domain).Msg("obtaining certificate")
+		log.Info(context.TODO()).Str("domain", domain).Msg("obtaining certificate")
 		err = cm.ObtainCert(context.Background(), domain, false)
 		if err != nil {
-			log.Error().Err(err).Msg("autocert failed to obtain client certificate")
+			log.Error(context.TODO()).Err(err).Msg("autocert failed to obtain client certificate")
 			return certmagic.Certificate{}, errObtainCertFailed
 		}
 		metrics.RecordAutocertRenewal()
@@ -187,13 +187,13 @@ func (mgr *Manager) obtainCert(domain string, cm *certmagic.Config) (certmagic.C
 // renewCert attempts to renew given certificate.
 func (mgr *Manager) renewCert(domain string, cert certmagic.Certificate, cm *certmagic.Config) (certmagic.Certificate, error) {
 	expired := time.Now().After(cert.Leaf.NotAfter)
-	log.Info().Str("domain", domain).Msg("renewing certificate")
+	log.Info(context.TODO()).Str("domain", domain).Msg("renewing certificate")
 	err := cm.RenewCert(context.Background(), domain, false)
 	if err != nil {
 		if expired {
 			return certmagic.Certificate{}, errRenewCertFailed
 		}
-		log.Warn().Err(err).Msg("renew client certificated failed, use existing cert")
+		log.Warn(context.TODO()).Err(err).Msg("renew client certificated failed, use existing cert")
 	}
 	return cm.CacheManagedCertificate(domain)
 }
@@ -220,11 +220,11 @@ func (mgr *Manager) updateAutocert(cfg *config.Config) error {
 			return fmt.Errorf("autocert: failed to renew client certificate: %w", err)
 		}
 		if err != nil {
-			log.Error().Err(err).Msg("autocert: failed to obtain client certificate")
+			log.Error(context.TODO()).Err(err).Msg("autocert: failed to obtain client certificate")
 			continue
 		}
 
-		log.Info().Strs("names", cert.Names).Msg("autocert: added certificate")
+		log.Info(context.TODO()).Strs("names", cert.Names).Msg("autocert: added certificate")
 		cfg.AutoCertificates = append(cfg.AutoCertificates, cert.Certificate)
 	}
 
@@ -260,10 +260,10 @@ func (mgr *Manager) updateServer(cfg *config.Config) {
 		}),
 	}
 	go func() {
-		log.Info().Str("addr", hsrv.Addr).Msg("starting http redirect server")
+		log.Info(context.TODO()).Str("addr", hsrv.Addr).Msg("starting http redirect server")
 		err := hsrv.ListenAndServe()
 		if err != nil {
-			log.Error().Err(err).Msg("failed to run http redirect server")
+			log.Error(context.TODO()).Err(err).Msg("failed to run http redirect server")
 		}
 	}()
 	mgr.srv = hsrv

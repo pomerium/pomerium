@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -193,7 +194,7 @@ func Test_parseHeaders(t *testing.T) {
 			o.viperSet("headers", tt.viperHeaders)
 			o.viperSet("HeadersEnv", tt.envHeaders)
 			o.HeadersEnv = tt.envHeaders
-			err := o.parseHeaders()
+			err := o.parseHeaders(context.Background())
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Error condition unexpected: err=%s", err)

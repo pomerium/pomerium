@@ -104,13 +104,13 @@ func New(cfg *config.Config) (*DataBroker, error) {
 }
 
 // OnConfigChange is called whenever configuration is changed.
-func (c *DataBroker) OnConfigChange(cfg *config.Config) {
+func (c *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	err := c.update(cfg)
 	if err != nil {
-		log.Error().Err(err).Msg("databroker: error updating configuration")
+		log.Error(ctx).Err(err).Msg("databroker: error updating configuration")
 	}
 
-	c.dataBrokerServer.OnConfigChange(cfg)
+	c.dataBrokerServer.OnConfigChange(ctx, cfg)
 }
 
 // Register registers all the gRPC services with the given server.

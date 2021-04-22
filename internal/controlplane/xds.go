@@ -1,6 +1,7 @@
 package controlplane
 
 import (
+	"context"
 	"encoding/hex"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -14,11 +15,11 @@ const (
 	listenerTypeURL = "type.googleapis.com/envoy.config.listener.v3.Listener"
 )
 
-func (srv *Server) buildDiscoveryResources() (map[string][]*envoy_service_discovery_v3.Resource, error) {
+func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*envoy_service_discovery_v3.Resource, error) {
 	resources := map[string][]*envoy_service_discovery_v3.Resource{}
 	cfg := srv.currentConfig.Load()
 
-	clusters, err := srv.Builder.BuildClusters(cfg.Config)
+	clusters, err := srv.Builder.BuildClusters(ctx, cfg.Config)
 	if err != nil {
 		return nil, err
 	}

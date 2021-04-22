@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/authenticate"
@@ -32,7 +33,7 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, configFile string) error {
-	log.Info().Str("version", version.FullVersion()).Msg("cmd/pomerium")
+	log.Info(ctx).Str("version", version.FullVersion()).Msg("cmd/pomerium")
 
 	var src config.Source
 
@@ -41,8 +42,8 @@ func Run(ctx context.Context, configFile string) error {
 		return err
 	}
 
-	src = databroker.NewConfigSource(src)
-	logMgr := config.NewLogManager(src)
+	src = databroker.NewConfigSource(ctx, src)
+	logMgr := config.NewLogManager(ctx, src)
 	defer logMgr.Close()
 
 	// trigger changes when underlying files are changed
@@ -56,9 +57,9 @@ func Run(ctx context.Context, configFile string) error {
 	// override the default http transport so we can use the custom CA in the TLS client config (#1570)
 	http.DefaultTransport = config.NewHTTPTransport(src)
 
-	metricsMgr := config.NewMetricsManager(src)
+	metricsMgr := config.NewMetricsManager(ctx, src)
 	defer metricsMgr.Close()
-	traceMgr := config.NewTraceManager(src)
+	traceMgr := config.NewTraceManager(ctx, src)
 	defer traceMgr.Close()
 
 	// setup the control plane
@@ -66,43 +67,46 @@ func Run(ctx context.Context, configFile string) error {
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
-	src.OnConfigChange(func(cfg *config.Config) {
-		if err := controlPlane.OnConfigChange(cfg); err != nil {
-			log.Error().Err(err).Msg("config change")
-		}
-	})
+	src.OnConfigChange(ctx,
+		func(ctx context.Context, cfg *config.Config) {
+			if err := controlPlane.OnConfigChange(ctx, cfg); err != nil {
+				log.Error(ctx).Err(err).Msg("config change")
+			}
+		})
 
-	if err = controlPlane.OnConfigChange(src.GetConfig()); err != nil {
+	if err = controlPlane.OnConfigChange(log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("config_file_source", configFile).Bool("bootstrap", true)
+	}), src.GetConfig()); err != nil {
 		return fmt.Errorf("applying config: %w", err)
 	}
 
 	_, grpcPort, _ := net.SplitHostPort(controlPlane.GRPCListener.Addr().String())
 	_, httpPort, _ := net.SplitHostPort(controlPlane.HTTPListener.Addr().String())
 
-	log.Info().Str("port", grpcPort).Msg("gRPC server started")
-	log.Info().Str("port", httpPort).Msg("HTTP server started")
+	log.Info(ctx).Str("port", grpcPort).Msg("gRPC server started")
+	log.Info(ctx).Str("port", httpPort).Msg("HTTP server started")
 
 	// create envoy server
-	envoyServer, err := envoy.NewServer(src, grpcPort, httpPort, controlPlane.Builder)
+	envoyServer, err := envoy.NewServer(ctx, src, grpcPort, httpPort, controlPlane.Builder)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
 	}
 	defer envoyServer.Close()
 
 	// add services
-	if err := setupAuthenticate(src, controlPlane); err != nil {
+	if err := setupAuthenticate(ctx, src, controlPlane); err != nil {
 		return err
 	}
 	var authorizeServer *authorize.Authorize
 	if config.IsAuthorize(src.GetConfig().Options.Services) {
-		authorizeServer, err = setupAuthorize(src, controlPlane)
+		authorizeServer, err = setupAuthorize(ctx, src, controlPlane)
 		if err != nil {
 			return err
 		}
 	}
 	var dataBrokerServer *databroker_service.DataBroker
 	if config.IsDataBroker(src.GetConfig().Options.Services) {
-		dataBrokerServer, err = setupDataBroker(src, controlPlane)
+		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane)
 		if err != nil {
 			return fmt.Errorf("setting up databroker: %w", err)
 		}
@@ -112,10 +116,10 @@ func Run(ctx context.Context, configFile string) error {
 		}
 	}
 
-	if err = setupRegistryReporter(src); err != nil {
+	if err = setupRegistryReporter(ctx, src); err != nil {
 		return fmt.Errorf("setting up registry reporter: %w", err)
 	}
-	if err := setupProxy(src, controlPlane); err != nil {
+	if err := setupProxy(ctx, src, controlPlane); err != nil {
 		return err
 	}
 
@@ -159,7 +163,7 @@ func Run(ctx context.Context, configFile string) error {
 	return eg.Wait()
 }
 
-func setupAuthenticate(src config.Source, controlPlane *controlplane.Server) error {
+func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *controlplane.Server) error {
 	if !config.IsAuthenticate(src.GetConfig().Options.Services) {
 		return nil
 	}
@@ -174,56 +178,56 @@ func setupAuthenticate(src config.Source, controlPlane *controlplane.Server) err
 		return fmt.Errorf("error getting authenticate URL: %w", err)
 	}
 
-	src.OnConfigChange(svc.OnConfigChange)
-	svc.OnConfigChange(src.GetConfig())
+	src.OnConfigChange(ctx, svc.OnConfigChange)
+	svc.OnConfigChange(ctx, src.GetConfig())
 	host := urlutil.StripPort(authenticateURL.Host)
 	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
 	svc.Mount(sr)
-	log.Info().Str("host", host).Msg("enabled authenticate service")
+	log.Info(context.TODO()).Str("host", host).Msg("enabled authenticate service")
 
 	return nil
 }
 
-func setupAuthorize(src config.Source, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
+func setupAuthorize(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
 	svc, err := authorize.New(src.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)
 	}
 	envoy_service_auth_v3.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
 
-	log.Info().Msg("enabled authorize service")
-	src.OnConfigChange(svc.OnConfigChange)
-	svc.OnConfigChange(src.GetConfig())
+	log.Info(context.TODO()).Msg("enabled authorize service")
+	src.OnConfigChange(ctx, svc.OnConfigChange)
+	svc.OnConfigChange(ctx, src.GetConfig())
 	return svc, nil
 }
 
-func setupDataBroker(src config.Source, controlPlane *controlplane.Server) (*databroker_service.DataBroker, error) {
+func setupDataBroker(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (*databroker_service.DataBroker, error) {
 	svc, err := databroker_service.New(src.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
 	svc.Register(controlPlane.GRPCServer)
-	log.Info().Msg("enabled databroker service")
-	src.OnConfigChange(svc.OnConfigChange)
-	svc.OnConfigChange(src.GetConfig())
+	log.Info(context.TODO()).Msg("enabled databroker service")
+	src.OnConfigChange(ctx, svc.OnConfigChange)
+	svc.OnConfigChange(ctx, src.GetConfig())
 	return svc, nil
 }
 
 func setupRegistryServer(src config.Source, controlPlane *controlplane.Server) error {
 	svc := registry.NewInMemoryServer(context.TODO(), registryTTL)
 	registry_pb.RegisterRegistryServer(controlPlane.GRPCServer, svc)
-	log.Info().Msg("enabled service discovery")
+	log.Info(context.TODO()).Msg("enabled service discovery")
 	return nil
 }
 
-func setupRegistryReporter(src config.Source) error {
+func setupRegistryReporter(ctx context.Context, src config.Source) error {
 	reporter := new(registry.Reporter)
-	src.OnConfigChange(reporter.OnConfigChange)
-	reporter.OnConfigChange(src.GetConfig())
+	src.OnConfigChange(ctx, reporter.OnConfigChange)
+	reporter.OnConfigChange(ctx, src.GetConfig())
 	return nil
 }
 
-func setupProxy(src config.Source, controlPlane *controlplane.Server) error {
+func setupProxy(ctx context.Context, src config.Source, controlPlane *controlplane.Server) error {
 	if !config.IsProxy(src.GetConfig().Options.Services) {
 		return nil
 	}
@@ -234,9 +238,9 @@ func setupProxy(src config.Source, controlPlane *controlplane.Server) error {
 	}
 	controlPlane.HTTPRouter.PathPrefix("/").Handler(svc)
 
-	log.Info().Msg("enabled proxy service")
-	src.OnConfigChange(svc.OnConfigChange)
-	svc.OnConfigChange(src.GetConfig())
+	log.Info(context.TODO()).Msg("enabled proxy service")
+	src.OnConfigChange(ctx, svc.OnConfigChange)
+	svc.OnConfigChange(ctx, src.GetConfig())
 
 	return nil
 }

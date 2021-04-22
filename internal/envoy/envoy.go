@@ -67,7 +67,7 @@ type Server struct {
 }
 
 // NewServer creates a new server with traffic routed by envoy.
-func NewServer(src config.Source, grpcPort, httpPort string, builder *envoyconfig.Builder) (*Server, error) {
+func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string, builder *envoyconfig.Builder) (*Server, error) {
 	wd := filepath.Join(os.TempDir(), workingDirectoryName)
 	err := os.MkdirAll(wd, embeddedEnvoyPermissions)
 	if err != nil {
@@ -76,7 +76,7 @@ func NewServer(src config.Source, grpcPort, httpPort string, builder *envoyconfi
 
 	envoyPath, err := extractEmbeddedEnvoy()
 	if err != nil {
-		log.Warn().Err(err).Send()
+		log.Warn(ctx).Err(err).Send()
 		envoyPath = "envoy"
 	}
 
@@ -98,7 +98,7 @@ func NewServer(src config.Source, grpcPort, httpPort string, builder *envoyconfi
 			return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", Checksum, s)
 		}
 	} else {
-		log.Info().Msg("no checksum defined, envoy binary will not be verified!")
+		log.Info(ctx).Msg("no checksum defined, envoy binary will not be verified!")
 	}
 
 	srv := &Server{
@@ -108,12 +108,12 @@ func NewServer(src config.Source, grpcPort, httpPort string, builder *envoyconfi
 		httpPort:  httpPort,
 		envoyPath: envoyPath,
 	}
-	go srv.runProcessCollector()
+	go srv.runProcessCollector(ctx)
 
-	src.OnConfigChange(srv.onConfigChange)
-	srv.onConfigChange(src.GetConfig())
+	src.OnConfigChange(ctx, srv.onConfigChange)
+	srv.onConfigChange(ctx, src.GetConfig())
 
-	log.Info().
+	log.Info(ctx).
 		Str("path", envoyPath).
 		Str("checksum", Checksum).
 		Msg("running envoy")
@@ -130,7 +130,7 @@ func (srv *Server) Close() error {
 	if srv.cmd != nil && srv.cmd.Process != nil {
 		err = srv.cmd.Process.Kill()
 		if err != nil {
-			log.Error().Err(err).Str("service", "envoy").Msg("envoy: failed to kill process on close")
+			log.Error(context.TODO()).Err(err).Str("service", "envoy").Msg("envoy: failed to kill process on close")
 		}
 		srv.cmd = nil
 	}
@@ -138,17 +138,17 @@ func (srv *Server) Close() error {
 	return err
 }
 
-func (srv *Server) onConfigChange(cfg *config.Config) {
-	srv.update(cfg)
+func (srv *Server) onConfigChange(ctx context.Context, cfg *config.Config) {
+	srv.update(ctx, cfg)
 }
 
-func (srv *Server) update(cfg *config.Config) {
+func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
 	tracingOptions, err := config.NewTracingOptions(cfg.Options)
 	if err != nil {
-		log.Error().Err(err).Str("service", "envoy").Msg("invalid tracing config")
+		log.Error(ctx).Err(err).Str("service", "envoy").Msg("invalid tracing config")
 		return
 	}
 
@@ -159,24 +159,24 @@ func (srv *Server) update(cfg *config.Config) {
 	}
 
 	if cmp.Equal(srv.options, options, cmp.AllowUnexported(serverOptions{})) {
-		log.Debug().Str("service", "envoy").Msg("envoy: no config changes detected")
+		log.Debug(ctx).Str("service", "envoy").Msg("envoy: no config changes detected")
 		return
 	}
 	srv.options = options
 
-	if err := srv.writeConfig(cfg); err != nil {
-		log.Error().Err(err).Str("service", "envoy").Msg("envoy: failed to write envoy config")
+	if err := srv.writeConfig(ctx, cfg); err != nil {
+		log.Error(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to write envoy config")
 		return
 	}
 
-	log.Info().Msg("envoy: starting envoy process")
-	if err := srv.run(); err != nil {
-		log.Error().Err(err).Str("service", "envoy").Msg("envoy: failed to run envoy process")
+	log.Info(ctx).Msg("envoy: starting envoy process")
+	if err := srv.run(ctx); err != nil {
+		log.Error(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to run envoy process")
 		return
 	}
 }
 
-func (srv *Server) run() error {
+func (srv *Server) run(ctx context.Context) error {
 	args := []string{
 		"-c", configFileName,
 		"--log-level", srv.options.logLevel,
@@ -198,13 +198,13 @@ func (srv *Server) run() error {
 	if err != nil {
 		return fmt.Errorf("error creating stderr pipe for envoy: %w", err)
 	}
-	go srv.handleLogs(stderr)
+	go srv.handleLogs(ctx, stderr)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("error creating stderr pipe for envoy: %w", err)
 	}
-	go srv.handleLogs(stdout)
+	go srv.handleLogs(ctx, stdout)
 
 	// make sure envoy is killed if we're killed
 	cmd.SysProcAttr = sysProcAttr
@@ -216,10 +216,10 @@ func (srv *Server) run() error {
 
 	// release the previous process so we can hot-reload
 	if srv.cmd != nil && srv.cmd.Process != nil {
-		log.Info().Msg("envoy: releasing envoy process for hot-reload")
+		log.Info(ctx).Msg("envoy: releasing envoy process for hot-reload")
 		err := srv.cmd.Process.Release()
 		if err != nil {
-			log.Warn().Err(err).Str("service", "envoy").Msg("envoy: failed to release envoy process for hot-reload")
+			log.Warn(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to release envoy process for hot-reload")
 		}
 	}
 	srv.cmd = cmd
@@ -227,14 +227,14 @@ func (srv *Server) run() error {
 	return nil
 }
 
-func (srv *Server) writeConfig(cfg *config.Config) error {
+func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
 	confBytes, err := srv.buildBootstrapConfig(cfg)
 	if err != nil {
 		return err
 	}
 
 	cfgPath := filepath.Join(srv.wd, configFileName)
-	log.Debug().Str("service", "envoy").Str("location", cfgPath).Msg("wrote config file to location")
+	log.Debug(ctx).Str("service", "envoy").Str("location", cfgPath).Msg("wrote config file to location")
 
 	return atomic.WriteFile(cfgPath, bytes.NewReader(confBytes))
 }
@@ -313,9 +313,10 @@ func (srv *Server) parseLog(line string) (name string, logLevel string, msg stri
 	return
 }
 
-func (srv *Server) handleLogs(rc io.ReadCloser) {
+func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 	defer rc.Close()
 
+	l := log.With().Str("service", "envoy").Logger()
 	bo := backoff.NewExponentialBackOff()
 
 	s := bufio.NewReader(rc)
@@ -325,7 +326,7 @@ func (srv *Server) handleLogs(rc io.ReadCloser) {
 			if errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) {
 				break
 			}
-			log.Error().Err(err).Msg("failed to read log")
+			log.Error(ctx).Err(err).Msg("failed to read log")
 			time.Sleep(bo.NextBackOff())
 			continue
 		}
@@ -336,7 +337,8 @@ func (srv *Server) handleLogs(rc io.ReadCloser) {
 		if name == "" {
 			name = "envoy"
 		}
-		lvl := zerolog.DebugLevel
+
+		lvl := zerolog.ErrorLevel
 		if x, err := zerolog.ParseLevel(logLevel); err == nil {
 			lvl = x
 		}
@@ -354,14 +356,13 @@ func (srv *Server) handleLogs(rc io.ReadCloser) {
 			continue
 		}
 
-		log.WithLevel(lvl).
-			Str("service", "envoy").
+		l.WithLevel(lvl).
 			Str("name", name).
 			Msg(msg)
 	}
 }
 
-func (srv *Server) runProcessCollector() {
+func (srv *Server) runProcessCollector(ctx context.Context) {
 	// macos is not supported
 	if runtime.GOOS != "linux" {
 		return
@@ -369,7 +370,7 @@ func (srv *Server) runProcessCollector() {
 
 	pc := metrics.NewProcessCollector("envoy")
 	if err := view.Register(pc.Views()...); err != nil {
-		log.Error().Err(err).Msg("failed to register envoy process metric views")
+		log.Error(ctx).Err(err).Msg("failed to register envoy process metric views")
 	}
 
 	const collectInterval = time.Second * 10
@@ -387,7 +388,7 @@ func (srv *Server) runProcessCollector() {
 		if pid > 0 {
 			err := pc.Measure(context.Background(), pid)
 			if err != nil {
-				log.Error().Err(err).Msg("failed to measure envoy process metrics")
+				log.Error(ctx).Err(err).Msg("failed to measure envoy process metrics")
 			}
 		}
 	}

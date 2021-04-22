@@ -2,28 +2,29 @@
 package signal
 
 import (
+	"context"
 	"sync"
 )
 
 // A Signal is used to let multiple listeners know when something happened.
 type Signal struct {
 	mu  sync.Mutex
-	chs map[chan struct{}]struct{}
+	chs map[chan context.Context]struct{}
 }
 
 // New creates a new Signal.
 func New() *Signal {
 	return &Signal{
-		chs: make(map[chan struct{}]struct{}),
+		chs: make(map[chan context.Context]struct{}),
 	}
 }
 
 // Broadcast signals all the listeners. Broadcast never blocks.
-func (s *Signal) Broadcast() {
+func (s *Signal) Broadcast(ctx context.Context) {
 	s.mu.Lock()
 	for ch := range s.chs {
 		select {
-		case ch <- struct{}{}:
+		case ch <- ctx:
 		default:
 		}
 	}
@@ -32,8 +33,8 @@ func (s *Signal) Broadcast() {
 
 // Bind creates a new listening channel bound to the signal. The channel used has a size of 1
 // and any given broadcast will signal at least one event, but may signal more than one.
-func (s *Signal) Bind() chan struct{} {
-	ch := make(chan struct{}, 1)
+func (s *Signal) Bind() chan context.Context {
+	ch := make(chan context.Context, 1)
 	s.mu.Lock()
 	s.chs[ch] = struct{}{}
 	s.mu.Unlock()
@@ -41,7 +42,7 @@ func (s *Signal) Bind() chan struct{} {
 }
 
 // Unbind stops the listening channel bound to the signal.
-func (s *Signal) Unbind(ch chan struct{}) {
+func (s *Signal) Unbind(ch chan context.Context) {
 	s.mu.Lock()
 	delete(s.chs, ch)
 	s.mu.Unlock()

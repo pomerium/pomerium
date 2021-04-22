@@ -12,7 +12,7 @@ type recordStream struct {
 	ctx     context.Context
 	backend *Backend
 
-	changed chan struct{}
+	changed chan context.Context
 	ready   []*databroker.Record
 	version uint64
 

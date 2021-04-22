@@ -3,14 +3,11 @@ package manager
 import (
 	"context"
 
-	"github.com/rs/zerolog"
-
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 type dataBrokerSyncer struct {
 	cfg *atomicConfig
-	log zerolog.Logger
 
 	update chan<- updateRecordsMessage
 	clear  chan<- struct{}
@@ -19,14 +16,13 @@ type dataBrokerSyncer struct {
 }
 
 func newDataBrokerSyncer(
+	ctx context.Context,
 	cfg *atomicConfig,
-	log zerolog.Logger,
 	update chan<- updateRecordsMessage,
 	clear chan<- struct{},
 ) *dataBrokerSyncer {
 	syncer := &dataBrokerSyncer{
 		cfg: cfg,
-		log: log,
 
 		update: update,
 		clear:  clear,
