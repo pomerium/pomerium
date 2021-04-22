@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	"gopkg.in/square/go-jose.v2"
@@ -41,7 +42,7 @@ func TestOPA(t *testing.T) {
 		require.NoError(t, err)
 		store := NewStoreFromProtos(math.MaxUint64, data...)
 		store.UpdateIssuer("authenticate.example.com")
-		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user"))
+		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateRoutePolicies(policies)
 		store.UpdateSigningKey(privateJWK)
 		r := rego.New(
@@ -199,10 +200,29 @@ func TestOPA(t *testing.T) {
 					IdToken: &session.IDToken{
 						IssuedAt: timestamppb.New(time.Date(2021, 2, 1, 1, 1, 1, 1, time.UTC)),
 					},
+					Claims: map[string]*structpb.ListValue{
+						"CUSTOM_KEY": {
+							Values: []*structpb.Value{
+								structpb.NewStringValue("FROM_SESSION"),
+							},
+						},
+						"email": {
+							Values: []*structpb.Value{
+								structpb.NewStringValue("value"),
+							},
+						},
+					},
 				},
 				&user.User{
 					Id:    "user1",
 					Email: "a@example.com",
+					Claims: map[string]*structpb.ListValue{
+						"CUSTOM_KEY": {
+							Values: []*structpb.Value{
+								structpb.NewStringValue("FROM_USER"),
+							},
+						},
+					},
 				},
 				&directory.User{
 					Id:       "user1",
@@ -215,15 +235,16 @@ func TestOPA(t *testing.T) {
 				},
 			)
 			assert.Equal(t, M{
-				"aud":    "from.example.com",
-				"iss":    "authenticate.example.com",
-				"jti":    "session1",
-				"iat":    1612141261.0,
-				"exp":    1609462861.0,
-				"sub":    "user1",
-				"user":   "user1",
-				"email":  "a@example.com",
-				"groups": A{"group1", "group1name"},
+				"aud":        "from.example.com",
+				"iss":        "authenticate.example.com",
+				"jti":        "session1",
+				"iat":        1612141261.0,
+				"exp":        1609462861.0,
+				"sub":        "user1",
+				"user":       "user1",
+				"email":      "a@example.com",
+				"groups":     A{"group1", "group1name"},
+				"CUSTOM_KEY": "FROM_SESSION",
 			}, payload)
 		})
 	})
