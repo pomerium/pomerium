@@ -33,7 +33,7 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		log.Warn(ctx).Err(err).Msg("metrics announce to service registry is disabled")
 	}
 
-	sharedKey, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("decoding shared key")
 		return
@@ -52,7 +52,7 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		CAFile:                  cfg.Options.CAFile,
 		RequestTimeout:          cfg.Options.GRPCClientTimeout,
 		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GRPCInsecure,
+		WithInsecure:            cfg.Options.GetGRPCInsecure(),
 		InstallationID:          cfg.Options.InstallationID,
 		ServiceName:             cfg.Options.Services,
 		SignedJWTKey:            sharedKey,

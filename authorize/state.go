@@ -1,7 +1,6 @@
 package authorize
 
 import (
-	"encoding/base64"
 	"fmt"
 	"sync/atomic"
 
@@ -36,7 +35,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
 	}
 
-	state.sharedKey, err = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	state.sharedKey, err = cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +45,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		return nil, err
 	}
 
-	sharedKey, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +62,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		CAFile:                  cfg.Options.CAFile,
 		RequestTimeout:          cfg.Options.GRPCClientTimeout,
 		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GRPCInsecure,
+		WithInsecure:            cfg.Options.GetGRPCInsecure(),
 		InstallationID:          cfg.Options.InstallationID,
 		ServiceName:             cfg.Options.Services,
 		SignedJWTKey:            sharedKey,

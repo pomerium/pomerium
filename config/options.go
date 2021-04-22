@@ -50,6 +50,9 @@ const DefaultAlternativeAddr = ":5443"
 // EnvoyAdminURL indicates where the envoy control plane is listening
 var EnvoyAdminURL = &url.URL{Host: "127.0.0.1:9901", Scheme: "http"}
 
+// The randomSharedKey is used if no shared key is supplied in all-in-one mode.
+var randomSharedKey = cryptutil.NewBase64Key()
+
 // Options are the global environmental flags used to set up pomerium's services.
 // Use NewXXXOptions() methods for a safely initialized data structure.
 type Options struct {
@@ -513,26 +516,6 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: %s is an invalid service type", o.Services)
 	}
 
-	if IsAll(o.Services) {
-		// mutual auth between services on the same host can be generated at runtime
-		if o.SharedKey == "" && o.DataBrokerStorageType == StorageInMemoryName {
-			o.SharedKey = cryptutil.NewBase64Key()
-		}
-		// in all in one mode we are running just over the local socket
-		o.GRPCInsecure = true
-		// to avoid port collision when running on localhost
-		if o.GRPCAddr == defaultOptions.GRPCAddr {
-			o.GRPCAddr = DefaultAlternativeAddr
-		}
-		// and we can set the corresponding client
-		if o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {
-			o.AuthorizeURLString = "http://127.0.0.1" + DefaultAlternativeAddr
-		}
-		if o.DataBrokerURLString == "" && len(o.DataBrokerURLStrings) == 0 {
-			o.DataBrokerURLString = "http://127.0.0.1" + DefaultAlternativeAddr
-		}
-	}
-
 	switch o.DataBrokerStorageType {
 	case StorageInMemoryName:
 	case StorageRedisName:
@@ -543,12 +526,9 @@ func (o *Options) Validate() error {
 		return errors.New("config: unknown databroker storage backend type")
 	}
 
-	if o.SharedKey == "" {
-		return errors.New("config: shared-key cannot be empty")
-	}
-
-	if o.SharedKey != strings.TrimSpace(o.SharedKey) {
-		return errors.New("config: shared-key contains whitespace")
+	_, err := o.GetSharedKey()
+	if err != nil {
+		return fmt.Errorf("config: invalid shared-key: %w", err)
 	}
 
 	if o.AuthenticateURLString != "" {
@@ -595,10 +575,6 @@ func (o *Options) Validate() error {
 
 	if err := o.parseHeaders(ctx); err != nil {
 		return fmt.Errorf("config: failed to parse headers: %w", err)
-	}
-
-	if _, disable := o.SetResponseHeaders[DisableHeaderKey]; disable {
-		o.SetResponseHeaders = make(map[string]string)
 	}
 
 	hasCert := false
@@ -667,13 +643,6 @@ func (o *Options) Validate() error {
 		}
 	}
 
-	// if we are using google provider, default to using ServiceAccount for
-	// GoogleCloudServerlessAuthenticationServiceAccount
-	if o.Provider == "google" && o.GoogleCloudServerlessAuthenticationServiceAccount == "" {
-		o.GoogleCloudServerlessAuthenticationServiceAccount = o.ServiceAccount
-		log.Info(ctx).Msg("defaulting to idp_service_account for google_cloud_serverless_authentication_service_account")
-	}
-
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
@@ -688,10 +657,6 @@ func (o *Options) Validate() error {
 			log.Warn(ctx).Msg(idpCustomScopesWarnMsg)
 		}
 	default:
-	}
-
-	if o.QPS < 1.0 {
-		o.QPS = 1.0
 	}
 
 	if err := ValidateDNSLookupFamily(o.DNSLookupFamily); err != nil {
@@ -744,11 +709,25 @@ func (o *Options) GetAuthenticateURL() (*url.URL, error) {
 
 // GetAuthorizeURLs returns the AuthorizeURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetAuthorizeURLs() ([]*url.URL, error) {
+	if IsAll(o.Services) && o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {
+		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + DefaultAlternativeAddr)
+		if err != nil {
+			return nil, err
+		}
+		return []*url.URL{u}, nil
+	}
 	return o.getURLs(append([]string{o.AuthorizeURLString}, o.AuthorizeURLStrings...)...)
 }
 
 // GetDataBrokerURLs returns the DataBrokerURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetDataBrokerURLs() ([]*url.URL, error) {
+	if IsAll(o.Services) && o.DataBrokerURLString == "" && len(o.DataBrokerURLStrings) == 0 {
+		u, err := urlutil.ParseAndValidateURL("http://127.0.0.1" + DefaultAlternativeAddr)
+		if err != nil {
+			return nil, err
+		}
+		return []*url.URL{u}, nil
+	}
 	return o.getURLs(append([]string{o.DataBrokerURLString}, o.DataBrokerURLStrings...)...)
 }
 
@@ -780,6 +759,23 @@ func (o *Options) GetForwardAuthURL() (*url.URL, error) {
 		return nil, nil
 	}
 	return urlutil.ParseAndValidateURL(rawurl)
+}
+
+// GetGRPCAddr gets the gRPC address.
+func (o *Options) GetGRPCAddr() string {
+	// to avoid port collision when running on localhost
+	if IsAll(o.Services) && o.GRPCAddr == defaultOptions.GRPCAddr {
+		return DefaultAlternativeAddr
+	}
+	return o.GRPCAddr
+}
+
+// GetGRPCInsecure gets whether or not gRPC is insecure.
+func (o *Options) GetGRPCInsecure() bool {
+	if IsAll(o.Services) {
+		return true
+	}
+	return o.GRPCInsecure
 }
 
 // GetSignOutRedirectURL gets the SignOutRedirectURL.
@@ -902,6 +898,46 @@ func (o *Options) GetCertificates() ([]tls.Certificate, error) {
 		certs = append(certs, *cert)
 	}
 	return certs, nil
+}
+
+// GetSharedKey gets the decoded shared key.
+func (o *Options) GetSharedKey() ([]byte, error) {
+	sharedKey := o.SharedKey
+	// mutual auth between services on the same host can be generated at runtime
+	if IsAll(o.Services) && o.SharedKey == "" && o.DataBrokerStorageType == StorageInMemoryName {
+		sharedKey = randomSharedKey
+	}
+	if sharedKey == "" {
+		return nil, errors.New("empty shared-key")
+	}
+	if strings.TrimSpace(sharedKey) != sharedKey {
+		return nil, errors.New("shared-key contains whitespace")
+	}
+	return base64.StdEncoding.DecodeString(sharedKey)
+}
+
+// GetGoogleCloudServerlessAuthenticationServiceAccount gets the GoogleCloudServerlessAuthenticationServiceAccount.
+func (o *Options) GetGoogleCloudServerlessAuthenticationServiceAccount() string {
+	if o.GoogleCloudServerlessAuthenticationServiceAccount == "" && o.Provider == "google" {
+		return o.ServiceAccount
+	}
+	return o.GoogleCloudServerlessAuthenticationServiceAccount
+}
+
+// GetSetResponseHeaders gets the SetResponseHeaders.
+func (o *Options) GetSetResponseHeaders() map[string]string {
+	if _, ok := o.SetResponseHeaders[DisableHeaderKey]; ok {
+		return map[string]string{}
+	}
+	return o.SetResponseHeaders
+}
+
+// GetQPS gets the QPS.
+func (o *Options) GetQPS() float64 {
+	if o.QPS < 1 {
+		return 1
+	}
+	return o.QPS
 }
 
 // Checksum returns the checksum of the current options struct

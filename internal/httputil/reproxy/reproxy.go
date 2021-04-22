@@ -125,7 +125,7 @@ func (h *Handler) Update(ctx context.Context, cfg *config.Config) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.key, _ = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	h.key, _ = cfg.Options.GetSharedKey()
 	h.options = cfg.Options
 	h.policies = make(map[uint64]*config.Policy)
 	for i, p := range cfg.Options.Policies {

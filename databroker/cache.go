@@ -5,7 +5,6 @@ package databroker
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"net"
 	"sync"
@@ -49,7 +48,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 		return nil, err
 	}
 
-	sharedKey, _ := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	sharedKey, _ := cfg.Options.GetSharedKey()
 
 	ui, si := grpcutil.AttachMetadataInterceptors(
 		metadata.Pairs(grpcutil.MetadataKeyPomeriumVersion, version.FullVersion()),
@@ -155,7 +154,7 @@ func (c *DataBroker) update(cfg *config.Config) error {
 		ServiceAccount: cfg.Options.ServiceAccount,
 		Provider:       cfg.Options.Provider,
 		ProviderURL:    cfg.Options.ProviderURL,
-		QPS:            cfg.Options.QPS,
+		QPS:            cfg.Options.GetQPS(),
 		ClientID:       cfg.Options.ClientID,
 		ClientSecret:   cfg.Options.ClientSecret,
 	})
@@ -185,7 +184,11 @@ func (c *DataBroker) update(cfg *config.Config) error {
 // validate checks that proper configuration settings are set to create
 // a databroker instance
 func validate(o *config.Options) error {
-	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
+	sharedKey, err := o.GetSharedKey()
+	if err != nil {
+		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
+	}
+	if _, err := cryptutil.NewAEADCipher(sharedKey); err != nil {
 		return fmt.Errorf("invalid 'SHARED_SECRET': %w", err)
 	}
 	return nil

@@ -20,7 +20,11 @@ import (
 // ValidateOptions checks that configuration are complete and valid.
 // Returns on first error found.
 func ValidateOptions(o *config.Options) error {
-	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
+	sharedKey, err := o.GetSharedKey()
+	if err != nil {
+		return fmt.Errorf("authenticate: 'SHARED_SECRET' invalid: %w", err)
+	}
+	if _, err := cryptutil.NewAEADCipher(sharedKey); err != nil {
 		return fmt.Errorf("authenticate: 'SHARED_SECRET' invalid: %w", err)
 	}
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.CookieSecret); err != nil {

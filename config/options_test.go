@@ -338,7 +338,7 @@ func TestOptionsFromViper(t *testing.T) {
 				InsecureServer:                  true,
 				GRPCServerMaxConnectionAge:      5 * time.Minute,
 				GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
-				SetResponseHeaders:              map[string]string{},
+				SetResponseHeaders:              map[string]string{"disable": "true"},
 				RefreshDirectoryTimeout:         1 * time.Minute,
 				RefreshDirectoryInterval:        10 * time.Minute,
 				QPS:                             1.0,

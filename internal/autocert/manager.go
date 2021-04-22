@@ -23,6 +23,9 @@ import (
 var (
 	errObtainCertFailed = errors.New("obtain cert failed")
 	errRenewCertFailed  = errors.New("renew cert failed")
+
+	// RenewCert is not thread-safe
+	renewCertLock sync.Mutex
 )
 
 // Manager manages TLS certificates.
@@ -188,7 +191,9 @@ func (mgr *Manager) obtainCert(domain string, cm *certmagic.Config) (certmagic.C
 func (mgr *Manager) renewCert(domain string, cert certmagic.Certificate, cm *certmagic.Config) (certmagic.Certificate, error) {
 	expired := time.Now().After(cert.Leaf.NotAfter)
 	log.Info(context.TODO()).Str("domain", domain).Msg("renewing certificate")
+	renewCertLock.Lock()
 	err := cm.RenewCert(context.Background(), domain, false)
+	renewCertLock.Unlock()
 	if err != nil {
 		if expired {
 			return certmagic.Certificate{}, errRenewCertFailed

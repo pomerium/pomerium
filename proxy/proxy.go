@@ -31,7 +31,12 @@ const (
 // ValidateOptions checks that proper configuration settings are set to create
 // a proper Proxy instance
 func ValidateOptions(o *config.Options) error {
-	if _, err := cryptutil.NewAEADCipherFromBase64(o.SharedKey); err != nil {
+	sharedKey, err := o.GetSharedKey()
+	if err != nil {
+		return fmt.Errorf("proxy: invalid 'SHARED_SECRET': %w", err)
+	}
+
+	if _, err := cryptutil.NewAEADCipher(sharedKey); err != nil {
 		return fmt.Errorf("proxy: invalid 'SHARED_SECRET': %w", err)
 	}
 

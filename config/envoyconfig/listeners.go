@@ -307,7 +307,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 			Domains: []string{domain},
 		}
 
-		if options.Addr == options.GRPCAddr {
+		if options.Addr == options.GetGRPCAddr() {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
 			if (config.IsAuthorize(options.Services) && hostsMatchDomain(authorizeURLs, domain)) ||
 				(config.IsDataBroker(options.Services) && hostsMatchDomain(dataBrokerURLs, domain)) {
@@ -337,7 +337,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 		// if we're the proxy or authenticate service, add our global headers
 		if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
-			vh.ResponseHeadersToAdd = toEnvoyHeaders(options.SetResponseHeaders)
+			vh.ResponseHeadersToAdd = toEnvoyHeaders(options.GetSetResponseHeaders())
 		}
 
 		if len(vh.Routes) > 0 {
@@ -531,10 +531,10 @@ func (b *Builder) buildGRPCListener(cfg *config.Config) (*envoy_config_listener_
 		return nil, err
 	}
 
-	if cfg.Options.GRPCInsecure {
+	if cfg.Options.GetGRPCInsecure() {
 		return &envoy_config_listener_v3.Listener{
 			Name:    "grpc-ingress",
-			Address: buildAddress(cfg.Options.GRPCAddr, 80),
+			Address: buildAddress(cfg.Options.GetGRPCAddr(), 80),
 			FilterChains: []*envoy_config_listener_v3.FilterChain{{
 				Filters: []*envoy_config_listener_v3.Filter{
 					filter,
@@ -572,7 +572,7 @@ func (b *Builder) buildGRPCListener(cfg *config.Config) (*envoy_config_listener_
 	tlsInspectorCfg := marshalAny(new(emptypb.Empty))
 	li := &envoy_config_listener_v3.Listener{
 		Name:    "grpc-ingress",
-		Address: buildAddress(cfg.Options.GRPCAddr, 443),
+		Address: buildAddress(cfg.Options.GetGRPCAddr(), 443),
 		ListenerFilters: []*envoy_config_listener_v3.ListenerFilter{{
 			Name: "envoy.filters.listener.tls_inspector",
 			ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
@@ -713,14 +713,14 @@ func getAllRouteableDomains(options *config.Options, addr string) ([]string, err
 			lookup[h] = struct{}{}
 		}
 	}
-	if config.IsAuthorize(options.Services) && addr == options.GRPCAddr {
+	if config.IsAuthorize(options.Services) && addr == options.GetGRPCAddr() {
 		for _, u := range authorizeURLs {
 			for _, h := range urlutil.GetDomainsForURL(*u) {
 				lookup[h] = struct{}{}
 			}
 		}
 	}
-	if config.IsDataBroker(options.Services) && addr == options.GRPCAddr {
+	if config.IsDataBroker(options.Services) && addr == options.GetGRPCAddr() {
 		for _, u := range dataBrokerURLs {
 			for _, h := range urlutil.GetDomainsForURL(*u) {
 				lookup[h] = struct{}{}

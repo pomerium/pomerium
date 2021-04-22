@@ -78,7 +78,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	state.redirectURL.Path = cfg.Options.AuthenticateCallbackPath
 
 	// shared cipher to encrypt data before passing data between services
-	state.sharedKey, err = base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	state.sharedKey, err = cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		state.jwk.Keys = append(state.jwk.Keys, *jwk)
 	}
 
-	sharedKey, err := base64.StdEncoding.DecodeString(cfg.Options.SharedKey)
+	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		CAFile:                  cfg.Options.CAFile,
 		RequestTimeout:          cfg.Options.GRPCClientTimeout,
 		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GRPCInsecure,
+		WithInsecure:            cfg.Options.GetGRPCInsecure(),
 		InstallationID:          cfg.Options.InstallationID,
 		ServiceName:             cfg.Options.Services,
 		SignedJWTKey:            sharedKey,
