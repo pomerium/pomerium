@@ -85,7 +85,7 @@ func newPolicyEvaluator(opts *config.Options, store *evaluator.Store) (*evaluato
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	a.currentOptions.Store(cfg.Options)
 	if state, err := newAuthorizeStateFromConfig(cfg, a.store); err != nil {
-		log.Error(context.TODO()).Err(err).Msg("authorize: error updating state")
+		log.Error(ctx).Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(state)
 	}

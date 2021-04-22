@@ -76,7 +76,7 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 
 	envoyPath, err := extractEmbeddedEnvoy()
 	if err != nil {
-		log.Warn(context.TODO()).Err(err).Send()
+		log.Warn(ctx).Err(err).Send()
 		envoyPath = "envoy"
 	}
 
@@ -98,7 +98,7 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 			return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", Checksum, s)
 		}
 	} else {
-		log.Info(context.TODO()).Msg("no checksum defined, envoy binary will not be verified!")
+		log.Info(ctx).Msg("no checksum defined, envoy binary will not be verified!")
 	}
 
 	srv := &Server{
@@ -108,7 +108,7 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 		httpPort:  httpPort,
 		envoyPath: envoyPath,
 	}
-	go srv.runProcessCollector(context.TODO())
+	go srv.runProcessCollector(ctx)
 
 	src.OnConfigChange(ctx, srv.onConfigChange)
 	srv.onConfigChange(ctx, src.GetConfig())

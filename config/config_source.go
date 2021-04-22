@@ -161,8 +161,7 @@ type FileWatcherSource struct {
 	ChangeDispatcher
 }
 
-// NewFileWatcherSource creates a new FileWatcherSource.
-// TODO: doesn't seem to be used
+// NewFileWatcherSource creates a new FileWatcherSource
 func NewFileWatcherSource(underlying Source) *FileWatcherSource {
 	src := &FileWatcherSource{
 		underlying: underlying,

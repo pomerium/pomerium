@@ -223,7 +223,7 @@ func (b *Builder) buildPolicyTransportSocket(ctx context.Context, policy *config
 	}
 	if policy.ClientCertificate != nil {
 		tlsContext.CommonTlsContext.TlsCertificates = append(tlsContext.CommonTlsContext.TlsCertificates,
-			b.envoyTLSCertificateFromGoTLSCertificate(context.TODO(), policy.ClientCertificate))
+			b.envoyTLSCertificateFromGoTLSCertificate(ctx, policy.ClientCertificate))
 	}
 
 	tlsConfig := marshalAny(tlsContext)

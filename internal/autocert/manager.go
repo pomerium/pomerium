@@ -72,7 +72,7 @@ func newManager(ctx context.Context,
 	mgr.src.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
 		err := mgr.update(cfg)
 		if err != nil {
-			log.Error(context.TODO()).Err(err).Msg("autocert: error updating config")
+			log.Error(ctx).Err(err).Msg("autocert: error updating config")
 			return
 		}
 
