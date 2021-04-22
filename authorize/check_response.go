@@ -80,6 +80,8 @@ func (a *Authorize) htmlDeniedResponse(
 		}.Encode(),
 	})
 
+	debugEndpoint = urlutil.NewSignedURL(a.state.Load().sharedKey, debugEndpoint).Sign()
+
 	var details string
 	switch code {
 	case httputil.StatusInvalidClientCertificate:
