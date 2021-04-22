@@ -122,7 +122,7 @@ func (mgr *Manager) getCertMagicConfig(cfg *config.Config) (*certmagic.Config, e
 		acmeMgr.CA = acmeMgr.TestCA
 	}
 	acmeMgr.DisableTLSALPNChallenge = true
-	mgr.certmagic.Issuer = acmeMgr
+	mgr.certmagic.Issuers = []certmagic.Issuer{acmeMgr}
 	mgr.acmeMgr.Store(acmeMgr)
 
 	return mgr.certmagic, nil
