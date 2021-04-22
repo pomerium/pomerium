@@ -214,7 +214,7 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, 
 }
 
 func (tun *Tunnel) jwtCacheKey() string {
-	return fmt.Sprintf("%s|%s|%v", tun.cfg.dstHost, tun.cfg.proxyHost, tun.cfg.tlsConfig != nil)
+	return fmt.Sprintf("%s|%v", tun.cfg.proxyHost, tun.cfg.tlsConfig != nil)
 }
 
 func deBuffer(br *bufio.Reader, underlying io.Reader) io.Reader {
