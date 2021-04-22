@@ -2,6 +2,7 @@
 package xdsmgr
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"sync"
@@ -51,7 +52,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 
 	stateByTypeURL := map[string]*streamState{}
 
-	getDeltaResponse := func(typeURL string) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
+	getDeltaResponse := func(ctx context.Context, typeURL string) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
 		mgr.mu.Lock()
 		defer mgr.mu.Unlock()
 
@@ -85,7 +86,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 		return res
 	}
 
-	handleDeltaRequest := func(req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
+	handleDeltaRequest := func(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
 		mgr.mu.Lock()
 		defer mgr.mu.Unlock()
 
@@ -109,8 +110,9 @@ func (mgr *Manager) DeltaAggregatedResources(
 		case req.GetErrorDetail() != nil:
 			// a NACK
 			bs, _ := json.Marshal(req.ErrorDetail.Details)
-			log.Error().
+			log.Error(ctx).
 				Err(errors.New(req.ErrorDetail.Message)).
+				Str("nonce", req.ResponseNonce).
 				Int32("code", req.ErrorDetail.Code).
 				RawJSON("details", bs).Msg("error applying configuration")
 			// - set the client resource versions to the current resource versions
@@ -121,12 +123,18 @@ func (mgr *Manager) DeltaAggregatedResources(
 		case req.GetResponseNonce() == mgr.nonce:
 			// an ACK for the last response
 			// - set the client resource versions to the current resource versions
+			log.Debug(ctx).
+				Str("nonce", req.ResponseNonce).
+				Msg("ACK")
 			state.clientResourceVersions = make(map[string]string)
 			for _, resource := range mgr.resources[req.GetTypeUrl()] {
 				state.clientResourceVersions[resource.Name] = resource.Version
 			}
 		default:
 			// an ACK for a response that's not the last response
+			log.Debug(ctx).
+				Str("nonce", req.ResponseNonce).
+				Msg("stale ACK")
 		}
 
 		// update subscriptions
@@ -168,15 +176,16 @@ func (mgr *Manager) DeltaAggregatedResources(
 	})
 	// 2. handle incoming requests or resource changes
 	eg.Go(func() error {
+		changeCtx := ctx
 		for {
 			var typeURLs []string
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			case req := <-incoming:
-				handleDeltaRequest(req)
+				handleDeltaRequest(changeCtx, req)
 				typeURLs = []string{req.GetTypeUrl()}
-			case <-ch:
+			case changeCtx = <-ch:
 				mgr.mu.Lock()
 				for typeURL := range mgr.resources {
 					typeURLs = append(typeURLs, typeURL)
@@ -185,7 +194,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 			}
 
 			for _, typeURL := range typeURLs {
-				res := getDeltaResponse(typeURL)
+				res := getDeltaResponse(changeCtx, typeURL)
 				if res == nil {
 					continue
 				}
@@ -194,6 +203,10 @@ func (mgr *Manager) DeltaAggregatedResources(
 				case <-ctx.Done():
 					return ctx.Err()
 				case outgoing <- res:
+					log.Info(changeCtx).
+						Str("nounce", res.Nonce).
+						Str("type", res.TypeUrl).
+						Msg("send update")
 				}
 			}
 		}
@@ -224,11 +237,11 @@ func (mgr *Manager) StreamAggregatedResources(
 
 // Update updates the state of resources. If any changes are made they will be pushed to any listening
 // streams. For each TypeURL the list of resources should be the complete list of resources.
-func (mgr *Manager) Update(resources map[string][]*envoy_service_discovery_v3.Resource) {
+func (mgr *Manager) Update(ctx context.Context, resources map[string][]*envoy_service_discovery_v3.Resource) {
 	mgr.mu.Lock()
 	mgr.nonce = uuid.New().String()
 	mgr.resources = resources
 	mgr.mu.Unlock()
 
-	mgr.signal.Broadcast()
+	mgr.signal.Broadcast(ctx)
 }

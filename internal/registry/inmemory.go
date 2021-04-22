@@ -51,7 +51,7 @@ func (s *inMemoryServer) periodicCheck(ctx context.Context) {
 			return
 		case <-time.After(after):
 			if s.lockAndRmExpired() {
-				s.onchange.Broadcast()
+				s.onchange.Broadcast(ctx)
 			}
 		}
 	}
@@ -70,7 +70,7 @@ func (s *inMemoryServer) Report(ctx context.Context, req *pb.RegisterRequest) (*
 	}
 
 	if updated {
-		s.onchange.Broadcast()
+		s.onchange.Broadcast(ctx)
 	}
 
 	return &pb.RegisterResponse{
@@ -171,7 +171,7 @@ func (s *inMemoryServer) Watch(req *pb.ListRequest, srv pb.Registry_WatchServer)
 	}
 }
 
-func (s *inMemoryServer) getServiceUpdates(ctx context.Context, kinds map[pb.ServiceKind]bool, updates chan struct{}) ([]*pb.Service, error) {
+func (s *inMemoryServer) getServiceUpdates(ctx context.Context, kinds map[pb.ServiceKind]bool, updates chan context.Context) ([]*pb.Service, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()

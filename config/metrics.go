@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"sync"
@@ -9,6 +10,8 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+
+	"github.com/rs/zerolog"
 )
 
 // A MetricsManager manages metrics for a given configuration.
@@ -22,11 +25,14 @@ type MetricsManager struct {
 }
 
 // NewMetricsManager creates a new MetricsManager.
-func NewMetricsManager(src Source) *MetricsManager {
+func NewMetricsManager(ctx context.Context, src Source) *MetricsManager {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "metrics_manager")
+	})
 	mgr := &MetricsManager{}
 	metrics.RegisterInfoMetrics()
-	src.OnConfigChange(mgr.OnConfigChange)
-	mgr.OnConfigChange(src.GetConfig())
+	src.OnConfigChange(ctx, mgr.OnConfigChange)
+	mgr.OnConfigChange(ctx, src.GetConfig())
 	return mgr
 }
 
@@ -36,7 +42,7 @@ func (mgr *MetricsManager) Close() error {
 }
 
 // OnConfigChange updates the metrics manager when configuration is changed.
-func (mgr *MetricsManager) OnConfigChange(cfg *Config) {
+func (mgr *MetricsManager) OnConfigChange(ctx context.Context, cfg *Config) {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
@@ -63,7 +69,7 @@ func (mgr *MetricsManager) updateInfo(cfg *Config) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Error().Err(err).Msg("telemetry/metrics: failed to get OS hostname")
+		log.Error(context.TODO()).Err(err).Msg("telemetry/metrics: failed to get OS hostname")
 		hostname = "__unknown__"
 	}
 
@@ -84,13 +90,13 @@ func (mgr *MetricsManager) updateServer(cfg *Config) {
 	mgr.handler = nil
 
 	if mgr.addr == "" {
-		log.Info().Msg("metrics: http server disabled")
+		log.Info(context.TODO()).Msg("metrics: http server disabled")
 		return
 	}
 
 	handler, err := metrics.PrometheusHandler(EnvoyAdminURL, mgr.installationID)
 	if err != nil {
-		log.Error().Err(err).Msg("metrics: failed to create prometheus handler")
+		log.Error(context.TODO()).Err(err).Msg("metrics: failed to create prometheus handler")
 		return
 	}
 

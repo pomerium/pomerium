@@ -1,11 +1,14 @@
 package config
 
 import (
+	"context"
 	"crypto/sha256"
 	"io/ioutil"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -13,7 +16,7 @@ import (
 )
 
 // A ChangeListener is called when configuration changes.
-type ChangeListener = func(*Config)
+type ChangeListener = func(context.Context, *Config)
 
 // A ChangeDispatcher manages listeners on config changes.
 type ChangeDispatcher struct {
@@ -22,17 +25,17 @@ type ChangeDispatcher struct {
 }
 
 // Trigger triggers a change.
-func (dispatcher *ChangeDispatcher) Trigger(cfg *Config) {
+func (dispatcher *ChangeDispatcher) Trigger(ctx context.Context, cfg *Config) {
 	dispatcher.Lock()
 	defer dispatcher.Unlock()
 
 	for _, li := range dispatcher.onConfigChangeListeners {
-		li(cfg)
+		li(ctx, cfg)
 	}
 }
 
 // OnConfigChange adds a listener.
-func (dispatcher *ChangeDispatcher) OnConfigChange(li ChangeListener) {
+func (dispatcher *ChangeDispatcher) OnConfigChange(ctx context.Context, li ChangeListener) {
 	dispatcher.Lock()
 	defer dispatcher.Unlock()
 	dispatcher.onConfigChangeListeners = append(dispatcher.onConfigChangeListeners, li)
@@ -41,7 +44,7 @@ func (dispatcher *ChangeDispatcher) OnConfigChange(li ChangeListener) {
 // A Source gets configuration.
 type Source interface {
 	GetConfig() *Config
-	OnConfigChange(ChangeListener)
+	OnConfigChange(context.Context, ChangeListener)
 }
 
 // A StaticSource always returns the same config. Useful for testing.
@@ -65,18 +68,18 @@ func (src *StaticSource) GetConfig() *Config {
 }
 
 // SetConfig sets the config.
-func (src *StaticSource) SetConfig(cfg *Config) {
+func (src *StaticSource) SetConfig(ctx context.Context, cfg *Config) {
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
 	src.cfg = cfg
 	for _, li := range src.lis {
-		li(cfg)
+		li(ctx, cfg)
 	}
 }
 
 // OnConfigChange is ignored for the StaticSource.
-func (src *StaticSource) OnConfigChange(li ChangeListener) {
+func (src *StaticSource) OnConfigChange(ctx context.Context, li ChangeListener) {
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
@@ -95,38 +98,48 @@ type FileOrEnvironmentSource struct {
 
 // NewFileOrEnvironmentSource creates a new FileOrEnvironmentSource.
 func NewFileOrEnvironmentSource(configFile string) (*FileOrEnvironmentSource, error) {
+	ctx := log.WithContext(context.TODO(), func(c zerolog.Context) zerolog.Context {
+		return c.Str("config_file_source", configFile)
+	})
+
 	options, err := newOptionsFromConfig(configFile)
 	if err != nil {
 		return nil, err
 	}
 
 	cfg := &Config{Options: options}
-	metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), true)
+	metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 
 	src := &FileOrEnvironmentSource{
 		configFile: configFile,
 		config:     cfg,
 	}
-	options.viper.OnConfigChange(src.onConfigChange)
+	options.viper.OnConfigChange(src.onConfigChange(ctx))
 	go options.viper.WatchConfig()
 
 	return src, nil
 }
 
-func (src *FileOrEnvironmentSource) onConfigChange(evt fsnotify.Event) {
-	src.mu.Lock()
-	cfg := src.config
-	options, err := newOptionsFromConfig(src.configFile)
-	if err == nil {
-		cfg = &Config{Options: options}
-		metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), true)
-	} else {
-		log.Error().Err(err).Msg("config: error updating config")
-		metrics.SetConfigInfo(cfg.Options.Services, "local", cfg.Checksum(), false)
-	}
-	src.mu.Unlock()
+func (src *FileOrEnvironmentSource) onConfigChange(ctx context.Context) func(fsnotify.Event) {
+	return func(evt fsnotify.Event) {
+		ctx := log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+			return c.Str("config_change_id", uuid.New().String())
+		})
+		log.Info(ctx).Msg("config: file updated, reconfiguring...")
+		src.mu.Lock()
+		cfg := src.config
+		options, err := newOptionsFromConfig(src.configFile)
+		if err == nil {
+			cfg = &Config{Options: options}
+			metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
+		} else {
+			log.Error(ctx).Err(err).Msg("config: error updating config")
+			metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), false)
+		}
+		src.mu.Unlock()
 
-	src.Trigger(cfg)
+		src.Trigger(ctx, cfg)
+	}
 }
 
 // GetConfig gets the config.
@@ -148,7 +161,7 @@ type FileWatcherSource struct {
 	ChangeDispatcher
 }
 
-// NewFileWatcherSource creates a new FileWatcherSource.
+// NewFileWatcherSource creates a new FileWatcherSource
 func NewFileWatcherSource(underlying Source) *FileWatcherSource {
 	src := &FileWatcherSource{
 		underlying: underlying,
@@ -158,13 +171,13 @@ func NewFileWatcherSource(underlying Source) *FileWatcherSource {
 	ch := src.watcher.Bind()
 	go func() {
 		for range ch {
-			src.check(underlying.GetConfig())
+			src.check(context.TODO(), underlying.GetConfig())
 		}
 	}()
-	underlying.OnConfigChange(func(cfg *Config) {
-		src.check(cfg)
+	underlying.OnConfigChange(context.TODO(), func(ctx context.Context, cfg *Config) {
+		src.check(ctx, cfg)
 	})
-	src.check(underlying.GetConfig())
+	src.check(context.TODO(), underlying.GetConfig())
 
 	return src
 }
@@ -176,7 +189,7 @@ func (src *FileWatcherSource) GetConfig() *Config {
 	return src.computedConfig
 }
 
-func (src *FileWatcherSource) check(cfg *Config) {
+func (src *FileWatcherSource) check(ctx context.Context, cfg *Config) {
 	if cfg == nil || cfg.Options == nil {
 		return
 	}
@@ -218,5 +231,5 @@ func (src *FileWatcherSource) check(cfg *Config) {
 	src.computedConfig = cfg.Clone()
 
 	// trigger a change
-	src.Trigger(src.computedConfig)
+	src.Trigger(ctx, src.computedConfig)
 }

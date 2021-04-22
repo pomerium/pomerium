@@ -181,7 +181,7 @@ func TestExpiry(t *testing.T) {
 		_ = stream.Close()
 		require.Len(t, records, 1000)
 
-		backend.removeChangesBefore(time.Now().Add(time.Second))
+		backend.removeChangesBefore(ctx, time.Now().Add(time.Second))
 
 		stream, err = backend.Sync(ctx, 0)
 		require.NoError(t, err)

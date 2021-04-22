@@ -19,7 +19,7 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
-			log.Error().Err(err).Msg("access log stream error, disconnecting")
+			log.Error(stream.Context()).Err(err).Msg("access log stream error, disconnecting")
 			return err
 		}
 
@@ -27,9 +27,9 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 			reqPath := entry.GetRequest().GetPath()
 			var evt *zerolog.Event
 			if reqPath == "/ping" || reqPath == "/healthz" {
-				evt = log.Debug()
+				evt = log.Debug(stream.Context())
 			} else {
-				evt = log.Info()
+				evt = log.Info(stream.Context())
 			}
 			// common properties
 			evt = evt.Str("service", "envoy")

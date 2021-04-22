@@ -1,6 +1,7 @@
 package databroker
 
 import (
+	"context"
 	"crypto/tls"
 	"time"
 
@@ -64,7 +65,7 @@ func WithGetSharedKey(getSharedKey func() ([]byte, error)) ServerOption {
 	return func(cfg *serverConfig) {
 		sharedKey, err := getSharedKey()
 		if err != nil {
-			log.Error().Err(err).Msgf("shared key is required and must be %d bytes long", cryptutil.DefaultKeySize)
+			log.Error(context.TODO()).Err(err).Msgf("shared key is required and must be %d bytes long", cryptutil.DefaultKeySize)
 			return
 		}
 		cfg.secret = sharedKey

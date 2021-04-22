@@ -104,8 +104,8 @@ func RecordIdentityManagerLastRefresh() {
 
 // SetDBConfigInfo records status, databroker version and error count while parsing
 // the configuration from a databroker
-func SetDBConfigInfo(service, configID string, version uint64, errCount int64) {
-	log.Info().
+func SetDBConfigInfo(ctx context.Context, service, configID string, version uint64, errCount int64) {
+	log.Info(ctx).
 		Str("service", service).
 		Str("config_id", configID).
 		Uint64("version", version).
@@ -113,14 +113,14 @@ func SetDBConfigInfo(service, configID string, version uint64, errCount int64) {
 		Msg("set db config info")
 
 	if err := stats.RecordWithTags(
-		context.Background(),
+		ctx,
 		[]tag.Mutator{
 			tag.Insert(TagKeyService, service),
 			tag.Insert(TagConfigID, configID),
 		},
 		configDBVersion.M(int64(version)),
 	); err != nil {
-		log.Error().Err(err).Msg("telemetry/metrics: failed to record config version number")
+		log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to record config version number")
 	}
 
 	if err := stats.RecordWithTags(
@@ -131,20 +131,20 @@ func SetDBConfigInfo(service, configID string, version uint64, errCount int64) {
 		},
 		configDBErrors.M(errCount),
 	); err != nil {
-		log.Error().Err(err).Msg("telemetry/metrics: failed to record config error count")
+		log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to record config error count")
 	}
 
 }
 
 // SetDBConfigRejected records that a certain databroker config version has been rejected
-func SetDBConfigRejected(service, configID string, version uint64, err error) {
-	log.Warn().Err(err).Msg("databroker: invalid config detected, ignoring")
-	SetDBConfigInfo(service, configID, version, -1)
+func SetDBConfigRejected(ctx context.Context, service, configID string, version uint64, err error) {
+	log.Warn(ctx).Err(err).Msg("databroker: invalid config detected, ignoring")
+	SetDBConfigInfo(ctx, service, configID, version, -1)
 }
 
 // SetConfigInfo records the status, checksum and timestamp of a configuration
 // reload. You must register InfoViews or the related config views before calling
-func SetConfigInfo(service, configName string, checksum uint64, success bool) {
+func SetConfigInfo(ctx context.Context, service, configName string, checksum uint64, success bool) {
 	if success {
 		registry.setConfigChecksum(service, configName, checksum)
 
@@ -154,7 +154,7 @@ func SetConfigInfo(service, configName string, checksum uint64, success bool) {
 			[]tag.Mutator{serviceTag},
 			configLastReload.M(time.Now().Unix()),
 		); err != nil {
-			log.Error().Err(err).Msg("telemetry/metrics: failed to record config checksum timestamp")
+			log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to record config checksum timestamp")
 		}
 
 		if err := stats.RecordWithTags(
@@ -162,12 +162,12 @@ func SetConfigInfo(service, configName string, checksum uint64, success bool) {
 			[]tag.Mutator{serviceTag},
 			configLastReloadSuccess.M(1),
 		); err != nil {
-			log.Error().Err(err).Msg("telemetry/metrics: failed to record config reload")
+			log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to record config reload")
 		}
 	} else {
 		stats.Record(context.Background(), configLastReloadSuccess.M(0))
 	}
-	log.Info().
+	log.Info(ctx).
 		Str("service", service).
 		Str("config", configName).
 		Str("checksum", fmt.Sprintf("%x", checksum)).

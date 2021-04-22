@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
@@ -430,7 +431,7 @@ func (o *Options) viperIsSet(key string) bool {
 
 // parseHeaders handles unmarshalling any custom headers correctly from the
 // environment or viper's parsed keys
-func (o *Options) parseHeaders() error {
+func (o *Options) parseHeaders(ctx context.Context) error {
 	var headers map[string]string
 	if o.HeadersEnv != "" {
 		// Handle JSON by default via viper
@@ -453,7 +454,7 @@ func (o *Options) parseHeaders() error {
 	}
 
 	if o.viperIsSet("headers") {
-		log.Warn().Msg("config: headers has been renamed to set_response_headers, it will be removed in v0.16")
+		log.Warn(ctx).Msg("config: headers has been renamed to set_response_headers, it will be removed in v0.16")
 	}
 
 	// option was renamed from `headers` to `set_response_headers`. Both config settings are supported.
@@ -510,6 +511,7 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 
 // Validate ensures the Options fields are valid, and hydrated.
 func (o *Options) Validate() error {
+	ctx := context.TODO()
 	if !IsValidService(o.Services) {
 		return fmt.Errorf("config: %s is an invalid service type", o.Services)
 	}
@@ -571,7 +573,7 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: failed to parse policy: %w", err)
 	}
 
-	if err := o.parseHeaders(); err != nil {
+	if err := o.parseHeaders(ctx); err != nil {
 		return fmt.Errorf("config: failed to parse headers: %w", err)
 	}
 
@@ -652,7 +654,7 @@ func (o *Options) Validate() error {
 	switch o.Provider {
 	case azure.Name, github.Name, gitlab.Name, google.Name, okta.Name, onelogin.Name:
 		if len(o.Scopes) > 0 {
-			log.Warn().Msg(idpCustomScopesWarnMsg)
+			log.Warn(ctx).Msg(idpCustomScopesWarnMsg)
 		}
 	default:
 	}

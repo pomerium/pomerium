@@ -120,7 +120,7 @@ func HTTPMetricsHandler(getInstallationID func() string, service string) func(ne
 				tag.Upsert(TagKeyHTTPMethod, r.Method),
 			)
 			if tagErr != nil {
-				log.Warn().Err(tagErr).Str("context", "HTTPMetricsHandler").Msg("telemetry/metrics: failed to create metrics tag")
+				log.Warn(ctx).Err(tagErr).Str("context", "HTTPMetricsHandler").Msg("telemetry/metrics: failed to create metrics tag")
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -148,7 +148,7 @@ func HTTPMetricsRoundTripper(getInstallationID func() string, service string, de
 				tag.Upsert(TagKeyDestination, destination),
 			)
 			if tagErr != nil {
-				log.Warn().Err(tagErr).Str("context", "HTTPMetricsRoundTripper").Msg("telemetry/metrics: failed to create metrics tag")
+				log.Warn(ctx).Err(tagErr).Str("context", "HTTPMetricsRoundTripper").Msg("telemetry/metrics: failed to create metrics tag")
 				return next.RoundTrip(r)
 			}
 

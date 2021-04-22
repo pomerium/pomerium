@@ -28,7 +28,7 @@ func TestManager(t *testing.T) {
 	origOnHandleDeltaRequest := onHandleDeltaRequest
 	defer func() { onHandleDeltaRequest = origOnHandleDeltaRequest }()
 	onHandleDeltaRequest = func(state *streamState) {
-		stateChanged.Broadcast()
+		stateChanged.Broadcast(ctx)
 	}
 
 	srv := grpc.NewServer()
@@ -94,7 +94,7 @@ func TestManager(t *testing.T) {
 		}, msg.GetResources())
 		ack(msg.Nonce)
 
-		mgr.Update(map[string][]*envoy_service_discovery_v3.Resource{
+		mgr.Update(ctx, map[string][]*envoy_service_discovery_v3.Resource{
 			typeURL: {{Name: "r1", Version: "2"}},
 		})
 
@@ -105,7 +105,7 @@ func TestManager(t *testing.T) {
 		}, msg.GetResources())
 		ack(msg.Nonce)
 
-		mgr.Update(map[string][]*envoy_service_discovery_v3.Resource{
+		mgr.Update(ctx, map[string][]*envoy_service_discovery_v3.Resource{
 			typeURL: nil,
 		})
 

@@ -5,6 +5,7 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -81,17 +82,17 @@ func New(cfg *config.Config) (*Proxy, error) {
 }
 
 // OnConfigChange updates internal structures based on config.Options
-func (p *Proxy) OnConfigChange(cfg *config.Config) {
+func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	if p == nil {
 		return
 	}
 
 	p.currentOptions.Store(cfg.Options)
 	if err := p.setHandlers(cfg.Options); err != nil {
-		log.Error().Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
+		log.Error(context.TODO()).Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
 	}
 	if state, err := newProxyStateFromConfig(cfg); err != nil {
-		log.Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
+		log.Error(context.TODO()).Err(err).Msg("proxy: failed to update proxy state from configuration settings")
 	} else {
 		p.state.Store(state)
 	}
@@ -99,7 +100,7 @@ func (p *Proxy) OnConfigChange(cfg *config.Config) {
 
 func (p *Proxy) setHandlers(opts *config.Options) error {
 	if len(opts.GetAllPolicies()) == 0 {
-		log.Warn().Msg("proxy: configuration has no policies")
+		log.Warn(context.TODO()).Msg("proxy: configuration has no policies")
 	}
 	r := httputil.NewRouter()
 	r.NotFoundHandler = httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {

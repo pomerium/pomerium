@@ -2,6 +2,7 @@
 package reproxy
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"math/rand"
@@ -120,7 +121,7 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 }
 
 // Update updates the handler with new configuration.
-func (h *Handler) Update(cfg *config.Config) {
+func (h *Handler) Update(ctx context.Context, cfg *config.Config) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -130,7 +131,7 @@ func (h *Handler) Update(cfg *config.Config) {
 	for i, p := range cfg.Options.Policies {
 		id, err := p.RouteID()
 		if err != nil {
-			log.Warn().Err(err).Msg("reproxy: error getting route id")
+			log.Warn(ctx).Err(err).Msg("reproxy: error getting route id")
 			continue
 		}
 		h.policies[id] = &cfg.Options.Policies[i]

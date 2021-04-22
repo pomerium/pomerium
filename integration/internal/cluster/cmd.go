@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/rs/zerolog/log"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 type cmdOption func(*exec.Cmd)
@@ -53,7 +53,7 @@ func run(ctx context.Context, name string, options ...cmdOption) error {
 		if err != nil {
 			return fmt.Errorf("failed to create stderr pipe for %s: %w", name, err)
 		}
-		go cmdLogger(stderr)
+		go cmdLogger(ctx, stderr)
 		defer stderr.Close()
 	}
 	if cmd.Stdout == nil {
@@ -61,17 +61,17 @@ func run(ctx context.Context, name string, options ...cmdOption) error {
 		if err != nil {
 			return fmt.Errorf("failed to create stdout pipe for %s: %w", name, err)
 		}
-		go cmdLogger(stdout)
+		go cmdLogger(ctx, stdout)
 		defer stdout.Close()
 	}
 
-	log.Debug().Strs("args", cmd.Args).Msgf("running %s", name)
+	log.Debug(ctx).Strs("args", cmd.Args).Msgf("running %s", name)
 	return cmd.Run()
 }
 
-func cmdLogger(rdr io.Reader) {
+func cmdLogger(ctx context.Context, rdr io.Reader) {
 	s := bufio.NewScanner(rdr)
 	for s.Scan() {
-		log.Debug().Msg(s.Text())
+		log.Debug(ctx).Msg(s.Text())
 	}
 }

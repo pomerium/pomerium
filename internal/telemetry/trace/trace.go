@@ -77,7 +77,7 @@ func RegisterTracing(opts *TracingOptions) (trace.Exporter, error) {
 	}
 	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(opts.SampleRate)})
 
-	log.Debug().Interface("Opts", opts).Msg("telemetry/trace: exporter created")
+	log.Debug(context.TODO()).Interface("Opts", opts).Msg("telemetry/trace: exporter created")
 	return exporter, nil
 }
 

@@ -34,22 +34,22 @@ type dbConfig struct {
 }
 
 // NewConfigSource creates a new ConfigSource.
-func NewConfigSource(underlying config.Source, listeners ...config.ChangeListener) *ConfigSource {
+func NewConfigSource(ctx context.Context, underlying config.Source, listeners ...config.ChangeListener) *ConfigSource {
 	src := &ConfigSource{
 		dbConfigs: map[string]dbConfig{},
 	}
 	for _, li := range listeners {
-		src.OnConfigChange(li)
+		src.OnConfigChange(ctx, li)
 	}
-	underlying.OnConfigChange(func(cfg *config.Config) {
+	underlying.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
 		src.mu.Lock()
 		src.underlyingConfig = cfg.Clone()
 		src.mu.Unlock()
 
-		src.rebuild(false)
+		src.rebuild(ctx, firstTime(false))
 	})
 	src.underlyingConfig = underlying.GetConfig()
-	src.rebuild(true)
+	src.rebuild(ctx, firstTime(true))
 	return src
 }
 
@@ -61,8 +61,10 @@ func (src *ConfigSource) GetConfig() *config.Config {
 	return src.computedConfig
 }
 
-func (src *ConfigSource) rebuild(firstTime bool) {
-	_, span := trace.StartSpan(context.Background(), "databroker.config_source.rebuild")
+type firstTime bool
+
+func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
+	_, span := trace.StartSpan(ctx, "databroker.config_source.rebuild")
 	defer span.End()
 
 	src.mu.Lock()
@@ -77,7 +79,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 	for _, policy := range cfg.Options.GetAllPolicies() {
 		id, err := policy.RouteID()
 		if err != nil {
-			log.Warn().Err(err).
+			log.Warn(ctx).Err(err).
 				Str("policy", policy.String()).
 				Msg("databroker: invalid policy config, ignoring")
 			return
@@ -94,7 +96,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 
 		err := cfg.Options.Validate()
 		if err != nil {
-			metrics.SetDBConfigRejected(cfg.Options.Services, id, cfgpb.version, err)
+			metrics.SetDBConfigRejected(ctx, cfg.Options.Services, id, cfgpb.version, err)
 			return
 		}
 
@@ -102,7 +104,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 			policy, err := config.NewPolicyFromProto(routepb)
 			if err != nil {
 				errCount++
-				log.Warn().Err(err).
+				log.Warn(ctx).Err(err).
 					Str("db_config_id", id).
 					Msg("databroker: error converting protobuf into policy")
 				continue
@@ -111,7 +113,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 			err = policy.Validate()
 			if err != nil {
 				errCount++
-				log.Warn().Err(err).
+				log.Warn(ctx).Err(err).
 					Str("db_config_id", id).
 					Str("policy", policy.String()).
 					Msg("databroker: invalid policy, ignoring")
@@ -121,7 +123,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 			routeID, err := policy.RouteID()
 			if err != nil {
 				errCount++
-				log.Warn().Err(err).
+				log.Warn(ctx).Err(err).
 					Str("db_config_id", id).
 					Str("policy", policy.String()).
 					Msg("databroker: cannot establish policy route ID, ignoring")
@@ -130,7 +132,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 
 			if _, ok := seen[routeID]; ok {
 				errCount++
-				log.Warn().Err(err).
+				log.Warn(ctx).Err(err).
 					Str("db_config_id", id).
 					Str("policy", policy.String()).
 					Msg("databroker: duplicate policy detected, ignoring")
@@ -140,7 +142,7 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 
 			additionalPolicies = append(additionalPolicies, *policy)
 		}
-		metrics.SetDBConfigInfo(cfg.Options.Services, id, cfgpb.version, int64(errCount))
+		metrics.SetDBConfigInfo(ctx, cfg.Options.Services, id, cfgpb.version, int64(errCount))
 	}
 
 	// add the additional policies here since calling `Validate` will reset them.
@@ -148,10 +150,10 @@ func (src *ConfigSource) rebuild(firstTime bool) {
 
 	src.computedConfig = cfg
 	if !firstTime {
-		src.Trigger(cfg)
+		src.Trigger(ctx, cfg)
 	}
 
-	metrics.SetConfigInfo(cfg.Options.Services, "databroker", cfg.Checksum(), true)
+	metrics.SetConfigInfo(ctx, cfg.Options.Services, "databroker", cfg.Checksum(), true)
 }
 
 func (src *ConfigSource) runUpdater(cfg *config.Config) {
@@ -190,7 +192,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 
 	cc, err := grpc.NewGRPCClientConn(connectionOptions)
 	if err != nil {
-		log.Error().Err(err).Msg("databroker: failed to create gRPC connection to data broker")
+		log.Error(context.TODO()).Err(err).Msg("databroker: failed to create gRPC connection to data broker")
 		return
 	}
 
@@ -236,7 +238,7 @@ func (s *syncerHandler) UpdateRecords(ctx context.Context, serverVersion uint64,
 		var cfgpb configpb.Config
 		err := record.GetData().UnmarshalTo(&cfgpb)
 		if err != nil {
-			log.Warn().Err(err).Msg("databroker: error decoding config")
+			log.Warn(ctx).Err(err).Msg("databroker: error decoding config")
 			delete(s.src.dbConfigs, record.GetId())
 			continue
 		}
@@ -245,5 +247,5 @@ func (s *syncerHandler) UpdateRecords(ctx context.Context, serverVersion uint64,
 	}
 	s.src.mu.Unlock()
 
-	s.src.rebuild(false)
+	s.src.rebuild(ctx, firstTime(false))
 }

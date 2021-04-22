@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net"
@@ -187,7 +188,7 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 			CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 				TlsParams: tlsParams,
 				TlsCertificates: []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{
-					b.envoyTLSCertificateFromGoTLSCertificate(cert),
+					b.envoyTLSCertificateFromGoTLSCertificate(context.TODO(), cert),
 				},
 				AlpnProtocols: []string{"h2", "http/1.1"},
 			},
@@ -645,19 +646,21 @@ func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_con
 }
 
 func (b *Builder) buildDownstreamTLSContext(cfg *config.Config, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
+	ctx := context.TODO()
+
 	certs, err := cfg.AllCertificates()
 	if err != nil {
-		log.Warn().Str("domain", domain).Err(err).Msg("failed to get all certificates from config")
+		log.Warn(ctx).Str("domain", domain).Err(err).Msg("failed to get all certificates from config")
 		return nil
 	}
 
 	cert, err := cryptutil.GetCertificateForDomain(certs, domain)
 	if err != nil {
-		log.Warn().Str("domain", domain).Err(err).Msg("failed to get certificate for domain")
+		log.Warn(ctx).Str("domain", domain).Err(err).Msg("failed to get certificate for domain")
 		return nil
 	}
 
-	envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(cert)
+	envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(context.TODO(), cert)
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams:             tlsParams,

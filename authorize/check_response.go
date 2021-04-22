@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/url"
 	"sort"
@@ -103,7 +104,7 @@ func (a *Authorize) htmlDeniedResponse(
 	})
 	if err != nil {
 		buf.WriteString(reason)
-		log.Error().Err(err).Msg("error executing error template")
+		log.Error(context.TODO()).Err(err).Msg("error executing error template")
 	}
 
 	envoyHeaders := []*envoy_config_core_v3.HeaderValueOption{

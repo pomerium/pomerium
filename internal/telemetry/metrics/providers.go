@@ -89,26 +89,26 @@ func newProxyMetricsHandler(exporter *ocprom.Exporter, envoyURL url.URL, install
 
 		err := writeMetricsWithInstallationID(w, rec.Body, installationID)
 		if err != nil {
-			log.Error().Err(err).Send()
+			log.Error(r.Context()).Err(err).Send()
 			return
 		}
 
 		req, err := http.NewRequestWithContext(r.Context(), "GET", envoyURL.String(), nil)
 		if err != nil {
-			log.Error().Err(err).Msg("telemetry/metrics: failed to create request for envoy")
+			log.Error(r.Context()).Err(err).Msg("telemetry/metrics: failed to create request for envoy")
 			return
 		}
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
-			log.Error().Err(err).Msg("telemetry/metrics: fail to fetch proxy metrics")
+			log.Error(r.Context()).Err(err).Msg("telemetry/metrics: fail to fetch proxy metrics")
 			return
 		}
 		defer resp.Body.Close()
 
 		err = writeMetricsWithInstallationID(w, resp.Body, installationID)
 		if err != nil {
-			log.Error().Err(err).Send()
+			log.Error(r.Context()).Err(err).Send()
 			return
 		}
 	}
