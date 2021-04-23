@@ -25,6 +25,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
+	"github.com/pomerium/pomerium/internal/hashutil"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -239,9 +241,10 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 		host = ""
 	}
 
+	addr := buildAddress(fmt.Sprintf("%s:%s", host, port), 9902)
 	li := &envoy_config_listener_v3.Listener{
-		Name:         "metrics-ingress",
-		Address:      buildAddress(fmt.Sprintf("%s:%s", host, port), 9902),
+		Name:         fmt.Sprintf("metrics-ingress-%d", hashutil.MustHash(addr)),
+		Address:      addr,
 		FilterChains: []*envoy_config_listener_v3.FilterChain{filterChain},
 	}
 	return li, nil
