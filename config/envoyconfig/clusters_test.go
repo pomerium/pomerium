@@ -241,12 +241,16 @@ func Test_buildCluster(t *testing.T) {
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
 				"dnsLookupFamily": "V4_ONLY",
+				"perConnectionBufferLimitBytes": 32768,
 				"typedExtensionProtocolOptions": {
 					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
 						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
 						"explicitHttpConfig": {
 							"http2ProtocolOptions": {
-								"allowConnect": true
+								"allowConnect": true,
+								"initialConnectionWindowSize": 1048576,
+								"initialStreamWindowSize": 65536,
+								"maxConcurrentStreams": 100
 							}
 						}
 					}
@@ -297,6 +301,7 @@ func Test_buildCluster(t *testing.T) {
 				"type": "STRICT_DNS",
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
+				"perConnectionBufferLimitBytes": 32768,
 				"transportSocketMatches": [{
 					"name": "`+endpoints[0].TransportSocketName()+`",
 					"match": {
@@ -360,7 +365,10 @@ func Test_buildCluster(t *testing.T) {
 						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
 						"explicitHttpConfig": {
 							"http2ProtocolOptions": {
-								"allowConnect": true
+								"allowConnect": true,
+								"initialConnectionWindowSize": 1048576,
+								"initialStreamWindowSize": 65536,
+								"maxConcurrentStreams": 100
 							}
 						}
 					}
@@ -422,12 +430,16 @@ func Test_buildCluster(t *testing.T) {
 				"type": "STATIC",
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
+				"perConnectionBufferLimitBytes": 32768,
 				"typedExtensionProtocolOptions": {
 					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
 						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
 						"explicitHttpConfig": {
 							"http2ProtocolOptions": {
-								"allowConnect": true
+								"allowConnect": true,
+								"initialConnectionWindowSize": 1048576,
+								"initialStreamWindowSize": 65536,
+								"maxConcurrentStreams": 100
 							}
 						}
 					}
@@ -475,12 +487,16 @@ func Test_buildCluster(t *testing.T) {
 				"type": "STATIC",
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
+				"perConnectionBufferLimitBytes": 32768,
 				"typedExtensionProtocolOptions": {
 					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
 						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
 						"explicitHttpConfig": {
 							"http2ProtocolOptions": {
-								"allowConnect": true
+								"allowConnect": true,
+								"initialConnectionWindowSize": 1048576,
+								"initialStreamWindowSize": 65536,
+								"maxConcurrentStreams": 100
 							}
 						}
 					}
@@ -530,12 +546,16 @@ func Test_buildCluster(t *testing.T) {
 				"type": "STATIC",
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
+				"perConnectionBufferLimitBytes": 32768,
 				"typedExtensionProtocolOptions": {
 					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
 						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
 						"explicitHttpConfig": {
 							"http2ProtocolOptions": {
-								"allowConnect": true
+								"allowConnect": true,
+								"initialConnectionWindowSize": 1048576,
+								"initialStreamWindowSize": 65536,
+								"maxConcurrentStreams": 100
 							}
 						}
 					}
@@ -578,12 +598,16 @@ func Test_buildCluster(t *testing.T) {
 				"type": "STRICT_DNS",
 				"connectTimeout": "10s",
 				"respectDnsTtl": true,
+				"perConnectionBufferLimitBytes": 32768,
 				"typedExtensionProtocolOptions": {
 					"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
 						"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
 						"explicitHttpConfig": {
 							"http2ProtocolOptions": {
-								"allowConnect": true
+								"allowConnect": true,
+								"initialConnectionWindowSize": 1048576,
+								"initialStreamWindowSize": 65536,
+								"maxConcurrentStreams": 100
 							}
 						}
 					}

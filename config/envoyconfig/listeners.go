@@ -31,6 +31,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
+const listenerBufferLimit uint32 = 32 * 1024
+
 var (
 	disableExtAuthz *any.Any
 	tlsParams       = &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
@@ -108,16 +110,15 @@ func (b *Builder) buildMainListener(cfg *config.Config) (*envoy_config_listener_
 			return nil, err
 		}
 
-		return &envoy_config_listener_v3.Listener{
-			Name:            "http-ingress",
-			Address:         buildAddress(cfg.Options.Addr, 80),
-			ListenerFilters: listenerFilters,
-			FilterChains: []*envoy_config_listener_v3.FilterChain{{
-				Filters: []*envoy_config_listener_v3.Filter{
-					filter,
-				},
-			}},
-		}, nil
+		li := newEnvoyListener("http-ingress")
+		li.Address = buildAddress(cfg.Options.Addr, 80)
+		li.ListenerFilters = listenerFilters
+		li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
+			Filters: []*envoy_config_listener_v3.Filter{
+				filter,
+			},
+		}}
+		return li, nil
 	}
 
 	tlsInspectorCfg := marshalAny(new(emptypb.Empty))
@@ -158,12 +159,10 @@ func (b *Builder) buildMainListener(cfg *config.Config) (*envoy_config_listener_
 		return nil, err
 	}
 
-	li := &envoy_config_listener_v3.Listener{
-		Name:            "https-ingress",
-		Address:         buildAddress(cfg.Options.Addr, 443),
-		ListenerFilters: listenerFilters,
-		FilterChains:    chains,
-	}
+	li := newEnvoyListener("https-ingress")
+	li.Address = buildAddress(cfg.Options.Addr, 443)
+	li.ListenerFilters = listenerFilters
+	li.FilterChains = chains
 	return li, nil
 }
 
@@ -239,11 +238,9 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 		host = ""
 	}
 
-	li := &envoy_config_listener_v3.Listener{
-		Name:         "metrics-ingress",
-		Address:      buildAddress(fmt.Sprintf("%s:%s", host, port), 9902),
-		FilterChains: []*envoy_config_listener_v3.FilterChain{filterChain},
-	}
+	li := newEnvoyListener("metrics-ingress")
+	li.Address = buildAddress(fmt.Sprintf("%s:%s", host, port), 9902)
+	li.FilterChains = []*envoy_config_listener_v3.FilterChain{filterChain}
 	return li, nil
 }
 
@@ -532,15 +529,14 @@ func (b *Builder) buildGRPCListener(cfg *config.Config) (*envoy_config_listener_
 	}
 
 	if cfg.Options.GetGRPCInsecure() {
-		return &envoy_config_listener_v3.Listener{
-			Name:    "grpc-ingress",
-			Address: buildAddress(cfg.Options.GetGRPCAddr(), 80),
-			FilterChains: []*envoy_config_listener_v3.FilterChain{{
-				Filters: []*envoy_config_listener_v3.Filter{
-					filter,
-				},
-			}},
-		}, nil
+		li := newEnvoyListener("grpc-ingress")
+		li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 80)
+		li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
+			Filters: []*envoy_config_listener_v3.Filter{
+				filter,
+			},
+		}}
+		return li, nil
 	}
 
 	chains, err := b.buildFilterChains(cfg.Options, cfg.Options.Addr,
@@ -570,17 +566,15 @@ func (b *Builder) buildGRPCListener(cfg *config.Config) (*envoy_config_listener_
 	}
 
 	tlsInspectorCfg := marshalAny(new(emptypb.Empty))
-	li := &envoy_config_listener_v3.Listener{
-		Name:    "grpc-ingress",
-		Address: buildAddress(cfg.Options.GetGRPCAddr(), 443),
-		ListenerFilters: []*envoy_config_listener_v3.ListenerFilter{{
-			Name: "envoy.filters.listener.tls_inspector",
-			ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
-				TypedConfig: tlsInspectorCfg,
-			},
-		}},
-		FilterChains: chains,
-	}
+	li := newEnvoyListener("grpc-ingress")
+	li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 443)
+	li.ListenerFilters = []*envoy_config_listener_v3.ListenerFilter{{
+		Name: "envoy.filters.listener.tls_inspector",
+		ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
+			TypedConfig: tlsInspectorCfg,
+		},
+	}}
+	li.FilterChains = chains
 	return li, nil
 }
 
@@ -847,4 +841,12 @@ func getPoliciesForDomain(options *config.Options, domain string) []config.Polic
 		}
 	}
 	return policies
+}
+
+// newEnvoyListener creates envoy listener with certain default values
+func newEnvoyListener(name string) *envoy_config_listener_v3.Listener {
+	return &envoy_config_listener_v3.Listener{
+		Name:                          name,
+		PerConnectionBufferLimitBytes: wrapperspb.UInt32(listenerBufferLimit),
+	}
 }
