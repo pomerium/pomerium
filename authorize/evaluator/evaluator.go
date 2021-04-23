@@ -97,11 +97,6 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	)
 
 	allow := getAllowVar(res[0].Bindings.WithoutWildcards())
-	log.Info(ctx).
-		Bool("ALLOW", allow).
-		Interface("SESSION", req.Session).
-		Interface("RESULT", res[0].Bindings.WithoutWildcards()).
-		Send()
 	// evaluate any custom policies
 	if allow {
 		for _, src := range req.CustomPolicies {
