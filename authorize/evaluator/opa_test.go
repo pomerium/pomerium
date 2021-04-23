@@ -278,6 +278,39 @@ func TestOPA(t *testing.T) {
 			}, true)
 			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
 		})
+		t.Run("allowed sub", func(t *testing.T) {
+			res := eval(t, []config.Policy{
+				{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com:8000")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					SubPolicies: []config.SubPolicy{
+						{
+							AllowedUsers: []string{"a@example.com"},
+						},
+					},
+				},
+			}, []proto.Message{
+				&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com:8000",
+				},
+			}, true)
+			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
+		})
 		t.Run("denied", func(t *testing.T) {
 			res := eval(t, []config.Policy{
 				{
@@ -408,6 +441,40 @@ func TestOPA(t *testing.T) {
 						{URL: *mustParseURL("https://to.example.com")},
 					},
 					AllowedDomains: []string{"example.com"},
+				},
+			}, []proto.Message{
+				&user.ServiceAccount{Id: "serviceaccount1"},
+				&session.Session{
+					Id:     "session1",
+					UserId: "example/user1",
+				},
+				&user.User{
+					Id:    "example/user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method: "GET",
+					URL:    "https://from.example.com",
+				},
+			}, true)
+			assert.True(t, res.Bindings["result"].(M)["allow"].(bool))
+		})
+		t.Run("allowed sub", func(t *testing.T) {
+			res := eval(t, []config.Policy{
+				{
+					Source: &config.StringURL{URL: mustParseURL("https://from.example.com")},
+					To: config.WeightedURLs{
+						{URL: *mustParseURL("https://to.example.com")},
+					},
+					SubPolicies: []config.SubPolicy{
+						{
+							AllowedDomains: []string{"example.com"},
+						},
+					},
 				},
 			}, []proto.Message{
 				&user.ServiceAccount{Id: "serviceaccount1"},
