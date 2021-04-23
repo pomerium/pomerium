@@ -3,7 +3,23 @@ package envoyconfig
 import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_extensions_upstreams_http_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
+
+// recommended defaults: https://www.envoyproxy.io/docs/envoy/latest/configuration/best_practices/edge
+const (
+	connectionBufferLimit            uint32 = 32 * 1024
+	maxConcurrentStreams             uint32 = 100
+	initialStreamWindowSizeLimit     uint32 = 64 * 1024
+	initialConnectionWindowSizeLimit uint32 = 1 * 1024 * 1024
+)
+
+var http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{
+	AllowConnect:                true,
+	MaxConcurrentStreams:        wrapperspb.UInt32(maxConcurrentStreams),
+	InitialStreamWindowSize:     wrapperspb.UInt32(initialStreamWindowSizeLimit),
+	InitialConnectionWindowSize: wrapperspb.UInt32(initialConnectionWindowSizeLimit),
+}
 
 func buildUpstreamProtocolOptions(endpoints []Endpoint, forceHTTP2 bool) *envoy_extensions_upstreams_http_v3.HttpProtocolOptions {
 	// if forcing http/2, use that explicitly
@@ -12,9 +28,7 @@ func buildUpstreamProtocolOptions(endpoints []Endpoint, forceHTTP2 bool) *envoy_
 			UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig_{
 				ExplicitHttpConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig{
 					ProtocolConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig_Http2ProtocolOptions{
-						Http2ProtocolOptions: &envoy_config_core_v3.Http2ProtocolOptions{
-							AllowConnect: true,
-						},
+						Http2ProtocolOptions: http2ProtocolOptions,
 					},
 				},
 			},
@@ -31,7 +45,9 @@ func buildUpstreamProtocolOptions(endpoints []Endpoint, forceHTTP2 bool) *envoy_
 	if tlsCount > 0 && tlsCount == len(endpoints) {
 		return &envoy_extensions_upstreams_http_v3.HttpProtocolOptions{
 			UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoConfig{
-				AutoConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoHttpConfig{},
+				AutoConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoHttpConfig{
+					Http2ProtocolOptions: http2ProtocolOptions,
+				},
 			},
 		}
 	}
