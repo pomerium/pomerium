@@ -36,6 +36,7 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 	testutil.AssertProtoJSONEqual(t, `
 {
 	"name": "metrics-ingress",
+	"perConnectionBufferLimitBytes": 32768,
 	"address": {
 		"socketAddress": {
 			"address": "127.0.0.1",

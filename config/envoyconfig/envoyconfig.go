@@ -27,6 +27,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -66,9 +67,10 @@ func (e Endpoint) TransportSocketName() string {
 // newDefaultEnvoyClusterConfig creates envoy cluster with certain default values
 func newDefaultEnvoyClusterConfig() *envoy_config_cluster_v3.Cluster {
 	return &envoy_config_cluster_v3.Cluster{
-		ConnectTimeout:  defaultConnectionTimeout,
-		RespectDnsTtl:   true,
-		DnsLookupFamily: envoy_config_cluster_v3.Cluster_AUTO,
+		ConnectTimeout:                defaultConnectionTimeout,
+		RespectDnsTtl:                 true,
+		DnsLookupFamily:               envoy_config_cluster_v3.Cluster_AUTO,
+		PerConnectionBufferLimitBytes: wrapperspb.UInt32(connectionBufferLimit),
 	}
 }
 
