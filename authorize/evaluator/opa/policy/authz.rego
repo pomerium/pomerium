@@ -394,16 +394,21 @@ element_in_list(list, elem) {
 }
 
 get_allowed_users(policy) = v {
-	sub_allowed_users = [sp.allowed_users | sp := policy.sub_policies[_]]
-	v := {x | x = array.concat(policy.allowed_users, [u | u := policy.sub_policies[_].allowed_users[_]])[_]}
+	sub_array := [x | x = policy.sub_policies[_].allowed_users[_]]
+	main_array := [x | x = policy.allowed_users[_]]
+	v := {x | x = array.concat(main_array, sub_array)[_]}
 }
 
 get_allowed_domains(policy) = v {
-	v := {x | x = array.concat(policy.allowed_domains, [u | u := policy.sub_policies[_].allowed_domains[_]])[_]}
+	sub_array := [x | x = policy.sub_policies[_].allowed_domains[_]]
+	main_array := [x | x = policy.allowed_domains[_]]
+	v := {x | x = array.concat(main_array, sub_array)[_]}
 }
 
 get_allowed_groups(policy) = v {
-	v := {x | x = array.concat(policy.allowed_groups, [u | u := policy.sub_policies[_].allowed_groups[_]])[_]}
+	sub_array := [x | x = policy.sub_policies[_].allowed_groups[_]]
+	main_array := [x | x = policy.allowed_groups[_]]
+	v := {x | x = array.concat(main_array, sub_array)[_]}
 }
 
 get_allowed_idp_claims(policy) = v {
