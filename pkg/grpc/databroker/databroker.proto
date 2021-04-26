@@ -20,6 +20,13 @@ message Versions {
   uint64 latest_record_version = 2;
 }
 
+// Options are the options for a type stored in the databroker.
+message Options {
+  // capacity sets a maximum size for the given type. Once the capacity is
+  // reached the oldest records will be removed.
+  optional uint64 capacity = 1;
+}
+
 message GetRequest {
   string type = 1;
   string id = 2;
@@ -44,6 +51,14 @@ message PutRequest { Record record = 1; }
 message PutResponse {
   uint64 server_version = 1;
   Record record = 2;
+}
+
+message SetOptionsRequest {
+  string type = 1;
+  Options options = 2;
+}
+message SetOptionsResponse {
+  Options options = 1;
 }
 
 message SyncRequest {
@@ -71,6 +86,8 @@ service DataBrokerService {
   rpc Put(PutRequest) returns (PutResponse);
   // Query queries for records.
   rpc Query(QueryRequest) returns (QueryResponse);
+  // SetOptions sets the options for a type in the databroker.
+  rpc SetOptions(SetOptionsRequest) returns (SetOptionsResponse);
   // Sync streams changes to records after the specified version.
   rpc Sync(SyncRequest) returns (stream SyncResponse);
   // SyncLatest streams the latest version of every record.

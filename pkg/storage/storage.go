@@ -42,8 +42,12 @@ type Backend interface {
 	Get(ctx context.Context, recordType, id string) (*databroker.Record, error)
 	// GetAll gets all the records.
 	GetAll(ctx context.Context) (records []*databroker.Record, version uint64, err error)
+	// GetOptions gets the options for a type.
+	GetOptions(ctx context.Context, recordType string) (*databroker.Options, error)
 	// Put is used to insert or update a record.
 	Put(ctx context.Context, record *databroker.Record) error
+	// SetOptions sets the options for a type.
+	SetOptions(ctx context.Context, recordType string, options *databroker.Options) error
 	// Sync syncs record changes after the specified version.
 	Sync(ctx context.Context, version uint64) (RecordStream, error)
 }

@@ -177,7 +177,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 	}, nil
 }
 
-// Put updates a record in the in-memory list, or adds a new one.
+// Put updates an existing record or adds a new one.
 func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databroker.PutResponse, error) {
 	_, span := trace.StartSpan(ctx, "databroker.grpc.Put")
 	defer span.End()
@@ -199,6 +199,28 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 	return &databroker.PutResponse{
 		ServerVersion: version,
 		Record:        record,
+	}, nil
+}
+
+// SetOptions sets options for a type in the databroker.
+func (srv *Server) SetOptions(ctx context.Context, req *databroker.SetOptionsRequest) (*databroker.SetOptionsResponse, error) {
+	_, span := trace.StartSpan(ctx, "databroker.grpc.SetOptions")
+	defer span.End()
+
+	backend, _, err := srv.getBackend()
+	if err != nil {
+		return nil, err
+	}
+	err = backend.SetOptions(ctx, req.GetType(), req.GetOptions())
+	if err != nil {
+		return nil, err
+	}
+	options, err := backend.GetOptions(ctx, req.GetType())
+	if err != nil {
+		return nil, err
+	}
+	return &databroker.SetOptionsResponse{
+		Options: options,
 	}, nil
 }
 

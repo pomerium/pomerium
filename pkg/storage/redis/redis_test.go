@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -191,6 +192,44 @@ func TestExpiry(t *testing.T) {
 		}
 		_ = stream.Close()
 		require.Len(t, records, 0)
+
+		return nil
+	}))
+}
+
+func TestCapacity(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
+	ctx := context.Background()
+	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
+		backend, err := New(rawURL, WithExpiry(0))
+		require.NoError(t, err)
+		defer func() { _ = backend.Close() }()
+
+		err = backend.SetOptions(ctx, "EXAMPLE", &databroker.Options{
+			Capacity: proto.Uint64(3),
+		})
+		require.NoError(t, err)
+
+		for i := 0; i < 10; i++ {
+			err = backend.Put(ctx, &databroker.Record{
+				Type: "EXAMPLE",
+				Id:   fmt.Sprint(i),
+			})
+			require.NoError(t, err)
+		}
+
+		records, _, err := backend.GetAll(ctx)
+		require.NoError(t, err)
+		assert.Len(t, records, 3)
+
+		var ids []string
+		for _, r := range records {
+			ids = append(ids, r.GetId())
+		}
+		assert.Equal(t, []string{"7", "8", "9"}, ids, "should contain recent records")
 
 		return nil
 	}))

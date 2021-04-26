@@ -27,10 +27,13 @@ const (
 
 	// we rely on transactions in redis, so all redis-cluster keys need to be
 	// on the same node. Using a `hash tag` gives us this capability.
-	lastVersionKey   = "{pomerium_v2}.last_version"
-	lastVersionChKey = "{pomerium_v2}.last_version_ch"
-	recordHashKey    = "{pomerium_v2}.records"
-	changesSetKey    = "{pomerium_v2}.changes"
+	lastVersionKey   = "{pomerium_v3}.last_version"
+	lastVersionChKey = "{pomerium_v3}.last_version_ch"
+	recordHashKey    = "{pomerium_v3}.records"
+	changesSetKey    = "{pomerium_v3}.changes"
+	optionsKey       = "{pomerium_v3}.options"
+
+	recordTypeChangesKeyTpl = "{pomerium_v3}.changes.%s"
 )
 
 // custom errors
@@ -39,6 +42,18 @@ var (
 )
 
 // Backend implements the storage.Backend on top of redis.
+//
+// What's stored:
+//
+// - last_version: an integer version number
+// - last_version_ch: a PubSub channel for version number updates
+// - records: a Hash of records. The hash key is {recordType}/{recordID}, the hash value the protobuf record.
+// - changes: a Sorted Set of all the changes. The score is the version number, the member the protobuf record.
+// - options: a Hash of options. The hash key is {recordType}, the hash value the protobuf options.
+// - changes.{recordType}: a Sorted Set of the changes for a record type. The score is the current time,
+//   the value the record id.
+//
+// Records stored in these keys are typically encrypted.
 type Backend struct {
 	cfg *config
 
@@ -155,12 +170,75 @@ func (backend *Backend) GetAll(ctx context.Context) (records []*databroker.Recor
 	return records, latestRecordVersion, nil
 }
 
+// GetOptions gets the options for the given record type.
+func (backend *Backend) GetOptions(ctx context.Context, recordType string) (*databroker.Options, error) {
+	raw, err := backend.client.HGet(ctx, optionsKey, recordType).Result()
+	if err == redis.Nil {
+		// treat no options as an empty set of options
+		return new(databroker.Options), nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	var options databroker.Options
+	err = proto.Unmarshal([]byte(raw), &options)
+	if err != nil {
+		return nil, err
+	}
+
+	return &options, nil
+}
+
 // Put puts a record into redis.
 func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (err error) {
-	_, span := trace.StartSpan(ctx, "databroker.redis.Put")
+	ctx, span := trace.StartSpan(ctx, "databroker.redis.Put")
 	defer span.End()
 	defer func(start time.Time) { recordOperation(ctx, start, "put", err) }(time.Now())
 
+	err = backend.put(ctx, record)
+	if err != nil {
+		return err
+	}
+
+	err = backend.enforceOptions(ctx, record.GetType())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SetOptions sets the options for the given record type.
+func (backend *Backend) SetOptions(ctx context.Context, recordType string, options *databroker.Options) error {
+	ctx, span := trace.StartSpan(ctx, "databroker.redis.SetOptions")
+	defer span.End()
+
+	bs, err := proto.Marshal(options)
+	if err != nil {
+		return err
+	}
+
+	// update the options in the hash set
+	err = backend.client.HSet(ctx, optionsKey, recordType, bs).Err()
+	if err != nil {
+		return err
+	}
+
+	// possibly re-enforce options
+	err = backend.enforceOptions(ctx, recordType)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Sync returns a record stream of any records changed after the specified version.
+func (backend *Backend) Sync(ctx context.Context, version uint64) (storage.RecordStream, error) {
+	return newRecordStream(ctx, backend, version), nil
+}
+
+func (backend *Backend) put(ctx context.Context, record *databroker.Record) error {
 	return backend.incrementVersion(ctx,
 		func(tx *redis.Tx, version uint64) error {
 			record.ModifiedAt = timestamppb.Now()
@@ -183,13 +261,71 @@ func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (err
 				Score:  float64(version),
 				Member: bs,
 			})
+			p.ZAdd(ctx, getRecordTypeChangesKey(record.GetType()), &redis.Z{
+				Score:  float64(record.GetModifiedAt().GetSeconds()),
+				Member: record.GetId(),
+			})
 			return nil
 		})
 }
 
-// Sync returns a record stream of any records changed after the specified version.
-func (backend *Backend) Sync(ctx context.Context, version uint64) (storage.RecordStream, error) {
-	return newRecordStream(ctx, backend, version), nil
+// enforceOptions enforces the options for the given record type.
+func (backend *Backend) enforceOptions(ctx context.Context, recordType string) error {
+	ctx, span := trace.StartSpan(ctx, "databroker.redis.enforceOptions")
+	defer span.End()
+
+	options, err := backend.GetOptions(ctx, recordType)
+	if err != nil {
+		return err
+	}
+
+	// nothing to do if capacity isn't set
+	if options.Capacity == nil {
+		return nil
+	}
+
+	key := getRecordTypeChangesKey(recordType)
+
+	// enforce capacity by retrieving the size of the collection and removing excess items, oldest first
+
+	sz, err := backend.client.ZCard(ctx, key).Uint64()
+	if err == redis.Nil {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	removeCnt := sz - *options.Capacity
+	if removeCnt <= 0 {
+		// nothing to do
+		return nil
+	}
+
+	// remove the oldest records
+	zs, err := backend.client.ZPopMin(ctx, key, int64(removeCnt)).Result()
+	if err != nil {
+		return err
+	}
+
+	for _, z := range zs {
+		recordID := z.Member.(string)
+
+		record, err := backend.Get(ctx, recordType, recordID)
+		if errors.Is(err, storage.ErrNotFound) {
+			continue
+		} else if err != nil {
+			return err
+		}
+
+		// mark the record as deleted and re-submit
+		record.DeletedAt = timestamppb.Now()
+		err = backend.put(ctx, record)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // incrementVersion increments the last version key, runs the code in `query`, then attempts to commit the code in
@@ -319,6 +455,10 @@ func (backend *Backend) removeChangesBefore(ctx context.Context, cutoff time.Tim
 			return
 		}
 	}
+}
+
+func getRecordTypeChangesKey(recordType string) string {
+	return fmt.Sprintf(recordTypeChangesKeyTpl, recordType)
 }
 
 func getHashKey(recordType, id string) (key, field string) {
