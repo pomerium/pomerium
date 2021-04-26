@@ -190,7 +190,7 @@ func (backend *Backend) GetOptions(ctx context.Context, recordType string) (*dat
 
 // Put puts a record into redis.
 func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (err error) {
-	_, span := trace.StartSpan(ctx, "databroker.redis.Put")
+	ctx, span := trace.StartSpan(ctx, "databroker.redis.Put")
 	defer span.End()
 	defer func(start time.Time) { recordOperation(ctx, start, "put", err) }(time.Now())
 
@@ -209,6 +209,9 @@ func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (err
 
 // SetOptions sets the options for the given record type.
 func (backend *Backend) SetOptions(ctx context.Context, recordType string, options *databroker.Options) error {
+	ctx, span := trace.StartSpan(ctx, "databroker.redis.SetOptions")
+	defer span.End()
+
 	bs, err := proto.Marshal(options)
 	if err != nil {
 		return err
@@ -267,6 +270,9 @@ func (backend *Backend) put(ctx context.Context, record *databroker.Record) erro
 
 // enforceOptions enforces the options for the given record type.
 func (backend *Backend) enforceOptions(ctx context.Context, recordType string) error {
+	ctx, span := trace.StartSpan(ctx, "databroker.redis.enforceOptions")
+	defer span.End()
+
 	options, err := backend.GetOptions(ctx, recordType)
 	if err != nil {
 		return err
