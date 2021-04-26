@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	stdlog "log"
 	"math/rand"
 	"net/http"
 	stdhttputil "net/http/httputil"
@@ -113,8 +114,13 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 		// regular rand is fine for this
 		dst := dsts[rand.Intn(len(dsts))] // nolint:gosec
 
+		// when SPDY is being used, disable HTTP/2 because the two can't be used together with the reverse proxy
+		// Issue #2126
+		disableHTTP2 := isSPDY(r)
+
 		h := stdhttputil.NewSingleHostReverseProxy(&dst)
-		h.Transport = config.NewPolicyHTTPTransport(options, policy)
+		h.ErrorLog = stdlog.New(log.Logger(), "", 0)
+		h.Transport = config.NewPolicyHTTPTransport(options, policy, disableHTTP2)
 		h.ServeHTTP(w, r)
 		return nil
 	})
@@ -136,4 +142,8 @@ func (h *Handler) Update(ctx context.Context, cfg *config.Config) {
 		}
 		h.policies[id] = &cfg.Options.Policies[i]
 	}
+}
+
+func isSPDY(r *http.Request) bool {
+	return strings.HasPrefix(strings.ToLower(r.Header.Get(httputil.HeaderUpgrade)), "spdy/")
 }
