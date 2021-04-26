@@ -32,7 +32,11 @@ hash_sha256() {
     fi
 }
 
+if [ -f ${_dst} ]; then
+    exit 0
+fi
+
 mkdir -p "$_dir"
-curl -L -o "$_dir/envoy" "https://github.com/pomerium/envoy-binaries/releases/download/v${_envoy_version}/envoy-${_target}"
+curl -L --compressed -o "$_dir/envoy" "https://github.com/pomerium/envoy-binaries/releases/download/v${_envoy_version}/envoy-${_target}"
 
 hash_sha256 "$_dir/envoy" >"$_dir/envoy.sha256"
