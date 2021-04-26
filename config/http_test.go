@@ -53,7 +53,7 @@ func TestPolicyHTTPTransport(t *testing.T) {
 	defer s.Close()
 
 	get := func(options *Options, policy *Policy) (*http.Response, error) {
-		transport := NewPolicyHTTPTransport(options, policy)
+		transport := NewPolicyHTTPTransport(options, policy, false)
 		client := &http.Client{
 			Transport: transport,
 		}
