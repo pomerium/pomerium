@@ -32,7 +32,7 @@ hash_sha256() {
     fi
 }
 
-if [ -f ${_dst} ]; then
+if [ -f "$_dir/envoy" ]; then
     exit 0
 fi
 
