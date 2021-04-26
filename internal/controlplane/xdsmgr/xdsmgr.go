@@ -204,7 +204,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 					return ctx.Err()
 				case outgoing <- res:
 					log.Info(changeCtx).
-						Str("nounce", res.Nonce).
+						Str("nonce", res.Nonce).
 						Str("type", res.TypeUrl).
 						Msg("send update")
 				}

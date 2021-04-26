@@ -35,7 +35,7 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
 {
-	"name": "metrics-ingress",
+	"name": "metrics-ingress-1566242852377945326",
 	"perConnectionBufferLimitBytes": 32768,
 	"address": {
 		"socketAddress": {
