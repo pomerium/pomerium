@@ -12,6 +12,12 @@ description: >-
 ### Programmatic login domain whitelist
 
 Programmatic login now restricts the allowed redirect URL domains. By default this is set to `localhost`, but can be changed via the `programmatic_redirect_domain_whitelist` option.
+
+### `allowed_users` ID format
+
+When specifying `allowed_users` by ID, the identity provider is no longer part of the ID format.  This does not impact users specified by e-mail.  
+
+To update your policies for v0.14, please remove any identity provider prefix.  Example: `okta/00usi7mc8XC8SwFxT4x6` becomes `00usi7mc8XC8SwFxT4x6`.
 # Since 0.12.0
 
 ## New
