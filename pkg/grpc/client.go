@@ -59,7 +59,7 @@ type Options struct {
 }
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
-func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
+func NewGRPCClientConn(opts *Options, other ...grpc.DialOption) (*grpc.ClientConn, error) {
 	ctx := context.TODO()
 	if len(opts.Addrs) == 0 {
 		return nil, errors.New("internal/grpc: connection address required")
@@ -104,6 +104,8 @@ func NewGRPCClientConn(opts *Options) (*grpc.ClientConn, error) {
 		grpc.WithDefaultServiceConfig(roundRobinServiceConfig),
 		grpc.WithDisableServiceConfig(),
 	}
+
+	dialOptions = append(dialOptions, other...)
 
 	if opts.WithInsecure {
 		log.Info(ctx).Str("addr", connAddr).Msg("internal/grpc: grpc with insecure")
