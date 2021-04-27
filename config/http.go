@@ -57,11 +57,20 @@ func (t *httpTransport) Clone() *http.Transport {
 }
 
 // NewPolicyHTTPTransport creates a new http RoundTripper for a policy.
-func NewPolicyHTTPTransport(options *Options, policy *Policy) http.RoundTripper {
+func NewPolicyHTTPTransport(options *Options, policy *Policy, disableHTTP2 bool) http.RoundTripper {
 	transport := http.DefaultTransport.(interface {
 		Clone() *http.Transport
 	}).Clone()
 	c := tripper.NewChain()
+
+	// according to the docs:
+	//
+	//    Programs that must disable HTTP/2 can do so by setting Transport.TLSNextProto (for clients) or
+	//    Server.TLSNextProto (for servers) to a non-nil, empty map.
+	//
+	if disableHTTP2 {
+		transport.TLSNextProto = map[string]func(authority string, c *tls.Conn) http.RoundTripper{}
+	}
 
 	var tlsClientConfig tls.Config
 	var isCustomClientConfig bool

@@ -7,6 +7,7 @@ const AuthorizationTypePomerium = "Pomerium"
 const (
 	HeaderReferrer         = "Referer"
 	HeaderImpersonateGroup = "Impersonate-Group"
+	HeaderUpgrade          = "Upgrade"
 )
 
 // Pomerium headers contain information added to a request.
