@@ -37,8 +37,8 @@ func (a *Authorize) logAuthorizeCheck(
 	// reply
 	if reply != nil {
 		evt = evt.Bool("allow", reply.Status == http.StatusOK)
-		evt = evt.Int("status", reply.Status)
-		evt = evt.Str("reply", reply.Message)
+		evt = evt.Int("reply-status", reply.Status)
+		evt = evt.Str("reply-message", reply.Message)
 		evt = evt.Str("user", u.GetId())
 		evt = evt.Str("email", u.GetEmail())
 		evt = evt.Uint64("databroker_server_version", reply.DataBrokerServerVersion)
