@@ -33,7 +33,6 @@ message GetRequest {
 }
 message GetResponse {
   Record record = 1;
-  uint64 server_version = 2;
 }
 
 message QueryRequest {
@@ -66,8 +65,7 @@ message SyncRequest {
   uint64 record_version = 2;
 }
 message SyncResponse {
-  uint64 server_version = 1;
-  Record record = 2;
+  Record record = 1;
 }
 
 message SyncLatestRequest { string type = 1; }

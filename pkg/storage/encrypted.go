@@ -79,49 +79,50 @@ func (e *encryptedBackend) Get(ctx context.Context, recordType, id string) (*dat
 	return record, nil
 }
 
-func (e *encryptedBackend) GetAll(ctx context.Context) ([]*databroker.Record, uint64, error) {
-	records, version, err := e.underlying.GetAll(ctx)
+func (e *encryptedBackend) GetAll(ctx context.Context) ([]*databroker.Record, *databroker.Versions, error) {
+	records, versions, err := e.underlying.GetAll(ctx)
 	if err != nil {
-		return nil, 0, err
+		return nil, versions, err
 	}
 	for i := range records {
 		records[i], err = e.decryptRecord(records[i])
 		if err != nil {
-			return nil, 0, err
+			return nil, versions, err
 		}
 	}
-	return records, version, nil
+	return records, versions, nil
 }
 
 func (e *encryptedBackend) GetOptions(ctx context.Context, recordType string) (*databroker.Options, error) {
 	return e.underlying.GetOptions(ctx, recordType)
 }
 
-func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) error {
+func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) (uint64, error) {
 	encrypted, err := e.encrypt(record.GetData())
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	newRecord := proto.Clone(record).(*databroker.Record)
 	newRecord.Data = encrypted
 
-	if err = e.underlying.Put(ctx, newRecord); err != nil {
-		return err
+	serverVersion, err := e.underlying.Put(ctx, newRecord)
+	if err != nil {
+		return 0, err
 	}
 
 	record.ModifiedAt = newRecord.ModifiedAt
 	record.Version = newRecord.Version
 
-	return nil
+	return serverVersion, nil
 }
 
 func (e *encryptedBackend) SetOptions(ctx context.Context, recordType string, options *databroker.Options) error {
 	return e.underlying.SetOptions(ctx, recordType, options)
 }
 
-func (e *encryptedBackend) Sync(ctx context.Context, version uint64) (RecordStream, error) {
-	stream, err := e.underlying.Sync(ctx, version)
+func (e *encryptedBackend) Sync(ctx context.Context, serverVersion, recordVersion uint64) (RecordStream, error) {
+	stream, err := e.underlying.Sync(ctx, serverVersion, recordVersion)
 	if err != nil {
 		return nil, err
 	}
