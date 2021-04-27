@@ -99,7 +99,6 @@ func NewGRPCClientConn(opts *Options, other ...grpc.DialOption) (*grpc.ClientCon
 	dialOptions := []grpc.DialOption{
 		grpc.WithChainUnaryInterceptor(unaryClientInterceptors...),
 		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
-		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
 		grpc.WithStatsHandler(clientStatsHandler.Handler),
 		grpc.WithDefaultServiceConfig(roundRobinServiceConfig),
 		grpc.WithDisableServiceConfig(),
