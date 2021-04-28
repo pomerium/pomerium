@@ -73,6 +73,13 @@ func (srv *dataBrokerServer) Put(ctx context.Context, req *databrokerpb.PutReque
 	return srv.server.Put(ctx, req)
 }
 
+func (srv *dataBrokerServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
+	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
+		return nil, err
+	}
+	return srv.server.SetOptions(ctx, req)
+}
+
 func (srv *dataBrokerServer) Sync(req *databrokerpb.SyncRequest, stream databrokerpb.DataBrokerService_SyncServer) error {
 	if err := grpcutil.RequireSignedJWT(stream.Context(), srv.sharedKey.Load().([]byte)); err != nil {
 		return err
