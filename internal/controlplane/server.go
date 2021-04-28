@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
@@ -58,13 +60,17 @@ type Server struct {
 	filemgr       *filemgr.Manager
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
+
+	haveSetEnvoyConfigurationEventOptions bool
+	envoyConfigurationEvents              chan *configpb.EnvoyConfigurationEvent
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
 func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) {
 	srv := &Server{
-		metricsMgr: metricsMgr,
-		reproxy:    reproxy.New(),
+		metricsMgr:               metricsMgr,
+		reproxy:                  reproxy.New(),
+		envoyConfigurationEvents: make(chan *configpb.EnvoyConfigurationEvent, 10),
 	}
 	srv.currentConfig.Store(versionedConfig{
 		Config: &config.Config{Options: &config.Options{}},
@@ -116,7 +122,7 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 		return nil, err
 	}
 
-	srv.xdsmgr = xdsmgr.NewManager(res)
+	srv.xdsmgr = xdsmgr.NewManager(res, srv.handleEnvoyConfigurationEvent)
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv.GRPCServer, srv.xdsmgr)
 
 	return srv, nil
@@ -125,6 +131,11 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 // Run runs the control-plane gRPC and HTTP servers.
 func (srv *Server) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
+
+	// handle envoy configuration events
+	eg.Go(func() error {
+		return srv.runEnvoyConfigurationEventHandler(ctx)
+	})
 
 	// start the gRPC server
 	eg.Go(func() error {

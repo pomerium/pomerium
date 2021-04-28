@@ -12,9 +12,11 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 type streamState struct {
@@ -27,7 +29,8 @@ var onHandleDeltaRequest = func(state *streamState) {}
 
 // A Manager manages xDS resources.
 type Manager struct {
-	signal *signal.Signal
+	signal       *signal.Signal
+	eventHandler func(*configpb.EnvoyConfigurationEvent)
 
 	mu        sync.Mutex
 	nonce     string
@@ -35,9 +38,11 @@ type Manager struct {
 }
 
 // NewManager creates a new Manager.
-func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource) *Manager {
+func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource, eventHandler func(*configpb.EnvoyConfigurationEvent)) *Manager {
 	return &Manager{
-		signal:    signal.New(),
+		signal:       signal.New(),
+		eventHandler: eventHandler,
+
 		nonce:     uuid.New().String(),
 		resources: resources,
 	}
@@ -120,6 +125,13 @@ func (mgr *Manager) DeltaAggregatedResources(
 			for _, resource := range mgr.resources[req.GetTypeUrl()] {
 				state.clientResourceVersions[resource.Name] = resource.Version
 			}
+
+			mgr.eventHandler(&configpb.EnvoyConfigurationEvent{
+				Time:    timestamppb.Now(),
+				Message: req.ErrorDetail.Message,
+				Code:    req.ErrorDetail.Code,
+				Details: req.ErrorDetail.Details,
+			})
 		case req.GetResponseNonce() == mgr.nonce:
 			// an ACK for the last response
 			// - set the client resource versions to the current resource versions
@@ -130,6 +142,11 @@ func (mgr *Manager) DeltaAggregatedResources(
 			for _, resource := range mgr.resources[req.GetTypeUrl()] {
 				state.clientResourceVersions[resource.Name] = resource.Version
 			}
+
+			mgr.eventHandler(&configpb.EnvoyConfigurationEvent{
+				Time:    timestamppb.Now(),
+				Message: "OK",
+			})
 		default:
 			// an ACK for a response that's not the last response
 			log.Debug(ctx).
