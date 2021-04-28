@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"sync"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -24,6 +25,11 @@ type Authorize struct {
 	templates      *template.Template
 
 	dataBrokerInitialSync chan struct{}
+
+	// The stateLock prevents updating the evaluator store simultaneously with an evaluation.
+	// This should provide a consistent view of the data at a given server/record version and
+	// avoid partial updates.
+	stateLock sync.RWMutex
 }
 
 // New validates and creates a new Authorize service from a set of config options.
