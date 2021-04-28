@@ -11,28 +11,31 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 type recordStream struct {
 	ctx     context.Context
 	backend *Backend
 
-	changed chan struct{}
-	version uint64
-	record  *databroker.Record
-	err     error
+	changed       chan struct{}
+	serverVersion uint64
+	recordVersion uint64
+	record        *databroker.Record
+	err           error
 
 	closeOnce sync.Once
 	closed    chan struct{}
 }
 
-func newRecordStream(ctx context.Context, backend *Backend, version uint64) *recordStream {
+func newRecordStream(ctx context.Context, backend *Backend, serverVersion, recordVersion uint64) *recordStream {
 	stream := &recordStream{
 		ctx:     ctx,
 		backend: backend,
 
-		changed: backend.onChange.Bind(),
-		version: version,
+		changed:       backend.onChange.Bind(),
+		serverVersion: serverVersion,
+		recordVersion: recordVersion,
 
 		closed: make(chan struct{}),
 	}
@@ -64,8 +67,18 @@ func (stream *recordStream) Next(block bool) bool {
 	defer ticker.Stop()
 
 	for {
+		serverVersion, err := stream.backend.getOrCreateServerVersion(stream.ctx)
+		if err != nil {
+			stream.err = err
+			return false
+		}
+		if stream.serverVersion != serverVersion {
+			stream.err = storage.ErrInvalidServerVersion
+			return false
+		}
+
 		cmd := stream.backend.client.ZRangeByScore(stream.ctx, changesSetKey, &redis.ZRangeBy{
-			Min:    fmt.Sprintf("(%d", stream.version),
+			Min:    fmt.Sprintf("(%d", stream.recordVersion),
 			Max:    "+inf",
 			Offset: 0,
 			Count:  1,
@@ -85,7 +98,7 @@ func (stream *recordStream) Next(block bool) bool {
 			} else {
 				stream.record = &record
 			}
-			stream.version++
+			stream.recordVersion++
 			return true
 		}
 

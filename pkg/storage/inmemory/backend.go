@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -32,8 +33,9 @@ func (change recordChange) Less(item btree.Item) bool {
 
 // A Backend stores data in-memory.
 type Backend struct {
-	cfg      *config
-	onChange *signal.Signal
+	cfg           *config
+	onChange      *signal.Signal
+	serverVersion uint64
 
 	lastVersion uint64
 	closeOnce   sync.Once
@@ -49,12 +51,13 @@ type Backend struct {
 func New(options ...Option) *Backend {
 	cfg := getConfig(options...)
 	backend := &Backend{
-		cfg:      cfg,
-		onChange: signal.New(),
-		closed:   make(chan struct{}),
-		lookup:   make(map[string]*RecordCollection),
-		capacity: map[string]*uint64{},
-		changes:  btree.New(cfg.degree),
+		cfg:           cfg,
+		onChange:      signal.New(),
+		serverVersion: cryptutil.NewRandomUInt64(),
+		closed:        make(chan struct{}),
+		lookup:        make(map[string]*RecordCollection),
+		capacity:      map[string]*uint64{},
+		changes:       btree.New(cfg.degree),
 	}
 	if cfg.expiry != 0 {
 		go func() {
@@ -131,7 +134,7 @@ func (backend *Backend) Get(_ context.Context, recordType, id string) (*databrok
 }
 
 // GetAll gets all the records from the in-memory store.
-func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, uint64, error) {
+func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, *databroker.Versions, error) {
 	backend.mu.RLock()
 	defer backend.mu.RUnlock()
 
@@ -141,7 +144,10 @@ func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, uint64,
 			all = append(all, dup(r))
 		}
 	}
-	return all, backend.lastVersion, nil
+	return all, &databroker.Versions{
+		ServerVersion:       backend.serverVersion,
+		LatestRecordVersion: backend.lastVersion,
+	}, nil
 }
 
 // GetOptions returns the options for a type in the in-memory store.
@@ -158,9 +164,9 @@ func (backend *Backend) GetOptions(_ context.Context, recordType string) (*datab
 }
 
 // Put puts a record into the in-memory store.
-func (backend *Backend) Put(_ context.Context, record *databroker.Record) error {
+func (backend *Backend) Put(_ context.Context, record *databroker.Record) (serverVersion uint64, err error) {
 	if record == nil {
-		return fmt.Errorf("records cannot be nil")
+		return backend.serverVersion, fmt.Errorf("records cannot be nil")
 	}
 
 	backend.mu.Lock()
@@ -183,7 +189,7 @@ func (backend *Backend) Put(_ context.Context, record *databroker.Record) error 
 
 	backend.enforceCapacity(record.GetType())
 
-	return nil
+	return backend.serverVersion, nil
 }
 
 // SetOptions sets the options for a type in the in-memory store.
@@ -201,9 +207,12 @@ func (backend *Backend) SetOptions(_ context.Context, recordType string, options
 	return nil
 }
 
-// Sync returns a record stream for any changes after version.
-func (backend *Backend) Sync(ctx context.Context, version uint64) (storage.RecordStream, error) {
-	return newRecordStream(ctx, backend, version), nil
+// Sync returns a record stream for any changes after recordVersion.
+func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion uint64) (storage.RecordStream, error) {
+	if serverVersion != backend.serverVersion {
+		return nil, storage.ErrInvalidServerVersion
+	}
+	return newRecordStream(ctx, backend, recordVersion), nil
 }
 
 func (backend *Backend) recordChange(record *databroker.Record) {

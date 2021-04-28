@@ -17,9 +17,8 @@ import (
 
 func newServer(cfg *serverConfig) *Server {
 	return &Server{
-		version: 11,
-		cfg:     cfg,
-		log:     log.With().Str("service", "databroker").Logger(),
+		cfg: cfg,
+		log: log.With().Str("service", "databroker").Logger(),
 	}
 }
 
