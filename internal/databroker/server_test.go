@@ -16,8 +16,7 @@ import (
 
 func newServer(cfg *serverConfig) *Server {
 	return &Server{
-		version: 11,
-		cfg:     cfg,
+		cfg: cfg,
 	}
 }
 

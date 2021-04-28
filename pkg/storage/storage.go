@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -15,8 +17,9 @@ import (
 
 // Errors
 var (
-	ErrNotFound     = errors.New("record not found")
-	ErrStreamClosed = errors.New("record stream closed")
+	ErrNotFound             = errors.New("record not found")
+	ErrStreamClosed         = errors.New("record stream closed")
+	ErrInvalidServerVersion = status.Error(codes.Aborted, "invalid server version")
 )
 
 // A RecordStream is a stream of records.
@@ -41,15 +44,15 @@ type Backend interface {
 	// Get is used to retrieve a record.
 	Get(ctx context.Context, recordType, id string) (*databroker.Record, error)
 	// GetAll gets all the records.
-	GetAll(ctx context.Context) (records []*databroker.Record, version uint64, err error)
+	GetAll(ctx context.Context) (records []*databroker.Record, version *databroker.Versions, err error)
 	// GetOptions gets the options for a type.
 	GetOptions(ctx context.Context, recordType string) (*databroker.Options, error)
 	// Put is used to insert or update a record.
-	Put(ctx context.Context, record *databroker.Record) error
+	Put(ctx context.Context, record *databroker.Record) (serverVersion uint64, err error)
 	// SetOptions sets the options for a type.
 	SetOptions(ctx context.Context, recordType string, options *databroker.Options) error
 	// Sync syncs record changes after the specified version.
-	Sync(ctx context.Context, version uint64) (RecordStream, error)
+	Sync(ctx context.Context, serverVersion, recordVersion uint64) (RecordStream, error)
 }
 
 // MatchAny searches any data with a query.
