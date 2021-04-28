@@ -152,36 +152,8 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 							Code: envoy_type_v3.StatusCode(codes.InvalidArgument),
 						},
 						Headers: []*envoy_config_core_v3.HeaderValueOption{
-							mkHeader("Content-Type", "text/html", false),
-						},
-						Body: "Access Denied",
-					},
-				},
-			},
-		},
-		{
-			"plain text denied",
-			&envoy_service_auth_v3.CheckRequest{
-				Attributes: &envoy_service_auth_v3.AttributeContext{
-					Request: &envoy_service_auth_v3.AttributeContext_Request{
-						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-							Headers: map[string]string{},
-						},
-					},
-				},
-			},
-			http.StatusBadRequest,
-			"Access Denied",
-			map[string]string{},
-			&envoy_service_auth_v3.CheckResponse{
-				Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
-				HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
-					DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{
-						Status: &envoy_type_v3.HttpStatus{
-							Code: envoy_type_v3.StatusCode(codes.InvalidArgument),
-						},
-						Headers: []*envoy_config_core_v3.HeaderValueOption{
-							mkHeader("Content-Type", "text/plain", false),
+							mkHeader("Content-Type", "text/html; charset=UTF-8", false),
+							mkHeader("X-Pomerium-Intercepted-Response", "true", false),
 						},
 						Body: "Access Denied",
 					},
