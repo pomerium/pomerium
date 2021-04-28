@@ -24,8 +24,17 @@
           </div>
         </div>
         <div class="category-link">
-          {{if and .CanDebug .DebugURL }}
-            If you should have access, contact your administrator with your <a href="{{.DebugURL}}">session details</a>.
+          {{if .CanDebug}}
+            If you should have access, contact your administrator with your
+            {{if .RequestID }}
+            request id {{.RequestID}}
+            {{end}}
+            {{if and .RequestID .DebugURL }}
+            and
+            {{end}}
+            {{if .DebugURL }}
+            <a href="{{.DebugURL}}">session details</a>.
+            {{end}}
           {{end}}
         </div>
       </div>

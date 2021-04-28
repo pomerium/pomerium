@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"context"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -192,7 +193,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := a.deniedResponse(tc.in, tc.code, tc.reason, tc.headers)
+			got, err := a.deniedResponse(context.TODO(), tc.in, tc.code, tc.reason, tc.headers)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)

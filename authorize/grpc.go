@@ -70,11 +70,11 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return a.okResponse(reply), nil
 	case reply.Status == http.StatusUnauthorized:
 		if isForwardAuth && hreq.URL.Path == "/verify" {
-			return a.deniedResponse(in, http.StatusUnauthorized, "Unauthenticated", nil)
+			return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
 		}
-		return a.redirectResponse(in)
+		return a.redirectResponse(ctx, in)
 	}
-	return a.deniedResponse(in, int32(reply.Status), reply.Message, nil)
+	return a.deniedResponse(ctx, in, int32(reply.Status), reply.Message, nil)
 }
 
 func getForwardAuthURL(r *http.Request) *url.URL {
