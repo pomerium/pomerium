@@ -12,21 +12,21 @@ type recordStream struct {
 	ctx     context.Context
 	backend *Backend
 
-	changed chan struct{}
-	ready   []*databroker.Record
-	version uint64
+	changed       chan struct{}
+	ready         []*databroker.Record
+	recordVersion uint64
 
 	closeOnce sync.Once
 	closed    chan struct{}
 }
 
-func newRecordStream(ctx context.Context, backend *Backend, version uint64) *recordStream {
+func newRecordStream(ctx context.Context, backend *Backend, recordVersion uint64) *recordStream {
 	stream := &recordStream{
 		ctx:     ctx,
 		backend: backend,
 
-		changed: backend.onChange.Bind(),
-		version: version,
+		changed:       backend.onChange.Bind(),
+		recordVersion: recordVersion,
 
 		closed: make(chan struct{}),
 	}
@@ -42,11 +42,11 @@ func newRecordStream(ctx context.Context, backend *Backend, version uint64) *rec
 }
 
 func (stream *recordStream) fill() {
-	stream.ready = stream.backend.getSince(stream.version)
+	stream.ready = stream.backend.getSince(stream.recordVersion)
 	if len(stream.ready) > 0 {
 		// records are sorted by version,
 		// so update the local version to the last record
-		stream.version = stream.ready[len(stream.ready)-1].GetVersion()
+		stream.recordVersion = stream.ready[len(stream.ready)-1].GetVersion()
 	}
 }
 

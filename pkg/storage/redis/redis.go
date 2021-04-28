@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -27,6 +28,7 @@ const (
 
 	// we rely on transactions in redis, so all redis-cluster keys need to be
 	// on the same node. Using a `hash tag` gives us this capability.
+	serverVersionKey = "{pomerium_v3}.server_version"
 	lastVersionKey   = "{pomerium_v3}.last_version"
 	lastVersionChKey = "{pomerium_v3}.last_version_ch"
 	recordHashKey    = "{pomerium_v3}.records"
@@ -45,10 +47,10 @@ var (
 //
 // What's stored:
 //
-// - last_version: an integer version number
-// - last_version_ch: a PubSub channel for version number updates
+// - last_version: an integer recordVersion number
+// - last_version_ch: a PubSub channel for recordVersion number updates
 // - records: a Hash of records. The hash key is {recordType}/{recordID}, the hash value the protobuf record.
-// - changes: a Sorted Set of all the changes. The score is the version number, the member the protobuf record.
+// - changes: a Sorted Set of all the changes. The score is the recordVersion number, the member the protobuf record.
 // - options: a Hash of options. The hash key is {recordType}, the hash value the protobuf options.
 // - changes.{recordType}: a Sorted Set of the changes for a record type. The score is the current time,
 //   the value the record id.
@@ -132,29 +134,39 @@ func (backend *Backend) Get(ctx context.Context, recordType, id string) (_ *data
 }
 
 // GetAll gets all the records from redis.
-func (backend *Backend) GetAll(ctx context.Context) (records []*databroker.Record, latestRecordVersion uint64, err error) {
-	_, span := trace.StartSpan(ctx, "databroker.redis.GetAll")
+func (backend *Backend) GetAll(ctx context.Context) (records []*databroker.Record, versions *databroker.Versions, err error) {
+	ctx, span := trace.StartSpan(ctx, "databroker.redis.GetAll")
 	defer span.End()
 	defer func(start time.Time) { recordOperation(ctx, start, "getall", err) }(time.Now())
+
+	versions = new(databroker.Versions)
+
+	versions.ServerVersion, err = backend.getOrCreateServerVersion(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	p := backend.client.Pipeline()
 	lastVersionCmd := p.Get(ctx, lastVersionKey)
 	resultsCmd := p.HVals(ctx, recordHashKey)
 	_, err = p.Exec(ctx)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	latestRecordVersion, err = lastVersionCmd.Uint64()
 	if errors.Is(err, redis.Nil) {
-		latestRecordVersion = 0
+		// nil is returned when there are no records
+		return nil, versions, nil
 	} else if err != nil {
-		return nil, 0, err
+		return nil, nil, fmt.Errorf("redis: error beginning GetAll pipeline: %w", err)
 	}
 
-	results, err := resultsCmd.Result()
+	versions.LatestRecordVersion, err = lastVersionCmd.Uint64()
+	if errors.Is(err, redis.Nil) {
+	} else if err != nil {
+		return nil, nil, fmt.Errorf("redis: error retrieving GetAll latest record version: %w", err)
+	}
+
+	var results []string
+	results, err = resultsCmd.Result()
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, fmt.Errorf("redis: error retrieving GetAll records: %w", err)
 	}
 
 	for _, result := range results {
@@ -166,7 +178,7 @@ func (backend *Backend) GetAll(ctx context.Context) (records []*databroker.Recor
 		}
 		records = append(records, &record)
 	}
-	return records, latestRecordVersion, nil
+	return records, versions, nil
 }
 
 // GetOptions gets the options for the given record type.
@@ -189,22 +201,27 @@ func (backend *Backend) GetOptions(ctx context.Context, recordType string) (*dat
 }
 
 // Put puts a record into redis.
-func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (err error) {
+func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (serverVersion uint64, err error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.redis.Put")
 	defer span.End()
 	defer func(start time.Time) { recordOperation(ctx, start, "put", err) }(time.Now())
 
+	serverVersion, err = backend.getOrCreateServerVersion(ctx)
+	if err != nil {
+		return serverVersion, err
+	}
+
 	err = backend.put(ctx, record)
 	if err != nil {
-		return err
+		return serverVersion, err
 	}
 
 	err = backend.enforceOptions(ctx, record.GetType())
 	if err != nil {
-		return err
+		return serverVersion, err
 	}
 
-	return nil
+	return serverVersion, nil
 }
 
 // SetOptions sets the options for the given record type.
@@ -232,9 +249,9 @@ func (backend *Backend) SetOptions(ctx context.Context, recordType string, optio
 	return nil
 }
 
-// Sync returns a record stream of any records changed after the specified version.
-func (backend *Backend) Sync(ctx context.Context, version uint64) (storage.RecordStream, error) {
-	return newRecordStream(ctx, backend, version), nil
+// Sync returns a record stream of any records changed after the specified recordVersion.
+func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion uint64) (storage.RecordStream, error) {
+	return newRecordStream(ctx, backend, serverVersion, recordVersion), nil
 }
 
 func (backend *Backend) put(ctx context.Context, record *databroker.Record) error {
@@ -327,11 +344,11 @@ func (backend *Backend) enforceOptions(ctx context.Context, recordType string) e
 	return nil
 }
 
-// incrementVersion increments the last version key, runs the code in `query`, then attempts to commit the code in
-// `commit`. If the last version changes in the interim, we will retry the transaction.
+// incrementVersion increments the last recordVersion key, runs the code in `query`, then attempts to commit the code in
+// `commit`. If the last recordVersion changes in the interim, we will retry the transaction.
 func (backend *Backend) incrementVersion(ctx context.Context,
-	query func(tx *redis.Tx, version uint64) error,
-	commit func(p redis.Pipeliner, version uint64) error,
+	query func(tx *redis.Tx, recordVersion uint64) error,
+	commit func(p redis.Pipeliner, recordVersion uint64) error,
 ) error {
 	// code is modeled on https://pkg.go.dev/github.com/go-redis/redis/v8#example-Client.Watch
 	txf := func(tx *redis.Tx) error {
@@ -455,6 +472,20 @@ func (backend *Backend) removeChangesBefore(cutoff time.Time) {
 			return
 		}
 	}
+}
+
+func (backend *Backend) getOrCreateServerVersion(ctx context.Context) (serverVersion uint64, err error) {
+	serverVersion, err = backend.client.Get(ctx, serverVersionKey).Uint64()
+	// if the server version hasn't been set yet, set it to a random value and immediately retrieve it
+	// this should properly handle a data race by only setting the key if it doesn't already exist
+	if errors.Is(err, redis.Nil) {
+		_, _ = backend.client.SetNX(ctx, serverVersionKey, cryptutil.NewRandomUInt64(), 0).Result()
+		serverVersion, err = backend.client.Get(ctx, serverVersionKey).Uint64()
+	}
+	if err != nil {
+		return 0, fmt.Errorf("redis: error retrieving server version: %w", err)
+	}
+	return serverVersion, err
 }
 
 func getRecordTypeChangesKey(recordType string) string {
