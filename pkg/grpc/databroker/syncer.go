@@ -156,8 +156,8 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		}
 
 		log.Debug(syncer.logCtx(ctx)).
-			Uint("version", uint(res.Record.GetVersion())).
-			Str("id", res.Record.Id).
+			Uint("version", uint(res.GetRecord().GetVersion())).
+			Str("id", res.GetRecord().GetId()).
 			Msg("syncer got record")
 
 		if syncer.recordVersion != res.GetRecord().GetVersion()-1 {
