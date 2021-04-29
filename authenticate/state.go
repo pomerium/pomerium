@@ -22,6 +22,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
+
+	go_grpc "google.golang.org/grpc"
 )
 
 type authenticateState struct {
@@ -161,6 +163,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		InstallationID:          cfg.Options.InstallationID,
 		ServiceName:             cfg.Options.Services,
 		SignedJWTKey:            sharedKey,
+		CallOptions:             []go_grpc.CallOption{go_grpc.WaitForReady(true)},
 	})
 	if err != nil {
 		return nil, err
