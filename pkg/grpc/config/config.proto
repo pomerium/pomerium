@@ -3,8 +3,10 @@ syntax = "proto3";
 package pomerium.config;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
+import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 import "envoy/config/cluster/v3/cluster.proto";
 
 import "crypt/crypt.proto";
@@ -181,4 +183,17 @@ message Settings {
   optional uint32 xff_num_trusted_hops = 70;
   repeated string programmatic_redirect_domain_whitelist = 68;
   optional pomerium.crypt.PublicKeyEncryptionKey audit_key = 72;
+}
+
+// EnvoyConfigurationEvents is a list of envoy configuration events.
+message EnvoyConfigurationEvents {
+  repeated EnvoyConfigurationEvent values = 1;
+}
+
+// EnvoyConfigurationEvent is an envoy configuration event.
+message EnvoyConfigurationEvent {
+  google.protobuf.Timestamp time = 1;
+  string message = 2;
+  int32 code = 3;
+  repeated google.protobuf.Any details = 4;
 }

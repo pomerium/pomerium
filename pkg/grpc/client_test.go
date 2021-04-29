@@ -62,7 +62,7 @@ func TestNewGRPC(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewGRPCClientConn(tt.opts)
+			got, err := NewGRPCClientConn(context.Background(), tt.opts)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				if !strings.EqualFold(err.Error(), tt.wantErrStr) {
@@ -77,14 +77,14 @@ func TestNewGRPC(t *testing.T) {
 }
 
 func TestGetGRPC(t *testing.T) {
-	cc1, err := GetGRPCClientConn("example", &Options{
+	cc1, err := GetGRPCClientConn(context.Background(), "example", &Options{
 		Addrs: mustParseURLs("https://localhost.example"),
 	})
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	cc2, err := GetGRPCClientConn("example", &Options{
+	cc2, err := GetGRPCClientConn(context.Background(), "example", &Options{
 		Addrs: mustParseURLs("https://localhost.example"),
 	})
 	if !assert.NoError(t, err) {
@@ -93,7 +93,7 @@ func TestGetGRPC(t *testing.T) {
 
 	assert.Same(t, cc1, cc2, "GetGRPCClientConn should return the same connection when there are no changes")
 
-	cc3, err := GetGRPCClientConn("example", &Options{
+	cc3, err := GetGRPCClientConn(context.Background(), "example", &Options{
 		Addrs:        mustParseURLs("http://localhost.example"),
 		WithInsecure: true,
 	})

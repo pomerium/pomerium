@@ -59,8 +59,7 @@ type Options struct {
 }
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
-func NewGRPCClientConn(opts *Options, other ...grpc.DialOption) (*grpc.ClientConn, error) {
-	ctx := context.TODO()
+func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOption) (*grpc.ClientConn, error) {
 	if len(opts.Addrs) == 0 {
 		return nil, errors.New("internal/grpc: connection address required")
 	}
@@ -130,7 +129,7 @@ func NewGRPCClientConn(opts *Options, other ...grpc.DialOption) (*grpc.ClientCon
 		dialOptions = append(dialOptions, grpc.WithTransportCredentials(cert))
 	}
 
-	return grpc.Dial(connAddr, dialOptions...)
+	return grpc.DialContext(ctx, connAddr, dialOptions...)
 }
 
 // grpcTimeoutInterceptor enforces per-RPC request timeouts
@@ -160,7 +159,7 @@ var grpcClientConns = struct {
 // GetGRPCClientConn returns a gRPC client connection for the given name. If a connection for that name has already been
 // established the existing connection will be returned. If any options change for that connection, the existing
 // connection will be closed and a new one established.
-func GetGRPCClientConn(name string, opts *Options) (*grpc.ClientConn, error) {
+func GetGRPCClientConn(ctx context.Context, name string, opts *Options) (*grpc.ClientConn, error) {
 	grpcClientConns.Lock()
 	defer grpcClientConns.Unlock()
 
@@ -176,7 +175,7 @@ func GetGRPCClientConn(name string, opts *Options) (*grpc.ClientConn, error) {
 		}
 	}
 
-	cc, err := NewGRPCClientConn(opts)
+	cc, err := NewGRPCClientConn(ctx, opts)
 	if err != nil {
 		return nil, err
 	}

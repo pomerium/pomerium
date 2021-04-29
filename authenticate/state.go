@@ -1,6 +1,7 @@
 package authenticate
 
 import (
+	"context"
 	"crypto/cipher"
 	"encoding/base64"
 	"fmt"
@@ -150,7 +151,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		return nil, err
 	}
 
-	dataBrokerConn, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
+	dataBrokerConn, err := grpc.GetGRPCClientConn(context.Background(), "databroker", &grpc.Options{
 		Addrs:                   urls,
 		OverrideCertificateName: cfg.Options.OverrideCertificateName,
 		CA:                      cfg.Options.CA,

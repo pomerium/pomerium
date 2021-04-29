@@ -190,16 +190,16 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 		src.cancel = nil
 	}
 
-	cc, err := grpc.NewGRPCClientConn(connectionOptions)
+	ctx := context.Background()
+	ctx, src.cancel = context.WithCancel(ctx)
+
+	cc, err := grpc.NewGRPCClientConn(ctx, connectionOptions)
 	if err != nil {
-		log.Error(context.TODO()).Err(err).Msg("databroker: failed to create gRPC connection to data broker")
+		log.Error(ctx).Err(err).Msg("databroker: failed to create gRPC connection to data broker")
 		return
 	}
 
 	client := databroker.NewDataBrokerServiceClient(cc)
-
-	ctx := context.Background()
-	ctx, src.cancel = context.WithCancel(ctx)
 
 	syncer := databroker.NewSyncer("databroker", &syncerHandler{
 		client: client,
