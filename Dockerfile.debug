@@ -19,7 +19,7 @@ RUN go get github.com/go-delve/delve/cmd/dlv
 FROM alpine:latest
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates libc6-compat gcompat
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
 COPY --from=build /go/bin/dlv /bin
