@@ -1,12 +1,13 @@
 package authorize
 
 import (
-	"bytes"
 	"context"
+	"errors"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"sort"
-	"strings"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
@@ -18,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -41,79 +43,51 @@ func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v3.C
 }
 
 func (a *Authorize) deniedResponse(
+	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
 	code int32, reason string, headers map[string]string,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	returnHTMLError := true
-	inHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
-	if inHeaders != nil {
-		returnHTMLError = strings.Contains(inHeaders["accept"], "text/html")
-	}
-
-	if returnHTMLError {
-		return a.htmlDeniedResponse(in, code, reason, headers)
-	}
-	return a.plainTextDeniedResponse(code, reason, headers), nil
-}
-
-func (a *Authorize) htmlDeniedResponse(
-	in *envoy_service_auth_v3.CheckRequest,
-	code int32, reason string, headers map[string]string,
-) (*envoy_service_auth_v3.CheckResponse, error) {
-	opts := a.currentOptions.Load()
-	authenticateURL, err := opts.GetAuthenticateURL()
-	if err != nil {
-		return nil, err
-	}
-	debugEndpoint := authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/"})
-
-	// create go-style http request
-	r := getHTTPRequestFromCheckRequest(in)
-	redirectURL := urlutil.GetAbsoluteURL(r).String()
-	if ref := r.Header.Get(httputil.HeaderReferrer); ref != "" {
-		redirectURL = ref
-	}
-
-	debugEndpoint = debugEndpoint.ResolveReference(&url.URL{
-		RawQuery: url.Values{
-			urlutil.QueryRedirectURI: {redirectURL},
-		}.Encode(),
-	})
-
-	debugEndpoint = urlutil.NewSignedURL(a.state.Load().sharedKey, debugEndpoint).Sign()
 
 	var details string
 	switch code {
 	case httputil.StatusInvalidClientCertificate:
-		details = "a valid client certificate is required to access this page"
+		details = httputil.StatusText(httputil.StatusInvalidClientCertificate)
 	case http.StatusForbidden:
-		details = "access to this page is forbidden"
+		details = http.StatusText(http.StatusForbidden)
 	default:
 		details = reason
 	}
 
-	if reason == "" {
-		reason = http.StatusText(int(code))
-	}
+	// create a http response writer recorder
+	w := httptest.NewRecorder()
+	r := getHTTPRequestFromCheckRequest(in)
 
-	var buf bytes.Buffer
-	err = a.templates.ExecuteTemplate(&buf, "error.html", map[string]interface{}{
-		"Status":     code,
-		"StatusText": reason,
-		"CanDebug":   code/100 == 4,
-		"DebugURL":   debugEndpoint,
-		"Error":      details,
-	})
+	// build the user info / debug endpoint
+	debugEndpoint, _ := a.userInfoEndpointURL(in) // if there's an error, we just wont display it
+
+	// run the request through our go error handler
+	httpErr := httputil.HTTPError{
+		Status:    int(code),
+		Err:       errors.New(details),
+		DebugURL:  debugEndpoint,
+		RequestID: requestid.FromContext(ctx),
+	}
+	httpErr.ErrorResponse(w, r)
+
+	// transpose the go http response writer into a envoy response
+	resp := w.Result()
+	defer resp.Body.Close()
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		buf.WriteString(reason)
-		log.Error(context.TODO()).Err(err).Msg("error executing error template")
+		log.Error(ctx).Err(err).Msg("error executing error template")
+		return nil, err
 	}
+	// convert go headers to envoy headers
+	respHeader := toEnvoyHeaders(resp.Header)
 
-	envoyHeaders := []*envoy_config_core_v3.HeaderValueOption{
-		mkHeader("Content-Type", "text/html", false),
-	}
+	// add any additional headers
 	for k, v := range headers {
-		envoyHeaders = append(envoyHeaders, mkHeader(k, v, false))
+		respHeader = append(respHeader, mkHeader(k, v, false))
 	}
 
 	return &envoy_service_auth_v3.CheckResponse{
@@ -123,36 +97,14 @@ func (a *Authorize) htmlDeniedResponse(
 				Status: &envoy_type_v3.HttpStatus{
 					Code: envoy_type_v3.StatusCode(code),
 				},
-				Headers: envoyHeaders,
-				Body:    buf.String(),
+				Headers: respHeader,
+				Body:    string(respBody),
 			},
 		},
 	}, nil
 }
 
-func (a *Authorize) plainTextDeniedResponse(code int32, reason string, headers map[string]string) *envoy_service_auth_v3.CheckResponse {
-	envoyHeaders := []*envoy_config_core_v3.HeaderValueOption{
-		mkHeader("Content-Type", "text/plain", false),
-	}
-	for k, v := range headers {
-		envoyHeaders = append(envoyHeaders, mkHeader(k, v, false))
-	}
-
-	return &envoy_service_auth_v3.CheckResponse{
-		Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
-		HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
-			DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{
-				Status: &envoy_type_v3.HttpStatus{
-					Code: envoy_type_v3.StatusCode(code),
-				},
-				Headers: envoyHeaders,
-				Body:    reason,
-			},
-		},
-	}
-}
-
-func (a *Authorize) redirectResponse(in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
+func (a *Authorize) redirectResponse(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
 	state := a.state.Load()
 	authenticateURL, err := opts.GetAuthenticateURL()
@@ -173,7 +125,7 @@ func (a *Authorize) redirectResponse(in *envoy_service_auth_v3.CheckRequest) (*e
 	signinURL.RawQuery = q.Encode()
 	redirectTo := urlutil.NewSignedURL(state.sharedKey, signinURL).String()
 
-	return a.deniedResponse(in, http.StatusFound, "Login", map[string]string{
+	return a.deniedResponse(ctx, in, http.StatusFound, "Login", map[string]string{
 		"Location": redirectTo,
 	})
 }
@@ -188,4 +140,43 @@ func mkHeader(k, v string, shouldAppend bool) *envoy_config_core_v3.HeaderValueO
 			Value: shouldAppend,
 		},
 	}
+}
+
+func toEnvoyHeaders(headers http.Header) []*envoy_config_core_v3.HeaderValueOption {
+	var ks []string
+	for k := range headers {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+
+	envoyHeaders := make([]*envoy_config_core_v3.HeaderValueOption, 0, len(headers))
+	for _, k := range ks {
+		envoyHeaders = append(envoyHeaders, mkHeader(k, headers.Get(k), false))
+	}
+	return envoyHeaders
+}
+
+// userInfoEndpointURL returns the user info endpoint url which can be used to debug the user's
+// session that lives on the authenticate service.
+func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) (*url.URL, error) {
+	opts := a.currentOptions.Load()
+	authenticateURL, err := opts.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+	debugEndpoint := authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/"})
+
+	r := getHTTPRequestFromCheckRequest(in)
+	redirectURL := urlutil.GetAbsoluteURL(r).String()
+	if ref := r.Header.Get(httputil.HeaderReferrer); ref != "" {
+		redirectURL = ref
+	}
+
+	debugEndpoint = debugEndpoint.ResolveReference(&url.URL{
+		RawQuery: url.Values{
+			urlutil.QueryRedirectURI: {redirectURL},
+		}.Encode(),
+	})
+
+	return urlutil.NewSignedURL(a.state.Load().sharedKey, debugEndpoint).Sign(), nil
 }

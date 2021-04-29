@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"context"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -151,36 +152,8 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 							Code: envoy_type_v3.StatusCode(codes.InvalidArgument),
 						},
 						Headers: []*envoy_config_core_v3.HeaderValueOption{
-							mkHeader("Content-Type", "text/html", false),
-						},
-						Body: "Access Denied",
-					},
-				},
-			},
-		},
-		{
-			"plain text denied",
-			&envoy_service_auth_v3.CheckRequest{
-				Attributes: &envoy_service_auth_v3.AttributeContext{
-					Request: &envoy_service_auth_v3.AttributeContext_Request{
-						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-							Headers: map[string]string{},
-						},
-					},
-				},
-			},
-			http.StatusBadRequest,
-			"Access Denied",
-			map[string]string{},
-			&envoy_service_auth_v3.CheckResponse{
-				Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
-				HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
-					DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{
-						Status: &envoy_type_v3.HttpStatus{
-							Code: envoy_type_v3.StatusCode(codes.InvalidArgument),
-						},
-						Headers: []*envoy_config_core_v3.HeaderValueOption{
-							mkHeader("Content-Type", "text/plain", false),
+							mkHeader("Content-Type", "text/html; charset=UTF-8", false),
+							mkHeader("X-Pomerium-Intercepted-Response", "true", false),
 						},
 						Body: "Access Denied",
 					},
@@ -192,7 +165,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := a.deniedResponse(tc.in, tc.code, tc.reason, tc.headers)
+			got, err := a.deniedResponse(context.TODO(), tc.in, tc.code, tc.reason, tc.headers)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
