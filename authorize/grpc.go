@@ -56,7 +56,10 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return nil, err
 	}
 
+	// take the state lock here so we don't update while evaluating
+	a.stateLock.RLock()
 	reply, err := state.evaluator.Evaluate(ctx, req)
+	a.stateLock.RUnlock()
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("error during OPA evaluation")
 		return nil, err
