@@ -47,7 +47,7 @@ func (srv *Server) storeEnvoyConfigurationEvent(ctx context.Context, evt *config
 		return err
 	}
 
-	client, err := srv.getDataBrokerClient()
+	client, err := srv.getDataBrokerClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func (srv *Server) storeEnvoyConfigurationEvent(ctx context.Context, evt *config
 	return nil
 }
 
-func (srv *Server) getDataBrokerClient() (databrokerpb.DataBrokerServiceClient, error) {
+func (srv *Server) getDataBrokerClient(ctx context.Context) (databrokerpb.DataBrokerServiceClient, error) {
 	options := srv.currentConfig.Load().Options
 
 	sharedKey, err := options.GetSharedKey()
@@ -92,7 +92,7 @@ func (srv *Server) getDataBrokerClient() (databrokerpb.DataBrokerServiceClient, 
 		return nil, err
 	}
 
-	cc, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
+	cc, err := grpc.GetGRPCClientConn(ctx, "databroker", &grpc.Options{
 		Addrs:                   urls,
 		OverrideCertificateName: options.OverrideCertificateName,
 		CA:                      options.CA,

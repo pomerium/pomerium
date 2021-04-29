@@ -45,7 +45,7 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		return
 	}
 
-	registryConn, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
+	registryConn, err := grpc.GetGRPCClientConn(ctx, "databroker", &grpc.Options{
 		Addrs:                   urls,
 		OverrideCertificateName: cfg.Options.OverrideCertificateName,
 		CA:                      cfg.Options.CA,
