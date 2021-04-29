@@ -936,7 +936,7 @@ Specifies the codec to use for downstream connections. Either `auto`, `http1` or
 
 When `auto` is specified the codec will be determined via TLS ALPN or protocol inference.
 
-::warning
+:::warning
 
 With HTTP/2, browsers typically coalesce connections for the same IP address that use the same
 TLS certificate. For example you may have `authenticate.localhost.pomerium.io` and
