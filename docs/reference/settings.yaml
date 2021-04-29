@@ -1060,7 +1060,7 @@ settings:
 
           ::warning
 
-          With HTTP/2 browsers typically coalesce connections for the same IP address that use the same
+          With HTTP/2, browsers typically coalesce connections for the same IP address that use the same
           TLS certificate. For example you may have `authenticate.localhost.pomerium.io` and
           `example.localhost.pomerium.io` using the same wildcard certificate (`*.localhost.pomerium.io`)
           and both pointing to `127.0.0.1`. Your browser sees this and re-uses the initial connection
