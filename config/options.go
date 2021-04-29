@@ -290,6 +290,9 @@ type Options struct {
 	// ProgrammaticRedirectDomainWhitelist restricts the allowed redirect URLs when using programmatic login.
 	ProgrammaticRedirectDomainWhitelist []string `mapstructure:"programmatic_redirect_domain_whitelist" yaml:"programmatic_redirect_domain_whitelist,omitempty" json:"programmatic_redirect_domain_whitelist,omitempty"` //nolint
 
+	// CodecType is the codec to use for downstream connections.
+	CodecType CodecType `mapstructure:"codec_type" yaml:"codec_type"`
+
 	AuditKey *PublicKeyEncryptionKeyOptions `mapstructure:"audit_key"`
 }
 
@@ -940,6 +943,14 @@ func (o *Options) GetQPS() float64 {
 	return o.QPS
 }
 
+// GetCodecType gets a codec type.
+func (o *Options) GetCodecType() CodecType {
+	if IsAll(o.Services) && o.CodecType == CodecTypeAuto {
+		return CodecTypeHTTP1
+	}
+	return o.CodecType
+}
+
 // Checksum returns the checksum of the current options struct
 func (o *Options) Checksum() uint64 {
 	return hashutil.MustHash(o)
@@ -1176,6 +1187,9 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 			ID:   settings.AuditKey.GetId(),
 			Data: base64.StdEncoding.EncodeToString(settings.AuditKey.GetData()),
 		}
+	}
+	if settings.CodecType != nil {
+		o.CodecType = CodecTypeFromEnvoy(settings.GetCodecType())
 	}
 }
 

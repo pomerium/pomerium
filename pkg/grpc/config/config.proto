@@ -6,6 +6,7 @@ option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 import "envoy/config/cluster/v3/cluster.proto";
+import "envoy/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto";
 
 import "crypt/crypt.proto";
 
@@ -181,4 +182,6 @@ message Settings {
   optional uint32 xff_num_trusted_hops = 70;
   repeated string programmatic_redirect_domain_whitelist = 68;
   optional pomerium.crypt.PublicKeyEncryptionKey audit_key = 72;
+  optional envoy.extensions.filters.network.http_connection_manager.v3
+      .HttpConnectionManager.CodecType codec_type = 73;
 }
