@@ -3,6 +3,7 @@ package log
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"os"
 	"sync/atomic"
@@ -12,10 +13,15 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type outputContextKey struct{}
+
 var (
 	logger    atomic.Value
 	zapLogger atomic.Value
 	zapLevel  zap.AtomicLevel
+
+	// Output marks context.Context to use designated output
+	Output outputContextKey
 )
 
 func init() {
@@ -123,6 +129,10 @@ func contextLogger(ctx context.Context) *zerolog.Logger {
 	if l.GetLevel() == zerolog.Disabled { // no logger associated with context
 		return global
 	}
+	if out, ok := ctx.Value(Output).(io.Writer); ok && out != nil {
+		outLogger := l.Output(out)
+		return &outLogger
+	}
 	return l
 }
 
@@ -137,7 +147,7 @@ func WithContext(ctx context.Context, update func(c zerolog.Context) zerolog.Con
 //
 // You must call Msg on the returned event in order to send the event.
 func Error(ctx context.Context) *zerolog.Event {
-	return Logger().Error()
+	return contextLogger(ctx).Error()
 }
 
 // Fatal starts a new message with fatal level. The os.Exit(1) function
