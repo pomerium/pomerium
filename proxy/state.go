@@ -3,6 +3,7 @@ package proxy
 import (
 	"crypto/cipher"
 	"encoding/base64"
+	"net/http"
 	"net/url"
 	"sync/atomic"
 	"time"
@@ -85,6 +86,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 			Secure:   cfg.Options.CookieSecure,
 			HTTPOnly: cfg.Options.CookieHTTPOnly,
 			Expire:   cfg.Options.CookieExpire,
+			SameSite: http.SameSiteLaxMode,
 		}
 	}, state.encoder)
 	if err != nil {

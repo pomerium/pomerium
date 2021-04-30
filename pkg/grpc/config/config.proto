@@ -173,6 +173,8 @@ message Settings {
   repeated string databroker_service_urls = 52;
   optional string client_ca = 53;
   optional string client_ca_file = 54;
+  optional string client_crl = 74;
+  optional string client_crl_file = 75;
   optional string google_cloud_serverless_authentication_service_account = 55;
   optional bool autocert = 56;
   optional bool autocert_use_staging = 57;

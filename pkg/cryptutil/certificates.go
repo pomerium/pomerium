@@ -13,8 +13,11 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"os"
 	"time"
 )
+
+const crlPemType = "X509 CRL"
 
 // CertificateFromBase64 returns an X509 pair from a base64 encoded blob.
 func CertificateFromBase64(cert, key string) (*tls.Certificate, error) {
@@ -35,6 +38,45 @@ func CertificateFromBase64(cert, key string) (*tls.Certificate, error) {
 func CertificateFromFile(certFile, keyFile string) (*tls.Certificate, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	return &cert, err
+}
+
+// CRLFromBase64 parses a certificate revocation list from a base64 encoded blob.
+func CRLFromBase64(rawCRL string) (*pkix.CertificateList, error) {
+	bs, err := base64.StdEncoding.DecodeString(rawCRL)
+	if err != nil {
+		return nil, fmt.Errorf("cryptutil: failed to decode base64 crl: %w", err)
+	}
+	return DecodeCRL(bs)
+}
+
+// CRLFromFile parses a certificate revocation list from a file.
+func CRLFromFile(fileName string) (*pkix.CertificateList, error) {
+	bs, err := os.ReadFile(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("cryptutil: failed to read crl file (%s): %w", fileName, err)
+	}
+	return DecodeCRL(bs)
+}
+
+// DecodeCRL decodes a PEM-encoded certificate revocation list.
+func DecodeCRL(encodedCRL []byte) (*pkix.CertificateList, error) {
+	data := encodedCRL
+	for len(data) > 0 {
+		var block *pem.Block
+		block, data = pem.Decode(data)
+		if block == nil {
+			break
+		}
+
+		if block.Type == crlPemType {
+			lst, err := x509.ParseDERCRL(block.Bytes)
+			if err != nil {
+				return nil, fmt.Errorf("cryptutil: failed to parse crl: %w", err)
+			}
+			return lst, nil
+		}
+	}
+	return nil, fmt.Errorf("cryptutil: invalid crl, no %s block found", crlPemType)
 }
 
 // DecodePublicKey decodes a PEM-encoded ECDSA public key.
