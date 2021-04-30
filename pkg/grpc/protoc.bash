@@ -97,3 +97,7 @@ _import_paths=$(join_by , "${_imports[@]}")
 ../../scripts/protoc -I ./user/ \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./user/." \
   ./user/user.proto
+
+../../scripts/protoc -I ./events/ -I ./ \
+  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./events/." \
+  ./events/xds.proto

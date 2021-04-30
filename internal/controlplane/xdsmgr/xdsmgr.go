@@ -18,7 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/contextkeys"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/grpc/events"
 )
 
 const (
@@ -36,7 +36,7 @@ var onHandleDeltaRequest = func(state *streamState) {}
 // A Manager manages xDS resources.
 type Manager struct {
 	signal       *signal.Signal
-	eventHandler func(*configpb.EnvoyConfigurationEvent)
+	eventHandler func(*events.EnvoyConfigurationEvent)
 
 	mu        sync.Mutex
 	nonce     string
@@ -46,7 +46,7 @@ type Manager struct {
 }
 
 // NewManager creates a new Manager.
-func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource, eventHandler func(*configpb.EnvoyConfigurationEvent)) *Manager {
+func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource, eventHandler func(*events.EnvoyConfigurationEvent)) *Manager {
 	nonceToConfig, _ := lru.New(maxNonceCacheSize) // the only error they return is when size is negative, which never happens
 
 	return &Manager{
@@ -265,8 +265,8 @@ func (mgr *Manager) nonceToConfigVersion(nonce string) (ver uint64) {
 }
 
 func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-	mgr.eventHandler(&configpb.EnvoyConfigurationEvent{
-		Kind:                 configpb.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST,
+	mgr.eventHandler(&events.EnvoyConfigurationEvent{
+		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST,
 		Time:                 timestamppb.Now(),
 		Message:              req.ErrorDetail.Message,
 		Code:                 req.ErrorDetail.Code,
@@ -288,8 +288,8 @@ func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_
 }
 
 func (mgr *Manager) ackEvent(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-	mgr.eventHandler(&configpb.EnvoyConfigurationEvent{
-		Kind:                 configpb.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST,
+	mgr.eventHandler(&events.EnvoyConfigurationEvent{
+		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST,
 		Time:                 timestamppb.Now(),
 		ConfigVersion:        mgr.nonceToConfigVersion(req.ResponseNonce),
 		ResourceSubscribed:   req.ResourceNamesSubscribe,
@@ -306,8 +306,8 @@ func (mgr *Manager) ackEvent(ctx context.Context, req *envoy_service_discovery_v
 }
 
 func (mgr *Manager) changeEvent(ctx context.Context, res *envoy_service_discovery_v3.DeltaDiscoveryResponse) {
-	mgr.eventHandler(&configpb.EnvoyConfigurationEvent{
-		Kind:                 configpb.EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE,
+	mgr.eventHandler(&events.EnvoyConfigurationEvent{
+		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE,
 		Time:                 timestamppb.Now(),
 		ConfigVersion:        mgr.nonceToConfigVersion(res.Nonce),
 		ResourceSubscribed:   resourceNames(res.Resources),
