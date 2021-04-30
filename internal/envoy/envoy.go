@@ -74,7 +74,7 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 		return nil, fmt.Errorf("error creating temporary working directory for envoy: %w", err)
 	}
 
-	envoyPath, err := extractEmbeddedEnvoy()
+	envoyPath, err := extractEmbeddedEnvoy(ctx)
 	if err != nil {
 		log.Warn(ctx).Err(err).Send()
 		envoyPath = "envoy"

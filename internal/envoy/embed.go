@@ -1,6 +1,7 @@
 package envoy
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -8,13 +9,16 @@ import (
 
 	"github.com/natefinch/atomic"
 	resources "gopkg.in/cookieo9/resources-go.v2"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 const embeddedEnvoyPermissions fs.FileMode = 0o700
+const embeddedDirectoryPermissions fs.FileMode = 0o755
 
-var embeddedFilesDirectory = filepath.Join(os.TempDir(), "pomerium-embedded-files")
+var embeddedFilesBaseDirectory = filepath.Join(os.TempDir(), "pomerium-embedded-files")
 
-func extractEmbeddedEnvoy() (outPath string, err error) {
+func extractEmbeddedEnvoy(ctx context.Context) (outPath string, err error) {
 	exePath, err := resources.ExecutablePath()
 	if err != nil {
 		return "", fmt.Errorf("error finding executable path: %w", err)
@@ -31,24 +35,23 @@ func extractEmbeddedEnvoy() (outPath string, err error) {
 	}
 	defer rc.Close()
 
-	err = os.MkdirAll(embeddedFilesDirectory, 0o755)
+	// clean up our base directory before starting
+	err = os.RemoveAll(embeddedFilesBaseDirectory)
 	if err != nil {
-		return "", fmt.Errorf("error creating embedded file directory: (directory=%s): %w", embeddedFilesDirectory, err)
+		return "", fmt.Errorf("error cleaning embedded file directory: (directory=%s): %w", embeddedFilesBaseDirectory, err)
 	}
 
-	outPath = filepath.Join(embeddedFilesDirectory, "envoy")
-
-	// skip extraction if we already have it
-	var zfi os.FileInfo
-	if zf, ok := rc.(interface{ FileInfo() os.FileInfo }); ok {
-		zfi = zf.FileInfo()
-		if fi, e := os.Stat(outPath); e == nil {
-			if fi.Size() == zfi.Size() && fi.ModTime() == zfi.ModTime() && zfi.Mode().Perm() == embeddedEnvoyPermissions {
-				return outPath, nil
-			}
-		}
+	// create known directory base to clean at startup
+	err = os.MkdirAll(embeddedFilesBaseDirectory, embeddedDirectoryPermissions)
+	if err != nil {
+		return "", fmt.Errorf("error creating embedded file directory: (directory=%s): %w", embeddedFilesBaseDirectory, err)
 	}
 
+	// build a random temp directory inside our base directory to guarantee permissions
+	tmpDir, err := os.MkdirTemp(embeddedFilesBaseDirectory, "envoy-")
+	outPath = filepath.Join(tmpDir, "envoy")
+
+	log.Info(ctx).Str("path", outPath).Msg("extracting envoy binary")
 	err = atomic.WriteFile(outPath, rc)
 	if err != nil {
 		return "", fmt.Errorf("error extracting embedded envoy binary to temporary directory (path=%s): %w", outPath, err)
@@ -57,10 +60,6 @@ func extractEmbeddedEnvoy() (outPath string, err error) {
 	err = os.Chmod(outPath, embeddedEnvoyPermissions)
 	if err != nil {
 		return "", fmt.Errorf("error chmoding embedded envoy binary: %w", err)
-	}
-
-	if zfi != nil {
-		_ = os.Chtimes(outPath, zfi.ModTime(), zfi.ModTime())
 	}
 
 	return outPath, nil
