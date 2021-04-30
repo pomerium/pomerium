@@ -853,10 +853,12 @@ By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/O
 
 ![pomerium security headers](./img/security-headers.png)
 
-:::info
+:::tip
+
 Several security-related headers are not set by default since doing so might break legacy sites. These include:
 `Cross-Origin Resource Policy`, `Cross-Origin Opener Policy` and `Cross-Origin Embedder Policy`. If possible
 users are encouraged to add these to `set_response_headers` or their downstream applications.
+
 :::
 
 
