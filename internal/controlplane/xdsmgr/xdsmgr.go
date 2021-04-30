@@ -123,7 +123,6 @@ func (mgr *Manager) DeltaAggregatedResources(
 		switch {
 		case req.GetResponseNonce() == "":
 			// neither an ACK or a NACK
-			log.Info(ctx).Msg("INITIAL DISCOVERY")
 		case req.GetErrorDetail() != nil:
 			// a NACK
 			// - set the client resource versions to the current resource versions
