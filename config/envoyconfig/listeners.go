@@ -453,7 +453,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		return nil, err
 	}
 	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
-		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
+		CodecType:  options.GetCodecType().ToEnvoy(),
 		StatPrefix: "ingress",
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
 			RouteConfig: rc,

@@ -23,21 +23,17 @@ var (
 	errEitherToOrRedirectRequired = errors.New("policy should have either `to` or `redirect` defined")
 )
 
-var (
-	protoPartial = protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
-)
+var protoPartial = protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
 
-var (
-
-	// ViperPolicyHooks are used to decode options and policy coming from YAML and env vars
-	ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
-		mapstructure.StringToTimeDurationHookFunc(),
-		mapstructure.StringToSliceHookFunc(","),
-		// decode policy including all protobuf-native notations - i.e. duration as `1s`
-		// https://developers.google.com/protocol-buffers/docs/proto3#json
-		DecodePolicyHookFunc(),
-		// parse base-64 encoded POLICY that is bound to environment variable
-		DecodePolicyBase64Hook(),
-		decodeJWTClaimHeadersHookFunc(),
-	))
-)
+// ViperPolicyHooks are used to decode options and policy coming from YAML and env vars
+var ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
+	mapstructure.StringToTimeDurationHookFunc(),
+	mapstructure.StringToSliceHookFunc(","),
+	// decode policy including all protobuf-native notations - i.e. duration as `1s`
+	// https://developers.google.com/protocol-buffers/docs/proto3#json
+	DecodePolicyHookFunc(),
+	// parse base-64 encoded POLICY that is bound to environment variable
+	DecodePolicyBase64Hook(),
+	decodeJWTClaimHeadersHookFunc(),
+	decodeCodecTypeHookFunc(),
+))
