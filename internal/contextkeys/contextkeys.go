@@ -4,7 +4,7 @@ package contextkeys
 type contextKey int
 
 const (
-	// DatabrokerConfigVersion identifies uint64 databroker version of the config
+	// DatabrokerConfigVersion identifies the uint64 databroker version of the config
 	DatabrokerConfigVersion contextKey = iota
 )
 
