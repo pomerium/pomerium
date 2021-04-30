@@ -200,7 +200,7 @@ message EnvoyConfigurationEvent {
   int32 code = 3;
   repeated google.protobuf.Any details = 4;
   // databroker config version
-  uint64 configVersion = 5;
+  uint64 config_version = 5;
   // envoy resource type (i.e. listener, cluster)
   string type_url = 6;
   enum EventKind {
