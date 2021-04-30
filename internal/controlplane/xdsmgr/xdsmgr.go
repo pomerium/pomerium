@@ -54,6 +54,7 @@ func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource, eve
 		eventHandler: eventHandler,
 
 		nonceToConfig: nonceToConfig,
+		nonce:         uuid.NewString(),
 		resources:     resources,
 	}
 }
@@ -122,6 +123,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 		switch {
 		case req.GetResponseNonce() == "":
 			// neither an ACK or a NACK
+			log.Info(ctx).Msg("INITIAL DISCOVERY")
 		case req.GetErrorDetail() != nil:
 			// a NACK
 			// - set the client resource versions to the current resource versions
@@ -255,8 +257,6 @@ func (mgr *Manager) Update(ctx context.Context, resources map[string][]*envoy_se
 }
 
 func (mgr *Manager) nonceToConfigVersion(nonce string) (ver uint64) {
-	defer log.Info(context.TODO()).Str("nonce", nonce).Uint64("version", ver).Msg("nonce2config")
-
 	val, ok := mgr.nonceToConfig.Get(nonce)
 	if !ok {
 		return 0
