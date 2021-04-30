@@ -145,7 +145,7 @@ The Client Certificate Authority is the x509 _public-key_ used to validate [mTLS
 - Optional
 
 The Client CRL is the [certificate revocation list](https://en.wikipedia.org/wiki/Certificate_revocation_list)
-(in PEM format) for client certificates. If not set no CRL will be used.
+(in PEM format) for client certificates. If not set, no CRL will be used.
 
 
 ### Cookie Options

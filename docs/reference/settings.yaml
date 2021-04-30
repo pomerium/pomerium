@@ -177,7 +177,7 @@ settings:
           - Optional
         doc: |
           The Client CRL is the [certificate revocation list](https://en.wikipedia.org/wiki/Certificate_revocation_list)
-          (in PEM format) for client certificates. If not set no CRL will be used.
+          (in PEM format) for client certificates. If not set, no CRL will be used.
       - name: "Cookie Options"
         settings:
           - name: "Cookie Name"
