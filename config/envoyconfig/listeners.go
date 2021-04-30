@@ -58,11 +58,11 @@ func init() {
 }
 
 // BuildListeners builds envoy listeners from the given config.
-func (b *Builder) BuildListeners(cfg *config.Config) ([]*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) BuildListeners(ctx context.Context, cfg *config.Config) ([]*envoy_config_listener_v3.Listener, error) {
 	var listeners []*envoy_config_listener_v3.Listener
 
 	if config.IsAuthenticate(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
-		li, err := b.buildMainListener(cfg)
+		li, err := b.buildMainListener(ctx, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -70,7 +70,7 @@ func (b *Builder) BuildListeners(cfg *config.Config) ([]*envoy_config_listener_v
 	}
 
 	if config.IsAuthorize(cfg.Options.Services) || config.IsDataBroker(cfg.Options.Services) {
-		li, err := b.buildGRPCListener(cfg)
+		li, err := b.buildGRPCListener(ctx, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -88,7 +88,7 @@ func (b *Builder) BuildListeners(cfg *config.Config) ([]*envoy_config_listener_v
 	return listeners, nil
 }
 
-func (b *Builder) buildMainListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	listenerFilters := []*envoy_config_listener_v3.ListenerFilter{}
 	if cfg.Options.UseProxyProtocol {
 		proxyCfg := marshalAny(&envoy_extensions_filters_listener_proxy_protocol_v3.ProxyProtocol{})
@@ -144,7 +144,7 @@ func (b *Builder) buildMainListener(cfg *config.Config) (*envoy_config_listener_
 					ServerNames: []string{tlsDomain},
 				}
 			}
-			tlsContext := b.buildDownstreamTLSContext(cfg, tlsDomain)
+			tlsContext := b.buildDownstreamTLSContext(ctx, cfg, tlsDomain)
 			if tlsContext != nil {
 				tlsConfig := marshalAny(tlsContext)
 				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
@@ -524,7 +524,7 @@ func (b *Builder) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_liste
 	}, nil
 }
 
-func (b *Builder) buildGRPCListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	filter, err := b.buildGRPCHTTPConnectionManagerFilter()
 	if err != nil {
 		return nil, err
@@ -551,7 +551,7 @@ func (b *Builder) buildGRPCListener(cfg *config.Config) (*envoy_config_listener_
 					ServerNames: []string{tlsDomain},
 				}
 			}
-			tlsContext := b.buildDownstreamTLSContext(cfg, tlsDomain)
+			tlsContext := b.buildDownstreamTLSContext(ctx, cfg, tlsDomain)
 			if tlsContext != nil {
 				tlsConfig := marshalAny(tlsContext)
 				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
@@ -641,9 +641,10 @@ func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_con
 	}, nil
 }
 
-func (b *Builder) buildDownstreamTLSContext(cfg *config.Config, domain string) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
-	ctx := context.TODO()
-
+func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
+	cfg *config.Config,
+	domain string,
+) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
 	certs, err := cfg.AllCertificates()
 	if err != nil {
 		log.Warn(ctx).Str("domain", domain).Err(err).Msg("failed to get all certificates from config")
@@ -656,15 +657,58 @@ func (b *Builder) buildDownstreamTLSContext(cfg *config.Config, domain string) *
 		return nil
 	}
 
-	envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(context.TODO(), cert)
+	envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert)
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams:             tlsParams,
 			TlsCertificates:       []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{envoyCert},
 			AlpnProtocols:         []string{"h2", "http/1.1"},
-			ValidationContextType: getDownstreamValidationContext(cfg, domain),
+			ValidationContextType: b.buildDownstreamValidationContext(ctx, cfg, domain),
 		},
 	}
+}
+
+func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
+	cfg *config.Config,
+	domain string,
+) *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext {
+	needsClientCert := false
+
+	if ca, _ := cfg.Options.GetClientCA(); len(ca) > 0 {
+		needsClientCert = true
+	}
+	if !needsClientCert {
+		for _, p := range getPoliciesForDomain(cfg.Options, domain) {
+			if p.TLSDownstreamClientCA != "" {
+				needsClientCert = true
+				break
+			}
+		}
+	}
+
+	if !needsClientCert {
+		return nil
+	}
+
+	// trusted_ca is left blank because we verify the client certificate in the authorize service
+	vc := &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+			TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED,
+		},
+	}
+
+	if cfg.Options.ClientCRL != "" {
+		bs, err := base64.StdEncoding.DecodeString(cfg.Options.ClientCRL)
+		if err != nil {
+			log.Error(ctx).Err(err).Msg("invalid client CRL")
+		} else {
+			vc.ValidationContext.Crl = b.filemgr.BytesDataSource("client-crl.pem", bs)
+		}
+	} else if cfg.Options.ClientCRLFile != "" {
+		vc.ValidationContext.Crl = b.filemgr.FileDataSource(cfg.Options.ClientCRLFile)
+	}
+
+	return vc
 }
 
 func getRouteableDomainsForTLSDomain(options *config.Options, addr string, tlsDomain string) ([]string, error) {
@@ -803,36 +847,6 @@ func hostMatchesDomain(u *url.URL, host string) bool {
 	}
 
 	return h1 == h2 && p1 == p2
-}
-
-func getDownstreamValidationContext(
-	cfg *config.Config,
-	domain string,
-) *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext {
-	needsClientCert := false
-
-	if ca, _ := cfg.Options.GetClientCA(); len(ca) > 0 {
-		needsClientCert = true
-	}
-	if !needsClientCert {
-		for _, p := range getPoliciesForDomain(cfg.Options, domain) {
-			if p.TLSDownstreamClientCA != "" {
-				needsClientCert = true
-				break
-			}
-		}
-	}
-
-	if !needsClientCert {
-		return nil
-	}
-
-	// trusted_ca is left blank because we verify the client certificate in the authorize service
-	return &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-			TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED,
-		},
-	}
 }
 
 func getPoliciesForDomain(options *config.Options, domain string) []config.Policy {

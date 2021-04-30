@@ -168,6 +168,16 @@ settings:
           - Optional
         doc: |
           The Client Certificate Authority is the x509 _public-key_ used to validate [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) client certificates. If not set, no client certificate will be required.
+      - name: "Client CRL"
+        keys: ["client_crl", "client_crl_file"]
+        attributes: |
+          - Environment Variable: `CLIENT_CRL` / `CLIENT_CRL_FILE`
+          - Config File Key: `client_crl` / `client_crl_file`
+          - Type: [base64 encoded] `string` or relative file location
+          - Optional
+        doc: |
+          The Client CRL is the [certificate revocation list](https://en.wikipedia.org/wiki/Certificate_revocation_list)
+          (in PEM format) for client certificates. If not set, no CRL will be used.
       - name: "Cookie Options"
         settings:
           - name: "Cookie Name"
