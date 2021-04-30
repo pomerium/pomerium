@@ -1,3 +1,4 @@
+// Package contextkeys defines common context keys shared between packages
 package contextkeys
 
 type contextKey int
