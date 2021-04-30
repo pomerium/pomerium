@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"context"
 	"fmt"
 	"sync/atomic"
 
@@ -55,7 +56,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		return nil, err
 	}
 
-	cc, err := grpc.GetGRPCClientConn("databroker", &grpc.Options{
+	cc, err := grpc.GetGRPCClientConn(context.Background(), "databroker", &grpc.Options{
 		Addrs:                   urls,
 		OverrideCertificateName: cfg.Options.OverrideCertificateName,
 		CA:                      cfg.Options.CA,
