@@ -11,6 +11,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"net"
 	"time"
@@ -35,6 +36,24 @@ func CertificateFromBase64(cert, key string) (*tls.Certificate, error) {
 func CertificateFromFile(certFile, keyFile string) (*tls.Certificate, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	return &cert, err
+}
+
+// CRLFromBase64 parses a certificate revocation list from a base64 encoded blob.
+func CRLFromBase64(rawCRL string) (*pkix.CertificateList, error) {
+	bs, err := base64.StdEncoding.DecodeString(rawCRL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 crl: %w", err)
+	}
+	return x509.ParseCRL(bs)
+}
+
+// CRLFromFile parses a certificate revocation list from a file.
+func CRLFromFile(fileName string) (*pkix.CertificateList, error) {
+	bs, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read crl file (%s): %w", fileName, err)
+	}
+	return x509.ParseCRL(bs)
 }
 
 // DecodePublicKey decodes a PEM-encoded ECDSA public key.

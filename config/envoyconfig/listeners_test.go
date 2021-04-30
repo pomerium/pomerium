@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -475,7 +476,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
 
 	t.Run("no-validation", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
 		}}, "a.example.com")
@@ -508,7 +509,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("client-ca", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
 			Cert:     aExampleComCert,
 			Key:      aExampleComKey,
 			ClientCA: "TEST",
@@ -545,7 +546,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("policy-client-ca", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(&config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
 			Policies: []config.Policy{
@@ -675,7 +676,7 @@ func Test_buildRouteConfiguration(t *testing.T) {
 func Test_requireProxyProtocol(t *testing.T) {
 	b := New("local-grpc", "local-http", nil, nil)
 	t.Run("required", func(t *testing.T) {
-		li, err := b.buildMainListener(&config.Config{Options: &config.Options{
+		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
 			UseProxyProtocol: true,
 			InsecureServer:   true,
 		}})
@@ -690,7 +691,7 @@ func Test_requireProxyProtocol(t *testing.T) {
 		]`, li.GetListenerFilters())
 	})
 	t.Run("not required", func(t *testing.T) {
-		li, err := b.buildMainListener(&config.Config{Options: &config.Options{
+		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
 			UseProxyProtocol: false,
 			InsecureServer:   true,
 		}})

@@ -263,6 +263,10 @@ type Options struct {
 	ClientCA string `mapstructure:"client_ca" yaml:"client_ca,omitempty"`
 	// ClientCAFile points to a file that contains the certificate authority to validate client mTLS certificates against.
 	ClientCAFile string `mapstructure:"client_ca_file" yaml:"client_ca_file,omitempty"`
+	// ClientCRL is the base64-encoded certificate revocation list for client mTLS certificates.
+	ClientCRL string `mapstructure:"client_crl" yaml:"client_crl,omitempty"`
+	// ClientCRLFile points to a file that contains the certificate revocation list for client mTLS certificates.
+	ClientCRLFile string `mapstructure:"client_crl_file" yaml:"client_crl_file,omitempty"`
 
 	// GoogleCloudServerlessAuthenticationServiceAccount is the service account to use for GCP serverless authentication.
 	// If unset, the GCP metadata server will be used to query for identity tokens.
@@ -632,6 +636,20 @@ func (o *Options) Validate() error {
 		_, err := ioutil.ReadFile(o.ClientCAFile)
 		if err != nil {
 			return fmt.Errorf("config: bad client ca file: %w", err)
+		}
+	}
+
+	if o.ClientCRL != "" {
+		_, err = cryptutil.CRLFromBase64(o.ClientCRL)
+		if err != nil {
+			return fmt.Errorf("config: bad client crl base64: %w", err)
+		}
+	}
+
+	if o.ClientCRLFile != "" {
+		_, err = cryptutil.CRLFromFile(o.ClientCRLFile)
+		if err != nil {
+			return fmt.Errorf("config: bad client crl file: %w", err)
 		}
 	}
 
@@ -1190,6 +1208,12 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	}
 	if settings.CodecType != nil {
 		o.CodecType = CodecTypeFromEnvoy(settings.GetCodecType())
+	}
+	if settings.ClientCrl != nil {
+		o.ClientCRL = settings.GetClientCrl()
+	}
+	if settings.ClientCrlFile != nil {
+		o.ClientCRLFile = settings.GetClientCrlFile()
 	}
 }
 

@@ -204,6 +204,7 @@ func (src *FileWatcherSource) check(ctx context.Context, cfg *Config) {
 		cfg.Options.CAFile,
 		cfg.Options.CertFile,
 		cfg.Options.ClientCAFile,
+		cfg.Options.ClientCRLFile,
 		cfg.Options.DataBrokerStorageCAFile,
 		cfg.Options.DataBrokerStorageCertFile,
 		cfg.Options.DataBrokerStorageCertKeyFile,
