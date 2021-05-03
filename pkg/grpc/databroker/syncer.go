@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/pomerium/pomerium/internal/contextkeys"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -176,10 +177,11 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 
 // logCtx adds log params to context which
 func (syncer *Syncer) logCtx(ctx context.Context) context.Context {
-	return log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("syncer_id", syncer.id).
 			Str("type", syncer.cfg.typeURL).
 			Uint64("server_version", syncer.serverVersion).
 			Uint64("record_version", syncer.recordVersion)
 	})
+	return context.WithValue(ctx, contextkeys.DatabrokerConfigVersion, syncer.recordVersion)
 }

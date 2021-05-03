@@ -24,7 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/version"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/grpc/events"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
@@ -61,7 +61,7 @@ type Server struct {
 	reproxy       *reproxy.Handler
 
 	haveSetEnvoyConfigurationEventOptions bool
-	envoyConfigurationEvents              chan *configpb.EnvoyConfigurationEvent
+	envoyConfigurationEvents              chan *events.EnvoyConfigurationEvent
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
@@ -69,7 +69,7 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 	srv := &Server{
 		metricsMgr:               metricsMgr,
 		reproxy:                  reproxy.New(),
-		envoyConfigurationEvents: make(chan *configpb.EnvoyConfigurationEvent, 10),
+		envoyConfigurationEvents: make(chan *events.EnvoyConfigurationEvent, 10),
 	}
 	srv.currentConfig.Store(versionedConfig{
 		Config: &config.Config{Options: &config.Options{}},

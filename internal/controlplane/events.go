@@ -10,13 +10,13 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/events"
 )
 
 const maxEnvoyConfigurationEvents = 50
 
-func (srv *Server) handleEnvoyConfigurationEvent(evt *configpb.EnvoyConfigurationEvent) {
+func (srv *Server) handleEnvoyConfigurationEvent(evt *events.EnvoyConfigurationEvent) {
 	select {
 	case srv.envoyConfigurationEvents <- evt:
 	default:
@@ -28,7 +28,7 @@ func (srv *Server) handleEnvoyConfigurationEvent(evt *configpb.EnvoyConfiguratio
 
 func (srv *Server) runEnvoyConfigurationEventHandler(ctx context.Context) error {
 	for {
-		var evt *configpb.EnvoyConfigurationEvent
+		var evt *events.EnvoyConfigurationEvent
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -41,7 +41,7 @@ func (srv *Server) runEnvoyConfigurationEventHandler(ctx context.Context) error 
 	}
 }
 
-func (srv *Server) storeEnvoyConfigurationEvent(ctx context.Context, evt *configpb.EnvoyConfigurationEvent) error {
+func (srv *Server) storeEnvoyConfigurationEvent(ctx context.Context, evt *events.EnvoyConfigurationEvent) error {
 	any, err := anypb.New(evt)
 	if err != nil {
 		return err

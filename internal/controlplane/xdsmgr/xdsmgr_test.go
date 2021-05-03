@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/pomerium/pomerium/internal/signal"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/grpc/events"
 )
 
 const bufSize = 1024 * 1024
@@ -37,7 +37,7 @@ func TestManager(t *testing.T) {
 		typeURL: {
 			{Name: "r1", Version: "1"},
 		},
-	}, func(evt *configpb.EnvoyConfigurationEvent) {})
+	}, func(evt *events.EnvoyConfigurationEvent) {})
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv, mgr)
 
 	li := bufconn.Listen(bufSize)

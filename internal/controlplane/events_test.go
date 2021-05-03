@@ -13,8 +13,8 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/events"
 )
 
 type mockDataBrokerServer struct {
@@ -33,8 +33,8 @@ func (mock *mockDataBrokerServer) SetOptions(ctx context.Context, req *databroke
 
 func TestEvents(t *testing.T) {
 	t.Run("passes events", func(t *testing.T) {
-		srv := &Server{envoyConfigurationEvents: make(chan *configpb.EnvoyConfigurationEvent, 1)}
-		srv.handleEnvoyConfigurationEvent(new(configpb.EnvoyConfigurationEvent))
+		srv := &Server{envoyConfigurationEvents: make(chan *events.EnvoyConfigurationEvent, 1)}
+		srv.handleEnvoyConfigurationEvent(new(events.EnvoyConfigurationEvent))
 		evt := <-srv.envoyConfigurationEvents
 		assert.NotNil(t, evt)
 	})
@@ -42,7 +42,7 @@ func TestEvents(t *testing.T) {
 		ctx := context.Background()
 
 		srv := &Server{
-			envoyConfigurationEvents: make(chan *configpb.EnvoyConfigurationEvent, 1),
+			envoyConfigurationEvents: make(chan *events.EnvoyConfigurationEvent, 1),
 		}
 		srv.currentConfig.Store(versionedConfig{
 			Config: &config.Config{
@@ -55,7 +55,7 @@ func TestEvents(t *testing.T) {
 		eg.Go(func() error {
 			return srv.runEnvoyConfigurationEventHandler(ctx)
 		})
-		srv.envoyConfigurationEvents <- new(configpb.EnvoyConfigurationEvent)
+		srv.envoyConfigurationEvents <- new(events.EnvoyConfigurationEvent)
 		cancel()
 		assert.Equal(t, context.Canceled, eg.Wait())
 	})
@@ -107,13 +107,13 @@ func TestEvents(t *testing.T) {
 					},
 				},
 			})
-			err := srv.storeEnvoyConfigurationEvent(ctx, new(configpb.EnvoyConfigurationEvent))
+			err := srv.storeEnvoyConfigurationEvent(ctx, new(events.EnvoyConfigurationEvent))
 			assert.NoError(t, err)
 			return err
 		})
 		_ = eg.Wait()
 
 		assert.Equal(t, uint64(maxEnvoyConfigurationEvents), setOptionsRequest.GetOptions().GetCapacity())
-		assert.Equal(t, "type.googleapis.com/pomerium.config.EnvoyConfigurationEvent", putRequest.GetRecord().GetType())
+		assert.Equal(t, "type.googleapis.com/pomerium.events.EnvoyConfigurationEvent", putRequest.GetRecord().GetType())
 	})
 }
