@@ -60,6 +60,8 @@ func (locker *Leaser) Run(ctx context.Context) error {
 		// if the lease already exists, retry later
 		if status.Code(err) == codes.AlreadyExists {
 			continue
+		} else if err != nil {
+			return err
 		}
 		leaseID := res.Id
 
