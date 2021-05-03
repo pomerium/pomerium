@@ -274,6 +274,7 @@ func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_
 		ResourceSubscribed:   req.ResourceNamesSubscribe,
 		ResourceUnsubscribed: req.ResourceNamesUnsubscribe,
 		ConfigVersion:        mgr.nonceToConfigVersion(req.ResponseNonce),
+		TypeUrl:              req.TypeUrl,
 	})
 
 	bs, _ := json.Marshal(req.ErrorDetail.Details)
@@ -294,6 +295,7 @@ func (mgr *Manager) ackEvent(ctx context.Context, req *envoy_service_discovery_v
 		ConfigVersion:        mgr.nonceToConfigVersion(req.ResponseNonce),
 		ResourceSubscribed:   req.ResourceNamesSubscribe,
 		ResourceUnsubscribed: req.ResourceNamesUnsubscribe,
+		TypeUrl:              req.TypeUrl,
 		Message:              "ok",
 	})
 
@@ -312,6 +314,7 @@ func (mgr *Manager) changeEvent(ctx context.Context, res *envoy_service_discover
 		ConfigVersion:        mgr.nonceToConfigVersion(res.Nonce),
 		ResourceSubscribed:   resourceNames(res.Resources),
 		ResourceUnsubscribed: res.RemovedResources,
+		TypeUrl:              res.TypeUrl,
 		Message:              "change",
 	})
 	log.Debug(ctx).
