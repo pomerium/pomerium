@@ -90,6 +90,12 @@ func (mgr *Manager) UpdateConfig(options ...Option) {
 
 // Run runs the manager. This method blocks until an error occurs or the given context is canceled.
 func (mgr *Manager) Run(ctx context.Context) error {
+	locker := databroker.NewLocker("identity_manager", time.Second*30, mgr)
+	return locker.Run(ctx)
+}
+
+// RunLeased runs the identity manager when a lease is acquired.
+func (mgr *Manager) RunLeased(ctx context.Context) error {
 	ctx = withLog(ctx)
 	update := make(chan updateRecordsMessage, 1)
 	clear := make(chan struct{}, 1)
@@ -105,6 +111,11 @@ func (mgr *Manager) Run(ctx context.Context) error {
 	})
 
 	return eg.Wait()
+}
+
+// GetDataBrokerServiceClient gets the databroker client.
+func (mgr *Manager) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return mgr.cfg.Load().dataBrokerClient
 }
 
 func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecordsMessage, clear <-chan struct{}) error {

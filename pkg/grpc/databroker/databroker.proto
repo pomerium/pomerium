@@ -4,6 +4,8 @@ package databroker;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
 
 import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 message Record {
@@ -31,9 +33,7 @@ message GetRequest {
   string type = 1;
   string id = 2;
 }
-message GetResponse {
-  Record record = 1;
-}
+message GetResponse { Record record = 1; }
 
 message QueryRequest {
   string type = 1;
@@ -56,17 +56,13 @@ message SetOptionsRequest {
   string type = 1;
   Options options = 2;
 }
-message SetOptionsResponse {
-  Options options = 1;
-}
+message SetOptionsResponse { Options options = 1; }
 
 message SyncRequest {
   uint64 server_version = 1;
   uint64 record_version = 2;
 }
-message SyncResponse {
-  Record record = 1;
-}
+message SyncResponse { Record record = 1; }
 
 message SyncLatestRequest { string type = 1; }
 message SyncLatestResponse {
@@ -76,14 +72,43 @@ message SyncLatestResponse {
   }
 }
 
+message AcquireLeaseRequest {
+  // Name is the name of the lease. Only a single client can hold the lease on
+  // the specified name at any one time.
+  string name = 1;
+  // Duration is the duration of the lease. After the duration is reached the
+  // lease can be acquired by other clients.
+  google.protobuf.Duration duration = 2;
+}
+message AcquireLeaseResponse {
+  // Id is the id of the acquired lease. Subsequent calls to release or renew
+  // will need both the lease name and the lease id.
+  string id = 1;
+}
+message ReleaseLeaseRequest {
+  string name = 1;
+  string id = 2;
+}
+message RenewLeaseRequest {
+  string name = 1;
+  string id = 2;
+  google.protobuf.Duration duration = 3;
+}
+
 // The DataBrokerService stores key-value data.
 service DataBrokerService {
+  // AcquireLease acquires a distributed mutex lease.
+  rpc AcquireLease(AcquireLeaseRequest) returns (AcquireLeaseResponse);
   // Get gets a record.
   rpc Get(GetRequest) returns (GetResponse);
   // Put saves a record.
   rpc Put(PutRequest) returns (PutResponse);
   // Query queries for records.
   rpc Query(QueryRequest) returns (QueryResponse);
+  // ReleaseLease releases a distributed mutex lease.
+  rpc ReleaseLease(ReleaseLeaseRequest) returns (google.protobuf.Empty);
+  // RenewLease renews a distributed mutex lease.
+  rpc RenewLease(RenewLeaseRequest) returns (google.protobuf.Empty);
   // SetOptions sets the options for a type in the databroker.
   rpc SetOptions(SetOptionsRequest) returns (SetOptionsResponse);
   // Sync streams changes to records after the specified version.

@@ -5,6 +5,8 @@ import (
 	"context"
 	"sync/atomic"
 
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -51,6 +53,13 @@ func (srv *dataBrokerServer) setKey(cfg *config.Config) {
 	srv.sharedKey.Store(bs)
 }
 
+func (srv *dataBrokerServer) AcquireLease(ctx context.Context, req *databrokerpb.AcquireLeaseRequest) (*databrokerpb.AcquireLeaseResponse, error) {
+	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
+		return nil, err
+	}
+	return srv.server.AcquireLease(ctx, req)
+}
+
 func (srv *dataBrokerServer) Get(ctx context.Context, req *databrokerpb.GetRequest) (*databrokerpb.GetResponse, error) {
 	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
 		return nil, err
@@ -70,6 +79,20 @@ func (srv *dataBrokerServer) Put(ctx context.Context, req *databrokerpb.PutReque
 		return nil, err
 	}
 	return srv.server.Put(ctx, req)
+}
+
+func (srv *dataBrokerServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (*emptypb.Empty, error) {
+	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
+		return nil, err
+	}
+	return srv.server.ReleaseLease(ctx, req)
+}
+
+func (srv *dataBrokerServer) RenewLease(ctx context.Context, req *databrokerpb.RenewLeaseRequest) (*emptypb.Empty, error) {
+	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
+		return nil, err
+	}
+	return srv.server.RenewLease(ctx, req)
 }
 
 func (srv *dataBrokerServer) SetOptions(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {

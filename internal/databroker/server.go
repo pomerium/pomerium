@@ -10,8 +10,10 @@ import (
 	"sync"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -60,6 +62,34 @@ func (srv *Server) UpdateConfig(options ...ServerOption) {
 		}
 		srv.backend = nil
 	}
+}
+
+// AcquireLease acquires a lease.
+func (srv *Server) AcquireLease(ctx context.Context, req *databroker.AcquireLeaseRequest) (*databroker.AcquireLeaseResponse, error) {
+	_, span := trace.StartSpan(ctx, "databroker.grpc.AcquireLease")
+	defer span.End()
+	log.Info(ctx).
+		Str("peer", grpcutil.GetPeerAddr(ctx)).
+		Str("name", req.GetName()).
+		Dur("duration", req.GetDuration().AsDuration()).
+		Msg("acquire lease")
+
+	db, err := srv.getBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	leaseID := uuid.NewString()
+	acquired, err := db.Lease(ctx, req.GetName(), leaseID, req.GetDuration().AsDuration())
+	if err != nil {
+		return nil, err
+	} else if !acquired {
+		return nil, status.Error(codes.AlreadyExists, "lease is already taken")
+	}
+
+	return &databroker.AcquireLeaseResponse{
+		Id: leaseID,
+	}, nil
 }
 
 // Get gets a record from the in-memory list.
@@ -157,6 +187,55 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 		ServerVersion: serverVersion,
 		Record:        record,
 	}, nil
+}
+
+// ReleaseLease releases a lease.
+func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeaseRequest) (*emptypb.Empty, error) {
+	_, span := trace.StartSpan(ctx, "databroker.grpc.ReleaseLease")
+	defer span.End()
+	log.Info(ctx).
+		Str("peer", grpcutil.GetPeerAddr(ctx)).
+		Str("name", req.GetName()).
+		Str("id", req.GetId()).
+		Msg("release lease")
+
+	db, err := srv.getBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = db.Lease(ctx, req.GetName(), req.GetId(), -1)
+	if err != nil {
+		return nil, err
+	}
+
+	return new(emptypb.Empty), nil
+}
+
+// RenewLease releases a lease.
+func (srv *Server) RenewLease(ctx context.Context, req *databroker.RenewLeaseRequest) (*emptypb.Empty, error) {
+	_, span := trace.StartSpan(ctx, "databroker.grpc.RenewLease")
+	defer span.End()
+	log.Info(ctx).
+		Str("peer", grpcutil.GetPeerAddr(ctx)).
+		Str("name", req.GetName()).
+		Str("id", req.GetId()).
+		Dur("duration", req.GetDuration().AsDuration()).
+		Msg("renew lease")
+
+	db, err := srv.getBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	acquired, err := db.Lease(ctx, req.GetName(), req.GetId(), req.GetDuration().AsDuration())
+	if err != nil {
+		return nil, err
+	} else if !acquired {
+		return nil, status.Error(codes.AlreadyExists, "lease no longer held")
+	}
+
+	return new(emptypb.Empty), nil
 }
 
 // SetOptions sets options for a type in the databroker.

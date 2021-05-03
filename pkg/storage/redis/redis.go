@@ -36,6 +36,7 @@ const (
 	optionsKey       = "{pomerium_v3}.options"
 
 	recordTypeChangesKeyTpl = "{pomerium_v3}.changes.%s"
+	leaseKeyTpl             = "{pomerium_v3}.lease.%s"
 )
 
 // custom errors
@@ -199,6 +200,43 @@ func (backend *Backend) GetOptions(ctx context.Context, recordType string) (*dat
 	}
 
 	return &options, nil
+}
+
+// Lease acquires or renews a lease.
+func (backend *Backend) Lease(ctx context.Context, leaseName, leaseID string, ttl time.Duration) (bool, error) {
+	acquired := false
+	key := getLeaseKey(leaseName)
+	err := backend.client.Watch(ctx, func(tx *redis.Tx) error {
+		currentID, err := tx.Get(ctx, key).Result()
+		if errors.Is(err, redis.Nil) {
+			// lease hasn't been set yet
+		} else if err != nil {
+			return err
+		} else if leaseID != currentID {
+			// lease has already been taken
+			return nil
+		}
+
+		_, err = tx.Pipelined(ctx, func(p redis.Pipeliner) error {
+			if ttl <= 0 {
+				p.Del(ctx, key)
+			} else {
+				p.Set(ctx, key, leaseID, ttl)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		acquired = ttl > 0
+		return nil
+	}, key)
+	// if the transaction failed someone else must've acquired the lease
+	if errors.Is(err, redis.TxFailedErr) {
+		acquired = false
+		err = nil
+	}
+	return acquired, err
 }
 
 // Put puts a record into redis.
@@ -486,6 +524,10 @@ func (backend *Backend) getOrCreateServerVersion(ctx context.Context) (serverVer
 		return 0, fmt.Errorf("redis: error retrieving server version: %w", err)
 	}
 	return serverVersion, err
+}
+
+func getLeaseKey(leaseName string) string {
+	return fmt.Sprintf(leaseKeyTpl, leaseName)
 }
 
 func getRecordTypeChangesKey(recordType string) string {

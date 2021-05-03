@@ -20,6 +20,11 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
+type lease struct {
+	id     string
+	expiry time.Time
+}
+
 type recordChange struct {
 	record *databroker.Record
 }
@@ -47,6 +52,7 @@ type Backend struct {
 	lookup   map[string]*RecordCollection
 	capacity map[string]*uint64
 	changes  *btree.BTree
+	leases   map[string]*lease
 }
 
 // New creates a new in-memory backend storage.
@@ -60,6 +66,7 @@ func New(options ...Option) *Backend {
 		lookup:        make(map[string]*RecordCollection),
 		capacity:      map[string]*uint64{},
 		changes:       btree.New(cfg.degree),
+		leases:        make(map[string]*lease),
 	}
 	if cfg.expiry != 0 {
 		go func() {
@@ -163,6 +170,37 @@ func (backend *Backend) GetOptions(_ context.Context, recordType string) (*datab
 	}
 
 	return options, nil
+}
+
+// Lease acquires or renews a lease.
+func (backend *Backend) Lease(_ context.Context, leaseName, leaseID string, ttl time.Duration) (bool, error) {
+	backend.mu.Lock()
+	defer backend.mu.Unlock()
+
+	l, ok := backend.leases[leaseName]
+	// if there is no lease, or its expired, acquire a new one.
+	if !ok || l.expiry.Before(time.Now()) {
+		backend.leases[leaseName] = &lease{
+			id:     leaseID,
+			expiry: time.Now().Add(ttl),
+		}
+		return true, nil
+	}
+
+	// if the lease doesn't match, we can't acquire it
+	if l.id != leaseID {
+		return false, nil
+	}
+
+	// release the lease
+	if ttl <= 0 {
+		delete(backend.leases, leaseName)
+		return false, nil
+	}
+
+	// update the expiry (renew the lease)
+	l.expiry = time.Now().Add(ttl)
+	return true, nil
 }
 
 // Put puts a record into the in-memory store.
