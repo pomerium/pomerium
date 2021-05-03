@@ -1372,6 +1372,14 @@ Remove Request Headers allows you to remove given request headers. This can be u
 ```
 
 
+### Set Response Headers
+- Config File Key: `set_response_headers`
+- Type: map of `strings` key value pairs
+- Optional
+
+Set Response Headers allows you to set static values for the given response headers.
+
+
 ### Rewrite Response Headers
 - Config File Key: `rewrite_response_headers`
 - Type: `object`

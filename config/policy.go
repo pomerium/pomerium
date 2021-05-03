@@ -151,6 +151,9 @@ type Policy struct {
 
 	// RewriteResponseHeaders rewrites response headers. This can be used to change the Location header.
 	RewriteResponseHeaders []RewriteHeader `mapstructure:"rewrite_response_headers" yaml:"rewrite_response_headers,omitempty" json:"rewrite_response_headers,omitempty"` //nolint
+
+	// SetResponseHeaders sets response headers.
+	SetResponseHeaders map[string]string `mapstructure:"set_response_headers" yaml:"set_response_headers,omitempty"`
 }
 
 // RewriteHeader is a policy configuration option to rewrite an HTTP header.
@@ -219,6 +222,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		PreserveHostHeader:               pb.GetPreserveHostHeader(),
 		PassIdentityHeaders:              pb.GetPassIdentityHeaders(),
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
+		SetResponseHeaders:               pb.GetSetResponseHeaders(),
 	}
 
 	if pb.Redirect.IsSet() {
@@ -321,6 +325,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		PassIdentityHeaders:              p.PassIdentityHeaders,
 		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
 		Policies:                         sps,
+		SetResponseHeaders:               p.SetResponseHeaders,
 	}
 	if p.Redirect != nil {
 		pb.Redirect = &configpb.RouteRedirect{

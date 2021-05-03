@@ -82,6 +82,7 @@ message Route {
 
   map<string, string> set_request_headers = 22;
   repeated string remove_request_headers = 23;
+  map<string, string> set_response_headers = 41;
   repeated RouteRewriteHeader rewrite_response_headers = 40;
 
   bool preserve_host_header = 24;
