@@ -10,14 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/pomerium/csrf"
 	"github.com/rs/cors"
 	"golang.org/x/oauth2"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.in/square/go-jose.v2/jwt"
-
-	"github.com/pomerium/csrf"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
@@ -509,13 +508,14 @@ func (a *Authenticate) saveSessionToDataBroker(
 	state := a.state.Load()
 	options := a.options.Load()
 
-	sessionExpiry, _ := ptypes.TimestampProto(time.Now().Add(options.CookieExpire))
+	sessionExpiry := timestamppb.New(time.Now().Add(options.CookieExpire))
 	sessionState.Expiry = jwt.NewNumericDate(sessionExpiry.AsTime())
-	idTokenIssuedAt, _ := ptypes.TimestampProto(sessionState.IssuedAt.Time())
+	idTokenIssuedAt := timestamppb.New(sessionState.IssuedAt.Time())
 
 	s := &session.Session{
 		Id:        sessionState.ID,
 		UserId:    sessionState.UserID(a.provider.Load().Name()),
+		IssuedAt:  timestamppb.Now(),
 		ExpiresAt: sessionExpiry,
 		IdToken: &session.IDToken{
 			Issuer:    sessionState.Issuer, // todo(bdd): the issuer is not authN but the downstream IdP from the claims
