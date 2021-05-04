@@ -1514,7 +1514,7 @@ settings:
           - Type: map of `strings` key value pairs
           - Optional
         doc: |
-          Set Response Headers allows you to set static values for the given response headers.
+          Set Response Headers allows you to set static values for the given response headers. These headers will take precedence over the global `set_response_headers`.
       - name: "Rewrite Response Headers"
         keys: ["rewrite_response_headers"]
         attributes: |
