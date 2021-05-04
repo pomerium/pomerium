@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"sync"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -43,6 +44,8 @@ type Manager struct {
 	resources map[string][]*envoy_service_discovery_v3.Resource
 
 	nonceToConfig *lru.Cache
+
+	hostname string
 }
 
 // NewManager creates a new Manager.
@@ -56,6 +59,8 @@ func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource, eve
 		nonceToConfig: nonceToConfig,
 		nonce:         uuid.NewString(),
 		resources:     resources,
+
+		hostname: getHostname(),
 	}
 }
 
@@ -266,6 +271,7 @@ func (mgr *Manager) nonceToConfigVersion(nonce string) (ver uint64) {
 
 func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
 	mgr.eventHandler(&events.EnvoyConfigurationEvent{
+		Instance:             mgr.hostname,
 		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST,
 		Time:                 timestamppb.Now(),
 		Message:              req.ErrorDetail.Message,
@@ -290,6 +296,7 @@ func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_
 
 func (mgr *Manager) ackEvent(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
 	mgr.eventHandler(&events.EnvoyConfigurationEvent{
+		Instance:             mgr.hostname,
 		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST,
 		Time:                 timestamppb.Now(),
 		ConfigVersion:        mgr.nonceToConfigVersion(req.ResponseNonce),
@@ -309,6 +316,7 @@ func (mgr *Manager) ackEvent(ctx context.Context, req *envoy_service_discovery_v
 
 func (mgr *Manager) changeEvent(ctx context.Context, res *envoy_service_discovery_v3.DeltaDiscoveryResponse) {
 	mgr.eventHandler(&events.EnvoyConfigurationEvent{
+		Instance:             mgr.hostname,
 		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE,
 		Time:                 timestamppb.Now(),
 		ConfigVersion:        mgr.nonceToConfigVersion(res.Nonce),
@@ -332,4 +340,15 @@ func resourceNames(res []*envoy_service_discovery_v3.Resource) []string {
 		txt = append(txt, r.Name)
 	}
 	return txt
+}
+
+func getHostname() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = os.Getenv("HOSTNAME")
+	}
+	if hostname == "" {
+		hostname = "__unknown__"
+	}
+	return hostname
 }
