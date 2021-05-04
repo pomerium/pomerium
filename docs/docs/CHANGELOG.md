@@ -1,5 +1,361 @@
 # Changelog
 
+## [v0.14.0](https://github.com/pomerium/pomerium/tree/v0.14.0) (2021-05-04)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.14.0-rc2...v0.14.0)
+
+## New
+
+- databroker: store issued at timestamp with session [\#2173](https://github.com/pomerium/pomerium/pull/2173) (@calebdoxsey)
+- config: add support for set\_response\_headers in a policy [\#2171](https://github.com/pomerium/pomerium/pull/2171) (@calebdoxsey)
+- authenticate,proxy: add same site lax to cookies [\#2159](https://github.com/pomerium/pomerium/pull/2159) (@calebdoxsey)
+- xds extended event [\#2158](https://github.com/pomerium/pomerium/pull/2158) (@wasaga)
+- config: add client\_crl [\#2157](https://github.com/pomerium/pomerium/pull/2157) (@calebdoxsey)
+- config: add support for codec\_type [\#2156](https://github.com/pomerium/pomerium/pull/2156) (@calebdoxsey)
+
+## Security
+
+- ci: remove codecov [\#2161](https://github.com/pomerium/pomerium/pull/2161) (@travisgroth)
+- internal/envoy: always extract envoy [\#2160](https://github.com/pomerium/pomerium/pull/2160) (@travisgroth)
+
+## Documentation
+
+- docs: add inline instructions to generate signing-key [\#2164](https://github.com/pomerium/pomerium/pull/2164) (@desimone)
+- docs: add info note to set\_response\_headers [\#2162](https://github.com/pomerium/pomerium/pull/2162) (@calebdoxsey)
+
+## Dependency
+
+- chore\(deps\): bump github.com/ory/dockertest/v3 from 3.6.3 to 3.6.5 [\#2168](https://github.com/pomerium/pomerium/pull/2168) (@dependabot[bot])
+- chore\(deps\): bump github.com/prometheus/common from 0.21.0 to 0.23.0 [\#2167](https://github.com/pomerium/pomerium/pull/2167) (@dependabot[bot])
+- chore\(deps\): bump github.com/envoyproxy/protoc-gen-validate from 0.6.0 to 0.6.1 [\#2166](https://github.com/pomerium/pomerium/pull/2166) (@dependabot[bot])
+- chore\(deps\): bump github.com/open-policy-agent/opa from 0.27.1 to 0.28.0 [\#2165](https://github.com/pomerium/pomerium/pull/2165) (@dependabot[bot])
+
+## [v0.14.0-rc2](https://github.com/pomerium/pomerium/tree/v0.14.0-rc2) (2021-04-29)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.14.0-rc1...v0.14.0-rc2)
+
+## New
+
+- controlplane: save configuration events to databroker [\#2153](https://github.com/pomerium/pomerium/pull/2153) (@calebdoxsey)
+- control plane: add request id to all error pages [\#2149](https://github.com/pomerium/pomerium/pull/2149) (@desimone)
+- let pass custom dial opts [\#2144](https://github.com/pomerium/pomerium/pull/2144) (@wasaga)
+- envoy: re-implement recommended defaults [\#2123](https://github.com/pomerium/pomerium/pull/2123) (@calebdoxsey)
+- Drop tun.cfg.dstHost from jwtCacheKey [\#2115](https://github.com/pomerium/pomerium/pull/2115) (@bl0m1)
+- config: remove validate side effects [\#2109](https://github.com/pomerium/pomerium/pull/2109) (@calebdoxsey)
+- log context [\#2107](https://github.com/pomerium/pomerium/pull/2107) (@wasaga)
+- databroker: add options for maximum capacity [\#2095](https://github.com/pomerium/pomerium/pull/2095) (@calebdoxsey)
+
+## Fixed
+
+- deployment: update alpine debug image dependencies [\#2154](https://github.com/pomerium/pomerium/pull/2154) (@travisgroth)
+- authorize: refactor store locking [\#2151](https://github.com/pomerium/pomerium/pull/2151) (@calebdoxsey)
+- databroker: store server version in backend [\#2142](https://github.com/pomerium/pomerium/pull/2142) (@calebdoxsey)
+- authorize: audit log had duplicate "message" key [\#2141](https://github.com/pomerium/pomerium/pull/2141) (@desimone)
+- httputil: fix SPDY support with reverse proxy [\#2134](https://github.com/pomerium/pomerium/pull/2134) (@calebdoxsey)
+- envoyconfig: fix metrics ingress listener name [\#2124](https://github.com/pomerium/pomerium/pull/2124) (@calebdoxsey)
+- authorize: fix empty sub policy arrays [\#2119](https://github.com/pomerium/pomerium/pull/2119) (@calebdoxsey)
+- authorize: fix unsigned URL [\#2118](https://github.com/pomerium/pomerium/pull/2118) (@calebdoxsey)
+- authorize: support arbitrary jwt claims [\#2102](https://github.com/pomerium/pomerium/pull/2102) (@calebdoxsey)
+
+## Security
+
+- deps: bump envoy to 1.17.2 [\#2113](https://github.com/pomerium/pomerium/pull/2113) (@travisgroth)
+
+## Documentation
+
+- docs: mention alternative bearer token header format [\#2155](https://github.com/pomerium/pomerium/pull/2155) (@travisgroth)
+- docs: upgrade notes on `allowed\_users` by ID [\#2133](https://github.com/pomerium/pomerium/pull/2133) (@travisgroth)
+
+## Dependency
+
+- use cached envoy [\#2132](https://github.com/pomerium/pomerium/pull/2132) (@wasaga)
+- chore\(deps\): bump github.com/prometheus/common from 0.20.0 to 0.21.0 [\#2130](https://github.com/pomerium/pomerium/pull/2130) (@dependabot[bot])
+- chore\(deps\): bump github.com/envoyproxy/protoc-gen-validate from 0.5.1 to 0.6.0 [\#2129](https://github.com/pomerium/pomerium/pull/2129) (@dependabot[bot])
+- chore\(deps\): bump google.golang.org/api from 0.44.0 to 0.45.0 [\#2128](https://github.com/pomerium/pomerium/pull/2128) (@dependabot[bot])
+- chore\(deps\): bump github.com/caddyserver/certmagic from 0.12.0 to 0.13.0 [\#2074](https://github.com/pomerium/pomerium/pull/2074) (@dependabot[bot])
+
+## Deployment
+
+- deployment: update get-envoy script and release hooks [\#2111](https://github.com/pomerium/pomerium/pull/2111) (@travisgroth)
+- deployment: Publish OS packages to cloudsmith [\#2105](https://github.com/pomerium/pomerium/pull/2105) (@travisgroth)
+
+## Changed
+
+- authorize: remove log [\#2122](https://github.com/pomerium/pomerium/pull/2122) (@calebdoxsey)
+
+## [v0.14.0-rc1](https://github.com/pomerium/pomerium/tree/v0.14.0-rc1) (2021-04-22)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.13.6...v0.14.0-rc1)
+
+## Breaking
+
+- directory: remove provider from user id [\#2068](https://github.com/pomerium/pomerium/pull/2068) (@calebdoxsey)
+
+## New
+
+- envoyconfig: move most bootstrap config to shared package [\#2088](https://github.com/pomerium/pomerium/pull/2088) (@calebdoxsey)
+- envoy: refactor controlplane xds to new envoyconfig package [\#2086](https://github.com/pomerium/pomerium/pull/2086) (@calebdoxsey)
+- config: rename headers to set\_response\_headers [\#2081](https://github.com/pomerium/pomerium/pull/2081) (@calebdoxsey)
+- crypto: use actual bytes of shared secret, not the base64 encoded representation [\#2075](https://github.com/pomerium/pomerium/pull/2075) (@calebdoxsey)
+- cryptutil: use bytes for hmac [\#2067](https://github.com/pomerium/pomerium/pull/2067) (@calebdoxsey)
+- cryptutil: always use kek public id, add x509 support [\#2066](https://github.com/pomerium/pomerium/pull/2066) (@calebdoxsey)
+- authorize: additional tracing, add benchmark for encryptor [\#2059](https://github.com/pomerium/pomerium/pull/2059) (@calebdoxsey)
+- authorize: audit logging [\#2050](https://github.com/pomerium/pomerium/pull/2050) (@calebdoxsey)
+- support host:port in metrics\_address [\#2042](https://github.com/pomerium/pomerium/pull/2042) (@wasaga)
+- databroker: return server version in Get [\#2039](https://github.com/pomerium/pomerium/pull/2039) (@wasaga)
+- authorize: add databroker server and record version to result, force sync via polling [\#2024](https://github.com/pomerium/pomerium/pull/2024) (@calebdoxsey)
+- protoutil: add generic transformer [\#2023](https://github.com/pomerium/pomerium/pull/2023) (@calebdoxsey)
+- cryptutil: add envelope encryption w/key encryption key and data encryption key [\#2020](https://github.com/pomerium/pomerium/pull/2020) (@calebdoxsey)
+- autocert: add metrics for renewal count, total and next expiration [\#2019](https://github.com/pomerium/pomerium/pull/2019) (@calebdoxsey)
+- telemetry: add installation id [\#2017](https://github.com/pomerium/pomerium/pull/2017) (@calebdoxsey)
+- config: use getters for certificates [\#2001](https://github.com/pomerium/pomerium/pull/2001) (@calebdoxsey)
+- config: use getters for authenticate, signout and forward auth urls [\#2000](https://github.com/pomerium/pomerium/pull/2000) (@calebdoxsey)
+- xds: use ALPN Auto config for upstream protocol when possible [\#1995](https://github.com/pomerium/pomerium/pull/1995) (@calebdoxsey)
+- envoy: upgrade to v1.17.1 [\#1993](https://github.com/pomerium/pomerium/pull/1993) (@calebdoxsey)
+- redis: add redis cluster support [\#1992](https://github.com/pomerium/pomerium/pull/1992) (@calebdoxsey)
+- redis: add support for redis-sentinel [\#1991](https://github.com/pomerium/pomerium/pull/1991) (@calebdoxsey)
+- authorize: set JWT to expire after 5 minutes [\#1980](https://github.com/pomerium/pomerium/pull/1980) (@calebdoxsey)
+- identity: infer email from mail claim [\#1977](https://github.com/pomerium/pomerium/pull/1977) (@calebdoxsey)
+- ping: identity and directory providers [\#1975](https://github.com/pomerium/pomerium/pull/1975) (@calebdoxsey)
+- config: add rewrite\_response\_headers to protobuf [\#1962](https://github.com/pomerium/pomerium/pull/1962) (@calebdoxsey)
+- config: add rewrite\_response\_headers option [\#1961](https://github.com/pomerium/pomerium/pull/1961) (@calebdoxsey)
+- assets: use embed instead of statik [\#1960](https://github.com/pomerium/pomerium/pull/1960) (@calebdoxsey)
+- config: log config source changes [\#1959](https://github.com/pomerium/pomerium/pull/1959) (@calebdoxsey)
+- config: multiple endpoints for authorize and databroker [\#1957](https://github.com/pomerium/pomerium/pull/1957) (@calebdoxsey)
+- telemetry: add process collector for envoy [\#1948](https://github.com/pomerium/pomerium/pull/1948) (@calebdoxsey)
+- use build\_info as liveness gauge metric [\#1940](https://github.com/pomerium/pomerium/pull/1940) (@wasaga)
+- metrics: add TLS options [\#1939](https://github.com/pomerium/pomerium/pull/1939) (@calebdoxsey)
+- identity: record metric for last refresh [\#1936](https://github.com/pomerium/pomerium/pull/1936) (@calebdoxsey)
+- middleware: basic auth equalize lengths of input [\#1934](https://github.com/pomerium/pomerium/pull/1934) (@desimone)
+- autocert: remove non-determinism [\#1932](https://github.com/pomerium/pomerium/pull/1932) (@calebdoxsey)
+- config: add metrics\_basic\_auth option [\#1917](https://github.com/pomerium/pomerium/pull/1917) (@calebdoxsey)
+- envoy: validate binary checksum [\#1908](https://github.com/pomerium/pomerium/pull/1908) (@calebdoxsey)
+- config: support map of jwt claim headers [\#1906](https://github.com/pomerium/pomerium/pull/1906) (@calebdoxsey)
+- Remove internal/protoutil. [\#1893](https://github.com/pomerium/pomerium/pull/1893) (@yegle)
+- databroker: refactor databroker to sync all changes [\#1879](https://github.com/pomerium/pomerium/pull/1879) (@calebdoxsey)
+- config: add CertificateFiles to FileWatcherSource list [\#1878](https://github.com/pomerium/pomerium/pull/1878) (@travisgroth)
+- config: allow customization of envoy boostrap admin options [\#1872](https://github.com/pomerium/pomerium/pull/1872) (@calebdoxsey)
+- proxy: implement pass-through for authenticate backend [\#1870](https://github.com/pomerium/pomerium/pull/1870) (@calebdoxsey)
+- authorize: move headers and jwt signing to rego [\#1856](https://github.com/pomerium/pomerium/pull/1856) (@calebdoxsey)
+
+## Fixed
+
+- authorize: support arbitrary jwt claims [\#2106](https://github.com/pomerium/pomerium/pull/2106) (@github-actions[bot])
+- xdsmgr: update resource versions on NACK [\#2093](https://github.com/pomerium/pomerium/pull/2093) (@calebdoxsey)
+- config: don't change address value on databroker or authorize [\#2092](https://github.com/pomerium/pomerium/pull/2092) (@travisgroth)
+- metrics\_address should be optional parameter [\#2087](https://github.com/pomerium/pomerium/pull/2087) (@wasaga)
+- propagate changes back from encrypted backend [\#2079](https://github.com/pomerium/pomerium/pull/2079) (@wasaga)
+- config: use tls\_custom\_ca from policy when available [\#2077](https://github.com/pomerium/pomerium/pull/2077) (@calebdoxsey)
+- databroker: remove unused installation id, close streams when backend is closed [\#2062](https://github.com/pomerium/pomerium/pull/2062) (@calebdoxsey)
+- authenticate: fix default sign out url [\#2061](https://github.com/pomerium/pomerium/pull/2061) (@calebdoxsey)
+- change require\_proxy\_protocol to use\_proxy\_protocol [\#2043](https://github.com/pomerium/pomerium/pull/2043) (@contrun)
+- authorize: bypass data in rego for databroker data [\#2041](https://github.com/pomerium/pomerium/pull/2041) (@calebdoxsey)
+- proxy: add nil check for fix-misdirected [\#2040](https://github.com/pomerium/pomerium/pull/2040) (@calebdoxsey)
+- config: add headers to config proto [\#1996](https://github.com/pomerium/pomerium/pull/1996) (@calebdoxsey)
+- Fix process cpu usage metric [\#1979](https://github.com/pomerium/pomerium/pull/1979) (@wasaga)
+- cmd/pomerium: exit 0 for normal shutdown [\#1958](https://github.com/pomerium/pomerium/pull/1958) (@travisgroth)
+- proxy: redirect to dashboard for logout [\#1944](https://github.com/pomerium/pomerium/pull/1944) (@calebdoxsey)
+- config: fix redirect routes from protobuf [\#1930](https://github.com/pomerium/pomerium/pull/1930) (@travisgroth)
+- google: fix default provider URL [\#1928](https://github.com/pomerium/pomerium/pull/1928) (@calebdoxsey)
+- fix registry test [\#1911](https://github.com/pomerium/pomerium/pull/1911) (@wasaga)
+- ci: pin goreleaser version [\#1900](https://github.com/pomerium/pomerium/pull/1900) (@travisgroth)
+- onelogin: fix default scopes for v2 [\#1896](https://github.com/pomerium/pomerium/pull/1896) (@calebdoxsey)
+- xds: fix misdirected script [\#1895](https://github.com/pomerium/pomerium/pull/1895) (@calebdoxsey)
+- authenticate: validate origin of signout [\#1876](https://github.com/pomerium/pomerium/pull/1876) (@desimone)
+- redis: fix deletion versioning [\#1871](https://github.com/pomerium/pomerium/pull/1871) (@calebdoxsey)
+- options: header only applies to routes and authN [\#1862](https://github.com/pomerium/pomerium/pull/1862) (@desimone)
+- controlplane: add global headers to virtualhost [\#1861](https://github.com/pomerium/pomerium/pull/1861) (@desimone)
+- unique envoy cluster ids [\#1858](https://github.com/pomerium/pomerium/pull/1858) (@wasaga)
+
+## Security
+
+- deps: bump envoy to 1.17.2 [\#2114](https://github.com/pomerium/pomerium/pull/2114) (@github-actions[bot])
+- proxy: restrict programmatic URLs to localhost [\#2049](https://github.com/pomerium/pomerium/pull/2049) (@travisgroth)
+- authenticate: validate signature on /.pomerium, /.pomerium/sign\_in and /.pomerium/sign\_out [\#2048](https://github.com/pomerium/pomerium/pull/2048) (@travisgroth)
+
+## Documentation
+
+- docs: add threat model to security page [\#2097](https://github.com/pomerium/pomerium/pull/2097) (@desimone)
+- docs: update community slack link [\#2063](https://github.com/pomerium/pomerium/pull/2063) (@travisgroth)
+- Update local-oidc.md [\#1994](https://github.com/pomerium/pomerium/pull/1994) (@dharmendrakariya)
+- ping: add documentation [\#1976](https://github.com/pomerium/pomerium/pull/1976) (@calebdoxsey)
+- docs: add JWT Verification w/Envoy guide [\#1974](https://github.com/pomerium/pomerium/pull/1974) (@calebdoxsey)
+- Update data-storage.md [\#1941](https://github.com/pomerium/pomerium/pull/1941) (@TanguyPatte)
+- docs: fix query param name [\#1920](https://github.com/pomerium/pomerium/pull/1920) (@calebdoxsey)
+- docs: add breaking sa changes in v0.13 [\#1919](https://github.com/pomerium/pomerium/pull/1919) (@desimone)
+- docs: add v0.13 to docs site menu [\#1913](https://github.com/pomerium/pomerium/pull/1913) (@travisgroth)
+- docs: update changelog for v0.13.0 [\#1909](https://github.com/pomerium/pomerium/pull/1909) (@desimone)
+- docs: update security policy [\#1897](https://github.com/pomerium/pomerium/pull/1897) (@desimone)
+- docs: misc upgrade notes and changelog [\#1884](https://github.com/pomerium/pomerium/pull/1884) (@travisgroth)
+- docs: add load balancing weight documentation [\#1883](https://github.com/pomerium/pomerium/pull/1883) (@travisgroth)
+- docs: additional load balancing documentation [\#1875](https://github.com/pomerium/pomerium/pull/1875) (@travisgroth)
+
+## Dependency
+
+- chore\(deps\): bump github.com/go-redis/redis/v8 from 8.8.0 to 8.8.2 [\#2099](https://github.com/pomerium/pomerium/pull/2099) (@dependabot[bot])
+- chore\(deps\): bump gopkg.in/auth0.v5 from 5.14.1 to 5.15.0 [\#2098](https://github.com/pomerium/pomerium/pull/2098) (@dependabot[bot])
+- do not require project be in GOPATH/src [\#2078](https://github.com/pomerium/pomerium/pull/2078) (@wasaga)
+- chore\(deps\): bump google.golang.org/api from 0.43.0 to 0.44.0 [\#2073](https://github.com/pomerium/pomerium/pull/2073) (@dependabot[bot])
+- chore\(deps\): bump google.golang.org/grpc from 1.36.1 to 1.37.0 [\#2072](https://github.com/pomerium/pomerium/pull/2072) (@dependabot[bot])
+- chore\(deps\): bump gopkg.in/auth0.v5 from 5.13.0 to 5.14.1 [\#2071](https://github.com/pomerium/pomerium/pull/2071) (@dependabot[bot])
+- deps: switch from renovate to dependabot [\#2069](https://github.com/pomerium/pomerium/pull/2069) (@travisgroth)
+- fix\(deps\): update module github.com/golang/protobuf to v1.5.2 [\#2057](https://github.com/pomerium/pomerium/pull/2057) (@renovate[bot])
+- fix\(deps\): update module github.com/envoyproxy/protoc-gen-validate to v0.5.1 [\#2056](https://github.com/pomerium/pomerium/pull/2056) (@renovate[bot])
+- fix\(deps\): update google.golang.org/genproto commit hash to 6c239bb [\#2054](https://github.com/pomerium/pomerium/pull/2054) (@renovate[bot])
+- fix\(deps\): update golang.org/x/oauth2 commit hash to 2e8d934 [\#2053](https://github.com/pomerium/pomerium/pull/2053) (@renovate[bot])
+- fix\(deps\): update golang.org/x/net commit hash to 0fccb6f [\#2052](https://github.com/pomerium/pomerium/pull/2052) (@renovate[bot])
+- skip REDIS cluster test if GOOS != linux [\#2045](https://github.com/pomerium/pomerium/pull/2045) (@wasaga)
+- fix\(deps\): update module gopkg.in/auth0.v5 to v5.13.0 [\#2037](https://github.com/pomerium/pomerium/pull/2037) (@renovate[bot])
+- fix\(deps\): update module google.golang.org/grpc to v1.36.1 [\#2036](https://github.com/pomerium/pomerium/pull/2036) (@renovate[bot])
+- fix\(deps\): update module google.golang.org/api to v0.43.0 [\#2035](https://github.com/pomerium/pomerium/pull/2035) (@renovate[bot])
+- fix\(deps\): update module github.com/rs/zerolog to v1.21.0 [\#2034](https://github.com/pomerium/pomerium/pull/2034) (@renovate[bot])
+- fix\(deps\): update module github.com/prometheus/common to v0.20.0 [\#2033](https://github.com/pomerium/pomerium/pull/2033) (@renovate[bot])
+- fix\(deps\): update module github.com/go-redis/redis/v8 to v8.8.0 [\#2032](https://github.com/pomerium/pomerium/pull/2032) (@renovate[bot])
+- chore\(deps\): update mikefarah/yq action to v4.6.3 [\#2031](https://github.com/pomerium/pomerium/pull/2031) (@renovate[bot])
+- fix\(deps\): update google.golang.org/genproto commit hash to 679c6ae [\#2030](https://github.com/pomerium/pomerium/pull/2030) (@renovate[bot])
+- fix\(deps\): update golang.org/x/oauth2 commit hash to 22b0ada [\#2029](https://github.com/pomerium/pomerium/pull/2029) (@renovate[bot])
+- fix\(deps\): update golang.org/x/net commit hash to 61e0566 [\#2028](https://github.com/pomerium/pomerium/pull/2028) (@renovate[bot])
+- fix\(deps\): update golang.org/x/crypto commit hash to 0c34fe9 [\#2027](https://github.com/pomerium/pomerium/pull/2027) (@renovate[bot])
+- deps: bundle all patch upgrades in a single group [\#2016](https://github.com/pomerium/pomerium/pull/2016) (@travisgroth)
+- fix\(deps\): update module google.golang.org/protobuf to v1.26.0 [\#2012](https://github.com/pomerium/pomerium/pull/2012) (@renovate[bot])
+- fix\(deps\): update module github.com/prometheus/client\_golang to v1.10.0 [\#2011](https://github.com/pomerium/pomerium/pull/2011) (@renovate[bot])
+- fix\(deps\): update module github.com/google/btree to v1.0.1 [\#2010](https://github.com/pomerium/pomerium/pull/2010) (@renovate[bot])
+- fix\(deps\): update module github.com/golang/protobuf to v1.5.1 [\#2009](https://github.com/pomerium/pomerium/pull/2009) (@renovate[bot])
+- fix\(deps\): update module github.com/envoyproxy/protoc-gen-validate to v0.5.0 [\#2008](https://github.com/pomerium/pomerium/pull/2008) (@renovate[bot])
+- chore\(deps\): update mikefarah/yq action to v4.6.2 [\#2007](https://github.com/pomerium/pomerium/pull/2007) (@renovate[bot])
+- fix\(deps\): update google.golang.org/genproto commit hash to 5f0e893 [\#2006](https://github.com/pomerium/pomerium/pull/2006) (@renovate[bot])
+- fix\(deps\): update golang.org/x/net commit hash to d523dce [\#2005](https://github.com/pomerium/pomerium/pull/2005) (@renovate[bot])
+- fix\(deps\): update module google.golang.org/api to v0.42.0 [\#1989](https://github.com/pomerium/pomerium/pull/1989) (@renovate[bot])
+- fix\(deps\): update module github.com/open-policy-agent/opa to v0.27.1 [\#1988](https://github.com/pomerium/pomerium/pull/1988) (@renovate[bot])
+- fix\(deps\): update module github.com/hashicorp/go-multierror to v1.1.1 [\#1987](https://github.com/pomerium/pomerium/pull/1987) (@renovate[bot])
+- fix\(deps\): update module contrib.go.opencensus.io/exporter/prometheus to v0.3.0 [\#1986](https://github.com/pomerium/pomerium/pull/1986) (@renovate[bot])
+- chore\(deps\): update codecov/codecov-action action to v1.3.1 [\#1985](https://github.com/pomerium/pomerium/pull/1985) (@renovate[bot])
+- fix\(deps\): update google.golang.org/genproto commit hash to 8812039 [\#1984](https://github.com/pomerium/pomerium/pull/1984) (@renovate[bot])
+- fix\(deps\): update golang.org/x/oauth2 commit hash to cd4f82c [\#1983](https://github.com/pomerium/pomerium/pull/1983) (@renovate[bot])
+- fix\(deps\): update golang.org/x/crypto commit hash to 513c2a4 [\#1982](https://github.com/pomerium/pomerium/pull/1982) (@renovate[bot])
+- fix\(deps\): update module github.com/prometheus/procfs to v0.6.0 [\#1969](https://github.com/pomerium/pomerium/pull/1969) (@renovate[bot])
+- fix\(deps\): update module github.com/google/go-cmp to v0.5.5 [\#1968](https://github.com/pomerium/pomerium/pull/1968) (@renovate[bot])
+- fix\(deps\): update module github.com/go-redis/redis/v8 to v8.7.1 [\#1967](https://github.com/pomerium/pomerium/pull/1967) (@renovate[bot])
+- fix\(deps\): update google.golang.org/genproto commit hash to 9728d6b [\#1966](https://github.com/pomerium/pomerium/pull/1966) (@renovate[bot])
+- fix\(deps\): update github.com/nsf/jsondiff commit hash to 6ea3239 [\#1965](https://github.com/pomerium/pomerium/pull/1965) (@renovate[bot])
+- fix\(deps\): update module github.com/go-chi/chi to v5 [\#1956](https://github.com/pomerium/pomerium/pull/1956) (@renovate[bot])
+- fix\(deps\): update module google.golang.org/grpc to v1.36.0 [\#1955](https://github.com/pomerium/pomerium/pull/1955) (@renovate[bot])
+- fix\(deps\): update module go.opencensus.io to v0.23.0 [\#1954](https://github.com/pomerium/pomerium/pull/1954) (@renovate[bot])
+- fix\(deps\): update module github.com/lithammer/shortuuid/v3 to v3.0.6 [\#1953](https://github.com/pomerium/pomerium/pull/1953) (@renovate[bot])
+- chore\(deps\): update vuepress monorepo to v1.8.2 [\#1952](https://github.com/pomerium/pomerium/pull/1952) (@renovate[bot])
+- chore\(deps\): update mikefarah/yq action to v4.6.1 [\#1951](https://github.com/pomerium/pomerium/pull/1951) (@renovate[bot])
+- fix\(deps\): update google.golang.org/genproto commit hash to ab064af [\#1950](https://github.com/pomerium/pomerium/pull/1950) (@renovate[bot])
+- fix\(deps\): update golang.org/x/net commit hash to e18ecbb [\#1949](https://github.com/pomerium/pomerium/pull/1949) (@renovate[bot])
+- chore\(deps\): update yaml v2 to v3 [\#1927](https://github.com/pomerium/pomerium/pull/1927) (@desimone)
+- chore\(deps\): update vuepress monorepo to v1.8.1 [\#1891](https://github.com/pomerium/pomerium/pull/1891) (@renovate[bot])
+- chore\(deps\): update module spf13/cobra to v1.1.3 [\#1890](https://github.com/pomerium/pomerium/pull/1890) (@renovate[bot])
+- chore\(deps\): update module google.golang.org/api to v0.40.0 [\#1889](https://github.com/pomerium/pomerium/pull/1889) (@renovate[bot])
+- chore\(deps\): update mikefarah/yq action to v4.5.1 [\#1888](https://github.com/pomerium/pomerium/pull/1888) (@renovate[bot])
+- chore\(deps\): update google.golang.org/genproto commit hash to e7f2df4 [\#1887](https://github.com/pomerium/pomerium/pull/1887) (@renovate[bot])
+- chore\(deps\): update golang.org/x/oauth2 commit hash to 6667018 [\#1886](https://github.com/pomerium/pomerium/pull/1886) (@renovate[bot])
+- chore\(deps\): update module auth0 to v5 [\#1868](https://github.com/pomerium/pomerium/pull/1868) (@renovate[bot])
+- chore\(deps\): update module google.golang.org/api to v0.39.0 [\#1867](https://github.com/pomerium/pomerium/pull/1867) (@renovate[bot])
+- chore\(deps\): update module go-redis/redis/v8 to v8.5.0 [\#1866](https://github.com/pomerium/pomerium/pull/1866) (@renovate[bot])
+- chore\(deps\): update mikefarah/yq action to v4.5.0 [\#1865](https://github.com/pomerium/pomerium/pull/1865) (@renovate[bot])
+- chore\(deps\): update google.golang.org/genproto commit hash to bba0dbe [\#1864](https://github.com/pomerium/pomerium/pull/1864) (@renovate[bot])
+- chore\(deps\): update golang.org/x/oauth2 commit hash to 0101308 [\#1863](https://github.com/pomerium/pomerium/pull/1863) (@renovate[bot])
+
+## Deployment
+
+- deployment: update get-envoy script and release hooks [\#2112](https://github.com/pomerium/pomerium/pull/2112) (@github-actions[bot])
+- deployment: Publish OS packages to cloudsmith [\#2108](https://github.com/pomerium/pomerium/pull/2108) (@github-actions[bot])
+- ci: cache build and test binaries [\#1938](https://github.com/pomerium/pomerium/pull/1938) (@desimone)
+- ci: go 1.16.x, cached tests [\#1937](https://github.com/pomerium/pomerium/pull/1937) (@desimone)
+
+## Changed
+
+- config related metrics [\#2065](https://github.com/pomerium/pomerium/pull/2065) (@wasaga)
+- proxy: support re-proxying request through control plane for kubernetes [\#2051](https://github.com/pomerium/pomerium/pull/2051) (@calebdoxsey)
+- add default gitlab url [\#2044](https://github.com/pomerium/pomerium/pull/2044) (@contrun)
+- Updating Doc for Pomerium-Dex Exercise [\#2018](https://github.com/pomerium/pomerium/pull/2018) (@dharmendrakariya)
+- Add `xff\_num\_trusted\_hops` config option [\#2003](https://github.com/pomerium/pomerium/pull/2003) (@ntoofu)
+- envoy: restrict permissions on embedded envoy binary [\#1999](https://github.com/pomerium/pomerium/pull/1999) (@calebdoxsey)
+- ci: deploy master to integration environments [\#1973](https://github.com/pomerium/pomerium/pull/1973) (@travisgroth)
+- oidc: use groups claim from ID token if present [\#1970](https://github.com/pomerium/pomerium/pull/1970) (@bonifaido)
+- config: expose viper policy hooks [\#1947](https://github.com/pomerium/pomerium/pull/1947) (@calebdoxsey)
+- ci: deploy latest release to test environment [\#1916](https://github.com/pomerium/pomerium/pull/1916) (@travisgroth)
+- logs: strip query string [\#1894](https://github.com/pomerium/pomerium/pull/1894) (@calebdoxsey)
+- in-memory service registry [\#1892](https://github.com/pomerium/pomerium/pull/1892) (@wasaga)
+- controlplane: maybe fix flaky test [\#1873](https://github.com/pomerium/pomerium/pull/1873) (@calebdoxsey)
+- remove generated code from code coverage metrics [\#1857](https://github.com/pomerium/pomerium/pull/1857) (@travisgroth)
+
+## [v0.13.6](https://github.com/pomerium/pomerium/tree/v0.13.6) (2021-04-17)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.13.5...v0.13.6)
+
+## Security
+
+- deps: upgrade envoy to 1.16.3 [\#2096](https://github.com/pomerium/pomerium/pull/2096) (@travisgroth)
+
+## Documentation
+
+- docs: update community slack link [\#2064](https://github.com/pomerium/pomerium/pull/2064) (@github-actions[bot])
+
+## [v0.13.5](https://github.com/pomerium/pomerium/tree/v0.13.5) (2021-04-06)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.13.4...v0.13.5)
+
+## Fixed
+
+- change require\_proxy\_protocol to use\_proxy\_protocol [\#2058](https://github.com/pomerium/pomerium/pull/2058) (@github-actions[bot])
+
+## [v0.13.4](https://github.com/pomerium/pomerium/tree/v0.13.4) (2021-03-31)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.13.3...v0.13.4)
+
+## Security
+
+- proxy: restrict programmatic URLs to localhost [\#2047](https://github.com/pomerium/pomerium/pull/2047) (@travisgroth)
+- authenticate: validate signature on /.pomerium, /.pomerium/sign\_in and /.pomerium/sign\_out [\#2046](https://github.com/pomerium/pomerium/pull/2046) (@travisgroth)
+
+## [v0.13.3](https://github.com/pomerium/pomerium/tree/v0.13.3) (2021-03-12)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.13.2...v0.13.3)
+
+## New
+
+- identity: infer email from mail claim [\#1978](https://github.com/pomerium/pomerium/pull/1978) (@github-actions[bot])
+
+## [v0.13.2](https://github.com/pomerium/pomerium/tree/v0.13.2) (2021-02-25)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.13.1...v0.13.2)
+
+## Documentation
+
+- Update data-storage.md [\#1942](https://github.com/pomerium/pomerium/pull/1942) (@github-actions[bot])
+
+## Changed
+
+- proxy: redirect to dashboard for logout [\#1945](https://github.com/pomerium/pomerium/pull/1945) (@github-actions[bot])
+
+## [v0.13.1](https://github.com/pomerium/pomerium/tree/v0.13.1) (2021-02-22)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.13.0...v0.13.1)
+
+## Fixed
+
+- config: fix redirect routes from protobuf [\#1931](https://github.com/pomerium/pomerium/pull/1931) (@github-actions[bot])
+- google: fix default provider URL [\#1929](https://github.com/pomerium/pomerium/pull/1929) (@github-actions[bot])
+
+## Documentation
+
+- docs: fix query param name [\#1923](https://github.com/pomerium/pomerium/pull/1923) (@github-actions[bot])
+- docs: add breaking sa changes in v0.13 [\#1921](https://github.com/pomerium/pomerium/pull/1921) (@github-actions[bot])
+- docs: add v0.13 to docs site menu [\#1914](https://github.com/pomerium/pomerium/pull/1914) (@github-actions[bot])
+
+## Changed
+
+- ci: deploy releases to test environment \(\#1916\) [\#1918](https://github.com/pomerium/pomerium/pull/1918) (@travisgroth)
+
+
+
+\* *This Changelog was automatically generated by [github_changelog_generator](https://github.com/github-changelog-generator/github-changelog-generator)*
+
 ## [v0.13.0](https://github.com/pomerium/pomerium/tree/v0.13.0) (2021-02-17)
 
 [Full Changelog](https://github.com/pomerium/pomerium/compare/v0.12.2...v0.13.0)
