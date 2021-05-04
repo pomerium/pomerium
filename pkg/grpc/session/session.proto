@@ -25,6 +25,7 @@ message Session {
   string version = 1;
   string id = 2;
   string user_id = 3;
+  google.protobuf.Timestamp issued_at = 14;
   google.protobuf.Timestamp expires_at = 4;
   IDToken id_token = 6;
   OAuthToken oauth_token = 7;
