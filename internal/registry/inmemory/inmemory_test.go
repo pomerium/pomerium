@@ -1,4 +1,4 @@
-package registry_test
+package inmemory
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/registry"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
 
 	"github.com/google/go-cmp/cmp"
@@ -182,7 +181,7 @@ func newTestRegistry() (context.Context, pb.RegistryClient, func(), error) {
 	gs := grpc.NewServer()
 
 	ttl := time.Second
-	pb.RegisterRegistryServer(gs, registry.NewInMemoryServer(ctx, ttl))
+	pb.RegisterRegistryServer(gs, New(ctx, ttl))
 
 	go gs.Serve(l)
 	cancel.Append(gs.Stop)

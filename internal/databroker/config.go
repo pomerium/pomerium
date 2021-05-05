@@ -17,6 +17,8 @@ var (
 	DefaultStorageType = "memory"
 	// DefaultGetAllPageSize is the default page size for GetAll calls.
 	DefaultGetAllPageSize = 50
+	// DefaultRegistryTTL is the default registry time to live.
+	DefaultRegistryTTL = time.Minute
 )
 
 type serverConfig struct {
@@ -28,6 +30,7 @@ type serverConfig struct {
 	storageCertSkipVerify   bool
 	storageCertificate      *tls.Certificate
 	getAllPageSize          int
+	registryTTL             time.Duration
 }
 
 func newServerConfig(options ...ServerOption) *serverConfig {
@@ -35,6 +38,7 @@ func newServerConfig(options ...ServerOption) *serverConfig {
 	WithDeletePermanentlyAfter(DefaultDeletePermanentlyAfter)(cfg)
 	WithStorageType(DefaultStorageType)(cfg)
 	WithGetAllPageSize(DefaultGetAllPageSize)(cfg)
+	WithRegistryTTL(DefaultRegistryTTL)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -57,6 +61,13 @@ func WithDeletePermanentlyAfter(dur time.Duration) ServerOption {
 func WithGetAllPageSize(pageSize int) ServerOption {
 	return func(cfg *serverConfig) {
 		cfg.getAllPageSize = pageSize
+	}
+}
+
+// WithRegistryTTL sets the registry time to live in the config.
+func WithRegistryTTL(ttl time.Duration) ServerOption {
+	return func(cfg *serverConfig) {
+		cfg.registryTTL = ttl
 	}
 }
 

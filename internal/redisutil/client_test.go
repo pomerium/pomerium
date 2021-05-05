@@ -1,4 +1,4 @@
-package redis
+package redisutil
 
 import (
 	"net/url"
