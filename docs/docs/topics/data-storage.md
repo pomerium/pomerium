@@ -56,7 +56,7 @@ easy deployment semantics but is not persistent or highly available.  Running mo
 The Redis based backend supports multiple `databroker` instances and persistence across restarts.  We recommend a dedicated redis instance for Pomerium to provide the strongest security and performance guarantees.
 
 #### High Availability
-Redis should be configured to provide high availability via [replication](https://redis.io/topics/replication) and failover.  Sentinal and cluster are not supported at this time.
+Redis should be configured to provide high availability via [replication](https://redis.io/topics/replication) and failover.
 
 
 #### Security
