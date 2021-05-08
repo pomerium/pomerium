@@ -18,6 +18,25 @@ Programmatic login now restricts the allowed redirect URL domains. By default th
 When specifying `allowed_users` by ID, the identity provider is no longer part of the ID format.  This does not impact users specified by e-mail.
 
 To update your policies for v0.14, please remove any identity provider prefix.  Example: `okta/00usi7mc8XC8SwFxT4x6` becomes `00usi7mc8XC8SwFxT4x6`.
+
+## New
+
+### Ping Identity
+
+[Ping Identity](https://www.pingidentity.com/) is supported as a directory provider.  See [the documentation](https://www.pomerium.com/docs/identity-providers/ping.html) for details.
+
+### Customized Identity Headers
+
+With the v0.14 release, the names of `X-Pomerium-Claim-{Name}` headers can now be [customized](https://www.pomerium.com/reference/#jwt-claim-headers).  This enables broader 3rd party application support for Pomerium's identity headers.
+
+### Redis High Availability
+
+Databroker now supports redis [sentinel](https://redis.io/topics/sentinel) and [cluster](https://redis.io/topics/cluster-spec) for increased availability.  See the databroker [documentation](https://www.pomerium.com/reference/#data-broker-storage-connection-string) for details.
+
+### Rewrite Response Headers
+
+Policies may now [rewrite response headers](https://www.pomerium.com/reference/#rewrite-response-headers) from upstream services.  This can be especially useful when upstreams attempt to redirect users to unreachable internal hostnames.
+
 # Since 0.12.0
 
 ## New
