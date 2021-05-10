@@ -7,6 +7,9 @@ import (
 	"io"
 )
 
+//go:generate go run github.com/golang/mock/mockgen -source=databroker.pb.go -destination ./mock_databroker/databroker.pb.go DataBrokerServiceClient
+//go:generate go run github.com/golang/mock/mockgen -source=leaser.go -destination ./mock_databroker/leaser.go LeaserHandler
+
 // ApplyOffsetAndLimit applies the offset and limit to the list of records.
 func ApplyOffsetAndLimit(all []*Record, offset, limit int) (records []*Record, totalCount int) {
 	records = all

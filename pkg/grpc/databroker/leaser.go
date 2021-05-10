@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -12,6 +13,18 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 )
+
+// a retryableError is one we'll retry later
+type retryableError struct {
+	error
+}
+
+func (err retryableError) Is(target error) bool {
+	if _, ok := target.(retryableError); ok {
+		return true
+	}
+	return false
+}
 
 // A LeaserHandler is a handler for the locker.
 type LeaserHandler interface {
@@ -28,8 +41,8 @@ type Leaser struct {
 	ttl       time.Duration
 }
 
-// NewLocker creates a new Leaser.
-func NewLocker(leaseName string, ttl time.Duration, handler LeaserHandler) *Leaser {
+// NewLeaser creates a new Leaser.
+func NewLeaser(leaseName string, ttl time.Duration, handler LeaserHandler) *Leaser {
 	return &Leaser{
 		leaseName: leaseName,
 		ttl:       ttl,
@@ -46,35 +59,50 @@ func (locker *Leaser) Run(ctx context.Context) error {
 	retryTicker := time.NewTicker(locker.ttl / 2)
 	defer retryTicker.Stop()
 
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-retryTicker.C:
-		}
-
-		res, err := locker.handler.GetDataBrokerServiceClient().AcquireLease(ctx, &AcquireLeaseRequest{
-			Name:     locker.leaseName,
-			Duration: durationpb.New(locker.ttl),
-		})
-		// if the lease already exists, retry later
-		if status.Code(err) == codes.AlreadyExists {
-			continue
-		} else if err != nil {
-			return err
-		}
-		leaseID := res.Id
-
-		log.Info(ctx).
-			Str("lease_name", locker.leaseName).
-			Str("lease_id", leaseID).
-			Msg("lease acquired")
-
-		err = locker.withLease(ctx, leaseID)
-		if err != nil {
+		err := locker.runOnce(ctx, bo.Reset)
+		switch {
+		case err == nil:
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-retryTicker.C:
+			}
+		case errors.Is(err, retryableError{}):
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(bo.NextBackOff()):
+			}
+		default:
 			return err
 		}
 	}
+}
+
+func (locker *Leaser) runOnce(ctx context.Context, resetBackoff func()) error {
+	res, err := locker.handler.GetDataBrokerServiceClient().AcquireLease(ctx, &AcquireLeaseRequest{
+		Name:     locker.leaseName,
+		Duration: durationpb.New(locker.ttl),
+	})
+	// if the lease already exists, retry later
+	if status.Code(err) == codes.AlreadyExists {
+		return nil
+	} else if err != nil {
+		log.Warn(ctx).Err(err).Msg("leaser: error acquiring lease")
+		return retryableError{err}
+	}
+	resetBackoff()
+	leaseID := res.Id
+
+	log.Info(ctx).
+		Str("lease_name", locker.leaseName).
+		Str("lease_id", leaseID).
+		Msg("leaser: lease acquired")
+
+	return locker.withLease(ctx, leaseID)
 }
 
 func (locker *Leaser) withLease(ctx context.Context, leaseID string) error {
@@ -111,11 +139,12 @@ func (locker *Leaser) withLease(ctx context.Context, leaseID string) error {
 				log.Info(ctx).
 					Str("lease_name", locker.leaseName).
 					Str("lease_id", leaseID).
-					Msg("lease lost")
+					Msg("leaser: lease lost")
 				// failed to renew lease
 				return nil
 			} else if err != nil {
-				return err
+				log.Warn(ctx).Err(err).Msg("leaser: error renewing lease")
+				return retryableError{err}
 			}
 		}
 	})

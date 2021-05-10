@@ -90,8 +90,8 @@ func (mgr *Manager) UpdateConfig(options ...Option) {
 
 // Run runs the manager. This method blocks until an error occurs or the given context is canceled.
 func (mgr *Manager) Run(ctx context.Context) error {
-	locker := databroker.NewLocker("identity_manager", time.Second*30, mgr)
-	return locker.Run(ctx)
+	leaser := databroker.NewLeaser("identity_manager", time.Second*30, mgr)
+	return leaser.Run(ctx)
 }
 
 // RunLeased runs the identity manager when a lease is acquired.
