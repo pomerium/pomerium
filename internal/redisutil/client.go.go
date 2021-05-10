@@ -1,4 +1,4 @@
-package redis
+package redisutil
 
 import (
 	"crypto/tls"
@@ -43,15 +43,16 @@ var (
 	)
 )
 
-func newClientFromURL(rawurl string, tlsConfig *tls.Config) (redis.UniversalClient, error) {
-	u, err := url.Parse(rawurl)
+// NewClientFromURL creates a new redis client by parsing the raw URL.
+func NewClientFromURL(rawURL string, tlsConfig *tls.Config) (redis.UniversalClient, error) {
+	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, err
 	}
 
 	switch {
 	case standardSchemes.Has(u.Scheme):
-		opts, err := redis.ParseURL(rawurl)
+		opts, err := redis.ParseURL(rawURL)
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +63,7 @@ func newClientFromURL(rawurl string, tlsConfig *tls.Config) (redis.UniversalClie
 		return redis.NewClient(opts), nil
 
 	case clusterSchemes.Has(u.Scheme):
-		opts, err := ParseClusterURL(rawurl)
+		opts, err := ParseClusterURL(rawURL)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +73,7 @@ func newClientFromURL(rawurl string, tlsConfig *tls.Config) (redis.UniversalClie
 		return redis.NewClusterClient(opts), nil
 
 	case sentinelSchemes.Has(u.Scheme):
-		opts, err := ParseSentinelURL(rawurl)
+		opts, err := ParseSentinelURL(rawURL)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +83,7 @@ func newClientFromURL(rawurl string, tlsConfig *tls.Config) (redis.UniversalClie
 		return redis.NewFailoverClient(opts), nil
 
 	case sentinelClusterSchemes.Has(u.Scheme):
-		opts, err := ParseSentinelURL(rawurl)
+		opts, err := ParseSentinelURL(rawURL)
 		if err != nil {
 			return nil, err
 		}

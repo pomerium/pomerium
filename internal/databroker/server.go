@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -28,8 +29,9 @@ import (
 type Server struct {
 	cfg *serverConfig
 
-	mu      sync.RWMutex
-	backend storage.Backend
+	mu       sync.RWMutex
+	backend  storage.Backend
+	registry registry.Interface
 }
 
 // New creates a new server.
@@ -59,6 +61,14 @@ func (srv *Server) UpdateConfig(options ...ServerOption) {
 			log.Error(ctx).Err(err).Msg("databroker: error closing backend")
 		}
 		srv.backend = nil
+	}
+
+	if srv.registry != nil {
+		err := srv.registry.Close()
+		if err != nil {
+			log.Error(ctx).Err(err).Msg("databroker: error closing registry")
+		}
+		srv.registry = nil
 	}
 }
 
@@ -288,18 +298,6 @@ func (srv *Server) getBackend() (backend storage.Backend, err error) {
 
 func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 	ctx := context.Background()
-	caCertPool, err := cryptutil.GetCertPool("", srv.cfg.storageCAFile)
-	if err != nil {
-		log.Warn(ctx).Err(err).Msg("failed to read databroker CA file")
-	}
-	tlsConfig := &tls.Config{
-		RootCAs: caCertPool,
-		// nolint: gosec
-		InsecureSkipVerify: srv.cfg.storageCertSkipVerify,
-	}
-	if srv.cfg.storageCertificate != nil {
-		tlsConfig.Certificates = []tls.Certificate{*srv.cfg.storageCertificate}
-	}
 
 	switch srv.cfg.storageType {
 	case config.StorageInMemoryName:
@@ -309,7 +307,7 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 		log.Info(ctx).Msg("using redis store")
 		backend, err = redis.New(
 			srv.cfg.storageConnectionString,
-			redis.WithTLSConfig(tlsConfig),
+			redis.WithTLSConfig(srv.getTLSConfigLocked(ctx)),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create new redis storage: %w", err)
@@ -324,4 +322,20 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 		}
 	}
 	return backend, nil
+}
+
+func (srv *Server) getTLSConfigLocked(ctx context.Context) *tls.Config {
+	caCertPool, err := cryptutil.GetCertPool("", srv.cfg.storageCAFile)
+	if err != nil {
+		log.Warn(ctx).Err(err).Msg("failed to read databroker CA file")
+	}
+	tlsConfig := &tls.Config{
+		RootCAs: caCertPool,
+		// nolint: gosec
+		InsecureSkipVerify: srv.cfg.storageCertSkipVerify,
+	}
+	if srv.cfg.storageCertificate != nil {
+		tlsConfig.Certificates = []tls.Certificate{*srv.cfg.storageCertificate}
+	}
+	return tlsConfig
 }

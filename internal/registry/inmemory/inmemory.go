@@ -1,10 +1,12 @@
-package registry
+// Package inmemory implements an in-memory registry.
+package inmemory
 
 import (
 	"context"
 	"sync"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/signal"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
 
@@ -31,9 +33,9 @@ type inMemoryKey struct {
 	endpoint string
 }
 
-// NewInMemoryServer constructs a new registry tracking service that operates in RAM
+// New constructs a new registry tracking service that operates in RAM
 // as such, it is not usable for multi-node deployment where REDIS or other alternative should be used
-func NewInMemoryServer(ctx context.Context, ttl time.Duration) pb.RegistryServer {
+func New(ctx context.Context, ttl time.Duration) registry.Interface {
 	srv := &inMemoryServer{
 		ttl:      ttl,
 		regs:     make(map[inMemoryKey]*timestamppb.Timestamp),
@@ -55,6 +57,11 @@ func (s *inMemoryServer) periodicCheck(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// Close closes the in memory server.
+func (s *inMemoryServer) Close() error {
+	return nil
 }
 
 // Report is periodically sent by each service to confirm it is still serving with the registry
