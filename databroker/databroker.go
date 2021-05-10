@@ -10,6 +10,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
@@ -52,6 +53,8 @@ func (srv *dataBrokerServer) setKey(cfg *config.Config) {
 	}
 	srv.sharedKey.Store(bs)
 }
+
+// Databroker functions
 
 func (srv *dataBrokerServer) AcquireLease(ctx context.Context, req *databrokerpb.AcquireLeaseRequest) (*databrokerpb.AcquireLeaseResponse, error) {
 	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
@@ -114,4 +117,27 @@ func (srv *dataBrokerServer) SyncLatest(req *databrokerpb.SyncLatestRequest, str
 		return err
 	}
 	return srv.server.SyncLatest(req, stream)
+}
+
+// Registry functions
+
+func (srv *dataBrokerServer) Report(ctx context.Context, req *registrypb.RegisterRequest) (*registrypb.RegisterResponse, error) {
+	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
+		return nil, err
+	}
+	return srv.server.Report(ctx, req)
+}
+
+func (srv *dataBrokerServer) List(ctx context.Context, req *registrypb.ListRequest) (*registrypb.ServiceList, error) {
+	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load().([]byte)); err != nil {
+		return nil, err
+	}
+	return srv.server.List(ctx, req)
+}
+
+func (srv *dataBrokerServer) Watch(req *registrypb.ListRequest, stream registrypb.Registry_WatchServer) error {
+	if err := grpcutil.RequireSignedJWT(stream.Context(), srv.sharedKey.Load().([]byte)); err != nil {
+		return err
+	}
+	return srv.server.Watch(req, stream)
 }

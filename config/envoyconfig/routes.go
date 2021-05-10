@@ -276,6 +276,7 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, domain string) ([]*
 			Metadata:               &envoy_config_core_v3.Metadata{},
 			RequestHeadersToAdd:    toEnvoyHeaders(policy.SetRequestHeaders),
 			RequestHeadersToRemove: getRequestHeadersToRemove(options, &policy),
+			ResponseHeadersToAdd:   toEnvoyHeaders(policy.SetResponseHeaders),
 		}
 		if policy.Redirect != nil {
 			action, err := b.buildPolicyRouteRedirectAction(policy.Redirect)

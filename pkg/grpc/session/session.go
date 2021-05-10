@@ -5,7 +5,6 @@ import (
 	context "context"
 	"fmt"
 
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -16,7 +15,7 @@ import (
 
 // Delete deletes a session from the databroker.
 func Delete(ctx context.Context, client databroker.DataBrokerServiceClient, sessionID string) error {
-	any, _ := ptypes.MarshalAny(new(Session))
+	any, _ := anypb.New(new(Session))
 	_, err := client.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type:      any.GetTypeUrl(),
@@ -30,7 +29,7 @@ func Delete(ctx context.Context, client databroker.DataBrokerServiceClient, sess
 
 // Get gets a session from the databroker.
 func Get(ctx context.Context, client databroker.DataBrokerServiceClient, sessionID string) (*Session, error) {
-	any, _ := ptypes.MarshalAny(new(Session))
+	any, _ := anypb.New(new(Session))
 
 	res, err := client.Get(ctx, &databroker.GetRequest{
 		Type: any.GetTypeUrl(),
@@ -41,7 +40,7 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, session
 	}
 
 	var s Session
-	err = ptypes.UnmarshalAny(res.GetRecord().GetData(), &s)
+	err = res.GetRecord().GetData().UnmarshalTo(&s)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling session from databroker: %w", err)
 	}
@@ -77,9 +76,4 @@ func (x *Session) SetRawIDToken(rawIDToken string) {
 		x.IdToken = new(IDToken)
 	}
 	x.IdToken.Raw = rawIDToken
-}
-
-// GetIssuedAt returns the issued at timestamp for the id token.
-func (x *Session) GetIssuedAt() *timestamppb.Timestamp {
-	return x.GetIdToken().GetIssuedAt()
 }

@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	redis "github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/redisutil"
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -28,14 +29,14 @@ const (
 
 	// we rely on transactions in redis, so all redis-cluster keys need to be
 	// on the same node. Using a `hash tag` gives us this capability.
-	serverVersionKey = "{pomerium_v3}.server_version"
-	lastVersionKey   = "{pomerium_v3}.last_version"
-	lastVersionChKey = "{pomerium_v3}.last_version_ch"
-	recordHashKey    = "{pomerium_v3}.records"
-	changesSetKey    = "{pomerium_v3}.changes"
-	optionsKey       = "{pomerium_v3}.options"
+	serverVersionKey = redisutil.KeyPrefix + "server_version"
+	lastVersionKey   = redisutil.KeyPrefix + "last_version"
+	lastVersionChKey = redisutil.KeyPrefix + "last_version_ch"
+	recordHashKey    = redisutil.KeyPrefix + "records"
+	changesSetKey    = redisutil.KeyPrefix + "changes"
+	optionsKey       = redisutil.KeyPrefix + "options"
 
-	recordTypeChangesKeyTpl = "{pomerium_v3}.changes.%s"
+	recordTypeChangesKeyTpl = redisutil.KeyPrefix + "changes.%s"
 	leaseKeyTpl             = "{pomerium_v3}.lease.%s"
 )
 
@@ -77,7 +78,7 @@ func New(rawURL string, options ...Option) (*Backend, error) {
 		onChange: signal.New(),
 	}
 	var err error
-	backend.client, err = newClientFromURL(rawURL, backend.cfg.tls)
+	backend.client, err = redisutil.NewClientFromURL(rawURL, backend.cfg.tls)
 	if err != nil {
 		return nil, err
 	}

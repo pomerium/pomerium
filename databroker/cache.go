@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
@@ -116,6 +117,7 @@ func (c *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
 func (c *DataBroker) Register(grpcServer *grpc.Server) {
 	databroker.RegisterDataBrokerServiceServer(grpcServer, c.dataBrokerServer)
 	directory.RegisterDirectoryServiceServer(grpcServer, c)
+	registry.RegisterRegistryServer(grpcServer, c.dataBrokerServer)
 }
 
 // Run runs the databroker components.

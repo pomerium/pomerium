@@ -27,7 +27,6 @@ import (
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
-	registry_pb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/proxy"
 )
 
@@ -109,10 +108,6 @@ func Run(ctx context.Context, configFile string) error {
 		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane)
 		if err != nil {
 			return fmt.Errorf("setting up databroker: %w", err)
-		}
-
-		if err = setupRegistryServer(src, controlPlane); err != nil {
-			return fmt.Errorf("setting up registry: %w", err)
 		}
 	}
 
@@ -211,13 +206,6 @@ func setupDataBroker(ctx context.Context, src config.Source, controlPlane *contr
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 	return svc, nil
-}
-
-func setupRegistryServer(src config.Source, controlPlane *controlplane.Server) error {
-	svc := registry.NewInMemoryServer(context.TODO(), registryTTL)
-	registry_pb.RegisterRegistryServer(controlPlane.GRPCServer, svc)
-	log.Info(context.TODO()).Msg("enabled service discovery")
-	return nil
 }
 
 func setupRegistryReporter(ctx context.Context, src config.Source) error {

@@ -21,7 +21,7 @@ On Twitter, we are [@pomerium_io](https://twitter.com/pomerium_io).
 
 ## Get help
 
-If you have a question about using Pomerium, [join our slack channel](https://join.slack.com/t/pomerium-io/shared_invite/zt-o2ith4qr-_qYANnwpW09p1R_~fYPP4w)! There will be more people there who can help you than just the Pomerium developers who follow our issue tracker. Issues are not the place for usage questions.
+If you have a question about using Pomerium, [join our slack channel](https://slack.pomerium.io)! There will be more people there who can help you than just the Pomerium developers who follow our issue tracker. Issues are not the place for usage questions.
 
 ## Report bugs
 
