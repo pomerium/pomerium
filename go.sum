@@ -1060,8 +1060,8 @@ gopkg.in/DataDog/dd-trace-go.v1 v1.22.0 h1:gpWsqqkwUldNZXGJqT69NU9MdEDhLboK1C4nM
 gopkg.in/DataDog/dd-trace-go.v1 v1.22.0/go.mod h1:DVp8HmDh8PuTu2Z0fVVlBsyWaC++fzwVCaGWylTe3tg=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6 h1:jMFz6MfLP0/4fUyZle81rXUoxOBFi19VUFKVDOQfozc=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
-gopkg.in/auth0.v5 v5.15.0 h1:kHBw8OdNPPnlqKhOBMDcYoNWlLMsFFrpagmhcMo+bHs=
-gopkg.in/auth0.v5 v5.15.0/go.mod h1:ZUc29HB1p9iYkA1ti2uz/kVL3I9vg+Hs+qFjHKub9SM=
+gopkg.in/auth0.v5 v5.16.0 h1:2l2Gn4ERA68QlYisedCYwaMmjfIKYJIqUAa8MQCydKw=
+gopkg.in/auth0.v5 v5.16.0/go.mod h1:ZUc29HB1p9iYkA1ti2uz/kVL3I9vg+Hs+qFjHKub9SM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 h1:YR8cESwS4TdDjEe65xsg0ogRM/Nc3DYOhEAlW+xobZo=

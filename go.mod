@@ -69,7 +69,7 @@ require (
 	google.golang.org/genproto v0.0.0-20210413151531-c14fb6ef47c3
 	google.golang.org/grpc v1.37.0
 	google.golang.org/protobuf v1.26.0
-	gopkg.in/auth0.v5 v5.15.0
+	gopkg.in/auth0.v5 v5.16.0
 	gopkg.in/cookieo9/resources-go.v2 v2.0.0-20150225115733-d27c04069d0d
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1
