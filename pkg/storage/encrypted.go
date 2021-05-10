@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"crypto/cipher"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -95,6 +96,10 @@ func (e *encryptedBackend) GetAll(ctx context.Context) ([]*databroker.Record, *d
 
 func (e *encryptedBackend) GetOptions(ctx context.Context, recordType string) (*databroker.Options, error) {
 	return e.underlying.GetOptions(ctx, recordType)
+}
+
+func (e *encryptedBackend) Lease(ctx context.Context, leaseName, leaseID string, ttl time.Duration) (bool, error) {
+	return e.underlying.Lease(ctx, leaseName, leaseID, ttl)
 }
 
 func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) (uint64, error) {

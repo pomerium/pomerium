@@ -248,3 +248,39 @@ func TestCapacity(t *testing.T) {
 		return nil
 	}))
 }
+
+func TestLease(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
+	ctx := context.Background()
+	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
+		backend, err := New(rawURL)
+		require.NoError(t, err)
+		defer func() { _ = backend.Close() }()
+
+		{
+			ok, err := backend.Lease(ctx, "test", "a", time.Second*30)
+			require.NoError(t, err)
+			assert.True(t, ok, "expected a to acquire the lease")
+		}
+		{
+			ok, err := backend.Lease(ctx, "test", "b", time.Second*30)
+			require.NoError(t, err)
+			assert.False(t, ok, "expected b to fail to acquire the lease")
+		}
+		{
+			ok, err := backend.Lease(ctx, "test", "a", 0)
+			require.NoError(t, err)
+			assert.False(t, ok, "expected a to clear the lease")
+		}
+		{
+			ok, err := backend.Lease(ctx, "test", "b", time.Second*30)
+			require.NoError(t, err)
+			assert.True(t, ok, "expected b to to acquire the lease")
+		}
+
+		return nil
+	}))
+}

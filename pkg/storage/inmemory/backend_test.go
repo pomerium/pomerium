@@ -189,3 +189,28 @@ func TestCapacity(t *testing.T) {
 	}
 	assert.Equal(t, []string{"7", "8", "9"}, ids, "should contain recent records")
 }
+
+func TestLease(t *testing.T) {
+	ctx := context.Background()
+	backend := New()
+	{
+		ok, err := backend.Lease(ctx, "test", "a", time.Second*30)
+		require.NoError(t, err)
+		assert.True(t, ok, "expected a to acquire the lease")
+	}
+	{
+		ok, err := backend.Lease(ctx, "test", "b", time.Second*30)
+		require.NoError(t, err)
+		assert.False(t, ok, "expected b to fail to acquire the lease")
+	}
+	{
+		ok, err := backend.Lease(ctx, "test", "a", 0)
+		require.NoError(t, err)
+		assert.False(t, ok, "expected a to clear the lease")
+	}
+	{
+		ok, err := backend.Lease(ctx, "test", "b", time.Second*30)
+		require.NoError(t, err)
+		assert.True(t, ok, "expected b to to acquire the lease")
+	}
+}
