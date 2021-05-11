@@ -32,6 +32,7 @@ const (
 // labels
 const (
 	InstallationIDLabel = "installation_id"
+	HostnameLabel       = "hostname"
 	ServiceLabel        = "service"
 	ConfigLabel         = "config"
 	VersionLabel        = "version"
