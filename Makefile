@@ -24,7 +24,8 @@ CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.Version=$(VERSION) \
 	-X $(PKG)/internal/version.BuildMeta=$(BUILDMETA) \
 	-X $(PKG)/internal/version.ProjectName=$(NAME) \
-	-X $(PKG)/internal/version.ProjectURL=$(PKG)
+	-X $(PKG)/internal/version.ProjectURL=$(PKG) \
+	-X $(PKG)/internal/envoy.Checksum=$$(cat ./bin/envoy.sha256 | tr -d '\n')
 
 GO ?= "go"
 GO_LDFLAGS=-ldflags "-s -w $(CTIMEVAR)"
@@ -86,7 +87,7 @@ frontend: ## Runs go generate on the static assets package.
 build: ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
 	./scripts/get-envoy.bash
-	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -ldflags="-X github.com/pomerium/pomerium/internal/envoy.Checksum=$$(cat ./bin/envoy.sha256 | tr -d '\n')" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 	./scripts/embed-envoy.bash $(BINDIR)/$(NAME)
 
 .PHONY: build-debug
