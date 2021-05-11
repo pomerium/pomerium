@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"sync"
 
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
@@ -80,6 +81,18 @@ func registerDefaultViews() error {
 // newProxyMetricsHandler creates a subrequest to the envoy control plane for metrics and
 // combines them with our own
 func newProxyMetricsHandler(exporter *ocprom.Exporter, envoyURL url.URL, installationID string) http.HandlerFunc {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "__none__"
+	}
+	extraLabels := []*io_prometheus_client.LabelPair{{
+		Name:  proto.String(metrics.InstallationIDLabel),
+		Value: proto.String(installationID),
+	}, {
+		Name:  proto.String(metrics.HostnameLabel),
+		Value: proto.String(hostname),
+	}}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Ensure we don't get entangled with compression from ocprom
 		r.Header.Del("Accept-Encoding")
@@ -87,7 +100,7 @@ func newProxyMetricsHandler(exporter *ocprom.Exporter, envoyURL url.URL, install
 		rec := httptest.NewRecorder()
 		exporter.ServeHTTP(rec, r)
 
-		err := writeMetricsWithInstallationID(w, rec.Body, installationID)
+		err := writeMetricsWithLabels(w, rec.Body, extraLabels)
 		if err != nil {
 			log.Error(r.Context()).Err(err).Send()
 			return
@@ -106,7 +119,7 @@ func newProxyMetricsHandler(exporter *ocprom.Exporter, envoyURL url.URL, install
 		}
 		defer resp.Body.Close()
 
-		err = writeMetricsWithInstallationID(w, resp.Body, installationID)
+		err = writeMetricsWithLabels(w, resp.Body, extraLabels)
 		if err != nil {
 			log.Error(r.Context()).Err(err).Send()
 			return
@@ -114,7 +127,7 @@ func newProxyMetricsHandler(exporter *ocprom.Exporter, envoyURL url.URL, install
 	}
 }
 
-func writeMetricsWithInstallationID(w io.Writer, r io.Reader, installationID string) error {
+func writeMetricsWithLabels(w io.Writer, r io.Reader, extra []*io_prometheus_client.LabelPair) error {
 	var parser expfmt.TextParser
 	ms, err := parser.TextToMetricFamilies(r)
 	if err != nil {
@@ -123,10 +136,7 @@ func writeMetricsWithInstallationID(w io.Writer, r io.Reader, installationID str
 
 	for _, m := range ms {
 		for _, mm := range m.Metric {
-			mm.Label = append(mm.Label, &io_prometheus_client.LabelPair{
-				Name:  proto.String(metrics.InstallationIDLabel),
-				Value: proto.String(installationID),
-			})
+			mm.Label = append(mm.Label, extra...)
 		}
 		_, err = expfmt.MetricFamilyToText(w, m)
 		if err != nil {
