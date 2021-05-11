@@ -9,7 +9,6 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -495,21 +494,27 @@ func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) [
 func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb.Duration {
 	var routeTimeout *durationpb.Duration
 	if policy.UpstreamTimeout != 0 {
-		routeTimeout = ptypes.DurationProto(policy.UpstreamTimeout)
-	} else if policy.AllowWebsockets || urlutil.IsTCP(policy.Source.URL) {
-		routeTimeout = ptypes.DurationProto(0)
+		routeTimeout = durationpb.New(policy.UpstreamTimeout)
+	} else if shouldDisableTimeouts(policy) {
+		routeTimeout = durationpb.New(0)
 	} else {
-		routeTimeout = ptypes.DurationProto(options.DefaultUpstreamTimeout)
+		routeTimeout = durationpb.New(options.DefaultUpstreamTimeout)
 	}
 	return routeTimeout
 }
 
 func getRouteIdleTimeout(policy *config.Policy) *durationpb.Duration {
 	var idleTimeout *durationpb.Duration
-	if policy.AllowWebsockets || urlutil.IsTCP(policy.Source.URL) {
-		idleTimeout = ptypes.DurationProto(0)
+	if shouldDisableTimeouts(policy) {
+		idleTimeout = durationpb.New(0)
 	}
 	return idleTimeout
+}
+
+func shouldDisableTimeouts(policy *config.Policy) bool {
+	return policy.AllowWebsockets ||
+		urlutil.IsTCP(policy.Source.URL) ||
+		policy.IsForKubernetes() // disable for kubernetes so that tailing logs works (#2182)
 }
 
 func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrite *envoy_type_matcher_v3.RegexMatchAndSubstitute) {
