@@ -214,7 +214,6 @@ func (b *Builder) buildPolicyTransportSocket(ctx context.Context, policy *config
 					"ECDHE-RSA-AES128-GCM-SHA256",
 					"ECDHE-ECDSA-CHACHA20-POLY1305",
 					"ECDHE-RSA-CHACHA20-POLY1305",
-					// end of modern suite
 					"ECDHE-ECDSA-AES128-SHA",
 					"ECDHE-RSA-AES128-SHA",
 					"AES128-GCM-SHA256",
