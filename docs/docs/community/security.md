@@ -74,7 +74,7 @@ Encryption in transit:
     - X25519
     - secp256r1
 
-- For upstream TLS (connection from Pomerium to the application or service)
+- For upstream TLS (connections from Pomerium to the application or service)
 
   - The minimum accepted version of TLS is 1.2.
   - For TLS 1.2, the following cipher suites are supported:
