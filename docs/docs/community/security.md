@@ -55,28 +55,51 @@ Encryption at rest:
 
 Encryption in transit:
 
-- Data in transit is protected by Transport Layer Security ([TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security)) . See our lab's [SSL Labs report](https://www.ssllabs.com/ssltest/analyze.html?d=authenticate.demo.pomerium.com&latest) .
+- Data in transit is protected by Transport Layer Security ([TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security)). See our lab's [SSL Labs report](https://www.ssllabs.com/ssltest/analyze.html?d=authenticate.demo.pomerium.com&latest) .
+
+- For downstream TLS (connections from the user's client to Pomerium)
 
   - The minimum accepted version of TLS is 1.2.
-  - For TLS 1.3, the following cipher suites are offered:
-
-    - TLS_AES_128_GCM_SHA256
-    - TLS_AES_256_GCM_SHA384
-    - TLS_CHACHA20_POLY1305_SHA256
-
   - For TLS 1.2, the following cipher suites are offered, in this order:
 
-    - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-    - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-    - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+    - ECDHE-ECDSA-AES256-GCM-SHA384
+    - ECDHE-RSA-AES256-GCM-SHA384
+    - ECDHE-ECDSA-AES128-GCM-SHA256
+    - ECDHE-RSA-AES128-GCM-SHA256
+    - ECDHE-ECDSA-CHACHA20-POLY1305
+    - ECDHE-RSA-CHACHA20-POLY1305
 
   - The following elliptic curves are offered, in this order:
 
     - X25519
     - secp256r1
-    - X448
-    - secp521r1
-    - secp384r1
+
+- For upstream TLS (connections from Pomerium to the application or service)
+
+  - The minimum accepted version of TLS is 1.2.
+  - For TLS 1.2, the following cipher suites are supported:
+
+    - ECDHE-ECDSA-AES256-GCM-SHA384
+    - ECDHE-RSA-AES256-GCM-SHA384
+    - ECDHE-ECDSA-AES128-GCM-SHA256
+    - ECDHE-RSA-AES128-GCM-SHA256
+    - ECDHE-ECDSA-CHACHA20-POLY1305
+    - ECDHE-RSA-CHACHA20-POLY1305
+    - ECDHE-ECDSA-AES128-SHA
+    - ECDHE-RSA-AES128-SHA
+    - AES128-GCM-SHA256
+    - AES128-SHA
+    - ECDHE-ECDSA-AES256-SHA
+    - ECDHE-RSA-AES256-SHA
+    - AES256-GCM-SHA384
+    - AES256-SHA
+
+  - The following elliptic curves are supported:
+
+    - X25519
+    - P-256
+    - P-384
+    - P-521
 
 - [HTTP Strict Transport Security](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) (HSTS) with a long duration is used by default.
 
