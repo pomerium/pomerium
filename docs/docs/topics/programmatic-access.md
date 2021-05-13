@@ -15,7 +15,7 @@ This page describes how to obtain Pomerium access credentials programmatically v
 
 The API returns a cryptographically signed sign-in url that can be used to complete a user-driven login process with Pomerium and your identity provider. The login API endpoint takes a `pomerium_redirect_uri` query parameter as an argument which points to the location of the callback server to be called following a successful login.
 
-Here's a full example. 
+Here's a full example.
 
 ```bash
 # we'll call the hidden pomerium path below against a proxied-by-pomerium
@@ -33,35 +33,26 @@ curl "https://$ANY_POMERIUM_PROXIED_SERVICE/.pomerium/api/v1/login?pomerium_redi
 # will output a URL like:
 # https://authenticate.example.com/.pomerium/sign_in?pomerium_redirect_uri=http%3A%2F%2Flocalhost%3Fpomerium_callback_uri%3Dhttps%253A%252F%verify.example.com%252F.pomerium%252Fapi%252Fv1%252Flogin%253Fpomerium_redirect_uri%253Dhttp%253A%252F%252Flocalhost&sig=hsLuzJctmgsN4kbMeQL16fe_FahjDBEcX0_kPYfg8bs%3D&ts=1573262981
 
-# open url above in a browser and you'll get redirected in the browser to 
+# open url above in a browser and you'll get redirected in the browser to
 # > http://$MY_LOCAL_DEV_SERVICE/?pomerium_jwt=a.real.jwt or expanded as
 # http://localhost:8000/?pomerium_jwt=programmatic.pomerium.jwt
 
 # you can now use the value from `pomerium_jwt` to Authorize to our proxied endpoint (which you could use to proxy `localhost`)
 
-curl -H 'Authorization: Pomerium a.real.jwt' https://verify.example.com 
+curl -H 'Authorization: Pomerium a.real.jwt' https://verify.example.com
 ```
+
 - `service.example.com` is our endpoint fronted by pomerium-proxy
-- `localhost:8000` is our service we're developing locally, it'll need to
-  accept the programmatic token directly as a query param `?pomerium_jwt=programmatic.pomerium.jwt` *see [callback handler](#callback-handler)*
+- `localhost:8000` is our service we're developing locally, it'll need to accept the programmatic token directly as a query param `?pomerium_jwt=programmatic.pomerium.jwt` _see [callback handler](#callback-handler)_
 - `authenticate.example.com` is the pomerium-authenticate service, we'll open that in the browser to authenticate, it will be set as `iss` on the jwt
 
+**Note**: By default only `localhost` URLs are allowed as the `pomerium_redirect_uri`. This can be customized with the `programmatic_redirect_domain_whitelist` option.
 
-**Note**:
-By default only `localhost` URLs are allowed as the `pomerium_redirect_uri`. This can be customized with the `programmatic_redirect_domain_whitelist` option.
+### Alternative to Login API for `localhost` development
 
+Alternatively you can create a new policy to route an endpoint to a [bastion host](https://en.wikipedia.org/wiki/Bastion_host). You should include a HTTP proxy on this bastion host for HTTPS traffic. Here's one way to do it with nginx: <https://jerrington.me/posts/2019-01-29-self-hosted-ngrok.html> An HTTP proxy on the bastion allows us to receive HTTPS traffic with a self signed cert through LetsEncrypt.
 
-#### Alternative to Login API for `localhost` development 
-
-Alternatively you can create a new policy to route an endpoint to a [bastion
-host](https://en.wikipedia.org/wiki/Bastion_host). 
-You should include a HTTP proxy on this bastion host for HTTPS traffic. 
-Here's one way to do it with nginx: https://jerrington.me/posts/2019-01-29-self-hosted-ngrok.html
-An HTTP proxy on the bastion allows us to receive HTTPS traffic with a self signed cert through LetsEncrypt. 
-
-This alternative will allow you to act as if your service is deployed and
-fronted by Pomerium. We will then forward the remote port from the bastion host
-behind the pomerium-proxy to localhost.
+This alternative will allow you to act as if your service is deployed and fronted by Pomerium. We will then forward the remote port from the bastion host behind the pomerium-proxy to localhost.
 
 This is useful if you're using `pass_identity_headers` in your policy.
 
@@ -74,7 +65,7 @@ For example:
   pass_identity_headers: true
 ```
 
-Once this policy is applied and deployed, you can then forward the remote port of the HTTP proxy running on the bastion host that in this case proxies 5000 to 5001 internally. 
+Once this policy is applied and deployed, you can then forward the remote port of the HTTP proxy running on the bastion host that in this case proxies 5000 to 5001 internally.
 
 We then forward the remote port from the bastion's HTTP proxy (5001) to `localhost:8000`, with an ssh tunnel like:
 
@@ -82,11 +73,7 @@ We then forward the remote port from the bastion's HTTP proxy (5001) to `localho
 ssh -N -R 5001:localhost:8000 my-user@my-bastion-host.example.com
 ```
 
-You can then go to `https://my-dev-endpoint.example.com` and have the pomerium-proxy
-route traffic securely to the bastion host and back through the ssh-tunnel, the
-headers and anything pomerium-proxy is setup to do to the request will be
-included in the forwarded request and traffic.
-
+You can then go to `https://my-dev-endpoint.example.com` and have the pomerium-proxy route traffic securely to the bastion host and back through the ssh-tunnel, the headers and anything pomerium-proxy is setup to do to the request will be included in the forwarded request and traffic.
 
 ### Callback handler
 
