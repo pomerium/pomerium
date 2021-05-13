@@ -7,15 +7,18 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -48,6 +51,11 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	authZ, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-authorize", authzURLs, true)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(authzURLs) > 1 {
+		authZ.HealthChecks = grpcHealthChecks("pomerium-authorize")
+		authZ.OutlierDetection = grpcAuthorizeOutlierDetection()
 	}
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
@@ -99,6 +107,7 @@ func (b *Builder) buildInternalCluster(
 	if err := b.buildCluster(cluster, name, endpoints, forceHTTP2); err != nil {
 		return nil, err
 	}
+
 	return cluster, nil
 }
 
@@ -327,6 +336,49 @@ func (b *Builder) buildCluster(
 	}
 
 	return cluster.Validate()
+}
+
+// grpcAuthorizeOutlierDetection defines slightly more aggressive malfunction detection for authorize endpoints
+func grpcAuthorizeOutlierDetection() *envoy_config_cluster_v3.OutlierDetection {
+	return &envoy_config_cluster_v3.OutlierDetection{
+		Consecutive_5Xx:                       wrapperspb.UInt32(5),
+		Interval:                              durationpb.New(time.Second * 10),
+		BaseEjectionTime:                      durationpb.New(time.Second * 30),
+		MaxEjectionPercent:                    wrapperspb.UInt32(100),
+		EnforcingConsecutive_5Xx:              wrapperspb.UInt32(100),
+		EnforcingSuccessRate:                  wrapperspb.UInt32(100),
+		SuccessRateMinimumHosts:               wrapperspb.UInt32(2),
+		SuccessRateRequestVolume:              wrapperspb.UInt32(10),
+		SuccessRateStdevFactor:                wrapperspb.UInt32(1900),
+		ConsecutiveGatewayFailure:             wrapperspb.UInt32(5),
+		EnforcingConsecutiveGatewayFailure:    wrapperspb.UInt32(0),
+		SplitExternalLocalOriginErrors:        false,
+		FailurePercentageThreshold:            wrapperspb.UInt32(85),
+		EnforcingFailurePercentage:            wrapperspb.UInt32(100),
+		EnforcingFailurePercentageLocalOrigin: wrapperspb.UInt32(100),
+		FailurePercentageMinimumHosts:         wrapperspb.UInt32(2),
+		FailurePercentageRequestVolume:        wrapperspb.UInt32(10),
+		MaxEjectionTime:                       durationpb.New(time.Minute * 5),
+	}
+}
+
+func grpcHealthChecks(name string) []*envoy_config_core_v3.HealthCheck {
+	return []*envoy_config_core_v3.HealthCheck{{
+		Timeout:               durationpb.New(time.Second * 10),
+		Interval:              durationpb.New(time.Second * 10),
+		InitialJitter:         durationpb.New(time.Millisecond * 100),
+		IntervalJitter:        durationpb.New(time.Millisecond * 100),
+		IntervalJitterPercent: 10,
+		UnhealthyThreshold:    wrapperspb.UInt32(1),
+		HealthyThreshold:      wrapperspb.UInt32(1),
+		ReuseConnection:       wrapperspb.Bool(true),
+		NoTrafficInterval:     durationpb.New(time.Minute),
+		HealthChecker: &envoy_config_core_v3.HealthCheck_GrpcHealthCheck_{
+			GrpcHealthCheck: &envoy_config_core_v3.HealthCheck_GrpcHealthCheck{
+				ServiceName: name,
+			},
+		},
+	}}
 }
 
 func (b *Builder) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpoint_v3.LbEndpoint, error) {
