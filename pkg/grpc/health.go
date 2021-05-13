@@ -3,10 +3,11 @@ package grpc
 import (
 	"context"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"google.golang.org/grpc/codes"
 	grpc_health "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 type healthCheckSrv struct {
