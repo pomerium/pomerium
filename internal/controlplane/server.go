@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/version"
+	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/events"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
@@ -92,6 +94,8 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 	)
 	reflection.Register(srv.GRPCServer)
 	srv.registerAccessLogHandlers()
+
+	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 
 	// setup HTTP
 	srv.HTTPListener, err = net.Listen("tcp4", "127.0.0.1:0")
