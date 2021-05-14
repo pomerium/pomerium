@@ -1,0 +1,45 @@
+{
+  "$ref": "#/definitions/policy",
+  "definitions": {
+    "policy": {
+      "anyOf": [
+        { "$ref": "#/definitions/rules" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/definitions/rules" }
+        }
+      ]
+    },
+    "rules": {
+      "type": "object",
+      "properties": {
+        "allow": { "$ref": "#/definitions/rule_body" },
+        "deny": { "$ref": "#/definitions/rule_body" }
+      }
+    },
+    "rule_body": {
+      "type": "object",
+      "properties": {
+        "and": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/criteria" }
+        },
+        "not": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/criteria" }
+        },
+        "or": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/criteria" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "criteria": {
+      "type": "object",
+      "additionalProperties": true,
+      "minProperties": 1,
+      "maxProperties": 1
+    }
+  }
+}
