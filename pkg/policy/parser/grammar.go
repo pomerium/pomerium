@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -9,6 +10,28 @@ import (
 // A Policy is a policy made up of multiple allow or deny rules.
 type Policy struct {
 	Rules []Rule
+}
+
+// MarshalJSON marshals the policy as JSON.
+func (p *Policy) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.ToJSON())
+}
+
+// String converts the policy to a string.
+func (p *Policy) String() string {
+	str, _ := p.MarshalJSON()
+	return string(str)
+}
+
+// ToJSON converts the policy to JSON.
+func (p *Policy) ToJSON() Value {
+	var root Array
+
+	for _, r := range p.Rules {
+		root = append(root, r.ToJSON())
+	}
+
+	return root
 }
 
 // PolicyFromValue converts a value into a Policy.
@@ -101,15 +124,56 @@ func RulesFromObject(o Object) ([]Rule, error) {
 	return rules, nil
 }
 
-func (rule *Rule) fillConditionalsFromObject(o Object) error {
+// MarshalJSON marshals the rule as JSON.
+func (r *Rule) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.ToJSON())
+}
+
+// String converts the rule to a string.
+func (r *Rule) String() string {
+	str, _ := r.MarshalJSON()
+	return string(str)
+}
+
+// ToJSON converts the rule to JSON.
+func (r *Rule) ToJSON() Value {
+	body := Object{}
+
+	for _, op := range []struct {
+		operator string
+		criteria []Criterion
+	}{
+		{"and", r.And},
+		{"or", r.Or},
+		{"not", r.Not},
+		{"nor", r.Nor},
+	} {
+		if len(op.criteria) == 0 {
+			continue
+		}
+
+		var criteria Array
+		for _, c := range op.criteria {
+			criteria = append(criteria, c.ToJSON())
+		}
+
+		body[op.operator] = criteria
+	}
+
+	return Object{
+		string(r.Action): body,
+	}
+}
+
+func (r *Rule) fillConditionalsFromObject(o Object) error {
 	conditionals := []struct {
 		Name     string
 		Criteria *[]Criterion
 	}{
-		{"and", &rule.And},
-		{"or", &rule.Or},
-		{"not", &rule.Not},
-		{"nor", &rule.Nor},
+		{"and", &r.And},
+		{"or", &r.Or},
+		{"not", &r.Not},
+		{"nor", &r.Nor},
 	}
 	for _, cond := range conditionals {
 		if rawCriteria, ok := o[cond.Name]; ok {
@@ -196,6 +260,26 @@ func CriterionFromObject(o Object) (*Criterion, error) {
 
 	// this can't happen
 	panic("each criteria may only contain a single key and value")
+}
+
+// MarshalJSON marshals the criterion as JSON.
+func (c *Criterion) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.ToJSON())
+}
+
+// String converts the criterion to a string.
+func (c *Criterion) String() string {
+	str, _ := c.MarshalJSON()
+	return string(str)
+}
+
+// ToJSON converts the criterion to JSON.
+func (c *Criterion) ToJSON() Value {
+	nm := c.Name
+	if c.SubPath != "" {
+		nm += "/" + c.SubPath
+	}
+	return Object{nm: c.Data}
 }
 
 // An Action describe what to do when a rule matches, either "allow" or "deny".
