@@ -42,7 +42,6 @@ type Options struct {
 	Expire   time.Duration
 	HTTPOnly bool
 	Secure   bool
-	SameSite http.SameSite
 }
 
 // A GetOptionsFunc is a getter for cookie options.
@@ -93,7 +92,6 @@ func (cs *Store) makeCookie(value string) *http.Cookie {
 		HttpOnly: opts.HTTPOnly,
 		Secure:   opts.Secure,
 		Expires:  timeNow().Add(opts.Expire),
-		SameSite: opts.SameSite,
 	}
 }
 
