@@ -5,7 +5,6 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"fmt"
-	"net/http"
 	"net/url"
 	"sync/atomic"
 
@@ -118,7 +117,6 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 			Secure:   cfg.Options.CookieSecure,
 			HTTPOnly: cfg.Options.CookieHTTPOnly,
 			Expire:   cfg.Options.CookieExpire,
-			SameSite: http.SameSiteLaxMode,
 		}
 	}, state.sharedEncoder)
 	if err != nil {
