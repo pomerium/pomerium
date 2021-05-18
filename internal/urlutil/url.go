@@ -110,18 +110,3 @@ func GetDomainsForURL(u url.URL) []string {
 func IsTCP(u *url.URL) bool {
 	return u.Scheme == "tcp+http" || u.Scheme == "tcp+https"
 }
-
-// ParseEnvoyQueryParams returns a new URL with queryparams parsed from envoy format.
-func ParseEnvoyQueryParams(u *url.URL) *url.URL {
-	nu := &url.URL{
-		Scheme: u.Scheme,
-		Host:   u.Host,
-		Path:   u.Path,
-	}
-
-	path := u.Path
-	if idx := strings.Index(path, "?"); idx != -1 {
-		nu.Path, nu.RawQuery = path[:idx], path[idx+1:]
-	}
-	return nu
-}

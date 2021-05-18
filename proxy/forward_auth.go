@@ -58,10 +58,6 @@ func (p *Proxy) nginxPostCallbackRedirect(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
-	u = urlutil.ParseEnvoyQueryParams(u)
-	q := u.Query()
-	q.Del(urlutil.QueryForwardAuthURI)
-	u.RawQuery = q.Encode()
 	httputil.Redirect(w, r, u.String(), http.StatusFound)
 	return nil
 }

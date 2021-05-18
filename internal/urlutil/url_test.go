@@ -157,22 +157,3 @@ func TestGetDomainsForURL(t *testing.T) {
 		})
 	}
 }
-
-func TestParseEnvoyQueryParams(t *testing.T) {
-	tests := []struct {
-		name string
-		u    *url.URL
-		want *url.URL
-	}{
-		{"empty", &url.URL{}, &url.URL{}},
-		{"basic example", &url.URL{Host: "pomerium.io", Path: "/?uri=https://pomerium.com/"}, &url.URL{Host: "pomerium.io", Path: "/", RawQuery: "uri=https://pomerium.com/"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ParseEnvoyQueryParams(tt.u)
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("ParseEnvoyQueryParams() = %v", diff)
-			}
-		})
-	}
-}
