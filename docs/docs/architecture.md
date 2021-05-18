@@ -53,4 +53,4 @@ Pomerium's internal and external component interactions during full authenticati
 
 After initial authentication to provide a session token, only the authorization check interactions occur.
 
-[![pomerium architecture diagram](./img/pomerium-auth-flow.svg)](/pomerium-auth-flow.svg)
+![pomerium architecture diagram](./img/pomerium-auth-flow.svg)] 
