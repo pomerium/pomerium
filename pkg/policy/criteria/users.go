@@ -33,7 +33,7 @@ func (c usersCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []
 
 	switch data.(type) {
 	case parser.String:
-		r.Body = append(r.Body, ast.MustParseExpr(`user_id = rule_data`))
+		r.Body = append(r.Body, ast.MustParseExpr(`user.id == rule_data`))
 	default:
 		return nil, nil, fmt.Errorf("unsupported value type: %T", data)
 	}

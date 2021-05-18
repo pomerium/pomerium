@@ -19,21 +19,24 @@ type (
 	CriterionConstructor = generator.CriterionConstructor
 )
 
-// GenerateRegoFromPPL generates a rego script from raw Pomerium Policy Language.
-func GenerateRegoFromPPL(r io.Reader) (string, error) {
-	p := parser.New()
+// GenerateRegoFromReader generates a rego script from raw Pomerium Policy Language.
+func GenerateRegoFromReader(r io.Reader) (string, error) {
+	ppl, err := parser.ParseYAML(r)
+	if err != nil {
+		return "", err
+	}
+	return GenerateRegoFromPolicy(ppl)
+}
+
+// GenerateRegoFromPolicy generates a rego script from a Pomerium Policy Language policy.
+func GenerateRegoFromPolicy(p *parser.Policy) (string, error) {
 	var gOpts []generator.Option
 	for _, ctor := range criteria.All() {
 		gOpts = append(gOpts, generator.WithCriterion(ctor))
 	}
 	g := generator.New(gOpts...)
 
-	ppl, err := p.ParseYAML(r)
-	if err != nil {
-		return "", err
-	}
-
-	mod, err := g.Generate(ppl)
+	mod, err := g.Generate(p)
 	if err != nil {
 		return "", err
 	}
