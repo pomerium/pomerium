@@ -36,7 +36,7 @@ func (c emailsCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, [
 
 	switch data.(type) {
 	case parser.String:
-		r.Body = append(r.Body, ast.MustParseExpr(`email = rule_data`))
+		r.Body = append(r.Body, ast.MustParseExpr(`email == rule_data`))
 	default:
 		return nil, nil, fmt.Errorf("unsupported value type: %T", data)
 	}

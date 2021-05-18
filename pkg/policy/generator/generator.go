@@ -3,6 +3,7 @@ package generator
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
 
@@ -52,35 +53,55 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 	rules.Add(ast.MustParseRule(`default allow = false`))
 	rules.Add(ast.MustParseRule(`default deny = false`))
 
-	for _, policyRule := range policy.Rules {
-		rule := &ast.Rule{
-			Head: &ast.Head{Name: ast.Var(policyRule.Action)},
-		}
-
-		fields := []struct {
-			criteria  []parser.Criterion
-			generator conditionalGenerator
-		}{
-			{policyRule.And, g.generateAndRule},
-			{policyRule.Or, g.generateOrRule},
-			{policyRule.Not, g.generateNotRule},
-			{policyRule.Nor, g.generateNorRule},
-		}
-		for _, field := range fields {
-			if len(field.criteria) == 0 {
+	for _, action := range []parser.Action{parser.ActionAllow, parser.ActionDeny} {
+		var terms []*ast.Term
+		for _, policyRule := range policy.Rules {
+			if policyRule.Action != action {
 				continue
 			}
-			subRule, err := field.generator(&rules, field.criteria)
-			if err != nil {
-				return nil, err
-			}
-			rule.Body = append(rule.Body, ast.NewExpr(ast.VarTerm(string(subRule.Head.Name))))
-		}
 
-		rules.Add(rule)
+			if len(policyRule.And) > 0 {
+				subRule, err := g.generateAndRule(&rules, policyRule.And)
+				if err != nil {
+					return nil, err
+				}
+				terms = append(terms, ast.VarTerm(string(subRule.Head.Name)))
+			}
+			if len(policyRule.Or) > 0 {
+				subRule, err := g.generateOrRule(&rules, policyRule.Or)
+				if err != nil {
+					return nil, err
+				}
+				terms = append(terms, ast.VarTerm(string(subRule.Head.Name)))
+			}
+			if len(policyRule.Not) > 0 {
+				subRule, err := g.generateNotRule(&rules, policyRule.Not)
+				if err != nil {
+					return nil, err
+				}
+				terms = append(terms, ast.VarTerm(string(subRule.Head.Name)))
+			}
+			if len(policyRule.Nor) > 0 {
+				subRule, err := g.generateNorRule(&rules, policyRule.Nor)
+				if err != nil {
+					return nil, err
+				}
+				terms = append(terms, ast.VarTerm(string(subRule.Head.Name)))
+			}
+		}
+		if len(terms) > 0 {
+			rule := &ast.Rule{
+				Head: &ast.Head{
+					Name:  ast.Var(action),
+					Value: ast.VarTerm("v1"),
+				},
+			}
+			g.fillViaOr(rule, false, terms)
+			rules.Add(rule)
+		}
 	}
 
-	return &ast.Module{
+	mod := &ast.Module{
 		Package: &ast.Package{
 			Path: ast.Ref{
 				ast.StringTerm("policy.rego"),
@@ -89,7 +110,21 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 			},
 		},
 		Rules: rules,
-	}, nil
+	}
+
+	// move functions to the end
+	sort.SliceStable(mod.Rules, func(i, j int) bool {
+		return len(mod.Rules[i].Head.Args) < len(mod.Rules[j].Head.Args)
+	})
+
+	i := 1
+	ast.WalkRules(mod, func(r *ast.Rule) bool {
+		r.SetLoc(ast.NewLocation([]byte(r.String()), "", i, 1))
+		i++
+		return false
+	})
+
+	return mod, nil
 }
 
 // NewRule creates a new rule with a dynamically generated name.

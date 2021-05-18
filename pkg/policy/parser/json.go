@@ -141,6 +141,9 @@ func (o Object) Clone() Value {
 func (o Object) RegoValue() ast.Value {
 	kvps := make([][2]*ast.Term, 0, len(o))
 	for k, v := range o {
+		if v == nil {
+			v = Null{}
+		}
 		kvps = append(kvps, [2]*ast.Term{
 			ast.StringTerm(k),
 			ast.NewTerm(v.RegoValue()),
