@@ -88,7 +88,7 @@ func newPolicyEvaluator(opts *config.Options, store *evaluator.Store) (*evaluato
 	ctx := context.Background()
 	_, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
-	return evaluator.New(opts, store)
+	return evaluator.New(ctx, store, opts)
 }
 
 // OnConfigChange updates internal structures based on config.Options

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/google/uuid"
 	"github.com/open-policy-agent/opa/ast"
@@ -85,6 +86,8 @@ type Store struct {
 	storage.Store
 
 	dataBrokerData *dataBrokerData
+
+	dataBrokerServerVersion, dataBrokerRecordVersion uint64
 }
 
 // NewStore creates a new Store.
@@ -124,6 +127,12 @@ func (s *Store) ClearRecords() {
 	s.dataBrokerData.clear()
 }
 
+// GetDataBrokerVersions gets the databroker versions.
+func (s *Store) GetDataBrokerVersions() (serverVersion, recordVersion uint64) {
+	return atomic.LoadUint64(&s.dataBrokerServerVersion),
+		atomic.LoadUint64(&s.dataBrokerRecordVersion)
+}
+
 // GetRecordData gets a record's data from the store. `nil` is returned
 // if no record exists for the given type and id.
 func (s *Store) GetRecordData(typeURL, id string) proto.Message {
@@ -161,6 +170,8 @@ func (s *Store) UpdateRecord(serverVersion uint64, record *databroker.Record) {
 	}
 	s.write("/databroker_server_version", fmt.Sprint(serverVersion))
 	s.write("/databroker_record_version", fmt.Sprint(record.GetVersion()))
+	atomic.StoreUint64(&s.dataBrokerServerVersion, serverVersion)
+	atomic.StoreUint64(&s.dataBrokerRecordVersion, record.GetVersion())
 }
 
 // UpdateSigningKey updates the signing key stored in the database. Signing operations

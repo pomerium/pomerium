@@ -86,6 +86,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
+		Policy: &a.currentOptions.Load().Policies[0],
 		Session: evaluator.RequestSession{
 			ID: "SESSION_ID",
 		},
@@ -98,7 +99,6 @@ func Test_getEvaluatorRequest(t *testing.T) {
 			},
 			ClientCertificate: certPEM,
 		},
-		CustomPolicies: []string{"allow = true"},
 	}
 	assert.Equal(t, expect, actual)
 }
@@ -294,6 +294,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
+		Policy:  &a.currentOptions.Load().Policies[0],
 		Session: evaluator.RequestSession{},
 		HTTP: evaluator.RequestHTTP{
 			Method: "GET",
@@ -304,7 +305,6 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 			},
 			ClientCertificate: certPEM,
 		},
-		CustomPolicies: []string{"allow = true"},
 	}
 	assert.Equal(t, expect, actual)
 }

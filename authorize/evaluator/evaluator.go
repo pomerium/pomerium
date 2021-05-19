@@ -1,5 +1,4 @@
-// Package evaluator defines a Evaluator interfaces that can be implemented by
-// a policy evaluator framework.
+// Package evaluator contains rego evaluators for evaluating authorize policy.
 package evaluator
 
 import (
@@ -8,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/open-policy-agent/opa/rego"
 	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/config"
@@ -16,124 +14,171 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
-// Evaluator specifies the interface for a policy engine.
+// notFoundOutput is what's returned if a route isn't found for a policy.
+var notFoundOutput = &Result{
+	Allow: false,
+	Deny: &Denial{
+		Status:  http.StatusNotFound,
+		Message: "route not found",
+	},
+	Headers: make(http.Header),
+}
+
+// Request contains the inputs needed for evaluation.
+type Request struct {
+	Policy  *config.Policy
+	HTTP    RequestHTTP
+	Session RequestSession
+}
+
+// RequestHTTP is the HTTP field in the request.
+type RequestHTTP struct {
+	Method            string            `json:"method"`
+	URL               string            `json:"url"`
+	Headers           map[string]string `json:"headers"`
+	ClientCertificate string            `json:"client_certificate"`
+}
+
+// RequestSession is the session field in the request.
+type RequestSession struct {
+	ID string `json:"id"`
+}
+
+// Result is the result of evaluation.
+type Result struct {
+	Allow   bool
+	Deny    *Denial
+	Headers http.Header
+
+	DataBrokerServerVersion, DataBrokerRecordVersion uint64
+}
+
+// An Evaluator evaluates policies.
 type Evaluator struct {
-	custom   *CustomEvaluator
-	rego     *rego.Rego
-	query    rego.PreparedEvalQuery
-	policies []config.Policy
-	store    *Store
+	store             *Store
+	policyEvaluators  map[uint64]*PolicyEvaluator
+	headersEvaluators *HeadersEvaluator
+	clientCA          []byte
 }
 
 // New creates a new Evaluator.
-func New(options *config.Options, store *Store) (*Evaluator, error) {
-	e := &Evaluator{
-		custom:   NewCustomEvaluator(store),
-		policies: options.GetAllPolicies(),
-		store:    store,
-	}
-	jwk, err := getJWK(options)
+func New(ctx context.Context, store *Store, options *config.Options) (*Evaluator, error) {
+	e := &Evaluator{store: store}
+
+	err := e.updateStore(options)
 	if err != nil {
-		return nil, fmt.Errorf("authorize: couldn't create signer: %w", err)
+		return nil, err
 	}
 
-	authzPolicy, err := readPolicy()
+	e.headersEvaluators, err = NewHeadersEvaluator(ctx, store)
 	if err != nil {
-		return nil, fmt.Errorf("error loading rego policy: %w", err)
+		return nil, err
 	}
 
-	authenticateURL, err := options.GetAuthenticateURL()
-	if err != nil {
-		return nil, fmt.Errorf("authorize: invalid authenticate URL: %w", err)
+	e.policyEvaluators = make(map[uint64]*PolicyEvaluator)
+	for _, configPolicy := range options.GetAllPolicies() {
+		id, err := configPolicy.RouteID()
+		if err != nil {
+			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
+		}
+		policyEvaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy) //nolint
+		if err != nil {
+			return nil, err
+		}
+		e.policyEvaluators[id] = policyEvaluator
 	}
 
-	store.UpdateIssuer(authenticateURL.Host)
-	store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
-		options.GetGoogleCloudServerlessAuthenticationServiceAccount(),
-	)
-	store.UpdateJWTClaimHeaders(options.JWTClaimsHeaders)
-	store.UpdateRoutePolicies(options.GetAllPolicies())
-	store.UpdateSigningKey(jwk)
-
-	e.rego = rego.New(
-		rego.Store(store),
-		rego.Module("pomerium.authz", string(authzPolicy)),
-		rego.Query("result = data.pomerium.authz"),
-		getGoogleCloudServerlessHeadersRegoOption,
-		store.GetDataBrokerRecordOption(),
-	)
-
-	e.query, err = e.rego.PrepareForEval(context.Background())
+	e.clientCA, err = options.GetClientCA()
 	if err != nil {
-		return nil, fmt.Errorf("error preparing rego query: %w", err)
+		return nil, fmt.Errorf("authorize: invalid client ca: %w", err)
 	}
 
 	return e, nil
 }
 
-// Evaluate evaluates the policy against the request.
+// Evaluate evaluates the rego for the given policy and generates the identity headers.
 func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error) {
-	isValid, err := isValidClientCertificate(req.ClientCA, req.HTTP.ClientCertificate)
+	if req.Policy == nil {
+		return notFoundOutput, nil
+	}
+
+	id, err := req.Policy.RouteID()
 	if err != nil {
-		return nil, fmt.Errorf("error validating client certificate: %w", err)
+		return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
 	}
 
-	res, err := e.query.Eval(ctx, rego.EvalInput(e.newInput(req, isValid)))
+	policyEvaluator, ok := e.policyEvaluators[id]
+	if !ok {
+		return notFoundOutput, nil
+	}
+
+	clientCA, err := e.getClientCA(req.Policy)
 	if err != nil {
-		return nil, fmt.Errorf("error evaluating rego policy: %w", err)
+		return nil, err
 	}
 
-	deny := getDenyVar(res[0].Bindings.WithoutWildcards())
-	if len(deny) > 0 {
-		return &deny[0], nil
+	isValidClientCertificate, err := isValidClientCertificate(clientCA, req.HTTP.ClientCertificate)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
 	}
 
-	evalResult := &Result{
-		MatchingPolicy: getMatchingPolicy(res[0].Bindings.WithoutWildcards(), e.policies),
-		Headers:        getHeadersVar(res[0].Bindings.WithoutWildcards()),
+	policyOutput, err := policyEvaluator.Evaluate(ctx, &PolicyRequest{
+		HTTP:                     req.HTTP,
+		Session:                  req.Session,
+		IsValidClientCertificate: isValidClientCertificate,
+	})
+	if err != nil {
+		return nil, err
 	}
-	evalResult.DataBrokerServerVersion, evalResult.DataBrokerRecordVersion = getDataBrokerVersions(
-		res[0].Bindings,
-	)
 
-	allow := getAllowVar(res[0].Bindings.WithoutWildcards())
-	// evaluate any custom policies
-	if allow {
-		for _, src := range req.CustomPolicies {
-			cres, err := e.custom.Evaluate(ctx, &CustomEvaluatorRequest{
-				RegoPolicy: src,
-				HTTP:       req.HTTP,
-				Session:    req.Session,
-			})
-			if err != nil {
-				return nil, err
-			}
-			allow = allow && (cres.Allowed && !cres.Denied)
-			if cres.Reason != "" {
-				evalResult.Message = cres.Reason
-			}
-			for k, v := range cres.Headers {
-				evalResult.Headers[k] = v
-			}
+	headersReq := NewHeadersRequestFromPolicy(req.Policy)
+	headersReq.Session = req.Session
+	headersOutput, err := e.headersEvaluators.Evaluate(ctx, headersReq)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &Result{
+		Allow:   policyOutput.Allow,
+		Deny:    policyOutput.Deny,
+		Headers: headersOutput.Headers,
+	}
+	res.DataBrokerServerVersion, res.DataBrokerRecordVersion = e.store.GetDataBrokerVersions()
+	return res, nil
+}
+
+func (e *Evaluator) getClientCA(policy *config.Policy) (string, error) {
+	if policy != nil && policy.TLSDownstreamClientCA != "" {
+		bs, err := base64.StdEncoding.DecodeString(policy.TLSDownstreamClientCA)
+		if err != nil {
+			return "", err
 		}
-	}
-	if allow {
-		evalResult.Status = http.StatusOK
-		evalResult.Message = http.StatusText(http.StatusOK)
-		return evalResult, nil
+		return string(bs), nil
 	}
 
-	if req.Session.ID == "" {
-		evalResult.Status = http.StatusUnauthorized
-		evalResult.Message = "login required"
-		return evalResult, nil
+	return string(e.clientCA), nil
+}
+
+func (e *Evaluator) updateStore(options *config.Options) error {
+	jwk, err := getJWK(options)
+	if err != nil {
+		return fmt.Errorf("authorize: couldn't create signer: %w", err)
 	}
 
-	evalResult.Status = http.StatusForbidden
-	if evalResult.Message == "" {
-		evalResult.Message = http.StatusText(http.StatusForbidden)
+	authenticateURL, err := options.GetAuthenticateURL()
+	if err != nil {
+		return fmt.Errorf("authorize: invalid authenticate URL: %w", err)
 	}
-	return evalResult, nil
+
+	e.store.UpdateIssuer(authenticateURL.Host)
+	e.store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
+		options.GetGoogleCloudServerlessAuthenticationServiceAccount(),
+	)
+	e.store.UpdateJWTClaimHeaders(options.JWTClaimsHeaders)
+	e.store.UpdateRoutePolicies(options.GetAllPolicies())
+	e.store.UpdateSigningKey(jwk)
+
+	return nil
 }
 
 func getJWK(options *config.Options) (*jose.JSONWebKey, error) {
@@ -170,18 +215,4 @@ func getJWK(options *config.Options) (*jose.JSONWebKey, error) {
 		Msg("authorize: signing key")
 
 	return jwk, nil
-}
-
-type input struct {
-	HTTP                     RequestHTTP    `json:"http"`
-	Session                  RequestSession `json:"session"`
-	IsValidClientCertificate bool           `json:"is_valid_client_certificate"`
-}
-
-func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input {
-	i := new(input)
-	i.HTTP = req.HTTP
-	i.Session = req.Session
-	i.IsValidClientCertificate = isValidClientCertificate
-	return i
 }
