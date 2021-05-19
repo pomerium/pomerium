@@ -41,5 +41,5 @@ The above video shows the flow for both an unauthorized and authorized user.
 2. The **unauthorized** user is blocked from a protected resource.
 3. The **unauthorized** user signs out from their session.
 4. An **authorized** user authenticates with their corporate single-sign-on provider.
-5. Pomerium delegating and granting access to the requested resource.
-6. The **authorized** user inspecting their user details including group membership.
+5. Pomerium delegates and grants access to the requested resource.
+6. The **authorized** user inspects their user details including group membership.
