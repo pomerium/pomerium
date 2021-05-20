@@ -65,7 +65,7 @@ func (ce *CustomEvaluator) Evaluate(ctx context.Context, req *CustomEvaluatorReq
 	res := &CustomEvaluatorResponse{
 		Headers: getHeadersVar(vars),
 	}
-	if result, ok := vars["result"].(rego.Vars); ok {
+	if result, ok := vars["result"].(map[string]interface{}); ok {
 		res.Allowed, _ = result["allow"].(bool)
 		if v, ok := result["deny"]; ok {
 			// support `deny = true`
