@@ -76,6 +76,12 @@ func NewPolicyEvaluator(ctx context.Context, store *Store, configPolicy *config.
 
 	// for each script, create a rego and prepare a query.
 	for _, script := range scripts {
+		log.Debug(ctx).
+			Str("script", script).
+			Str("from", configPolicy.From).
+			Interface("to", configPolicy.To).
+			Msg("authorize: rego script for policy evaluation")
+
 		r := rego.New(
 			rego.Store(store),
 			rego.Module("pomerium.policy", script),
