@@ -72,7 +72,7 @@ func NewHeadersEvaluator(ctx context.Context, store *Store) (*HeadersEvaluator, 
 
 // Evaluate evaluates the headers.rego script.
 func (e *HeadersEvaluator) Evaluate(ctx context.Context, req *HeadersRequest) (*HeadersResponse, error) {
-	rs, err := e.q.Eval(ctx, rego.EvalInput(req))
+	rs, err := safeEval(ctx, e.q, rego.EvalInput(req))
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error evaluating headers.rego: %w", err)
 	}

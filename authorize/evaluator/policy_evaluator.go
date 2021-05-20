@@ -126,7 +126,7 @@ func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*Po
 }
 
 func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest, query rego.PreparedEvalQuery) (*PolicyResponse, error) {
-	rs, err := query.Eval(ctx, rego.EvalInput(req))
+	rs, err := safeEval(ctx, query, rego.EvalInput(req))
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error evaluating policy.rego: %w", err)
 	}

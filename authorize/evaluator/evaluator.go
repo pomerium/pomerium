@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/open-policy-agent/opa/rego"
 	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/config"
@@ -215,4 +216,14 @@ func getJWK(options *config.Options) (*jose.JSONWebKey, error) {
 		Msg("authorize: signing key")
 
 	return jwk, nil
+}
+
+func safeEval(ctx context.Context, q rego.PreparedEvalQuery, options ...rego.EvalOption) (resultSet rego.ResultSet, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("%v", e)
+		}
+	}()
+	resultSet, err = q.Eval(ctx, options...)
+	return resultSet, err
 }
