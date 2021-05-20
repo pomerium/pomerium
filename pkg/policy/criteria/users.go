@@ -1,10 +1,9 @@
 package criteria
 
 import (
-	"fmt"
-
 	"github.com/open-policy-agent/opa/ast"
 
+	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/policy/rules"
 )
@@ -16,10 +15,17 @@ var usersBody = ast.Body{
 	ast.MustParseExpr(`
 		user := get_user(session)
 	`),
+	ast.MustParseExpr(`
+		user_id := user.id
+	`),
 }
 
 type usersCriterion struct {
 	g *Generator
+}
+
+func (usersCriterion) DataType() generator.CriterionDataType {
+	return CriterionDataTypeStringMatcher
 }
 
 func (usersCriterion) Names() []string {
@@ -31,11 +37,9 @@ func (c usersCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []
 	r.Body = append(r.Body, ast.Assign.Expr(ast.VarTerm("rule_data"), ast.NewTerm(data.RegoValue())))
 	r.Body = append(r.Body, usersBody...)
 
-	switch data.(type) {
-	case parser.String:
-		r.Body = append(r.Body, ast.MustParseExpr(`user.id == rule_data`))
-	default:
-		return nil, nil, fmt.Errorf("unsupported value type: %T", data)
+	err := matchString(&r.Body, ast.VarTerm("user_id"), data)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return r, []*ast.Rule{

@@ -1,8 +1,6 @@
 package criteria
 
 import (
-	"fmt"
-
 	"github.com/open-policy-agent/opa/ast"
 
 	"github.com/pomerium/pomerium/pkg/policy/parser"
@@ -25,6 +23,10 @@ type domainsCriterion struct {
 	g *Generator
 }
 
+func (domainsCriterion) DataType() CriterionDataType {
+	return CriterionDataTypeStringMatcher
+}
+
 func (domainsCriterion) Names() []string {
 	return []string{"domain", "domains"}
 }
@@ -34,11 +36,9 @@ func (c domainsCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, 
 	r.Body = append(r.Body, ast.Assign.Expr(ast.VarTerm("rule_data"), ast.NewTerm(data.RegoValue())))
 	r.Body = append(r.Body, domainsBody...)
 
-	switch data.(type) {
-	case parser.String:
-		r.Body = append(r.Body, ast.MustParseExpr(`domain == rule_data`))
-	default:
-		return nil, nil, fmt.Errorf("unsupported value type: %T", data)
+	err := matchString(&r.Body, ast.VarTerm("domain"), data)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return r, []*ast.Rule{

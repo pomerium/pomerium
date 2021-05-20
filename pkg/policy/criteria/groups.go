@@ -1,10 +1,9 @@
 package criteria
 
 import (
-	"fmt"
-
 	"github.com/open-policy-agent/opa/ast"
 
+	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/policy/rules"
 )
@@ -38,16 +37,14 @@ var groupsBody = ast.Body{
 	ast.MustParseExpr(`
 		groups = array.concat(group_ids, array.concat(group_names, group_emails))
 	`),
-	ast.MustParseExpr(`
-		some group
-	`),
-	ast.MustParseExpr(`
-		group = groups[_]
-	`),
 }
 
 type groupsCriterion struct {
 	g *Generator
+}
+
+func (groupsCriterion) DataType() generator.CriterionDataType {
+	return CriterionDataTypeStringListMatcher
 }
 
 func (groupsCriterion) Names() []string {
@@ -59,11 +56,9 @@ func (c groupsCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, [
 	r.Body = append(r.Body, ast.Assign.Expr(ast.VarTerm("rule_data"), ast.NewTerm(data.RegoValue())))
 	r.Body = append(r.Body, groupsBody...)
 
-	switch data.(type) {
-	case parser.String:
-		r.Body = append(r.Body, ast.MustParseExpr(`group == rule_data`))
-	default:
-		return nil, nil, fmt.Errorf("unsupported value type: %T", data)
+	err := matchStringList(&r.Body, ast.VarTerm("groups"), data)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return r, []*ast.Rule{
