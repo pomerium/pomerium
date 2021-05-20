@@ -134,11 +134,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 			ID: sessionState.ID,
 		}
 	}
-	p := a.getMatchingPolicy(requestURL)
-	if p != nil {
-		req.Policy = p
-	}
-
+	req.Policy = a.getMatchingPolicy(requestURL)
 	return req, nil
 }
 
