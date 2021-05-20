@@ -335,6 +335,27 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 					{
 						"name": "catch-all",
 						"domains": ["*"],
+						"responseHeadersToAdd": [{
+							"append": false,
+							"header": {
+								"key": "Strict-Transport-Security",
+								"value": "max-age=31536000; includeSubDomains; preload"
+							}
+						},
+						{
+							"append": false,
+							"header": {
+								"key": "X-Frame-Options",
+								"value": "SAMEORIGIN"
+							}
+						},
+						{
+							"append": false,
+							"header": {
+								"key": "X-XSS-Protection",
+								"value": "1; mode=block"
+							}
+						}],
 						"routes": [
 							{
 								"name": "pomerium-path-/.pomerium/jwt",
@@ -463,7 +484,39 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 			},
 			"useRemoteAddress": true,
 			"skipXffAppend": true,
-			"xffNumTrustedHops": 1
+			"xffNumTrustedHops": 1,
+			"localReplyConfig":{
+				"mappers":[
+					{
+						"filter":{
+							"responseFlagFilter":{}
+						},
+						"headersToAdd":[
+							{
+								"append":false,
+								"header":{
+									"key":"Strict-Transport-Security",
+									"value":"max-age=31536000; includeSubDomains; preload"
+								}
+							},
+							{
+								"append":false,
+								"header":{
+									"key":"X-Frame-Options",
+									"value":"SAMEORIGIN"
+								}
+							},
+							{
+								"append":false,
+								"header":{
+									"key":"X-XSS-Protection",
+									"value":"1; mode=block"
+								}
+							}
+						]
+					}
+				]
+			}
 		}
 	}`, filter)
 }

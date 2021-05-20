@@ -301,9 +301,9 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, domain := range domains {
-		vh := &envoy_config_route_v3.VirtualHost{
-			Name:    domain,
-			Domains: []string{domain},
+		vh, err := b.buildVirtualHost(options, domain, domain)
+		if err != nil {
+			return nil, err
 		}
 
 		if options.Addr == options.GetGRPCAddr() {
@@ -318,13 +318,6 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 			}
 		}
 
-		// these routes match /.pomerium/... and similar paths
-		rs, err := b.buildPomeriumHTTPRoutes(options, domain)
-		if err != nil {
-			return nil, err
-		}
-		vh.Routes = append(vh.Routes, rs...)
-
 		// if we're the proxy, add all the policy routes
 		if config.IsProxy(options.Services) {
 			rs, err := b.buildPolicyRoutes(options, domain)
@@ -334,31 +327,22 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 			vh.Routes = append(vh.Routes, rs...)
 		}
 
-		// if we're the proxy or authenticate service, add our global headers
-		if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
-			vh.ResponseHeadersToAdd = toEnvoyHeaders(options.GetSetResponseHeaders())
-		}
-
 		if len(vh.Routes) > 0 {
 			virtualHosts = append(virtualHosts, vh)
 		}
 	}
 
-	rs, err := b.buildPomeriumHTTPRoutes(options, "*")
+	vh, err := b.buildVirtualHost(options, "catch-all", "*")
 	if err != nil {
 		return nil, err
 	}
-	virtualHosts = append(virtualHosts, &envoy_config_route_v3.VirtualHost{
-		Name:    "catch-all",
-		Domains: []string{"*"},
-		Routes:  rs,
-	})
+	virtualHosts = append(virtualHosts, vh)
 
 	var grpcClientTimeout *durationpb.Duration
 	if options.GRPCClientTimeout != 0 {
-		grpcClientTimeout = ptypes.DurationProto(options.GRPCClientTimeout)
+		grpcClientTimeout = durationpb.New(options.GRPCClientTimeout)
 	} else {
-		grpcClientTimeout = ptypes.DurationProto(30 * time.Second)
+		grpcClientTimeout = durationpb.New(30 * time.Second)
 	}
 
 	extAuthZ := marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthz{
@@ -473,6 +457,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		UseRemoteAddress:  &wrappers.BoolValue{Value: true},
 		SkipXffAppend:     options.SkipXffAppend,
 		XffNumTrustedHops: options.XffNumTrustedHops,
+		LocalReplyConfig:  b.buildLocalReplyConfig(options),
 	})
 
 	return &envoy_config_listener_v3.Filter{
