@@ -53,7 +53,7 @@ func (ce *CustomEvaluator) Evaluate(ctx context.Context, req *CustomEvaluatorReq
 		return nil, err
 	}
 
-	resultSet, err := q.Eval(ctx, rego.EvalInput(struct {
+	resultSet, err := safeEval(ctx, q, rego.EvalInput(struct {
 		HTTP    RequestHTTP    `json:"http"`
 		Session RequestSession `json:"session"`
 	}{HTTP: req.HTTP, Session: req.Session}))
@@ -61,27 +61,25 @@ func (ce *CustomEvaluator) Evaluate(ctx context.Context, req *CustomEvaluatorReq
 		return nil, err
 	}
 
-	vars, ok := resultSet[0].Bindings.WithoutWildcards()["result"].(map[string]interface{})
-	if !ok {
-		vars = make(map[string]interface{})
-	}
-
+	vars := ce.getVars(resultSet)
 	res := &CustomEvaluatorResponse{
-		Headers: getHeadersVar(resultSet[0].Bindings.WithoutWildcards()),
+		Headers: getHeadersVar(vars),
 	}
-	res.Allowed, _ = vars["allow"].(bool)
-	if v, ok := vars["deny"]; ok {
-		// support `deny = true`
-		if b, ok := v.(bool); ok {
-			res.Denied = b
-		}
+	if result, ok := vars["result"].(rego.Vars); ok {
+		res.Allowed, _ = result["allow"].(bool)
+		if v, ok := result["deny"]; ok {
+			// support `deny = true`
+			if b, ok := v.(bool); ok {
+				res.Denied = b
+			}
 
-		// support `deny[reason] = true`
-		if m, ok := v.(map[string]interface{}); ok {
-			for mk, mv := range m {
-				if b, ok := mv.(bool); ok {
-					res.Denied = b
-					res.Reason = mk
+			// support `deny[reason] = true`
+			if m, ok := v.(map[string]interface{}); ok {
+				for mk, mv := range m {
+					if b, ok := mv.(bool); ok {
+						res.Denied = b
+						res.Reason = mk
+					}
 				}
 			}
 		}
@@ -121,4 +119,11 @@ func (ce *CustomEvaluator) getPreparedEvalQuery(ctx context.Context, src string)
 
 	ce.queries[src] = q
 	return q, nil
+}
+
+func (ce *CustomEvaluator) getVars(resultSet rego.ResultSet) rego.Vars {
+	if len(resultSet) == 0 {
+		return make(rego.Vars)
+	}
+	return resultSet[0].Bindings.WithoutWildcards()
 }
