@@ -79,6 +79,11 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
 	}
 
+	// if we're logged in, don't redirect, deny with forbidden
+	if req.Session.ID != "" {
+		return a.deniedResponse(ctx, in, http.StatusForbidden, http.StatusText(http.StatusForbidden), nil)
+	}
+
 	return a.redirectResponse(ctx, in)
 }
 
