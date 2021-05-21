@@ -44,6 +44,12 @@ func Test(t *testing.T) {
 					{Name: "accept"},
 				},
 			},
+			{
+				Action: parser.ActionAllow,
+				And: []parser.Criterion{
+					{Name: "accept"},
+				},
+			},
 		},
 	})
 	assert.NoError(t, err)
@@ -65,10 +71,13 @@ accept_2 {
 	1 == 1
 }
 
-and_0 {
-	accept_0
-	accept_1
-	accept_2
+and_0 = v1 {
+	v1 := accept_0
+	v1
+	v2 := accept_1
+	v2
+	v3 := accept_2
+	v3
 }
 
 accept_3 {
@@ -83,16 +92,19 @@ accept_5 {
 	1 == 1
 }
 
-or_0 {
-	accept_3
+or_0 = v1 {
+	v1 := accept_3
+	v1
 }
 
-else {
-	accept_4
+else = v2 {
+	v2 := accept_4
+	v2
 }
 
-else {
-	accept_5
+else = v3 {
+	v3 := accept_5
+	v3
 }
 
 accept_6 {
@@ -107,10 +119,13 @@ accept_8 {
 	1 == 1
 }
 
-not_0 {
-	not accept_6
-	not accept_7
-	not accept_8
+not_0 = v1 {
+	v1 := accept_6
+	not v1
+	v2 := accept_7
+	not v2
+	v3 := accept_8
+	not v3
 }
 
 accept_9 {
@@ -125,23 +140,53 @@ accept_11 {
 	1 == 1
 }
 
-nor_0 {
-	not accept_9
+nor_0 = v1 {
+	v1 := accept_9
+	not v1
 }
 
-else {
-	not accept_10
+else = v2 {
+	v2 := accept_10
+	not v2
 }
 
-else {
-	not accept_11
+else = v3 {
+	v3 := accept_11
+	not v3
 }
 
-allow {
-	and_0
-	or_0
-	not_0
-	nor_0
+accept_12 {
+	1 == 1
+}
+
+and_1 = v1 {
+	v1 := accept_12
+	v1
+}
+
+allow = v1 {
+	v1 := and_0
+	v1
+}
+
+else = v2 {
+	v2 := or_0
+	v2
+}
+
+else = v3 {
+	v3 := not_0
+	v3
+}
+
+else = v4 {
+	v4 := nor_0
+	v4
+}
+
+else = v5 {
+	v5 := and_1
+	v5
 }
 `, string(format.MustAst(mod)))
 }

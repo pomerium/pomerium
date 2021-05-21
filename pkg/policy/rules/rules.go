@@ -7,11 +7,13 @@ import "github.com/open-policy-agent/opa/ast"
 func GetSession() *ast.Rule {
 	return ast.MustParseRule(`
 get_session(id) = v {
-	v := get_databroker_record("type.googleapis.com/user.ServiceAccount", id)
+	v = get_databroker_record("type.googleapis.com/user.ServiceAccount", id)
+	v != null
 } else = v {
-	v := get_databroker_record("type.googleapis.com/session.Session", id)
-} else = v {
-	v := {}
+	v = get_databroker_record("type.googleapis.com/session.Session", id)
+	v != null
+} else = {} {
+	true
 }
 `)
 }
@@ -20,11 +22,13 @@ get_session(id) = v {
 func GetUser() *ast.Rule {
 	return ast.MustParseRule(`
 get_user(session) = v {
-	v := get_databroker_record("type.googleapis.com/user.User", session.impersonate_user_id)
+	v = get_databroker_record("type.googleapis.com/user.User", session.impersonate_user_id)
+	v != null
 } else = v {
-	v := get_databroker_record("type.googleapis.com/user.User", session.user_id)
-} else = v {
-	v := {}
+	v = get_databroker_record("type.googleapis.com/user.User", session.user_id)
+	v != null
+} else = {} {
+	true
 }
 `)
 }
@@ -33,11 +37,11 @@ get_user(session) = v {
 func GetUserEmail() *ast.Rule {
 	return ast.MustParseRule(`
 get_user_email(session, user) = v {
-	v := session.impersonate_email
+	v = session.impersonate_email
 } else = v {
-	v := user.email
-} else = v {
-	v := ""
+	v = user.email
+} else = "" {
+	true
 }
 `)
 }
@@ -46,11 +50,13 @@ get_user_email(session, user) = v {
 func GetDirectoryUser() *ast.Rule {
 	return ast.MustParseRule(`
 get_directory_user(session) = v {
-	v := get_databroker_record("type.googleapis.com/directory.User", session.impersonate_user_id)
+	v = get_databroker_record("type.googleapis.com/directory.User", session.impersonate_user_id)
+	v != null
 } else = v {
-	v := get_databroker_record("type.googleapis.com/directory.User", session.user_id)
-} else = v {
-	v := {}
+	v = get_databroker_record("type.googleapis.com/directory.User", session.user_id)
+	v != null
+} else = "" {
+	true
 }
 `)
 }
@@ -59,9 +65,10 @@ get_directory_user(session) = v {
 func GetDirectoryGroup() *ast.Rule {
 	return ast.MustParseRule(`
 get_directory_group(id) = v {
-	v := get_databroker_record("type.googleapis.com/directory.Group", id)
-} else = v {
-	v := {}
+	v = get_databroker_record("type.googleapis.com/directory.Group", id)
+	v != null
+} else = {} {
+	true
 }
 `)
 }
@@ -70,11 +77,13 @@ get_directory_group(id) = v {
 func GetGroupIDs() *ast.Rule {
 	return ast.MustParseRule(`
 get_group_ids(session, directory_user) = v {
-	v := session.impersonate_groups
+	v = session.impersonate_groups
+	v != null
 } else = v {
-	v := directory_user.group_ids
-} else = v {
-	v := []
+	v = directory_user.group_ids
+	v != null
+} else = [] {
+	true
 }
 `)
 }

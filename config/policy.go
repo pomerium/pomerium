@@ -540,6 +540,50 @@ func (p *Policy) IsForKubernetes() bool {
 	return p.KubernetesServiceAccountTokenFile != "" || p.KubernetesServiceAccountToken != ""
 }
 
+// AllAllowedDomains returns all the allowed domains.
+func (p *Policy) AllAllowedDomains() []string {
+	var ads []string
+	ads = append(ads, p.AllowedDomains...)
+	for _, sp := range p.SubPolicies {
+		ads = append(ads, sp.AllowedDomains...)
+	}
+	return ads
+}
+
+// AllAllowedGroups returns all the allowed groups.
+func (p *Policy) AllAllowedGroups() []string {
+	var ags []string
+	ags = append(ags, p.AllowedGroups...)
+	for _, sp := range p.SubPolicies {
+		ags = append(ags, sp.AllowedGroups...)
+	}
+	return ags
+}
+
+// AllAllowedIDPClaims returns all the allowed IDP claims.
+func (p *Policy) AllAllowedIDPClaims() []identity.FlattenedClaims {
+	var aics []identity.FlattenedClaims
+	if len(p.AllowedIDPClaims) > 0 {
+		aics = append(aics, p.AllowedIDPClaims)
+	}
+	for _, sp := range p.SubPolicies {
+		if len(sp.AllowedIDPClaims) > 0 {
+			aics = append(aics, sp.AllowedIDPClaims)
+		}
+	}
+	return aics
+}
+
+// AllAllowedUsers returns all the allowed users.
+func (p *Policy) AllAllowedUsers() []string {
+	var aus []string
+	aus = append(aus, p.AllowedUsers...)
+	for _, sp := range p.SubPolicies {
+		aus = append(aus, sp.AllowedUsers...)
+	}
+	return aus
+}
+
 // StringURL stores a URL as a string in json.
 type StringURL struct {
 	*url.URL
