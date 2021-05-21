@@ -84,7 +84,7 @@ To build Pomerium, we must [install go](https://golang.org/doc/install) which is
 
 ```bash
 # install dependencies with apt
-sudo apt-get update && sudo apt-get install -y wget make
+sudo apt-get update && sudo apt-get install -y wget make zip
 
 # download go
 wget https://golang.org/dl/go1.16.4.linux-amd64.tar.gz
@@ -112,10 +112,11 @@ Finally, now that we've got Go all we need to go is grab the latest source and b
 git clone https://github.com/pomerium/pomerium.git
 
 # build pomerium
-cd pomerium && make build
+cd pomerium
+make build
 # run pomerium!
 ./bin/pomerium --version
-# v0.2.0+e1c00b1
+# v0.14.0-28-g38a75913+38a75913
 ```
 
 Happy remote hacking!!!😁
