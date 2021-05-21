@@ -88,7 +88,25 @@ func newPolicyEvaluator(opts *config.Options, store *evaluator.Store) (*evaluato
 	ctx := context.Background()
 	_, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
-	return evaluator.New(ctx, store, opts)
+
+	clientCA, err := opts.GetClientCA()
+	if err != nil {
+		return nil, fmt.Errorf("authorize: invalid client CA: %w", err)
+	}
+
+	authenticateURL, err := opts.GetAuthenticateURL()
+	if err != nil {
+		return nil, fmt.Errorf("authorize: invalid authenticate url: %w", err)
+	}
+
+	return evaluator.New(ctx, store,
+		evaluator.WithPolicies(opts.GetAllPolicies()),
+		evaluator.WithClientCA(clientCA),
+		evaluator.WithSigningKey(opts.SigningKeyAlgorithm, opts.SigningKey),
+		evaluator.WithAuthenticateURL(authenticateURL.String()),
+		evaluator.WithGoogleCloudServerlessAuthenticationServiceAccount(opts.GetGoogleCloudServerlessAuthenticationServiceAccount()),
+		evaluator.WithJWTClaimsHeaders(opts.JWTClaimsHeaders),
+	)
 }
 
 // OnConfigChange updates internal structures based on config.Options

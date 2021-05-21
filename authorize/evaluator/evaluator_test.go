@@ -2,7 +2,6 @@ package evaluator
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"math"
 	"net/url"
@@ -32,75 +31,77 @@ func TestEvaluator(t *testing.T) {
 	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey, jose.ES256)
 	require.NoError(t, err)
 
-	eval := func(t *testing.T, options *config.Options, data []proto.Message, req *Request) (*Result, error) {
+	eval := func(t *testing.T, options []Option, data []proto.Message, req *Request) (*Result, error) {
 		store := NewStoreFromProtos(math.MaxUint64, data...)
 		store.UpdateIssuer("authenticate.example.com")
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := New(context.Background(), store, options)
+		e, err := New(context.Background(), store, options...)
 		require.NoError(t, err)
 		return e.Evaluate(context.Background(), req)
 	}
 
-	options := &config.Options{
-		ClientCA: base64.StdEncoding.EncodeToString([]byte(testCA)),
-		Policies: []config.Policy{
-			{
-				To:                               config.WeightedURLs{{URL: *mustParseURL("https://to1.example.com")}},
-				AllowPublicUnauthenticatedAccess: true,
-			},
-			{
-				To:                               config.WeightedURLs{{URL: *mustParseURL("https://to2.example.com")}},
-				AllowPublicUnauthenticatedAccess: true,
-				KubernetesServiceAccountToken:    "KUBERNETES",
-			},
-			{
-				To:                               config.WeightedURLs{{URL: *mustParseURL("https://to3.example.com")}},
-				AllowPublicUnauthenticatedAccess: true,
-				EnableGoogleCloudServerlessAuthentication: true,
-			},
-			{
-				To:           config.WeightedURLs{{URL: *mustParseURL("https://to4.example.com")}},
-				AllowedUsers: []string{"a@example.com"},
-			},
-			{
-				To: config.WeightedURLs{{URL: *mustParseURL("https://to5.example.com")}},
-				SubPolicies: []config.SubPolicy{
-					{
-						AllowedUsers: []string{"a@example.com"},
-					},
+	policies := []config.Policy{
+		{
+			To:                               config.WeightedURLs{{URL: *mustParseURL("https://to1.example.com")}},
+			AllowPublicUnauthenticatedAccess: true,
+		},
+		{
+			To:                               config.WeightedURLs{{URL: *mustParseURL("https://to2.example.com")}},
+			AllowPublicUnauthenticatedAccess: true,
+			KubernetesServiceAccountToken:    "KUBERNETES",
+		},
+		{
+			To:                               config.WeightedURLs{{URL: *mustParseURL("https://to3.example.com")}},
+			AllowPublicUnauthenticatedAccess: true,
+			EnableGoogleCloudServerlessAuthentication: true,
+		},
+		{
+			To:           config.WeightedURLs{{URL: *mustParseURL("https://to4.example.com")}},
+			AllowedUsers: []string{"a@example.com"},
+		},
+		{
+			To: config.WeightedURLs{{URL: *mustParseURL("https://to5.example.com")}},
+			SubPolicies: []config.SubPolicy{
+				{
+					AllowedUsers: []string{"a@example.com"},
 				},
 			},
-			{
-				To:           config.WeightedURLs{{URL: *mustParseURL("https://to6.example.com")}},
-				AllowedUsers: []string{"example/1234"},
-			},
-			{
-				To:             config.WeightedURLs{{URL: *mustParseURL("https://to7.example.com")}},
-				AllowedDomains: []string{"example.com"},
-			},
-			{
-				To:            config.WeightedURLs{{URL: *mustParseURL("https://to8.example.com")}},
-				AllowedGroups: []string{"group1@example.com"},
-			},
-			{
-				To:                        config.WeightedURLs{{URL: *mustParseURL("https://to9.example.com")}},
-				AllowAnyAuthenticatedUser: true,
-			},
 		},
+		{
+			To:           config.WeightedURLs{{URL: *mustParseURL("https://to6.example.com")}},
+			AllowedUsers: []string{"example/1234"},
+		},
+		{
+			To:             config.WeightedURLs{{URL: *mustParseURL("https://to7.example.com")}},
+			AllowedDomains: []string{"example.com"},
+		},
+		{
+			To:            config.WeightedURLs{{URL: *mustParseURL("https://to8.example.com")}},
+			AllowedGroups: []string{"group1@example.com"},
+		},
+		{
+			To:                        config.WeightedURLs{{URL: *mustParseURL("https://to9.example.com")}},
+			AllowAnyAuthenticatedUser: true,
+		},
+	}
+	options := []Option{
+		WithAuthenticateURL("https://authn.example.com"),
+		WithClientCA([]byte(testCA)),
+		WithPolicies(policies),
 	}
 
 	t.Run("client certificate", func(t *testing.T) {
 		t.Run("invalid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
-				Policy: &options.Policies[0],
+				Policy: &policies[0],
 			})
 			require.NoError(t, err)
 			assert.Equal(t, &Denial{Status: 495, Message: "invalid client certificate"}, res.Deny)
 		})
 		t.Run("valid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
-				Policy: &options.Policies[0],
+				Policy: &policies[0],
 				HTTP: RequestHTTP{
 					ClientCertificate: testValidCert,
 				},
@@ -122,7 +123,7 @@ func TestEvaluator(t *testing.T) {
 					Email: "a@example.com",
 				},
 			}, &Request{
-				Policy: &options.Policies[1],
+				Policy: &policies[1],
 				Session: RequestSession{
 					ID: "session1",
 				},
@@ -149,7 +150,7 @@ func TestEvaluator(t *testing.T) {
 						Email: "a@example.com",
 					},
 				}, &Request{
-					Policy: &options.Policies[2],
+					Policy: &policies[2],
 					Session: RequestSession{
 						ID: "session1",
 					},
@@ -176,7 +177,7 @@ func TestEvaluator(t *testing.T) {
 					Email: "a@example.com",
 				},
 			}, &Request{
-				Policy: &options.Policies[3],
+				Policy: &policies[3],
 				Session: RequestSession{
 					ID: "session1",
 				},
@@ -200,7 +201,7 @@ func TestEvaluator(t *testing.T) {
 					Email: "a@example.com",
 				},
 			}, &Request{
-				Policy: &options.Policies[4],
+				Policy: &policies[4],
 				Session: RequestSession{
 					ID: "session1",
 				},
@@ -224,7 +225,7 @@ func TestEvaluator(t *testing.T) {
 					Email: "b@example.com",
 				},
 			}, &Request{
-				Policy: &options.Policies[3],
+				Policy: &policies[3],
 				Session: RequestSession{
 					ID: "session1",
 				},
@@ -251,7 +252,7 @@ func TestEvaluator(t *testing.T) {
 					Email: "b@example.com",
 				},
 			}, &Request{
-				Policy: &options.Policies[3],
+				Policy: &policies[3],
 				Session: RequestSession{
 					ID: "session1",
 				},
@@ -276,7 +277,7 @@ func TestEvaluator(t *testing.T) {
 					Email: "a@example.com",
 				},
 			}, &Request{
-				Policy: &options.Policies[3],
+				Policy: &policies[3],
 				Session: RequestSession{
 					ID: "session1",
 				},
@@ -301,7 +302,7 @@ func TestEvaluator(t *testing.T) {
 				Email: "a@example.com",
 			},
 		}, &Request{
-			Policy: &options.Policies[5],
+			Policy: &policies[5],
 			Session: RequestSession{
 				ID: "session1",
 			},
@@ -325,7 +326,7 @@ func TestEvaluator(t *testing.T) {
 				Email: "a@example.com",
 			},
 		}, &Request{
-			Policy: &options.Policies[6],
+			Policy: &policies[6],
 			Session: RequestSession{
 				ID: "session1",
 			},
@@ -350,7 +351,7 @@ func TestEvaluator(t *testing.T) {
 				Email: "a@notexample.com",
 			},
 		}, &Request{
-			Policy: &options.Policies[6],
+			Policy: &policies[6],
 			Session: RequestSession{
 				ID: "session1",
 			},
@@ -383,7 +384,7 @@ func TestEvaluator(t *testing.T) {
 				Email: "group1@example.com",
 			},
 		}, &Request{
-			Policy: &options.Policies[7],
+			Policy: &policies[7],
 			Session: RequestSession{
 				ID: "session1",
 			},
@@ -416,7 +417,7 @@ func TestEvaluator(t *testing.T) {
 				Email: "group1@example.com",
 			},
 		}, &Request{
-			Policy: &options.Policies[7],
+			Policy: &policies[7],
 			Session: RequestSession{
 				ID: "session1",
 			},
@@ -439,7 +440,7 @@ func TestEvaluator(t *testing.T) {
 				Id: "user1",
 			},
 		}, &Request{
-			Policy: &options.Policies[8],
+			Policy: &policies[8],
 			Session: RequestSession{
 				ID: "session1",
 			},
@@ -465,20 +466,21 @@ func mustParseURL(str string) *url.URL {
 func BenchmarkEvaluator_Evaluate(b *testing.B) {
 	store := NewStore()
 
-	options := &config.Options{
-		AuthenticateURLString: "https://authn.example.com",
-		Policies: []config.Policy{
-			{
-				From: "https://from.example.com",
-				To: config.WeightedURLs{
-					{URL: *mustParseURL("https://to.example.com")},
-				},
-				AllowedUsers: []string{"SOME_USER"},
+	policies := []config.Policy{
+		{
+			From: "https://from.example.com",
+			To: config.WeightedURLs{
+				{URL: *mustParseURL("https://to.example.com")},
 			},
+			AllowedUsers: []string{"SOME_USER"},
 		},
 	}
+	options := []Option{
+		WithAuthenticateURL("https://authn.example.com"),
+		WithPolicies(policies),
+	}
 
-	e, err := New(context.Background(), store, options)
+	e, err := New(context.Background(), store, options...)
 	if !assert.NoError(b, err) {
 		return
 	}
@@ -549,7 +551,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
 		_, _ = e.Evaluate(ctx, &Request{
-			Policy: &options.Policies[0],
+			Policy: &policies[0],
 			HTTP: RequestHTTP{
 				Method:  "GET",
 				URL:     "https://example.com/path",

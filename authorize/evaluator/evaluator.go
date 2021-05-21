@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -63,10 +64,12 @@ type Evaluator struct {
 }
 
 // New creates a new Evaluator.
-func New(ctx context.Context, store *Store, options *config.Options) (*Evaluator, error) {
+func New(ctx context.Context, store *Store, options ...Option) (*Evaluator, error) {
 	e := &Evaluator{store: store}
 
-	err := e.updateStore(options)
+	cfg := getConfig(options...)
+
+	err := e.updateStore(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +80,7 @@ func New(ctx context.Context, store *Store, options *config.Options) (*Evaluator
 	}
 
 	e.policyEvaluators = make(map[uint64]*PolicyEvaluator)
-	for _, configPolicy := range options.GetAllPolicies() {
+	for _, configPolicy := range cfg.policies {
 		id, err := configPolicy.RouteID()
 		if err != nil {
 			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
@@ -89,10 +92,7 @@ func New(ctx context.Context, store *Store, options *config.Options) (*Evaluator
 		e.policyEvaluators[id] = policyEvaluator
 	}
 
-	e.clientCA, err = options.GetClientCA()
-	if err != nil {
-		return nil, fmt.Errorf("authorize: invalid client ca: %w", err)
-	}
+	e.clientCA = cfg.clientCA
 
 	return e, nil
 }
@@ -160,32 +160,32 @@ func (e *Evaluator) getClientCA(policy *config.Policy) (string, error) {
 	return string(e.clientCA), nil
 }
 
-func (e *Evaluator) updateStore(options *config.Options) error {
-	jwk, err := getJWK(options)
+func (e *Evaluator) updateStore(cfg *evaluatorConfig) error {
+	jwk, err := getJWK(cfg)
 	if err != nil {
 		return fmt.Errorf("authorize: couldn't create signer: %w", err)
 	}
 
-	authenticateURL, err := options.GetAuthenticateURL()
+	authenticateURL, err := urlutil.ParseAndValidateURL(cfg.authenticateURL)
 	if err != nil {
 		return fmt.Errorf("authorize: invalid authenticate URL: %w", err)
 	}
 
 	e.store.UpdateIssuer(authenticateURL.Host)
 	e.store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
-		options.GetGoogleCloudServerlessAuthenticationServiceAccount(),
+		cfg.googleCloudServerlessAuthenticationServiceAccount,
 	)
-	e.store.UpdateJWTClaimHeaders(options.JWTClaimsHeaders)
-	e.store.UpdateRoutePolicies(options.GetAllPolicies())
+	e.store.UpdateJWTClaimHeaders(cfg.jwtClaimsHeaders)
+	e.store.UpdateRoutePolicies(cfg.policies)
 	e.store.UpdateSigningKey(jwk)
 
 	return nil
 }
 
-func getJWK(options *config.Options) (*jose.JSONWebKey, error) {
+func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 	var decodedCert []byte
 	// if we don't have a signing key, generate one
-	if options.SigningKey == "" {
+	if cfg.signingKey == "" {
 		key, err := cryptutil.NewSigningKey()
 		if err != nil {
 			return nil, fmt.Errorf("couldn't generate signing key: %w", err)
@@ -196,12 +196,12 @@ func getJWK(options *config.Options) (*jose.JSONWebKey, error) {
 		}
 	} else {
 		var err error
-		decodedCert, err = base64.StdEncoding.DecodeString(options.SigningKey)
+		decodedCert, err = base64.StdEncoding.DecodeString(cfg.signingKey)
 		if err != nil {
 			return nil, fmt.Errorf("bad signing key: %w", err)
 		}
 	}
-	signingKeyAlgorithm := options.SigningKeyAlgorithm
+	signingKeyAlgorithm := cfg.signingKeyAlgorithm
 	if signingKeyAlgorithm == "" {
 		signingKeyAlgorithm = string(jose.ES256)
 	}
