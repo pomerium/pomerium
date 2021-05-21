@@ -2,7 +2,6 @@ package authorize
 
 import (
 	"context"
-	"encoding/base64"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -58,26 +57,34 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	// take the state lock here so we don't update while evaluating
 	a.stateLock.RLock()
-	reply, err := state.evaluator.Evaluate(ctx, req)
+	res, err := state.evaluator.Evaluate(ctx, req)
 	a.stateLock.RUnlock()
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("error during OPA evaluation")
 		return nil, err
 	}
 	defer func() {
-		a.logAuthorizeCheck(ctx, in, out, reply, u)
+		a.logAuthorizeCheck(ctx, in, out, res, u)
 	}()
 
-	switch {
-	case reply.Status == http.StatusOK:
-		return a.okResponse(reply), nil
-	case reply.Status == http.StatusUnauthorized:
-		if isForwardAuth && hreq.URL.Path == "/verify" {
-			return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
-		}
-		return a.redirectResponse(ctx, in)
+	if res.Deny != nil {
+		return a.deniedResponse(ctx, in, int32(res.Deny.Status), res.Deny.Message, nil)
 	}
-	return a.deniedResponse(ctx, in, int32(reply.Status), reply.Message, nil)
+
+	if res.Allow {
+		return a.okResponse(res), nil
+	}
+
+	if isForwardAuth && hreq.URL.Path == "/verify" {
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
+	}
+
+	// if we're logged in, don't redirect, deny with forbidden
+	if req.Session.ID != "" {
+		return a.deniedResponse(ctx, in, http.StatusForbidden, http.StatusText(http.StatusForbidden), nil)
+	}
+
+	return a.redirectResponse(ctx, in)
 }
 
 func getForwardAuthURL(r *http.Request) *url.URL {
@@ -132,38 +139,8 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 			ID: sessionState.ID,
 		}
 	}
-	p := a.getMatchingPolicy(requestURL)
-	if p != nil {
-		for _, sp := range p.SubPolicies {
-			req.CustomPolicies = append(req.CustomPolicies, sp.Rego...)
-		}
-	}
-
-	ca, err := a.getDownstreamClientCA(p)
-	if err != nil {
-		return nil, err
-	}
-	req.ClientCA = ca
-
+	req.Policy = a.getMatchingPolicy(requestURL)
 	return req, nil
-}
-
-func (a *Authorize) getDownstreamClientCA(policy *config.Policy) (string, error) {
-	options := a.currentOptions.Load()
-
-	if policy != nil && policy.TLSDownstreamClientCA != "" {
-		bs, err := base64.StdEncoding.DecodeString(policy.TLSDownstreamClientCA)
-		if err != nil {
-			return "", err
-		}
-		return string(bs), nil
-	}
-
-	ca, err := options.GetClientCA()
-	if err != nil {
-		return "", err
-	}
-	return string(ca), nil
 }
 
 func (a *Authorize) getMatchingPolicy(requestURL url.URL) *config.Policy {

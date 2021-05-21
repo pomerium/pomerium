@@ -2,8 +2,8 @@
 // decisions.
 package opa
 
-import "embed"
+import _ "embed" // to embed files
 
-// FS is the filesystem for OPA files.
-//go:embed policy
-var FS embed.FS
+// HeadersRego is the headers.rego script.
+//go:embed policy/headers.rego
+var HeadersRego string

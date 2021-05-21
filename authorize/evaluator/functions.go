@@ -8,7 +8,6 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/pomerium/pomerium/authorize/evaluator/opa"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -64,8 +63,4 @@ func parseCertificate(pemStr string) (*x509.Certificate, error) {
 		return nil, fmt.Errorf("unknown PEM type: %s", block.Type)
 	}
 	return x509.ParseCertificate(block.Bytes)
-}
-
-func readPolicy() ([]byte, error) {
-	return opa.FS.ReadFile("policy/authz.rego")
 }
