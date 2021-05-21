@@ -33,7 +33,6 @@ func (domainsCriterion) Names() []string {
 
 func (c domainsCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {
 	r := c.g.NewRule("domains")
-	r.Body = append(r.Body, ast.Assign.Expr(ast.VarTerm("rule_data"), ast.NewTerm(data.RegoValue())))
 	r.Body = append(r.Body, domainsBody...)
 
 	err := matchString(&r.Body, ast.VarTerm("domain"), data)

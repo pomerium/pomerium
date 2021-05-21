@@ -86,14 +86,14 @@ func matchStringListHas(dst *ast.Body, left *ast.Term, right parser.Value) error
 	if err != nil {
 		return err
 	}
-	*dst = append(*dst, ast.Equal.Expr(
+	*dst = append(*dst, ast.GreaterThan.Expr(
 		ast.Count.Call(
 			ast.ArrayComprehensionTerm(
 				ast.BooleanTerm(true),
 				body,
 			),
 		),
-		ast.IntNumberTerm(1),
+		ast.IntNumberTerm(0),
 	))
 	return nil
 }

@@ -64,6 +64,6 @@ func TestStringListMatcher(t *testing.T) {
 			"has": parser.String("test"),
 		})
 		require.NoError(t, err)
-		assert.Equal(t, `count([true | some v; v = example[_]; v == "test"]) == 1`, str(body))
+		assert.Equal(t, `count([true | some v; v = example[_]; v == "test"]) > 0`, str(body))
 	})
 }

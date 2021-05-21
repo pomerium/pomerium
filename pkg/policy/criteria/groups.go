@@ -53,7 +53,6 @@ func (groupsCriterion) Names() []string {
 
 func (c groupsCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {
 	r := c.g.NewRule("groups")
-	r.Body = append(r.Body, ast.Assign.Expr(ast.VarTerm("rule_data"), ast.NewTerm(data.RegoValue())))
 	r.Body = append(r.Body, groupsBody...)
 
 	err := matchStringList(&r.Body, ast.VarTerm("groups"), data)
