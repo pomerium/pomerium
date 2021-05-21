@@ -34,7 +34,6 @@ GOOS = $(shell $(GO) env GOOS)
 GOARCH= $(shell $(GO) env GOARCH)
 MISSPELL_VERSION = v0.3.4
 GOLANGCI_VERSION = v1.34.1
-OPA_VERSION = v0.26.0
 GETENVOY_VERSION = v0.2.0
 GORELEASER_VERSION = v0.157.0
 
@@ -56,7 +55,6 @@ deps-lint: ## Install lint dependencies
 .PHONY: deps-build
 deps-build: ## Install build dependencies
 	@echo "==> $@"
-	@$(GO) install github.com/open-policy-agent/opa@${OPA_VERSION}
 	@$(GO) install github.com/tetratelabs/getenvoy/cmd/getenvoy@${GETENVOY_VERSION}
 
 .PHONY: deps-release
@@ -107,7 +105,6 @@ lint: ## Verifies `golint` passes.
 test: ## Runs the go tests.
 	@echo "==> $@"
 	@$(GO) test -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
-	@opa test ./authorize/evaluator/opa/policy
 
 .PHONY: spellcheck
 spellcheck: # Spellcheck docs

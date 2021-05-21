@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"sort"
+	"strings"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
@@ -25,15 +26,15 @@ import (
 
 func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v3.CheckResponse {
 	var requestHeaders []*envoy_config_core_v3.HeaderValueOption
-	for k, v := range reply.Headers {
-		requestHeaders = append(requestHeaders, mkHeader(k, v, false))
+	for k, vs := range reply.Headers {
+		requestHeaders = append(requestHeaders, mkHeader(k, strings.Join(vs, ","), false))
 	}
 	// ensure request headers are sorted by key for deterministic output
 	sort.Slice(requestHeaders, func(i, j int) bool {
 		return requestHeaders[i].Header.Key < requestHeaders[j].Header.Value
 	})
 	return &envoy_service_auth_v3.CheckResponse{
-		Status: &status.Status{Code: int32(codes.OK), Message: reply.Message},
+		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
 		HttpResponse: &envoy_service_auth_v3.CheckResponse_OkResponse{
 			OkResponse: &envoy_service_auth_v3.OkHttpResponse{
 				Headers: requestHeaders,
@@ -47,7 +48,6 @@ func (a *Authorize) deniedResponse(
 	in *envoy_service_auth_v3.CheckRequest,
 	code int32, reason string, headers map[string]string,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-
 	var details string
 	switch code {
 	case httputil.StatusInvalidClientCertificate:
