@@ -30,7 +30,8 @@
 /recipes/kubernetes.html		/guides/kubernetes.html
 /recipes/local-oidc.html		/guides/local-oidc.html
 /recipes/mtls.html				/guides/mtls.html
-/recipes/vs-code-server.html	/guides/vs-code-server.html
+/recipes/vs-code-server.html	/guides/code-server.html
+/guides/vs-code-server.html	/guides/code-server.html
 
 
 /docs/reference/								/docs/topics/
