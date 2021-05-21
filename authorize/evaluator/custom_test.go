@@ -53,4 +53,17 @@ func TestCustomEvaluator(t *testing.T) {
 		}
 		assert.NotNil(t, res)
 	})
+	t.Run("invalid package", func(t *testing.T) {
+		ce := NewCustomEvaluator(store)
+		res, err := ce.Evaluate(ctx, &CustomEvaluatorRequest{
+			RegoPolicy: `package custom_ext_authz.rego
+allow {
+  true
+}`,
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.NotNil(t, res)
+	})
 }

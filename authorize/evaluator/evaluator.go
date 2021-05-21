@@ -78,7 +78,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return nil, fmt.Errorf("error validating client certificate: %w", err)
 	}
 
-	res, err := e.query.Eval(ctx, rego.EvalInput(e.newInput(req, isValid)))
+	res, err := safeEval(ctx, e.query, rego.EvalInput(e.newInput(req, isValid)))
 	if err != nil {
 		return nil, fmt.Errorf("error evaluating rego policy: %w", err)
 	}
@@ -184,4 +184,14 @@ func (e *Evaluator) newInput(req *Request, isValidClientCertificate bool) *input
 	i.Session = req.Session
 	i.IsValidClientCertificate = isValidClientCertificate
 	return i
+}
+
+func safeEval(ctx context.Context, q rego.PreparedEvalQuery, options ...rego.EvalOption) (resultSet rego.ResultSet, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("%v", e)
+		}
+	}()
+	resultSet, err = q.Eval(ctx, options...)
+	return resultSet, err
 }
