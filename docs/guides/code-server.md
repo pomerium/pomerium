@@ -29,7 +29,7 @@ One of the interesting attributes of [Visual Studio Code] is that it is built on
 
 [code-server] is an open-source project that allows you to run [Visual Studio Code] on a **remote** server, through the browser. For example, this is a screenshot taken at the end of this tutorial.
 
-![visual studio code building pomerium](./img/vscode-pomerium.png)
+![visual studio code with pomerium](./img/vscode-pomerium.png)
 
 ## Pre-requisites
 
@@ -51,7 +51,7 @@ idp_client_secret: REPLACE_ME
 
 policy:
   - from: https://code.corp.domain.example
-    to: http://codeserver:8443
+    to: http://codeserver:8080
     allowed_users:
       - some.user@domain.example
     allow_websockets: true
@@ -64,15 +64,13 @@ codeserver:
   image: codercom/code-server:latest
   restart: always
   ports:
-    - 8443:8443
+    - 8080:8080
   volumes:
     - ./code-server:/home/coder/project
-  command: --allow-http --no-auth --disable-telemetry
+  command: --auth none --disable-telemetry /home/coder/project
 ```
 
-Note we are mounting a directory called`./code-server`. Be sure to give the default docker user write permissions to that folder by running `chown -R 1000:1000 code-server/`.
-
-### That's it!
+### That's it
 
 Simply navigate to your domain (e.g. `https://code.corp.domain.example`).
 
@@ -85,8 +83,12 @@ As a final touch, now that we've done all this work we might as well use our new
 To build Pomerium, we must [install go](https://golang.org/doc/install) which is as simple as running the following commands in the [integrated terminal].
 
 ```bash
-wget https://dl.google.com/go/go1.12.7.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.12.7.linux-amd64.tar.gz
+# install dependencies with apt
+sudo apt-get update && sudo apt-get install -y wget make zip
+
+# download go
+wget https://golang.org/dl/go1.16.4.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.16.4.linux-amd64.tar.gz
 ```
 
 Then add Go to our [PATH].
@@ -107,17 +109,23 @@ Finally, now that we've got Go all we need to go is grab the latest source and b
 
 ```bash
 # get the latest source
-$ git clone https://github.com/pomerium/pomerium.git
-# grab make
-$ sudo apt-get install make
+git clone https://github.com/pomerium/pomerium.git
+
 # build pomerium
-$ make build
+cd pomerium
+make build
 # run pomerium!
-$ ./bin/pomerium --version
-v0.2.0+e1c00b1
+./bin/pomerium --version
+# v0.14.0-28-g38a75913+38a75913
 ```
 
 Happy remote hacking!!!😁
+
+:::tip
+
+When the code-server container is rebuilt, any files outside of `/home/coder/project` are reset, removing any dependencies (such as go and make). In a real remote development workflow, you could mount additional volumes, or [use a custom code-server container](https://github.com/cdr/deploy-code-server/tree/main/deploy-container) with these dependencies installed.
+
+:::
 
 [integrated terminal]: https://code.visualstudio.com/docs/editor/integrated-terminal
 [path]: https://en.wikipedia.org/wiki/PATH_(variable)
