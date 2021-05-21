@@ -87,7 +87,7 @@ To build Pomerium, we must [install go](https://golang.org/doc/install) which is
 sudo apt-get update && sudo apt-get install -y wget make
 
 # download go
-wget https://dl.google.com/go/go1.12.7.linux-amd64.tar.gz
+wget https://golang.org/dl/go1.16.4.linux-amd64.tar.gz
 sudo tar -C /usr/local -xzf go1.12.7.linux-amd64.tar.gz
 ```
 
