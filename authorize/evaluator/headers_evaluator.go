@@ -47,14 +47,9 @@ type HeadersEvaluator struct {
 
 // NewHeadersEvaluator creates a new HeadersEvaluator.
 func NewHeadersEvaluator(ctx context.Context, store *Store) (*HeadersEvaluator, error) {
-	headersSrc, err := opa.FS.ReadFile("policy/headers.rego")
-	if err != nil {
-		return nil, err
-	}
-
 	r := rego.New(
 		rego.Store(store),
-		rego.Module("pomerium.headers", string(headersSrc)),
+		rego.Module("pomerium.headers", opa.HeadersRego),
 		rego.Query("result = data.pomerium.headers"),
 		getGoogleCloudServerlessHeadersRegoOption,
 		store.GetDataBrokerRecordOption(),
