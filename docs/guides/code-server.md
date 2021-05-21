@@ -88,7 +88,7 @@ sudo apt-get update && sudo apt-get install -y wget make
 
 # download go
 wget https://golang.org/dl/go1.16.4.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.12.7.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.16.4.linux-amd64.tar.gz
 ```
 
 Then add Go to our [PATH].
