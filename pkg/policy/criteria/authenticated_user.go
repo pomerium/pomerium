@@ -3,6 +3,7 @@ package criteria
 import (
 	"github.com/open-policy-agent/opa/ast"
 
+	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/policy/rules"
 )
@@ -15,6 +16,10 @@ var authenticatedUserBody = ast.Body{
 
 type authenticatedUserCriterion struct {
 	g *Generator
+}
+
+func (authenticatedUserCriterion) DataType() CriterionDataType {
+	return generator.CriterionDataTypeUnused
 }
 
 func (authenticatedUserCriterion) Names() []string {

@@ -14,8 +14,10 @@ func TestGroups(t *testing.T) {
 		res, err := evaluate(t, `
 allow:
   and:
-    - groups: group1
-    - groups: group2
+    - groups:
+        has: group1
+    - groups:
+        has: group2
 `, []dataBrokerRecord{}, Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, false, res["allow"])
@@ -25,7 +27,8 @@ allow:
 		res, err := evaluate(t, `
 allow:
   and:
-    - groups: group1
+    - groups:
+        has: group1
 `,
 			[]dataBrokerRecord{
 				&session.Session{
@@ -46,7 +49,8 @@ allow:
 		res, err := evaluate(t, `
 allow:
   and:
-    - groups: "group1@example.com"
+    - groups:
+        has: "group1@example.com"
 `,
 			[]dataBrokerRecord{
 				&session.Session{
@@ -71,7 +75,8 @@ allow:
 		res, err := evaluate(t, `
 allow:
   and:
-    - groups: "Group 1"
+    - groups:
+        has: "Group 1"
 `,
 			[]dataBrokerRecord{
 				&session.Session{

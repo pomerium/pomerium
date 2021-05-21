@@ -40,14 +40,18 @@ func (p *Policy) ToPPL() *parser.Policy {
 		allowRule.Or = append(allowRule.Or,
 			parser.Criterion{
 				Name: "domain",
-				Data: parser.String(ad),
+				Data: parser.Object{
+					"is": parser.String(ad),
+				},
 			})
 	}
 	for _, ag := range p.AllAllowedGroups() {
 		allowRule.Or = append(allowRule.Or,
 			parser.Criterion{
 				Name: "group",
-				Data: parser.String(ag),
+				Data: parser.Object{
+					"has": parser.String(ag),
+				},
 			})
 	}
 	for _, aic := range p.AllAllowedIDPClaims() {
@@ -64,11 +68,15 @@ func (p *Policy) ToPPL() *parser.Policy {
 		allowRule.Or = append(allowRule.Or,
 			parser.Criterion{
 				Name: "user",
-				Data: parser.String(au),
+				Data: parser.Object{
+					"is": parser.String(au),
+				},
 			},
 			parser.Criterion{
 				Name: "email",
-				Data: parser.String(au),
+				Data: parser.Object{
+					"is": parser.String(au),
+				},
 			})
 	}
 	ppl.Rules = append(ppl.Rules, allowRule)

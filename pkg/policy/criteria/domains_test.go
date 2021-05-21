@@ -15,7 +15,8 @@ func TestDomains(t *testing.T) {
 		res, err := evaluate(t, `
 allow:
   and:
-    - domain: example.com
+    - domain:
+        is: example.com
 `, []dataBrokerRecord{}, Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, false, res["allow"])
@@ -25,7 +26,8 @@ allow:
 		res, err := evaluate(t, `
 allow:
   and:
-    - domain: example.com
+    - domain:
+        is: example.com
 `,
 			[]dataBrokerRecord{
 				&session.Session{
@@ -46,7 +48,8 @@ allow:
 		res, err := evaluate(t, `
 allow:
   and:
-    - domain: example.com
+    - domain:
+        is: example.com
 `,
 			[]dataBrokerRecord{
 				&session.Session{
