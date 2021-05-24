@@ -5,6 +5,14 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.14.0
+
+## Breaking
+
+### Policy Certificate Authority
+
+The globally configured certificate authority (`ca` or `ca_file`) previously only applied to internal connections between pomerium services. It will now also be used for upstream policy connections if no policy-specific certificate authority is specified.
+
 # Since 0.13.0
 
 ## New
