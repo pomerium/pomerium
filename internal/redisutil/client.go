@@ -271,9 +271,6 @@ func ParseSentinelURL(rawurl string) (*redis.FailoverOptions, error) {
 	if err := parseBoolParam(&opts.UseDisconnectedSlaves, q, "use_disconnected_slaves"); err != nil {
 		return nil, err
 	}
-	if err := parseBoolParam(&opts.QuerySentinelRandomly, q, "query_sentinel_randomly"); err != nil {
-		return nil, err
-	}
 	opts.Username = q.Get("username")
 	opts.Password = q.Get("password")
 	if err := parseIntParam(&opts.MaxRetries, q, "max_retries"); err != nil {
