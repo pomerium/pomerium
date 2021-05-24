@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/storage"
 
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
@@ -29,13 +28,13 @@ type CustomEvaluatorResponse struct {
 
 // A CustomEvaluator evaluates custom rego policies.
 type CustomEvaluator struct {
-	store   storage.Store
+	store   *Store
 	mu      sync.Mutex
 	queries map[string]rego.PreparedEvalQuery
 }
 
 // NewCustomEvaluator creates a new CustomEvaluator.
-func NewCustomEvaluator(store storage.Store) *CustomEvaluator {
+func NewCustomEvaluator(store *Store) *CustomEvaluator {
 	ce := &CustomEvaluator{
 		store:   store,
 		queries: map[string]rego.PreparedEvalQuery{},
@@ -102,6 +101,8 @@ func (ce *CustomEvaluator) getPreparedEvalQuery(ctx context.Context, src string)
 		rego.Store(ce.store),
 		rego.Module("pomerium.custom_policy", src),
 		rego.Query("result = data.pomerium.custom_policy"),
+		getGoogleCloudServerlessHeadersRegoOption,
+		ce.store.GetDataBrokerRecordOption(),
 	)
 	q, err := r.PrepareForEval(ctx)
 	if err != nil {
@@ -111,6 +112,8 @@ func (ce *CustomEvaluator) getPreparedEvalQuery(ctx context.Context, src string)
 				rego.Store(ce.store),
 				rego.Module("pomerium.custom_policy", "package pomerium.custom_policy\n\n"+src),
 				rego.Query("result = data.pomerium.custom_policy"),
+				getGoogleCloudServerlessHeadersRegoOption,
+				ce.store.GetDataBrokerRecordOption(),
 			)
 			q, err = r.PrepareForEval(ctx)
 		}
