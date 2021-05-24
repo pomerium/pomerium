@@ -44,7 +44,7 @@ require (
 	github.com/pomerium/csrf v1.7.0
 	github.com/prometheus/client_golang v1.10.0
 	github.com/prometheus/client_model v0.2.0
-	github.com/prometheus/common v0.24.0
+	github.com/prometheus/common v0.25.0
 	github.com/prometheus/procfs v0.6.0
 	github.com/rjeczalik/notify v0.9.3-0.20201210012515-e2a77dcc14cf
 	github.com/rs/cors v1.7.0
