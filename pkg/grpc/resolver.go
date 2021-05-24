@@ -63,8 +63,8 @@ type pomeriumClientConn struct {
 	resolver.ClientConn
 }
 
-func (pcc *pomeriumClientConn) UpdateState(state resolver.State) {
-	pcc.ClientConn.UpdateState(pcc.data.updateState(pcc.idx, state))
+func (pcc *pomeriumClientConn) UpdateState(state resolver.State) error {
+	return pcc.ClientConn.UpdateState(pcc.data.updateState(pcc.idx, state))
 }
 
 type pomeriumClientConnData struct {
