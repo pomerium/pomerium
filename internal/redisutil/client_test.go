@@ -50,7 +50,6 @@ func TestParseSentinelURL(t *testing.T) {
 	opts, err := ParseSentinelURL("redis+sentinel://:SENTINEL_PASSWORD@localhost:26379,otherhost:26479/mymaster/3?" + (&url.Values{
 		"slave_only":              {"true"},
 		"use_disconnected_slaves": {"T"},
-		"query_sentinel_randomly": {"1"},
 		"username":                {"USERNAME"},
 		"password":                {"PASSWORD"},
 		"max_retries":             {"11"},
@@ -72,7 +71,6 @@ func TestParseSentinelURL(t *testing.T) {
 	assert.Equal(t, "SENTINEL_PASSWORD", opts.SentinelPassword)
 	assert.True(t, opts.SlaveOnly)
 	assert.True(t, opts.UseDisconnectedSlaves)
-	assert.True(t, opts.QuerySentinelRandomly)
 	assert.Equal(t, "USERNAME", opts.Username)
 	assert.Equal(t, "PASSWORD", opts.Password)
 	assert.Equal(t, 3, opts.DB)
