@@ -165,21 +165,11 @@ func (b *Builder) buildInternalTransportSocket(ctx context.Context, options *con
 			},
 		}},
 	}
-	if options.CAFile != "" {
-		validationContext.TrustedCa = b.filemgr.FileDataSource(options.CAFile)
-	} else if options.CA != "" {
-		bs, err := base64.StdEncoding.DecodeString(options.CA)
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("invalid custom CA certificate")
-		}
-		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
+	bs, err := getCombinedCertificateAuthority(options.CA, options.CAFile)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 	} else {
-		rootCA, err := getRootCertificateAuthority()
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
-		} else {
-			validationContext.TrustedCa = b.filemgr.FileDataSource(rootCA)
-		}
+		validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
 	}
 	tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
@@ -290,20 +280,12 @@ func (b *Builder) buildPolicyValidationContext(
 			log.Error(ctx).Err(err).Msg("invalid custom CA certificate")
 		}
 		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
-	} else if options.CAFile != "" {
-		validationContext.TrustedCa = b.filemgr.FileDataSource(options.CAFile)
-	} else if options.CA != "" {
-		bs, err := base64.StdEncoding.DecodeString(options.CA)
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("invalid custom CA certificate")
-		}
-		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
 	} else {
-		rootCA, err := getRootCertificateAuthority()
+		bs, err := getCombinedCertificateAuthority(options.CA, options.CAFile)
 		if err != nil {
 			log.Error(ctx).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 		} else {
-			validationContext.TrustedCa = b.filemgr.FileDataSource(rootCA)
+			validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
 		}
 	}
 

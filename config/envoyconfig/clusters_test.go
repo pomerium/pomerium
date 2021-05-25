@@ -24,12 +24,15 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-32484c314b584447463735303142374c31414145374650305a525539554938594d524855353757313942494d473847535231.pem")
 
 	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
-	rootCAPath, _ := getRootCertificateAuthority()
-	rootCA := b.filemgr.FileDataSource(rootCAPath).GetFilename()
+	rootCABytes, _ := getCombinedCertificateAuthority("", "")
+	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 
 	o1 := config.NewDefaultOptions()
 	o2 := config.NewDefaultOptions()
 	o2.CA = base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0})
+
+	combinedCABytes, _ := getCombinedCertificateAuthority(o2.CA, "")
+	combinedCA := b.filemgr.BytesDataSource("ca.pem", combinedCABytes).GetFilename()
 
 	t.Run("insecure", func(t *testing.T) {
 		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
@@ -283,7 +286,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"exact": "example.com"
 							}],
 							"trustedCa": {
-								"filename": "`+customCA+`"
+								"filename": "`+combinedCA+`"
 							}
 						}
 					},
@@ -357,8 +360,8 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 func Test_buildCluster(t *testing.T) {
 	ctx := context.Background()
 	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
-	rootCAPath, _ := getRootCertificateAuthority()
-	rootCA := b.filemgr.FileDataSource(rootCAPath).GetFilename()
+	rootCABytes, _ := getCombinedCertificateAuthority("", "")
+	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 	o1 := config.NewDefaultOptions()
 	t.Run("insecure", func(t *testing.T) {
 		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
