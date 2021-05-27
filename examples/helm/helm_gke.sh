@@ -28,7 +28,8 @@ echo "=> install pomerium with helm"
 helm install \
 	pomerium \
 	pomerium/pomerium \
-	--set service.type="NodePort" \
+	--set proxy.service.type="NodePort" \
+	--set authenticate.service.type="NodePort" \
 	--set config.sharedSecret=$(head -c32 /dev/urandom | base64) \
 	--set config.cookieSecret=$(head -c32 /dev/urandom | base64) \
 	--set ingress.secret.name="pomerium-tls" \
