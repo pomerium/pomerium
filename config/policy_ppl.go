@@ -1,7 +1,9 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
+	"sort"
 
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
@@ -55,14 +57,23 @@ func (p *Policy) ToPPL() *parser.Policy {
 			})
 	}
 	for _, aic := range p.AllAllowedIDPClaims() {
-		o := parser.Object{}
-		bs, _ := json.Marshal(aic)
-		_ = json.Unmarshal(bs, &o)
-		allowRule.Or = append(allowRule.Or,
-			parser.Criterion{
-				Name: "claims",
-				Data: o,
-			})
+		var ks []string
+		for k := range aic {
+			ks = append(ks, k)
+		}
+		sort.Strings(ks)
+		for _, k := range ks {
+			for _, v := range aic[k] {
+				bs, _ := json.Marshal(v)
+				data, _ := parser.ParseValue(bytes.NewReader(bs))
+				allowRule.Or = append(allowRule.Or,
+					parser.Criterion{
+						Name:    "claims",
+						SubPath: k,
+						Data:    data,
+					})
+			}
+		}
 	}
 	for _, au := range p.AllAllowedUsers() {
 		allowRule.Or = append(allowRule.Or,
