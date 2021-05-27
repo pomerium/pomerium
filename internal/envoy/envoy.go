@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,13 +27,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/natefinch/atomic"
 	"github.com/rs/zerolog"
-	"go.opencensus.io/stats/view"
+	"github.com/shirou/gopsutil/process"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
@@ -61,6 +59,8 @@ type Server struct {
 	grpcPort, httpPort string
 	envoyPath          string
 	restartEpoch       int
+
+	monitorProcessCancel context.CancelFunc
 
 	mu      sync.Mutex
 	options serverOptions
@@ -107,6 +107,8 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 		grpcPort:  grpcPort,
 		httpPort:  httpPort,
 		envoyPath: envoyPath,
+
+		monitorProcessCancel: func() {},
 	}
 	go srv.runProcessCollector(ctx)
 
@@ -164,19 +166,22 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	}
 	srv.options = options
 
-	if err := srv.writeConfig(ctx, cfg); err != nil {
-		log.Error(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to write envoy config")
-		return
-	}
-
 	log.Info(ctx).Msg("envoy: starting envoy process")
-	if err := srv.run(ctx); err != nil {
+	if err := srv.run(ctx, cfg); err != nil {
 		log.Error(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to run envoy process")
 		return
 	}
 }
 
-func (srv *Server) run(ctx context.Context) error {
+func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
+	// cancel any process monitor since we will be killing the previous process
+	srv.monitorProcessCancel()
+
+	if err := srv.writeConfig(ctx, cfg); err != nil {
+		log.Error(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to write envoy config")
+		return err
+	}
+
 	args := []string{
 		"-c", configFileName,
 		"--log-level", srv.options.logLevel,
@@ -186,10 +191,10 @@ func (srv *Server) run(ctx context.Context) error {
 
 	if baseID, ok := readBaseID(); ok {
 		args = append(args, "--base-id", strconv.Itoa(baseID), "--restart-epoch", strconv.Itoa(srv.restartEpoch))
-		srv.restartEpoch++ // start with epoch zero when we're a fresh pomerium process
 	} else {
 		args = append(args, "--use-dynamic-base-id", "--base-id-path", baseIDPath)
 	}
+	srv.restartEpoch++
 
 	cmd := exec.Command(srv.envoyPath, args...) // #nosec
 	cmd.Dir = srv.wd
@@ -213,6 +218,13 @@ func (srv *Server) run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error starting envoy: %w", err)
 	}
+	// call Wait to avoid zombie processes
+	go func() { _ = cmd.Wait() }()
+
+	// monitor the process so we exit if it prematurely exits
+	var monitorProcessCtx context.Context
+	monitorProcessCtx, srv.monitorProcessCancel = context.WithCancel(context.Background())
+	go srv.monitorProcess(monitorProcessCtx, int32(cmd.Process.Pid))
 
 	// release the previous process so we can hot-reload
 	if srv.cmd != nil && srv.cmd.Process != nil {
@@ -362,34 +374,38 @@ func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 	}
 }
 
-func (srv *Server) runProcessCollector(ctx context.Context) {
-	// macos is not supported
-	if runtime.GOOS != "linux" {
-		return
+func (srv *Server) monitorProcess(ctx context.Context, pid int32) {
+	log.Info(ctx).
+		Int32("pid", pid).
+		Msg("envoy: start monitoring subprocess")
+
+	proc, err := process.NewProcessWithContext(ctx, pid)
+	if err != nil {
+		log.Fatal().Err(err).
+			Int32("pid", pid).
+			Msg("envoy: error retrieving subprocess information")
 	}
 
-	pc := metrics.NewProcessCollector("envoy")
-	if err := view.Register(pc.Views()...); err != nil {
-		log.Error(ctx).Err(err).Msg("failed to register envoy process metric views")
-	}
-
-	const collectInterval = time.Second * 10
-	ticker := time.NewTicker(collectInterval)
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		var pid int
-		srv.mu.Lock()
-		if srv.cmd != nil && srv.cmd.Process != nil {
-			pid = srv.cmd.Process.Pid
+	for {
+		// wait for the next tick
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
 		}
-		srv.mu.Unlock()
 
-		if pid > 0 {
-			err := pc.Measure(context.Background(), pid)
-			if err != nil {
-				log.Error(ctx).Err(err).Msg("failed to measure envoy process metrics")
-			}
+		running, err := proc.IsRunningWithContext(ctx)
+		if err != nil {
+			log.Fatal().Err(err).
+				Int32("pid", pid).
+				Msg("envoy: error retrieving subprocess status")
+		} else if !running {
+			log.Fatal().Err(err).
+				Int32("pid", pid).
+				Msg("envoy: subprocess exited")
 		}
 	}
 }
