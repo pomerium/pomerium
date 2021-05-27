@@ -18,7 +18,7 @@ func TestPolicy_ToPPL(t *testing.T) {
 		AllowedGroups:                    []string{"group1", "group2"},
 		AllowedUsers:                     []string{"user1", "user2"},
 		AllowedIDPClaims: map[string][]interface{}{
-			"family_name": {"Smith"},
+			"family_name": {"Smith", "Jones"},
 		},
 		SubPolicies: []SubPolicy{
 			{
@@ -212,8 +212,8 @@ groups_4 {
 }
 
 claims_0 {
-	rule_data := {"family_name": null}
-	rule_path := ""
+	rule_data := "Smith"
+	rule_path := "family_name"
 	session := get_session(input.session.id)
 	session_claims := object.get(session, "claims", {})
 	user := get_user(session)
@@ -224,8 +224,8 @@ claims_0 {
 }
 
 claims_1 {
-	rule_data := {"given_name": null}
-	rule_path := ""
+	rule_data := "Jones"
+	rule_path := "family_name"
 	session := get_session(input.session.id)
 	session_claims := object.get(session, "claims", {})
 	user := get_user(session)
@@ -236,8 +236,20 @@ claims_1 {
 }
 
 claims_2 {
-	rule_data := {"timezone": null}
-	rule_path := ""
+	rule_data := "John"
+	rule_path := "given_name"
+	session := get_session(input.session.id)
+	session_claims := object.get(session, "claims", {})
+	user := get_user(session)
+	user_claims := object.get(user, "claims", {})
+	all_claims := object.union(session_claims, user_claims)
+	values := object_get(all_claims, rule_path, [])
+	rule_data == values[_0]
+}
+
+claims_3 {
+	rule_data := "EST"
+	rule_path := "timezone"
 	session := get_session(input.session.id)
 	session_claims := object.get(session, "claims", {})
 	user := get_user(session)
@@ -403,53 +415,58 @@ else = v17 {
 }
 
 else = v18 {
-	v18 := users_0
+	v18 := claims_3
 	v18
 }
 
 else = v19 {
-	v19 := emails_0
+	v19 := users_0
 	v19
 }
 
 else = v20 {
-	v20 := users_1
+	v20 := emails_0
 	v20
 }
 
 else = v21 {
-	v21 := emails_1
+	v21 := users_1
 	v21
 }
 
 else = v22 {
-	v22 := users_2
+	v22 := emails_1
 	v22
 }
 
 else = v23 {
-	v23 := emails_2
+	v23 := users_2
 	v23
 }
 
 else = v24 {
-	v24 := users_3
+	v24 := emails_2
 	v24
 }
 
 else = v25 {
-	v25 := emails_3
+	v25 := users_3
 	v25
 }
 
 else = v26 {
-	v26 := users_4
+	v26 := emails_3
 	v26
 }
 
 else = v27 {
-	v27 := emails_4
+	v27 := users_4
 	v27
+}
+
+else = v28 {
+	v28 := emails_4
+	v28
 }
 
 allow = v1 {
