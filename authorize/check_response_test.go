@@ -30,6 +30,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 		AuthenticateURLString: "https://authenticate.example.com",
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			To:     mustParseWeightedURLs(t, "https://to.example.com"),
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
@@ -62,45 +63,30 @@ func TestAuthorize_okResponse(t *testing.T) {
 	}{
 		{
 			"ok reply",
-			&evaluator.Result{Status: 0, Message: "ok"},
+			&evaluator.Result{Allow: true},
 			&envoy_service_auth_v3.CheckResponse{
-				Status: &status.Status{Code: 0, Message: "ok"},
+				Status: &status.Status{Code: 0, Message: "OK"},
 			},
 		},
 		{
 			"ok reply with k8s svc",
-			&evaluator.Result{
-				Status:  0,
-				Message: "ok",
-				MatchingPolicy: &config.Policy{
-					KubernetesServiceAccountToken: "k8s-svc-account",
-				},
-			},
+			&evaluator.Result{Allow: true},
 			&envoy_service_auth_v3.CheckResponse{
-				Status: &status.Status{Code: 0, Message: "ok"},
+				Status: &status.Status{Code: 0, Message: "OK"},
 			},
 		},
 		{
 			"ok reply with k8s svc impersonate",
-			&evaluator.Result{
-				Status:  0,
-				Message: "ok",
-				MatchingPolicy: &config.Policy{
-					KubernetesServiceAccountToken: "k8s-svc-account",
-				},
-			},
+			&evaluator.Result{Allow: true},
 			&envoy_service_auth_v3.CheckResponse{
-				Status: &status.Status{Code: 0, Message: "ok"},
+				Status: &status.Status{Code: 0, Message: "OK"},
 			},
 		},
 		{
 			"ok reply with jwt claims header",
-			&evaluator.Result{
-				Status:  0,
-				Message: "ok",
-			},
+			&evaluator.Result{Allow: true},
 			&envoy_service_auth_v3.CheckResponse{
-				Status: &status.Status{Code: 0, Message: "ok"},
+				Status: &status.Status{Code: 0, Message: "OK"},
 			},
 		},
 	}

@@ -15,6 +15,8 @@ type (
 	Criterion = generator.Criterion
 	// A CriterionConstructor is a function which returns a Criterion for a Generator.
 	CriterionConstructor = generator.CriterionConstructor
+	// The CriterionDataType indicates the expected type of data for the criterion.
+	CriterionDataType = generator.CriterionDataType
 )
 
 var allCriteria struct {
@@ -39,3 +41,10 @@ func Register(criterionConstructor CriterionConstructor) {
 	allCriteria.a = a
 	allCriteria.Unlock()
 }
+
+const (
+	// CriterionDataTypeStringListMatcher indicates the expected data type is a string list matcher.
+	CriterionDataTypeStringListMatcher CriterionDataType = "string_list_matcher"
+	// CriterionDataTypeStringMatcher indicates the expected data type is a string matcher.
+	CriterionDataTypeStringMatcher CriterionDataType = "string_matcher"
+)

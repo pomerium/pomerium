@@ -1,10 +1,9 @@
 package criteria
 
 import (
-	"fmt"
-
 	"github.com/open-policy-agent/opa/ast"
 
+	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/policy/rules"
 )
@@ -25,20 +24,21 @@ type emailsCriterion struct {
 	g *Generator
 }
 
+func (emailsCriterion) DataType() generator.CriterionDataType {
+	return CriterionDataTypeStringMatcher
+}
+
 func (emailsCriterion) Names() []string {
 	return []string{"email", "emails"}
 }
 
 func (c emailsCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {
 	r := c.g.NewRule("emails")
-	r.Body = append(r.Body, ast.Assign.Expr(ast.VarTerm("rule_data"), ast.NewTerm(data.RegoValue())))
 	r.Body = append(r.Body, emailsBody...)
 
-	switch data.(type) {
-	case parser.String:
-		r.Body = append(r.Body, ast.MustParseExpr(`email == rule_data`))
-	default:
-		return nil, nil, fmt.Errorf("unsupported value type: %T", data)
+	err := matchString(&r.Body, ast.VarTerm("email"), data)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return r, []*ast.Rule{

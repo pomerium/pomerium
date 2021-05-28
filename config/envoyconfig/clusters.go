@@ -118,7 +118,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, options *config.Option
 	cluster.AltStatName = getClusterStatsName(policy)
 
 	name := getClusterID(policy)
-	endpoints, err := b.buildPolicyEndpoints(ctx, policy)
+	endpoints, err := b.buildPolicyEndpoints(ctx, options, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -138,10 +138,10 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, options *config.Option
 	return cluster, nil
 }
 
-func (b *Builder) buildPolicyEndpoints(ctx context.Context, policy *config.Policy) ([]Endpoint, error) {
+func (b *Builder) buildPolicyEndpoints(ctx context.Context, options *config.Options, policy *config.Policy) ([]Endpoint, error) {
 	var endpoints []Endpoint
 	for _, dst := range policy.To {
-		ts, err := b.buildPolicyTransportSocket(ctx, policy, dst.URL)
+		ts, err := b.buildPolicyTransportSocket(ctx, options, policy, dst.URL)
 		if err != nil {
 			return nil, err
 		}
@@ -165,21 +165,11 @@ func (b *Builder) buildInternalTransportSocket(ctx context.Context, options *con
 			},
 		}},
 	}
-	if options.CAFile != "" {
-		validationContext.TrustedCa = b.filemgr.FileDataSource(options.CAFile)
-	} else if options.CA != "" {
-		bs, err := base64.StdEncoding.DecodeString(options.CA)
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("invalid custom CA certificate")
-		}
-		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
+	bs, err := getCombinedCertificateAuthority(options.CA, options.CAFile)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 	} else {
-		rootCA, err := getRootCertificateAuthority()
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
-		} else {
-			validationContext.TrustedCa = b.filemgr.FileDataSource(rootCA)
-		}
+		validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
 	}
 	tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
@@ -199,12 +189,17 @@ func (b *Builder) buildInternalTransportSocket(ctx context.Context, options *con
 	}, nil
 }
 
-func (b *Builder) buildPolicyTransportSocket(ctx context.Context, policy *config.Policy, dst url.URL) (*envoy_config_core_v3.TransportSocket, error) {
+func (b *Builder) buildPolicyTransportSocket(
+	ctx context.Context,
+	options *config.Options,
+	policy *config.Policy,
+	dst url.URL,
+) (*envoy_config_core_v3.TransportSocket, error) {
 	if dst.Scheme != "https" {
 		return nil, nil
 	}
 
-	vc, err := b.buildPolicyValidationContext(ctx, policy, dst)
+	vc, err := b.buildPolicyValidationContext(ctx, options, policy, dst)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +257,9 @@ func (b *Builder) buildPolicyTransportSocket(ctx context.Context, policy *config
 
 func (b *Builder) buildPolicyValidationContext(
 	ctx context.Context,
-	policy *config.Policy, dst url.URL,
+	options *config.Options,
+	policy *config.Policy,
+	dst url.URL,
 ) (*envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext, error) {
 	sni := dst.Hostname()
 	if policy.TLSServerName != "" {
@@ -284,11 +281,11 @@ func (b *Builder) buildPolicyValidationContext(
 		}
 		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
 	} else {
-		rootCA, err := getRootCertificateAuthority()
+		bs, err := getCombinedCertificateAuthority(options.CA, options.CAFile)
 		if err != nil {
 			log.Error(ctx).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 		} else {
-			validationContext.TrustedCa = b.filemgr.FileDataSource(rootCA)
+			validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
 		}
 	}
 

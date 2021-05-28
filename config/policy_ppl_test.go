@@ -18,7 +18,7 @@ func TestPolicy_ToPPL(t *testing.T) {
 		AllowedGroups:                    []string{"group1", "group2"},
 		AllowedUsers:                     []string{"user1", "user2"},
 		AllowedIDPClaims: map[string][]interface{}{
-			"family_name": {"Smith"},
+			"family_name": {"Smith", "Jones"},
 		},
 		SubPolicies: []SubPolicy{
 			{
@@ -67,47 +67,41 @@ authenticated_user_0 {
 }
 
 domains_0 {
-	rule_data := "a.example.com"
 	session := get_session(input.session.id)
 	user := get_user(session)
 	domain := split(get_user_email(session, user), "@")[1]
-	domain == rule_data
+	domain == "a.example.com"
 }
 
 domains_1 {
-	rule_data := "b.example.com"
 	session := get_session(input.session.id)
 	user := get_user(session)
 	domain := split(get_user_email(session, user), "@")[1]
-	domain == rule_data
+	domain == "b.example.com"
 }
 
 domains_2 {
-	rule_data := "c.example.com"
 	session := get_session(input.session.id)
 	user := get_user(session)
 	domain := split(get_user_email(session, user), "@")[1]
-	domain == rule_data
+	domain == "c.example.com"
 }
 
 domains_3 {
-	rule_data := "d.example.com"
 	session := get_session(input.session.id)
 	user := get_user(session)
 	domain := split(get_user_email(session, user), "@")[1]
-	domain == rule_data
+	domain == "d.example.com"
 }
 
 domains_4 {
-	rule_data := "e.example.com"
 	session := get_session(input.session.id)
 	user := get_user(session)
 	domain := split(get_user_email(session, user), "@")[1]
-	domain == rule_data
+	domain == "e.example.com"
 }
 
 groups_0 {
-	rule_data := "group1"
 	session := get_session(input.session.id)
 	directory_user := get_directory_user(session)
 	group_ids := get_group_ids(session, directory_user)
@@ -126,13 +120,10 @@ groups_0 {
 		directory_group.email != null
 	]
 	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	some group
-	group = groups[_0]
-	group == rule_data
+	count([true | some v; v = groups[_0]; v == "group1"]) > 0
 }
 
 groups_1 {
-	rule_data := "group2"
 	session := get_session(input.session.id)
 	directory_user := get_directory_user(session)
 	group_ids := get_group_ids(session, directory_user)
@@ -151,13 +142,10 @@ groups_1 {
 		directory_group.email != null
 	]
 	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	some group
-	group = groups[_0]
-	group == rule_data
+	count([true | some v; v = groups[_0]; v == "group2"]) > 0
 }
 
 groups_2 {
-	rule_data := "group3"
 	session := get_session(input.session.id)
 	directory_user := get_directory_user(session)
 	group_ids := get_group_ids(session, directory_user)
@@ -176,13 +164,10 @@ groups_2 {
 		directory_group.email != null
 	]
 	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	some group
-	group = groups[_0]
-	group == rule_data
+	count([true | some v; v = groups[_0]; v == "group3"]) > 0
 }
 
 groups_3 {
-	rule_data := "group4"
 	session := get_session(input.session.id)
 	directory_user := get_directory_user(session)
 	group_ids := get_group_ids(session, directory_user)
@@ -201,13 +186,10 @@ groups_3 {
 		directory_group.email != null
 	]
 	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	some group
-	group = groups[_0]
-	group == rule_data
+	count([true | some v; v = groups[_0]; v == "group4"]) > 0
 }
 
 groups_4 {
-	rule_data := "group5"
 	session := get_session(input.session.id)
 	directory_user := get_directory_user(session)
 	group_ids := get_group_ids(session, directory_user)
@@ -226,14 +208,12 @@ groups_4 {
 		directory_group.email != null
 	]
 	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	some group
-	group = groups[_0]
-	group == rule_data
+	count([true | some v; v = groups[_0]; v == "group5"]) > 0
 }
 
 claims_0 {
-	rule_data := {"family_name": null}
-	rule_path := ""
+	rule_data := "Smith"
+	rule_path := "family_name"
 	session := get_session(input.session.id)
 	session_claims := object.get(session, "claims", {})
 	user := get_user(session)
@@ -244,8 +224,8 @@ claims_0 {
 }
 
 claims_1 {
-	rule_data := {"given_name": null}
-	rule_path := ""
+	rule_data := "Jones"
+	rule_path := "family_name"
 	session := get_session(input.session.id)
 	session_claims := object.get(session, "claims", {})
 	user := get_user(session)
@@ -256,8 +236,20 @@ claims_1 {
 }
 
 claims_2 {
-	rule_data := {"timezone": null}
-	rule_path := ""
+	rule_data := "John"
+	rule_path := "given_name"
+	session := get_session(input.session.id)
+	session_claims := object.get(session, "claims", {})
+	user := get_user(session)
+	user_claims := object.get(user, "claims", {})
+	all_claims := object.union(session_claims, user_claims)
+	values := object_get(all_claims, rule_path, [])
+	rule_data == values[_0]
+}
+
+claims_3 {
+	rule_data := "EST"
+	rule_path := "timezone"
 	session := get_session(input.session.id)
 	session_claims := object.get(session, "claims", {})
 	user := get_user(session)
@@ -268,78 +260,73 @@ claims_2 {
 }
 
 users_0 {
-	rule_data := "user1"
 	session := get_session(input.session.id)
 	user := get_user(session)
-	user.id == rule_data
+	user_id := user.id
+	user_id == "user1"
 }
 
 emails_0 {
-	rule_data := "user1"
 	session := get_session(input.session.id)
 	user := get_user(session)
 	email := get_user_email(session, user)
-	email == rule_data
+	email == "user1"
 }
 
 users_1 {
-	rule_data := "user2"
 	session := get_session(input.session.id)
 	user := get_user(session)
-	user.id == rule_data
+	user_id := user.id
+	user_id == "user2"
 }
 
 emails_1 {
-	rule_data := "user2"
 	session := get_session(input.session.id)
 	user := get_user(session)
 	email := get_user_email(session, user)
-	email == rule_data
+	email == "user2"
 }
 
 users_2 {
-	rule_data := "user3"
 	session := get_session(input.session.id)
 	user := get_user(session)
-	user.id == rule_data
+	user_id := user.id
+	user_id == "user3"
 }
 
 emails_2 {
-	rule_data := "user3"
 	session := get_session(input.session.id)
 	user := get_user(session)
 	email := get_user_email(session, user)
-	email == rule_data
+	email == "user3"
 }
 
 users_3 {
-	rule_data := "user4"
 	session := get_session(input.session.id)
 	user := get_user(session)
-	user.id == rule_data
+	user_id := user.id
+	user_id == "user4"
 }
 
 emails_3 {
-	rule_data := "user4"
 	session := get_session(input.session.id)
 	user := get_user(session)
 	email := get_user_email(session, user)
-	email == rule_data
+	email == "user4"
 }
 
 users_4 {
-	rule_data := "user5"
 	session := get_session(input.session.id)
 	user := get_user(session)
-	user.id == rule_data
+	user_id := user.id
+	user_id == "user5"
 }
 
 emails_4 {
-	rule_data := "user5"
 	session := get_session(input.session.id)
 	user := get_user(session)
 	email := get_user_email(session, user)
-	email == rule_data
+	email == "user5"
 }
 
 or_0 = v1 {
@@ -428,53 +415,58 @@ else = v17 {
 }
 
 else = v18 {
-	v18 := users_0
+	v18 := claims_3
 	v18
 }
 
 else = v19 {
-	v19 := emails_0
+	v19 := users_0
 	v19
 }
 
 else = v20 {
-	v20 := users_1
+	v20 := emails_0
 	v20
 }
 
 else = v21 {
-	v21 := emails_1
+	v21 := users_1
 	v21
 }
 
 else = v22 {
-	v22 := users_2
+	v22 := emails_1
 	v22
 }
 
 else = v23 {
-	v23 := emails_2
+	v23 := users_2
 	v23
 }
 
 else = v24 {
-	v24 := users_3
+	v24 := emails_2
 	v24
 }
 
 else = v25 {
-	v25 := emails_3
+	v25 := users_3
 	v25
 }
 
 else = v26 {
-	v26 := users_4
+	v26 := emails_3
 	v26
 }
 
 else = v27 {
-	v27 := emails_4
+	v27 := users_4
 	v27
+}
+
+else = v28 {
+	v28 := emails_4
+	v28
 }
 
 allow = v1 {

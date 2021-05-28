@@ -2,7 +2,6 @@ package authorize
 
 import (
 	"context"
-	"net/http"
 	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
@@ -19,7 +18,7 @@ import (
 func (a *Authorize) logAuthorizeCheck(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest, out *envoy_service_auth_v3.CheckResponse,
-	reply *evaluator.Result, u *user.User,
+	res *evaluator.Result, u *user.User,
 ) {
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.LogAuthorizeCheck")
 	defer span.End()
@@ -34,15 +33,14 @@ func (a *Authorize) logAuthorizeCheck(
 	evt = evt.Str("path", stripQueryString(hattrs.GetPath()))
 	evt = evt.Str("host", hattrs.GetHost())
 	evt = evt.Str("query", hattrs.GetQuery())
-	// reply
-	if reply != nil {
-		evt = evt.Bool("allow", reply.Status == http.StatusOK)
-		evt = evt.Int("reply-status", reply.Status)
-		evt = evt.Str("reply-message", reply.Message)
+	// result
+	if res != nil {
+		evt = evt.Bool("allow", res.Allow)
+		evt = evt.Interface("deny", res.Deny)
 		evt = evt.Str("user", u.GetId())
 		evt = evt.Str("email", u.GetEmail())
-		evt = evt.Uint64("databroker_server_version", reply.DataBrokerServerVersion)
-		evt = evt.Uint64("databroker_record_version", reply.DataBrokerRecordVersion)
+		evt = evt.Uint64("databroker_server_version", res.DataBrokerServerVersion)
+		evt = evt.Uint64("databroker_record_version", res.DataBrokerRecordVersion)
 	}
 
 	// potentially sensitive, only log if debug mode
@@ -60,9 +58,9 @@ func (a *Authorize) logAuthorizeCheck(
 			Request:  in,
 			Response: out,
 		}
-		if reply != nil {
-			record.DatabrokerServerVersion = reply.DataBrokerServerVersion
-			record.DatabrokerRecordVersion = reply.DataBrokerRecordVersion
+		if res != nil {
+			record.DatabrokerServerVersion = res.DataBrokerServerVersion
+			record.DatabrokerRecordVersion = res.DataBrokerRecordVersion
 		}
 		sealed, err := enc.Encrypt(record)
 		if err != nil {

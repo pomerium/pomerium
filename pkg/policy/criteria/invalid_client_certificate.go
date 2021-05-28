@@ -3,6 +3,7 @@ package criteria
 import (
 	"github.com/open-policy-agent/opa/ast"
 
+	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -14,6 +15,10 @@ var invalidClientCertificateBody = ast.Body{
 
 type invalidClientCertificateCriterion struct {
 	g *Generator
+}
+
+func (invalidClientCertificateCriterion) DataType() CriterionDataType {
+	return generator.CriterionDataTypeUnused
 }
 
 func (invalidClientCertificateCriterion) Names() []string {

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -201,6 +202,38 @@ func getRootCertificateAuthority() (string, error) {
 		return "", fmt.Errorf("root certificates not found")
 	}
 	return rootCABundle.value, nil
+}
+
+func getCombinedCertificateAuthority(customCA, customCAFile string) ([]byte, error) {
+	rootFile, err := getRootCertificateAuthority()
+	if err != nil {
+		return nil, err
+	}
+
+	combined, err := os.ReadFile(rootFile)
+	if err != nil {
+		return nil, fmt.Errorf("error reading root certificates: %w", err)
+	}
+
+	if customCA != "" {
+		bs, err := base64.StdEncoding.DecodeString(customCA)
+		if err != nil {
+			return nil, err
+		}
+		combined = append(combined, '\n')
+		combined = append(combined, bs...)
+	}
+
+	if customCAFile != "" {
+		bs, err := os.ReadFile(customCAFile)
+		if err != nil {
+			return nil, err
+		}
+		combined = append(combined, '\n')
+		combined = append(combined, bs...)
+	}
+
+	return combined, nil
 }
 
 func marshalAny(msg proto.Message) *anypb.Any {

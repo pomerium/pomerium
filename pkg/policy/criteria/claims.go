@@ -3,6 +3,7 @@ package criteria
 import (
 	"github.com/open-policy-agent/opa/ast"
 
+	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/policy/rules"
 )
@@ -33,6 +34,10 @@ var claimsBody = ast.Body{
 
 type claimsCriterion struct {
 	g *Generator
+}
+
+func (claimsCriterion) DataType() CriterionDataType {
+	return generator.CriterionDataTypeUnknown
 }
 
 func (claimsCriterion) Names() []string {

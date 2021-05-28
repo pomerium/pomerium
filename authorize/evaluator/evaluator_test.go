@@ -2,153 +2,457 @@ package evaluator
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
+	"math"
 	"net/url"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
-func TestJSONMarshal(t *testing.T) {
-	opt := config.NewDefaultOptions()
-	opt.AuthenticateURLString = "https://authenticate.example.com"
-	e, err := New(opt, NewStoreFromProtos(0,
-		&session.Session{
-			UserId: "user1",
-		},
-		&directory.User{
-			Id:       "user1",
-			GroupIds: []string{"group1", "group2"},
-		},
-		&directory.Group{
-			Id:    "group1",
-			Name:  "admin",
-			Email: "admin@example.com",
-		},
-		&directory.Group{
-			Id:   "group2",
-			Name: "test",
-		},
-	))
+func TestEvaluator(t *testing.T) {
+	signingKey, err := cryptutil.NewSigningKey()
 	require.NoError(t, err)
-	bs, _ := json.Marshal(e.newInput(&Request{
-		HTTP: RequestHTTP{
-			Method: "GET",
-			URL:    "https://example.com",
-			Headers: map[string]string{
-				"Accept": "application/json",
-			},
-			ClientCertificate: "CLIENT_CERTIFICATE",
-		},
-		Session: RequestSession{
-			ID: "SESSION_ID",
-		},
-	}, true))
-	assert.JSONEq(t, `{
-		"http": {
-			"client_certificate": "CLIENT_CERTIFICATE",
-			"headers": {
-				"Accept": "application/json"
-			},
-			"method": "GET",
-			"url": "https://example.com"
-		},
-		"session": {
-			"id": "SESSION_ID"
-		},
-		"is_valid_client_certificate": true
-	}`, string(bs))
-}
+	encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
+	require.NoError(t, err)
+	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey, jose.ES256)
+	require.NoError(t, err)
 
-func TestEvaluator_Evaluate(t *testing.T) {
-	sessionID := uuid.New().String()
-	userID := uuid.New().String()
-
-	ctx := context.Background()
-	allowedPolicy := []config.Policy{{From: "https://foo.com", AllowedUsers: []string{"foo@example.com"}}}
-	forbiddenPolicy := []config.Policy{{From: "https://bar.com", AllowedUsers: []string{"bar@example.com"}}}
-
-	tests := []struct {
-		name           string
-		reqURL         string
-		policies       []config.Policy
-		customPolicies []string
-		sessionID      string
-		expectedStatus int
-	}{
-		{"allowed", "https://foo.com/path", allowedPolicy, nil, sessionID, http.StatusOK},
-		{"forbidden", "https://bar.com/path", forbiddenPolicy, nil, sessionID, http.StatusForbidden},
-		{"unauthorized", "https://foo.com/path", allowedPolicy, nil, "", http.StatusUnauthorized},
-		{"custom policy overwrite main policy", "https://foo.com/path", allowedPolicy, []string{"deny = true"}, sessionID, http.StatusForbidden},
+	eval := func(t *testing.T, options []Option, data []proto.Message, req *Request) (*Result, error) {
+		store := NewStoreFromProtos(math.MaxUint64, data...)
+		store.UpdateIssuer("authenticate.example.com")
+		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
+		store.UpdateSigningKey(privateJWK)
+		e, err := New(context.Background(), store, options...)
+		require.NoError(t, err)
+		return e.Evaluate(context.Background(), req)
 	}
 
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			store := NewStoreFromProtos(0)
-			data, _ := ptypes.MarshalAny(&session.Session{
-				Version: "1",
-				Id:      sessionID,
-				UserId:  userID,
-				IdToken: &session.IDToken{
-					Issuer:   "TestEvaluatorEvaluate",
-					Subject:  userID,
-					IssuedAt: ptypes.TimestampNow(),
+	policies := []config.Policy{
+		{
+			To:                               config.WeightedURLs{{URL: *mustParseURL("https://to1.example.com")}},
+			AllowPublicUnauthenticatedAccess: true,
+		},
+		{
+			To:                               config.WeightedURLs{{URL: *mustParseURL("https://to2.example.com")}},
+			AllowPublicUnauthenticatedAccess: true,
+			KubernetesServiceAccountToken:    "KUBERNETES",
+		},
+		{
+			To:                               config.WeightedURLs{{URL: *mustParseURL("https://to3.example.com")}},
+			AllowPublicUnauthenticatedAccess: true,
+			EnableGoogleCloudServerlessAuthentication: true,
+		},
+		{
+			To:           config.WeightedURLs{{URL: *mustParseURL("https://to4.example.com")}},
+			AllowedUsers: []string{"a@example.com"},
+		},
+		{
+			To: config.WeightedURLs{{URL: *mustParseURL("https://to5.example.com")}},
+			SubPolicies: []config.SubPolicy{
+				{
+					AllowedUsers: []string{"a@example.com"},
 				},
-				OauthToken: &session.OAuthToken{
-					AccessToken:  "ACCESS TOKEN",
-					TokenType:    "Bearer",
-					RefreshToken: "REFRESH TOKEN",
-				},
-			})
-			store.UpdateRecord(0, &databroker.Record{
-				Version: 1,
-				Type:    "type.googleapis.com/session.Session",
-				Id:      sessionID,
-				Data:    data,
-			})
-			data, _ = ptypes.MarshalAny(&user.User{
-				Version: "1",
-				Id:      userID,
-				Email:   "foo@example.com",
-			})
-			store.UpdateRecord(0, &databroker.Record{
-				Version: 1,
-				Type:    "type.googleapis.com/user.User",
-				Id:      userID,
-				Data:    data,
-			})
+			},
+		},
+		{
+			To:           config.WeightedURLs{{URL: *mustParseURL("https://to6.example.com")}},
+			AllowedUsers: []string{"example/1234"},
+		},
+		{
+			To:             config.WeightedURLs{{URL: *mustParseURL("https://to7.example.com")}},
+			AllowedDomains: []string{"example.com"},
+		},
+		{
+			To:            config.WeightedURLs{{URL: *mustParseURL("https://to8.example.com")}},
+			AllowedGroups: []string{"group1@example.com"},
+		},
+		{
+			To:                        config.WeightedURLs{{URL: *mustParseURL("https://to9.example.com")}},
+			AllowAnyAuthenticatedUser: true,
+		},
+	}
+	options := []Option{
+		WithAuthenticateURL("https://authn.example.com"),
+		WithClientCA([]byte(testCA)),
+		WithPolicies(policies),
+	}
 
-			e, err := New(&config.Options{
-				AuthenticateURLString: "https://authn.example.com",
-				Policies:              tc.policies,
-			}, store)
-			require.NoError(t, err)
-			res, err := e.Evaluate(ctx, &Request{
-				HTTP:           RequestHTTP{Method: "GET", URL: tc.reqURL},
-				Session:        RequestSession{ID: tc.sessionID},
-				CustomPolicies: tc.customPolicies,
+	t.Run("client certificate", func(t *testing.T) {
+		t.Run("invalid", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[0],
 			})
 			require.NoError(t, err)
-			assert.NotNil(t, res)
-			assert.Equal(t, tc.expectedStatus, res.Status)
+			assert.Equal(t, &Denial{Status: 495, Message: "invalid client certificate"}, res.Deny)
 		})
-	}
+		t.Run("valid", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[0],
+				HTTP: RequestHTTP{
+					ClientCertificate: testValidCert,
+				},
+			})
+			require.NoError(t, err)
+			assert.Nil(t, res.Deny)
+		})
+	})
+	t.Run("identity_headers", func(t *testing.T) {
+		t.Run("kubernetes", func(t *testing.T) {
+			res, err := eval(t, options, []proto.Message{
+				&session.Session{
+					Id:                "session1",
+					UserId:            "user1",
+					ImpersonateGroups: []string{"i1", "i2"},
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Policy: &policies[1],
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method:            "GET",
+					URL:               "https://from.example.com",
+					ClientCertificate: testValidCert,
+				},
+			})
+			require.NoError(t, err)
+			assert.Equal(t, "a@example.com", res.Headers.Get("Impersonate-User"))
+			assert.Equal(t, "i1,i2", res.Headers.Get("Impersonate-Group"))
+		})
+		t.Run("google_cloud_serverless", func(t *testing.T) {
+			withMockGCP(t, func() {
+				res, err := eval(t, options, []proto.Message{
+					&session.Session{
+						Id:                "session1",
+						UserId:            "user1",
+						ImpersonateGroups: []string{"i1", "i2"},
+					},
+					&user.User{
+						Id:    "user1",
+						Email: "a@example.com",
+					},
+				}, &Request{
+					Policy: &policies[2],
+					Session: RequestSession{
+						ID: "session1",
+					},
+					HTTP: RequestHTTP{
+						Method:            "GET",
+						URL:               "https://from.example.com",
+						ClientCertificate: testValidCert,
+					},
+				})
+				require.NoError(t, err)
+				assert.NotEmpty(t, res.Headers.Get("Authorization"))
+			})
+		})
+	})
+	t.Run("email", func(t *testing.T) {
+		t.Run("allowed", func(t *testing.T) {
+			res, err := eval(t, options, []proto.Message{
+				&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Policy: &policies[3],
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method:            "GET",
+					URL:               "https://from.example.com",
+					ClientCertificate: testValidCert,
+				},
+			})
+			require.NoError(t, err)
+			assert.True(t, res.Allow)
+		})
+		t.Run("allowed sub", func(t *testing.T) {
+			res, err := eval(t, options, []proto.Message{
+				&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Policy: &policies[4],
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method:            "GET",
+					URL:               "https://from.example.com",
+					ClientCertificate: testValidCert,
+				},
+			})
+			require.NoError(t, err)
+			assert.True(t, res.Allow)
+		})
+		t.Run("denied", func(t *testing.T) {
+			res, err := eval(t, options, []proto.Message{
+				&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "b@example.com",
+				},
+			}, &Request{
+				Policy: &policies[3],
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method:            "GET",
+					URL:               "https://from.example.com",
+					ClientCertificate: testValidCert,
+				},
+			})
+			require.NoError(t, err)
+			assert.False(t, res.Allow)
+		})
+	})
+	t.Run("impersonate email", func(t *testing.T) {
+		t.Run("allowed", func(t *testing.T) {
+			res, err := eval(t, options, []proto.Message{
+				&user.ServiceAccount{
+					Id:               "session1",
+					UserId:           "user1",
+					ImpersonateEmail: proto.String("a@example.com"),
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "b@example.com",
+				},
+			}, &Request{
+				Policy: &policies[3],
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method:            "GET",
+					URL:               "https://from.example.com",
+					ClientCertificate: testValidCert,
+				},
+			})
+			require.NoError(t, err)
+			assert.True(t, res.Allow)
+		})
+		t.Run("denied", func(t *testing.T) {
+			res, err := eval(t, options, []proto.Message{
+				&session.Session{
+					Id:               "session1",
+					UserId:           "user1",
+					ImpersonateEmail: proto.String("b@example.com"),
+				},
+				&user.User{
+					Id:    "user1",
+					Email: "a@example.com",
+				},
+			}, &Request{
+				Policy: &policies[3],
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method:            "GET",
+					URL:               "https://from.example.com",
+					ClientCertificate: testValidCert,
+				},
+			})
+			require.NoError(t, err)
+			assert.False(t, res.Allow)
+		})
+	})
+	t.Run("user_id", func(t *testing.T) {
+		res, err := eval(t, options, []proto.Message{
+			&session.Session{
+				Id:     "session1",
+				UserId: "example/1234",
+			},
+			&user.User{
+				Id:    "example/1234",
+				Email: "a@example.com",
+			},
+		}, &Request{
+			Policy: &policies[5],
+			Session: RequestSession{
+				ID: "session1",
+			},
+			HTTP: RequestHTTP{
+				Method:            "GET",
+				URL:               "https://from.example.com",
+				ClientCertificate: testValidCert,
+			},
+		})
+		require.NoError(t, err)
+		assert.True(t, res.Allow)
+	})
+	t.Run("domain", func(t *testing.T) {
+		res, err := eval(t, options, []proto.Message{
+			&session.Session{
+				Id:     "session1",
+				UserId: "user1",
+			},
+			&user.User{
+				Id:    "user1",
+				Email: "a@example.com",
+			},
+		}, &Request{
+			Policy: &policies[6],
+			Session: RequestSession{
+				ID: "session1",
+			},
+			HTTP: RequestHTTP{
+				Method:            "GET",
+				URL:               "https://from.example.com",
+				ClientCertificate: testValidCert,
+			},
+		})
+		require.NoError(t, err)
+		assert.True(t, res.Allow)
+	})
+	t.Run("impersonate domain", func(t *testing.T) {
+		res, err := eval(t, options, []proto.Message{
+			&session.Session{
+				Id:               "session1",
+				UserId:           "user1",
+				ImpersonateEmail: proto.String("a@example.com"),
+			},
+			&user.User{
+				Id:    "user1",
+				Email: "a@notexample.com",
+			},
+		}, &Request{
+			Policy: &policies[6],
+			Session: RequestSession{
+				ID: "session1",
+			},
+			HTTP: RequestHTTP{
+				Method:            "GET",
+				URL:               "https://from.example.com",
+				ClientCertificate: testValidCert,
+			},
+		})
+		require.NoError(t, err)
+		assert.True(t, res.Allow)
+	})
+	t.Run("groups", func(t *testing.T) {
+		res, err := eval(t, options, []proto.Message{
+			&session.Session{
+				Id:     "session1",
+				UserId: "user1",
+			},
+			&user.User{
+				Id:    "user1",
+				Email: "a@example.com",
+			},
+			&directory.User{
+				Id:       "user1",
+				GroupIds: []string{"group1"},
+			},
+			&directory.Group{
+				Id:    "group1",
+				Name:  "group1name",
+				Email: "group1@example.com",
+			},
+		}, &Request{
+			Policy: &policies[7],
+			Session: RequestSession{
+				ID: "session1",
+			},
+			HTTP: RequestHTTP{
+				Method:            "GET",
+				URL:               "https://from.example.com",
+				ClientCertificate: testValidCert,
+			},
+		})
+		require.NoError(t, err)
+		assert.True(t, res.Allow)
+	})
+	t.Run("impersonate groups", func(t *testing.T) {
+		res, err := eval(t, options, []proto.Message{
+			&session.Session{
+				Id:                "session1",
+				UserId:            "user1",
+				ImpersonateGroups: []string{"group1"},
+			},
+			&user.User{
+				Id:    "user1",
+				Email: "a@example.com",
+			},
+			&directory.User{
+				Id: "user1",
+			},
+			&directory.Group{
+				Id:    "group1",
+				Name:  "group1name",
+				Email: "group1@example.com",
+			},
+		}, &Request{
+			Policy: &policies[7],
+			Session: RequestSession{
+				ID: "session1",
+			},
+			HTTP: RequestHTTP{
+				Method:            "GET",
+				URL:               "https://from.example.com",
+				ClientCertificate: testValidCert,
+			},
+		})
+		require.NoError(t, err)
+		assert.True(t, res.Allow)
+	})
+	t.Run("any authenticated user", func(t *testing.T) {
+		res, err := eval(t, options, []proto.Message{
+			&session.Session{
+				Id:     "session1",
+				UserId: "user1",
+			},
+			&user.User{
+				Id: "user1",
+			},
+		}, &Request{
+			Policy: &policies[8],
+			Session: RequestSession{
+				ID: "session1",
+			},
+			HTTP: RequestHTTP{
+				Method:            "GET",
+				URL:               "https://from.example.com",
+				ClientCertificate: testValidCert,
+			},
+		})
+		require.NoError(t, err)
+		assert.True(t, res.Allow)
+	})
 }
 
 func mustParseURL(str string) *url.URL {
@@ -161,9 +465,22 @@ func mustParseURL(str string) *url.URL {
 
 func BenchmarkEvaluator_Evaluate(b *testing.B) {
 	store := NewStore()
-	e, err := New(&config.Options{
-		AuthenticateURLString: "https://authn.example.com",
-	}, store)
+
+	policies := []config.Policy{
+		{
+			From: "https://from.example.com",
+			To: config.WeightedURLs{
+				{URL: *mustParseURL("https://to.example.com")},
+			},
+			AllowedUsers: []string{"SOME_USER"},
+		},
+	}
+	options := []Option{
+		WithAuthenticateURL("https://authn.example.com"),
+		WithPolicies(policies),
+	}
+
+	e, err := New(context.Background(), store, options...)
 	if !assert.NoError(b, err) {
 		return
 	}
@@ -233,7 +550,8 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 	b.ResetTimer()
 	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
-		e.Evaluate(ctx, &Request{
+		_, _ = e.Evaluate(ctx, &Request{
+			Policy: &policies[0],
 			HTTP: RequestHTTP{
 				Method:  "GET",
 				URL:     "https://example.com/path",

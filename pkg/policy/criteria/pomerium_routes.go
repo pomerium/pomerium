@@ -3,6 +3,7 @@ package criteria
 import (
 	"github.com/open-policy-agent/opa/ast"
 
+	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -14,6 +15,10 @@ var pomeriumRoutesBody = ast.Body{
 
 type pomeriumRoutesCriterion struct {
 	g *Generator
+}
+
+func (pomeriumRoutesCriterion) DataType() generator.CriterionDataType {
+	return generator.CriterionDataTypeUnused
 }
 
 func (pomeriumRoutesCriterion) Names() []string {
