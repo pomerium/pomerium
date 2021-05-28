@@ -27,7 +27,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/natefinch/atomic"
 	"github.com/rs/zerolog"
-	"github.com/shirou/gopsutil/process"
+	"github.com/shirou/gopsutil/v3/process"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/config"
