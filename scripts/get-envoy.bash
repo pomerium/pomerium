@@ -8,6 +8,11 @@ _envoy_version=1.17.3
 _dir="${DIR:-"$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/../bin"}"
 _target="${TARGET:-"$(go env GOOS)-$(go env GOARCH)"}"
 
+# until m1 macs are supported, fallback to x86 and use rosetta
+if [ "$_target" == "darwin-arm64" ]; then
+  _target="darwin-amd64"
+fi
+
 is_command() {
     command -v "$1" >/dev/null
 }
