@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -196,7 +197,13 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	}
 	srv.restartEpoch++
 
-	cmd := exec.Command(srv.envoyPath, args...) // #nosec
+	var cmd *exec.Cmd
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		// until m1 macs are supported by envoy, fallback to x86 and use rosetta
+		cmd = exec.Command("arch", append([]string{"-x86_64", srv.envoyPath}, args...)...) // #nosec
+	} else {
+		cmd = exec.Command(srv.envoyPath, args...) // #nosec
+	}
 	cmd.Dir = srv.wd
 
 	stderr, err := cmd.StderrPipe()
