@@ -24,18 +24,25 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-32484c314b584447463735303142374c31414145374650305a525539554938594d524855353757313942494d473847535231.pem")
 
 	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
-	rootCAPath, _ := getRootCertificateAuthority()
-	rootCA := b.filemgr.FileDataSource(rootCAPath).GetFilename()
+	rootCABytes, _ := getCombinedCertificateAuthority("", "")
+	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
+
+	o1 := config.NewDefaultOptions()
+	o2 := config.NewDefaultOptions()
+	o2.CA = base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0})
+
+	combinedCABytes, _ := getCombinedCertificateAuthority(o2.CA, "")
+	combinedCA := b.filemgr.BytesDataSource("ca.pem", combinedCABytes).GetFilename()
 
 	t.Run("insecure", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://example.com"),
 		}, *mustParseURL(t, "http://example.com"))
 		require.NoError(t, err)
 		assert.Nil(t, ts)
 	})
 	t.Run("host as sni", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "https://example.com"),
 		}, *mustParseURL(t, "https://example.com"))
 		require.NoError(t, err)
@@ -85,7 +92,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		`, ts)
 	})
 	t.Run("tls_server_name as sni", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To:            mustParseWeightedURLs(t, "https://example.com"),
 			TLSServerName: "use-this-name.example.com",
 		}, *mustParseURL(t, "https://example.com"))
@@ -136,7 +143,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		`, ts)
 	})
 	t.Run("tls_skip_verify", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To:            mustParseWeightedURLs(t, "https://example.com"),
 			TLSSkipVerify: true,
 		}, *mustParseURL(t, "https://example.com"))
@@ -188,7 +195,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		`, ts)
 	})
 	t.Run("custom ca", func(t *testing.T) {
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To:          mustParseWeightedURLs(t, "https://example.com"),
 			TLSCustomCA: base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
 		}, *mustParseURL(t, "https://example.com"))
@@ -202,21 +209,21 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 						"alpnProtocols": ["h2", "http/1.1"],
 						"tlsParams": {
 							"cipherSuites": [
-            	            	"ECDHE-ECDSA-AES256-GCM-SHA384",
-            	            	"ECDHE-RSA-AES256-GCM-SHA384",
-            	            	"ECDHE-ECDSA-AES128-GCM-SHA256",
-            	            	"ECDHE-RSA-AES128-GCM-SHA256",
-            	            	"ECDHE-ECDSA-CHACHA20-POLY1305",
-            	            	"ECDHE-RSA-CHACHA20-POLY1305",
-            	            	"ECDHE-ECDSA-AES128-SHA",
-            	            	"ECDHE-RSA-AES128-SHA",
-            	            	"AES128-GCM-SHA256",
-            	            	"AES128-SHA",
-            	            	"ECDHE-ECDSA-AES256-SHA",
-            	            	"ECDHE-RSA-AES256-SHA",
-            	            	"AES256-GCM-SHA384",
-            	            	"AES256-SHA"
-            	            ],
+								"ECDHE-ECDSA-AES256-GCM-SHA384",
+								"ECDHE-RSA-AES256-GCM-SHA384",
+								"ECDHE-ECDSA-AES128-GCM-SHA256",
+								"ECDHE-RSA-AES128-GCM-SHA256",
+								"ECDHE-ECDSA-CHACHA20-POLY1305",
+								"ECDHE-RSA-CHACHA20-POLY1305",
+								"ECDHE-ECDSA-AES128-SHA",
+								"ECDHE-RSA-AES128-SHA",
+								"AES128-GCM-SHA256",
+								"AES128-SHA",
+								"ECDHE-ECDSA-AES256-SHA",
+								"ECDHE-RSA-AES256-SHA",
+								"AES256-GCM-SHA384",
+								"AES256-SHA"
+							],
 							"ecdhCurves": [
 								"X25519",
 								"P-256",
@@ -238,9 +245,59 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 			}
 		`, ts)
 	})
+	t.Run("options custom ca", func(t *testing.T) {
+		ts, err := b.buildPolicyTransportSocket(ctx, o2, &config.Policy{
+			To: mustParseWeightedURLs(t, "https://example.com"),
+		}, *mustParseURL(t, "https://example.com"))
+		require.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"name": "tls",
+				"typedConfig": {
+					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
+					"commonTlsContext": {
+						"alpnProtocols": ["h2", "http/1.1"],
+						"tlsParams": {
+							"cipherSuites": [
+								"ECDHE-ECDSA-AES256-GCM-SHA384",
+								"ECDHE-RSA-AES256-GCM-SHA384",
+								"ECDHE-ECDSA-AES128-GCM-SHA256",
+								"ECDHE-RSA-AES128-GCM-SHA256",
+								"ECDHE-ECDSA-CHACHA20-POLY1305",
+								"ECDHE-RSA-CHACHA20-POLY1305",
+								"ECDHE-ECDSA-AES128-SHA",
+								"ECDHE-RSA-AES128-SHA",
+								"AES128-GCM-SHA256",
+								"AES128-SHA",
+								"ECDHE-ECDSA-AES256-SHA",
+								"ECDHE-RSA-AES256-SHA",
+								"AES256-GCM-SHA384",
+								"AES256-SHA"
+							],
+							"ecdhCurves": [
+								"X25519",
+								"P-256",
+								"P-384",
+								"P-521"
+							]
+						},
+						"validationContext": {
+							"matchSubjectAltNames": [{
+								"exact": "example.com"
+							}],
+							"trustedCa": {
+								"filename": "`+combinedCA+`"
+							}
+						}
+					},
+					"sni": "example.com"
+				}
+			}
+		`, ts)
+	})
 	t.Run("client certificate", func(t *testing.T) {
 		clientCert, _ := cryptutil.CertificateFromBase64(aExampleComCert, aExampleComKey)
-		ts, err := b.buildPolicyTransportSocket(ctx, &config.Policy{
+		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To:                mustParseWeightedURLs(t, "https://example.com"),
 			ClientCertificate: clientCert,
 		}, *mustParseURL(t, "https://example.com"))
@@ -303,10 +360,11 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 func Test_buildCluster(t *testing.T) {
 	ctx := context.Background()
 	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
-	rootCAPath, _ := getRootCertificateAuthority()
-	rootCA := b.filemgr.FileDataSource(rootCAPath).GetFilename()
+	rootCABytes, _ := getCombinedCertificateAuthority("", "")
+	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
+	o1 := config.NewDefaultOptions()
 	t.Run("insecure", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://example.com", "http://1.2.3.4"),
 		})
 		require.NoError(t, err)
@@ -365,7 +423,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("secure", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t,
 				"https://example.com",
 				"https://example.com",
@@ -529,7 +587,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("ip addresses", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://127.0.0.1", "http://127.0.0.2"),
 		})
 		require.NoError(t, err)
@@ -586,7 +644,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("weights", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://127.0.0.1:8080,1", "http://127.0.0.2,2"),
 		})
 		require.NoError(t, err)
@@ -645,7 +703,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("localhost", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://localhost"),
 		})
 		require.NoError(t, err)
@@ -692,7 +750,7 @@ func Test_buildCluster(t *testing.T) {
 		`, cluster)
 	})
 	t.Run("outlier", func(t *testing.T) {
-		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Policy{
+		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://example.com"),
 		})
 		require.NoError(t, err)
