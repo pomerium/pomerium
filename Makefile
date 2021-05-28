@@ -55,7 +55,6 @@ deps-lint: ## Install lint dependencies
 .PHONY: deps-build
 deps-build: ## Install build dependencies
 	@echo "==> $@"
-	@$(GO) install github.com/tetratelabs/getenvoy/cmd/getenvoy@${GETENVOY_VERSION}
 
 .PHONY: deps-release
 deps-release: ## Install release dependencies
