@@ -11,6 +11,7 @@ import (
 	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -139,6 +140,8 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return nil, err
 	}
 
+	carryOverJWTAssertion(headersOutput.Headers, req.HTTP.Headers)
+
 	res := &Result{
 		Allow:   policyOutput.Allow,
 		Deny:    policyOutput.Deny,
@@ -226,4 +229,19 @@ func safeEval(ctx context.Context, q rego.PreparedEvalQuery, options ...rego.Eva
 	}()
 	resultSet, err = q.Eval(ctx, options...)
 	return resultSet, err
+}
+
+// carryOverJWTAssertion copies assertion JWT from request to response
+// note that src keys are expected to be http.CanonicalHeaderKey
+func carryOverJWTAssertion(dst http.Header, src map[string]string) {
+	jwtForKey := http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertionFor)
+	jwtFor, ok := src[jwtForKey]
+	if ok && jwtFor != "" {
+		dst.Add(jwtForKey, jwtFor)
+		return
+	}
+	jwtFor, ok = src[http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion)]
+	if ok && jwtFor != "" {
+		dst.Add(jwtForKey, jwtFor)
+	}
 }

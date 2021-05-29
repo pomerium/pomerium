@@ -11,7 +11,7 @@ const (
 )
 
 // Pomerium headers contain information added to a request.
-const (
+var (
 	// HeaderPomeriumResponse is set when pomerium itself creates a response,
 	// as opposed to the upstream application and can be used to distinguish
 	// between an application error, and a pomerium related error when debugging.
@@ -19,6 +19,8 @@ const (
 	HeaderPomeriumResponse = "x-pomerium-intercepted-response"
 	// HeaderPomeriumJWTAssertion is the header key containing JWT signed user details.
 	HeaderPomeriumJWTAssertion = "x-pomerium-jwt-assertion"
+	// HeaderPomeriumJWTAssertionFor carries over original user identity from a chain of network calls
+	HeaderPomeriumJWTAssertionFor = "x-pomerium-jwt-assertion-for"
 	// HeaderPomeriumReproxyPolicy is the header key containing the policy to reproxy a request to.
 	HeaderPomeriumReproxyPolicy = "x-pomerium-reproxy-policy"
 	// HeaderPomeriumReproxyPolicyHMAC is an HMAC of the HeaderPomeriumReproxyPolicy header.

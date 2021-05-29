@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/http"
 	"net/url"
 	"testing"
 
@@ -16,6 +17,7 @@ import (
 	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
@@ -452,6 +454,46 @@ func TestEvaluator(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.True(t, res.Allow)
+	})
+	t.Run("carry over assertion header", func(t *testing.T) {
+		tcs := []struct {
+			src             map[string]string
+			jwtAssertionFor string
+		}{
+			{map[string]string{}, ""},
+			{map[string]string{
+				http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion): "identity-a",
+			}, "identity-a"},
+			{map[string]string{
+				http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertionFor): "identity-a",
+				http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion):    "identity-b",
+			}, "identity-a"},
+		}
+		for _, tc := range tcs {
+			res, err := eval(t, options, []proto.Message{
+				&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&user.User{
+					Id: "user1",
+				},
+			}, &Request{
+				Policy: &policies[8],
+				Session: RequestSession{
+					ID: "session1",
+				},
+				HTTP: RequestHTTP{
+					Method:            "GET",
+					URL:               "https://from.example.com",
+					ClientCertificate: testValidCert,
+					Headers:           tc.src,
+				},
+			})
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.jwtAssertionFor, res.Headers.Get(httputil.HeaderPomeriumJWTAssertionFor))
+			}
+		}
 	})
 }
 
