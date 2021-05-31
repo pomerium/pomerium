@@ -535,7 +535,7 @@ func (o *Options) Validate() error {
 
 	_, err := o.GetSharedKey()
 	if err != nil {
-		return fmt.Errorf("config: invalid shared-key: %w", err)
+		return fmt.Errorf("config: invalid shared secret: %w", err)
 	}
 
 	if o.AuthenticateURLString != "" {
@@ -929,10 +929,10 @@ func (o *Options) GetSharedKey() ([]byte, error) {
 		sharedKey = randomSharedKey
 	}
 	if sharedKey == "" {
-		return nil, errors.New("empty shared-key")
+		return nil, errors.New("empty shared secret")
 	}
 	if strings.TrimSpace(sharedKey) != sharedKey {
-		return nil, errors.New("shared-key contains whitespace")
+		return nil, errors.New("shared secret contains whitespace")
 	}
 	return base64.StdEncoding.DecodeString(sharedKey)
 }
