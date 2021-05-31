@@ -32,6 +32,7 @@ Active health checks issue periodic requests to each upstream to determine its h
 See [Health Checking](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/health_checking) for a comprehensive overview.
 
 ### HTTP Example
+
 ```yaml
 policy:
   - from: https://myapp.localhost.pomerium.io
@@ -48,8 +49,9 @@ policy:
 ```
 
 ### TCP Example
+
 ```yaml
-policies:
+policy:
   - from: tcp+https://tcp-service.localhost.pomerium.io
     to:
       - tcp://tcp-1.local
@@ -105,8 +107,10 @@ policy:
     least_request_lb_config:
       choice_count: 2 # current envoy default
 ```
+
 ## Load Balancing Weight
-When a list of upstream URLs is specified in the `to` field, you may append an optional load balancing weight parameter.  The individual [`lb_policy`](#load-balancing-method) settings will take this weighting into account when making routing decisions.
+
+When a list of upstream URLs is specified in the `to` field, you may append an optional load balancing weight parameter. The individual [`lb_policy`](#load-balancing-method) settings will take this weighting into account when making routing decisions.
 
 ### Example
 
@@ -122,6 +126,7 @@ policy:
       - http://myapp-srv-4:8080,20
       - http://myapp-srv-5:8080,10
 ```
+
 ## Further reading
 
 - [Introduction to modern network load balancing and proxying](https://blog.envoyproxy.io/introduction-to-modern-network-load-balancing-and-proxying-a57f6ff80236)

@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 
 	"github.com/pomerium/pomerium/internal/directory/azure"
@@ -389,9 +390,11 @@ func optionsFromViper(configFile string) (*Options, error) {
 		}
 	}
 
-	if err := v.Unmarshal(o, ViperPolicyHooks); err != nil {
+	var metadata mapstructure.Metadata
+	if err := v.Unmarshal(o, ViperPolicyHooks, func(c *mapstructure.DecoderConfig) { c.Metadata = &metadata }); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
+	checkUnusedConfigFields(configFile, metadata.Unused)
 
 	// This is necessary because v.Unmarshal will overwrite .viper field.
 	o.viper = v
@@ -400,6 +403,19 @@ func optionsFromViper(configFile string) (*Options, error) {
 		return nil, fmt.Errorf("validation error %w", err)
 	}
 	return o, nil
+}
+
+func checkUnusedConfigFields(configFile string, unused []string) {
+	keys := make([]string, 0, len(unused))
+	for _, k := range unused {
+		if !strings.HasPrefix(k, "policy[") { // policy's embedded protobuf structs are decoded by separate hook and are unknown to mapstructure
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return
+	}
+	log.Warn(context.Background()).Str("config_file", configFile).Strs("keys", keys).Msg("config contained unknown keys that were ignored")
 }
 
 // parsePolicy initializes policy to the options from either base64 environmental
