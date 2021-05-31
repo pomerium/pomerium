@@ -10,7 +10,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/caddyserver/certmagic v0.13.1
-	github.com/cenkalti/backoff/v4 v4.1.0
+	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coreos/go-oidc/v3 v3.0.0
 	github.com/envoyproxy/go-control-plane v0.9.9-0.20210217033140-668b12f5399d
