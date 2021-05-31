@@ -32,14 +32,13 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
-	github.com/lib/pq v1.9.0 // indirect
 	github.com/lithammer/shortuuid/v3 v3.0.7
 	github.com/martinlindhe/base36 v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.1
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
 	github.com/onsi/gocleanup v0.0.0-20140331211545-c1a5478700b5
-	github.com/open-policy-agent/opa v0.28.0
+	github.com/open-policy-agent/opa v0.29.3
 	github.com/openzipkin/zipkin-go v0.2.5
 	github.com/ory/dockertest/v3 v3.6.5
 	github.com/pelletier/go-toml v1.8.1 // indirect
