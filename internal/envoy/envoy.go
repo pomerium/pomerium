@@ -58,7 +58,6 @@ type Server struct {
 	builder            *envoyconfig.Builder
 	grpcPort, httpPort string
 	envoyPath          string
-	restartEpoch       int
 
 	monitorProcessCancel context.CancelFunc
 

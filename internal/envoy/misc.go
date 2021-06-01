@@ -2,14 +2,11 @@ package envoy
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"strconv"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 )
-
-const baseIDPath = "/tmp/pomerium-envoy-base-id"
 
 func firstNonEmpty(args ...string) string {
 	for _, a := range args {
@@ -18,20 +15,6 @@ func firstNonEmpty(args ...string) string {
 		}
 	}
 	return ""
-}
-
-func readBaseID() (int, bool) {
-	bs, err := ioutil.ReadFile(baseIDPath)
-	if err != nil {
-		return 0, false
-	}
-
-	baseID, err := strconv.Atoi(string(bs))
-	if err != nil {
-		return 0, false
-	}
-
-	return baseID, true
 }
 
 // ParseAddress parses a string address into an envoy address.

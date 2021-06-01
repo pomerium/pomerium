@@ -4,7 +4,9 @@ package envoy
 
 import (
 	"context"
+	"io/ioutil"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -13,6 +15,13 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
+
+const baseIDPath = "/tmp/pomerium-envoy-base-id"
+
+var restartEpoch struct {
+	sync.Mutex
+	value int
+}
 
 var sysProcAttr = &syscall.SysProcAttr{
 	Setpgid:   true,
@@ -65,12 +74,29 @@ func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []stri
 	args = make([]string, len(sharedArgs))
 	copy(args, sharedArgs)
 
+	restartEpoch.Lock()
 	if baseID, ok := readBaseID(); ok {
-		args = append(args, "--base-id", strconv.Itoa(baseID), "--restart-epoch", strconv.Itoa(srv.restartEpoch))
+		args = append(args, "--base-id", strconv.Itoa(baseID), "--restart-epoch", strconv.Itoa(restartEpoch.value))
+		restartEpoch.value++
 	} else {
 		args = append(args, "--use-dynamic-base-id", "--base-id-path", baseIDPath)
+		restartEpoch.value = 1
 	}
-	srv.restartEpoch++
+	restartEpoch.Unlock()
 
 	return srv.envoyPath, args
+}
+
+func readBaseID() (int, bool) {
+	bs, err := ioutil.ReadFile(baseIDPath)
+	if err != nil {
+		return 0, false
+	}
+
+	baseID, err := strconv.Atoi(string(bs))
+	if err != nil {
+		return 0, false
+	}
+
+	return baseID, true
 }
