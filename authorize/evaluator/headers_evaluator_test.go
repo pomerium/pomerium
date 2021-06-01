@@ -56,6 +56,8 @@ func TestHeadersEvaluator(t *testing.T) {
 		err = rawJWT.Claims(publicJWK, &claims)
 		require.NoError(t, err)
 
+		assert.Equal(t, claims["exp"], math.Round(claims["exp"].(float64)))
+
 		assert.LessOrEqual(t, claims["exp"], float64(time.Now().Add(time.Minute*6).Unix()),
 			"JWT should expire within 5 minutes, but got: %v", claims["exp"])
 	})
