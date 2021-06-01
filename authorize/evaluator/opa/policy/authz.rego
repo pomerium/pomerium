@@ -3,7 +3,7 @@ package pomerium.authz
 default allow = false
 
 # 5 minutes from now in seconds
-five_minutes := (time.now_ns() / 1e9) + (60 * 5)
+five_minutes := round((time.now_ns() / 1e9) + (60 * 5))
 
 # databroker versions to know which version of the data was evaluated
 databroker_server_version := data.databroker_server_version
@@ -174,7 +174,7 @@ jwt_payload_jti = v {
 }
 
 jwt_payload_exp = v {
-	v = min([five_minutes, session.expires_at.seconds])
+	v = min([five_minutes, round(session.expires_at.seconds)])
 } else = v {
 	v = five_minutes
 } else = null {
@@ -183,10 +183,10 @@ jwt_payload_exp = v {
 
 jwt_payload_iat = v {
 	# sessions store the issued_at on the id_token
-	v = session.id_token.issued_at.seconds
+	v = round(session.id_token.issued_at.seconds)
 } else = v {
 	# service accounts store the issued at directly
-	v = session.issued_at.seconds
+	v = round(session.issued_at.seconds)
 } else = null {
 	true
 }
