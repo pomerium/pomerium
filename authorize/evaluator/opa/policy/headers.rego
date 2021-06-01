@@ -143,7 +143,7 @@ base_jwt_claims := [
 	["aud", jwt_payload_aud],
 	["jti", jwt_payload_jti],
 	["exp", round(jwt_payload_exp)],
-	["iat", jwt_payload_iat],
+	["iat", round(jwt_payload_iat)],
 	["sub", jwt_payload_sub],
 	["user", jwt_payload_user],
 	["email", jwt_payload_email],
