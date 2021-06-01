@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -59,7 +58,6 @@ type Server struct {
 	builder            *envoyconfig.Builder
 	grpcPort, httpPort string
 	envoyPath          string
-	restartEpoch       int
 
 	monitorProcessCancel context.CancelFunc
 
@@ -190,20 +188,8 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 		"--log-format-escaped",
 	}
 
-	if baseID, ok := readBaseID(); ok {
-		args = append(args, "--base-id", strconv.Itoa(baseID), "--restart-epoch", strconv.Itoa(srv.restartEpoch))
-	} else {
-		args = append(args, "--use-dynamic-base-id", "--base-id-path", baseIDPath)
-	}
-	srv.restartEpoch++
-
-	var cmd *exec.Cmd
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
-		// until m1 macs are supported by envoy, fallback to x86 and use rosetta
-		cmd = exec.Command("arch", append([]string{"-x86_64", srv.envoyPath}, args...)...) // #nosec
-	} else {
-		cmd = exec.Command(srv.envoyPath, args...) // #nosec
-	}
+	exePath, args := srv.prepareRunEnvoyCommand(ctx, args)
+	cmd := exec.Command(exePath, args...)
 	cmd.Dir = srv.wd
 
 	stderr, err := cmd.StderrPipe()
@@ -233,14 +219,6 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	monitorProcessCtx, srv.monitorProcessCancel = context.WithCancel(context.Background())
 	go srv.monitorProcess(monitorProcessCtx, int32(cmd.Process.Pid))
 
-	// release the previous process so we can hot-reload
-	if srv.cmd != nil && srv.cmd.Process != nil {
-		log.Info(ctx).Msg("envoy: releasing envoy process for hot-reload")
-		err := srv.cmd.Process.Release()
-		if err != nil {
-			log.Warn(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to release envoy process for hot-reload")
-		}
-	}
 	srv.cmd = cmd
 
 	return nil
@@ -406,7 +384,7 @@ func (srv *Server) monitorProcess(ctx context.Context, pid int32) {
 
 		running, err := proc.IsRunningWithContext(ctx)
 		if err != nil {
-			log.Fatal().Err(err).
+			log.Error(ctx).Err(err).
 				Int32("pid", pid).
 				Msg("envoy: error retrieving subprocess status")
 		} else if !running {
