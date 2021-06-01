@@ -1080,7 +1080,7 @@ Policy contains route specific settings, and access control details. If you are 
 Policy routes are checked in the order they appear in the policy, so more specific routes should appear before less specific routes. For example:
 
 ```yaml
-policies:
+policy:
   - from: http://from.example.com
     to: http://to.example.com
     prefix: /admin
