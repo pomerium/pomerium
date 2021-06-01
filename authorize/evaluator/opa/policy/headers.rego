@@ -142,7 +142,7 @@ base_jwt_claims := [
 	["iss", jwt_payload_iss],
 	["aud", jwt_payload_aud],
 	["jti", jwt_payload_jti],
-	["exp", jwt_payload_exp],
+	["exp", round(jwt_payload_exp)],
 	["iat", jwt_payload_iat],
 	["sub", jwt_payload_sub],
 	["user", jwt_payload_user],
@@ -224,10 +224,10 @@ identity_headers := {key: values |
 
 	some i
 	[key, v1] := h[i]
-	values := [ v2 |
-	    some j
-	    [k2, v2] := h[j]
-	    key == k2
+	values := [v2 |
+		some j
+		[k2, v2] := h[j]
+		key == k2
 	]
 }
 
