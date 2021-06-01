@@ -384,7 +384,7 @@ func (srv *Server) monitorProcess(ctx context.Context, pid int32) {
 
 		running, err := proc.IsRunningWithContext(ctx)
 		if err != nil {
-			log.Fatal().Err(err).
+			log.Error(ctx).Err(err).
 				Int32("pid", pid).
 				Msg("envoy: error retrieving subprocess status")
 		} else if !running {
