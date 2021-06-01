@@ -19,6 +19,8 @@ const (
 	HeaderPomeriumResponse = "x-pomerium-intercepted-response"
 	// HeaderPomeriumJWTAssertion is the header key containing JWT signed user details.
 	HeaderPomeriumJWTAssertion = "x-pomerium-jwt-assertion"
+	// HeaderPomeriumJWTAssertionFor carries over original user identity from a chain of network calls.
+	HeaderPomeriumJWTAssertionFor = "x-pomerium-jwt-assertion-for"
 	// HeaderPomeriumReproxyPolicy is the header key containing the policy to reproxy a request to.
 	HeaderPomeriumReproxyPolicy = "x-pomerium-reproxy-policy"
 	// HeaderPomeriumReproxyPolicyHMAC is an HMAC of the HeaderPomeriumReproxyPolicy header.
