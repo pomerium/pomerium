@@ -4,6 +4,7 @@ package envoy
 
 import (
 	"context"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -49,4 +50,27 @@ func (srv *Server) runProcessCollector(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []string) (exePath string, args []string) {
+	// release the previous process so we can hot-reload
+	if srv.cmd != nil && srv.cmd.Process != nil {
+		log.Info(ctx).Msg("envoy: releasing envoy process for hot-reload")
+		err := srv.cmd.Process.Release()
+		if err != nil {
+			log.Warn(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to release envoy process for hot-reload")
+		}
+	}
+
+	args = make([]string, len(sharedArgs))
+	copy(args, sharedArgs)
+
+	if baseID, ok := readBaseID(); ok {
+		args = append(args, "--base-id", strconv.Itoa(baseID), "--restart-epoch", strconv.Itoa(srv.restartEpoch))
+	} else {
+		args = append(args, "--use-dynamic-base-id", "--base-id-path", baseIDPath)
+	}
+	srv.restartEpoch++
+
+	return srv.envoyPath, args
 }
