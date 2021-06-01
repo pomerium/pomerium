@@ -672,6 +672,61 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		]
 	`, routes)
 	})
+
+	t.Run("remove-pomerium-headers", func(t *testing.T) {
+		routes, err := b.buildPolicyRoutes(&config.Options{
+			AuthenticateURLString:  "https://authenticate.example.com",
+			Services:               "proxy",
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			JWTClaimsHeaders: map[string]string{
+				"x-email": "email",
+			},
+			Policies: []config.Policy{
+				{
+					Source: &config.StringURL{URL: mustParseURL(t, "https://from.example.com")},
+				},
+			},
+		}, "from.example.com")
+		require.NoError(t, err)
+
+		testutil.AssertProtoJSONEqual(t, `
+			[
+				{
+					"name": "policy-0",
+					"match": {
+						"prefix": "/"
+					},
+					"metadata": {
+						"filterMetadata": {
+							"envoy.filters.http.lua": {
+								"remove_impersonate_headers": false,
+								"remove_pomerium_authorization": true,
+								"remove_pomerium_cookie": "pomerium",
+								"rewrite_response_headers": []
+							}
+						}
+					},
+					"route": {
+						"autoHostRewrite": true,
+						"cluster": "policy-9",
+						"timeout": "3s",
+						"upgradeConfigs": [
+							{ "enabled": false, "upgradeType": "websocket"},
+							{ "enabled": false, "upgradeType": "spdy/3.1"}
+						]
+					},
+					"requestHeadersToRemove": [
+						"x-pomerium-jwt-assertion",
+						"x-pomerium-jwt-assertion-for",
+						"x-email",
+						"x-pomerium-reproxy-policy",
+						"x-pomerium-reproxy-policy-hmac"
+					]
+				}
+			]
+		`, routes)
+	})
 }
 
 func Test_buildPolicyRoutesRewrite(t *testing.T) {
