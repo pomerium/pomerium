@@ -12,7 +12,6 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 
 	"github.com/rs/zerolog"
-	octrace "go.opencensus.io/trace"
 )
 
 // TracingOptions are the options for tracing.
@@ -58,7 +57,7 @@ func NewTracingOptions(o *Options) (*TracingOptions, error) {
 type TraceManager struct {
 	mu        sync.Mutex
 	traceOpts *TracingOptions
-	exporter  octrace.Exporter
+	provider  trace.Provider
 }
 
 // NewTraceManager creates a new TraceManager.
@@ -77,10 +76,11 @@ func (mgr *TraceManager) Close() error {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
-	if mgr.exporter != nil {
-		trace.UnregisterTracing(mgr.exporter)
+	var err error
+	if mgr.provider != nil {
+		err = mgr.provider.Unregister()
 	}
-	return nil
+	return err
 }
 
 // OnConfigChange updates the manager whenever the configuration is changed.
@@ -100,9 +100,9 @@ func (mgr *TraceManager) OnConfigChange(ctx context.Context, cfg *Config) {
 	}
 	mgr.traceOpts = traceOpts
 
-	if mgr.exporter != nil {
-		trace.UnregisterTracing(mgr.exporter)
-		mgr.exporter = nil
+	if mgr.provider != nil {
+		_ = mgr.provider.Unregister()
+		mgr.provider = nil
 	}
 
 	if !traceOpts.Enabled() {
@@ -111,7 +111,7 @@ func (mgr *TraceManager) OnConfigChange(ctx context.Context, cfg *Config) {
 
 	log.Info(ctx).Interface("options", traceOpts).Msg("trace: starting exporter")
 
-	mgr.exporter, err = trace.RegisterTracing(traceOpts)
+	mgr.provider, err = trace.GetProvider(traceOpts)
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("trace: failed to register exporter")
 		return
