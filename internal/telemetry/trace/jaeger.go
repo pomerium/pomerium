@@ -32,5 +32,6 @@ func (provider *jaegerProvider) Unregister() error {
 	}
 	octrace.UnregisterExporter(provider.exporter)
 	provider.exporter.Flush()
+	provider.exporter = nil
 	return nil
 }
