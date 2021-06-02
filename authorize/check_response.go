@@ -14,6 +14,7 @@ import (
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/tniswong/go.rfcx/rfc7231"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 
@@ -104,12 +105,16 @@ func (a *Authorize) deniedResponse(
 	}, nil
 }
 
-func (a *Authorize) redirectResponse(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
+func (a *Authorize) requireLoginResponse(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
 	state := a.state.Load()
 	authenticateURL, err := opts.GetAuthenticateURL()
 	if err != nil {
 		return nil, err
+	}
+
+	if !shouldRedirect(in) {
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
 	}
 
 	signinURL := authenticateURL.ResolveReference(&url.URL{
@@ -179,4 +184,23 @@ func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) 
 	})
 
 	return urlutil.NewSignedURL(a.state.Load().sharedKey, debugEndpoint).Sign(), nil
+}
+
+func shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool {
+	requestHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
+	if requestHeaders == nil {
+		return true
+	}
+
+	a, err := rfc7231.ParseAccept(requestHeaders["accept"])
+	if err != nil {
+		return true
+	}
+
+	mediaType, ok := a.MostAcceptable([]string{"text/html", "application/json", "text/plain"})
+	if !ok {
+		return true
+	}
+
+	return mediaType == "text/html"
 }
