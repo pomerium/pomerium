@@ -116,4 +116,10 @@ func (mgr *TraceManager) OnConfigChange(ctx context.Context, cfg *Config) {
 		log.Error(ctx).Err(err).Msg("trace: failed to register exporter")
 		return
 	}
+
+	err = mgr.provider.Register(traceOpts)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("trace: failed to register exporter")
+		return
+	}
 }
