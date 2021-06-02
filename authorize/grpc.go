@@ -84,7 +84,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return a.deniedResponse(ctx, in, http.StatusForbidden, http.StatusText(http.StatusForbidden), nil)
 	}
 
-	return a.redirectResponse(ctx, in)
+	return a.requireLoginResponse(ctx, in)
 }
 
 func getForwardAuthURL(r *http.Request) *url.URL {

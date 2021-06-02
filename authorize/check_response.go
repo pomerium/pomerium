@@ -104,12 +104,22 @@ func (a *Authorize) deniedResponse(
 	}, nil
 }
 
-func (a *Authorize) redirectResponse(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
+func (a *Authorize) requireLoginResponse(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
 	state := a.state.Load()
 	authenticateURL, err := opts.GetAuthenticateURL()
 	if err != nil {
 		return nil, err
+	}
+
+	requestHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
+	if requestHeaders != nil {
+		acceptHeader := strings.ToLower(requestHeaders["accept"])
+		if acceptHeader != "" &&
+			!strings.Contains(acceptHeader, "text/html") &&
+			!strings.Contains(acceptHeader, "*/*") {
+			return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
+		}
 	}
 
 	signinURL := authenticateURL.ResolveReference(&url.URL{
