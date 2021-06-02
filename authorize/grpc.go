@@ -75,7 +75,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		if isForwardAuth && hreq.URL.Path == "/verify" {
 			return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
 		}
-		return a.redirectResponse(ctx, in)
+		return a.requireLoginResponse(ctx, in)
 	}
 	return a.deniedResponse(ctx, in, int32(reply.Status), reply.Message, nil)
 }

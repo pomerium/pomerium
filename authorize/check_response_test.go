@@ -179,3 +179,48 @@ func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
 	require.NoError(t, err)
 	return wu
 }
+
+func TestRequireLogin(t *testing.T) {
+	opt := config.NewDefaultOptions()
+	opt.AuthenticateURLString = "https://authenticate.example.com"
+	opt.DataBrokerURLString = "https://databroker.example.com"
+	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
+	a, err := New(&config.Config{Options: opt})
+	require.NoError(t, err)
+
+	t.Run("accept empty", func(t *testing.T) {
+		res, err := a.requireLoginResponse(context.Background(), &envoy_service_auth_v3.CheckRequest{})
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
+	})
+	t.Run("accept html", func(t *testing.T) {
+		res, err := a.requireLoginResponse(context.Background(), &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{
+							"accept": "*/*",
+						},
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
+	})
+	t.Run("accept json", func(t *testing.T) {
+		res, err := a.requireLoginResponse(context.Background(), &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{
+							"accept": "application/json",
+						},
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, int(res.GetDeniedResponse().GetStatus().GetCode()))
+	})
+}
