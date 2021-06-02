@@ -76,10 +76,19 @@ func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []stri
 
 	restartEpoch.Lock()
 	if baseID, ok := readBaseID(); ok {
-		args = append(args, "--base-id", strconv.Itoa(baseID), "--restart-epoch", strconv.Itoa(restartEpoch.value))
+		args = append(args,
+			"--base-id", strconv.Itoa(baseID),
+			"--restart-epoch", strconv.Itoa(restartEpoch.value),
+			"--drain-time-s", "60",
+			"--parent-shutdown-time-s", "120",
+			"--drain-strategy", "immediate",
+		)
 		restartEpoch.value++
 	} else {
-		args = append(args, "--use-dynamic-base-id", "--base-id-path", baseIDPath)
+		args = append(args,
+			"--use-dynamic-base-id",
+			"--base-id-path", baseIDPath,
+		)
 		restartEpoch.value = 1
 	}
 	restartEpoch.Unlock()
