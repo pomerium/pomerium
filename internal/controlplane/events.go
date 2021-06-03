@@ -3,8 +3,12 @@ package controlplane
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -34,10 +38,10 @@ func (srv *Server) runEnvoyConfigurationEventHandler(ctx context.Context) error 
 			return ctx.Err()
 		case evt = <-srv.envoyConfigurationEvents:
 		}
-		err := srv.storeEnvoyConfigurationEvent(ctx, evt)
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("controlplane: error storing configuration event")
-		}
+
+		withGRPCBackoff(ctx, func() error {
+			return srv.storeEnvoyConfigurationEvent(ctx, evt)
+		})
 	}
 }
 
@@ -109,4 +113,32 @@ func (srv *Server) getDataBrokerClient(ctx context.Context) (databrokerpb.DataBr
 	}
 	client := databrokerpb.NewDataBrokerServiceClient(cc)
 	return client, nil
+}
+
+// withGRPCBackoff runs f. If an unavailable or resource exhausted error occurs, the request will be retried.
+// All other errors return immediately.
+func withGRPCBackoff(ctx context.Context, f func() error) {
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
+	for {
+		err := f()
+		switch {
+		case err == nil:
+			return
+		case status.Code(err) == codes.Unavailable,
+			status.Code(err) == codes.ResourceExhausted,
+			status.Code(err) == codes.DeadlineExceeded:
+			log.Error(ctx).Err(err).Msg("controlplane: error storing configuration event, retrying")
+			// retry
+		default:
+			log.Error(ctx).Err(err).Msg("controlplane: error storing configuration event")
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(bo.NextBackOff()):
+		}
+	}
 }
