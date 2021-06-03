@@ -64,6 +64,13 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		authZ,
 	}
 
+	tracingCluster, err := buildTracingCluster(cfg.Options)
+	if err != nil {
+		return nil, err
+	} else if tracingCluster != nil {
+		clusters = append(clusters, tracingCluster)
+	}
+
 	if config.IsProxy(cfg.Options.Services) {
 		for i, p := range cfg.Options.GetAllPolicies() {
 			policy := p
@@ -335,18 +342,7 @@ func (b *Builder) buildCluster(
 		"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": marshalAny(buildUpstreamProtocolOptions(endpoints, forceHTTP2)),
 	}
 
-	// for IPs we use a static discovery type, otherwise we use DNS
-	allIP := true
-	for _, lbe := range lbEndpoints {
-		if net.ParseIP(urlutil.StripPort(lbe.GetEndpoint().GetAddress().GetSocketAddress().GetAddress())) == nil {
-			allIP = false
-		}
-	}
-	if allIP {
-		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STATIC}
-	} else {
-		cluster.ClusterDiscoveryType = &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STRICT_DNS}
-	}
+	cluster.ClusterDiscoveryType = getClusterDiscoveryType(lbEndpoints)
 
 	return cluster.Validate()
 }
@@ -477,4 +473,18 @@ func validateClusterNamesUnique(clusters []*envoy_config_cluster_v3.Cluster) err
 	}
 
 	return nil
+}
+
+func getClusterDiscoveryType(lbEndpoints []*envoy_config_endpoint_v3.LbEndpoint) *envoy_config_cluster_v3.Cluster_Type {
+	// for IPs we use a static discovery type, otherwise we use DNS
+	allIP := true
+	for _, lbe := range lbEndpoints {
+		if net.ParseIP(urlutil.StripPort(lbe.GetEndpoint().GetAddress().GetSocketAddress().GetAddress())) == nil {
+			allIP = false
+		}
+	}
+	if allIP {
+		return &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STATIC}
+	}
+	return &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STRICT_DNS}
 }

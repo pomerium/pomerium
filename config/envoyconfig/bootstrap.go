@@ -12,7 +12,6 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 // BuildBootstrapAdmin builds the admin config for the envoy bootstrap.
@@ -29,8 +28,8 @@ func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (*envoy_config_bootstr
 }
 
 // BuildBootstrapStaticResources builds the static resources for the envoy bootstrap. It includes the control plane
-// cluster as well as a datadog-apm cluster (if datadog is used).
-func (b *Builder) BuildBootstrapStaticResources(cfg *config.Config) (*envoy_config_bootstrap_v3.Bootstrap_StaticResources, error) {
+// cluster.
+func (b *Builder) BuildBootstrapStaticResources() (*envoy_config_bootstrap_v3.Bootstrap_StaticResources, error) {
 	grpcAddr, err := parseAddress(b.localGRPCAddress)
 	if err != nil {
 		return nil, fmt.Errorf("envoyconfig: invalid local gRPC address: %w", err)
@@ -70,44 +69,6 @@ func (b *Builder) BuildBootstrapStaticResources(cfg *config.Config) (*envoy_conf
 		Clusters: []*envoy_config_cluster_v3.Cluster{
 			controlPlaneCluster,
 		},
-	}
-
-	if cfg.Options.TracingProvider == trace.DatadogTracingProviderName {
-		addr, _ := parseAddress("127.0.0.1:8126")
-
-		if cfg.Options.TracingDatadogAddress != "" {
-			addr, err = parseAddress(cfg.Options.TracingDatadogAddress)
-			if err != nil {
-				return nil, fmt.Errorf("envoyconfig: invalid tracing datadog address: %w", err)
-			}
-		}
-
-		staticCfg.Clusters = append(staticCfg.Clusters, &envoy_config_cluster_v3.Cluster{
-			Name: "datadog-apm",
-			ConnectTimeout: &durationpb.Duration{
-				Seconds: 5,
-			},
-			ClusterDiscoveryType: &envoy_config_cluster_v3.Cluster_Type{
-				Type: envoy_config_cluster_v3.Cluster_STATIC,
-			},
-			LbPolicy: envoy_config_cluster_v3.Cluster_ROUND_ROBIN,
-			LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
-				ClusterName: "datadog-apm",
-				Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{
-					{
-						LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{
-							{
-								HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
-									Endpoint: &envoy_config_endpoint_v3.Endpoint{
-										Address: addr,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		})
 	}
 
 	return staticCfg, nil
