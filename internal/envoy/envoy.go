@@ -33,7 +33,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 const (
@@ -45,9 +44,8 @@ const (
 var Checksum string
 
 type serverOptions struct {
-	services       string
-	logLevel       string
-	tracingOptions trace.TracingOptions
+	services string
+	logLevel string
 }
 
 // A Server is a pomerium proxy implemented via envoy.
@@ -147,16 +145,9 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
-	tracingOptions, err := config.NewTracingOptions(cfg.Options)
-	if err != nil {
-		log.Error(ctx).Err(err).Str("service", "envoy").Msg("invalid tracing config")
-		return
-	}
-
 	options := serverOptions{
-		services:       cfg.Options.Services,
-		logLevel:       firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, "debug"),
-		tracingOptions: *tracingOptions,
+		services: cfg.Options.Services,
+		logLevel: firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, "debug"),
 	}
 
 	if cmp.Equal(srv.options, options, cmp.AllowUnexported(serverOptions{})) {
@@ -271,7 +262,7 @@ func (srv *Server) buildBootstrapConfig(cfg *config.Config) ([]byte, error) {
 		},
 	}
 
-	staticCfg, err := srv.builder.BuildBootstrapStaticResources(cfg)
+	staticCfg, err := srv.builder.BuildBootstrapStaticResources()
 	if err != nil {
 		return nil, err
 	}

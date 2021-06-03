@@ -7,7 +7,6 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testutil"
 )
 
@@ -44,11 +43,7 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		b := New("localhost:1111", "localhost:2222", filemgr.NewManager(), nil)
-		staticCfg, err := b.BuildBootstrapStaticResources(&config.Config{
-			Options: &config.Options{
-				TracingProvider: trace.DatadogTracingProviderName,
-			},
-		})
+		staticCfg, err := b.BuildBootstrapStaticResources()
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -73,26 +68,6 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 								}]
 							}]
 						}
-					},
-					{
-						"name": "datadog-apm",
-						"type": "STATIC",
-						"connectTimeout": "5s",
-						"loadAssignment": {
-							"clusterName": "datadog-apm",
-							"endpoints": [{
-								"lbEndpoints": [{
-									"endpoint": {
-										"address": {
-											"socketAddress":{
-												"address": "127.0.0.1",
-												"portValue": 8126
-											}
-										}
-									}
-								}]
-							}]
-						}
 					}
 				]
 			}
@@ -100,19 +75,7 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 	})
 	t.Run("bad gRPC address", func(t *testing.T) {
 		b := New("xyz:zyx", "localhost:2222", filemgr.NewManager(), nil)
-		_, err := b.BuildBootstrapStaticResources(&config.Config{
-			Options: &config.Options{},
-		})
-		assert.Error(t, err)
-	})
-	t.Run("bad datadog address", func(t *testing.T) {
-		b := New("localhost:1111", "localhost:2222", filemgr.NewManager(), nil)
-		_, err := b.BuildBootstrapStaticResources(&config.Config{
-			Options: &config.Options{
-				TracingProvider:       trace.DatadogTracingProviderName,
-				TracingDatadogAddress: "not-valid:zyx",
-			},
-		})
+		_, err := b.BuildBootstrapStaticResources()
 		assert.Error(t, err)
 	})
 }

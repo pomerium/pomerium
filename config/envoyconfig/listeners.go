@@ -432,7 +432,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	if err != nil {
 		return nil, err
 	}
-	tracingProvider, err := b.buildTracingProvider(options)
+	tracingProvider, err := buildTracingHTTP(options)
 	if err != nil {
 		return nil, err
 	}
