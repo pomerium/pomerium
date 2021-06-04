@@ -197,7 +197,13 @@ func shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool {
 		return true
 	}
 
-	mediaType, ok := a.MostAcceptable([]string{"text/html", "application/json", "text/plain"})
+	mediaType, ok := a.MostAcceptable([]string{
+		"text/html",
+		"application/json",
+		"text/plain",
+		"application/grpc-web-text",
+		"application/grpc-web+proto",
+	})
 	if !ok {
 		return true
 	}
