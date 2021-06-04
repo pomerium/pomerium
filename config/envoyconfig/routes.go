@@ -478,9 +478,11 @@ func mkRouteMatch(policy *config.Policy) *envoy_config_route_v3.RouteMatch {
 func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) []string {
 	requestHeadersToRemove := policy.RemoveRequestHeaders
 	if !policy.PassIdentityHeaders {
-		requestHeadersToRemove = append(requestHeadersToRemove, httputil.HeaderPomeriumJWTAssertion, httputil.HeaderPomeriumJWTAssertionFor)
-		for _, claim := range options.JWTClaimsHeaders {
-			requestHeadersToRemove = append(requestHeadersToRemove, httputil.PomeriumJWTHeaderName(claim))
+		requestHeadersToRemove = append(requestHeadersToRemove,
+			httputil.HeaderPomeriumJWTAssertion,
+			httputil.HeaderPomeriumJWTAssertionFor)
+		for headerName := range options.JWTClaimsHeaders {
+			requestHeadersToRemove = append(requestHeadersToRemove, headerName)
 		}
 	}
 	// remove these headers to prevent a user from re-proxying requests through the control plane

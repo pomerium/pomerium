@@ -203,18 +203,16 @@ google_cloud_serverless_headers = h {
 
 identity_headers := {key: values |
 	h1 := [["x-pomerium-jwt-assertion", signed_jwt]]
-	h2 := [[k, v] |
-		[claim_key, claim_value] := jwt_claims[_]
-		claim_value != null
-
-		# only include those headers requested by the user
+	h2 := [[header_name, header_value] |
 		some header_name
-		available := data.jwt_claim_headers[header_name]
-		available == claim_key
-
-		# create the header key and value
-		k := header_name
-		v := get_header_string_value(claim_value)
+		k := data.jwt_claim_headers[header_name]
+		header_value := array.concat(
+			[cv |
+				[ck, cv] := jwt_claims[_]
+				ck == k
+			],
+			[""]
+		)[0]
 	]
 
 	h3 := kubernetes_headers
