@@ -709,7 +709,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					},
 					"route": {
 						"autoHostRewrite": true,
-						"cluster": "policy-9",
+						"cluster": "policy-12",
 						"timeout": "3s",
 						"upgradeConfigs": [
 							{ "enabled": false, "upgradeType": "websocket"},
