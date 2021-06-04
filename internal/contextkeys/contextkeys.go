@@ -4,12 +4,12 @@ package contextkeys
 type contextKey int
 
 const (
-	// DatabrokerConfigVersion identifies the uint64 databroker version of the config
-	DatabrokerConfigVersion contextKey = iota
+	// UpdateRecordsVersion identifies the uint64 databroker version of the config
+	UpdateRecordsVersion contextKey = iota
 )
 
 func (x contextKey) String() string {
 	return map[contextKey]string{
-		DatabrokerConfigVersion: "db_config_version",
+		UpdateRecordsVersion: "update_records_version",
 	}[x]
 }

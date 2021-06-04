@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"sync"
 
@@ -254,7 +255,7 @@ func (mgr *Manager) Update(ctx context.Context, resources map[string][]*envoy_se
 	mgr.mu.Lock()
 	mgr.nonce = nonce
 	mgr.resources = resources
-	mgr.nonceToConfig.Add(nonce, ctx.Value(contextkeys.DatabrokerConfigVersion))
+	mgr.nonceToConfig.Add(nonce, ctx.Value(contextkeys.UpdateRecordsVersion))
 	mgr.mu.Unlock()
 
 	mgr.signal.Broadcast(ctx)
@@ -303,7 +304,7 @@ func (mgr *Manager) ackEvent(ctx context.Context, req *envoy_service_discovery_v
 		ResourceSubscribed:   req.ResourceNamesSubscribe,
 		ResourceUnsubscribed: req.ResourceNamesUnsubscribe,
 		TypeUrl:              req.TypeUrl,
-		Message:              "ok",
+		Message:              fmt.Sprintf("ok %s", req.ResponseNonce),
 	})
 
 	log.Debug(ctx).
@@ -323,7 +324,7 @@ func (mgr *Manager) changeEvent(ctx context.Context, res *envoy_service_discover
 		ResourceSubscribed:   resourceNames(res.Resources),
 		ResourceUnsubscribed: res.RemovedResources,
 		TypeUrl:              res.TypeUrl,
-		Message:              "change",
+		Message:              fmt.Sprintf("change %s", res.Nonce),
 	})
 	log.Debug(ctx).
 		Uint64("ctx_config_version", mgr.nonceToConfigVersion(res.Nonce)).
