@@ -1,7 +1,30 @@
-# config.yaml
-authenticate_service_url: https://authn.cloudrun.pomerium.io
-shared_secret: XXXXXX
-cookie_secret: XXXXXX
+authenticate_service_url: https://pomerium-titgprnlya-uc.a.run.app 
+shared_secret: ULCVRByNkB5VrYMlt0aMjnaZxs7YBrp3/I73lxZQkek=
+cookie_secret: 7trE3cRTg8q268UzcrkFy01W5+ErQcC4mYDVnjzbv5c=
 idp_provider: "google"
-idp_client_id: XXXXXX
-idp_client_secret: "XXXXXX"
+idp_client_id: "578863057215-ovv2vpf2rd4nrm13f6upq1kuk19uq47k.apps.googleusercontent.com"
+idp_client_secret: "DAfJTybayUuaK7QEuyxRldr2"
+policy:
+  - from: https://pomerium-titgprnlya-uc.a.run.app
+    to: https://hello-titgprnlya-uc.a.run.app
+    allowed_domains:
+      - gmail.com
+    enable_google_cloud_serverless_authentication: true
+  - from: https://pomerium-titgprnlya-uc.a.run.app
+    to: https://verify.pomerium.com
+    prefix: /verify
+    prefix_rewrite: /
+    pass_identity_headers: true
+    allowed_domains:
+      - gmail.com
+  - from: https://pomeriumlb.ptone.dev
+    to: https://hello-titgprnlya-uc.a.run.app
+    allowed_domains:
+      - gmail.com
+    enable_google_cloud_serverless_authentication: true
+  - from: https://pomeriumverify.ptone.dev
+    to: https://verify.pomerium.com
+    allowed_domains:
+      - gmail.com
+    pass_identity_headers: true
+    enable_google_cloud_serverless_authentication: true
