@@ -18,17 +18,4 @@ This demo includes a Cloud Run target configured to only accept requests from th
 - Cloud Run target
 ## How
 
-gcloud config set project [yourprojectid]
-export OAUTH_CLIENT_ID=[client-id]
-export OAUTH_CLIENT_SECRET=[client-secret]
-
-- Update `config.yaml` for your e-mail address, if not using gmail/google.
-- Replace secrets in `config.yaml`.
-- Deploy config.yaml to Secret Manager
-- Deploy the demo hello world app
-- Deploy pomerium with policy
-- Navigate to 
-
-- Navigate to `https://verify.cloudrun.pomerium.io`
-- Navigate to `https://hello-direct.cloudrun.pomerium.io`
-- Navigate to `https://hello.cloudrun.pomerium.io`
+Full step by step instructions are in the [guide](https://pomerium.io/guides/cloud-run.html)
