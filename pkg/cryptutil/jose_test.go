@@ -84,7 +84,7 @@ func TestPublicJWKFromBytes(t *testing.T) {
 			"good ed25519",
 			"LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1DNENBUUF3QlFZREsyVndCQ0lFSUZiNDN6SkVqblMvOHdxZVMwRlhiNDNWdlV5ZmhRL3UvWGd3UVV2bDVnaloKLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLQo=",
 			jose.EdDSA,
-			`{"use":"sig","kty":"OKP","kid":"3aa847838906f3c930f55c2d5885943ac7bede8f780d388015575334f88e77ef","crv":"Ed25519","alg":"EdDSA","x":"xsg1A67wECXAmRnSib8lSsgatcNcYm7vvspQnocPQNc"}`,
+			`{"use":"sig","kty":"OKP","kid":"9935c8811af93ab090d1cd943e4f1e67ed2a41d630797a8c33f2fb7c4f476a1e","crv":"Ed25519","alg":"EdDSA","x":"xsg1A67wECXAmRnSib8lSsgatcNcYm7vvspQnocPQNc"}`,
 			false,
 		},
 
