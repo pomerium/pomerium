@@ -640,6 +640,74 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 			}
 		}`, downstreamTLSContext)
 	})
+	t.Run("http1", func(t *testing.T) {
+		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+			Cert:      aExampleComCert,
+			Key:       aExampleComKey,
+			CodecType: config.CodecTypeHTTP1,
+		}}, "a.example.com")
+
+		testutil.AssertProtoJSONEqual(t, `{
+			"commonTlsContext": {
+				"tlsParams": {
+					"cipherSuites": [
+						"ECDHE-ECDSA-AES256-GCM-SHA384",
+						"ECDHE-RSA-AES256-GCM-SHA384",
+						"ECDHE-ECDSA-AES128-GCM-SHA256",
+						"ECDHE-RSA-AES128-GCM-SHA256",
+						"ECDHE-ECDSA-CHACHA20-POLY1305",
+						"ECDHE-RSA-CHACHA20-POLY1305"
+					],
+					"tlsMinimumProtocolVersion": "TLSv1_2"
+				},
+				"alpnProtocols": ["http/1.1"],
+				"tlsCertificates": [
+					{
+						"certificateChain": {
+							"filename": "`+certFileName+`"
+						},
+						"privateKey": {
+							"filename": "`+keyFileName+`"
+						}
+					}
+				]
+			}
+		}`, downstreamTLSContext)
+	})
+	t.Run("http2", func(t *testing.T) {
+		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+			Cert:      aExampleComCert,
+			Key:       aExampleComKey,
+			CodecType: config.CodecTypeHTTP2,
+		}}, "a.example.com")
+
+		testutil.AssertProtoJSONEqual(t, `{
+			"commonTlsContext": {
+				"tlsParams": {
+					"cipherSuites": [
+						"ECDHE-ECDSA-AES256-GCM-SHA384",
+						"ECDHE-RSA-AES256-GCM-SHA384",
+						"ECDHE-ECDSA-AES128-GCM-SHA256",
+						"ECDHE-RSA-AES128-GCM-SHA256",
+						"ECDHE-ECDSA-CHACHA20-POLY1305",
+						"ECDHE-RSA-CHACHA20-POLY1305"
+					],
+					"tlsMinimumProtocolVersion": "TLSv1_2"
+				},
+				"alpnProtocols": ["h2"],
+				"tlsCertificates": [
+					{
+						"certificateChain": {
+							"filename": "`+certFileName+`"
+						},
+						"privateKey": {
+							"filename": "`+keyFileName+`"
+						}
+					}
+				]
+			}
+		}`, downstreamTLSContext)
+	})
 }
 
 func Test_getAllDomains(t *testing.T) {
