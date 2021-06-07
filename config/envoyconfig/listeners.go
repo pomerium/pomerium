@@ -642,12 +642,22 @@ func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 		return nil
 	}
 
+	var alpnProtocols []string
+	switch cfg.Options.GetCodecType() {
+	case config.CodecTypeHTTP1:
+		alpnProtocols = []string{"http/1.1"}
+	case config.CodecTypeHTTP2:
+		alpnProtocols = []string{"h2"}
+	default:
+		alpnProtocols = []string{"h2", "http/1.1"}
+	}
+
 	envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert)
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams:             tlsParams,
 			TlsCertificates:       []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{envoyCert},
-			AlpnProtocols:         []string{"h2", "http/1.1"},
+			AlpnProtocols:         alpnProtocols,
 			ValidationContextType: b.buildDownstreamValidationContext(ctx, cfg, domain),
 		},
 	}
