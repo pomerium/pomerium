@@ -52,7 +52,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.22.0
 	github.com/scylladb/go-set v1.0.2
-	github.com/shirou/gopsutil/v3 v3.21.4
+	github.com/shirou/gopsutil/v3 v3.21.5
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/afero v1.5.1 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
