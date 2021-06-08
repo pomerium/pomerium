@@ -45,19 +45,24 @@ generate-mocks: ## Generate mocks
 	@echo "==> $@"
 	@go run github.com/golang/mock/mockgen -destination internal/directory/auth0/mock_auth0/mock.go github.com/pomerium/pomerium/internal/directory/auth0 RoleManager
 
-.PHONY: deps-lint
-deps-lint: ## Install lint dependencies
+
+.PHONY: get-envoy
+get-envoy: ## Fetch envoy binaries
 	@echo "==> $@"
-	./scripts/get-envoy.bash
+	@./scripts/get-envoy.bash
+
+.PHONY: deps-lint
+deps-lint: get-envoy ## Install lint dependencies
+	@echo "==> $@"
 	@$(GO) install github.com/client9/misspell/cmd/misspell@${MISSPELL_VERSION}
 	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_VERSION}
 
 .PHONY: deps-build
-deps-build: ## Install build dependencies
+deps-build: get-envoy ## Install build dependencies
 	@echo "==> $@"
 
 .PHONY: deps-release
-deps-release: ## Install release dependencies
+deps-release: get-envoy ## Install release dependencies
 	@echo "==> $@"
 	@cd /tmp; GO111MODULE=on $(GO) get github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
 
@@ -81,15 +86,13 @@ frontend: ## Runs go generate on the static assets package.
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) generate github.com/pomerium/pomerium/internal/frontend
 
 .PHONY: build
-build: ## Builds dynamic executables and/or packages.
+build: build-deps ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
-	./scripts/get-envoy.bash
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 .PHONY: build-debug
-build-debug: ## Builds binaries appropriate for debugging
+build-debug: build-deps ## Builds binaries appropriate for debugging
 	@echo "==> $@"
-	./scripts/get-envoy.bash
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 
@@ -99,7 +102,7 @@ lint: deps-lint ## Verifies `golint` passes.
 	@golangci-lint run ./...
 
 .PHONY: test
-test: ## Runs the go tests.
+test: get-envoy ## Runs the go tests.
 	@echo "==> $@"
 	@$(GO) test -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
 
@@ -110,7 +113,7 @@ spellcheck: # Spellcheck docs
 
 
 .PHONY: cover
-cover: ## Runs go test with coverage
+cover: get-envoy ## Runs go test with coverage
 	@echo "==> $@"
 	$(GO) test -race -coverprofile=coverage.txt -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
 	@sed -i.bak '/\.pb\.go\:/d' coverage.txt
@@ -124,7 +127,7 @@ clean: ## Cleanup any build binaries or packages.
 	$(RM) -r $(BUILDDIR)
 
 .PHONY: snapshot
-snapshot: ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
+snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
 	@echo "==> $@"
 	@goreleaser release --rm-dist -f .github/goreleaser.yaml --snapshot
 

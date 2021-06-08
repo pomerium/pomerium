@@ -48,9 +48,52 @@ jobs:
       - name: test
         if: runner.os != 'Linux'
         run: make test
+
+  cover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.16.x
+
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: set env vars
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: cache go binaries
+        uses: actions/cache@v2
+        id: cache-go-bin
+        with:
+          path: ~/go/bin
+          key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
+          restore-keys: ${{ runner.os }}-go-bin
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
       - name: cover
-        if: runner.os == 'Linux'
         run: make cover
+
+      - uses: jandelgado/gcov2lcov-action@v1.0.8
+        name: convert coverage to lcov
+        with:
+          infile: coverage.txt
+          outfile: coverage.lcov
+
+      - name: upload to coveralls
+        uses: coverallsapp/github-action@v1.1.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: coverage.lcov
 
   integration:
     strategy:
