@@ -89,3 +89,5 @@ docs/.vuepress/dist/
 .service-accounts
 
 /bazel-*
+
+internal/envoy/bin/

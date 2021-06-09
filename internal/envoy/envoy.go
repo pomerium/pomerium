@@ -5,12 +5,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,6 +37,41 @@ const (
 	configFileName       = "envoy-config.yaml"
 )
 
+var (
+	setupOnce          sync.Once
+	setupFullEnvoyPath string
+	setupErr           error
+)
+
+func setup() (fullEnvoyPath string, err error) {
+	setupOnce.Do(func() {
+		dir, err := os.MkdirTemp(os.TempDir(), workingDirectoryName)
+		if err != nil {
+			setupErr = fmt.Errorf("envoy: failed making temporary working dir: %w", err)
+			return
+		}
+
+		setupFullEnvoyPath = filepath.Join(dir, "envoy")
+
+		err = extract(setupFullEnvoyPath)
+		if err != nil {
+			setupErr = fmt.Errorf("envoy: failed to extract embedded envoy binary: %w", err)
+			return
+		}
+	})
+	return setupFullEnvoyPath, setupErr
+}
+
+// Command creates an exec.Cmd using the embedded envoy binary.
+func Command(ctx context.Context, arg ...string) (*exec.Cmd, error) {
+	fullEnvoyPath, err := setup()
+	if err != nil {
+		return nil, err
+	}
+
+	return exec.CommandContext(ctx, fullEnvoyPath, arg...), nil
+}
+
 // Checksum is the embedded envoy binary checksum. This value is populated by `make build`.
 var Checksum string
 
@@ -55,7 +87,6 @@ type Server struct {
 
 	builder            *envoyconfig.Builder
 	grpcPort, httpPort string
-	envoyPath          string
 
 	monitorProcessCancel context.CancelFunc
 
@@ -66,45 +97,12 @@ type Server struct {
 // NewServer creates a new server with traffic routed by envoy.
 func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string, builder *envoyconfig.Builder) (*Server, error) {
 	wd := filepath.Join(os.TempDir(), workingDirectoryName)
-	err := os.MkdirAll(wd, embeddedEnvoyPermissions)
-	if err != nil {
-		return nil, fmt.Errorf("error creating temporary working directory for envoy: %w", err)
-	}
-
-	envoyPath, err := extractEmbeddedEnvoy(ctx)
-	if err != nil {
-		log.Warn(ctx).Err(err).Send()
-		envoyPath = "envoy"
-	}
-
-	fullEnvoyPath, err := exec.LookPath(envoyPath)
-	if err != nil {
-		return nil, fmt.Errorf("no envoy binary found: %w", err)
-	}
-
-	// Checksum is written at build time, if it's not empty we verify the binary
-	if Checksum != "" {
-		bs, err := ioutil.ReadFile(fullEnvoyPath)
-		if err != nil {
-			return nil, fmt.Errorf("error reading envoy binary for checksum verification: %w", err)
-		}
-		h := sha256.New()
-		h.Write(bs)
-		s := hex.EncodeToString(h.Sum(nil))
-		if Checksum != s {
-			return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", Checksum, s)
-		}
-	} else {
-		log.Info(ctx).Msg("no checksum defined, envoy binary will not be verified!")
-	}
 
 	srv := &Server{
-		wd:        wd,
-		builder:   builder,
-		grpcPort:  grpcPort,
-		httpPort:  httpPort,
-		envoyPath: envoyPath,
-
+		wd:                   wd,
+		builder:              builder,
+		grpcPort:             grpcPort,
+		httpPort:             httpPort,
 		monitorProcessCancel: func() {},
 	}
 	go srv.runProcessCollector(ctx)
@@ -113,7 +111,6 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 	srv.onConfigChange(ctx, src.GetConfig())
 
 	log.Info(ctx).
-		Str("path", envoyPath).
 		Str("checksum", Checksum).
 		Msg("running envoy")
 
@@ -179,8 +176,12 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 		"--log-format-escaped",
 	}
 
-	exePath, args := srv.prepareRunEnvoyCommand(ctx, args)
-	cmd := exec.Command(exePath, args...)
+	args = srv.prepareRunEnvoyCommand(ctx, args)
+	cmd, err := Command(ctx, args...)
+	if err != nil {
+		log.Error(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to create envoy command")
+		return err
+	}
 	cmd.Dir = srv.wd
 
 	stderr, err := cmd.StderrPipe()

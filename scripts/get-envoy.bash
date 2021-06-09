@@ -5,7 +5,7 @@ PATH="$PATH:$(go env GOPATH)/bin"
 export PATH
 
 _envoy_version=1.17.3
-_dir="${DIR:-"$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/../bin"}"
+_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/../internal/envoy/bin"
 _target="${TARGET:-"$(go env GOOS)-$(go env GOARCH)"}"
 
 # until m1 macs are supported, fallback to x86 and use rosetta
@@ -42,6 +42,7 @@ if [ -f "$_dir/envoy" ]; then
 fi
 
 mkdir -p "$_dir"
-curl -L --compressed -o "$_dir/envoy" "https://github.com/pomerium/envoy-binaries/releases/download/v${_envoy_version}/envoy-${_target}"
+curl -L --compressed -o "$_dir/envoy" \
+    "https://github.com/pomerium/envoy-binaries/releases/download/v${_envoy_version}/envoy-${_target}"
 
 hash_sha256 "$_dir/envoy" >"$_dir/envoy.sha256"

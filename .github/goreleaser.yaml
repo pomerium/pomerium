@@ -41,8 +41,6 @@ builds:
           env:
             - TARGET={{ .Os }}-{{ .Arch }}
             - DIR={{ dir .Path }}
-      post:
-        - cmd: ./scripts/embed-envoy.bash {{ .Path }}
 
   - id: pomerium-cli
     main: ./cmd/pomerium-cli

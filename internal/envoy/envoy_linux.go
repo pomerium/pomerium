@@ -61,7 +61,7 @@ func (srv *Server) runProcessCollector(ctx context.Context) {
 	}
 }
 
-func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []string) (exePath string, args []string) {
+func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []string) (args []string) {
 	// release the previous process so we can hot-reload
 	if srv.cmd != nil && srv.cmd.Process != nil {
 		log.Info(ctx).Msg("envoy: releasing envoy process for hot-reload")
@@ -93,7 +93,7 @@ func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []stri
 	}
 	restartEpoch.Unlock()
 
-	return srv.envoyPath, args
+	return args
 }
 
 func readBaseID() (int, bool) {

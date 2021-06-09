@@ -60,6 +60,9 @@ func (mgr *Manager) ClearCache() {
 		if err != nil {
 			return err
 		}
+		if fi.IsDir() {
+			return nil
+		}
 		return os.Remove(p)
 	})
 	if err != nil {
