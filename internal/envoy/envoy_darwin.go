@@ -5,6 +5,7 @@ package envoy
 import (
 	"context"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"syscall"
 
@@ -22,12 +23,16 @@ func Command(ctx context.Context, args ...string) (*exec.Cmd, error) {
 		return nil, err
 	}
 
+	var cmd *exec.Cmd
 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
 		// until m1 macs are supported by envoy, fallback to x86 and use rosetta
-		return exec.CommandContext(ctx, "arch", append([]string{"-x86_64", fullEnvoyPath}, args...)...), nil
+		cmd = exec.CommandContext(ctx, "arch", append([]string{"-x86_64", fullEnvoyPath}, args...)...)
+	} else {
+		cmd = exec.CommandContext(ctx, fullEnvoyPath, args...)
 	}
+	cmd.Dir = filepath.Dir(fullEnvoyPath)
 
-	return exec.CommandContext(ctx, fullEnvoyPath, args...), nil
+	return cmd, nil
 }
 
 func (srv *Server) runProcessCollector(ctx context.Context) {}

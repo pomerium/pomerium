@@ -65,7 +65,7 @@ func (mgr *Manager) ClearCache() {
 		}
 		return os.Remove(p)
 	})
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		log.Error(context.TODO()).Err(err).Msg("failed to clear envoy file cache")
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"io/ioutil"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
@@ -36,7 +37,9 @@ func Command(ctx context.Context, arg ...string) (*exec.Cmd, error) {
 		return nil, err
 	}
 
-	return exec.CommandContext(ctx, fullEnvoyPath, arg...), nil
+	cmd := exec.CommandContext(ctx, fullEnvoyPath, arg...)
+	cmd.Dir = filepath.Dir(fullEnvoyPath)
+	return cmd, nil
 }
 
 func (srv *Server) runProcessCollector(ctx context.Context) {

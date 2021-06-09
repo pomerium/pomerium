@@ -72,7 +72,6 @@ type serverOptions struct {
 
 // A Server is a pomerium proxy implemented via envoy.
 type Server struct {
-	wd  string
 	cmd *exec.Cmd
 
 	builder            *envoyconfig.Builder
@@ -86,10 +85,7 @@ type Server struct {
 
 // NewServer creates a new server with traffic routed by envoy.
 func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string, builder *envoyconfig.Builder) (*Server, error) {
-	wd := filepath.Join(os.TempDir(), workingDirectoryName)
-
 	srv := &Server{
-		wd:                   wd,
 		builder:              builder,
 		grpcPort:             grpcPort,
 		httpPort:             httpPort,
@@ -172,7 +168,6 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 		log.Error(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to create envoy command")
 		return err
 	}
-	cmd.Dir = srv.wd
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -207,12 +202,17 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 }
 
 func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
+	fullEnvoyPath, err := setup()
+	if err != nil {
+		return err
+	}
+
 	confBytes, err := srv.buildBootstrapConfig(cfg)
 	if err != nil {
 		return err
 	}
 
-	cfgPath := filepath.Join(srv.wd, configFileName)
+	cfgPath := filepath.Join(filepath.Dir(fullEnvoyPath), configFileName)
 	log.Debug(ctx).Str("service", "envoy").Str("location", cfgPath).Msg("wrote config file to location")
 
 	return atomic.WriteFile(cfgPath, bytes.NewReader(confBytes))

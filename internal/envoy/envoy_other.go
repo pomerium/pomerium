@@ -5,6 +5,7 @@ package envoy
 import (
 	"context"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
@@ -16,7 +17,9 @@ func Command(ctx context.Context, arg ...string) (*exec.Cmd, error) {
 		return nil, err
 	}
 
-	return exec.CommandContext(ctx, fullEnvoyPath, arg...), nil
+	cmd := exec.CommandContext(ctx, fullEnvoyPath, arg...)
+	cmd.Dir = filepath.Dir(fullEnvoyPath)
+	return cmd, nil
 }
 
 func (srv *Server) runProcessCollector(ctx context.Context) {}
