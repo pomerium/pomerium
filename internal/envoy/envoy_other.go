@@ -21,7 +21,7 @@ func Command(ctx context.Context, arg ...string) (*exec.Cmd, error) {
 
 func (srv *Server) runProcessCollector(ctx context.Context) {}
 
-func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []string) (exePath string, args []string) {
+func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []string) (args []string) {
 	if srv.cmd != nil && srv.cmd.Process != nil {
 		log.Info(ctx).Msg("envoy: terminating previous envoy process")
 		_ = srv.cmd.Process.Kill()
@@ -30,5 +30,5 @@ func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []stri
 	args = make([]string, len(sharedArgs))
 	copy(args, sharedArgs)
 
-	return srv.envoyPath, args
+	return args
 }

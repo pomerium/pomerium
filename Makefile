@@ -24,8 +24,7 @@ CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.Version=$(VERSION) \
 	-X $(PKG)/internal/version.BuildMeta=$(BUILDMETA) \
 	-X $(PKG)/internal/version.ProjectName=$(NAME) \
-	-X $(PKG)/internal/version.ProjectURL=$(PKG) \
-	-X $(PKG)/internal/envoy.Checksum=$$(cat ./bin/envoy.sha256 | tr -d '\n')
+	-X $(PKG)/internal/version.ProjectURL=$(PKG)
 
 GO ?= "go"
 GO_LDFLAGS=-ldflags "-s -w $(CTIMEVAR)"
@@ -91,7 +90,7 @@ build: ## Builds dynamic executables and/or packages.
 build-debug: ## Builds binaries appropriate for debugging
 	@echo "==> $@"
 	./scripts/get-envoy.bash
-	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -ldflags="-X github.com/pomerium/pomerium/internal/envoy.Checksum=$$(cat ./bin/envoy.sha256 | tr -d '\n')" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 
 .PHONY: lint
