@@ -4,9 +4,20 @@ package envoy
 
 import (
 	"context"
+	"os/exec"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
+
+// Command creates an exec.Cmd using the embedded envoy binary.
+func Command(ctx context.Context, arg ...string) (*exec.Cmd, error) {
+	fullEnvoyPath, err := setup()
+	if err != nil {
+		return nil, err
+	}
+
+	return exec.CommandContext(ctx, fullEnvoyPath, arg...), nil
+}
 
 func (srv *Server) runProcessCollector(ctx context.Context) {}
 

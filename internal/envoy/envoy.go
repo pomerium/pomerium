@@ -62,16 +62,6 @@ func setup() (fullEnvoyPath string, err error) {
 	return setupFullEnvoyPath, setupErr
 }
 
-// Command creates an exec.Cmd using the embedded envoy binary.
-func Command(ctx context.Context, arg ...string) (*exec.Cmd, error) {
-	fullEnvoyPath, err := setup()
-	if err != nil {
-		return nil, err
-	}
-
-	return exec.CommandContext(ctx, fullEnvoyPath, arg...), nil
-}
-
 // Checksum is the embedded envoy binary checksum. This value is populated by `make build`.
 var Checksum string
 
