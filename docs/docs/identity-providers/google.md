@@ -112,7 +112,7 @@ The base64 encoded contents of this public/private key pair json file will used 
 
 Next, we need to give that service account permissionson the GSuite / Workspace side of the house.
 
-1. From your Google Workspace domain's [Admin console](http://admin.google.com/), go to **Main menu** menu**> Security > API controls**.
+1. From your Google Workspace domain's [Admin console](http://admin.google.com/), go to **Main menu** > **Security** > **API controls**.
 2. In the **Domain wide delegation** pane, select **Manage Domain Wide Delegation**.
 3. Click **Add new**.
 4. In the **Client ID** field, enter the client ID obtained from the service account creation steps above.
