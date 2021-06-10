@@ -13,6 +13,8 @@ if [ "$_target" == "darwin-arm64" ]; then
   _target="darwin-amd64"
 fi
 
+mkdir -p "$_dir"
+
 is_command() {
     command -v "$1" >/dev/null
 }
@@ -37,12 +39,40 @@ hash_sha256() {
     fi
 }
 
-if [ -f "$_dir/envoy" ]; then
-    exit 0
+_url="https://github.com/pomerium/envoy-binaries/releases/download/v${_envoy_version}/envoy-${_target}"
+
+# retrieve the redirect url
+_url="$(
+curl \
+    --silent \
+    --head \
+    --write-out '%{redirect_url}' \
+    --output /dev/null \
+    "$_url"
+)"
+
+
+# check the etag to avoid re-downloading
+if [ -f "$_dir/envoy.etag" ]; then
+    _response_code="$(
+    curl \
+        --silent \
+        --header "If-None-Match: \"$(cat "$_dir/envoy.etag")\"" \
+        --head \
+        --write-out '%{response_code}' \
+        --output /dev/null \
+        "$_url"
+    )"
+    if [ "$_response_code" == "304" ]; then
+      exit 0
+    fi
 fi
 
-mkdir -p "$_dir"
-curl -L --compressed -o "$_dir/envoy" \
-    "https://github.com/pomerium/envoy-binaries/releases/download/v${_envoy_version}/envoy-${_target}"
+curl \
+    --silent \
+    --compressed \
+    --etag-save "$_dir/envoy.etag" \
+    --output "$_dir/envoy" \
+    "$_url"
 
 hash_sha256 "$_dir/envoy" >"$_dir/envoy.sha256"
