@@ -12,8 +12,8 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/go-cmp/cmp"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 func testAuthorizer(next http.Handler) http.Handler {

@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"sync/atomic"
 
-	"gopkg.in/square/go-jose.v2"
+	"github.com/go-jose/go-jose/v3"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/open-policy-agent/opa/rego"
-	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"

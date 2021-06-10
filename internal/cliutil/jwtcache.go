@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/martinlindhe/base36"
-	"gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )

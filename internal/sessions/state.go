@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"gopkg.in/square/go-jose.v2/jwt"
+	"github.com/go-jose/go-jose/v3/jwt"
 )
 
 // ErrMissingID is the error for a session state that has no ID set.

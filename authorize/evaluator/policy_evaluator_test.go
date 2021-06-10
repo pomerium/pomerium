@@ -5,16 +5,15 @@ import (
 	"math"
 	"testing"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"gopkg.in/square/go-jose.v2"
-
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 func TestPolicyEvaluator(t *testing.T) {

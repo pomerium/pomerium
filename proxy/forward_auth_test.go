@@ -9,11 +9,11 @@ import (
 	"time"
 
 	envoy_service_auth_v2 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"

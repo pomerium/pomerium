@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/pomerium/csrf"
 	"github.com/rs/cors"
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"

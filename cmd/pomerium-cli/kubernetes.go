@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/spf13/cobra"
-	jose "gopkg.in/square/go-jose.v2"
 
 	"github.com/pomerium/pomerium/internal/authclient"
 )
