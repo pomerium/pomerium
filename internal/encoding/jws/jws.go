@@ -5,8 +5,8 @@ package jws
 import (
 	"github.com/pomerium/pomerium/internal/encoding"
 
-	jose "gopkg.in/square/go-jose.v2"
-	"gopkg.in/square/go-jose.v2/jwt"
+	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v3/jwt"
 )
 
 // JSONWebSigner is the struct representing a signed JWT.

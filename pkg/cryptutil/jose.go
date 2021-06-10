@@ -10,8 +10,8 @@ import (
 	"encoding/pem"
 	"fmt"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/hashicorp/go-multierror"
-	"gopkg.in/square/go-jose.v2"
 )
 
 // PrivateJWKFromBytes returns a jose JSON Web _Private_ Key from bytes.

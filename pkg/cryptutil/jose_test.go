@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/google/go-cmp/cmp"
-	"gopkg.in/square/go-jose.v2"
 )
 
 func TestPrivateJWKFromBytes(t *testing.T) {
