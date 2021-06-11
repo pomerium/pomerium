@@ -53,7 +53,7 @@ Remember to restart the Pomerium instance after saving your changes.
 ### Transmission Config
 
 :::tip
-Don't forget to switch your teminal prompt to the Transmission host before continuing.
+Don't forget to switch your terminal prompt to the Transmission host before continuing.
 :::
 
 1. If you don't already have the Transmission daemon installed, install it through your distro's package manager. The commands to install and configure Transmission below assume a Debian-based Linux distribution, but can be adapted for any Linux distro:
