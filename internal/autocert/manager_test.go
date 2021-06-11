@@ -3,9 +3,9 @@ package autocert
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
@@ -25,18 +25,69 @@ import (
 	"github.com/caddyserver/certmagic"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/ocsp"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 type M = map[string]interface{}
 
-func newMockACME(srv *httptest.Server) http.Handler {
+type testCA struct {
+	key     *ecdsa.PrivateKey
+	cert    *x509.Certificate
+	certPEM []byte
+}
+
+func newTestCA() (*testCA, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	tpl := &x509.Certificate{
+		SerialNumber: big.NewInt(time.Now().Unix()),
+		Subject: pkix.Name{
+			CommonName: "Test CA",
+		},
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Minute * 10),
+
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
+	if err != nil {
+		return nil, err
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		return nil, err
+	}
+
+	return &testCA{
+		key,
+		cert,
+		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
+	}, nil
+}
+
+func newMockACME(ca *testCA, srv *httptest.Server) http.Handler {
 	var certBuffer bytes.Buffer
+
+	var certs []*x509.Certificate
+	findCert := func(serial *big.Int) *x509.Certificate {
+		for _, c := range certs {
+			if c.SerialNumber.Cmp(serial) == 0 {
+				return c
+			}
+		}
+		return nil
+	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -78,6 +129,22 @@ func newMockACME(srv *httptest.Server) http.Handler {
 			"finalize": srv.URL + "/acme/finalize",
 		})
 	})
+	r.Post("/ocsp/request", func(w http.ResponseWriter, r *http.Request) {
+		reqData, _ := io.ReadAll(r.Body)
+		ocspReq, _ := ocsp.ParseRequest(reqData)
+		ocspResp := ocsp.Response{
+			Status:       ocsp.Good,
+			SerialNumber: ocspReq.SerialNumber,
+			ThisUpdate:   time.Now(),
+			NextUpdate:   time.Now().Add(time.Second),
+		}
+
+		cert := findCert(ocspReq.SerialNumber)
+		data, _ := ocsp.CreateResponse(ca.cert, cert, ocspResp, ca.key)
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
+	})
 	r.Post("/acme/finalize", func(w http.ResponseWriter, r *http.Request) {
 		var payload struct {
 			CSR string `json:"csr"`
@@ -85,7 +152,6 @@ func newMockACME(srv *httptest.Server) http.Handler {
 		readJWSPayload(r.Body, &payload)
 		bs, _ := base64.RawURLEncoding.DecodeString(payload.CSR)
 		csr, _ := x509.ParseCertificateRequest(bs)
-		caKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 		tpl := &x509.Certificate{
 			SerialNumber: big.NewInt(time.Now().Unix()),
 			DNSNames:     csr.DNSNames,
@@ -100,10 +166,15 @@ func newMockACME(srv *httptest.Server) http.Handler {
 			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 			BasicConstraintsValid: true,
 			IsCA:                  false,
+
+			IssuingCertificateURL: []string{srv.URL + "/certs/ca"},
+			OCSPServer:            []string{srv.URL + "/ocsp/request"},
 		}
-		der, _ := x509.CreateCertificate(rand.Reader, tpl, tpl, csr.PublicKey, caKey)
+		der, _ := x509.CreateCertificate(rand.Reader, tpl, ca.cert, csr.PublicKey, ca.key)
 		certBuffer.Reset()
 		_ = pem.Encode(&certBuffer, &pem.Block{Type: "CERTIFICATE", Bytes: der})
+		cert, _ := x509.ParseCertificate(der)
+		certs = append(certs, cert)
 
 		w.Header().Set("Replay-Nonce", "NONCE")
 		w.Header().Set("Content-Type", "application/json")
@@ -120,6 +191,11 @@ func newMockACME(srv *httptest.Server) http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(certBuffer.Bytes())
 	})
+	r.Get("/certs/ca", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/pkix-cert")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(ca.cert.Raw)
+	})
 	return r
 }
 
@@ -132,7 +208,11 @@ func TestConfig(t *testing.T) {
 		mockACME.ServeHTTP(w, r)
 	}))
 	defer srv.Close()
-	mockACME = newMockACME(srv)
+
+	ca, err := newTestCA()
+	require.NoError(t, err)
+
+	mockACME = newMockACME(ca, srv)
 
 	tmpdir := filepath.Join(os.TempDir(), uuid.New().String())
 	_ = os.MkdirAll(tmpdir, 0o755)
@@ -158,7 +238,7 @@ func TestConfig(t *testing.T) {
 			AutocertOptions: config.AutocertOptions{
 				Enable:     true,
 				UseStaging: true,
-				MustStaple: false,
+				MustStaple: true,
 				Folder:     tmpdir,
 			},
 			HTTPRedirectAddr: addr,
@@ -172,21 +252,44 @@ func TestConfig(t *testing.T) {
 		return
 	}
 
-	var certs []tls.Certificate
-	for i := 0; i < 10; i++ {
-		cfg := mgr.GetConfig()
-		assert.LessOrEqual(t, len(cfg.AutoCertificates), 1)
-		if len(cfg.AutoCertificates) == 1 && certs == nil {
-			certs = cfg.AutoCertificates
-		}
+	domainRenewed := make(chan bool)
+	ocspUpdated := make(chan bool)
 
-		if !cmp.Equal(certs, cfg.AutoCertificates) {
+	var initialOCSPStaple []byte
+	var certValidTime *time.Time
+	mgr.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
+		log.Info(ctx).Msg("OnConfigChange")
+		cert := cfg.AutoCertificates[0]
+		if initialOCSPStaple == nil {
+			initialOCSPStaple = cert.OCSPStaple
+		} else {
+			if bytes.Compare(initialOCSPStaple, cert.OCSPStaple) != 0 {
+				log.Info(ctx).Msg("OCSP updated")
+				ocspUpdated <- true
+			}
+		}
+		if certValidTime == nil {
+			certValidTime = &cert.Leaf.NotAfter
+		} else {
+			if !certValidTime.Equal(cert.Leaf.NotAfter) {
+				log.Info(ctx).Msg("domain renewed")
+				domainRenewed <- true
+			}
+		}
+	})
+
+	domainRenewedOK := false
+	ocspUpdatedOK := false
+
+	for !domainRenewedOK || !ocspUpdatedOK {
+		select {
+		case <-time.After(time.Second * 10):
+			t.Error("timeout waiting for certs renewal")
 			return
+		case domainRenewedOK = <-domainRenewed:
+		case ocspUpdatedOK = <-ocspUpdated:
 		}
-
-		time.Sleep(time.Second)
 	}
-	t.Fatalf("expected renewed certs, but certs never changed")
 }
 
 func TestRedirect(t *testing.T) {

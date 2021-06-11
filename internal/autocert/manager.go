@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/rs/zerolog"
 	"go.uber.org/zap"
 
 	"github.com/pomerium/pomerium/config"
@@ -28,6 +29,12 @@ var (
 	renewCertLock sync.Mutex
 )
 
+const (
+	ocspRespCacheSize = 50000
+	renewalInterval   = time.Minute * 10
+	renewalTimeout    = time.Hour
+)
+
 // Manager manages TLS certificates.
 type Manager struct {
 	src          config.Source
@@ -39,12 +46,14 @@ type Manager struct {
 	acmeMgr   atomic.Value
 	srv       *http.Server
 
+	*ocspCache
+
 	config.ChangeDispatcher
 }
 
 // New creates a new autocert manager.
 func New(src config.Source) (*Manager, error) {
-	return newManager(context.Background(), src, certmagic.DefaultACME, time.Minute*10)
+	return newManager(context.Background(), src, certmagic.DefaultACME, renewalInterval)
 }
 
 func newManager(ctx context.Context,
@@ -52,6 +61,15 @@ func newManager(ctx context.Context,
 	acmeTemplate certmagic.ACMEManager,
 	checkInterval time.Duration,
 ) (*Manager, error) {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "autocert-manager")
+	})
+
+	ocspRespCache, err := newOCSPCache(ocspRespCacheSize)
+	if err != nil {
+		return nil, err
+	}
+
 	certmagicConfig := certmagic.NewDefault()
 	// set certmagic default storage cache, otherwise cert renewal loop will be based off
 	// certmagic's own default location
@@ -67,13 +85,14 @@ func newManager(ctx context.Context,
 		src:          src,
 		acmeTemplate: acmeTemplate,
 		certmagic:    certmagicConfig,
+		ocspCache:    ocspRespCache,
 	}
-	err := mgr.update(src.GetConfig())
+	err = mgr.update(ctx, src.GetConfig())
 	if err != nil {
 		return nil, err
 	}
 	mgr.src.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
-		err := mgr.update(cfg)
+		err := mgr.update(ctx, cfg)
 		if err != nil {
 			log.Error(ctx).Err(err).Msg("autocert: error updating config")
 			return
@@ -91,9 +110,9 @@ func newManager(ctx context.Context,
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				err := mgr.renewConfigCerts()
+				err := mgr.renewConfigCerts(ctx)
 				if err != nil {
-					log.Error(context.TODO()).Err(err).Msg("autocert: error updating config")
+					log.Error(ctx).Err(err).Msg("autocert: error updating config")
 					return
 				}
 			}
@@ -128,7 +147,10 @@ func (mgr *Manager) getCertMagicConfig(cfg *config.Config) (*certmagic.Config, e
 	return mgr.certmagic, nil
 }
 
-func (mgr *Manager) renewConfigCerts() error {
+func (mgr *Manager) renewConfigCerts(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, renewalTimeout)
+	defer cancel()
+
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
@@ -138,47 +160,69 @@ func (mgr *Manager) renewConfigCerts() error {
 		return err
 	}
 
-	needsRenewal := false
+	needsReload := false
+	var renew, ocsp []string
+	log.Debug(ctx).Strs("domains", sourceHostnames(cfg)).Msg("checking domains")
 	for _, domain := range sourceHostnames(cfg) {
 		cert, err := cm.CacheManagedCertificate(domain)
-		if err == nil && cert.NeedsRenewal(cm) {
-			needsRenewal = true
+		if err != nil {
+			log.Error(ctx).Err(err).Str("domain", domain).Msg("get cert")
+			continue
+		}
+		if cert.NeedsRenewal(cm) {
+			renew = append(renew, domain)
+			needsReload = true
+		}
+		if mgr.ocspCache.updated(domain, cert.OCSPStaple) {
+			ocsp = append(ocsp, domain)
+			needsReload = true
 		}
 	}
-	if !needsRenewal {
+	if !needsReload {
 		return nil
 	}
 
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		if len(renew) > 0 {
+			c = c.Strs("renew_domains", renew)
+		}
+		if len(ocsp) > 0 {
+			c = c.Strs("ocsp_refresh", ocsp)
+		}
+		return c
+	})
+	log.Info(ctx).Msg("updating certificates")
+
 	cfg = mgr.src.GetConfig().Clone()
-	mgr.updateServer(cfg)
-	if err := mgr.updateAutocert(cfg); err != nil {
+	mgr.updateServer(ctx, cfg)
+	if err := mgr.updateAutocert(ctx, cfg); err != nil {
 		return err
 	}
 
 	mgr.config = cfg
-	mgr.Trigger(context.TODO(), cfg)
+	mgr.Trigger(ctx, cfg)
 	return nil
 }
 
-func (mgr *Manager) update(cfg *config.Config) error {
+func (mgr *Manager) update(ctx context.Context, cfg *config.Config) error {
 	cfg = cfg.Clone()
 
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 	defer func() { mgr.config = cfg }()
 
-	mgr.updateServer(cfg)
-	return mgr.updateAutocert(cfg)
+	mgr.updateServer(ctx, cfg)
+	return mgr.updateAutocert(ctx, cfg)
 }
 
 // obtainCert obtains a certificate for given domain, use cached manager if cert exists there.
-func (mgr *Manager) obtainCert(domain string, cm *certmagic.Config) (certmagic.Certificate, error) {
+func (mgr *Manager) obtainCert(ctx context.Context, domain string, cm *certmagic.Config) (certmagic.Certificate, error) {
 	cert, err := cm.CacheManagedCertificate(domain)
 	if err != nil {
-		log.Info(context.TODO()).Str("domain", domain).Msg("obtaining certificate")
-		err = cm.ObtainCert(context.Background(), domain, false)
+		log.Info(ctx).Str("domain", domain).Msg("obtaining certificate")
+		err = cm.ObtainCert(ctx, domain, false)
 		if err != nil {
-			log.Error(context.TODO()).Err(err).Msg("autocert failed to obtain client certificate")
+			log.Error(ctx).Err(err).Msg("autocert failed to obtain client certificate")
 			return certmagic.Certificate{}, errObtainCertFailed
 		}
 		metrics.RecordAutocertRenewal()
@@ -188,22 +232,22 @@ func (mgr *Manager) obtainCert(domain string, cm *certmagic.Config) (certmagic.C
 }
 
 // renewCert attempts to renew given certificate.
-func (mgr *Manager) renewCert(domain string, cert certmagic.Certificate, cm *certmagic.Config) (certmagic.Certificate, error) {
+func (mgr *Manager) renewCert(ctx context.Context, domain string, cert certmagic.Certificate, cm *certmagic.Config) (certmagic.Certificate, error) {
 	expired := time.Now().After(cert.Leaf.NotAfter)
-	log.Info(context.TODO()).Str("domain", domain).Msg("renewing certificate")
+	log.Info(ctx).Str("domain", domain).Msg("renewing certificate")
 	renewCertLock.Lock()
-	err := cm.RenewCert(context.Background(), domain, false)
+	err := cm.RenewCert(ctx, domain, false)
 	renewCertLock.Unlock()
 	if err != nil {
 		if expired {
 			return certmagic.Certificate{}, errRenewCertFailed
 		}
-		log.Warn(context.TODO()).Err(err).Msg("renew client certificated failed, use existing cert")
+		log.Warn(ctx).Err(err).Msg("renew client certificated failed, use existing cert")
 	}
 	return cm.CacheManagedCertificate(domain)
 }
 
-func (mgr *Manager) updateAutocert(cfg *config.Config) error {
+func (mgr *Manager) updateAutocert(ctx context.Context, cfg *config.Config) error {
 	if !cfg.Options.AutocertOptions.Enable {
 		return nil
 	}
@@ -214,22 +258,22 @@ func (mgr *Manager) updateAutocert(cfg *config.Config) error {
 	}
 
 	for _, domain := range sourceHostnames(cfg) {
-		cert, err := mgr.obtainCert(domain, cm)
+		cert, err := mgr.obtainCert(ctx, domain, cm)
 		if err != nil && errors.Is(err, errObtainCertFailed) {
 			return fmt.Errorf("autocert: failed to obtain client certificate: %w", err)
 		}
 		if err == nil && cert.NeedsRenewal(cm) {
-			cert, err = mgr.renewCert(domain, cert, cm)
+			cert, err = mgr.renewCert(ctx, domain, cert, cm)
 		}
 		if err != nil && errors.Is(err, errRenewCertFailed) {
 			return fmt.Errorf("autocert: failed to renew client certificate: %w", err)
 		}
 		if err != nil {
-			log.Error(context.TODO()).Err(err).Msg("autocert: failed to obtain client certificate")
+			log.Error(ctx).Err(err).Msg("autocert: failed to obtain client certificate")
 			continue
 		}
 
-		log.Info(context.TODO()).Strs("names", cert.Names).Msg("autocert: added certificate")
+		log.Info(ctx).Strs("names", cert.Names).Msg("autocert: added certificate")
 		cfg.AutoCertificates = append(cfg.AutoCertificates, cert.Certificate)
 	}
 
@@ -238,7 +282,7 @@ func (mgr *Manager) updateAutocert(cfg *config.Config) error {
 	return nil
 }
 
-func (mgr *Manager) updateServer(cfg *config.Config) {
+func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 	if mgr.srv != nil {
 		// nothing to do if the address hasn't changed
 		if mgr.srv.Addr == cfg.Options.HTTPRedirectAddr {
@@ -265,10 +309,10 @@ func (mgr *Manager) updateServer(cfg *config.Config) {
 		}),
 	}
 	go func() {
-		log.Info(context.TODO()).Str("addr", hsrv.Addr).Msg("starting http redirect server")
+		log.Info(ctx).Str("addr", hsrv.Addr).Msg("starting http redirect server")
 		err := hsrv.ListenAndServe()
 		if err != nil {
-			log.Error(context.TODO()).Err(err).Msg("failed to run http redirect server")
+			log.Error(ctx).Err(err).Msg("failed to run http redirect server")
 		}
 	}()
 	mgr.srv = hsrv
