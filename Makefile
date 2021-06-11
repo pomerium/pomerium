@@ -48,6 +48,7 @@ generate-mocks: ## Generate mocks
 .PHONY: build-lint
 deps-lint: ## Install lint dependencies
 	@echo "==> $@"
+	./scripts/get-envoy.bash
 	@$(GO) install github.com/client9/misspell/cmd/misspell@${MISSPELL_VERSION}
 	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_VERSION}
 
