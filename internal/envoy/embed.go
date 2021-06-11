@@ -2,7 +2,6 @@ package envoy
 
 import (
 	"context"
-	_ "embed" // for embedded files
 	"fmt"
 	"io/fs"
 	"os"
