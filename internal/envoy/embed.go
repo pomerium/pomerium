@@ -2,6 +2,7 @@ package envoy
 
 import (
 	"context"
+	_ "embed" // for embedded files
 	"fmt"
 	"io/fs"
 	"os"
@@ -13,8 +14,10 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-const embeddedEnvoyPermissions fs.FileMode = 0o700
-const embeddedDirectoryPermissions fs.FileMode = 0o755
+const (
+	embeddedEnvoyPermissions     fs.FileMode = 0o700
+	embeddedDirectoryPermissions fs.FileMode = 0o755
+)
 
 var embeddedFilesBaseDirectory = filepath.Join(os.TempDir(), "pomerium-embedded-files")
 

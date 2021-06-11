@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/directory"
+	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/manager"
 	"github.com/pomerium/pomerium/internal/log"
@@ -52,7 +53,10 @@ func New(cfg *config.Config) (*DataBroker, error) {
 	sharedKey, _ := cfg.Options.GetSharedKey()
 
 	ui, si := grpcutil.AttachMetadataInterceptors(
-		metadata.Pairs(grpcutil.MetadataKeyPomeriumVersion, version.FullVersion()),
+		metadata.Pairs(
+			grpcutil.MetadataKeyEnvoyVersion, files.FullVersion(),
+			grpcutil.MetadataKeyPomeriumVersion, version.FullVersion(),
+		),
 	)
 
 	// No metrics handler because we have one in the control plane.  Add one

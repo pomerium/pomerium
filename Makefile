@@ -24,8 +24,7 @@ CTIMEVAR=-X $(PKG)/internal/version.GitCommit=$(GITCOMMIT) \
 	-X $(PKG)/internal/version.Version=$(VERSION) \
 	-X $(PKG)/internal/version.BuildMeta=$(BUILDMETA) \
 	-X $(PKG)/internal/version.ProjectName=$(NAME) \
-	-X $(PKG)/internal/version.ProjectURL=$(PKG) \
-	-X $(PKG)/internal/envoy.Checksum=$$(cat ./bin/envoy.sha256 | tr -d '\n')
+	-X $(PKG)/internal/version.ProjectURL=$(PKG)
 
 GO ?= "go"
 GO_LDFLAGS=-ldflags "-s -w $(CTIMEVAR)"

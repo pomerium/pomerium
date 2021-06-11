@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/envoy"
+	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -32,7 +33,10 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, configFile string) error {
-	log.Info(ctx).Str("version", version.FullVersion()).Msg("cmd/pomerium")
+	log.Info(ctx).
+		Str("envoy_version", files.FullVersion()).
+		Str("version", version.FullVersion()).
+		Msg("cmd/pomerium")
 
 	var src config.Source
 

@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/controlplane/xdsmgr"
+	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -85,7 +86,10 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 		return nil, err
 	}
 	ui, si := grpcutil.AttachMetadataInterceptors(
-		metadata.Pairs(grpcutil.MetadataKeyPomeriumVersion, version.FullVersion()),
+		metadata.Pairs(
+			grpcutil.MetadataKeyEnvoyVersion, files.FullVersion(),
+			grpcutil.MetadataKeyPomeriumVersion, version.FullVersion(),
+		),
 	)
 	srv.GRPCServer = grpc.NewServer(
 		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(name)),
