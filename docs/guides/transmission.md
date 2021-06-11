@@ -104,7 +104,7 @@ Don't forget to switch your terminal prompt to the Transmission host before cont
 
 You should now be able to authenticate and access your Transmission daemon remotely in the web browser, with TLS encryption!
 
-![The Trasmission web interface, secured with Pomerium](./img/transmission-demo.png)
+![The Transmission web interface, secured with Pomerium](./img/transmission-demo.png)
 
 In addition to the lock symbol in your browser's address bar, you can go to `<transmission.mydomain.com>/.pomerium` to view and confirm your session details.
 
