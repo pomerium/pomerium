@@ -11,5 +11,5 @@ This section contains applications, and scenario specific guides for Pomerium.
 - The [local OIDC](./local-oidc.md) guide demonstrates how pomerium can be used with local OIDC server for dev/testing.
 - The [mTLS](./mtls.md) guide demonstrates how pomerium can be used to add mutual authentication using client certificates and a custom certificate authority.
 - The [TiddlyWiki](./tiddlywiki.md) guide demonstrates how pomerium can be used to add authentication and authorization to web application using authenticated header.
+- The [visual studio code](./vs-code-server.md) guide demonstrates how pomerium can be used to add access control to third-party applications that don't ship with [fine-grained access control](https://github.com/cdr/code-server/issues/905).
 - The [Transmission](./transmission.md) guide demonstrates how Pomerium can act as an authentication and authorization proxy for your Transmission daemon's RPC interface, which only provides unencrypted HTTP auth out of the box.
-- The [Visual Studio Code](./code-server.md) guide demonstrates how pomerium can be used to add access control to third-party applications that don't ship with [fine-grained access control](https://github.com/cdr/code-server/issues/905).

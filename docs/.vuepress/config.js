@@ -169,6 +169,7 @@ module.exports = {
             "traefik-ingress",
             "transmission",
             "code-server",
+            "transmission",
           ],
         },
       ],
