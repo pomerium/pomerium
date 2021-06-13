@@ -168,6 +168,7 @@ module.exports = {
             "tiddlywiki",
             "traefik-ingress",
             "code-server",
+            "transmission",
           ],
         },
       ],
