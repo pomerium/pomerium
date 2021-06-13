@@ -16,7 +16,7 @@ The following guide covers how to secure [Kubernetes Dashboard] using Pomerium. 
 
 This tutorial covers:
 
-- Installing [Helm] a package manger for Kubernetes
+- Installing [Helm] a package manager for Kubernetes
 - Deploying [NGINX Ingress Controller]
 - Install and configure [Cert-Manager] to issue [LetsEncrypt] certificates
 - Deploying Pomerium
