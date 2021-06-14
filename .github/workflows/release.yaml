@@ -88,8 +88,8 @@ jobs:
           docker manifest create -a pomerium/pomerium:latest pomerium/pomerium:amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:arm64v8-${{ steps.tagName.outputs.tag }}
           docker manifest push pomerium/pomerium:latest
 
-          docker tag gcr.io/pomerium-io/pomerium:${{ steps.tagName.outputs.tag }}-cloudrun gcr.io/pomerium-io/pomerium:latest-cloudrun
-          docker push gcr.io/pomerium-io/pomerium:latest-cloudrun
+          docker tag gcr.io/pomerium-io/pomerium:latest gcr.io/pomerium-io/pomerium:latest
+          docker push gcr.io/pomerium-io/pomerium:latest
 
   deploy:
     runs-on: ubuntu-latest

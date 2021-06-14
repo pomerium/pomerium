@@ -1,0 +1,12 @@
+authenticate_service_url: https://pomerium-${URL_HASH}-uc.a.run.app 
+shared_secret: ${SHARED_SECRET}
+cookie_secret: ${COOKIE_SECRET}
+idp_provider: "google"
+idp_client_id: "${OAUTH_CLIENT_ID}"
+idp_client_secret: "${OAUTH_CLIENT_SECRET}"
+policy:
+  - from: https://pomerium-${URL_HASH}-uc.a.run.app
+    to: ${HELLO_URL}
+    allowed_domains:
+      - gmail.com
+    enable_google_cloud_serverless_authentication: true

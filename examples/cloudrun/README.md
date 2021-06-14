@@ -15,19 +15,7 @@ This demo includes a Cloud Run target configured to only accept requests from th
 ## Includes
 
 - Authentication and Authorization managed by pomerium
-- Custom Cloud Run domains
 - Cloud Run target
-- HTTPBin target
-
 ## How
 
-- Update `config.yaml` for your e-mail address, if not using gmail/google.
-- Replace secrets in `config.yaml`.
-- Replace `cloudrun.pomerium.io` with your own domain.
-- Update your DNS
-- Deploy config.yaml to Secret Manager
-- Deploy the demo hello world app
-- Deploy pomerium with policy
-- Navigate to `https://verify.cloudrun.pomerium.io`
-- Navigate to `https://hello-direct.cloudrun.pomerium.io`
-- Navigate to `https://hello.cloudrun.pomerium.io`
+Full step by step instructions are in the [guide](https://pomerium.io/guides/cloud-run.html)

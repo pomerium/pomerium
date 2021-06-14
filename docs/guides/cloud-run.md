@@ -24,51 +24,51 @@ These bearer tokens are not easily set in a browser session and must be refreshe
 ![cloudrun architecture](./img/cloud-run/architecture.svg)
 
 - Add an IAM policy delegating `roles/run.invoker` permissions to a service account
-- Run Pomerium with access to a key for the corresponding service account
+- Run Pomerium with access to a key for the corresponding service account, this can be in any compute infrastructure which provides workload identity, including Cloud Run.
 - Publish DNS records for each protected application pointing to Pomerium
 - Configure Pomerium with appropriate policy and `enable_google_cloud_serverless_authentication`
 
 The protected application delegates trust to a GCP service account which Pomerium runs as, and Pomerium performs user based authorization on a per route basis. This turns Pomerium into a bridge between a user-centric and service-centric authorization models.
 
+In this guide - we deploy Pomerium to Cloud Run with a single route and target. Because Cloud Run scales to zero and is serverless, it is possible to deploy multiple pomerium instances in a 1:1 configuration with targets. At the end of this guide, we review how to route to multiple proxied services based on path or domain name.
 ## Pre-requisites
 
-This guide assumes you have Editor access to a Google Cloud project which can be used for isolated testing, and a DNS zone which you are also able to control. DNS does not need to be inside Google Cloud for the example to work.
+This guide assumes you have Editor access to a Google Cloud project which can be used for isolated testing, and a DNS zone which you are also able to control. DNS configuration is optional and does not need to be inside Google Cloud for the example to work.
 
-## Set Up
-
-To deploy Pomerium to Cloud Run securely and easily, a special [image](https://console.cloud.google.com/gcr/images/pomerium-io/GLOBAL/pomerium) is available at `gcr.io/pomerium-io/pomerium:[version]-cloudrun`. It allows sourcing configuration from GCP Secrets Manager, and sets some defaults for Cloud Run to keep configuration minimal. We will be leveraging it in this example to store IdP credentials. Our policy contains no secrets so we can place it directly in an ENV var.
-
-[Dockerfile](https://github.com/pomerium/pomerium/blob/master/.github/Dockerfile-cloudrun) Based on [vals-entrypoint](https://github.com/pomerium/vals-entrypoint)
-
-The image expects a config file at `/pomerium/config.yaml`. Set `VALS_FILES=[secretref]:/pomerium/config.yaml` and set any other Pomerium Environment Variables directly or with secret refs such as `ref+gcpsecrets://PROJECT/SECRET(#/key])`.
-
+Using Google as an example IdP, you should first create an [OAuth Client-id](../docs/identity-providers/google.html) (You don't need to worry for now about the service account for group access). Note the client-id and client-secret values.
 ### Config
 
-Set up a config.yaml to contain your IdP credentials and secrets (config.yaml):
+We will use a config.yaml template to contain your IdP credentials and secrets (config.yaml) as well as routing policy:
 
-<<< @/examples/cloudrun/config.yaml
+<<< @/examples/cloudrun/config.template.yaml
 
-Substitute `cloudrun.pomerium.io` for your own subdomain and your e-mail domain if appropriate (policy.template.yaml):
 
-<<< @/examples/cloudrun/policy.template.yaml
+Set the client credentials from the previously created Oauth client as environment variables:
 
-### DNS
-
-Substitute `cloudrun.pomerium.io` for your own subdomain (zonefile.txt):
-
-<<< @/examples/cloudrun/zonefile.txt
-
-Or set an equivalent CNAME in your DNS provider.
-
-## Deploy
+```shell
+export OAUTH_CLIENT_ID=[client-id]
+export OAUTH_CLIENT_SECRET=[client-secret]
+```
 
 Ensure you have set a default project:
 
 ```shell
 glcoud config set default-project MYTESTPROJECT
 ```
+## Deploy
+
+Execute the deploy script:
+
+```shell
+bash deploy.sh
+```
 
 <<< @/examples/cloudrun/deploy.sh
+
+You will now need to authorize the pomerium service as a valid auth callback for your Oauth app. 
+
+Enter the callback URL output by the deploy script as an "Authorized redirect URI" in the OAuth [credential](https://console.cloud.google.com/apis/credentials
+) you created.
 
 ## Results
 
@@ -80,13 +80,11 @@ We should see two applications deployed. The `hello` app is our protected app, a
 
 Notice that Pomerium allows unauthenticated access, but `hello` does not.
 
-Here are the domain mappings set up:
-
-![Cloud Run Domains](./img/cloud-run/cloudrun-domains.png)
+You will use each services automatically created URL available on the detail page for each service.
 
 ### Direct Access
 
-Let's verify we cannot access the main application directly by visiting <https://hello-direct.cloudrun.pomerium.io>
+Let's verify we cannot access the main application directly by visiting the `hello` service directly. (the URL is in the form of https://hello-xxyyzz-uc.a.run.app)
 
 ![Hello Direct Access](./img/cloud-run/hello-direct.png)
 
@@ -94,7 +92,7 @@ You should see a 403 error because you do not have the proper credentials.
 
 ### Authenticated Access
 
-Now let's access via <https://hello.cloudrun.pomerium.io>
+Now let's access via the pomerium service.
 
 We should get an auth flow through your IdP:
 
@@ -104,14 +102,16 @@ And a hello page:
 
 ![Hello](./img/cloud-run/hello-success.png)
 
+## Extending to other scenarios
+
+### Using DNS and hostnames
+
+Using custom domains either Cloud Run [mapped domains](https://cloud.google.com/run/docs/mapping-custom-domains) or through [GCLB](https://cloud.google.com/load-balancing/docs/https/setting-up-https-serverless) a single instance of Pomerium can use the hostname to route to different target Cloud Run services. You would route the multiple custom domains all to Pomerium, and then use in the [from](../reference/#from) portion of a policy route.
+
+### Using path based routes
+If you are routing to pages that can support path re-writes (requires no use of absolute paths), you can also use path based routing to use a single domain for the Pomerium proxy, with multiple secured applications.
 ### Non-GCP Applications
 
 If your target application is not running on GCP, you can also perform your own header validation.
-
-Browse to [https://verify.cloudrun.pomerium.io](https://verify.cloudrun.pomerium.io/headers)
-
-You should see your identity header set:
-
-![Hello](./img/cloud-run/headers.png)
 
 See [getting user's identity](../docs/topics/getting-users-identity.md) for more details on using this header.

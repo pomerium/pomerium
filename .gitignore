@@ -89,3 +89,4 @@ docs/.vuepress/dist/
 .service-accounts
 
 /bazel-*
+examples/cloudrun/config.yaml
