@@ -45,7 +45,7 @@ generate-mocks: ## Generate mocks
 	@echo "==> $@"
 	@go run github.com/golang/mock/mockgen -destination internal/directory/auth0/mock_auth0/mock.go github.com/pomerium/pomerium/internal/directory/auth0 RoleManager
 
-.PHONY: build-lint
+.PHONY: deps-lint
 deps-lint: ## Install lint dependencies
 	@echo "==> $@"
 	./scripts/get-envoy.bash
@@ -94,7 +94,7 @@ build-debug: ## Builds binaries appropriate for debugging
 
 
 .PHONY: lint
-lint: ## Verifies `golint` passes.
+lint: deps-lint ## Verifies `golint` passes.
 	@echo "==> $@"
 	@golangci-lint run ./...
 
