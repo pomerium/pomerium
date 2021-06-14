@@ -36,6 +36,7 @@ const (
 	ServiceLabel        = "service"
 	ConfigLabel         = "config"
 	VersionLabel        = "version"
+	EnvoyVersionLabel   = "envoy_version"
 	RevisionLabel       = "revision"
 	GoVersionLabel      = "goversion"
 	HostLabel           = "host"

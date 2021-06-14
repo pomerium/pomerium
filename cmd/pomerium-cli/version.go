@@ -17,6 +17,6 @@ var versionCmd = &cobra.Command{
 	Short: "version",
 	Long:  `Print the cli version.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(version.FullVersion())
+		fmt.Println("pomerium:", version.FullVersion())
 	},
 }

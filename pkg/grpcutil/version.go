@@ -7,6 +7,9 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// MetadataKeyEnvoyVersion is the gRPC metadata key used for the envoy version.
+const MetadataKeyEnvoyVersion = "x-envoy-version"
+
 // MetadataKeyPomeriumVersion is the gRPC metadata key used for the pomerium version.
 const MetadataKeyPomeriumVersion = "x-pomerium-version"
 

@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/metrics"
 
@@ -63,6 +64,7 @@ func Test_SetDBConfigInfo(t *testing.T) {
 		})
 	}
 }
+
 func Test_SetBuildInfo(t *testing.T) {
 	registry = newMetricRegistry()
 
@@ -72,6 +74,7 @@ func Test_SetBuildInfo(t *testing.T) {
 	wantLabels := []metricdata.LabelValue{
 		{Value: "test_service", Present: true},
 		{Value: version.FullVersion(), Present: true},
+		{Value: files.FullVersion(), Present: true},
 		{Value: version.GitCommit, Present: true},
 		{Value: runtime.Version(), Present: true},
 		{Value: "test_host", Present: true},

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/pomerium/pomerium/internal/cmd/pomerium"
+	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
 )
@@ -17,6 +18,13 @@ var (
 )
 
 func main() {
+	flag.Parse()
+	if *versionFlag {
+		fmt.Println("pomerium:", version.FullVersion())
+		fmt.Println("envoy:", files.FullVersion())
+		return
+	}
+
 	ctx := context.Background()
 	if err := run(ctx); !errors.Is(err, context.Canceled) {
 		log.Fatal().Err(err).Msg("cmd/pomerium")
@@ -25,10 +33,5 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	flag.Parse()
-	if *versionFlag {
-		fmt.Println(version.FullVersion())
-		return nil
-	}
 	return pomerium.Run(ctx, *configFile)
 }

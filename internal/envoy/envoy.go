@@ -30,6 +30,8 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/pomerium/pomerium/internal/envoy/files"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
@@ -39,9 +41,6 @@ const (
 	workingDirectoryName = ".pomerium-envoy"
 	configFileName       = "envoy-config.yaml"
 )
-
-// Checksum is the embedded envoy binary checksum. This value is populated by `make build`.
-var Checksum string
 
 type serverOptions struct {
 	services string
@@ -83,7 +82,7 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 	}
 
 	// Checksum is written at build time, if it's not empty we verify the binary
-	if Checksum != "" {
+	if files.Checksum() != "" {
 		bs, err := ioutil.ReadFile(fullEnvoyPath)
 		if err != nil {
 			return nil, fmt.Errorf("error reading envoy binary for checksum verification: %w", err)
@@ -91,8 +90,8 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 		h := sha256.New()
 		h.Write(bs)
 		s := hex.EncodeToString(h.Sum(nil))
-		if Checksum != s {
-			return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", Checksum, s)
+		if files.Checksum() != s {
+			return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", files.Checksum(), s)
 		}
 	} else {
 		log.Info(ctx).Msg("no checksum defined, envoy binary will not be verified!")
@@ -114,7 +113,7 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 
 	log.Info(ctx).
 		Str("path", envoyPath).
-		Str("checksum", Checksum).
+		Str("checksum", files.Checksum()).
 		Msg("running envoy")
 
 	return srv, nil
