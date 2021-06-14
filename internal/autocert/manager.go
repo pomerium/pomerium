@@ -220,7 +220,7 @@ func (mgr *Manager) obtainCert(ctx context.Context, domain string, cm *certmagic
 	cert, err := cm.CacheManagedCertificate(domain)
 	if err != nil {
 		log.Info(ctx).Str("domain", domain).Msg("obtaining certificate")
-		err = cm.ObtainCert(ctx, domain, false)
+		err = cm.ObtainCertSync(ctx, domain)
 		if err != nil {
 			log.Error(ctx).Err(err).Msg("autocert failed to obtain client certificate")
 			return certmagic.Certificate{}, errObtainCertFailed
@@ -236,7 +236,7 @@ func (mgr *Manager) renewCert(ctx context.Context, domain string, cert certmagic
 	expired := time.Now().After(cert.Leaf.NotAfter)
 	log.Info(ctx).Str("domain", domain).Msg("renewing certificate")
 	renewCertLock.Lock()
-	err := cm.RenewCert(ctx, domain, false)
+	err := cm.RenewCertSync(ctx, domain, false)
 	renewCertLock.Unlock()
 	if err != nil {
 		if expired {
