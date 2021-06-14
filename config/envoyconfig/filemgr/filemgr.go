@@ -56,6 +56,10 @@ func (mgr *Manager) BytesDataSource(fileName string, data []byte) *envoy_config_
 
 // ClearCache clears the file cache.
 func (mgr *Manager) ClearCache() {
+	if _, err := os.Stat(mgr.cfg.cacheDir); os.IsNotExist(err) {
+		return
+	}
+
 	err := filepath.Walk(mgr.cfg.cacheDir, func(p string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err

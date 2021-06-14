@@ -121,6 +121,8 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 
 // Close kills any underlying envoy process.
 func (srv *Server) Close() error {
+	srv.monitorProcessCancel()
+
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
