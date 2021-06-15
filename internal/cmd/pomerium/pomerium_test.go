@@ -10,7 +10,6 @@ import (
 
 func Test_run(t *testing.T) {
 	os.Clearenv()
-	t.Parallel()
 	tests := []struct {
 		name           string
 		configFileFlag string

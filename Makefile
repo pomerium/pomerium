@@ -45,7 +45,7 @@ generate-mocks: ## Generate mocks
 	@echo "==> $@"
 	@go run github.com/golang/mock/mockgen -destination internal/directory/auth0/mock_auth0/mock.go github.com/pomerium/pomerium/internal/directory/auth0 RoleManager
 
-.PHONY: build-lint
+.PHONY: deps-lint
 deps-lint: ## Install lint dependencies
 	@echo "==> $@"
 	./scripts/get-envoy.bash
@@ -85,18 +85,16 @@ build: ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
 	./scripts/get-envoy.bash
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
-	./scripts/embed-envoy.bash $(BINDIR)/$(NAME)
 
 .PHONY: build-debug
 build-debug: ## Builds binaries appropriate for debugging
 	@echo "==> $@"
 	./scripts/get-envoy.bash
-	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -ldflags="-X github.com/pomerium/pomerium/internal/envoy.Checksum=$$(cat ./bin/envoy.sha256 | tr -d '\n')" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
-	./scripts/embed-envoy.bash $(BINDIR)/$(NAME)
+	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 
 .PHONY: lint
-lint: ## Verifies `golint` passes.
+lint: deps-lint ## Verifies `golint` passes.
 	@echo "==> $@"
 	@golangci-lint run ./...
 

@@ -1,15 +1,17 @@
 package envoy
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/natefinch/atomic"
-	resources "gopkg.in/cookieo9/resources-go.v2"
 
+	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -18,51 +20,49 @@ const (
 	embeddedDirectoryPermissions fs.FileMode = 0o755
 )
 
-var embeddedFilesBaseDirectory = filepath.Join(os.TempDir(), "pomerium-embedded-files")
+var (
+	embeddedFilesBaseDirectory = filepath.Join(os.TempDir(), "pomerium-embedded-files")
+	extractEmbeddedEnvoyOnce   sync.Once
+)
 
 func extractEmbeddedEnvoy(ctx context.Context) (outPath string, err error) {
-	exePath, err := resources.ExecutablePath()
-	if err != nil {
-		return "", fmt.Errorf("error finding executable path: %w", err)
-	}
-	bundle, err := resources.OpenZip(exePath)
-	if err != nil {
-		return "", fmt.Errorf("error opening binary zip file: %w", err)
-	}
-	defer bundle.Close()
+	extractEmbeddedEnvoyOnce.Do(func() {
+		// clean up our base directory before starting
+		err = os.RemoveAll(embeddedFilesBaseDirectory)
+		if err != nil {
+			err = fmt.Errorf("error cleaning embedded file directory: (directory=%s): %w", embeddedFilesBaseDirectory, err)
+			return
+		}
 
-	rc, err := bundle.Open("envoy")
-	if err != nil {
-		return "", fmt.Errorf("error opening embedded envoy binary: %w", err)
-	}
-	defer rc.Close()
+		// create known directory base to clean at startup
+		err = os.MkdirAll(embeddedFilesBaseDirectory, embeddedDirectoryPermissions)
+		if err != nil {
+			err = fmt.Errorf("error creating embedded file directory: (directory=%s): %w", embeddedFilesBaseDirectory, err)
+			return
+		}
 
-	// clean up our base directory before starting
-	err = os.RemoveAll(embeddedFilesBaseDirectory)
-	if err != nil {
-		return "", fmt.Errorf("error cleaning embedded file directory: (directory=%s): %w", embeddedFilesBaseDirectory, err)
-	}
+		// build a random temp directory inside our base directory to guarantee permissions
+		var tmpDir string
+		tmpDir, err = os.MkdirTemp(embeddedFilesBaseDirectory, "envoy-")
+		if err != nil {
+			err = fmt.Errorf("error creating embedded file tmp directory: (directory=%s): %w", embeddedFilesBaseDirectory, err)
+			return
+		}
 
-	// create known directory base to clean at startup
-	err = os.MkdirAll(embeddedFilesBaseDirectory, embeddedDirectoryPermissions)
-	if err != nil {
-		return "", fmt.Errorf("error creating embedded file directory: (directory=%s): %w", embeddedFilesBaseDirectory, err)
-	}
+		outPath = filepath.Join(tmpDir, "envoy")
 
-	// build a random temp directory inside our base directory to guarantee permissions
-	tmpDir, err := os.MkdirTemp(embeddedFilesBaseDirectory, "envoy-")
-	outPath = filepath.Join(tmpDir, "envoy")
+		log.Info(ctx).Str("path", outPath).Msg("extracting envoy binary")
+		err = atomic.WriteFile(outPath, bytes.NewReader(files.Binary()))
+		if err != nil {
+			err = fmt.Errorf("error extracting embedded envoy binary to temporary directory (path=%s): %w", outPath, err)
+			return
+		}
 
-	log.Info(ctx).Str("path", outPath).Msg("extracting envoy binary")
-	err = atomic.WriteFile(outPath, rc)
-	if err != nil {
-		return "", fmt.Errorf("error extracting embedded envoy binary to temporary directory (path=%s): %w", outPath, err)
-	}
-
-	err = os.Chmod(outPath, embeddedEnvoyPermissions)
-	if err != nil {
-		return "", fmt.Errorf("error chmoding embedded envoy binary: %w", err)
-	}
-
-	return outPath, nil
+		err = os.Chmod(outPath, embeddedEnvoyPermissions)
+		if err != nil {
+			err = fmt.Errorf("error chmoding embedded envoy binary: %w", err)
+			return
+		}
+	})
+	return outPath, err
 }

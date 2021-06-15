@@ -33,6 +33,7 @@ func (srv *Server) runProcessCollector(ctx context.Context) {
 	if err := view.Register(pc.Views()...); err != nil {
 		log.Error(ctx).Err(err).Msg("failed to register envoy process metric views")
 	}
+	defer view.Unregister(pc.Views()...)
 
 	const collectInterval = time.Second * 10
 	ticker := time.NewTicker(collectInterval)

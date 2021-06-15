@@ -6,11 +6,10 @@ import (
 	"strings"
 )
 
-//go:embed envoy.sha256
-var rawChecksum string
-
-//go:embed envoy.version
-var rawVersion string
+// Binary returns the raw envoy binary bytes.
+func Binary() []byte {
+	return rawBinary
+}
 
 // Checksum returns the checksum for the embedded envoy binary.
 func Checksum() string {
