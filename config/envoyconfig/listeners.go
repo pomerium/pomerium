@@ -78,7 +78,7 @@ func (b *Builder) BuildListeners(ctx context.Context, cfg *config.Config) ([]*en
 	}
 
 	if cfg.Options.MetricsAddr != "" {
-		li, err := b.buildMetricsListener(cfg)
+		li, err := b.buildMetricsListener(ctx, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -144,15 +144,18 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 					ServerNames: []string{tlsDomain},
 				}
 			}
-			tlsContext := b.buildDownstreamTLSContext(ctx, cfg, tlsDomain)
-			if tlsContext != nil {
-				tlsConfig := marshalAny(tlsContext)
-				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
-					Name: "tls",
-					ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-						TypedConfig: tlsConfig,
-					},
-				}
+
+			tlsContext, err := b.buildDownstreamTLSContext(ctx, cfg, tlsDomain)
+			if err != nil {
+				return nil, fmt.Errorf("downstream TLS context for domain %s: %w", tlsDomain, err)
+			}
+
+			tlsConfig := marshalAny(tlsContext)
+			filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
+				Name: "tls",
+				ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+					TypedConfig: tlsConfig,
+				},
 			}
 			return filterChain, nil
 		})
@@ -167,7 +170,7 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 	return li, nil
 }
 
-func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildMetricsListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	filter, err := b.buildMetricsHTTPConnectionManagerFilter()
 	if err != nil {
 		return nil, err
@@ -184,13 +187,15 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 		return nil, err
 	}
 	if cert != nil {
+		ec, err := b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert)
+		if err != nil {
+			return nil, fmt.Errorf("metrics listener cert: %w", err)
+		}
 		dtc := &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 			CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
-				TlsParams: tlsParams,
-				TlsCertificates: []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{
-					b.envoyTLSCertificateFromGoTLSCertificate(context.TODO(), cert),
-				},
-				AlpnProtocols: []string{"h2", "http/1.1"},
+				TlsParams:       tlsParams,
+				TlsCertificates: []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{ec},
+				AlpnProtocols:   []string{"h2", "http/1.1"},
 			},
 		}
 
@@ -204,7 +209,7 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 			dtc.CommonTlsContext.ValidationContextType = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 				ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
 					TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_VERIFY_TRUST_CHAIN,
-					TrustedCa:              b.filemgr.BytesDataSource("metrics_client_ca.pem", bs),
+					TrustedCa:              b.filemgr.BytesDataSource(ctx, "metrics_client_ca.pem", bs),
 				},
 			}
 		} else if cfg.Options.MetricsClientCAFile != "" {
@@ -212,7 +217,7 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 			dtc.CommonTlsContext.ValidationContextType = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 				ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
 					TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_VERIFY_TRUST_CHAIN,
-					TrustedCa:              b.filemgr.FileDataSource(cfg.Options.MetricsClientCAFile),
+					TrustedCa:              b.filemgr.FileDataSource(ctx, cfg.Options.MetricsClientCAFile),
 				},
 			}
 		}
@@ -536,16 +541,20 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 					ServerNames: []string{tlsDomain},
 				}
 			}
-			tlsContext := b.buildDownstreamTLSContext(ctx, cfg, tlsDomain)
-			if tlsContext != nil {
-				tlsConfig := marshalAny(tlsContext)
-				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
-					Name: "tls",
-					ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-						TypedConfig: tlsConfig,
-					},
-				}
+
+			tlsContext, err := b.buildDownstreamTLSContext(ctx, cfg, tlsDomain)
+			if err != nil {
+				return nil, fmt.Errorf("downstream TLS context for domain %s: %w", tlsDomain, err)
 			}
+
+			tlsConfig := marshalAny(tlsContext)
+			filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
+				Name: "tls",
+				ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+					TypedConfig: tlsConfig,
+				},
+			}
+
 			return filterChain, nil
 		})
 	if err != nil {
@@ -629,17 +638,15 @@ func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_con
 func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 	cfg *config.Config,
 	domain string,
-) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
+) (*envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext, error) {
 	certs, err := cfg.AllCertificates()
 	if err != nil {
-		log.Warn(ctx).Str("domain", domain).Err(err).Msg("failed to get all certificates from config")
-		return nil
+		return nil, fmt.Errorf("get all certificates from config: %w", err)
 	}
 
 	cert, err := cryptutil.GetCertificateForDomain(certs, domain)
 	if err != nil {
-		log.Warn(ctx).Str("domain", domain).Err(err).Msg("failed to get certificate for domain")
-		return nil
+		return nil, fmt.Errorf("failed to get certificate for domain: %w", err)
 	}
 
 	var alpnProtocols []string
@@ -652,7 +659,10 @@ func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 		alpnProtocols = []string{"h2", "http/1.1"}
 	}
 
-	envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert)
+	envoyCert, err := b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert)
+	if err != nil {
+
+	}
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams:             tlsParams,
@@ -660,7 +670,7 @@ func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 			AlpnProtocols:         alpnProtocols,
 			ValidationContextType: b.buildDownstreamValidationContext(ctx, cfg, domain),
 		},
-	}
+	}, nil
 }
 
 func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
@@ -697,10 +707,10 @@ func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
 		if err != nil {
 			log.Error(ctx).Err(err).Msg("invalid client CRL")
 		} else {
-			vc.ValidationContext.Crl = b.filemgr.BytesDataSource("client-crl.pem", bs)
+			vc.ValidationContext.Crl = b.filemgr.BytesDataSource(ctx, "client-crl.pem", bs)
 		}
 	} else if cfg.Options.ClientCRLFile != "" {
-		vc.ValidationContext.Crl = b.filemgr.FileDataSource(cfg.Options.ClientCRLFile)
+		vc.ValidationContext.Crl = b.filemgr.FileDataSource(ctx, cfg.Options.ClientCRLFile)
 	}
 
 	return vc

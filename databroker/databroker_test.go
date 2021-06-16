@@ -27,7 +27,7 @@ var lis *bufconn.Listener
 func init() {
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
-	internalSrv := internal_databroker.New()
+	internalSrv := internal_databroker.New(context.Background())
 	srv := &dataBrokerServer{server: internalSrv}
 	srv.sharedKey.Store([]byte{})
 	databroker.RegisterDataBrokerServiceServer(s, srv)

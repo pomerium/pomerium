@@ -71,7 +71,7 @@ func Test_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.testOpts.Validate()
+			err := tt.testOpts.Validate(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -360,7 +360,7 @@ func TestOptionsFromViper(t *testing.T) {
 			defer tempFile.Close()
 			defer os.Remove(tempFile.Name())
 			tempFile.Write(tt.configBytes)
-			got, err := optionsFromViper(tempFile.Name())
+			got, err := optionsFromViper(context.Background(), tempFile.Name())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("optionsFromViper() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -405,7 +405,7 @@ func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 				os.Setenv(k, v)
 				defer os.Unsetenv(k)
 			}
-			_, err := newOptionsFromConfig("")
+			_, err := newOptionsFromConfig(context.Background(), "")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("newOptionsFromConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -427,7 +427,7 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 		defer os.Unsetenv(k)
 	}
 
-	o, err := newOptionsFromConfig("")
+	o, err := newOptionsFromConfig(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +446,7 @@ func TestHTTPRedirectAddressStripQuotes(t *testing.T) {
 	o := NewDefaultOptions()
 	o.InsecureServer = true
 	o.HTTPRedirectAddr = `":80"`
-	assert.NoError(t, o.Validate())
+	assert.NoError(t, o.Validate(context.Background()))
 	assert.Equal(t, ":80", o.HTTPRedirectAddr)
 }
 
@@ -477,7 +477,7 @@ func TestCertificatesArrayParsing(t *testing.T) {
 
 			o := NewDefaultOptions()
 			o.CertificateFiles = tt.certificateFiles
-			err := o.Validate()
+			err := o.Validate(context.Background())
 
 			if err != nil && tt.wantErr == false {
 				t.Fatal(err)

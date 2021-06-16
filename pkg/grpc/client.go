@@ -171,7 +171,7 @@ func GetGRPCClientConn(ctx context.Context, name string, opts *Options) (*grpc.C
 
 		err := current.conn.Close()
 		if err != nil {
-			log.Error(context.TODO()).Err(err).Msg("grpc: failed to close existing connection")
+			log.Error(ctx).Err(err).Msg("grpc: failed to close existing connection")
 		}
 	}
 

@@ -176,7 +176,7 @@ func (b *Builder) buildInternalTransportSocket(ctx context.Context, options *con
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 	} else {
-		validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
+		validationContext.TrustedCa = b.filemgr.BytesDataSource(ctx, "ca.pem", bs)
 	}
 	tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
@@ -249,8 +249,11 @@ func (b *Builder) buildPolicyTransportSocket(
 		Sni: sni,
 	}
 	if policy.ClientCertificate != nil {
-		tlsContext.CommonTlsContext.TlsCertificates = append(tlsContext.CommonTlsContext.TlsCertificates,
-			b.envoyTLSCertificateFromGoTLSCertificate(ctx, policy.ClientCertificate))
+		cc, err := b.envoyTLSCertificateFromGoTLSCertificate(ctx, policy.ClientCertificate)
+		if err != nil {
+			return nil, fmt.Errorf("client cert: %w", err)
+		}
+		tlsContext.CommonTlsContext.TlsCertificates = append(tlsContext.CommonTlsContext.TlsCertificates, cc)
 	}
 
 	tlsConfig := marshalAny(tlsContext)
@@ -280,20 +283,19 @@ func (b *Builder) buildPolicyValidationContext(
 		}},
 	}
 	if policy.TLSCustomCAFile != "" {
-		validationContext.TrustedCa = b.filemgr.FileDataSource(policy.TLSCustomCAFile)
+		validationContext.TrustedCa = b.filemgr.FileDataSource(ctx, policy.TLSCustomCAFile)
 	} else if policy.TLSCustomCA != "" {
 		bs, err := base64.StdEncoding.DecodeString(policy.TLSCustomCA)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("invalid custom CA certificate")
+			return nil, fmt.Errorf("invalid custom CA certificate: %w", err)
 		}
-		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
+		validationContext.TrustedCa = b.filemgr.BytesDataSource(ctx, "custom-ca.pem", bs)
 	} else {
 		bs, err := getCombinedCertificateAuthority(options.CA, options.CAFile)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
-		} else {
-			validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
+			return nil, err
 		}
+		validationContext.TrustedCa = b.filemgr.BytesDataSource(ctx, "ca.pem", bs)
 	}
 
 	if policy.TLSSkipVerify {

@@ -28,7 +28,7 @@ type Tunnel struct {
 
 // New creates a new Tunnel.
 func New(options ...Option) *Tunnel {
-	cfg := getConfig(options...)
+	cfg := getConfig(context.Background(), options...)
 	return &Tunnel{
 		cfg:  cfg,
 		auth: authclient.New(authclient.WithTLSConfig(cfg.tlsConfig)),

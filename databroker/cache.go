@@ -44,7 +44,7 @@ type DataBroker struct {
 }
 
 // New creates a new databroker service.
-func New(cfg *config.Config) (*DataBroker, error) {
+func New(ctx context.Context, cfg *config.Config) (*DataBroker, error) {
 	localListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 		return nil, err
 	}
 
-	dataBrokerServer := newDataBrokerServer(cfg)
+	dataBrokerServer := newDataBrokerServer(ctx, cfg)
 	dataBrokerURLs, err := cfg.Options.GetDataBrokerURLs()
 	if err != nil {
 		return nil, err
@@ -99,7 +99,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 	}
 	c.Register(c.localGRPCServer)
 
-	err = c.update(cfg)
+	err = c.update(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 
 // OnConfigChange is called whenever configuration is changed.
 func (c *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	err := c.update(cfg)
+	err := c.update(ctx, cfg)
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("databroker: error updating configuration")
 	}
@@ -141,7 +141,7 @@ func (c *DataBroker) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (c *DataBroker) update(cfg *config.Config) error {
+func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	if err := validate(cfg.Options); err != nil {
 		return fmt.Errorf("databroker: bad option: %w", err)
 	}
@@ -156,7 +156,7 @@ func (c *DataBroker) update(cfg *config.Config) error {
 		return fmt.Errorf("databroker: failed to create authenticator: %w", err)
 	}
 
-	directoryProvider := directory.GetProvider(directory.Options{
+	directoryProvider := directory.GetProvider(ctx, directory.Options{
 		ServiceAccount: cfg.Options.ServiceAccount,
 		Provider:       cfg.Options.Provider,
 		ProviderURL:    cfg.Options.ProviderURL,

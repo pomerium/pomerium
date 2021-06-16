@@ -28,10 +28,10 @@ func TestPolicyEvaluator(t *testing.T) {
 	require.NoError(t, err)
 
 	eval := func(t *testing.T, policy *config.Policy, data []proto.Message, input *PolicyRequest) (*PolicyResponse, error) {
-		store := NewStoreFromProtos(math.MaxUint64, data...)
-		store.UpdateIssuer("authenticate.example.com")
-		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
-		store.UpdateSigningKey(privateJWK)
+		store := NewStoreFromProtos(context.Background(), math.MaxUint64, data...)
+		store.UpdateIssuer(context.Background(), "authenticate.example.com")
+		store.UpdateJWTClaimHeaders(context.Background(), config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
+		store.UpdateSigningKey(context.Background(), privateJWK)
 		e, err := NewPolicyEvaluator(context.Background(), store, policy)
 		require.NoError(t, err)
 		return e.Evaluate(context.Background(), input)

@@ -15,12 +15,12 @@ type config struct {
 	tlsConfig *tls.Config
 }
 
-func getConfig(options ...Option) *config {
+func getConfig(ctx context.Context, options ...Option) *config {
 	cfg := new(config)
 	if jwtCache, err := cliutil.NewLocalJWTCache(); err == nil {
 		WithJWTCache(jwtCache)(cfg)
 	} else {
-		log.Error(context.TODO()).Err(err).Msg("tcptunnel: error creating local JWT cache, using in-memory JWT cache")
+		log.Error(ctx).Err(err).Msg("tcptunnel: error creating local JWT cache, using in-memory JWT cache")
 		WithJWTCache(cliutil.NewMemoryJWTCache())(cfg)
 	}
 	for _, o := range options {

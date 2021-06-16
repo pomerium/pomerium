@@ -69,8 +69,7 @@ type Backend struct {
 }
 
 // New creates a new redis storage backend.
-func New(rawURL string, options ...Option) (*Backend, error) {
-	ctx := context.TODO()
+func New(ctx context.Context, rawURL string, options ...Option) (*Backend, error) {
 	cfg := getConfig(options...)
 	backend := &Backend{
 		cfg:      cfg,

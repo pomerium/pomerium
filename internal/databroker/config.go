@@ -1,11 +1,10 @@
 package databroker
 
 import (
-	"context"
 	"crypto/tls"
+	"fmt"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -46,74 +45,82 @@ func newServerConfig(options ...ServerOption) *serverConfig {
 }
 
 // A ServerOption customizes the server.
-type ServerOption func(*serverConfig)
+type ServerOption func(*serverConfig) error
 
 // WithDeletePermanentlyAfter sets the deletePermanentlyAfter duration.
 // If a record is deleted via Delete, it will be permanently deleted after
 // the given duration.
 func WithDeletePermanentlyAfter(dur time.Duration) ServerOption {
-	return func(cfg *serverConfig) {
+	return func(cfg *serverConfig) error {
 		cfg.deletePermanentlyAfter = dur
+		return nil
 	}
 }
 
 // WithGetAllPageSize sets the page size for GetAll calls.
 func WithGetAllPageSize(pageSize int) ServerOption {
-	return func(cfg *serverConfig) {
+	return func(cfg *serverConfig) error {
 		cfg.getAllPageSize = pageSize
+		return nil
 	}
 }
 
 // WithRegistryTTL sets the registry time to live in the config.
 func WithRegistryTTL(ttl time.Duration) ServerOption {
-	return func(cfg *serverConfig) {
+	return func(cfg *serverConfig) error {
 		cfg.registryTTL = ttl
+		return nil
 	}
 }
 
 // WithGetSharedKey sets the secret in the config.
 func WithGetSharedKey(getSharedKey func() ([]byte, error)) ServerOption {
-	return func(cfg *serverConfig) {
+	return func(cfg *serverConfig) error {
 		sharedKey, err := getSharedKey()
 		if err != nil {
-			log.Error(context.TODO()).Err(err).Msgf("shared key is required and must be %d bytes long", cryptutil.DefaultKeySize)
-			return
+			return fmt.Errorf("shared key is required and must be %d bytes long: %w", cryptutil.DefaultKeySize, err)
 		}
 		cfg.secret = sharedKey
+		return nil
 	}
 }
 
 // WithStorageType sets the storage type.
 func WithStorageType(typ string) ServerOption {
-	return func(cfg *serverConfig) {
+	return func(cfg *serverConfig) error {
 		cfg.storageType = typ
+		return nil
 	}
 }
 
 // WithStorageConnectionString sets the DSN for storage.
 func WithStorageConnectionString(connStr string) ServerOption {
-	return func(cfg *serverConfig) {
+	return func(cfg *serverConfig) error {
 		cfg.storageConnectionString = connStr
+		return nil
 	}
 }
 
 // WithStorageCAFile sets the CA file in the config.
 func WithStorageCAFile(filePath string) ServerOption {
-	return func(cfg *serverConfig) {
+	return func(cfg *serverConfig) error {
 		cfg.storageCAFile = filePath
+		return nil
 	}
 }
 
 // WithStorageCertSkipVerify sets the storageCertSkipVerify in the config.
 func WithStorageCertSkipVerify(storageCertSkipVerify bool) ServerOption {
-	return func(cfg *serverConfig) {
+	return func(cfg *serverConfig) error {
 		cfg.storageCertSkipVerify = storageCertSkipVerify
+		return nil
 	}
 }
 
 // WithStorageCertificate sets the storageCertificate in the config.
 func WithStorageCertificate(certificate *tls.Certificate) ServerOption {
-	return func(cfg *serverConfig) {
+	return func(cfg *serverConfig) error {
 		cfg.storageCertificate = certificate
+		return nil
 	}
 }

@@ -1,6 +1,7 @@
 package authenticate
 
 import (
+	"context"
 	"testing"
 
 	"github.com/pomerium/pomerium/config"
@@ -17,7 +18,7 @@ func newTestOptions(t *testing.T) *config.Options {
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
 	opts.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUJlMFRxbXJkSXBZWE03c3pSRERWYndXOS83RWJHVWhTdFFJalhsVHNXM1BvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFb0xaRDI2bEdYREhRQmhhZkdlbEVmRDdlNmYzaURjWVJPVjdUbFlIdHF1Y1BFL2hId2dmYQpNY3FBUEZsRmpueUpySXJhYTFlQ2xZRTJ6UktTQk5kNXBRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
 
-	err := opts.Validate()
+	err := opts.Validate(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

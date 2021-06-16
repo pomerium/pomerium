@@ -37,18 +37,16 @@ type Server struct {
 }
 
 // New creates a new server.
-func New(options ...ServerOption) *Server {
+func New(ctx context.Context, options ...ServerOption) *Server {
 	srv := &Server{}
-	srv.UpdateConfig(options...)
+	srv.UpdateConfig(ctx, options...)
 	return srv
 }
 
 // UpdateConfig updates the server with the new options.
-func (srv *Server) UpdateConfig(options ...ServerOption) {
+func (srv *Server) UpdateConfig(ctx context.Context, options ...ServerOption) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
-
-	ctx := context.TODO()
 
 	cfg := newServerConfig(options...)
 	if cmp.Equal(cfg, srv.cfg, cmp.AllowUnexported(serverConfig{})) {
@@ -384,7 +382,7 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 		return inmemory.New(), nil
 	case config.StorageRedisName:
 		log.Info(ctx).Msg("using redis store")
-		backend, err = redis.New(
+		backend, err = redis.New(ctx,
 			srv.cfg.storageConnectionString,
 			redis.WithTLSConfig(srv.getTLSConfigLocked(ctx)),
 		)

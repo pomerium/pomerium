@@ -139,7 +139,7 @@ func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Addres
 func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(
 	ctx context.Context,
 	cert *tls.Certificate,
-) *envoy_extensions_transport_sockets_tls_v3.TlsCertificate {
+) (*envoy_extensions_transport_sockets_tls_v3.TlsCertificate, error) {
 	envoyCert := &envoy_extensions_transport_sockets_tls_v3.TlsCertificate{}
 	var chain bytes.Buffer
 	for _, cbs := range cert.Certificate {
@@ -148,25 +148,25 @@ func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(
 			Bytes: cbs,
 		})
 	}
-	envoyCert.CertificateChain = b.filemgr.BytesDataSource("tls-crt.pem", chain.Bytes())
+	envoyCert.CertificateChain = b.filemgr.BytesDataSource(ctx, "tls-crt.pem", chain.Bytes())
 	if cert.OCSPStaple != nil {
-		envoyCert.OcspStaple = b.filemgr.BytesDataSource("ocsp-staple", cert.OCSPStaple)
+		envoyCert.OcspStaple = b.filemgr.BytesDataSource(ctx, "ocsp-staple", cert.OCSPStaple)
 	}
-	if bs, err := x509.MarshalPKCS8PrivateKey(cert.PrivateKey); err == nil {
-		envoyCert.PrivateKey = b.filemgr.BytesDataSource("tls-key.pem", pem.EncodeToMemory(
-			&pem.Block{
-				Type:  "PRIVATE KEY",
-				Bytes: bs,
-			},
-		))
-	} else {
-		log.Warn(ctx).Err(err).Msg("failed to marshal private key for tls config")
+	bs, err := x509.MarshalPKCS8PrivateKey(cert.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("marshal private key for tls config: %w", err)
 	}
+	envoyCert.PrivateKey = b.filemgr.BytesDataSource(ctx, "tls-key.pem", pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: bs,
+		},
+	))
 	for _, scts := range cert.SignedCertificateTimestamps {
 		envoyCert.SignedCertificateTimestamp = append(envoyCert.SignedCertificateTimestamp,
-			b.filemgr.BytesDataSource("signed-certificate-timestamp", scts))
+			b.filemgr.BytesDataSource(ctx, "signed-certificate-timestamp", scts))
 	}
-	return envoyCert
+	return envoyCert, nil
 }
 
 var rootCABundle struct {
@@ -192,10 +192,10 @@ func getRootCertificateAuthority() (string, error) {
 			}
 		}
 		if rootCABundle.value == "" {
-			log.Error(context.TODO()).Strs("known-locations", knownRootLocations).
+			log.Error(context.Background()).Strs("known-locations", knownRootLocations).
 				Msgf("no root certificates were found in any of the known locations")
 		} else {
-			log.Info(context.TODO()).Msgf("using %s as the system root certificate authority bundle", rootCABundle.value)
+			log.Info(context.Background()).Msgf("using %s as the system root certificate authority bundle", rootCABundle.value)
 		}
 	})
 	if rootCABundle.value == "" {

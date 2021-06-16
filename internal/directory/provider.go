@@ -3,6 +3,7 @@ package directory
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"sync"
 
@@ -46,20 +47,27 @@ var globalProvider = struct {
 }{}
 
 // GetProvider gets the provider for the given options.
-func GetProvider(options Options) (provider Provider) {
+func GetProvider(ctx context.Context, options Options) Provider {
 	globalProvider.Lock()
 	defer globalProvider.Unlock()
 
-	ctx := context.TODO()
 	if globalProvider.provider != nil && cmp.Equal(globalProvider.options, options) {
-		log.Debug(ctx).Str("provider", options.Provider).Msg("directory: no change detected, reusing existing directory provider")
 		return globalProvider.provider
 	}
-	defer func() {
-		globalProvider.provider = provider
-		globalProvider.options = options
-	}()
 
+	provider, err := getProviderLocked(options)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("disabling support for groups")
+		provider = nullProvider{}
+	}
+
+	globalProvider.provider = provider
+	globalProvider.options = options
+
+	return provider
+}
+
+func getProviderLocked(options Options) (Provider, error) {
 	var providerURL *url.URL
 	// url.Parse will succeed even if we pass an empty string
 	if options.ProviderURL != "" {
@@ -68,101 +76,66 @@ func GetProvider(options Options) (provider Provider) {
 	switch options.Provider {
 	case auth0.Name:
 		serviceAccount, err := auth0.ParseServiceAccount(options)
-		if err == nil {
-			return auth0.New(
-				auth0.WithDomain(options.ProviderURL),
-				auth0.WithServiceAccount(serviceAccount))
+		if err != nil {
+			return nil, fmt.Errorf("auth0: invalid service account: %w", err)
 		}
-		log.Warn(ctx).
-			Str("service", "directory").
-			Str("provider", options.Provider).
-			Err(err).
-			Msg("invalid service account for auth0 directory provider")
+		return auth0.New(
+			auth0.WithDomain(options.ProviderURL),
+			auth0.WithServiceAccount(serviceAccount)), nil
 	case azure.Name:
 		serviceAccount, err := azure.ParseServiceAccount(options)
-		if err == nil {
-			return azure.New(azure.WithServiceAccount(serviceAccount))
+		if err != nil {
+			return nil, fmt.Errorf("azure: invalid service account: %w", err)
 		}
-		log.Warn(ctx).
-			Str("service", "directory").
-			Str("provider", options.Provider).
-			Err(err).
-			Msg("invalid service account for azure directory provider")
+		return azure.New(azure.WithServiceAccount(serviceAccount)), nil
 	case github.Name:
 		serviceAccount, err := github.ParseServiceAccount(options.ServiceAccount)
-		if err == nil {
-			return github.New(github.WithServiceAccount(serviceAccount))
+		if err != nil {
+			return nil, fmt.Errorf("github: invalid service account: %w", err)
 		}
-		log.Warn(ctx).
-			Str("service", "directory").
-			Str("provider", options.Provider).
-			Err(err).
-			Msg("invalid service account for github directory provider")
+		return github.New(github.WithServiceAccount(serviceAccount)), nil
 	case gitlab.Name:
 		serviceAccount, err := gitlab.ParseServiceAccount(options.ServiceAccount)
-		if err == nil {
-			if providerURL == nil {
-				return gitlab.New(gitlab.WithServiceAccount(serviceAccount))
-			}
-			return gitlab.New(
-				gitlab.WithURL(providerURL),
-				gitlab.WithServiceAccount(serviceAccount))
+		if err != nil {
+			return nil, fmt.Errorf("gitlab: invalid service account: %w", err)
 		}
-		log.Warn(ctx).
-			Str("service", "directory").
-			Str("provider", options.Provider).
-			Err(err).
-			Msg("invalid service account for gitlab directory provider")
+		if providerURL == nil {
+			return gitlab.New(gitlab.WithServiceAccount(serviceAccount)), nil
+		}
+		return gitlab.New(
+			gitlab.WithURL(providerURL),
+			gitlab.WithServiceAccount(serviceAccount)), nil
 	case google.Name:
 		serviceAccount, err := google.ParseServiceAccount(options.ServiceAccount)
-		if err == nil {
-			return google.New(google.WithServiceAccount(serviceAccount))
+		if err != nil {
+			return nil, fmt.Errorf("google: invalid service account: %w", err)
 		}
-		log.Warn(ctx).
-			Str("service", "directory").
-			Str("provider", options.Provider).
-			Err(err).
-			Msg("invalid service account for google directory provider")
+		return google.New(google.WithServiceAccount(serviceAccount)), nil
 	case okta.Name:
 		serviceAccount, err := okta.ParseServiceAccount(options.ServiceAccount)
-		if err == nil {
-			return okta.New(
-				okta.WithProviderURL(providerURL),
-				okta.WithServiceAccount(serviceAccount))
+		if err != nil {
+			return nil, fmt.Errorf("okta: invalid service account: %w", err)
 		}
-		log.Warn(ctx).
-			Str("service", "directory").
-			Str("provider", options.Provider).
-			Err(err).
-			Msg("invalid service account for okta directory provider")
+		return okta.New(
+			okta.WithProviderURL(providerURL),
+			okta.WithServiceAccount(serviceAccount)), nil
 	case onelogin.Name:
 		serviceAccount, err := onelogin.ParseServiceAccount(options.ServiceAccount)
-		if err == nil {
-			return onelogin.New(onelogin.WithServiceAccount(serviceAccount))
+		if err != nil {
+			return nil, fmt.Errorf("onelogin: invalid service account: %w", err)
 		}
-		log.Warn(ctx).
-			Str("service", "directory").
-			Str("provider", options.Provider).
-			Err(err).
-			Msg("invalid service account for onelogin directory provider")
+		return onelogin.New(onelogin.WithServiceAccount(serviceAccount)), nil
 	case ping.Name:
 		serviceAccount, err := ping.ParseServiceAccount(options.ServiceAccount)
-		if err == nil {
-			return ping.New(
-				ping.WithProviderURL(providerURL),
-				ping.WithServiceAccount(serviceAccount))
+		if err != nil {
+			return nil, fmt.Errorf("ping: invalid service account: %w", err)
 		}
-		log.Warn(ctx).
-			Str("service", "directory").
-			Str("provider", options.Provider).
-			Err(err).
-			Msg("invalid service account for ping directory provider")
+		return ping.New(
+			ping.WithProviderURL(providerURL),
+			ping.WithServiceAccount(serviceAccount)), nil
 	}
 
-	log.Warn(ctx).
-		Str("provider", options.Provider).
-		Msg("no directory provider implementation found, disabling support for groups")
-	return nullProvider{}
+	return nil, fmt.Errorf("invalid identity provider %v", options.Provider)
 }
 
 type nullProvider struct{}

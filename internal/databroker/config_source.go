@@ -94,7 +94,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 		cfg.Options.ApplySettings(cfgpb.Settings)
 		var errCount uint64
 
-		err := cfg.Options.Validate()
+		err := cfg.Options.Validate(ctx)
 		if err != nil {
 			metrics.SetDBConfigRejected(ctx, cfg.Options.Services, id, cfgpb.version, err)
 			return

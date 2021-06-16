@@ -70,7 +70,7 @@ func New(ctx context.Context, store *Store, options ...Option) (*Evaluator, erro
 
 	cfg := getConfig(options...)
 
-	err := e.updateStore(cfg)
+	err := e.updateStore(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -163,24 +163,28 @@ func (e *Evaluator) getClientCA(policy *config.Policy) (string, error) {
 	return string(e.clientCA), nil
 }
 
-func (e *Evaluator) updateStore(cfg *evaluatorConfig) error {
+func (e *Evaluator) updateStore(ctx context.Context, cfg *evaluatorConfig) error {
 	jwk, err := getJWK(cfg)
 	if err != nil {
 		return fmt.Errorf("authorize: couldn't create signer: %w", err)
 	}
+	log.Info(ctx).Str("Algorithm", jwk.Algorithm).
+		Str("KeyID", jwk.KeyID).
+		Interface("Public Key", jwk.Public()).
+		Msg("authorize: signing key")
 
 	authenticateURL, err := urlutil.ParseAndValidateURL(cfg.authenticateURL)
 	if err != nil {
 		return fmt.Errorf("authorize: invalid authenticate URL: %w", err)
 	}
 
-	e.store.UpdateIssuer(authenticateURL.Host)
-	e.store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
+	e.store.UpdateIssuer(ctx, authenticateURL.Host)
+	e.store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(ctx,
 		cfg.googleCloudServerlessAuthenticationServiceAccount,
 	)
-	e.store.UpdateJWTClaimHeaders(cfg.jwtClaimsHeaders)
-	e.store.UpdateRoutePolicies(cfg.policies)
-	e.store.UpdateSigningKey(jwk)
+	e.store.UpdateJWTClaimHeaders(ctx, cfg.jwtClaimsHeaders)
+	e.store.UpdateRoutePolicies(ctx, cfg.policies)
+	e.store.UpdateSigningKey(ctx, jwk)
 
 	return nil
 }
@@ -213,11 +217,6 @@ func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate signing key: %w", err)
 	}
-	log.Info(context.TODO()).Str("Algorithm", jwk.Algorithm).
-		Str("KeyID", jwk.KeyID).
-		Interface("Public Key", jwk.Public()).
-		Msg("authorize: signing key")
-
 	return jwk, nil
 }
 

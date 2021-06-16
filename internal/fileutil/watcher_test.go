@@ -1,6 +1,7 @@
 package fileutil
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,7 +25,7 @@ func TestWatcher(t *testing.T) {
 	}
 
 	w := NewWatcher()
-	w.Add(filepath.Join(tmpdir, "test1.txt"))
+	w.Add(context.Background(), filepath.Join(tmpdir, "test1.txt"))
 
 	ch := w.Bind()
 	defer w.Unbind(ch)

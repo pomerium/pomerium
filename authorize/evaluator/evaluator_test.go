@@ -33,11 +33,13 @@ func TestEvaluator(t *testing.T) {
 	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey, jose.ES256)
 	require.NoError(t, err)
 
+	ctx := context.Background()
+
 	eval := func(t *testing.T, options []Option, data []proto.Message, req *Request) (*Result, error) {
-		store := NewStoreFromProtos(math.MaxUint64, data...)
-		store.UpdateIssuer("authenticate.example.com")
-		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
-		store.UpdateSigningKey(privateJWK)
+		store := NewStoreFromProtos(ctx, math.MaxUint64, data...)
+		store.UpdateIssuer(ctx, "authenticate.example.com")
+		store.UpdateJWTClaimHeaders(ctx, config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
+		store.UpdateSigningKey(ctx, privateJWK)
 		e, err := New(context.Background(), store, options...)
 		require.NoError(t, err)
 		return e.Evaluate(context.Background(), req)
@@ -548,7 +550,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 				RefreshToken: "REFRESH TOKEN",
 			},
 		})
-		store.UpdateRecord(0, &databroker.Record{
+		store.UpdateRecord(context.Background(), 0, &databroker.Record{
 			Version: uint64(i),
 			Type:    "type.googleapis.com/session.Session",
 			Id:      sessionID,
@@ -558,7 +560,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Version: fmt.Sprint(i),
 			Id:      userID,
 		})
-		store.UpdateRecord(0, &databroker.Record{
+		store.UpdateRecord(context.Background(), 0, &databroker.Record{
 			Version: uint64(i),
 			Type:    "type.googleapis.com/user.User",
 			Id:      userID,
@@ -570,7 +572,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Id:       userID,
 			GroupIds: []string{"1", "2", "3", "4"},
 		})
-		store.UpdateRecord(0, &databroker.Record{
+		store.UpdateRecord(context.Background(), 0, &databroker.Record{
 			Version: uint64(i),
 			Type:    data.TypeUrl,
 			Id:      userID,
@@ -581,7 +583,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Version: fmt.Sprint(i),
 			Id:      fmt.Sprint(i),
 		})
-		store.UpdateRecord(0, &databroker.Record{
+		store.UpdateRecord(context.Background(), 0, &databroker.Record{
 			Version: uint64(i),
 			Type:    data.TypeUrl,
 			Id:      fmt.Sprint(i),
