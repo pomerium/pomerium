@@ -146,7 +146,9 @@ func SetDBConfigRejected(ctx context.Context, service, configID string, version 
 // reload. You must register InfoViews or the related config views before calling
 func SetConfigInfo(ctx context.Context, service, configName string, checksum uint64, success bool) {
 	if success {
-		registry.setConfigChecksum(service, configName, checksum)
+		if err := registry.setConfigChecksum(service, configName, checksum); err != nil {
+			log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to record config checksum")
+		}
 
 		serviceTag := tag.Insert(TagKeyService, service)
 		if err := stats.RecordWithTags(
@@ -176,8 +178,8 @@ func SetConfigInfo(ctx context.Context, service, configName string, checksum uin
 
 // SetBuildInfo records the pomerium build info. You must call RegisterInfoMetrics to
 // have this exported
-func SetBuildInfo(service, hostname string) {
-	registry.setBuildInfo(service, hostname)
+func SetBuildInfo(service, hostname string) error {
+	return registry.setBuildInfo(service, hostname)
 }
 
 // RegisterInfoMetrics registers non-view based metrics registry globally for export
@@ -188,6 +190,6 @@ func RegisterInfoMetrics() {
 // AddPolicyCountCallback sets the function to call when exporting the
 // policy count metric.   You must call RegisterInfoMetrics to have this
 // exported
-func AddPolicyCountCallback(service string, f func() int64) {
-	registry.addPolicyCountCallback(service, f)
+func AddPolicyCountCallback(service string, f func() int64) error {
+	return registry.addPolicyCountCallback(service, f)
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -32,16 +34,23 @@ type serverConfig struct {
 	registryTTL             time.Duration
 }
 
-func newServerConfig(options ...ServerOption) *serverConfig {
+func newServerConfig(options ...ServerOption) (*serverConfig, error) {
 	cfg := new(serverConfig)
-	WithDeletePermanentlyAfter(DefaultDeletePermanentlyAfter)(cfg)
-	WithStorageType(DefaultStorageType)(cfg)
-	WithGetAllPageSize(DefaultGetAllPageSize)(cfg)
-	WithRegistryTTL(DefaultRegistryTTL)(cfg)
+
+	options = append(options,
+		WithDeletePermanentlyAfter(DefaultDeletePermanentlyAfter),
+		WithStorageType(DefaultStorageType),
+		WithGetAllPageSize(DefaultGetAllPageSize),
+		WithRegistryTTL(DefaultRegistryTTL),
+	)
+
+	var errs *multierror.Error
 	for _, option := range options {
-		option(cfg)
+		if err := option(cfg); err != nil {
+			errs = multierror.Append(errs, err)
+		}
 	}
-	return cfg
+	return cfg, errs.ErrorOrNil()
 }
 
 // A ServerOption customizes the server.

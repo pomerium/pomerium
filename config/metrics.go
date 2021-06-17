@@ -73,7 +73,9 @@ func (mgr *MetricsManager) updateInfo(ctx context.Context, cfg *Config) {
 		hostname = "__unknown__"
 	}
 
-	metrics.SetBuildInfo(serviceName, hostname)
+	if err := metrics.SetBuildInfo(serviceName, hostname); err != nil {
+		log.Error(ctx).Err(err).Msg("set build info")
+	}
 	mgr.serviceName = serviceName
 }
 

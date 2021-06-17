@@ -366,9 +366,11 @@ func newOptionsFromConfig(ctx context.Context, configFile string) (*Options, err
 		return nil, fmt.Errorf("config: options from config file %q: %w", configFile, err)
 	}
 	serviceName := telemetry.ServiceName(o.Services)
-	metrics.AddPolicyCountCallback(serviceName, func() int64 {
+	if err := metrics.AddPolicyCountCallback(serviceName, func() int64 {
 		return int64(len(o.GetAllPolicies()))
-	})
+	}); err != nil {
+		log.Error(ctx).Err(err).Msg("add policy count callback")
+	}
 
 	return o, nil
 }

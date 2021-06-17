@@ -48,7 +48,10 @@ func (srv *Server) UpdateConfig(ctx context.Context, options ...ServerOption) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
-	cfg := newServerConfig(options...)
+	cfg, err := newServerConfig(options...)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("some config options are invalid and were not applied")
+	}
 	if cmp.Equal(cfg, srv.cfg, cmp.AllowUnexported(serverConfig{})) {
 		log.Debug(ctx).Msg("databroker: no changes detected, re-using existing DBs")
 		return

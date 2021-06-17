@@ -81,7 +81,9 @@ func New(ctx context.Context, rawURL string, options ...Option) (*Backend, error
 	if err != nil {
 		return nil, err
 	}
-	metrics.AddRedisMetrics(backend.client.PoolStats)
+	if err := metrics.AddRedisMetrics(backend.client.PoolStats); err != nil {
+		log.Error(ctx).Err(err).Msg("add redis metrics")
+	}
 	go backend.listenForVersionChanges(ctx)
 	if cfg.expiry != 0 {
 		go func() {

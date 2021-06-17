@@ -74,9 +74,11 @@ func New(cfg *config.Config) (*Proxy, error) {
 	}
 	p.currentRouter.Store(httputil.NewRouter())
 
-	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
+	if err := metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
 		return int64(len(p.currentOptions.Load().GetAllPolicies()))
-	})
+	}); err != nil {
+		log.Error(context.Background()).Err(err).Msg("add policy count callback")
+	}
 
 	return p, nil
 }
