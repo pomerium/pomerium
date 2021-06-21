@@ -21,7 +21,7 @@ func main() {
 	flag.Parse()
 	if *versionFlag {
 		fmt.Println("pomerium:", version.FullVersion())
-		fmt.Println("envoy:", files.FullVersion())
+		fmt.Println("envoy:", files.EmbeddedEnvoyProvider.Version()+"+"+files.EmbeddedEnvoyProvider.Checksum())
 		return
 	}
 
@@ -33,5 +33,5 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	return pomerium.Run(ctx, *configFile)
+	return pomerium.Run(ctx, *configFile, files.EmbeddedEnvoyProvider)
 }

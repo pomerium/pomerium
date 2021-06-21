@@ -133,7 +133,6 @@ func SetDBConfigInfo(ctx context.Context, service, configID string, version uint
 	); err != nil {
 		log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to record config error count")
 	}
-
 }
 
 // SetDBConfigRejected records that a certain databroker config version has been rejected
@@ -176,8 +175,8 @@ func SetConfigInfo(ctx context.Context, service, configName string, checksum uin
 
 // SetBuildInfo records the pomerium build info. You must call RegisterInfoMetrics to
 // have this exported
-func SetBuildInfo(service, hostname string) {
-	registry.setBuildInfo(service, hostname)
+func SetBuildInfo(service, hostname, envoyVersion string) {
+	registry.setBuildInfo(service, hostname, envoyVersion)
 }
 
 // RegisterInfoMetrics registers non-view based metrics registry globally for export

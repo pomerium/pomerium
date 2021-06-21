@@ -15,7 +15,6 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/directory"
-	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/manager"
 	"github.com/pomerium/pomerium/internal/log"
@@ -44,7 +43,7 @@ type DataBroker struct {
 }
 
 // New creates a new databroker service.
-func New(cfg *config.Config) (*DataBroker, error) {
+func New(cfg *config.Config, envoyVersion string) (*DataBroker, error) {
 	localListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -54,7 +53,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 
 	ui, si := grpcutil.AttachMetadataInterceptors(
 		metadata.Pairs(
-			grpcutil.MetadataKeyEnvoyVersion, files.FullVersion(),
+			grpcutil.MetadataKeyEnvoyVersion, envoyVersion,
 			grpcutil.MetadataKeyPomeriumVersion, version.FullVersion(),
 		),
 	)

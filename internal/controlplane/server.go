@@ -20,7 +20,6 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/controlplane/xdsmgr"
-	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -68,7 +67,7 @@ type Server struct {
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
-func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) {
+func NewServer(name string, metricsMgr *config.MetricsManager, envoyVersion string) (*Server, error) {
 	srv := &Server{
 		metricsMgr:               metricsMgr,
 		reproxy:                  reproxy.New(),
@@ -87,7 +86,7 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 	}
 	ui, si := grpcutil.AttachMetadataInterceptors(
 		metadata.Pairs(
-			grpcutil.MetadataKeyEnvoyVersion, files.FullVersion(),
+			grpcutil.MetadataKeyEnvoyVersion, envoyVersion,
 			grpcutil.MetadataKeyPomeriumVersion, version.FullVersion(),
 		),
 	)

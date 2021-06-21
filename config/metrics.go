@@ -22,14 +22,16 @@ type MetricsManager struct {
 	addr           string
 	basicAuth      string
 	handler        http.Handler
+	envoyVersion   string
 }
 
 // NewMetricsManager creates a new MetricsManager.
-func NewMetricsManager(ctx context.Context, src Source) *MetricsManager {
+func NewMetricsManager(ctx context.Context, src Source, envoyVersion string) *MetricsManager {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "metrics_manager")
 	})
 	mgr := &MetricsManager{}
+	mgr.envoyVersion = envoyVersion
 	metrics.RegisterInfoMetrics()
 	src.OnConfigChange(ctx, mgr.OnConfigChange)
 	mgr.OnConfigChange(ctx, src.GetConfig())
@@ -73,7 +75,7 @@ func (mgr *MetricsManager) updateInfo(cfg *Config) {
 		hostname = "__unknown__"
 	}
 
-	metrics.SetBuildInfo(serviceName, hostname)
+	metrics.SetBuildInfo(serviceName, hostname, mgr.envoyVersion)
 	mgr.serviceName = serviceName
 }
 
