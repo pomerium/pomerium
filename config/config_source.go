@@ -97,7 +97,7 @@ type FileOrEnvironmentSource struct {
 }
 
 // NewFileOrEnvironmentSource creates a new FileOrEnvironmentSource.
-func NewFileOrEnvironmentSource(configFile string) (*FileOrEnvironmentSource, error) {
+func NewFileOrEnvironmentSource(configFile, envoyVersion string) (*FileOrEnvironmentSource, error) {
 	ctx := log.WithContext(context.TODO(), func(c zerolog.Context) zerolog.Context {
 		return c.Str("config_file_source", configFile)
 	})
@@ -107,7 +107,10 @@ func NewFileOrEnvironmentSource(configFile string) (*FileOrEnvironmentSource, er
 		return nil, err
 	}
 
-	cfg := &Config{Options: options}
+	cfg := &Config{
+		Options:      options,
+		EnvoyVersion: envoyVersion,
+	}
 	metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 
 	src := &FileOrEnvironmentSource{
@@ -130,7 +133,8 @@ func (src *FileOrEnvironmentSource) onConfigChange(ctx context.Context) func(fsn
 		cfg := src.config
 		options, err := newOptionsFromConfig(src.configFile)
 		if err == nil {
-			cfg = &Config{Options: options}
+			cfg = cfg.Clone()
+			cfg.Options = options
 			metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 		} else {
 			log.Error(ctx).Err(err).Msg("config: error updating config")

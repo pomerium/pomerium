@@ -40,7 +40,7 @@ func Run(ctx context.Context, configFile string) error {
 
 	var src config.Source
 
-	src, err := config.NewFileOrEnvironmentSource(configFile)
+	src, err := config.NewFileOrEnvironmentSource(configFile, files.FullVersion())
 	if err != nil {
 		return err
 	}
