@@ -174,6 +174,7 @@ func TestPolicy_FromToPb(t *testing.T) {
 					Rego: []string{"deny = true"},
 				},
 			},
+			EnableGoogleCloudServerlessAuthentication: true,
 		}
 		pbPolicy, err := p.ToProto()
 		require.NoError(t, err)

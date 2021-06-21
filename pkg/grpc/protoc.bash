@@ -24,6 +24,7 @@ _protos=(
   "envoy/config/core/v3/http_uri.proto"
   "envoy/config/core/v3/protocol.proto"
   "envoy/config/core/v3/proxy_protocol.proto"
+  "envoy/config/core/v3/resolver.proto"
   "envoy/config/core/v3/socket_option.proto"
   "envoy/config/core/v3/substitution_format_string.proto"
   "envoy/config/endpoint/v3/endpoint_components.proto"
