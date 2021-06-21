@@ -30,10 +30,10 @@ func TestHeadersEvaluator(t *testing.T) {
 	require.NoError(t, err)
 
 	eval := func(t *testing.T, data []proto.Message, input *HeadersRequest) (*HeadersResponse, error) {
-		store := NewStoreFromProtos(math.MaxUint64, data...)
-		store.UpdateIssuer("authenticate.example.com")
-		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
-		store.UpdateSigningKey(privateJWK)
+		store := NewStoreFromProtos(context.Background(), math.MaxUint64, data...)
+		store.UpdateIssuer(context.Background(), "authenticate.example.com")
+		store.UpdateJWTClaimHeaders(context.Background(), config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
+		store.UpdateSigningKey(context.Background(), privateJWK)
 		e, err := NewHeadersEvaluator(context.Background(), store)
 		require.NoError(t, err)
 		return e.Evaluate(context.Background(), input)

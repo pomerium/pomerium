@@ -29,7 +29,7 @@ func TestBackend(t *testing.T) {
 		if useTLS {
 			opts = append(opts, WithTLSConfig(testutil.RedisTLSConfig()))
 		}
-		backend, err := New(rawURL, opts...)
+		backend, err := New(context.Background(), rawURL, opts...)
 		require.NoError(t, err)
 		defer func() { _ = backend.Close() }()
 
@@ -129,11 +129,11 @@ func TestChangeSignal(t *testing.T) {
 	defer cancel()
 
 	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
-		backend1, err := New(rawURL)
+		backend1, err := New(context.Background(), rawURL)
 		require.NoError(t, err)
 		defer func() { _ = backend1.Close() }()
 
-		backend2, err := New(rawURL)
+		backend2, err := New(context.Background(), rawURL)
 		require.NoError(t, err)
 		defer func() { _ = backend2.Close() }()
 
@@ -173,7 +173,7 @@ func TestExpiry(t *testing.T) {
 
 	ctx := context.Background()
 	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
-		backend, err := New(rawURL, WithExpiry(0))
+		backend, err := New(context.Background(), rawURL, WithExpiry(0))
 		require.NoError(t, err)
 		defer func() { _ = backend.Close() }()
 
@@ -218,7 +218,7 @@ func TestCapacity(t *testing.T) {
 
 	ctx := context.Background()
 	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
-		backend, err := New(rawURL, WithExpiry(0))
+		backend, err := New(context.Background(), rawURL, WithExpiry(0))
 		require.NoError(t, err)
 		defer func() { _ = backend.Close() }()
 
@@ -256,7 +256,7 @@ func TestLease(t *testing.T) {
 
 	ctx := context.Background()
 	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
-		backend, err := New(rawURL)
+		backend, err := New(context.Background(), rawURL)
 		require.NoError(t, err)
 		defer func() { _ = backend.Close() }()
 

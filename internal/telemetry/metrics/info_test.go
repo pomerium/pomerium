@@ -66,7 +66,7 @@ func Test_SetDBConfigInfo(t *testing.T) {
 }
 
 func Test_SetBuildInfo(t *testing.T) {
-	registry = newMetricRegistry()
+	registry = newMetricRegistry(context.Background())
 
 	version.Version = "v0.0.1"
 	version.GitCommit = "deadbeef"
@@ -85,7 +85,7 @@ func Test_SetBuildInfo(t *testing.T) {
 }
 
 func Test_AddPolicyCountCallback(t *testing.T) {
-	registry = newMetricRegistry()
+	registry = newMetricRegistry(context.Background())
 
 	wantValue := int64(42)
 	wantLabels := []metricdata.LabelValue{

@@ -55,7 +55,7 @@ func (syncer *dataBrokerSyncer) ClearRecords(ctx context.Context) {
 func (syncer *dataBrokerSyncer) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
 	syncer.authorize.stateLock.Lock()
 	for _, record := range records {
-		syncer.authorize.store.UpdateRecord(serverVersion, record)
+		syncer.authorize.store.UpdateRecord(ctx, serverVersion, record)
 	}
 	syncer.authorize.stateLock.Unlock()
 

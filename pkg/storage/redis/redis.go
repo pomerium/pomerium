@@ -69,8 +69,7 @@ type Backend struct {
 }
 
 // New creates a new redis storage backend.
-func New(rawURL string, options ...Option) (*Backend, error) {
-	ctx := context.TODO()
+func New(ctx context.Context, rawURL string, options ...Option) (*Backend, error) {
 	cfg := getConfig(options...)
 	backend := &Backend{
 		cfg:      cfg,
@@ -82,7 +81,9 @@ func New(rawURL string, options ...Option) (*Backend, error) {
 	if err != nil {
 		return nil, err
 	}
-	metrics.AddRedisMetrics(backend.client.PoolStats)
+	if err := metrics.AddRedisMetrics(backend.client.PoolStats); err != nil {
+		log.Error(ctx).Err(err).Msg("add redis metrics")
+	}
 	go backend.listenForVersionChanges(ctx)
 	if cfg.expiry != 0 {
 		go func() {

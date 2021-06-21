@@ -40,7 +40,7 @@ func Run(ctx context.Context, configFile string) error {
 
 	var src config.Source
 
-	src, err := config.NewFileOrEnvironmentSource(configFile)
+	src, err := config.NewFileOrEnvironmentSource(ctx, configFile)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func Run(ctx context.Context, configFile string) error {
 	defer logMgr.Close()
 
 	// trigger changes when underlying files are changed
-	src = config.NewFileWatcherSource(src)
+	src = config.NewFileWatcherSource(ctx, src)
 
 	src, err = autocert.New(src)
 	if err != nil {
@@ -182,7 +182,7 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 	host := urlutil.StripPort(authenticateURL.Host)
 	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
 	svc.Mount(sr)
-	log.Info(context.TODO()).Str("host", host).Msg("enabled authenticate service")
+	log.Info(ctx).Str("host", host).Msg("enabled authenticate service")
 
 	return nil
 }
@@ -194,19 +194,19 @@ func setupAuthorize(ctx context.Context, src config.Source, controlPlane *contro
 	}
 	envoy_service_auth_v3.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
 
-	log.Info(context.TODO()).Msg("enabled authorize service")
+	log.Info(ctx).Msg("enabled authorize service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 	return svc, nil
 }
 
 func setupDataBroker(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (*databroker_service.DataBroker, error) {
-	svc, err := databroker_service.New(src.GetConfig())
+	svc, err := databroker_service.New(ctx, src.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
 	svc.Register(controlPlane.GRPCServer)
-	log.Info(context.TODO()).Msg("enabled databroker service")
+	log.Info(ctx).Msg("enabled databroker service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 	return svc, nil
@@ -230,7 +230,7 @@ func setupProxy(ctx context.Context, src config.Source, controlPlane *controlpla
 	}
 	controlPlane.HTTPRouter.PathPrefix("/").Handler(svc)
 
-	log.Info(context.TODO()).Msg("enabled proxy service")
+	log.Info(ctx).Msg("enabled proxy service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 

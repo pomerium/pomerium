@@ -97,12 +97,12 @@ type FileOrEnvironmentSource struct {
 }
 
 // NewFileOrEnvironmentSource creates a new FileOrEnvironmentSource.
-func NewFileOrEnvironmentSource(configFile string) (*FileOrEnvironmentSource, error) {
-	ctx := log.WithContext(context.TODO(), func(c zerolog.Context) zerolog.Context {
+func NewFileOrEnvironmentSource(ctx context.Context, configFile string) (*FileOrEnvironmentSource, error) {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("config_file_source", configFile)
 	})
 
-	options, err := newOptionsFromConfig(configFile)
+	options, err := newOptionsFromConfig(ctx, configFile)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (src *FileOrEnvironmentSource) onConfigChange(ctx context.Context) func(fsn
 		log.Info(ctx).Msg("config: file updated, reconfiguring...")
 		src.mu.Lock()
 		cfg := src.config
-		options, err := newOptionsFromConfig(src.configFile)
+		options, err := newOptionsFromConfig(ctx, src.configFile)
 		if err == nil {
 			cfg = &Config{Options: options}
 			metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
@@ -162,7 +162,7 @@ type FileWatcherSource struct {
 }
 
 // NewFileWatcherSource creates a new FileWatcherSource
-func NewFileWatcherSource(underlying Source) *FileWatcherSource {
+func NewFileWatcherSource(ctx context.Context, underlying Source) *FileWatcherSource {
 	src := &FileWatcherSource{
 		underlying: underlying,
 		watcher:    fileutil.NewWatcher(),
@@ -171,13 +171,13 @@ func NewFileWatcherSource(underlying Source) *FileWatcherSource {
 	ch := src.watcher.Bind()
 	go func() {
 		for range ch {
-			src.check(context.TODO(), underlying.GetConfig())
+			src.check(ctx, underlying.GetConfig())
 		}
 	}()
-	underlying.OnConfigChange(context.TODO(), func(ctx context.Context, cfg *Config) {
+	underlying.OnConfigChange(ctx, func(ctx context.Context, cfg *Config) {
 		src.check(ctx, cfg)
 	})
-	src.check(context.TODO(), underlying.GetConfig())
+	src.check(ctx, underlying.GetConfig())
 
 	return src
 }
@@ -223,7 +223,7 @@ func (src *FileWatcherSource) check(ctx context.Context, cfg *Config) {
 		_, _ = h.Write([]byte{0})
 		bs, err := ioutil.ReadFile(f)
 		if err == nil {
-			src.watcher.Add(f)
+			src.watcher.Add(ctx, f)
 			_, _ = h.Write(bs)
 		}
 	}

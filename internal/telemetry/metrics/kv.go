@@ -2,10 +2,13 @@ package metrics
 
 import (
 	redis "github.com/go-redis/redis/v8"
+	"github.com/hashicorp/go-multierror"
 )
 
 // AddRedisMetrics registers a metrics handler against a redis Client's PoolStats() method
-func AddRedisMetrics(stats func() *redis.PoolStats) {
+func AddRedisMetrics(stats func() *redis.PoolStats) error {
+	var errs *multierror.Error
+
 	gaugeMetrics := []struct {
 		name string
 		desc string
@@ -17,7 +20,9 @@ func AddRedisMetrics(stats func() *redis.PoolStats) {
 	}
 
 	for _, m := range gaugeMetrics {
-		registry.addInt64DerivedGaugeMetric(m.name, m.desc, "redis", m.f)
+		if err := registry.addInt64DerivedGaugeMetric(m.name, m.desc, "redis", m.f); err != nil {
+			errs = multierror.Append(errs, err)
+		}
 	}
 
 	cumulativeMetrics := []struct {
@@ -30,6 +35,10 @@ func AddRedisMetrics(stats func() *redis.PoolStats) {
 	}
 
 	for _, m := range cumulativeMetrics {
-		registry.addInt64DerivedCumulativeMetric(m.name, m.desc, "redis", m.f)
+		if err := registry.addInt64DerivedCumulativeMetric(m.name, m.desc, "redis", m.f); err != nil {
+			errs = multierror.Append(errs, err)
+		}
 	}
+
+	return errs.ErrorOrNil()
 }

@@ -27,11 +27,11 @@ func NewWatcher() *Watcher {
 }
 
 // Add adds a new watch.
-func (watcher *Watcher) Add(filePath string) {
+func (watcher *Watcher) Add(ctx context.Context, filePath string) {
 	watcher.mu.Lock()
 	defer watcher.mu.Unlock()
 
-	ctx := log.WithContext(context.TODO(), func(c zerolog.Context) zerolog.Context {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("watch_file", filePath)
 	})
 

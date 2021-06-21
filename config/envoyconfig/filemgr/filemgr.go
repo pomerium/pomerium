@@ -29,13 +29,13 @@ func NewManager(options ...Option) *Manager {
 }
 
 // BytesDataSource returns an envoy config data source based on bytes.
-func (mgr *Manager) BytesDataSource(fileName string, data []byte) *envoy_config_core_v3.DataSource {
+func (mgr *Manager) BytesDataSource(ctx context.Context, fileName string, data []byte) *envoy_config_core_v3.DataSource {
 	h := base36.EncodeBytes(cryptutil.Hash("filemgr", data))
 	ext := filepath.Ext(fileName)
 	fileName = fmt.Sprintf("%s-%x%s", fileName[:len(fileName)-len(ext)], h, ext)
 
 	if err := os.MkdirAll(mgr.cfg.cacheDir, 0o700); err != nil {
-		log.Error(context.TODO()).Err(err).Msg("filemgr: error creating cache directory, falling back to inline bytes")
+		log.Error(ctx).Err(err).Msg("filemgr: error creating cache directory, falling back to inline bytes")
 		return inlineBytes(data)
 	}
 
@@ -43,11 +43,11 @@ func (mgr *Manager) BytesDataSource(fileName string, data []byte) *envoy_config_
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		err = ioutil.WriteFile(filePath, data, 0o600)
 		if err != nil {
-			log.Error(context.TODO()).Err(err).Msg("filemgr: error writing cache file, falling back to inline bytes")
+			log.Error(ctx).Err(err).Msg("filemgr: error writing cache file, falling back to inline bytes")
 			return inlineBytes(data)
 		}
 	} else if err != nil {
-		log.Error(context.TODO()).Err(err).Msg("filemgr: error reading cache file, falling back to inline bytes")
+		log.Error(ctx).Err(err).Msg("filemgr: error reading cache file, falling back to inline bytes")
 		return inlineBytes(data)
 	}
 
@@ -55,9 +55,9 @@ func (mgr *Manager) BytesDataSource(fileName string, data []byte) *envoy_config_
 }
 
 // ClearCache clears the file cache.
-func (mgr *Manager) ClearCache() {
+func (mgr *Manager) ClearCache() error {
 	if _, err := os.Stat(mgr.cfg.cacheDir); os.IsNotExist(err) {
-		return
+		return err
 	}
 
 	err := filepath.Walk(mgr.cfg.cacheDir, func(p string, fi os.FileInfo, err error) error {
@@ -67,17 +67,18 @@ func (mgr *Manager) ClearCache() {
 		return os.Remove(p)
 	})
 	if err != nil {
-		log.Error(context.TODO()).Err(err).Msg("failed to clear envoy file cache")
+		return fmt.Errorf("failed to clear envoy file cache: %w", err)
 	}
+	return nil
 }
 
 // FileDataSource returns an envoy config data source based on a file.
-func (mgr *Manager) FileDataSource(filePath string) *envoy_config_core_v3.DataSource {
+func (mgr *Manager) FileDataSource(ctx context.Context, filePath string) *envoy_config_core_v3.DataSource {
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return inlineFilename(filePath)
 	}
-	return mgr.BytesDataSource(filepath.Base(filePath), data)
+	return mgr.BytesDataSource(ctx, filepath.Base(filePath), data)
 }
 
 func inlineBytes(data []byte) *envoy_config_core_v3.DataSource {

@@ -41,7 +41,9 @@ func TestAuthorize_okResponse(t *testing.T) {
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
 	a.currentOptions.Store(opt)
-	a.store = evaluator.NewStoreFromProtos(0,
+	a.store = evaluator.NewStoreFromProtos(
+		context.Background(),
+		0,
 		&session.Session{
 			Id:     "SESSION_ID",
 			UserId: "USER_ID",

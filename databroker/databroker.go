@@ -21,16 +21,16 @@ type dataBrokerServer struct {
 }
 
 // newDataBrokerServer creates a new databroker service server.
-func newDataBrokerServer(cfg *config.Config) *dataBrokerServer {
+func newDataBrokerServer(ctx context.Context, cfg *config.Config) *dataBrokerServer {
 	srv := &dataBrokerServer{}
-	srv.server = databroker.New(srv.getOptions(cfg)...)
+	srv.server = databroker.New(ctx, srv.getOptions(cfg)...)
 	srv.setKey(cfg)
 	return srv
 }
 
 // OnConfigChange updates the underlying databroker server whenever configuration is changed.
 func (srv *dataBrokerServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	srv.server.UpdateConfig(srv.getOptions(cfg)...)
+	srv.server.UpdateConfig(ctx, srv.getOptions(cfg)...)
 	srv.setKey(cfg)
 }
 

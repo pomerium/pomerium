@@ -129,13 +129,13 @@ func (srv *Server) Close() error {
 	var err error
 	if srv.cmd != nil && srv.cmd.Process != nil {
 		err = srv.cmd.Process.Kill()
-		if err != nil {
-			log.Error(context.TODO()).Err(err).Str("service", "envoy").Msg("envoy: failed to kill process on close")
-		}
 		srv.cmd = nil
+		if err != nil {
+			return fmt.Errorf("failed to kill envoy process on close: %w", err)
+		}
 	}
 
-	return err
+	return nil
 }
 
 func (srv *Server) onConfigChange(ctx context.Context, cfg *config.Config) {

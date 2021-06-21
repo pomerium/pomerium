@@ -69,6 +69,10 @@ type Server struct {
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
 func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) {
+	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
+		return c.Str("server_name", name)
+	})
+
 	srv := &Server{
 		metricsMgr:               metricsMgr,
 		reproxy:                  reproxy.New(),
@@ -111,7 +115,9 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 	srv.addHTTPMiddleware()
 
 	srv.filemgr = filemgr.NewManager()
-	srv.filemgr.ClearCache()
+	if err := srv.filemgr.ClearCache(); err != nil {
+		log.Error(ctx).Err(err).Msg("clear envoy file cache")
+	}
 
 	srv.Builder = envoyconfig.New(
 		srv.GRPCListener.Addr().String(),
@@ -119,10 +125,6 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 		srv.filemgr,
 		srv.reproxy,
 	)
-
-	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
-		return c.Str("server_name", name)
-	})
 
 	res, err := srv.buildDiscoveryResources(ctx)
 	if err != nil {

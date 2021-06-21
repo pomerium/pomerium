@@ -360,20 +360,22 @@ func NewDefaultOptions() *Options {
 
 // newOptionsFromConfig builds the main binary's configuration options by parsing
 // environmental variables and config file
-func newOptionsFromConfig(configFile string) (*Options, error) {
-	o, err := optionsFromViper(configFile)
+func newOptionsFromConfig(ctx context.Context, configFile string) (*Options, error) {
+	o, err := optionsFromViper(ctx, configFile)
 	if err != nil {
 		return nil, fmt.Errorf("config: options from config file %q: %w", configFile, err)
 	}
 	serviceName := telemetry.ServiceName(o.Services)
-	metrics.AddPolicyCountCallback(serviceName, func() int64 {
+	if err := metrics.AddPolicyCountCallback(serviceName, func() int64 {
 		return int64(len(o.GetAllPolicies()))
-	})
+	}); err != nil {
+		log.Error(ctx).Err(err).Msg("add policy count callback")
+	}
 
 	return o, nil
 }
 
-func optionsFromViper(configFile string) (*Options, error) {
+func optionsFromViper(ctx context.Context, configFile string) (*Options, error) {
 	// start a copy of the default options
 	o := NewDefaultOptions()
 	v := o.viper
@@ -399,7 +401,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 	// This is necessary because v.Unmarshal will overwrite .viper field.
 	o.viper = v
 
-	if err := o.Validate(); err != nil {
+	if err := o.Validate(ctx); err != nil {
 		return nil, fmt.Errorf("validation error %w", err)
 	}
 	return o, nil
@@ -533,8 +535,7 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 }
 
 // Validate ensures the Options fields are valid, and hydrated.
-func (o *Options) Validate() error {
-	ctx := context.TODO()
+func (o *Options) Validate(ctx context.Context) error {
 	if !IsValidService(o.Services) {
 		return fmt.Errorf("config: %s is an invalid service type", o.Services)
 	}

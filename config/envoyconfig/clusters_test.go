@@ -25,14 +25,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 
 	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
 	rootCABytes, _ := getCombinedCertificateAuthority("", "")
-	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
+	rootCA := b.filemgr.BytesDataSource(context.Background(), "ca.pem", rootCABytes).GetFilename()
 
 	o1 := config.NewDefaultOptions()
 	o2 := config.NewDefaultOptions()
 	o2.CA = base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0})
 
 	combinedCABytes, _ := getCombinedCertificateAuthority(o2.CA, "")
-	combinedCA := b.filemgr.BytesDataSource("ca.pem", combinedCABytes).GetFilename()
+	combinedCA := b.filemgr.BytesDataSource(context.Background(), "ca.pem", combinedCABytes).GetFilename()
 
 	t.Run("insecure", func(t *testing.T) {
 		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
@@ -361,7 +361,7 @@ func Test_buildCluster(t *testing.T) {
 	ctx := context.Background()
 	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
 	rootCABytes, _ := getCombinedCertificateAuthority("", "")
-	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
+	rootCA := b.filemgr.BytesDataSource(context.Background(), "ca.pem", rootCABytes).GetFilename()
 	o1 := config.NewDefaultOptions()
 	t.Run("insecure", func(t *testing.T) {
 		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{

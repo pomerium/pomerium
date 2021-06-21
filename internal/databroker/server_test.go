@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -21,7 +22,8 @@ func newServer(cfg *serverConfig) *Server {
 }
 
 func TestServer_Get(t *testing.T) {
-	cfg := newServerConfig()
+	cfg, err := newServerConfig()
+	require.NoError(t, err)
 	t.Run("ignore deleted", func(t *testing.T) {
 		srv := newServer(cfg)
 

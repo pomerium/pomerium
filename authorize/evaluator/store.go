@@ -99,7 +99,7 @@ func NewStore() *Store {
 }
 
 // NewStoreFromProtos creates a new Store from an existing set of protobuf messages.
-func NewStoreFromProtos(serverVersion uint64, msgs ...proto.Message) *Store {
+func NewStoreFromProtos(ctx context.Context, serverVersion uint64, msgs ...proto.Message) *Store {
 	s := NewStore()
 	for _, msg := range msgs {
 		any, err := anypb.New(msg)
@@ -117,7 +117,7 @@ func NewStoreFromProtos(serverVersion uint64, msgs ...proto.Message) *Store {
 			record.Id = hasID.GetId()
 		}
 
-		s.UpdateRecord(serverVersion, record)
+		s.UpdateRecord(ctx, serverVersion, record)
 	}
 	return s
 }
@@ -140,50 +140,49 @@ func (s *Store) GetRecordData(typeURL, id string) proto.Message {
 }
 
 // UpdateIssuer updates the issuer in the store. The issuer is used as part of JWT construction.
-func (s *Store) UpdateIssuer(issuer string) {
-	s.write("/issuer", issuer)
+func (s *Store) UpdateIssuer(ctx context.Context, issuer string) {
+	s.write(ctx, "/issuer", issuer)
 }
 
 // UpdateGoogleCloudServerlessAuthenticationServiceAccount updates the google cloud serverless authentication
 // service account in the store.
-func (s *Store) UpdateGoogleCloudServerlessAuthenticationServiceAccount(serviceAccount string) {
-	s.write("/google_cloud_serverless_authentication_service_account", serviceAccount)
+func (s *Store) UpdateGoogleCloudServerlessAuthenticationServiceAccount(ctx context.Context, serviceAccount string) {
+	s.write(ctx, "/google_cloud_serverless_authentication_service_account", serviceAccount)
 }
 
 // UpdateJWTClaimHeaders updates the jwt claim headers in the store.
-func (s *Store) UpdateJWTClaimHeaders(jwtClaimHeaders map[string]string) {
-	s.write("/jwt_claim_headers", jwtClaimHeaders)
+func (s *Store) UpdateJWTClaimHeaders(ctx context.Context, jwtClaimHeaders map[string]string) {
+	s.write(ctx, "/jwt_claim_headers", jwtClaimHeaders)
 }
 
 // UpdateRoutePolicies updates the route policies in the store.
-func (s *Store) UpdateRoutePolicies(routePolicies []config.Policy) {
-	s.write("/route_policies", routePolicies)
+func (s *Store) UpdateRoutePolicies(ctx context.Context, routePolicies []config.Policy) {
+	s.write(ctx, "/route_policies", routePolicies)
 }
 
 // UpdateRecord updates a record in the store.
-func (s *Store) UpdateRecord(serverVersion uint64, record *databroker.Record) {
+func (s *Store) UpdateRecord(ctx context.Context, serverVersion uint64, record *databroker.Record) {
 	if record.GetDeletedAt() != nil {
 		s.dataBrokerData.delete(record.GetType(), record.GetId())
 	} else {
 		msg, _ := record.GetData().UnmarshalNew()
 		s.dataBrokerData.set(record.GetType(), record.GetId(), msg)
 	}
-	s.write("/databroker_server_version", fmt.Sprint(serverVersion))
-	s.write("/databroker_record_version", fmt.Sprint(record.GetVersion()))
+	s.write(ctx, "/databroker_server_version", fmt.Sprint(serverVersion))
+	s.write(ctx, "/databroker_record_version", fmt.Sprint(record.GetVersion()))
 	atomic.StoreUint64(&s.dataBrokerServerVersion, serverVersion)
 	atomic.StoreUint64(&s.dataBrokerRecordVersion, record.GetVersion())
 }
 
 // UpdateSigningKey updates the signing key stored in the database. Signing operations
 // in rego use JWKs, so we take in that format.
-func (s *Store) UpdateSigningKey(signingKey *jose.JSONWebKey) {
-	s.write("/signing_key", signingKey)
+func (s *Store) UpdateSigningKey(ctx context.Context, signingKey *jose.JSONWebKey) {
+	s.write(ctx, "/signing_key", signingKey)
 }
 
-func (s *Store) write(rawPath string, value interface{}) {
-	ctx := context.TODO()
+func (s *Store) write(ctx context.Context, rawPath string, value interface{}) {
 	err := storage.Txn(ctx, s.Store, storage.WriteParams, func(txn storage.Transaction) error {
-		return s.writeTxn(txn, rawPath, value)
+		return s.writeTxn(ctx, txn, rawPath, value)
 	})
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("opa-store: error writing data")
@@ -191,7 +190,7 @@ func (s *Store) write(rawPath string, value interface{}) {
 	}
 }
 
-func (s *Store) writeTxn(txn storage.Transaction, rawPath string, value interface{}) error {
+func (s *Store) writeTxn(ctx context.Context, txn storage.Transaction, rawPath string, value interface{}) error {
 	p, ok := storage.ParsePath(rawPath)
 	if !ok {
 		return fmt.Errorf("invalid path")
@@ -212,7 +211,7 @@ func (s *Store) writeTxn(txn storage.Transaction, rawPath string, value interfac
 		return err
 	}
 
-	return s.Write(context.Background(), txn, op, p, value)
+	return s.Write(ctx, txn, op, p, value)
 }
 
 // GetDataBrokerRecordOption returns a function option that can retrieve databroker data.

@@ -1,6 +1,7 @@
 package httputil
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
@@ -120,7 +121,7 @@ func TestNewServer(t *testing.T) {
 				c := make(chan os.Signal, 1)
 				signal.Notify(c, syscall.SIGINT)
 				defer signal.Stop(c)
-				go Shutdown(srv)
+				go Shutdown(context.Background(), srv)
 				syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 				waitSig(t, c, syscall.SIGINT)
 			}

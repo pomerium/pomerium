@@ -26,7 +26,7 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
 
 	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
-	li, err := b.buildMetricsListener(&config.Config{
+	li, err := b.buildMetricsListener(context.Background(), &config.Config{
 		Options: &config.Options{
 			MetricsAddr:           "127.0.0.1:9902",
 			MetricsCertificate:    aExampleComCert,
@@ -529,10 +529,11 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
 
 	t.Run("no-validation", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
 		}}, "a.example.com")
+		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -562,11 +563,12 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("client-ca", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
 			Cert:     aExampleComCert,
 			Key:      aExampleComKey,
 			ClientCA: "TEST",
 		}}, "a.example.com")
+		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -599,7 +601,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("policy-client-ca", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
 			Policies: []config.Policy{
@@ -609,6 +611,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				},
 			},
 		}}, "a.example.com")
+		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -641,11 +644,12 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("http1", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
 			Cert:      aExampleComCert,
 			Key:       aExampleComKey,
 			CodecType: config.CodecTypeHTTP1,
 		}}, "a.example.com")
+		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -675,11 +679,12 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("http2", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext, err := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
 			Cert:      aExampleComCert,
 			Key:       aExampleComKey,
 			CodecType: config.CodecTypeHTTP2,
 		}}, "a.example.com")
+		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {

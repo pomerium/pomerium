@@ -33,7 +33,7 @@ func TestAuthorize_waitForRecordSync(t *testing.T) {
 		a, err := New(&config.Config{Options: o})
 		require.NoError(t, err)
 
-		a.store.UpdateRecord(0, newRecord(&session.Session{
+		a.store.UpdateRecord(context.Background(), 0, newRecord(&session.Session{
 			Id: "SESSION_ID",
 		}))
 		a.state.Load().dataBrokerClient = mockDataBrokerServiceClient{
@@ -68,7 +68,7 @@ func TestAuthorize_waitForRecordSync(t *testing.T) {
 				switch callCount {
 				case 1:
 					s := &session.Session{Id: "SESSION_ID"}
-					a.store.UpdateRecord(0, newRecord(s))
+					a.store.UpdateRecord(context.Background(), 0, newRecord(s))
 					return &databroker.GetResponse{Record: newRecord(s)}, nil
 				default:
 					panic("should never be called")
