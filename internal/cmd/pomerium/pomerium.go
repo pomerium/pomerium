@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/envoy"
+	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -31,11 +32,9 @@ import (
 )
 
 // Run runs the main pomerium application.
-func Run(ctx context.Context, configFile string, embeddedEnvoyProvider envoy.EmbeddedEnvoyProvider) error {
-	envoyVersion := embeddedEnvoyProvider.Version() + "+" + embeddedEnvoyProvider.Checksum()
-
+func Run(ctx context.Context, configFile string) error {
 	log.Info(ctx).
-		Str("envoy_version", envoyVersion).
+		Str("envoy_version", files.FullVersion()).
 		Str("version", version.FullVersion()).
 		Msg("cmd/pomerium")
 
@@ -61,13 +60,13 @@ func Run(ctx context.Context, configFile string, embeddedEnvoyProvider envoy.Emb
 	// override the default http transport so we can use the custom CA in the TLS client config (#1570)
 	http.DefaultTransport = config.NewHTTPTransport(src)
 
-	metricsMgr := config.NewMetricsManager(ctx, src, envoyVersion)
+	metricsMgr := config.NewMetricsManager(ctx, src)
 	defer metricsMgr.Close()
 	traceMgr := config.NewTraceManager(ctx, src)
 	defer traceMgr.Close()
 
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(src.GetConfig().Options.Services, metricsMgr, envoyVersion)
+	controlPlane, err := controlplane.NewServer(src.GetConfig().Options.Services, metricsMgr)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
@@ -91,7 +90,7 @@ func Run(ctx context.Context, configFile string, embeddedEnvoyProvider envoy.Emb
 	log.Info(ctx).Str("port", httpPort).Msg("HTTP server started")
 
 	// create envoy server
-	envoyServer, err := envoy.NewServer(ctx, src, grpcPort, httpPort, controlPlane.Builder, embeddedEnvoyProvider)
+	envoyServer, err := envoy.NewServer(ctx, src, grpcPort, httpPort, controlPlane.Builder)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
 	}
@@ -110,7 +109,7 @@ func Run(ctx context.Context, configFile string, embeddedEnvoyProvider envoy.Emb
 	}
 	var dataBrokerServer *databroker_service.DataBroker
 	if config.IsDataBroker(src.GetConfig().Options.Services) {
-		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane, envoyVersion)
+		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane)
 		if err != nil {
 			return fmt.Errorf("setting up databroker: %w", err)
 		}
@@ -201,8 +200,8 @@ func setupAuthorize(ctx context.Context, src config.Source, controlPlane *contro
 	return svc, nil
 }
 
-func setupDataBroker(ctx context.Context, src config.Source, controlPlane *controlplane.Server, envoyVersion string) (*databroker_service.DataBroker, error) {
-	svc, err := databroker_service.New(src.GetConfig(), envoyVersion)
+func setupDataBroker(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (*databroker_service.DataBroker, error) {
+	svc, err := databroker_service.New(src.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}

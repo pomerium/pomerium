@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/metrics"
 
@@ -73,13 +74,13 @@ func Test_SetBuildInfo(t *testing.T) {
 	wantLabels := []metricdata.LabelValue{
 		{Value: "test_service", Present: true},
 		{Value: version.FullVersion(), Present: true},
-		{Value: "v1.2.3", Present: true},
+		{Value: files.FullVersion(), Present: true},
 		{Value: version.GitCommit, Present: true},
 		{Value: runtime.Version(), Present: true},
 		{Value: "test_host", Present: true},
 	}
 
-	SetBuildInfo("test_service", "test_host", "v1.2.3")
+	SetBuildInfo("test_service", "test_host")
 	testMetricRetrieval(registry.registry.Read(), t, wantLabels, int64(1), metrics.BuildInfo)
 }
 

@@ -19,7 +19,7 @@ func TestMetricsManager(t *testing.T) {
 			MetricsAddr: "ADDRESS",
 		},
 	})
-	mgr := NewMetricsManager(ctx, src, "v1.2.3")
+	mgr := NewMetricsManager(ctx, src)
 	srv1 := httptest.NewServer(mgr)
 	defer srv1.Close()
 	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +44,7 @@ func TestMetricsManagerBasicAuth(t *testing.T) {
 			MetricsBasicAuth: base64.StdEncoding.EncodeToString([]byte("x:y")),
 		},
 	})
-	mgr := NewMetricsManager(context.Background(), src, "v1.2.3")
+	mgr := NewMetricsManager(context.Background(), src)
 	srv1 := httptest.NewServer(mgr)
 	defer srv1.Close()
 

@@ -30,27 +30,21 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/pomerium/pomerium/internal/envoy/files"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
 const (
-	workingDirectoryName        = ".pomerium-envoy"
-	workingDirectoryPermissions = 0o755
-	configFileName              = "envoy-config.yaml"
+	workingDirectoryName = ".pomerium-envoy"
+	configFileName       = "envoy-config.yaml"
 )
 
 type serverOptions struct {
 	services string
 	logLevel string
-}
-
-// An EmbeddedEnvoyProvider provides an implementation of an embedded envoy.
-type EmbeddedEnvoyProvider interface {
-	Checksum() string
-	Extract(ctx context.Context) (outPath string, err error)
-	Version() string
 }
 
 // A Server is a pomerium proxy implemented via envoy.
@@ -69,19 +63,14 @@ type Server struct {
 }
 
 // NewServer creates a new server with traffic routed by envoy.
-func NewServer(ctx context.Context,
-	src config.Source,
-	grpcPort, httpPort string,
-	builder *envoyconfig.Builder,
-	embeddedEnvoyProvider EmbeddedEnvoyProvider,
-) (*Server, error) {
+func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string, builder *envoyconfig.Builder) (*Server, error) {
 	wd := filepath.Join(os.TempDir(), workingDirectoryName)
-	err := os.MkdirAll(wd, workingDirectoryPermissions)
+	err := os.MkdirAll(wd, embeddedEnvoyPermissions)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temporary working directory for envoy: %w", err)
 	}
 
-	envoyPath, err := embeddedEnvoyProvider.Extract(ctx)
+	envoyPath, err := extractEmbeddedEnvoy(ctx)
 	if err != nil {
 		log.Warn(ctx).Err(err).Send()
 		envoyPath = "envoy"
@@ -93,7 +82,7 @@ func NewServer(ctx context.Context,
 	}
 
 	// Checksum is written at build time, if it's not empty we verify the binary
-	if embeddedEnvoyProvider.Checksum() != "" {
+	if files.Checksum() != "" {
 		bs, err := ioutil.ReadFile(fullEnvoyPath)
 		if err != nil {
 			return nil, fmt.Errorf("error reading envoy binary for checksum verification: %w", err)
@@ -101,8 +90,8 @@ func NewServer(ctx context.Context,
 		h := sha256.New()
 		h.Write(bs)
 		s := hex.EncodeToString(h.Sum(nil))
-		if embeddedEnvoyProvider.Checksum() != s {
-			return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", embeddedEnvoyProvider.Checksum(), s)
+		if files.Checksum() != s {
+			return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", files.Checksum(), s)
 		}
 	} else {
 		log.Info(ctx).Msg("no checksum defined, envoy binary will not be verified!")
@@ -124,7 +113,7 @@ func NewServer(ctx context.Context,
 
 	log.Info(ctx).
 		Str("path", envoyPath).
-		Str("checksum", embeddedEnvoyProvider.Checksum()).
+		Str("checksum", files.Checksum()).
 		Msg("running envoy")
 
 	return srv, nil

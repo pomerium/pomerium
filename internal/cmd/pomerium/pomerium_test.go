@@ -8,20 +8,6 @@ import (
 	"time"
 )
 
-type mockEmbeddedEnvoyProvider struct{}
-
-func (mockEmbeddedEnvoyProvider) Checksum() string {
-	return "CHECKSUM"
-}
-
-func (mockEmbeddedEnvoyProvider) Extract(ctx context.Context) (string, error) {
-	return "", nil
-}
-
-func (mockEmbeddedEnvoyProvider) Version() string {
-	return "VERSION"
-}
-
 func Test_run(t *testing.T) {
 	os.Clearenv()
 	tests := []struct {
@@ -141,7 +127,7 @@ func Test_run(t *testing.T) {
 			ctx, clearTimeout := context.WithTimeout(context.Background(), 500*time.Millisecond)
 			defer clearTimeout()
 
-			err = Run(ctx, configFile, mockEmbeddedEnvoyProvider{})
+			err = Run(ctx, configFile)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}
