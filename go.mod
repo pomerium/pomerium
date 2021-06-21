@@ -40,7 +40,7 @@ require (
 	github.com/onsi/gocleanup v0.0.0-20140331211545-c1a5478700b5
 	github.com/open-policy-agent/opa v0.29.4
 	github.com/openzipkin/zipkin-go v0.2.5
-	github.com/ory/dockertest/v3 v3.6.5
+	github.com/ory/dockertest/v3 v3.7.0
 	github.com/pelletier/go-toml v1.8.1 // indirect
 	github.com/pomerium/csrf v1.7.0
 	github.com/prometheus/client_golang v1.11.0
