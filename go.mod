@@ -41,7 +41,6 @@ require (
 	github.com/open-policy-agent/opa v0.29.4
 	github.com/openzipkin/zipkin-go v0.2.5
 	github.com/ory/dockertest/v3 v3.7.0
-	github.com/pelletier/go-toml v1.8.1 // indirect
 	github.com/pomerium/csrf v1.7.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/client_model v0.2.0
@@ -53,11 +52,8 @@ require (
 	github.com/scylladb/go-set v1.0.2
 	github.com/shirou/gopsutil/v3 v3.21.5
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
-	github.com/spf13/afero v1.5.1 // indirect
-	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
-	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/spf13/viper v1.7.1
+	github.com/spf13/viper v1.8.0
 	github.com/stretchr/testify v1.7.0
 	github.com/tklauser/go-sysconf v0.3.6 // indirect
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
@@ -74,6 +70,5 @@ require (
 	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.26.0
 	gopkg.in/auth0.v5 v5.19.1
-	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
