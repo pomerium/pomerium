@@ -8,8 +8,6 @@ import (
 	"go.opencensus.io/metric"
 	"go.opencensus.io/metric/metricdata"
 
-	"github.com/pomerium/pomerium/internal/envoy/files"
-
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/metrics"
@@ -82,14 +80,14 @@ func (r *metricRegistry) init() {
 
 // SetBuildInfo records the pomerium build info. You must call RegisterInfoMetrics to
 // have this exported
-func (r *metricRegistry) setBuildInfo(service, hostname string) {
+func (r *metricRegistry) setBuildInfo(service, hostname, envoyVersion string) {
 	if registry.buildInfo == nil {
 		return
 	}
 	m, err := registry.buildInfo.GetEntry(
 		metricdata.NewLabelValue(service),
 		metricdata.NewLabelValue(version.FullVersion()),
-		metricdata.NewLabelValue(files.FullVersion()),
+		metricdata.NewLabelValue(envoyVersion),
 		metricdata.NewLabelValue(version.GitCommit),
 		metricdata.NewLabelValue((runtime.Version())),
 		metricdata.NewLabelValue(hostname),

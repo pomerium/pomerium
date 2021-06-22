@@ -89,6 +89,7 @@ message Route {
   bool pass_identity_headers = 25;
 
   string kubernetes_service_account_token = 26;
+  bool enable_google_cloud_serverless_authentication = 42;
 
   envoy.config.cluster.v3.Cluster envoy_opts = 36;
 

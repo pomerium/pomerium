@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Options          *Options
 	AutoCertificates []tls.Certificate
+	EnvoyVersion     string
 }
 
 // Clone creates a clone of the config.
@@ -19,6 +20,7 @@ func (cfg *Config) Clone() *Config {
 	return &Config{
 		Options:          newOptions,
 		AutoCertificates: cfg.AutoCertificates,
+		EnvoyVersion:     cfg.EnvoyVersion,
 	}
 }
 

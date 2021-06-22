@@ -223,6 +223,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		PassIdentityHeaders:              pb.GetPassIdentityHeaders(),
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
 		SetResponseHeaders:               pb.GetSetResponseHeaders(),
+		EnableGoogleCloudServerlessAuthentication: pb.GetEnableGoogleCloudServerlessAuthentication(),
 	}
 
 	if pb.Redirect.IsSet() {
