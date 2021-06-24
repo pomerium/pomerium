@@ -992,6 +992,24 @@ func (o *Options) Checksum() uint64 {
 
 func (o Options) indexCerts(ctx context.Context) certsIndex {
 	idx := make(certsIndex)
+
+	if o.CertFile != "" {
+		cert, err := cryptutil.ParsePEMCertificateFromFile(o.CertFile)
+		if err != nil {
+			log.Error(ctx).Err(err).Str("file", o.CertFile).Msg("parsing local cert: skipped")
+		} else {
+			idx.addCert(cert)
+		}
+	} else if o.Cert != "" {
+		if data, err := base64.StdEncoding.DecodeString(o.Cert); err != nil {
+			log.Error(ctx).Err(err).Msg("bad base64 for local cert: skipped")
+		} else if cert, err := cryptutil.ParsePEMCertificate(data); err != nil {
+			log.Error(ctx).Err(err).Msg("parsing local cert: skipped")
+		} else {
+			idx.addCert(cert)
+		}
+	}
+
 	for _, c := range o.CertificateFiles {
 		cert, err := cryptutil.ParsePEMCertificateFromFile(c.CertFile)
 		if err != nil {
