@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/url"
 	"sort"
-	"strings"
 
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
@@ -229,10 +228,9 @@ type (
 		Value     []groupsDeltaResponseGroup `json:"value"`
 	}
 	groupsDeltaResponseGroup struct {
-		ID          string                           `json:"id"`
-		DisplayName string                           `json:"displayName"`
-		Members     []groupsDeltaResponseGroupMember `json:"members@delta"`
-		Removed     *deltaResponseRemoved            `json:"@removed,omitempty"`
+		apiGroup
+		Members []groupsDeltaResponseGroupMember `json:"members@delta"`
+		Removed *deltaResponseRemoved            `json:"@removed,omitempty"`
 	}
 	groupsDeltaResponseGroupMember struct {
 		Type    string                `json:"@odata.type"`
@@ -247,30 +245,7 @@ type (
 		Value     []usersDeltaResponseUser `json:"value"`
 	}
 	usersDeltaResponseUser struct {
-		ID                string                `json:"id"`
-		DisplayName       string                `json:"displayName"`
-		Mail              string                `json:"mail"`
-		UserPrincipalName string                `json:"userPrincipalName"`
-		Removed           *deltaResponseRemoved `json:"@removed,omitempty"`
+		apiUser
+		Removed *deltaResponseRemoved `json:"@removed,omitempty"`
 	}
 )
-
-func (obj usersDeltaResponseUser) getEmail() string {
-	if obj.Mail != "" {
-		return obj.Mail
-	}
-
-	// AD often doesn't have the email address returned, but we can parse it from the UPN
-
-	// UPN looks like:
-	// cdoxsey_pomerium.com#EXT#@cdoxseypomerium.onmicrosoft.com
-	email := obj.UserPrincipalName
-	if idx := strings.Index(email, "#EXT"); idx > 0 {
-		email = email[:idx]
-	}
-	// find the last _ and replace it with @
-	if idx := strings.LastIndex(email, "_"); idx > 0 {
-		email = email[:idx] + "@" + email[idx+1:]
-	}
-	return email
-}

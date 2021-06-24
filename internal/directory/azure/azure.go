@@ -115,30 +115,17 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 		Path: fmt.Sprintf("/v1.0/users/%s", userID),
 	}).String()
 
-	var u usersDeltaResponseUser
+	var u apiGetUserResponse
 	err := p.api(ctx, userURL, &u)
 	if err != nil {
 		return nil, err
 	}
 	du.DisplayName = u.DisplayName
 	du.Email = u.getEmail()
-
-	groupURL := p.cfg.graphURL.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/v1.0/users/%s/transitiveMemberOf", userID),
-	}).String()
-
-	var res struct {
-		Value []usersDeltaResponseUser `json:"value"`
-	}
-	err = p.api(ctx, groupURL, &res)
+	du.GroupIds, err = p.transitiveMemberOf(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	for _, g := range res.Value {
-		du.GroupIds = append(du.GroupIds, g.ID)
-	}
-
-	sort.Strings(du.GroupIds)
 
 	return du, nil
 }
@@ -244,6 +231,28 @@ func (p *Provider) getToken(ctx context.Context) (*oauth2.Token, error) {
 	p.token = token
 
 	return p.token, nil
+}
+
+func (p *Provider) transitiveMemberOf(ctx context.Context, userID string) (groupIDs []string, err error) {
+	apiURL := p.cfg.graphURL.ResolveReference(&url.URL{
+		Path: fmt.Sprintf("/v1.0/users/%s/transitiveMemberOf", userID),
+	}).String()
+	for {
+		var res apiGetUserMembersResponse
+		err := p.api(ctx, apiURL, &res)
+		if err != nil {
+			return nil, err
+		}
+		for _, g := range res.Value {
+			groupIDs = append(groupIDs, g.ID)
+		}
+		if res.NextLink == "" {
+			break
+		}
+		apiURL = res.NextLink
+	}
+	sort.Strings(groupIDs)
+	return groupIDs, nil
 }
 
 // A ServiceAccount is used by the Azure provider to query the Microsoft Graph API.
