@@ -91,7 +91,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 
 	// add all the config policies to the list
 	for id, cfgpb := range src.dbConfigs {
-		cfg.Options.ApplySettings(cfgpb.Settings)
+		cfg.Options.ApplySettings(ctx, cfgpb.Settings)
 		var errCount uint64
 
 		err := cfg.Options.Validate()
