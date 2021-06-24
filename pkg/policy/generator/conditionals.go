@@ -105,7 +105,11 @@ func (g *Generator) generateCriterionRules(dst *ast.RuleSet, policyCriteria []pa
 
 func (g *Generator) fillViaAnd(rule *ast.Rule, negated bool, terms []*ast.Term) {
 	currentRule := rule
-	currentRule.Head.Value = ast.VarTerm("v1")
+	if negated {
+		currentRule.Head.Value = ast.BooleanTerm(true)
+	} else {
+		currentRule.Head.Value = ast.VarTerm("v1")
+	}
 	for i, term := range terms {
 		nm := fmt.Sprintf("v%d", i+1)
 		currentRule.Body = append(currentRule.Body, ast.Assign.Expr(ast.VarTerm(nm), term))
@@ -125,7 +129,11 @@ func (g *Generator) fillViaOr(rule *ast.Rule, negated bool, terms []*ast.Term) {
 			currentRule = currentRule.Else
 		}
 		nm := fmt.Sprintf("v%d", i+1)
-		currentRule.Head.Value = ast.VarTerm(nm)
+		if negated {
+			currentRule.Head.Value = ast.BooleanTerm(true)
+		} else {
+			currentRule.Head.Value = ast.VarTerm(nm)
+		}
 
 		currentRule.Body = append(currentRule.Body, ast.Assign.Expr(ast.VarTerm(nm), term))
 		expr := ast.NewExpr(ast.VarTerm(nm))

@@ -119,7 +119,7 @@ accept_8 {
 	1 == 1
 }
 
-not_0 = v1 {
+not_0 {
 	v1 := accept_6
 	not v1
 	v2 := accept_7
@@ -140,17 +140,17 @@ accept_11 {
 	1 == 1
 }
 
-nor_0 = v1 {
+nor_0 {
 	v1 := accept_9
 	not v1
 }
 
-else = v2 {
+else {
 	v2 := accept_10
 	not v2
 }
 
-else = v3 {
+else {
 	v3 := accept_11
 	not v3
 }
