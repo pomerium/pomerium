@@ -990,8 +990,64 @@ func (o *Options) Checksum() uint64 {
 	return hashutil.MustHash(o)
 }
 
+func (o Options) indexCerts(ctx context.Context) certsIndex {
+	idx := make(certsIndex)
+
+	if o.CertFile != "" {
+		cert, err := cryptutil.ParsePEMCertificateFromFile(o.CertFile)
+		if err != nil {
+			log.Error(ctx).Err(err).Str("file", o.CertFile).Msg("parsing local cert: skipped")
+		} else {
+			idx.addCert(cert)
+		}
+	} else if o.Cert != "" {
+		if data, err := base64.StdEncoding.DecodeString(o.Cert); err != nil {
+			log.Error(ctx).Err(err).Msg("bad base64 for local cert: skipped")
+		} else if cert, err := cryptutil.ParsePEMCertificate(data); err != nil {
+			log.Error(ctx).Err(err).Msg("parsing local cert: skipped")
+		} else {
+			idx.addCert(cert)
+		}
+	}
+
+	for _, c := range o.CertificateFiles {
+		cert, err := cryptutil.ParsePEMCertificateFromFile(c.CertFile)
+		if err != nil {
+			log.Error(ctx).Err(err).Str("file", c.CertFile).Msg("parsing local cert: skipped")
+		}
+		idx.addCert(cert)
+	}
+	return idx
+}
+
+func (o *Options) applyExternalCerts(ctx context.Context, certs []*config.Settings_Certificate) {
+	idx := o.indexCerts(ctx)
+	for _, c := range certs {
+		cert, err := cryptutil.ParsePEMCertificate(c.CertBytes)
+		if err != nil {
+			log.Error(ctx).Err(err).Msg("parsing cert from databroker: skipped")
+			continue
+		}
+		if overlaps, name := idx.matchCert(cert); overlaps {
+			log.Error(ctx).Err(err).Str("domain", name).Msg("overlaps with local certs: skipped")
+			continue
+		}
+		cfp := certificateFilePair{
+			CertFile: c.CertFile,
+			KeyFile:  c.KeyFile,
+		}
+		if cfp.CertFile == "" {
+			cfp.CertFile = base64.StdEncoding.EncodeToString(c.CertBytes)
+		}
+		if cfp.KeyFile == "" {
+			cfp.KeyFile = base64.StdEncoding.EncodeToString(c.KeyBytes)
+		}
+		o.CertificateFiles = append(o.CertificateFiles, cfp)
+	}
+}
+
 // ApplySettings modifies the config options using the given protobuf settings.
-func (o *Options) ApplySettings(settings *config.Settings) {
+func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) {
 	if settings == nil {
 		return
 	}
@@ -1023,19 +1079,7 @@ func (o *Options) ApplySettings(settings *config.Settings) {
 	if settings.DnsLookupFamily != nil {
 		o.DNSLookupFamily = settings.GetDnsLookupFamily()
 	}
-	for _, c := range settings.Certificates {
-		cfp := certificateFilePair{
-			CertFile: c.CertFile,
-			KeyFile:  c.KeyFile,
-		}
-		if cfp.CertFile == "" {
-			cfp.CertFile = base64.StdEncoding.EncodeToString(c.CertBytes)
-		}
-		if cfp.KeyFile == "" {
-			cfp.KeyFile = base64.StdEncoding.EncodeToString(c.KeyBytes)
-		}
-		o.CertificateFiles = append(o.CertificateFiles, cfp)
-	}
+	o.applyExternalCerts(ctx, settings.GetCertificates())
 	if settings.HttpRedirectAddr != nil {
 		o.HTTPRedirectAddr = settings.GetHttpRedirectAddr()
 	}

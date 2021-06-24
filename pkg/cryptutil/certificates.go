@@ -11,13 +11,17 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"os"
 	"time"
 )
 
-const crlPemType = "X509 CRL"
+const (
+	crlPemType      = "X509 CRL"
+	maxCertFileSize = 1 << 16
+)
 
 // CertificateFromBase64 returns an X509 pair from a base64 encoded blob.
 func CertificateFromBase64(cert, key string) (*tls.Certificate, error) {
@@ -210,4 +214,43 @@ func GenerateSelfSignedCertificate(domain string) (*tls.Certificate, error) {
 	}
 
 	return &cert, nil
+}
+
+// ParsePEMCertificate parses PEM encoded certificate block
+func ParsePEMCertificate(raw []byte) (*x509.Certificate, error) {
+	data := raw
+	for {
+		var block *pem.Block
+		block, data = pem.Decode(data)
+		if block == nil {
+			break
+		}
+
+		if block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
+			continue
+		}
+
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("invalid certificate: %w", err)
+		}
+		return cert, nil
+	}
+	return nil, fmt.Errorf("no certificate block found")
+}
+
+// ParsePEMCertificateFromFile decodes PEM certificate from file
+func ParsePEMCertificateFromFile(file string) (*x509.Certificate, error) {
+	fd, err := os.Open(file)
+	if err != nil {
+		return nil, fmt.Errorf("open file: %w", err)
+	}
+	defer func() {
+		_ = fd.Close()
+	}()
+	raw, err := io.ReadAll(io.LimitReader(fd, maxCertFileSize))
+	if err != nil {
+		return nil, fmt.Errorf("read file: %w", err)
+	}
+	return ParsePEMCertificate(raw)
 }
