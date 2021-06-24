@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/go-chi/chi"
@@ -86,11 +87,28 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 		r.Get("/users/{user_id}/transitiveMemberOf", func(w http.ResponseWriter, r *http.Request) {
 			switch chi.URLParam(r, "user_id") {
 			case "user-1":
-				_ = json.NewEncoder(w).Encode(M{
-					"value": []M{
-						{"id": "admin"},
-					},
-				})
+				switch r.URL.Query().Get("page") {
+				case "":
+					_ = json.NewEncoder(w).Encode(M{
+						"value": []M{
+							{"id": "admin"},
+						},
+						"@odata.nextLink": getPageURL(r, 1),
+					})
+				case "1":
+					_ = json.NewEncoder(w).Encode(M{
+						"value": []M{
+							{"id": "group1"},
+						},
+						"@odata.nextLink": getPageURL(r, 2),
+					})
+				case "2":
+					_ = json.NewEncoder(w).Encode(M{
+						"value": []M{
+							{"id": "group2"},
+						},
+					})
+				}
 			default:
 				http.Error(w, "not found", http.StatusNotFound)
 			}
@@ -126,7 +144,7 @@ func TestProvider_User(t *testing.T) {
 		"id": "user-1",
 		"displayName": "User 1",
 		"email": "user1@example.com",
-		"groupIds": ["admin"]
+		"groupIds": ["admin", "group1", "group2"]
 	}`, du)
 }
 
@@ -218,4 +236,21 @@ func mustParseURL(rawurl string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func getPageURL(r *http.Request, page int) string {
+	var u url.URL
+	u = *r.URL
+	if r.TLS == nil {
+		u.Scheme = "http"
+	} else {
+		u.Scheme = "https"
+	}
+	if u.Host == "" {
+		u.Host = r.Host
+	}
+	q := u.Query()
+	q.Set("page", strconv.Itoa(page))
+	u.RawQuery = q.Encode()
+	return u.String()
 }
