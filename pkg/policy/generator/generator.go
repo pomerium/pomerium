@@ -96,7 +96,7 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 					Value: ast.VarTerm("v1"),
 				},
 			}
-			g.fillViaOr(rule, false, terms)
+			g.fillViaOr(rule, terms)
 			rules.Add(rule)
 		}
 	}

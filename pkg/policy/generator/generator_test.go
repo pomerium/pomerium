@@ -119,13 +119,8 @@ accept_8 {
 	1 == 1
 }
 
-not_0 = v1 {
-	v1 := accept_6
-	not v1
-	v2 := accept_7
-	not v2
-	v3 := accept_8
-	not v3
+not_0 = v {
+	v := count({1 | not accept_6} & ({1 | not accept_7} & {1 | not accept_8})) == 1
 }
 
 accept_9 {
@@ -140,19 +135,8 @@ accept_11 {
 	1 == 1
 }
 
-nor_0 = v1 {
-	v1 := accept_9
-	not v1
-}
-
-else = v2 {
-	v2 := accept_10
-	not v2
-}
-
-else = v3 {
-	v3 := accept_11
-	not v3
+nor_0 = v {
+	v := count({1 | not accept_9} | ({1 | not accept_10} | {1 | not accept_11})) == 1
 }
 
 accept_12 {
