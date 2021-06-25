@@ -203,6 +203,7 @@ func shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool {
 		"text/plain",
 		"application/grpc-web-text",
 		"application/grpc-web+proto",
+		"application/grpc+proto",
 	})
 	if !ok {
 		return true
