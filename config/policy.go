@@ -198,7 +198,10 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		t := pb.GetTimeout().AsDuration()
 		timeout = &t
 	}
-	// TODO: add idleTimeout from Route
+	if pb.GetIdleTimeout() != nil {
+		t := pb.GetIdleTimeout().AsDuration()
+		idleTimeout = &t
+	}
 
 	p := &Policy{
 		From:                             pb.GetFrom(),
@@ -293,6 +296,10 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	if p.UpstreamTimeout == nil {
 		timeout = durationpb.New(defaultOptions.DefaultUpstreamTimeout)
 	}
+	var idleTimeout *durationpb.Duration
+	if p.IdleTimeout != nil {
+		idleTimeout = durationpb.New(*p.IdleTimeout)
+	}
 	sps := make([]*configpb.Policy, 0, len(p.SubPolicies))
 	for _, sp := range p.SubPolicies {
 		sps = append(sps, &configpb.Policy{
@@ -323,25 +330,25 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
 		AllowAnyAuthenticatedUser:        p.AllowAnyAuthenticatedUser,
 		Timeout:                          timeout,
-		// TODO: add IdleTimeout
-		AllowWebsockets:               p.AllowWebsockets,
-		TlsSkipVerify:                 p.TLSSkipVerify,
-		TlsServerName:                 p.TLSServerName,
-		TlsCustomCa:                   p.TLSCustomCA,
-		TlsCustomCaFile:               p.TLSCustomCAFile,
-		TlsClientCert:                 p.TLSClientCert,
-		TlsClientKey:                  p.TLSClientKey,
-		TlsClientCertFile:             p.TLSClientCertFile,
-		TlsClientKeyFile:              p.TLSClientKeyFile,
-		TlsDownstreamClientCa:         p.TLSDownstreamClientCA,
-		TlsDownstreamClientCaFile:     p.TLSDownstreamClientCAFile,
-		SetRequestHeaders:             p.SetRequestHeaders,
-		RemoveRequestHeaders:          p.RemoveRequestHeaders,
-		PreserveHostHeader:            p.PreserveHostHeader,
-		PassIdentityHeaders:           p.PassIdentityHeaders,
-		KubernetesServiceAccountToken: p.KubernetesServiceAccountToken,
-		Policies:                      sps,
-		SetResponseHeaders:            p.SetResponseHeaders,
+		IdleTimeout:                      idleTimeout,
+		AllowWebsockets:                  p.AllowWebsockets,
+		TlsSkipVerify:                    p.TLSSkipVerify,
+		TlsServerName:                    p.TLSServerName,
+		TlsCustomCa:                      p.TLSCustomCA,
+		TlsCustomCaFile:                  p.TLSCustomCAFile,
+		TlsClientCert:                    p.TLSClientCert,
+		TlsClientKey:                     p.TLSClientKey,
+		TlsClientCertFile:                p.TLSClientCertFile,
+		TlsClientKeyFile:                 p.TLSClientKeyFile,
+		TlsDownstreamClientCa:            p.TLSDownstreamClientCA,
+		TlsDownstreamClientCaFile:        p.TLSDownstreamClientCAFile,
+		SetRequestHeaders:                p.SetRequestHeaders,
+		RemoveRequestHeaders:             p.RemoveRequestHeaders,
+		PreserveHostHeader:               p.PreserveHostHeader,
+		PassIdentityHeaders:              p.PassIdentityHeaders,
+		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
+		Policies:                         sps,
+		SetResponseHeaders:               p.SetResponseHeaders,
 	}
 	if p.Redirect != nil {
 		pb.Redirect = &configpb.RouteRedirect{
