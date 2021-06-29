@@ -1334,6 +1334,19 @@ See Envoy [documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch
 Policy timeout establishes the per-route timeout value. Cannot exceed global timeout values.
 
 
+### Idle Timeout
+- `yaml`/`json` setting: `idle_timeout`
+- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
+- Optional
+- Default: `5m`
+
+If you are proxying long-lived requests such as websockets or gRPC API that employs streaming calls,
+set this to either a maximum value there may be no data exchange over a connection (recommended), 
+or set it to unlimited (`0s`). If `idle_timeout` is specified, and `timeout` is not
+explicitly set, then `timeout` would be unlimited (`0s`). You still may specify maximum lifetime 
+of the connection using `timeout` value (i.e. to 1 day).
+
+
 ### Set Request Headers
 - Config File Key: `set_request_headers`
 - Type: map of `strings` key value pairs
