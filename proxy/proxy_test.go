@@ -156,7 +156,9 @@ func Test_UpdateOptions(t *testing.T) {
 	allowWebSockets := testOptions(t)
 	allowWebSockets.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", AllowWebsockets: true}}
 	customTimeout := testOptions(t)
-	customTimeout.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", UpstreamTimeout: 10 * time.Second}}
+
+	tenSeconds := 10 * time.Second
+	customTimeout.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", UpstreamTimeout: &tenSeconds}}
 	corsPreflight := testOptions(t)
 	corsPreflight.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", CORSAllowPreflight: true}}
 	disableAuth := testOptions(t)

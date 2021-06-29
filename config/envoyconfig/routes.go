@@ -495,9 +495,10 @@ func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) [
 
 func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb.Duration {
 	var routeTimeout *durationpb.Duration
-	if policy.UpstreamTimeout != 0 {
-		routeTimeout = durationpb.New(policy.UpstreamTimeout)
+	if policy.UpstreamTimeout != nil {
+		routeTimeout = durationpb.New(*policy.UpstreamTimeout)
 	} else if shouldDisableTimeouts(policy) {
+		// a non-zero value would conflict with idleTimeout and/or websocket / tcp calls
 		routeTimeout = durationpb.New(0)
 	} else {
 		routeTimeout = durationpb.New(options.DefaultUpstreamTimeout)
@@ -507,14 +508,17 @@ func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb
 
 func getRouteIdleTimeout(policy *config.Policy) *durationpb.Duration {
 	var idleTimeout *durationpb.Duration
-	if shouldDisableTimeouts(policy) {
+	if policy.IdleTimeout != nil {
+		idleTimeout = durationpb.New(*policy.IdleTimeout)
+	} else if shouldDisableTimeouts(policy) {
 		idleTimeout = durationpb.New(0)
 	}
 	return idleTimeout
 }
 
 func shouldDisableTimeouts(policy *config.Policy) bool {
-	return policy.AllowWebsockets ||
+	return policy.IdleTimeout != nil ||
+		policy.AllowWebsockets ||
 		urlutil.IsTCP(policy.Source.URL) ||
 		policy.IsForKubernetes() // disable for kubernetes so that tailing logs works (#2182)
 }

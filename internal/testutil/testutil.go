@@ -16,6 +16,7 @@ import (
 // AssertProtoJSONEqual asserts that a protobuf message matches the given JSON. The protoMsg can also be a slice
 // of protobuf messages.
 func AssertProtoJSONEqual(t *testing.T, expected string, protoMsg interface{}, msgAndArgs ...interface{}) bool {
+	t.Helper()
 	protoMsgVal := reflect.ValueOf(protoMsg)
 	if protoMsgVal.Kind() == reflect.Slice {
 		var protoMsgs []json.RawMessage
