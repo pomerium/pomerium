@@ -69,7 +69,7 @@ type Policy struct {
 	AllowAnyAuthenticatedUser bool `mapstructure:"allow_any_authenticated_user" yaml:"allow_any_authenticated_user,omitempty"`
 
 	// UpstreamTimeout is the route specific timeout. Must be less than the global
-	// timeout. If unset,  route will fallback to the proxy's DefaultUpstreamTimeout.
+	// timeout. If unset, route will fallback to the proxy's DefaultUpstreamTimeout.
 	UpstreamTimeout *time.Duration `mapstructure:"timeout" yaml:"timeout,omitempty"`
 
 	// IdleTimeout is distinct from UpstreamTimeout and defines period of time there may be no data over this connection
