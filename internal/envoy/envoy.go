@@ -380,7 +380,24 @@ func (srv *Server) monitorProcess(ctx context.Context, pid int32) {
 				Int32("pid", pid).
 				Msg("envoy: error retrieving subprocess status")
 		} else if !running {
+			origCtime, err := proc.CreateTimeWithContext(ctx)
+			if err != nil {
+				log.Error(ctx).Err(err).Msg("envoy: failed to get original creation time")
+			}
+
+			newProc, err := process.NewProcessWithContext(ctx, pid)
+			if err != nil {
+				log.Error(ctx).Err(err).Msg("envoy: failed to get new process handle")
+			}
+			newCtime, err := newProc.CreateTimeWithContext(ctx)
+			if err != nil {
+				log.Error(ctx).Err(err).Msg("envoy: failed to get new creation time")
+			}
+
 			log.Fatal().Err(err).
+				Int64("original-creation-time", origCtime).
+				Int64("new-creation-time", newCtime).
+				Int64("delta-creation-time", newCtime-origCtime).
 				Int32("pid", pid).
 				Msg("envoy: subprocess exited")
 		}
