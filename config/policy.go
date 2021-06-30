@@ -72,7 +72,7 @@ type Policy struct {
 	// timeout. If unset,  route will fallback to the proxy's DefaultUpstreamTimeout.
 	UpstreamTimeout *time.Duration `mapstructure:"timeout" yaml:"timeout,omitempty"`
 
-	// IdleTimeout is distinct from timeout and defines period of time there may be no data over this connection
+	// IdleTimeout is distinct from UpstreamTimeout and defines period of time there may be no data over this connection
 	// value of zero completely disables this setting
 	// see https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#envoy-v3-api-field-config-route-v3-routeaction-idle-timeout
 	IdleTimeout *time.Duration `mapstructure:"idle_timeout" yaml:"idle_timeout,omitempty"`
