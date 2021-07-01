@@ -193,11 +193,12 @@ type PolicyRedirect struct {
 
 // NewPolicyFromProto creates a new Policy from a protobuf policy config route.
 func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
-	var timeout, idleTimeout *time.Duration
+	var timeout *time.Duration
 	if pb.GetTimeout() != nil {
 		t := pb.GetTimeout().AsDuration()
 		timeout = &t
 	}
+	var idleTimeout *time.Duration
 	if pb.GetIdleTimeout() != nil {
 		t := pb.GetIdleTimeout().AsDuration()
 		idleTimeout = &t

@@ -272,7 +272,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	getClusterID = policyNameFunc()
 
 	oneMinute := time.Minute
-	var ten time.Duration = time.Second * 10
+	ten := time.Second * 10
 
 	b := &Builder{filemgr: filemgr.NewManager()}
 	routes, err := b.buildPolicyRoutes(&config.Options{
