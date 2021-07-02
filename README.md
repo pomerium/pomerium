@@ -3,7 +3,8 @@
 [![pomerium chat](https://img.shields.io/badge/chat-on%20slack-blue.svg?style=flat&logo=slack)](http://slack.pomerium.io)
 [![GitHub Actions](https://img.shields.io/github/workflow/status/pomerium/pomerium/Release?style=flat)](https://github.com/pomerium/pomerium/actions?query=workflow%3ARelease)
 [![Go Report Card](https://goreportcard.com/badge/github.com/pomerium/pomerium)](https://goreportcard.com/report/github.com/pomerium/pomerium)
-[![GoDoc](https://godoc.org/github.com/pomerium/pomerium?status.svg)][godocs]
+[![GoDoc](https://godoc.org/github.com/pomerium/pomerium?status.svg)][![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fpomerium%2Fpomerium.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fpomerium%2Fpomerium?ref=badge_shield)
+[godocs]
 [![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg)](https://github.com/pomerium/pomerium/blob/master/LICENSE)
 ![Docker Pulls](https://img.shields.io/docker/pulls/pomerium/pomerium)
 
@@ -24,3 +25,7 @@ For comprehensive docs, and tutorials see our [documentation].
 [go environment]: https://golang.org/doc/install
 [godocs]: https://godoc.org/github.com/pomerium/pomerium
 [quick start guide]: https://www.pomerium.io/guide/
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fpomerium%2Fpomerium.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fpomerium%2Fpomerium?ref=badge_large)
