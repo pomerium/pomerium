@@ -211,11 +211,68 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 	`, route)
 }
 
+func TestTimeouts(t *testing.T) {
+	defer func(f func(*config.Policy) string) {
+		getClusterID = f
+	}(getClusterID)
+	getClusterID = func(*config.Policy) string { return "policy" }
+
+	getDuration := func(txt string) *time.Duration {
+		if txt == "" {
+			return nil
+		}
+		d, err := time.ParseDuration(txt)
+		require.NoError(t, err, txt)
+		return &d
+	}
+
+	testCases := []struct {
+		upstream, idle, expect string
+	}{
+		{"", "", `"timeout": "3s"`},
+		{"", "0s", `"timeout": "0s","idleTimeout": "0s"`},
+		{"", "5s", `"timeout": "0s","idleTimeout": "5s"`},
+		{"5s", "", `"timeout": "5s"`},
+		{"5s", "4s", `"timeout": "5s","idleTimeout": "4s"`},
+		{"0s", "4s", `"timeout": "0s","idleTimeout": "4s"`},
+	}
+
+	for _, tc := range testCases {
+		b := &Builder{filemgr: filemgr.NewManager()}
+		routes, err := b.buildPolicyRoutes(&config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			Policies: []config.Policy{
+				{
+					Source:          &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+					Path:            "/test",
+					UpstreamTimeout: getDuration(tc.upstream),
+					IdleTimeout:     getDuration(tc.idle),
+				}},
+		}, "example.com")
+		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
+			continue
+		}
+		testutil.AssertProtoJSONEqual(t, fmt.Sprintf(`{
+			%s,
+			"autoHostRewrite": true,
+			"cluster": "policy",
+			"upgradeConfigs": [
+				{ "enabled": false, "upgradeType": "websocket"},
+				{ "enabled": false, "upgradeType": "spdy/3.1"}
+			]
+		}`, tc.expect), routes[0].GetRoute())
+	}
+}
+
 func Test_buildPolicyRoutes(t *testing.T) {
 	defer func(f func(*config.Policy) string) {
 		getClusterID = f
 	}(getClusterID)
 	getClusterID = policyNameFunc()
+
+	oneMinute := time.Minute
+	ten := time.Second * 10
 
 	b := &Builder{filemgr: filemgr.NewManager()}
 	routes, err := b.buildPolicyRoutes(&config.Options{
@@ -241,7 +298,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
 				Prefix:              "/some/prefix/",
 				SetRequestHeaders:   map[string]string{"HEADER-KEY": "HEADER-VALUE"},
-				UpstreamTimeout:     time.Minute,
+				UpstreamTimeout:     &oneMinute,
 				PassIdentityHeaders: true,
 			},
 			{
@@ -253,7 +310,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				Source:               &config.StringURL{URL: mustParseURL(t, "https://example.com")},
 				Prefix:               "/some/prefix/",
 				RemoveRequestHeaders: []string{"HEADER-KEY"},
-				UpstreamTimeout:      time.Minute,
+				UpstreamTimeout:      &oneMinute,
 				PassIdentityHeaders:  true,
 			},
 			{
@@ -277,7 +334,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				AllowWebsockets:     true,
 				PreserveHostHeader:  true,
 				PassIdentityHeaders: true,
-				UpstreamTimeout:     time.Second * 10,
+				UpstreamTimeout:     &ten,
 			},
 		},
 	}, "example.com")
@@ -599,7 +656,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				{
 					Source:              &config.StringURL{URL: mustParseURL(t, "tcp+https://example.com:22")},
 					PassIdentityHeaders: true,
-					UpstreamTimeout:     time.Second * 10,
+					UpstreamTimeout:     &ten,
 				},
 			},
 		}, "example.com:22")

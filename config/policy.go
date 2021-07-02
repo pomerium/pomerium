@@ -13,7 +13,7 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/identity"
@@ -69,8 +69,13 @@ type Policy struct {
 	AllowAnyAuthenticatedUser bool `mapstructure:"allow_any_authenticated_user" yaml:"allow_any_authenticated_user,omitempty"`
 
 	// UpstreamTimeout is the route specific timeout. Must be less than the global
-	// timeout. If unset,  route will fallback to the proxy's DefaultUpstreamTimeout.
-	UpstreamTimeout time.Duration `mapstructure:"timeout" yaml:"timeout,omitempty"`
+	// timeout. If unset, route will fallback to the proxy's DefaultUpstreamTimeout.
+	UpstreamTimeout *time.Duration `mapstructure:"timeout" yaml:"timeout,omitempty"`
+
+	// IdleTimeout is distinct from UpstreamTimeout and defines period of time there may be no data over this connection
+	// value of zero completely disables this setting
+	// see https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#envoy-v3-api-field-config-route-v3-routeaction-idle-timeout
+	IdleTimeout *time.Duration `mapstructure:"idle_timeout" yaml:"idle_timeout,omitempty"`
 
 	// Enable proxying of websocket connections by removing the default timeout handler.
 	// Caution: Enabling this feature could result in abuse via DOS attacks.
@@ -188,7 +193,16 @@ type PolicyRedirect struct {
 
 // NewPolicyFromProto creates a new Policy from a protobuf policy config route.
 func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
-	timeout, _ := ptypes.Duration(pb.GetTimeout())
+	var timeout *time.Duration
+	if pb.GetTimeout() != nil {
+		t := pb.GetTimeout().AsDuration()
+		timeout = &t
+	}
+	var idleTimeout *time.Duration
+	if pb.GetIdleTimeout() != nil {
+		t := pb.GetIdleTimeout().AsDuration()
+		idleTimeout = &t
+	}
 
 	p := &Policy{
 		From:                             pb.GetFrom(),
@@ -206,6 +220,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		AllowPublicUnauthenticatedAccess: pb.GetAllowPublicUnauthenticatedAccess(),
 		AllowAnyAuthenticatedUser:        pb.GetAllowAnyAuthenticatedUser(),
 		UpstreamTimeout:                  timeout,
+		IdleTimeout:                      idleTimeout,
 		AllowWebsockets:                  pb.GetAllowWebsockets(),
 		TLSSkipVerify:                    pb.GetTlsSkipVerify(),
 		TLSServerName:                    pb.GetTlsServerName(),
@@ -278,7 +293,14 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 
 // ToProto converts the policy to a protobuf type.
 func (p *Policy) ToProto() (*configpb.Route, error) {
-	timeout := ptypes.DurationProto(p.UpstreamTimeout)
+	var timeout *durationpb.Duration
+	if p.UpstreamTimeout == nil {
+		timeout = durationpb.New(defaultOptions.DefaultUpstreamTimeout)
+	}
+	var idleTimeout *durationpb.Duration
+	if p.IdleTimeout != nil {
+		idleTimeout = durationpb.New(*p.IdleTimeout)
+	}
 	sps := make([]*configpb.Policy, 0, len(p.SubPolicies))
 	for _, sp := range p.SubPolicies {
 		sps = append(sps, &configpb.Policy{
@@ -309,6 +331,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
 		AllowAnyAuthenticatedUser:        p.AllowAnyAuthenticatedUser,
 		Timeout:                          timeout,
+		IdleTimeout:                      idleTimeout,
 		AllowWebsockets:                  p.AllowWebsockets,
 		TlsSkipVerify:                    p.TLSSkipVerify,
 		TlsServerName:                    p.TLSServerName,

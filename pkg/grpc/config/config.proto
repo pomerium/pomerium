@@ -66,6 +66,7 @@ message Route {
   bool allow_public_unauthenticated_access = 11;
   bool allow_any_authenticated_user = 33;
   google.protobuf.Duration timeout = 12;
+  google.protobuf.Duration idle_timeout = 43;
   bool allow_websockets = 13;
 
   bool tls_skip_verify = 14;
