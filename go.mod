@@ -13,7 +13,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coreos/go-oidc/v3 v3.0.0
-	github.com/envoyproxy/go-control-plane v0.9.9-0.20210217033140-668b12f5399d
+	github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0
 	github.com/envoyproxy/protoc-gen-validate v0.6.1
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-chi/chi v1.5.4
@@ -67,7 +67,7 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/api v0.49.0
 	google.golang.org/genproto v0.0.0-20210617175327-b9e0b3197ced
-	google.golang.org/grpc v1.38.0
+	google.golang.org/grpc v1.39.0
 	google.golang.org/protobuf v1.27.0
 	gopkg.in/auth0.v5 v5.19.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
