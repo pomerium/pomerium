@@ -176,13 +176,22 @@ func (e *PolicyEvaluator) getDeny(ctx context.Context, vars rego.Vars) *Denial {
 			return nil
 		}
 	case []interface{}:
-		var err error
-		status, err = strconv.Atoi(fmt.Sprint(t[0]))
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("invalid type in deny")
+		switch len(t) {
+		case 0:
 			return nil
+		case 2:
+			var err error
+			status, err = strconv.Atoi(fmt.Sprint(t[0]))
+			if err != nil {
+				log.Error(ctx).Err(err).Msg("invalid type in deny")
+				return nil
+			}
+			reason = fmt.Sprint(t[1])
+		default:
+			log.Error(ctx).Interface("deny", t).Msg("invalid size in deny")
+			return nil
+
 		}
-		reason = fmt.Sprint(t[1])
 	default:
 		return nil
 	}
