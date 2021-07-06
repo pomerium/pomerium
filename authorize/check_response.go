@@ -192,6 +192,10 @@ func shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool {
 		return true
 	}
 
+	if strings.HasPrefix(requestHeaders["content-type"], "application/grpc") {
+		return false
+	}
+
 	a, err := rfc7231.ParseAccept(requestHeaders["accept"])
 	if err != nil {
 		return true
@@ -203,6 +207,7 @@ func shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool {
 		"text/plain",
 		"application/grpc-web-text",
 		"application/grpc-web+proto",
+		"application/grpc+proto",
 	})
 	if !ok {
 		return true
