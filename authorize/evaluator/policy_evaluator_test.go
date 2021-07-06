@@ -3,6 +3,8 @@ package evaluator
 import (
 	"context"
 	"math"
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/go-jose/go-jose/v3"
@@ -14,12 +16,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/policy"
 )
 
 func TestPolicyEvaluator(t *testing.T) {
-	type A = []interface{}
-	type M = map[string]interface{}
-
 	signingKey, err := cryptutil.NewSigningKey()
 	require.NoError(t, err)
 	encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
@@ -107,5 +107,97 @@ func TestPolicyEvaluator(t *testing.T) {
 		assert.Equal(t, &PolicyResponse{
 			Allow: false,
 		}, output)
+	})
+	t.Run("ppl", func(t *testing.T) {
+		t.Run("allow", func(t *testing.T) {
+			rego, err := policy.GenerateRegoFromReader(strings.NewReader(`
+- allow:
+    and:
+      - accept: 1
+`))
+			require.NoError(t, err)
+			p := &config.Policy{
+				From: "https://from.example.com",
+				To:   config.WeightedURLs{{URL: *mustParseURL("https://to.example.com")}},
+				SubPolicies: []config.SubPolicy{
+					{Rego: []string{rego}},
+				},
+			}
+			output, err := eval(t,
+				p,
+				[]proto.Message{s1, u1, s2, u2},
+				&PolicyRequest{
+					HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+					Session: RequestSession{ID: "s1"},
+
+					IsValidClientCertificate: true,
+				})
+			require.NoError(t, err)
+			assert.Equal(t, &PolicyResponse{
+				Allow: true,
+			}, output)
+		})
+		t.Run("deny", func(t *testing.T) {
+			rego, err := policy.GenerateRegoFromReader(strings.NewReader(`
+- deny:
+    and:
+      - accept: 1
+`))
+			require.NoError(t, err)
+			p := &config.Policy{
+				From: "https://from.example.com",
+				To:   config.WeightedURLs{{URL: *mustParseURL("https://to.example.com")}},
+				SubPolicies: []config.SubPolicy{
+					{Rego: []string{rego}},
+				},
+			}
+			output, err := eval(t,
+				p,
+				[]proto.Message{s1, u1, s2, u2},
+				&PolicyRequest{
+					HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+					Session: RequestSession{ID: "s1"},
+
+					IsValidClientCertificate: true,
+				})
+			require.NoError(t, err)
+			assert.Equal(t, &PolicyResponse{
+				Deny: &Denial{
+					Status: http.StatusForbidden,
+				},
+			}, output)
+		})
+		t.Run("client certificate", func(t *testing.T) {
+			rego, err := policy.GenerateRegoFromReader(strings.NewReader(`
+- deny:
+    and:
+      - invalid_client_certificate: 1
+      - accept: 1
+`))
+			require.NoError(t, err)
+			p := &config.Policy{
+				From: "https://from.example.com",
+				To:   config.WeightedURLs{{URL: *mustParseURL("https://to.example.com")}},
+				SubPolicies: []config.SubPolicy{
+					{Rego: []string{rego}},
+				},
+			}
+			output, err := eval(t,
+				p,
+				[]proto.Message{s1, u1, s2, u2},
+				&PolicyRequest{
+					HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+					Session: RequestSession{ID: "s1"},
+
+					IsValidClientCertificate: false,
+				})
+			require.NoError(t, err)
+			assert.Equal(t, &PolicyResponse{
+				Deny: &Denial{
+					Status:  495,
+					Message: "invalid client certificate",
+				},
+			}, output)
+		})
 	})
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/format"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
@@ -50,9 +51,16 @@ func Test(t *testing.T) {
 					{Name: "accept"},
 				},
 			},
+			{
+				Action: parser.ActionDeny,
+				Nor: []parser.Criterion{
+					{Name: "accept"},
+					{Name: "accept"},
+				},
+			},
 		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, `package pomerium.policy
 
 default allow = false
@@ -171,6 +179,23 @@ else = v4 {
 else = v5 {
 	v5 := and_1
 	v5
+}
+
+accept_13 {
+	1 == 1
+}
+
+accept_14 {
+	1 == 1
+}
+
+nor_1 = v {
+	v := count({1 | not accept_13} | {1 | not accept_14}) == 1
+}
+
+deny = v1 {
+	v1 := nor_1
+	v1
 }
 `, string(format.MustAst(mod)))
 }

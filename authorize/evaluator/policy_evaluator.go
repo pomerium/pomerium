@@ -3,6 +3,7 @@ package evaluator
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -164,20 +165,39 @@ func (e *PolicyEvaluator) getDeny(ctx context.Context, vars rego.Vars) *Denial {
 		return nil
 	}
 
-	pair, ok := m["deny"].([]interface{})
-	if !ok {
-		return nil
-	}
+	var status int
+	var reason string
+	switch t := m["deny"].(type) {
+	case bool:
+		if t {
+			status = http.StatusForbidden
+			reason = ""
+		} else {
+			return nil
+		}
+	case []interface{}:
+		switch len(t) {
+		case 0:
+			return nil
+		case 2:
+			var err error
+			status, err = strconv.Atoi(fmt.Sprint(t[0]))
+			if err != nil {
+				log.Error(ctx).Err(err).Msg("invalid type in deny")
+				return nil
+			}
+			reason = fmt.Sprint(t[1])
+		default:
+			log.Error(ctx).Interface("deny", t).Msg("invalid size in deny")
+			return nil
 
-	status, err := strconv.Atoi(fmt.Sprint(pair[0]))
-	if err != nil {
-		log.Error(ctx).Err(err).Msg("invalid type in deny")
+		}
+	default:
 		return nil
 	}
-	msg := fmt.Sprint(pair[1])
 
 	return &Denial{
 		Status:  status,
-		Message: msg,
+		Message: reason,
 	}
 }
