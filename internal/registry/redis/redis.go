@@ -205,11 +205,7 @@ func (i *impl) runReport(ctx context.Context, updates []*registrypb.Service) ([]
 	for _, svc := range updates {
 		args = append(args, i.getRegistryHashKey(svc))
 	}
-	res, err := i.client.Eval(ctx, lua.Registry, []string{registryKey}, args...).Result()
-	if err != nil {
-		return nil, err
-	}
-	_, err = i.client.Publish(ctx, registryUpdateKey, time.Now().Format(time.RFC3339Nano)).Result()
+	res, err := i.client.Eval(ctx, lua.Registry, []string{registryKey, registryUpdateKey}, args...).Result()
 	if err != nil {
 		return nil, err
 	}
