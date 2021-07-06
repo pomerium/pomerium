@@ -167,5 +167,37 @@ func TestPolicyEvaluator(t *testing.T) {
 				},
 			}, output)
 		})
+		t.Run("client certificate", func(t *testing.T) {
+			rego, err := policy.GenerateRegoFromReader(strings.NewReader(`
+- deny:
+    and:
+      - invalid_client_certificate: 1
+      - accept: 1
+`))
+			require.NoError(t, err)
+			p := &config.Policy{
+				From: "https://from.example.com",
+				To:   config.WeightedURLs{{URL: *mustParseURL("https://to.example.com")}},
+				SubPolicies: []config.SubPolicy{
+					{Rego: []string{rego}},
+				},
+			}
+			output, err := eval(t,
+				p,
+				[]proto.Message{s1, u1, s2, u2},
+				&PolicyRequest{
+					HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+					Session: RequestSession{ID: "s1"},
+
+					IsValidClientCertificate: false,
+				})
+			require.NoError(t, err)
+			assert.Equal(t, &PolicyResponse{
+				Deny: &Denial{
+					Status:  495,
+					Message: "invalid client certificate",
+				},
+			}, output)
+		})
 	})
 }
