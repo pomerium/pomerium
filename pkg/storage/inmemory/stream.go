@@ -99,11 +99,20 @@ func (stream *recordStream) Err() error {
 	select {
 	case <-stream.ctx.Done():
 		return stream.ctx.Err()
-	case <-stream.closed:
-		return storage.ErrStreamClosed
+	default:
+	}
+
+	select {
 	case <-stream.backend.closed:
 		return storage.ErrStreamClosed
 	default:
-		return nil
 	}
+
+	select {
+	case <-stream.closed:
+		return storage.ErrStreamClosed
+	default:
+	}
+
+	return nil
 }
