@@ -134,6 +134,10 @@ jobs:
         with:
           cluster_name: kind
 
+      - name: debug
+        run: |
+          kubectl cluster-info --context kind-kind
+
       - name: build dev docker image
         run: |
           ./scripts/build-dev-docker.bash
@@ -141,6 +145,11 @@ jobs:
       - name: integration tests
         run: go test -v ./integration/...
 
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
   build:
     strategy:
       matrix:
