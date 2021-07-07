@@ -40,6 +40,22 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 	})
 }
 
+func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
+	b := New("localhost:1111", "localhost:2222", filemgr.NewManager(), nil)
+	staticCfg, err := b.BuildBootstrapLayeredRuntime()
+	assert.NoError(t, err)
+	testutil.AssertProtoJSONEqual(t, `
+		{ "layers": [{
+			"name": "static_layer_0",
+			"staticLayer": {
+				"overload": {
+					"global_downstream_max_connections": 50000
+				}
+			}
+		}] }
+	`, staticCfg)
+}
+
 func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		b := New("localhost:1111", "localhost:2222", filemgr.NewManager(), nil)
