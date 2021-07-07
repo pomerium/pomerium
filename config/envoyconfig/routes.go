@@ -497,7 +497,7 @@ func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb
 	var routeTimeout *durationpb.Duration
 	if policy.UpstreamTimeout != nil {
 		routeTimeout = durationpb.New(*policy.UpstreamTimeout)
-	} else if shouldDisableTimeouts(policy) {
+	} else if shouldDisableStreamIdleTimeout(policy) {
 		// a non-zero value would conflict with idleTimeout and/or websocket / tcp calls
 		routeTimeout = durationpb.New(0)
 	} else {
@@ -510,15 +510,14 @@ func getRouteIdleTimeout(policy *config.Policy) *durationpb.Duration {
 	var idleTimeout *durationpb.Duration
 	if policy.IdleTimeout != nil {
 		idleTimeout = durationpb.New(*policy.IdleTimeout)
-	} else if shouldDisableTimeouts(policy) {
+	} else if shouldDisableStreamIdleTimeout(policy) {
 		idleTimeout = durationpb.New(0)
 	}
 	return idleTimeout
 }
 
-func shouldDisableTimeouts(policy *config.Policy) bool {
-	return policy.IdleTimeout != nil ||
-		policy.AllowWebsockets ||
+func shouldDisableStreamIdleTimeout(policy *config.Policy) bool {
+	return policy.AllowWebsockets ||
 		urlutil.IsTCP(policy.Source.URL) ||
 		policy.IsForKubernetes() // disable for kubernetes so that tailing logs works (#2182)
 }

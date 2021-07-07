@@ -296,6 +296,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	var timeout *durationpb.Duration
 	if p.UpstreamTimeout == nil {
 		timeout = durationpb.New(defaultOptions.DefaultUpstreamTimeout)
+	} else {
+		timeout = durationpb.New(*p.UpstreamTimeout)
 	}
 	var idleTimeout *durationpb.Duration
 	if p.IdleTimeout != nil {
