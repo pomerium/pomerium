@@ -227,14 +227,18 @@ func TestTimeouts(t *testing.T) {
 	}
 
 	testCases := []struct {
-		upstream, idle, expect string
+		upstream, idle  string
+		allowWebsockets bool
+		expect          string
 	}{
-		{"", "", `"timeout": "3s"`},
-		{"", "0s", `"timeout": "0s","idleTimeout": "0s"`},
-		{"", "5s", `"timeout": "0s","idleTimeout": "5s"`},
-		{"5s", "", `"timeout": "5s"`},
-		{"5s", "4s", `"timeout": "5s","idleTimeout": "4s"`},
-		{"0s", "4s", `"timeout": "0s","idleTimeout": "4s"`},
+		{"", "", false, `"timeout": "3s"`},
+		{"", "", true, `"timeout": "0s", "idleTimeout": "0s"`},
+		{"5s", "", true, `"timeout": "5s", "idleTimeout": "0s"`},
+		{"", "0s", false, `"timeout": "3s","idleTimeout": "0s"`},
+		{"", "5s", false, `"timeout": "3s","idleTimeout": "5s"`},
+		{"5s", "", false, `"timeout": "5s"`},
+		{"5s", "4s", false, `"timeout": "5s","idleTimeout": "4s"`},
+		{"0s", "4s", false, `"timeout": "0s","idleTimeout": "4s"`},
 	}
 
 	for _, tc := range testCases {
@@ -248,20 +252,23 @@ func TestTimeouts(t *testing.T) {
 					Path:            "/test",
 					UpstreamTimeout: getDuration(tc.upstream),
 					IdleTimeout:     getDuration(tc.idle),
+					AllowWebsockets: tc.allowWebsockets,
 				}},
 		}, "example.com")
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue
 		}
-		testutil.AssertProtoJSONEqual(t, fmt.Sprintf(`{
+
+		expect := fmt.Sprintf(`{
 			%s,
 			"autoHostRewrite": true,
 			"cluster": "policy",
 			"upgradeConfigs": [
-				{ "enabled": false, "upgradeType": "websocket"},
+				{ "enabled": %v, "upgradeType": "websocket"},
 				{ "enabled": false, "upgradeType": "spdy/3.1"}
 			]
-		}`, tc.expect), routes[0].GetRoute())
+		}`, tc.expect, tc.allowWebsockets)
+		testutil.AssertProtoJSONEqual(t, expect, routes[0].GetRoute())
 	}
 }
 
