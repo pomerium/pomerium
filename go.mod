@@ -12,6 +12,7 @@ require (
 	github.com/caddyserver/certmagic v0.14.0
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/cespare/xxhash/v2 v2.1.1
+	github.com/client9/misspell v0.3.4
 	github.com/coreos/go-oidc/v3 v3.0.0
 	github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0
 	github.com/envoyproxy/protoc-gen-validate v0.6.1
@@ -22,6 +23,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.0
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
+	github.com/golangci/golangci-lint v1.40.1
 	github.com/google/btree v1.0.1
 	github.com/google/go-cmp v0.5.6
 	github.com/google/go-jsonnet v0.17.0
@@ -65,10 +67,11 @@ require (
 	golang.org/x/net v0.0.0-20210525063256-abc453219eb5
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
 	google.golang.org/api v0.50.0
 	google.golang.org/genproto v0.0.0-20210624195500-8bfb893ecb84
 	google.golang.org/grpc v1.39.0
-	google.golang.org/protobuf v1.27.0
+	google.golang.org/protobuf v1.27.1
 	gopkg.in/auth0.v5 v5.19.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
