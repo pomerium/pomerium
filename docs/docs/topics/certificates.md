@@ -52,7 +52,7 @@ In production, we'd use a public certificate authority such as LetsEncrypt. But 
 
 ```bash
 # Install mkcert.
-go get -u github.com/FiloSottile/mkcert
+go get -u filippo.io/mkcert
 # Bootstrap mkcert's root certificate into your operating system's trust store.
 mkcert -install
 # Create your wildcard domain.
