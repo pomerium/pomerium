@@ -31,8 +31,6 @@ GO_LDFLAGS=-ldflags "-s -w $(CTIMEVAR)"
 GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
 GOOS = $(shell $(GO) env GOOS)
 GOARCH= $(shell $(GO) env GOARCH)
-MISSPELL_VERSION = v0.3.4
-GOLANGCI_VERSION = v1.34.1
 GETENVOY_VERSION = v0.2.0
 GORELEASER_VERSION = v0.157.0
 
@@ -45,17 +43,10 @@ generate-mocks: ## Generate mocks
 	@echo "==> $@"
 	@go run github.com/golang/mock/mockgen -destination internal/directory/auth0/mock_auth0/mock.go github.com/pomerium/pomerium/internal/directory/auth0 RoleManager
 
-
 .PHONY: get-envoy
 get-envoy: ## Fetch envoy binaries
 	@echo "==> $@"
 	@./scripts/get-envoy.bash
-
-.PHONY: deps-lint
-deps-lint: get-envoy ## Install lint dependencies
-	@echo "==> $@"
-	@$(GO) install github.com/client9/misspell/cmd/misspell@${MISSPELL_VERSION}
-	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_VERSION}
 
 .PHONY: deps-build
 deps-build: get-envoy ## Install build dependencies
@@ -67,7 +58,7 @@ deps-release: get-envoy ## Install release dependencies
 	@cd /tmp; GO111MODULE=on $(GO) get github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
 
 .PHONY: build-deps
-build-deps: deps-lint deps-build deps-release
+build-deps: deps-build deps-release
 	@echo "==> $@"
 
 .PHONY: docs
@@ -95,11 +86,10 @@ build-debug: build-deps ## Builds binaries appropriate for debugging
 	@echo "==> $@"
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
-
 .PHONY: lint
-lint: deps-lint ## Verifies `golint` passes.
+lint: ## Verifies `golint` passes.
 	@echo "==> $@"
-	@golangci-lint run ./...
+	@$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint run ./...
 
 .PHONY: test
 test: get-envoy ## Runs the go tests.
@@ -109,8 +99,7 @@ test: get-envoy ## Runs the go tests.
 .PHONY: spellcheck
 spellcheck: # Spellcheck docs
 	@echo "==> Spell checking docs..."
-	@misspell -error -source=text docs/
-
+	@$(GO) run github.com/client9/misspell/cmd/misspell -error -source=text docs/
 
 .PHONY: cover
 cover: get-envoy ## Runs go test with coverage
