@@ -273,12 +273,18 @@ func (srv *Server) buildBootstrapConfig(cfg *config.Config) ([]byte, error) {
 		return nil, err
 	}
 
+	layeredRuntimeCfg, err := srv.builder.BuildBootstrapLayeredRuntime()
+	if err != nil {
+		return nil, err
+	}
+
 	bootstrapCfg := &envoy_config_bootstrap_v3.Bootstrap{
 		Node:             nodeCfg,
 		Admin:            adminCfg,
 		DynamicResources: dynamicCfg,
 		StaticResources:  staticCfg,
 		StatsConfig:      statsCfg,
+		LayeredRuntime:   layeredRuntimeCfg,
 	}
 
 	jsonBytes, err := protojson.Marshal(proto.MessageV2(bootstrapCfg))

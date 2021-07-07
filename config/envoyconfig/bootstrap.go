@@ -9,6 +9,7 @@ import (
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_config_metrics_v3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -24,6 +25,29 @@ func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (*envoy_config_bootstr
 		AccessLogPath: cfg.Options.EnvoyAdminAccessLogPath,
 		ProfilePath:   cfg.Options.EnvoyAdminProfilePath,
 		Address:       adminAddr,
+	}, nil
+}
+
+// BuildBootstrapLayeredRuntime builds the layered runtime for the envoy bootstrap.
+func (b *Builder) BuildBootstrapLayeredRuntime() (*envoy_config_bootstrap_v3.LayeredRuntime, error) {
+	layer, err := structpb.NewStruct(map[string]interface{}{
+		"overload": map[string]interface{}{
+			"global_downstream_max_connections": 50000,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("envoyconfig: failed to create layered runtime layer: %w", err)
+	}
+
+	return &envoy_config_bootstrap_v3.LayeredRuntime{
+		Layers: []*envoy_config_bootstrap_v3.RuntimeLayer{
+			{
+				Name: "static_layer_0",
+				LayerSpecifier: &envoy_config_bootstrap_v3.RuntimeLayer_StaticLayer{
+					StaticLayer: layer,
+				},
+			},
+		},
 	}, nil
 }
 
