@@ -119,9 +119,9 @@ func (client *AuthClient) runOpenBrowser(ctx context.Context, li net.Listener, s
 		return err
 	}
 
-	transport := &http.Transport{
-		TLSClientConfig: client.cfg.tlsConfig,
-	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = client.cfg.tlsConfig
+
 	hc := &http.Client{
 		Transport: transport,
 	}
