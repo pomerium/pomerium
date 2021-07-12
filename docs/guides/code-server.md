@@ -1,5 +1,5 @@
 ---
-title: Visual Studio Code Server
+title: code-server
 lang: en-US
 meta:
   - name: keywords
