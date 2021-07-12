@@ -362,50 +362,26 @@ func (srv *Server) monitorProcess(ctx context.Context, pid int32) {
 		Int32("pid", pid).
 		Msg("envoy: start monitoring subprocess")
 
-	proc, err := process.NewProcessWithContext(ctx, pid)
-	if err != nil {
-		log.Fatal().Err(err).
-			Int32("pid", pid).
-			Msg("envoy: error retrieving subprocess information")
-	}
-
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
 	for {
+		exists, err := process.PidExistsWithContext(ctx, pid)
+		if err != nil {
+			log.Fatal().Err(err).
+				Int32("pid", pid).
+				Msg("envoy: error retrieving subprocess information")
+		} else if !exists {
+			log.Fatal().Err(err).
+				Int32("pid", pid).
+				Msg("envoy: subprocess exited")
+		}
+
 		// wait for the next tick
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-		}
-
-		running, err := proc.IsRunningWithContext(ctx)
-		if err != nil {
-			log.Error(ctx).Err(err).
-				Int32("pid", pid).
-				Msg("envoy: error retrieving subprocess status")
-		} else if !running {
-			origCtime, err := proc.CreateTimeWithContext(ctx)
-			if err != nil {
-				log.Error(ctx).Err(err).Msg("envoy: failed to get original creation time")
-			}
-
-			newProc, err := process.NewProcessWithContext(ctx, pid)
-			if err != nil {
-				log.Error(ctx).Err(err).Msg("envoy: failed to get new process handle")
-			}
-			newCtime, err := newProc.CreateTimeWithContext(ctx)
-			if err != nil {
-				log.Error(ctx).Err(err).Msg("envoy: failed to get new creation time")
-			}
-
-			log.Fatal().Err(err).
-				Int64("original-creation-time", origCtime).
-				Int64("new-creation-time", newCtime).
-				Int64("delta-creation-time", newCtime-origCtime).
-				Int32("pid", pid).
-				Msg("envoy: subprocess exited")
 		}
 	}
 }
