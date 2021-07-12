@@ -43,7 +43,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), state.encoder)
 	sessionState, _ := loadSession(state.encoder, rawJWT)
 
-	u, err := a.forceSync(ctx, sessionState)
+	s, u, err := a.forceSync(ctx, sessionState)
 	if err != nil {
 		log.Warn(ctx).Err(err).Msg("clearing session due to force sync failed")
 		sessionState = nil
@@ -64,7 +64,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return nil, err
 	}
 	defer func() {
-		a.logAuthorizeCheck(ctx, in, out, res, u)
+		a.logAuthorizeCheck(ctx, in, out, res, s, u)
 	}()
 
 	if res.Deny != nil {

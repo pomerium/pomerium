@@ -65,18 +65,18 @@ func (syncer *dataBrokerSyncer) UpdateRecords(ctx context.Context, serverVersion
 	})
 }
 
-func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) (*user.User, error) {
+func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) (sessionOrServiceAccount, *user.User, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.forceSync")
 	defer span.End()
 	if ss == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	s := a.forceSyncSession(ctx, ss.ID)
 	if s == nil {
-		return nil, errors.New("session not found")
+		return nil, nil, errors.New("session not found")
 	}
 	u := a.forceSyncUser(ctx, s.GetUserId())
-	return u, nil
+	return s, u, nil
 }
 
 func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) sessionOrServiceAccount {

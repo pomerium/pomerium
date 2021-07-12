@@ -12,13 +12,14 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/audit"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 func (a *Authorize) logAuthorizeCheck(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest, out *envoy_service_auth_v3.CheckResponse,
-	res *evaluator.Result, u *user.User,
+	res *evaluator.Result, s sessionOrServiceAccount, u *user.User,
 ) {
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.LogAuthorizeCheck")
 	defer span.End()
@@ -33,6 +34,33 @@ func (a *Authorize) logAuthorizeCheck(
 	evt = evt.Str("path", stripQueryString(hattrs.GetPath()))
 	evt = evt.Str("host", hattrs.GetHost())
 	evt = evt.Str("query", hattrs.GetQuery())
+
+	// session information
+	if s, ok := s.(*session.Session); ok {
+		evt = evt.Str("session-id", s.GetId())
+		if s.GetImpersonateEmail() != "" {
+			evt = evt.Str("impersonate-email", s.GetImpersonateEmail())
+		}
+		if len(s.GetImpersonateGroups()) > 0 {
+			evt = evt.Strs("impersonate-groups", s.GetImpersonateGroups())
+		}
+		if s.GetImpersonateUserId() != "" {
+			evt = evt.Str("impersonate-user-id", s.GetImpersonateUserId())
+		}
+	}
+	if sa, ok := s.(*user.ServiceAccount); ok {
+		evt = evt.Str("service-account-id", sa.GetId())
+		if sa.GetImpersonateEmail() != "" {
+			evt = evt.Str("impersonate-email", sa.GetImpersonateEmail())
+		}
+		if len(sa.GetImpersonateGroups()) > 0 {
+			evt = evt.Strs("impersonate-groups", sa.GetImpersonateGroups())
+		}
+		if sa.GetImpersonateUserId() != "" {
+			evt = evt.Str("impersonate-user-id", sa.GetImpersonateUserId())
+		}
+	}
+
 	// result
 	if res != nil {
 		evt = evt.Bool("allow", res.Allow)
