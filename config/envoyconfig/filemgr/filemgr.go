@@ -64,10 +64,13 @@ func (mgr *Manager) ClearCache() {
 		if err != nil {
 			return err
 		}
-		return os.Remove(p)
+		if !fi.IsDir() {
+			return os.Remove(p)
+		}
+		return nil
 	})
 	if err != nil {
-		log.Error(context.TODO()).Err(err).Msg("failed to clear envoy file cache")
+		log.Error(context.Background()).Err(err).Msg("failed to clear envoy file cache")
 	}
 }
 
