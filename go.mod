@@ -9,7 +9,7 @@ require (
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
 	github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46 // indirect
 	github.com/btcsuite/btcutil v1.0.2
-	github.com/caddyserver/certmagic v0.14.0
+	github.com/caddyserver/certmagic v0.14.1
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/client9/misspell v0.3.4
