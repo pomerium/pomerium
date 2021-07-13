@@ -24,6 +24,8 @@ In this guide we'll cover how to do the following for each identity provider:
 
 You must configure an IdP **[Service Account]** to write policy against group membership, or any other data that does not uniquely identify an end-user.
 
+:::
+
 [client id]: ../../reference/readme.md#identity-provider-client-id
 [client secret]: ../../reference/readme.md#identity-provider-client-secret
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
@@ -71,7 +73,7 @@ Now to implement this flow we have configured static dex client ```pom``` with p
 
 ```Note: I am using dex helm chart and in backend freeipa as a ldap server```
 
-```
+```yaml
 connectors:
       - config:
           bindDN: uid=dex,cn=sysaccounts,cn=etc,dc=YOURDOMAIN,dc=dev
@@ -119,11 +121,12 @@ connectors:
         secret: pomerium
 
 ```
+
 Below is configuration which supposed to be done in Pomerium
 
 ```Note: I am using Pomerium helm chart```
 
-```
+```yaml
 config:
   # routes under this wildcard domain are handled by pomerium
   rootDomain: YOURDOMAIN.dev
