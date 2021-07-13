@@ -191,10 +191,11 @@ func getCheckRequestURL(req *envoy_service_auth_v3.CheckRequest) url.URL {
 	// envoy sends the query string as part of the path
 	path := h.GetPath()
 	if idx := strings.Index(path, "?"); idx != -1 {
-		u.Path, u.RawQuery = path[:idx], path[idx+1:]
+		u.RawPath, u.RawQuery = path[:idx], path[idx+1:]
 	} else {
-		u.Path = path
+		u.RawPath = path
 	}
+	u.Path, _ = url.PathUnescape(u.RawPath)
 	return u
 }
 
