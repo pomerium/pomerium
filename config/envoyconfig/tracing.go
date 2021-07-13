@@ -113,9 +113,13 @@ func buildTracingHTTP(options *config.Options) (*envoy_config_trace_v3.Tracing_H
 			},
 		}, nil
 	case trace.ZipkinTracingProviderName:
+		path := tracingOptions.ZipkinEndpoint.Path
+		if path == "" {
+			path = "/"
+		}
 		tracingTC, _ := anypb.New(&envoy_config_trace_v3.ZipkinConfig{
 			CollectorCluster:         "zipkin",
-			CollectorEndpoint:        tracingOptions.ZipkinEndpoint.Path,
+			CollectorEndpoint:        path,
 			CollectorEndpointVersion: envoy_config_trace_v3.ZipkinConfig_HTTP_JSON,
 		})
 		return &envoy_config_trace_v3.Tracing_Http{
