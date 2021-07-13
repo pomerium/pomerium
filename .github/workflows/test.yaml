@@ -185,11 +185,7 @@ jobs:
       - name: Hadolint - Master
         uses: hadolint/hadolint-action@v1.5.0
         with:
-          Dockerfile: Dockerfile
-      - name: Hadolint - Debug
-        uses: hadolint/hadolint-action@v1.5.0
-        with:
-          Dockerfile: Dockerfile.debug
+          Dockerfile: Dockerfile Dockerfile.debug
       - name: build
         run: docker build .
 
