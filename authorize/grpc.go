@@ -67,11 +67,12 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		a.logAuthorizeCheck(ctx, in, out, res, s, u)
 	}()
 
+	denyStatusCode := int32(http.StatusForbidden)
+	denyStatusText := http.StatusText(http.StatusForbidden)
 	if res.Deny != nil {
-		return a.deniedResponse(ctx, in, int32(res.Deny.Status), res.Deny.Message, nil)
-	}
-
-	if res.Allow {
+		denyStatusCode = int32(res.Deny.Status)
+		denyStatusText = res.Deny.Message
+	} else if res.Allow {
 		return a.okResponse(res), nil
 	}
 
@@ -81,7 +82,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	// if we're logged in, don't redirect, deny with forbidden
 	if req.Session.ID != "" {
-		return a.deniedResponse(ctx, in, http.StatusForbidden, http.StatusText(http.StatusForbidden), nil)
+		return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, nil)
 	}
 
 	return a.requireLoginResponse(ctx, in)
