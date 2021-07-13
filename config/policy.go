@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/identity"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -398,6 +400,10 @@ func (p *Policy) Validate() error {
 	// Make sure there's no path set on the from url
 	if (source.Scheme == "http" || source.Scheme == "https") && !(source.Path == "" || source.Path == "/") {
 		return fmt.Errorf("config: policy source url (%s) contains a path, but it should be set using the path field instead",
+			source.String())
+	}
+	if source.Scheme == "http" {
+		log.Warn(context.Background()).Msgf("config: policy source url (%s) uses HTTP but only HTTPS is supported",
 			source.String())
 	}
 
