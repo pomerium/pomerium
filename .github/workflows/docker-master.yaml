@@ -40,6 +40,11 @@ jobs:
           echo ::set-output name=image::${IMAGE}
           echo ::set-output name=sha-tag::${SHA_TAG}
 
+      - name: Hadolint - Master
+        uses: hadolint/hadolint-action@v1.5.0
+        with:
+          Dockerfile: Dockerfile
+
       - name: Docker Publish - Master
         uses: docker/build-push-action@v2
         with:
@@ -51,6 +56,11 @@ jobs:
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Hadolint - Debug
+        uses: hadolint/hadolint-action@v1.5.0
+        with:
+          Dockerfile: Dockerfile.debug
 
       - name: Docker Publish - Debug
         uses: docker/build-push-action@v2
