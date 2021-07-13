@@ -1,8 +1,10 @@
+# hadolint ignore=DL3007
 FROM golang:latest as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
+# hadolint ignore=DL3008
 RUN apt-get update \
-    && apt-get -y install zip
+    && apt-get -y --no-install-recommends install zip
 
 # cache depedency downloads
 COPY go.mod go.sum ./
@@ -10,10 +12,10 @@ RUN go mod download
 COPY . .
 
 # build
-RUN make build-deps
-RUN make build NAME=pomerium
-RUN make build NAME=pomerium-cli
-RUN touch /config.yaml
+RUN make build-deps && \
+    make build NAME=pomerium && \
+    make build NAME=pomerium-cli && \
+    touch /config.yaml
 
 FROM gcr.io/distroless/base:debug
 ENV AUTOCERT_DIR /data/autocert
