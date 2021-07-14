@@ -1,8 +1,10 @@
+# hadolint ignore=DL3007
 FROM golang:latest as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
+# hadolint ignore=DL3008
 RUN apt-get update \
-    && apt-get -y install zip
+    && apt-get -y --no-install-recommends install zip
 
 # cache depedency downloads
 COPY go.mod go.sum ./
@@ -10,15 +12,17 @@ RUN go mod download
 COPY . .
 
 # build
-RUN make build-deps
-RUN make build-debug NAME=pomerium
-RUN make build-debug NAME=pomerium-cli
-RUN touch /config.yaml
-RUN go get github.com/go-delve/delve/cmd/dlv
+RUN make build-deps && \
+    make build-debug NAME=pomerium && \
+    make build-debug NAME=pomerium-cli && \
+    touch /config.yaml && \
+    go get github.com/go-delve/delve/cmd/dlv
 
+# hadolint ignore=DL3007
 FROM alpine:latest
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
+# hadolint ignore=DL3018
 RUN apk add --no-cache ca-certificates libc6-compat gcompat
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
