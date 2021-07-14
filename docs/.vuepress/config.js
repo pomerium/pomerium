@@ -193,11 +193,21 @@ module.exports = {
           title: "Enterprise",
           type: "group",
           collapsable: false,
-          sidebarDepth: 0,
+          sidebarDepth: 2,
+          path: "/enterprise/",
           children: [
             //"",
             "about",
-            "install",
+            {
+              title: "Install",
+              type: "group",
+              collapsable: false,
+              path: "install/",
+              sidebarDepth: 2,
+              children: [
+                "install/quickstart",
+              ],
+            },
             "concepts",
           ],
         },
