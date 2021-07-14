@@ -8,7 +8,9 @@ description: >-
   This guide covers how to use Pomerium with a local OIDC provider using [qlik/simple-oidc-provider].
 ---
 
-You can use the same below configs for other supported [identity provider].
+# Local OIDC Provider
+
+You can use the same below configs for other supported [identity providers](/docs/identity-providers).
 
 ## Configure
 ### Docker-compose
