@@ -8,6 +8,10 @@ description: Learn how the Pomerium Enterprise Console works.
 
 ## Namespaces
 
+## Folders
+
+## Service Accounts
+
 ## Routes
 
 ## Policies
