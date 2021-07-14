@@ -3,18 +3,25 @@ module.exports = {
   title: "Pomerium",
   description:
     "Pomerium is a beyond-corp inspired, zero trust, open source identity-aware access proxy.",
-  plugins: {
-    "check-md": {
+  plugins: [
+    "tabs",
+    [
+      "check-md", {
       pattern: "**/*.md",
-    },
-    sitemap: {
-      hostname: "https://www.pomerium.com",
-      outFile: "docs/sitemap.xml",
-    },
-    "@vuepress/google-analytics": {
-      ga: "UA-129872447-2",
-    },
-  },
+      },
+    ],
+    [
+      "sitemap", {
+        hostname: "https://www.pomerium.com",
+        outFile: "docs/sitemap.xml",
+      },
+    ],
+    [
+      "@vuepress/google-analytics", {
+        ga: "UA-129872447-2",
+      },
+    ],
+  ],
   markdown: {
     externalLinkSymbol: false,
   },
