@@ -39,9 +39,9 @@ module.exports = {
       { text: "Guides", link: "/guides/" },
       {
         text: "Enterprise",
-        link: "https://www.pomerium.com/",
-        target: "_self",
-        rel: "",
+        link: "/enterprise/",
+        //target: "_self",
+        //rel: "",
       },
       {
         text: "v0.14.x", // current tagged version
@@ -186,6 +186,20 @@ module.exports = {
           collapsable: false,
           sidebarDepth: 1,
           children: [""],
+        },
+      ],
+      "/enterprise/": [
+        {
+          title: "Enterprise",
+          type: "group",
+          collapsable: false,
+          sidebarDepth: 0,
+          children: [
+            //"",
+            "about",
+            "install",
+            "concepts",
+          ],
         },
       ],
     },
