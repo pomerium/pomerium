@@ -4,7 +4,7 @@ module.exports = {
   description:
     "Pomerium is a beyond-corp inspired, zero trust, open source identity-aware access proxy.",
   plugins: [
-    "tabs",
+    "vuepress-plugin-element-tabs",
     [
       "check-md", {
       pattern: "**/*.md",
