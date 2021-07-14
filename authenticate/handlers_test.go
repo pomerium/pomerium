@@ -103,7 +103,7 @@ func TestAuthenticate_Handler(t *testing.T) {
 	h.ServeHTTP(rr, req)
 	expected = fmt.Sprintf("User-agent: *\nDisallow: /")
 	code := rr.Code
-	if code != http.StatusOK {
+	if code/100 != 2 {
 		t.Errorf("bad preflight code %v", code)
 	}
 	resp := rr.Result()
