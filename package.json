@@ -11,6 +11,8 @@
     "docs:check-md": "vuepress check-md"
   },
   "dependencies": {
-    "esm": "3.2.25"
+    "esm": "3.2.25",
+    "vue-tabs-component": "^1.5.0",
+    "vuepress-plugin-tabs": "^0.3.0"
   }
 }
