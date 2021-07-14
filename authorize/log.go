@@ -50,15 +50,6 @@ func (a *Authorize) logAuthorizeCheck(
 	}
 	if sa, ok := s.(*user.ServiceAccount); ok {
 		evt = evt.Str("service-account-id", sa.GetId())
-		if sa.GetImpersonateEmail() != "" {
-			evt = evt.Str("impersonate-email", sa.GetImpersonateEmail())
-		}
-		if len(sa.GetImpersonateGroups()) > 0 {
-			evt = evt.Strs("impersonate-groups", sa.GetImpersonateGroups())
-		}
-		if sa.GetImpersonateUserId() != "" {
-			evt = evt.Str("impersonate-user-id", sa.GetImpersonateUserId())
-		}
 	}
 
 	// result

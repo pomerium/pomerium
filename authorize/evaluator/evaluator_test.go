@@ -244,7 +244,7 @@ func TestEvaluator(t *testing.T) {
 	t.Run("impersonate email", func(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
 			res, err := eval(t, options, []proto.Message{
-				&user.ServiceAccount{
+				&session.Session{
 					Id:               "session1",
 					UserId:           "user1",
 					ImpersonateEmail: proto.String("a@example.com"),
