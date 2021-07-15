@@ -3,6 +3,7 @@ package databroker
 import (
 	"context"
 	"net"
+	"net/url"
 	"testing"
 	"time"
 
@@ -32,14 +33,21 @@ func TestConfigSource(t *testing.T) {
 
 	cfgs := make(chan *config.Config, 10)
 
+	u, _ := url.Parse("https://to.example.com")
 	base := config.NewDefaultOptions()
 	base.DataBrokerURLString = "http://" + li.Addr().String()
 	base.InsecureServer = true
 	base.GRPCInsecure = true
+	base.Policies = append(base.Policies, config.Policy{
+		From: "https://pomerium.io", To: config.WeightedURLs{
+			{URL: *u},
+		}, AllowedUsers: []string{"foo@bar.com"},
+	})
 
-	src := NewConfigSource(ctx, config.NewStaticSource(&config.Config{
+	baseSource := config.NewStaticSource(&config.Config{
 		Options: base,
-	}), func(_ context.Context, cfg *config.Config) {
+	})
+	src := NewConfigSource(ctx, baseSource, func(_ context.Context, cfg *config.Config) {
 		cfgs <- cfg
 	})
 	cfgs <- src.GetConfig()
@@ -76,4 +84,8 @@ func TestConfigSource(t *testing.T) {
 	case cfg := <-cfgs:
 		assert.Len(t, cfg.Options.AdditionalPolicies, 1)
 	}
+
+	baseSource.SetConfig(ctx, &config.Config{
+		Options: base,
+	})
 }
