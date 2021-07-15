@@ -70,31 +70,28 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 		return nil, fmt.Errorf("error creating temporary working directory for envoy: %w", err)
 	}
 
-	envoyPath, err := extractEmbeddedEnvoy(ctx)
-	if err != nil {
-		log.Warn(ctx).Err(err).Send()
-		envoyPath = "envoy"
-	}
-
-	fullEnvoyPath, err := exec.LookPath(envoyPath)
-	if err != nil {
-		return nil, fmt.Errorf("no envoy binary found: %w", err)
-	}
-
-	// Checksum is written at build time, if it's not empty we verify the binary
-	if files.Checksum() != "" {
-		bs, err := ioutil.ReadFile(fullEnvoyPath)
+	envoyPath := OverrideEnvoyPath
+	if envoyPath == "" {
+		envoyPath, err = extractEmbeddedEnvoy(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("error reading envoy binary for checksum verification: %w", err)
+			return nil, fmt.Errorf("error extracting embedded envoy binary: %w", err)
 		}
-		h := sha256.New()
-		h.Write(bs)
-		s := hex.EncodeToString(h.Sum(nil))
-		if files.Checksum() != s {
-			return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", files.Checksum(), s)
+
+		// Checksum is written at build time, if it's not empty we verify the binary
+		if files.Checksum() != "" {
+			bs, err := ioutil.ReadFile(envoyPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading envoy binary for checksum verification: %w", err)
+			}
+			h := sha256.New()
+			h.Write(bs)
+			s := hex.EncodeToString(h.Sum(nil))
+			if files.Checksum() != s {
+				return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", files.Checksum(), s)
+			}
+		} else {
+			log.Info(ctx).Msg("no checksum defined, envoy binary will not be verified!")
 		}
-	} else {
-		log.Info(ctx).Msg("no checksum defined, envoy binary will not be verified!")
 	}
 
 	srv := &Server{
