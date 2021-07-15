@@ -20,6 +20,9 @@ const (
 	embeddedDirectoryPermissions fs.FileMode = 0o755
 )
 
+// OverrideEnvoyPath is an override for using an envoy path instead of the embedded envoy path.
+var OverrideEnvoyPath = ""
+
 var (
 	embeddedFilesBaseDirectory = filepath.Join(os.TempDir(), "pomerium-embedded-files")
 	extractEmbeddedEnvoyOnce   sync.Once
