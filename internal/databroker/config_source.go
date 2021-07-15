@@ -13,6 +13,8 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+
+	go_grpc "google.golang.org/grpc"
 )
 
 // ConfigSource provides a new Config source that decorates an underlying config with
@@ -174,6 +176,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 		WithInsecure:            cfg.Options.GetGRPCInsecure(),
 		ServiceName:             cfg.Options.Services,
 		SignedJWTKey:            sharedKey,
+		CallOptions:             []go_grpc.CallOption{go_grpc.WaitForReady(true)},
 	}
 	h, err := hashutil.Hash(connectionOptions)
 	if err != nil {

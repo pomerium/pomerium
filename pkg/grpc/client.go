@@ -27,6 +27,10 @@ const (
 	defaultGRPCInsecurePort = 80
 )
 
+var (
+	defaultCallOptions = []grpc.CallOption{}
+)
+
 // Options contains options for connecting to a pomerium rpc service.
 type Options struct {
 	// Addrs is the location of the service.  e.g. "service.corp.example:8443"
@@ -56,6 +60,9 @@ type Options struct {
 
 	// SignedJWTKey is the JWT key to use for signing a JWT attached to metadata.
 	SignedJWTKey []byte
+
+	// Call options supply additional default call options for each GRPC call
+	CallOptions []grpc.CallOption
 }
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
@@ -98,7 +105,7 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 	dialOptions := []grpc.DialOption{
 		grpc.WithChainUnaryInterceptor(unaryClientInterceptors...),
 		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
-		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
+		grpc.WithDefaultCallOptions(append(defaultCallOptions, opts.CallOptions...)...),
 		grpc.WithStatsHandler(clientStatsHandler.Handler),
 		grpc.WithDefaultServiceConfig(roundRobinServiceConfig),
 		grpc.WithDisableServiceConfig(),

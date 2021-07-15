@@ -12,6 +12,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
+
+	go_grpc "google.golang.org/grpc"
 )
 
 type authorizeState struct {
@@ -67,6 +69,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		InstallationID:          cfg.Options.InstallationID,
 		ServiceName:             cfg.Options.Services,
 		SignedJWTKey:            sharedKey,
+		CallOptions:             []go_grpc.CallOption{go_grpc.WaitForReady(true)},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error creating databroker connection: %w", err)
