@@ -208,6 +208,7 @@ module.exports = {
                 "install/quickstart",
               ],
             },
+            "prometheus",
             "concepts",
           ],
         },
