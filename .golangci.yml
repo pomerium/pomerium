@@ -29,8 +29,6 @@ linters-settings:
     min-complexity: 15
   goimports:
     local-prefixes: github.com/pomerium/pomerium
-  golint:
-    min-confidence: 0
   govet:
     check-shadowing: false
   lll:
@@ -55,7 +53,6 @@ linters:
     - errcheck
     - gofmt
     - goimports
-    - golint
     - goprintffuncname
     - gosec
     - gosimple
@@ -65,6 +62,7 @@ linters:
     - misspell
     - nakedret
     - nolintlint
+    - revive
     - rowserrcheck
     - staticcheck
     - structcheck
@@ -143,8 +141,6 @@ issues:
     - "SA1019"
     # EXC0001 errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
     - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
-
-
 
   exclude-rules:
     # https://github.com/go-critic/go-critic/issues/926
