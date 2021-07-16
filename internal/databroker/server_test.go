@@ -176,6 +176,8 @@ func TestServer_Sync(t *testing.T) {
 			Data: any,
 		},
 	})
+	assert.NoError(t, err)
+
 	gs := grpc.NewServer()
 	databroker.RegisterDataBrokerServiceServer(gs, srv)
 	li, err := net.Listen("tcp", "127.0.0.1:0")
