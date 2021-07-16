@@ -58,15 +58,12 @@ func newDeltaCollection(p *Provider) *deltaCollection {
 //
 // Only the changed groups/members are returned. Removed groups/members have an @removed property.
 func (dc *deltaCollection) Sync(ctx context.Context) error {
-	if err := dc.syncGroups(ctx); err != nil {
+	err := dc.syncGroups(ctx)
+	if err != nil {
 		return err
 	}
 
-	if err := dc.syncUsers(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return dc.syncUsers(ctx)
 }
 
 func (dc *deltaCollection) syncGroups(ctx context.Context) error {
