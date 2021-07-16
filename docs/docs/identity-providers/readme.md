@@ -18,11 +18,13 @@ In this guide we'll cover how to do the following for each identity provider:
 2. Generate a **[Client ID]** and **[Client Secret]**.
 3. Generate a **[Service Account]** for additional IdP Data.
 4. Configure Pomerium to use the **[Client ID]** and **[Client Secret]** keys.
-5. Configure Pomerium to synchronize directory data from your identity provider (e.g. groups membership), by setting a service account. 
+5. Configure Pomerium to synchronize directory data from your identity provider (e.g. groups membership), by setting a service account.
 
 :::warning
 
 You must configure an IdP **[Service Account]** to write policy against group membership, or any other data that does not uniquely identify an end-user.
+
+:::
 
 [client id]: ../../reference/readme.md#identity-provider-client-id
 [client secret]: ../../reference/readme.md#identity-provider-client-secret
@@ -71,7 +73,7 @@ Now to implement this flow we have configured static dex client ```pom``` with p
 
 ```Note: I am using dex helm chart and in backend freeipa as a ldap server```
 
-```
+```yaml
 connectors:
       - config:
           bindDN: uid=dex,cn=sysaccounts,cn=etc,dc=YOURDOMAIN,dc=dev
@@ -119,11 +121,12 @@ connectors:
         secret: pomerium
 
 ```
+
 Below is configuration which supposed to be done in Pomerium
 
 ```Note: I am using Pomerium helm chart```
 
-```
+```yaml
 config:
   # routes under this wildcard domain are handled by pomerium
   rootDomain: YOURDOMAIN.dev
