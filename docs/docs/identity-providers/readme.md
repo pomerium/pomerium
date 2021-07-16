@@ -18,7 +18,7 @@ In this guide we'll cover how to do the following for each identity provider:
 2. Generate a **[Client ID]** and **[Client Secret]**.
 3. Generate a **[Service Account]** for additional IdP Data.
 4. Configure Pomerium to use the **[Client ID]** and **[Client Secret]** keys.
-5. Configure Pomerium to synchronize directory data from your identity provider (e.g. groups membership), by setting a service account. 
+5. Configure Pomerium to synchronize directory data from your identity provider (e.g. groups membership), by setting a service account.
 
 :::warning
 
