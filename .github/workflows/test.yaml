@@ -217,16 +217,16 @@ jobs:
 
       - uses: actions/checkout@v2
 
-      - name: install lichen
-        run: $(cd /tmp; go get github.com/uw-labs/lichen)
-
       - name: retrieve binary
         uses: actions/download-artifact@v2
         with:
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
           path: bin/
 
-      - name: golang license check
-        run: |
-          chmod 755 bin/pomerium bin/pomerium-cli
-          lichen --config lichen.yaml bin/pomerium*
+      - name: download envoy
+        run: make get-envoy
+
+      - name: FOSSA Scan
+        uses: fossa-contrib/fossa-action@v1
+        with:
+          fossa-api-key: 18f4ef488f514d06874b75f5809cea93
