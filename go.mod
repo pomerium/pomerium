@@ -40,7 +40,7 @@ require (
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
 	github.com/onsi/gocleanup v0.0.0-20140331211545-c1a5478700b5
-	github.com/open-policy-agent/opa v0.30.1
+	github.com/open-policy-agent/opa v0.30.2
 	github.com/openzipkin/zipkin-go v0.2.5
 	github.com/ory/dockertest/v3 v3.7.0
 	github.com/pomerium/csrf v1.7.0
