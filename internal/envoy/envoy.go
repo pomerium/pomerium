@@ -30,11 +30,11 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/pomerium/pomerium/internal/envoy/files"
-
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
+	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry"
 )
 
 const (
@@ -227,8 +227,8 @@ func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
 
 func (srv *Server) buildBootstrapConfig(cfg *config.Config) ([]byte, error) {
 	nodeCfg := &envoy_config_core_v3.Node{
-		Id:      "proxy",
-		Cluster: "proxy",
+		Id:      telemetry.ServiceName(cfg.Options.Services),
+		Cluster: telemetry.ServiceName(cfg.Options.Services),
 	}
 
 	adminCfg, err := srv.builder.BuildBootstrapAdmin(cfg)
