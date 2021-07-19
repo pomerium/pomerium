@@ -52,9 +52,7 @@ settings:
         #  - Default: `:443`
         #  - Required
         doc: |
-          All Routes, Policies, Certificatesand Namespaces require a Name. This is a human-readable value used in the Enterprise Console interface.
-        shortdoc: |
-          Used to reference the Route, Policy, Certificate, or Namespace in the web UI.
+          All Routes, Policies, Certificates and Namespaces require a Name. This is a human-readable value used in the Enterprise Console interface.
       - name: "Template"
         keys: ["template"]
         attributes: |
