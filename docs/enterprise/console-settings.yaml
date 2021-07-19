@@ -1,0 +1,78 @@
+preamble: |
+  ---
+  title: Console Settings
+  lang: en-US
+  sidebarDepth: 2
+  meta:
+    - name: keywords
+      content: configuration options settings Pomerium enterprise console
+  ---
+
+  # Pomerium Enterprise Console Settings
+
+  The Pomerium Enterprise Console is initially configured using a configuration file ([YAML]/[JSON]/[TOML]) or environment variables. In general, environmental variable keys are identical to config file keys but are uppercase.
+  
+   If you are coming from a Kubernetes or docker background this should feel familiar. If not, check out the following primers.
+
+  - [Store config in the environment](https://12factor.net/config)
+  - [Kubernetes: Environment variables](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)
+  - [Kubernetes: Config Maps](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/)
+  - [Docker: Environment variables](https://docs.docker.com/compose/environment-variables/)
+
+  Using both [environmental variables] and config file keys is allowed and encouraged (for instance, secret keys are probably best set as environmental variables). However, if duplicate configuration keys are found, environment variables take precedence.
+
+  Additional configuration and the setting of routes and policies is performed through the web user interface (**UI**).
+
+postamble: |
+  [base64 encoded]: https://en.wikipedia.org/wiki/Base64
+  [elliptic curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters
+  [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
+  [identity provider]: ../docs/identity-providers/
+  [json]: https://en.wikipedia.org/wiki/JSON
+  [letsencrypt]: https://letsencrypt.org/
+  [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
+  [okta]: ../docs/identity-providers/okta.md
+  [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
+  [signed headers]: ../docs/topics/getting-users-identity.md
+  [toml]: https://en.wikipedia.org/wiki/TOML
+  [yaml]: https://en.wikipedia.org/wiki/YAML
+
+settings:
+  - name: "Common Settings"
+    doc: |
+      These configuration terms or options are found throughout the Pomerium Enterprise Console.
+    settings:
+      - name: "Name"
+        #keys: ["name"]
+        #attributes: |
+        #  - Environmental Variable: `ADDRESS`
+        #  - Config File Key: `address`
+        #  - Type: `string`
+        #  - Example: `:443`, `:8443`
+        #  - Default: `:443`
+        #  - Required
+        doc: |
+          All Routes, Policies, Certificatesand Namespaces require a Name. This is a human-readable value used in the Enterprise Console interface.
+        shortdoc: |
+          Used to reference the Route, Policy, Certificate, or Namespace in the web UI.
+      - name: "Template"
+        keys: ["template"]
+        attributes: |
+          - Environmental Variable: `TEMPLATE`
+          - Config File Key: `template`
+          - Type: `bool`
+          - Example: `template`, `tmpl`
+          - Default: `template`
+          - Optional/Required
+        doc: |
+          Use this Template to finish filling out this file. Remove it before implementing
+
+          :::warning
+
+          This is a warning block.
+
+          :::
+
+          This section is used in the full docs
+        shortdoc: |
+          This section is used in the Console tooltips.
