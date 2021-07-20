@@ -18,6 +18,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // JWTClaimHeaders are headers to add to a request based on IDP claims.
@@ -215,7 +216,7 @@ func ParseWeightedURL(dst string) (*WeightedURL, error) {
 		return nil, err
 	}
 
-	u, err := url.Parse(to)
+	u, err := urlutil.ParseAndValidateURL(to)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", to, err)
 	}
