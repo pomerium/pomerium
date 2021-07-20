@@ -39,6 +39,9 @@ func ParseAndValidateURL(rawurl string) (*url.URL, error) {
 	}
 	u, err := url.Parse(rawurl)
 	if err != nil {
+		if strings.Contains(err.Error(), "first path segment in URL cannot contain colon") {
+			err = fmt.Errorf("%w, have you specified protocol (ex: https)", err)
+		}
 		return nil, err
 	}
 	if err := ValidateURL(u); err != nil {
