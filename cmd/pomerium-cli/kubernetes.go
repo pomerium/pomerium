@@ -18,11 +18,24 @@ import (
 func init() {
 	addTLSFlags(kubernetesExecCredentialCmd)
 	kubernetesCmd.AddCommand(kubernetesExecCredentialCmd)
+	kubernetesCmd.AddCommand(kubernetesFlushCredentialsCmd)
 	rootCmd.AddCommand(kubernetesCmd)
 }
 
 var kubernetesCmd = &cobra.Command{
 	Use: "k8s",
+}
+
+var kubernetesFlushCredentialsCmd = &cobra.Command{
+	Use: "flush-credentials [API Server URL]",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			clearAllCachedCredentials()
+		} else {
+			clearCachedCredential(args[0])
+		}
+		return nil
+	},
 }
 
 var kubernetesExecCredentialCmd = &cobra.Command{

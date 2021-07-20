@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -34,6 +35,25 @@ func cachedCredentialPath(serverURL string) string {
 	_, _ = h.Write([]byte(serverURL))
 	id := hex.EncodeToString(h.Sum(nil))
 	return filepath.Join(cachePath(), id+".json")
+}
+
+func clearAllCachedCredentials() {
+	_ = filepath.Walk(cachePath(), func(p string, fi fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if fi.IsDir() {
+			return nil
+		}
+
+		return os.Remove(p)
+	})
+}
+
+func clearCachedCredential(serverURL string) {
+	fn := cachedCredentialPath(serverURL)
+	_ = os.Remove(fn)
 }
 
 func loadCachedCredential(serverURL string) *ExecCredential {
