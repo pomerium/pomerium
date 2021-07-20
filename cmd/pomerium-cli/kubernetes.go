@@ -27,7 +27,7 @@ var kubernetesCmd = &cobra.Command{
 }
 
 var kubernetesFlushCredentialsCmd = &cobra.Command{
-	Use: "flush-credentials",
+	Use: "flush-credentials [API Server URL]",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			clearAllCachedCredentials()
