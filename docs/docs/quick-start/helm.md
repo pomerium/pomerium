@@ -41,7 +41,7 @@ Run [./scripts/helm_gke.sh] which will:
 
 1. Provision and apply authenticate, authorize, and proxy [services](https://cloud.google.com/kubernetes-engine/docs/concepts/service).
 
-1. Configure an ingress, Google's default load balancer.
+1. Configure an ingress, using Google's default load balancer.
 
 ```bash
 ./scripts/helm_gke.sh
