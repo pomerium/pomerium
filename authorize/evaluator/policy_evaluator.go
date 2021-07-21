@@ -2,15 +2,19 @@ package evaluator
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/rego"
+	octrace "go.opencensus.io/trace"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/policy"
 )
 
@@ -46,9 +50,14 @@ type Denial struct {
 	Message string
 }
 
+type policyQuery struct {
+	rego.PreparedEvalQuery
+	checksum string
+}
+
 // A PolicyEvaluator evaluates policies.
 type PolicyEvaluator struct {
-	queries []rego.PreparedEvalQuery
+	queries []policyQuery
 }
 
 // NewPolicyEvaluator creates a new PolicyEvaluator.
@@ -106,7 +115,15 @@ func NewPolicyEvaluator(ctx context.Context, store *Store, configPolicy *config.
 		if err != nil {
 			return nil, err
 		}
-		e.queries = append(e.queries, q)
+
+		h := sha256.New()
+		h.Write([]byte(script))
+		checksum := hex.EncodeToString(h.Sum(nil))
+
+		e.queries = append(e.queries, policyQuery{
+			PreparedEvalQuery: q,
+			checksum:          checksum,
+		})
 	}
 
 	return e, nil
@@ -126,8 +143,12 @@ func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*Po
 	return res, nil
 }
 
-func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest, query rego.PreparedEvalQuery) (*PolicyResponse, error) {
-	rs, err := safeEval(ctx, query, rego.EvalInput(req))
+func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest, query policyQuery) (*PolicyResponse, error) {
+	_, span := trace.StartSpan(ctx, "authorize.PolicyEvaluator.evaluateQuery")
+	defer span.End()
+	span.AddAttributes(octrace.StringAttribute("script_checksum", query.checksum))
+
+	rs, err := safeEval(ctx, query.PreparedEvalQuery, rego.EvalInput(req))
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error evaluating policy.rego: %w", err)
 	}
