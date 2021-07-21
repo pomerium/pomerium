@@ -8,15 +8,15 @@ description: Demo Pomerium Enterprise
 
 ## Before You Begin
 
-This guide assumes:
+This guide document:
 
-- A non-conainerized environment, either your local computer or a virtual machine (**vm**). While Pomerium is designed to scale with your production environment, we'll leave containerization and infrastructure as code (**IaC**) out for now, to focus on learning how Pomerium Enterprise works.
-   - `root` or `sudo` privlidges on the host.
+- A non-containerized environment, either your local computer or a virtual machine (**vm**). While Pomerium is designed to scale with your production environment, we'll leave containerization and infrastructure as code (**IaC**) out for now, to focus on learning how Pomerium Enterprise works.
+   - `root` or `sudo` privileges on the host.
 - You already have the open-source Pomerium base installed. If not, follow [this doc](/docs/quick-start/binary.md) before you continue.
    - While an existing route is not required, we suggest implementing one test route to validate your identity provider (**IdP**) configuration.
-- Pomerium Enterprise requires a reltational database. Postgres 9+ and MySQL 5.8+ are supported.
+- Pomerium Enterprise requires a relational database. PostgreSQL 9+ and MySQL 5.8+ are supported.
    - Securing the database connection with TLS may not be required, especially for a local installation, but is strongly recommended for production deployments. Therefor, this guide will assume a TLS-secured database connection.
-- A supported databroker backend. Currently we support Redis.
+- A supported data broker backend. Currently we support Redis.
    - As with the database, TLS encryption is strongly recommended for production deployments.
 
 ## Requirements
@@ -24,34 +24,6 @@ This guide assumes:
 For a proof-of-concept local or vm installation, we suggest:
 
 <!-- @travis what specs? -->
-
-For an production deploument, we require:
-
-### System
-
-- The Pomerium Enterprise Console requires Linux amd64/x86_64. It can manage Pomerium instances on other platforms, however.
-- Each Console instance should have at least:
-    - 2 vCPUs
-    - 8G RAM
-    - 100G of disk wherever logs are stored
-- Each Postgres / MySQL instance should have at least:
-    - 4 vCPUs
-    - 8G RAM
-    - 20G for data files
-- Each Redis instance should have at least:
-    - 2 vCPUs
-    - 4G RAM
-    - 20G for data file
-
-### Network
-
-- Layer 4 or Layer 7 load balancers to provide high availability across instances of Pomerium Enterprise Console
-- Layer 4 or Layer 7 load balancers to provide high availability across instances of the Pomerium Cache service from the console
-    - If using Layer 7, your load balancers must support HTTP2
-    - DNS RR can be used in place of load balancers, if L4 or HTTP2 support is not possible
-- Pomerium Enterprise Console must be able to reach the Pomerium Cache service
-- Pomerium Enterprise Console must be able to reach a supported database instance
-- Pomerium Proxy service must be able to forward traffic to the Pomerium Enterprise Console
 
 ## Install Pomerium Enterprise Console
 
