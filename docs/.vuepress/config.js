@@ -206,6 +206,7 @@ module.exports = {
               sidebarDepth: 2,
               children: [
                 "install/quickstart",
+                "install/helm",
               ],
             },
             "prometheus",
