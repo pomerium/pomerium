@@ -28,13 +28,8 @@ echo "=> install pomerium with helm"
 helm install \
 	pomerium \
 	pomerium/pomerium \
-	--set proxy.service.type="NodePort" \
-	--set authenticate.service.type="NodePort" \
-	--set config.sharedSecret=$(head -c32 /dev/urandom | base64) \
-	--set config.cookieSecret=$(head -c32 /dev/urandom | base64) \
-	--set ingress.secret.name="pomerium-tls" \
-	--set ingress.secret.cert=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer") \
-	--set ingress.secret.key=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key") \
+	--set ingress.secret.cert="$(base64 -i $HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer)" \
+	--set ingress.secret.key="$(base64 -i $HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key)" \
 	--values docs/configuration/examples/kubernetes/values.yaml
 
 # When done, clean up by deleting the cluster!

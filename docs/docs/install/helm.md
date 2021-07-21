@@ -12,12 +12,12 @@ This quick-start will show you how to deploy Pomerium with [Helm](https://helm.s
 
 ## Prerequisites
 
-- A [Google Cloud Account](https://console.cloud.google.com/)
-- A configured [identity provider]
-- Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-- Install the [Google Cloud SDK](https://cloud.google.com/kubernetes-engine/docs/quickstart)
-- Install [helm](https://helm.sh/docs/using_helm/)
-- [TLS certificates]
+- A [Google Cloud Account](https://console.cloud.google.com/).
+- A configured [identity provider].
+- Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/).
+- Install the [Google Cloud SDK](https://cloud.google.com/kubernetes-engine/docs/quickstart).
+- Install [helm](https://helm.sh/docs/using_helm/).
+- [TLS certificates].
 
 Though there are [many ways](https://unofficial-kubernetes.readthedocs.io/en/latest/setup/pick-right-solution/) to work with Kubernetes, for the purpose of this guide, we will be using Google's [Kubernetes Engine](https://cloud.google.com/kubernetes-engine/). That said, most of the following steps should be very similar using any other provider.
 
@@ -36,9 +36,12 @@ Download and modify the following helm_gke.sh script and values file to match yo
 Run [./scripts/helm_gke.sh] which will:
 
 1. Provision a new cluster.
-2. Create authenticate, authorize, and proxy [deployments](https://cloud.google.com/kubernetes-engine/docs/concepts/deployment).
-3. Provision and apply authenticate, authorize, and proxy [services](https://cloud.google.com/kubernetes-engine/docs/concepts/service).
-4. Configure an ingress, Google's default load balancer.
+
+1. Create authenticate, authorize, and proxy [deployments](https://cloud.google.com/kubernetes-engine/docs/concepts/deployment).
+
+1. Provision and apply authenticate, authorize, and proxy [services](https://cloud.google.com/kubernetes-engine/docs/concepts/service).
+
+1. Configure an ingress, using Google's default load balancer.
 
 ```bash
 ./scripts/helm_gke.sh
