@@ -8,7 +8,7 @@ description: Demo Pomerium Enterprise
 
 ## Before You Begin
 
-This guide document:
+This document assumes:
 
 - A non-containerized environment, either your local computer or a virtual machine (**vm**). While Pomerium is designed to scale with your production environment, we'll leave containerization and infrastructure as code (**IaC**) out for now, to focus on learning how Pomerium Enterprise works.
    - `root` or `sudo` privileges on the host.
