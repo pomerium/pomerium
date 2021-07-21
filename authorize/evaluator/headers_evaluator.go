@@ -9,6 +9,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator/opa"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -67,6 +68,8 @@ func NewHeadersEvaluator(ctx context.Context, store *Store) (*HeadersEvaluator, 
 
 // Evaluate evaluates the headers.rego script.
 func (e *HeadersEvaluator) Evaluate(ctx context.Context, req *HeadersRequest) (*HeadersResponse, error) {
+	_, span := trace.StartSpan(ctx, "authorize.HeadersEvaluator.Evaluate")
+	defer span.End()
 	rs, err := safeEval(ctx, e.q, rego.EvalInput(req))
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error evaluating headers.rego: %w", err)

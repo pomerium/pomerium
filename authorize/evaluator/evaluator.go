@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -100,6 +101,9 @@ func New(ctx context.Context, store *Store, options ...Option) (*Evaluator, erro
 
 // Evaluate evaluates the rego for the given policy and generates the identity headers.
 func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error) {
+	_, span := trace.StartSpan(ctx, "authorize.Evaluator.Evaluate")
+	defer span.End()
+
 	if req.Policy == nil {
 		return notFoundOutput, nil
 	}
