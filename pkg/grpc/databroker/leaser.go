@@ -97,7 +97,7 @@ func (locker *Leaser) runOnce(ctx context.Context, resetBackoff func()) error {
 	resetBackoff()
 	leaseID := res.Id
 
-	log.Info(ctx).
+	log.Debug(ctx).
 		Str("lease_name", locker.leaseName).
 		Str("lease_id", leaseID).
 		Msg("leaser: lease acquired")
@@ -136,7 +136,7 @@ func (locker *Leaser) withLease(ctx context.Context, leaseID string) error {
 				Duration: durationpb.New(locker.ttl),
 			})
 			if status.Code(err) == codes.AlreadyExists {
-				log.Info(ctx).
+				log.Debug(ctx).
 					Str("lease_name", locker.leaseName).
 					Str("lease_id", leaseID).
 					Msg("leaser: lease lost")

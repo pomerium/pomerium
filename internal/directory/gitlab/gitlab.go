@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
@@ -45,7 +46,10 @@ func WithServiceAccount(serviceAccount *ServiceAccount) Option {
 // WithHTTPClient sets the http client option.
 func WithHTTPClient(httpClient *http.Client) Option {
 	return func(cfg *config) {
-		cfg.httpClient = httpClient
+		cfg.httpClient = httputil.NewLoggingClient(httpClient,
+			func(evt *zerolog.Event) *zerolog.Event {
+				return evt.Str("provider", "azure")
+			})
 	}
 }
 

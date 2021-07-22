@@ -6,7 +6,10 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/rs/zerolog"
+
 	"github.com/pomerium/pomerium/internal/encoding"
+	"github.com/pomerium/pomerium/internal/httputil"
 )
 
 type config struct {
@@ -44,7 +47,10 @@ func WithEnvironmentID(environmentID string) Option {
 // WithHTTPClient sets the http client option.
 func WithHTTPClient(httpClient *http.Client) Option {
 	return func(cfg *config) {
-		cfg.httpClient = httpClient
+		cfg.httpClient = httputil.NewLoggingClient(httpClient,
+			func(evt *zerolog.Event) *zerolog.Event {
+				return evt.Str("provider", "ping")
+			})
 	}
 }
 

@@ -134,7 +134,7 @@ func (p *Provider) userEmail(ctx context.Context, t *oauth2.Token, v interface{}
 	}
 	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", t.AccessToken)}
 	emailURL := githubAPIURL + emailPath
-	err := httputil.Client(ctx, http.MethodGet, emailURL, version.UserAgent(), headers, nil, &response)
+	err := httputil.Do(ctx, http.MethodGet, emailURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func (p *Provider) userInfo(ctx context.Context, t *oauth2.Token, v interface{})
 		"Authorization": fmt.Sprintf("token %s", t.AccessToken),
 		"Accept":        "application/vnd.github.v3+json",
 	}
-	err := httputil.Client(ctx, http.MethodGet, p.userEndpoint, version.UserAgent(), headers, nil, &response)
+	err := httputil.Do(ctx, http.MethodGet, p.userEndpoint, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return err
 	}
