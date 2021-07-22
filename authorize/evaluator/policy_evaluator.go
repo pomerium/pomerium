@@ -2,8 +2,6 @@ package evaluator
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy"
 )
 
@@ -116,13 +115,9 @@ func NewPolicyEvaluator(ctx context.Context, store *Store, configPolicy *config.
 			return nil, err
 		}
 
-		h := sha256.New()
-		h.Write([]byte(script))
-		checksum := hex.EncodeToString(h.Sum(nil))
-
 		e.queries = append(e.queries, policyQuery{
 			PreparedEvalQuery: q,
-			checksum:          checksum,
+			checksum:          fmt.Sprintf("%x", cryptutil.Hash("script", []byte(script))),
 		})
 	}
 
