@@ -251,7 +251,7 @@ func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 	params.Add("client_id", oa.ClientID)
 	params.Add("client_secret", oa.ClientSecret)
 
-	err = httputil.Client(ctx, http.MethodPost, p.RevocationURL, version.UserAgent(), nil, params, nil)
+	err = httputil.Do(ctx, http.MethodPost, p.RevocationURL, version.UserAgent(), nil, params, nil)
 	if err != nil && errors.Is(err, httputil.ErrTokenRevoked) {
 		return fmt.Errorf("internal/oidc: unexpected revoke error: %w", err)
 	}

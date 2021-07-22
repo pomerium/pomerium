@@ -12,13 +12,60 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/rs/zerolog"
+
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/tripper"
 )
 
-// ErrTokenRevoked signifies a token revokation or expiration error
+// ErrTokenRevoked signifies a token revocation or expiration error
 var ErrTokenRevoked = errors.New("token expired or revoked")
+
+type loggingRoundTripper struct {
+	base      http.RoundTripper
+	customize []func(event *zerolog.Event) *zerolog.Event
+}
+
+func (l loggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	start := time.Now()
+	res, err := l.base.RoundTrip(req)
+	statusCode := http.StatusInternalServerError
+	if res != nil {
+		statusCode = res.StatusCode
+	}
+	evt := log.Debug(req.Context()).
+		Str("method", req.Method).
+		Str("authority", req.URL.Host).
+		Str("path", req.URL.Path).
+		Dur("duration", time.Since(start)).
+		Int("response-code", statusCode)
+	for _, f := range l.customize {
+		f(evt)
+	}
+	evt.Msg("outbound http-request")
+	return res, err
+}
+
+// NewLoggingRoundTripper creates a http.RoundTripper that will log requests.
+func NewLoggingRoundTripper(base http.RoundTripper, customize ...func(event *zerolog.Event) *zerolog.Event) http.RoundTripper {
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return loggingRoundTripper{base: base, customize: customize}
+}
+
+// NewLoggingClient creates a new http.Client that will log requests.
+func NewLoggingClient(base *http.Client, customize ...func(event *zerolog.Event) *zerolog.Event) *http.Client {
+	if base == nil {
+		base = http.DefaultClient
+	}
+	newClient := new(http.Client)
+	*newClient = *base
+	newClient.Transport = NewLoggingRoundTripper(newClient.Transport, customize...)
+	return newClient
+}
 
 type httpClient struct {
 	*http.Client
@@ -33,14 +80,14 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	return c.Client.Do(req)
 }
 
-// DefaultClient avoids leaks by setting an upper limit for timeouts.
-var DefaultClient = &httpClient{
+// defaultClient avoids leaks by setting an upper limit for timeouts.
+var defaultClient = &httpClient{
 	&http.Client{Timeout: 1 * time.Minute},
 	requestid.NewRoundTripper(http.DefaultTransport),
 }
 
-// Client provides a simple helper interface to make HTTP requests
-func Client(ctx context.Context, method, endpoint, userAgent string, headers map[string]string, params url.Values, response interface{}) error {
+// Do provides a simple helper interface to make HTTP requests
+func Do(ctx context.Context, method, endpoint, userAgent string, headers map[string]string, params url.Values, response interface{}) error {
 	var body io.Reader
 	switch method {
 	case http.MethodPost:
@@ -66,7 +113,7 @@ func Client(ctx context.Context, method, endpoint, userAgent string, headers map
 		req.Header.Set(k, v)
 	}
 
-	resp, err := DefaultClient.Do(req)
+	resp, err := defaultClient.Do(req)
 	if err != nil {
 		return err
 	}

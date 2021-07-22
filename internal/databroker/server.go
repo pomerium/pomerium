@@ -226,7 +226,7 @@ func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeas
 func (srv *Server) RenewLease(ctx context.Context, req *databroker.RenewLeaseRequest) (*emptypb.Empty, error) {
 	_, span := trace.StartSpan(ctx, "databroker.grpc.RenewLease")
 	defer span.End()
-	log.Info(ctx).
+	log.Debug(ctx).
 		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("name", req.GetName()).
 		Str("id", req.GetId()).

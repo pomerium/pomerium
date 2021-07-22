@@ -12,8 +12,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -55,7 +57,10 @@ func WithLoginURL(loginURL *url.URL) Option {
 // WithHTTPClient sets the http client to use for requests to the Azure APIs.
 func WithHTTPClient(httpClient *http.Client) Option {
 	return func(cfg *config) {
-		cfg.httpClient = httpClient
+		cfg.httpClient = httputil.NewLoggingClient(httpClient,
+			func(evt *zerolog.Event) *zerolog.Event {
+				return evt.Str("provider", "azure")
+			})
 	}
 }
 

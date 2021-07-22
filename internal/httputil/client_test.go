@@ -21,5 +21,5 @@ func TestDefaultClient(t *testing.T) {
 	defer ts.Close()
 	req, _ := http.NewRequest(http.MethodGet, ts.URL, nil)
 	req = req.WithContext(requestid.WithValue(context.Background(), "foo"))
-	_, _ = DefaultClient.Do(req)
+	_, _ = defaultClient.Do(req)
 }
