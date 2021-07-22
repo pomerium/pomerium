@@ -14,7 +14,7 @@ This document assumes:
    - `root` or `sudo` privileges on the host.
 - You already have the open-source Pomerium base installed. If not, follow [this doc](/docs/quick-start/binary.md) before you continue.
    - While an existing route is not required, we suggest implementing one test route to validate your identity provider (**IdP**) configuration.
-- Pomerium Enterprise requires a relational database. PostgreSQL 9+ and MySQL 5.8+ are supported.
+- Pomerium Enterprise requires a relational database. PostgreSQL 9+ is supported.
    - Securing the database connection with TLS may not be required, especially for a local installation, but is strongly recommended for production deployments. Therefor, this guide will assume a TLS-secured database connection.
 - A supported data broker backend. Currently we support Redis.
    - As with the database, TLS encryption is strongly recommended for production deployments.
@@ -98,7 +98,7 @@ sudo systemcrt enable --now pomerium-console
 
 ## Initial Configuration
 
-Like the open-source Pomerium base, the Pomerium Enterprise Console is configured through a single config file, located at `/etc/pomerium-console/config.yaml`.
+Like the open-source Pomerium base, Pomerium Enterprise Console is configured through a single config file, located at `/etc/pomerium-console/config.yaml`.
 
 ### External Services
 
@@ -111,11 +111,7 @@ shared_secret: XXXXXXXXXXXXXXXXXXX
 database_encryption_key: YYYYYYYYYYYYYYYYYYYYYY
 ```
 
-For database uri options (especially TLS settings) see the documentation of your particular database driver:
-
- - [PostgreSQL SSL Support](https://www.postgresql.org/docs/9.1/libpq-ssl.html)
-
- - [MySQL Connector/ODBC Connection Parameters](https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-configuration-connection-parameters.html)
+For database uri options (especially TLS settings) see the [PostgreSQL SSL Support](https://www.postgresql.org/docs/9.1/libpq-ssl.html) documentation.
 
 ### Administrators
 
@@ -153,3 +149,7 @@ tls_ca_file: /etc/pomerium-console/ca.pem
 tls_cert_file: /etc/pomerium-console/cert.pem
 tls_key_file: /etc/pomerium-console/key.pem
 ```
+
+## Next Steps
+
+The Pomerium Enterprise Console assumes access to a [Prometheus](https://prometheus.io/) data store for metrics. See [Prometheus Metrics](/enterprise/prometheus.md) to learn how to configure access.
