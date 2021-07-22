@@ -226,7 +226,8 @@ We can retrieve the token to add to our proxied policy's authorization header as
 $ kubectl describe secret helm-dashboard
 ```
 
-```Name:         dashboard-kubernetes-dashboard-token-bv9jq
+```bash
+Name:         dashboard-kubernetes-dashboard-token-bv9jq
 Namespace:    default
 Labels:       <none>
 Annotations:  kubernetes.io/service-account.name: dashboard-kubernetes-dashboard
