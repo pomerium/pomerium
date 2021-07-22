@@ -10,7 +10,7 @@ This document covers installing Pomerium Enterprise Console into your existing h
 
 The Pomerium Enterprise Console requires:
 
-- An accessible RDBMS. We support PostgreSQL 9+ and MySQL 5.8+ (Postgres preferred).
+- An accessible RDBMS. We support PostgreSQL 9+.
    - A database and user with full permissions for it.
 - A certificate management solution. This page will assume a store of certificates in <!-- @travis pick a location? --> and assume [cert-manager](https://cert-manager.io/docs/) as the solution. If you use another certificate solution, adjust the steps accordingly.
 - An existing Pomerium installation. If you don't already have the open-source Pomerium installed in your cluster, see [Pomerium using Helm](/docs/quick-start/helm.md) before you continue.
@@ -26,7 +26,7 @@ For an production deployment, Pomerium Enterprise requires:
     - 2 vCPUs
     - 8G RAM
     - 100G of disk wherever logs are stored
-- Each Postgres / MySQL instance should have at least:
+- Each Postgres instance should have at least:
     - 4 vCPUs
     - 8G RAM
     - 20G for data files
@@ -120,7 +120,7 @@ For an production deployment, Pomerium Enterprise requires:
 
    ```yaml
    database:
-   type: pg #For PostgreSQL, set 'my' for MySQL
+   type: pg
    username: pomeriumDbUser
    password: IAMASTRONGPASSWORDLOOKATME
    host: 198.51.100.53
