@@ -12,20 +12,60 @@ This quick-start will show you how to deploy Pomerium with [Helm](https://helm.s
 
 ## Prerequisites
 
-- A [Google Cloud Account](https://console.cloud.google.com/).
+- A Kubernetes provider ([Google Cloud](https://console.cloud.google.com/) for example).
 - A configured [identity provider].
 - Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/).
 - Install the [Google Cloud SDK](https://cloud.google.com/kubernetes-engine/docs/quickstart).
 - Install [helm](https://helm.sh/docs/using_helm/).
 - [TLS certificates].
 
-Though there are [many ways](https://unofficial-kubernetes.readthedocs.io/en/latest/setup/pick-right-solution/) to work with Kubernetes, for the purpose of this guide, we will be using Google's [Kubernetes Engine](https://cloud.google.com/kubernetes-engine/). That said, most of the following steps should be very similar using any other provider.
 
-In addition to sharing many of the same features as the Kubernetes quickstart guide, the default helm deployment script also includes a bootstrapped certificate authority enabling mutually authenticated and encrypted communication between services that does not depend on the external LetsEncrypt certificates. Having the external domain certificate de-coupled makes it easier to renew external certificates.
+In addition to sharing many of the same features as the Docker-based quickstart guide, the default helm deployment script also includes a bootstrapped certificate authority enabling mutually authenticated and encrypted communication between services that does not depend on the external LetsEncrypt certificates. Having the external domain certificate de-coupled makes it easier to renew external certificates.
 
 ## Configure
 
-Download and modify the following helm_gke.sh script and values file to match your [identity provider] and [TLS certificates] settings.
+1. In your Kubernetes provider, create a new cluster. If you are only installing open-source Pomerium, 1 node would suffice. If you're preparing a configuration for [Pomerium Enterprise](/enterprise/install/helm.md), use at least 3 nodes.
+
+   If you're using Google Cloud, for example, and have the [Google Cloud SDK](https://cloud.google.com/kubernetes-engine/docs/quickstart) installed, you can use the following command. Substitute your preferred region and node count:
+
+   ```bash
+   gcloud container clusters create pomerium --region us-west2 --num-nodes 1
+   ```
+
+1. Set the context for `kubectl` to your new cluster. <!-- @travis is there a provider-agnostic way to describe this? -->
+
+1. Add Pomerium's Helm repo:
+
+   ```bash
+   helm repo add pomerium https://helm.pomerium.io
+   ```
+
+1. So that we can create a valid test route, add Bitnami's Helm repo to pull nginx from:
+
+   ```bash
+   helm repo add bitnami https://charts.bitnami.com/bitnami
+   ```
+
+1. Update Helm:
+
+   ```bash
+   helm repo update
+   ```
+
+1. Create the Pomerium namespace in your cluster, and set your `kubectl` context to it:
+
+   ```bash
+   kubectl create namespace pomerium
+   kubectl config set-context --current --namespace=pomerium
+   ```
+
+1. Install nginx to the cluster
+
+   ```
+   helm upgrade --install nginx bitnami/nginx
+   ```
+
+
 
 <<<@/examples/helm/helm_gke.sh
 

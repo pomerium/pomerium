@@ -1,0 +1,13 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pomerium-console-cert
+  namespace: pomerium
+spec:
+  secretName: pomerium-console-tls
+  issuerRef:
+    name: pomerium-issuer
+    kind: Issuer
+  dnsNames:
+    - pomerium-console.pomerium.svc.cluster.local
