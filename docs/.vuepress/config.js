@@ -39,7 +39,7 @@ module.exports = {
       { text: "Guides", link: "/guides/" },
       {
         text: "Enterprise",
-        link: "/enterprise/",
+        link: "/enterprise/about/",
         //target: "_self",
         //rel: "",
       },
@@ -194,7 +194,7 @@ module.exports = {
           type: "group",
           collapsable: false,
           sidebarDepth: 2,
-          path: "/enterprise/",
+          //path: "/enterprise/",
           children: [
             //"",
             "about",
@@ -202,11 +202,11 @@ module.exports = {
               title: "Install",
               type: "group",
               collapsable: false,
-              path: "install/",
+              path: "/enterprise/install/",
               sidebarDepth: 2,
               children: [
-                "install/quickstart",
-                "install/helm",
+                "/enterprise/install/quickstart",
+                "/enterprise/install/helm",
               ],
             },
             "prometheus",
