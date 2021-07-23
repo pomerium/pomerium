@@ -16,7 +16,7 @@ spec:
     - pomerium-authorize.pomerium.svc.cluster.local
     - pomerium-databroker.pomerium.svc.cluster.local
     - pomerium-authenticate.pomerium.svc.cluster.local
-    - "*.localhost.pomerium.io"
+    - "*.localhost.pomerium.io" # Quotes are required to escape the wildcard
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
