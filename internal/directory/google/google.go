@@ -17,7 +17,6 @@ import (
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
@@ -34,23 +33,12 @@ const (
 )
 
 type config struct {
-	httpClient     *http.Client
 	serviceAccount *ServiceAccount
 	url            string
 }
 
 // An Option changes the configuration for the Google directory provider.
 type Option func(cfg *config)
-
-// WithHTTPClient sets the http client option.
-func WithHTTPClient(httpClient *http.Client) Option {
-	return func(cfg *config) {
-		cfg.httpClient = httputil.NewLoggingClient(httpClient,
-			func(evt *zerolog.Event) *zerolog.Event {
-				return evt.Str("provider", "google")
-			})
-	}
-}
 
 // WithServiceAccount sets the service account in the Google configuration.
 func WithServiceAccount(serviceAccount *ServiceAccount) Option {
@@ -66,12 +54,11 @@ func WithURL(url string) Option {
 	}
 }
 
-func getConfig(options ...Option) *config {
+func getConfig(opts ...Option) *config {
 	cfg := new(config)
-	WithHTTPClient(http.DefaultClient)(cfg)
 	WithURL(defaultProviderURL)(cfg)
-	for _, option := range options {
-		option(cfg)
+	for _, opt := range opts {
+		opt(cfg)
 	}
 	return cfg
 }
@@ -256,8 +243,7 @@ func (p *Provider) getAPIClient(ctx context.Context) (*admin.Service, error) {
 
 	p.apiClient, err = admin.NewService(ctx,
 		option.WithTokenSource(ts),
-		option.WithEndpoint(p.cfg.url),
-		option.WithHTTPClient(p.cfg.httpClient))
+		option.WithEndpoint(p.cfg.url))
 	if err != nil {
 		return nil, fmt.Errorf("google: failed creating admin service %w", err)
 	}
