@@ -6,7 +6,7 @@ import yaml
 
 def main():
     d = os.path.join(os.path.dirname(__file__),
-                     "..", "enterprise")
+                     "..", "docs", "enterprise")
     d = os.path.normpath(d)
     print(f"generating {d}/reference.md")
 
@@ -15,7 +15,7 @@ def main():
     f.close()
 
     f = open(os.path.join(os.path.dirname(__file__),
-                          "..", "docs", "enterprise", "referemce.md"), "w")
+                          "..", "docs", "enterprise", "reference.md"), "w")
     f.write(f"{doc['preamble']}\n")
     write_setting(f, 1, doc)
     f.write(f"{doc['postamble']}")
