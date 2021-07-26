@@ -43,7 +43,7 @@ The **General** tab defines the route path, both from the internet and to the in
 
 ## Policies
 
-A Policy defines what permissions a set of users or groups has. Policies are applied to [Namespaces] or [Routes] to associate the set of permissions with a service or set of service, completing the authentication model.
+A Policy defines what permissions a set of users or groups has. Policies are applied to Namespaces or Routes to associate the set of permissions with a service or set of service, completing the authentication model.
 
 ::: tip
 This is a separate concept from [policies](../reference/#policy) in the non-enterprise model. In open-source Pomerium, the `policy` block defines both routes and access.

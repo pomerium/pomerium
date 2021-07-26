@@ -1,6 +1,5 @@
 // generate-console-pages.js
 const fs = require('fs');
-const { getPackedSettings } = require('http2');
 const yaml = require('js-yaml');
 
 
