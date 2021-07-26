@@ -1,6 +1,7 @@
 {
   "devDependencies": {
     "@vuepress/plugin-google-analytics": "1.8.2",
+    "js-yaml": "^4.1.0",
     "vuepress": "1.8.2",
     "vuepress-plugin-check-md": "0.0.2",
     "vuepress-plugin-element-tabs": "^0.2.8",
@@ -9,7 +10,8 @@
   "scripts": {
     "docs:dev": "vuepress dev docs",
     "docs:build": "vuepress build docs",
-    "docs:check-md": "vuepress check-md"
+    "docs:check-md": "vuepress check-md",
+    "buildref": "node scripts/generate-console-pages.js"
   },
   "dependencies": {
     "esm": "3.2.25"

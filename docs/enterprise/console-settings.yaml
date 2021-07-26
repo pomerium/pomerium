@@ -80,7 +80,7 @@ settings:
       - name: "Policies"
         keys: ["Policy"]
         doc: |
-          A Policy defines what permissions a set of users or groups has. Policies are applied to [Namespaces](#namespaces) or [Routes](#routes) to associate the set of permissions with a service or set of service, completing the authentication model.
+          A Policy defines what permissions a set of users or groups has. Policies are applied to Namespaces or Routes to associate the set of permissions with a service or set of service, completing the authentication model.
 
           ::: tip
           This is a separate concept from [policies](../reference/#policy) in the non-enterprise model. In open-source Pomerium, the `policy` block defines both routes and access.
@@ -92,13 +92,13 @@ settings:
 
           From the **BUILDER** tab, users can add allow or deny blocks to a policy, containing and/or/not/nor logic to allow or deny sets of users and groups.
 
-          ![A policy being constructed in Pomerium Enterprise console allowing a single user access](./img/example-policy-single-user.png)
+          ![A policy being constructed in Pomerium Enterprise console allowing a single user access](../img/example-policy-single-user.png)
 
           #### Pomerium Policy Language
           
           From the **EDITOR** tab users can write policies in Pomerium Policy Language (**PPL**), a YAML-based notation.
 
-          ![A policy as viewed from the editor tab](./img/example-policy-editor.png)
+          ![A policy as viewed from the editor tab](../img/example-policy-editor.png)
 
           #### Rego
 
