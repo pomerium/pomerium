@@ -210,7 +210,19 @@ module.exports = {
               ],
             },
             "prometheus",
-            "reference",
+            {
+              title: "Reference",
+              type: "group",
+              collapsable: false,
+              path: "/enterprise/reference/configure",
+              sidebarDepth: 2,
+              children: [
+                "/enterprise/reference/configuration-settings",
+                "/enterprise/reference/configure",
+                "/enterprise/reference/manage",
+                "/enterprise/reference/reports",
+              ]
+            }
           ],
         },
       ],
