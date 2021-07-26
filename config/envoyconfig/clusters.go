@@ -40,15 +40,15 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		return nil, err
 	}
 
-	controlGRPC, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-control-plane-grpc", []*url.URL{grpcURL}, true)
+	controlGRPC, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-control-plane-grpc", []*url.URL{grpcURL}, upstreamProtocolHTTP2)
 	if err != nil {
 		return nil, err
 	}
-	controlHTTP, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-control-plane-http", []*url.URL{httpURL}, false)
+	controlHTTP, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-control-plane-http", []*url.URL{httpURL}, upstreamProtocolAuto)
 	if err != nil {
 		return nil, err
 	}
-	authZ, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-authorize", authzURLs, true)
+	authZ, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-authorize", authzURLs, upstreamProtocolHTTP2)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (b *Builder) buildInternalCluster(
 	options *config.Options,
 	name string,
 	dsts []*url.URL,
-	forceHTTP2 bool,
+	upstreamProtocol upstreamProtocolConfig,
 ) (*envoy_config_cluster_v3.Cluster, error) {
 	cluster := newDefaultEnvoyClusterConfig()
 	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
@@ -111,7 +111,7 @@ func (b *Builder) buildInternalCluster(
 		}
 		endpoints = append(endpoints, NewEndpoint(dst, ts, 1))
 	}
-	if err := b.buildCluster(cluster, name, endpoints, forceHTTP2); err != nil {
+	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol); err != nil {
 		return nil, err
 	}
 
@@ -124,8 +124,14 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, options *config.Option
 
 	cluster.AltStatName = getClusterStatsName(policy)
 
+	upstreamProtocol := upstreamProtocolAuto
+	if policy.AllowWebsockets {
+		// #2388, force http/1 when using web sockets
+		upstreamProtocol = upstreamProtocolHTTP1
+	}
+
 	name := getClusterID(policy)
-	endpoints, err := b.buildPolicyEndpoints(ctx, options, policy)
+	endpoints, err := b.buildPolicyEndpoints(ctx, options, policy, upstreamProtocol)
 	if err != nil {
 		return nil, err
 	}
@@ -138,17 +144,22 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, options *config.Option
 		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 	}
 
-	if err := b.buildCluster(cluster, name, endpoints, false); err != nil {
+	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol); err != nil {
 		return nil, err
 	}
 
 	return cluster, nil
 }
 
-func (b *Builder) buildPolicyEndpoints(ctx context.Context, options *config.Options, policy *config.Policy) ([]Endpoint, error) {
+func (b *Builder) buildPolicyEndpoints(
+	ctx context.Context,
+	options *config.Options,
+	policy *config.Policy,
+	upstreamProtocol upstreamProtocolConfig,
+) ([]Endpoint, error) {
 	var endpoints []Endpoint
 	for _, dst := range policy.To {
-		ts, err := b.buildPolicyTransportSocket(ctx, options, policy, dst.URL)
+		ts, err := b.buildPolicyTransportSocket(ctx, options, policy, dst.URL, upstreamProtocol)
 		if err != nil {
 			return nil, err
 		}
@@ -157,7 +168,11 @@ func (b *Builder) buildPolicyEndpoints(ctx context.Context, options *config.Opti
 	return endpoints, nil
 }
 
-func (b *Builder) buildInternalTransportSocket(ctx context.Context, options *config.Options, endpoint *url.URL) (*envoy_config_core_v3.TransportSocket, error) {
+func (b *Builder) buildInternalTransportSocket(
+	ctx context.Context,
+	options *config.Options,
+	endpoint *url.URL,
+) (*envoy_config_core_v3.TransportSocket, error) {
 	if endpoint.Scheme != "https" {
 		return nil, nil
 	}
@@ -201,6 +216,7 @@ func (b *Builder) buildPolicyTransportSocket(
 	options *config.Options,
 	policy *config.Policy,
 	dst url.URL,
+	upstreamProtocol upstreamProtocolConfig,
 ) (*envoy_config_core_v3.TransportSocket, error) {
 	if dst.Scheme != "https" {
 		return nil, nil
@@ -209,6 +225,16 @@ func (b *Builder) buildPolicyTransportSocket(
 	vc, err := b.buildPolicyValidationContext(ctx, options, policy, dst)
 	if err != nil {
 		return nil, err
+	}
+
+	var alpn []string
+	switch upstreamProtocol {
+	case upstreamProtocolAuto:
+		alpn = []string{"h2", "http/1.1"}
+	case upstreamProtocolHTTP2:
+		alpn = []string{"h2"}
+	default:
+		alpn = []string{"http/1.1"}
 	}
 
 	sni := dst.Hostname()
@@ -241,7 +267,7 @@ func (b *Builder) buildPolicyTransportSocket(
 					"P-521",
 				},
 			},
-			AlpnProtocols: []string{"h2", "http/1.1"},
+			AlpnProtocols: alpn,
 			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 				ValidationContext: vc,
 			},
@@ -307,7 +333,7 @@ func (b *Builder) buildCluster(
 	cluster *envoy_config_cluster_v3.Cluster,
 	name string,
 	endpoints []Endpoint,
-	forceHTTP2 bool,
+	upstreamProtocol upstreamProtocolConfig,
 ) error {
 	if len(endpoints) == 0 {
 		return errNoEndpoints
@@ -339,7 +365,7 @@ func (b *Builder) buildCluster(
 	}
 
 	cluster.TypedExtensionProtocolOptions = map[string]*anypb.Any{
-		"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": marshalAny(buildUpstreamProtocolOptions(endpoints, forceHTTP2)),
+		"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": marshalAny(buildUpstreamProtocolOptions(endpoints, upstreamProtocol)),
 	}
 
 	cluster.ClusterDiscoveryType = getClusterDiscoveryType(lbEndpoints)

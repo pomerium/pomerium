@@ -6,6 +6,14 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
+type upstreamProtocolConfig byte
+
+const (
+	upstreamProtocolAuto upstreamProtocolConfig = iota
+	upstreamProtocolHTTP2
+	upstreamProtocolHTTP1
+)
+
 // recommended defaults: https://www.envoyproxy.io/docs/envoy/latest/configuration/best_practices/edge
 const (
 	connectionBufferLimit            uint32 = 32 * 1024
@@ -21,9 +29,9 @@ var http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{
 	InitialConnectionWindowSize: wrapperspb.UInt32(initialConnectionWindowSizeLimit),
 }
 
-func buildUpstreamProtocolOptions(endpoints []Endpoint, forceHTTP2 bool) *envoy_extensions_upstreams_http_v3.HttpProtocolOptions {
-	// if forcing http/2, use that explicitly
-	if forceHTTP2 {
+func buildUpstreamProtocolOptions(endpoints []Endpoint, upstreamProtocol upstreamProtocolConfig) *envoy_extensions_upstreams_http_v3.HttpProtocolOptions {
+	switch upstreamProtocol {
+	case upstreamProtocolHTTP2:
 		return &envoy_extensions_upstreams_http_v3.HttpProtocolOptions{
 			UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig_{
 				ExplicitHttpConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig{
@@ -33,23 +41,25 @@ func buildUpstreamProtocolOptions(endpoints []Endpoint, forceHTTP2 bool) *envoy_
 				},
 			},
 		}
-	}
-
-	// when using TLS use ALPN auto config
-	tlsCount := 0
-	for _, e := range endpoints {
-		if e.transportSocket != nil {
-			tlsCount++
+	case upstreamProtocolAuto:
+		// when using TLS use ALPN auto config
+		tlsCount := 0
+		for _, e := range endpoints {
+			if e.transportSocket != nil {
+				tlsCount++
+			}
 		}
-	}
-	if tlsCount > 0 && tlsCount == len(endpoints) {
-		return &envoy_extensions_upstreams_http_v3.HttpProtocolOptions{
-			UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoConfig{
-				AutoConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoHttpConfig{
-					Http2ProtocolOptions: http2ProtocolOptions,
+		if tlsCount > 0 && tlsCount == len(endpoints) {
+			return &envoy_extensions_upstreams_http_v3.HttpProtocolOptions{
+				UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoConfig{
+					AutoConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoHttpConfig{
+						Http2ProtocolOptions: http2ProtocolOptions,
+					},
 				},
-			},
+			}
 		}
+		fallthrough
+	default:
 	}
 
 	// otherwise only use http/1.1
