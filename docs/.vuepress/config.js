@@ -210,7 +210,7 @@ module.exports = {
               ],
             },
             "prometheus",
-            "concepts",
+            "reference",
           ],
         },
       ],
