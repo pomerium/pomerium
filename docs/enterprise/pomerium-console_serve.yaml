@@ -1,0 +1,82 @@
+name: pomerium-console serve
+usage: pomerium-console serve [flags]
+options:
+- name: administrators
+  usage: |
+    a list of user ids, names or emails to make administrators, useful for bootstrapping
+- name: bind-addr
+  default_value: :8701
+  usage: the address to listen on
+- name: customer-id
+  usage: the customer id
+- name: database-encryption-key
+  usage: |
+    base64-encoded encryption key for encrypting sensitive data in the database
+- name: database-url
+  default_value: |
+    postgresql://pomerium:pomerium@localhost:5432/dashboard?sslmode=disable
+  usage: the database to connect to
+- name: databroker-service-url
+  default_value: http://localhost:5443
+  usage: the databroker service url
+- name: disable-validation
+  default_value: "false"
+  usage: disable config validation
+- name: enable-remote-diagnostics
+  default_value: "false"
+  usage: enable remote diagnostics
+- name: grpc-addr
+  default_value: :8702
+  usage: the address to listen for gRPC on
+- name: help
+  shorthand: h
+  default_value: "false"
+  usage: help for serve
+- name: license
+  usage: license JWT
+- name: override-certificate-name
+  usage: |
+    override the certificate name used for the databroker connection
+- name: prometheus-data-dir
+  usage: path to prometheus data
+- name: prometheus-listen-addr
+  default_value: 127.0.0.1:9090
+  usage: embedded prometheus listen address as host:port
+- name: prometheus-scrape-interval
+  default_value: 10s
+  usage: prometheus scrape frequency
+- name: prometheus-url
+  usage: url to access prometheus metrics server
+- name: shared-secret
+  usage: base64-encoded shared secret for signing JWTs
+- name: signing-key
+  usage: |
+    base64-encoded signing key (public or private) for verifying JWTs
+- name: tls-ca
+  usage: base64-encoded string of tls-ca
+- name: tls-ca-file
+  usage: file storing tls-ca
+- name: tls-cert
+  usage: base64-encoded string of tls-cert
+- name: tls-cert-file
+  usage: file storing tls-cert
+- name: tls-insecure-skip-verify
+  default_value: "false"
+  usage: |
+    disable remote hosts TLS certificate chain and hostname check
+- name: tls-key
+  usage: base64-encoded string of tls-key
+- name: tls-key-file
+  usage: file storing tls-key
+- name: use-static-assets
+  default_value: "true"
+  usage: when false, forward static requests to localhost:3000
+inherited_options:
+- name: config
+  usage: Set configuration file path
+- name: version
+  default_value: "false"
+  usage: view the version information
+see_also:
+- 'pomerium-console - '
+- migrate - migrate the dashboard database up or down
