@@ -28,8 +28,8 @@ func (usersCriterion) DataType() generator.CriterionDataType {
 	return CriterionDataTypeStringMatcher
 }
 
-func (usersCriterion) Names() []string {
-	return []string{"user", "users"}
+func (usersCriterion) Name() string {
+	return "user"
 }
 
 func (c usersCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {

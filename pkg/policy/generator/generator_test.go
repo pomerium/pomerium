@@ -13,7 +13,7 @@ import (
 
 func Test(t *testing.T) {
 	g := New(WithCriterion(func(g *Generator) Criterion {
-		return NewCriterionFunc(CriterionDataTypeUnused, []string{"accept"}, func(subPath string, data parser.Value) (rule *ast.Rule, additionalRules []*ast.Rule, err error) {
+		return NewCriterionFunc(CriterionDataTypeUnused, "accept", func(subPath string, data parser.Value) (rule *ast.Rule, additionalRules []*ast.Rule, err error) {
 			rule = g.NewRule("accept")
 			rule.Body = append(rule.Body, ast.MustParseExpr("1 == 1"))
 			return rule, nil, nil

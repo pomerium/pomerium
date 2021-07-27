@@ -40,8 +40,8 @@ func (claimsCriterion) DataType() CriterionDataType {
 	return generator.CriterionDataTypeUnknown
 }
 
-func (claimsCriterion) Names() []string {
-	return []string{"claim", "claims"}
+func (claimsCriterion) Name() string {
+	return "claim"
 }
 
 func (c claimsCriterion) GenerateRule(subPath string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {

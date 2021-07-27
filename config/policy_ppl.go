@@ -50,7 +50,7 @@ func (p *Policy) ToPPL() *parser.Policy {
 	for _, ag := range p.AllAllowedGroups() {
 		allowRule.Or = append(allowRule.Or,
 			parser.Criterion{
-				Name: "group",
+				Name: "groups",
 				Data: parser.Object{
 					"has": parser.String(ag),
 				},
@@ -68,7 +68,7 @@ func (p *Policy) ToPPL() *parser.Policy {
 				data, _ := parser.ParseValue(bytes.NewReader(bs))
 				allowRule.Or = append(allowRule.Or,
 					parser.Criterion{
-						Name:    "claims",
+						Name:    "claim",
 						SubPath: k,
 						Data:    data,
 					})

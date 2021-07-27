@@ -22,8 +22,8 @@ func (authenticatedUserCriterion) DataType() CriterionDataType {
 	return generator.CriterionDataTypeUnused
 }
 
-func (authenticatedUserCriterion) Names() []string {
-	return []string{"authenticated_user"}
+func (authenticatedUserCriterion) Name() string {
+	return "authenticated_user"
 }
 
 func (c authenticatedUserCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
