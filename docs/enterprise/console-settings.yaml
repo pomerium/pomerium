@@ -1,53 +1,4 @@
-preamble: |
-  ---
-  title: Reference
-  lang: en-US
-  sidebarDepth: 2
-  meta:
-    - name: keywords
-      content: configuration options settings Pomerium enterprise console
-  ---
-
-  # Pomerium Enterprise Console Settings
-
-  The Pomerium Enterprise Console is initially configured using a configuration file ([YAML]/[JSON]/[TOML]) or environment variables. In general, environmental variable keys are identical to config file keys but are uppercase.
-  
-   If you are coming from a Kubernetes or docker background this should feel familiar. If not, check out the following primers.
-
-  - [Store config in the environment](https://12factor.net/config)
-  - [Kubernetes: Environment variables](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)
-  - [Kubernetes: Config Maps](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/)
-  - [Docker: Environment variables](https://docs.docker.com/compose/environment-variables/)
-
-  Using both [environmental variables] and config file keys is allowed and encouraged (for instance, secret keys are probably best set as environmental variables). However, if duplicate configuration keys are found, environment variables take precedence.
-
-  Additional configuration and the setting of routes and policies is performed through the web user interface (**UI**).
-
-postamble: |
-  [base64 encoded]: https://en.wikipedia.org/wiki/Base64
-  [elliptic curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters
-  [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
-  [identity provider]: ../docs/identity-providers/
-  [json]: https://en.wikipedia.org/wiki/JSON
-  [letsencrypt]: https://letsencrypt.org/
-  [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
-  [okta]: ../docs/identity-providers/okta.md
-  [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
-  [signed headers]: ../docs/topics/getting-users-identity.md
-  [toml]: https://en.wikipedia.org/wiki/TOML
-  [yaml]: https://en.wikipedia.org/wiki/YAML
-
 settings:
-  - name: "Configuration Settings"
-    doc: |
-      These configuration values are set in the `config.yaml` file for Pomerium Enterprise Console, or as environment variables. Once the console is accessible, configuration is adjusted through the web UI.
-    settings:
-      - keys: ["name"]
-        shortdoc: All Routes, Policies, Certificates and Namespaces require a Name. This is a human-readable value used in the Enterprise Console interface.
-      - name: "User Impersonation"
-        keys: ["user impersonation"]
-        doc: |
-          @travis fill me with delicious data!
   - name: "Reports"
     settings:
       - name: "Traffic"
@@ -115,6 +66,10 @@ settings:
       - name: "Certificates"
   - name: "Configure"
     settings:
+      - name: "User Impersonation"
+        keys: ["user impersonation"]
+        doc: |
+          @travis fill me with delicious data!
       - name: "Settings"
         settings:
           - name: "Global"

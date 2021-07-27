@@ -11,7 +11,7 @@
     "docs:dev": "vuepress dev docs",
     "docs:build": "vuepress build docs",
     "docs:check-md": "vuepress check-md",
-    "buildref": "node scripts/generate-console-pages.js"
+    "console:buildref": "node scripts/generate-console-pages.js"
   },
   "dependencies": {
     "esm": "3.2.25"
