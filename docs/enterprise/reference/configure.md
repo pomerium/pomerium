@@ -9,6 +9,10 @@ meta:
 
 # Configure
 
+## User Impersonation
+
+@travis fill me with delicious data!
+
 ## Settings
 
 ### Global

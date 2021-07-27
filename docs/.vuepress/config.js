@@ -217,6 +217,7 @@ module.exports = {
               path: "/enterprise/reference/configure",
               sidebarDepth: 2,
               children: [
+                "/enterprise/reference/config.md",
                 "/enterprise/reference/configuration-settings",
                 "/enterprise/reference/configure",
                 "/enterprise/reference/manage",
