@@ -37,14 +37,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	t.Run("insecure", func(t *testing.T) {
 		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://example.com"),
-		}, *mustParseURL(t, "http://example.com"))
+		}, *mustParseURL(t, "http://example.com"), upstreamProtocolAuto)
 		require.NoError(t, err)
 		assert.Nil(t, ts)
 	})
 	t.Run("host as sni", func(t *testing.T) {
 		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "https://example.com"),
-		}, *mustParseURL(t, "https://example.com"))
+		}, *mustParseURL(t, "https://example.com"), upstreamProtocolAuto)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -95,7 +95,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To:            mustParseWeightedURLs(t, "https://example.com"),
 			TLSServerName: "use-this-name.example.com",
-		}, *mustParseURL(t, "https://example.com"))
+		}, *mustParseURL(t, "https://example.com"), upstreamProtocolAuto)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -146,7 +146,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To:            mustParseWeightedURLs(t, "https://example.com"),
 			TLSSkipVerify: true,
-		}, *mustParseURL(t, "https://example.com"))
+		}, *mustParseURL(t, "https://example.com"), upstreamProtocolAuto)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -198,7 +198,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To:          mustParseWeightedURLs(t, "https://example.com"),
 			TLSCustomCA: base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0}),
-		}, *mustParseURL(t, "https://example.com"))
+		}, *mustParseURL(t, "https://example.com"), upstreamProtocolAuto)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -248,7 +248,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	t.Run("options custom ca", func(t *testing.T) {
 		ts, err := b.buildPolicyTransportSocket(ctx, o2, &config.Policy{
 			To: mustParseWeightedURLs(t, "https://example.com"),
-		}, *mustParseURL(t, "https://example.com"))
+		}, *mustParseURL(t, "https://example.com"), upstreamProtocolAuto)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -300,7 +300,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
 			To:                mustParseWeightedURLs(t, "https://example.com"),
 			ClientCertificate: clientCert,
-		}, *mustParseURL(t, "https://example.com"))
+		}, *mustParseURL(t, "https://example.com"), upstreamProtocolAuto)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -366,11 +366,11 @@ func Test_buildCluster(t *testing.T) {
 	t.Run("insecure", func(t *testing.T) {
 		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://example.com", "http://1.2.3.4"),
-		})
+		}, upstreamProtocolAuto)
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
 		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
-		err = b.buildCluster(cluster, "example", endpoints, true)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -428,10 +428,10 @@ func Test_buildCluster(t *testing.T) {
 				"https://example.com",
 				"https://example.com",
 			),
-		})
+		}, upstreamProtocolAuto)
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, true)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -589,10 +589,10 @@ func Test_buildCluster(t *testing.T) {
 	t.Run("ip addresses", func(t *testing.T) {
 		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://127.0.0.1", "http://127.0.0.2"),
-		})
+		}, upstreamProtocolAuto)
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, true)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -646,10 +646,10 @@ func Test_buildCluster(t *testing.T) {
 	t.Run("weights", func(t *testing.T) {
 		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://127.0.0.1:8080,1", "http://127.0.0.2,2"),
-		})
+		}, upstreamProtocolAuto)
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, true)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -705,10 +705,10 @@ func Test_buildCluster(t *testing.T) {
 	t.Run("localhost", func(t *testing.T) {
 		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://localhost"),
-		})
+		}, upstreamProtocolAuto)
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, true)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -752,7 +752,7 @@ func Test_buildCluster(t *testing.T) {
 	t.Run("outlier", func(t *testing.T) {
 		endpoints, err := b.buildPolicyEndpoints(ctx, o1, &config.Policy{
 			To: mustParseWeightedURLs(t, "http://example.com"),
-		})
+		}, upstreamProtocolAuto)
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
 		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
@@ -760,7 +760,7 @@ func Test_buildCluster(t *testing.T) {
 			EnforcingConsecutive_5Xx:       wrapperspb.UInt32(17),
 			SplitExternalLocalOriginErrors: true,
 		}
-		err = b.buildCluster(cluster, "example", endpoints, true)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
