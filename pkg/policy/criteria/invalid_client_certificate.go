@@ -21,8 +21,8 @@ func (invalidClientCertificateCriterion) DataType() CriterionDataType {
 	return generator.CriterionDataTypeUnused
 }
 
-func (invalidClientCertificateCriterion) Names() []string {
-	return []string{"invalid_client_certificate"}
+func (invalidClientCertificateCriterion) Name() string {
+	return "invalid_client_certificate"
 }
 
 func (c invalidClientCertificateCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {

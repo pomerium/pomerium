@@ -21,8 +21,8 @@ func (corsPreflightCriterion) DataType() CriterionDataType {
 	return generator.CriterionDataTypeUnused
 }
 
-func (corsPreflightCriterion) Names() []string {
-	return []string{"cors_preflight"}
+func (corsPreflightCriterion) Name() string {
+	return "cors_preflight"
 }
 
 func (c corsPreflightCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {

@@ -21,8 +21,8 @@ func (pomeriumRoutesCriterion) DataType() generator.CriterionDataType {
 	return generator.CriterionDataTypeUnused
 }
 
-func (pomeriumRoutesCriterion) Names() []string {
-	return []string{"pomerium_routes"}
+func (pomeriumRoutesCriterion) Name() string {
+	return "pomerium_routes"
 }
 
 func (c pomeriumRoutesCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {

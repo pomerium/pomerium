@@ -23,9 +23,7 @@ type Option func(*Generator)
 func WithCriterion(criterionConstructor CriterionConstructor) Option {
 	return func(g *Generator) {
 		c := criterionConstructor(g)
-		for _, name := range c.Names() {
-			g.criteria[name] = c
-		}
+		g.criteria[c.Name()] = c
 	}
 }
 

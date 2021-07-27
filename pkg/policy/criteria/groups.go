@@ -47,8 +47,8 @@ func (groupsCriterion) DataType() generator.CriterionDataType {
 	return CriterionDataTypeStringListMatcher
 }
 
-func (groupsCriterion) Names() []string {
-	return []string{"group", "groups"}
+func (groupsCriterion) Name() string {
+	return "groups"
 }
 
 func (c groupsCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {

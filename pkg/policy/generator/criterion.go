@@ -9,7 +9,7 @@ import (
 // A Criterion generates rego rules based on data.
 type Criterion interface {
 	DataType() CriterionDataType
-	Names() []string
+	Name() string
 	GenerateRule(subPath string, data parser.Value) (rule *ast.Rule, additionalRules []*ast.Rule, err error)
 }
 
@@ -19,7 +19,7 @@ type CriterionConstructor func(*Generator) Criterion
 // A criterionFunc is a criterion implemented as a function and a list of names.
 type criterionFunc struct {
 	dataType     CriterionDataType
-	names        []string
+	name         string
 	generateRule func(subPath string, data parser.Value) (rule *ast.Rule, additionalRules []*ast.Rule, err error)
 }
 
@@ -28,9 +28,9 @@ func (c criterionFunc) DataType() CriterionDataType {
 	return c.dataType
 }
 
-// Names returns the names of the criterion.
-func (c criterionFunc) Names() []string {
-	return c.names
+// Name returns the name of the criterion.
+func (c criterionFunc) Name() string {
+	return c.name
 }
 
 // GenerateRule calls the underlying generateRule function.
@@ -41,11 +41,12 @@ func (c criterionFunc) GenerateRule(subPath string, data parser.Value) (rule *as
 // NewCriterionFunc creates a new Criterion from a function.
 func NewCriterionFunc(
 	dataType CriterionDataType,
-	names []string,
+	name string,
 	f func(subPath string, data parser.Value) (rule *ast.Rule, additionalRules []*ast.Rule, err error),
 ) Criterion {
 	return criterionFunc{
-		names:        names,
+		dataType:     dataType,
+		name:         name,
 		generateRule: f,
 	}
 }

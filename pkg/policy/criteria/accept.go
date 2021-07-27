@@ -19,8 +19,8 @@ func (acceptCriterion) DataType() CriterionDataType {
 	return generator.CriterionDataTypeUnused
 }
 
-func (acceptCriterion) Names() []string {
-	return []string{"accept"}
+func (acceptCriterion) Name() string {
+	return "accept"
 }
 
 func (c acceptCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {

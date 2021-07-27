@@ -19,8 +19,8 @@ func (rejectMatcher) DataType() CriterionDataType {
 	return generator.CriterionDataTypeUnused
 }
 
-func (rejectMatcher) Names() []string {
-	return []string{"reject"}
+func (rejectMatcher) Name() string {
+	return "reject"
 }
 
 func (m rejectMatcher) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {

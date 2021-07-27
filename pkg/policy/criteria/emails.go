@@ -28,8 +28,8 @@ func (emailsCriterion) DataType() generator.CriterionDataType {
 	return CriterionDataTypeStringMatcher
 }
 
-func (emailsCriterion) Names() []string {
-	return []string{"email", "emails"}
+func (emailsCriterion) Name() string {
+	return "email"
 }
 
 func (c emailsCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {

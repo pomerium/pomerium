@@ -27,8 +27,8 @@ func (domainsCriterion) DataType() CriterionDataType {
 	return CriterionDataTypeStringMatcher
 }
 
-func (domainsCriterion) Names() []string {
-	return []string{"domain", "domains"}
+func (domainsCriterion) Name() string {
+	return "domain"
 }
 
 func (c domainsCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {
