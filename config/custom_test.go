@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
+
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
 func TestJWTClaimHeaders_UnmarshalJSON(t *testing.T) {
@@ -189,4 +191,40 @@ func TestWeightedStringSlice(t *testing.T) {
 		assert.Equal(t, tc.Out, out, name)
 		assert.Equal(t, tc.Weights, weights, name)
 	}
+}
+
+func TestDecodePPLPolicyHookFunc(t *testing.T) {
+	var withPolicy struct {
+		Policy *PPLPolicy `mapstructure:"policy"`
+	}
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook: decodePPLPolicyHookFunc(),
+		Result:     &withPolicy,
+	})
+	require.NoError(t, err)
+
+	err = decoder.Decode(map[string]interface{}{
+		"policy": map[string]interface{}{
+			"allow": map[string]interface{}{
+				"or": []map[string]interface{}{
+					{"email": map[string]interface{}{
+						"is": "user1@example.com",
+					}},
+				},
+			},
+		},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, &PPLPolicy{
+		Policy: &parser.Policy{
+			Rules: []parser.Rule{{
+				Action: parser.ActionAllow,
+				Or: []parser.Criterion{{
+					Name: "email", Data: parser.Object{
+						"is": parser.String("user1@example.com"),
+					},
+				}},
+			}},
+		},
+	}, withPolicy.Policy)
 }

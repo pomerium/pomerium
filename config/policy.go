@@ -161,6 +161,8 @@ type Policy struct {
 
 	// SetResponseHeaders sets response headers.
 	SetResponseHeaders map[string]string `mapstructure:"set_response_headers" yaml:"set_response_headers,omitempty"`
+
+	Policy *PPLPolicy `mapstructure:"policy" yaml:"policy,omitempty" json:"policy,omitempty"`
 }
 
 // RewriteHeader is a policy configuration option to rewrite an HTTP header.

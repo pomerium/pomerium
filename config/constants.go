@@ -36,4 +36,5 @@ var ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 	DecodePolicyBase64Hook(),
 	decodeJWTClaimHeadersHookFunc(),
 	decodeCodecTypeHookFunc(),
+	decodePPLPolicyHookFunc(),
 ))
