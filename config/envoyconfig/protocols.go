@@ -32,6 +32,7 @@ var http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{
 func buildUpstreamProtocolOptions(endpoints []Endpoint, upstreamProtocol upstreamProtocolConfig) *envoy_extensions_upstreams_http_v3.HttpProtocolOptions {
 	switch upstreamProtocol {
 	case upstreamProtocolHTTP2:
+		// when explicitly configured, force HTTP/2
 		return &envoy_extensions_upstreams_http_v3.HttpProtocolOptions{
 			UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig_{
 				ExplicitHttpConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig{
@@ -58,8 +59,6 @@ func buildUpstreamProtocolOptions(endpoints []Endpoint, upstreamProtocol upstrea
 				},
 			}
 		}
-		fallthrough
-	default:
 	}
 
 	// otherwise only use http/1.1
