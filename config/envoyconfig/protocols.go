@@ -1,9 +1,14 @@
 package envoyconfig
 
 import (
+	"context"
+
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_extensions_upstreams_http_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 type upstreamProtocolConfig byte
@@ -82,4 +87,14 @@ func buildUpstreamALPN(upstreamProtocol upstreamProtocolConfig) []string {
 	default:
 		return []string{"http/1.1"}
 	}
+}
+
+func getUpstreamProtocolForPolicy(ctx context.Context, policy *config.Policy) upstreamProtocolConfig {
+	upstreamProtocol := upstreamProtocolAuto
+	if policy.AllowWebsockets {
+		// #2388, force http/1 when using web sockets
+		log.Info(ctx).Msg("envoyconfig: forcing http/1.1 due to web socket support")
+		upstreamProtocol = upstreamProtocolHTTP1
+	}
+	return upstreamProtocol
 }

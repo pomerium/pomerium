@@ -123,15 +123,10 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, options *config.Option
 	proto.Merge(cluster, policy.EnvoyOpts)
 
 	cluster.AltStatName = getClusterStatsName(policy)
-
-	upstreamProtocol := upstreamProtocolAuto
-	if policy.AllowWebsockets {
-		// #2388, force http/1 when using web sockets
-		upstreamProtocol = upstreamProtocolHTTP1
-	}
+	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
 
 	name := getClusterID(policy)
-	endpoints, err := b.buildPolicyEndpoints(ctx, options, policy, upstreamProtocol)
+	endpoints, err := b.buildPolicyEndpoints(ctx, options, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -155,11 +150,10 @@ func (b *Builder) buildPolicyEndpoints(
 	ctx context.Context,
 	options *config.Options,
 	policy *config.Policy,
-	upstreamProtocol upstreamProtocolConfig,
 ) ([]Endpoint, error) {
 	var endpoints []Endpoint
 	for _, dst := range policy.To {
-		ts, err := b.buildPolicyTransportSocket(ctx, options, policy, dst.URL, upstreamProtocol)
+		ts, err := b.buildPolicyTransportSocket(ctx, options, policy, dst.URL)
 		if err != nil {
 			return nil, err
 		}
@@ -216,11 +210,12 @@ func (b *Builder) buildPolicyTransportSocket(
 	options *config.Options,
 	policy *config.Policy,
 	dst url.URL,
-	upstreamProtocol upstreamProtocolConfig,
 ) (*envoy_config_core_v3.TransportSocket, error) {
 	if dst.Scheme != "https" {
 		return nil, nil
 	}
+
+	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
 
 	vc, err := b.buildPolicyValidationContext(ctx, options, policy, dst)
 	if err != nil {
