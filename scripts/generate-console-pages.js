@@ -1,5 +1,8 @@
 // generate-console-pages.js
 
+const fs = require('fs');
+const yaml = require('js-yaml');
+
 /**
  * This helper script, run by the technical writers, (re)generates markdown
  * documents for the Enterprise reference section. It assumes the existence
@@ -8,11 +11,22 @@
  * running `pomerium-console gendocs.
  */
 
-const fs = require('fs');
-const yaml = require('js-yaml');
-
 
 // Functions
+
+/**
+ * 
+ * Import content from /docs/reference/settings.yaml when needed.
+ */
+const fromOSSettings = (dupe) => { //Where dupe is the name provided to the function in writeSubsection()
+        //console.log(`dupe: ${dupe}`) // For Debugging
+    const asArray = Object.entries(OSSettings)
+        //console.log(asArray) // For Debugging
+    return asArray.filter(x => x.name === dupe).doc
+    //console.log(JSON.stringify(recursiveSearch([OSSettings], `${dupe}`)))  // One of several helper functions I tried and scrapped.
+    //return console.log(asArray)
+}
+
 
 /**
  *  Import console environment/config options from `pomerium-console_serve.yaml`
@@ -52,7 +66,8 @@ The keys listed below can be applied in Pomerium Console's \`config.yaml\` file,
 
 
 /**
- * Read `console-settings.yaml` and write markdown pages under `docs/enterprise/reference`.
+ * Read `console-settings.yaml` and write
+ * markdown pages under `docs/enterprise/reference`.
 */
 const writePage = (setting) => {
     let path = './docs/enterprise/reference/' + setting.name.replace(/\s/g, '-').toLowerCase() + ".md"
@@ -80,14 +95,19 @@ meta:
 }
 
 /**
- * Called by writePage, this function handles nested settings objects.
+ * Called by writePage, this function
+ * handles nested settings objects.
  */
 const writeSubsection = (subsection, depth) => {
+    let subContent = ''
     if (!subsection.name) {
         return
     }
+    if (subsection.dupe) {
+        subContent = fromOSSettings(subsection.name)
+    }
     let header = '#'.repeat(depth) + ' ' + subsection.name + '\n' + '\n'
-    let subContent = subsection.doc ? subsection.doc.toString() + '\n' : ''
+    subContent = subContent + (subsection.doc ? subsection.doc.toString() + '\n\n' : '')
     subsection.attributes ? subContent = subContent + subsection.attributes.toString() : null
     subsection.settings ? subContent = subContent + subsection.settings.map(turtles => writeSubsection(turtles, depth + 1)).join('') : ''
     return header + subContent
@@ -99,6 +119,8 @@ console.log("Reading console-settings.yaml")
 
 let docs = yaml.load(fs.readFileSync('./docs/enterprise/console-settings.yaml', 'utf8'))
 let keysFile = yaml.load(fs.readFileSync('./docs/enterprise/pomerium-console_serve.yaml', 'utf8'))
+let OSSettings = yaml.load(fs.readFileSync('./docs/reference/settings.yaml', 'utf8'))
+    //console.log(`OSSettings: ${JSON.stringify(OSSettings)}`) // For Debugging
 
 writeConfigPage(keysFile)
 
