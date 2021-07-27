@@ -227,16 +227,6 @@ func (b *Builder) buildPolicyTransportSocket(
 		return nil, err
 	}
 
-	var alpn []string
-	switch upstreamProtocol {
-	case upstreamProtocolAuto:
-		alpn = []string{"h2", "http/1.1"}
-	case upstreamProtocolHTTP2:
-		alpn = []string{"h2"}
-	default:
-		alpn = []string{"http/1.1"}
-	}
-
 	sni := dst.Hostname()
 	if policy.TLSServerName != "" {
 		sni = policy.TLSServerName
@@ -267,7 +257,7 @@ func (b *Builder) buildPolicyTransportSocket(
 					"P-521",
 				},
 			},
-			AlpnProtocols: alpn,
+			AlpnProtocols: buildUpstreamALPN(upstreamProtocol),
 			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 				ValidationContext: vc,
 			},

@@ -73,3 +73,14 @@ func buildUpstreamProtocolOptions(endpoints []Endpoint, upstreamProtocol upstrea
 		},
 	}
 }
+
+func buildUpstreamALPN(upstreamProtocol upstreamProtocolConfig) []string {
+	switch upstreamProtocol {
+	case upstreamProtocolAuto:
+		return []string{"h2", "http/1.1"}
+	case upstreamProtocolHTTP2:
+		return []string{"h2"}
+	default:
+		return []string{"http/1.1"}
+	}
+}
