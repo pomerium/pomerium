@@ -114,6 +114,7 @@ type Options struct {
 	// Policies define per-route configuration and access control policies.
 	Policies   []Policy `mapstructure:"policy"`
 	PolicyFile string   `mapstructure:"policy_file" yaml:"policy_file,omitempty"`
+	Routes     []Policy `mapstructure:"routes"`
 
 	// AdditionalPolicies are any additional policies added to the options.
 	AdditionalPolicies []Policy `yaml:"-"`
@@ -428,9 +429,24 @@ func (o *Options) parsePolicy() error {
 	if len(policies) != 0 {
 		o.Policies = policies
 	}
+
+	var routes []Policy
+	if err := o.viper.UnmarshalKey("routes", &routes, ViperPolicyHooks); err != nil {
+		return err
+	}
+	if len(routes) != 0 {
+		o.Routes = routes
+	}
+
 	// Finish initializing policies
 	for i := range o.Policies {
 		p := &o.Policies[i]
+		if err := p.Validate(); err != nil {
+			return err
+		}
+	}
+	for i := range o.Routes {
+		p := &o.Routes[i]
 		if err := p.Validate(); err != nil {
 			return err
 		}
@@ -861,8 +877,9 @@ func (o *Options) GetAllPolicies() []Policy {
 	if o == nil {
 		return nil
 	}
-	policies := make([]Policy, 0, len(o.Policies)+len(o.AdditionalPolicies))
+	policies := make([]Policy, 0, len(o.Policies)+len(o.Routes)+len(o.AdditionalPolicies))
 	policies = append(policies, o.Policies...)
+	policies = append(policies, o.Routes...)
 	policies = append(policies, o.AdditionalPolicies...)
 	return policies
 }

@@ -17,6 +17,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
 
+	"github.com/pomerium/pomerium/pkg/policy/parser"
+
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
@@ -311,6 +313,53 @@ func (urls WeightedURLs) Flatten() ([]string, []uint32, error) {
 		return str, nil, nil
 	}
 	return str, wghts, nil
+}
+
+// PPLPolicy is a policy defined using PPL.
+type PPLPolicy struct {
+	*parser.Policy
+}
+
+// UnmarshalJSON parses JSON into a PPL policy.
+func (ppl *PPLPolicy) UnmarshalJSON(data []byte) error {
+	var err error
+	ppl.Policy, err = parser.ParseJSON(bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// UnmarshalYAML parses YAML into a PPL policy.
+func (ppl *PPLPolicy) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var i interface{}
+	err := unmarshal(&i)
+	if err != nil {
+		return err
+	}
+	bs, err := json.Marshal(i)
+	if err != nil {
+		return err
+	}
+	return ppl.UnmarshalJSON(bs)
+}
+
+func decodePPLPolicyHookFunc() mapstructure.DecodeHookFunc {
+	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+		if t != reflect.TypeOf(&PPLPolicy{}) {
+			return data, nil
+		}
+		bs, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+		var ppl PPLPolicy
+		err = json.Unmarshal(bs, &ppl)
+		if err != nil {
+			return nil, err
+		}
+		return &ppl, nil
+	}
 }
 
 // DecodePolicyBase64Hook returns a mapstructure decode hook for base64 data.

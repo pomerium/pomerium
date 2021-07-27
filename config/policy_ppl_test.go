@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/pkg/policy"
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
 func TestPolicy_ToPPL(t *testing.T) {
@@ -36,6 +37,19 @@ func TestPolicy_ToPPL(t *testing.T) {
 				AllowedIDPClaims: map[string][]interface{}{
 					"timezone": {"EST"},
 				},
+			},
+		},
+		Policy: &PPLPolicy{
+			Policy: &parser.Policy{
+				Rules: []parser.Rule{{
+					Action: parser.ActionAllow,
+					Or: []parser.Criterion{{
+						Name: "user",
+						Data: parser.Object{
+							"is": parser.String("user6"),
+						},
+					}},
+				}},
 			},
 		},
 	}).ToPPL())
@@ -469,9 +483,26 @@ else = v28 {
 	v28
 }
 
+users_5 {
+	session := get_session(input.session.id)
+	user := get_user(session)
+	user_id := user.id
+	user_id == "user6"
+}
+
+or_1 = v1 {
+	v1 := users_5
+	v1
+}
+
 allow = v1 {
 	v1 := or_0
 	v1
+}
+
+else = v2 {
+	v2 := or_1
+	v2
 }
 
 invalid_client_certificate_0 = reason {
@@ -480,13 +511,13 @@ invalid_client_certificate_0 = reason {
 	not input.is_valid_client_certificate
 }
 
-or_1 = v1 {
+or_2 = v1 {
 	v1 := invalid_client_certificate_0
 	v1
 }
 
 deny = v1 {
-	v1 := or_1
+	v1 := or_2
 	v1
 }
 

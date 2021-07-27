@@ -99,5 +99,10 @@ func (p *Policy) ToPPL() *parser.Policy {
 		})
 	ppl.Rules = append(ppl.Rules, denyRule)
 
+	// append embedded PPL policy rules
+	if p.Policy != nil && p.Policy.Policy != nil {
+		ppl.Rules = append(ppl.Rules, p.Policy.Policy.Rules...)
+	}
+
 	return ppl
 }
