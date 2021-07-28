@@ -18,12 +18,6 @@ A Route provides access to a service through Pomerium.
 
 The **General** tab defines the route path, both from the internet and to the internal service, and the policies attached. Note that policies enforced on a Namespace the Route resides in will also be applied.
 
-Several fields in the New Route View behave the same as their counterpoints in open-source Pomerium. See [Configuation Settings](/reference/) for more information on the following fields:
-  - [From](/reference/#from)
-  - [To](/reference/#to)
-  - [Redirect](/reference/#redirect)
-  - [Pass Identity Headers](/reference/#pass-identity-headers)
-
 
 #### Name
 
@@ -110,6 +104,7 @@ Add or remove Policies to be applied to the Route. Note that Policies enforced i
 
 ### Matchers
 
+
 #### Path
 
 If set, the route will only match incoming requests with a path that is an exact match for the specified path.
@@ -124,11 +119,18 @@ If set, the route will only match incoming requests with a path that matches the
 
 ### Rewrite
 
+
+#### Prefix Rewrite"
+
+
 ### Timeouts
+
 
 ### Headers
 
+
 ### Load Balancer
+
 
 ## Policies
 
@@ -168,4 +170,18 @@ A policy can only support PPL or Rego. Once one is set, the other tab is disable
 
 
 ## Certificates
+
+Certificates are the x509 _public-key_ and _private-key_ used to establish secure HTTP and gRPC connections. Any combination of the above can be used together, and are additive. You can also use any of these settings in conjunction with `Autocert` to get OCSP stapling.
+
+For example, if specifying multiple certificates at once:
+
+```yaml
+certificates:
+  - cert: "$HOME/.acme.sh/authenticate.example.com_ecc/fullchain.cer"
+    key: "$HOME/.acme.sh/authenticate.example.com_ecc/authenticate.example.com.key"
+  - cert: "$HOME/.acme.sh/verify.example.com_ecc/fullchain.cer"
+    key: "$HOME/.acme.sh/verify.example.com_ecc/verify.example.com.key"
+  - cert: "$HOME/.acme.sh/prometheus.example.com_ecc/fullchain.cer"
+    key: "$HOME/.acme.sh/prometheus.example.com_ecc/prometheus.example.com.key"
+```
 
