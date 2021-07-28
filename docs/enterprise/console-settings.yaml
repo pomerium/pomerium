@@ -19,13 +19,9 @@ settings:
               - name: "Name"
                 doc: This value is only visible in the Console UI.
               - name: "From"
-                dupe: true
               - name: "To"
-                dupe: true
               - name: "Redirect"
-                dupe: true
               - name: "Pass Identity Headers"
-                dupe: true
               - name: "Policies"
                 doc: Add or remove Policies to be applied to the Route. Note that Policies enforced in the Route's Namespace will be applied automatically.
               - name: "Enable Google Cloud Serverless Authentication"
@@ -34,15 +30,11 @@ settings:
           - name: "Matchers"
             settings:
               - name: Path
-                dupe: true
               - name: Prefix
-                dupe: true
               - name: Regex
-                dupe: true
           - name: "Rewrite"
             settings:
               - name: Prefix Rewrite"
-                dupe: true
               
           - name: "Timeouts"
           - name: "Headers"

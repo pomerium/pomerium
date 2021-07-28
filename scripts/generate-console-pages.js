@@ -120,7 +120,7 @@ const writeSubsection = (subsection, depth) => {
     if (!subsection.name) {
         return
     }
-    if (subsection.dupe) {
+    if (!subsection.doc) {
         subContent = fromOSSettings(subsection.name) + '\n'
     }
     let header = '#'.repeat(depth) + ' ' + subsection.name + '\n' + '\n'
