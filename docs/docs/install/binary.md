@@ -8,7 +8,7 @@ meta:
 
 # Binaries
 
-The following quick-start guide covers how to configure and run Pomerium using the official prebuilt binaries.
+This document covers how to configure and run Pomerium using the official prebuilt binaries.
 
 ## Prerequisites
 

@@ -8,7 +8,7 @@ meta:
 
 # From Source
 
-The following quick-start guide covers how to retrieve and build Pomerium from its source-code as well as how to run Pomerium using a minimal but complete configuration. One of the benefits of compiling from source is that Go supports building static binaries for a [wide array of architectures and operating systems](https://gist.github.com/asukakenji/f15ba7e588ac42795f421b48b8aede63).
+This document covers how to retrieve and build Pomerium from its source-code as well as how to run Pomerium using a minimal but complete configuration. One of the benefits of compiling from source is that Go supports building static binaries for a [wide array of architectures and operating systems](https://gist.github.com/asukakenji/f15ba7e588ac42795f421b48b8aede63).
 
 ## Prerequisites
 

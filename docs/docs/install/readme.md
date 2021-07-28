@@ -1,6 +1,7 @@
 ---
-title: Docker
+title: Quick-Start
 lang: en-US
+description: Get Pomerium up and running quickly with Docker.
 meta:
   - name: keywords
     content: pomerium identity-access-proxy oidc docker reverse-proxy containers
@@ -8,7 +9,7 @@ meta:
 
 # Pomerium using Docker
 
-In the following quick-start, we'll create a minimal but complete environment for running Pomerium with containers.
+In this quick-start document, we'll create a minimal but complete environment for running Pomerium with containers.
 
 ## Prerequisites
 
