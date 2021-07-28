@@ -34,11 +34,32 @@ settings:
               - name: Regex
           - name: "Rewrite"
             settings:
-              - name: Prefix Rewrite"
-              
+              - name: "Prefix Rewrite"
+              - name: "Regex Rewrite Pattern"
+                keys: ["regex_rewrite_pattern"]
+                doc: |
+                  The pattern to match before rewriting, ex: `^/service/([^/]+)(/.*)$`.
+              - name: "Regex Rewrite Substitution"
+                keys: ["regex_rewrite_substitution"]
+                doc: |
+                  The substitution for your regex pattern, ex: `\\2/instance/\\1`.
           - name: "Timeouts"
+            settings:
+              - name: "Allow Websockets"
+                keys: ["allow_websockets"]
+              - name: "Timeout"
+              - name: "Stream Idle Timeout"
+                keys: ["idle_timeout"]
           - name: "Headers"
+            settings:
+              - name: "Host Headers"
+                keys: ["host_rewrite"]
+              - name: "Set Request Headers"
+              - name: "Remove Request Headers"
+              - name: "Rewrite Response Headers"
           - name: "Load Balancer"
+            settings:
+              - name: "Load Balancing Policy"
       - name: "Policies"
         keys: ["Policy"]
         doc: |

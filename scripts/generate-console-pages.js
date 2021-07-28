@@ -12,23 +12,14 @@ const yaml = require('js-yaml');
  */
 
 
-// return subSections.map(topic => {
-//    //console.log(topic)
-//    if (topic['name'] === dupe && topic['doc']) {
-//        console.log(topic['doc'])
-//        return topic['doc']
-//    }
-//})
-
-//filter((x => x.name === dupe)
-
 // Functions
 
 /**
  * 
  * Import content from /docs/reference/settings.yaml when needed.
  */
-const fromOSSettings = (dupe) => { //Where dupe is the name provided to the function in writeSubsection()
+const fromOSSettings = (name, keys) => {
+    //console.log(keys)
     const asMap = Object.values(OSSettings.settings).map((section) => {
         const subSections = Object.values(section.settings)
         return subSections
@@ -36,9 +27,12 @@ const fromOSSettings = (dupe) => { //Where dupe is the name provided to the func
     let result = ''
     for (let i = 0; i < asMap.length; i++ ) {
         for (j = 0; j < asMap[i].length; j++){
-            if (asMap[i][j].name === dupe) {
+            if (asMap[i][j].name === name) {
                 result = asMap[i][j].doc
             }
+            else if (keys !== null && asMap[i][j].keys && keys.some( key => asMap[i][j].keys.indexOf(key) >= 0)) {
+                result = asMap[i][j].doc
+            } 
         }
     }
     return result
@@ -121,7 +115,9 @@ const writeSubsection = (subsection, depth) => {
         return
     }
     if (!subsection.doc) {
-        subContent = fromOSSettings(subsection.name) + '\n'
+        //console.log(subsection)
+        //console.log(subsection.keys || "no key")
+        subContent = fromOSSettings(subsection.name, subsection.keys || null) + '\n'
     }
     let header = '#'.repeat(depth) + ' ' + subsection.name + '\n' + '\n'
     subContent = subContent + (subsection.doc ? subsection.doc.toString() + '\n\n' : '')
