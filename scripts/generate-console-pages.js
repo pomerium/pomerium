@@ -20,9 +20,20 @@ const yaml = require('js-yaml');
  */
 const fromOSSettings = (dupe) => { //Where dupe is the name provided to the function in writeSubsection()
         //console.log(`dupe: ${dupe}`) // For Debugging
-    const asArray = Object.entries(OSSettings)
-        //console.log(asArray) // For Debugging
-    return asArray.filter(x => x.name === dupe).doc
+        // For each object, pull out each key/value pair
+        // 
+    //const asArray = Object.entries(OSSettings.settings)
+    const asMap = Object.entries(OSSettings.settings).map((key) => {
+        const subSections = Object.entries(key)
+        const subSettings = subSections.map((key, value) => {
+            return(key[1].settings)
+            //console.log(key[1].docs)
+        })
+        console.log(subSettings)
+        return subSettings
+    } )
+    //console.log(asMap)
+    return asMap.filter(x => x.name === dupe).doc
     //console.log(JSON.stringify(recursiveSearch([OSSettings], `${dupe}`)))  // One of several helper functions I tried and scrapped.
     //return console.log(asArray)
 }
