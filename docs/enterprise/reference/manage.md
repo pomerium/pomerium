@@ -120,14 +120,124 @@ If set, the route will only match incoming requests with a path that matches the
 ### Rewrite
 
 
-#### Prefix Rewrite"
+#### Prefix Rewrite
+
+If set, indicates that during forwarding, the matched prefix (or path) should be swapped with this value.
+For example, given this policy:
+
+```yaml
+from: https://from.example.com
+to: https://to.example.com
+prefix: /admin
+prefix_rewrite: /
+```
+
+A request to `https://from.example.com/admin` would be forwarded to `https://to.example.com/`.
+
+#### Regex Rewrite Pattern
+
+The pattern to match before rewriting, ex: `^/service/([^/]+)(/.*)$`.
+
+
+#### Regex Rewrite Substitution
+
+The substitution for your regex pattern, ex: `\\2/instance/\\1`.
 
 
 ### Timeouts
 
 
+#### Allow Websockets
+
+If set, enables proxying of websocket connections.
+
+:::warning
+
+**Use with caution:** websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced (though the policy-specific `timeout` is enforced). Allowing websocket connections to the proxy could result in abuse via [DOS attacks](https://www.cloudflare.com/learning/ddos/ddos-attack-tools/slowloris/).
+
+:::
+
+#### Timeout
+
+
+#### Stream Idle Timeout
+
+If you are proxying long-lived requests that employ streaming calls such as websockets or gRPC,
+set this to either a maximum value there may be no data exchange over a connection (recommended),
+or set it to unlimited (`0s`). If `idle_timeout` is specified, and `timeout` is not
+explicitly set, then `timeout` would be unlimited (`0s`). You still may specify maximum lifetime
+of the connection using `timeout` value (i.e. to 1 day).
+
 ### Headers
 
+
+#### Host Headers
+
+The `host` header can be preserved via the `preserve_host_header` setting or customized via 3 mutually exclusive options:
+
+1. `preserve_host_header` when enabled, this option will pass the host header from the incoming request to the proxied host, instead of the destination hostname. It's an optional parameter of type `bool` that defaults to `false`.
+    See [ProxyPreserveHost](http://httpd.apache.org/docs/2.0/mod/mod_proxy.html#proxypreservehost).
+2. `host_rewrite` which will rewrite the host to a new literal value.
+3. `host_rewrite_header` which will rewrite the host to match an incoming header value.
+4. `host_path_regex_rewrite_pattern`, `host_path_regex_rewrite_substitution` which will rewrite the host according to a regex matching the path. For example with the following config:
+
+    ```yaml
+    host_path_regex_rewrite_pattern: "^/(.+)/.+$"
+    host_path_regex_rewrite_substitution: \1
+    ```
+
+    Would rewrite the host header to `example.com` given the path `/example.com/some/path`.
+
+The 2nd, 3rd and 4th options correspond to the envoy route action host related options, which can be found [here](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto.html#config-route-v3-routeaction).
+
+#### Set Request Headers
+
+Set Request Headers allows you to set static values for given request headers. This can be useful if you want to pass along additional information to downstream applications as headers, or set authentication header to the request. For example:
+
+```yaml
+- from: https://verify.corp.example.com
+  to: https://verify.pomerium.com
+  allowed_users:
+    - bdd@pomerium.io
+  set_request_headers:
+    # works auto-magically!
+    # https://verify.corp.example.com/basic-auth/root/hunter42
+    Authorization: Basic cm9vdDpodW50ZXI0Mg==
+    X-Your-favorite-authenticating-Proxy: "Pomerium"
+```
+
+#### Remove Request Headers
+
+Remove Request Headers allows you to remove given request headers. This can be useful if you want to prevent privacy information from being passed to downstream applications. For example:
+
+```yaml
+- from: https://verify.corp.example.com
+  to: https://verify.pomerium.com
+  allowed_users:
+    - bdd@pomerium.io
+  remove_request_headers:
+    - X-Email
+    - X-Username
+```
+
+#### Rewrite Response Headers
+
+Rewrite Response Headers allows you to modify response headers before they are returned to the client. The `header` field will match the HTTP header name, and `prefix` will be replaced with `value`. For example, if the downstream server returns a header:
+
+```text
+Location: http://localhost:8000/two/some/path/
+```
+
+And the policy has this config:
+
+```yaml
+rewrite_response_headers:
+  - header: Location
+    prefix: http://localhost:8000/two/
+    value: http://frontend/one/
+```
+
+The browser would be redirected to: `http://frontend/one/some/path/`. This is similar to nginx's [`proxy_redirect` option](http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_redirect), but can be used for any header.
 
 ### Load Balancer
 
