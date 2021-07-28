@@ -78,10 +78,59 @@ settings:
           ![A policy being constructed in Pomerium Enterprise console allowing a single user access](../img/example-policy-single-user.png)
 
           ### Pomerium Policy Language
-          
+
           From the **EDITOR** tab users can write policies in Pomerium Policy Language (**PPL**), a YAML-based notation.
 
           ![A policy as viewed from the editor tab](../img/example-policy-editor.png)
+
+          PPL documents contain one or more rules. Each rule has a corresponding action and one or more logical operators.
+          Each logical operator contains criteria and each criterion has a name and corresponding data.
+
+          PPL documents are defined via YAML:
+
+          ```yaml
+          - allow:
+              or:
+                - email:
+                    is: x@example.com
+                - email:
+                    is: y@example.com
+          ```
+
+          The available rule actions are:
+
+          - `allow`
+          - `deny`
+
+          The available logical operators are:
+
+          - `and`
+          - `or`
+          - `not`
+          - `nor`
+
+          The available criteria types are:
+
+          - `accept`
+          - `authenticated_user`
+          - `claim`
+          - `date`
+          - `day_of_week`
+          - `domain`
+          - `email`
+          - `groups`
+          - `reject`
+          - `time_of_day`
+          - `user`
+
+          Some criteria also support a subpath as part of the criterion name:
+
+          ```yaml
+          - allow:
+              or:
+                - claim/family_name:
+                    is: Smith
+          ```
 
           ### Rego
 
@@ -94,7 +143,7 @@ settings:
           ### Overrides
 
           - **Any Authenticated User**: This setting will allow access to a route with this policy attached to any user who can authenticate to your Identity Provider (**IdP**).
-          - **CORS Preflight**: 
+          - **CORS Preflight**:
           - **Public Access**: This setting allows complete, unrestricted access to an associated route. Use this setting with caution.
       - name: "Certificates"
   - name: "Configure"
@@ -120,6 +169,6 @@ settings:
         keys: ["namespace"]
         doc: |
           A Namespace is a collection of users, groups, routes, and policies that allows system administrators to organize, manage, and delegate permissions across their infrastructure.
-          
+
           - Policies can be optional or enforced on a Namespace, and they can be nested to create inheritance.
           - Users or groups can be granted permission to edit access to routes within a Namespace, allowing them self-serve access to the routes critical to their work.
