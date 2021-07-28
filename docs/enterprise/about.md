@@ -20,7 +20,7 @@ The Pomerium Enterprise Console lets you view traffic and logs, define routes an
 
 ### Programmatic API
 
-<!-- @Bobby please add details. -->
+<!-- @Travis please add details. -->
 
 ### Session management
 
