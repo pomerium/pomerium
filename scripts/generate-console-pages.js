@@ -12,6 +12,16 @@ const yaml = require('js-yaml');
  */
 
 
+// return subSections.map(topic => {
+//    //console.log(topic)
+//    if (topic['name'] === dupe && topic['doc']) {
+//        console.log(topic['doc'])
+//        return topic['doc']
+//    }
+//})
+
+//filter((x => x.name === dupe)
+
 // Functions
 
 /**
@@ -19,23 +29,19 @@ const yaml = require('js-yaml');
  * Import content from /docs/reference/settings.yaml when needed.
  */
 const fromOSSettings = (dupe) => { //Where dupe is the name provided to the function in writeSubsection()
-        //console.log(`dupe: ${dupe}`) // For Debugging
-        // For each object, pull out each key/value pair
-        // 
-    //const asArray = Object.entries(OSSettings.settings)
-    const asMap = Object.entries(OSSettings.settings).map((key) => {
-        const subSections = Object.entries(key)
-        const subSettings = subSections.map((key, value) => {
-            return(key[1].settings)
-            //console.log(key[1].docs)
-        })
-        console.log(subSettings)
-        return subSettings
+    const asMap = Object.values(OSSettings.settings).map((section) => {
+        const subSections = Object.values(section.settings)
+        return subSections
     } )
-    //console.log(asMap)
-    return asMap.filter(x => x.name === dupe).doc
-    //console.log(JSON.stringify(recursiveSearch([OSSettings], `${dupe}`)))  // One of several helper functions I tried and scrapped.
-    //return console.log(asArray)
+    let result = ''
+    for (let i = 0; i < asMap.length; i++ ) {
+        for (j = 0; j < asMap[i].length; j++){
+            if (asMap[i][j].name === dupe) {
+                result = asMap[i][j].doc
+            }
+        }
+    }
+    return result
 }
 
 
@@ -115,7 +121,7 @@ const writeSubsection = (subsection, depth) => {
         return
     }
     if (subsection.dupe) {
-        subContent = fromOSSettings(subsection.name)
+        subContent = fromOSSettings(subsection.name) + '\n'
     }
     let header = '#'.repeat(depth) + ' ' + subsection.name + '\n' + '\n'
     subContent = subContent + (subsection.doc ? subsection.doc.toString() + '\n\n' : '')

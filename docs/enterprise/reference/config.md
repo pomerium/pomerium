@@ -8,7 +8,7 @@ meta:
 
 # Pomerium Console Environment Variables
 
-The keys listed below can be applied in Pomerium Console's `config.yaml` file, or appled as environment variables (in uppercase, replacing `-` with `_`).
+The keys listed below can be applied in Pomerium Console's `config.yaml` file, or applied as environment variables (in uppercase, replacing `-` with `_`).
 
 ## administrators
 
