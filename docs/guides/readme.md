@@ -11,5 +11,6 @@ This section contains applications, and scenario specific guides for Pomerium.
 - The [kubernetes](./kubernetes.md) guide covers how to add authentication and authorization to kubernetes dashboard using helm, and letsencrypt certificates. This guide also shows how third party reverse-proxies like nginx/traefik can be used in conjunction with Pomerium using forward-auth.
 - The [local OIDC](./local-oidc.md) guide demonstrates how Pomerium can be used with local OIDC server for dev/testing.
 - The [mTLS](./mtls.md) guide demonstrates how Pomerium can be used to add mutual authentication using client certificates and a custom certificate authority.
+- Our [Synology](./synology.md) guide demonstrates how lightweight Pomerium is by installing it on a Synology NAS or similar low-resource product.
 - The [TiddlyWiki](./tiddlywiki.md) guide demonstrates how Pomerium can be used to add authentication and authorization to web application using authenticated header.
 - The [Transmission](./transmission.md) guide demonstrates how Pomerium can act as an authentication and authorization proxy for your Transmission daemon's RPC interface, which only provides unencrypted HTTP auth out of the box.

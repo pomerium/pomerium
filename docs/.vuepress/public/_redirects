@@ -53,3 +53,10 @@
 /jobs/Backend-Engineer.html					/careers/backend-engineer/
 
 /enterprise/								/
+
+/docs/installation.html                     /
+/docs/quick-start                           /docs/install
+/docs/quick-start/binary.html               /docs/install/binary.html
+/docs/quick-start/helm.html                 /docs/install/helm.html
+/docs/quick-start/from-source.html          /docs/install/from-source.html
+/docs/quick-start/synology.html             /docs/guides/synology.html

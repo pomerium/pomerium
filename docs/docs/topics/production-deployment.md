@@ -6,7 +6,7 @@ description: >-
 
 # Production Deployment
 
-This page covers the topic of running Pomerium in a production configuration. See the [quick start section](../quick-start/) for canned example configurations.
+This page covers the topic of running Pomerium in a production configuration. See the [quick start section](../install/quickstart/) for canned example configurations.
 
 Please also see [architecture](../#architecture) for information on component interactions.
 

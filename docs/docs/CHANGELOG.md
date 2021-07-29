@@ -2869,4 +2869,4 @@ There were no changes in the v0.7.1 release, but we updated the build process sl
 [gh-97]: https://github.com/pomerium/pomerium/issues/97
 [gh-98]: https://github.com/pomerium/pomerium/issues/98
 [gh-99]: https://github.com/pomerium/pomerium/issues/99
-[synology tutorial]: ./quick-start/synology.md
+[synology tutorial]: ../guides/synology.md
