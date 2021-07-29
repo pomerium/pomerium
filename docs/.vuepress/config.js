@@ -6,18 +6,21 @@ module.exports = {
   plugins: [
     "vuepress-plugin-element-tabs",
     [
-      "check-md", {
-      pattern: "**/*.md",
+      "check-md",
+      {
+        pattern: "**/*.md",
       },
     ],
     [
-      "sitemap", {
+      "sitemap",
+      {
         hostname: "https://www.pomerium.com",
         outFile: "docs/sitemap.xml",
       },
     ],
     [
-      "@vuepress/google-analytics", {
+      "@vuepress/google-analytics",
+      {
         ga: "UA-129872447-2",
       },
     ],
@@ -198,6 +201,7 @@ module.exports = {
           children: [
             //"",
             "about",
+            "concepts",
             {
               title: "Install",
               type: "group",
@@ -221,11 +225,11 @@ module.exports = {
                 "/enterprise/reference/configure",
                 "/enterprise/reference/manage",
                 "/enterprise/reference/reports",
-              ]
-            }
+              ],
+            },
           ],
         },
       ],
     },
   },
-}
+};
