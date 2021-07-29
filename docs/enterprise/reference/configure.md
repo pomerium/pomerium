@@ -11,7 +11,7 @@ meta:
 
 ## User Impersonation
 
-@travis fill me with delicious data!
+Travis fill me with delicious data!
 
 
 ## Settings
@@ -92,7 +92,7 @@ tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
 
 ## Service Accounts
 
-<!-- Explain Service Accounts -->
+<!-- Explain Service Accounts --> Service accounts...
 
 
 ## Namespaces

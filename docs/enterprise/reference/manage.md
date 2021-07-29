@@ -159,8 +159,9 @@ If set, enables proxying of websocket connections.
 
 #### Timeout
 
+Policy timeout establishes the per-route timeout value. Cannot exceed global timeout values.
 
-#### Stream Idle Timeout
+#### Idle Timeout
 
 If you are proxying long-lived requests that employ streaming calls such as websockets or gRPC,
 set this to either a maximum value there may be no data exchange over a connection (recommended),
@@ -242,6 +243,20 @@ The browser would be redirected to: `http://frontend/one/some/path/`. This is si
 ### Load Balancer
 
 
+#### Load Balancing Policy
+
+In presence of multiple upstreams, defines load balancing strategy between them.
+
+See [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-enum-config-cluster-v3-cluster-lbpolicy) for more details.
+
+- [`ROUND_ROBIN`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#weighted-round-robin) (default)
+- [`LEAST_REQUEST`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#weighted-least-request) and may be further configured using [`least_request_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-leastrequestlbconfig)
+- [`RING_HASH`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#ring-hash) and may be further configured using [`ring_hash_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#config-cluster-v3-cluster-ringhashlbconfig) option
+- [`RANDOM`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#random)
+- [`MAGLEV`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#maglev) and may be further configured using [`maglev_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-maglevlbconfig) option
+
+Some policy types support additional [configuration](#load-balancing-policy-config).
+
 ## Policies
 
 A Policy defines what permissions a set of users or groups has. Policies are applied to Namespaces or Routes to associate the set of permissions with a service or set of service, completing the authentication model.
@@ -264,6 +279,55 @@ From the **EDITOR** tab users can write policies in Pomerium Policy Language (**
 
 ![A policy as viewed from the editor tab](../img/example-policy-editor.png)
 
+PPL documents contain one or more rules. Each rule has a corresponding action and one or more logical operators.
+Each logical operator contains criteria and each criterion has a name and corresponding data.
+
+PPL documents are defined via YAML:
+
+```yaml
+- allow:
+    or:
+      - email:
+          is: x@example.com
+      - email:
+          is: y@example.com
+```
+
+The available rule actions are:
+
+- `allow`
+- `deny`
+
+The available logical operators are:
+
+- `and`
+- `or`
+- `not`
+- `nor`
+
+The available criteria types are:
+
+- `accept`
+- `authenticated_user`
+- `claim`
+- `date`
+- `day_of_week`
+- `domain`
+- `email`
+- `groups`
+- `reject`
+- `time_of_day`
+- `user`
+
+Some criteria also support a subpath as part of the criterion name:
+
+```yaml
+- allow:
+    or:
+      - claim/family_name:
+          is: Smith
+```
+
 ### Rego
 
 For those using [OPA](https://www.openpolicyagent.org/), the **REGO** tab will accept policies written in Rego.
@@ -275,7 +339,7 @@ A policy can only support PPL or Rego. Once one is set, the other tab is disable
 ### Overrides
 
 - **Any Authenticated User**: This setting will allow access to a route with this policy attached to any user who can authenticate to your Identity Provider (**IdP**).
-- **CORS Preflight**: 
+- **CORS Preflight**:
 - **Public Access**: This setting allows complete, unrestricted access to an associated route. Use this setting with caution.
 
 
