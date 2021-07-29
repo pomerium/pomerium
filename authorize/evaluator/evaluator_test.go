@@ -116,9 +116,8 @@ func TestEvaluator(t *testing.T) {
 		t.Run("kubernetes", func(t *testing.T) {
 			res, err := eval(t, options, []proto.Message{
 				&session.Session{
-					Id:                "session1",
-					UserId:            "user1",
-					ImpersonateGroups: []string{"i1", "i2"},
+					Id:     "session1",
+					UserId: "user1",
 				},
 				&user.User{
 					Id:    "user1",
@@ -137,15 +136,13 @@ func TestEvaluator(t *testing.T) {
 			})
 			require.NoError(t, err)
 			assert.Equal(t, "a@example.com", res.Headers.Get("Impersonate-User"))
-			assert.Equal(t, "i1,i2", res.Headers.Get("Impersonate-Group"))
 		})
 		t.Run("google_cloud_serverless", func(t *testing.T) {
 			withMockGCP(t, func() {
 				res, err := eval(t, options, []proto.Message{
 					&session.Session{
-						Id:                "session1",
-						UserId:            "user1",
-						ImpersonateGroups: []string{"i1", "i2"},
+						Id:     "session1",
+						UserId: "user1",
 					},
 					&user.User{
 						Id:    "user1",
@@ -245,18 +242,22 @@ func TestEvaluator(t *testing.T) {
 		t.Run("allowed", func(t *testing.T) {
 			res, err := eval(t, options, []proto.Message{
 				&session.Session{
-					Id:               "session1",
-					UserId:           "user1",
-					ImpersonateEmail: proto.String("a@example.com"),
+					Id:     "session1",
+					UserId: "user1",
+				},
+				&session.Session{
+					Id:                   "session2",
+					UserId:               "user2",
+					ImpersonateSessionId: proto.String("session1"),
 				},
 				&user.User{
 					Id:    "user1",
-					Email: "b@example.com",
+					Email: "a@example.com",
 				},
 			}, &Request{
 				Policy: &policies[3],
 				Session: RequestSession{
-					ID: "session1",
+					ID: "session2",
 				},
 				HTTP: RequestHTTP{
 					Method:            "GET",
@@ -266,31 +267,6 @@ func TestEvaluator(t *testing.T) {
 			})
 			require.NoError(t, err)
 			assert.True(t, res.Allow)
-		})
-		t.Run("denied", func(t *testing.T) {
-			res, err := eval(t, options, []proto.Message{
-				&session.Session{
-					Id:               "session1",
-					UserId:           "user1",
-					ImpersonateEmail: proto.String("b@example.com"),
-				},
-				&user.User{
-					Id:    "user1",
-					Email: "a@example.com",
-				},
-			}, &Request{
-				Policy: &policies[3],
-				Session: RequestSession{
-					ID: "session1",
-				},
-				HTTP: RequestHTTP{
-					Method:            "GET",
-					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
-				},
-			})
-			require.NoError(t, err)
-			assert.False(t, res.Allow)
 		})
 	})
 	t.Run("user_id", func(t *testing.T) {
@@ -344,13 +320,17 @@ func TestEvaluator(t *testing.T) {
 	t.Run("impersonate domain", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{
 			&session.Session{
-				Id:               "session1",
-				UserId:           "user1",
-				ImpersonateEmail: proto.String("a@example.com"),
+				Id:     "session1",
+				UserId: "user1",
+			},
+			&session.Session{
+				Id:                   "session2",
+				UserId:               "user2",
+				ImpersonateSessionId: proto.String("session1"),
 			},
 			&user.User{
 				Id:    "user1",
-				Email: "a@notexample.com",
+				Email: "a@example.com",
 			},
 		}, &Request{
 			Policy: &policies[6],
@@ -379,39 +359,6 @@ func TestEvaluator(t *testing.T) {
 			&directory.User{
 				Id:       "user1",
 				GroupIds: []string{"group1"},
-			},
-			&directory.Group{
-				Id:    "group1",
-				Name:  "group1name",
-				Email: "group1@example.com",
-			},
-		}, &Request{
-			Policy: &policies[7],
-			Session: RequestSession{
-				ID: "session1",
-			},
-			HTTP: RequestHTTP{
-				Method:            "GET",
-				URL:               "https://from.example.com",
-				ClientCertificate: testValidCert,
-			},
-		})
-		require.NoError(t, err)
-		assert.True(t, res.Allow)
-	})
-	t.Run("impersonate groups", func(t *testing.T) {
-		res, err := eval(t, options, []proto.Message{
-			&session.Session{
-				Id:                "session1",
-				UserId:            "user1",
-				ImpersonateGroups: []string{"group1"},
-			},
-			&user.User{
-				Id:    "user1",
-				Email: "a@example.com",
-			},
-			&directory.User{
-				Id: "user1",
 			},
 			&directory.Group{
 				Id:    "group1",

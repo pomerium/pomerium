@@ -526,9 +526,19 @@ get_session(id) = v {
 	v != null
 }
 
+else = iv {
+	v = get_databroker_record("type.googleapis.com/session.Session", id)
+	v != null
+	object.get(v, "impersonate_session_id", "") != ""
+
+	iv = get_databroker_record("type.googleapis.com/session.Session", v.impersonate_session_id)
+	iv != null
+}
+
 else = v {
 	v = get_databroker_record("type.googleapis.com/session.Session", id)
 	v != null
+	object.get(v, "impersonate_session_id", "") == ""
 }
 
 else = {} {
@@ -536,11 +546,6 @@ else = {} {
 }
 
 get_user(session) = v {
-	v = get_databroker_record("type.googleapis.com/user.User", session.impersonate_user_id)
-	v != null
-}
-
-else = v {
 	v = get_databroker_record("type.googleapis.com/user.User", session.user_id)
 	v != null
 }
@@ -550,11 +555,6 @@ else = {} {
 }
 
 get_directory_user(session) = v {
-	v = get_databroker_record("type.googleapis.com/directory.User", session.impersonate_user_id)
-	v != null
-}
-
-else = v {
 	v = get_databroker_record("type.googleapis.com/directory.User", session.user_id)
 	v != null
 }
@@ -573,10 +573,6 @@ else = {} {
 }
 
 get_user_email(session, user) = v {
-	v = session.impersonate_email
-}
-
-else = v {
 	v = user.email
 }
 
@@ -585,11 +581,6 @@ else = "" {
 }
 
 get_group_ids(session, directory_user) = v {
-	v = session.impersonate_groups
-	v != null
-}
-
-else = v {
 	v = directory_user.group_ids
 	v != null
 }
