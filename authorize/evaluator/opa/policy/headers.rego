@@ -26,10 +26,13 @@ package pomerium.headers
 # 5 minutes from now in seconds
 five_minutes := round((time.now_ns() / 1e9) + (60 * 5))
 
+# get the session
 session = v {
+	# try a service account
 	v = get_databroker_record("type.googleapis.com/user.ServiceAccount", input.session.id)
 	v != null
 } else = iv {
+	# try an impersonated session
 	v = get_databroker_record("type.googleapis.com/session.Session", input.session.id)
 	v != null
 	object.get(v, "impersonate_session_id", "") != ""
@@ -37,6 +40,7 @@ session = v {
 	iv = get_databroker_record("type.googleapis.com/session.Session", v.impersonate_session_id)
 	iv != null
 } else = v {
+	# try a normal session
 	v = get_databroker_record("type.googleapis.com/session.Session", input.session.id)
 	v != null
 	object.get(v, "impersonate_session_id", "") == ""
