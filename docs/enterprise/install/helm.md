@@ -22,15 +22,8 @@ The Pomerium Enterprise Console requires:
 
 <!-- @Travis Is this section needed for a cluster install? At the very least, te network section should be handled by our helm config, no? -->
 
-For an production deployment, Pomerium Enterprise requires:
+One of the advantages of a Kubernetes deployment is automatic scaling, but if your database or redis solution is outside of your k8s configuration, refer to the requirements below:
 
-### System
-
-- The Pomerium Enterprise Console requires Linux amd64/x86_64. It can manage Pomerium instances on other platforms, however.
-- Each Console instance should have at least:
-    - 2 vCPUs
-    - 8G RAM
-    - 100G of disk wherever logs are stored
 - Each Postgres instance should have at least:
     - 4 vCPUs
     - 8G RAM
@@ -39,16 +32,6 @@ For an production deployment, Pomerium Enterprise requires:
     - 2 vCPUs
     - 4G RAM
     - 20G for data files
-
-### Network
-
-- Layer 4 or Layer 7 load balancers to provide high availability across instances of Pomerium Enterprise Console
-- Layer 4 or Layer 7 load balancers to provide high availability across instances of the Pomerium Cache service from the console
-    - If using Layer 7, your load balancers must support HTTP2
-    - DNS RR can be used in place of load balancers, if L4 or HTTP2 support is not possible
-- Pomerium Enterprise Console must be able to reach the Pomerium Cache service
-- Pomerium Enterprise Console must be able to reach a supported database instance
-- Pomerium Proxy service must be able to forward traffic to the Pomerium Enterprise Console
 
 ## Issue a Certificate
 
