@@ -71,7 +71,7 @@ module.exports = {
           sidebarDepth: 0,
           children: [
             "",
-            "installation",
+            "releases",
             "architecture",
             "background",
             "FAQ",
