@@ -10,16 +10,18 @@ description: Learn how the Pomerium Enterprise Console works.
 
 In the Pomerium Enterprise Console, a namespace is where you can define an organizational unit of users and groups with fine-grained access management. This enables teams to self-service the routes and policies pertinent to them. Namespaces can optionally inherit from their parent units.
 
-<!-- @alexfornuto This is rough but the high level points; some are repeats of what you've already said -->
+<!-- @alexfornuto This is rough but the high level points; some are repeats of what you've already said
 
-**Namespaces** are the cornerstone organizational unit in Pomerium Enterprise. Namespaces enable:
+**Namespaces** are the cornerstone organizational unit in Pomerium Enterprise. They are container objects that can thought of a bit like unix directories or folders.
+
+Namespaces enable:
 
 - self-service
 - hierarchical policy enforcement (both enforced, and optional)
 - policy organization
 - RBAC for the Enterprise Console itself
 
-<!-- you'll notice that each of these sub-concepts are related and more or less build on eachother -->
+you'll notice that each of these sub-concepts are related and more or less build on eachother -->
 ### Self-Service Capabilities
 
 One of the benefits of an identity-aware access proxy is that, once in place, developers and owners of enterprise applications have an incentive to configure their services to be accessible via the proxy.
