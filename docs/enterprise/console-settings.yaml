@@ -49,7 +49,7 @@ settings:
                 keys: ["allow_websockets"]
               - name: "Timeout"
                 keys: ["timeout"]
-              - name: "Stream Idle Timeout"
+              - name: "Idle Timeout"
                 keys: ["idle_timeout"]
           - name: "Headers"
             settings:
@@ -124,7 +124,7 @@ settings:
           - `time_of_day`
           - `user`
 
-          Some criteria also support a subpath as part of the criterion name:
+          Some criteria also support a sub-path as part of the criterion name:
 
           ```yaml
           - allow:
@@ -150,9 +150,8 @@ settings:
   - name: "Configure"
     settings:
       - name: "User Impersonation"
-        keys: ["user impersonation"]
         doc: |
-          @travis fill me with delicious data!
+          Travis fill me with delicious data!
       - name: "Settings"
         settings:
           - name: "Global"
@@ -165,7 +164,7 @@ settings:
           - name: "Proxy"
       - name: "Service Accounts"
         doc: |
-          <!-- Explain Service Accounts -->
+          <!-- Explain Service Accounts --> Service accounts...
       - name: "Namespaces"
         keys: ["namespace"]
         doc: |
