@@ -1,12 +1,12 @@
 ---
 title: About
-sidebarDepth: 1
+sidebarDepth: 2
 description: What does the Pomerium Enterpise Console offer?
 ---
 
 # Pomerium Enterprise
 
-This paragraph introduces what Pomerium Enterprise is.
+<!-- This paragraph introduces what Pomerium Enterprise is. -->
 
 ## Features
 
@@ -34,15 +34,13 @@ Easily define who can control access to what areas of your infrastructure. Our N
 
 Pomerium Enterprise uses teams and groups defined by your IdP, so you can build stable policies that's don't need to be adjusted as your company changes.
 
+See [Concepts: Self-Service Capabilities](./concepts.md#self-service-capabilities) for more information.
+
 ### Deployment History & Audit Logs
 
 View and export change and access logs from the web UI. Pomerium Enterprise Console gives you a complete view of who's using it and how access is adjusted.
 
 <!-- This is a start, but a weak one. -->
-
-### Hierarchical authorization policy
-
-
 
 ## Availability
 

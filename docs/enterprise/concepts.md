@@ -1,6 +1,6 @@
 ---
 title: Concepts
-sidebarDepth: 1
+sidebarDepth: 2
 description: Learn how the Pomerium Enterprise Console works.
 ---
 
@@ -8,20 +8,19 @@ description: Learn how the Pomerium Enterprise Console works.
 
 ## Namespaces
 
-In the Pomerium Enterprise Console, a namespace is where you can define an organizational unit of users and groups with fine-grained access management. This enables teams to self-service the routes and policies pertinent to them. Namespaces can optionally inherit from their parent units.
+In the Pomerium Enterprise Console, a **Namespace** is a cornerstone organization unit. They are contianer objects, that behave similar to a unix directory structure.
 
-<!-- @alexfornuto This is rough but the high level points; some are repeats of what you've already said
-
-**Namespaces** are the cornerstone organizational unit in Pomerium Enterprise. They are container objects that can thought of a bit like unix directories or folders.
+In each Namespace, you can define an organizational unit of users and groups with fine-grained access management. This enables teams to self-service the routes and policies pertinent to them. Namespaces can optionally inherit from their parent units.
 
 Namespaces enable:
 
-- self-service
-- hierarchical policy enforcement (both enforced, and optional)
-- policy organization
-- RBAC for the Enterprise Console itself
+- Self-Service.
+- Hierarchical policy enforcement (both enforced, and optional),
+- Policy organization.
+- RBAC for the Enterprise Console itself.
 
-you'll notice that each of these sub-concepts are related and more or less build on eachother -->
+Each of these sub-concepts are related and build on each other to form a unified security model.
+
 ### Self-Service Capabilities
 
 One of the benefits of an identity-aware access proxy is that, once in place, developers and owners of enterprise applications have an incentive to configure their services to be accessible via the proxy.
@@ -36,18 +35,41 @@ Unlike with a VPN, or network driven access control mechanisms, application owne
 
 ### Hierarchical Policy Enforcement
 
-<!-- @alexfornuto this but prosier-er
-Hierarchical policy lets administrators enforce high level authorization policy. Policies can be optional (self-select), or mandatory. This goes hand in hand with self-service as mentioned above. I usually explain this concept from the point of view of multiple teams within an organization. A security team managing very high level, coarse grain authorization controls (e.g. you know that everyone touching internal resource at least has a `foo.com` email account, and isn't coming from North Korea), allows identity and access management teams (IAM) to say what groups or organizational units should have access to what resources, apps, and services, and finally application owners who -- because of policy enforcement -- can be given enough flexibility to self-manage their own route (application) and policy via self service.
- -->
+Hierarchical policy lets administrators enforce high level authorization policy. Policies can be optional (self-select), or mandatory.
+
+Consider this scenario: your organization has a security team managing high-level, course grain authorization controls. For example, they know that everyone with access to internal resources:
+
+   - has a `yourcompany.com` email account,
+   - isn't coming from a known bad actor IP address,
+
+Identity and access is organized and controlled with Identity and Access Management (**IAM**) teams in your Identity Provider (**IdP**). These users and groups are read by Pomerium from your IdP, and used to determine top-level Namespace organization.
+
+From there, Application owners are assigned to child Namespaces, and are given the flexibility to self-manage their own application routes and policies.
+
+<!-- @Bobby This is my attempt to  prose-ify your block.-->
 
 ### RBAC for Enterprise Console Users
 
-<!-- @alexfornuto this needs to be made into better prose. See https://www.notion.so/pomerium/Permissions-Access-Control-e32ff518f1564b3698d13611c449b436#c82026f2a45b48a9a16c47d6e5fefea3 for a good background doc by @travisgroth
+- Namespaces are also used to achieve Role Based Access Control (**RBAC**) in the console itself.
+- There are three different roles:
 
-- Namespaces are also used to achieve Role Based Access Control (RBAC) in the console itself .
-- There are three different roles (viewer, manager, and admin). Maybe an explanation of each as described here: https://www.notion.so/pomerium/Permissions-Access-Control-e32ff518f1564b3698d13611c449b436#58da053dbc4d452ca4d202664b1626b9
+#### Viewer
 
- -->
+A user with the Viewer role can:
+
+- view all resources in a Namespace (Routes, Policies, Certificates),
+- view traffic dashboard for routes in the Namespace, including child Namespaces
+- view the activity log for a namespace
+- view all namespaces (by list, not their contents) <!-- @bobby please double-check me here -->
+- query all directory data <!-- Copied from PRD, but unsure if implemented or what it does -->
+
+#### Manager
+
+In addition to the access provided by the Viewer role, the Manager can create, read, update, and delete routes, policies, and certificates in a Namespace (as wel as its children). A Manager may also reference policies and certificates in the parent Namespace.
+
+#### Admin
+
+An Admin user has permissions across all Namespaces. They can manage global settings, sessions, and service accounts, as well as view events and runtime data.
 
 ## Service Accounts
 
@@ -72,31 +94,32 @@ policy:
     allow_websockets: true
 ```
 
-In the Pomerium Enterprise Console, [routes](#routes) and policies are separate entities. This allows for both easier and more fine-grained access control, as policies can be defined once, optionally associated under a [Namespace](#namespaces), and attached to one or more routes. Routes can also inherit policies from their parent Namespace <!-- @Travis please confirm --> .
+In the Pomerium Enterprise Console, [routes](#routes) and policies are separate entities. This allows for both easier and more fine-grained access control, as policies can be defined once, optionally associated under a [Namespace](#namespaces), and attached to one or more routes. Routes can also inherit policies from their parent Namespace. <!-- @Travis please confirm --> .
 
-
-<!-- @alexfornuto this but prosier
 ## Access control
 
 
-Authentication and authorization are similar concepts that are often used interchangeably. Authentication is the process of determining if you are who you say you are. Authorization is the process of determining if you are allowed to do the thing you are trying to do. A silly analogy is, authentication is the bouncer checking your ID; authorization is the bouncer seeing if your name is on the list.
+Authentication and authorization are similar concepts that are often used interchangeably.
 
-Pomerium provides a standardized interface to add access control whether an application itself has authorization or authentication baked-in so that developers can focus on their apps, not reinventing access control.
+**Authentication** is the process of determining if you are who you say you are.
+
+**Authorization** is the process of determining if you are allowed to do the thing you are trying to do.
+
+Pomerium provides a standardized interface to add access control, regardless if an application itself has authorization or authentication baked in, so developers can focus on their app's functionality, not reinventing access control.
 
 ### Authentication
 
-Pomerium provides authentication vis-a-via your existing identity provider (Pomerium support [all the major single sign-on](https://www.pomerium.io/docs/identity-providers/) on providers (Okta, Gsuite, Azure, AD, Ping, Github and so on).
+Pomerium provides authentication via your existing identity provider (Pomerium supports all major [single sign-on](/docs/identity-providers/) providers (Okta, G Suite, Azure, AD, Ping, Github and so on).
+
 ### Authorization
 
-Authorization policy can be expressed in a high-level, declarative language (link to ppl docs) or as code (link to Rego docs) that can be used to enforce ABAC, RBAC, or any other governance policy controls. Pomerium can make holistic policy and authorization decisions using external data and request context factors such as user groups, roles, time, day, location and vulnerability status
+Authorization policy can be expressed in a high-level, [declarative language](/enterprise/reference/manage.html#pomerium-policy-language) or [as code](/enterprise/reference/manage.html#rego) that can be used to enforce ABAC, RBAC, or any other governance policy controls. Pomerium can make holistic policy and authorization decisions using external data and request context factors such as user groups, roles, time, day, location and vulnerability status.
 
 Trust flows from identity, device-state, and context, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
 
+Authorization is where Pomerium's value proposition really lies. With Pomerium:
 
-
-Authorization is where Pomerium's value proposition really lies. Pomerium:
-- ability to express authorization policy as declarative policy (PPL) or as code (rego)
 - requests are continuously re-evaluated on a per-request basis.
-- authorization is identity and context aware; pomerium can be used to integrate data from any source into authorization policy decisions
-- Trust flows from identity, device-state, and context, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
-- Pomerium provides detailed audit logs for all activity in your environment. Quickly detect anomalies to mitigate bad actors and revoke access with a click of a button. Simplify lifecycle management and access reviews. -->
+- authorization is identity and context aware; pomerium can be used to integrate data from any source into authorization policy decisions.
+- trust flows from identity, device-state, and context, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
+- Pomerium provides detailed audit logs for all activity in your environment. Quickly detect anomalies to mitigate bad actors and revoke access with a click of a button. Simplify life-cycle management and access reviews.
