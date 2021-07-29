@@ -103,7 +103,7 @@ yum -y install pomerium-console
 Once the package is installed, enable and start the system service:
 
 ```bash
-sudo systemcrt enable --now pomerium-console
+sudo systemctl enable --now pomerium-console
 ```
 
 ## Initial Configuration
