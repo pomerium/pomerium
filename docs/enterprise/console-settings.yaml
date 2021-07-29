@@ -48,6 +48,7 @@ settings:
               - name: "Allow Websockets"
                 keys: ["allow_websockets"]
               - name: "Timeout"
+                keys: ["timeout"]
               - name: "Stream Idle Timeout"
                 keys: ["idle_timeout"]
           - name: "Headers"
