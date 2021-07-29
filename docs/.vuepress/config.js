@@ -201,6 +201,7 @@ module.exports = {
           children: [
             //"",
             "about",
+            "concepts",
             {
               title: "Install",
               type: "group",
