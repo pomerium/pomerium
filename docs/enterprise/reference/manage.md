@@ -27,7 +27,7 @@ This value is only visible in the Console UI.
 
 `From` is the externally accessible URL for the proxied request.
 
-Specifying `tcp+https` for the scheme enables [TCP proxying](../docs/topics/tcp-support.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
+Specifying `tcp+https` for the scheme enables [TCP proxying](/docs/topics/tcp-support.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
 
 #### To
 
@@ -40,7 +40,7 @@ Specifying `tcp+https` for the scheme enables [TCP proxying](../docs/topics/tcp-
   - https://b.example.com
 ```
 
-A load balancing weight may be associated with a particular upstream by appending `,[weight]` to the URL.  The exact behavior depends on your [`lb_policy`](#load-balancing-policy) setting.  See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.html#load-balancing-weight).
+A load balancing weight may be associated with a particular upstream by appending `,[weight]` to the URL.  The exact behavior depends on your [`lb_policy`](/reference/readme.md#load-balancing-policy) setting.  See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#load-balancing-weight).
 
 Must be `tcp` if `from` is `tcp+https`.
 
@@ -153,7 +153,7 @@ If set, enables proxying of websocket connections.
 
 :::warning
 
-**Use with caution:** websockets are long-lived connections, so [global timeouts](#global-timeouts) are not enforced (though the policy-specific `timeout` is enforced). Allowing websocket connections to the proxy could result in abuse via [DOS attacks](https://www.cloudflare.com/learning/ddos/ddos-attack-tools/slowloris/).
+**Use with caution:** websockets are long-lived connections, so [global timeouts](/reference/readme.md#global-timeouts) are not enforced (though the policy-specific `timeout` is enforced). Allowing websocket connections to the proxy could result in abuse via [DOS attacks](https://www.cloudflare.com/learning/ddos/ddos-attack-tools/slowloris/).
 
 :::
 
@@ -255,14 +255,14 @@ See [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/api-v3/con
 - [`RANDOM`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#random)
 - [`MAGLEV`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#maglev) and may be further configured using [`maglev_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-maglevlbconfig) option
 
-Some policy types support additional [configuration](#load-balancing-policy-config).
+Some policy types support additional [configuration](/reference/readme.md#load-balancing-policy-config).
 
 ## Policies
 
 A Policy defines what permissions a set of users or groups has. Policies are applied to Namespaces or Routes to associate the set of permissions with a service or set of service, completing the authentication model.
 
 ::: tip
-This is a separate concept from [policies](../reference/#policy) in the non-enterprise model. In open-source Pomerium, the `policy` block defines both routes and access.
+This is a separate concept from [policies](/reference/readme.md#policy) in the non-enterprise model. In open-source Pomerium, the `policy` block defines both routes and access.
 :::
 
 Policies can be constructed three ways:
@@ -319,7 +319,7 @@ The available criteria types are:
 - `time_of_day`
 - `user`
 
-Some criteria also support a subpath as part of the criterion name:
+Some criteria also support a sub-path as part of the criterion name:
 
 ```yaml
 - allow:

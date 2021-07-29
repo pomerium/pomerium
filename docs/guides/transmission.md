@@ -24,7 +24,7 @@ While there are software clients available to interact with the daemon over RPC,
 ::: warning
 Because RPC traffic to and from a Transmission daemon is unencrypted, we strongly suggest you only communicate from Pomerium to Transmission on a trusted private network. Note that some cloud hosting providers differentiate "private networking" (which is visible to all hosts in a data center) from "VLANS" which are only visible to your hosts. While you can configure a local proxy on your Transmission host to provide TLS encryption, that configuration is outside of the scope of this guide.
 
-Running Pomerium and Transmission on the same host, using [docker](../docs/quick-start) for example,  negates this concern.
+Running Pomerium and Transmission on the same host, using [docker](/docs/install/readme.md) for example,  negates this concern.
 :::
 
 ## Before You Begin
@@ -109,4 +109,4 @@ You should now be able to authenticate and access your Transmission daemon remot
 In addition to the lock symbol in your browser's address bar, you can go to `<transmission.mydomain.com>/.pomerium` to view and confirm your session details.
 
 [Transmission]: https://transmissionbt.com/
-[quick start]: ../docs/quick-start
+[quick start]: /docs/install/readme.md

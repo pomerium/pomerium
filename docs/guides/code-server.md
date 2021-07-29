@@ -21,7 +21,7 @@ This guide covers using Pomerium to secure an instance of [code-server]. Pomeriu
 
 [Visual Studio Code] is an open source code editor by Microsoft that has become [incredibly popular](https://insights.stackoverflow.com/survey/2019#technology-_-most-popular-development-environments) in the last few years. For many developers, [Visual Studio Code] hits the sweet spot between no frills editors like vim/emacs and full feature IDE's like Eclipse and IntelliJ. VS Code offers some of the creature comforts like intellisense, git integration, and plugins, while staying relatively lightweight.
 
-One of the interesting attributes of [Visual Studio Code] is that it is built on the [Electron](<https://en.wikipedia.org/wiki/Electron_(software_framework)>) framework which uses a headless instance of Chrome rendered as a desktop application. It didn't take long for folks to realize that if we already had this great IDE written in Javascript, it may be possible to make [Visual Studio Code] run remotely.
+One of the interesting attributes of [Visual Studio Code] is that it is built on the [Electron](https://en.wikipedia.org/wiki/Electron_(software_framework)) framework which uses a headless instance of Chrome rendered as a desktop application. It didn't take long for folks to realize that if we already had this great IDE written in Javascript, it may be possible to make [Visual Studio Code] run remotely.
 
 > "Any application that can be written in JavaScript, will eventually be written in JavaScript." -- [Jeff Atwood](https://blog.codinghorror.com/the-principle-of-least-power/)
 
@@ -33,7 +33,7 @@ One of the interesting attributes of [Visual Studio Code] is that it is built on
 
 ## Pre-requisites
 
-This guide assumes you have already completed one of the [quick start] guides, and have a working instance of Pomerium up and running. For purpose of this guide, I'm going to use docker-compose, though any other deployment method would work equally well.
+This guide assumes you have already completed one of the [install] guides, and have a working instance of Pomerium up and running. For purpose of this guide, I'm going to use docker-compose, though any other deployment method would work equally well.
 
 ## Configure
 
@@ -129,7 +129,7 @@ When the code-server container is rebuilt, any files outside of `/home/coder/pro
 
 [integrated terminal]: https://code.visualstudio.com/docs/editor/integrated-terminal
 [path]: https://en.wikipedia.org/wiki/PATH_(variable)
-[quick start]: ../docs/quick-start
-[synology nas]: ./synology.md
+[install]: /docs/install/readme.md
+[synology nas]: /guides/synology.md
 [visual studio code]: https://code.visualstudio.com/
 [code-server]: https://github.com/cdr/code-server

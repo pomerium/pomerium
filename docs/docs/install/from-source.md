@@ -71,8 +71,8 @@ make && ./bin/pomerium -config config.yaml
 
 Browse to `verify.localhost.pomerium.io`. Connections between you and [verify] will now be proxied and managed by Pomerium.
 
-[configuration variables]: ../../reference/readme.md
+[configuration variables]: /reference/readme.md
 [verify]: https://verify.pomerium.com/
-[identity provider]: ../identity-providers/
+[identity provider]: /docs/identity-providers/readme.md
 [make]: https://en.wikipedia.org/wiki/Make_(software)
-[tls certificates]: ../topics/certificates.md
+[tls certificates]: /docs/topics/certificates.md

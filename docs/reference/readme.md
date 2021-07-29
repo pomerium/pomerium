@@ -46,7 +46,7 @@ Address specifies the host and port to serve HTTP requests from. If empty, `:443
 - Type: `bool`
 - Optional
 
-Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] which includes managed routes and the authenticate service.  [Autocert Directory](./#autocert-directory) must be used with Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
+Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] which includes managed routes and the authenticate service.  [Autocert Directory](#autocert-directory) must be used with Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
 
 This setting can be useful in situations where you may not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
 
@@ -69,7 +69,7 @@ Autocert requires that ports `80`/`443` be accessible from the internet in order
 - Type: `bool`
 - Optional
 
-If true, force autocert to request a certificate with the `status_request` extension (commonly called `Must-Staple`). This allows the TLS client (_id est_ the browser) to fail immediately if the TLS handshake doesn't include OCSP stapling information. This setting is only used when [Autocert](./#autocert) is true.
+If true, force autocert to request a certificate with the `status_request` extension (commonly called `Must-Staple`). This allows the TLS client (_id est_ the browser) to fail immediately if the TLS handshake doesn't include OCSP stapling information. This setting is only used when [Autocert](#autocert) is true.
 
 :::tip
 
@@ -84,7 +84,7 @@ For more details, please see [RFC7633](https://tools.ietf.org/html/rfc7633) .
 - Environmental Variable: either `AUTOCERT_DIR`
 - Config File Key: `autocert_dir`
 - Type: `string` pointing to the path of the directory
-- Required if using [Autocert](./#autocert) setting
+- Required if using [Autocert](#autocert) setting
 - Default:
 
   - `/data/autocert` in published Pomerium docker images
@@ -339,7 +339,7 @@ services:
 - Example: `TIMEOUT_READ=30s`
 - Defaults: `TIMEOUT_READ=30s` `TIMEOUT_WRITE=0` `TIMEOUT_IDLE=5m`
 
-Timeouts set the global server timeouts. Timeouts can also be set for individual [routes](./#policy).
+Timeouts set the global server timeouts. Timeouts can also be set for individual [routes](#policy).
 
 ![cloudflare blog on timeouts](https://blog.cloudflare.com/content/images/2016/06/Timeouts-001.png)
 
@@ -1152,7 +1152,7 @@ Allow unauthenticated HTTP OPTIONS requests as [per the CORS spec](https://devel
 
 Enable sending a signed [Authorization Header](https://cloud.google.com/run/docs/authenticating/service-to-service) to upstream GCP services.
 
-Requires setting [Google Cloud Serverless Authentication Service Account](./#google-cloud-serverless-authentication-service-account) or running Pomerium in an environment with a GCP service account present in default locations.
+Requires setting [Google Cloud Serverless Authentication Service Account](#google-cloud-serverless-authentication-service-account) or running Pomerium in an environment with a GCP service account present in default locations.
 
 
 ### From
@@ -1438,7 +1438,7 @@ Either `redirect` or `to` must be set.
   - https://b.example.com
 ```
 
-A load balancing weight may be associated with a particular upstream by appending `,[weight]` to the URL.  The exact behavior depends on your [`lb_policy`](#load-balancing-policy) setting.  See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.html#load-balancing-weight).
+A load balancing weight may be associated with a particular upstream by appending `,[weight]` to the URL.  The exact behavior depends on your [`lb_policy`](#load-balancing-policy) setting.  See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#load-balancing-weight).
 
 Must be `tcp` if `from` is `tcp+https`.
 
@@ -1569,7 +1569,7 @@ When [`lb_policy`](#load-balancing-policy) is configured, you may further custom
 - [`ring_hash_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#config-cluster-v3-cluster-ringhashlbconfig)
 - [`maglev_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-maglevlbconfig)
 
-See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.html#load-balancing-method)
+See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#load-balancing-method)
 
 
 ### Health Checks
@@ -1589,7 +1589,7 @@ Only one of `http_health_check`, `tcp_health_check`, or `grpc_health_check` may 
 - [HTTP](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-httphealthcheck)
 - [GRPC](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-grpchealthcheck)
 
-See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.html#active-health-checks).
+See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#active-health-checks).
 
 
 ### Websocket Connections
@@ -1691,12 +1691,12 @@ Be aware that any RSA based signature method may be an order of magnitude lower 
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [elliptic curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
-[identity provider]: ../docs/identity-providers/
+[identity provider]: /docs/identity-providers/readme.md
 [json]: https://en.wikipedia.org/wiki/JSON
 [letsencrypt]: https://letsencrypt.org/
 [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
-[okta]: ../docs/identity-providers/okta.md
+[okta]: /docs/identity-providers/okta.md
 [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
-[signed headers]: ../docs/topics/getting-users-identity.md
+[signed headers]: /docs/topics/getting-users-identity.md
 [toml]: https://en.wikipedia.org/wiki/TOML
 [yaml]: https://en.wikipedia.org/wiki/YAML

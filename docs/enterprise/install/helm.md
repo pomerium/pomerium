@@ -35,7 +35,7 @@ One of the advantages of a Kubernetes deployment is automatic scaling, but if yo
 
 ## Issue a Certificate
 
-This setup assumes an existing certificate solution using cert-manager, as described in [Pomerium using Helm]. If you already have a different certificate solution, create and implement a certificate for `pomerium-console.pomerium.svc.cluster.local`. Then you can move on to [the next stage](#configure-kubernetes-for-pomerium).
+This setup assumes an existing certificate solution using cert-manager, as described in [Pomerium using Helm]. If you already have a different certificate solution, create and implement a certificate for `pomerium-console.pomerium.svc.cluster.local`. Then you can move on to [the next stage](#update-pomerium).
 
 
 1. Create a certificate configuration file for Pomerium Enterprise Our example is named `pomerium-console-certificate.yaml`:
@@ -140,5 +140,5 @@ If, while updating the open-source Pomerium values, you change any block's `serv
 kubectl delete svc pomerium-proxy
 ```
 
-[Pomerium using Helm]: /docs/quick-start/helm.md
+[Pomerium using Helm]: /docs/install/helm.md
 [cert-manager]: https://cert-manager.io/docs/

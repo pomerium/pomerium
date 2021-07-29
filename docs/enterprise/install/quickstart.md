@@ -12,7 +12,7 @@ This document assumes:
 
 - A non-containerized environment, either your local computer or a virtual machine (**vm**). While Pomerium is designed to scale with your production environment, we'll leave containerization and infrastructure as code (**IaC**) out for now, to focus on learning how Pomerium Enterprise works.
    - `root` or `sudo` privileges on the host.
-- You already have the open-source Pomerium base installed. If not, follow [this doc](/docs/quick-start/binary.md) before you continue.
+- You already have the open-source Pomerium base installed. If not, follow [this doc](/docs/install/binary.md) before you continue.
    - While an existing route is not required, we suggest implementing one test route to validate your identity provider (**IdP**) configuration.
 - Pomerium Enterprise requires a relational database. PostgreSQL 9+ is supported.
    - Securing the database connection with TLS may not be required, especially for a local installation, but is strongly recommended for production deployments. Therefor, this guide will assume a TLS-secured database connection.

@@ -65,7 +65,7 @@ settings:
           - Type: `bool`
           - Optional
         doc: |
-          Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] which includes managed routes and the authenticate service.  [Autocert Directory](./#autocert-directory) must be used with Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
+          Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] which includes managed routes and the authenticate service.  [Autocert Directory](#autocert-directory) must be used with Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
 
           This setting can be useful in situations where you may not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
 
@@ -90,7 +90,7 @@ settings:
           - Type: `bool`
           - Optional
         doc: |
-          If true, force autocert to request a certificate with the `status_request` extension (commonly called `Must-Staple`). This allows the TLS client (_id est_ the browser) to fail immediately if the TLS handshake doesn't include OCSP stapling information. This setting is only used when [Autocert](./#autocert) is true.
+          If true, force autocert to request a certificate with the `status_request` extension (commonly called `Must-Staple`). This allows the TLS client (_id est_ the browser) to fail immediately if the TLS handshake doesn't include OCSP stapling information. This setting is only used when [Autocert](#autocert) is true.
 
           :::tip
 
@@ -105,7 +105,7 @@ settings:
           - Environmental Variable: either `AUTOCERT_DIR`
           - Config File Key: `autocert_dir`
           - Type: `string` pointing to the path of the directory
-          - Required if using [Autocert](./#autocert) setting
+          - Required if using [Autocert](#autocert) setting
           - Default:
 
             - `/data/autocert` in published Pomerium docker images
@@ -387,7 +387,7 @@ settings:
           - Example: `TIMEOUT_READ=30s`
           - Defaults: `TIMEOUT_READ=30s` `TIMEOUT_WRITE=0` `TIMEOUT_IDLE=5m`
         doc: |
-          Timeouts set the global server timeouts. Timeouts can also be set for individual [routes](./#policy).
+          Timeouts set the global server timeouts. Timeouts can also be set for individual [routes](#policy).
 
           ![cloudflare blog on timeouts](https://blog.cloudflare.com/content/images/2016/06/Timeouts-001.png)
 
@@ -1274,7 +1274,7 @@ settings:
         doc: |
           Enable sending a signed [Authorization Header](https://cloud.google.com/run/docs/authenticating/service-to-service) to upstream GCP services.
 
-          Requires setting [Google Cloud Serverless Authentication Service Account](./#google-cloud-serverless-authentication-service-account) or running Pomerium in an environment with a GCP service account present in default locations.
+          Requires setting [Google Cloud Serverless Authentication Service Account](#google-cloud-serverless-authentication-service-account) or running Pomerium in an environment with a GCP service account present in default locations.
       - name: "From"
         keys: ["from"]
         attributes: |
@@ -1286,7 +1286,7 @@ settings:
         doc: |
           `From` is the externally accessible URL for the proxied request.
 
-          Specifying `tcp+https` for the scheme enables [TCP proxying](../docs/topics/tcp-support.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
+          Specifying `tcp+https` for the scheme enables [TCP proxying](/docs/topics/tcp-support.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
 
           :::warning
 
