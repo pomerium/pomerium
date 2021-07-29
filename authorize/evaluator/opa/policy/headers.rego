@@ -26,20 +26,25 @@ package pomerium.headers
 # 5 minutes from now in seconds
 five_minutes := round((time.now_ns() / 1e9) + (60 * 5))
 
-session = s {
-	s = get_databroker_record("type.googleapis.com/user.ServiceAccount", input.session.id)
-	s != null
-} else = s {
-	s = get_databroker_record("type.googleapis.com/session.Session", input.session.id)
-	s != null
+session = v {
+	v = get_databroker_record("type.googleapis.com/user.ServiceAccount", input.session.id)
+	v != null
+} else = iv {
+	v = get_databroker_record("type.googleapis.com/session.Session", input.session.id)
+	v != null
+	object.get(v, "impersonate_session_id", "") != ""
+
+	iv = get_databroker_record("type.googleapis.com/session.Session", v.impersonate_session_id)
+	iv != null
+} else = v {
+	v = get_databroker_record("type.googleapis.com/session.Session", input.session.id)
+	v != null
+	object.get(v, "impersonate_session_id", "") == ""
 } else = {} {
 	true
 }
 
 user = u {
-	u = get_databroker_record("type.googleapis.com/user.User", session.impersonate_user_id)
-	u != null
-} else = u {
 	u = get_databroker_record("type.googleapis.com/user.User", session.user_id)
 	u != null
 } else = {} {
@@ -47,9 +52,6 @@ user = u {
 }
 
 directory_user = du {
-	du = get_databroker_record("type.googleapis.com/directory.User", session.impersonate_user_id)
-	du != null
-} else = du {
 	du = get_databroker_record("type.googleapis.com/directory.User", session.user_id)
 	du != null
 } else = {} {
@@ -57,9 +59,6 @@ directory_user = du {
 }
 
 group_ids = gs {
-	gs = session.impersonate_groups
-	gs != null
-} else = gs {
 	gs = directory_user.group_ids
 	gs != null
 } else = [] {
@@ -119,8 +118,6 @@ jwt_payload_user = v {
 }
 
 jwt_payload_email = v {
-	v = session.impersonate_email
-} else = v {
 	v = directory_user.email
 } else = v {
 	v = user.email
