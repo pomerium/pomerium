@@ -33,7 +33,7 @@ To prevent early session loss in production deployments, persistent storage back
 
 ## Backends
 
-Configuration options for each backend are detailed in [databroker configuration reference](/reference/#databroker-service).
+Configuration options for each backend are detailed in [databroker configuration reference](/reference/readme.md#data-broker-service).
 
 In all backends, Pomerium encrypts record values.  This ensures security of all records at rest, regardless of data store capabilities.  While this prevents many classes of attack vector, additional security measures should always be taken to secure data in transit and minimize access to the backends themselves.
 

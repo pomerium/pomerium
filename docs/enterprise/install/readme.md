@@ -8,5 +8,5 @@ meta:
 
 There are several ways to install Pomerium Enterprise, to suite your organization's needs. [Let us know] if you don't see an installation method compatible with your infrastructure.
 
-- [Quickstart](./quickstart.md)
-- [Kubernetes with Helm](./helm.md)
+- [Quickstart](/enterprise/install/quickstart.md)
+- [Kubernetes with Helm](/enterprise/install/helm.md)

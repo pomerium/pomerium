@@ -43,11 +43,11 @@ To update your policies for v0.14, please remove any identity provider prefix.  
 
 ### Upstream load balancing
 
-With the v0.13 release, routes may contain [multiple `to` URLs](/reference/#to), and Pomerium will load balance between the endpoints. This allows Pomerium to fill the role of an edge proxy without the need for additional HTTP load balancers.
+With the v0.13 release, routes may contain [multiple `to` URLs](/reference/readme.md#to), and Pomerium will load balance between the endpoints. This allows Pomerium to fill the role of an edge proxy without the need for additional HTTP load balancers.
 
-- Active [health checks](/reference/#health-checks) and passive [outlier detection](/reference/#outlier-detection)
-- Configurable [load balancing policies](/reference/#load-balancing-policy)
-- Configurable [load balancing weight](/reference/#to)
+- Active [health checks](/reference/readme.md#health-checks) and passive [outlier detection](/reference/readme.md#outlier-detection)
+- Configurable [load balancing policies](/reference/readme.md#load-balancing-policy)
+- Configurable [load balancing weight](/reference/readme.md#to)
 
 See [Load Balancing](/docs/topics/load-balancing) for more information on using this feature set.
 
@@ -57,7 +57,7 @@ With the v0.13 release, all TLS files referenced from Pomerium's configuration a
 
 ### Proxy Protocol support
 
-The Pomerium HTTP listener now [supports](/reference/#use-proxy-protocol) HAPROXY's [proxy protocol](https://www.haproxy.org/download/1.9/doc/proxy-protocol.txt) to update `X-Forwarded-For` accurately when behind another proxy service.
+The Pomerium HTTP listener now [supports](/reference/readme.md#use-proxy-protocol) HAPROXY's [proxy protocol](https://www.haproxy.org/download/1.9/doc/proxy-protocol.txt) to update `X-Forwarded-For` accurately when behind another proxy service.
 
 ## Breaking
 
@@ -88,7 +88,7 @@ Pomerium can now be used for non-HTTP services.  See [documentation](/docs/topic
 
 ### Datadog Tracing
 
-Datadog has been added as a natively supported [tracing backend](/reference/#datadog)
+Datadog has been added as a natively supported [tracing backend](/reference/readme.md#datadog)
 
 # Since 0.10.0
 
@@ -310,7 +310,7 @@ Please see the updated examples, and [cache service docs] as a reference and for
 
 - Okta no longer uses tokens to retrieve group membership. [Group membership](https://developer.okta.com/docs/reference/api/groups/) is now fetched using Okta's API.
 - Okta's group membership is now determined by the globally unique and immutable ID field. Please update your policies to use group `ID` instead of group name.
-- Okta now requires an additional set of credentials to be used to query for group membership set as a [service account](https://www.pomerium.io/docs/reference/reference.html#identity-provider-service-account).
+- Okta now requires an additional set of credentials to be used to query for group membership set as a [service account](/reference/readme.md#identity-provider-service-account).
 
 ### OneLogin
 
@@ -322,7 +322,7 @@ Force refresh has been removed from the dashboard. Logging out and back in again
 
 ### Programmatic Access API changed
 
-Previous programmatic authentication endpoints (`/api/v1/token`) has been removed and has been replaced by a per-route, oauth2 based auth flow. Please see updated [programmatic documentation](https://www.pomerium.io/docs/reference/programmatic-access.html) how to use the new programmatic access api.
+Previous programmatic authentication endpoints (`/api/v1/token`) has been removed and has been replaced by a per-route, oauth2 based auth flow. Please see updated [programmatic documentation](/docs/topics/programmatic-access.md) how to use the new programmatic access api.
 
 ### Forward-auth route change
 
@@ -473,9 +473,9 @@ Usage of the POLICY_FILE envvar is no longer supported. Support for file based p
 
 The configuration variable [Authenticate Internal Service URL] must now be a valid [URL](https://golang.org/pkg/net/url/#URL) type and contain both a hostname and valid `https` schema.
 
-[authenticate internal service url]: ../reference/readme.md#authenticate-service-url
-[cache service docs]: ../reference/readme.md#cache-service
-[identity provider service account]: ../reference/readme.md#identity-provider-service-account
-[policy]: ../reference/readme.md#policy
-[storage backend configuration here]: ../reference/readme.md#cache-service
-[storage backend types]: ../reference/readme.md#data-broker-storage-type
+[authenticate internal service url]: /reference/readme.md#authenticate-service-url
+[cache service docs]: /reference/readme.md#data-broker-service
+[identity provider service account]: /reference/readme.md#identity-provider-service-account
+[policy]: /reference/readme.md#policy
+[storage backend configuration here]: /reference/readme.md#data-broker-service
+[storage backend types]: /reference/readme.md#data-broker-storage-type

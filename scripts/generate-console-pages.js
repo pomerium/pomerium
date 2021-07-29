@@ -27,11 +27,14 @@ const fromOSSettings = (name, keys) => {
     let result = ''
     for (let i = 0; i < asMap.length; i++ ) {
         for (j = 0; j < asMap[i].length; j++){
+            const fixAnchorLinksRegex = /\(\#/g
+            const fixHTMLLinksRegex = /\(\/(.+?).html/g
             if (asMap[i][j].name === name) {
-                result = asMap[i][j].doc
+                result = asMap[i][j].doc.replace(fixAnchorLinksRegex, "(/reference/readme.md#").replace(fixHTMLLinksRegex, "(/$1.md")
             }
             else if (keys !== null && asMap[i][j].keys && keys.some( key => asMap[i][j].keys.indexOf(key) >= 0)) {
-                result = asMap[i][j].doc
+                
+                result = asMap[i][j].doc.replace(fixAnchorLinksRegex, "(/reference/readme.md#").replace(fixHTMLLinksRegex, "(/$1.md")
             } 
         }
     }

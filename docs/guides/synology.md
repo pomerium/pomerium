@@ -215,12 +215,12 @@ And just to be safe, try logging in from another google account to see what happ
 
 ![Synology done](./img/synology-step-4-unauthorized.png)
 
-[certificate documentation]: ../topics/certificates.md
-[configuration variable docs]: ../../reference/readme.md
+[certificate documentation]: /docs/topics/certificates.md
+[configuration variable docs]: /reference/readme.md
 [diskstation manager]: https://www.synology.com/en-us/dsm
 [docker-capable]: https://www.synology.com/en-us/dsm/packages/Docker
 [httpbin]: https://httpbin.org
-[identity provider]: ../identity-providers/readme.md
+[identity provider]: /docs/identity-providers/readme.md
 [letsencrypt]: https://letsencrypt.org/
 [nginx]: https://www.nginx.com
 [self-hosted apps]: https://github.com/Kickball/awesome-selfhosted

@@ -41,8 +41,8 @@ Finally, source the configuration `env` file and run pomerium specifying the `co
 
 Browse to `external-verify.your.domain.example`. Connections between you and [verify] will now be proxied and managed by Pomerium.
 
-[configuration variables]: ../../reference/readme.md
+[configuration variables]: /reference/readme.md
 [download]: https://github.com/pomerium/pomerium/releases
 [verify]: https://verify.pomerium.com/
-[identity provider]: ../identity-providers/
-[tls certificates]: ../topics/certificates.md
+[identity provider]: /docs/identity-providers/readme.md
+[tls certificates]: /docs/topics/certificates.md

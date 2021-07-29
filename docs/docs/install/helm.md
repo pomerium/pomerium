@@ -207,7 +207,7 @@ You can also navigate to the special pomerium endpoint `hello.localhost.pomerium
 
 ## Next Steps
 
-Congratulations on installing Pomerium to your Kubernetes cluster! If you're installing Pomerium Enterprise next, see [Install Pomerium Enterprise Console in Helm]. If not, check our our [guides](/guides/) to install common services behind Pomerium.
+Congratulations on installing Pomerium to your Kubernetes cluster! If you're installing Pomerium Enterprise next, see [Install Pomerium Enterprise Console in Helm]. If not, check our our [guides](/guides/readme.md) to install common services behind Pomerium.
 
 [cert-manager]: https://cert-manager.io/docs/
 [cert-manager: CA]: https://cert-manager.io/docs/configuration/ca/

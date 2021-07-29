@@ -10,7 +10,7 @@ description: >-
 
 # Securing TCP based services
 
-The following guide demonstrates how to use Pomerium's [TCP Proxying](/topics/tcp-support.md) support with various TCP services such as databases and other non-HTTP protocols.  It also covers integration points with them when possible.
+The following guide demonstrates how to use Pomerium's [TCP Proxying](/docs/topics/tcp-support.md) support with various TCP services such as databases and other non-HTTP protocols.  It also covers integration points with them when possible.
 
 The source files from this guide can be found on [GitHub](https://github.com/pomerium/pomerium/tree/master/examples/tcp/).
 
@@ -25,7 +25,7 @@ Important notes:
 
 ## How it works
 
-* Create a standard Pomerium configuration for your [identity provider (IdP)](/docs/identity-providers/)
+* Create a standard Pomerium configuration for your [identity provider (IdP)](/docs/identity-providers/readme.md)
 * `pomerium-cli` runs on your workstation, listening on loopback for TCP connections
 * When an inbound connection is made, `pomerium-cli` proxies the connection through `pomerium`, authenticating the user if needed
 * Pomerium authorizes the connection and forwards it to the upstream service
@@ -39,7 +39,7 @@ This recipe is designed to run on a local docker-compose instance. The included 
 * docker-compose
 * A copy of the [example repo](https://github.com/pomerium/pomerium/tree/master/examples/tcp/) checked out
 * Valid credentials for your OIDC provider
-* The [Pomerium Client](/docs/installation.md#pomerium-cli) installed
+* The [Pomerium Client](/docs/releases.md#pomerium-cli) installed
 * (Optional) `mkcert` to generate locally trusted certificates
 
 ## Certificates (optional)
@@ -82,7 +82,7 @@ Included in our compose file:
 
 ## Connect
 
-To connect to your service, ensure [`pomerium-cli`](/docs/installation.md#pomerium-cli) is in your `$PATH` and run the `tcp` command, specifying the service you wish to reach.
+To connect to your service, ensure [`pomerium-cli`](/docs/releases.md#pomerium-cli) is in your `$PATH` and run the `tcp` command, specifying the service you wish to reach.
 
 ```bash
 pomerium-cli tcp [hostname]:[port]
