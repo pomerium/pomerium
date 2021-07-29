@@ -135,7 +135,7 @@ Once you have set permissions in the console UI, you should remove this configur
 
 ### TLS
 
-Communication between the Pomerium Enterprise Console and Pomerium Core components should always be secured via TLS. You should provide a certificate and key for the console service and may optionally provide a custom CA to verify the *`databroker_service_url`* connection:
+If your open-source Pomerium installation is already configured to use TLS to secure back-end communication, you can do the same for the Pomerium Enterprise Console by providing it a certificate, key, and optional custom CA file to validate the `databroker_service_url` connection:
 
 ```yaml
 tls_ca_file: /etc/pomerium-console/ca.pem
@@ -143,6 +143,7 @@ tls_cert_file: /etc/pomerium-console/cert.pem
 tls_key_file: /etc/pomerium-console/key.pem
 ```
 
+For proof-of-concept installations in the same local system, this is not required.
 
 Once complete, your `/etc/pomerium-console/config.yaml` file should look something like this:
 
