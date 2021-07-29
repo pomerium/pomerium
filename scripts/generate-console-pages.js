@@ -33,7 +33,7 @@ const fromOSSettings = (name, keys) => {
       }
       else if (keys !== null && asMap[i][j].keys && keys.some( key => asMap[i][j].keys.indexOf(key) >= 0)) {
         result = asMap[i][j].doc.replace(fixAnchorLinksRegex, "(/reference/readme.md#").replace(fixHTMLLinksRegex, "(/$1.md")
-      } 
+      }
     }
   }
   return result;
