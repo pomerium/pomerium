@@ -20,8 +20,6 @@ The Pomerium Enterprise Console requires:
 
 ## System Requirements
 
-<!-- @Travis Is this section needed for a cluster install? At the very least, te network section should be handled by our helm config, no? -->
-
 One of the advantages of a Kubernetes deployment is automatic scaling, but if your database or redis solution is outside of your k8s configuration, refer to the requirements below:
 
 - Each Postgres instance should have at least:
