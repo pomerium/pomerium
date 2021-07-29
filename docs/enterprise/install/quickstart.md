@@ -81,7 +81,7 @@ Pomerium publishes standard OS packages for RPM and DEB based systems. The repos
 1. Update refresh and install:
 
    ```bash
-   need to confirm the RHEL commands here
+yum -y install pomerium-console
    ```
 
 :::
