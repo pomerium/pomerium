@@ -453,18 +453,13 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 
 	isImpersonated := false
 	pbSession, err := session.Get(ctx, state.dataBrokerClient, s.ID)
-	if err != nil {
-		pbSession = &session.Session{
-			Id: s.ID,
-		}
-	}
 	if pbSession.GetImpersonateSessionId() != "" {
 		pbSession, err = session.Get(ctx, state.dataBrokerClient, pbSession.GetImpersonateSessionId())
 		isImpersonated = true
-		if err != nil {
-			pbSession = &session.Session{
-				Id: s.ID,
-			}
+	}
+	if err != nil {
+		pbSession = &session.Session{
+			Id: s.ID,
 		}
 	}
 
