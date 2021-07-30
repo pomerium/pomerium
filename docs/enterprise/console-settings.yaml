@@ -151,11 +151,27 @@ settings:
     settings:
       - name: "User Impersonation"
         doc: |
-          Travis fill me with delicious data!
+          
       - name: "Settings"
         settings:
           - name: "Global"
+            settings:
+              - name: "Administrators"
+              - name: "Debug"
+              - name: "Forward Auth"
+              - name: "HTTP Redirect Address"
+              - name: "DNS Lookup Family"
+              - name: "Log Level"
+              - name: "Proxy Log Level"
+              - name: "Enable User Impersonation"
           - name: "Cookies"
+            settings:
+              - name: "HTTPS Only"
+                keys: ["cookie_secure"]
+              - name: "Javascript Security"
+                keys: ["cookie_http_only"]
+              - name: "Expires"
+                keys: ["cookie_expire"]
           - name: "Timeouts"
           - name: "GRPC"
           - name: "Tracing"

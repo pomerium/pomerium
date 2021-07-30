@@ -360,5 +360,6 @@ certificates:
 ```
 
 [route-concept]: /enterprise/concepts.md#routes
+[route-reference]: /enterprise/reference/manage.md#routes
 [namespace-concept]: /enterprise/concepts.md#namespaces
 [namespace-reference]: /enterprise/reference/configure.md#namespaces
