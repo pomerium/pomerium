@@ -10,6 +10,19 @@ description: >-
 ## Breaking
 
 The unused `grpc_server_max_connection_age` and `grpc_server_max_connection_age_grace` options were removed.
+## New
+
+### Updated and expanded policy syntax
+
+Routes and policies may now be configured under a new top level key - `routes`
+
+- This more closely aligns to how policies and routes are conceptually related
+- The `routes` block supports a more powerful syntax for definiting policies with conditionals and various criteria
+
+### Support environmental proxy settings
+
+`pomerium-cli` now respects proxy related environmental variables.
+
 # Since 0.13.0
 
 ## New
