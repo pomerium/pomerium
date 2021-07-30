@@ -73,7 +73,7 @@ An Admin user has permissions across all Namespaces. They can manage global sett
 
 ## Service Accounts
 
-Service accounts handle machine-to-machine communication through Pomerium to your Identity Provider (**IdP**) in order to retrieve and establish group membership, provide auth for monitoring services, create API integratiosn, etc. Configuration is largely dependent on the IdP, but is usually an API access token with sufficient privileges to read users and groups.
+Service accounts handle machine-to-machine communication through Pomerium to your Identity Provider (**IdP**) in order to retrieve and establish group membership, provide auth for monitoring services, create API integrations, etc. Configuration is largely dependent on the IdP, but is usually an API access token with sufficient privileges to read users and groups.
 
 <!-- @travisgroth -- could you add some context in here? I think your PRD on service accounts would be super helpful and you know this concept best-->
 
