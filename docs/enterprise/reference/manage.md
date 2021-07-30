@@ -99,8 +99,9 @@ Add or remove Policies to be applied to the Route. Note that Policies enforced i
 
 #### Enable Google Cloud Serverless Authentication
 
-@Travis plz explain.
+Enable sending a signed [Authorization Header](https://cloud.google.com/run/docs/authenticating/service-to-service) to upstream GCP services.
 
+Requires setting [Google Cloud Serverless Authentication Service Account](/reference/readme.md#google-cloud-serverless-authentication-service-account) or running Pomerium in an environment with a GCP service account present in default locations.
 
 ### Matchers
 
