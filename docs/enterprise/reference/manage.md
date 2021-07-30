@@ -16,7 +16,7 @@ A Route provides access to a service through Pomerium.
 
 ### General
 
-The **General** tab defines the route path, both from the internet and to the internal service, and the policies attached. Note that policies enforced on a Namespace the Route resides in will also be applied.
+The **General** tab defines the route path, both from the internet and to the internal service, and the policies attached. Note that policies enforced on a [Namespace][namespace-reference] the route resides in will also be applied.
 
 
 #### Name
@@ -359,3 +359,6 @@ certificates:
     key: "$HOME/.acme.sh/prometheus.example.com_ecc/prometheus.example.com.key"
 ```
 
+[route-concept]: /enterprise/concepts.md#routes
+[namespace-concept]: /enterprise/concepts.md#namespaces
+[namespace-reference]: /enterprise/reference/configure.md#namespaces

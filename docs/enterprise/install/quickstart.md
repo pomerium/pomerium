@@ -128,7 +128,7 @@ For database uri options (especially TLS settings) see the [PostgreSQL SSL Suppo
 As a first-time setup step, you must also configure at least one administrator for console access. This user (or users) can then configure additional administrators in the console UI.
 
 ```yaml
-administrators: [you@mydomain.com]
+administrators: you@mydomain.com
 ```
 
 Once you have set permissions in the console UI, you should remove this configuration.

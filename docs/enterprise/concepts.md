@@ -73,13 +73,13 @@ An Admin user has permissions across all Namespaces. They can manage global sett
 
 ## Service Accounts
 
-Service accounts handle machine-to-machine communication from Pomerium to your Identity Provider (**IdP**) in order to retrieve and establish group membership. Configuration is largely dependent on the IdP, but is usually an API access token with sufficient privileges to read users and groups.
+Service accounts handle machine-to-machine communication through Pomerium to your Identity Provider (**IdP**) in order to retrieve and establish group membership, provide auth for monitoring services, create API integratiosn, etc. Configuration is largely dependent on the IdP, but is usually an API access token with sufficient privileges to read users and groups.
 
 <!-- @travisgroth -- could you add some context in here? I think your PRD on service accounts would be super helpful and you know this concept best-->
 
 ## Routes
 
-Unlike the open-source Pomerium configuration, access is not defined alongside routing. Instead, authorization is configured by attaching [policies](#policies) to a route.
+Routes define the connection pathway and configuration from the internet to your internal service. As a very basic level, a route sends traffic from `external-address.company.com` to `internalService-address.localdomain`, restricted by the policies associated with it, and encrypted by your TLS certificates. But more advanced configurations allow identity header pass-through, path and prefix rewrites, request and response header modification, load balancer services, and more.
 
 ## Policies
 
