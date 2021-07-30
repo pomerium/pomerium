@@ -37,31 +37,33 @@ Unlike with a VPN, or network driven access control mechanisms, application owne
 
 Hierarchical policy lets administrators enforce high level authorization policy. Policies can be optional (self-select), or mandatory.
 
-Consider this scenario: your organization has a security team managing high-level, course grain authorization controls. For example, they know that everyone with access to internal resources:
+Identity and access is organized and controlled with Identity and Access Management (**IAM**) teams via your Identity Provider (**IdP**). These users and groups are read by Pomerium from your IdP, and used to determine top-level Namespace organization.
+
+Consider this scenario: your organization has a security team managing high-level, course grain authorization controls. For example, they want to ensure that everyone with access to internal resources:
 
    - has a `yourcompany.com` email account,
    - isn't coming from a known bad actor IP address,
 
-Identity and access is organized and controlled with Identity and Access Management (**IAM**) teams in your Identity Provider (**IdP**). These users and groups are read by Pomerium from your IdP, and used to determine top-level Namespace organization.
+From there, the security team delegates management of child [Namespaces](#namespaces) to application teams, providing flexibility to self-manage their own application [Routes](#routes) and [Policies](#policies).
 
-From there, Application owners are assigned to child Namespaces, and are given the flexibility to self-manage their own application routes and policies.
-
-<!-- @Bobby This is my attempt to  prose-ify your block.-->
+For example, a developer group can be given control to determine who has access to their Namespace, and create or edit Routes within it. They can provide authentication to their WiP app without writing new authorization code.
 
 ### RBAC for Enterprise Console Users
 
 - Namespaces are also used to achieve Role Based Access Control (**RBAC**) in the console itself.
 - There are three different roles:
 
+#### Guest (no role)
+
+Users who are authenticated by your IdP but do not have a role assigned in the Pomerium Console can still view the list of Namespaces, but nothing else.
+
 #### Viewer
 
 A user with the Viewer role can:
 
-- view all resources in a Namespace (Routes, Policies, Certificates),
+- view all resources in a Namespace (Routes, Policies, Certificates), including child Namespaces
 - view traffic dashboard for routes in the Namespace, including child Namespaces
-- view the activity log for a namespace
-- view all namespaces (by list, not their contents) <!-- @bobby please double-check me here -->
-- query all directory data <!-- Copied from PRD, but unsure if implemented or what it does -->
+- view the activity log for a namespace.
 
 #### Manager
 
@@ -73,31 +75,23 @@ An Admin user has permissions across all Namespaces. They can manage global sett
 
 ## Service Accounts
 
-Service accounts handle machine-to-machine communication through Pomerium to your Identity Provider (**IdP**) in order to retrieve and establish group membership, provide auth for monitoring services, create API integrations, etc. Configuration is largely dependent on the IdP, but is usually an API access token with sufficient privileges to read users and groups.
+Service accounts provides bearer token based authentication for machine-to-machine communication through Pomerium to your protected endpoints. They can provide auth for monitoring services, create API integrations, etc.
 
-<!-- @travisgroth -- could you add some context in here? I think your PRD on service accounts would be super helpful and you know this concept best-->
+Service accounts can represent identities from your IdP or be Pomerium-only identities.
 
 ## Routes
 
 Routes define the connection pathway and configuration from the internet to your internal service. As a very basic level, a route sends traffic from `external-address.company.com` to `internalService-address.localdomain`, restricted by the policies associated with it, and encrypted by your TLS certificates. But more advanced configurations allow identity header pass-through, path and prefix rewrites, request and response header modification, load balancer services, and more.
 
+### Protected Endpoints
+
+This term refers to the system or service the route provides or restrics access to.
+
 ## Policies
 
-In the open-source Pomerium config, routes and policies are configured in a single block, under `policy`:
-
-```yaml
-policy:
-  - from: https://code.corp.domain.example
-    to: http://codeserver:8080
-    allowed_users:
-      - some.user@domain.example
-    allow_websockets: true
-```
-
-In the Pomerium Enterprise Console, [routes](#routes) and policies are separate entities. This allows for both easier and more fine-grained access control, as policies can be defined once, optionally associated under a [Namespace](#namespaces), and attached to one or more routes. Routes can also inherit policies from their parent Namespace. <!-- @Travis please confirm --> .
+In the Pomerium Enterprise Console,  FILL ME IN 
 
 ## Access control
-
 
 Authentication and authorization are similar concepts that are often used interchangeably.
 
