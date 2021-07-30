@@ -14,7 +14,7 @@ settings:
         settings:
           - name: "General"
             doc: |
-              The **General** tab defines the route path, both from the internet and to the internal service, and the policies attached. Note that policies enforced on a Namespace the Route resides in will also be applied.
+              The **General** tab defines the route path, both from the internet and to the internal service, and the policies attached. Note that policies enforced on a [Namespace][namespace-reference] the route resides in will also be applied.
             settings:
               - name: "Name"
                 doc: This value is only visible in the Console UI.
@@ -168,7 +168,12 @@ settings:
       - name: "Namespaces"
         keys: ["namespace"]
         doc: |
-          A Namespace is a collection of users, groups, routes, and policies that allows system administrators to organize, manage, and delegate permissions across their infrastructure.
+          A [Namespace][namespace-concept] is a collection of users, groups, routes, and policies that allows system administrators to organize, manage, and delegate permissions across their infrastructure.
 
           - Policies can be optional or enforced on a Namespace, and they can be nested to create inheritance.
           - Users or groups can be granted permission to edit access to routes within a Namespace, allowing them self-serve access to the routes critical to their work.
+postamble: |
+  [route-concept]: /enterprise/concepts.md#routes
+  [namespace-concept]: /enterprise/concepts.md#namespaces
+  [namespace-reference]: /enterprise/reference/configure.md#namespaces
+  [route-reference]: /enterprise/reference/manage.md#routes
