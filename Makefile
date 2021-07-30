@@ -114,6 +114,7 @@ clean: ## Cleanup any build binaries or packages.
 	@echo "==> $@"
 	$(RM) -r $(BINDIR)
 	$(RM) -r $(BUILDDIR)
+	$(RM) internal/envoy/files/envoy-*
 
 .PHONY: snapshot
 snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
