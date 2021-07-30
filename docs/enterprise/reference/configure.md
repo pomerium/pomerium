@@ -9,9 +9,6 @@ meta:
 
 # Configure
 
-## User Impersonation
-
-
 ## Settings
 
 
@@ -20,6 +17,7 @@ meta:
 
 #### Administrators
 
+A list of users with full access to the Pomerium Enterprise Console
 
 #### Debug
 
@@ -148,18 +146,46 @@ Proxy log level sets the logging level for the pomerium proxy service access log
 
 #### HTTPS Only
 
+If true, instructs browsers to only send user session cookies over HTTPS.
+
+:::warning
+
+Setting this to false may result in session cookies being sent in cleartext.
+
+:::
 
 #### Javascript Security
 
+If true, prevents javascript in browsers from reading user session cookies.
+
+:::warning
+
+Setting this to false enables hostile javascript to steal session cookies and impersonate users.
+
+:::
 
 #### Expires
 
+Sets the lifetime of session cookies. After this interval, users must reauthenticate.
 
 ### Timeouts
 
+Timeouts set the global server timeouts. Timeouts can also be set for individual routes.
 
 ### GRPC
 
+
+#### GRPC Server Max Connection Age
+
+Set max connection age for GRPC servers. After this interval, servers ask clients to reconnect and perform any rediscovery for new/updated endpoints from DNS.
+
+See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
+
+#### GRPC Server Max Connection Age Grace
+
+Additive period with `grpc_server_max_connection_age`, after which servers will force connections to close.
+
+See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
 
 ### Tracing
 
@@ -224,7 +250,7 @@ tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
 
 ## Service Accounts
 
-<!-- Explain Service Accounts --> Service accounts...
+See [Concepts: Service Accounts][service-accounts-concept].
 
 
 ## Namespaces
@@ -239,3 +265,4 @@ A [Namespace][namespace-concept] is a collection of users, groups, routes, and p
 [route-reference]: /enterprise/reference/manage.md#routes
 [namespace-concept]: /enterprise/concepts.md#namespaces
 [namespace-reference]: /enterprise/reference/configure.md#namespaces
+[service-accounts-concept]: /enterprise/concepts.md#service-accounts
