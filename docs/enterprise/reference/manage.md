@@ -364,3 +364,4 @@ certificates:
 [route-reference]: /enterprise/reference/manage.md#routes
 [namespace-concept]: /enterprise/concepts.md#namespaces
 [namespace-reference]: /enterprise/reference/configure.md#namespaces
+[service-accounts-concept]: /enterprise/concepts.md#service-accounts

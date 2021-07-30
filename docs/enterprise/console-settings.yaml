@@ -147,14 +147,12 @@ settings:
       - name: "Certificates"
   - name: "Configure"
     settings:
-      - name: "User Impersonation"
-        doc: |
-          
       - name: "Settings"
         settings:
           - name: "Global"
             settings:
               - name: "Administrators"
+                doc: A list of users with full access to the Pomerium Enterprise Console
               - name: "Debug"
               - name: "Forward Auth"
               - name: "HTTP Redirect Address"
@@ -167,11 +165,14 @@ settings:
               - name: "HTTPS Only"
                 keys: ["cookie_secure"]
               - name: "Javascript Security"
-                keys: ["cookie_http_only"]
               - name: "Expires"
                 keys: ["cookie_expire"]
           - name: "Timeouts"
+            doc: "Timeouts set the global server timeouts. Timeouts can also be set for individual routes."
           - name: "GRPC"
+            settings:
+              - name: "GRPC Server Max Connection Age"
+              - name: "GRPC Server Max Connection Age Grace"
           - name: "Tracing"
           - name: "Authenticate"
           - name: "Authorize"
