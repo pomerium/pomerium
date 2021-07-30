@@ -33,6 +33,17 @@ const fromOSSettings = (name, keys) => {
       }
       else if (keys !== null && asMap[i][j].keys && keys.some( key => asMap[i][j].keys.indexOf(key) >= 0)) {
         result = asMap[i][j].doc.replace(fixAnchorLinksRegex, "(/reference/readme.md#").replace(fixHTMLLinksRegex, "(/$1.md")
+      } else {
+        if (asMap[i][j].settings) {
+          for (k = 0; k < asMap[i][j].settings.length; k++) {
+            if (asMap[i][j].settings[k].name === name && asMap[i][j].settings[k].doc) {
+              result = asMap[i][j].settings[k].doc.replace(fixAnchorLinksRegex, "(/reference/readme.md#").replace(fixHTMLLinksRegex, "(/$1.md")
+            }
+            else if (keys !== null && asMap[i][j].settings[k].keys && keys.some( key => asMap[i][j].settings[k].keys.indexOf(key) >= 0) && asMap[i][j].settings[k].doc) {
+              result = asMap[i][j].settings[k].doc.replace(fixAnchorLinksRegex, "(/reference/readme.md#").replace(fixHTMLLinksRegex, "(/$1.md")
+            }
+          }
+        }
       }
     }
   }
