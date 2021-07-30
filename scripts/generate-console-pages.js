@@ -103,7 +103,7 @@ meta:
         .map((subsection) => writeSubsection(subsection, 2))
         .join("")
     : "";
-  let content = frontmatter + header + body + moreBody;
+  let content = frontmatter + header + body + moreBody + postamble;
 
   fs.writeFileSync(path, content);
 };
@@ -152,7 +152,7 @@ let keysFile = yaml.load(
 let OSSettings = yaml.load(
   fs.readFileSync("./docs/reference/settings.yaml", "utf8")
 );
-//console.log(`OSSettings: ${JSON.stringify(OSSettings)}`) // For Debugging
+let postamble = docs.postamble
 
 writeConfigPage(keysFile);
 
