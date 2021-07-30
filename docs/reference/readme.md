@@ -1188,6 +1188,12 @@ Requires setting [Google Cloud Serverless Authentication Service Account](./#goo
 
 Specifying `tcp+https` for the scheme enables [TCP proxying](../docs/topics/tcp-support.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
 
+:::warning
+
+Only secure schemes (`https` and `tcp+https`) are supported.
+
+:::
+
 
 ### Kubernetes Service Account Token
 - `yaml`/`json` setting: `kubernetes_service_account_token` / `kubernetes_service_account_token_file`
