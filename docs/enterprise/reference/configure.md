@@ -245,8 +245,102 @@ tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
 ### Authorize
 
 
+#### Signing Key
+
+Signing Key is the private key used to sign a user's attestation JWT which can be consumed by upstream applications to pass along identifying user information like username, id, and groups.
+
+If set, the signing key's public key will can retrieved by hitting Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. Otherwise, the endpoint will return an empty keyset.
+
+For example, assuming you have [generated an ES256 key](https://github.com/pomerium/pomerium/blob/master/scripts/generate_self_signed_signing_key.sh) as follows.
+
+```bash
+# Generates an P-256 (ES256) signing key
+openssl ecparam  -genkey  -name prime256v1  -noout  -out ec_private.pem
+# careful! this will output your private key in terminal
+cat ec_private.pem | base64
+```
+
+That signing key can be accessed via the well-known jwks endpoint.
+
+```bash
+$ curl https://authenticate.int.example.com/.well-known/pomerium/jwks.json | jq
+```
+
+```json
+{
+  "keys": [
+    {
+      "use": "sig",
+      "kty": "EC",
+      "kid": "ccc5bc9d835ff3c8f7075ed4a7510159cf440fd7bf7b517b5caeb1fa419ee6a1",
+      "crv": "P-256",
+      "alg": "ES256",
+      "x": "QCN7adG2AmIK3UdHJvVJkldsUc6XeBRz83Z4rXX8Va4",
+      "y": "PI95b-ary66nrvA55TpaiWADq8b3O1CYIbvjqIHpXCY"
+    }
+  ]
+}
+```
+
+If no certificate is specified, one will be generated and the base64'd public key will be added to the logs. Note, however, that this key be unique to each service, ephemeral, and will not be accessible via the authenticate service's `jwks_uri` endpoint.
+
+#### Signing Key Algorithm
+
+This setting specifies which signing algorithm to use when signing the upstream attestation JWT. Cryptographic algorithm choice is subtle, and beyond the scope of this document, but we suggest sticking to the default `ES256` unless you have a good reason to use something else.
+
+Be aware that any RSA based signature method may be an order of magnitude lower than [elliptic curve] variants like EdDSA (`ed25519`) and ECDSA (`ES256`). For more information, checkout [this article](https://www.scottbrady91.com/JOSE/JWTs-Which-Signing-Algorithm-Should-I-Use).
+
 ### Proxy
 
+
+#### Certificate Authority 
+
+Certificate Authority is set when behind-the-ingress service communication uses custom or self-signed certificates.
+
+:::warning
+
+Be sure to include the intermediary certificate.
+
+:::
+
+#### Default Upstream Timeout
+
+Default Upstream Timeout is the default timeout applied to a proxied route when no `timeout` key is specified by the policy.
+
+#### JWT Claim Headers
+
+The JWT Claim Headers setting allows you to pass specific user session data down to upstream applications as HTTP request headers. Note, unlike the header `x-pomerium-jwt-assertion` these values are not signed by the authorization service.
+
+Any claim in the pomerium session JWT can be placed into a corresponding header for upstream consumption. This claim information is sourced from your Identity Provider (IdP) and Pomerium's own session metadata. The header will have the following format:
+
+`X-Pomerium-Claim-{Name}` where `{Name}` is the name of the claim requested.
+
+This option also supports a nested object to customize the header name. For example:
+
+```yaml
+jwt_claims_headers:
+  X-Email: email
+```
+
+Will add an `X-Email` header with a value of the `email` claim.
+
+Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}`.
+
+#### Override Certificate Name
+
+Secure service communication can fail if the external certificate does not match the internally routed service hostname/[SNI](https://en.wikipedia.org/wiki/Server_Name_Indication). This setting allows you to override that value.
+
+#### Refresh Cooldown
+
+Refresh cooldown is the minimum amount of time between allowed manually refreshed sessions.
+
+#### X-Forward-For HTTP Header
+
+Do not append proxy IP address to `x-forwarded-for` HTTP header. See [Envoy](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=skip_xff_append#x-forwarded-for) docs for more detail.
+
+#### Response Headers
+
+Set Response Headers allows you to set static values for the given response headers. These headers will take precedence over the global `set_response_headers`.
 
 ## Service Accounts
 

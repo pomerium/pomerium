@@ -176,7 +176,21 @@ settings:
           - name: "Tracing"
           - name: "Authenticate"
           - name: "Authorize"
+            settings:
+              - name: "Signing Key"
+              - name: "Signing Key Algorithm"
           - name: "Proxy"
+            settings:
+              - name: "Certificate Authority "
+                keys: ["certificate_authority"]
+              - name: "Default Upstream Timeout"
+              - name: "JWT Claim Headers"
+              - name: "Override Certificate Name"
+              - name: "Refresh Cooldown"
+              - name: "X-Forward-For HTTP Header"
+                keys: ["skip_xff_append"]
+              - name: "Response Headers"
+                keys: ["set_response_headers"]
       - name: "Service Accounts"
         doc: |
           See [Concepts: Service Accounts][service-accounts-concept].
