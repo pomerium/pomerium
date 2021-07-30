@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -53,9 +52,8 @@ allow:
 `,
 			[]dataBrokerRecord{
 				&session.Session{
-					Id:               "SESSION_ID",
-					UserId:           "USER_ID",
-					ImpersonateEmail: proto.String("test2@example.com"),
+					Id:     "SESSION_ID",
+					UserId: "USER_ID",
 				},
 				&user.User{
 					Id:    "USER_ID",

@@ -82,28 +82,10 @@
                   <td>{{.AsTime | formatTime}}</td>
                 </tr>
                 {{end}}
-                {{with .Session.ImpersonateUserId}}
                 <tr>
-                  <td>Impersonate ID</td>
-                  <td>{{.}}</td>
+                  <td>Impersonated</td>
+                  <td>{{.IsImpersonated}}</td>
                 </tr>
-                {{end}}
-                {{with .Session.ImpersonateEmail}}
-                <tr>
-                  <td>Impersonate Email</td>
-                  <td>{{.}}</td>
-                </tr>
-                {{end}}
-                {{with $groups := .Session.ImpersonateGroups}}
-                <tr>
-                  <td>Impersonate Groups</td>
-                  <td>
-                    {{range $groups}}
-                    <p>{{.}}</p>
-                    {{end}}
-                  </td>
-                </tr>
-                {{end}}
               </tbody>
             </table>
             {{else}}

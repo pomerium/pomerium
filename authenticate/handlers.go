@@ -451,12 +451,18 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		s.ID = uuid.New().String()
 	}
 
+	isImpersonated := false
 	pbSession, err := session.Get(ctx, state.dataBrokerClient, s.ID)
+	if pbSession.GetImpersonateSessionId() != "" {
+		pbSession, err = session.Get(ctx, state.dataBrokerClient, pbSession.GetImpersonateSessionId())
+		isImpersonated = true
+	}
 	if err != nil {
 		pbSession = &session.Session{
 			Id: s.ID,
 		}
 	}
+
 	pbUser, err := user.Get(ctx, state.dataBrokerClient, pbSession.GetUserId())
 	if err != nil {
 		pbUser = &user.User{
@@ -488,8 +494,9 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	input := map[string]interface{}{
+		"IsImpersonated":  isImpersonated,
 		"State":           s,               // local session state (cookie, header, etc)
-		"Session":         pbSession,       // current access, refresh, id token, & impersonation state
+		"Session":         pbSession,       // current access, refresh, id token
 		"User":            pbUser,          // user details inferred from oidc id_token
 		"DirectoryUser":   pbDirectoryUser, // user details inferred from idp directory
 		"DirectoryGroups": groups,          // user's groups inferred from idp directory

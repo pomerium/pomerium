@@ -38,14 +38,8 @@ func (a *Authorize) logAuthorizeCheck(
 	// session information
 	if s, ok := s.(*session.Session); ok {
 		evt = evt.Str("session-id", s.GetId())
-		if s.GetImpersonateEmail() != "" {
-			evt = evt.Str("impersonate-email", s.GetImpersonateEmail())
-		}
-		if len(s.GetImpersonateGroups()) > 0 {
-			evt = evt.Strs("impersonate-groups", s.GetImpersonateGroups())
-		}
-		if s.GetImpersonateUserId() != "" {
-			evt = evt.Str("impersonate-user-id", s.GetImpersonateUserId())
+		if s.GetImpersonateSessionId() != "" {
+			evt = evt.Str("impersonate-session-id", s.GetImpersonateSessionId())
 		}
 	}
 	if sa, ok := s.(*user.ServiceAccount); ok {

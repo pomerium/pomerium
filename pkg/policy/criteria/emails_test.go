@@ -44,7 +44,7 @@ allow:
 		require.Equal(t, true, res["allow"])
 		require.Equal(t, false, res["deny"])
 	})
-	t.Run("by impersonate email", func(t *testing.T) {
+	t.Run("by impersonate session id", func(t *testing.T) {
 		res, err := evaluate(t, `
 allow:
   and:
@@ -53,16 +53,24 @@ allow:
 `,
 			[]dataBrokerRecord{
 				&session.Session{
-					Id:               "SESSION_ID",
-					UserId:           "USER_ID",
-					ImpersonateEmail: proto.String("test2@example.com"),
+					Id:                   "SESSION1",
+					UserId:               "USER1",
+					ImpersonateSessionId: proto.String("SESSION2"),
+				},
+				&session.Session{
+					Id:     "SESSION2",
+					UserId: "USER2",
 				},
 				&user.User{
-					Id:    "USER_ID",
+					Id:    "USER1",
 					Email: "test1@example.com",
 				},
+				&user.User{
+					Id:    "USER2",
+					Email: "test2@example.com",
+				},
 			},
-			Input{Session: InputSession{ID: "SESSION_ID"}})
+			Input{Session: InputSession{ID: "SESSION1"}})
 		require.NoError(t, err)
 		require.Equal(t, true, res["allow"])
 		require.Equal(t, false, res["deny"])
