@@ -1190,7 +1190,7 @@ Specifying `tcp+https` for the scheme enables [TCP proxying](../docs/topics/tcp-
 
 :::warning
 
-Only secure schemes (`https` and `tcp+https`) are supported. 
+Only secure schemes (`https` and `tcp+https`) are supported.
 
 :::
 
