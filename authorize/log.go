@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/audit"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 func (a *Authorize) logAuthorizeCheck(
@@ -37,10 +38,7 @@ func (a *Authorize) logAuthorizeCheck(
 
 	// session information
 	if s, ok := s.(*session.Session); ok {
-		evt = evt.Str("session-id", s.GetId())
-		if s.GetImpersonateSessionId() != "" {
-			evt = evt.Str("impersonate-session-id", s.GetImpersonateSessionId())
-		}
+		evt = a.populateLogSessionDetails(evt, s)
 	}
 	if sa, ok := s.(*user.ServiceAccount); ok {
 		evt = evt.Str("service-account-id", sa.GetId())
@@ -85,6 +83,34 @@ func (a *Authorize) logAuthorizeCheck(
 			EmbedObject(sealed).
 			Msg("audit log")
 	}
+}
+
+func (a *Authorize) populateLogSessionDetails(evt *zerolog.Event, s *session.Session) *zerolog.Event {
+	evt = evt.Str("session-id", s.GetId())
+	if s.GetImpersonateSessionId() == "" {
+		return evt
+	}
+
+	evt = evt.Str("impersonate-session-id", s.GetImpersonateSessionId())
+	impersonatedSession, ok := a.store.GetRecordData(
+		grpcutil.GetTypeURL(new(session.Session)),
+		s.GetImpersonateSessionId(),
+	).(*session.Session)
+	if !ok {
+		return evt
+	}
+	evt = evt.Str("impersonate-user-id", impersonatedSession.GetUserId())
+
+	impersonatedUser, ok := a.store.GetRecordData(
+		grpcutil.GetTypeURL(new(user.User)),
+		impersonatedSession.GetUserId(),
+	).(*user.User)
+	if !ok {
+		return evt
+	}
+	evt = evt.Str("impersonate-email", impersonatedUser.GetEmail())
+
+	return evt
 }
 
 func stripQueryString(str string) string {
