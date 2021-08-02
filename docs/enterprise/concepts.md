@@ -85,11 +85,15 @@ Routes define the connection pathway and configuration from the internet to your
 
 ### Protected Endpoints
 
-This term refers to the system or service the route provides or restrics access to.
+This term refers to the system or service the route provides or restricts access to.
 
 ## Policies
 
-In the Pomerium Enterprise Console,  FILL ME IN 
+A Policy defines what permissions a set of users or groups has.
+
+Policies can be applied to [Routes](#routes) directly, or enforced within a [Namespace](#namespaces). This associates the set of permissions with a service or set of services, completing the authentication model.
+
+To learn more about how to create Policies in Pomerium Enterprise Console, see [Reference: Policies].
 
 ## Access control
 
@@ -117,3 +121,5 @@ Authorization is where Pomerium's value proposition really lies. With Pomerium:
 - authorization is identity and context aware; pomerium can be used to integrate data from any source into authorization policy decisions.
 - trust flows from identity, device-state, and context, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
 - Pomerium provides detailed audit logs for all activity in your environment. Quickly detect anomalies to mitigate bad actors and revoke access with a click of a button. Simplify life-cycle management and access reviews.
+
+[Reference: Policies]: /enterprise/reference/manage.md#policies-2
