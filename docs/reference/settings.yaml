@@ -1361,7 +1361,7 @@ settings:
 
       Each route defines at minimum a `from` and `to` field, and a `policy` key defining authorization logic. Additional options are listed below.
 
-      <<< @/examples/config/route.example.yaml
+      <<< @/examples/config/route-example.yaml
     settings:
       - name: "CORS Preflight"
         keys: ["cors_allow_preflight"]
