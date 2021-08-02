@@ -69,6 +69,6 @@ require (
 	google.golang.org/genproto v0.0.0-20210722135532-667f2b7c528f
 	google.golang.org/grpc v1.39.0
 	google.golang.org/protobuf v1.27.1
-	gopkg.in/auth0.v5 v5.19.1
+	gopkg.in/auth0.v5 v5.19.2
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
