@@ -222,9 +222,9 @@ module.exports = {
               sidebarDepth: 2,
               children: [
                 "/enterprise/reference/config.md",
-                "/enterprise/reference/configure",
-                "/enterprise/reference/manage",
                 "/enterprise/reference/reports",
+                "/enterprise/reference/manage",
+                "/enterprise/reference/configure",
               ],
             },
           ],

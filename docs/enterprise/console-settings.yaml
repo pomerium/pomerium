@@ -2,9 +2,23 @@ settings:
   - name: "Reports"
     settings:
       - name: "Traffic"
+        doc: |
+          View the traffic running through Pomerium. Filter by [Route][route-concept] name, or date range.
+
+          ![The Traffic page in Pomerium Enterprise](../img/traffic-fullpage.png)
       - name: "Runtime"
+        doc: |
+          Monitor how much system resources Pomerium is consuming. Filter by date range, service, and instance.
+
+          ![The Runtime Info page in Pomerium Enterprise](../img/runtime-fullpage.png)
       - name: "Sessions"
+        doc: |
+          View active Sessions. From here you can revoke sessions, filter by session or user information, or revoke one or multiple sessions. You can also export the data.
+
+          ![The Sessions page in Pomerium Enterprise](../img/sessions-fullpage.png)
       - name: "Events"
+        doc: |
+          ![The Events page in Pomerium Enterprise](../img/events-fullpage.png)
       - name: "Deployments"
   - name: "Manage"
     settings:
