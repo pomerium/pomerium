@@ -1053,7 +1053,7 @@ If set, the TLS connection to the storage backend will not be verified.
 
 
 ::: warning
-The `policy` field as a top-level configuration key has been replaced with [`routes`](/reference.html#routes). Moving forward, define policies within each defined route.
+The `policy` field as a top-level configuration key has been replaced with [`routes`](/reference/readme.md#routes). Moving forward, define policies within each defined route.
 
 Existing policy definitions will currently behave as expected, but are deprecated and will be removed in a future version of Pomerium.
 :::
@@ -1077,7 +1077,7 @@ policy:
 
 In this example, an incoming request with a path prefix of `/admin` would be handled by the first route (which is restricted to superusers). All other requests for `from.example.com` would be handled by the second route (which is open to the public).
 
-A list of configuration variables specific to `policy` follows Note that this also shares all configuration variables listed under [routes](/reference.html#routes), excluding `policy` and its child variables.
+A list of configuration variables specific to `policy` follows Note that this also shares all configuration variables listed under [routes](/reference/readme.md#routes), excluding `policy` and its child variables.
 
 
 ### Allowed Domains
@@ -1234,7 +1234,7 @@ A route contains specific access and control definitions for a back-end service.
 
 Each route defines at minimum a `from` and `to` field, and a `policy` key defining authorization logic. Additional options are listed below.
 
-<<< @/examples/config/route.example.yaml
+<<< @/examples/config/route-example.yaml
 
 
 ### CORS Preflight
@@ -1800,7 +1800,7 @@ Be aware that any RSA based signature method may be an order of magnitude lower 
 [json]: https://en.wikipedia.org/wiki/JSON
 [letsencrypt]: https://letsencrypt.org/
 [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
-[okta]: ../docs/identity-providers/okta.md
+[okta]: /docs/identity-providers/okta.md
 [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
 [signed headers]: /docs/topics/getting-users-identity.md
 [toml]: https://en.wikipedia.org/wiki/TOML
