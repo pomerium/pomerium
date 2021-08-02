@@ -360,3 +360,4 @@ A [Namespace][namespace-concept] is a collection of users, groups, routes, and p
 [namespace-concept]: /enterprise/concepts.md#namespaces
 [namespace-reference]: /enterprise/reference/configure.md#namespaces
 [service-accounts-concept]: /enterprise/concepts.md#service-accounts
+[policy-reference]: /enterprise/reference/manage.md#policies-2

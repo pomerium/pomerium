@@ -150,13 +150,6 @@ The substitution for your regex pattern, ex: `\\2/instance/\\1`.
 
 #### Allow Websockets
 
-If set, enables proxying of websocket connections.
-
-:::warning
-
-**Use with caution:** websockets are long-lived connections, so [global timeouts](/reference/readme.md#global-timeouts) are not enforced (though the policy-specific `timeout` is enforced). Allowing websocket connections to the proxy could result in abuse via [DOS attacks](https://www.cloudflare.com/learning/ddos/ddos-attack-tools/slowloris/).
-
-:::
 
 #### Timeout
 
@@ -262,10 +255,6 @@ Some policy types support additional [configuration](/reference/readme.md#load-b
 
 A Policy defines what permissions a set of users or groups has. Policies are applied to Namespaces or Routes to associate the set of permissions with a service or set of service, completing the authentication model.
 
-::: tip
-This is a separate concept from [policies](/reference/readme.md#policy) in the non-enterprise model. In open-source Pomerium, the `policy` block defines both routes and access.
-:::
-
 Policies can be constructed three ways:
 
 ### Web UI
@@ -365,3 +354,4 @@ certificates:
 [namespace-concept]: /enterprise/concepts.md#namespaces
 [namespace-reference]: /enterprise/reference/configure.md#namespaces
 [service-accounts-concept]: /enterprise/concepts.md#service-accounts
+[policy-reference]: /enterprise/reference/manage.md#policies-2
