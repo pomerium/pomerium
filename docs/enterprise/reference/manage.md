@@ -29,6 +29,12 @@ This value is only visible in the Console UI.
 
 Specifying `tcp+https` for the scheme enables [TCP proxying](/docs/topics/tcp-support.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
 
+:::warning
+
+Only secure schemes (`https` and `tcp+https`) are supported.
+
+:::
+
 #### To
 
 `To` is the destination(s) of a proxied request. It can be an internal resource, or an external resource. Multiple upstream resources can be targeted by using a list instead of a single URL:
