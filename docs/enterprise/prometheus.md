@@ -13,7 +13,7 @@ The Pomerium Enterprise Console uses Prometheus as a metrics collection back-end
 1. In the Pomerium `config.yaml`, define the `metrics_address` key to a network interface and/or port. For example:
 
    ```yaml
-   metrics_address: "*:9999"
+   metrics_address: 0.0.0.0:9999
    ```
 
    The example above has Pomerium providing metrics at port `9999` on all network interfaces.
