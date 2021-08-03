@@ -24,7 +24,6 @@ func TestMetricsURL(t *testing.T) {
 	for _, opt := range []config.Options{
 		{MetricsAddr: "my.host:"},
 		{MetricsAddr: "my.host:9090", MetricsBasicAuth: "SMTH"},
-		{MetricsAddr: ":9090"},
 		{MetricsAddr: "my.host"},
 	} {
 		_, err := metricsURL(opt)

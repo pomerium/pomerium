@@ -81,9 +81,22 @@ func getReportedServices(cfg *config.Config) ([]*pb.Service, error) {
 }
 
 func metricsURL(o config.Options) (*url.URL, error) {
+	host, port, err := net.SplitHostPort(o.MetricsAddr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid metrics address %q: %w", o.MetricsAddr, err)
+	}
+	if port == "" {
+		return nil, fmt.Errorf("invalid metrics value %q: port is required", o.MetricsAddr)
+	}
+	if host == "" {
+		if host, err = getHostOrIP(); err != nil {
+			return nil, fmt.Errorf("could not guess hostname: %w", err)
+		}
+	}
+
 	u := url.URL{
 		Scheme: "http",
-		Host:   o.MetricsAddr,
+		Host:   net.JoinHostPort(host, port),
 		Path:   defaultMetricsPath,
 	}
 
@@ -105,19 +118,6 @@ func metricsURL(o config.Options) (*url.URL, error) {
 
 	if o.MetricsAddr == "" {
 		return nil, fmt.Errorf("no metrics address provided")
-	}
-
-	host, port, err := net.SplitHostPort(o.MetricsAddr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid metrics address %q: %w", o.MetricsAddr, err)
-	}
-
-	if port == "" {
-		return nil, fmt.Errorf("invalid metrics value %q: port is required", o.MetricsAddr)
-	}
-
-	if host == "" {
-		return nil, fmt.Errorf("invalid metrics value %q: either host or IP address is required", o.MetricsAddr)
 	}
 
 	return &u, nil
