@@ -384,28 +384,6 @@ Maximum time before canceling an upstream gRPC request. During transient failure
 Enable gRPC DNS based round robin load balancing. This method uses DNS to resolve endpoints and does client side load balancing of _all_ addresses returned by the DNS record. Do not disable unless you have a specific use case.
 
 
-#### GRPC Server Max Connection Age
-- Environmental Variable: `GRPC_SERVER_MAX_CONNECTION_AGE`
-- Config File Key: `grpc_server_max_connection_age`
-- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
-- Default: `5m`
-
-Set max connection age for GRPC servers. After this interval, servers ask clients to reconnect and perform any rediscovery for new/updated endpoints from DNS.
-
-See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
-
-
-#### GRPC Server Max Connection Age Grace
-- Environmental Variable: `GRPC_SERVER_MAX_CONNECTION_AGE_GRACE`
-- Config File Key: `grpc_server_max_connection_age_grace`
-- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
-- Default: `5m`
-
-Additive period with `grpc_server_max_connection_age`, after which servers will force connections to close.
-
-See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
-
-
 ### HTTP Redirect Address
 - Environmental Variable: `HTTP_REDIRECT_ADDR`
 - Config File Key: `http_redirect_addr`

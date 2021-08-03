@@ -436,32 +436,6 @@ settings:
               - Default: `true`
             doc: |
               Enable gRPC DNS based round robin load balancing. This method uses DNS to resolve endpoints and does client side load balancing of _all_ addresses returned by the DNS record. Do not disable unless you have a specific use case.
-          - name: "GRPC Server Max Connection Age"
-            keys: ["grpc_server_max_connection_age"]
-            attributes: |
-              - Environmental Variable: `GRPC_SERVER_MAX_CONNECTION_AGE`
-              - Config File Key: `grpc_server_max_connection_age`
-              - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
-              - Default: `5m`
-            doc: |
-              Set max connection age for GRPC servers. After this interval, servers ask clients to reconnect and perform any rediscovery for new/updated endpoints from DNS.
-
-              See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
-            shortdoc: |
-              Set max connection age for GRPC servers.
-          - name: "GRPC Server Max Connection Age Grace"
-            keys: ["grpc_server_max_connection_age_grace"]
-            attributes: |
-              - Environmental Variable: `GRPC_SERVER_MAX_CONNECTION_AGE_GRACE`
-              - Config File Key: `grpc_server_max_connection_age_grace`
-              - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
-              - Default: `5m`
-            doc: |
-              Additive period with `grpc_server_max_connection_age`, after which servers will force connections to close.
-
-              See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
-            shortdoc: |
-              Additive period after which servers will force connections to close.
       - name: "HTTP Redirect Address"
         keys: ["http_redirect_addr"]
         attributes: |
