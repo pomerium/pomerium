@@ -5,6 +5,11 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.14.0
+
+## Breaking
+
+The unused `grpc_server_max_connection_age` and `grpc_server_max_connection_age_grace` options were removed.
 # Since 0.13.0
 
 ## New
