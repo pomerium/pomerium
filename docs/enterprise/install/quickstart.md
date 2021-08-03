@@ -23,7 +23,7 @@ This document assumes:
 
 - The Pomerium Enterprise Console requires Linux amd64/x86_64. It can manage Pomerium instances on other platforms, however.
 - Each Console instance should have at least:
-    - 2 vCPUs
+    - 4 vCPUs
     - 8G RAM
     - 100G of disk wherever logs are stored
 - Each Postgres instance should have at least:
