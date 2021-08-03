@@ -221,8 +221,14 @@ settings:
         doc: |
           A [Namespace][namespace-concept] is a collection of users, groups, routes, and policies that allows system administrators to organize, manage, and delegate permissions across their infrastructure.
 
-          - Policies can be optional or enforced on a Namespace, and they can be nested to create inheritance.
+          - Policies can be optional or enforced on a Namespace.
+             - Enforced policies are also enforced on child Namespaces, and optional policies are available to them as well.
           - Users or groups can be granted permission to edit access to routes within a Namespace, allowing them self-serve access to the routes critical to their work.
+          
+          ::: tip
+          When using Google as an IdP and working with non-domain users, they will not show up in the look-ahead search. See [Non-Domain Users](/enterprise/concepts.html#non-domain-users) for more information.
+          :::
+          
 postamble: |
   [route-concept]: /enterprise/concepts.md#routes
   [route-reference]: /enterprise/reference/manage.md#routes

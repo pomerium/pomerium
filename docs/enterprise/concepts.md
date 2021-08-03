@@ -73,6 +73,21 @@ In addition to the access provided by the Viewer role, the Manager can create, r
 
 An Admin user has permissions across all Namespaces. They can manage global settings, sessions, and service accounts, as well as view events and runtime data.
 
+## Users and Groups
+
+Pomerium populates users and groups from your IdP. This data is cached to prevent hitting API rate-limits, and provides look-ahead support when adding users or groups to [Namespaces](#namespaces) and [Policies](#policies).
+
+### Non-Domain Users
+
+When using Google as your IdP, you may hit an edge case where users are not available for lookup when the user's domain doesn't match that of your organization. In this case, there are two workarounds:
+
+- Create a group with the non-domain users in it. This group can be found and added to Namespaces and Policies.
+- Manually add the user's unique ID. Identify the ID from a user's Session Details page.
+
+   You can access the session details page from the 403 page, or by navigating to `/.pomerium` from any valid route. The unique ID is listed as "sub" under User Claims:
+
+   ![The Session Details page, showing the "sub" data](./img/session-details.png)
+
 ## Service Accounts
 
 Service accounts provides bearer token based authentication for machine-to-machine communication through Pomerium to your protected endpoints. They can provide auth for monitoring services, create API integrations, etc.
