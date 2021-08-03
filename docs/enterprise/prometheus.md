@@ -20,7 +20,7 @@ The Pomerium Enterprise Console uses Prometheus as a metrics collection back-end
 
 ## External Prometheus
 
-1. Add this listener to your Prometheus configuration, usually via `prometheus.yml`:
+1. Add the listener to your Prometheus configuration, usually via `prometheus.yml`:
 
    ```yaml
    - job_name: 'Pomerium'
