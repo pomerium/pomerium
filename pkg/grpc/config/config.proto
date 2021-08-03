@@ -170,8 +170,6 @@ message Settings {
   optional string tracing_zipkin_endpoint = 45;
   optional string grpc_address = 46;
   optional bool grpc_insecure = 47;
-  google.protobuf.Duration grpc_server_max_connection_age = 48;
-  google.protobuf.Duration grpc_server_max_connection_age_grace = 49;
   optional string forward_auth_url = 50;
   repeated string databroker_service_urls = 52;
   optional string client_ca = 53;

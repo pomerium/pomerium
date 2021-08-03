@@ -139,6 +139,9 @@ jwt_payload_groups = v {
 	true
 }
 
+# the session id is always set to the input session id, even if impersonating
+jwt_payload_sid := input.session.id
+
 base_jwt_claims := [
 	["iss", jwt_payload_iss],
 	["aud", jwt_payload_aud],
@@ -149,6 +152,7 @@ base_jwt_claims := [
 	["user", jwt_payload_user],
 	["email", jwt_payload_email],
 	["groups", jwt_payload_groups],
+	["sid", jwt_payload_sid]
 ]
 
 additional_jwt_claims := [[k, v] |

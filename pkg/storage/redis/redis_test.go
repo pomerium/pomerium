@@ -124,12 +124,10 @@ func TestChangeSignal(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*10)
-	defer clearTimeout()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
+		ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+		defer clearTimeout()
+
 		ready := make(chan struct{})
 		var eg errgroup.Group
 		eg.Go(func() error {

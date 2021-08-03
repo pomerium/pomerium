@@ -235,11 +235,6 @@ type Options struct {
 	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin" yaml:"grpc_client_dns_roundrobin,omitempty"`
 
-	// GRPCServerMaxConnectionAge sets MaxConnectionAge in the grpc ServerParameters used to create GRPC Services
-	GRPCServerMaxConnectionAge time.Duration `mapstructure:"grpc_server_max_connection_age" yaml:"grpc_server_max_connection_age,omitempty"`
-	// GRPCServerMaxConnectionAgeGrace sets MaxConnectionAgeGrace in the grpc ServerParameters used to create GRPC Services
-	GRPCServerMaxConnectionAgeGrace time.Duration `mapstructure:"grpc_server_max_connection_age_grace,omitempty" yaml:"grpc_server_max_connection_age_grace,omitempty"` //nolint: lll
-
 	// ForwardAuthEndpoint allows for a given route to be used as a forward-auth
 	// endpoint instead of a reverse proxy. Some third-party proxies that do not
 	// have rich access control capabilities (nginx, envoy, ambassador, traefik)
@@ -323,21 +318,19 @@ var defaultOptions = Options{
 		"X-XSS-Protection":          "1; mode=block",
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 	},
-	Addr:                            ":443",
-	ReadTimeout:                     30 * time.Second,
-	WriteTimeout:                    0, // support streaming by default
-	IdleTimeout:                     5 * time.Minute,
-	RefreshCooldown:                 5 * time.Minute,
-	GRPCAddr:                        ":443",
-	GRPCClientTimeout:               10 * time.Second, // Try to withstand transient service failures for a single request
-	GRPCClientDNSRoundRobin:         true,
-	GRPCServerMaxConnectionAge:      5 * time.Minute,
-	GRPCServerMaxConnectionAgeGrace: 5 * time.Minute,
-	AuthenticateCallbackPath:        "/oauth2/callback",
-	TracingSampleRate:               0.0001,
-	RefreshDirectoryInterval:        10 * time.Minute,
-	RefreshDirectoryTimeout:         1 * time.Minute,
-	QPS:                             1.0,
+	Addr:                     ":443",
+	ReadTimeout:              30 * time.Second,
+	WriteTimeout:             0, // support streaming by default
+	IdleTimeout:              5 * time.Minute,
+	RefreshCooldown:          5 * time.Minute,
+	GRPCAddr:                 ":443",
+	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
+	GRPCClientDNSRoundRobin:  true,
+	AuthenticateCallbackPath: "/oauth2/callback",
+	TracingSampleRate:        0.0001,
+	RefreshDirectoryInterval: 10 * time.Minute,
+	RefreshDirectoryTimeout:  1 * time.Minute,
+	QPS:                      1.0,
 
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
@@ -1234,12 +1227,6 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	}
 	if settings.GrpcInsecure != nil {
 		o.GRPCInsecure = settings.GetGrpcInsecure()
-	}
-	if settings.GrpcServerMaxConnectionAge != nil {
-		o.GRPCServerMaxConnectionAge = settings.GetGrpcServerMaxConnectionAge().AsDuration()
-	}
-	if settings.GrpcServerMaxConnectionAgeGrace != nil {
-		o.GRPCServerMaxConnectionAgeGrace = settings.GetGrpcServerMaxConnectionAgeGrace().AsDuration()
 	}
 	if settings.ForwardAuthUrl != nil {
 		o.ForwardAuthURLString = settings.GetForwardAuthUrl()

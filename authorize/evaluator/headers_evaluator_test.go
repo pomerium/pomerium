@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func TestHeadersEvaluator(t *testing.T) {
@@ -41,10 +42,16 @@ func TestHeadersEvaluator(t *testing.T) {
 
 	t.Run("jwt", func(t *testing.T) {
 		output, err := eval(t,
-			[]proto.Message{},
+			[]proto.Message{
+				&session.Session{Id: "s1", ImpersonateSessionId: proto.String("s2")},
+				&session.Session{Id: "s2"},
+			},
 			&HeadersRequest{
 				FromAudience: "from.example.com",
 				ToAudience:   "to.example.com",
+				Session: RequestSession{
+					ID: "s1",
+				},
 			})
 		require.NoError(t, err)
 
@@ -56,8 +63,8 @@ func TestHeadersEvaluator(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, claims["exp"], math.Round(claims["exp"].(float64)))
-
 		assert.LessOrEqual(t, claims["exp"], float64(time.Now().Add(time.Minute*6).Unix()),
 			"JWT should expire within 5 minutes, but got: %v", claims["exp"])
+		assert.Equal(t, "s1", claims["sid"], "should set session id to input session id")
 	})
 }
