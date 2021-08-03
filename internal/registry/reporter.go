@@ -89,7 +89,7 @@ func metricsURL(o config.Options) (*url.URL, error) {
 		return nil, fmt.Errorf("invalid metrics value %q: port is required", o.MetricsAddr)
 	}
 	if host == "" {
-		if host, err = getExternalHostOrIP(host); err != nil {
+		if host, err = getHostOrIP(); err != nil {
 			return nil, fmt.Errorf("could not guess hostname: %w", err)
 		}
 	}
