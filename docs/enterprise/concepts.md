@@ -108,7 +108,7 @@ This term refers to the system or service the route provides or restricts access
 
 A Policy defines who has access to what based on the identity of the user, their device, and the associated request context.
 
-Policies can be applied to [Routes](#routes) directly, or enforced within a [Namespace](#namespaces). This associates the set of permissions with a service or set of services, completing the authentication model.
+Policies can be applied to [Routes](#routes) directly, or enforced within a [Namespace](#namespaces). Policies allow operators to add authorization and access control to a single, or collection of routes.
 
 To learn more about how to create Policies in Pomerium Enterprise Console, see [Reference: Policies].
 
