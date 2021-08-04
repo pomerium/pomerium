@@ -37,7 +37,7 @@ Unlike with a VPN, or network driven access control mechanisms, application owne
 
 Hierarchical policy lets administrators enforce high level authorization policy. Policies can be optional (self-select), or mandatory.
 
-Identity and access is organized and controlled with Identity and Access Management (**IAM**) teams via your Identity Provider (**IdP**). These users and groups are read by Pomerium from your IdP, and used to determine top-level Namespace organization.
+Identities and their group memberships are defined by your Identity Provider (**IdP**). Pomerium looks to your IdP for identity information, so policies defined using groups are always up-to-date with the access management defined upstream.
 
 Consider this scenario: you want to enable your security team to manage high level corporate policy while enabling application owners to set finer grained user access to their specific applications. Pomerium can help you do that!
 
