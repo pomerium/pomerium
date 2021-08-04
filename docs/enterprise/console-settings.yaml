@@ -8,7 +8,7 @@ settings:
           ![The Traffic page in Pomerium Enterprise](../img/traffic-fullpage.png)
       - name: "Runtime"
         doc: |
-          Monitor how much system resources Pomerium is consuming. Filter by date range, service, and instance.
+          Monitor how many system resources Pomerium is consuming. Filter by date range, service, and instance.
 
           ![The Runtime Info page in Pomerium Enterprise](../img/runtime-fullpage.png)
       - name: "Sessions"
