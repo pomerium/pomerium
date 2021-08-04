@@ -40,7 +40,7 @@ In addition to a working instance of Pomerium, have ready the [private IP addres
 Edit your `config.yaml` file to add the following policy. Note that `<>` denotes placeholder values that must be replaced if copying this config directly:
 
 ```yml
-policy:
+routes:
   - from: https://<transmission.mydomain.com> # Replace with the domain you want to use to access Transmission
     to: http://<private.ip.address>:9091 # Replace with the private network address of the Transmission host, or `localhost` if running on the same host.
     policy:
