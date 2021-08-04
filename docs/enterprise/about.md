@@ -44,10 +44,6 @@ View and export change and access logs from the web UI. Pomerium Enterprise Cons
 
 <!-- This is a start, but a weak one. -->
 
-## Availability
-
-<!-- @Bobby  -->
-
 ## Sign up
 
-To request a demo or sign up for Pomerium Enterprise, <!-- @bobby CTA goes here -->
+Review our [Pricing](https://www.pomerium.com/pricing/) page, or [Contact Sales](https://www.pomerium.com/contact-sales/) When you're ready to get started.
