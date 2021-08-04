@@ -55,4 +55,4 @@ To take advantage of Prometheus embedded in Pomerium Enterprise Console, edit `/
 prometheus_data_dir: /var/lib/pomerium-console/tsdb
 ```
 
-The directory path can be any location that the `pomerium` system user can write to. The example above matches the location used by the [OS packages](/enterprise/install/quickstart).
+The directory path can be any location that the `pomerium` system user can write to. The example above uses the default location created by the [OS packages](/enterprise/install/quickstart).

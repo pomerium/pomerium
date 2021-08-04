@@ -17,7 +17,7 @@ Namespaces enable:
 - Self-Service.
 - Hierarchical policy enforcement (both enforced, and optional),
 - Policy organization.
-- RBAC for the Enterprise Console itself.
+- [RBAC](https://en.wikipedia.org/wiki/Role-based_access_control) for the Enterprise Console itself.
 
 Each of these sub-concepts are related and build on each other to form a unified security model.
 
@@ -28,7 +28,7 @@ One of the benefits of an identity-aware access proxy is that, once in place, de
 Self-service has [several benefits](https://www.usenix.org/system/files/login/articles/login_winter16_05_cittadini.pdf):
 
 - Frees global administrators from continuously modifying the configuration per user requests
-- Encourages service owners to own their configuration fragment
+- Encourages service owners to own their own route configuration and policy
 - Ensures a reasonable compromise between development velocity and security controls
 
 Unlike with a VPN, or network driven access control mechanisms, application owners (with limited access permissions managed through namespaces) can maintain route and policy configuration for their own services, while  higher level operations, security, and identity teams are able to enforce higher level authorization and access policies.
@@ -39,7 +39,9 @@ Hierarchical policy lets administrators enforce high level authorization policy.
 
 Identity and access is organized and controlled with Identity and Access Management (**IAM**) teams via your Identity Provider (**IdP**). These users and groups are read by Pomerium from your IdP, and used to determine top-level Namespace organization.
 
-Consider this scenario: your organization has a security team managing high-level, course grain authorization controls. For example, they want to ensure that everyone with access to internal resources:
+Consider this scenario: you want to enable your security team to manage high level corporate policy while enabling application owners to set finer grained user access to their specific applications. Pomerium can help you do that!
+
+Your security team can enact top level security policies to ensure, everyone:
 
    - has a `yourcompany.com` email account,
    - isn't coming from a known bad actor IP address,
@@ -67,7 +69,7 @@ A user with the Viewer role can:
 
 #### Manager
 
-In addition to the access provided by the Viewer role, the Manager can create, read, update, and delete routes, policies, and certificates in a Namespace (as wel as its children). A Manager may also reference policies and certificates in the parent Namespace.
+In addition to the access provided by the Viewer role, a Manager can create, read, update, and delete routes, policies, and certificates in a Namespace (as well as its children). A Manager may also reference policies and certificates in the parent Namespace.
 
 #### Admin
 
@@ -75,22 +77,22 @@ An Admin user has permissions across all Namespaces. They can manage global sett
 
 ## Users and Groups
 
-Pomerium populates users and groups from your IdP. This data is cached to prevent hitting API rate-limits, and provides look-ahead support when adding users or groups to [Namespaces](#namespaces) and [Policies](#policies).
+Pomerium populates users and groups from your IdP. This data is cached to prevent hitting API rate-limits, ensure policy enforcement performance, and provides look-ahead support when adding users or groups to [Namespaces](#namespaces) and [Policies](#policies).
 
 ### Non-Domain Users
 
 When using Google as your IdP, you may hit an edge case where users are not available for lookup when the user's domain doesn't match that of your organization. In this case, there are two workarounds:
 
-- Create a group with the non-domain users in it. This group can be found and added to Namespaces and Policies.
+- Create a group within your identity provider directly with the non-domain users in it. This group can be found and added to Namespaces and Policies.
 - Manually add the user's unique ID. Identify the ID from a user's Session Details page.
 
-   You can access the session details page from the 403 page, or by navigating to `/.pomerium` from any valid route. The unique ID is listed as "sub" under User Claims:
+   A user can see their session ID by navigating to the special `/.pomerium` URL endpoint from any Pomerium managed route. The unique ID is listed as "sub" under User Claims:
 
    ![The Session Details page, showing the "sub" data](./img/session-details.png)
 
 ## Service Accounts
 
-Service accounts provides bearer token based authentication for machine-to-machine communication through Pomerium to your protected endpoints. They can provide auth for monitoring services, create API integrations, etc.
+Service accounts provides bearer token based authentication for machine-to-machine communication through Pomerium to your protected endpoints. They can provide auth for monitoring services, create API integrations, and other non-human driven scripts or services.
 
 Service accounts can represent identities from your IdP or be Pomerium-only identities.
 
@@ -130,7 +132,7 @@ Authorization policy can be expressed in a high-level, [declarative language](/e
 
 Trust flows from identity, device-state, and context, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
 
-Authorization is where Pomerium's value proposition really lies. With Pomerium:
+With Pomerium:
 
 - requests are continuously re-evaluated on a per-request basis.
 - authorization is identity and context aware; pomerium can be used to integrate data from any source into authorization policy decisions.
