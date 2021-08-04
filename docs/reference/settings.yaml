@@ -807,7 +807,7 @@ settings:
           - Type: `string`
           - **Required** for group based policies (most configurations)
         doc: |
-          The identity provider service account setting is used to query associated identity information from your identity provider.
+          The identity provider service account setting is used to query associated identity information from your identity provider.  This is a provider specific value and is not required for all providers.  For example, when using Okta this value will be an Okta API key, and for an OIDC provider that provides groups as a claim, this value will be empty.
 
           :::warning
 
