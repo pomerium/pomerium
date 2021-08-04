@@ -2187,7 +2187,7 @@ There were no changes in the v0.7.1 release, but we updated the build process sl
 
 - Azure AD identity provider now uses globally unique and immutable `ID` for [group membership](https://docs.microsoft.com/en-us/graph/api/group-get?view=graph-rest-1.0&tabs=http).
 - Okta no longer uses tokens to retrieve group membership. Group membership is now fetched using Okta's HTTP API. [Group membership](https://developer.okta.com/docs/reference/api/groups/) is now determined by the globally unique and immutable `ID` field.
-- Okta now requires an additional set of credentials to be used to query for group membership set as a [service account](https://www.pomerium.io/docs/reference/reference.html#identity-provider-service-account).
+- Okta now requires an additional set of credentials to be used to query for group membership set as a [service account](https://www.pomerium.com/docs/reference/reference.html#identity-provider-service-account).
 - URLs are no longer validated to be on the same domain-tree as the authenticate service. Managed routes can live on any domain.
 - OneLogin no longer uses tokens to retrieve group membership. Group membership is now fetched using OneLogin's HTTP API. [Group membership](https://developers.onelogin.com/openid-connect/api/user-info/) is now determined by the globally unique and immutable `ID` field.
 
@@ -2412,7 +2412,7 @@ There were no changes in the v0.7.1 release, but we updated the build process sl
 ### FEATURES
 
 - **Authorization** : The authorization module adds support for per-route access policy. In this release we support the most common forms of identity based access policy: `allowed_users`, `allowed_groups`, and `allowed_domains`. In future versions, the authorization module will also support context and device based authorization policy and decisions. See website documentation for more details.
-- **Group Support** : The authenticate service now retrieves a user's group membership information during authentication and refresh. This change may require additional identity provider configuration; all of which are described in the [updated docs](https://www.pomerium.io/docs/identity-providers.html). A brief summary of the requirements for each IdP are as follows:
+- **Group Support** : The authenticate service now retrieves a user's group membership information during authentication and refresh. This change may require additional identity provider configuration; all of which are described in the [updated docs](https://www.pomerium.com/docs/identity-providers.html). A brief summary of the requirements for each IdP are as follows:
 
   - Google requires the [Admin SDK](https://developers.google.com/admin-sdk/directory/) to enabled, a service account with properly delegated access, and `IDP_SERVICE_ACCOUNT` to be set to the base64 encoded value of the service account's key file.
   - Okta requires a `groups` claim to be added to both the `id_token` and `access_token`. No additional API calls are made.

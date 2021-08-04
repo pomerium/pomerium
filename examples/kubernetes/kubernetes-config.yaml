@@ -1,4 +1,5 @@
-# Main configuration flags : https://www.pomerium.io/docs/reference/reference/
+# Main configuration flags : https://www.pomerium.com/docs/reference/
+
 insecure_server: true
 grpc_insecure: true
 address: ":80"

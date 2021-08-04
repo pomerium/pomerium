@@ -11,7 +11,7 @@ A tiny go http server that enforces client certificates and can be used to test 
 authenticate_service_url: https://authenticate.corp.domain.example
 authorize_service_url: https://authorize.corp.domain.example
 
-# identity provider settings : https://www.pomerium.io/docs/identity-providers.html
+# identity provider settings : https://www.pomerium.com/docs/identity-providers.html
 idp_provider: google
 idp_client_id: REPLACE_ME
 idp_client_secret: REPLACE_ME

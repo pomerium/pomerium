@@ -17,7 +17,7 @@ services:
     environment:
       - SERVICES=authenticate
       - INSECURE_SERVER=TRUE
-      # NOTE!: Replace with your identity provider settings https://www.pomerium.io/docs/identity-providers.html
+      # NOTE!: Replace with your identity provider settings https://www.pomerium.com/docs/identity-providers.html
       # - IDP_PROVIDER=google
       # - IDP_PROVIDER_URL=https://accounts.google.com
       # - IDP_CLIENT_ID=REPLACE_ME
@@ -70,7 +70,8 @@ services:
       - GRPC_ADDRESS=:443
 
     volumes:
-      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/docs/reference/reference/
+      # Retrieve non-secret config keys from the config file : https://www.pomerium.com/docs/reference/
+
       # See `config.example.yaml` and modify to fit your needs.
       - ../config/config.example.yaml:/pomerium/config.yaml:ro
     expose:
@@ -85,7 +86,8 @@ services:
       - GRPC_INSECURE=TRUE
       - GRPC_ADDRESS=:443
     volumes:
-      # Retrieve non-secret config keys from the config file : https://www.pomerium.io/docs/reference/reference/
+      # Retrieve non-secret config keys from the config file : https://www.pomerium.com/docs/reference/
+
       # See `config.example.yaml` and modify to fit your needs.
       - ../config/config.example.yaml:/pomerium/config.yaml:ro
     expose:

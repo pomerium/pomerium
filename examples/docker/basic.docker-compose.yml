@@ -6,10 +6,11 @@ services:
       # Generate new secret keys. e.g. `head -c32 /dev/urandom | base64`
       - COOKIE_SECRET=V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
     volumes:
-      # Mount your domain's certificates : https://www.pomerium.io/docs/reference/certificates
+      # Mount your domain's certificates : https://www.pomerium.com/docs/reference/certificates
       - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer:/pomerium/cert.pem:ro
       - ~/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key:/pomerium/privkey.pem:ro
-      # Mount your config file : https://www.pomerium.io/docs/reference/reference/
+      # Mount your config file : https://www.pomerium.com/docs/reference/
+
       - ../config/config.minimal.yaml:/pomerium/config.yaml:ro
     ports:
       - 443:443

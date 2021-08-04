@@ -1,15 +1,16 @@
-# See detailed configuration settings : https://www.pomerium.io/docs/reference/reference/
+# See detailed configuration settings : https://www.pomerium.com/docs/reference/
+
 
 # this is the domain the identity provider will callback after a user authenticates
 authenticate_service_url: https://authenticate.localhost.pomerium.io
 
-# certificate settings:  https://www.pomerium.io/docs/reference/certificates.html
+# certificate settings:  https://www.pomerium.com/docs/reference/certificates.html
 autocert: true
 
 # REMOVE FOR PRODUCTION
 autocert_use_staging: true
 
-# identity provider settings : https://www.pomerium.io/docs/identity-providers.html
+# identity provider settings : https://www.pomerium.com/docs/identity-providers.html
 idp_provider: google
 idp_client_id: REPLACE_ME
 idp_client_secret: REPLACE_ME

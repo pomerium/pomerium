@@ -24,10 +24,11 @@ services:
       # Generate new secret keys. e.g. `head -c32 /dev/urandom | base64`
       - COOKIE_SECRET=<reducted>
     volumes:
-      # Mount your domain's certificates : https://www.pomerium.io/docs/reference/certificates
+      # Mount your domain's certificates : https://www.pomerium.com/docs/reference/certificates
       - ./_wildcard.localhost.pomerium.io-key.pem:/pomerium/privkey.pem:ro
       - ./_wildcard.localhost.pomerium.io.pem:/pomerium/cert.pem:ro
-      # Mount your config file : https://www.pomerium.io/docs/reference/reference/
+      # Mount your config file : https://www.pomerium.com/docs/reference/
+
       - ./config.yaml:/pomerium/config.yaml
     ports:
       - 443:443
@@ -59,7 +60,8 @@ You can generate certificates for `*.localhost.pomerium.io` using [this instruct
 
 ```yaml
 # config.yaml
-# See detailed configuration settings : https://www.pomerium.io/docs/reference/reference/
+# See detailed configuration settings : https://www.pomerium.com/docs/reference/
+
 authenticate_service_url: https://authenticate.localhost.pomerium.io
 
 autocert: false
