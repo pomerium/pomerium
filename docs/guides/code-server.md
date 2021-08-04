@@ -50,11 +50,14 @@ idp_provider: google
 idp_client_id: REPLACE_ME
 idp_client_secret: REPLACE_ME
 
-policy:
+routes:
   - from: https://code.corp.domain.example
     to: http://codeserver:8080
-    allowed_users:
-      - some.user@domain.example
+    policy:
+      - allow:
+          or:
+            - email:
+                is: user@example.com
     allow_websockets: true
 ```
 

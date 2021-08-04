@@ -26,17 +26,20 @@ Otherwise, the HTTP proxy in front of Pomerium must know how to properly handle 
 
 ## Configuring
 
-TCP configuration is simple. Just specify the correct scheme and ports in your policy [`to`](/reference/readme.md#to) and [`from`](/reference/readme.md#from) fields.
+TCP configuration is simple. Just specify the correct scheme and ports in your route [`to`](/reference/readme.md#to) and [`from`](/reference/readme.md#from) fields.
 
 Example:
 ```yaml
-policy:
-    - from: tcp+https://redis.corp.example.com:6379
-      to: tcp://redis.internal.example.com:6379
-      allowed_users:
-        - contractor@not-example.com
-      allowed_groups:
-        - datascience@example.com
+routes:
+  - from: tcp+https://redis.corp.example.com:6379
+    to: tcp://redis.internal.example.com:6379
+    policy:
+    - allow:
+        or:
+          - email:
+              is: contractor@not-example.com
+          - groups:
+              has: ["datascience@example.com"]
 ```
 
 Notes:

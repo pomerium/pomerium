@@ -1234,7 +1234,7 @@ A route contains specific access and control definitions for a back-end service.
 
 Each route defines at minimum a `from` and `to` field, and a `policy` key defining authorization logic. Policies are defined using [Pomerium Policy Language](/enterprise/reference/manage.md#pomerium-policy-language) (**PPL**). Additional options are listed below.
 
-<<< @/examples/config/route-example.yaml
+<<< @/examples/config/route.example.yaml
 
 
 ### CORS Preflight
@@ -1443,8 +1443,11 @@ Set Request Headers allows you to set static values for given request headers. T
 ```yaml
 - from: https://verify.corp.example.com
   to: https://verify.pomerium.com
-  allowed_users:
-    - bdd@pomerium.io
+  policy:
+    - allow:
+        or:
+          - email:
+              is: bdd@pomerium.io
   set_request_headers:
     # works auto-magically!
     # https://verify.corp.example.com/basic-auth/root/hunter42
@@ -1463,8 +1466,11 @@ Remove Request Headers allows you to remove given request headers. This can be u
 ```yaml
 - from: https://verify.corp.example.com
   to: https://verify.pomerium.com
-  allowed_users:
-    - bdd@pomerium.io
+  policy:
+    - allow:
+        or:
+          - email:
+              is: bdd@pomerium.io
   remove_request_headers:
     - X-Email
     - X-Username

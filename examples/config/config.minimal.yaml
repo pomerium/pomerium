@@ -22,6 +22,9 @@ cookie_secret: WwMtDXWaRDMBQCylle8OJ+w4kLIDIGd8W3cB4/zFFtg=
 policy:
   - from: https://verify.localhost.pomerium.io
     to: https://verify.pomerium.com
-    allowed_users:
-      - bdd@pomerium.io
+    policy:
+      - allow:
+          or:
+            - email:
+                is: bdd@pomerium.io
     pass_identity_headers: true

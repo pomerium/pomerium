@@ -38,9 +38,13 @@ jwt_claims_headers: email
 policy:
 - from: https://wiki.example.local
   to: http://tiddlywiki:8080
-  allowed_users:
-    - reader1@example.com    
-    - writer1@example.com    
+  policy:
+    - allow:
+        or:
+          - email:
+              is: reader1@example.com
+          - email:
+              is: writer1@example.com
 ```
 ### Docker-compose
 

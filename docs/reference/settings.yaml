@@ -1361,7 +1361,7 @@ settings:
 
       Each route defines at minimum a `from` and `to` field, and a `policy` key defining authorization logic. Policies are defined using [Pomerium Policy Language](/enterprise/reference/manage.md#pomerium-policy-language) (**PPL**). Additional options are listed below.
 
-      <<< @/examples/config/route-example.yaml
+      <<< @/examples/config/route.example.yaml
     settings:
       - name: "CORS Preflight"
         keys: ["cors_allow_preflight"]
@@ -1582,8 +1582,11 @@ settings:
           ```yaml
           - from: https://verify.corp.example.com
             to: https://verify.pomerium.com
-            allowed_users:
-              - bdd@pomerium.io
+            policy:
+              - allow:
+                  or:
+                    - email:
+                        is: bdd@pomerium.io
             set_request_headers:
               # works auto-magically!
               # https://verify.corp.example.com/basic-auth/root/hunter42
@@ -1602,8 +1605,11 @@ settings:
           ```yaml
           - from: https://verify.corp.example.com
             to: https://verify.pomerium.com
-            allowed_users:
-              - bdd@pomerium.io
+            policy:
+              - allow:
+                  or:
+                    - email:
+                        is: bdd@pomerium.io
             remove_request_headers:
               - X-Email
               - X-Username

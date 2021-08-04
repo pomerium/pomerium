@@ -74,24 +74,38 @@ authenticate_service_url: https://authenticate.localhost.pomerium.io
 # For Group data you must set an IDP_SERVICE_ACCOUNT
 # idp_service_account: YOUR_SERVICE_ACCOUNT
 
-# Proxied routes and per-route policies are defined in a policy block
-policy:
+# Proxied routes and per-route policies are defined in a routes block
+routes:
   - from: https://verify.localhost.pomerium.io
-    to: http://httpbin
-    allowed_domains:
-      - pomerium.io
+    to: http://localhost:8000
+    policy:
+      - allow:
+          or:
+            - domain:
+                is: pomerium.io
     cors_allow_preflight: true
     timeout: 30s
-    pass_identity_headers: true
-
   - from: https://external-verify.localhost.pomerium.io
     to: https://verify.pomerium.com
-    allowed_domains:
-      - gmail.com
-    pass_identity_headers: true
-
+    policy:
+      - allow:
+          or:
+            - domain:
+                is: gmail.com
+  - from: https://weirdlyssl.localhost.pomerium.io
+    to: http://neverssl.com
+    policy:
+      - allow:
+          or:
+            - email:
+                is: bdd@pomerium.io
+            - groups:
+                has: ["admins", "developers"]
   - from: https://hello.localhost.pomerium.io
-    to: http://hello:8080
-    allowed_groups:
-      - admins@pomerium.io
-    pass_identity_headers: true
+    to: http://localhost:8080
+    policy:
+      - allow:
+          or:
+            - groups:
+                has: ["admins@pomerium.io"]
+

@@ -104,16 +104,19 @@ We'll also need a test application to manage access to. For this guide we'll use
 
 ![Synology download httpbin docker image](./img/synology-httpbin.png)
 
-### Policy
+### Route
 
-We will create an extremely basic policy where `httpbin.int.nas.example` is replaced with the subdomain you want to use for the httpbin service, and `your.email.address@gmail.com` is replaced with your email address. All other users will be denied, and all other routes will be `404`.
+We will create an extremely basic route where `httpbin.int.nas.example` is replaced with the subdomain you want to use for the httpbin service, and `your.email.address@gmail.com` is replaced with your email address. All other users will be denied, and all other routes will be `404`.
 
 ```yaml
-# policy.yaml
+# route.yaml
 - from: https://httpbin.int.nas.example
   to: http://httpbin
-  allowed_users:
-    - your.email.address@gmail.com
+  policy:
+    - allow:
+        or:
+          - email:
+              is: your.email.address@gmail.com
 ```
 
 ### Configure

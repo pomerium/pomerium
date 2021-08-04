@@ -198,8 +198,11 @@ Set Request Headers allows you to set static values for given request headers. T
 ```yaml
 - from: https://verify.corp.example.com
   to: https://verify.pomerium.com
-  allowed_users:
-    - bdd@pomerium.io
+  policy:
+    - allow:
+        or:
+        - email:
+            is: bdd@pomerium.io
   set_request_headers:
     # works auto-magically!
     # https://verify.corp.example.com/basic-auth/root/hunter42
@@ -214,8 +217,11 @@ Remove Request Headers allows you to remove given request headers. This can be u
 ```yaml
 - from: https://verify.corp.example.com
   to: https://verify.pomerium.com
-  allowed_users:
-    - bdd@pomerium.io
+  policy:
+    - allow:
+        or:
+          - email:
+              is: bdd@pomerium.io
   remove_request_headers:
     - X-Email
     - X-Username

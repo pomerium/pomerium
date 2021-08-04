@@ -260,12 +260,15 @@ config:
   sharedSecret: YOUR_SHARED_SECRET
   cookieSecret: YOUR_COOKIE_SECRET
 
-  policy:
+  routes:
     # this route is directly proxied by pomerium & injects the authorization header
     - from: https://dashboard-proxied.domain.example
       to: https://helm-dashboard-kubernetes-dashboard
-      allowed_users:
-        - user@domain.example
+      policy:
+        - allow:
+            or:
+              - email:
+                  is: user@domain.example
       tls_skip_verify: true # dashboard uses self-signed certificates in its default configuration
       set_request_headers:
         Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.....
@@ -273,8 +276,11 @@ config:
     # this route is indirectly checked for access using forward-auth
     - from: https://dashboard-forwardauth.domain.example
       to: https://helm-dashboard-kubernetes-dashboard
-      allowed_users:
-        - user@domain.example
+      policy:
+        - allow:
+            or:
+              - email:
+                  is: user@domain.example
 ingress:
   annotations:
     kubernetes.io/ingress.class: "nginx"

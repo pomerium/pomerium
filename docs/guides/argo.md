@@ -64,15 +64,18 @@ helm install --namespace kube-system ingress-nginx ingress-nginx/ingress-nginx
 
 ## Install Pomerium
 
-Like with Argo we will install Pomerium using the [Helm chart](https://github.com/pomerium/pomerium-helm). First create a `values.yaml` file (replacing the `allowed_users` and IDP `provider`/`clientID`/`clientSecret` with your own):
+Like with Argo we will install Pomerium using the [Helm chart](https://github.com/pomerium/pomerium-helm). First create a `values.yaml` file (replacing the `email.is` and IDP `provider`/`clientID`/`clientSecret` with your own):
 
 ```yaml
 config:
-  policy:
+  routes:
     - from: https://argo.localhost.pomerium.io
       to: http://argo-server.kube-system.svc.cluster.local:2746
-      allowed_users:
-        - REPLACE_ME
+      policy:
+        - allow:
+            or:
+              - email:
+                  is: bdd@pomerium.io
 
 authenticate:
   idp:

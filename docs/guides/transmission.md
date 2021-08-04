@@ -43,10 +43,13 @@ Edit your `config.yaml` file to add the following policy. Note that `<>` denotes
 policy:
   - from: https://<transmission.mydomain.com> # Replace with the domain you want to use to access Transmission
     to: http://<private.ip.address>:9091 # Replace with the private network address of the Transmission host, or `localhost` if running on the same host.
-    allowed_users:
-      - myUser@mydomain.com # Replace with authorized user(s), or remove if using group permissions only.
-    allowed_groups:
-      - <transmission-users> # Replace with authorized user group(s), or remove if using user permissions only.
+    policy:
+      - allow:
+          or:
+            - email:
+                is: myUser@mydomain.com # Replace with authorized user(s), or remove if using group permissions only.
+            - groups:
+                has: ["<transmission-users>"] # Replace with authorized user group(s), or remove if using user permissions only.
 ```
 Remember to restart the Pomerium instance after saving your changes.
 
