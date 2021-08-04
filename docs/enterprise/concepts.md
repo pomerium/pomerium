@@ -84,7 +84,7 @@ Pomerium populates users and groups from your IdP. This data is cached to preven
 You may encounter a situation where you may want to add users that are not directly associated with your corporate identity provider service. For example, if you have a corporate GSuite account and want to add a contractor with a gmail account. In this case, there are two workarounds:
 
 - Create a group within your identity provider directly with the non-domain users in it. This group can be found and added to Namespaces and Policies.
-- Manually add the user's unique ID. Identify the ID from a user's Session Details page.
+- Manually add the user's unique ID. Identify the ID from a user's Session Details page, or the [Sessions](/enterprise/reference/reports.html#sessions) page in Pomerium Enterprise Console.
 
    A user can see their session ID by navigating to the special `/.pomerium` URL endpoint from any Pomerium managed route. The unique ID is listed as "sub" under User Claims:
 
