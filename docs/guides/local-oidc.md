@@ -78,11 +78,14 @@ idp_client_secret: bar
 cookie_secret: <reducted>
 
 # https://www.pomerium.io/configuration/#policy
-policy:
+routes:
   - from: https://verify.localhost.pomerium.io
     to: http://verify
-    allowed_domains:
-      - example.org
+    policy:
+      - allow:
+          or:
+            - domain:
+                is: example.org
 ```
 
 ### identityprovider.json

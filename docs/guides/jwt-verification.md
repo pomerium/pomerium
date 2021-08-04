@@ -206,11 +206,14 @@ cookie_secret: WwMtDXWaRDMBQCylle8OJ+w4kLIDIGd8W3cB4/zFFtg=
 shared_secret: WwMtDXWaRDMBQCylle8OJ+w4kLIDIGd8W3cB4/zFFtg=
 signing_key: LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUdxWllpVzJycVo3TUdKTGp4bnNZVWJJcmZxNFdwR044RlgzQVh2UnRjSHdvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFYVd1UkNKMjFrL2JvUjNNRytPOVlHQjNXR0R1anVXMHFLVWhucUVwVS9JKzFoZmhuZEJ0WApDZGFpaGVGb0FOWXVCRUp3MFZhRml6QnVZb3l5RVAzOXBRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
 
-policy:
+routes:
   - from: https://verify.localhost.pomerium.io
     to: http://envoy-jwt-checker:10000
-    allowed_domains:
-      - pomerium.com
+    policy:
+      - allow:
+          or:
+            - domain:
+                is: pomerium.com
     pass_identity_headers: true
 
 ```

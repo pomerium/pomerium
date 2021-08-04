@@ -31,11 +31,13 @@ routes:
             - email:
                 is: bdd@pomerium.io
             - groups:
-                has: ["admins", "developers"]
+                has: "admins"
+            - groups:
+                has: "developers"
   - from: https://hello.localhost.pomerium.io
     to: http://localhost:8080
     policy:
       - allow:
           or:
             - groups:
-                has: ["admins@pomerium.io"]
+                has: "admins@pomerium.io"
