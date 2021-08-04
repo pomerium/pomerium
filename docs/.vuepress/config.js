@@ -30,7 +30,7 @@ module.exports = {
   },
   themeConfig: {
     home: false,
-    logo: "/img/logo-long-civez.png",
+    logo: "/img/logo_white.svg",
     repo: "pomerium/pomerium",
     editLinks: true,
     docsDir: "docs",

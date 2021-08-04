@@ -101,7 +101,7 @@ See the [README](https://github.com/pomerium/pomerium-helm/blob/master/charts/po
 
 ::: tip
 
-Officially supported build platforms are limited by [envoy proxy](https://www.envoyproxy.io/). If you have an enoy binary for your platform in your path at start time, `pomerium` should function correctly.
+Officially supported build platforms are limited by [envoy proxy](https://www.envoyproxy.io/). If you have an envoy binary for your platform in your path at start time, `pomerium` should function correctly.
 
 :::
 
