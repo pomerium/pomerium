@@ -356,7 +356,7 @@ A [Namespace][namespace-concept] is a collection of users, groups, routes, and p
 - Users or groups can be granted permission to edit access to routes within a Namespace, allowing them self-serve access to the routes critical to their work.
 
 ::: tip
-When using Google as an IdP and working with non-domain users, they will not show up in the look-ahead search. See [Non-Domain Users](/enterprise/concepts.html#non-domain-users) for more information.
+When using an IdP without directory sync or when working with non-domain users, they will not show up in the look-ahead search. See [Non-Domain Users](/enterprise/concepts.html#non-domain-users) for more information.
 :::
 
 

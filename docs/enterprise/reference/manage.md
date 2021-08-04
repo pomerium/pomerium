@@ -11,7 +11,7 @@ meta:
 
 ## Routes
 
-A Route provides access to a service through Pomerium.
+A Route defines how to access a service running behind Pomerium. This includes authentication (both for Pomerium and passed through to the service), rewrites, header management, load balancing, etc.
 
 
 ### General
@@ -201,8 +201,8 @@ Set Request Headers allows you to set static values for given request headers. T
   policy:
     - allow:
         or:
-        - email:
-            is: bdd@pomerium.io
+          - email:
+              is: bdd@pomerium.io
   set_request_headers:
     # works auto-magically!
     # https://verify.corp.example.com/basic-auth/root/hunter42

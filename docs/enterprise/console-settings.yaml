@@ -36,7 +36,7 @@ settings:
     settings:
       - name: "Routes"
         doc: |
-          A Route provides access to a service through Pomerium.
+          A Route defines how to access a service running behind Pomerium. This includes authentication (both for Pomerium and passed through to the service), rewrites, header management, load balancing, etc.
         settings:
           - name: "General"
             doc: |

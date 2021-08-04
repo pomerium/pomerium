@@ -18,7 +18,7 @@ View the traffic running through Pomerium. Filter by [Route][route-concept] name
 
 ## Runtime
 
-Monitor how much system resources Pomerium is consuming. Filter by date range, service, and instance.
+Monitor how many system resources Pomerium is consuming. Filter by date range, service, and instance.
 
 ![The Runtime Info page in Pomerium Enterprise](../img/runtime-fullpage.png)
 
