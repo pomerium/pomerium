@@ -39,7 +39,7 @@ routes:
           - email:
               is: contractor@not-example.com
           - groups:
-              has: ["datascience@example.com"]
+              has: "datascience@example.com"
 ```
 
 Notes:
