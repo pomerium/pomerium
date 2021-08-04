@@ -11,6 +11,10 @@ jwt_claims_headers: email
 policy:
   - from: https://wiki.localhost.pomerium.io
     to: http://tiddlywiki:8080
-    allowed_users:
-      - writer1@example.com
-      - reader1@example.com
+    policy:
+      - allow:
+          or:
+            - email:
+                is: writer1@example.com
+            - email:
+                is: reader1@example.com

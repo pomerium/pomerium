@@ -3,18 +3,28 @@ module.exports = {
   title: "Pomerium",
   description:
     "Pomerium is a beyond-corp inspired, zero trust, open source identity-aware access proxy.",
-  plugins: {
-    "check-md": {
-      pattern: "**/*.md",
-    },
-    sitemap: {
-      hostname: "https://www.pomerium.com",
-      outFile: "docs/sitemap.xml",
-    },
-    "@vuepress/google-analytics": {
-      ga: "UA-129872447-2",
-    },
-  },
+  plugins: [
+    "vuepress-plugin-element-tabs",
+    [
+      "check-md",
+      {
+        pattern: "**/*.md",
+      },
+    ],
+    [
+      "sitemap",
+      {
+        hostname: "https://www.pomerium.com",
+        outFile: "docs/sitemap.xml",
+      },
+    ],
+    [
+      "@vuepress/google-analytics",
+      {
+        ga: "UA-129872447-2",
+      },
+    ],
+  ],
   markdown: {
     externalLinkSymbol: false,
   },
@@ -32,9 +42,7 @@ module.exports = {
       { text: "Guides", link: "/guides/" },
       {
         text: "Enterprise",
-        link: "https://www.pomerium.com/",
-        target: "_self",
-        rel: "",
+        link: "/enterprise/about/",
       },
       {
         text: "v0.14.x", // current tagged version
@@ -181,6 +189,43 @@ module.exports = {
           children: [""],
         },
       ],
+      "/enterprise/": [
+        {
+          title: "Enterprise",
+          type: "group",
+          collapsable: false,
+          sidebarDepth: 2,
+          children: [
+            "about",
+            "concepts",
+            {
+              title: "Install",
+              type: "group",
+              collapsable: false,
+              path: "/enterprise/install/",
+              sidebarDepth: 2,
+              children: [
+                "/enterprise/install/quickstart",
+                "/enterprise/install/helm",
+              ],
+            },
+            "prometheus",
+            {
+              title: "Reference",
+              type: "group",
+              collapsable: false,
+              path: "/enterprise/reference/configure",
+              sidebarDepth: 2,
+              children: [
+                "/enterprise/reference/config.md",
+                "/enterprise/reference/reports",
+                "/enterprise/reference/manage",
+                "/enterprise/reference/configure",
+              ],
+            },
+          ],
+        },
+      ],
     },
   },
-}
+};

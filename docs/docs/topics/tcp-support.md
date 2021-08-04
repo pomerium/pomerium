@@ -13,7 +13,7 @@ meta:
 
 Operations and engineering teams frequently require access to lower level administrative and data protocols such as SSH, RDP, Postgres, MySQL, Redis, etc.
 
-In addition to managing HTTP based applications, Pomerium can be used to protect non-HTTP systems with the same consistent authorization policy. This is achieved by tunneling TCP over HTTP with the help of a client side command built into [`pomerium-cli`](/docs/installation.md#pomerium-cli).
+In addition to managing HTTP based applications, Pomerium can be used to protect non-HTTP systems with the same consistent authorization policy. This is achieved by tunneling TCP over HTTP with the help of a client side command built into [`pomerium-cli`](/docs/releases.md#pomerium-cli).
 
 
 Internally, Pomerium uses the [`CONNECT` method](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/CONNECT) to establish the TCP tunnel.
@@ -26,17 +26,20 @@ Otherwise, the HTTP proxy in front of Pomerium must know how to properly handle 
 
 ## Configuring
 
-TCP configuration is simple. Just specify the correct scheme and ports in your policy [`to`](/reference/#to) and [`from`](/reference/#from) fields.
+TCP configuration is simple. Just specify the correct scheme and ports in your route [`to`](/reference/readme.md#to) and [`from`](/reference/readme.md#from) fields.
 
 Example:
 ```yaml
-policy:
-    - from: tcp+https://redis.corp.example.com:6379
-      to: tcp://redis.internal.example.com:6379
-      allowed_users:
-        - contractor@not-example.com
-      allowed_groups:
-        - datascience@example.com
+routes:
+  - from: tcp+https://redis.corp.example.com:6379
+    to: tcp://redis.internal.example.com:6379
+    policy:
+    - allow:
+        or:
+          - email:
+              is: contractor@not-example.com
+          - groups:
+              has: ["datascience@example.com"]
 ```
 
 Notes:
@@ -47,7 +50,7 @@ Notes:
 
 ## Using
 
-While HTTP routes can be consumed with just a normal browser, `pomerium-cli` must serve as a proxy for TCP routes.  It is [available](/docs/installation.md#pomerium-cli) for a variety of platforms in various formats.
+While HTTP routes can be consumed with just a normal browser, `pomerium-cli` must serve as a proxy for TCP routes.  It is [available](/docs/releases.md#pomerium-cli) for a variety of platforms in various formats.
 
 To connect, you normally need just the external hostname and port of your TCP route:
 

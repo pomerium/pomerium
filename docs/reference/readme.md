@@ -46,7 +46,7 @@ Address specifies the host and port to serve HTTP requests from. If empty, `:443
 - Type: `bool`
 - Optional
 
-Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] which includes managed routes and the authenticate service.  [Autocert Directory](./#autocert-directory) must be used with Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
+Turning on autocert allows Pomerium to automatically retrieve, manage, and renew public facing TLS certificates from [Let's Encrypt][letsencrypt] which includes managed routes and the authenticate service.  [Autocert Directory](#autocert-directory) must be used with Autocert must have a place to persist, and share certificate data between services. Note that autocert also provides [OCSP stapling](https://en.wikipedia.org/wiki/OCSP_stapling).
 
 This setting can be useful in situations where you may not have Pomerium behind a TLS terminating ingress or proxy that is already handling your public certificates on your behalf.
 
@@ -69,7 +69,7 @@ Autocert requires that ports `80`/`443` be accessible from the internet in order
 - Type: `bool`
 - Optional
 
-If true, force autocert to request a certificate with the `status_request` extension (commonly called `Must-Staple`). This allows the TLS client (_id est_ the browser) to fail immediately if the TLS handshake doesn't include OCSP stapling information. This setting is only used when [Autocert](./#autocert) is true.
+If true, force autocert to request a certificate with the `status_request` extension (commonly called `Must-Staple`). This allows the TLS client (_id est_ the browser) to fail immediately if the TLS handshake doesn't include OCSP stapling information. This setting is only used when [Autocert](#autocert) is true.
 
 :::tip
 
@@ -84,7 +84,7 @@ For more details, please see [RFC7633](https://tools.ietf.org/html/rfc7633) .
 - Environmental Variable: either `AUTOCERT_DIR`
 - Config File Key: `autocert_dir`
 - Type: `string` pointing to the path of the directory
-- Required if using [Autocert](./#autocert) setting
+- Required if using [Autocert](#autocert) setting
 - Default:
 
   - `/data/autocert` in published Pomerium docker images
@@ -339,7 +339,7 @@ services:
 - Example: `TIMEOUT_READ=30s`
 - Defaults: `TIMEOUT_READ=30s` `TIMEOUT_WRITE=0` `TIMEOUT_IDLE=5m`
 
-Timeouts set the global server timeouts. Timeouts can also be set for individual [routes](./#policy).
+Timeouts set the global server timeouts. Timeouts can also be set for individual [routes](#policy).
 
 ![cloudflare blog on timeouts](https://blog.cloudflare.com/content/images/2016/06/Timeouts-001.png)
 
@@ -710,7 +710,7 @@ Some providers, like Amazon Cognito, _do not_ support the `offline_access` scope
 - Type: `string`
 - **Required** for group based policies (most configurations)
 
-The identity provider service account setting is used to query associated identity information from your identity provider.
+The identity provider service account setting is used to query associated identity information from your identity provider.  This is a provider specific value and is not required for all providers.  For example, when using Okta this value will be an Okta API key, and for an OIDC provider that provides groups as a claim, this value will be empty.
 
 :::warning
 
@@ -1049,7 +1049,14 @@ If set, the TLS connection to the storage backend will not be verified.
 - Environmental Variable: `POLICY`
 - Config File Key: `policy`
 - Type: [base64 encoded] `string` or inline policy structure in config file
-- **Required** However, pomerium will safely start without a policy configured, but will be unable to authorize or proxy traffic until the configuration is updated to contain a policy.
+- **Deprecated**: This key has been replaced with `route`.
+
+
+::: warning
+The `policy` field as a top-level configuration key has been replaced with [`routes`](/reference/readme.md#routes). Moving forward, define policies within each defined route.
+
+Existing policy definitions will currently behave as expected, but are deprecated and will be removed in a future version of Pomerium.
+:::
 
 Policy contains route specific settings, and access control details. If you are configuring via POLICY environment variable, just the contents of the policy needs to be passed. If you are configuring via file, the policy should be present under the policy key. For example,
 
@@ -1070,7 +1077,7 @@ policy:
 
 In this example, an incoming request with a path prefix of `/admin` would be handled by the first route (which is restricted to superusers). All other requests for `from.example.com` would be handled by the second route (which is open to the public).
 
-A list of policy configuration variables follows.
+A list of configuration variables specific to `policy` follows Note that this also shares all configuration variables listed under [routes](/reference/readme.md#routes), excluding `policy` and its child variables.
 
 
 ### Allowed Domains
@@ -1135,6 +1142,19 @@ Claims are represented as a map of strings to a list of values:
 Allowed users is a collection of whitelisted users to authorize for a given route.
 
 
+## Routes
+- Environment Variable: `ROUTE`
+- Config File Key: `route`
+- Type: `string`
+- **Required** - While Pomerium will start without a route configured, it will not authorize or proxy any traffic until a route is defined. If configuring Pomerium for the Enterprise Console, define a route for the Console itself in Pomerium.
+
+A route contains specific access and control definitions for a back-end service. Each route is a list item under the `routes` key.
+
+Each route defines at minimum a `from` and `to` field, and a `policy` key defining authorization logic. Policies are defined using [Pomerium Policy Language](/enterprise/reference/manage.md#pomerium-policy-language) (**PPL**). Additional options are listed below.
+
+<<< @/examples/config/route.example.yaml
+
+
 ### CORS Preflight
 - `yaml`/`json` setting: `cors_allow_preflight`
 - Type: `bool`
@@ -1152,7 +1172,7 @@ Allow unauthenticated HTTP OPTIONS requests as [per the CORS spec](https://devel
 
 Enable sending a signed [Authorization Header](https://cloud.google.com/run/docs/authenticating/service-to-service) to upstream GCP services.
 
-Requires setting [Google Cloud Serverless Authentication Service Account](./#google-cloud-serverless-authentication-service-account) or running Pomerium in an environment with a GCP service account present in default locations.
+Requires setting [Google Cloud Serverless Authentication Service Account](#google-cloud-serverless-authentication-service-account) or running Pomerium in an environment with a GCP service account present in default locations.
 
 
 ### From
@@ -1164,7 +1184,7 @@ Requires setting [Google Cloud Serverless Authentication Service Account](./#goo
 
 `From` is the externally accessible URL for the proxied request.
 
-Specifying `tcp+https` for the scheme enables [TCP proxying](../docs/topics/tcp-support.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
+Specifying `tcp+https` for the scheme enables [TCP proxying](/docs/topics/tcp-support.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
 
 :::warning
 
@@ -1341,8 +1361,11 @@ Set Request Headers allows you to set static values for given request headers. T
 ```yaml
 - from: https://verify.corp.example.com
   to: https://verify.pomerium.com
-  allowed_users:
-    - bdd@pomerium.io
+  policy:
+    - allow:
+        or:
+          - email:
+              is: bdd@pomerium.io
   set_request_headers:
     # works auto-magically!
     # https://verify.corp.example.com/basic-auth/root/hunter42
@@ -1361,8 +1384,11 @@ Remove Request Headers allows you to remove given request headers. This can be u
 ```yaml
 - from: https://verify.corp.example.com
   to: https://verify.pomerium.com
-  allowed_users:
-    - bdd@pomerium.io
+  policy:
+    - allow:
+        or:
+          - email:
+              is: bdd@pomerium.io
   remove_request_headers:
     - X-Email
     - X-Username
@@ -1438,7 +1464,7 @@ Either `redirect` or `to` must be set.
   - https://b.example.com
 ```
 
-A load balancing weight may be associated with a particular upstream by appending `,[weight]` to the URL.  The exact behavior depends on your [`lb_policy`](#load-balancing-policy) setting.  See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.html#load-balancing-weight).
+A load balancing weight may be associated with a particular upstream by appending `,[weight]` to the URL.  The exact behavior depends on your [`lb_policy`](#load-balancing-policy) setting.  See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#load-balancing-weight).
 
 Must be `tcp` if `from` is `tcp+https`.
 
@@ -1691,12 +1717,12 @@ Be aware that any RSA based signature method may be an order of magnitude lower 
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [elliptic curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
-[identity provider]: ../docs/identity-providers/
+[identity provider]: /docs/identity-providers/readme.md
 [json]: https://en.wikipedia.org/wiki/JSON
 [letsencrypt]: https://letsencrypt.org/
 [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
-[okta]: ../docs/identity-providers/okta.md
+[okta]: /docs/identity-providers/okta.md
 [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
-[signed headers]: ../docs/topics/getting-users-identity.md
+[signed headers]: /docs/topics/getting-users-identity.md
 [toml]: https://en.wikipedia.org/wiki/TOML
 [yaml]: https://en.wikipedia.org/wiki/YAML

@@ -8,7 +8,7 @@ description: This article describes various ways to install pomerium
 
 Pomerium is shipped in multiple formats and architectures to suit a variety of deployment patterns. There are two binaries:
 
-- `pomerium` is the primary server component. It is a monolithic binary that can perform the function of any [services mode](/reference/#service-mode).
+- `pomerium` is the primary server component. It is a monolithic binary that can perform the function of any [services mode](/reference/readme.md#service-mode).
 - `pomerium-cli` (optional) is a command-line client for working with Pomerium.  Functions include acting as an authentication helper for tools like [kubtctl](topics/kubernetes-integration.md).
 
 

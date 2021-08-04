@@ -6,13 +6,13 @@ description: >-
 
 # Production Deployment
 
-This page covers the topic of running Pomerium in a production configuration. See the [quick start section](../install/quickstart/) for canned example configurations.
+This page covers the topic of running Pomerium in a production configuration. See the [quick start section](/docs/install/readme.md) for canned example configurations.
 
-Please also see [architecture](../#architecture) for information on component interactions.
+Please also see [architecture](/docs/architecture.md) for information on component interactions.
 
 ## Service Mode
 
-For configuration of the service mode, see [Service Mode](../../reference/readme.md#service-mode).
+For configuration of the service mode, see [Service Mode](/reference/readme.md#service-mode).
 
 ### All in One
 

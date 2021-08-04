@@ -1,6 +1,7 @@
 # This file contains only policy and route configuration details. Other
 # configuration settings required by pomerium are excluded for clarity.
-# See: https://www.pomerium.io/docs/reference/reference/
+# See: https://www.pomerium.com/docs/reference/
+
 #
 # For a complete self contained configuration see : config.example.yaml.
 # Or, mix and match a policy file (this) with env vars : config.example.env

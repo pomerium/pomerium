@@ -1,0 +1,54 @@
+authenticate:
+  existingTLSSecret: pomerium-tls
+  idp:
+    provider: "google"
+    clientID: YOUR_CLIENT_ID
+    clientSecret: YOUR_SECRET
+    serviceAccount: YOUR_SERVICE_ACCOUNT
+  proxied: false
+
+proxy:
+  existingTLSSecret: pomerium-tls
+  service:
+    type: LoadBalancer
+
+databroker:
+  existingTLSSecret: pomerium-tls
+  storage:
+    connectionString: rediss://pomerium-redis-master.pomerium.svc.cluster.local
+    type: redis
+    clientTLS:
+      existingSecretName: pomerium-tls
+      existingCASecretKey: ca.crt
+
+authorize:
+  existingTLSSecret: pomerium-tls
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  usePassword: false
+  generateTLS: false
+  tls:
+    certificateSecret: pomerium-redis-tls
+
+ingress:
+  enabled: false
+
+config:
+  sharedSecret: YOURSHAREDSECRET # You can use "head -c32 /dev/urandom | base64" to generate.
+  cookieSecret: YOURCOOKIESECRET # You can use "head -c32 /dev/urandom | base64" to generate.
+  rootDomain: localhost.pomerium.io
+  existingCASecret: pomerium-tls
+  generateTLS: false # On by default, disabled when cert-manager or another solution is in place.
+  policy:
+      # This will be our testing app, to confirm that Pomerium is authenticating and routing traffic.
+    - from: https://hello.localhost.pomerium.io
+      to: http://nginx.pomerium.svc.cluster.local:80
+      allowed_domains:
+        - companydomain.com # Use the domain your company email address uses.
+    - from: https://authenticate.localhost.pomerium.io
+      to: https://pomerium-authenticate.pomerium.svc.cluster.local
+      preserve_host_header: true
+      allow_public_unauthenticated_access: true

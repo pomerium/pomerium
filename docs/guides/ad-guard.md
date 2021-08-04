@@ -33,8 +33,11 @@ This guide assumes you have already completed one of the [quick start] guides, a
 # config.yaml
 - from: https://adguard.domain.example
   to: http://adguard
-  allowed_users:
-    - user@example.com
+  policy:
+    - allow:
+        or:
+          - email:
+              is: user@example.com
   set_request_headers:
     # https://www.blitter.se/utils/basic-authentication-header-generator/
     Authorization: Basic dXNlcjpwYXNzd29yZA===

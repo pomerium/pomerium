@@ -18,6 +18,7 @@ proxy:
       cloud.google.com/app-protocols: '{"https":"HTTPS"}'
 
 config:
+  rootDomain: localhost.pomerium.io
   policy:
     - from: https://hello.localhost.pomerium.io
       to: http://nginx.default.svc.cluster.local:80

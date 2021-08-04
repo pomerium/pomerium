@@ -10,7 +10,7 @@ description: >-
 
 # Local OIDC Provider
 
-You can use the same below configs for other supported [identity providers](/docs/identity-providers).
+You can use the same below configs for other supported [identity providers](/docs/identity-providers/readme.md).
 
 ## Configure
 ### Docker-compose
@@ -24,10 +24,11 @@ services:
       # Generate new secret keys. e.g. `head -c32 /dev/urandom | base64`
       - COOKIE_SECRET=<reducted>
     volumes:
-      # Mount your domain's certificates : https://www.pomerium.io/docs/reference/certificates
+      # Mount your domain's certificates : https://www.pomerium.com/docs/reference/certificates
       - ./_wildcard.localhost.pomerium.io-key.pem:/pomerium/privkey.pem:ro
       - ./_wildcard.localhost.pomerium.io.pem:/pomerium/cert.pem:ro
-      # Mount your config file : https://www.pomerium.io/docs/reference/reference/
+      # Mount your config file : https://www.pomerium.com/docs/reference/
+
       - ./config.yaml:/pomerium/config.yaml
     ports:
       - 443:443
@@ -53,13 +54,14 @@ services:
       - 9000:9000
 ```
 
-You can generate certificates for `*.localhost.pomerium.io` using [this instruction](https://www.pomerium.io/docs/reference/certificates.html#certificates-2)
+You can generate certificates for `*.localhost.pomerium.io` using [this instruction](/docs/topics/certificates.md#certificates-2)
 
 ### Pomerium config
 
 ```yaml
 # config.yaml
-# See detailed configuration settings : https://www.pomerium.io/docs/reference/reference/
+# See detailed configuration settings : https://www.pomerium.com/docs/reference/
+
 authenticate_service_url: https://authenticate.localhost.pomerium.io
 
 autocert: false
@@ -151,5 +153,5 @@ $ docker-compose up -d
 
 Now accessing to `https://verify.localhost.pomerium.io` and you will be redireted to OIDC server for authentication.
 
-[identity provider]: ../docs/identity-providers/
+[identity provider]: ../docs/identity-providers/readme.md
 [qlik/simple-oidc-provider]: https://hub.docker.com/r/qlik/simple-oidc-provider/

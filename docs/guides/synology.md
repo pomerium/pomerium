@@ -104,16 +104,19 @@ We'll also need a test application to manage access to. For this guide we'll use
 
 ![Synology download httpbin docker image](./img/synology-httpbin.png)
 
-### Policy
+### Route
 
-We will create an extremely basic policy where `httpbin.int.nas.example` is replaced with the subdomain you want to use for the httpbin service, and `your.email.address@gmail.com` is replaced with your email address. All other users will be denied, and all other routes will be `404`.
+We will create an extremely basic route where `httpbin.int.nas.example` is replaced with the subdomain you want to use for the httpbin service, and `your.email.address@gmail.com` is replaced with your email address. All other users will be denied, and all other routes will be `404`.
 
 ```yaml
-# policy.yaml
+# route.yaml
 - from: https://httpbin.int.nas.example
   to: http://httpbin
-  allowed_users:
-    - your.email.address@gmail.com
+  policy:
+    - allow:
+        or:
+          - email:
+              is: your.email.address@gmail.com
 ```
 
 ### Configure
@@ -215,12 +218,12 @@ And just to be safe, try logging in from another google account to see what happ
 
 ![Synology done](./img/synology-step-4-unauthorized.png)
 
-[certificate documentation]: ../topics/certificates.md
-[configuration variable docs]: ../../reference/readme.md
+[certificate documentation]: /docs/topics/certificates.md
+[configuration variable docs]: /reference/readme.md
 [diskstation manager]: https://www.synology.com/en-us/dsm
 [docker-capable]: https://www.synology.com/en-us/dsm/packages/Docker
 [httpbin]: https://httpbin.org
-[identity provider]: ../identity-providers/readme.md
+[identity provider]: /docs/identity-providers/readme.md
 [letsencrypt]: https://letsencrypt.org/
 [nginx]: https://www.nginx.com
 [self-hosted apps]: https://github.com/Kickball/awesome-selfhosted

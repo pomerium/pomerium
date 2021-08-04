@@ -10,7 +10,7 @@ Run this demo locally on your docker-compose capable workstation, or replace `lo
 
 - Update `config.yaml` for your e-mail address, if not using gmail/google.
 - Replace secrets in `config.yaml`.
-- Replace allowed_users in `config.yaml`
+- Replace `email.is` in `config.yaml`
 - Configure read-only or writer users by changing readers and writers parameter of tiddlywiki in `docker-compose.yaml`.
 - Run `docker-compose up` from this directory.
 - Navigate to `https://wiki.localhost.pomerium.io`

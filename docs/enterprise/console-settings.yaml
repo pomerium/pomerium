@@ -1,0 +1,246 @@
+settings:
+  - name: "Reports"
+    settings:
+      - name: "Traffic"
+        doc: |
+          View the traffic running through Pomerium. Filter by [Route][route-concept] name, or date range.
+
+          ![The Traffic page in Pomerium Enterprise](../img/traffic-fullpage.png)
+      - name: "Runtime"
+        doc: |
+          Monitor how many system resources Pomerium is consuming. Filter by date range, service, and instance.
+
+          ![The Runtime Info page in Pomerium Enterprise](../img/runtime-fullpage.png)
+      - name: "Sessions"
+        doc: |
+          View active Sessions. From here you can revoke sessions, filter by session or user information, or revoke one or multiple sessions. You can also export the data.
+
+          ![The Sessions page in Pomerium Enterprise](../img/sessions-fullpage.png)
+      - name: "Events"
+        doc: |
+          The events page displays the log output of Envoy as it process changes from Pomerium and applies updates to the underlying services.
+
+          ![The Events page in Pomerium Enterprise](../img/events-fullpage.png)
+
+          The most common updates are to Pomerium Proxy services, which are updated every time a Route or Policy is created or updated.
+
+          The value under **Resource ID** will usually match the resource ID of a [Policy][policy-reference], visible in the Policy under **Change History** or in the URL. A value of "Pomerium Restarted" refers to when services are reloaded, usually due to a system update.
+      - name: "Deployments"
+        doc: |
+          From the **Deployment History** page administrators can review changes made to their Pomerium configuration.
+
+          The default view shows all changes made through the Pomerium Enterprise Console. Use the **COMPARE** button next to an entry to filter to only changes that affected that resource. Select two versions of that resource, then **DIFF** to see what changed:
+
+          ![A screenshot showing the diff of a change to a route, adding a policy](../img/deployment-diff.png)
+  - name: "Manage"
+    settings:
+      - name: "Routes"
+        doc: |
+          A Route defines how to access a service running behind Pomerium. This includes authentication (both for Pomerium and passed through to the service), rewrites, header management, load balancing, etc.
+        settings:
+          - name: "General"
+            doc: |
+              The **General** tab defines the route path, both from the internet and to the internal service, and the policies attached. Note that policies enforced on a [Namespace][namespace-reference] the route resides in will also be applied.
+            settings:
+              - name: "Name"
+                doc: This value is only visible in the Console UI.
+              - name: "From"
+              - name: "To"
+              - name: "Redirect"
+              - name: "Pass Identity Headers"
+              - name: "Policies"
+                doc: Add or remove Policies to be applied to the Route. Note that Policies enforced in the Route's Namespace will be applied automatically.
+              - name: "Enable Google Cloud Serverless Authentication"
+          - name: "Matchers"
+            settings:
+              - name: Path
+              - name: Prefix
+              - name: Regex
+          - name: "Rewrite"
+            settings:
+              - name: "Prefix Rewrite"
+              - name: "Regex Rewrite Pattern"
+                keys: ["regex_rewrite_pattern"]
+                doc: |
+                  The pattern to match before rewriting, ex: `^/service/([^/]+)(/.*)$`.
+              - name: "Regex Rewrite Substitution"
+                keys: ["regex_rewrite_substitution"]
+                doc: |
+                  The substitution for your regex pattern, ex: `\\2/instance/\\1`.
+          - name: "Timeouts"
+            settings:
+              - name: "Allow Websockets"
+                keys: ["allow_websockets"]
+              - name: "Timeout"
+                keys: ["timeout"]
+              - name: "Idle Timeout"
+                keys: ["idle_timeout"]
+          - name: "Headers"
+            settings:
+              - name: "Host Headers"
+                keys: ["host_rewrite"]
+              - name: "Set Request Headers"
+              - name: "Remove Request Headers"
+              - name: "Rewrite Response Headers"
+          - name: "Load Balancer"
+            settings:
+              - name: "Load Balancing Policy"
+      - name: "Policies"
+        keys: ["Policy"]
+        doc: |
+          A Policy defines what permissions a set of users or groups has. Policies are applied to Namespaces or Routes to associate the set of permissions with a service or set of service, completing the authentication model.
+
+          Policies can be constructed three ways:
+
+          ### Web UI
+
+          From the **BUILDER** tab, users can add allow or deny blocks to a policy, containing and/or/not/nor logic to allow or deny sets of users and groups.
+
+          ![A policy being constructed in Pomerium Enterprise console allowing a single user access](../img/example-policy-single-user.png)
+
+          ### Pomerium Policy Language
+
+          From the **EDITOR** tab users can write policies in Pomerium Policy Language (**PPL**), a YAML-based notation.
+
+          ![A policy as viewed from the editor tab](../img/example-policy-editor.png)
+
+          PPL documents contain one or more rules. Each rule has a corresponding action and one or more logical operators.
+          Each logical operator contains criteria and each criterion has a name and corresponding data.
+
+          PPL documents are defined via YAML:
+
+          ```yaml
+          - allow:
+              or:
+                - email:
+                    is: x@example.com
+                - email:
+                    is: y@example.com
+          ```
+
+          The available rule actions are:
+
+          - `allow`
+          - `deny`
+
+          The available logical operators are:
+
+          - `and`
+          - `or`
+          - `not`
+          - `nor`
+
+          The available criteria types are:
+
+          - `accept`
+          - `authenticated_user`
+          - `claim`
+          - `date`
+          - `day_of_week`
+          - `domain`
+          - `email`
+          - `groups`
+          - `reject`
+          - `time_of_day`
+          - `user`
+
+          Some criteria also support a sub-path as part of the criterion name:
+
+          ```yaml
+          - allow:
+              or:
+                - claim/family_name:
+                    is: Smith
+          ```
+
+          ### Rego
+
+          For those using [OPA](https://www.openpolicyagent.org/), the **REGO** tab will accept policies written in Rego.
+
+          ::: tip
+          A policy can only support PPL or Rego. Once one is set, the other tab is disabled.
+          :::
+
+          ### Overrides
+
+          - **Any Authenticated User**: This setting will allow access to a route with this policy attached to any user who can authenticate to your Identity Provider (**IdP**).
+          - **CORS Preflight**:
+          - **Public Access**: This setting allows complete, unrestricted access to an associated route. Use this setting with caution.
+      - name: "Certificates"
+  - name: "Configure"
+    settings:
+      - name: "Settings"
+        settings:
+          - name: "Global"
+            settings:
+              - name: "Administrators"
+                doc: A list of users with full access to the Pomerium Enterprise Console
+              - name: "Debug"
+              - name: "Forward Auth"
+              - name: "HTTP Redirect Address"
+              - name: "DNS Lookup Family"
+              - name: "Log Level"
+              - name: "Proxy Log Level"
+              - name: "Enable User Impersonation"
+          - name: "Cookies"
+            settings:
+              - name: "HTTPS Only"
+                keys: ["cookie_secure"]
+              - name: "Javascript Security"
+              - name: "Expires"
+                keys: ["cookie_expire"]
+          - name: "Timeouts"
+            doc: "Timeouts set the global server timeouts. Timeouts can also be set for individual routes."
+          - name: "GRPC"
+            settings:
+              - name: "GRPC Server Max Connection Age"
+                doc: |
+                  Set max connection age for GRPC servers. After this interval, servers ask clients to reconnect and perform any rediscovery for new/updated endpoints from DNS.
+
+                  See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for details
+              - name: "GRPC Server Max Connection Age Grace"
+                doc: |
+                  Additive period with grpc_server_max_connection_age, after which servers will force connections to close.
+
+                  See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters (opens new window)for details
+          - name: "Tracing"
+          - name: "Authenticate"
+          - name: "Authorize"
+            settings:
+              - name: "Signing Key"
+              - name: "Signing Key Algorithm"
+          - name: "Proxy"
+            settings:
+              - name: "Certificate Authority"
+                keys: ["certificate_authority"]
+              - name: "Default Upstream Timeout"
+              - name: "JWT Claim Headers"
+              - name: "Override Certificate Name"
+              - name: "Refresh Cooldown"
+              - name: "X-Forward-For HTTP Header"
+                keys: ["skip_xff_append"]
+              - name: "Response Headers"
+                keys: ["set_response_headers"]
+      - name: "Service Accounts"
+        doc: |
+          See [Concepts: Service Accounts][service-accounts-concept].
+      - name: "Namespaces"
+        keys: ["namespace"]
+        doc: |
+          A [Namespace][namespace-concept] is a collection of users, groups, routes, and policies that allows system administrators to organize, manage, and delegate permissions across their infrastructure.
+
+          - Policies can be optional or enforced on a Namespace.
+             - Enforced policies are also enforced on child Namespaces, and optional policies are available to them as well.
+          - Users or groups can be granted permission to edit access to routes within a Namespace, allowing them self-serve access to the routes critical to their work.
+
+          ::: tip
+          When using an IdP without directory sync or when working with non-domain users, they will not show up in the look-ahead search. See [Non-Domain Users](/enterprise/concepts.html#non-domain-users) for more information.
+          :::
+
+postamble: |
+  [route-concept]: /enterprise/concepts.md#routes
+  [route-reference]: /enterprise/reference/manage.md#routes
+  [namespace-concept]: /enterprise/concepts.md#namespaces
+  [namespace-reference]: /enterprise/reference/configure.md#namespaces
+  [service-accounts-concept]: /enterprise/concepts.md#service-accounts
+  [policy-reference]: /enterprise/reference/manage.md#policies-2
