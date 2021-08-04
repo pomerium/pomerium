@@ -48,7 +48,9 @@ Your security team can enact top level security policies to ensure, everyone:
 
 From there, the security team delegates management of child [Namespaces](#namespaces) to application teams, providing flexibility to self-manage their own application [Routes](#routes) and [Policies](#policies).
 
-For example, a developer group can be given control to determine who has access to their Namespace, and create or edit Routes within it. They can provide authentication to their WiP app without writing new authorization code. Meanwhile, the CFO is given [manager](#manager) permissions over the "Accounting" Namespace, and can set enforced or optional policies for the services within.
+For example, a developer group can be given control to determine who has access to their Namespace, and create or edit Routes within it. They can provide authentication and authorization to their WiP app without writing new authorization code.
+
+Meanwhile, the CFO is given [manager](#manager) permissions over the "Accounting" Namespace, and can set enforced or optional policies for the services within.
 
 ### RBAC for Enterprise Console Users
 
