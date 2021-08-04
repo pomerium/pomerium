@@ -10,7 +10,7 @@ description: Learn how the Pomerium Enterprise Console works.
 
 In the Pomerium Enterprise Console, a **Namespace** is a cornerstone organization unit. They are container objects that behave similar to a unix directory structure.
 
-In each Namespace, you can define an organizational unit of users and groups with fine-grained access management. This enables teams to self-service the routes and policies pertinent to them. Namespaces can optionally inherit from their parent units.
+In each Namespace, administrators can create organizational units where users and groups can be added. Namespaces enable fine-grained role based access control and management. The structure and hierarchy of namespaces empower teams to self-service the routes and policies pertinent to them. Namespaces can can also be used to optionally or mandatorily inherit from their parent permission or policies.
 
 Namespaces enable:
 
