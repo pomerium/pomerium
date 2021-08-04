@@ -73,10 +73,13 @@ idp_provider: "google"
 idp_client_id: YOUR_CLIENT_ID
 idp_client_secret: YOUR_SECRET
 
-policy:
+routes:
   - from: "https://verify.localhost.pomerium.io:8443"
     to: "https://verify.org"
-    allow_public_unauthenticated_access: true
+    policy:
+      - allow:
+          or:
+            - accept: true
 ```
 
 Start Pomerium with:
