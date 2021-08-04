@@ -43,8 +43,6 @@ module.exports = {
       {
         text: "Enterprise",
         link: "/enterprise/about/",
-        //target: "_self",
-        //rel: "",
       },
       {
         text: "v0.14.x", // current tagged version
@@ -197,9 +195,7 @@ module.exports = {
           type: "group",
           collapsable: false,
           sidebarDepth: 2,
-          //path: "/enterprise/",
           children: [
-            //"",
             "about",
             "concepts",
             {
