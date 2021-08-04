@@ -106,7 +106,7 @@ This term refers to the system or service the route provides or restricts access
 
 ## Policies
 
-A Policy defines what permissions a set of users or groups has.
+A Policy defines who has access to what based on the identity of the user, their device, and the associated request context.
 
 Policies can be applied to [Routes](#routes) directly, or enforced within a [Namespace](#namespaces). This associates the set of permissions with a service or set of services, completing the authentication model.
 
