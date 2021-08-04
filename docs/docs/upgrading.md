@@ -9,7 +9,14 @@ description: >-
 
 ## Breaking
 
+### Removed GRPC Server Max Connection Age Options
+
 The unused `grpc_server_max_connection_age` and `grpc_server_max_connection_age_grace` options were removed.
+
+### Removed support for Ed25519 Signing Keys
+
+Ed25519 is no longer supported for `signing_key` since OPA Rego only supports ECDSA and RSA.
+
 ## New
 
 ### Updated and expanded policy syntax
