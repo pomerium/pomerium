@@ -710,7 +710,7 @@ Some providers, like Amazon Cognito, _do not_ support the `offline_access` scope
 - Type: `string`
 - **Required** for group based policies (most configurations)
 
-The identity provider service account setting is used to query associated identity information from your identity provider.
+The identity provider service account setting is used to query associated identity information from your identity provider.  This is a provider specific value and is not required for all providers.  For example, when using Okta this value will be an Okta API key, and for an OIDC provider that provides groups as a claim, this value will be empty.
 
 :::warning
 
@@ -1140,88 +1140,6 @@ Claims are represented as a map of strings to a list of values:
 - Example: `alice@pomerium.io` , `bob@contractor.co`
 
 Allowed users is a collection of whitelisted users to authorize for a given route.
-
-
-## Authorize Service
-
-### Authorize Service URL
-- Environmental Variable: `AUTHORIZE_SERVICE_URL` or `AUTHORIZE_SERVICE_URLS`
-- Config File Key: `authorize_service_url` or `authorize_service_urls`
-- Type: `URL`
-- Required
-- Example: `https://authorize.corp.example.com`
-
-Authorize Service URL is the location of the internally accessible authorize service. Multiple URLs can be specified with `authorize_service_url`.
-
-
-### Google Cloud Serverless Authentication Service Account
-- Environmental Variable: `GOOGLE_CLOUD_SERVERLESS_AUTHENTICATION_SERVICE_ACCOUNT`
-- Config File Key: `google_cloud_serverless_authentication_service_account`
-- Type: [base64 encoded] `string`
-- Optional
-
-Manually specify the service account credentials to support GCP's [Authorization Header](https://cloud.google.com/run/docs/authenticating/service-to-service) format.
-
-If unspecified:
-
-- If [Identity Provider Name](#identity-provider-name) is set to `google`, will default to [Identity Provider Service Account](#identity-provider-service-account)
-- Otherwise, will default to ambient credentials in the default locations searched by the Google SDK. This includes GCE metadata server tokens.
-
-
-### Signing Key
-- Environmental Variable: `SIGNING_KEY`
-- Config File Key: `signing_key`
-- Type: [base64 encoded] `string`
-- Optional
-
-Signing Key is the private key used to sign a user's attestation JWT which can be consumed by upstream applications to pass along identifying user information like username, id, and groups.
-
-If set, the signing key's public key will can retrieved by hitting Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. Otherwise, the endpoint will return an empty keyset.
-
-For example, assuming you have [generated an ES256 key](https://github.com/pomerium/pomerium/blob/master/scripts/generate_self_signed_signing_key.sh) as follows.
-
-```bash
-# Generates an P-256 (ES256) signing key
-openssl ecparam  -genkey  -name prime256v1  -noout  -out ec_private.pem
-# careful! this will output your private key in terminal
-cat ec_private.pem | base64
-```
-
-That signing key can be accessed via the well-known jwks endpoint.
-
-```bash
-$ curl https://authenticate.int.example.com/.well-known/pomerium/jwks.json | jq
-```
-
-```json
-{
-  "keys": [
-    {
-      "use": "sig",
-      "kty": "EC",
-      "kid": "ccc5bc9d835ff3c8f7075ed4a7510159cf440fd7bf7b517b5caeb1fa419ee6a1",
-      "crv": "P-256",
-      "alg": "ES256",
-      "x": "QCN7adG2AmIK3UdHJvVJkldsUc6XeBRz83Z4rXX8Va4",
-      "y": "PI95b-ary66nrvA55TpaiWADq8b3O1CYIbvjqIHpXCY"
-    }
-  ]
-}
-```
-
-If no certificate is specified, one will be generated and the base64'd public key will be added to the logs. Note, however, that this key be unique to each service, ephemeral, and will not be accessible via the authenticate service's `jwks_uri` endpoint.
-
-
-### Signing Key Algorithm
-- Environmental Variable: `SIGNING_KEY_ALGORITHM`
-- Config File Key: `signing_key_algorithm`
-- Type: `string`
-- Options: `ES256` or `EdDSA` or `RS256`
-- Default: `ES256`
-
-This setting specifies which signing algorithm to use when signing the upstream attestation JWT. Cryptographic algorithm choice is subtle, and beyond the scope of this document, but we suggest sticking to the default `ES256` unless you have a good reason to use something else.
-
-Be aware that any RSA based signature method may be an order of magnitude lower than [elliptic curve] variants like EdDSA (`ed25519`) and ECDSA (`ES256`). For more information, checkout [this article](https://www.scottbrady91.com/JOSE/JWTs-Which-Signing-Algorithm-Should-I-Use).
 
 
 ## Routes
@@ -1701,7 +1619,6 @@ See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/
 
 
 ### Websocket Connections
-<<<<<<< HEAD
 - Config File Key: `allow_websockets`
 - Type: `bool`
 - Default: `false`
@@ -1796,8 +1713,6 @@ This setting specifies which signing algorithm to use when signing the upstream 
 
 Be aware that any RSA based signature method may be an order of magnitude lower than [elliptic curve] variants like ECDSA (`ES256`). For more information, checkout [this article](https://www.scottbrady91.com/JOSE/JWTs-Which-Signing-Algorithm-Should-I-Use).
 
-=======
->>>>>>> fill out reports
 
 [base64 encoded]: https://en.wikipedia.org/wiki/Base64
 [elliptic curve]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations#Generating_EC_Keys_and_Parameters
