@@ -3,7 +3,6 @@ package cryptutil
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/hex"
@@ -75,8 +74,6 @@ func loadPublicKey(b []byte) (interface{}, error) {
 		case *rsa.PrivateKey:
 			return k.Public(), nil
 		case *ecdsa.PrivateKey:
-			return k.Public(), nil
-		case ed25519.PrivateKey: // note, not a pointer
 			return k.Public(), nil
 		default:
 			return nil, fmt.Errorf("private key is unsupported type")
