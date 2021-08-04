@@ -1049,7 +1049,7 @@ If set, the TLS connection to the storage backend will not be verified.
 - Environmental Variable: `POLICY`
 - Config File Key: `policy`
 - Type: [base64 encoded] `string` or inline policy structure in config file
-- **Required** However, pomerium will safely start without a policy configured, but will be unable to authorize or proxy traffic until the configuration is updated to contain a policy.
+- **Deprecated**: This key has been replaced with `route`.
 
 
 ::: warning
