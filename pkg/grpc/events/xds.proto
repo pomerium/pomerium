@@ -24,13 +24,15 @@ message EnvoyConfigurationEvent {
   enum EventKind {
     EVENT_KIND_UNDEFINED = 0;
     // envoy_service_discovery_v3.DeltaDiscoveryRequest
-    EVENT_DISCOVERY_REQUEST = 1;
+    EVENT_DISCOVERY_REQUEST_ACK = 1;
+    EVENT_DISCOVERY_REQUEST_NACK = 2;
     // envoy_service_discovery_v3.DeltaDiscoveryResponse
-    EVENT_DISCOVERY_RESPONSE = 2;
+    EVENT_DISCOVERY_RESPONSE = 3;
   }
   EventKind kind = 7;
   repeated string resource_subscribed = 8;
   repeated string resource_unsubscribed = 9;
   // instance this event originated from
   string instance = 10;
+  string nonce = 11;
 }
