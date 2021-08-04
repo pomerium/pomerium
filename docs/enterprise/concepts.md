@@ -81,7 +81,7 @@ Pomerium populates users and groups from your IdP. This data is cached to preven
 
 ### Non-Domain Users
 
-When using Google as your IdP, you may hit an edge case where users are not available for lookup when the user's domain doesn't match that of your organization. In this case, there are two workarounds:
+You may encounter a situation where you may want to add users that are not directly associated with your corporate identity provider service. For example, if you have a corporate GSuite account and want to add a contractor with a gmail account. In this case, there are two workarounds:
 
 - Create a group within your identity provider directly with the non-domain users in it. This group can be found and added to Namespaces and Policies.
 - Manually add the user's unique ID. Identify the ID from a user's Session Details page.
