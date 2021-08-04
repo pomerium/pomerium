@@ -161,6 +161,22 @@ tls_cert_file: /etc/pomerium-console/cert.pem
 tls_key_file: /etc/pomerium-console/key.pem
 ```
 
+### Update Pomerium
+
+Open your Pomerium config file, `/etc/pomerium/config.yaml`. Add a list item in the `routes` block for the Enterprise Console:
+
+   ```yaml
+     routes:
+       - from: https://console.localhost.pomerium.com
+         to: https://pomerium-console.pomerium.svc.cluster.local
+         policy:
+           - allow:
+               or:
+                 - domain:
+                     is: companydomain.com
+         pass_identity_headers: true
+   ```
+
 ## Next Steps
 
 The Pomerium Enterprise Console assumes access to a [Prometheus](https://prometheus.io/) data store for metrics. See [Prometheus Metrics](/enterprise/prometheus.md) to learn how to configure access.

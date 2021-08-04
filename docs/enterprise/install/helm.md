@@ -62,14 +62,17 @@ This setup assumes an existing certificate solution using cert-manager, as descr
    kubectl config set-context --current --namespace=pomerium
    ```
 
-1. Open your pomerium values file. If you followed [Pomerium Using Helm], the file is named `pomerium-values.yaml`. In the `config` section, set a `policy` block for the Enterprise Console:
+1. Open your pomerium values file. If you followed [Pomerium Using Helm], the file is named `pomerium-values.yaml`. In the `config` section, set a list item in the `routes` block for the Enterprise Console:
 
    ```yaml
-     policy:
+     routes:
        - from: https://console.localhost.pomerium.com
          to: https://pomerium-console.pomerium.svc.cluster.local
-         allowed_domains:
-           - companydomain.com
+         policy:
+           - allow:
+               or:
+                 - domain:
+                     is: companydomain.com
          pass_identity_headers: true
    ```
 
