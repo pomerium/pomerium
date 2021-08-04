@@ -1641,7 +1641,7 @@ If set, enables proxying of websocket connections.
 - Required
 - Example: `https://authorize.corp.example.com`
 
-Authorize Service URL is the location of the internally accessible authorize service. Multiple URLs can be specified with `authorize_service_url`.
+Authorize Service URL is the location of the internally accessible authorize service. Multiple URLs can be specified with `authorize_service_urls`.
 
 
 ### Google Cloud Serverless Authentication Service Account

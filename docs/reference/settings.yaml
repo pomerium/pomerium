@@ -1782,7 +1782,7 @@ settings:
           - Required
           - Example: `https://authorize.corp.example.com`
         doc: |
-          Authorize Service URL is the location of the internally accessible authorize service. Multiple URLs can be specified with `authorize_service_url`.
+          Authorize Service URL is the location of the internally accessible authorize service. Multiple URLs can be specified with `authorize_service_urls`.
         shortdoc: |
           Authorize Service URL is the location of the internally accessible authorize service.
       - name: "Google Cloud Serverless Authentication Service Account"
