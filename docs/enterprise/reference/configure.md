@@ -179,13 +179,15 @@ Timeouts set the global server timeouts. Timeouts can also be set for individual
 
 Set max connection age for GRPC servers. After this interval, servers ask clients to reconnect and perform any rediscovery for new/updated endpoints from DNS.
 
-See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
+See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for details
+
 
 #### GRPC Server Max Connection Age Grace
 
-Additive period with `grpc_server_max_connection_age`, after which servers will force connections to close.
+Additive period with grpc_server_max_connection_age, after which servers will force connections to close.
 
-See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> for details
+See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters (opens new window)for details
+
 
 ### Tracing
 
@@ -288,12 +290,12 @@ If no certificate is specified, one will be generated and the base64'd public ke
 
 This setting specifies which signing algorithm to use when signing the upstream attestation JWT. Cryptographic algorithm choice is subtle, and beyond the scope of this document, but we suggest sticking to the default `ES256` unless you have a good reason to use something else.
 
-Be aware that any RSA based signature method may be an order of magnitude lower than [elliptic curve] variants like EdDSA (`ed25519`) and ECDSA (`ES256`). For more information, checkout [this article](https://www.scottbrady91.com/JOSE/JWTs-Which-Signing-Algorithm-Should-I-Use).
+Be aware that any RSA based signature method may be an order of magnitude lower than [elliptic curve] variants like ECDSA (`ES256`). For more information, checkout [this article](https://www.scottbrady91.com/JOSE/JWTs-Which-Signing-Algorithm-Should-I-Use).
 
 ### Proxy
 
 
-#### Certificate Authority 
+#### Certificate Authority
 
 Certificate Authority is set when behind-the-ingress service communication uses custom or self-signed certificates.
 

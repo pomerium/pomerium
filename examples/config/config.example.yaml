@@ -108,4 +108,3 @@ routes:
           or:
             - groups:
                 has: ["admins@pomerium.io"]
-

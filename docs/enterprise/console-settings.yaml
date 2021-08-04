@@ -194,7 +194,15 @@ settings:
           - name: "GRPC"
             settings:
               - name: "GRPC Server Max Connection Age"
+                doc: |
+                  Set max connection age for GRPC servers. After this interval, servers ask clients to reconnect and perform any rediscovery for new/updated endpoints from DNS.
+
+                  See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for details
               - name: "GRPC Server Max Connection Age Grace"
+                doc: |
+                  Additive period with grpc_server_max_connection_age, after which servers will force connections to close.
+
+                  See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters (opens new window)for details
           - name: "Tracing"
           - name: "Authenticate"
           - name: "Authorize"
@@ -203,7 +211,7 @@ settings:
               - name: "Signing Key Algorithm"
           - name: "Proxy"
             settings:
-              - name: "Certificate Authority "
+              - name: "Certificate Authority"
                 keys: ["certificate_authority"]
               - name: "Default Upstream Timeout"
               - name: "JWT Claim Headers"
@@ -224,11 +232,11 @@ settings:
           - Policies can be optional or enforced on a Namespace.
              - Enforced policies are also enforced on child Namespaces, and optional policies are available to them as well.
           - Users or groups can be granted permission to edit access to routes within a Namespace, allowing them self-serve access to the routes critical to their work.
-          
+
           ::: tip
           When using an IdP without directory sync or when working with non-domain users, they will not show up in the look-ahead search. See [Non-Domain Users](/enterprise/concepts.html#non-domain-users) for more information.
           :::
-          
+
 postamble: |
   [route-concept]: /enterprise/concepts.md#routes
   [route-reference]: /enterprise/reference/manage.md#routes

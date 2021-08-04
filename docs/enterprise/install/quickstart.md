@@ -40,7 +40,7 @@ This document assumes:
 Pomerium publishes standard OS packages for RPM and DEB based systems. The repositories require authentication via username and access key. These credentials will be issued to you during the onboarding process.
 
 :::: tabs
- 
+
 ::: tab deb
 
 1. To automatically configure the repository for Debian and Ubuntu distributions, run the following command replacing `[access-key]`:
@@ -66,8 +66,8 @@ Pomerium publishes standard OS packages for RPM and DEB based systems. The repos
    ```
 
 :::
- 
- 
+
+
 ::: tab yum
 
 1. To automatically configure the repository for RHEL based distributions, run the following command replacing `[access-key]`:
