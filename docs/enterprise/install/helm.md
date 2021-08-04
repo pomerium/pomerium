@@ -76,6 +76,8 @@ This setup assumes an existing certificate solution using cert-manager, as descr
          pass_identity_headers: true
    ```
 
+1. If you haven't already, set a static `signing_key` value to be shared with the Enterprise Console. See [Reference: Signing Key](/reference/readme.md#signing-key) for information on generating a key.
+
 1. Use Helm to update your Pomerium installation:
 
    ```bash
@@ -98,6 +100,7 @@ This setup assumes an existing certificate solution using cert-manager, as descr
      sharedSecret: #Shared with Pomerium
      databaseEncryptionKey:  #Generate from "head -c32 /dev/urandom | base64"
      administrators: "youruser@yourcompany.com" #This is a hard-coded access, remove once setup is complete
+     signing_key: "ZZZZZZZ" #This base64-encoded key is shared with open-source Pomerium
    tls:
      existingCASecret: pomerium-tls
      caSecretKey: ca.crt

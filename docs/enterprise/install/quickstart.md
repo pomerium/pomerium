@@ -110,6 +110,31 @@ sudo systemctl enable --now pomerium-console
 
 Like the open-source Pomerium base, Pomerium Enterprise Console is configured through a single config file, located at `/etc/pomerium-console/config.yaml`.
 
+
+### Update Pomerium
+
+Open your Pomerium config file, `/etc/pomerium/config.yaml`.
+
+1. Add a list item in the `routes` block for the Enterprise Console:
+
+   ```yaml
+     routes:
+       - from: https://console.localhost.pomerium.com
+         to: https://pomerium-console.pomerium.svc.cluster.local
+         policy:
+           - allow:
+               or:
+                 - domain:
+                     is: companydomain.com
+         pass_identity_headers: true
+   ```
+
+1. If you haven't already, set `signing_key`. See the [reference page](/reference/readme.md#signing-key) for more information.
+
+   ```yaml
+   signing_key: "ZZZZZZZZZZZZZZ"
+   ```
+
 ### External Services
 
 First configure the Console to communicate with the database and databroker service:
@@ -133,25 +158,27 @@ administrators: you@mydomain.com
 
 Once you have set permissions in the console UI, you should remove this configuration.
 
-### TLS
+### TLS and Signing Key
 
-If your open-source Pomerium installation is already configured to use TLS to secure back-end communication, you can do the same for the Pomerium Enterprise Console by providing it a certificate, key, and optional custom CA file to validate the `databroker_service_url` connection:
+1. If your open-source Pomerium installation is already configured to use TLS to secure back-end communication, you can do the same for the Pomerium Enterprise Console by providing it a certificate, key, and optional custom CA file to validate the `databroker_service_url` connection:
 
-```yaml
-tls_ca_file: /etc/pomerium-console/ca.pem
-tls_cert_file: /etc/pomerium-console/cert.pem
-tls_key_file: /etc/pomerium-console/key.pem
-```
+   ```yaml
+   tls_ca_file: /etc/pomerium-console/ca.pem
+   tls_cert_file: /etc/pomerium-console/cert.pem
+   tls_key_file: /etc/pomerium-console/key.pem
+   ```
 
-For proof-of-concept installations in the same local system, this is not required.
+   For proof-of-concept installations in the same local system, this is not required.
+
+1. Set the [`signing_key`](/enterprise/reference/config.md#signing-key) to match Pomerium's.
 
 Once complete, your `/etc/pomerium-console/config.yaml` file should look something like this:
 
 ```yaml
 database_url: pg://user:pass@dbhost.internal.mydomain.com/pomerium?sslmode=require
 databroker_service_url: https://pomerium-cache.internal.mydomain.com
-shared_secret: XXXXXXXXXXXXXXXXXXX
-database_encryption_key: YYYYYYYYYYYYYYYYYYYYYY
+shared_secret: "XXXXXXXXXXXXXXXXXXX"
+database_encryption_key: "YYYYYYYYYYYYYYYYYYYYYY"
 
 # change / remove this after initial setup
 administrators: you@mydomain.com
@@ -159,23 +186,9 @@ administrators: you@mydomain.com
 tls_ca_file: /etc/pomerium-console/ca.pem
 tls_cert_file: /etc/pomerium-console/cert.pem
 tls_key_file: /etc/pomerium-console/key.pem
+
+signing_key: "ZZZZZZZZZZZZZZ"
 ```
-
-### Update Pomerium
-
-Open your Pomerium config file, `/etc/pomerium/config.yaml`. Add a list item in the `routes` block for the Enterprise Console:
-
-   ```yaml
-     routes:
-       - from: https://console.localhost.pomerium.com
-         to: https://pomerium-console.pomerium.svc.cluster.local
-         policy:
-           - allow:
-               or:
-                 - domain:
-                     is: companydomain.com
-         pass_identity_headers: true
-   ```
 
 ## Next Steps
 
