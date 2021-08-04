@@ -96,7 +96,7 @@ You may encounter a situation where you may want to add users that are not direc
 
 Service accounts provides bearer token based authentication for machine-to-machine communication through Pomerium to your protected endpoints. They can provide auth for monitoring services, create API integrations, and other non-human driven scripts or services.
 
-Service accounts can represent identities from your IdP or be Pomerium-only identities.
+A service account identity can either be based on a user entry in your IdP Directory, or exist as a custom identity managed in a Pomerium Console [Namespace](#namespaces).
 
 ## Routes
 
