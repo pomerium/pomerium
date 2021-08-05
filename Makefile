@@ -76,6 +76,11 @@ frontend: ## Runs go generate on the static assets package.
 	@echo "==> $@"
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) generate github.com/pomerium/pomerium/internal/frontend
 
+.PHONY: proto
+proto:
+	@echo "==> $@"
+	cd pkg/pb && ./protoc.bash
+
 .PHONY: build
 build: build-deps ## Builds dynamic executables and/or packages.
 	@echo "==> $@"

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"sync"
 
@@ -273,7 +272,7 @@ func (mgr *Manager) nonceToConfigVersion(nonce string) (ver uint64) {
 func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
 	mgr.eventHandler(&events.EnvoyConfigurationEvent{
 		Instance:             mgr.hostname,
-		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST,
+		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_NACK,
 		Time:                 timestamppb.Now(),
 		Message:              req.ErrorDetail.Message,
 		Code:                 req.ErrorDetail.Code,
@@ -282,6 +281,7 @@ func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_
 		ResourceUnsubscribed: req.ResourceNamesUnsubscribe,
 		ConfigVersion:        mgr.nonceToConfigVersion(req.ResponseNonce),
 		TypeUrl:              req.TypeUrl,
+		Nonce:                req.ResponseNonce,
 	})
 
 	bs, _ := json.Marshal(req.ErrorDetail.Details)
@@ -298,13 +298,14 @@ func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_
 func (mgr *Manager) ackEvent(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
 	mgr.eventHandler(&events.EnvoyConfigurationEvent{
 		Instance:             mgr.hostname,
-		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST,
+		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_ACK,
 		Time:                 timestamppb.Now(),
 		ConfigVersion:        mgr.nonceToConfigVersion(req.ResponseNonce),
 		ResourceSubscribed:   req.ResourceNamesSubscribe,
 		ResourceUnsubscribed: req.ResourceNamesUnsubscribe,
 		TypeUrl:              req.TypeUrl,
-		Message:              fmt.Sprintf("ok %s", req.ResponseNonce),
+		Nonce:                req.ResponseNonce,
+		Message:              "ok",
 	})
 
 	log.Debug(ctx).
@@ -320,11 +321,12 @@ func (mgr *Manager) changeEvent(ctx context.Context, res *envoy_service_discover
 		Instance:             mgr.hostname,
 		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE,
 		Time:                 timestamppb.Now(),
+		Nonce:                res.Nonce,
+		Message:              "change",
 		ConfigVersion:        mgr.nonceToConfigVersion(res.Nonce),
+		TypeUrl:              res.TypeUrl,
 		ResourceSubscribed:   resourceNames(res.Resources),
 		ResourceUnsubscribed: res.RemovedResources,
-		TypeUrl:              res.TypeUrl,
-		Message:              fmt.Sprintf("change %s", res.Nonce),
 	})
 	log.Debug(ctx).
 		Uint64("ctx_config_version", mgr.nonceToConfigVersion(res.Nonce)).
