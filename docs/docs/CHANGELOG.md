@@ -1,11 +1,18 @@
 # Changelog
 
-## [v0.15.0](https://github.com/pomerium/pomerium/tree/v0.15.0) (2021-07-30)
+## [v0.15.0](https://github.com/pomerium/pomerium/tree/v0.15.0) (2021-08-05)
 
 [Full Changelog](https://github.com/pomerium/pomerium/compare/v0.14.7...v0.15.0)
 
+## Breaking
+
+- config: remove support for ed25519 signing keys [\#2430](https://github.com/pomerium/pomerium/pull/2430) (@calebdoxsey)
+
 ## New
 
+- telemetry: add nonce and make explicit ack/nack [\#2434](https://github.com/pomerium/pomerium/pull/2434) (@wasaga)
+- authorize: log additional session details [\#2419](https://github.com/pomerium/pomerium/pull/2419) (@calebdoxsey)
+- telemetry: try guess hostname or external IP addr for metrics [\#2412](https://github.com/pomerium/pomerium/pull/2412) (@wasaga)
 - sessions: add impersonate\_session\_id, remove legacy impersonation [\#2407](https://github.com/pomerium/pomerium/pull/2407) (@calebdoxsey)
 - envoyconfig: improvements [\#2402](https://github.com/pomerium/pomerium/pull/2402) (@calebdoxsey)
 - config: add support for embedded PPL policy [\#2401](https://github.com/pomerium/pomerium/pull/2401) (@calebdoxsey)
@@ -46,6 +53,8 @@
 
 ## Fixed
 
+- config: remove grpc server max connection age options [\#2427](https://github.com/pomerium/pomerium/pull/2427) (@calebdoxsey)
+- authorize: add sid to JWT claims [\#2420](https://github.com/pomerium/pomerium/pull/2420) (@calebdoxsey)
 - disable http/2 for websockets [\#2399](https://github.com/pomerium/pomerium/pull/2399) (@calebdoxsey)
 - ci: update gcloud action [\#2393](https://github.com/pomerium/pomerium/pull/2393) (@travisgroth)
 - google: remove WithHTTPClient [\#2391](https://github.com/pomerium/pomerium/pull/2391) (@calebdoxsey)
@@ -88,9 +97,16 @@
 
 ## Documentation
 
+- doc updates [\#2433](https://github.com/pomerium/pomerium/pull/2433) (@calebdoxsey)
+- Update Console installs to match signing\_key [\#2432](https://github.com/pomerium/pomerium/pull/2432) (@alexfornuto)
+- docs/reference: Clarify use of idp\_service\_account [\#2431](https://github.com/pomerium/pomerium/pull/2431) (@the-maldridge)
+- docs: clarify device identity, not state via client certs [\#2428](https://github.com/pomerium/pomerium/pull/2428) (@desimone)
+- v0.15 release notes [\#2409](https://github.com/pomerium/pomerium/pull/2409) (@travisgroth)
 - docs: only secure schemes are supported [\#2408](https://github.com/pomerium/pomerium/pull/2408) (@desimone)
 - Installation Docs Restructuring [\#2406](https://github.com/pomerium/pomerium/pull/2406) (@alexfornuto)
 - symlink security policy to root of project [\#2396](https://github.com/pomerium/pomerium/pull/2396) (@desimone)
+- Enterprise Docs [\#2390](https://github.com/pomerium/pomerium/pull/2390) (@alexfornuto)
+- Helm Quickstart Update [\#2380](https://github.com/pomerium/pomerium/pull/2380) (@alexfornuto)
 - Docs bug fixes [\#2362](https://github.com/pomerium/pomerium/pull/2362) (@alexfornuto)
 - Docs sorting [\#2346](https://github.com/pomerium/pomerium/pull/2346) (@alexfornuto)
 - Update installation source for mkcert [\#2340](https://github.com/pomerium/pomerium/pull/2340) (@alexfornuto)
@@ -104,11 +120,19 @@
 - docs: rm broken link [\#2215](https://github.com/pomerium/pomerium/pull/2215) (@alexfornuto)
 - docs: Match Tenses [\#2214](https://github.com/pomerium/pomerium/pull/2214) (@alexfornuto)
 - Update programmatic-access.md [\#2190](https://github.com/pomerium/pomerium/pull/2190) (@yyolk)
+- docs: add v0.14 feature highlights [\#2184](https://github.com/pomerium/pomerium/pull/2184) (@github-actions[bot])
 - docs: add v0.14 feature highlights [\#2183](https://github.com/pomerium/pomerium/pull/2183) (@travisgroth)
 - docs: update slack link to vanity url [\#2177](https://github.com/pomerium/pomerium/pull/2177) (@travisgroth)
 
 ## Dependency
 
+- chore\(deps\): bump gopkg.in/auth0.v5 from 5.19.1 to 5.19.2 [\#2422](https://github.com/pomerium/pomerium/pull/2422) (@dependabot[bot])
+- chore\(deps\): bump github.com/go-jose/go-jose/v3 from 3.0.0-rc.1 to 3.0.0 [\#2421](https://github.com/pomerium/pomerium/pull/2421) (@dependabot[bot])
+- chore\(deps\): bump github.com/prometheus/common from 0.29.0 to 0.30.0 [\#2417](https://github.com/pomerium/pomerium/pull/2417) (@dependabot[bot])
+- chore\(deps\): bump github.com/open-policy-agent/opa from 0.30.2 to 0.31.0 [\#2416](https://github.com/pomerium/pomerium/pull/2416) (@dependabot[bot])
+- chore\(deps\): bump google.golang.org/api from 0.51.0 to 0.52.0 [\#2415](https://github.com/pomerium/pomerium/pull/2415) (@dependabot[bot])
+- chore\(deps\): bump github.com/shirou/gopsutil/v3 from 3.21.6 to 3.21.7 [\#2414](https://github.com/pomerium/pomerium/pull/2414) (@dependabot[bot])
+- chore\(deps\): bump github.com/go-redis/redis/v8 from 8.11.0 to 8.11.1 [\#2413](https://github.com/pomerium/pomerium/pull/2413) (@dependabot[bot])
 - chore\(deps\): bump github.com/prometheus/procfs from 0.7.0 to 0.7.1 [\#2395](https://github.com/pomerium/pomerium/pull/2395) (@dependabot[bot])
 - chore\(deps\): bump google.golang.org/api from 0.50.0 to 0.51.0 [\#2394](https://github.com/pomerium/pomerium/pull/2394) (@dependabot[bot])
 - chore\(deps\): bump github.com/google/uuid from 1.2.0 to 1.3.0 [\#2374](https://github.com/pomerium/pomerium/pull/2374) (@dependabot[bot])
@@ -166,6 +190,7 @@
 
 ## Changed
 
+- redis: increase timeout on test [\#2425](https://github.com/pomerium/pomerium/pull/2425) (@calebdoxsey)
 - build: add envoy files to `make clean` [\#2411](https://github.com/pomerium/pomerium/pull/2411) (@travisgroth)
 - envoy: bump to 1.19 [\#2392](https://github.com/pomerium/pomerium/pull/2392) (@travisgroth)
 - ci: use github app for backport credentials [\#2369](https://github.com/pomerium/pomerium/pull/2369) (@travisgroth)
@@ -251,7 +276,6 @@
 
 ## Documentation
 
-- docs: add v0.14 feature highlights [\#2184](https://github.com/pomerium/pomerium/pull/2184) (@github-actions[bot])
 - docs: update slack link to vanity url [\#2178](https://github.com/pomerium/pomerium/pull/2178) (@github-actions[bot])
 
 ## [v0.14.0](https://github.com/pomerium/pomerium/tree/v0.14.0) (2021-05-04)
