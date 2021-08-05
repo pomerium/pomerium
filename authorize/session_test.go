@@ -2,7 +2,6 @@ package authorize
 
 import (
 	"net/url"
-	"regexp"
 	"testing"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
@@ -45,31 +44,6 @@ func TestLoadSession(t *testing.T) {
 		return &state, nil
 	}
 
-	t.Run("cookie", func(t *testing.T) {
-		cookieStore, err := getCookieStore(opts, encoder)
-		if !assert.NoError(t, err) {
-			return
-		}
-		hdrs, err := getJWTSetCookieHeaders(cookieStore, rawjwt)
-		if !assert.NoError(t, err) {
-			return
-		}
-		cookie := regexp.MustCompile(`^([^;]+)(;.*)?$`).ReplaceAllString(hdrs["Set-Cookie"], "$1")
-
-		hattrs := &envoy_service_auth_v3.AttributeContext_HttpRequest{
-			Id:     "req-1",
-			Method: "GET",
-			Headers: map[string]string{
-				"Cookie": cookie,
-			},
-			Path:   "/hello/world",
-			Host:   "example.com",
-			Scheme: "https",
-		}
-		sess, err := load(t, hattrs)
-		assert.NoError(t, err)
-		assert.NotNil(t, sess)
-	})
 	t.Run("header", func(t *testing.T) {
 		hattrs := &envoy_service_auth_v3.AttributeContext_HttpRequest{
 			Id:     "req-1",
