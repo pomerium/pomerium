@@ -24,7 +24,7 @@ Ed25519 is no longer supported for `signing_key` since OPA Rego only supports EC
 Routes and policies may now be configured under a new top level key - `routes`
 
 - This more closely aligns to how policies and routes are conceptually related
-- The `routes` block supports a more powerful syntax for definiting policies with conditionals and various criteria
+- The `routes` block supports a more powerful syntax for defining policies with conditionals and various criteria
 
 ### Support environmental proxy settings
 
@@ -176,7 +176,7 @@ Please see the following interfaces for reference to implement your storage back
 
 ### Identity headers
 
-With this release, pomerium will not insert identity headers (X-Pomerium-Jwt-Asserttion/X-Pomerium-Claim-*) by default. To get pre 0.9.0 behavior, you can set `pass_identity_headers` to true on a per-policy basis.
+With this release, pomerium will not insert identity headers (X-Pomerium-Jwt-Assertion/X-Pomerium-Claim-*) by default. To get pre 0.9.0 behavior, you can set `pass_identity_headers` to true on a per-policy basis.
 
 # Since 0.8.0
 

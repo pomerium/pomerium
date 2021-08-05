@@ -23,23 +23,6 @@ Pomerium can be used to:
 - perform delegated user authorization for service-based authorization systems:
   - [Istio](/guides/istio.md)
   - [Google Cloud](/guides/cloud-run.md)
-- provide unified identity attestation for upstream services:
-  - [Kubernetes](/guides/kubernetes.md)
-  - [Grafana](/guides/istio.md#pomerium-configuration)
-  - [Custom applications](/docs/topics/getting-users-identity.md)
-- provide a **VPN alternative**.
+- add unified access and identity to [custom, on-prem, and hosted apps and services](https://www.pomerium.com/integrations/)
+- serve as a **VPN alternative**.
 
-## Demo
-
-To make this a bit more concrete, click the image thumbnail to see a short youtube demo:
-
-[![demo](https://img.youtube.com/vi/ddmrkvBSO60/0.jpg)](https://www.youtube.com/watch?v=ddmrkvBSO60 "Pomerium demo")
-
-The above video shows the flow for both an unauthorized and authorized user.
-
-1. An **unauthorized** user authenticates with their corporate single-sign-on provider.
-2. The **unauthorized** user is blocked from a protected resource.
-3. The **unauthorized** user signs out from their session.
-4. An **authorized** user authenticates with their corporate single-sign-on provider.
-5. Pomerium delegates and grants access to the requested resource.
-6. The **authorized** user inspects their user details including group membership.
