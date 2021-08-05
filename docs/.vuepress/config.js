@@ -229,4 +229,31 @@ module.exports = {
       ],
     },
   },
+  head: [
+    //Hack: Make clicking on the logo go to home url
+    ["script",
+      {},
+      `
+      const logoUrlChanger = setInterval(function() {
+      //Anchor above the logo image
+      const homeEls = document.getElementsByClassName("home-link");
+      if(homeEls.length > 0) {
+        const homeEl = homeEls[0];
+        homeEl.setAttribute("href", "https://www.pomerium.com");
+        homeEl.setAttribute("onclick", "document.location='https://www.pomerium.com';return false;");
+        clearInterval(logoUrlChanger);
+      }
+
+      //Actual logo image
+      const logoEls = document.getElementsByClassName("logo")
+      if(logoEls.length > 0) {
+        const logoEl = logoEls[0]
+        logoEl.setAttribute("onclick", "document.location='https://www.pomerium.com';return false;");
+        clearInterval(logoUrlChanger);
+      }
+      }, 1000)
+
+      `
+    ]
+  ],
 };
