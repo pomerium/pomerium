@@ -2,6 +2,8 @@ package databroker
 
 import (
 	"context"
+	"net"
+	"net/url"
 	"sync"
 
 	"github.com/pomerium/pomerium/config"
@@ -157,23 +159,15 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 }
 
 func (src *ConfigSource) runUpdater(cfg *config.Config) {
-	urls, err := cfg.Options.GetDataBrokerURLs()
-	if err != nil {
-		log.Fatal().Err(err).Send()
-		return
-	}
-
 	sharedKey, _ := cfg.Options.GetSharedKey()
 	connectionOptions := &grpc.Options{
-		Addrs:                   urls,
-		OverrideCertificateName: cfg.Options.OverrideCertificateName,
-		CA:                      cfg.Options.CA,
-		CAFile:                  cfg.Options.CAFile,
-		RequestTimeout:          cfg.Options.GRPCClientTimeout,
-		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GetGRPCInsecure(),
-		ServiceName:             cfg.Options.Services,
-		SignedJWTKey:            sharedKey,
+		Addrs: []*url.URL{{
+			Scheme: "http",
+			Host:   net.JoinHostPort("127.0.0.1", cfg.OutboundPort),
+		}},
+		WithInsecure: true,
+		ServiceName:  cfg.Options.Services,
+		SignedJWTKey: sharedKey,
 	}
 	h, err := hashutil.Hash(connectionOptions)
 	if err != nil {

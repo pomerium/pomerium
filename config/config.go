@@ -11,6 +11,10 @@ type Config struct {
 	Options          *Options
 	AutoCertificates []tls.Certificate
 	EnvoyVersion     string
+
+	GRPCPort     string
+	HTTPPort     string
+	OutboundPort string
 }
 
 // Clone creates a clone of the config.
@@ -21,6 +25,10 @@ func (cfg *Config) Clone() *Config {
 		Options:          newOptions,
 		AutoCertificates: cfg.AutoCertificates,
 		EnvoyVersion:     cfg.EnvoyVersion,
+
+		GRPCPort:     cfg.GRPCPort,
+		HTTPPort:     cfg.HTTPPort,
+		OutboundPort: cfg.OutboundPort,
 	}
 }
 

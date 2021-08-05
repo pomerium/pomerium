@@ -63,7 +63,7 @@ type Server struct {
 }
 
 // NewServer creates a new server with traffic routed by envoy.
-func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string, builder *envoyconfig.Builder) (*Server, error) {
+func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Builder) (*Server, error) {
 	wd := filepath.Join(os.TempDir(), workingDirectoryName)
 	err := os.MkdirAll(wd, embeddedEnvoyPermissions)
 	if err != nil {
@@ -97,8 +97,8 @@ func NewServer(ctx context.Context, src config.Source, grpcPort, httpPort string
 	srv := &Server{
 		wd:        wd,
 		builder:   builder,
-		grpcPort:  grpcPort,
-		httpPort:  httpPort,
+		grpcPort:  src.GetConfig().GRPCPort,
+		httpPort:  src.GetConfig().HTTPPort,
 		envoyPath: envoyPath,
 
 		monitorProcessCancel: func() {},
