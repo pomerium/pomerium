@@ -67,11 +67,11 @@ func TestValidateSignature(t *testing.T) {
 			got := ValidateSignature(tt.secretA)(fn)
 			got.ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantStatus {
-				t.Errorf("SignRequest() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantStatus, w.Body.String())
+				t.Errorf("ValidateSignature() error = %v, wantErr %v\n%v", w.Result().StatusCode, tt.wantStatus, w.Body.String())
 			}
 			body := w.Body.String()
 			if diff := cmp.Diff(body, tt.wantBody); diff != "" {
-				t.Errorf("SignRequest() %s", diff)
+				t.Errorf("ValidateSignature() %s", diff)
 				t.Errorf("%s", signedURL)
 			}
 		})
