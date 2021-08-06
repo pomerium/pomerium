@@ -158,7 +158,7 @@ administrators: you@mydomain.com
 
 Once you have set permissions in the console UI, you should remove this configuration.
 
-### TLS and Signing Key
+### TLS, Signing Key and Audience
 
 1. If your open-source Pomerium installation is already configured to use TLS to secure back-end communication, you can do the same for the Pomerium Enterprise Console by providing it a certificate, key, and optional custom CA file to validate the `databroker_service_url` connection:
 
@@ -171,6 +171,14 @@ Once you have set permissions in the console UI, you should remove this configur
    For proof-of-concept installations in the same local system, this is not required.
 
 1. Set the [`signing_key`](/enterprise/reference/config.md#signing-key) to match Pomerium's.
+
+1. Set the `audience` key to match the `from` domain value from your [Pomerium configuration](#update-pomerium), excluding protocol:
+
+   ```yaml
+   audience: console.localhost.pomerium.com
+   ```
+
+   This sets the expected "audience" key in the [JWT header](/reference/#jwt-claim-headers) to match what's provided by open-source Pomerium as it proxies traffic to the Enterprise Console UI.
 
 Once complete, your `/etc/pomerium-console/config.yaml` file should look something like this:
 
@@ -188,6 +196,8 @@ tls_cert_file: /etc/pomerium-console/cert.pem
 tls_key_file: /etc/pomerium-console/key.pem
 
 signing_key: "ZZZZZZZZZZZZZZ"
+
+audience: console.localhost.pomerium.com
 ```
 
 ## Next Steps

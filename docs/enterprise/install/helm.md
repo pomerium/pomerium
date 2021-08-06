@@ -101,6 +101,7 @@ This setup assumes an existing certificate solution using cert-manager, as descr
      databaseEncryptionKey:  #Generate from "head -c32 /dev/urandom | base64"
      administrators: "youruser@yourcompany.com" #This is a hard-coded access, remove once setup is complete
      signing_key: "ZZZZZZZ" #This base64-encoded key is shared with open-source Pomerium
+     audience: console.localhost.pomerium.com # This should match the "from" value in your Pomerium route, excluding protocol.
    tls:
      existingCASecret: pomerium-tls
      caSecretKey: ca.crt
