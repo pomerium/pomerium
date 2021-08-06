@@ -9,9 +9,9 @@ description: >-
 
 ## Breaking
 
-### Removed GRPC Server Max Connection Age Options
+### Removed options
 
-The unused `grpc_server_max_connection_age` and `grpc_server_max_connection_age_grace` options were removed.
+The unused `grpc_server_max_connection_age`, `grpc_server_max_connection_age_grace` and `refresh_cooldown` options were removed.
 
 ### Removed support for Ed25519 Signing Keys
 

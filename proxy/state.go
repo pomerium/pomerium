@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"net/url"
 	"sync/atomic"
-	"time"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -29,7 +28,6 @@ type proxyState struct {
 
 	encoder         encoding.MarshalUnmarshaler
 	cookieSecret    []byte
-	refreshCooldown time.Duration
 	sessionStore    sessions.SessionStore
 	sessionLoaders  []sessions.SessionLoader
 	jwtClaimHeaders config.JWTClaimHeaders
@@ -65,7 +63,6 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 		return nil, err
 	}
 
-	state.refreshCooldown = cfg.Options.RefreshCooldown
 	state.jwtClaimHeaders = cfg.Options.JWTClaimsHeaders
 
 	// errors checked in ValidateOptions
