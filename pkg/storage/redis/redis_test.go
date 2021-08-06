@@ -128,7 +128,7 @@ func TestChangeSignal(t *testing.T) {
 		ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 		defer clearTimeout()
 
-		ready := make(chan struct{})
+		done := make(chan struct{})
 		var eg errgroup.Group
 		eg.Go(func() error {
 			backend, err := New(rawURL)
@@ -140,24 +140,18 @@ func TestChangeSignal(t *testing.T) {
 			ch := backend.onChange.Bind()
 			defer backend.onChange.Unbind(ch)
 
-			// signal the second backend that we're ready to receive a change
-			close(ready)
-
 			select {
 			case <-ch:
 			case <-ctx.Done():
 				return ctx.Err()
 			}
+
+			// signal the second backend that we've received the change
+			close(done)
+
 			return nil
 		})
 		eg.Go(func() error {
-			// wait for the first backend to be bound to the on change handler
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-ready:
-			}
-
 			backend, err := New(rawURL)
 			if err != nil {
 				return err
@@ -165,14 +159,23 @@ func TestChangeSignal(t *testing.T) {
 			defer func() { _ = backend.Close() }()
 
 			// put a new value to trigger a change
-			_, err = backend.Put(ctx, &databroker.Record{
-				Type: "TYPE",
-				Id:   "ID",
-			})
-			if err != nil {
-				return err
+			for {
+				_, err = backend.Put(ctx, &databroker.Record{
+					Type: "TYPE",
+					Id:   "ID",
+				})
+				if err != nil {
+					return err
+				}
+
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-done:
+					return nil
+				case <-time.After(time.Millisecond * 100):
+				}
 			}
-			return nil
 		})
 		assert.NoError(t, eg.Wait(), "expected signal to be fired when another backend triggers a change")
 		return nil
