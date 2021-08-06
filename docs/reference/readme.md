@@ -894,16 +894,6 @@ Secure service communication can fail if the external certificate does not match
 The programmatic redirect domain whitelist is used to restrict the allowed redirect URLs when using programmatic login. By default only `localhost` URLs are allowed.
 
 
-### Refresh Cooldown
-- Environmental Variable: `REFRESH_COOLDOWN`
-- Config File Key: `refresh_cooldown`
-- Type: [Duration](https://golang.org/pkg/time/#Duration) `string`
-- Example: `10m`, `1h45m`
-- Default: `5m`
-
-Refresh cooldown is the minimum amount of time between allowed manually refreshed sessions.
-
-
 ### X-Forwarded-For HTTP Header
 - Environmental Variable: `SKIP_XFF_APPEND`
 - Config File Key: `skip_xff_append`
