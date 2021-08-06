@@ -10,7 +10,7 @@ description: Learn how Pomerium Enterprise works.
 
 In Pomerium Enterprise, a **Namespace** is a cornerstone organization unit. They are container objects that behave similar to a unix directory structure.
 
-In each Namespace, administrators can create organizational units where users and groups can be added. Namespaces enable fine-grained role based access control and management. The structure and hierarchy of namespaces empower teams to self-service the routes and policies pertinent to them. Namespaces can can also be used to optionally or mandatorily inherit from their parent permission or policies.
+In each Namespace, administrators can create organizational units where users and groups can be added. Namespaces enable fine-grained role based access control and management (RBAC) to managing Pomerium. The structure and hierarchy of namespaces empower teams to self-service the routes and policies pertinent to them. Namespaces can can also be used to optionally or mandatorily inherit from their parent permission or policies.
 
 Namespaces enable:
 
@@ -31,11 +31,11 @@ Self-service has [several benefits](https://www.usenix.org/system/files/login/ar
 - Encourages service owners to own their own route configuration and policy
 - Ensures a reasonable compromise between development velocity and security controls
 
-Unlike with a VPN, or network driven access control mechanisms, application owners (with limited access permissions managed through namespaces) can maintain route and policy configuration for their own services, while  higher level operations, security, and identity teams are able to enforce higher level authorization and access policies.
+Unlike with a VPN, or network driven access control mechanisms, application owners (with limited access permissions managed through namespaces) can maintain route and policy configuration for their own services, while higher level operations, security, and identity teams are able to enforce higher level authorization and access policies.
 
 ### Hierarchical Policy Enforcement
 
-Hierarchical policy lets administrators enforce high level authorization policy. Policies can be optional (self-select), or mandatory.
+Hierarchical policy lets administrators enforce inheritable authorization policy. Policies can be optional (self-select), or mandatory.
 
 Identities and their group memberships are defined by your Identity Provider (**IdP**). Pomerium looks to your IdP for identity information, so policies defined using groups are always up-to-date with the access management defined upstream.
 
@@ -59,7 +59,7 @@ Meanwhile, the CFO is given [manager](#manager) permissions over the "Accounting
 
 #### Guest (no role)
 
-Users who are authenticated by your IdP but do not have a role assigned in the Pomerium Console can still view the list of Namespaces, but nothing else.
+Users who are authenticated by your IdP but do not have a role assigned in Pomerium Enterprise can still view the list of Namespaces, but nothing else.
 
 #### Viewer
 
@@ -100,7 +100,7 @@ A service account identity can either be based on a user entry in your IdP Direc
 
 ## Routes
 
-Routes define the connection pathway and configuration from the internet to your internal service. As a very basic level, a route sends traffic from `external-address.company.com` to `internalService-address.localdomain`, restricted by the policies associated with it, and encrypted by your TLS certificates. But more advanced configurations allow identity header pass-through, path and prefix rewrites, request and response header modification, load balancer services, and more.
+Routes define the connection pathway and configuration from the internet to your internal service. As a very basic level, a route sends traffic from `external-address.company.com` to `internalService-address.localdomain`, restricted by the policies associated with it, and encrypted by your TLS certificates. But more advanced configurations allow identity header pass-through, path and prefix rewrites, request and response header modification, load balancer services, and other full featured ingress capabilities.
 
 ### Protected Endpoints
 
@@ -132,13 +132,13 @@ Pomerium provides authentication via your existing identity provider (Pomerium s
 
 Authorization policy can be expressed in a high-level, [declarative language](/enterprise/reference/manage.html#pomerium-policy-language) or [as code](/enterprise/reference/manage.html#rego) that can be used to enforce ABAC, RBAC, or any other governance policy controls. Pomerium can make holistic policy and authorization decisions using external data and request context factors such as user groups, roles, time, day, location and vulnerability status.
 
-Trust flows from identity, device-state, and context, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
+Pomerium enables zero-trust based access in which trust flows from identity, device-state, and context, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
 
 With Pomerium:
 
 - requests are continuously re-evaluated on a per-request basis.
 - authorization is identity and context aware; pomerium can be used to integrate data from any source into authorization policy decisions.
-- trust flows from identity, device-state, and context, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
+- trust flows from user and device identity, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
 - Pomerium provides detailed audit logs for all activity in your environment. Quickly detect anomalies to mitigate bad actors and revoke access with a click of a button. Simplify life-cycle management and access reviews.
 
 [Reference: Policies]: /enterprise/reference/manage.md#policies-2
