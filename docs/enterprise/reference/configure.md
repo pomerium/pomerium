@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 2
 meta:
     - name: keywords
-      content: configuration options settings Pomerium enterprise console
+      content: configuration options settings Pomerium Enterprise
 ---
 
 # Configure
@@ -17,7 +17,7 @@ meta:
 
 #### Administrators
 
-A list of users with full access to the Pomerium Enterprise Console
+A list of users with full access to Pomerium Enterprise
 
 #### Debug
 

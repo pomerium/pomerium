@@ -6,7 +6,7 @@ description: Use Prometheus as a metrics data store.
 
 # Prometheus Metrics
 
-The Pomerium Enterprise Console uses Prometheus as a metrics collection back-end. You can configure Pomerium and the Console to talk to an existing Prometheus server, or configure the embedded Prometheus backend.
+Pomerium Enterprise uses Prometheus as a metrics collection back-end. You can configure Pomerium and the Console to talk to an existing Prometheus server, or configure the embedded Prometheus backend.
 
 ## Prepare Pomerium
 
@@ -37,19 +37,19 @@ The Pomerium Enterprise Console uses Prometheus as a metrics collection back-end
    curl -i -XPOST path.to.prometheus:port/-/reload
    ```
 
-1. In the Pomerium Enterprise Console `config.yaml` file, define the `prometheus_url` key to point to your Prometheus instance(s):
+1. In the Pomerium Enterprise `config.yaml` file, define the `prometheus_url` key to point to your Prometheus instance(s):
 
    ```yaml
    prometheus_url: http://192.168.122.50:9090
    ```
 
-1. Restart the Pomerium and Pomerium Enterprise Console services. You should now see route traffic data in the Enterprise Console:
+1. Restart the Pomerium and Pomerium Enterprise services. You should now see route traffic data in the Enterprise Console:
 
-   ![Traffic Data in Pomerium Enterprise Console](./img/console-route-traffic.png)
+   ![Traffic Data in Pomerium Enterprise](./img/console-route-traffic.png)
 
 ## Embedded Prometheus
 
-To take advantage of Prometheus embedded in Pomerium Enterprise Console, edit `/etc/pomerium-console/config.yaml`:
+To take advantage of Prometheus embedded in Pomerium Enterprise, edit `/etc/pomerium-console/config.yaml`:
 
 ```yaml
 prometheus_data_dir: /var/lib/pomerium-console/tsdb
