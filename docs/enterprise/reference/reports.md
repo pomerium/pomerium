@@ -45,7 +45,7 @@ The value under **Resource ID** will usually match the resource ID of a [Policy]
 
 From the **Deployment History** page administrators can review changes made to their Pomerium configuration.
 
-The default view shows all changes made through the Pomerium Enterprise. Use the **COMPARE** button next to an entry to filter to only changes that affected that resource. Select two versions of that resource, then **DIFF** to see what changed:
+The default view shows all changes made through Pomerium Enterprise. Use the **COMPARE** button next to an entry to filter to only changes that affected that resource. Select two versions of that resource, then **DIFF** to see what changed:
 
 ![A screenshot showing the diff of a change to a route, adding a policy](../img/deployment-diff.png)
 

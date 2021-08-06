@@ -10,7 +10,7 @@ This document covers installing Pomerium Enterprise into your existing helm-mana
 
 ## Before You Begin
 
-The Pomerium Enterprise requires:
+Pomerium Enterprise requires:
 
 - An accessible RDBMS. We support PostgreSQL 9+.
    - A database and user with full permissions for it.

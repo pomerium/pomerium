@@ -1,7 +1,7 @@
 ---
 title: Concepts
 sidebarDepth: 2
-description: Learn how the Pomerium Enterprise works.
+description: Learn how Pomerium Enterprise works.
 ---
 
 # Concepts

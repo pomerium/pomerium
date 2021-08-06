@@ -6,15 +6,17 @@ description: What does the Pomerium Enterpise Console offer?
 
 # Pomerium Enterprise
 
+Pomerium Enterprise is built on Pomerium Open Source. Pomerium Enterprise makes Pomerium easier to manage at scale, and adds additional functionality aimed at organizations with auditing, compliance, governance, and risk management needs.
+
 ## Features
 
-Pomerium Enterprise is built on Pomerium Open Source. Pomerium Enterprise makes Pomerium easier to manage at scale, and adds additional functionality aimed at organizations with auditing, compliance, governance, and risk management needs. In addition to the capabilities provided by open-source Pomerium, Pomerium Enterprise provides:
+In addition to the capabilities provided by open-source Pomerium, Pomerium Enterprise provides:
 
 ### Management GUI
 
-The Pomerium Enterprise lets you view traffic and logs, define routes and policies, and organize your service access from an intuitive web interface.
+Pomerium Enterprise lets you view traffic and logs, define routes and policies, and organize your service access from an intuitive web interface.
 
-![Overview animation of the Pomerium Enterprise](./img/console-overview.gif)
+![Overview animation of Pomerium Enterprise](./img/console-overview.gif)
 
 ### Programmatic API
 

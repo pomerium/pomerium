@@ -21,7 +21,7 @@ This document assumes:
 
 ## Requirements
 
-- The Pomerium Enterprise requires Linux amd64/x86_64. It can manage Pomerium instances on other platforms, however.
+- Pomerium Enterprise requires Linux amd64/x86_64. It can manage Pomerium instances on other platforms, however.
 - Each Console instance should have at least:
     - 4 vCPUs
     - 8G RAM
@@ -59,7 +59,7 @@ Pomerium publishes standard OS packages for RPM and DEB based systems. The repos
    echo "deb https://dl.cloudsmith.io/[access-key]/pomerium/enterprise/deb/debian buster main" | sudo tee /apt/sources.list.d/pomerium-console.list
    ```
 
-1. Update `apt` and install the Pomerium Enterprise:
+1. Update `apt` and install Pomerium Enterprise:
 
    ```bash
    sudo apt update; sudo apt install pomerium-console
@@ -160,7 +160,7 @@ Once you have set permissions in the console UI, you should remove this configur
 
 ### TLS, Signing Key and Audience
 
-1. If your open-source Pomerium installation is already configured to use TLS to secure back-end communication, you can do the same for the Pomerium Enterprise by providing it a certificate, key, and optional custom CA file to validate the `databroker_service_url` connection:
+1. If your open-source Pomerium installation is already configured to use TLS to secure back-end communication, you can do the same for Pomerium Enterprise by providing it a certificate, key, and optional custom CA file to validate the `databroker_service_url` connection:
 
    ```yaml
    tls_ca_file: /etc/pomerium-console/ca.pem
@@ -202,4 +202,4 @@ audience: console.localhost.pomerium.com
 
 ## Next Steps
 
-The Pomerium Enterprise assumes access to a [Prometheus](https://prometheus.io/) data store for metrics. See [Prometheus Metrics](/enterprise/prometheus.md) to learn how to configure access.
+Pomerium Enterprise assumes access to a [Prometheus](https://prometheus.io/) data store for metrics. See [Prometheus Metrics](/enterprise/prometheus.md) to learn how to configure access.

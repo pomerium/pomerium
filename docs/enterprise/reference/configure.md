@@ -17,7 +17,7 @@ meta:
 
 #### Administrators
 
-A list of users with full access to the Pomerium Enterprise
+A list of users with full access to Pomerium Enterprise
 
 #### Debug
 
