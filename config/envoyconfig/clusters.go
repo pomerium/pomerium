@@ -35,7 +35,11 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		Scheme: "http",
 		Host:   b.localHTTPAddress,
 	}
-	authzURLs, err := cfg.Options.GetAuthorizeURLs()
+	authorizeURLs, err := cfg.Options.GetAuthorizeURLs()
+	if err != nil {
+		return nil, err
+	}
+	databrokerURLs, err := cfg.Options.GetDataBrokerURLs()
 	if err != nil {
 		return nil, err
 	}
@@ -44,24 +48,35 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	if err != nil {
 		return nil, err
 	}
+
 	controlHTTP, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-control-plane-http", []*url.URL{httpURL}, upstreamProtocolAuto)
 	if err != nil {
 		return nil, err
 	}
-	authZ, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-authorize", authzURLs, upstreamProtocolHTTP2)
+
+	authorizeCluster, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-authorize", authorizeURLs, upstreamProtocolHTTP2)
 	if err != nil {
 		return nil, err
 	}
+	if len(authorizeURLs) > 1 {
+		authorizeCluster.HealthChecks = grpcHealthChecks("pomerium-authorize")
+		authorizeCluster.OutlierDetection = grpcAuthorizeOutlierDetection()
+	}
 
-	if len(authzURLs) > 1 {
-		authZ.HealthChecks = grpcHealthChecks("pomerium-authorize")
-		authZ.OutlierDetection = grpcAuthorizeOutlierDetection()
+	databrokerCluster, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-databroker", databrokerURLs, upstreamProtocolHTTP2)
+	if err != nil {
+		return nil, err
+	}
+	if len(databrokerURLs) > 1 {
+		authorizeCluster.HealthChecks = grpcHealthChecks("pomerium-databroker")
+		authorizeCluster.OutlierDetection = grpcAuthorizeOutlierDetection()
 	}
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
 		controlGRPC,
 		controlHTTP,
-		authZ,
+		authorizeCluster,
+		databrokerCluster,
 	}
 
 	tracingCluster, err := buildTracingCluster(cfg.Options)

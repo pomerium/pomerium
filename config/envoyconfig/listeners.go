@@ -85,7 +85,7 @@ func (b *Builder) BuildListeners(ctx context.Context, cfg *config.Config) ([]*en
 		listeners = append(listeners, li)
 	}
 
-	li, err := b.buildOutboundListener(ctx, cfg)
+	li, err := b.buildOutboundListener(cfg)
 	if err != nil {
 		return nil, err
 	}

@@ -146,22 +146,11 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		return nil, err
 	}
 
-	urls, err := cfg.Options.GetDataBrokerURLs()
-	if err != nil {
-		return nil, err
-	}
-
-	dataBrokerConn, err := grpc.GetGRPCClientConn(context.Background(), "databroker", &grpc.Options{
-		Addrs:                   urls,
-		OverrideCertificateName: cfg.Options.OverrideCertificateName,
-		CA:                      cfg.Options.CA,
-		CAFile:                  cfg.Options.CAFile,
-		RequestTimeout:          cfg.Options.GRPCClientTimeout,
-		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GetGRPCInsecure(),
-		InstallationID:          cfg.Options.InstallationID,
-		ServiceName:             cfg.Options.Services,
-		SignedJWTKey:            sharedKey,
+	dataBrokerConn, err := grpc.GetOutboundGRPCClientConn(context.Background(), &grpc.OutboundOptions{
+		OutboundPort:   cfg.OutboundPort,
+		InstallationID: cfg.Options.InstallationID,
+		ServiceName:    cfg.Options.Services,
+		SignedJWTKey:   sharedKey,
 	})
 	if err != nil {
 		return nil, err

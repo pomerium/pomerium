@@ -186,3 +186,32 @@ func GetGRPCClientConn(ctx context.Context, name string, opts *Options) (*grpc.C
 	}
 	return cc, nil
 }
+
+// OutboundOptions are the options for the outbound gRPC client.
+type OutboundOptions struct {
+	// OutboundPort is the port for the outbound gRPC listener.
+	OutboundPort string
+
+	// InstallationID specifies the installation id for telemetry exposition.
+	InstallationID string
+
+	// ServiceName specifies the service name for telemetry exposition
+	ServiceName string
+
+	// SignedJWTKey is the JWT key to use for signing a JWT attached to metadata.
+	SignedJWTKey []byte
+}
+
+// GetOutboundGRPCClientConn gets the outbound gRPC client.
+func GetOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions) (*grpc.ClientConn, error) {
+	return GetGRPCClientConn(ctx, "outbound", &Options{
+		Addrs: []*url.URL{{
+			Scheme: "http",
+			Host:   net.JoinHostPort("127.0.0.1", opts.OutboundPort),
+		}},
+		InstallationID: opts.InstallationID,
+		ServiceName:    opts.ServiceName,
+		SignedJWTKey:   opts.SignedJWTKey,
+		WithInsecure:   true,
+	})
+}

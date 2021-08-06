@@ -2,8 +2,6 @@ package databroker
 
 import (
 	"context"
-	"net"
-	"net/url"
 	"sync"
 
 	"github.com/pomerium/pomerium/config"
@@ -160,14 +158,11 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 
 func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	sharedKey, _ := cfg.Options.GetSharedKey()
-	connectionOptions := &grpc.Options{
-		Addrs: []*url.URL{{
-			Scheme: "http",
-			Host:   net.JoinHostPort("127.0.0.1", cfg.OutboundPort),
-		}},
-		WithInsecure: true,
-		ServiceName:  cfg.Options.Services,
-		SignedJWTKey: sharedKey,
+	connectionOptions := &grpc.OutboundOptions{
+		OutboundPort:   cfg.OutboundPort,
+		InstallationID: cfg.Options.InstallationID,
+		ServiceName:    cfg.Options.Services,
+		SignedJWTKey:   sharedKey,
 	}
 	h, err := hashutil.Hash(connectionOptions)
 	if err != nil {
@@ -187,7 +182,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	ctx := context.Background()
 	ctx, src.cancel = context.WithCancel(ctx)
 
-	cc, err := grpc.NewGRPCClientConn(ctx, connectionOptions)
+	cc, err := grpc.GetOutboundGRPCClientConn(ctx, connectionOptions)
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("databroker: failed to create gRPC connection to data broker")
 		return
