@@ -1004,18 +1004,6 @@ settings:
           - Default: `localhost`
         doc: |
           The programmatic redirect domain whitelist is used to restrict the allowed redirect URLs when using programmatic login. By default only `localhost` URLs are allowed.
-      - name: "Refresh Cooldown"
-        keys: ["refresh_cooldown"]
-        attributes: |
-          - Environmental Variable: `REFRESH_COOLDOWN`
-          - Config File Key: `refresh_cooldown`
-          - Type: [Duration](https://golang.org/pkg/time/#Duration) `string`
-          - Example: `10m`, `1h45m`
-          - Default: `5m`
-        doc: |
-          Refresh cooldown is the minimum amount of time between allowed manually refreshed sessions.
-        shortdoc: |
-          Refresh cooldown is the minimum amount of time between allowed manually refreshed sessions.
       - name: "X-Forwarded-For HTTP Header"
         keys: ["skip_xff_append"]
         attributes: |

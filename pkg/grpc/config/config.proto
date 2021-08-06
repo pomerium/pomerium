@@ -68,6 +68,7 @@ message Route {
   google.protobuf.Duration timeout = 12;
   google.protobuf.Duration idle_timeout = 43;
   bool allow_websockets = 13;
+  bool allow_spdy = 44;
 
   bool tls_skip_verify = 14;
   string tls_server_name = 15;
@@ -156,7 +157,6 @@ message Settings {
   map<string, string> set_response_headers = 69;
   // repeated string jwt_claims_headers = 37;
   map<string, string> jwt_claims_headers = 63;
-  optional google.protobuf.Duration refresh_cooldown = 38;
   optional google.protobuf.Duration default_upstream_timeout = 39;
   optional string metrics_address = 40;
   optional string metrics_basic_auth = 64;

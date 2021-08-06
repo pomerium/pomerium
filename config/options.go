@@ -183,9 +183,6 @@ type Options struct {
 	// List of JWT claims to insert as x-pomerium-claim-* headers on proxied requests
 	JWTClaimsHeaders JWTClaimHeaders `mapstructure:"jwt_claims_headers" yaml:"jwt_claims_headers,omitempty"`
 
-	// RefreshCooldown limits the rate a user can refresh her session
-	RefreshCooldown time.Duration `mapstructure:"refresh_cooldown" yaml:"refresh_cooldown,omitempty"`
-
 	DefaultUpstreamTimeout time.Duration `mapstructure:"default_upstream_timeout" yaml:"default_upstream_timeout,omitempty"`
 
 	// Address/Port to bind to for prometheus metrics
@@ -322,7 +319,6 @@ var defaultOptions = Options{
 	ReadTimeout:              30 * time.Second,
 	WriteTimeout:             0, // support streaming by default
 	IdleTimeout:              5 * time.Minute,
-	RefreshCooldown:          5 * time.Minute,
 	GRPCAddr:                 ":443",
 	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
 	GRPCClientDNSRoundRobin:  true,
@@ -1176,9 +1172,6 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	}
 	if len(settings.JwtClaimsHeaders) > 0 {
 		o.JWTClaimsHeaders = settings.GetJwtClaimsHeaders()
-	}
-	if settings.RefreshCooldown != nil {
-		o.RefreshCooldown = settings.GetRefreshCooldown().AsDuration()
 	}
 	if settings.DefaultUpstreamTimeout != nil {
 		o.DefaultUpstreamTimeout = settings.GetDefaultUpstreamTimeout().AsDuration()
