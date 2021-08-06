@@ -1,2 +1,2 @@
 * @pomerium/dev-backend
-docs/*  @pomerium/docs
+/docs/  @pomerium/docs @pomerium/dev
