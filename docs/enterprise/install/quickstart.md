@@ -21,7 +21,7 @@ This document assumes:
 
 ## Requirements
 
-- The Pomerium Enterprise Console requires Linux amd64/x86_64. It can manage Pomerium instances on other platforms, however.
+- The Pomerium Enterprise requires Linux amd64/x86_64. It can manage Pomerium instances on other platforms, however.
 - Each Console instance should have at least:
     - 4 vCPUs
     - 8G RAM
@@ -35,7 +35,7 @@ This document assumes:
     - 4G RAM
     - 20G for data files
 
-## Install Pomerium Enterprise Console
+## Install Pomerium Enterprise
 
 Pomerium publishes standard OS packages for RPM and DEB based systems. The repositories require authentication via username and access key. These credentials will be issued to you during the onboarding process.
 
@@ -59,7 +59,7 @@ Pomerium publishes standard OS packages for RPM and DEB based systems. The repos
    echo "deb https://dl.cloudsmith.io/[access-key]/pomerium/enterprise/deb/debian buster main" | sudo tee /apt/sources.list.d/pomerium-console.list
    ```
 
-1. Update `apt` and install the Pomerium Enterprise Console:
+1. Update `apt` and install the Pomerium Enterprise:
 
    ```bash
    sudo apt update; sudo apt install pomerium-console
@@ -108,7 +108,7 @@ sudo systemctl enable --now pomerium-console
 
 ## Initial Configuration
 
-Like the open-source Pomerium base, Pomerium Enterprise Console is configured through a single config file, located at `/etc/pomerium-console/config.yaml`.
+Like the open-source Pomerium base, Pomerium Enterprise is configured through a single config file, located at `/etc/pomerium-console/config.yaml`.
 
 
 ### Update Pomerium
@@ -160,7 +160,7 @@ Once you have set permissions in the console UI, you should remove this configur
 
 ### TLS, Signing Key and Audience
 
-1. If your open-source Pomerium installation is already configured to use TLS to secure back-end communication, you can do the same for the Pomerium Enterprise Console by providing it a certificate, key, and optional custom CA file to validate the `databroker_service_url` connection:
+1. If your open-source Pomerium installation is already configured to use TLS to secure back-end communication, you can do the same for the Pomerium Enterprise by providing it a certificate, key, and optional custom CA file to validate the `databroker_service_url` connection:
 
    ```yaml
    tls_ca_file: /etc/pomerium-console/ca.pem
@@ -202,4 +202,4 @@ audience: console.localhost.pomerium.com
 
 ## Next Steps
 
-The Pomerium Enterprise Console assumes access to a [Prometheus](https://prometheus.io/) data store for metrics. See [Prometheus Metrics](/enterprise/prometheus.md) to learn how to configure access.
+The Pomerium Enterprise assumes access to a [Prometheus](https://prometheus.io/) data store for metrics. See [Prometheus Metrics](/enterprise/prometheus.md) to learn how to configure access.

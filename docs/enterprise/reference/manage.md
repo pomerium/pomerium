@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 2
 meta:
     - name: keywords
-      content: configuration options settings Pomerium enterprise console
+      content: configuration options settings Pomerium Enterprise
 ---
 
 # Manage
@@ -280,7 +280,7 @@ Policies can be constructed three ways:
 
 From the **BUILDER** tab, users can add allow or deny blocks to a policy, containing and/or/not/nor logic to allow or deny sets of users and groups.
 
-![A policy being constructed in Pomerium Enterprise console allowing a single user access](../img/example-policy-single-user.png)
+![A policy being constructed in Pomerium Enterprise allowing a single user access](../img/example-policy-single-user.png)
 
 ### Pomerium Policy Language
 

@@ -4,18 +4,18 @@ sidebarDepth: 1
 description: Install Pomerium Enterprise in Kubernetes with Helm
 ---
 
-# Install Pomerium Enterprise Console in Helm
+# Install Pomerium Enterprise in Helm
 
-This document covers installing Pomerium Enterprise Console into your existing helm-managed Kubernetes cluster. It's designed to work with an existing cluster running Pomerium, as described im [Pomerium using Helm]. Follow that document before continuing here.
+This document covers installing Pomerium Enterprise into your existing helm-managed Kubernetes cluster. It's designed to work with an existing cluster running Pomerium, as described im [Pomerium using Helm]. Follow that document before continuing here.
 
 ## Before You Begin
 
-The Pomerium Enterprise Console requires:
+The Pomerium Enterprise requires:
 
 - An accessible RDBMS. We support PostgreSQL 9+.
    - A database and user with full permissions for it.
 - A certificate management solution. This page will assume a store of certificates using [cert-manager] as the solution. If you use another certificate solution, adjust the steps accordingly.
-- An existing Pomerium installation. If you don't already have the open-source Pomerium installed in your cluster, see [Pomerium using Helm] before you continue.
+- An existing Pomerium installation. If you don't already have open-source Pomerium installed in your cluster, see [Pomerium using Helm] before you continue.
 
 
 ## System Requirements
@@ -84,7 +84,7 @@ This setup assumes an existing certificate solution using cert-manager, as descr
    helm upgrade --install pomerium pomerium/pomerium --values=./pomerium-values.yaml
    ```
 
-## Install Pomerium Enterprise Console
+## Install Pomerium Enterprise
 
 1. Create `pomerium-console-values.yaml` as shown below, replacing placeholder values:
 
@@ -133,7 +133,7 @@ This setup assumes an existing certificate solution using cert-manager, as descr
 
 1. When visiting `https://console.localhost.pomerium.io`, you should se the Session List page:
 
-   ![The Session List page after installing Pomerium Enterprise Console](../img/console-session-landing.png)
+   ![The Session List page after installing Pomerium Enterprise](../img/console-session-landing.png)
 
 ## Troubleshooting
 

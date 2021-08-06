@@ -1,14 +1,14 @@
 ---
 title: Concepts
 sidebarDepth: 2
-description: Learn how the Pomerium Enterprise Console works.
+description: Learn how the Pomerium Enterprise works.
 ---
 
 # Concepts
 
 ## Namespaces
 
-In the Pomerium Enterprise Console, a **Namespace** is a cornerstone organization unit. They are container objects that behave similar to a unix directory structure.
+In Pomerium Enterprise, a **Namespace** is a cornerstone organization unit. They are container objects that behave similar to a unix directory structure.
 
 In each Namespace, administrators can create organizational units where users and groups can be added. Namespaces enable fine-grained role based access control and management. The structure and hierarchy of namespaces empower teams to self-service the routes and policies pertinent to them. Namespaces can can also be used to optionally or mandatorily inherit from their parent permission or policies.
 
@@ -86,7 +86,7 @@ Pomerium populates users and groups from your IdP. This data is cached to preven
 You may encounter a situation where you may want to add users that are not directly associated with your corporate identity provider service. For example, if you have a corporate GSuite account and want to add a contractor with a gmail account. In this case, there are two workarounds:
 
 - Create a group within your identity provider directly with the non-domain users in it. This group can be found and added to Namespaces and Policies.
-- Manually add the user's unique ID. Identify the ID from a user's Session Details page, or the [Sessions](/enterprise/reference/reports.html#sessions) page in Pomerium Enterprise Console.
+- Manually add the user's unique ID. Identify the ID from a user's Session Details page, or the [Sessions](/enterprise/reference/reports.html#sessions) page in Pomerium Enterprise.
 
    A user can see their session ID by navigating to the special `/.pomerium` URL endpoint from any Pomerium managed route. The unique ID is listed as "sub" under User Claims:
 
@@ -112,7 +112,7 @@ A Policy defines who has access to what based on the identity of the user, their
 
 Policies can be applied to [Routes](#routes) directly, or enforced within a [Namespace](#namespaces). Policies allow operators to add authorization and access control to a single, or collection of routes.
 
-To learn more about how to create Policies in Pomerium Enterprise Console, see [Reference: Policies].
+To learn more about how to create Policies in Pomerium Enterprise, see [Reference: Policies].
 
 ## Access control
 
