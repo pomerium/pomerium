@@ -77,7 +77,7 @@ idp_client_secret: bar
 # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
 cookie_secret: <reducted>
 
-# https://www.pomerium.io/configuration/#policy
+# https://pomerium.io/reference/#routes
 routes:
   - from: https://verify.localhost.pomerium.io
     to: http://verify

@@ -17,6 +17,14 @@ This document covers how to configure and run Pomerium using the official prebui
 
 ## Download
 
+You can download the latest release from GitHub, or use the repositories we provide through [Cloudsmith]. In addition to the easy updates provided by the package manager, the `deb` and `rpm` packages include systemd service unit configurations.
+
+### Operating System Packages
+
+Through [Cloudsmith][cloudsmith-repo], we provide OS packages for Linux distributions using `deb` and `rpm` style package managers. Select your system's package format and architecture, then use the **Setup** tab to add the repository to your package manager.
+
+### Standalone Binary
+
 [Download] the latest release of Pomerium for your machine's operating system and architecture.
 
 ## Configure
@@ -25,13 +33,27 @@ Pomerium supports setting [configuration variables] using both environmental var
 
 ### Configuration file
 
-Create a config file (`config.yaml`). This file will be used to determine Pomerium's configuration settings, routes, and access-policies. Consider the following example:
+When using our OS packages, we provide a default configuration at `/etc/pomerium/config.yaml`. Otherwise, create the config file (`config.yaml`) in your preferred location.
+
+This file will be used to determine Pomerium's configuration settings, routes, and access-policies. Consider the following example:
 
 <<< @/examples/config/config.minimal.yaml
 
+You can also set some or all of your configuration keys as environment variables, in an `env` file for example. See the [Reference] page to identify the environment variable for each configuration option.
+
 ## Run
 
-Finally, source the configuration `env` file and run pomerium specifying the `config.yaml` .
+### OS Package
+
+Enable and start the service:
+
+```bash
+sudo systemctl enable --now pomerium.service
+```
+
+### Manual Installation
+
+Source the configuration `env` file, if present, and run pomerium specifying the `config.yaml` .
 
 ```bash
 ./bin/pomerium -config config.yaml
@@ -46,3 +68,6 @@ Browse to `external-verify.your.domain.example`. Connections between you and [ve
 [verify]: https://verify.pomerium.com/
 [identity provider]: /docs/identity-providers/readme.md
 [tls certificates]: /docs/topics/certificates.md
+[Cloudsmith]: https://cloudsmith.io
+[cloudsmith-repo]: https://cloudsmith.io/~pomerium/repos/pomerium/groups/
+[Reference]: /reference/readme.md
