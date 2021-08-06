@@ -29,7 +29,7 @@ settings:
         doc: |
           From the **Deployment History** page administrators can review changes made to their Pomerium configuration.
 
-          The default view shows all changes made through the Pomerium Enterprise Console. Use the **COMPARE** button next to an entry to filter to only changes that affected that resource. Select two versions of that resource, then **DIFF** to see what changed:
+          The default view shows all changes made through Pomerium Enterprise. Use the **COMPARE** button next to an entry to filter to only changes that affected that resource. Select two versions of that resource, then **DIFF** to see what changed:
 
           ![A screenshot showing the diff of a change to a route, adding a policy](../img/deployment-diff.png)
   - name: "Manage"
@@ -96,7 +96,7 @@ settings:
 
           From the **BUILDER** tab, users can add allow or deny blocks to a policy, containing and/or/not/nor logic to allow or deny sets of users and groups.
 
-          ![A policy being constructed in Pomerium Enterprise console allowing a single user access](../img/example-policy-single-user.png)
+          ![A policy being constructed in Pomerium Enterprise allowing a single user access](../img/example-policy-single-user.png)
 
           ### Pomerium Policy Language
 
@@ -174,7 +174,7 @@ settings:
           - name: "Global"
             settings:
               - name: "Administrators"
-                doc: A list of users with full access to the Pomerium Enterprise Console
+                doc: A list of users with full access to Pomerium Enterprise
               - name: "Debug"
               - name: "Forward Auth"
               - name: "HTTP Redirect Address"
