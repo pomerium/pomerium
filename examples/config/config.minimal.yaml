@@ -19,7 +19,7 @@ idp_client_secret: REPLACE_ME
 cookie_secret: WwMtDXWaRDMBQCylle8OJ+w4kLIDIGd8W3cB4/zFFtg=
 
 # https://www.pomerium.io/configuration/#policy
-policy:
+routes:
   - from: https://verify.localhost.pomerium.io
     to: https://verify.pomerium.com
     policy:
