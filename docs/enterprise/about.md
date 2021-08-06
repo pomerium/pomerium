@@ -20,7 +20,7 @@ Pomerium Enterprise lets you view traffic and logs, define routes and policies, 
 
 ### Programmatic API
 
-Integrate Pomerium into your workflows by managing configuration from the programming language or infrastructure management tool of your choice.Everything that is manageable in the Management GUI is also able to driven programmatically an API.
+Integrate Pomerium into your workflows by managing configuration from the programming language or infrastructure management tool of your choice. Everything that is manageable in the Management GUI can also be driven programmatically through the API.
 
 ### Session management
 
