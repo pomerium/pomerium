@@ -224,6 +224,8 @@ module.exports = {
                 "/enterprise/reference/configure",
               ],
             },
+            "upgrading",
+            "changelog"
           ],
         },
       ],
