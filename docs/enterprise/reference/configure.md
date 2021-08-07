@@ -332,10 +332,6 @@ Use this option if you previously relied on `x-pomerium-authenticated-user-{emai
 
 Secure service communication can fail if the external certificate does not match the internally routed service hostname/[SNI](https://en.wikipedia.org/wiki/Server_Name_Indication). This setting allows you to override that value.
 
-#### Refresh Cooldown
-
-Refresh cooldown is the minimum amount of time between allowed manually refreshed sessions.
-
 #### X-Forward-For HTTP Header
 
 Do not append proxy IP address to `x-forwarded-for` HTTP header. See [Envoy](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=skip_xff_append#x-forwarded-for) docs for more detail.

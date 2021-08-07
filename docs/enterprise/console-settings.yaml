@@ -216,7 +216,6 @@ settings:
               - name: "Default Upstream Timeout"
               - name: "JWT Claim Headers"
               - name: "Override Certificate Name"
-              - name: "Refresh Cooldown"
               - name: "X-Forward-For HTTP Header"
                 keys: ["skip_xff_append"]
               - name: "Response Headers"
