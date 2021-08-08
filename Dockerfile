@@ -12,10 +12,10 @@ RUN go mod download
 COPY . .
 
 # build
-RUN make build-deps && \
-    make build NAME=pomerium && \
-    make build NAME=pomerium-cli && \
-    touch /config.yaml
+RUN make build-deps
+RUN make build NAME=pomerium
+RUN make build NAME=pomerium-cli
+RUN touch /config.yaml
 
 FROM gcr.io/distroless/base:debug
 ENV AUTOCERT_DIR /data/autocert
