@@ -10,12 +10,12 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/events"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 const maxEnvoyConfigurationEvents = 50
@@ -46,10 +46,7 @@ func (srv *Server) runEnvoyConfigurationEventHandler(ctx context.Context) error 
 }
 
 func (srv *Server) storeEnvoyConfigurationEvent(ctx context.Context, evt *events.EnvoyConfigurationEvent) error {
-	any, err := anypb.New(evt)
-	if err != nil {
-		return err
-	}
+	any := protoutil.NewAny(evt)
 
 	client, err := srv.getDataBrokerClient(ctx)
 	if err != nil {

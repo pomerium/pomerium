@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func TestEncryptedBackend(t *testing.T) {
@@ -56,7 +57,7 @@ func TestEncryptedBackend(t *testing.T) {
 		return
 	}
 
-	any, _ := anypb.New(wrapperspb.String("HELLO WORLD"))
+	any := protoutil.NewAny(wrapperspb.String("HELLO WORLD"))
 
 	rec := &databroker.Record{
 		Type: "",
