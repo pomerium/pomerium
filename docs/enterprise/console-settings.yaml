@@ -71,6 +71,8 @@ settings:
             settings:
               - name: "Allow Websockets"
                 keys: ["allow_websockets"]
+              - name: "Allow SPDY"
+                keys: ["allow_spdy"]
               - name: "Timeout"
                 keys: ["timeout"]
               - name: "Idle Timeout"

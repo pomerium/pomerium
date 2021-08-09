@@ -164,6 +164,10 @@ If set, enables proxying of websocket connections.
 
 :::
 
+#### Allow SPDY
+
+If set, enables proxying of SPDY protocol upgrades.
+
 #### Timeout
 
 Policy timeout establishes the per-route timeout value. Cannot exceed global timeout values.
