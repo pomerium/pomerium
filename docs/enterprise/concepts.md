@@ -1,6 +1,6 @@
 ---
 title: Concepts
-sidebarDepth: 2
+sidebarDepth: 1
 description: Learn how Pomerium Enterprise works.
 ---
 
@@ -105,6 +105,10 @@ Routes define the connection pathway and configuration from the internet to your
 ### Protected Endpoints
 
 This term refers to the system or service the route provides or restricts access to.
+
+### Moving Routes
+
+When moving a Route from one [Namespace](#namespace) to another, enforced policies will automatically be removed or applied. Optional policies available in the source Namespace but not the target will prevent the move. This is intentional, to prevent unassociated policies.
 
 ## Policies
 
