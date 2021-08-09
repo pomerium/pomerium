@@ -115,14 +115,14 @@ This setup assumes an existing certificate solution using cert-manager, as descr
 1. Add the Pomerium Enterprise repository to your Helm configuration:
 
    ```bash
-   helm repo add pomerium-enterprise https://releases.pomerium.com
+   helm repo add pomerium https://helm.pomerium.com
    helm repo update
    ```
 
 1. Install Pomerium Enterprise:
 
    ```bash
-   helm install pomerium-console pomerium-enterprise/pomerium-console --values=pomerium-console-values.yaml
+   helm install pomerium-console pomerium/pomerium-console --values=pomerium-console-values.yaml
    ```
 
 1. If you haven't configured a public DNS record for your Pomerium domain space, you can use `kubectl` to generate a local proxy:
