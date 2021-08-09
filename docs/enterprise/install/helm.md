@@ -115,7 +115,7 @@ This setup assumes an existing certificate solution using cert-manager, as descr
 1. Add the Pomerium Enterprise repository to your Helm configuration:
 
    ```bash
-   helm repo add pomerium https://helm.pomerium.com
+   helm repo add pomerium https://helm.pomerium.io
    helm repo update
    ```
 
