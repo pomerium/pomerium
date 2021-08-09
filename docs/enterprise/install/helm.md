@@ -112,26 +112,26 @@ This setup assumes an existing certificate solution using cert-manager, as descr
      pullPassword: your-access-key
    ```
 
-1. Add the Pomerium Enterprise repository to your Helm configuration:
+2. Add the Pomerium repository to your Helm configuration:
 
    ```bash
    helm repo add pomerium https://helm.pomerium.io
    helm repo update
    ```
 
-1. Install Pomerium Enterprise:
+3. Install Pomerium Enterprise:
 
    ```bash
    helm install pomerium-console pomerium/pomerium-console --values=pomerium-console-values.yaml
    ```
 
-1. If you haven't configured a public DNS record for your Pomerium domain space, you can use `kubectl` to generate a local proxy:
+4. If you haven't configured a public DNS record for your Pomerium domain space, you can use `kubectl` to generate a local proxy:
 
    ```bash
    sudo -E kubectl --namespace pomerium port-forward service/pomerium-proxy 443:443
    ```
 
-1. When visiting `https://console.localhost.pomerium.io`, you should se the Session List page:
+5. When visiting `https://console.localhost.pomerium.io`, you should se the Session List page:
 
    ![The Session List page after installing Pomerium Enterprise](../img/console-session-landing.png)
 
