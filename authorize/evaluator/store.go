@@ -15,13 +15,13 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/types"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 type dataBrokerData struct {
@@ -102,11 +102,7 @@ func NewStore() *Store {
 func NewStoreFromProtos(serverVersion uint64, msgs ...proto.Message) *Store {
 	s := NewStore()
 	for _, msg := range msgs {
-		any, err := anypb.New(msg)
-		if err != nil {
-			continue
-		}
-
+		any := protoutil.NewAny(msg)
 		record := new(databroker.Record)
 		record.ModifiedAt = timestamppb.Now()
 		record.Version = cryptutil.NewRandomUInt64()

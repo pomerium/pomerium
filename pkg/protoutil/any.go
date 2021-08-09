@@ -40,72 +40,72 @@ func ToAny(value interface{}) *anypb.Any {
 	case uint64:
 		return NewAnyUInt64(v)
 	default:
-		a, err := anypb.New(ToStruct(value))
-		if err != nil {
-			return NewAnyNull()
-		}
-		return a
+		return NewAny(ToStruct(value))
 	}
+}
+
+// NewAny creates a new Any using deterministic serialization.
+func NewAny(msg proto.Message) *anypb.Any {
+	a := new(anypb.Any)
+	err := anypb.MarshalFrom(a, msg, proto.MarshalOptions{
+		AllowPartial:  true,
+		Deterministic: true,
+	})
+	if err != nil {
+		// on error, which doesn't really happen in practice, return null
+		return NewAnyNull()
+	}
+	return a
 }
 
 // NewAnyBool creates a new any type from a bool.
 func NewAnyBool(v bool) *anypb.Any {
-	a, _ := anypb.New(wrapperspb.Bool(v))
-	return a
+	return NewAny(wrapperspb.Bool(v))
 }
 
 // NewAnyBytes creates a new any type from bytes.
 func NewAnyBytes(v []byte) *anypb.Any {
-	a, _ := anypb.New(wrapperspb.Bytes(v))
-	return a
+	return NewAny(wrapperspb.Bytes(v))
 }
 
 // NewAnyDouble creates a new any type from a float64.
 func NewAnyDouble(v float64) *anypb.Any {
-	a, _ := anypb.New(wrapperspb.Double(v))
-	return a
+	return NewAny(wrapperspb.Double(v))
 }
 
 // NewAnyFloat creates a new any type from a float32.
 func NewAnyFloat(v float32) *anypb.Any {
-	a, _ := anypb.New(wrapperspb.Float(v))
-	return a
+	return NewAny(wrapperspb.Float(v))
 }
 
 // NewAnyInt64 creates a new any type from an int64.
 func NewAnyInt64(v int64) *anypb.Any {
-	a, _ := anypb.New(wrapperspb.Int64(v))
-	return a
+	return NewAny(wrapperspb.Int64(v))
 }
 
 // NewAnyInt32 creates a new any type from an int32.
 func NewAnyInt32(v int32) *anypb.Any {
-	a, _ := anypb.New(wrapperspb.Int32(v))
-	return a
+	return NewAny(wrapperspb.Int32(v))
 }
 
 // NewAnyNull creates a new any type from a null struct.
 func NewAnyNull() *anypb.Any {
-	a, _ := anypb.New(NewStructNull())
-	return a
+	return NewAny(NewStructNull())
 }
 
 // NewAnyString creates a new any type from a string.
 func NewAnyString(v string) *anypb.Any {
-	a, _ := anypb.New(wrapperspb.String(v))
-	return a
+	return NewAny(wrapperspb.String(v))
 }
 
 // NewAnyUInt64 creates a new any type from an uint64.
 func NewAnyUInt64(v uint64) *anypb.Any {
-	a, _ := anypb.New(wrapperspb.UInt64(v))
-	return a
+	return NewAny(wrapperspb.UInt64(v))
 }
 
 // NewAnyUInt32 creates a new any type from an uint32.
 func NewAnyUInt32(v uint32) *anypb.Any {
-	a, _ := anypb.New(wrapperspb.UInt32(v))
-	return a
+	return NewAny(wrapperspb.UInt32(v))
 }
 
 // GetTypeURL gets the TypeURL for a protobuf message.

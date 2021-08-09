@@ -15,16 +15,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/pkg/cryptutil"
-
 	"github.com/pomerium/pomerium/internal/testutil"
-
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 type testSyncerHandler struct {
@@ -58,10 +56,8 @@ func TestServer_Get(t *testing.T) {
 
 		s := new(session.Session)
 		s.Id = "1"
-		any, err := anypb.New(s)
-		assert.NoError(t, err)
-
-		_, err = srv.Put(context.Background(), &databroker.PutRequest{
+		any := protoutil.NewAny(s)
+		_, err := srv.Put(context.Background(), &databroker.PutRequest{
 			Record: &databroker.Record{
 				Type: any.TypeUrl,
 				Id:   s.Id,
@@ -92,10 +88,8 @@ func TestServer_Options(t *testing.T) {
 
 	s := new(session.Session)
 	s.Id = "1"
-	any, err := anypb.New(s)
-	assert.NoError(t, err)
-
-	_, err = srv.Put(context.Background(), &databroker.PutRequest{
+	any := protoutil.NewAny(s)
+	_, err := srv.Put(context.Background(), &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type: any.TypeUrl,
 			Id:   s.Id,
@@ -143,10 +137,8 @@ func TestServer_Query(t *testing.T) {
 
 	s := new(session.Session)
 	s.Id = "1"
-	any, err := anypb.New(s)
-	assert.NoError(t, err)
-
-	_, err = srv.Put(context.Background(), &databroker.PutRequest{
+	any := protoutil.NewAny(s)
+	_, err := srv.Put(context.Background(), &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type: any.TypeUrl,
 			Id:   s.Id,
@@ -166,10 +158,8 @@ func TestServer_Sync(t *testing.T) {
 
 	s := new(session.Session)
 	s.Id = "1"
-	any, err := anypb.New(s)
-	assert.NoError(t, err)
-
-	_, err = srv.Put(context.Background(), &databroker.PutRequest{
+	any := protoutil.NewAny(s)
+	_, err := srv.Put(context.Background(), &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type: any.TypeUrl,
 			Id:   s.Id,
@@ -252,10 +242,8 @@ func TestServerInvalidStorage(t *testing.T) {
 
 	s := new(session.Session)
 	s.Id = "1"
-	any, err := anypb.New(s)
-	assert.NoError(t, err)
-
-	_, err = srv.Put(context.Background(), &databroker.PutRequest{
+	any := protoutil.NewAny(s)
+	_, err := srv.Put(context.Background(), &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type: any.TypeUrl,
 			Id:   s.Id,
@@ -275,10 +263,8 @@ func TestServerRedis(t *testing.T) {
 
 		s := new(session.Session)
 		s.Id = "1"
-		any, err := anypb.New(s)
-		assert.NoError(t, err)
-
-		_, err = srv.Put(context.Background(), &databroker.PutRequest{
+		any := protoutil.NewAny(s)
+		_, err := srv.Put(context.Background(), &databroker.PutRequest{
 			Record: &databroker.Record{
 				Type: any.TypeUrl,
 				Id:   s.Id,

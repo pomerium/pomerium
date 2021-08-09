@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func TestStore(t *testing.T) {
@@ -20,7 +20,7 @@ func TestStore(t *testing.T) {
 			Name:    "name",
 			Email:   "name@example.com",
 		}
-		any, _ := anypb.New(u)
+		any := protoutil.NewAny(u)
 		s.UpdateRecord(0, &databroker.Record{
 			Version: 1,
 			Type:    any.GetTypeUrl(),

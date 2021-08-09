@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 type encryptedRecordStream struct {
@@ -185,13 +186,8 @@ func (e *encryptedBackend) encrypt(in *anypb.Any) (out *anypb.Any, err error) {
 	}
 
 	encrypted := cryptutil.Encrypt(e.cipher, plaintext, nil)
-
-	out, err = anypb.New(&wrapperspb.BytesValue{
+	out = protoutil.NewAny(&wrapperspb.BytesValue{
 		Value: encrypted,
 	})
-	if err != nil {
-		return nil, err
-	}
-
 	return out, nil
 }

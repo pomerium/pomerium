@@ -9,11 +9,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/config"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func TestConfigSource(t *testing.T) {
@@ -52,7 +52,7 @@ func TestConfigSource(t *testing.T) {
 	})
 	cfgs <- src.GetConfig()
 
-	data, _ := anypb.New(&configpb.Config{
+	data := protoutil.NewAny(&configpb.Config{
 		Name: "config",
 		Routes: []*configpb.Route{
 			{

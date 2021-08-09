@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // RefreshUser refreshes a user's directory information.
@@ -26,11 +26,7 @@ func (c *DataBroker) RefreshUser(ctx context.Context, req *directory.RefreshUser
 		return nil, err
 	}
 
-	any, err := anypb.New(u)
-	if err != nil {
-		return nil, err
-	}
-
+	any := protoutil.NewAny(u)
 	_, err = c.dataBrokerServer.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type: any.GetTypeUrl(),
