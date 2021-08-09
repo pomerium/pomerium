@@ -9,6 +9,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // A Scrubber scrubs potentially sensitive strings from protobuf messages.
@@ -90,7 +92,7 @@ func (s *Scrubber) scrubProtoAny(dst, src *anypb.Any) {
 	if err != nil {
 		// this will happen if a type isn't registered.
 		// So we will just hash the raw data.
-		a, _ := anypb.New(wrapperspb.Bytes(s.hmacBytes(src.Value)))
+		a := protoutil.NewAny(wrapperspb.Bytes(s.hmacBytes(src.Value)))
 		dst.TypeUrl = a.TypeUrl
 		dst.Value = a.Value
 		return
@@ -101,12 +103,7 @@ func (s *Scrubber) scrubProtoAny(dst, src *anypb.Any) {
 
 	s.scrubProtoMessage(dstmsg, srcmsg)
 
-	a, err := anypb.New(dstmsg.Interface())
-	if err != nil {
-		// this really shouldn't happen, but in case it does,
-		// we hash the raw data as above.
-		a, _ = anypb.New(wrapperspb.Bytes(s.hmacBytes(src.Value)))
-	}
+	a := protoutil.NewAny(dstmsg.Interface())
 	dst.TypeUrl = a.TypeUrl
 	dst.Value = a.Value
 }

@@ -14,10 +14,10 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/types"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 var testingNow = time.Date(2021, 5, 11, 13, 43, 0, 0, time.Local)
@@ -94,11 +94,7 @@ func evaluate(t *testing.T,
 			}
 
 			for _, record := range dataBrokerRecords {
-				any, err := anypb.New(record)
-				if err != nil {
-					return nil, err
-				}
-
+				any := protoutil.NewAny(record)
 				if string(recordType) == any.GetTypeUrl() &&
 					string(recordID) == record.GetId() {
 					bs, _ := json.Marshal(record)

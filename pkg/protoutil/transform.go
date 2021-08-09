@@ -39,10 +39,7 @@ func (t transformer) transformAny(dst, src *anypb.Any) error {
 		return err
 	}
 
-	a, err := anypb.New(dstMsg.Interface())
-	if err != nil {
-		return err
-	}
+	a := NewAny(dstMsg.Interface())
 	dst.TypeUrl = a.TypeUrl
 	dst.Value = a.Value
 	return nil

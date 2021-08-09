@@ -7,11 +7,11 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_config_trace_v3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func buildTracingCluster(options *config.Options) (*envoy_config_cluster_v3.Cluster, error) {
@@ -102,7 +102,7 @@ func buildTracingHTTP(options *config.Options) (*envoy_config_trace_v3.Tracing_H
 
 	switch tracingOptions.Provider {
 	case trace.DatadogTracingProviderName:
-		tracingTC, _ := anypb.New(&envoy_config_trace_v3.DatadogConfig{
+		tracingTC := protoutil.NewAny(&envoy_config_trace_v3.DatadogConfig{
 			CollectorCluster: "datadog-apm",
 			ServiceName:      tracingOptions.Service,
 		})
@@ -117,7 +117,7 @@ func buildTracingHTTP(options *config.Options) (*envoy_config_trace_v3.Tracing_H
 		if path == "" {
 			path = "/"
 		}
-		tracingTC, _ := anypb.New(&envoy_config_trace_v3.ZipkinConfig{
+		tracingTC := protoutil.NewAny(&envoy_config_trace_v3.ZipkinConfig{
 			CollectorCluster:         "zipkin",
 			CollectorEndpoint:        path,
 			CollectorEndpointVersion: envoy_config_trace_v3.ZipkinConfig_HTTP_JSON,

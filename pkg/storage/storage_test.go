@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 type mockBackend struct {
@@ -36,7 +36,7 @@ func (m *mockBackend) GetAll(ctx context.Context) ([]*databroker.Record, *databr
 
 func TestMatchAny(t *testing.T) {
 	u := &user.User{Id: "id", Name: "name", Email: "email"}
-	data, _ := anypb.New(u)
+	data := protoutil.NewAny(u)
 	assert.True(t, MatchAny(data, ""))
 	assert.True(t, MatchAny(data, "id"))
 	assert.True(t, MatchAny(data, "name"))

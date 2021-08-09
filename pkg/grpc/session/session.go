@@ -5,17 +5,17 @@ import (
 	context "context"
 	"fmt"
 
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // Delete deletes a session from the databroker.
 func Delete(ctx context.Context, client databroker.DataBrokerServiceClient, sessionID string) error {
-	any, _ := anypb.New(new(Session))
+	any := protoutil.NewAny(new(Session))
 	_, err := client.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type:      any.GetTypeUrl(),
@@ -29,8 +29,7 @@ func Delete(ctx context.Context, client databroker.DataBrokerServiceClient, sess
 
 // Get gets a session from the databroker.
 func Get(ctx context.Context, client databroker.DataBrokerServiceClient, sessionID string) (*Session, error) {
-	any, _ := anypb.New(new(Session))
-
+	any := protoutil.NewAny(new(Session))
 	res, err := client.Get(ctx, &databroker.GetRequest{
 		Type: any.GetTypeUrl(),
 		Id:   sessionID,
@@ -49,7 +48,7 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, session
 
 // Put sets a session in the databroker.
 func Put(ctx context.Context, client databroker.DataBrokerServiceClient, s *Session) (*databroker.PutResponse, error) {
-	any, _ := anypb.New(s)
+	any := protoutil.NewAny(s)
 	res, err := client.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type: any.GetTypeUrl(),
