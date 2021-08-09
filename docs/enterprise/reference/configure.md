@@ -15,10 +15,6 @@ meta:
 ### Global
 
 
-#### Administrators
-
-A list of users with full access to Pomerium Enterprise
-
 #### Debug
 
 ::: danger
@@ -244,54 +240,6 @@ tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
 ### Authenticate
 
 
-### Authorize
-
-
-#### Signing Key
-
-Signing Key is the private key used to sign a user's attestation JWT which can be consumed by upstream applications to pass along identifying user information like username, id, and groups.
-
-If set, the signing key's public key will can retrieved by hitting Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. Otherwise, the endpoint will return an empty keyset.
-
-For example, assuming you have [generated an ES256 key](https://github.com/pomerium/pomerium/blob/master/scripts/generate_self_signed_signing_key.sh) as follows.
-
-```bash
-# Generates an P-256 (ES256) signing key
-openssl ecparam  -genkey  -name prime256v1  -noout  -out ec_private.pem
-# careful! this will output your private key in terminal
-cat ec_private.pem | base64
-```
-
-That signing key can be accessed via the well-known jwks endpoint.
-
-```bash
-$ curl https://authenticate.int.example.com/.well-known/pomerium/jwks.json | jq
-```
-
-```json
-{
-  "keys": [
-    {
-      "use": "sig",
-      "kty": "EC",
-      "kid": "ccc5bc9d835ff3c8f7075ed4a7510159cf440fd7bf7b517b5caeb1fa419ee6a1",
-      "crv": "P-256",
-      "alg": "ES256",
-      "x": "QCN7adG2AmIK3UdHJvVJkldsUc6XeBRz83Z4rXX8Va4",
-      "y": "PI95b-ary66nrvA55TpaiWADq8b3O1CYIbvjqIHpXCY"
-    }
-  ]
-}
-```
-
-If no certificate is specified, one will be generated and the base64'd public key will be added to the logs. Note, however, that this key be unique to each service, ephemeral, and will not be accessible via the authenticate service's `jwks_uri` endpoint.
-
-#### Signing Key Algorithm
-
-This setting specifies which signing algorithm to use when signing the upstream attestation JWT. Cryptographic algorithm choice is subtle, and beyond the scope of this document, but we suggest sticking to the default `ES256` unless you have a good reason to use something else.
-
-Be aware that any RSA based signature method may be an order of magnitude lower than [elliptic curve] variants like ECDSA (`ES256`). For more information, checkout [this article](https://www.scottbrady91.com/JOSE/JWTs-Which-Signing-Algorithm-Should-I-Use).
-
 ### Proxy
 
 
@@ -327,10 +275,6 @@ jwt_claims_headers:
 Will add an `X-Email` header with a value of the `email` claim.
 
 Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}`.
-
-#### Override Certificate Name
-
-Secure service communication can fail if the external certificate does not match the internally routed service hostname/[SNI](https://en.wikipedia.org/wiki/Server_Name_Indication). This setting allows you to override that value.
 
 #### X-Forward-For HTTP Header
 

@@ -173,8 +173,6 @@ settings:
         settings:
           - name: "Global"
             settings:
-              - name: "Administrators"
-                doc: A list of users with full access to Pomerium Enterprise
               - name: "Debug"
               - name: "Forward Auth"
               - name: "HTTP Redirect Address"
@@ -205,17 +203,12 @@ settings:
                   See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters (opens new window)for details
           - name: "Tracing"
           - name: "Authenticate"
-          - name: "Authorize"
-            settings:
-              - name: "Signing Key"
-              - name: "Signing Key Algorithm"
           - name: "Proxy"
             settings:
               - name: "Certificate Authority"
                 keys: ["certificate_authority"]
               - name: "Default Upstream Timeout"
               - name: "JWT Claim Headers"
-              - name: "Override Certificate Name"
               - name: "X-Forward-For HTTP Header"
                 keys: ["skip_xff_append"]
               - name: "Response Headers"
