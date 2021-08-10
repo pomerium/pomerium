@@ -108,7 +108,7 @@ This term refers to the system or service the route provides or restricts access
 
 ### Moving Routes
 
-When moving a Route from one [Namespace](#namespace) to another, enforced policies will automatically be removed or applied. Optional policies available in the source Namespace but not the target will prevent the move. This is intentional, to prevent unassociated policies.
+When moving a Route from one [Namespace](#namespace) to another, enforced policies will automatically be removed or applied. Optional policies available in the source Namespace but not the target will prevent the move. This is intentional to prevent unassociated policies.
 
 ## Policies
 
