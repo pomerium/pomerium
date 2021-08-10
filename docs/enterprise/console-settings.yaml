@@ -211,7 +211,7 @@ settings:
             settings:
               - name: "Tracing Sample Rate"
                 doc: |
-                  Percentage of requests to sample in decimal notation. Default is .01%.
+                  Percentage of requests to sample. Default is .01%.
 
                   Unlike the decimal value notion used for the `tracing_sample_rate` [key](/reference/readme.md#shared-tracing-settings) in open-source Pomerium, this value is a percentage, e.g. a value of `1` equates to 1%
           - name: "Authenticate"
