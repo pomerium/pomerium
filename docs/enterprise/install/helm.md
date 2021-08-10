@@ -112,7 +112,7 @@ This setup assumes an existing certificate solution using cert-manager, as descr
      pullPassword: your-access-key
    ```
 
-1. Add the Pomerium repository to your Helm configuration:
+1. The Pomerium repository should already be in your Helm configuration per [Pomerium using Helm]. If not, add it now:
 
    ```bash
    helm repo add pomerium https://helm.pomerium.io
