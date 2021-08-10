@@ -204,6 +204,16 @@ settings:
 
                   See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters (opens new window)for details
           - name: "Tracing"
+            doc: |
+              Tracing tracks the progression of a single user request as it is handled by Pomerium.
+
+              Each unit of work is called a Span in a trace. Spans include metadata about the work, including the time spent in the step (latency), status, time events, attributes, links. You can use tracing to debug errors and latency issues in your applications, including in downstream connections.
+            settings:
+              - name: "Tracing Sample Rate"
+                doc: |
+                  Percentage of requests to sample. Default is .01%.
+
+                  Unlike the decimal value notion used for the `tracing_sample_rate` [key](/reference/readme.md#shared-tracing-settings) in open-source Pomerium, this value is a percentage, e.g. a value of `1` equates to 1%
           - name: "Authenticate"
           - name: "Proxy"
             settings:
