@@ -8,7 +8,7 @@ function() {
         },
       },
       environment: {
-        SSL_CERT_FILE: '/verify_config/rootCA.pem',
+        SSL_CERT_FILE: '/verify_config/ca.pem',
       },
       links: [
         'pomerium:authenticate.localhost.pomerium.io',
@@ -22,7 +22,7 @@ function() {
       command: [
         'sh',
         '-c',
-        "echo '" + (importstr '../files/rootCA.pem') + "' > /verify_config/rootCA.pem",
+        "echo '" + (importstr '../files/ca.pem') + "' > /verify_config/ca.pem",
       ],
       volumes: [
         'verify_config:/verify_config',

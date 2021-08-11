@@ -10,9 +10,9 @@ function() {
       command: [
         'server',
         '-cert',
-        '/fortio_config/_wildcard.localhost.pomerium.io.pem',
+        '/fortio_config/trusted.pem',
         '-key',
-        '/fortio_config/_wildcard.localhost.pomerium.io-key.pem',
+        '/fortio_config/trusted-key.pem',
       ],
       ports: [
         '8079:8079/tcp',
@@ -27,13 +27,13 @@ function() {
         'sh',
         '-c',
         |||
-          echo "$$CERT" >/fortio_config/_wildcard.localhost.pomerium.io.pem
-          echo "$$KEY" >/fortio_config/_wildcard.localhost.pomerium.io-key.pem
+          echo "$$CERT" >/fortio_config/trusted.pem
+          echo "$$KEY" >/fortio_config/trusted-key.pem
         |||,
       ],
       environment: {
-        CERT: importstr '../files/_wildcard.localhost.pomerium.io.pem',
-        KEY: importstr '../files/_wildcard.localhost.pomerium.io-key.pem',
+        CERT: importstr '../files/trusted.pem',
+        KEY: importstr '../files/trusted-key.pem',
       },
       volumes: [
         'fortio_config:/fortio_config',

@@ -20,7 +20,7 @@ func getClient() *http.Client {
 		panic(err)
 	}
 
-	bs, err := os.ReadFile(filepath.Join(".", "tpl", "files", "rootCA.pem"))
+	bs, err := os.ReadFile(filepath.Join(".", "tpl", "files", "ca.pem"))
 	if err != nil {
 		panic(err)
 	}
