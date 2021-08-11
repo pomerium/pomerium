@@ -43,6 +43,32 @@ function(idp) {
     {
       from: 'https://httpdetails.localhost.pomerium.io',
       to: 'http://httpdetails:8080',
+      prefix: '/cors-enabled',
+      cors_allow_preflight: true,
+    },
+    {
+      from: 'https://httpdetails.localhost.pomerium.io',
+      to: 'http://httpdetails:8080',
+      prefix: '/cors-disabled',
+      cors_allow_preflight: false,
+    },
+    {
+      from: 'https://httpdetails.localhost.pomerium.io',
+      to: 'http://httpdetails:8080',
+      prefix: '/preserve-host-header-enabled',
+      allow_public_unauthenticated_access: true,
+      preserve_host_header: true,
+    },
+    {
+      from: 'https://httpdetails.localhost.pomerium.io',
+      to: 'http://httpdetails:8080',
+      prefix: '/preserve-host-header-disabled',
+      allow_public_unauthenticated_access: true,
+      preserve_host_header: false,
+    },
+    {
+      from: 'https://httpdetails.localhost.pomerium.io',
+      to: 'http://httpdetails:8080',
       allow_public_unauthenticated_access: true,
       pass_identity_headers: true,
     },
