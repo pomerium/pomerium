@@ -36,17 +36,19 @@ Pomerium can be leveraged as a proxy for user requests to the API Server.
 
 ## How it works
 
-<br><br>
-<img alt="kubernetes integration" src="./img/kubernetes-integration.svg" width="85%">
-<br><br>
+![A flowchart for the kubernetes integration](./img/kubernetes-integration.svg)
 
 Building on top of a standard Kubernetes and Pomerium deployment:
 
 1. Pomerium is given access to a Kubernetes service account with [impersonation](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation) permissions
-2. A [policy route](/reference/readme.md#policy) is created for the API server and [configured](/reference/readme.md#kubernetes-service-account-token) to use the service account token
-3. Kubernetes RoleBindings operate against IdP Users and Group subjects
-4. Users access the protected cluster through their standard tools, using [pomerium-cli](/docs/releases.md#pomerium-cli) as an auth provider in `~/.kube/config`
-5. Pomerium authorizes requests and passes the user identity to the API server for fine grained RBAC
+
+1. A [policy route](/reference/readme.md#policy) is created for the API server and [configured](/reference/readme.md#kubernetes-service-account-token) to use the service account token
+
+1. Kubernetes RoleBindings operate against IdP Users and Group subjects
+
+1. Users access the protected cluster through their standard tools, using [pomerium-cli](/docs/releases.md#pomerium-cli) as an auth provider in `~/.kube/config`
+
+1. Pomerium authorizes requests and passes the user identity to the API server for fine grained RBAC
 
 ## Kubeconfig Setup
 
@@ -61,7 +63,8 @@ kubectl config set-cluster via-pomerium --server=https://mycluster.pomerium.io
 kubectl config set-context via-pomerium --user=via-pomerium --cluster=via-pomerium
 # Add credentials command
 kubectl config set-credentials via-pomerium --exec-command=pomerium-cli \
-  --exec-arg=k8s,exec-credential,https://mycluster.pomerium.io
+  --exec-arg=k8s,exec-credential,https://mycluster.pomerium.io \
+  --exec-api-version=client.authentication.k8s.io/v1beta1
 ```
 
 ## More info

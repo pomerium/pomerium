@@ -14,28 +14,44 @@ The following guide covers how to secure [Kubernetes] using Pomerium.
 
 ## Kubernetes
 
-This tutorial uses an example Kubernetes cluster created with [`kind`](https://kind.sigs.k8s.io/docs/user/quick-start/). First create a config file (`kind-config.yaml`):
+This guide is written for two starting points:
 
-```yaml
-# kind-config.yaml
-kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-nodes:
-  - role: control-plane
-    extraPortMappings:
-      - containerPort: 30443
-        hostPort: 30443
-```
+- New users without a Kubernetes cluster running Pomerium. This track will use [Kind](https://kind.sigs.k8s.io/) to set up a local test environment, and assumes it is [installed](https://kind.sigs.k8s.io/docs/user/quick-start/) locally.
 
-Next create the cluster:
+- Users who followed the [Pomerium using Helm](/docs/install/helm.md) doc, and have a running Pomerium instance on a Kubernetes cluster.
 
-```bash
-kind create cluster --config=./kind-config.yaml
-```
+The following section covers configuring a test cluster using Kind. Afterwards, use the appropriate tab where the steps diverge.
+
+### Kind
+
+1. Create a config file (`kind-config.yaml`):
+
+   ```yaml
+   # kind-config.yaml
+   kind: Cluster
+   apiVersion: kind.x-k8s.io/v1alpha4
+   nodes:
+   - role: control-plane
+      extraPortMappings:
+         - containerPort: 30443
+         hostPort: 30443
+   ```
+
+1. Create the cluster:
+
+   ```bash
+   kind create cluster --config=./kind-config.yaml
+   ```
 
 ### Pomerium Service Account
 
-Pomerium uses a single service account and user impersonation headers to authenticate and authorize users in Kubernetes. To create the Pomerium service account use the following config: (`pomerium-k8s.yaml`)
+Pomerium uses a single service account and user impersonation headers to authenticate and authorize users in Kubernetes.
+
+:::: tabs
+
+::: tab Kind
+
+ To create the Pomerium service account use the following config: (`pomerium-k8s.yaml`)
 
 ```yaml
 # pomerium-k8s.yaml
@@ -86,6 +102,27 @@ Apply it with:
 kubectl apply -f ./pomerium-k8s.yaml
 ```
 
+:::
+
+::: tab Helm
+
+If you've installed [Pomerium using Helm](/docs/install/helm.md), you can enable the service account by setting `apiProxy.enabled` in `pomerium-values.yaml`:
+
+```yaml
+apiProxy:
+  enabled: true
+```
+
+Upgrade with Helm to apply:
+
+```bash
+helm upgrade --install pomerium pomerium/pomerium --values=./pomerium-values.yaml
+```
+
+:::
+
+::::
+
 ### User Permissions
 
 To grant access to users within Kubernetes, you will need to configure RBAC permissions. For example:
@@ -109,7 +146,7 @@ Permissions can also be granted to groups the Pomerium user is a member of.
 
 ## Certificates
 
-For this tutorial we will generate wildcard certificates for the `*.localhost.pomerium.io` domain using [`mkcert`](https://github.com/FiloSottile/mkcert):
+Those who followed the [Certificates](/docs/install/helm.md#certificates) section of Pomerium using Helm will already have a certificate solution, and can skip this section. If not, we will generate wildcard certificates for the `*.localhost.pomerium.io` domain using [`mkcert`](https://github.com/FiloSottile/mkcert):
 
 ```bash
 mkcert '*.localhost.pomerium.io'
@@ -123,6 +160,10 @@ This creates two files:
 ## Pomerium
 
 ### Configuration
+
+:::: tabs
+
+::: tab Kind
 
 Our Pomerium configuration will route requests from `k8s.localhost.pomerium.io:30443` to the kube-apiserver. Create a Kubernetes YAML configuration file (`pomerium.yaml`):
 
@@ -199,10 +240,36 @@ The policy should be a base64-encoded block of yaml:
         or:
           - domain:
               is: pomerium.com
-  kubernetes_service_account_token: "..." #$(kubectl get secret/"$(kubectl get serviceaccount/pomerium -o json | jq -r '.secrets[0].name')" -o json | jq -r .data.token | base64 -d)
+  kubernetes_service_account_token: "/var/run/secrets/kubernetes.io/serviceaccount/token"
 ```
 
 Applying this configuration will create a Pomerium deployment and service within kubernetes that is accessible from `*.localhost.pomerium.io:30443`.
+
+:::
+
+::: tab Helm
+
+1. Update `pomerium-values.yaml` to add a policy for access to the Kubernetes API server through Pomerium:
+
+   ```yaml
+   policy:
+      - from: https://k8s.localhost.pomerium.io
+         to: https://kubernetes.default.svc
+         tls_skip_verify: true
+         allow_spdy: true
+         allowed_users: user@companyDomain.com
+         kubernetes_service_account_token: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+   ```
+
+1. Apply the new configuration:
+
+   ```bash
+   helm upgrade --install pomerium pomerium/pomerium --values=./pomerium-values.yaml
+   ```
+
+:::
+
+::::
 
 ## Kubectl
 
@@ -216,15 +283,15 @@ env GO111MODULE=on GOBIN=$HOME/bin go get github.com/pomerium/pomerium/cmd/pomer
 
 Make sure `$HOME/bin` is on your path.
 
-To use the Pomerium Kubernetes exec-credential provider, update your kubectl config:
+To use the Pomerium Kubernetes exec-credential provider, update your kubectl config. For a local environment with Kind, append `:30443` to each instance of `https://k8s.localhost.pomerium.io`:
 
    ```shell
    # Add Cluster
-   kubectl config set-cluster via-pomerium --server=https://k8s.localhost.pomerium.io:30443
+   kubectl config set-cluster via-pomerium --server=https://k8s.localhost.pomerium.io
    # Add Context
    kubectl config set-context via-pomerium --user=via-pomerium --cluster=via-pomerium
    # Add credentials command
-   kubectl config set-credentials via-pomerium --exec-command=pomerium-cli --exec-arg=k8s,exec-credential,https://k8s.localhost.pomerium.io:30443
+   kubectl config set-credentials via-pomerium --exec-command=pomerium-cli --exec-arg=k8s,exec-credential,https://k8s.localhost.pomerium.io --exec-api-version=client.authentication.k8s.io/v1beta1
   ```
 
 Here's the resulting configuration:
@@ -233,7 +300,7 @@ Here's the resulting configuration:
     ```yaml
     clusters:
     - cluster:
-        server: https://k8s.localhost.pomerium.io:30443
+        server: https://k8s.localhost.pomerium.io
       name: via-pomerium
     ```
 
@@ -257,14 +324,14 @@ Here's the resulting configuration:
          args:
            - k8s
            - exec-credential
-           - https://k8s.localhost.pomerium.io:30443
+           - https://k8s.localhost.pomerium.io
          command: pomerium-cli
          env: null
    ```
 
 With `kubectl` configured you can now query the Kubernetes API via pomerium:
 
-```
+```bash
 kubectl --context=via-pomerium cluster-info
 ```
 
