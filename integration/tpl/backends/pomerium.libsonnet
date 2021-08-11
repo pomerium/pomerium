@@ -81,6 +81,17 @@ function(idp) {
       allow_any_authenticated_user: true,
       pass_identity_headers: true,
     },
+    {
+      from: 'https://enabled-ws-echo.localhost.pomerium.io',
+      to: 'http://websocket-echo:80',
+      allow_public_unauthenticated_access: true,
+      allow_websockets: true,
+    },
+    {
+      from: 'https://disabled-ws-echo.localhost.pomerium.io',
+      to: 'http://websocket-echo:80',
+      allow_public_unauthenticated_access: true,
+    },
   ],
 
   services: {

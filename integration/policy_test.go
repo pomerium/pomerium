@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -157,4 +159,39 @@ func TestRemoveRequestHeaders(t *testing.T) {
 
 	_, exist := result.Headers["X-Custom-Request-Header-To-Remove"]
 	assert.False(t, exist, "expected X-Custom-Request-Header-To-Remove not to be present.")
+}
+
+func TestWebsocket(t *testing.T) {
+	ctx := context.Background()
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	t.Run("disabled", func(t *testing.T) {
+		ws, _, err := (&websocket.Dialer{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}).DialContext(ctx, "wss://disabled-ws-echo.localhost.pomerium.io", nil)
+		if !assert.Error(t, err, "expected bad handshake when websocket is not enabled") {
+			ws.Close()
+			return
+		}
+	})
+	t.Run("enabled", func(t *testing.T) {
+		ws, _, err := (&websocket.Dialer{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}).DialContext(ctx, "wss://enabled-ws-echo.localhost.pomerium.io", nil)
+		if !assert.NoError(t, err, "expected no error when creating websocket") {
+			return
+		}
+		defer ws.Close()
+
+		msg := "hello world"
+		err = ws.WriteJSON("hello world")
+		assert.NoError(t, err, "expected no error when writing json to websocket")
+		err = ws.ReadJSON(&msg)
+		assert.NoError(t, err, "expected no error when reading json from websocket")
+	})
 }

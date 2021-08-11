@@ -5,7 +5,7 @@ function() {
       command: [
         '--port',
         '80',
-        'echo',
+        'tee',
       ],
     },
   },
