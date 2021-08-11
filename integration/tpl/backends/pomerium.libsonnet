@@ -40,6 +40,12 @@ function(idp) {
       to: 'tcp://redis:6379',
       allow_any_authenticated_user: true,
     },
+    {
+      from: 'https://httpdetails.localhost.pomerium.io',
+      to: 'http://httpdetails:8080',
+      allow_any_authenticated_user: true,
+      pass_identity_headers: true,
+    },
   ],
 
   services: {
