@@ -23,6 +23,18 @@ function(idp) {
       allow_public_unauthenticated_access: true,
       allow_websockets: true,
     },
+    {
+      from: 'https://fortio-ui.localhost.pomerium.io',
+      to: 'https://fortio:8080',
+      allow_any_authenticated_user: true,
+    },
+    {
+      from: 'https://fortio-ping.localhost.pomerium.io',
+      to: 'https://fortio:8079',
+      allow_public_unauthenticated_access: true,
+      tls_custom_ca: std.base64(importstr '../files/rootCA.pem'),
+      tls_server_name: 'fortio-ping.localhost.pomerium.io',
+    },
   ],
 
   services: {
@@ -38,6 +50,7 @@ function(idp) {
         IDP_PROVIDER_URL: 'https://mock-idp.localhost.pomerium.io/',
         IDP_CLIENT_ID: 'CLIENT_ID',
         IDP_CLIENT_SECRET: 'CLIENT_SECRET',
+        LOG_LEVEL: 'debug',
         POLICY: std.base64(std.manifestJsonEx(routes, '')),
         SHARED_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
         SIGNING_KEY: std.base64(importstr '../files/signing-key.pem'),
