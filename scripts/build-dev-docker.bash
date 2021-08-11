@@ -24,5 +24,4 @@ ENTRYPOINT [ "/bin/pomerium" ]
 CMD ["-config","/pomerium/config.yaml"]
 EOF
   docker build --tag=pomerium/pomerium:dev .
-  kind load docker-image pomerium/pomerium:dev
 )

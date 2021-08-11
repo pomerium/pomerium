@@ -127,6 +127,7 @@ jobs:
 
       - name: start cluster
         run: |
+          export POMERIUM_TAG=dev
           cd ./integration/clusters/${{matrix.idp}}-${{matrix.deployment}}
           docker-compose up -d
 
