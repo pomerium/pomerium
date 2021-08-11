@@ -43,6 +43,12 @@ function(idp) {
     {
       from: 'https://httpdetails.localhost.pomerium.io',
       to: 'http://httpdetails:8080',
+      allow_public_unauthenticated_access: true,
+      pass_identity_headers: true,
+    },
+    {
+      from: 'https://restricted-httpdetails.localhost.pomerium.io',
+      to: 'http://httpdetails:8080',
       allow_any_authenticated_user: true,
       pass_identity_headers: true,
     },

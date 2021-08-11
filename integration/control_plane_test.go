@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -59,4 +60,39 @@ func TestDashboard(t *testing.T) {
 		assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code")
 		assert.Equal(t, "image/svg+xml", res.Header.Get("Content-Type"))
 	})
+}
+
+func TestHealth(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
+	defer clearTimeout()
+
+	pomeriumRoutes := []string{
+		"https://authenticate.localhost.pomerium.io",
+		"https://httpdetails.localhost.pomerium.io",
+		"https://restricted-httpdetails.localhost.pomerium.io",
+		"https://unknown.localhost.pomerium.io",
+	}
+	endpoints := []string{"healthz", "ping"}
+
+	for _, route := range pomeriumRoutes {
+		route := route
+		for _, endpoint := range endpoints {
+			endpoint := endpoint
+			routeToCheck := fmt.Sprintf("%s/%s", route, endpoint)
+			t.Run(routeToCheck, func(t *testing.T) {
+				req, err := http.NewRequestWithContext(ctx, "GET", routeToCheck, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				res, err := getClient().Do(req)
+				if !assert.NoError(t, err, "unexpected http error") {
+					return
+				}
+				defer res.Body.Close()
+
+				assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code")
+			})
+		}
+	}
 }
