@@ -71,6 +71,9 @@ function(idp) {
       to: 'http://httpdetails:8080',
       allow_public_unauthenticated_access: true,
       pass_identity_headers: true,
+      set_request_headers: {
+        'X-Custom-Request-Header': 'custom-request-header-value',
+      },
     },
     {
       from: 'https://restricted-httpdetails.localhost.pomerium.io',
