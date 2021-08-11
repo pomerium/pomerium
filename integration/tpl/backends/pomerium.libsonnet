@@ -1,4 +1,4 @@
-function(idp_provider) {
+function(idp) {
   local routes = [
     {
       from: 'https://mock-idp.localhost.pomerium.io',
@@ -17,6 +17,12 @@ function(idp_provider) {
       allow_any_authenticated_user: true,
       pass_identity_headers: true,
     },
+    {
+      from: 'https://websocket-echo.localhost.pomerium.io',
+      to: 'http://websocket-echo:80',
+      allow_public_unauthenticated_access: true,
+      allow_websockets: true,
+    },
   ],
 
   services: {
@@ -28,7 +34,7 @@ function(idp_provider) {
         CERTIFICATE_KEY: std.base64(importstr '../files/_wildcard.localhost.pomerium.io-key.pem'),
         CERTIFICATE_AUTHORITY: std.base64(importstr '../files/rootCA.pem'),
         COOKIE_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
-        IDP_PROVIDER: idp_provider,
+        IDP_PROVIDER: idp,
         IDP_PROVIDER_URL: 'https://mock-idp.localhost.pomerium.io/',
         IDP_CLIENT_ID: 'CLIENT_ID',
         IDP_CLIENT_SECRET: 'CLIENT_SECRET',

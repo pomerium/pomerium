@@ -3,7 +3,7 @@
       "mock-idp": {
          "command": [
             "--provider",
-            "google",
+            "oidc",
             "--port",
             "8024",
             "--root-url",
@@ -23,7 +23,7 @@
             "COOKIE_SECRET": "UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=",
             "IDP_CLIENT_ID": "CLIENT_ID",
             "IDP_CLIENT_SECRET": "CLIENT_SECRET",
-            "IDP_PROVIDER": "google",
+            "IDP_PROVIDER": "oidc",
             "IDP_PROVIDER_URL": "https://mock-idp.localhost.pomerium.io/",
             "POLICY": "Wwp7CiJhbGxvd19wdWJsaWNfdW5hdXRoZW50aWNhdGVkX2FjY2VzcyI6IHRydWUsCiJmcm9tIjogImh0dHBzOi8vbW9jay1pZHAubG9jYWxob3N0LnBvbWVyaXVtLmlvIiwKInByZXNlcnZlX2hvc3RfaGVhZGVyIjogdHJ1ZSwKInRvIjogImh0dHA6Ly9tb2NrLWlkcDo4MDI0Igp9LAp7CiJhbGxvd19wdWJsaWNfdW5hdXRoZW50aWNhdGVkX2FjY2VzcyI6IHRydWUsCiJmcm9tIjogImh0dHBzOi8vZW52b3kubG9jYWxob3N0LnBvbWVyaXVtLmlvIiwKInRvIjogImh0dHA6Ly9sb2NhbGhvc3Q6OTkwMSIKfSwKewoiYWxsb3dfYW55X2F1dGhlbnRpY2F0ZWRfdXNlciI6IHRydWUsCiJmcm9tIjogImh0dHBzOi8vdmVyaWZ5LmxvY2FsaG9zdC5wb21lcml1bS5pbyIsCiJwYXNzX2lkZW50aXR5X2hlYWRlcnMiOiB0cnVlLAoidG8iOiAiaHR0cDovL3ZlcmlmeTo4MCIKfSwKewoiYWxsb3dfcHVibGljX3VuYXV0aGVudGljYXRlZF9hY2Nlc3MiOiB0cnVlLAoiYWxsb3dfd2Vic29ja2V0cyI6IHRydWUsCiJmcm9tIjogImh0dHBzOi8vd2Vic29ja2V0LWVjaG8ubG9jYWxob3N0LnBvbWVyaXVtLmlvIiwKInRvIjogImh0dHA6Ly93ZWJzb2NrZXQtZWNobzo4MCIKfQpd",
             "SHARED_SECRET": "UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=",

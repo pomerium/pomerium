@@ -1,10 +1,10 @@
-function(idp_provider) {
+function(idp) {
   services: {
     'mock-idp': {
       image: 'calebdoxsey/mock-idps:${MOCK_IDPS_TAG:-master}',
       command: [
         '--provider',
-        idp_provider,
+        idp,
         '--port',
         '8024',
         '--root-url',
