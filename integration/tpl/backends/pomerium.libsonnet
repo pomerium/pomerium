@@ -35,6 +35,11 @@ function(idp) {
       tls_custom_ca: std.base64(importstr '../files/rootCA.pem'),
       tls_server_name: 'fortio-ping.localhost.pomerium.io',
     },
+    {
+      from: 'tcp+https://redis.localhost.pomerium.io:6379',
+      to: 'tcp://redis:6379',
+      allow_any_authenticated_user: true,
+    },
   ],
 
   services: {
@@ -46,6 +51,8 @@ function(idp) {
         CERTIFICATE_KEY: std.base64(importstr '../files/_wildcard.localhost.pomerium.io-key.pem'),
         CERTIFICATE_AUTHORITY: std.base64(importstr '../files/rootCA.pem'),
         COOKIE_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
+        DATABROKER_STORAGE_TYPE: 'redis',
+        DATABROKER_STORAGE_CONNECTION_STRING: 'redis://redis:6379',
         IDP_PROVIDER: idp,
         IDP_PROVIDER_URL: 'https://mock-idp.localhost.pomerium.io/',
         IDP_CLIENT_ID: 'CLIENT_ID',
