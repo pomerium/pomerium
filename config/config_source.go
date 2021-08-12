@@ -10,10 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
-	"github.com/pomerium/pomerium/internal/netutil"
-
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/netutil"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 

@@ -1,3 +1,4 @@
+// Package netutil contains various functions that help with networking.
 package netutil
 
 import "net"

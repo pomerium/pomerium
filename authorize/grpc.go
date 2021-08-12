@@ -23,6 +23,10 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
 	defer span.End()
 
+	if err := a.WaitForInitialSync(ctx); err != nil {
+		return nil, err
+	}
+
 	state := a.state.Load()
 
 	// convert the incoming envoy-style http request into a go-style http request

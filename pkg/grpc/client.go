@@ -2,51 +2,23 @@ package grpc
 
 import (
 	"context"
-	"crypto/tls"
-	"errors"
 	"net"
-	"net/url"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
-)
-
-const (
-	defaultGRPCSecurePort   = 443
-	defaultGRPCInsecurePort = 80
 )
 
 // Options contains options for connecting to a pomerium rpc service.
 type Options struct {
-	// Addrs is the location of the service.  e.g. "service.corp.example:8443"
-	Addrs []*url.URL
-	// OverrideCertificateName overrides the server name used to verify the hostname on the
-	// returned certificates from the server. gRPC internals also use it to override the virtual
-	// hosting name if it is set.
-	OverrideCertificateName string
-	// CA specifies the base64 encoded TLS certificate authority to use.
-	CA string
-	// CAFile specifies the TLS certificate authority file to use.
-	CAFile string
-	// RequestTimeout specifies the timeout for individual RPC calls
-	RequestTimeout time.Duration
-	// ClientDNSRoundRobin enables or disables DNS resolver based load balancing
-	ClientDNSRoundRobin bool
-
-	// WithInsecure disables transport security for this ClientConn.
-	// Note that transport security is required unless WithInsecure is set.
-	WithInsecure bool
+	// Address is the location of the service.  e.g. "service.corp.example:8443"
+	Address string
 
 	// InstallationID specifies the installation id for telemetry exposition.
 	InstallationID string
@@ -60,31 +32,10 @@ type Options struct {
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
 func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOption) (*grpc.ClientConn, error) {
-	if len(opts.Addrs) == 0 {
-		return nil, errors.New("internal/grpc: connection address required")
-	}
-
-	var addrs []string
-	for _, u := range opts.Addrs {
-		hostport := u.Host
-		// no colon exists in the connection string, assume one must be added manually
-		if _, _, err := net.SplitHostPort(hostport); err != nil {
-			if u.Scheme == "https" {
-				hostport = net.JoinHostPort(hostport, strconv.Itoa(defaultGRPCSecurePort))
-			} else {
-				hostport = net.JoinHostPort(hostport, strconv.Itoa(defaultGRPCInsecurePort))
-			}
-		}
-		addrs = append(addrs, hostport)
-	}
-
-	connAddr := "pomerium:///" + strings.Join(addrs, ",")
-
 	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.ServiceName)
 
 	unaryClientInterceptors := []grpc.UnaryClientInterceptor{
 		requestid.UnaryClientInterceptor(),
-		grpcTimeoutInterceptor(opts.RequestTimeout),
 		clientStatsHandler.UnaryInterceptor,
 	}
 	streamClientInterceptors := []grpc.StreamClientInterceptor{
@@ -100,36 +51,12 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
 		grpc.WithDefaultCallOptions([]grpc.CallOption{grpc.WaitForReady(true)}...),
 		grpc.WithStatsHandler(clientStatsHandler.Handler),
-		grpc.WithDefaultServiceConfig(roundRobinServiceConfig),
 		grpc.WithDisableServiceConfig(),
+		grpc.WithInsecure(),
 	}
-
 	dialOptions = append(dialOptions, other...)
-
-	if opts.WithInsecure {
-		log.Info(ctx).Str("addr", connAddr).Msg("internal/grpc: grpc with insecure")
-		dialOptions = append(dialOptions, grpc.WithInsecure())
-	} else {
-		rootCAs, err := cryptutil.GetCertPool(opts.CA, opts.CAFile)
-		if err != nil {
-			return nil, err
-		}
-
-		cert := credentials.NewTLS(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12})
-
-		// override allowed certificate name string, typically used when doing behind ingress connection
-		if opts.OverrideCertificateName != "" {
-			log.Debug(ctx).Str("cert-override-name", opts.OverrideCertificateName).Msg("internal/grpc: grpc")
-			err := cert.OverrideServerName(opts.OverrideCertificateName)
-			if err != nil {
-				return nil, err
-			}
-		}
-		// finally add our credential
-		dialOptions = append(dialOptions, grpc.WithTransportCredentials(cert))
-	}
-
-	return grpc.DialContext(ctx, connAddr, dialOptions...)
+	log.Info(ctx).Str("address", opts.Address).Msg("dialing")
+	return grpc.DialContext(ctx, opts.Address, dialOptions...)
 }
 
 // grpcTimeoutInterceptor enforces per-RPC request timeouts
@@ -205,13 +132,9 @@ type OutboundOptions struct {
 // GetOutboundGRPCClientConn gets the outbound gRPC client.
 func GetOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions) (*grpc.ClientConn, error) {
 	return GetGRPCClientConn(ctx, "outbound", &Options{
-		Addrs: []*url.URL{{
-			Scheme: "http",
-			Host:   net.JoinHostPort("127.0.0.1", opts.OutboundPort),
-		}},
+		Address:        net.JoinHostPort("127.0.0.1", opts.OutboundPort),
 		InstallationID: opts.InstallationID,
 		ServiceName:    opts.ServiceName,
 		SignedJWTKey:   opts.SignedJWTKey,
-		WithInsecure:   true,
 	})
 }

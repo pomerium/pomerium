@@ -142,13 +142,6 @@ func Run(ctx context.Context, configFile string) error {
 		eg.Go(func() error {
 			return authorizeServer.Run(ctx)
 		})
-		// in non-all-in-one mode we will wait for the initial sync to complete before starting
-		// the control plane
-		if dataBrokerServer == nil {
-			if err := authorizeServer.WaitForInitialSync(ctx); err != nil {
-				return err
-			}
-		}
 	}
 	eg.Go(func() error {
 		return controlPlane.Run(ctx)

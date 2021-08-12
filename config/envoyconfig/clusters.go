@@ -185,16 +185,11 @@ func (b *Builder) buildInternalTransportSocket(
 	if endpoint.Scheme != "https" {
 		return nil, nil
 	}
-	sni := endpoint.Hostname()
-	if options.OverrideCertificateName != "" {
-		sni = options.OverrideCertificateName
-	}
+
 	validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{{
-			MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
-				Exact: sni,
-			},
-		}},
+		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{
+			b.buildSubjectAlternativeNameMatcher(endpoint, options.OverrideCertificateName),
+		},
 	}
 	bs, err := getCombinedCertificateAuthority(options.CA, options.CAFile)
 	if err != nil {
@@ -209,7 +204,7 @@ func (b *Builder) buildInternalTransportSocket(
 				ValidationContext: validationContext,
 			},
 		},
-		Sni: sni,
+		Sni: b.buildSubjectNameIndication(endpoint, options.OverrideCertificateName),
 	}
 	tlsConfig := marshalAny(tlsContext)
 	return &envoy_config_core_v3.TransportSocket{
@@ -294,16 +289,10 @@ func (b *Builder) buildPolicyValidationContext(
 	policy *config.Policy,
 	dst url.URL,
 ) (*envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext, error) {
-	sni := dst.Hostname()
-	if policy.TLSServerName != "" {
-		sni = policy.TLSServerName
-	}
 	validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{{
-			MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
-				Exact: sni,
-			},
-		}},
+		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{
+			b.buildSubjectAlternativeNameMatcher(&dst, policy.TLSServerName),
+		},
 	}
 	if policy.TLSCustomCAFile != "" {
 		validationContext.TrustedCa = b.filemgr.FileDataSource(policy.TLSCustomCAFile)
