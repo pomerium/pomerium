@@ -1,0 +1,70 @@
+{
+   "services": {
+      "k3s-agent": {
+         "environment": {
+            "K3S_TOKEN": "TOKEN",
+            "K3S_URL": "https://k3s-server:6443"
+         },
+         "image": "rancher/k3s:${K3S_TAG:-latest}",
+         "privileged": true,
+         "restart": "always",
+         "tmpfs": [
+            "/run",
+            "/var/run"
+         ],
+         "ulimits": {
+            "nofile": {
+               "hard": 65535,
+               "soft": 65535
+            },
+            "nproc": 65535
+         }
+      },
+      "k3s-init": {
+         "command": [
+            "sh",
+            "-c",
+            "echo \"$$POMERIUM_HELM\" > /k3s-manifests/pomerium.yml"
+         ],
+         "environment": {
+            "POMERIUM_HELM": "\"apiVersion\": \"helm.cattle.io/v1\"\n\"kind\": \"HelmChart\"\n\"metadata\":\n  \"name\": \"pomerium\"\n  \"namespace\": \"kube-system\"\n\"spec\":\n  \"chart\": \"pomerium/pomerium\"\n  \"repo\": \"https://helm.pomerium.io\"\n  \"targetNamespace\": \"default\""
+         },
+         "image": "busybox:latest",
+         "volumes": [
+            "k3s-manifests:/k3s-manifests"
+         ]
+      },
+      "k3s-server": {
+         "command": [
+            "server",
+            "--disable",
+            "traefik",
+            "--disable",
+            "metrics-server"
+         ],
+         "environment": {
+            "K3S_TOKEN": "TOKEN"
+         },
+         "image": "rancher/k3s:${K3S_TAG:-latest}",
+         "privileged": true,
+         "restart": "always",
+         "tmpfs": [
+            "/run",
+            "/var/run"
+         ],
+         "ulimits": {
+            "nofile": {
+               "hard": 65535,
+               "soft": 65535
+            },
+            "nproc": 65535
+         },
+         "volumes": [
+            "k3s-manifests:/var/lib/rancher/k3s/server/manifests"
+         ]
+      }
+   },
+   "volumes": {
+      "k3s-manifests": { }
+   }
+}
