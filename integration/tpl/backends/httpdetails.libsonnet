@@ -17,23 +17,25 @@ local variations = [
 ];
 
 function() {
-  services: {
-    [variation.name + '-httpdetails']: {
-      image: 'mendhak/http-https-echo:19',
-      command: [
-        'sh',
-        '-c',
-        |||
-          echo "$$CERT" >/app/fullchain.pem
-          echo "$$KEY" >/app/privkey.pem
-          node ./index.js
-        |||,
-      ],
-      environment: {
-        CERT: variation.cert,
-        KEY: variation.key,
-      },
-    }
-    for variation in variations
+  compose: {
+    services: {
+      [variation.name + '-httpdetails']: {
+        image: 'mendhak/http-https-echo:19',
+        command: [
+          'sh',
+          '-c',
+          |||
+            echo "$$CERT" >/app/fullchain.pem
+            echo "$$KEY" >/app/privkey.pem
+            node ./index.js
+          |||,
+        ],
+        environment: {
+          CERT: variation.cert,
+          KEY: variation.key,
+        },
+      }
+      for variation in variations
+    },
   },
 }

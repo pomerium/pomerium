@@ -1,7 +1,9 @@
 function() {
-  services: {
-    redis: {
-      image: 'redis:6.2.5-alpine',
+  compose: {
+    services: {
+      redis: {
+        image: 'redis:6.2.5-alpine',
+      },
     },
   },
 }

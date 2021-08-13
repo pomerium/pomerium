@@ -157,32 +157,34 @@ function(idp) {
     },
   ],
 
-  services: {
-    pomerium: {
-      image: 'pomerium/pomerium:${POMERIUM_TAG:-master}',
-      environment: {
-        AUTHENTICATE_SERVICE_URL: 'https://authenticate.localhost.pomerium.io',
-        CERTIFICATE: std.base64(importstr '../files/trusted.pem'),
-        CERTIFICATE_KEY: std.base64(importstr '../files/trusted-key.pem'),
-        CERTIFICATE_AUTHORITY: std.base64(importstr '../files/ca.pem'),
-        COOKIE_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
-        DATABROKER_STORAGE_TYPE: 'redis',
-        DATABROKER_STORAGE_CONNECTION_STRING: 'redis://redis:6379',
-        IDP_PROVIDER: idp,
-        IDP_PROVIDER_URL: 'https://mock-idp.localhost.pomerium.io/',
-        IDP_CLIENT_ID: 'CLIENT_ID',
-        IDP_CLIENT_SECRET: 'CLIENT_SECRET',
-        LOG_LEVEL: 'info',
-        POLICY: std.base64(std.manifestJsonEx(routes, '')),
-        SHARED_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
-        SIGNING_KEY: std.base64(importstr '../files/signing-key.pem'),
-        SIGNING_KEY_ALGORITHM: 'ES256',
+  compose: {
+    services: {
+      pomerium: {
+        image: 'pomerium/pomerium:${POMERIUM_TAG:-master}',
+        environment: {
+          AUTHENTICATE_SERVICE_URL: 'https://authenticate.localhost.pomerium.io',
+          CERTIFICATE: std.base64(importstr '../files/trusted.pem'),
+          CERTIFICATE_KEY: std.base64(importstr '../files/trusted-key.pem'),
+          CERTIFICATE_AUTHORITY: std.base64(importstr '../files/ca.pem'),
+          COOKIE_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
+          DATABROKER_STORAGE_TYPE: 'redis',
+          DATABROKER_STORAGE_CONNECTION_STRING: 'redis://redis:6379',
+          IDP_PROVIDER: idp,
+          IDP_PROVIDER_URL: 'https://mock-idp.localhost.pomerium.io/',
+          IDP_CLIENT_ID: 'CLIENT_ID',
+          IDP_CLIENT_SECRET: 'CLIENT_SECRET',
+          LOG_LEVEL: 'info',
+          POLICY: std.base64(std.manifestJsonEx(routes, '')),
+          SHARED_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
+          SIGNING_KEY: std.base64(importstr '../files/signing-key.pem'),
+          SIGNING_KEY_ALGORITHM: 'ES256',
+        },
+        ports: [
+          '443:443/tcp',
+          '80:80/tcp',
+        ],
       },
-      ports: [
-        '443:443/tcp',
-        '80:80/tcp',
-      ],
     },
+    volumes: {},
   },
-  volumes: {},
 }

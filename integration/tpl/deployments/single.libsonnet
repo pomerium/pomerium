@@ -1,11 +1,11 @@
 local utils = import '../utils.libsonnet';
 
 function(idp) utils.merge([
-  (import '../backends/fortio.libsonnet')(),
-  (import '../backends/httpdetails.libsonnet')(),
-  (import '../backends/mock-idp.libsonnet')(idp),
-  (import '../backends/pomerium.libsonnet')(idp),
-  (import '../backends/redis.libsonnet')(),
-  (import '../backends/verify.libsonnet')(),
-  (import '../backends/websocket-echo.libsonnet')(),
+  (import '../backends/fortio.libsonnet')().compose,
+  (import '../backends/httpdetails.libsonnet')().compose,
+  (import '../backends/mock-idp.libsonnet')(idp).compose,
+  (import '../backends/pomerium.libsonnet')(idp).compose,
+  (import '../backends/redis.libsonnet')().compose,
+  (import '../backends/verify.libsonnet')().compose,
+  (import '../backends/websocket-echo.libsonnet')().compose,
 ])

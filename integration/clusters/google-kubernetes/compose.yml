@@ -1,70 +1,138 @@
-{
-   "services": {
-      "k3s-agent": {
-         "environment": {
-            "K3S_TOKEN": "TOKEN",
-            "K3S_URL": "https://k3s-server:6443"
-         },
-         "image": "rancher/k3s:${K3S_TAG:-latest}",
-         "privileged": true,
-         "restart": "always",
-         "tmpfs": [
-            "/run",
-            "/var/run"
-         ],
-         "ulimits": {
-            "nofile": {
-               "hard": 65535,
-               "soft": 65535
-            },
-            "nproc": 65535
-         }
-      },
-      "k3s-init": {
-         "command": [
-            "sh",
-            "-c",
-            "echo \"$$POMERIUM_HELM\" > /k3s-manifests/pomerium.yml"
-         ],
-         "environment": {
-            "POMERIUM_HELM": "\"apiVersion\": \"helm.cattle.io/v1\"\n\"kind\": \"HelmChart\"\n\"metadata\":\n  \"name\": \"pomerium\"\n  \"namespace\": \"kube-system\"\n\"spec\":\n  \"chart\": \"pomerium/pomerium\"\n  \"repo\": \"https://helm.pomerium.io\"\n  \"targetNamespace\": \"default\""
-         },
-         "image": "busybox:latest",
-         "volumes": [
-            "k3s-manifests:/k3s-manifests"
-         ]
-      },
-      "k3s-server": {
-         "command": [
-            "server",
-            "--disable",
-            "traefik",
-            "--disable",
-            "metrics-server"
-         ],
-         "environment": {
-            "K3S_TOKEN": "TOKEN"
-         },
-         "image": "rancher/k3s:${K3S_TAG:-latest}",
-         "privileged": true,
-         "restart": "always",
-         "tmpfs": [
-            "/run",
-            "/var/run"
-         ],
-         "ulimits": {
-            "nofile": {
-               "hard": 65535,
-               "soft": 65535
-            },
-            "nproc": 65535
-         },
-         "volumes": [
-            "k3s-manifests:/var/lib/rancher/k3s/server/manifests"
-         ]
+services:
+  k3s-agent:
+    environment:
+      K3S_TOKEN: TOKEN
+      K3S_URL: https://k3s-server:6443
+    image: rancher/k3s:${K3S_TAG:-latest}
+    privileged: true
+    restart: always
+    tmpfs:
+    - /run
+    - /var/run
+    ulimits:
+      nofile:
+        hard: 65535
+        soft: 65535
+      nproc: 65535
+  k3s-init:
+    depends_on:
+      k3s-server:
+        condition: service_healthy
+    entrypoint:
+    - sh
+    - -c
+    - |
+      cat /k3s-config/kubeconfig.yaml | sed s/127.0.0.1/k3s-server/g >/tmp/kubeconfig.yaml
+      export KUBECONFIG=/tmp/kubeconfig.yaml
+      cat <<-EOF | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
+            "app": "websocket-echo"
+          },
+          "name": "websocket-echo",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "http",
+              "port": 80,
+              "targetPort": "http"
+            }
+          ],
+          "selector": {
+            "app": "websocket-echo"
+          }
+        }
       }
-   },
-   "volumes": {
-      "k3s-manifests": { }
-   }
-}
+      EOF
+      kubectl apply -f /tmp/manifest.json
+
+      cat <<-EOF | tee /tmp/manifest.json
+      {
+        "apiVersion": "apps/v1",
+        "kind": "Deployment",
+        "metadata": {
+          "name": "websocket-echo",
+          "namespace": "default"
+        },
+        "spec": {
+          "replicas": 1,
+          "selector": {
+            "matchLabels": {
+              "app": "websocket-echo"
+            }
+          },
+          "template": {
+            "metadata": {
+              "labels": {
+                "app": "websocket-echo"
+              }
+            },
+            "spec": {
+              "containers": [
+                {
+                  "args": [
+                    "--port",
+                    "80",
+                    "tee"
+                  ],
+                  "image": "pvtmert/websocketd:latest",
+                  "name": "websocket-echo",
+                  "ports": [
+                    {
+                      "containerPort": 80,
+                      "name": "http"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+      EOF
+      kubectl apply -f /tmp/manifest.json
+    image: rancher/k3s:${K3S_TAG:-latest}
+    volumes:
+    - k3s-config:/k3s-config
+  k3s-server:
+    command:
+    - server
+    - --disable
+    - traefik
+    - --disable
+    - metrics-server
+    environment:
+      K3S_KUBECONFIG_MODE: "666"
+      K3S_KUBECONFIG_OUTPUT: /k3s-config/kubeconfig.yaml
+      K3S_TOKEN: TOKEN
+    healthcheck:
+      test:
+      - CMD
+      - kubectl
+      - cluster-info
+    image: rancher/k3s:${K3S_TAG:-latest}
+    ports:
+    - 6443:6443/tcp
+    privileged: true
+    restart: always
+    tmpfs:
+    - /run
+    - /var/run
+    ulimits:
+      nofile:
+        hard: 65535
+        soft: 65535
+      nproc: 65535
+    volumes:
+    - k3s-config:/k3s-config
+volumes:
+  k3s-config:
+    driver_opts:
+      device: /tmp
+      o: bind
+      type: none

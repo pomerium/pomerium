@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-jsonnet"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/rs/zerolog/log"
+	"sigs.k8s.io/yaml"
 )
 
 func main() {
@@ -75,13 +76,14 @@ func runGenerateConfiguration(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("error evaluating jsonnet (path=%s): %w", srcPath, err)
 		}
+		asYAML, _ := yaml.JSONToYAML([]byte(contents))
 
 		err = os.MkdirAll(filepath.Dir(dstPath), 0755)
 		if err != nil {
 			return fmt.Errorf("error creating directory (path=%s): %w", dstPath, err)
 		}
 
-		err = os.WriteFile(dstPath, []byte(contents), 0600)
+		err = os.WriteFile(dstPath, asYAML, 0600)
 		if err != nil {
 			return fmt.Errorf("error writing file (path=%s): %w", dstPath, err)
 		}
