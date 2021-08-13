@@ -31,6 +31,8 @@ function(idp, manifests) {
           'traefik',
           '--disable',
           'metrics-server',
+          '--kube-apiserver-arg',
+          'service-node-port-range=1-65535',
         ],
         tmpfs: ['/run', '/var/run'],
         ulimits: {
@@ -52,6 +54,9 @@ function(idp, manifests) {
         },
         ports: [
           '6443:6443/tcp',
+          '5443:5443/tcp',
+          '443:443/tcp',
+          '80:80/tcp',
         ],
         volumes: [
           'k3s-config:/k3s-config',
