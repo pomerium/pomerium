@@ -555,14 +555,14 @@ head -c32 /dev/urandom | base64
 ### Tracing
 Tracing tracks the progression of a single user request as it is handled by Pomerium.
 
-Each unit work is called a Span in a trace. Spans include metadata about the work, including the time spent in the step (latency), status, time events, attributes, links. You can use tracing to debug errors and latency issues in your applications, including in downstream connections.
+Each unit of work is called a Span in a trace. Spans include metadata about the work, including the time spent in the step (latency), status, time events, attributes, links. You can use tracing to debug errors and latency issues in your applications, including in downstream connections.
 
 #### Shared Tracing Settings
 
 Config Key          | Description                                                                          | Required
 :------------------ | :----------------------------------------------------------------------------------- | --------
 tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅
-tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or `.01%` | ❌
+tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or .01%   | ❌
 
 #### Datadog
 
@@ -1362,6 +1362,11 @@ Set Request Headers allows you to set static values for given request headers. T
     Authorization: Basic cm9vdDpodW50ZXI0Mg==
     X-Your-favorite-authenticating-Proxy: "Pomerium"
 ```
+:::warning
+
+Neither :-prefixed pseudo-headers nor the Host: header may be modified via this mechanism. Those headers may instead be modified via mechanisms such as prefix_rewrite, regex_rewrite, and host_rewrite.
+
+:::
 
 
 ### Remove Request Headers
