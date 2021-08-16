@@ -30,6 +30,79 @@ services:
         "kind": "Service",
         "metadata": {
           "labels": {
+            "app": "httpdetails"
+          },
+          "name": "httpdetails",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "http",
+              "port": 8024,
+              "targetPort": "http"
+            }
+          ],
+          "selector": {
+            "app": "httpdetails"
+          }
+        }
+      }
+      EOF
+      kubectl apply -f /tmp/manifest.json
+
+      cat <<-EOF | tee /tmp/manifest.json
+      {
+        "apiVersion": "apps/v1",
+        "kind": "Deployment",
+        "metadata": {
+          "name": "httpdetails",
+          "namespace": "default"
+        },
+        "spec": {
+          "replicas": 1,
+          "selector": {
+            "matchLabels": {
+              "app": "httpdetails"
+            }
+          },
+          "template": {
+            "metadata": {
+              "labels": {
+                "app": "httpdetails"
+              }
+            },
+            "spec": {
+              "containers": [
+                {
+                  "args": [
+                    "sh",
+                    "-c",
+                    "echo \"$$CERT\" >/app/fullchain.pem\necho \"$$KEY\" >/app/privkey.pem\nnode ./index.js\n"
+                  ],
+                  "image": "mendhak/http-https-echo:19",
+                  "name": "httpdetails",
+                  "ports": [
+                    {
+                      "containerPort": 8024,
+                      "name": "http"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+      EOF
+      kubectl apply -f /tmp/manifest.json
+
+      cat <<-EOF | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
             "app": "mock-idp"
           },
           "name": "mock-idp",
@@ -245,6 +318,142 @@ services:
                     {
                       "containerPort": 5443,
                       "name": "grpc"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+      EOF
+      kubectl apply -f /tmp/manifest.json
+
+      cat <<-EOF | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
+            "app": "redis"
+          },
+          "name": "redis",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "tcp",
+              "port": 6379,
+              "targetPort": "tcp"
+            }
+          ],
+          "selector": {
+            "app": "redis"
+          }
+        }
+      }
+      EOF
+      kubectl apply -f /tmp/manifest.json
+
+      cat <<-EOF | tee /tmp/manifest.json
+      {
+        "apiVersion": "apps/v1",
+        "kind": "Deployment",
+        "metadata": {
+          "name": "redis",
+          "namespace": "default"
+        },
+        "spec": {
+          "replicas": 1,
+          "selector": {
+            "matchLabels": {
+              "app": "redis"
+            }
+          },
+          "template": {
+            "metadata": {
+              "labels": {
+                "app": "redis"
+              }
+            },
+            "spec": {
+              "containers": [
+                {
+                  "image": "redis:6.2.5-alpine",
+                  "name": "redis",
+                  "ports": [
+                    {
+                      "containerPort": 6379,
+                      "name": "tcp"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+      EOF
+      kubectl apply -f /tmp/manifest.json
+
+      cat <<-EOF | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
+            "app": "verify"
+          },
+          "name": "verify",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "http",
+              "port": 80,
+              "targetPort": "http"
+            }
+          ],
+          "selector": {
+            "app": "verify"
+          }
+        }
+      }
+      EOF
+      kubectl apply -f /tmp/manifest.json
+
+      cat <<-EOF | tee /tmp/manifest.json
+      {
+        "apiVersion": "apps/v1",
+        "kind": "Deployment",
+        "metadata": {
+          "name": "verify",
+          "namespace": "default"
+        },
+        "spec": {
+          "replicas": 1,
+          "selector": {
+            "matchLabels": {
+              "app": "verify"
+            }
+          },
+          "template": {
+            "metadata": {
+              "labels": {
+                "app": "verify"
+              }
+            },
+            "spec": {
+              "containers": [
+                {
+                  "image": "pomerium/verify:${VERIFY_TAG:-latest}",
+                  "name": "verify",
+                  "ports": [
+                    {
+                      "containerPort": 80,
+                      "name": "http"
                     }
                   ]
                 }

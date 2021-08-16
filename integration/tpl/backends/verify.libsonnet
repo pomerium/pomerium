@@ -1,8 +1,11 @@
 function() {
+  local name = 'verify',
+  local image = 'pomerium/verify:${VERIFY_TAG:-latest}',
+
   compose: {
     services: {
       verify: {
-        image: 'pomerium/verify:${VERIFY_TAG:-latest}',
+        image: image,
         depends_on: {
           verify_init: {
             condition: 'service_completed_successfully',
@@ -34,4 +37,47 @@ function() {
       verify_config: {},
     },
   },
+  kubernetes: [
+    {
+      apiVersion: 'v1',
+      kind: 'Service',
+      metadata: {
+        namespace: 'default',
+        name: name,
+        labels: { app: name },
+      },
+      spec: {
+        selector: { app: name },
+        ports: [
+          { name: 'http', port: 80, targetPort: 'http' },
+        ],
+      },
+    },
+    {
+      apiVersion: 'apps/v1',
+      kind: 'Deployment',
+      metadata: {
+        namespace: 'default',
+        name: name,
+      },
+      spec: {
+        replicas: 1,
+        selector: { matchLabels: { app: name } },
+        template: {
+          metadata: {
+            labels: { app: name },
+          },
+          spec: {
+            containers: [{
+              name: name,
+              image: image,
+              ports: [
+                { name: 'http', containerPort: 80 },
+              ],
+            }],
+          },
+        },
+      },
+    },
+  ],
 }
