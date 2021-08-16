@@ -95,9 +95,9 @@ function(idp, manifests) {
           ||| + std.join('\n', std.map(
             function(manifest)
               |||
-                cat <<-EOF | tee /tmp/manifest.json
+                cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
                 %s
-                EOF
+                END_OF_MANIFEST
                 kubectl apply -f /tmp/manifest.json
               ||| % std.manifestJsonEx(manifest, '  '),
             manifests

@@ -44,14 +44,14 @@ function(idp, dns_suffix='') {
     },
     // tls_skip_verify
     {
-      from: 'http://httpdetails.localhost.pomerium.io',
+      from: 'https://httpdetails.localhost.pomerium.io',
       to: 'https://trusted-httpdetails' + dns_suffix + ':8443',
       path: '/tls-skip-verify-enabled',
       tls_skip_verify: true,
       allow_public_unauthenticated_access: true,
     },
     {
-      from: 'http://httpdetails.localhost.pomerium.io',
+      from: 'https://httpdetails.localhost.pomerium.io',
       to: 'https://trusted-httpdetails' + dns_suffix + ':8443',
       path: '/tls-skip-verify-disabled',
       tls_skip_verify: false,
@@ -59,21 +59,21 @@ function(idp, dns_suffix='') {
     },
     // tls_server_name
     {
-      from: 'http://httpdetails.localhost.pomerium.io',
+      from: 'https://httpdetails.localhost.pomerium.io',
       to: 'https://wrongly-named-httpdetails' + dns_suffix + ':8443',
       path: '/tls-server-name-enabled',
       tls_server_name: 'httpdetails.localhost.notpomerium.io',
       allow_public_unauthenticated_access: true,
     },
     {
-      from: 'http://httpdetails.localhost.pomerium.io',
+      from: 'https://httpdetails.localhost.pomerium.io',
       to: 'https://wrongly-named-httpdetails' + dns_suffix + ':8443',
       path: '/tls-server-name-disabled',
       allow_public_unauthenticated_access: true,
     },
     // tls_custom_certificate_authority
     {
-      from: 'http://httpdetails.localhost.pomerium.io',
+      from: 'https://httpdetails.localhost.pomerium.io',
       to: 'https://untrusted-httpdetails' + dns_suffix + ':8443',
       path: '/tls-custom-ca-enabled',
       tls_custom_ca: std.base64(importstr '../files/untrusted-ca.pem'),
@@ -81,7 +81,7 @@ function(idp, dns_suffix='') {
       allow_public_unauthenticated_access: true,
     },
     {
-      from: 'http://httpdetails.localhost.pomerium.io',
+      from: 'https://httpdetails.localhost.pomerium.io',
       to: 'https://untrusted-httpdetails' + dns_suffix + ':8443',
       path: '/tls-custom-ca-disabled',
       allow_public_unauthenticated_access: true,

@@ -16,74 +16,78 @@ local variations = [
   },
 ];
 
+local command = function(variation) [
+  'sh',
+  '-c',
+  |||
+    cat <<-END_OF_HTTPDETAILS | tee /app/fullchain.pem
+    %s
+    END_OF_HTTPDETAILS
+    cat <<-END_OF_HTTPDETAILS | tee /app/privkey.pem
+    %s
+    END_OF_HTTPDETAILS
+    node ./index.js
+  ||| % [variation.cert, variation.key],
+];
+
 function() {
-  local name = 'httpdetails',
+  local suffix = 'httpdetails',
   local image = 'mendhak/http-https-echo:19',
-  local command = [
-    'sh',
-    '-c',
-    |||
-      echo "$$CERT" >/app/fullchain.pem
-      echo "$$KEY" >/app/privkey.pem
-      node ./index.js
-    |||,
-  ],
 
   compose: {
     services: {
-      [variation.name + '-' + name]: {
+      [variation.name + '-' + suffix]: {
         image: image,
-        command: command,
-        environment: {
-          CERT: variation.cert,
-          KEY: variation.key,
-        },
+        command: command(variation),
       }
       for variation in variations
     },
   },
-  kubernetes: [
-    {
-      apiVersion: 'v1',
-      kind: 'Service',
-      metadata: {
-        namespace: 'default',
-        name: name,
-        labels: { app: name },
-      },
-      spec: {
-        selector: { app: name },
-        ports: [
-          { name: 'http', port: 8024, targetPort: 'http' },
-        ],
-      },
-    },
-    {
-      apiVersion: 'apps/v1',
-      kind: 'Deployment',
-      metadata: {
-        namespace: 'default',
-        name: name,
-      },
-      spec: {
-        replicas: 1,
-        selector: { matchLabels: { app: name } },
-        template: {
+  kubernetes: std.foldl(
+    function(acc, variation)
+      acc + [
+        {
+          apiVersion: 'v1',
+          kind: 'Service',
           metadata: {
-            labels: { app: name },
+            namespace: 'default',
+            name: variation.name + '-' + suffix,
+            labels: { app: variation.name + '-' + suffix },
           },
           spec: {
-            containers: [{
-              name: name,
-              image: image,
-              args: command,
-              ports: [
-                { name: 'http', containerPort: 8024 },
-              ],
-            }],
+            selector: { app: variation.name + '-' + suffix },
+            ports: [
+              { name: 'http', port: 8080, targetPort: 'http' },
+            ],
           },
         },
-      },
-    },
-  ],
+        {
+          apiVersion: 'apps/v1',
+          kind: 'Deployment',
+          metadata: {
+            namespace: 'default',
+            name: variation.name + '-' + suffix,
+          },
+          spec: {
+            replicas: 1,
+            selector: { matchLabels: { app: variation.name + '-' + suffix } },
+            template: {
+              metadata: {
+                labels: { app: variation.name + '-' + suffix },
+              },
+              spec: {
+                containers: [{
+                  name: variation.name + '-' + suffix,
+                  image: image,
+                  args: command(variation),
+                  ports: [
+                    { name: 'http', containerPort: 8080 },
+                  ],
+                }],
+              },
+            },
+          },
+        },
+      ], variations, []
+  ),
 }
