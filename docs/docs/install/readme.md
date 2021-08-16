@@ -16,19 +16,7 @@ In this quick-start document, we'll create a minimal but complete environment fo
 - A configured [identity provider]
 - [Docker] and [docker-compose]
 - [TLS certificates]
-  - If you don't have a certificate solution and are testing without a fully qualified domain name (**[FQDN]**), you can use the steps below to set up locally trusted certificates with [mkcert].
-
-### Locally Trusted Certificates
-
-!!!include(install-mkcert.md)!!!
-
-The example configuration in this doc uses `*.localhost.pomerium.io` as the domain path for the demo installation. Create a key pair for this domain:
-
-```bash
-mkcert "*.localhost.pomerium.io"
-```
-
-This command creates `_wildcard.localhost.pomerium.io.pem` and `_wildcard.localhost.pomerium.io-key.pem`, which we will use later in the process.
+  - This document assumes that your local Docker environment does not have a fully qualified domain name (**[FQDN]**) routed to it, and that you followed [Self-signed wildcard certificate] to generate a locally trusted key pair. Otherwise, adjust the configurations below to match your certificate solution.
 
 ## Configure
 
@@ -75,3 +63,4 @@ Remember, if you followed all the steps in this doc your Pomerium environment is
 [tls certificates]: ../topics/certificates.md
 [fqdn]: https://en.wikipedia.org/wiki/Fully_qualified_domain_name
 [mkcert]: https://github.com/FiloSottile/mkcert
+[Self-signed wildcard certificate]: /docs/topics/certificates.md##self-signed-wildcard-certificate
