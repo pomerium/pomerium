@@ -1355,7 +1355,7 @@ Set Request Headers allows you to set static values for given request headers. T
     - allow:
         or:
           - email:
-              is: bdd@pomerium.io
+              is: user@example.com
   set_request_headers:
     # works auto-magically!
     # https://verify.corp.example.com/basic-auth/root/hunter42
@@ -1383,7 +1383,7 @@ Remove Request Headers allows you to remove given request headers. This can be u
     - allow:
         or:
           - email:
-              is: bdd@pomerium.io
+              is: user@example.com
   remove_request_headers:
     - X-Email
     - X-Username
