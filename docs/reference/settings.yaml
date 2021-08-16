@@ -1486,7 +1486,7 @@ settings:
               - allow:
                   or:
                     - email:
-                        is: bdd@pomerium.io
+                        is: user@example.com
             set_request_headers:
               # works auto-magically!
               # https://verify.corp.example.com/basic-auth/root/hunter42
@@ -1514,7 +1514,7 @@ settings:
               - allow:
                   or:
                     - email:
-                        is: bdd@pomerium.io
+                        is: user@example.com
             remove_request_headers:
               - X-Email
               - X-Username
