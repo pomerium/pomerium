@@ -120,7 +120,7 @@ Open your Pomerium config file, `/etc/pomerium/config.yaml`.
    ```yaml
      routes:
        - from: https://console.localhost.pomerium.com
-         to: https://pomerium-console.pomerium.svc.cluster.local
+         to: https://localhost:8701
          policy:
            - allow:
                or:
@@ -129,10 +129,19 @@ Open your Pomerium config file, `/etc/pomerium/config.yaml`.
          pass_identity_headers: true
    ```
 
+   The example value for `to:` assumes Pomerium and Pomerium Enterprise are running on the same test environment.
+
 1. If you haven't already, set `signing_key`. See the [reference page](/reference/readme.md#signing-key) for more information.
 
    ```yaml
    signing_key: "ZZZZZZZZZZZZZZ"
+   ```
+
+1. Define the databroker storage type and connection string. The example below assumes a local Redis server:
+
+   ```yaml
+   databroker_storage_type: redis
+   databroker_storage_connection_string: redis://127.0.0.1:6379/0
    ```
 
 ### External Services
