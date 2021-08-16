@@ -35,7 +35,11 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		Scheme: "http",
 		Host:   b.localHTTPAddress,
 	}
-	authzURLs, err := cfg.Options.GetAuthorizeURLs()
+	authorizeURLs, err := cfg.Options.GetAuthorizeURLs()
+	if err != nil {
+		return nil, err
+	}
+	databrokerURLs, err := cfg.Options.GetDataBrokerURLs()
 	if err != nil {
 		return nil, err
 	}
@@ -44,24 +48,35 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	if err != nil {
 		return nil, err
 	}
+
 	controlHTTP, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-control-plane-http", []*url.URL{httpURL}, upstreamProtocolAuto)
 	if err != nil {
 		return nil, err
 	}
-	authZ, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-authorize", authzURLs, upstreamProtocolHTTP2)
+
+	authorizeCluster, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-authorize", authorizeURLs, upstreamProtocolHTTP2)
 	if err != nil {
 		return nil, err
 	}
+	if len(authorizeURLs) > 1 {
+		authorizeCluster.HealthChecks = grpcHealthChecks("pomerium-authorize")
+		authorizeCluster.OutlierDetection = grpcAuthorizeOutlierDetection()
+	}
 
-	if len(authzURLs) > 1 {
-		authZ.HealthChecks = grpcHealthChecks("pomerium-authorize")
-		authZ.OutlierDetection = grpcAuthorizeOutlierDetection()
+	databrokerCluster, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-databroker", databrokerURLs, upstreamProtocolHTTP2)
+	if err != nil {
+		return nil, err
+	}
+	if len(databrokerURLs) > 1 {
+		authorizeCluster.HealthChecks = grpcHealthChecks("pomerium-databroker")
+		authorizeCluster.OutlierDetection = grpcAuthorizeOutlierDetection()
 	}
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
 		controlGRPC,
 		controlHTTP,
-		authZ,
+		authorizeCluster,
+		databrokerCluster,
 	}
 
 	tracingCluster, err := buildTracingCluster(cfg.Options)
@@ -170,16 +185,11 @@ func (b *Builder) buildInternalTransportSocket(
 	if endpoint.Scheme != "https" {
 		return nil, nil
 	}
-	sni := endpoint.Hostname()
-	if options.OverrideCertificateName != "" {
-		sni = options.OverrideCertificateName
-	}
+
 	validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{{
-			MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
-				Exact: sni,
-			},
-		}},
+		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{
+			b.buildSubjectAlternativeNameMatcher(endpoint, options.OverrideCertificateName),
+		},
 	}
 	bs, err := getCombinedCertificateAuthority(options.CA, options.CAFile)
 	if err != nil {
@@ -194,7 +204,7 @@ func (b *Builder) buildInternalTransportSocket(
 				ValidationContext: validationContext,
 			},
 		},
-		Sni: sni,
+		Sni: b.buildSubjectNameIndication(endpoint, options.OverrideCertificateName),
 	}
 	tlsConfig := marshalAny(tlsContext)
 	return &envoy_config_core_v3.TransportSocket{
@@ -279,16 +289,10 @@ func (b *Builder) buildPolicyValidationContext(
 	policy *config.Policy,
 	dst url.URL,
 ) (*envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext, error) {
-	sni := dst.Hostname()
-	if policy.TLSServerName != "" {
-		sni = policy.TLSServerName
-	}
 	validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{{
-			MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
-				Exact: sni,
-			},
-		}},
+		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{
+			b.buildSubjectAlternativeNameMatcher(&dst, policy.TLSServerName),
+		},
 	}
 	if policy.TLSCustomCAFile != "" {
 		validationContext.TrustedCa = b.filemgr.FileDataSource(policy.TLSCustomCAFile)

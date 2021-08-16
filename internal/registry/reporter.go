@@ -39,23 +39,11 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		return
 	}
 
-	urls, err := cfg.Options.GetDataBrokerURLs()
-	if err != nil {
-		log.Error(ctx).Err(err).Msg("invalid databroker urls")
-		return
-	}
-
-	registryConn, err := grpc.GetGRPCClientConn(ctx, "databroker", &grpc.Options{
-		Addrs:                   urls,
-		OverrideCertificateName: cfg.Options.OverrideCertificateName,
-		CA:                      cfg.Options.CA,
-		CAFile:                  cfg.Options.CAFile,
-		RequestTimeout:          cfg.Options.GRPCClientTimeout,
-		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GetGRPCInsecure(),
-		InstallationID:          cfg.Options.InstallationID,
-		ServiceName:             cfg.Options.Services,
-		SignedJWTKey:            sharedKey,
+	registryConn, err := grpc.GetOutboundGRPCClientConn(ctx, &grpc.OutboundOptions{
+		OutboundPort:   cfg.OutboundPort,
+		InstallationID: cfg.Options.InstallationID,
+		ServiceName:    cfg.Options.Services,
+		SignedJWTKey:   sharedKey,
 	})
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("connecting to registry")

@@ -81,29 +81,18 @@ func (srv *Server) storeEnvoyConfigurationEvent(ctx context.Context, evt *events
 }
 
 func (srv *Server) getDataBrokerClient(ctx context.Context) (databrokerpb.DataBrokerServiceClient, error) {
-	options := srv.currentConfig.Load().Options
+	cfg := srv.currentConfig.Load()
 
-	sharedKey, err := options.GetSharedKey()
+	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
 	}
 
-	urls, err := options.GetDataBrokerURLs()
-	if err != nil {
-		return nil, err
-	}
-
-	cc, err := grpc.GetGRPCClientConn(ctx, "databroker", &grpc.Options{
-		Addrs:                   urls,
-		OverrideCertificateName: options.OverrideCertificateName,
-		CA:                      options.CA,
-		CAFile:                  options.CAFile,
-		RequestTimeout:          options.GRPCClientTimeout,
-		ClientDNSRoundRobin:     options.GRPCClientDNSRoundRobin,
-		WithInsecure:            options.GetGRPCInsecure(),
-		InstallationID:          options.InstallationID,
-		ServiceName:             options.Services,
-		SignedJWTKey:            sharedKey,
+	cc, err := grpc.GetOutboundGRPCClientConn(context.Background(), &grpc.OutboundOptions{
+		OutboundPort:   cfg.OutboundPort,
+		InstallationID: cfg.Options.InstallationID,
+		ServiceName:    cfg.Options.Services,
+		SignedJWTKey:   sharedKey,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("controlplane: error creating databroker connection: %w", err)

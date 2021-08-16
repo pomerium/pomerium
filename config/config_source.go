@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/netutil"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 
@@ -97,7 +98,9 @@ type FileOrEnvironmentSource struct {
 }
 
 // NewFileOrEnvironmentSource creates a new FileOrEnvironmentSource.
-func NewFileOrEnvironmentSource(configFile, envoyVersion string) (*FileOrEnvironmentSource, error) {
+func NewFileOrEnvironmentSource(
+	configFile, envoyVersion string,
+) (*FileOrEnvironmentSource, error) {
 	ctx := log.WithContext(context.TODO(), func(c zerolog.Context) zerolog.Context {
 		return c.Str("config_file_source", configFile)
 	})
@@ -107,9 +110,21 @@ func NewFileOrEnvironmentSource(configFile, envoyVersion string) (*FileOrEnviron
 		return nil, err
 	}
 
+	ports, err := netutil.AllocatePorts(3)
+	if err != nil {
+		return nil, err
+	}
+	grpcPort := ports[0]
+	httpPort := ports[1]
+	outboundPort := ports[2]
+
 	cfg := &Config{
 		Options:      options,
 		EnvoyVersion: envoyVersion,
+
+		GRPCPort:     grpcPort,
+		HTTPPort:     httpPort,
+		OutboundPort: outboundPort,
 	}
 	metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 

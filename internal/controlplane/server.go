@@ -68,20 +68,20 @@ type Server struct {
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
-func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) {
+func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager) (*Server, error) {
 	srv := &Server{
 		metricsMgr:               metricsMgr,
 		reproxy:                  reproxy.New(),
 		envoyConfigurationEvents: make(chan *events.EnvoyConfigurationEvent, 10),
 	}
 	srv.currentConfig.Store(versionedConfig{
-		Config: &config.Config{Options: &config.Options{}},
+		Config: cfg,
 	})
 
 	var err error
 
 	// setup gRPC
-	srv.GRPCListener, err = net.Listen("tcp4", "127.0.0.1:0")
+	srv.GRPCListener, err = net.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.GRPCPort))
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 		),
 	)
 	srv.GRPCServer = grpc.NewServer(
-		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(name)),
+		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(cfg.Options.Services)),
 		grpc.ChainUnaryInterceptor(requestid.UnaryServerInterceptor(), ui),
 		grpc.ChainStreamInterceptor(requestid.StreamServerInterceptor(), si),
 	)
@@ -102,7 +102,7 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 	grpc_health_v1.RegisterHealthServer(srv.GRPCServer, pom_grpc.NewHealthCheckServer())
 
 	// setup HTTP
-	srv.HTTPListener, err = net.Listen("tcp4", "127.0.0.1:0")
+	srv.HTTPListener, err = net.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.HTTPPort))
 	if err != nil {
 		_ = srv.GRPCListener.Close()
 		return nil, err
@@ -121,7 +121,7 @@ func NewServer(name string, metricsMgr *config.MetricsManager) (*Server, error) 
 	)
 
 	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
-		return c.Str("server_name", name)
+		return c.Str("server_name", cfg.Options.Services)
 	})
 
 	res, err := srv.buildDiscoveryResources(ctx)
