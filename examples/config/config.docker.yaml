@@ -24,7 +24,7 @@ idp_client_secret: REPLACE_ME
 # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
 cookie_secret: REPLACEMEWITHARANDOMKEY
 
-# https://pomerium.io/reference/#routes
+# https://pomerium.com/reference/#routes
 routes:
   - from: https://verify.localhost.pomerium.io
     to: http://verify
