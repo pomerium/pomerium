@@ -9,6 +9,6 @@ ls "$(mkcert -CAROOT)"
 rootCA-key.pem  rootCA.pem
 ```
 
-The output of `mkcert -install` may vary depending on you operating system.
+The output of `mkcert -install` may vary depending on your operating system.
 
 [installing mkcert]: https://github.com/FiloSottile/mkcert#installation
