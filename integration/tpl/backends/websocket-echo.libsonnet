@@ -5,7 +5,7 @@ function() {
 
   compose: {
     services: {
-      name: {
+      [name]: {
         image: image,
         command: command,
       },

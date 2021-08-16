@@ -281,7 +281,7 @@ services:
                     },
                     {
                       "name": "IDP_PROVIDER_URL",
-                      "value": "https://mock-idp.localhost.pomerium.io/"
+                      "value": "https://mock-idp.localhost.pomerium.io"
                     },
                     {
                       "name": "LOG_LEVEL",
