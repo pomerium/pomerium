@@ -27,7 +27,7 @@ cookie_secret: REPLACEMEWITHARANDOMKEY
 # https://pomerium.io/reference/#routes
 routes:
   - from: https://verify.localhost.pomerium.io
-    to: https://verify.pomerium.com
+    to: http://verify
     policy:
       - allow:
           or:
