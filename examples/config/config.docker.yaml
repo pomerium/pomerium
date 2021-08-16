@@ -32,5 +32,5 @@ routes:
       - allow:
           or:
             - email:
-                is: bdd@pomerium.io
+                is: user@example.com
     pass_identity_headers: true
