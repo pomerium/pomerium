@@ -1364,7 +1364,7 @@ Set Request Headers allows you to set static values for given request headers. T
 ```
 :::warning
 
-Neither :-prefixed pseudo-headers nor the Host: header may be modified via this mechanism. Those headers may instead be modified via mechanisms such as prefix_rewrite, regex_rewrite, and host_rewrite.
+Neither `:-prefixed` pseudo-headers nor the `Host:` header may be modified via this mechanism. Those headers may instead be modified via mechanisms such as `prefix_rewrite`, `regex_rewrite`, and `host_rewrite`.
 
 :::
 
