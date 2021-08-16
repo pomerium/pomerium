@@ -205,7 +205,6 @@ Congratulations on installing Pomerium to your Kubernetes cluster! If you're ins
 [Install helm]: https://helm.sh/docs/using_helm/
 [identity provider]: ../identity-providers/readme.md
 [Install Pomerium Enterprise in Helm]: /enterprise/install/helm.md
-[installing mkcert]: https://github.com/FiloSottile/mkcert#installation
 [Install kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [Kubernetes]: https://kubernetes.io
 [mkcert]: https://github.com/FiloSottile/mkcert
