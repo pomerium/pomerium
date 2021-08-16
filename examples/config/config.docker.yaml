@@ -22,7 +22,7 @@ idp_client_id: REPLACE_ME
 idp_client_secret: REPLACE_ME
 
 # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
-cookie_secret: REPLACEMEWITHARANDOMKEY
+cookie_secret: V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=
 
 # https://pomerium.com/reference/#routes
 routes:
