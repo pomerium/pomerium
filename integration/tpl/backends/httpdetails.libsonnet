@@ -58,6 +58,7 @@ function() {
             selector: { app: variation.name + '-' + suffix },
             ports: [
               { name: 'http', port: 8080, targetPort: 'http' },
+              { name: 'https', port: 8443, targetPort: 'https' },
             ],
           },
         },
@@ -82,6 +83,7 @@ function() {
                   args: command(variation),
                   ports: [
                     { name: 'http', containerPort: 8080 },
+                    { name: 'https', containerPort: 8443 },
                   ],
                 }],
               },

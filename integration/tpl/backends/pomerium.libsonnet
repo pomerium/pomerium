@@ -130,6 +130,28 @@ function(idp, dns_suffix='') {
       allow_public_unauthenticated_access: true,
       preserve_host_header: false,
     },
+    // authorization policy
+    {
+      from: 'https://restricted-httpdetails.localhost.pomerium.io',
+      to: 'http://trusted-httpdetails' + dns_suffix + ':8080',
+      allow_any_authenticated_user: true,
+      pass_identity_headers: true,
+    },
+    {
+      from: 'https://httpdetails.localhost.pomerium.io',
+      prefix: '/by-domain',
+      to: 'http://trusted-httpdetails' + dns_suffix + ':8080',
+      allowed_domains: ['dogs.test'],
+      pass_identity_headers: true,
+    },
+    {
+      from: 'https://httpdetails.localhost.pomerium.io',
+      prefix: '/by-user',
+      to: 'http://trusted-httpdetails' + dns_suffix + ':8080',
+      allowed_users: ['user1@dogs.test'],
+      pass_identity_headers: true,
+    },
+    // catch-all
     {
       from: 'https://httpdetails.localhost.pomerium.io',
       to: 'http://trusted-httpdetails' + dns_suffix + ':8080',
@@ -138,12 +160,6 @@ function(idp, dns_suffix='') {
       set_request_headers: {
         'X-Custom-Request-Header': 'custom-request-header-value',
       },
-    },
-    {
-      from: 'https://restricted-httpdetails.localhost.pomerium.io',
-      to: 'http://trusted-httpdetails' + dns_suffix + ':8080',
-      allow_any_authenticated_user: true,
-      pass_identity_headers: true,
     },
     // websockets
     {

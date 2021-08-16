@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/publicsuffix"
 )
 
 func TestMain(m *testing.M) {
@@ -30,6 +32,11 @@ func TestMain(m *testing.M) {
 }
 
 func getClient() *http.Client {
+	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	if err != nil {
+		panic(err)
+	}
+
 	rootCAs, err := x509.SystemCertPool()
 	if err != nil {
 		panic(err)
@@ -51,6 +58,7 @@ func getClient() *http.Client {
 				RootCAs: rootCAs,
 			},
 		},
+		Jar: jar,
 	}
 }
 
@@ -95,4 +103,12 @@ func waitForHealthy(ctx context.Context, host string) error {
 		case <-ticker.C:
 		}
 	}
+}
+
+func mustParseURL(str string) *url.URL {
+	u, err := url.Parse(str)
+	if err != nil {
+		panic(err)
+	}
+	return u
 }
