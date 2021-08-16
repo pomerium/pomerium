@@ -27,6 +27,11 @@ module.exports = {
   ],
   markdown: {
     externalLinkSymbol: false,
+    extendMarkdown:(md) => {
+      md.use(require('markdown-it-include'), {
+        root: './docs/partials/'
+      })
+    },
   },
   themeConfig: {
     home: false,
