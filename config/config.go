@@ -12,8 +12,11 @@ type Config struct {
 	AutoCertificates []tls.Certificate
 	EnvoyVersion     string
 
-	GRPCPort     string
-	HTTPPort     string
+	// GRPCPort is the port the gRPC server is running on.
+	GRPCPort string
+	// HTTPPort is the port the HTTP server is running on.
+	HTTPPort string
+	// OutboundPort is the port the outbound gRPC listener is running on.
 	OutboundPort string
 }
 
