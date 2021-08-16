@@ -448,34 +448,6 @@ func parseTo(raw interface{}) ([]WeightedURL, error) {
 	return ParseWeightedUrls(slc...)
 }
 
-func weightedStrings(src StringSlice) (endpoints StringSlice, weights []uint32, err error) {
-	weights = make([]uint32, len(src))
-	endpoints = make([]string, len(src))
-
-	noWeight := false
-	hasWeight := false
-	for i, str := range src {
-		endpoints[i], weights[i], err = weightedString(str)
-		if err != nil {
-			return nil, nil, err
-		}
-		if weights[i] == 0 {
-			noWeight = true
-		} else {
-			hasWeight = true
-		}
-	}
-
-	if noWeight == hasWeight {
-		return nil, nil, errEndpointWeightsSpec
-	}
-
-	if noWeight {
-		return endpoints, nil, nil
-	}
-	return endpoints, weights, nil
-}
-
 // parses URL followed by weighted
 func weightedString(str string) (string, uint32, error) {
 	i := strings.IndexRune(str, ',')
