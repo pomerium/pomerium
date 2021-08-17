@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -11,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -66,14 +64,14 @@ func getClient() *http.Client {
 
 func waitForHealthy(ctx context.Context) error {
 	client := getClient()
-	check := func() error {
+	check := func(subdomain string) error {
 		reqCtx, clearTimeout := context.WithTimeout(ctx, time.Second)
 		defer clearTimeout()
 
 		req, err := http.NewRequestWithContext(reqCtx, "GET", (&url.URL{
 			Scheme: "https",
-			Host:   "envoy.localhost.pomerium.io",
-			Path:   "/clusters",
+			Host:   subdomain + ".localhost.pomerium.io",
+			Path:   "/",
 		}).String(), nil)
 		if err != nil {
 			return err
@@ -85,20 +83,8 @@ func waitForHealthy(ctx context.Context) error {
 		}
 		defer res.Body.Close()
 
-		var healthy, unhealthy int
-		scanner := bufio.NewScanner(res.Body)
-		for scanner.Scan() {
-			if strings.Contains(scanner.Text(), "::health_flags::") {
-				if strings.Contains(scanner.Text(), "::healthy") {
-					healthy++
-				} else {
-					unhealthy++
-				}
-			}
-		}
-
-		if healthy == 0 || unhealthy > 0 {
-			return fmt.Errorf("healthy=%d unhealthy=%d", healthy, unhealthy)
+		if res.StatusCode == http.StatusServiceUnavailable {
+			return fmt.Errorf("%s unavailable: %s", subdomain, res.Status)
 		}
 
 		return nil
@@ -107,8 +93,16 @@ func waitForHealthy(ctx context.Context) error {
 	ticker := time.NewTicker(time.Second * 3)
 	defer ticker.Stop()
 
+	subdomains := []string{"authenticate", "httpdetails", "enabled-ws-echo", "verify", "mock-idp"}
+
 	for {
-		err := check()
+		var err error
+		for _, subdomain := range subdomains {
+			err = check(subdomain)
+			if err != nil {
+				break
+			}
+		}
 		if err == nil {
 			return nil
 		}
