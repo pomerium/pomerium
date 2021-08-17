@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 )
 
@@ -68,11 +69,11 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 		Scopes:       o.Scopes,
 		RedirectURL:  o.RedirectURL.String(),
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  o.ProviderURL + authURL,
-			TokenURL: o.ProviderURL + tokenURL,
+			AuthURL:  urlutil.Join(o.ProviderURL, authURL),
+			TokenURL: urlutil.Join(o.ProviderURL, tokenURL),
 		},
 	}
-	p.userEndpoint = githubAPIURL + userPath
+	p.userEndpoint = urlutil.Join(githubAPIURL, userPath)
 	return &p, nil
 }
 
@@ -133,7 +134,7 @@ func (p *Provider) userEmail(ctx context.Context, t *oauth2.Token, v interface{}
 		Visibility string `json:"visibility"`
 	}
 	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", t.AccessToken)}
-	emailURL := githubAPIURL + emailPath
+	emailURL := urlutil.Join(githubAPIURL, emailPath)
 	err := httputil.Do(ctx, http.MethodGet, emailURL, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return err

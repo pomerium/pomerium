@@ -183,7 +183,7 @@ function(idp, dns_suffix='') {
     DATABROKER_STORAGE_TYPE: 'redis',
     DATABROKER_STORAGE_CONNECTION_STRING: 'redis://redis:6379',
     IDP_PROVIDER: idp,
-    IDP_PROVIDER_URL: 'https://mock-idp.localhost.pomerium.io',
+    IDP_PROVIDER_URL: 'https://mock-idp.localhost.pomerium.io/',
     IDP_CLIENT_ID: 'CLIENT_ID',
     IDP_CLIENT_SECRET: 'CLIENT_SECRET',
     LOG_LEVEL: 'info',

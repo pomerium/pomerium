@@ -7,7 +7,7 @@ function(idp) {
     '--port',
     '8024',
     '--root-url',
-    'https://mock-idp.localhost.pomerium.io',
+    'https://mock-idp.localhost.pomerium.io/',
   ],
 
   compose: {

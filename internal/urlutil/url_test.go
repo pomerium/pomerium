@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_StripPort(t *testing.T) {
@@ -157,4 +158,11 @@ func TestGetDomainsForURL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestJoin(t *testing.T) {
+	assert.Equal(t, "/x/y/z/", Join("/x", "y/z/"))
+	assert.Equal(t, "/x/y/z/", Join("/x/", "y/z/"))
+	assert.Equal(t, "/x/y/z/", Join("/x", "/y/z/"))
+	assert.Equal(t, "/x/y/z/", Join("/x/", "/y/z/"))
 }
