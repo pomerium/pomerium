@@ -50,15 +50,31 @@ See the [Autocert] and [Autocert Directory] settings for more details.
 
 In production, we'd use a public certificate authority such as LetsEncrypt. But for a local proof of concept or for development, we can use [mkcert](https://mkcert.dev/) to make locally trusted development certificates with any names you'd like. The easiest, is probably to use `*.localhost.pomerium.io` which we've already pre-configured to point back to localhost.
 
-```bash
-# Install mkcert.
-go get -u filippo.io/mkcert
-# Bootstrap mkcert's root certificate into your operating system's trust store.
-mkcert -install
-# Create your wildcard domain.
-# *.localhost.pomerium.io is helper domain we've hard-coded to route to localhost
-mkcert "*.localhost.pomerium.io"
-```
+1. Install mkcert.
+
+   :::: tabs
+   ::: tab Go
+   ```bash
+   go get -u filippo.io/mkcert
+   ```
+   :::
+   ::: tab Homebrew
+   ```bash
+   brew install mkcert
+   ```
+   ::::
+
+1. Bootstrap mkcert's root certificate into your operating system's trust store.
+
+   ```bash
+   mkcert -install
+   ```
+
+1. Create your wildcard domain. `*.localhost.pomerium.io` is helper domain we've hard-coded to route to localhost:
+
+   ```bash
+   mkcert "*.localhost.pomerium.io"
+   ```
 
 ### Manual DNS Let's Encrypt wildcard certificate
 
