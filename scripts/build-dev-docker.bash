@@ -24,4 +24,6 @@ ENTRYPOINT [ "/bin/pomerium" ]
 CMD ["-config","/pomerium/config.yaml"]
 EOF
   docker build --tag=pomerium/pomerium:dev .
+  # save the image so we can load it from docker-compose
+  docker save --output=/tmp/pomerium-dev.tar pomerium/pomerium:dev
 )

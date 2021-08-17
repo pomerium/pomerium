@@ -243,6 +243,7 @@ function(idp, dns_suffix='') {
             containers: [{
               name: name,
               image: image,
+              imagePullPolicy: 'IfNotPresent',
               ports: [
                 { name: 'http', containerPort: 80 },
                 { name: 'https', containerPort: 443 },
