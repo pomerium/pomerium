@@ -33,18 +33,7 @@ This setup uses [mkcert] to generate certificates that are trusted by your local
 
 ### Install mkcert
 
-After [installing mkcert], confirm the presence and names of your local CA files:
-
-```bash
-mkcert -install
-The local CA is already installed in the system trust store! 👍
-The local CA is already installed in the Firefox and/or Chrome/Chromium trust store! 👍
-
-ls $(mkcert -CAROOT)
-rootCA-key.pem  rootCA.pem
-```
-
-The output of `mkcert -install` may vary depending on you operating system.
+!!!include(install-mkcert.md)!!!
 
 ## Install and Configure cert-manager
 
@@ -216,7 +205,6 @@ Congratulations on installing Pomerium to your Kubernetes cluster! If you're ins
 [Install helm]: https://helm.sh/docs/using_helm/
 [identity provider]: ../identity-providers/readme.md
 [Install Pomerium Enterprise in Helm]: /enterprise/install/helm.md
-[installing mkcert]: https://github.com/FiloSottile/mkcert#installation
 [Install kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [Kubernetes]: https://kubernetes.io
 [mkcert]: https://github.com/FiloSottile/mkcert

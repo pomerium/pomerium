@@ -14,6 +14,7 @@
     "console:buildref": "node scripts/generate-console-pages.js"
   },
   "dependencies": {
-    "esm": "3.2.25"
+    "esm": "3.2.25",
+    "markdown-it-include": "^2.0.0"
   }
 }
