@@ -83,7 +83,7 @@ func waitForHealthy(ctx context.Context) error {
 		}
 		defer res.Body.Close()
 
-		if res.StatusCode == http.StatusServiceUnavailable {
+		if res.StatusCode/100 == 5 {
 			return fmt.Errorf("%s unavailable: %s", subdomain, res.Status)
 		}
 
@@ -93,7 +93,13 @@ func waitForHealthy(ctx context.Context) error {
 	ticker := time.NewTicker(time.Second * 3)
 	defer ticker.Stop()
 
-	subdomains := []string{"authenticate", "httpdetails", "enabled-ws-echo", "verify", "mock-idp"}
+	subdomains := []string{
+		"authenticate",
+		"httpdetails",
+		"enabled-ws-echo",
+		"verify",
+		"mock-idp",
+	}
 
 	for {
 		var err error
