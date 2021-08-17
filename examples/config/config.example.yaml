@@ -57,7 +57,7 @@ authenticate_service_url: https://authenticate.localhost.pomerium.io
 
 # IF GSUITE and you want to get user groups you will need to set a service account
 # see identity provider docs for gooogle for more info :
-# idp_service_account: $(echo '{"impersonate_user": "bdd@pomerium.io"}' | base64)
+# idp_service_account: $(echo '{"impersonate_user": "user@example.com"}' | base64)
 
 # OKTA
 # idp_provider: "okta"
@@ -98,7 +98,7 @@ routes:
       - allow:
           or:
             - email:
-                is: bdd@pomerium.io
+                is: user@example.com
             - groups:
                 has: "admins"
             - groups:
