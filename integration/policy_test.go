@@ -195,3 +195,32 @@ func TestWebsocket(t *testing.T) {
 		assert.NoError(t, err, "expected no error when reading json from websocket")
 	})
 }
+
+func TestGoogleCloudRun(t *testing.T) {
+	ctx := context.Background()
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://cloudrun.localhost.pomerium.io/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := getClient().Do(req)
+	if !assert.NoError(t, err, "unexpected http error") {
+		return
+	}
+	defer res.Body.Close()
+
+	var result struct {
+		Headers map[string]string `json:"headers"`
+	}
+	err = json.NewDecoder(res.Body).Decode(&result)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	if result.Headers["x-idp"] == "google" {
+		assert.NotEmpty(t, result.Headers["authorization"], "expected authorization header when cloudrun is enabled")
+	}
+}

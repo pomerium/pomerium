@@ -173,6 +173,17 @@ function(idp, dns_suffix='') {
       to: 'http://websocket-echo' + dns_suffix + ':80',
       allow_public_unauthenticated_access: true,
     },
+    // cloudrun
+    {
+      from: 'https://cloudrun.localhost.pomerium.io',
+      to: 'http://trusted-httpdetails' + dns_suffix + ':8080',
+      allow_public_unauthenticated_access: true,
+      pass_identity_headers: true,
+      enable_google_cloud_serverless_authentication: true,
+      set_request_headers: {
+        'x-idp': idp,
+      },
+    },
   ],
   local environment = {
     AUTHENTICATE_SERVICE_URL: 'https://authenticate.localhost.pomerium.io',
@@ -182,6 +193,18 @@ function(idp, dns_suffix='') {
     COOKIE_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
     DATABROKER_STORAGE_TYPE: 'redis',
     DATABROKER_STORAGE_CONNECTION_STRING: 'redis://redis:6379',
+    GOOGLE_CLOUD_SERVERLESS_AUTHENTICATION_SERVICE_ACCOUNT: std.base64(std.manifestJsonEx({
+      type: 'service_account',
+      project_id: 'pomerium-redacted',
+      private_key_id: 'e07f7c93870c7e03f883560ecd8fd0f4d27b0081',
+      private_key: importstr '../files/trusted-key.pem',
+      client_email: 'redacted@pomerium-redacted.iam.gserviceaccount.com',
+      client_id: '101215990458000334387',
+      auth_uri: 'https://mock-idp.localhost.pomerium.io/',
+      token_uri: 'https://mock-idp.localhost.pomerium.io/token',
+      auth_provider_x509_cert_url: 'https://mock-idp.localhost.pomerium.io/',
+      client_x509_cert_url: 'https://mock-idp.localhost.pomerium.io/',
+    }, '')),
     IDP_PROVIDER: idp,
     IDP_PROVIDER_URL: 'https://mock-idp.localhost.pomerium.io/',
     IDP_CLIENT_ID: 'CLIENT_ID',
