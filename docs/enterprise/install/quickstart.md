@@ -131,7 +131,7 @@ Open your Pomerium config file, `/etc/pomerium/config.yaml`.
 
    The example value for `to:` assumes Pomerium and Pomerium Enterprise are running on the same test environment.
 
-1. If you haven't already, set `signing_key`. See the [reference page](/reference/readme.md#signing-key) for more information.
+1. If you haven't already, set `signing_key`. See the [reference page](/reference/readme.md#signing-key) for more information. The same signing key must be used in both Pomerium Core and Enterprise.
 
    ```yaml
    signing_key: "ZZZZZZZZZZZZZZ"
