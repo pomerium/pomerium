@@ -157,23 +157,12 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 }
 
 func (src *ConfigSource) runUpdater(cfg *config.Config) {
-	urls, err := cfg.Options.GetDataBrokerURLs()
-	if err != nil {
-		log.Fatal().Err(err).Send()
-		return
-	}
-
 	sharedKey, _ := cfg.Options.GetSharedKey()
-	connectionOptions := &grpc.Options{
-		Addrs:                   urls,
-		OverrideCertificateName: cfg.Options.OverrideCertificateName,
-		CA:                      cfg.Options.CA,
-		CAFile:                  cfg.Options.CAFile,
-		RequestTimeout:          cfg.Options.GRPCClientTimeout,
-		ClientDNSRoundRobin:     cfg.Options.GRPCClientDNSRoundRobin,
-		WithInsecure:            cfg.Options.GetGRPCInsecure(),
-		ServiceName:             cfg.Options.Services,
-		SignedJWTKey:            sharedKey,
+	connectionOptions := &grpc.OutboundOptions{
+		OutboundPort:   cfg.OutboundPort,
+		InstallationID: cfg.Options.InstallationID,
+		ServiceName:    cfg.Options.Services,
+		SignedJWTKey:   sharedKey,
 	}
 	h, err := hashutil.Hash(connectionOptions)
 	if err != nil {
@@ -193,7 +182,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	ctx := context.Background()
 	ctx, src.cancel = context.WithCancel(ctx)
 
-	cc, err := grpc.NewGRPCClientConn(ctx, connectionOptions)
+	cc, err := grpc.GetOutboundGRPCClientConn(ctx, connectionOptions)
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("databroker: failed to create gRPC connection to data broker")
 		return

@@ -75,7 +75,7 @@ config:
         - allow:
             or:
               - email:
-                  is: bdd@pomerium.io
+                  is: user@example.com
 
 authenticate:
   idp:

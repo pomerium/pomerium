@@ -22,7 +22,7 @@
 - from: https://weirdlyssl.localhost.pomerium.io
   to: http://neverssl.com
   allowed_users:
-    - bdd@pomerium.io
+    - user@example.com
   allowed_groups:
     - admins
     - developers

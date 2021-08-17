@@ -5,7 +5,6 @@ package pomerium
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -66,7 +65,7 @@ func Run(ctx context.Context, configFile string) error {
 	defer traceMgr.Close()
 
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(src.GetConfig().Options.Services, metricsMgr)
+	controlPlane, err := controlplane.NewServer(src.GetConfig(), metricsMgr)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
@@ -83,14 +82,14 @@ func Run(ctx context.Context, configFile string) error {
 		return fmt.Errorf("applying config: %w", err)
 	}
 
-	_, grpcPort, _ := net.SplitHostPort(controlPlane.GRPCListener.Addr().String())
-	_, httpPort, _ := net.SplitHostPort(controlPlane.HTTPListener.Addr().String())
-
-	log.Info(ctx).Str("port", grpcPort).Msg("gRPC server started")
-	log.Info(ctx).Str("port", httpPort).Msg("HTTP server started")
+	log.Info(ctx).
+		Str("grpc-port", src.GetConfig().GRPCPort).
+		Str("http-port", src.GetConfig().HTTPPort).
+		Str("outbound-port", src.GetConfig().OutboundPort).
+		Msg("server started")
 
 	// create envoy server
-	envoyServer, err := envoy.NewServer(ctx, src, grpcPort, httpPort, controlPlane.Builder)
+	envoyServer, err := envoy.NewServer(ctx, src, controlPlane.Builder)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
 	}
@@ -143,13 +142,6 @@ func Run(ctx context.Context, configFile string) error {
 		eg.Go(func() error {
 			return authorizeServer.Run(ctx)
 		})
-		// in non-all-in-one mode we will wait for the initial sync to complete before starting
-		// the control plane
-		if dataBrokerServer == nil {
-			if err := authorizeServer.WaitForInitialSync(ctx); err != nil {
-				return err
-			}
-		}
 	}
 	eg.Go(func() error {
 		return controlPlane.Run(ctx)

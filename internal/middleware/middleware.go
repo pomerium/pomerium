@@ -4,8 +4,6 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"net/http"
-	"strings"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -46,36 +44,6 @@ func ValidateSignature(sharedKey []byte) func(next http.Handler) http.Handler {
 // by a given shared key.
 func ValidateRequestURL(r *http.Request, key []byte) error {
 	return urlutil.NewSignedURL(key, urlutil.GetAbsoluteURL(r)).Validate()
-}
-
-// StripCookie strips the cookie from the downstram request.
-func StripCookie(cookieName string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.StripCookie")
-			defer span.End()
-
-			headers := make([]string, 0, len(r.Cookies()))
-			for _, cookie := range r.Cookies() {
-				if !strings.HasPrefix(cookie.Name, cookieName) {
-					headers = append(headers, cookie.String())
-				}
-			}
-			r.Header.Set("Cookie", strings.Join(headers, ";"))
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
-
-// TimeoutHandlerFunc wraps http.TimeoutHandler
-func TimeoutHandlerFunc(timeout time.Duration, timeoutError string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.TimeoutHandlerFunc")
-			defer span.End()
-			http.TimeoutHandler(next, timeout, timeoutError).ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
 }
 
 // RequireBasicAuth creates a new handler that requires basic auth from the client before

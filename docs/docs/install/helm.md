@@ -40,7 +40,7 @@ mkcert -install
 The local CA is already installed in the system trust store! 👍
 The local CA is already installed in the Firefox and/or Chrome/Chromium trust store! 👍
 
-ls $(mkcert -CAROOT)
+ls "$(mkcert -CAROOT)"
 rootCA-key.pem  rootCA.pem
 ```
 

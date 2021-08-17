@@ -2,9 +2,7 @@ package authorize
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
-	"net/http/httptest"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -63,23 +61,4 @@ func getCookieStore(options *config.Options, encoder encoding.MarshalUnmarshaler
 		return nil, err
 	}
 	return cookieStore, nil
-}
-
-func getJWTSetCookieHeaders(cookieStore sessions.SessionStore, rawjwt []byte) (map[string]string, error) {
-	recorder := httptest.NewRecorder()
-	err := cookieStore.SaveSession(recorder, nil /* unused by cookie store */, string(rawjwt))
-	if err != nil {
-		return nil, fmt.Errorf("authorize: error saving cookie: %w", err)
-	}
-
-	res := recorder.Result()
-	res.Body.Close()
-
-	hdrs := make(map[string]string)
-	for k, vs := range res.Header {
-		for _, v := range vs {
-			hdrs[k] = v
-		}
-	}
-	return hdrs, nil
 }

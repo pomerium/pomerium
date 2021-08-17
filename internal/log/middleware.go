@@ -1,8 +1,6 @@
 package log
 
 import (
-	"crypto/rand"
-	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -21,48 +19,6 @@ func NewHandler(getLogger func() *zerolog.Logger) func(http.Handler) http.Handle
 			// to prevent data race when using UpdateContext.
 			l := getLogger().With().Logger()
 			r = r.WithContext(l.WithContext(r.Context()))
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-// URLHandler adds the requested URL as a field to the context's logger
-// using fieldKey as field key.
-func URLHandler(fieldKey string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log := zerolog.Ctx(r.Context())
-			log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-				return c.Str(fieldKey, r.URL.String())
-			})
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-// MethodHandler adds the request method as a field to the context's logger
-// using fieldKey as field key.
-func MethodHandler(fieldKey string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log := zerolog.Ctx(r.Context())
-			log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-				return c.Str(fieldKey, r.Method)
-			})
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-// RequestHandler adds the request method and URL as a field to the context's logger
-// using fieldKey as field key.
-func RequestHandler(fieldKey string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log := zerolog.Ctx(r.Context())
-			log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-				return c.Str(fieldKey, r.Method+" "+r.URL.String())
-			})
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -164,13 +120,4 @@ func HeadersHandler(headers []string) func(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-// uuid generates a random 128-bit non-RFC UUID.
-func uuid() string {
-	buf := make([]byte, 16)
-	if _, err := rand.Read(buf); err != nil {
-		return ""
-	}
-	return fmt.Sprintf("%x-%x-%x-%x-%x", buf[0:4], buf[4:6], buf[6:8], buf[8:10], buf[10:])
 }

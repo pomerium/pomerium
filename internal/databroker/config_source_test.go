@@ -25,6 +25,7 @@ func TestConfigSource(t *testing.T) {
 		return
 	}
 	defer func() { _ = li.Close() }()
+	_, outboundPort, _ := net.SplitHostPort(li.Addr().String())
 
 	dataBrokerServer := New()
 	srv := grpc.NewServer()
@@ -45,7 +46,8 @@ func TestConfigSource(t *testing.T) {
 	})
 
 	baseSource := config.NewStaticSource(&config.Config{
-		Options: base,
+		OutboundPort: outboundPort,
+		Options:      base,
 	})
 	src := NewConfigSource(ctx, baseSource, func(_ context.Context, cfg *config.Config) {
 		cfgs <- cfg
@@ -86,6 +88,7 @@ func TestConfigSource(t *testing.T) {
 	}
 
 	baseSource.SetConfig(ctx, &config.Config{
-		Options: base,
+		OutboundPort: outboundPort,
+		Options:      base,
 	})
 }

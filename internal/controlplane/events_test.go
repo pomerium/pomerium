@@ -69,6 +69,7 @@ func TestEvents(t *testing.T) {
 		li, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 		defer li.Close()
+		_, outboundPort, _ := net.SplitHostPort(li.Addr().String())
 
 		var putRequest *databrokerpb.PutRequest
 		var setOptionsRequest *databrokerpb.SetOptionsRequest
@@ -100,6 +101,7 @@ func TestEvents(t *testing.T) {
 			srv := &Server{}
 			srv.currentConfig.Store(versionedConfig{
 				Config: &config.Config{
+					OutboundPort: outboundPort,
 					Options: &config.Options{
 						SharedKey:           cryptutil.NewBase64Key(),
 						DataBrokerURLString: "http://" + li.Addr().String(),
