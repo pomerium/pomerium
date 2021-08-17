@@ -9,62 +9,93 @@ meta:
 
 # Okta
 
-[Log in to your Okta account](https://login.okta.com) and head to your Okta dashboard. Select **Applications** on the top menu. On the Applications page, click the **Add Application** button to create a new app.
+This page covers configuring Okta to communicate with Pomerium. It assumes you have already [installed Pomerium][pomerium-install] before you begin.
+
+::: warning
+While we do our best to keep our documentation up to date, changes to third-party systems are outside of our control. Refer to [Create an Okta app Integration](https://developer.okta.com/docs/guides/sign-into-web-app/aspnet/create-okta-application/) from Okta's developer docs as needed, or [let us know](https://github.com/pomerium/pomerium/issues/new?assignees=&labels=&template=bug_report.md) if we need to re-visit this page.
+:::
 
 ## Create OpenID Connect Application
 
-![Okta Applications Dashboard](./img/okta-app-dashboard.png)
+1. [Log in to your Okta account](https://login.okta.com) From the left-hand menu,  Select **Applications → Applications** on the top menu.
 
-On the **Create New Application** page, select the **Web** for your application.
+   ![Okta Applications Dashboard](./img/okta-app-dashboard.png)
 
-![Okta Create Application Select Platform](./img/okta-create-app-platform.png)
+1. Click the **Create App Integration** button. Select **OIDC** as the sign-in method. and **Web Application** as the application type:
 
-Next, provide the following information for your application settings:
+   ![Okta new app integration modal](./img/okta-app-settings.png)
 
-| Field                        | Description                                                               |
-| ---------------------------- | ------------------------------------------------------------------------- |
-| Name                         | The name of your application.                                             |
-| Base URIs (optional)         | The domain(s) of your application.                                        |
-| Login redirect URIs          | Redirect URL (e.g.`https://${authenticate_service_url}/oauth2/callback`). |
-| Group assignments (optional) | The user groups that can sign in to this application.                     |
-| Grant type allowed           | **You must enable Refresh Token.**                                        |
+   Click **Next** to continue.
 
-![Okta Create Application Settings](./img/okta-create-app-settings.png)
+1. Provide the following information for your application settings:
 
-Click **Done** to proceed. You'll be taken to the **General** page of your app.
+   | Field                        | Description                                                               |
+   | ---------------------------- | ------------------------------------------------------------------------- |
+   | Name                         | The name of your application.                                             |
+   | Grant type allowed           | **You must enable Refresh Token.**                                        |
+   | Base URIs                    | **Optional**: The domain(s) of your application.                          |
+   | Sign-in redirect URIs        | Redirect URL (e.g.`https://${authenticate_service_url}/oauth2/callback`). |
+   | Controlled Access            | The user groups that can sign in to this application. See [Group ID] for more information. |
 
-Go to the **General** page of your app and scroll down to the **Client Credentials** section. This section contains the **[Client ID]** and **[Client Secret]** to be used in the next step.
+   ![Okta Create Application Settings](./img/okta-create-app-settings.png)
 
-## Service account
+   Click **Save** to proceed. You'll be taken to the **General** tab of your app.
 
-![Okta Client ID and Secret](./img/okta-client-id-and-secret.png)
+1. From to the **General** tab, scroll down to the **Client Credentials** section. This section contains the **[Client ID]** and **[Client Secret]**. Temporarily save these values to apply to the Pomerium configuration.
 
-Next, we'll create API token so that Pomerium can retrieve and establish group membership. To do so, click the **API** menu item, and select **Tokens**.
+   ![Okta Client ID and Secret](./img/okta-client-id-and-secret.png)
 
-![Okta api token](./img/okta-api-token.png)
+## Create Service account
 
-The format of the `idp_service_account` for Okta is a base64-encoded JSON document containing the generated API token:
+Next, we'll create API token so that Pomerium can retrieve and establish group membership.
 
-```json
-{
-  "api_key": "..."
-}
-```
+1. From the main menu, navigate to **Security → API**. Select the **Tokens** tab, and click the **Create Token** button. Name the token, then save the value to apply to our Pomerium configuration:
 
-[Group ID](https://developer.okta.com/docs/reference/api/groups/) will be used to affirm group membership.
+   ![Okta api token](./img/okta-api-token.png)
+
+1. The API token will be provided as the value of the `idp_service_account` key, formatted as a base64-encoded JSON document::
+
+   ```json
+   {
+   "api_key": "XXXXXXXXXX"
+   }
+   ```
+
+   You can save the object as a temporary file to encode:
+
+   ```bash
+   cat tmp.json | base64 -w 0
+   ```
+
+## Configure Pomerium
 
 Finally, configure Pomerium with the identity provider settings retrieved in the previous steps. Your [environmental variables] should look something like this.
 
+:::: tabs
+::: tab config.yaml
+```yaml
+idp_provider: "okta"
+idp_provider-url: "https://awesomecompany.okta.com"
+idp_client_id: "REPLACE ME"
+idp_client_secret: "REPLACE ME"
+ipd_service_account: "REPLACE ME" # base64 encoded JSON object
+```
+:::
+::: tab Environment Variables
 ```bash
 IDP_PROVIDER="okta"
-IDP_PROVIDER_URL="https://dev-108295-admin.oktapreview.com/"
+IDP_PROVIDER_URL="https://dev-108295.okta.com"
 IDP_CLIENT_ID="REPLACE_ME"
 IDP_CLIENT_SECRET="REPLACE_ME"
-IDP_SERVICE_ACCOUNT="REPLACE_ME" # service account
+IDP_SERVICE_ACCOUNT="REPLACE_ME" # base64 encoded JSON object
 ```
+:::
+::::
 
 [client id]: ../../reference/readme.md#identity-provider-client-id
 [client secret]: ../../reference/readme.md#identity-provider-client-secret
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
 [openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect
+[pomerium-install]: /docs/install/
+[Group ID]: https://developer.okta.com/docs/reference/api/groups/
