@@ -45,11 +45,17 @@ You can also set some or all of your configuration keys as environment variables
 
 ### OS Package
 
-Enable and start the service:
+1. The following command allows the Pomerium systemd service to bind to [privileged port] `443`:
 
-```bash
-sudo systemctl enable --now pomerium.service
-```
+   ```bash
+   echo -e "[Service]\nAmbientCapabilities=CAP_NET_BIND_SERVICE" | sudo SYSTEMD_EDITOR=tee systemctl edit pomerium
+   ```
+
+1. Enable and start the service:
+
+   ```bash
+   sudo systemctl enable --now pomerium.service
+   ```
 
 ### Manual Installation
 
@@ -71,3 +77,4 @@ Browse to `external-verify.your.domain.example`. Connections between you and [ve
 [Cloudsmith]: https://cloudsmith.io
 [cloudsmith-repo]: https://cloudsmith.io/~pomerium/repos/pomerium/groups/
 [Reference]: /reference/readme.md
+[privileged port]: https://www.w3.org/Daemon/User/Installation/PrivilegedPorts.html
