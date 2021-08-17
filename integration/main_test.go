@@ -87,6 +87,8 @@ func waitForHealthy(ctx context.Context) error {
 			return fmt.Errorf("%s unavailable: %s", subdomain, res.Status)
 		}
 
+		log.Info().Int("status", res.StatusCode).Msgf("%s healthy", subdomain)
+
 		return nil
 	}
 
