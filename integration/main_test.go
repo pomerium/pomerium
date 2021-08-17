@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,8 +23,8 @@ func TestMain(m *testing.M) {
 	logger := log.With().Logger()
 	ctx := logger.WithContext(context.Background())
 
-	if err := waitForHealthy(ctx, "authenticate.localhost.pomerium.io"); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "authenticate service not healthy")
+	if err := waitForHealthy(ctx); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "services not healthy")
 		os.Exit(1)
 		return
 	}
@@ -62,7 +64,7 @@ func getClient() *http.Client {
 	}
 }
 
-func waitForHealthy(ctx context.Context, host string) error {
+func waitForHealthy(ctx context.Context) error {
 	client := getClient()
 	check := func() error {
 		reqCtx, clearTimeout := context.WithTimeout(ctx, time.Second)
@@ -70,8 +72,8 @@ func waitForHealthy(ctx context.Context, host string) error {
 
 		req, err := http.NewRequestWithContext(reqCtx, "GET", (&url.URL{
 			Scheme: "https",
-			Host:   host,
-			Path:   "/healthz",
+			Host:   "envoy.localhost.pomerium.io",
+			Path:   "/clusters",
 		}).String(), nil)
 		if err != nil {
 			return err
@@ -81,7 +83,23 @@ func waitForHealthy(ctx context.Context, host string) error {
 		if err != nil {
 			return err
 		}
-		_ = res.Body.Close()
+		defer res.Body.Close()
+
+		var healthy, unhealthy int
+		scanner := bufio.NewScanner(res.Body)
+		for scanner.Scan() {
+			if strings.Contains(scanner.Text(), "::health_flags::") {
+				if strings.Contains(scanner.Text(), "::healthy") {
+					healthy++
+				} else {
+					unhealthy++
+				}
+			}
+		}
+
+		if healthy == 0 || unhealthy > 0 {
+			return fmt.Errorf("healthy=%d unhealthy=%d", healthy, unhealthy)
+		}
 
 		return nil
 	}
@@ -95,7 +113,7 @@ func waitForHealthy(ctx context.Context, host string) error {
 			return nil
 		}
 
-		log.Ctx(ctx).Info().Msg("waiting for authenticate")
+		log.Ctx(ctx).Info().Err(err).Msg("waiting for healthy")
 
 		select {
 		case <-ctx.Done():
