@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 )
 
@@ -50,7 +51,8 @@ var defaultScopes = []string{"user:email", "read:org"}
 type Provider struct {
 	Oauth *oauth2.Config
 
-	userEndpoint string
+	userEndpoint  string
+	emailEndpoint string
 }
 
 // New instantiates an OAuth2 provider for Github.
@@ -59,6 +61,16 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 	if o.ProviderURL == "" {
 		o.ProviderURL = defaultProviderURL
 	}
+
+	// when the default provider url is used, use the Github API endpoint
+	if o.ProviderURL == defaultProviderURL {
+		p.userEndpoint = urlutil.Join(githubAPIURL, userPath)
+		p.emailEndpoint = urlutil.Join(githubAPIURL, emailPath)
+	} else {
+		p.userEndpoint = urlutil.Join(o.ProviderURL, userPath)
+		p.emailEndpoint = urlutil.Join(o.ProviderURL, emailPath)
+	}
+
 	if len(o.Scopes) == 0 {
 		o.Scopes = defaultScopes
 	}
@@ -68,11 +80,10 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 		Scopes:       o.Scopes,
 		RedirectURL:  o.RedirectURL.String(),
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  o.ProviderURL + authURL,
-			TokenURL: o.ProviderURL + tokenURL,
+			AuthURL:  urlutil.Join(o.ProviderURL, authURL),
+			TokenURL: urlutil.Join(o.ProviderURL, tokenURL),
 		},
 	}
-	p.userEndpoint = githubAPIURL + userPath
 	return &p, nil
 }
 
@@ -133,8 +144,7 @@ func (p *Provider) userEmail(ctx context.Context, t *oauth2.Token, v interface{}
 		Visibility string `json:"visibility"`
 	}
 	headers := map[string]string{"Authorization": fmt.Sprintf("token %s", t.AccessToken)}
-	emailURL := githubAPIURL + emailPath
-	err := httputil.Do(ctx, http.MethodGet, emailURL, version.UserAgent(), headers, nil, &response)
+	err := httputil.Do(ctx, http.MethodGet, p.emailEndpoint, version.UserAgent(), headers, nil, &response)
 	if err != nil {
 		return err
 	}
