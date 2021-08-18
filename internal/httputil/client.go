@@ -80,10 +80,12 @@ func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	return c.Client.Do(req)
 }
 
-// defaultClient avoids leaks by setting an upper limit for timeouts.
-var defaultClient = &httpClient{
-	&http.Client{Timeout: 1 * time.Minute},
-	requestid.NewRoundTripper(http.DefaultTransport),
+// getDefaultClient returns an HTTP client that avoids leaks by setting an upper limit for timeouts.
+func getDefaultClient() *httpClient {
+	return &httpClient{
+		&http.Client{Timeout: 1 * time.Minute},
+		requestid.NewRoundTripper(http.DefaultTransport),
+	}
 }
 
 // Do provides a simple helper interface to make HTTP requests
@@ -113,7 +115,7 @@ func Do(ctx context.Context, method, endpoint, userAgent string, headers map[str
 		req.Header.Set(k, v)
 	}
 
-	resp, err := defaultClient.Do(req)
+	resp, err := getDefaultClient().Do(req)
 	if err != nil {
 		return err
 	}

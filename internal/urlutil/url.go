@@ -113,3 +113,21 @@ func GetDomainsForURL(u url.URL) []string {
 func IsTCP(u *url.URL) bool {
 	return u.Scheme == "tcp+http" || u.Scheme == "tcp+https"
 }
+
+// Join joins elements of a URL with '/'.
+func Join(elements ...string) string {
+	var builder strings.Builder
+	appendSlash := false
+	for i, el := range elements {
+		if appendSlash {
+			builder.WriteByte('/')
+		}
+		if i > 0 && strings.HasPrefix(el, "/") {
+			builder.WriteString(el[1:])
+		} else {
+			builder.WriteString(el)
+		}
+		appendSlash = !strings.HasSuffix(el, "/")
+	}
+	return builder.String()
+}
