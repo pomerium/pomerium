@@ -40,7 +40,7 @@ services:
     entrypoint:
     - sh
     - -c
-    - |
+    - |-
       cat /k3s-tmp/kubeconfig.yaml | sed s/127.0.0.1/k3s-server/g >/tmp/kubeconfig.yaml
       export KUBECONFIG=/tmp/kubeconfig.yaml
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
@@ -74,7 +74,6 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -124,7 +123,7 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
+      kubectl wait --for=condition=available deployment/trusted-httpdetails
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "v1",
@@ -156,7 +155,6 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -206,7 +204,7 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
+      kubectl wait --for=condition=available deployment/untrusted-httpdetails
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "v1",
@@ -238,7 +236,6 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -288,7 +285,7 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
+      kubectl wait --for=condition=available deployment/wrongly-named-httpdetails
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "v1",
@@ -315,7 +312,6 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -364,7 +360,7 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
+      kubectl wait --for=condition=available deployment/mock-idp
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "v1",
@@ -405,7 +401,6 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -525,7 +520,7 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
+      kubectl wait --for=condition=available deployment/pomerium
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "v1",
@@ -552,7 +547,6 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -593,7 +587,7 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
+      kubectl wait --for=condition=available deployment/redis
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "v1",
@@ -620,7 +614,6 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -661,7 +654,7 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
+      kubectl wait --for=condition=available deployment/verify
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "v1",
@@ -688,7 +681,6 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -734,9 +726,19 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
+      kubectl wait --for=condition=available deployment/websocket-echo
     image: rancher/k3s:${K3S_TAG:-latest}
     volumes:
     - k3s-tmp:/k3s-tmp
+  k3s-ready:
+    command:
+    - sh
+    - -c
+    - exit 0
+    depends_on:
+      k3s-init:
+        condition: service_completed_successfully
+    image: busybox:latest
   k3s-server:
     entrypoint:
     - sh

@@ -17,6 +17,15 @@ local entrypoint = [
   'k3s',
 ];
 
+local install(manifest) = std.join('\n', [
+  'cat <<-END_OF_MANIFEST | tee /tmp/manifest.json',
+  std.manifestJsonEx(manifest, '  '),
+  'END_OF_MANIFEST',
+  'kubectl apply -f /tmp/manifest.json',
+] + if manifest.kind == 'Deployment' then [
+  'kubectl wait --for=condition=available deployment/' + manifest.metadata.name,
+] else []);
+
 function(idp, manifests) {
   compose: {
     services: {
@@ -94,18 +103,25 @@ function(idp, manifests) {
             cat /k3s-tmp/kubeconfig.yaml | sed s/127.0.0.1/k3s-server/g >/tmp/kubeconfig.yaml
             export KUBECONFIG=/tmp/kubeconfig.yaml
           ||| + std.join('\n', std.map(
-            function(manifest)
-              |||
-                cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
-                %s
-                END_OF_MANIFEST
-                kubectl apply -f /tmp/manifest.json
-              ||| % std.manifestJsonEx(manifest, '  '),
+            install,
             manifests
           )),
         ],
         volumes: [
           'k3s-tmp:/k3s-tmp',
+        ],
+      },
+      'k3s-ready': {
+        depends_on: {
+          'k3s-init': {
+            condition: 'service_completed_successfully',
+          },
+        },
+        image: 'busybox:latest',
+        command: [
+          'sh',
+          '-c',
+          'exit 0',
         ],
       },
     },
