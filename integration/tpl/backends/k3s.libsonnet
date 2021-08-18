@@ -109,7 +109,7 @@ function(idp, manifests) {
             std.sort(manifests, function(manifest) manifest.kind + '/' + manifest.metadata.name)
           )) + '\n' +
           |||
-            sleep 10
+            sleep 30
           |||,
         ],
         volumes: [

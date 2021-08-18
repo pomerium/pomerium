@@ -731,7 +731,7 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-      sleep 10
+      sleep 30
     image: rancher/k3s:${K3S_TAG:-latest}
     volumes:
     - k3s-tmp:/k3s-tmp
