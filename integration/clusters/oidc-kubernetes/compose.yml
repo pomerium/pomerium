@@ -40,7 +40,7 @@ services:
     entrypoint:
     - sh
     - -c
-    - |-
+    - |
       cat /k3s-tmp/kubeconfig.yaml | sed s/127.0.0.1/k3s-server/g >/tmp/kubeconfig.yaml
       export KUBECONFIG=/tmp/kubeconfig.yaml
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
@@ -731,6 +731,7 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
+      sleep 10
     image: rancher/k3s:${K3S_TAG:-latest}
     volumes:
     - k3s-tmp:/k3s-tmp

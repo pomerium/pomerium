@@ -107,7 +107,10 @@ function(idp, manifests) {
           ||| + std.join('\n', std.map(
             InstallManifest,
             std.sort(manifests, function(manifest) manifest.kind + '/' + manifest.metadata.name)
-          )),
+          )) + '\n' +
+          |||
+            sleep 10
+          |||,
         ],
         volumes: [
           'k3s-tmp:/k3s-tmp',
