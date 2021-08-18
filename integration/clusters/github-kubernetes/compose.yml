@@ -45,275 +45,6 @@ services:
       export KUBECONFIG=/tmp/kubeconfig.yaml
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
-        "apiVersion": "v1",
-        "kind": "Service",
-        "metadata": {
-          "labels": {
-            "app": "trusted-httpdetails"
-          },
-          "name": "trusted-httpdetails",
-          "namespace": "default"
-        },
-        "spec": {
-          "ports": [
-            {
-              "name": "http",
-              "port": 8080,
-              "targetPort": "http"
-            },
-            {
-              "name": "https",
-              "port": 8443,
-              "targetPort": "https"
-            }
-          ],
-          "selector": {
-            "app": "trusted-httpdetails"
-          }
-        }
-      }
-      END_OF_MANIFEST
-      kubectl apply -f /tmp/manifest.json
-      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
-      {
-        "apiVersion": "apps/v1",
-        "kind": "Deployment",
-        "metadata": {
-          "name": "trusted-httpdetails",
-          "namespace": "default"
-        },
-        "spec": {
-          "replicas": 1,
-          "selector": {
-            "matchLabels": {
-              "app": "trusted-httpdetails"
-            }
-          },
-          "template": {
-            "metadata": {
-              "labels": {
-                "app": "trusted-httpdetails"
-              }
-            },
-            "spec": {
-              "containers": [
-                {
-                  "args": [
-                    "sh",
-                    "-c",
-                    "cat <<-END_OF_HTTPDETAILS | tee /app/fullchain.pem\n-----BEGIN CERTIFICATE-----\nMIIEUjCCArqgAwIBAgIRAKNaEqCmmZfhmcYgZy01WCswDQYJKoZIhvcNAQELBQAw\ngYMxHjAcBgNVBAoTFW1rY2VydCBkZXZlbG9wbWVudCBDQTEsMCoGA1UECwwjY2Fs\nZWJAY2FsZWItcGMtbGludXggKENhbGViIERveHNleSkxMzAxBgNVBAMMKm1rY2Vy\ndCBjYWxlYkBjYWxlYi1wYy1saW51eCAoQ2FsZWIgRG94c2V5KTAeFw0yMTA4MTAx\nNzMyMTBaFw0yMzExMTAxODMyMTBaMFcxJzAlBgNVBAoTHm1rY2VydCBkZXZlbG9w\nbWVudCBjZXJ0aWZpY2F0ZTEsMCoGA1UECwwjY2FsZWJAY2FsZWItcGMtbGludXgg\nKENhbGViIERveHNleSkwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC8\nHLBAIzXkPeegldUfRKK2jQxSVZD5g+qsjAzpmrq/AtmweK1cGcOtZ6eOL+p8brPD\nyVhDT0QlI/O/EKgCOFFxUDqoR82iY06SacAjHni6+PO9tVRbFV0w14BDAJSpB+Vv\nWyl+FoPDV/vsZ31FtYw+EwqkbDx/kaT9uzf+LJdlkf14nQQj8Eky/8d3mWJbb/9t\njObsaQgJ5LLxCYdImkr77X2LMuDw/1tpH642GE25Nrgm6QHlyKSfYXo38v83ebEq\nbZUDG+ZioArPmqmkawUWw3ekhj80SJg/TK9PRaN/VvcI1PgAd7LZztUReSmTy5hd\n9r6rOBxpxwnTDvHkBn6vAgMBAAGjbDBqMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE\nDDAKBggrBgEFBQcDATAfBgNVHSMEGDAWgBSFhlhYgEfKTplVOeneVG3+3IE/TTAi\nBgNVHREEGzAZghcqLmxvY2FsaG9zdC5wb21lcml1bS5pbzANBgkqhkiG9w0BAQsF\nAAOCAYEAufQAF79s7c1gmZ9CIKBSGkHh+SH01CuKYnnHiMowHsTioFaUAQsd/P4X\nc2XBqc34eT3mCvpgZjHbjz6JlnTYJxuLvVqnVB3emtWrb1cQvh8BphxspTlS8uiE\nAEf/ngtpzfA/f4lpGkzrQ0cyPkEJGz511q97itzn9RZZzVTZxNVFSP2vVhNNQVsW\nOxakcvYRgnz8AOQS3OPHj2FQc3iibshct5leIwYZFcxINGHR6KL6+/LSePNCEMmK\nqymVPkQGsIcU6GQ9fxaSu4mp+IUALProizEVI8SVk5nOm3HIez+ZfXhzfnGx06SI\n6NuoQQPqUBeZeXn2YFYhipeRdrQxvA36/YXa/AkXCeU0pXxbtXKcvatfri5KnYJD\nkH59a+aFkTsl41tfI2cnRYVddqXVl3OzLbcgAFLn1WeC1xx3xRXi7KldokOlvgv+\nB6naWfCxRlWZ/lsmHae4kc1WH4Kc7nK+ITb40EkjV68/A7krZsN1VcqNtpomYkgE\nxjUE8XUu\n-----END CERTIFICATE-----\n\nEND_OF_HTTPDETAILS\ncat <<-END_OF_HTTPDETAILS | tee /app/privkey.pem\n-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC8HLBAIzXkPeeg\nldUfRKK2jQxSVZD5g+qsjAzpmrq/AtmweK1cGcOtZ6eOL+p8brPDyVhDT0QlI/O/\nEKgCOFFxUDqoR82iY06SacAjHni6+PO9tVRbFV0w14BDAJSpB+VvWyl+FoPDV/vs\nZ31FtYw+EwqkbDx/kaT9uzf+LJdlkf14nQQj8Eky/8d3mWJbb/9tjObsaQgJ5LLx\nCYdImkr77X2LMuDw/1tpH642GE25Nrgm6QHlyKSfYXo38v83ebEqbZUDG+ZioArP\nmqmkawUWw3ekhj80SJg/TK9PRaN/VvcI1PgAd7LZztUReSmTy5hd9r6rOBxpxwnT\nDvHkBn6vAgMBAAECggEAB28i0AYUNSb1JnWFbKzruUctu3tCNXovJg6K3BiPVMkq\nDT1XrJIgF5RHHOlr3OsLE6u7Xz2ctdML6PshiKTtIwtGpivgRpCiJEslmr2zi8AW\n8eJeqRLZEfsSSJOXTG7RdGsn4qHFJ00s2ZTlcIHSPwnFm+XjJi99U8G4XsUoXo0r\nGy+0VCuU7M8gICEHHsrQO9XDD3nT2jiu5TjrKwjut3EmoJssI5bqx33+OBu5BpCP\nCT473D43P9p3qi/XnfvqGSG2Oj4OajV4fr0o9B3KvIxkMem7WlI3jyy1kApyXqVT\nbLkLFyWBNTWUZ2R/2wxmuoC6mLZw879MLCKMvk1doQKBgQDhmwGafJNymTiEQZRI\nSsQx4seqfOKfgFC7ohqH9cROOu8IJ1o7q2pM2W4XiV+S3wTdPGmca6IOjX23isVB\n2uqNi9S4MnI2/d22Gd/BR9rvBw1eGJoKbrWx22fE8QCEWT1AnO+DuD0jC85yRls7\naxzlaMrxEu3LI9UE7NtrdQiByQKBgQDVdI6ceIVBT6RgvVGt8zkLjPIFjhQEHAIp\nuhirgqpS6CX9Blyf2+o40zmfj3he5rCcEoB5MseM+DgFbcVh2e/MVnYiNNw6JCDB\nBQkF408pZpSeKXvL/oyV/kImMTJ/tUDY0EXxMwSPJB0WltbWreVIHopigXRCbaey\nuBHVBv/4twKBgHwHuePy5SU1s2qSmzD7Wc2LPfYu3nCOHNRrFGb26MuRfuReri7r\n2G8TgoESFycp0QTIN8+1JM0XYKxNcJD6B8V1wKbbpQsymneI1gjutiB/Igw/PkDK\nCL4VP4F4da5NWW1yWgNygLoJvZ/5qiKKisJc0GWk4HKz6mLgzOjQ2LJxAoGBALHZ\nfN2YeYbyYcaM11p1VilulVTVjY3i/FZiDR4SL/IGJWjN/Szg4iXYsKFmu+dulOZl\ncBALpEKrqpmzXYtrN6bsv18+5eO3qGbK2DrEq3eWVev2KoTMobxz7g++XBIWJmLA\nHhaa6IiPkYD5yyVyHKDbeXgb3o9eqCR7w7fYLjy/AoGAI4D+MFkivwUF7hqf5edS\nKrltwmodHiqXNbVkwbW1AFPJbiYai4YFfK4IAbif/Ymxf9G78aOkr9ZpCIzOkDPZ\nYpEwQGWsAhElCFvc8E/5dHESSp+tWtP+NluimpFqiDg3/SUnMwO2xH0nhLa0zejh\ngmLh4w/CcPyb9ZyXceWU/nU=\n-----END PRIVATE KEY-----\n\nEND_OF_HTTPDETAILS\nnode ./index.js\n"
-                  ],
-                  "image": "mendhak/http-https-echo:19",
-                  "name": "trusted-httpdetails",
-                  "ports": [
-                    {
-                      "containerPort": 8080,
-                      "name": "http"
-                    },
-                    {
-                      "containerPort": 8443,
-                      "name": "https"
-                    }
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      }
-      END_OF_MANIFEST
-      kubectl apply -f /tmp/manifest.json
-      kubectl wait --for=condition=available deployment/trusted-httpdetails
-      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
-      {
-        "apiVersion": "v1",
-        "kind": "Service",
-        "metadata": {
-          "labels": {
-            "app": "untrusted-httpdetails"
-          },
-          "name": "untrusted-httpdetails",
-          "namespace": "default"
-        },
-        "spec": {
-          "ports": [
-            {
-              "name": "http",
-              "port": 8080,
-              "targetPort": "http"
-            },
-            {
-              "name": "https",
-              "port": 8443,
-              "targetPort": "https"
-            }
-          ],
-          "selector": {
-            "app": "untrusted-httpdetails"
-          }
-        }
-      }
-      END_OF_MANIFEST
-      kubectl apply -f /tmp/manifest.json
-      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
-      {
-        "apiVersion": "apps/v1",
-        "kind": "Deployment",
-        "metadata": {
-          "name": "untrusted-httpdetails",
-          "namespace": "default"
-        },
-        "spec": {
-          "replicas": 1,
-          "selector": {
-            "matchLabels": {
-              "app": "untrusted-httpdetails"
-            }
-          },
-          "template": {
-            "metadata": {
-              "labels": {
-                "app": "untrusted-httpdetails"
-              }
-            },
-            "spec": {
-              "containers": [
-                {
-                  "args": [
-                    "sh",
-                    "-c",
-                    "cat <<-END_OF_HTTPDETAILS | tee /app/fullchain.pem\n-----BEGIN CERTIFICATE-----\nMIIEUjCCArqgAwIBAgIRAKKYU7PSAFxZbhuLUlbv3iAwDQYJKoZIhvcNAQELBQAw\ngYMxHjAcBgNVBAoTFW1rY2VydCBkZXZlbG9wbWVudCBDQTEsMCoGA1UECwwjY2Fs\nZWJAY2FsZWItcGMtbGludXggKENhbGViIERveHNleSkxMzAxBgNVBAMMKm1rY2Vy\ndCBjYWxlYkBjYWxlYi1wYy1saW51eCAoQ2FsZWIgRG94c2V5KTAeFw0yMTA4MTEy\nMTU2MTFaFw0yMzExMTEyMjU2MTFaMFcxJzAlBgNVBAoTHm1rY2VydCBkZXZlbG9w\nbWVudCBjZXJ0aWZpY2F0ZTEsMCoGA1UECwwjY2FsZWJAY2FsZWItcGMtbGludXgg\nKENhbGViIERveHNleSkwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCg\nVDM59lGzCRjdUQCyzokqC4sEr7Ln2FpXfHjMWPuNK5vQYccTxto3JlAVXl+oOLHG\noryKGDOkRV1SDb3zAxYQNDuYUnraiVgLPrM9NFpHSk/IlACQjRlFRYG0Go3PDR2v\nJX4qTwgrqQtLOJ5tHnqrt6idtvNp1ISYOIscXf/WIAhh+IuOvas4eie7GETX4eqP\nqpc6AEFuklmoBHBfMCrGg89WBUTWCZYrHE9BYDL0LG/VwLYn2tDKBrS9iZIlTqPw\nve8VoGIlx4uvHTdzaVStcRKOXCsbSwXRdt0842d4C1nohQkRHqHoBjQzrJiWJzxG\nmgByfa2rxbNg15PFwF+ZAgMBAAGjbDBqMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE\nDDAKBggrBgEFBQcDATAfBgNVHSMEGDAWgBS3GPBKDaHzHK68c8sSJ91umTjFVzAi\nBgNVHREEGzAZghcqLmxvY2FsaG9zdC5wb21lcml1bS5pbzANBgkqhkiG9w0BAQsF\nAAOCAYEAizMhh+VYIMp07wGn7+rzAE/651yiMC6kZHIOMHilvimyYvCf+Yc0MrcD\nmVQgqlUpkn/f2SOFsBQonjAACkWlSHah9KStL0iTvOIH+oGLnv3Y9wrKvwJol3KR\nc/+mO9R9TS71DoX+rTGRY3BNldpMBZF7HsYt/bg0RSpF0zkZarW+PEMmPw6IgIaD\nRPGpOiQOqIxQn4d6MyiNGS0QmDeGSZvsC07ZcZ+JxsYi4S+yN6GXt11pstiRXjDv\nzrO3s8TnVsBux7VDdIYfzMxqz+874MbsUUlb4txr3V48UDRLm7VDQ2/F+o0+Y5wt\nXAnXTn/6GFpjJvPGr0A1QLOvnhR0DZ4Fl97athu44pqeQywDU5LPP3HqrWRXLy3j\nBPBC4waHayL9Hnh4zQUe/h6hwC5Nxl/gqfB3Aaqr5PWX6rMFss8AYpB81ci+UJdm\nKSIn/pMoK6TWkCveoQRQOZD8wfwPF4cUUmWcLFwSveZSiniFrAXQqZbO1k6RDhQf\nhavcwKlK\n-----END CERTIFICATE-----\n\nEND_OF_HTTPDETAILS\ncat <<-END_OF_HTTPDETAILS | tee /app/privkey.pem\n-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCgVDM59lGzCRjd\nUQCyzokqC4sEr7Ln2FpXfHjMWPuNK5vQYccTxto3JlAVXl+oOLHGoryKGDOkRV1S\nDb3zAxYQNDuYUnraiVgLPrM9NFpHSk/IlACQjRlFRYG0Go3PDR2vJX4qTwgrqQtL\nOJ5tHnqrt6idtvNp1ISYOIscXf/WIAhh+IuOvas4eie7GETX4eqPqpc6AEFuklmo\nBHBfMCrGg89WBUTWCZYrHE9BYDL0LG/VwLYn2tDKBrS9iZIlTqPwve8VoGIlx4uv\nHTdzaVStcRKOXCsbSwXRdt0842d4C1nohQkRHqHoBjQzrJiWJzxGmgByfa2rxbNg\n15PFwF+ZAgMBAAECggEADTzGefunZTPUFLnSZ/D7jDglwz5KdC/9zYleY+jY5B/8\nnmjkSfK6I6GLLSh8l2QO8YqQLIqxANglS1gNHdpcYPwfC4WL1S1P0qXboKsI5Sfy\njGoD3et4caq6ecdTfAvmLobW8uFRmGE9qHlFQ1cn47OnPVZUpKFCTVslyTLNo70h\n28gx/lnpgkbeWotJ5GygE/H0jKJlG8/V3+Ppfuq6wypA5ELcGUeMAwmCfUNNlDy3\nBhXSa6STgL26ar70KZIjTp9B97hIfDWObxgjzMX2JoiWXziszvbfaknfBsmfTm45\noUZYO0DuvLdLpxic0GZQwZCT6GzuexxJ9zR/pdahrQKBgQDEiwc0e+M1KaOoIIcw\nV7pxoGjvd+CC5whS00jSf/rXPSPFxat9Ml5serOzLdRLM/NQ5wB9S7TYc6PJi3Mb\n8pmbGadIXiGIJY8vX79P/velHT4csgULJAKJF9U65knhaidPPPmXloHOhRWrE8Zq\nmexVgJZrHLI8197qmi+ctT5rEwKBgQDQ1J84AwI1hEsXHxoSetSznt+ae7pSUb/J\nbyqK9KEp0DLyf8GcS7vxyYGQo0mJDlHaJt56LKv+zdX4wGG85ztbOFVPee6XLKSs\nI+h7rzc2hKrl+SaI91h1234WsTeJvfUSHyBy9vAwLhd0hplNrt7Tql5Z0VTWHmFE\n2XbEwcTUIwKBgQDBpioHMDmBW/F/6ezJWOa+pco+h+KRl4i/8qVBog9Im1jvt/9r\nb4FRaOQ9mt4c6qbGA5Sb30fkLKwoHFniI3ntM616xCRNvJQDnVcmPpVJ/jIAm/YU\nL/q/kNfrHJOWobzxeaaCESz8imv7D5Tj25zb8cJC7xc+k4Nzq09WG83QOQKBgG28\nLOZ7/j8tA2BlAYhQb1Dr3UgKWEBFoOgyuEJIhh+4vezb4VtGGL7XSnQ8ubmBgtWF\ns0a0DrVYaGXMgg+H2pL2qS2YPx3FYcrrG5FS40qMsFkkcXFruFpGOp2mBi8lWJBr\nNtvykwheUAj1ab1+dKz5S5ca/t99G1PYiiaeQ9XNAoGAVXk4HvdUc5q+BNiYvKUS\nM2/TDU3cYY72mPCEw7G6Kpn6zMaakQcA1+Z8LkYcLaQKRD/66n99WWT+BcY+QXtC\n0ZPHjeepDL8q+yXRY8zlcgAukg18Ta5yD1J1014y8UIV+HY8ongTni1sI8N+vKd4\n+TF2C2Cynf5vQr5man7ShPw=\n-----END PRIVATE KEY-----\n\nEND_OF_HTTPDETAILS\nnode ./index.js\n"
-                  ],
-                  "image": "mendhak/http-https-echo:19",
-                  "name": "untrusted-httpdetails",
-                  "ports": [
-                    {
-                      "containerPort": 8080,
-                      "name": "http"
-                    },
-                    {
-                      "containerPort": 8443,
-                      "name": "https"
-                    }
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      }
-      END_OF_MANIFEST
-      kubectl apply -f /tmp/manifest.json
-      kubectl wait --for=condition=available deployment/untrusted-httpdetails
-      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
-      {
-        "apiVersion": "v1",
-        "kind": "Service",
-        "metadata": {
-          "labels": {
-            "app": "wrongly-named-httpdetails"
-          },
-          "name": "wrongly-named-httpdetails",
-          "namespace": "default"
-        },
-        "spec": {
-          "ports": [
-            {
-              "name": "http",
-              "port": 8080,
-              "targetPort": "http"
-            },
-            {
-              "name": "https",
-              "port": 8443,
-              "targetPort": "https"
-            }
-          ],
-          "selector": {
-            "app": "wrongly-named-httpdetails"
-          }
-        }
-      }
-      END_OF_MANIFEST
-      kubectl apply -f /tmp/manifest.json
-      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
-      {
-        "apiVersion": "apps/v1",
-        "kind": "Deployment",
-        "metadata": {
-          "name": "wrongly-named-httpdetails",
-          "namespace": "default"
-        },
-        "spec": {
-          "replicas": 1,
-          "selector": {
-            "matchLabels": {
-              "app": "wrongly-named-httpdetails"
-            }
-          },
-          "template": {
-            "metadata": {
-              "labels": {
-                "app": "wrongly-named-httpdetails"
-              }
-            },
-            "spec": {
-              "containers": [
-                {
-                  "args": [
-                    "sh",
-                    "-c",
-                    "cat <<-END_OF_HTTPDETAILS | tee /app/fullchain.pem\n-----BEGIN CERTIFICATE-----\nMIIEWDCCAsCgAwIBAgIRAK1MkqoHP+DPILewhMcnnu4wDQYJKoZIhvcNAQELBQAw\ngYMxHjAcBgNVBAoTFW1rY2VydCBkZXZlbG9wbWVudCBDQTEsMCoGA1UECwwjY2Fs\nZWJAY2FsZWItcGMtbGludXggKENhbGViIERveHNleSkxMzAxBgNVBAMMKm1rY2Vy\ndCBjYWxlYkBjYWxlYi1wYy1saW51eCAoQ2FsZWIgRG94c2V5KTAeFw0yMTA4MTEy\nMTU0MzRaFw0yMzExMTEyMjU0MzRaMFcxJzAlBgNVBAoTHm1rY2VydCBkZXZlbG9w\nbWVudCBjZXJ0aWZpY2F0ZTEsMCoGA1UECwwjY2FsZWJAY2FsZWItcGMtbGludXgg\nKENhbGViIERveHNleSkwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDV\nDWPhOpNWAYNTQZ4BR5ZU13HqRg/6B49duFcHPY+hkbQPSZdN+GZjCeRVIK8iAkgM\n3cvyRs40dygZeogu9LYo6AN/h6cVCF9ENg5jo7/PjK5/6aIf8/Ss22tCuhUL7UHV\n6ttf6y0+4Nq1hRQcbyIPij89nmO+mT4Fhs9gNSsj2y0gQQWqN2lGhhBnnaCUxh3E\nlxIYQsCr85FyW8wWtPxn6mdFHc/iSUh0edeiExWsbPTdfEAj93J5bidXAi27uxTC\n8X2vHBBIbnZipb9zmZxBjDjslEnN4vVc9weW5N3nKcu+7QXJdiHFP32YSET2Opu3\nOIkJji4rpJqxG1Z7MvPzAgMBAAGjcjBwMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE\nDDAKBggrBgEFBQcDATAfBgNVHSMEGDAWgBSFhlhYgEfKTplVOeneVG3+3IE/TTAo\nBgNVHREEITAfgh1pbnZhbGlkLmxvY2FsaG9zdC5wb21lcml1bS5pbzANBgkqhkiG\n9w0BAQsFAAOCAYEABsSByXWA7e8hpKWZK4APWzkvDwiTGrDDE7k0hueJksTZ5Nqw\nfRdGoUpweWIYzAv1etPAr+B2gsZM/jVRidaGDI1tKPytZ3pP6mQ52CVXkeJQytPr\nrNDnP3Lbpbs8PHoHw3PVxIyRps1ZbZkgbUsXrSvpp/l+ZObbGQjr3Fdx5oXI6a1V\nNNC39LkPhjTKtcG+H8dO5GRuDb/9PrzrnDwnl6CoORbEjTKRIFuA+vkFBRjyuccr\nGQiMNmMxy5CMOsK+Od4+8qhv2ZgnREHyBnjFFhgVLFJ2PwUxk3N4GIzCC8tsD+vb\n+YJgCS7n6JmcB9SFeyRy+qpolnfEaMvRwnJl6Evj17VCBy7x0gEO6B4lILPpziN8\nVVhSuRsC0V8aXJJx89mwrg9pzN9w771rFVOCrAEdZei34/yfo8VyBbIR1gUxkRNJ\ncrTI9pT0PK+9OWQ57HtnGmFsPtWT8r7P8xukAPy50wSLF3InjEo8VR2df+V7DVVU\naTjNbuaG1NLNyWLH\n-----END CERTIFICATE-----\n\nEND_OF_HTTPDETAILS\ncat <<-END_OF_HTTPDETAILS | tee /app/privkey.pem\n-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDVDWPhOpNWAYNT\nQZ4BR5ZU13HqRg/6B49duFcHPY+hkbQPSZdN+GZjCeRVIK8iAkgM3cvyRs40dygZ\neogu9LYo6AN/h6cVCF9ENg5jo7/PjK5/6aIf8/Ss22tCuhUL7UHV6ttf6y0+4Nq1\nhRQcbyIPij89nmO+mT4Fhs9gNSsj2y0gQQWqN2lGhhBnnaCUxh3ElxIYQsCr85Fy\nW8wWtPxn6mdFHc/iSUh0edeiExWsbPTdfEAj93J5bidXAi27uxTC8X2vHBBIbnZi\npb9zmZxBjDjslEnN4vVc9weW5N3nKcu+7QXJdiHFP32YSET2Opu3OIkJji4rpJqx\nG1Z7MvPzAgMBAAECggEBAM3XhRO7+1QSXCaZdCZ6WuWXzojxrkf8++gpzXPCZ75L\nvvMyP8xmXc38Za5VyL+MAr7joENxY5NPON/9AgyUBFdbat3RW323vAt0Ssy8Dfti\nScpuGWTT2CcWS/iJPwJp9bzPj6qJ1wo0Rzsv23FpcjgfcuB+4pHpDwJZ8IxcclTN\njv5XdmanN0Ai2ONDkIHQyvMTsYAX99OK7nXIs3OW7s4wsm8Wg+loCqTvojTzWuwE\nTZNFonHAZ81jkrYfNjz+sM/tPuOYD+vWQ89+1IeQKFw1U0iBpF1VvhA7UeQZMeI8\nS1NpDQTQW0kxmUAlLj7ldnIvknT/x0lKzoafVpk47/kCgYEA+SxnMLHe3Wxb4Kkf\n7Gwktbth/wlWzUWzQ7c0TdhfEDjcRB7SeGIjrL4/HPyXEsCcGIj84TEob1EA0KVP\nl6Jeqh5t/sr9da+uLFf6H41yZUaTccoyclnjHsqT+WLTtiTKqf7cXACg5NKbJwUT\nldCEu+4Ovur+8Ax6s/mGWNEzar0CgYEA2uOmD+SCIhj16P+3GnpZ0UzyDhUKedTy\nLisZznroF6RI3BHzNT+YotHORDMiJtmX0slFcInAWaB3htLPbHmvredjlsH35eHW\nB6wkWmbniJEovPysWdg7xjrj8DoL2dcm6liM1KpSo9k6XWJu36//xF4RTnL8JPEH\nRPuBWmBXHG8CgYBjJy886lr0I61//eztKK+G/bTmRvIapzTJqnqOy54wl1/XX6iD\nLRJjKCV3RHBdjvXOsZxnhCdB/KrlXBMLFRq0eX1t2Zr4nNsjXDL1IVU3Rdlge4SN\nioVdeGFf6Nq0bXmUIg3QMpPT2pbQ9S0w/ZQEMJv/jwW5wk2FlrLGXyElxQKBgQC3\nskUzITp1Ey2NFM290uB93m1llBLum9+DD3jg6BTPgngC+K17Cpw2SI0qfx8yK3pW\n08MK5xAeJ6Un6NNa3eSptX7GjpJUwmq0lasMkz/MRMZDlGmwHOBNRC729D/t2bo3\nAYlvEGG6UBvDM1CJOVMUoT008Rrahczr/4ZXKnLw0QKBgExc+SXb5IRJIMHEQLkg\nE7va23sR7x4j75mK6HnSwAM3jKx4GDgpkY1EO+rh+99mq/bIouL8ob/PG7A5RtKp\n+Sgpqk5N6NpSFMaubsu1EQhqT5pmy0dN5KXecR4s1IylPvth/h3tdXPKGcLMD2M2\nEN59YIA1o4qWjJsfEiuQ6x7M\n-----END PRIVATE KEY-----\n\nEND_OF_HTTPDETAILS\nnode ./index.js\n"
-                  ],
-                  "image": "mendhak/http-https-echo:19",
-                  "name": "wrongly-named-httpdetails",
-                  "ports": [
-                    {
-                      "containerPort": 8080,
-                      "name": "http"
-                    },
-                    {
-                      "containerPort": 8443,
-                      "name": "https"
-                    }
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      }
-      END_OF_MANIFEST
-      kubectl apply -f /tmp/manifest.json
-      kubectl wait --for=condition=available deployment/wrongly-named-httpdetails
-      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
-      {
-        "apiVersion": "v1",
-        "kind": "Service",
-        "metadata": {
-          "labels": {
-            "app": "mock-idp"
-          },
-          "name": "mock-idp",
-          "namespace": "default"
-        },
-        "spec": {
-          "ports": [
-            {
-              "name": "http",
-              "port": 8024,
-              "targetPort": "http"
-            }
-          ],
-          "selector": {
-            "app": "mock-idp"
-          }
-        }
-      }
-      END_OF_MANIFEST
-      kubectl apply -f /tmp/manifest.json
-      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
-      {
         "apiVersion": "apps/v1",
         "kind": "Deployment",
         "metadata": {
@@ -361,46 +92,6 @@ services:
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
       kubectl wait --for=condition=available deployment/mock-idp
-      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
-      {
-        "apiVersion": "v1",
-        "kind": "Service",
-        "metadata": {
-          "labels": {
-            "app": "pomerium"
-          },
-          "name": "pomerium",
-          "namespace": "default"
-        },
-        "spec": {
-          "ports": [
-            {
-              "name": "http",
-              "nodePort": 80,
-              "port": 80,
-              "targetPort": "http"
-            },
-            {
-              "name": "https",
-              "nodePort": 443,
-              "port": 443,
-              "targetPort": "https"
-            },
-            {
-              "name": "grpc",
-              "nodePort": 5443,
-              "port": 5443,
-              "targetPort": "grpc"
-            }
-          ],
-          "selector": {
-            "app": "pomerium"
-          },
-          "type": "NodePort"
-        }
-      }
-      END_OF_MANIFEST
-      kubectl apply -f /tmp/manifest.json
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -527,32 +218,6 @@ services:
       kubectl wait --for=condition=available deployment/pomerium
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
-        "apiVersion": "v1",
-        "kind": "Service",
-        "metadata": {
-          "labels": {
-            "app": "redis"
-          },
-          "name": "redis",
-          "namespace": "default"
-        },
-        "spec": {
-          "ports": [
-            {
-              "name": "tcp",
-              "port": 6379,
-              "targetPort": "tcp"
-            }
-          ],
-          "selector": {
-            "app": "redis"
-          }
-        }
-      }
-      END_OF_MANIFEST
-      kubectl apply -f /tmp/manifest.json
-      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
-      {
         "apiVersion": "apps/v1",
         "kind": "Deployment",
         "metadata": {
@@ -594,30 +259,104 @@ services:
       kubectl wait --for=condition=available deployment/redis
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
-        "apiVersion": "v1",
-        "kind": "Service",
+        "apiVersion": "apps/v1",
+        "kind": "Deployment",
         "metadata": {
-          "labels": {
-            "app": "verify"
-          },
-          "name": "verify",
+          "name": "trusted-httpdetails",
           "namespace": "default"
         },
         "spec": {
-          "ports": [
-            {
-              "name": "http",
-              "port": 80,
-              "targetPort": "http"
-            }
-          ],
+          "replicas": 1,
           "selector": {
-            "app": "verify"
+            "matchLabels": {
+              "app": "trusted-httpdetails"
+            }
+          },
+          "template": {
+            "metadata": {
+              "labels": {
+                "app": "trusted-httpdetails"
+              }
+            },
+            "spec": {
+              "containers": [
+                {
+                  "args": [
+                    "sh",
+                    "-c",
+                    "cat <<-END_OF_HTTPDETAILS | tee /app/fullchain.pem\n-----BEGIN CERTIFICATE-----\nMIIEUjCCArqgAwIBAgIRAKNaEqCmmZfhmcYgZy01WCswDQYJKoZIhvcNAQELBQAw\ngYMxHjAcBgNVBAoTFW1rY2VydCBkZXZlbG9wbWVudCBDQTEsMCoGA1UECwwjY2Fs\nZWJAY2FsZWItcGMtbGludXggKENhbGViIERveHNleSkxMzAxBgNVBAMMKm1rY2Vy\ndCBjYWxlYkBjYWxlYi1wYy1saW51eCAoQ2FsZWIgRG94c2V5KTAeFw0yMTA4MTAx\nNzMyMTBaFw0yMzExMTAxODMyMTBaMFcxJzAlBgNVBAoTHm1rY2VydCBkZXZlbG9w\nbWVudCBjZXJ0aWZpY2F0ZTEsMCoGA1UECwwjY2FsZWJAY2FsZWItcGMtbGludXgg\nKENhbGViIERveHNleSkwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC8\nHLBAIzXkPeegldUfRKK2jQxSVZD5g+qsjAzpmrq/AtmweK1cGcOtZ6eOL+p8brPD\nyVhDT0QlI/O/EKgCOFFxUDqoR82iY06SacAjHni6+PO9tVRbFV0w14BDAJSpB+Vv\nWyl+FoPDV/vsZ31FtYw+EwqkbDx/kaT9uzf+LJdlkf14nQQj8Eky/8d3mWJbb/9t\njObsaQgJ5LLxCYdImkr77X2LMuDw/1tpH642GE25Nrgm6QHlyKSfYXo38v83ebEq\nbZUDG+ZioArPmqmkawUWw3ekhj80SJg/TK9PRaN/VvcI1PgAd7LZztUReSmTy5hd\n9r6rOBxpxwnTDvHkBn6vAgMBAAGjbDBqMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE\nDDAKBggrBgEFBQcDATAfBgNVHSMEGDAWgBSFhlhYgEfKTplVOeneVG3+3IE/TTAi\nBgNVHREEGzAZghcqLmxvY2FsaG9zdC5wb21lcml1bS5pbzANBgkqhkiG9w0BAQsF\nAAOCAYEAufQAF79s7c1gmZ9CIKBSGkHh+SH01CuKYnnHiMowHsTioFaUAQsd/P4X\nc2XBqc34eT3mCvpgZjHbjz6JlnTYJxuLvVqnVB3emtWrb1cQvh8BphxspTlS8uiE\nAEf/ngtpzfA/f4lpGkzrQ0cyPkEJGz511q97itzn9RZZzVTZxNVFSP2vVhNNQVsW\nOxakcvYRgnz8AOQS3OPHj2FQc3iibshct5leIwYZFcxINGHR6KL6+/LSePNCEMmK\nqymVPkQGsIcU6GQ9fxaSu4mp+IUALProizEVI8SVk5nOm3HIez+ZfXhzfnGx06SI\n6NuoQQPqUBeZeXn2YFYhipeRdrQxvA36/YXa/AkXCeU0pXxbtXKcvatfri5KnYJD\nkH59a+aFkTsl41tfI2cnRYVddqXVl3OzLbcgAFLn1WeC1xx3xRXi7KldokOlvgv+\nB6naWfCxRlWZ/lsmHae4kc1WH4Kc7nK+ITb40EkjV68/A7krZsN1VcqNtpomYkgE\nxjUE8XUu\n-----END CERTIFICATE-----\n\nEND_OF_HTTPDETAILS\ncat <<-END_OF_HTTPDETAILS | tee /app/privkey.pem\n-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC8HLBAIzXkPeeg\nldUfRKK2jQxSVZD5g+qsjAzpmrq/AtmweK1cGcOtZ6eOL+p8brPDyVhDT0QlI/O/\nEKgCOFFxUDqoR82iY06SacAjHni6+PO9tVRbFV0w14BDAJSpB+VvWyl+FoPDV/vs\nZ31FtYw+EwqkbDx/kaT9uzf+LJdlkf14nQQj8Eky/8d3mWJbb/9tjObsaQgJ5LLx\nCYdImkr77X2LMuDw/1tpH642GE25Nrgm6QHlyKSfYXo38v83ebEqbZUDG+ZioArP\nmqmkawUWw3ekhj80SJg/TK9PRaN/VvcI1PgAd7LZztUReSmTy5hd9r6rOBxpxwnT\nDvHkBn6vAgMBAAECggEAB28i0AYUNSb1JnWFbKzruUctu3tCNXovJg6K3BiPVMkq\nDT1XrJIgF5RHHOlr3OsLE6u7Xz2ctdML6PshiKTtIwtGpivgRpCiJEslmr2zi8AW\n8eJeqRLZEfsSSJOXTG7RdGsn4qHFJ00s2ZTlcIHSPwnFm+XjJi99U8G4XsUoXo0r\nGy+0VCuU7M8gICEHHsrQO9XDD3nT2jiu5TjrKwjut3EmoJssI5bqx33+OBu5BpCP\nCT473D43P9p3qi/XnfvqGSG2Oj4OajV4fr0o9B3KvIxkMem7WlI3jyy1kApyXqVT\nbLkLFyWBNTWUZ2R/2wxmuoC6mLZw879MLCKMvk1doQKBgQDhmwGafJNymTiEQZRI\nSsQx4seqfOKfgFC7ohqH9cROOu8IJ1o7q2pM2W4XiV+S3wTdPGmca6IOjX23isVB\n2uqNi9S4MnI2/d22Gd/BR9rvBw1eGJoKbrWx22fE8QCEWT1AnO+DuD0jC85yRls7\naxzlaMrxEu3LI9UE7NtrdQiByQKBgQDVdI6ceIVBT6RgvVGt8zkLjPIFjhQEHAIp\nuhirgqpS6CX9Blyf2+o40zmfj3he5rCcEoB5MseM+DgFbcVh2e/MVnYiNNw6JCDB\nBQkF408pZpSeKXvL/oyV/kImMTJ/tUDY0EXxMwSPJB0WltbWreVIHopigXRCbaey\nuBHVBv/4twKBgHwHuePy5SU1s2qSmzD7Wc2LPfYu3nCOHNRrFGb26MuRfuReri7r\n2G8TgoESFycp0QTIN8+1JM0XYKxNcJD6B8V1wKbbpQsymneI1gjutiB/Igw/PkDK\nCL4VP4F4da5NWW1yWgNygLoJvZ/5qiKKisJc0GWk4HKz6mLgzOjQ2LJxAoGBALHZ\nfN2YeYbyYcaM11p1VilulVTVjY3i/FZiDR4SL/IGJWjN/Szg4iXYsKFmu+dulOZl\ncBALpEKrqpmzXYtrN6bsv18+5eO3qGbK2DrEq3eWVev2KoTMobxz7g++XBIWJmLA\nHhaa6IiPkYD5yyVyHKDbeXgb3o9eqCR7w7fYLjy/AoGAI4D+MFkivwUF7hqf5edS\nKrltwmodHiqXNbVkwbW1AFPJbiYai4YFfK4IAbif/Ymxf9G78aOkr9ZpCIzOkDPZ\nYpEwQGWsAhElCFvc8E/5dHESSp+tWtP+NluimpFqiDg3/SUnMwO2xH0nhLa0zejh\ngmLh4w/CcPyb9ZyXceWU/nU=\n-----END PRIVATE KEY-----\n\nEND_OF_HTTPDETAILS\nnode ./index.js\n"
+                  ],
+                  "image": "mendhak/http-https-echo:19",
+                  "name": "trusted-httpdetails",
+                  "ports": [
+                    {
+                      "containerPort": 8080,
+                      "name": "http"
+                    },
+                    {
+                      "containerPort": 8443,
+                      "name": "https"
+                    }
+                  ]
+                }
+              ]
+            }
           }
         }
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
+      kubectl wait --for=condition=available deployment/trusted-httpdetails
+      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
+      {
+        "apiVersion": "apps/v1",
+        "kind": "Deployment",
+        "metadata": {
+          "name": "untrusted-httpdetails",
+          "namespace": "default"
+        },
+        "spec": {
+          "replicas": 1,
+          "selector": {
+            "matchLabels": {
+              "app": "untrusted-httpdetails"
+            }
+          },
+          "template": {
+            "metadata": {
+              "labels": {
+                "app": "untrusted-httpdetails"
+              }
+            },
+            "spec": {
+              "containers": [
+                {
+                  "args": [
+                    "sh",
+                    "-c",
+                    "cat <<-END_OF_HTTPDETAILS | tee /app/fullchain.pem\n-----BEGIN CERTIFICATE-----\nMIIEUjCCArqgAwIBAgIRAKKYU7PSAFxZbhuLUlbv3iAwDQYJKoZIhvcNAQELBQAw\ngYMxHjAcBgNVBAoTFW1rY2VydCBkZXZlbG9wbWVudCBDQTEsMCoGA1UECwwjY2Fs\nZWJAY2FsZWItcGMtbGludXggKENhbGViIERveHNleSkxMzAxBgNVBAMMKm1rY2Vy\ndCBjYWxlYkBjYWxlYi1wYy1saW51eCAoQ2FsZWIgRG94c2V5KTAeFw0yMTA4MTEy\nMTU2MTFaFw0yMzExMTEyMjU2MTFaMFcxJzAlBgNVBAoTHm1rY2VydCBkZXZlbG9w\nbWVudCBjZXJ0aWZpY2F0ZTEsMCoGA1UECwwjY2FsZWJAY2FsZWItcGMtbGludXgg\nKENhbGViIERveHNleSkwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCg\nVDM59lGzCRjdUQCyzokqC4sEr7Ln2FpXfHjMWPuNK5vQYccTxto3JlAVXl+oOLHG\noryKGDOkRV1SDb3zAxYQNDuYUnraiVgLPrM9NFpHSk/IlACQjRlFRYG0Go3PDR2v\nJX4qTwgrqQtLOJ5tHnqrt6idtvNp1ISYOIscXf/WIAhh+IuOvas4eie7GETX4eqP\nqpc6AEFuklmoBHBfMCrGg89WBUTWCZYrHE9BYDL0LG/VwLYn2tDKBrS9iZIlTqPw\nve8VoGIlx4uvHTdzaVStcRKOXCsbSwXRdt0842d4C1nohQkRHqHoBjQzrJiWJzxG\nmgByfa2rxbNg15PFwF+ZAgMBAAGjbDBqMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE\nDDAKBggrBgEFBQcDATAfBgNVHSMEGDAWgBS3GPBKDaHzHK68c8sSJ91umTjFVzAi\nBgNVHREEGzAZghcqLmxvY2FsaG9zdC5wb21lcml1bS5pbzANBgkqhkiG9w0BAQsF\nAAOCAYEAizMhh+VYIMp07wGn7+rzAE/651yiMC6kZHIOMHilvimyYvCf+Yc0MrcD\nmVQgqlUpkn/f2SOFsBQonjAACkWlSHah9KStL0iTvOIH+oGLnv3Y9wrKvwJol3KR\nc/+mO9R9TS71DoX+rTGRY3BNldpMBZF7HsYt/bg0RSpF0zkZarW+PEMmPw6IgIaD\nRPGpOiQOqIxQn4d6MyiNGS0QmDeGSZvsC07ZcZ+JxsYi4S+yN6GXt11pstiRXjDv\nzrO3s8TnVsBux7VDdIYfzMxqz+874MbsUUlb4txr3V48UDRLm7VDQ2/F+o0+Y5wt\nXAnXTn/6GFpjJvPGr0A1QLOvnhR0DZ4Fl97athu44pqeQywDU5LPP3HqrWRXLy3j\nBPBC4waHayL9Hnh4zQUe/h6hwC5Nxl/gqfB3Aaqr5PWX6rMFss8AYpB81ci+UJdm\nKSIn/pMoK6TWkCveoQRQOZD8wfwPF4cUUmWcLFwSveZSiniFrAXQqZbO1k6RDhQf\nhavcwKlK\n-----END CERTIFICATE-----\n\nEND_OF_HTTPDETAILS\ncat <<-END_OF_HTTPDETAILS | tee /app/privkey.pem\n-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCgVDM59lGzCRjd\nUQCyzokqC4sEr7Ln2FpXfHjMWPuNK5vQYccTxto3JlAVXl+oOLHGoryKGDOkRV1S\nDb3zAxYQNDuYUnraiVgLPrM9NFpHSk/IlACQjRlFRYG0Go3PDR2vJX4qTwgrqQtL\nOJ5tHnqrt6idtvNp1ISYOIscXf/WIAhh+IuOvas4eie7GETX4eqPqpc6AEFuklmo\nBHBfMCrGg89WBUTWCZYrHE9BYDL0LG/VwLYn2tDKBrS9iZIlTqPwve8VoGIlx4uv\nHTdzaVStcRKOXCsbSwXRdt0842d4C1nohQkRHqHoBjQzrJiWJzxGmgByfa2rxbNg\n15PFwF+ZAgMBAAECggEADTzGefunZTPUFLnSZ/D7jDglwz5KdC/9zYleY+jY5B/8\nnmjkSfK6I6GLLSh8l2QO8YqQLIqxANglS1gNHdpcYPwfC4WL1S1P0qXboKsI5Sfy\njGoD3et4caq6ecdTfAvmLobW8uFRmGE9qHlFQ1cn47OnPVZUpKFCTVslyTLNo70h\n28gx/lnpgkbeWotJ5GygE/H0jKJlG8/V3+Ppfuq6wypA5ELcGUeMAwmCfUNNlDy3\nBhXSa6STgL26ar70KZIjTp9B97hIfDWObxgjzMX2JoiWXziszvbfaknfBsmfTm45\noUZYO0DuvLdLpxic0GZQwZCT6GzuexxJ9zR/pdahrQKBgQDEiwc0e+M1KaOoIIcw\nV7pxoGjvd+CC5whS00jSf/rXPSPFxat9Ml5serOzLdRLM/NQ5wB9S7TYc6PJi3Mb\n8pmbGadIXiGIJY8vX79P/velHT4csgULJAKJF9U65knhaidPPPmXloHOhRWrE8Zq\nmexVgJZrHLI8197qmi+ctT5rEwKBgQDQ1J84AwI1hEsXHxoSetSznt+ae7pSUb/J\nbyqK9KEp0DLyf8GcS7vxyYGQo0mJDlHaJt56LKv+zdX4wGG85ztbOFVPee6XLKSs\nI+h7rzc2hKrl+SaI91h1234WsTeJvfUSHyBy9vAwLhd0hplNrt7Tql5Z0VTWHmFE\n2XbEwcTUIwKBgQDBpioHMDmBW/F/6ezJWOa+pco+h+KRl4i/8qVBog9Im1jvt/9r\nb4FRaOQ9mt4c6qbGA5Sb30fkLKwoHFniI3ntM616xCRNvJQDnVcmPpVJ/jIAm/YU\nL/q/kNfrHJOWobzxeaaCESz8imv7D5Tj25zb8cJC7xc+k4Nzq09WG83QOQKBgG28\nLOZ7/j8tA2BlAYhQb1Dr3UgKWEBFoOgyuEJIhh+4vezb4VtGGL7XSnQ8ubmBgtWF\ns0a0DrVYaGXMgg+H2pL2qS2YPx3FYcrrG5FS40qMsFkkcXFruFpGOp2mBi8lWJBr\nNtvykwheUAj1ab1+dKz5S5ca/t99G1PYiiaeQ9XNAoGAVXk4HvdUc5q+BNiYvKUS\nM2/TDU3cYY72mPCEw7G6Kpn6zMaakQcA1+Z8LkYcLaQKRD/66n99WWT+BcY+QXtC\n0ZPHjeepDL8q+yXRY8zlcgAukg18Ta5yD1J1014y8UIV+HY8ongTni1sI8N+vKd4\n+TF2C2Cynf5vQr5man7ShPw=\n-----END PRIVATE KEY-----\n\nEND_OF_HTTPDETAILS\nnode ./index.js\n"
+                  ],
+                  "image": "mendhak/http-https-echo:19",
+                  "name": "untrusted-httpdetails",
+                  "ports": [
+                    {
+                      "containerPort": 8080,
+                      "name": "http"
+                    },
+                    {
+                      "containerPort": 8443,
+                      "name": "https"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+      END_OF_MANIFEST
+      kubectl apply -f /tmp/manifest.json
+      kubectl wait --for=condition=available deployment/untrusted-httpdetails
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -659,32 +398,6 @@ services:
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
       kubectl wait --for=condition=available deployment/verify
-      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
-      {
-        "apiVersion": "v1",
-        "kind": "Service",
-        "metadata": {
-          "labels": {
-            "app": "websocket-echo"
-          },
-          "name": "websocket-echo",
-          "namespace": "default"
-        },
-        "spec": {
-          "ports": [
-            {
-              "name": "http",
-              "port": 80,
-              "targetPort": "http"
-            }
-          ],
-          "selector": {
-            "app": "websocket-echo"
-          }
-        }
-      }
-      END_OF_MANIFEST
-      kubectl apply -f /tmp/manifest.json
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -731,6 +444,293 @@ services:
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
       kubectl wait --for=condition=available deployment/websocket-echo
+      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
+      {
+        "apiVersion": "apps/v1",
+        "kind": "Deployment",
+        "metadata": {
+          "name": "wrongly-named-httpdetails",
+          "namespace": "default"
+        },
+        "spec": {
+          "replicas": 1,
+          "selector": {
+            "matchLabels": {
+              "app": "wrongly-named-httpdetails"
+            }
+          },
+          "template": {
+            "metadata": {
+              "labels": {
+                "app": "wrongly-named-httpdetails"
+              }
+            },
+            "spec": {
+              "containers": [
+                {
+                  "args": [
+                    "sh",
+                    "-c",
+                    "cat <<-END_OF_HTTPDETAILS | tee /app/fullchain.pem\n-----BEGIN CERTIFICATE-----\nMIIEWDCCAsCgAwIBAgIRAK1MkqoHP+DPILewhMcnnu4wDQYJKoZIhvcNAQELBQAw\ngYMxHjAcBgNVBAoTFW1rY2VydCBkZXZlbG9wbWVudCBDQTEsMCoGA1UECwwjY2Fs\nZWJAY2FsZWItcGMtbGludXggKENhbGViIERveHNleSkxMzAxBgNVBAMMKm1rY2Vy\ndCBjYWxlYkBjYWxlYi1wYy1saW51eCAoQ2FsZWIgRG94c2V5KTAeFw0yMTA4MTEy\nMTU0MzRaFw0yMzExMTEyMjU0MzRaMFcxJzAlBgNVBAoTHm1rY2VydCBkZXZlbG9w\nbWVudCBjZXJ0aWZpY2F0ZTEsMCoGA1UECwwjY2FsZWJAY2FsZWItcGMtbGludXgg\nKENhbGViIERveHNleSkwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDV\nDWPhOpNWAYNTQZ4BR5ZU13HqRg/6B49duFcHPY+hkbQPSZdN+GZjCeRVIK8iAkgM\n3cvyRs40dygZeogu9LYo6AN/h6cVCF9ENg5jo7/PjK5/6aIf8/Ss22tCuhUL7UHV\n6ttf6y0+4Nq1hRQcbyIPij89nmO+mT4Fhs9gNSsj2y0gQQWqN2lGhhBnnaCUxh3E\nlxIYQsCr85FyW8wWtPxn6mdFHc/iSUh0edeiExWsbPTdfEAj93J5bidXAi27uxTC\n8X2vHBBIbnZipb9zmZxBjDjslEnN4vVc9weW5N3nKcu+7QXJdiHFP32YSET2Opu3\nOIkJji4rpJqxG1Z7MvPzAgMBAAGjcjBwMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE\nDDAKBggrBgEFBQcDATAfBgNVHSMEGDAWgBSFhlhYgEfKTplVOeneVG3+3IE/TTAo\nBgNVHREEITAfgh1pbnZhbGlkLmxvY2FsaG9zdC5wb21lcml1bS5pbzANBgkqhkiG\n9w0BAQsFAAOCAYEABsSByXWA7e8hpKWZK4APWzkvDwiTGrDDE7k0hueJksTZ5Nqw\nfRdGoUpweWIYzAv1etPAr+B2gsZM/jVRidaGDI1tKPytZ3pP6mQ52CVXkeJQytPr\nrNDnP3Lbpbs8PHoHw3PVxIyRps1ZbZkgbUsXrSvpp/l+ZObbGQjr3Fdx5oXI6a1V\nNNC39LkPhjTKtcG+H8dO5GRuDb/9PrzrnDwnl6CoORbEjTKRIFuA+vkFBRjyuccr\nGQiMNmMxy5CMOsK+Od4+8qhv2ZgnREHyBnjFFhgVLFJ2PwUxk3N4GIzCC8tsD+vb\n+YJgCS7n6JmcB9SFeyRy+qpolnfEaMvRwnJl6Evj17VCBy7x0gEO6B4lILPpziN8\nVVhSuRsC0V8aXJJx89mwrg9pzN9w771rFVOCrAEdZei34/yfo8VyBbIR1gUxkRNJ\ncrTI9pT0PK+9OWQ57HtnGmFsPtWT8r7P8xukAPy50wSLF3InjEo8VR2df+V7DVVU\naTjNbuaG1NLNyWLH\n-----END CERTIFICATE-----\n\nEND_OF_HTTPDETAILS\ncat <<-END_OF_HTTPDETAILS | tee /app/privkey.pem\n-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDVDWPhOpNWAYNT\nQZ4BR5ZU13HqRg/6B49duFcHPY+hkbQPSZdN+GZjCeRVIK8iAkgM3cvyRs40dygZ\neogu9LYo6AN/h6cVCF9ENg5jo7/PjK5/6aIf8/Ss22tCuhUL7UHV6ttf6y0+4Nq1\nhRQcbyIPij89nmO+mT4Fhs9gNSsj2y0gQQWqN2lGhhBnnaCUxh3ElxIYQsCr85Fy\nW8wWtPxn6mdFHc/iSUh0edeiExWsbPTdfEAj93J5bidXAi27uxTC8X2vHBBIbnZi\npb9zmZxBjDjslEnN4vVc9weW5N3nKcu+7QXJdiHFP32YSET2Opu3OIkJji4rpJqx\nG1Z7MvPzAgMBAAECggEBAM3XhRO7+1QSXCaZdCZ6WuWXzojxrkf8++gpzXPCZ75L\nvvMyP8xmXc38Za5VyL+MAr7joENxY5NPON/9AgyUBFdbat3RW323vAt0Ssy8Dfti\nScpuGWTT2CcWS/iJPwJp9bzPj6qJ1wo0Rzsv23FpcjgfcuB+4pHpDwJZ8IxcclTN\njv5XdmanN0Ai2ONDkIHQyvMTsYAX99OK7nXIs3OW7s4wsm8Wg+loCqTvojTzWuwE\nTZNFonHAZ81jkrYfNjz+sM/tPuOYD+vWQ89+1IeQKFw1U0iBpF1VvhA7UeQZMeI8\nS1NpDQTQW0kxmUAlLj7ldnIvknT/x0lKzoafVpk47/kCgYEA+SxnMLHe3Wxb4Kkf\n7Gwktbth/wlWzUWzQ7c0TdhfEDjcRB7SeGIjrL4/HPyXEsCcGIj84TEob1EA0KVP\nl6Jeqh5t/sr9da+uLFf6H41yZUaTccoyclnjHsqT+WLTtiTKqf7cXACg5NKbJwUT\nldCEu+4Ovur+8Ax6s/mGWNEzar0CgYEA2uOmD+SCIhj16P+3GnpZ0UzyDhUKedTy\nLisZznroF6RI3BHzNT+YotHORDMiJtmX0slFcInAWaB3htLPbHmvredjlsH35eHW\nB6wkWmbniJEovPysWdg7xjrj8DoL2dcm6liM1KpSo9k6XWJu36//xF4RTnL8JPEH\nRPuBWmBXHG8CgYBjJy886lr0I61//eztKK+G/bTmRvIapzTJqnqOy54wl1/XX6iD\nLRJjKCV3RHBdjvXOsZxnhCdB/KrlXBMLFRq0eX1t2Zr4nNsjXDL1IVU3Rdlge4SN\nioVdeGFf6Nq0bXmUIg3QMpPT2pbQ9S0w/ZQEMJv/jwW5wk2FlrLGXyElxQKBgQC3\nskUzITp1Ey2NFM290uB93m1llBLum9+DD3jg6BTPgngC+K17Cpw2SI0qfx8yK3pW\n08MK5xAeJ6Un6NNa3eSptX7GjpJUwmq0lasMkz/MRMZDlGmwHOBNRC729D/t2bo3\nAYlvEGG6UBvDM1CJOVMUoT008Rrahczr/4ZXKnLw0QKBgExc+SXb5IRJIMHEQLkg\nE7va23sR7x4j75mK6HnSwAM3jKx4GDgpkY1EO+rh+99mq/bIouL8ob/PG7A5RtKp\n+Sgpqk5N6NpSFMaubsu1EQhqT5pmy0dN5KXecR4s1IylPvth/h3tdXPKGcLMD2M2\nEN59YIA1o4qWjJsfEiuQ6x7M\n-----END PRIVATE KEY-----\n\nEND_OF_HTTPDETAILS\nnode ./index.js\n"
+                  ],
+                  "image": "mendhak/http-https-echo:19",
+                  "name": "wrongly-named-httpdetails",
+                  "ports": [
+                    {
+                      "containerPort": 8080,
+                      "name": "http"
+                    },
+                    {
+                      "containerPort": 8443,
+                      "name": "https"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+      END_OF_MANIFEST
+      kubectl apply -f /tmp/manifest.json
+      kubectl wait --for=condition=available deployment/wrongly-named-httpdetails
+      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
+            "app": "mock-idp"
+          },
+          "name": "mock-idp",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "http",
+              "port": 8024,
+              "targetPort": "http"
+            }
+          ],
+          "selector": {
+            "app": "mock-idp"
+          }
+        }
+      }
+      END_OF_MANIFEST
+      kubectl apply -f /tmp/manifest.json
+      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
+            "app": "pomerium"
+          },
+          "name": "pomerium",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "http",
+              "nodePort": 80,
+              "port": 80,
+              "targetPort": "http"
+            },
+            {
+              "name": "https",
+              "nodePort": 443,
+              "port": 443,
+              "targetPort": "https"
+            },
+            {
+              "name": "grpc",
+              "nodePort": 5443,
+              "port": 5443,
+              "targetPort": "grpc"
+            }
+          ],
+          "selector": {
+            "app": "pomerium"
+          },
+          "type": "NodePort"
+        }
+      }
+      END_OF_MANIFEST
+      kubectl apply -f /tmp/manifest.json
+      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
+            "app": "redis"
+          },
+          "name": "redis",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "tcp",
+              "port": 6379,
+              "targetPort": "tcp"
+            }
+          ],
+          "selector": {
+            "app": "redis"
+          }
+        }
+      }
+      END_OF_MANIFEST
+      kubectl apply -f /tmp/manifest.json
+      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
+            "app": "trusted-httpdetails"
+          },
+          "name": "trusted-httpdetails",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "http",
+              "port": 8080,
+              "targetPort": "http"
+            },
+            {
+              "name": "https",
+              "port": 8443,
+              "targetPort": "https"
+            }
+          ],
+          "selector": {
+            "app": "trusted-httpdetails"
+          }
+        }
+      }
+      END_OF_MANIFEST
+      kubectl apply -f /tmp/manifest.json
+      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
+            "app": "untrusted-httpdetails"
+          },
+          "name": "untrusted-httpdetails",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "http",
+              "port": 8080,
+              "targetPort": "http"
+            },
+            {
+              "name": "https",
+              "port": 8443,
+              "targetPort": "https"
+            }
+          ],
+          "selector": {
+            "app": "untrusted-httpdetails"
+          }
+        }
+      }
+      END_OF_MANIFEST
+      kubectl apply -f /tmp/manifest.json
+      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
+            "app": "verify"
+          },
+          "name": "verify",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "http",
+              "port": 80,
+              "targetPort": "http"
+            }
+          ],
+          "selector": {
+            "app": "verify"
+          }
+        }
+      }
+      END_OF_MANIFEST
+      kubectl apply -f /tmp/manifest.json
+      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
+            "app": "websocket-echo"
+          },
+          "name": "websocket-echo",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "http",
+              "port": 80,
+              "targetPort": "http"
+            }
+          ],
+          "selector": {
+            "app": "websocket-echo"
+          }
+        }
+      }
+      END_OF_MANIFEST
+      kubectl apply -f /tmp/manifest.json
+      cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
+      {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {
+          "labels": {
+            "app": "wrongly-named-httpdetails"
+          },
+          "name": "wrongly-named-httpdetails",
+          "namespace": "default"
+        },
+        "spec": {
+          "ports": [
+            {
+              "name": "http",
+              "port": 8080,
+              "targetPort": "http"
+            },
+            {
+              "name": "https",
+              "port": 8443,
+              "targetPort": "https"
+            }
+          ],
+          "selector": {
+            "app": "wrongly-named-httpdetails"
+          }
+        }
+      }
+      END_OF_MANIFEST
+      kubectl apply -f /tmp/manifest.json
     image: rancher/k3s:${K3S_TAG:-latest}
     volumes:
     - k3s-tmp:/k3s-tmp

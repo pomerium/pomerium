@@ -1,37 +1,39 @@
-local entrypoint = [
-  'sh',
-  '-c',
-  |||
-    set -x
-    # the dev image is only available locally, so load it first
-    if [ "${POMERIUM_TAG:-master}" = "dev" ]; then
-      sh -c '
-        while true ; do
-          ctr --connect-timeout=1s --timeout=60s images import /k3s-tmp/pomerium-dev.tar && break
-          sleep 1
-        done
-      ' &
-    fi
-    k3s "$$@"
-  |||,
-  'k3s',
-];
+local Command() =
+  [
+    'sh',
+    '-c',
+    |||
+      set -x
+      # the dev image is only available locally, so load it first
+      if [ "${POMERIUM_TAG:-master}" = "dev" ]; then
+        sh -c '
+          while true ; do
+            ctr --connect-timeout=1s --timeout=60s images import /k3s-tmp/pomerium-dev.tar && break
+            sleep 1
+          done
+        ' &
+      fi
+      k3s "$$@"
+    |||,
+    'k3s',
+  ];
 
-local install(manifest) = std.join('\n', [
-  'cat <<-END_OF_MANIFEST | tee /tmp/manifest.json',
-  std.manifestJsonEx(manifest, '  '),
-  'END_OF_MANIFEST',
-  'kubectl apply -f /tmp/manifest.json',
-] + if manifest.kind == 'Deployment' then [
-  'kubectl wait --for=condition=available deployment/' + manifest.metadata.name,
-] else []);
+local InstallManifest(manifest) =
+  std.join('\n', [
+    'cat <<-END_OF_MANIFEST | tee /tmp/manifest.json',
+    std.manifestJsonEx(manifest, '  '),
+    'END_OF_MANIFEST',
+    'kubectl apply -f /tmp/manifest.json',
+  ] + if manifest.kind == 'Deployment' then [
+    'kubectl wait --for=condition=available deployment/' + manifest.metadata.name,
+  ] else []);
 
 function(idp, manifests) {
   compose: {
     services: {
       'k3s-server': {
         image: 'rancher/k3s:${K3S_TAG:-latest}',
-        entrypoint: entrypoint + [
+        entrypoint: Command() + [
           'server',
           '--disable',
           'traefik',
@@ -70,7 +72,7 @@ function(idp, manifests) {
       },
       'k3s-agent': {
         image: 'rancher/k3s:${K3S_TAG:-latest}',
-        entrypoint: entrypoint + ['agent'],
+        entrypoint: Command() + ['agent'],
         tmpfs: ['/run', '/var/run'],
         ulimits: {
           nproc: 65535,
@@ -103,8 +105,8 @@ function(idp, manifests) {
             cat /k3s-tmp/kubeconfig.yaml | sed s/127.0.0.1/k3s-server/g >/tmp/kubeconfig.yaml
             export KUBECONFIG=/tmp/kubeconfig.yaml
           ||| + std.join('\n', std.map(
-            install,
-            manifests
+            InstallManifest,
+            std.sort(manifests, function(manifest) manifest.kind + '/' + manifest.metadata.name)
           )),
         ],
         volumes: [

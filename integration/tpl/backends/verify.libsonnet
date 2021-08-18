@@ -1,3 +1,5 @@
+local utils = import '../utils.libsonnet';
+
 function(multi) {
   local name = 'verify',
   local image = 'pomerium/verify:${VERIFY_TAG:-latest}',
@@ -40,46 +42,11 @@ function(multi) {
     },
   },
   kubernetes: [
-    {
-      apiVersion: 'v1',
-      kind: 'Service',
-      metadata: {
-        namespace: 'default',
-        name: name,
-        labels: { app: name },
-      },
-      spec: {
-        selector: { app: name },
-        ports: [
-          { name: 'http', port: 80, targetPort: 'http' },
-        ],
-      },
-    },
-    {
-      apiVersion: 'apps/v1',
-      kind: 'Deployment',
-      metadata: {
-        namespace: 'default',
-        name: name,
-      },
-      spec: {
-        replicas: 1,
-        selector: { matchLabels: { app: name } },
-        template: {
-          metadata: {
-            labels: { app: name },
-          },
-          spec: {
-            containers: [{
-              name: name,
-              image: image,
-              ports: [
-                { name: 'http', containerPort: 80 },
-              ],
-            }],
-          },
-        },
-      },
-    },
+    utils.KubernetesService(name, [
+      { name: 'http', port: 80, targetPort: 'http' },
+    ]),
+    utils.KubernetesDeployment(name, image, null, [
+      { name: 'http', containerPort: 80 },
+    ]),
   ],
 }

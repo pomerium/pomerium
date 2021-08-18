@@ -1,6 +1,6 @@
 local utils = import '../utils.libsonnet';
 
-function(idp) utils.merge([
+function(idp) utils.Merge([
   (import '../backends/k3s.libsonnet')(
     idp,
     (import '../backends/fortio.libsonnet')().kubernetes +
