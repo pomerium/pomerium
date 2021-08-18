@@ -305,6 +305,9 @@ function(multi, idp, dns_suffix='') {
           '9904:9901/tcp',
           '5446:5443/tcp',
         ],
+        links: [
+          'pomerium-proxy:mock-idp.localhost.pomerium.io',
+        ],
       },
       [name + '-authenticate']: {
         image: image,
@@ -327,6 +330,9 @@ function(multi, idp, dns_suffix='') {
         ports: [
           '9902:9901/tcp',
           '5444:5443/tcp',
+        ],
+        links: [
+          'pomerium-proxy:mock-idp.localhost.pomerium.io',
         ],
       },
       [name + '-proxy']: {
