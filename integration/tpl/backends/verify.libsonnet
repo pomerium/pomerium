@@ -1,4 +1,4 @@
-function() {
+function(multi) {
   local name = 'verify',
   local image = 'pomerium/verify:${VERIFY_TAG:-latest}',
 
@@ -14,7 +14,9 @@ function() {
         environment: {
           SSL_CERT_FILE: '/verify_config/ca.pem',
         },
-        links: [
+        links: if multi then [
+          'pomerium-authenticate:authenticate.localhost.pomerium.io',
+        ] else [
           'pomerium:authenticate.localhost.pomerium.io',
         ],
         volumes: [
