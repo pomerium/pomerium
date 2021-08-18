@@ -12,18 +12,18 @@ meta:
 This page covers configuring Okta to communicate with Pomerium. It assumes you have already [installed Pomerium][pomerium-install] before you begin.
 
 ::: warning
-While we do our best to keep our documentation up to date, changes to third-party systems are outside of our control. Refer to [Create an Okta app Integration](https://developer.okta.com/docs/guides/sign-into-web-app/aspnet/create-okta-application/) from Okta's developer docs as needed, or [let us know](https://github.com/pomerium/pomerium/issues/new?assignees=&labels=&template=bug_report.md) if we need to re-visit this page.
+While we do our best to keep our documentation up to date, changes to third-party systems are outside our control. Refer to [Create an Okta app Integration](https://developer.okta.com/docs/guides/sign-into-web-app/aspnet/create-okta-application/) from Okta's developer docs as needed, or [let us know](https://github.com/pomerium/pomerium/issues/new?assignees=&labels=&template=bug_report.md) if we need to re-visit this page.
 :::
 
 ## Create OpenID Connect Application
 
 1. [Log in to your Okta account](https://login.okta.com) From the left-hand menu,  Select **Applications → Applications** on the top menu.
 
-   ![Okta Applications Dashboard](./img/okta-app-dashboard.png)
+   ![Okta Applications Dashboard](./img/okta/okta-app-dashboard.png)
 
 1. Click the **Create App Integration** button. Select **OIDC** as the sign-in method. and **Web Application** as the application type:
 
-   ![Okta new app integration modal](./img/okta-app-settings.png)
+   ![Okta new app integration modal](./img/okta/okta-app-settings.png)
 
    Click **Next** to continue.
 
@@ -37,13 +37,13 @@ While we do our best to keep our documentation up to date, changes to third-part
    | Sign-in redirect URIs        | Redirect URL (e.g.`https://${authenticate_service_url}/oauth2/callback`). |
    | Controlled Access            | The user groups that can sign in to this application. See [Group ID] for more information. |
 
-   ![Okta Create Application Settings](./img/okta-create-app-settings.png)
+   ![Okta Create Application Settings](./img/okta/okta-create-app-settings.png)
 
    Click **Save** to proceed. You'll be taken to the **General** tab of your app.
 
-1. From to the **General** tab, scroll down to the **Client Credentials** section. This section contains the **[Client ID]** and **[Client Secret]**. Temporarily save these values to apply to the Pomerium configuration.
+1. From the **General** tab, scroll down to the **Client Credentials** section. This section contains the **[Client ID]** and **[Client Secret]**. Temporarily save these values to apply to the Pomerium configuration.
 
-   ![Okta Client ID and Secret](./img/okta-client-id-and-secret.png)
+   ![Okta Client ID and Secret](./img/okta/okta-client-id-and-secret.png)
 
 ## Create Service account
 
@@ -51,7 +51,7 @@ Next, we'll create API token so that Pomerium can retrieve and establish group m
 
 1. From the main menu, navigate to **Security → API**. Select the **Tokens** tab, and click the **Create Token** button. Name the token, then save the value to apply to our Pomerium configuration:
 
-   ![Okta api token](./img/okta-api-token.png)
+   ![Okta api token](./img/okta/okta-api-token.png)
 
 1. The API token will be provided as the value of the `idp_service_account` key, formatted as a base64-encoded JSON document::
 
