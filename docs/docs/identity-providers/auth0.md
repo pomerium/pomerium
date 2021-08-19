@@ -35,7 +35,7 @@ This page documents configuring an [Auth0] Web Application and Machine to Machin
 
 ## Service Account
 
-Next we'll create an application to handle machine-to-machine communication from Pomerium to Auth0 in order to retrieve and establish group membership. 
+Next we'll create an application to handle machine-to-machine communication from Pomerium to Auth0 in order to retrieve and establish group membership.
 
 ::: tip
 
