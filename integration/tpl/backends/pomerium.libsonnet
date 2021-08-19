@@ -102,7 +102,7 @@ local Environment(mode, idp, dns_suffix) =
     GRPC_ADDRESS: ':5443',
     GRPC_INSECURE: 'false',
     OVERRIDE_CERTIFICATE_NAME: '*.localhost.pomerium.io',
-  } else if mode == 'traefik' then {
+  } else if mode == 'traefik' || mode == 'nginx' then {
     FORWARD_AUTH_URL: 'https://forward-authenticate.localhost.pomerium.io',
   } else {};
 
@@ -164,7 +164,7 @@ function(mode, idp, dns_suffix='') {
           '9901:9901/tcp',
         ],
       },
-    } else if mode == 'traefik' then {
+    } else if mode == 'traefik' || mode == 'nginx' then {
       [name]: {
         image: image,
         environment: environment,

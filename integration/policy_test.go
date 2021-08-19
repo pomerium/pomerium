@@ -57,6 +57,11 @@ func TestCORS(t *testing.T) {
 }
 
 func TestPreserveHostHeader(t *testing.T) {
+	if ClusterType == "traefik" || ClusterType == "nginx" {
+		t.Skip()
+		return
+	}
+
 	ctx := context.Background()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -114,6 +119,11 @@ func TestPreserveHostHeader(t *testing.T) {
 }
 
 func TestSetRequestHeaders(t *testing.T) {
+	if ClusterType == "traefik" || ClusterType == "nginx" {
+		t.Skip()
+		return
+	}
+
 	ctx := context.Background()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()

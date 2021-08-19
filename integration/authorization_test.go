@@ -18,7 +18,7 @@ func TestAuthorization(t *testing.T) {
 	accessType := []string{"direct", "api"}
 	for _, at := range accessType {
 		t.Run(at, func(t *testing.T) {
-			var withAPI flows.AuthenticateOption
+			var withAPI, withForwardAuth flows.AuthenticateOption
 
 			if at == "api" {
 				if ClusterType == "traefik" || ClusterType == "nginx" {
@@ -26,6 +26,10 @@ func TestAuthorization(t *testing.T) {
 					return
 				}
 				withAPI = flows.WithAPI()
+			}
+
+			if ClusterType == "nginx" {
+				withForwardAuth = flows.WithForwardAuth(true)
 			}
 
 			t.Run("public", func(t *testing.T) {
@@ -49,7 +53,7 @@ func TestAuthorization(t *testing.T) {
 				t.Run("allowed", func(t *testing.T) {
 					client := getClient()
 					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
-						withAPI, flows.WithEmail("user1@dogs.test"))
+						withAPI, withForwardAuth, flows.WithEmail("user1@dogs.test"))
 					if assert.NoError(t, err) {
 						assert.Equal(t, http.StatusOK, res.StatusCode, "expected OK for dogs.test")
 					}
@@ -57,9 +61,9 @@ func TestAuthorization(t *testing.T) {
 				t.Run("not allowed", func(t *testing.T) {
 					client := getClient()
 					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
-						withAPI, flows.WithEmail("user1@cats.test"))
+						withAPI, withForwardAuth, flows.WithEmail("user1@cats.test"))
 					if assert.NoError(t, err) {
-						assertDeniedAccess(t, res, "expected Forbidden for cats.test")
+						assertDeniedAccess(t, res, "expected Forbidden for cats.test, but got: %d", res.StatusCode)
 					}
 				})
 			})
