@@ -1,13 +1,6 @@
 local Routes(mode, idp, dns_suffix) =
   [
     {
-      from: 'https://authenticate.localhost.pomerium.io',
-      to: 'https://pomerium' + dns_suffix + ':443',
-      allow_public_unauthenticated_access: true,
-      tls_skip_verify: true,
-    },
-
-    {
       from: 'https://mock-idp.localhost.pomerium.io',
       to: 'http://mock-idp' + dns_suffix + ':8024',
       allow_public_unauthenticated_access: true,

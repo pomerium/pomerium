@@ -256,7 +256,7 @@ func requestFromRedirectResponse(ctx context.Context, res *http.Response, req *h
 	}
 	location, err := url.Parse(res.Header.Get("Location"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing location: %w", err)
 	}
 	location = req.URL.ResolveReference(location)
 	newreq, err := http.NewRequestWithContext(ctx, "GET", location.String(), nil)

@@ -10,12 +10,17 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/publicsuffix"
 )
+
+var IDP, ClusterType string
 
 func TestMain(m *testing.M) {
 	logger := log.With().Logger()
@@ -26,6 +31,8 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 		return
 	}
+
+	setIDPAndClusterType(ctx)
 
 	status := m.Run()
 	os.Exit(status)
@@ -123,6 +130,33 @@ func waitForHealthy(ctx context.Context) error {
 		case <-ticker.C:
 		}
 	}
+}
+
+func setIDPAndClusterType(ctx context.Context) {
+	IDP = "oidc"
+	ClusterType = "single"
+
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create docker client")
+		return
+	}
+
+	containers, err := cli.ContainerList(ctx, types.ContainerListOptions{})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to retrieve docker containers")
+	}
+	for _, container := range containers {
+		for _, name := range container.Names {
+			parts := regexp.MustCompile(`^/(\w+?)-(\w+?)_pomerium.*$`).FindStringSubmatch(name)
+			if len(parts) == 3 {
+				IDP = parts[1]
+				ClusterType = parts[2]
+			}
+		}
+	}
+
+	log.Info().Str("idp", IDP).Str("cluster-type", ClusterType).Send()
 }
 
 func mustParseURL(str string) *url.URL {

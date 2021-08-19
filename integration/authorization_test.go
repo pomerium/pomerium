@@ -21,6 +21,10 @@ func TestAuthorization(t *testing.T) {
 			var withAPI flows.AuthenticateOption
 
 			if at == "api" {
+				if ClusterType == "traefik" || ClusterType == "nginx" {
+					t.Skip()
+					return
+				}
 				withAPI = flows.WithAPI()
 			}
 

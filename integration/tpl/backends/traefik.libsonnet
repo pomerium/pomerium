@@ -48,7 +48,15 @@ local Rule(route) =
 
 local DynamicConfig(mode, idp, dns_suffix='') =
   {
-    local routes = Routes(mode, idp, dns_suffix),
+    local routes = Routes(mode, idp, dns_suffix) + [
+      {
+        from: 'https://authenticate.localhost.pomerium.io',
+        to: 'https://pomerium' + dns_suffix + ':443',
+        allow_public_unauthenticated_access: true,
+        tls_skip_verify: true,
+        preserve_host_header: true,
+      },
+    ],
 
     tls: {
       certificates: [{
@@ -68,7 +76,7 @@ local DynamicConfig(mode, idp, dns_suffix='') =
           rule: Rule(routes[i]),
           tls: {},
           middlewares:
-            (if std.length(std.findSubstr('pomerium', routes[i].from)) == 0 then
+            (if routes[i].from == 'https://authenticate.localhost.pomerium.io' then
                []
              else
                ['authz']) +
