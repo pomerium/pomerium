@@ -67,19 +67,34 @@ local DynamicConfig(mode, idp, dns_suffix='') =
           service: 'route%d' % i,
           rule: Rule(routes[i]),
           tls: {},
-          middlewares: if std.length(std.findSubstr('pomerium', routes[i].from)) == 0 then [] else ['authz'],
+          middlewares:
+            (if std.length(std.findSubstr('pomerium', routes[i].from)) == 0 then
+               []
+             else
+               ['authz']) +
+            (if std.objectHas(routes[i], 'set_request_headers') then
+               ['set-request-headers-%d' % i]
+             else
+               []),
         }
         for i in std.range(0, std.length(routes) - 1)
       },
       services: {
         ['route%d' % i]: {
-          loadBalancer: {
-            servers: [{
-              url: routes[i].to,
-            }],
-          } + if std.startsWith(routes[i].to, 'https://') then {
-            serversTransport: 'insecure',
-          } else {},
+          loadBalancer:
+            {
+              servers: [{
+                url: routes[i].to,
+              }],
+            } +
+            (if std.startsWith(routes[i].to, 'https://') then
+               { serversTransport: 'insecure' }
+             else
+               {}) +
+            (if std.objectHas(routes[i], 'preserve_host_header') && routes[i].preserve_host_header then
+               { passHostHeader: true }
+             else
+               { passHostHeader: false }),
         }
         for i in std.range(0, std.length(routes) - 1)
       },
@@ -94,6 +109,17 @@ local DynamicConfig(mode, idp, dns_suffix='') =
             },
           },
         },
+      } + {
+        ['set-request-headers-%d' % i]: {
+          headers: {
+            customRequestHeaders: {
+              [k]: routes[i].set_request_headers[k]
+              for k in std.objectFields(routes[i].set_request_headers)
+            },
+          },
+        }
+        for i in std.range(0, std.length(routes) - 1)
+        if std.objectHas(routes[i], 'set_request_headers')
       },
     },
   };
@@ -135,6 +161,10 @@ function(mode, idp, dns_suffix='') {
         ports: [
           '80:80/tcp',
           '443:443/tcp',
+        ],
+        links: [
+          'pomerium:authenticate.localhost.pomerium.io',
+          'pomerium:forward-authenticate.localhost.pomerium.io',
         ],
       },
     },

@@ -69,14 +69,16 @@ func TestPreserveHostHeader(t *testing.T) {
 		defer res.Body.Close()
 
 		var result struct {
-			Host string `json:"hostname"`
+			Headers struct {
+				Host string `json:"host"`
+			} `json:"headers"`
 		}
 		err = json.NewDecoder(res.Body).Decode(&result)
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		assert.Equal(t, "httpdetails.localhost.pomerium.io", result.Host,
+		assert.Equal(t, "httpdetails.localhost.pomerium.io", result.Headers.Host,
 			"destination host should be preserved in %v", result)
 	})
 	t.Run("disabled", func(t *testing.T) {
@@ -92,14 +94,16 @@ func TestPreserveHostHeader(t *testing.T) {
 		defer res.Body.Close()
 
 		var result struct {
-			Host string `json:"hostname"`
+			Headers struct {
+				Host string `json:"host"`
+			} `json:"headers"`
 		}
 		err = json.NewDecoder(res.Body).Decode(&result)
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		assert.NotEqual(t, "httpdetails.localhost.pomerium.io", result.Host,
+		assert.NotEqual(t, "httpdetails.localhost.pomerium.io", result.Headers.Host,
 			"destination host should not be preserved in %v", result)
 	})
 }

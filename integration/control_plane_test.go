@@ -16,7 +16,7 @@ func TestDashboard(t *testing.T) {
 	defer clearTimeout()
 
 	t.Run("user dashboard", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/.pomerium/", nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://authenticate.localhost.pomerium.io/.pomerium/", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -32,7 +32,7 @@ func TestDashboard(t *testing.T) {
 		assert.Equal(t, http.StatusFound, res.StatusCode, "unexpected status code: %s", body)
 	})
 	t.Run("dashboard strict slash redirect", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/.pomerium", nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://authenticate.localhost.pomerium.io/.pomerium", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -43,10 +43,10 @@ func TestDashboard(t *testing.T) {
 		}
 		defer res.Body.Close()
 
-		assert.Equal(t, http.StatusMovedPermanently, res.StatusCode, "unexpected status code")
+		assert.Equal(t, 3, res.StatusCode/100, "unexpected status code")
 	})
 	t.Run("image asset", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/.pomerium/assets/img/pomerium.svg", nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://authenticate.localhost.pomerium.io/.pomerium/assets/img/pomerium.svg", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
