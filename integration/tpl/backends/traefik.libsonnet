@@ -111,7 +111,7 @@ local DynamicConfig(mode, idp, dns_suffix='') =
           forwardAuth: {
             address: 'https://forward-authenticate.localhost.pomerium.io',
             trustForwardHeader: true,
-            authResponseHeaders: ['x-pomerium-jwt-assertion', 'x-pomerium-claim-email'],
+            authResponseHeaders: ['x-pomerium-jwt-assertion', 'x-pomerium-claim-email', 'authorization'],
             tls: {
               insecureSkipVerify: true,
             },

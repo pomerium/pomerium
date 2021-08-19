@@ -167,7 +167,8 @@ services:
                 "address": "https://forward-authenticate.localhost.pomerium.io",
                 "authResponseHeaders": [
                   "x-pomerium-jwt-assertion",
-                  "x-pomerium-claim-email"
+                  "x-pomerium-claim-email",
+                  "authorization"
                 ],
                 "tls": {
                   "insecureSkipVerify": true
