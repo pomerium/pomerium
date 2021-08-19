@@ -53,7 +53,6 @@ local KubernetesDeployment(name, image, command, ports) =
     },
   };
 
-
 local KubernetesService(name, ports) =
   {
     apiVersion: 'v1',
@@ -69,8 +68,40 @@ local KubernetesService(name, ports) =
     },
   };
 
+local ParseURL(rawURL) =
+  {
+    local splitLeft(str, pat) =
+      local idxs = std.findSubstr(pat, str);
+      if std.length(idxs) == 0 then
+        [str, '']
+      else
+        [std.substr(str, 0, idxs[0]), std.substr(str, idxs[0] + std.length(pat), std.length(str))],
+
+    local splitRight(str, pat) =
+      local idxs = std.findSubstr(pat, str);
+      if std.length(idxs) == 0 then
+        ['', str]
+      else
+        [std.substr(str, 0, idxs[0]), std.substr(str, idxs[0] + std.length(pat), std.length(str))],
+
+    local p0 = ['', rawURL],
+    local p1 = splitRight(p0[1], '://'),
+    local p2 = splitRight(p1[1], '@'),
+    local p3 = splitLeft(p2[1], '/'),
+    local p4 = splitLeft(p3[1], '?'),
+    local p5 = splitLeft(p4[1], '#'),
+
+    scheme: p1[0],
+    user: p2[0],
+    host: p3[0],
+    path: if p4[0] == '' then '' else '/' + p4[0],
+    query: p5[0],
+    fragment: p5[1],
+  };
+
 {
   Merge: Merge,
   KubernetesDeployment: KubernetesDeployment,
   KubernetesService: KubernetesService,
+  ParseURL: ParseURL,
 }

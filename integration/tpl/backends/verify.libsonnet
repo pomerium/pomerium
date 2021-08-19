@@ -1,6 +1,6 @@
 local utils = import '../utils.libsonnet';
 
-function(multi) {
+function(mode) {
   local name = 'verify',
   local image = 'pomerium/verify:${VERIFY_TAG:-latest}',
 
@@ -16,8 +16,10 @@ function(multi) {
         environment: {
           SSL_CERT_FILE: '/verify_config/ca.pem',
         },
-        links: if multi then [
+        links: if mode == 'multi' then [
           'pomerium-authenticate:authenticate.localhost.pomerium.io',
+        ] else if mode == 'traefik' then [
+          'traefik:authenticate.localhost.pomerium.io',
         ] else [
           'pomerium:authenticate.localhost.pomerium.io',
         ],

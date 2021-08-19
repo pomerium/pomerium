@@ -170,6 +170,10 @@ services:
                       "value": "https://mock-idp.localhost.pomerium.io/"
                     },
                     {
+                      "name": "JWT_CLAIMS_HEADERS",
+                      "value": "email,groups,user"
+                    },
+                    {
                       "name": "LOG_LEVEL",
                       "value": "info"
                     },

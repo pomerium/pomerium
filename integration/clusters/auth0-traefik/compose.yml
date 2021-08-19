@@ -102,6 +102,7 @@ services:
       DATABROKER_STORAGE_CONNECTION_STRING: redis://redis:6379
       DATABROKER_STORAGE_TYPE: redis
       ENVOY_ADMIN_ADDRESS: 0.0.0.0:9901
+      FORWARD_AUTH_URL: https://forward-authenticate.localhost.pomerium.io
       GOOGLE_CLOUD_SERVERLESS_AUTHENTICATION_SERVICE_ACCOUNT: ewoiYXV0aF9wcm92aWRlcl94NTA5X2NlcnRfdXJsIjogImh0dHBzOi8vbW9jay1pZHAubG9jYWxob3N0LnBvbWVyaXVtLmlvLyIsCiJhdXRoX3VyaSI6ICJodHRwczovL21vY2staWRwLmxvY2FsaG9zdC5wb21lcml1bS5pby8iLAoiY2xpZW50X2VtYWlsIjogInJlZGFjdGVkQHBvbWVyaXVtLXJlZGFjdGVkLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwKImNsaWVudF9pZCI6ICIxMDEyMTU5OTA0NTgwMDAzMzQzODciLAoiY2xpZW50X3g1MDlfY2VydF91cmwiOiAiaHR0cHM6Ly9tb2NrLWlkcC5sb2NhbGhvc3QucG9tZXJpdW0uaW8vIiwKInByaXZhdGVfa2V5IjogIi0tLS0tQkVHSU4gUFJJVkFURSBLRVktLS0tLVxuTUlJRXZRSUJBREFOQmdrcWhraUc5dzBCQVFFRkFBU0NCS2N3Z2dTakFnRUFBb0lCQVFDOEhMQkFJelhrUGVlZ1xubGRVZlJLSzJqUXhTVlpENWcrcXNqQXpwbXJxL0F0bXdlSzFjR2NPdFo2ZU9MK3A4YnJQRHlWaERUMFFsSS9PL1xuRUtnQ09GRnhVRHFvUjgyaVkwNlNhY0FqSG5pNitQTzl0VlJiRlYwdzE0QkRBSlNwQitWdld5bCtGb1BEVi92c1xuWjMxRnRZdytFd3FrYkR4L2thVDl1emYrTEpkbGtmMTRuUVFqOEVreS84ZDNtV0piYi85dGpPYnNhUWdKNUxMeFxuQ1lkSW1rcjc3WDJMTXVEdy8xdHBINjQyR0UyNU5yZ202UUhseUtTZllYbzM4djgzZWJFcWJaVURHK1ppb0FyUFxubXFta2F3VVd3M2VraGo4MFNKZy9USzlQUmFOL1Z2Y0kxUGdBZDdMWnp0VVJlU21UeTVoZDlyNnJPQnhweHduVFxuRHZIa0JuNnZBZ01CQUFFQ2dnRUFCMjhpMEFZVU5TYjFKbldGYkt6cnVVY3R1M3RDTlhvdkpnNkszQmlQVk1rcVxuRFQxWHJKSWdGNVJISE9scjNPc0xFNnU3WHoyY3RkTUw2UHNoaUtUdEl3dEdwaXZnUnBDaUpFc2xtcjJ6aThBV1xuOGVKZXFSTFpFZnNTU0pPWFRHN1JkR3NuNHFIRkowMHMyWlRsY0lIU1B3bkZtK1hqSmk5OVU4RzRYc1VvWG8wclxuR3krMFZDdVU3TThnSUNFSEhzclFPOVhERDNuVDJqaXU1VGpyS3dqdXQzRW1vSnNzSTVicXgzMytPQnU1QnBDUFxuQ1Q0NzNENDNQOXAzcWkvWG5mdnFHU0cyT2o0T2FqVjRmcjBvOUIzS3ZJeGtNZW03V2xJM2p5eTFrQXB5WHFWVFxuYkxrTEZ5V0JOVFdVWjJSLzJ3eG11b0M2bUxadzg3OU1MQ0tNdmsxZG9RS0JnUURobXdHYWZKTnltVGlFUVpSSVxuU3NReDRzZXFmT0tmZ0ZDN29ocUg5Y1JPT3U4SUoxbzdxMnBNMlc0WGlWK1Mzd1RkUEdtY2E2SU9qWDIzaXNWQlxuMnVxTmk5UzRNbkkyL2QyMkdkL0JSOXJ2QncxZUdKb0ticld4MjJmRThRQ0VXVDFBbk8rRHVEMGpDODV5UmxzN1xuYXh6bGFNcnhFdTNMSTlVRTdOdHJkUWlCeVFLQmdRRFZkSTZjZUlWQlQ2Umd2Vkd0OHprTGpQSUZqaFFFSEFJcFxudWhpcmdxcFM2Q1g5Qmx5ZjIrbzQwem1majNoZTVyQ2NFb0I1TXNlTStEZ0ZiY1ZoMmUvTVZuWWlOTnc2SkNEQlxuQlFrRjQwOHBacFNlS1h2TC9veVYva0ltTVRKL3RVRFkwRVh4TXdTUEpCMFdsdGJXcmVWSUhvcGlnWFJDYmFleVxudUJIVkJ2LzR0d0tCZ0h3SHVlUHk1U1UxczJxU216RDdXYzJMUGZZdTNuQ09ITlJyRkdiMjZNdVJmdVJlcmk3clxuMkc4VGdvRVNGeWNwMFFUSU44KzFKTTBYWUt4TmNKRDZCOFYxd0tiYnBRc3ltbmVJMWdqdXRpQi9JZ3cvUGtES1xuQ0w0VlA0RjRkYTVOV1cxeVdnTnlnTG9KdlovNXFpS0tpc0pjMEdXazRIS3o2bUxnek9qUTJMSnhBb0dCQUxIWlxuZk4yWWVZYnlZY2FNMTFwMVZpbHVsVlRWalkzaS9GWmlEUjRTTC9JR0pXak4vU3pnNGlYWXNLRm11K2R1bE9abFxuY0JBTHBFS3JxcG16WFl0ck42YnN2MTgrNWVPM3FHYksyRHJFcTNlV1ZldjJLb1RNb2J4ejdnKytYQklXSm1MQVxuSGhhYTZJaVBrWUQ1eXlWeUhLRGJlWGdiM285ZXFDUjd3N2ZZTGp5L0FvR0FJNEQrTUZraXZ3VUY3aHFmNWVkU1xuS3JsdHdtb2RIaXFYTmJWa3diVzFBRlBKYmlZYWk0WUZmSzRJQWJpZi9ZbXhmOUc3OGFPa3I5WnBDSXpPa0RQWlxuWXBFd1FHV3NBaEVsQ0Z2YzhFLzVkSEVTU3ArdFd0UCtObHVpbXBGcWlEZzMvU1VuTXdPMnhIMG5oTGEwemVqaFxuZ21MaDR3L0NjUHliOVp5WGNlV1UvblU9XG4tLS0tLUVORCBQUklWQVRFIEtFWS0tLS0tXG4iLAoicHJpdmF0ZV9rZXlfaWQiOiAiZTA3ZjdjOTM4NzBjN2UwM2Y4ODM1NjBlY2Q4ZmQwZjRkMjdiMDA4MSIsCiJwcm9qZWN0X2lkIjogInBvbWVyaXVtLXJlZGFjdGVkIiwKInRva2VuX3VyaSI6ICJodHRwczovL21vY2staWRwLmxvY2FsaG9zdC5wb21lcml1bS5pby90b2tlbiIsCiJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIKfQ==
       IDP_CLIENT_ID: CLIENT_ID
       IDP_CLIENT_SECRET: CLIENT_SECRET
@@ -114,12 +115,617 @@ services:
       SIGNING_KEY: LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSVBSR1d3TGg3NW5OWG5razM3ekRmTjhvbkx3ZkNpYUxQVEQrbmM4THg1aGNvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFa3BCa08wVEttaDRKZFFmTE9lZU1kNTNLbmdhMVdkUVhyNUZjZXBrK2RMVktkVkt4WENHcQpoMW9qdWh1VzExR0lvT3pTOUdvU0tsTlZTUkZXVkVXRHZ3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
       SIGNING_KEY_ALGORITHM: ES256
     image: pomerium/pomerium:${POMERIUM_TAG:-master}
+  redis:
+    image: redis:6.2.5-alpine
+  traefik:
+    command:
+    - sh
+    - -c
+    - |
+      cat <<-'END_OF_TRAEFIK' | tee traefik.yaml
+      {
+        "accessLog": {
+
+        },
+        "api": {
+          "insecure": true
+        },
+        "entryPoints": {
+          "web": {
+            "address": ":80",
+            "forwardedheaders": {
+              "insecure": true
+            }
+          },
+          "websecure": {
+            "address": ":443",
+            "forwardedheaders": {
+              "insecure": true
+            }
+          }
+        },
+        "global": {
+          "checkNewVersion": false,
+          "sendAnonymousUsage": false
+        },
+        "log": {
+          "level": "DEBUG"
+        },
+        "providers": {
+          "file": {
+            "filename": "traefik-dynamic.yaml"
+          }
+        }
+      }
+      END_OF_TRAEFIK
+      cat <<-'END_OF_TRAEFIK' | tee traefik-dynamic.yaml
+      {
+        "http": {
+          "middlewares": {
+            "authz": {
+              "forwardAuth": {
+                "address": "https://forward-authenticate.localhost.pomerium.io",
+                "authResponseHeaders": [
+                  "x-pomerium-jwt-assertion",
+                  "x-pomerium-claim-email"
+                ],
+                "tls": {
+                  "insecureSkipVerify": true
+                },
+                "trustForwardHeader": true
+              }
+            }
+          },
+          "routers": {
+            "route0": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`mock-idp.localhost.pomerium.io`)",
+              "service": "route0",
+              "tls": {
+
+              }
+            },
+            "route1": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`envoy.localhost.pomerium.io`)",
+              "service": "route1",
+              "tls": {
+
+              }
+            },
+            "route10": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && Path(`/tls-server-name-disabled`)",
+              "service": "route10",
+              "tls": {
+
+              }
+            },
+            "route11": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && Path(`/tls-custom-ca-enabled`)",
+              "service": "route11",
+              "tls": {
+
+              }
+            },
+            "route12": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && Path(`/tls-custom-ca-disabled`)",
+              "service": "route12",
+              "tls": {
+
+              }
+            },
+            "route13": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && PathPrefix(`/cors-enabled`)",
+              "service": "route13",
+              "tls": {
+
+              }
+            },
+            "route14": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && PathPrefix(`/cors-disabled`)",
+              "service": "route14",
+              "tls": {
+
+              }
+            },
+            "route15": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && PathPrefix(`/preserve-host-header-enabled`)",
+              "service": "route15",
+              "tls": {
+
+              }
+            },
+            "route16": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && PathPrefix(`/preserve-host-header-disabled`)",
+              "service": "route16",
+              "tls": {
+
+              }
+            },
+            "route17": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`restricted-httpdetails.localhost.pomerium.io`)",
+              "service": "route17",
+              "tls": {
+
+              }
+            },
+            "route18": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && PathPrefix(`/by-domain`)",
+              "service": "route18",
+              "tls": {
+
+              }
+            },
+            "route19": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && PathPrefix(`/by-user`)",
+              "service": "route19",
+              "tls": {
+
+              }
+            },
+            "route2": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`verify.localhost.pomerium.io`)",
+              "service": "route2",
+              "tls": {
+
+              }
+            },
+            "route20": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`)",
+              "service": "route20",
+              "tls": {
+
+              }
+            },
+            "route21": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`enabled-ws-echo.localhost.pomerium.io`)",
+              "service": "route21",
+              "tls": {
+
+              }
+            },
+            "route22": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`disabled-ws-echo.localhost.pomerium.io`)",
+              "service": "route22",
+              "tls": {
+
+              }
+            },
+            "route23": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`cloudrun.localhost.pomerium.io`)",
+              "service": "route23",
+              "tls": {
+
+              }
+            },
+            "route3": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`websocket-echo.localhost.pomerium.io`)",
+              "service": "route3",
+              "tls": {
+
+              }
+            },
+            "route4": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`fortio-ui.localhost.pomerium.io`)",
+              "service": "route4",
+              "tls": {
+
+              }
+            },
+            "route5": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`fortio-ping.localhost.pomerium.io`)",
+              "service": "route5",
+              "tls": {
+
+              }
+            },
+            "route6": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`redis.localhost.pomerium.io:6379`)",
+              "service": "route6",
+              "tls": {
+
+              }
+            },
+            "route7": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && Path(`/tls-skip-verify-enabled`)",
+              "service": "route7",
+              "tls": {
+
+              }
+            },
+            "route8": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && Path(`/tls-skip-verify-disabled`)",
+              "service": "route8",
+              "tls": {
+
+              }
+            },
+            "route9": {
+              "middlewares": [
+                "authz"
+              ],
+              "rule": "Host(`httpdetails.localhost.pomerium.io`) && Path(`/tls-server-name-enabled`)",
+              "service": "route9",
+              "tls": {
+
+              }
+            }
+          },
+          "serversTransports": {
+            "insecure": {
+              "insecureSkipVerify": true
+            }
+          },
+          "services": {
+            "route0": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://mock-idp:8024"
+                  }
+                ]
+              }
+            },
+            "route1": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://localhost:9901"
+                  }
+                ]
+              }
+            },
+            "route10": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "https://wrongly-named-httpdetails:8443"
+                  }
+                ],
+                "serversTransport": "insecure"
+              }
+            },
+            "route11": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "https://untrusted-httpdetails:8443"
+                  }
+                ],
+                "serversTransport": "insecure"
+              }
+            },
+            "route12": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "https://untrusted-httpdetails:8443"
+                  }
+                ],
+                "serversTransport": "insecure"
+              }
+            },
+            "route13": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://trusted-httpdetails:8080"
+                  }
+                ]
+              }
+            },
+            "route14": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://trusted-httpdetails:8080"
+                  }
+                ]
+              }
+            },
+            "route15": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://trusted-httpdetails:8080"
+                  }
+                ]
+              }
+            },
+            "route16": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://trusted-httpdetails:8080"
+                  }
+                ]
+              }
+            },
+            "route17": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://trusted-httpdetails:8080"
+                  }
+                ]
+              }
+            },
+            "route18": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://trusted-httpdetails:8080"
+                  }
+                ]
+              }
+            },
+            "route19": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://trusted-httpdetails:8080"
+                  }
+                ]
+              }
+            },
+            "route2": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://verify:80"
+                  }
+                ]
+              }
+            },
+            "route20": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://trusted-httpdetails:8080"
+                  }
+                ]
+              }
+            },
+            "route21": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://websocket-echo:80"
+                  }
+                ]
+              }
+            },
+            "route22": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://websocket-echo:80"
+                  }
+                ]
+              }
+            },
+            "route23": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://trusted-httpdetails:8080"
+                  }
+                ]
+              }
+            },
+            "route3": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "http://websocket-echo:80"
+                  }
+                ]
+              }
+            },
+            "route4": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "https://fortio:8080"
+                  }
+                ],
+                "serversTransport": "insecure"
+              }
+            },
+            "route5": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "https://fortio:8079"
+                  }
+                ],
+                "serversTransport": "insecure"
+              }
+            },
+            "route6": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "tcp://redis:6379"
+                  }
+                ]
+              }
+            },
+            "route7": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "https://trusted-httpdetails:8443"
+                  }
+                ],
+                "serversTransport": "insecure"
+              }
+            },
+            "route8": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "https://trusted-httpdetails:8443"
+                  }
+                ],
+                "serversTransport": "insecure"
+              }
+            },
+            "route9": {
+              "loadBalancer": {
+                "servers": [
+                  {
+                    "url": "https://wrongly-named-httpdetails:8443"
+                  }
+                ],
+                "serversTransport": "insecure"
+              }
+            }
+          }
+        },
+        "tls": {
+          "certificates": [
+            {
+              "certFile": "_wildcard.localhost.pomerium.io.pem",
+              "keyFile": "_wildcard.localhost.pomerium.io-key.pem"
+            }
+          ]
+        }
+      }
+      END_OF_TRAEFIK
+      cat <<-'END_OF_TRAEFIK' | tee _wildcard.localhost.pomerium.io.pem
+      -----BEGIN CERTIFICATE-----
+      MIIEUjCCArqgAwIBAgIRAKNaEqCmmZfhmcYgZy01WCswDQYJKoZIhvcNAQELBQAw
+      gYMxHjAcBgNVBAoTFW1rY2VydCBkZXZlbG9wbWVudCBDQTEsMCoGA1UECwwjY2Fs
+      ZWJAY2FsZWItcGMtbGludXggKENhbGViIERveHNleSkxMzAxBgNVBAMMKm1rY2Vy
+      dCBjYWxlYkBjYWxlYi1wYy1saW51eCAoQ2FsZWIgRG94c2V5KTAeFw0yMTA4MTAx
+      NzMyMTBaFw0yMzExMTAxODMyMTBaMFcxJzAlBgNVBAoTHm1rY2VydCBkZXZlbG9w
+      bWVudCBjZXJ0aWZpY2F0ZTEsMCoGA1UECwwjY2FsZWJAY2FsZWItcGMtbGludXgg
+      KENhbGViIERveHNleSkwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC8
+      HLBAIzXkPeegldUfRKK2jQxSVZD5g+qsjAzpmrq/AtmweK1cGcOtZ6eOL+p8brPD
+      yVhDT0QlI/O/EKgCOFFxUDqoR82iY06SacAjHni6+PO9tVRbFV0w14BDAJSpB+Vv
+      Wyl+FoPDV/vsZ31FtYw+EwqkbDx/kaT9uzf+LJdlkf14nQQj8Eky/8d3mWJbb/9t
+      jObsaQgJ5LLxCYdImkr77X2LMuDw/1tpH642GE25Nrgm6QHlyKSfYXo38v83ebEq
+      bZUDG+ZioArPmqmkawUWw3ekhj80SJg/TK9PRaN/VvcI1PgAd7LZztUReSmTy5hd
+      9r6rOBxpxwnTDvHkBn6vAgMBAAGjbDBqMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE
+      DDAKBggrBgEFBQcDATAfBgNVHSMEGDAWgBSFhlhYgEfKTplVOeneVG3+3IE/TTAi
+      BgNVHREEGzAZghcqLmxvY2FsaG9zdC5wb21lcml1bS5pbzANBgkqhkiG9w0BAQsF
+      AAOCAYEAufQAF79s7c1gmZ9CIKBSGkHh+SH01CuKYnnHiMowHsTioFaUAQsd/P4X
+      c2XBqc34eT3mCvpgZjHbjz6JlnTYJxuLvVqnVB3emtWrb1cQvh8BphxspTlS8uiE
+      AEf/ngtpzfA/f4lpGkzrQ0cyPkEJGz511q97itzn9RZZzVTZxNVFSP2vVhNNQVsW
+      OxakcvYRgnz8AOQS3OPHj2FQc3iibshct5leIwYZFcxINGHR6KL6+/LSePNCEMmK
+      qymVPkQGsIcU6GQ9fxaSu4mp+IUALProizEVI8SVk5nOm3HIez+ZfXhzfnGx06SI
+      6NuoQQPqUBeZeXn2YFYhipeRdrQxvA36/YXa/AkXCeU0pXxbtXKcvatfri5KnYJD
+      kH59a+aFkTsl41tfI2cnRYVddqXVl3OzLbcgAFLn1WeC1xx3xRXi7KldokOlvgv+
+      B6naWfCxRlWZ/lsmHae4kc1WH4Kc7nK+ITb40EkjV68/A7krZsN1VcqNtpomYkgE
+      xjUE8XUu
+      -----END CERTIFICATE-----
+
+      END_OF_TRAEFIK
+      cat <<-'END_OF_TRAEFIK' | tee _wildcard.localhost.pomerium.io-key.pem
+      -----BEGIN PRIVATE KEY-----
+      MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC8HLBAIzXkPeeg
+      ldUfRKK2jQxSVZD5g+qsjAzpmrq/AtmweK1cGcOtZ6eOL+p8brPDyVhDT0QlI/O/
+      EKgCOFFxUDqoR82iY06SacAjHni6+PO9tVRbFV0w14BDAJSpB+VvWyl+FoPDV/vs
+      Z31FtYw+EwqkbDx/kaT9uzf+LJdlkf14nQQj8Eky/8d3mWJbb/9tjObsaQgJ5LLx
+      CYdImkr77X2LMuDw/1tpH642GE25Nrgm6QHlyKSfYXo38v83ebEqbZUDG+ZioArP
+      mqmkawUWw3ekhj80SJg/TK9PRaN/VvcI1PgAd7LZztUReSmTy5hd9r6rOBxpxwnT
+      DvHkBn6vAgMBAAECggEAB28i0AYUNSb1JnWFbKzruUctu3tCNXovJg6K3BiPVMkq
+      DT1XrJIgF5RHHOlr3OsLE6u7Xz2ctdML6PshiKTtIwtGpivgRpCiJEslmr2zi8AW
+      8eJeqRLZEfsSSJOXTG7RdGsn4qHFJ00s2ZTlcIHSPwnFm+XjJi99U8G4XsUoXo0r
+      Gy+0VCuU7M8gICEHHsrQO9XDD3nT2jiu5TjrKwjut3EmoJssI5bqx33+OBu5BpCP
+      CT473D43P9p3qi/XnfvqGSG2Oj4OajV4fr0o9B3KvIxkMem7WlI3jyy1kApyXqVT
+      bLkLFyWBNTWUZ2R/2wxmuoC6mLZw879MLCKMvk1doQKBgQDhmwGafJNymTiEQZRI
+      SsQx4seqfOKfgFC7ohqH9cROOu8IJ1o7q2pM2W4XiV+S3wTdPGmca6IOjX23isVB
+      2uqNi9S4MnI2/d22Gd/BR9rvBw1eGJoKbrWx22fE8QCEWT1AnO+DuD0jC85yRls7
+      axzlaMrxEu3LI9UE7NtrdQiByQKBgQDVdI6ceIVBT6RgvVGt8zkLjPIFjhQEHAIp
+      uhirgqpS6CX9Blyf2+o40zmfj3he5rCcEoB5MseM+DgFbcVh2e/MVnYiNNw6JCDB
+      BQkF408pZpSeKXvL/oyV/kImMTJ/tUDY0EXxMwSPJB0WltbWreVIHopigXRCbaey
+      uBHVBv/4twKBgHwHuePy5SU1s2qSmzD7Wc2LPfYu3nCOHNRrFGb26MuRfuReri7r
+      2G8TgoESFycp0QTIN8+1JM0XYKxNcJD6B8V1wKbbpQsymneI1gjutiB/Igw/PkDK
+      CL4VP4F4da5NWW1yWgNygLoJvZ/5qiKKisJc0GWk4HKz6mLgzOjQ2LJxAoGBALHZ
+      fN2YeYbyYcaM11p1VilulVTVjY3i/FZiDR4SL/IGJWjN/Szg4iXYsKFmu+dulOZl
+      cBALpEKrqpmzXYtrN6bsv18+5eO3qGbK2DrEq3eWVev2KoTMobxz7g++XBIWJmLA
+      Hhaa6IiPkYD5yyVyHKDbeXgb3o9eqCR7w7fYLjy/AoGAI4D+MFkivwUF7hqf5edS
+      KrltwmodHiqXNbVkwbW1AFPJbiYai4YFfK4IAbif/Ymxf9G78aOkr9ZpCIzOkDPZ
+      YpEwQGWsAhElCFvc8E/5dHESSp+tWtP+NluimpFqiDg3/SUnMwO2xH0nhLa0zejh
+      gmLh4w/CcPyb9ZyXceWU/nU=
+      -----END PRIVATE KEY-----
+
+      END_OF_TRAEFIK
+
+      traefik -configFile=traefik.yaml
+    image: traefik:latest
     ports:
     - 80:80/tcp
     - 443:443/tcp
-    - 9901:9901/tcp
-  redis:
-    image: redis:6.2.5-alpine
   trusted-httpdetails:
     command:
     - sh
@@ -262,7 +868,7 @@ services:
       SSL_CERT_FILE: /verify_config/ca.pem
     image: pomerium/verify:${VERIFY_TAG:-latest}
     links:
-    - pomerium:authenticate.localhost.pomerium.io
+    - traefik:authenticate.localhost.pomerium.io
     volumes:
     - verify_config:/verify_config
   verify_init:
