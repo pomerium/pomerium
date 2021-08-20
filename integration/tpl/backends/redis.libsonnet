@@ -5,11 +5,11 @@ function() {
   local image = 'redis:6.2.5-alpine',
 
   compose: {
-    services: {
-      redis: {
+    services:
+      utils.ComposeService('redis', {
         image: image,
-      },
-    },
+
+      }),
   },
   kubernetes: [
     utils.KubernetesDeployment(name, image, null, [

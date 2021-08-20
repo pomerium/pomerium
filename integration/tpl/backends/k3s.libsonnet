@@ -1,3 +1,5 @@
+local utils = import '../utils.libsonnet';
+
 local Command() =
   [
     'sh',
@@ -30,8 +32,8 @@ local InstallManifest(manifest) =
 
 function(idp, manifests) {
   compose: {
-    services: {
-      'k3s-server': {
+    services:
+      utils.ComposeService('k3s-server', {
         image: 'rancher/k3s:${K3S_TAG:-latest}',
         entrypoint: Command() + [
           'server',
@@ -69,8 +71,8 @@ function(idp, manifests) {
         volumes: [
           'k3s-tmp:/k3s-tmp',
         ],
-      },
-      'k3s-agent': {
+      }) +
+      utils.ComposeService('k3s-agent', {
         image: 'rancher/k3s:${K3S_TAG:-latest}',
         entrypoint: Command() + ['agent'],
         tmpfs: ['/run', '/var/run'],
@@ -90,8 +92,8 @@ function(idp, manifests) {
         volumes: [
           'k3s-tmp:/k3s-tmp',
         ],
-      },
-      'k3s-init': {
+      }) +
+      utils.ComposeService('k3s-init', {
         image: 'rancher/k3s:${K3S_TAG:-latest}',
         depends_on: {
           'k3s-server': {
@@ -115,8 +117,8 @@ function(idp, manifests) {
         volumes: [
           'k3s-tmp:/k3s-tmp',
         ],
-      },
-      'k3s-ready': {
+      }) +
+      utils.ComposeService('k3s-ready', {
         depends_on: {
           'k3s-init': {
             condition: 'service_completed_successfully',
@@ -128,8 +130,7 @@ function(idp, manifests) {
           '-c',
           'exit 0',
         ],
-      },
-    },
+      }),
     volumes: {
       'k3s-tmp': {
         driver_opts: {

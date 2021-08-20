@@ -1,3 +1,5 @@
+networks:
+  main: {}
 services:
   k3s-agent:
     entrypoint:
@@ -21,6 +23,10 @@ services:
       K3S_TOKEN: TOKEN
       K3S_URL: https://k3s-server:6443
     image: rancher/k3s:${K3S_TAG:-latest}
+    networks:
+      main:
+        aliases:
+        - k3s-agent
     privileged: true
     restart: always
     tmpfs:
@@ -737,6 +743,10 @@ services:
       kubectl apply -f /tmp/manifest.json
       sleep 30
     image: rancher/k3s:${K3S_TAG:-latest}
+    networks:
+      main:
+        aliases:
+        - k3s-init
     volumes:
     - k3s-tmp:/k3s-tmp
   k3s-ready:
@@ -748,6 +758,10 @@ services:
       k3s-init:
         condition: service_completed_successfully
     image: busybox:latest
+    networks:
+      main:
+        aliases:
+        - k3s-ready
   k3s-server:
     entrypoint:
     - sh
@@ -782,6 +796,10 @@ services:
       - kubectl
       - cluster-info
     image: rancher/k3s:${K3S_TAG:-latest}
+    networks:
+      main:
+        aliases:
+        - k3s-server
     ports:
     - 6443:6443/tcp
     - 5443:5443/tcp

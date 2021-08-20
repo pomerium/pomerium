@@ -99,7 +99,19 @@ local ParseURL(rawURL) =
     fragment: p5[1],
   };
 
+local ComposeService(name, definition, additionalAliases=[]) =
+  {
+    [name]: definition {
+      networks: {
+        main: {
+          aliases: [name] + additionalAliases,
+        },
+      },
+    },
+  };
+
 {
+  ComposeService: ComposeService,
   Merge: Merge,
   KubernetesDeployment: KubernetesDeployment,
   KubernetesService: KubernetesService,

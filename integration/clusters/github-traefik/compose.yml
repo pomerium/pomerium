@@ -1,3 +1,5 @@
+networks:
+  main: {}
 services:
   fortio:
     command:
@@ -10,6 +12,10 @@ services:
       fortio_init:
         condition: service_completed_successfully
     image: fortio/fortio:1.17.0
+    networks:
+      main:
+        aliases:
+        - fortio
     ports:
     - 8079:8079/tcp
     volumes:
@@ -79,6 +85,10 @@ services:
         gmLh4w/CcPyb9ZyXceWU/nU=
         -----END PRIVATE KEY-----
     image: busybox:latest
+    networks:
+      main:
+        aliases:
+        - fortio_init
     volumes:
     - fortio_config:/fortio_config
   mock-idp:
@@ -90,6 +100,10 @@ services:
     - --root-url
     - https://mock-idp.localhost.pomerium.io/
     image: calebdoxsey/mock-idps:${MOCK_IDPS_TAG:-master}
+    networks:
+      main:
+        aliases:
+        - mock-idp
     ports:
     - 8024:8024/tcp
   pomerium:
@@ -115,8 +129,18 @@ services:
       SIGNING_KEY: LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSVBSR1d3TGg3NW5OWG5razM3ekRmTjhvbkx3ZkNpYUxQVEQrbmM4THg1aGNvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFa3BCa08wVEttaDRKZFFmTE9lZU1kNTNLbmdhMVdkUVhyNUZjZXBrK2RMVktkVkt4WENHcQpoMW9qdWh1VzExR0lvT3pTOUdvU0tsTlZTUkZXVkVXRHZ3PT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
       SIGNING_KEY_ALGORITHM: ES256
     image: pomerium/pomerium:${POMERIUM_TAG:-master}
+    networks:
+      main:
+        aliases:
+        - pomerium
+        - authenticate.localhost.pomerium.io
+        - forward-authenticate.localhost.pomerium.io
   redis:
     image: redis:6.2.5-alpine
+    networks:
+      main:
+        aliases:
+        - redis
   traefik:
     command:
     - sh
@@ -785,9 +809,10 @@ services:
 
       traefik -configFile=traefik.yaml
     image: traefik:latest
-    links:
-    - pomerium:authenticate.localhost.pomerium.io
-    - pomerium:forward-authenticate.localhost.pomerium.io
+    networks:
+      main:
+        aliases:
+        - traefik
     ports:
     - 80:80/tcp
     - 443:443/tcp
@@ -858,6 +883,10 @@ services:
       END_OF_HTTPDETAILS
       node ./index.js
     image: mendhak/http-https-echo:19
+    networks:
+      main:
+        aliases:
+        - trusted-httpdetails
   untrusted-httpdetails:
     command:
     - sh
@@ -925,6 +954,10 @@ services:
       END_OF_HTTPDETAILS
       node ./index.js
     image: mendhak/http-https-echo:19
+    networks:
+      main:
+        aliases:
+        - untrusted-httpdetails
   verify:
     depends_on:
       verify_init:
@@ -934,6 +967,10 @@ services:
     image: pomerium/verify:${VERIFY_TAG:-latest}
     links:
     - traefik:authenticate.localhost.pomerium.io
+    networks:
+      main:
+        aliases:
+        - verify
     volumes:
     - verify_config:/verify_config
   verify_init:
@@ -971,6 +1008,10 @@ services:
       -----END CERTIFICATE-----
       ' > /verify_config/ca.pem
     image: busybox:latest
+    networks:
+      main:
+        aliases:
+        - verify_init
     volumes:
     - verify_config:/verify_config
   websocket-echo:
@@ -979,6 +1020,10 @@ services:
     - "80"
     - tee
     image: pvtmert/websocketd:latest
+    networks:
+      main:
+        aliases:
+        - websocket-echo
   wrongly-named-httpdetails:
     command:
     - sh
@@ -1046,6 +1091,10 @@ services:
       END_OF_HTTPDETAILS
       node ./index.js
     image: mendhak/http-https-echo:19
+    networks:
+      main:
+        aliases:
+        - wrongly-named-httpdetails
 volumes:
   fortio_config: {}
   verify_config: {}

@@ -1,3 +1,4 @@
+local utils = import '../utils.libsonnet';
 local Routes = (import './routes.libsonnet').Routes;
 
 local GoogleCloudServerlessAuthenticationServiceAccount() =
@@ -102,7 +103,11 @@ local Environment(mode, idp, dns_suffix) =
     GRPC_ADDRESS: ':5443',
     GRPC_INSECURE: 'false',
     OVERRIDE_CERTIFICATE_NAME: '*.localhost.pomerium.io',
-  } else if mode == 'traefik' || mode == 'nginx' then {
+  } else if mode == 'traefik' then {
+    FORWARD_AUTH_URL: 'https://forward-authenticate.localhost.pomerium.io',
+  } else if mode == 'nginx' then {
+    ADDRESS: ':80',
+    INSECURE_SERVER: 'true',
     FORWARD_AUTH_URL: 'https://forward-authenticate.localhost.pomerium.io',
   } else {};
 
@@ -112,8 +117,8 @@ function(mode, idp, dns_suffix='') {
   local environment = Environment(mode, idp, dns_suffix),
 
   compose: {
-    services: if mode == 'multi' then {
-      [name + '-authorize']: {
+    services: if mode == 'multi' then
+      utils.ComposeService(name + '-authorize', {
         image: image,
         environment: environment {
           SERVICES: 'authorize',
@@ -122,11 +127,8 @@ function(mode, idp, dns_suffix='') {
           '9904:9901/tcp',
           '5446:5443/tcp',
         ],
-        links: [
-          'pomerium-proxy:mock-idp.localhost.pomerium.io',
-        ],
-      },
-      [name + '-authenticate']: {
+      }) +
+      utils.ComposeService(name + '-authenticate', {
         image: image,
         environment: environment {
           SERVICES: 'authenticate',
@@ -135,11 +137,8 @@ function(mode, idp, dns_suffix='') {
           '9903:9901/tcp',
           '5445:5443/tcp',
         ],
-        links: [
-          'pomerium-proxy:mock-idp.localhost.pomerium.io',
-        ],
-      },
-      [name + '-databroker']: {
+      }, ['authenticate.localhost.pomerium.io', 'mock-idp.localhost.pomerium.io']) +
+      utils.ComposeService(name + '-databroker', {
         image: image,
         environment: environment {
           SERVICES: 'databroker',
@@ -148,11 +147,8 @@ function(mode, idp, dns_suffix='') {
           '9902:9901/tcp',
           '5444:5443/tcp',
         ],
-        links: [
-          'pomerium-proxy:mock-idp.localhost.pomerium.io',
-        ],
-      },
-      [name + '-proxy']: {
+      }) +
+      utils.ComposeService(name + '-proxy', {
         image: image,
         environment: environment {
           SERVICES: 'proxy',
@@ -163,14 +159,14 @@ function(mode, idp, dns_suffix='') {
           '5443:5443/tcp',
           '9901:9901/tcp',
         ],
-      },
-    } else if mode == 'traefik' || mode == 'nginx' then {
-      [name]: {
+      }, ['mock-idp.localhost.pomerium.io'])
+    else if mode == 'traefik' || mode == 'nginx' then
+      utils.ComposeService(name, {
         image: image,
         environment: environment,
-      },
-    } else {
-      [name]: {
+      }, ['authenticate.localhost.pomerium.io', 'forward-authenticate.localhost.pomerium.io'])
+    else
+      utils.ComposeService(name, {
         image: image,
         environment: environment,
         ports: [
@@ -178,8 +174,7 @@ function(mode, idp, dns_suffix='') {
           '443:443/tcp',
           '9901:9901/tcp',
         ],
-      },
-    },
+      }, ['authenticate.localhost.pomerium.io']),
     volumes: {},
   },
   kubernetes: [

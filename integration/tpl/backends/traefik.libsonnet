@@ -162,19 +162,14 @@ local Command(mode, idp, dns_suffix='') =
 function(mode, idp, dns_suffix='') {
   local image = 'traefik:latest',
   compose: {
-    services: {
-      traefik: {
+    services:
+      utils.ComposeService('traefik', {
         image: image,
         command: Command(mode, idp, dns_suffix),
         ports: [
           '80:80/tcp',
           '443:443/tcp',
         ],
-        links: [
-          'pomerium:authenticate.localhost.pomerium.io',
-          'pomerium:forward-authenticate.localhost.pomerium.io',
-        ],
-      },
-    },
+      }),
   },
 }

@@ -6,12 +6,11 @@ function() {
   local command = ['--port', '80', 'tee'],
 
   compose: {
-    services: {
-      [name]: {
+    services:
+      utils.ComposeService(name, {
         image: image,
         command: command,
-      },
-    },
+      }),
     volumes: {},
   },
   kubernetes: [

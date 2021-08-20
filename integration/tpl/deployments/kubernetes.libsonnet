@@ -11,4 +11,9 @@ function(idp) utils.Merge([
     (import '../backends/verify.libsonnet')('single').kubernetes +
     (import '../backends/websocket-echo.libsonnet')().kubernetes
   ).compose,
+  {
+    networks: {
+      main: {},
+    },
+  },
 ])

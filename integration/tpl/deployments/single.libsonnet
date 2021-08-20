@@ -8,4 +8,9 @@ function(idp) utils.Merge([
   (import '../backends/redis.libsonnet')().compose,
   (import '../backends/verify.libsonnet')('single').compose,
   (import '../backends/websocket-echo.libsonnet')().compose,
+  {
+    networks: {
+      main: {},
+    },
+  },
 ])

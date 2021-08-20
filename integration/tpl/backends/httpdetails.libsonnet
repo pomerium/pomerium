@@ -39,13 +39,15 @@ function() {
   local image = 'mendhak/http-https-echo:19',
 
   compose: {
-    services: {
-      [variation.name + '-' + suffix]: {
-        image: image,
-        command: Command(variation),
-      }
-      for variation in Variations()
-    },
+    services: std.foldl(
+      function(acc, variation)
+        acc + utils.ComposeService(variation.name + '-' + suffix, {
+          image: image,
+          command: Command(variation),
+        }),
+      Variations(),
+      {}
+    ),
   },
   kubernetes: std.foldl(
     function(acc, variation)

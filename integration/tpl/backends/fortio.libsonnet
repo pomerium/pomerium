@@ -1,7 +1,9 @@
+local utils = import '../utils.libsonnet';
+
 function() {
   compose: {
-    services: {
-      fortio: {
+    services:
+      utils.ComposeService('fortio', {
         image: 'fortio/fortio:1.17.0',
         depends_on: {
           fortio_init: {
@@ -21,8 +23,8 @@ function() {
         volumes: [
           'fortio_config:/fortio_config',
         ],
-      },
-      fortio_init: {
+      }) +
+      utils.ComposeService('fortio_init', {
         image: 'busybox:latest',
         command: [
           'sh',
@@ -39,8 +41,7 @@ function() {
         volumes: [
           'fortio_config:/fortio_config',
         ],
-      },
-    },
+      }),
     volumes: {
       fortio_config: {},
     },

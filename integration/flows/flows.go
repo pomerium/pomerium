@@ -17,10 +17,11 @@ import (
 )
 
 const (
-	authenticateHostname = "authenticate.localhost.pomerium.io"
-	idpHostname          = "mock-idp.localhost.pomerium.io"
-	pomeriumCallbackPath = "/.pomerium/callback/"
-	pomeriumAPIPath      = "/.pomerium/api/v1/login"
+	authenticateHostname        = "authenticate.localhost.pomerium.io"
+	forwardAuthenticateHostname = "forward-authenticate.localhost.pomerium.io"
+	idpHostname                 = "mock-idp.localhost.pomerium.io"
+	pomeriumCallbackPath        = "/.pomerium/callback/"
+	pomeriumAPIPath             = "/.pomerium/api/v1/login"
 )
 
 type authenticateConfig struct {
@@ -142,7 +143,7 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 	}
 
 	// (2) redirect to idp
-	for req.URL.Hostname() == authenticateHostname {
+	for req.URL.Hostname() == authenticateHostname || req.URL.Hostname() == forwardAuthenticateHostname {
 		res, err = client.Do(req)
 		if err != nil {
 			return nil, err

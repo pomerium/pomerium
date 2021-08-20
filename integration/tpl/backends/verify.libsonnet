@@ -5,8 +5,8 @@ function(mode) {
   local image = 'pomerium/verify:${VERIFY_TAG:-latest}',
 
   compose: {
-    services: {
-      verify: {
+    services:
+      utils.ComposeService('verify', {
         image: image,
         depends_on: {
           verify_init: {
@@ -26,8 +26,8 @@ function(mode) {
         volumes: [
           'verify_config:/verify_config',
         ],
-      },
-      verify_init: {
+      }) +
+      utils.ComposeService('verify_init', {
         image: 'busybox:latest',
         command: [
           'sh',
@@ -37,8 +37,7 @@ function(mode) {
         volumes: [
           'verify_config:/verify_config',
         ],
-      },
-    },
+      }),
     volumes: {
       verify_config: {},
     },

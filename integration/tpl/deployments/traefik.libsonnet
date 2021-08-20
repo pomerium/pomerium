@@ -9,4 +9,9 @@ function(idp) utils.Merge([
   (import '../backends/traefik.libsonnet')('single', idp).compose,
   (import '../backends/verify.libsonnet')('traefik').compose,
   (import '../backends/websocket-echo.libsonnet')().compose,
+  {
+    networks: {
+      main: {},
+    },
+  },
 ])

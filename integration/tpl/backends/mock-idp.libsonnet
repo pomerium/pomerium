@@ -13,15 +13,13 @@ function(idp) {
   ],
 
   compose: {
-    services: {
-      [name]: {
-        image: image,
-        command: command,
-        ports: [
-          '8024:8024/tcp',
-        ],
-      },
-    },
+    services: utils.ComposeService(name, {
+      image: image,
+      command: command,
+      ports: [
+        '8024:8024/tcp',
+      ],
+    }),
     volumes: {},
   },
   kubernetes: [
