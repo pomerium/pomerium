@@ -156,7 +156,6 @@ services:
         aliases:
         - pomerium-authenticate
         - authenticate.localhost.pomerium.io
-        - mock-idp.localhost.pomerium.io
     ports:
     - 9903:9901/tcp
     - 5445:5443/tcp

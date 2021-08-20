@@ -156,7 +156,7 @@ function(mode, idp, dns_suffix='') {
           '9903:9901/tcp',
           '5445:5443/tcp',
         ],
-      }, ['authenticate.localhost.pomerium.io', 'mock-idp.localhost.pomerium.io']) +
+      }, ['authenticate.localhost.pomerium.io']) +
       ComposeService(name + '-databroker', {
         image: image,
         environment: environment {
