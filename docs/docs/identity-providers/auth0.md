@@ -39,7 +39,7 @@ While we do our best to keep our documentation up to date, changes to third-part
 
 ## Service Account
 
-Next we'll create an application to handle machine-to-machine communication from Pomerium to Auth0 in order to retrieve and establish group membership.
+Next, we'll create an application to handle machine-to-machine communication from Pomerium to Auth0 in order to retrieve and establish group membership.
 
 ::: tip
 
