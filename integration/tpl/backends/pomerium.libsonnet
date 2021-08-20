@@ -111,6 +111,25 @@ local Environment(mode, idp, dns_suffix) =
     FORWARD_AUTH_URL: 'https://forward-authenticate.localhost.pomerium.io',
   } else {};
 
+local ComposeService(name, definition, additionalAliases=[]) =
+  utils.ComposeService(name, definition {
+    depends_on: {
+      [name]: {
+        condition: 'service_started',
+      }
+      for name in [
+        'fortio',
+        'mock-idp',
+        'redis',
+        'trusted-httpdetails',
+        'untrusted-httpdetails',
+        'websocket-echo',
+        'wrongly-named-httpdetails',
+        'verify',
+      ]
+    },
+  }, additionalAliases);
+
 function(mode, idp, dns_suffix='') {
   local name = 'pomerium',
   local image = 'pomerium/pomerium:${POMERIUM_TAG:-master}',
@@ -118,7 +137,7 @@ function(mode, idp, dns_suffix='') {
 
   compose: {
     services: if mode == 'multi' then
-      utils.ComposeService(name + '-authorize', {
+      ComposeService(name + '-authorize', {
         image: image,
         environment: environment {
           SERVICES: 'authorize',
@@ -128,7 +147,7 @@ function(mode, idp, dns_suffix='') {
           '5446:5443/tcp',
         ],
       }) +
-      utils.ComposeService(name + '-authenticate', {
+      ComposeService(name + '-authenticate', {
         image: image,
         environment: environment {
           SERVICES: 'authenticate',
@@ -138,7 +157,7 @@ function(mode, idp, dns_suffix='') {
           '5445:5443/tcp',
         ],
       }, ['authenticate.localhost.pomerium.io', 'mock-idp.localhost.pomerium.io']) +
-      utils.ComposeService(name + '-databroker', {
+      ComposeService(name + '-databroker', {
         image: image,
         environment: environment {
           SERVICES: 'databroker',
@@ -148,7 +167,7 @@ function(mode, idp, dns_suffix='') {
           '5444:5443/tcp',
         ],
       }) +
-      utils.ComposeService(name + '-proxy', {
+      ComposeService(name + '-proxy', {
         image: image,
         environment: environment {
           SERVICES: 'proxy',
@@ -161,12 +180,12 @@ function(mode, idp, dns_suffix='') {
         ],
       }, ['mock-idp.localhost.pomerium.io'])
     else if mode == 'traefik' || mode == 'nginx' then
-      utils.ComposeService(name, {
+      ComposeService(name, {
         image: image,
         environment: environment,
       }, ['authenticate.localhost.pomerium.io', 'forward-authenticate.localhost.pomerium.io'])
     else
-      utils.ComposeService(name, {
+      ComposeService(name, {
         image: image,
         environment: environment,
         ports: [

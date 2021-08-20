@@ -165,11 +165,16 @@ function(mode, idp, dns_suffix='') {
     services:
       utils.ComposeService('traefik', {
         image: image,
+        depends_on: {
+          pomerium: {
+            condition: 'service_started',
+          },
+        },
         command: Command(mode, idp, dns_suffix),
         ports: [
           '80:80/tcp',
           '443:443/tcp',
         ],
-      }),
+      }, ['authenticate.localhost.pomerium.io', 'mock-idp.localhost.pomerium.io']),
   },
 }

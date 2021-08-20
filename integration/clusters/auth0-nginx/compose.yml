@@ -108,7 +108,7 @@ services:
     - 8024:8024/tcp
   nginx:
     depends_on:
-      fortio:
+      pomerium:
         condition: service_started
     entrypoint:
     - sh
@@ -316,6 +316,23 @@ services:
     - 80:80/tcp
     - 443:443/tcp
   pomerium:
+    depends_on:
+      fortio:
+        condition: service_started
+      mock-idp:
+        condition: service_started
+      redis:
+        condition: service_started
+      trusted-httpdetails:
+        condition: service_started
+      untrusted-httpdetails:
+        condition: service_started
+      verify:
+        condition: service_started
+      websocket-echo:
+        condition: service_started
+      wrongly-named-httpdetails:
+        condition: service_started
     environment:
       ADDRESS: :80
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
@@ -501,8 +518,6 @@ services:
     environment:
       SSL_CERT_FILE: /verify_config/ca.pem
     image: pomerium/verify:${VERIFY_TAG:-latest}
-    links:
-    - pomerium:authenticate.localhost.pomerium.io
     networks:
       main:
         aliases:

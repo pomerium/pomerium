@@ -107,6 +107,23 @@ services:
     ports:
     - 8024:8024/tcp
   pomerium:
+    depends_on:
+      fortio:
+        condition: service_started
+      mock-idp:
+        condition: service_started
+      redis:
+        condition: service_started
+      trusted-httpdetails:
+        condition: service_started
+      untrusted-httpdetails:
+        condition: service_started
+      verify:
+        condition: service_started
+      websocket-echo:
+        condition: service_started
+      wrongly-named-httpdetails:
+        condition: service_started
     environment:
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       CERTIFICATE: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUVVakNDQXJxZ0F3SUJBZ0lSQUtOYUVxQ21tWmZobWNZZ1p5MDFXQ3N3RFFZSktvWklodmNOQVFFTEJRQXcKZ1lNeEhqQWNCZ05WQkFvVEZXMXJZMlZ5ZENCa1pYWmxiRzl3YldWdWRDQkRRVEVzTUNvR0ExVUVDd3dqWTJGcwpaV0pBWTJGc1pXSXRjR010YkdsdWRYZ2dLRU5oYkdWaUlFUnZlSE5sZVNreE16QXhCZ05WQkFNTUttMXJZMlZ5CmRDQmpZV3hsWWtCallXeGxZaTF3WXkxc2FXNTFlQ0FvUTJGc1pXSWdSRzk0YzJWNUtUQWVGdzB5TVRBNE1UQXgKTnpNeU1UQmFGdzB5TXpFeE1UQXhPRE15TVRCYU1GY3hKekFsQmdOVkJBb1RIbTFyWTJWeWRDQmtaWFpsYkc5dwpiV1Z1ZENCalpYSjBhV1pwWTJGMFpURXNNQ29HQTFVRUN3d2pZMkZzWldKQVkyRnNaV0l0Y0dNdGJHbHVkWGdnCktFTmhiR1ZpSUVSdmVITmxlU2t3Z2dFaU1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRQzgKSExCQUl6WGtQZWVnbGRVZlJLSzJqUXhTVlpENWcrcXNqQXpwbXJxL0F0bXdlSzFjR2NPdFo2ZU9MK3A4YnJQRAp5VmhEVDBRbEkvTy9FS2dDT0ZGeFVEcW9SODJpWTA2U2FjQWpIbmk2K1BPOXRWUmJGVjB3MTRCREFKU3BCK1Z2Cld5bCtGb1BEVi92c1ozMUZ0WXcrRXdxa2JEeC9rYVQ5dXpmK0xKZGxrZjE0blFRajhFa3kvOGQzbVdKYmIvOXQKak9ic2FRZ0o1TEx4Q1lkSW1rcjc3WDJMTXVEdy8xdHBINjQyR0UyNU5yZ202UUhseUtTZllYbzM4djgzZWJFcQpiWlVERytaaW9BclBtcW1rYXdVV3czZWtoajgwU0pnL1RLOVBSYU4vVnZjSTFQZ0FkN0xaenRVUmVTbVR5NWhkCjlyNnJPQnhweHduVER2SGtCbjZ2QWdNQkFBR2piREJxTUE0R0ExVWREd0VCL3dRRUF3SUZvREFUQmdOVkhTVUUKRERBS0JnZ3JCZ0VGQlFjREFUQWZCZ05WSFNNRUdEQVdnQlNGaGxoWWdFZktUcGxWT2VuZVZHMyszSUUvVFRBaQpCZ05WSFJFRUd6QVpnaGNxTG14dlkyRnNhRzl6ZEM1d2IyMWxjbWwxYlM1cGJ6QU5CZ2txaGtpRzl3MEJBUXNGCkFBT0NBWUVBdWZRQUY3OXM3YzFnbVo5Q0lLQlNHa0hoK1NIMDFDdUtZbm5IaU1vd0hzVGlvRmFVQVFzZC9QNFgKYzJYQnFjMzRlVDNtQ3ZwZ1pqSGJqejZKbG5UWUp4dUx2VnFuVkIzZW10V3JiMWNRdmg4QnBoeHNwVGxTOHVpRQpBRWYvbmd0cHpmQS9mNGxwR2t6clEwY3lQa0VKR3o1MTFxOTdpdHpuOVJaWnpWVFp4TlZGU1AydlZoTk5RVnNXCk94YWtjdllSZ256OEFPUVMzT1BIajJGUWMzaWlic2hjdDVsZUl3WVpGY3hJTkdIUjZLTDYrL0xTZVBOQ0VNbUsKcXltVlBrUUdzSWNVNkdROWZ4YVN1NG1wK0lVQUxQcm9pekVWSThTVms1bk9tM0hJZXorWmZYaHpmbkd4MDZTSQo2TnVvUVFQcVVCZVplWG4yWUZZaGlwZVJkclF4dkEzNi9ZWGEvQWtYQ2VVMHBYeGJ0WEtjdmF0ZnJpNUtuWUpECmtINTlhK2FGa1RzbDQxdGZJMmNuUllWZGRxWFZsM096TGJjZ0FGTG4xV2VDMXh4M3hSWGk3S2xkb2tPbHZndisKQjZuYVdmQ3hSbFdaL2xzbUhhZTRrYzFXSDRLYzduSytJVGI0MEVralY2OC9BN2tyWnNOMVZjcU50cG9tWWtnRQp4alVFOFhVdQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
@@ -292,8 +309,6 @@ services:
     environment:
       SSL_CERT_FILE: /verify_config/ca.pem
     image: pomerium/verify:${VERIFY_TAG:-latest}
-    links:
-    - pomerium:authenticate.localhost.pomerium.io
     networks:
       main:
         aliases:

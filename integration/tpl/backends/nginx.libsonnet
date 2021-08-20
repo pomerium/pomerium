@@ -167,7 +167,7 @@ function(mode, idp, dns_suffix='') {
     services: utils.ComposeService('nginx', {
       image: image,
       depends_on: {
-        fortio: {
+        pomerium: {
           condition: 'service_started',
         },
       },

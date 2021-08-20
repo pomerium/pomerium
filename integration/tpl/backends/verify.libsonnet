@@ -16,13 +16,6 @@ function(mode) {
         environment: {
           SSL_CERT_FILE: '/verify_config/ca.pem',
         },
-        links: if mode == 'multi' then [
-          'pomerium-authenticate:authenticate.localhost.pomerium.io',
-        ] else if mode == 'traefik' then [
-          'traefik:authenticate.localhost.pomerium.io',
-        ] else [
-          'pomerium:authenticate.localhost.pomerium.io',
-        ],
         volumes: [
           'verify_config:/verify_config',
         ],

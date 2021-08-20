@@ -107,6 +107,23 @@ services:
     ports:
     - 8024:8024/tcp
   pomerium-authenticate:
+    depends_on:
+      fortio:
+        condition: service_started
+      mock-idp:
+        condition: service_started
+      redis:
+        condition: service_started
+      trusted-httpdetails:
+        condition: service_started
+      untrusted-httpdetails:
+        condition: service_started
+      verify:
+        condition: service_started
+      websocket-echo:
+        condition: service_started
+      wrongly-named-httpdetails:
+        condition: service_started
     environment:
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443
@@ -144,6 +161,23 @@ services:
     - 9903:9901/tcp
     - 5445:5443/tcp
   pomerium-authorize:
+    depends_on:
+      fortio:
+        condition: service_started
+      mock-idp:
+        condition: service_started
+      redis:
+        condition: service_started
+      trusted-httpdetails:
+        condition: service_started
+      untrusted-httpdetails:
+        condition: service_started
+      verify:
+        condition: service_started
+      websocket-echo:
+        condition: service_started
+      wrongly-named-httpdetails:
+        condition: service_started
     environment:
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443
@@ -179,6 +213,23 @@ services:
     - 9904:9901/tcp
     - 5446:5443/tcp
   pomerium-databroker:
+    depends_on:
+      fortio:
+        condition: service_started
+      mock-idp:
+        condition: service_started
+      redis:
+        condition: service_started
+      trusted-httpdetails:
+        condition: service_started
+      untrusted-httpdetails:
+        condition: service_started
+      verify:
+        condition: service_started
+      websocket-echo:
+        condition: service_started
+      wrongly-named-httpdetails:
+        condition: service_started
     environment:
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443
@@ -214,6 +265,23 @@ services:
     - 9902:9901/tcp
     - 5444:5443/tcp
   pomerium-proxy:
+    depends_on:
+      fortio:
+        condition: service_started
+      mock-idp:
+        condition: service_started
+      redis:
+        condition: service_started
+      trusted-httpdetails:
+        condition: service_started
+      untrusted-httpdetails:
+        condition: service_started
+      verify:
+        condition: service_started
+      websocket-echo:
+        condition: service_started
+      wrongly-named-httpdetails:
+        condition: service_started
     environment:
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443
@@ -406,8 +474,6 @@ services:
     environment:
       SSL_CERT_FILE: /verify_config/ca.pem
     image: pomerium/verify:${VERIFY_TAG:-latest}
-    links:
-    - pomerium-authenticate:authenticate.localhost.pomerium.io
     networks:
       main:
         aliases:
