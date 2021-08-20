@@ -152,7 +152,7 @@ IDP_CLIENT_SECRET="REPLACE-ME"
 - In our testing, we found that users could be created in an Active Directory without an email address as part of their user claim. Pomerium user identity depends largely on the associated email address.
 - If your default user in the Active Directory is unauthorized (403) even when specified as allowed in a policy by user, you can mitigate by creating a group membership and corresponding policy.
 
-[client id]: ../../reference/readme.md#identity-provider-client-id
-[client secret]: ../../reference/readme.md#identity-provider-client-secret
+[client id]: /reference/readme.md#identity-provider-client-id
+[client secret]: /reference/readme.md#identity-provider-client-secret
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
