@@ -100,7 +100,7 @@ https://login.microsoftonline.com/0303f438-3c5c-4190-9854-08d3eb31bd9f/v2.0
 
 ::: tip
 
-By default, this information will be inferred from your provider URL. If you are using a different [OAuth2] credential set, you may need to set these values separately.
+By default, this information will be inferred from your provider URL, and you should not need to set this key. If you are using a different [OAuth2] credential set, you may need to set these values separately.
 :::
 
 To use `allowed_groups` in a policy an `idp_service_account` needs to be set in the Pomerium configuration. The service account for Azure AD uses the same [client ID] and client secret configured above, as well as the directory (tenant) ID:
@@ -146,6 +146,11 @@ IDP_CLIENT_SECRET="REPLACE-ME"
 ```
 :::
 ::::
+
+## Troubleshooting
+
+- In our testing, we found that users could be created in an Active Directory without an email address as part of their user claim. Pomerium user identity depends largely on the associated email address.
+- If your default user in the Active Directory is unauthorized (403) even when specified as allowed in a policy by user, you can mitigate by creating a group membership and corresponding policy.
 
 [client id]: ../../reference/readme.md#identity-provider-client-id
 [client secret]: ../../reference/readme.md#identity-provider-client-secret
