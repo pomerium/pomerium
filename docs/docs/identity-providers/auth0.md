@@ -9,31 +9,37 @@ meta:
 
 # Auth0
 
-[Log in to your Auth0 account](https://manage.auth0.com/) and head to your dashboard. Select **Applications** on the left menu. On the Applications page, click the **Create Application** button to create a new app.
+This page documents configuring an [Auth0] Web Application and Machine to Machine Application for Pomerium to read user data. It assumes you have already [installed Pomerium](/docs/install/readme.md).
+
+::: warning
+While we do our best to keep our documentation up to date, changes to third-party systems are outside our control. Refer to [Applications in Auth0](https://auth0.com/docs/applications) from Auth0's docs as needed, or [let us know](https://github.com/pomerium/pomerium/issues/new?assignees=&labels=&template=bug_report.md) if we need to re-visit this page.
+:::
+
+[Log in to your Auth0 account](https://manage.auth0.com/) and head to your dashboard. Select **Applications → Applications** on the left menu. On the Applications page, click the **Create Application** button to create a new app.
 
 ![Auth0 Applications Dashboard](./img/auth0/dashboard.png)
 
 ## Create Regular Web Application
 
-On the **Create New Application** page, name your application and select the **Regular Web Application** for your application. This is the application that your users will login to.
+1. On the **Create New Application** page, name your application and select the **Regular Web Application** for your application. This is the application that your users will login to.
 
-![Auth0 Create Application Select Platform](./img/auth0/create.png)
+   ![Auth0 Create Application Select Platform](./img/auth0/create.png)
 
-Next, provide the following information for your application settings:
+1. Under the **Settings** tab, note the **Domain**, **Client ID**, and **Client Secret** values. We'll provide these to Pomerium at the end of the process.
 
-| Field                        | Description                                                               |
-| ---------------------------- | ------------------------------------------------------------------------- |
-| Name                         | The name of your application.                                             |
-| Application Login URI        | Authenticate URL (e.g. `https://${authenticate_service_url}`)             |
-| Allowed Callback URLs        | Redirect URL (e.g. `https://${authenticate_service_url}/oauth2/callback`).|
+1. Provide the following information for your application settings:
 
-Make sure to click **Save Changes** at the bottom of the page when you're done.
+   | Field                        | Description                                                               |
+   | ---------------------------- | ------------------------------------------------------------------------- |
+   | Name                         | The name of your application.                                             |
+   | Application Login URI        | [Authenticate Service URL] (e.g. `https://${authenticate_service_url}`)   |
+   | Allowed Callback URLs        | Redirect URL (e.g. `https://${authenticate_service_url}/oauth2/callback`).|
 
-On the same **Settings** page you can copy the **Domain** and use it as the provider url (e.g. `https://dev-xyz.us.auth0.com`), as well as the **[Client ID]** and **[Client Secret]**.
+   Make sure to click **Save Changes** at the bottom of the page when you're done.
 
 ## Service Account
 
-Next we'll create an application to handle machine-to-machine communication from Pomerium to Auth0 in order to retrieve and establish group membership. 
+Next, we'll create an application to handle machine-to-machine communication from Pomerium to Auth0 in order to retrieve and establish group membership.
 
 ::: tip
 
@@ -41,36 +47,58 @@ Auth0 refers to groups as roles.
 
 :::
 
-Select **Applications** on the left menu. On the Applications page, click the **Create Application** button to create a new app.
+1. Repeat the process in step 1 above to create a new application, but this time select **Machine to Machine Application**. A different application is used for grabbing roles to keep things more secure.
 
-On the **Create New Application** page, name your application and select the **Machine to Machine Application** for your application. A different application is used for grabbing roles to keep things more secure.
+   ![Auth Create Application Select Service Account Platform](./img/auth0/create-m2m.png)
 
-![Auth Create Application Select Service Account Platform](./img/auth0/create-m2m.png)
+   Click **Create**.
 
-Click **Create** and on the next page select **Auth0 Management API** from the dropdown. For the scopes use the **Filter** on the right to narrow things down to `role` and choose the `read:roles` and `read:role_members` scopes.
+1. On the next page select **Auth0 Management API** from the dropdown. Under **Permissions** use the filter on the right to narrow things down to `role`, and choose the `read:roles` and `read:role_members` roles.
 
-![Auth0 Management API Scopes](./img/auth0/m2m-scopes.png)
+   ![Auth0 Management API Scopes](./img/auth0/m2m-scopes.png)
 
-Finish things off by clicking **Authorize**.
+   Then click **Authorize**.
 
-To build the `idp_service_account` for Auth0 you need to base64-encode a JSON document containing the **Client ID** and **Client Secret** of the application:
+1. Just like the previous step, retrieve the **Client ID** and **Client Secret** from the **Settings** tab. To build the `idp_service_account` value for Pomerium's configuration, you must base64-encode a JSON document containing the **Client ID** and **Client Secret** of the application:
 
-```json
-{
-  "client_id": "...",
-  "secret": "..."
-}
+   ```json
+   {
+   "client_id": "...",
+   "secret": "..."
+   }
+   ```
+
+   If you save this JSON document as a temporary file, you can encode it like this:
+
+   ```bash
+   cat json.tmp | base64 -w 0
+   ```
+
+## Configure Pomerium
+
+You can now configure Pomerium with the identity provider settings retrieved in the previous steps. Your `config.yaml` keys or [environmental variables] should look something like this.
+
+:::: tabs
+::: tab config.yaml
+```yaml
+idp_provider: "auth0"
+idp_provider_url: "https://awesome-company.auth0.com"
+idp_client_id: "REPLACE_ME" # from the web application
+idp_client_secret: "REPLACE_ME" # from the web application
+idp_service_acount: "REPLACE_ME" # built from the machine-to-machine application, base64-encoded
 ```
-You can now configure Pomerium with the identity provider settings retrieved in the previous steps. Your [environmental variables] should look something like this.
-
+:::
+::: tab Environment Variables
 ```bash
 IDP_PROVIDER="auth0"
-IDP_PROVIDER_URL="https://hayward-jackal.us.auth0.com"
-IDP_CLIENT_ID="REPLACE_ME" # from the application the users login to
-IDP_CLIENT_SECRET="REPLACE_ME" # from the application the users login to
-IDP_SERVICE_ACCOUNT="REPLACE_ME" # built from the machine-to-machine application which talks to the Auth0 Management API
+IDP_PROVIDER_URL="https://awesome-company.auth0.com"
+IDP_CLIENT_ID="REPLACE_ME" # from the web application
+IDP_CLIENT_SECRET="REPLACE_ME" # from the web application
+IDP_SERVICE_ACCOUNT="REPLACE_ME" # built from the machine-to-machine application, base64-encoded
 ```
+:::
+::::
 
-[client id]: ../../reference/readme.md#identity-provider-client-id
-[client secret]: ../../reference/readme.md#identity-provider-client-secret
+[Auth0]: https://auth0.com/
+[authenticate service url]: /reference/readme.md#authenticate-service-url
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
