@@ -32,7 +32,7 @@ While we do our best to keep our documentation up to date, changes to third-part
    | Field                        | Description                                                               |
    | ---------------------------- | ------------------------------------------------------------------------- |
    | Name                         | The name of your application.                                             |
-   | Application Login URI        | [Authenticate Service URL] (e.g. `https://${authenticate_service_url}`)             |
+   | Application Login URI        | [Authenticate Service URL] (e.g. `https://${authenticate_service_url}`)   |
    | Allowed Callback URLs        | Redirect URL (e.g. `https://${authenticate_service_url}/oauth2/callback`).|
 
    Make sure to click **Save Changes** at the bottom of the page when you're done.
