@@ -8,7 +8,7 @@ description: >-
 
 # Identity Provider Configuration
 
-Pomerium helps provide a zero-trust security model by verifying that every request to your upstream applications are from an authenticated and authorized user. User and group information is sourced from your Identity Provider (**IdP**). Pomerium communicates with IdPs following the [OpenID Connect][openid connect] (**OIDC**) standard for user identity, and a service account and/or API token for group/directory information. The steps for integrating Pomerium with an IdP are specific to each provider, but they generally share the same base requirements:
+Pomerium helps provide a zero-trust security model by verifying that every request to your upstream applications is from an authenticated and authorized user. User and group information is sourced from your Identity Provider (**IdP**). Pomerium communicates with IdPs following the [OpenID Connect][openid connect] (**OIDC**) standard for user identity, and a service account and/or API token for group/directory information. The steps for integrating Pomerium with an IdP are specific to each provider, but they generally share the same base requirements:
 
 - A **[Redirect URL](https://www.oauth.com/oauth2-servers/redirect-uris/)** pointing back to Pomerium. For example, `https://${authenticate_service_url}/oauth2/callback`.
 - A **[Client ID]** and **[Client Secret]**.
