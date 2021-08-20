@@ -32,7 +32,7 @@ GOOSARCHES = linux/amd64 darwin/amd64 windows/amd64
 GOOS = $(shell $(GO) env GOOS)
 GOARCH= $(shell $(GO) env GOARCH)
 GETENVOY_VERSION = v0.2.0
-GORELEASER_VERSION = v0.157.0
+GORELEASER_VERSION = v0.174.2
 
 .PHONY: all
 all: clean build-deps test lint spellcheck build ## Runs a clean, build, fmt, lint, test, and vet.
@@ -55,7 +55,7 @@ deps-build: get-envoy ## Install build dependencies
 .PHONY: deps-release
 deps-release: get-envoy ## Install release dependencies
 	@echo "==> $@"
-	@cd /tmp; GO111MODULE=on $(GO) get github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
+	@cd /tmp; GO111MODULE=on $(GO) install github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
 
 .PHONY: build-deps
 build-deps: deps-build deps-release
