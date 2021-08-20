@@ -137,7 +137,7 @@ Open your Pomerium config file, `/etc/pomerium/config.yaml`.
    signing_key: "ZZZZZZZZZZZZZZ"
    ```
 
-1. Define the databroker storage type and connection string. The example below assumes a local Redis server:
+1. Define the [databroker](/reference/readme.md#data-broker-service) storage type and connection string. The example below assumes a local Redis server:
 
    ```yaml
    databroker_storage_type: redis
