@@ -26,6 +26,9 @@ builds:
     goos:
       - linux
       - darwin
+    ignore:
+      - goos: darwin
+        goarch: arm64
 
     ldflags:
       - -s -w
