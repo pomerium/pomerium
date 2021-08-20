@@ -57,7 +57,7 @@ This will bring you to the admin center of the Azure AD instance backing your Of
    ![Creating a Key](./img/azure/azure-create-key.png)
 
    ::: tip
-   If you choose an expiring key, make sure to record the expiration date in your calendar, as you will need to renew the key (get a new one) before that day in order to ensure users don't experience a service interruption.
+   If you choose an expiring key, make sure to record the expiration date in your calendar, as you will need to renew the key (get a new one) before that day to ensure users don't experience a service interruption.
    :::
 
    Click on **Add** and the key will be displayed. **Make sure to copy the value of this key before leaving this screen**, otherwise you may need to create a new key.
