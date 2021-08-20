@@ -1,12 +1,15 @@
 local utils = import '../utils.libsonnet';
 
 function() {
+  local name = 'fortio',
+  local image = 'fortio/fortio:1.17.0',
+
   compose: {
     services:
-      utils.ComposeService('fortio', {
-        image: 'fortio/fortio:1.17.0',
+      utils.ComposeService(name, {
+        image: image,
         depends_on: {
-          fortio_init: {
+          [name + '-init']: {
             condition: 'service_completed_successfully',
           },
         },
@@ -24,7 +27,7 @@ function() {
           'fortio_config:/fortio_config',
         ],
       }) +
-      utils.ComposeService('fortio_init', {
+      utils.ComposeService(name + '-init', {
         image: 'busybox:latest',
         command: [
           'sh',
@@ -40,6 +43,15 @@ function() {
         },
         volumes: [
           'fortio_config:/fortio_config',
+        ],
+      }) +
+      utils.ComposeService(name + '-ready', {
+        image: 'jwilder/dockerize:0.6.1',
+        command: [
+          '-wait',
+          'http://' + name + ':8080',
+          '-timeout',
+          '10m',
         ],
       }),
     volumes: {

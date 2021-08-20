@@ -6,10 +6,10 @@ function(mode) {
 
   compose: {
     services:
-      utils.ComposeService('verify', {
+      utils.ComposeService(name, {
         image: image,
         depends_on: {
-          verify_init: {
+          [name + '-init']: {
             condition: 'service_completed_successfully',
           },
         },
@@ -20,7 +20,7 @@ function(mode) {
           'verify_config:/verify_config',
         ],
       }) +
-      utils.ComposeService('verify_init', {
+      utils.ComposeService(name + '-init', {
         image: 'busybox:latest',
         command: [
           'sh',
@@ -29,6 +29,15 @@ function(mode) {
         ],
         volumes: [
           'verify_config:/verify_config',
+        ],
+      }) +
+      utils.ComposeService(name + '-ready', {
+        image: 'jwilder/dockerize:0.6.1',
+        command: [
+          '-wait',
+          'http://' + name + ':80/',
+          '-timeout',
+          '10m',
         ],
       }),
     volumes: {

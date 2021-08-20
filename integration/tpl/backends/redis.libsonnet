@@ -6,9 +6,17 @@ function() {
 
   compose: {
     services:
-      utils.ComposeService('redis', {
+      utils.ComposeService(name, {
         image: image,
-
+      }) +
+      utils.ComposeService(name + '-ready', {
+        image: 'jwilder/dockerize:0.6.1',
+        command: [
+          '-wait',
+          'tcp://' + name + ':6379',
+          '-timeout',
+          '10m',
+        ],
       }),
   },
   kubernetes: [

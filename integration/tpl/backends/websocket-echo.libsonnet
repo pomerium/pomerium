@@ -10,6 +10,15 @@ function() {
       utils.ComposeService(name, {
         image: image,
         command: command,
+      }) +
+      utils.ComposeService(name + '-ready', {
+        image: 'jwilder/dockerize:0.6.1',
+        command: [
+          '-wait',
+          'tcp://' + name + ':80',
+          '-timeout',
+          '10m',
+        ],
       }),
     volumes: {},
   },

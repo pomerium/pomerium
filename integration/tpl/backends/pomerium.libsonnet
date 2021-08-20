@@ -114,8 +114,8 @@ local Environment(mode, idp, dns_suffix) =
 local ComposeService(name, definition, additionalAliases=[]) =
   utils.ComposeService(name, definition {
     depends_on: {
-      [name]: {
-        condition: 'service_started',
+      [name + '-ready']: {
+        condition: 'service_completed_successfully',
       }
       for name in [
         'fortio',
@@ -123,9 +123,9 @@ local ComposeService(name, definition, additionalAliases=[]) =
         'redis',
         'trusted-httpdetails',
         'untrusted-httpdetails',
+        'verify',
         'websocket-echo',
         'wrongly-named-httpdetails',
-        'verify',
       ]
     },
   }, additionalAliases);

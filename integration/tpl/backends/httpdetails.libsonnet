@@ -41,13 +41,24 @@ function() {
   compose: {
     services: std.foldl(
       function(acc, variation)
-        acc + utils.ComposeService(variation.name + '-' + suffix, {
+        acc +
+        utils.ComposeService(variation.name + '-' + suffix, {
           image: image,
           command: Command(variation),
+        }) +
+        utils.ComposeService(variation.name + '-' + suffix + '-ready', {
+          image: 'jwilder/dockerize:0.6.1',
+          command: [
+            '-wait',
+            'http://' + variation.name + '-' + suffix + ':8080',
+            '-timeout',
+            '10m',
+          ],
         }),
       Variations(),
       {}
     ),
+
   },
   kubernetes: std.foldl(
     function(acc, variation)

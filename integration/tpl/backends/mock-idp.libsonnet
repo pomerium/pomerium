@@ -13,13 +13,23 @@ function(idp) {
   ],
 
   compose: {
-    services: utils.ComposeService(name, {
-      image: image,
-      command: command,
-      ports: [
-        '8024:8024/tcp',
-      ],
-    }),
+    services:
+      utils.ComposeService(name, {
+        image: image,
+        command: command,
+        ports: [
+          '8024:8024/tcp',
+        ],
+      }) +
+      utils.ComposeService(name + '-ready', {
+        image: 'jwilder/dockerize:0.6.1',
+        command: [
+          '-wait',
+          'http://' + name + ':8024/.well-known/openid-configuration',
+          '-timeout',
+          '10m',
+        ],
+      }),
     volumes: {},
   },
   kubernetes: [

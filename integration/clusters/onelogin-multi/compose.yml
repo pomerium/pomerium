@@ -9,7 +9,7 @@ services:
     - -key
     - /fortio_config/trusted-key.pem
     depends_on:
-      fortio_init:
+      fortio-init:
         condition: service_completed_successfully
     image: fortio/fortio:1.17.0
     networks:
@@ -20,7 +20,7 @@ services:
     - 8079:8079/tcp
     volumes:
     - fortio_config:/fortio_config
-  fortio_init:
+  fortio-init:
     command:
     - sh
     - -c
@@ -88,9 +88,20 @@ services:
     networks:
       main:
         aliases:
-        - fortio_init
+        - fortio-init
     volumes:
     - fortio_config:/fortio_config
+  fortio-ready:
+    command:
+    - -wait
+    - http://fortio:8080
+    - -timeout
+    - 10m
+    image: jwilder/dockerize:0.6.1
+    networks:
+      main:
+        aliases:
+        - fortio-ready
   mock-idp:
     command:
     - --provider
@@ -106,24 +117,35 @@ services:
         - mock-idp
     ports:
     - 8024:8024/tcp
+  mock-idp-ready:
+    command:
+    - -wait
+    - http://mock-idp:8024/.well-known/openid-configuration
+    - -timeout
+    - 10m
+    image: jwilder/dockerize:0.6.1
+    networks:
+      main:
+        aliases:
+        - mock-idp-ready
   pomerium-authenticate:
     depends_on:
-      fortio:
-        condition: service_started
-      mock-idp:
-        condition: service_started
-      redis:
-        condition: service_started
-      trusted-httpdetails:
-        condition: service_started
-      untrusted-httpdetails:
-        condition: service_started
-      verify:
-        condition: service_started
-      websocket-echo:
-        condition: service_started
-      wrongly-named-httpdetails:
-        condition: service_started
+      fortio-ready:
+        condition: service_completed_successfully
+      mock-idp-ready:
+        condition: service_completed_successfully
+      redis-ready:
+        condition: service_completed_successfully
+      trusted-httpdetails-ready:
+        condition: service_completed_successfully
+      untrusted-httpdetails-ready:
+        condition: service_completed_successfully
+      verify-ready:
+        condition: service_completed_successfully
+      websocket-echo-ready:
+        condition: service_completed_successfully
+      wrongly-named-httpdetails-ready:
+        condition: service_completed_successfully
     environment:
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443
@@ -161,22 +183,22 @@ services:
     - 5445:5443/tcp
   pomerium-authorize:
     depends_on:
-      fortio:
-        condition: service_started
-      mock-idp:
-        condition: service_started
-      redis:
-        condition: service_started
-      trusted-httpdetails:
-        condition: service_started
-      untrusted-httpdetails:
-        condition: service_started
-      verify:
-        condition: service_started
-      websocket-echo:
-        condition: service_started
-      wrongly-named-httpdetails:
-        condition: service_started
+      fortio-ready:
+        condition: service_completed_successfully
+      mock-idp-ready:
+        condition: service_completed_successfully
+      redis-ready:
+        condition: service_completed_successfully
+      trusted-httpdetails-ready:
+        condition: service_completed_successfully
+      untrusted-httpdetails-ready:
+        condition: service_completed_successfully
+      verify-ready:
+        condition: service_completed_successfully
+      websocket-echo-ready:
+        condition: service_completed_successfully
+      wrongly-named-httpdetails-ready:
+        condition: service_completed_successfully
     environment:
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443
@@ -213,22 +235,22 @@ services:
     - 5446:5443/tcp
   pomerium-databroker:
     depends_on:
-      fortio:
-        condition: service_started
-      mock-idp:
-        condition: service_started
-      redis:
-        condition: service_started
-      trusted-httpdetails:
-        condition: service_started
-      untrusted-httpdetails:
-        condition: service_started
-      verify:
-        condition: service_started
-      websocket-echo:
-        condition: service_started
-      wrongly-named-httpdetails:
-        condition: service_started
+      fortio-ready:
+        condition: service_completed_successfully
+      mock-idp-ready:
+        condition: service_completed_successfully
+      redis-ready:
+        condition: service_completed_successfully
+      trusted-httpdetails-ready:
+        condition: service_completed_successfully
+      untrusted-httpdetails-ready:
+        condition: service_completed_successfully
+      verify-ready:
+        condition: service_completed_successfully
+      websocket-echo-ready:
+        condition: service_completed_successfully
+      wrongly-named-httpdetails-ready:
+        condition: service_completed_successfully
     environment:
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443
@@ -265,22 +287,22 @@ services:
     - 5444:5443/tcp
   pomerium-proxy:
     depends_on:
-      fortio:
-        condition: service_started
-      mock-idp:
-        condition: service_started
-      redis:
-        condition: service_started
-      trusted-httpdetails:
-        condition: service_started
-      untrusted-httpdetails:
-        condition: service_started
-      verify:
-        condition: service_started
-      websocket-echo:
-        condition: service_started
-      wrongly-named-httpdetails:
-        condition: service_started
+      fortio-ready:
+        condition: service_completed_successfully
+      mock-idp-ready:
+        condition: service_completed_successfully
+      redis-ready:
+        condition: service_completed_successfully
+      trusted-httpdetails-ready:
+        condition: service_completed_successfully
+      untrusted-httpdetails-ready:
+        condition: service_completed_successfully
+      verify-ready:
+        condition: service_completed_successfully
+      websocket-echo-ready:
+        condition: service_completed_successfully
+      wrongly-named-httpdetails-ready:
+        condition: service_completed_successfully
     environment:
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443
@@ -324,6 +346,17 @@ services:
       main:
         aliases:
         - redis
+  redis-ready:
+    command:
+    - -wait
+    - tcp://redis:6379
+    - -timeout
+    - 10m
+    image: jwilder/dockerize:0.6.1
+    networks:
+      main:
+        aliases:
+        - redis-ready
   trusted-httpdetails:
     command:
     - sh
@@ -395,6 +428,17 @@ services:
       main:
         aliases:
         - trusted-httpdetails
+  trusted-httpdetails-ready:
+    command:
+    - -wait
+    - http://trusted-httpdetails:8080
+    - -timeout
+    - 10m
+    image: jwilder/dockerize:0.6.1
+    networks:
+      main:
+        aliases:
+        - trusted-httpdetails-ready
   untrusted-httpdetails:
     command:
     - sh
@@ -466,9 +510,20 @@ services:
       main:
         aliases:
         - untrusted-httpdetails
+  untrusted-httpdetails-ready:
+    command:
+    - -wait
+    - http://untrusted-httpdetails:8080
+    - -timeout
+    - 10m
+    image: jwilder/dockerize:0.6.1
+    networks:
+      main:
+        aliases:
+        - untrusted-httpdetails-ready
   verify:
     depends_on:
-      verify_init:
+      verify-init:
         condition: service_completed_successfully
     environment:
       SSL_CERT_FILE: /verify_config/ca.pem
@@ -479,7 +534,7 @@ services:
         - verify
     volumes:
     - verify_config:/verify_config
-  verify_init:
+  verify-init:
     command:
     - sh
     - -c
@@ -517,9 +572,20 @@ services:
     networks:
       main:
         aliases:
-        - verify_init
+        - verify-init
     volumes:
     - verify_config:/verify_config
+  verify-ready:
+    command:
+    - -wait
+    - http://verify:80/
+    - -timeout
+    - 10m
+    image: jwilder/dockerize:0.6.1
+    networks:
+      main:
+        aliases:
+        - verify-ready
   websocket-echo:
     command:
     - --port
@@ -530,6 +596,17 @@ services:
       main:
         aliases:
         - websocket-echo
+  websocket-echo-ready:
+    command:
+    - -wait
+    - tcp://websocket-echo:80
+    - -timeout
+    - 10m
+    image: jwilder/dockerize:0.6.1
+    networks:
+      main:
+        aliases:
+        - websocket-echo-ready
   wrongly-named-httpdetails:
     command:
     - sh
@@ -601,6 +678,17 @@ services:
       main:
         aliases:
         - wrongly-named-httpdetails
+  wrongly-named-httpdetails-ready:
+    command:
+    - -wait
+    - http://wrongly-named-httpdetails:8080
+    - -timeout
+    - 10m
+    image: jwilder/dockerize:0.6.1
+    networks:
+      main:
+        aliases:
+        - wrongly-named-httpdetails-ready
 volumes:
   fortio_config: {}
   verify_config: {}
