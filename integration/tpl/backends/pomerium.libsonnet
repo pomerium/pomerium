@@ -183,7 +183,19 @@ function(mode, idp, dns_suffix='') {
       ComposeService(name, {
         image: image,
         environment: environment,
-      }, ['authenticate.localhost.pomerium.io', 'forward-authenticate.localhost.pomerium.io'])
+      }, ['authenticate.localhost.pomerium.io', 'forward-authenticate.localhost.pomerium.io']) +
+      ComposeService(name + '-ready', {
+        image: 'jwilder/dockerize:0.6.1',
+        command: [
+          '-wait',
+          if mode == 'nginx' then
+            'http://' + name + ':80/healthz'
+          else
+            'https://' + name + ':443/healthz',
+          '-timeout',
+          '10m',
+        ],
+      })
     else
       ComposeService(name, {
         image: image,

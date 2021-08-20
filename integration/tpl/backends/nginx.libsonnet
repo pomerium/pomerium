@@ -167,8 +167,8 @@ function(mode, idp, dns_suffix='') {
     services: utils.ComposeService('nginx', {
       image: image,
       depends_on: {
-        pomerium: {
-          condition: 'service_started',
+        'pomerium-ready': {
+          condition: 'service_completed_successfully',
         },
       },
       entrypoint: Command(mode, idp, dns_suffix),

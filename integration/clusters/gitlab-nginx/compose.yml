@@ -130,8 +130,8 @@ services:
         - mock-idp-ready
   nginx:
     depends_on:
-      pomerium:
-        condition: service_started
+      pomerium-ready:
+        condition: service_completed_successfully
     entrypoint:
     - sh
     - -c
@@ -385,6 +385,34 @@ services:
         - pomerium
         - authenticate.localhost.pomerium.io
         - forward-authenticate.localhost.pomerium.io
+  pomerium-ready:
+    command:
+    - -wait
+    - http://pomerium:80/healthz
+    - -timeout
+    - 10m
+    depends_on:
+      fortio-ready:
+        condition: service_completed_successfully
+      mock-idp-ready:
+        condition: service_completed_successfully
+      redis-ready:
+        condition: service_completed_successfully
+      trusted-httpdetails-ready:
+        condition: service_completed_successfully
+      untrusted-httpdetails-ready:
+        condition: service_completed_successfully
+      verify-ready:
+        condition: service_completed_successfully
+      websocket-echo-ready:
+        condition: service_completed_successfully
+      wrongly-named-httpdetails-ready:
+        condition: service_completed_successfully
+    image: jwilder/dockerize:0.6.1
+    networks:
+      main:
+        aliases:
+        - pomerium-ready
   redis:
     image: redis:6.2.5-alpine
     networks:
