@@ -21,7 +21,7 @@ When new version of Pomerium Enterprise are released, check back to this page be
 
 ### Helm Installations
 
-- As of v0.15.0, All Helm recipes have been consolidated to a single repository. Remove the `pomerium-enterprise` repo and upgrade from `pomerium`:
+- As of v0.15.0, All Helm charts have been consolidated to a single repository. Remove the `pomerium-enterprise` repo and upgrade from `pomerium`:
 
    ```bash
    helm repo remove pomerium-enterprise
