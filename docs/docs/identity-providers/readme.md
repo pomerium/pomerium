@@ -12,7 +12,7 @@ Pomerium helps provide a zero-trust security model by verifying that every reque
 
 - A **[Redirect URL](https://www.oauth.com/oauth2-servers/redirect-uris/)** pointing back to Pomerium. For example, `https://${authenticate_service_url}/oauth2/callback`.
 - A **[Client ID]** and **[Client Secret]**.
-- A **[Service Account]** for additional IdP Data. This is enables Pomerium administrators to write policies around groups, or any other data that doesn't uniquely identify an end-user, as defined in the IdP.
+- A **[Service Account]** for additional IdP Data. This enables Pomerium administrators to write policies around groups, or any other data that doesn't uniquely identify an end-user, as defined in the IdP.
    - Depending on the IdP, a service account may have its own client id and secret, or require an API token. Pomerium handles this by accepting values for `idp_service_account` as a base64-encoded json object with the correct key/value pairs for each IdP supported.
 
 The subsequent pages in this section provide specific instructions for the IdPs Pomerium supports.
