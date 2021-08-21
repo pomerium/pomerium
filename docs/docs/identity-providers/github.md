@@ -85,7 +85,7 @@ IDP_SERVICE_ACCOUNT="REDACTED" // github service account (personal access token)
 :::
 ::::
 
-Whenever a user tries to access  your application integrated with Pomerium, they will be presented with a sign-on page as below:
+Whenever a user tries to access your application integrated with Pomerium, they will be presented with a sign-on page as below:
 
 ![GitHub Sign-on Page](./img/github/github-signon-page.png)
 
