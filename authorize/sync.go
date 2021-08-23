@@ -61,6 +61,7 @@ func (syncer *dataBrokerSyncer) UpdateRecords(ctx context.Context, serverVersion
 
 	// the first time we update records we signal the initial sync
 	syncer.signalOnce.Do(func() {
+		log.Info(ctx).Msg("initial sync from databroker complete")
 		close(syncer.authorize.dataBrokerInitialSync)
 	})
 }
