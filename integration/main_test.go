@@ -109,6 +109,9 @@ func waitForHealthy(ctx context.Context) error {
 		"verify",
 		"mock-idp",
 	}
+	if ClusterType == "nginx" {
+		subdomains = append(subdomains, "forward-authenticate")
+	}
 
 	for {
 		var err error
