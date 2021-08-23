@@ -134,7 +134,7 @@ jobs:
 
       - name: integration tests
         run: |
-          docker-compose logs -f &
+          (cd ./integration/clusters/${{matrix.idp}}-${{matrix.deployment}} && docker-compose logs -f &)
           go test -v ./integration/...
 
   build:
