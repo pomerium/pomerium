@@ -1,7 +1,7 @@
 local utils = import '../utils.libsonnet';
 local Routes = (import './routes.libsonnet').Routes;
 
-local GoogleCloudServerlessAuthenticationServiceAccount() =
+local GoogleCloudServerlessAuthenticationServiceAccount(dns_suffix='') =
   {
     type: 'service_account',
     project_id: 'pomerium-redacted',
@@ -9,10 +9,10 @@ local GoogleCloudServerlessAuthenticationServiceAccount() =
     private_key: importstr '../files/trusted-key.pem',
     client_email: 'redacted@pomerium-redacted.iam.gserviceaccount.com',
     client_id: '101215990458000334387',
-    auth_uri: 'https://mock-idp.localhost.pomerium.io/',
-    token_uri: 'https://mock-idp.localhost.pomerium.io/token',
-    auth_provider_x509_cert_url: 'https://mock-idp.localhost.pomerium.io/',
-    client_x509_cert_url: 'https://mock-idp.localhost.pomerium.io/',
+    auth_uri: 'http://mock-idp' + dns_suffix + ':8024',
+    token_uri: 'http://mock-idp' + dns_suffix + ':8024/token',
+    auth_provider_x509_cert_url: 'http://mock-idp' + dns_suffix + ':8024',
+    client_x509_cert_url: 'http://mock-idp' + dns_suffix + ':8024',
   };
 
 local KubernetesDeployment(name, image, environment) =
@@ -85,7 +85,7 @@ local Environment(mode, idp, dns_suffix) =
     DATABROKER_STORAGE_CONNECTION_STRING: 'redis://redis:6379',
     ENVOY_ADMIN_ADDRESS: '0.0.0.0:9901',
     GOOGLE_CLOUD_SERVERLESS_AUTHENTICATION_SERVICE_ACCOUNT: std.base64(std.manifestJsonEx(
-      GoogleCloudServerlessAuthenticationServiceAccount(), ''
+      GoogleCloudServerlessAuthenticationServiceAccount(dns_suffix), ''
     )),
     IDP_PROVIDER: idp,
     IDP_PROVIDER_URL: 'https://mock-idp.localhost.pomerium.io/',
