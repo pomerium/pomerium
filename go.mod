@@ -24,11 +24,9 @@ require (
 	github.com/golangci/golangci-lint v1.42.0
 	github.com/google/btree v1.0.1
 	github.com/google/go-cmp v0.5.6
-	github.com/google/go-jsonnet v0.17.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru v0.5.4
@@ -37,7 +35,6 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
-	github.com/onsi/gocleanup v0.0.0-20140331211545-c1a5478700b5
 	github.com/open-policy-agent/opa v0.31.0
 	github.com/openzipkin/zipkin-go v0.2.5
 	github.com/ory/dockertest/v3 v3.7.0
