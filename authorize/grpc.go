@@ -81,13 +81,13 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return a.okResponse(res), nil
 	}
 
-	if isForwardAuth && hreq.URL.Path == "/verify" {
-		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
-	}
-
 	// if we're logged in, don't redirect, deny with forbidden
 	if req.Session.ID != "" {
 		return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, nil)
+	}
+
+	if isForwardAuth && hreq.URL.Path == "/verify" {
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
 	}
 
 	return a.requireLoginResponse(ctx, in)
