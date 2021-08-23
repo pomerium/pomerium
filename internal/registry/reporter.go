@@ -19,7 +19,15 @@ import (
 
 // Reporter periodically submits a list of services available on this instance to the service registry
 type Reporter struct {
-	cancel func()
+	cancel                 func()
+	outboundGRPCConnection *grpc.CachedOutboundGRPClientConn
+}
+
+// NewReporter creates a new Reporter.
+func NewReporter() *Reporter {
+	return &Reporter{
+		outboundGRPCConnection: new(grpc.CachedOutboundGRPClientConn),
+	}
 }
 
 // OnConfigChange applies configuration changes to the reporter
@@ -39,7 +47,7 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		return
 	}
 
-	registryConn, err := grpc.GetOutboundGRPCClientConn(ctx, &grpc.OutboundOptions{
+	registryConn, err := r.outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,

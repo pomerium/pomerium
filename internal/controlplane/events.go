@@ -20,6 +20,8 @@ import (
 
 const maxEnvoyConfigurationEvents = 50
 
+var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
+
 func (srv *Server) handleEnvoyConfigurationEvent(evt *events.EnvoyConfigurationEvent) {
 	select {
 	case srv.envoyConfigurationEvents <- evt:
@@ -88,7 +90,7 @@ func (srv *Server) getDataBrokerClient(ctx context.Context) (databrokerpb.DataBr
 		return nil, err
 	}
 
-	cc, err := grpc.GetOutboundGRPCClientConn(context.Background(), &grpc.OutboundOptions{
+	cc, err := outboundGRPCConnection.Get(context.Background(), &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,

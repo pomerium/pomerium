@@ -18,12 +18,13 @@ import (
 // ConfigSource provides a new Config source that decorates an underlying config with
 // configuration derived from the data broker.
 type ConfigSource struct {
-	mu               sync.RWMutex
-	computedConfig   *config.Config
-	underlyingConfig *config.Config
-	dbConfigs        map[string]dbConfig
-	updaterHash      uint64
-	cancel           func()
+	mu                     sync.RWMutex
+	outboundGRPCConnection *grpc.CachedOutboundGRPClientConn
+	computedConfig         *config.Config
+	underlyingConfig       *config.Config
+	dbConfigs              map[string]dbConfig
+	updaterHash            uint64
+	cancel                 func()
 
 	config.ChangeDispatcher
 }
@@ -36,7 +37,8 @@ type dbConfig struct {
 // NewConfigSource creates a new ConfigSource.
 func NewConfigSource(ctx context.Context, underlying config.Source, listeners ...config.ChangeListener) *ConfigSource {
 	src := &ConfigSource{
-		dbConfigs: map[string]dbConfig{},
+		dbConfigs:              map[string]dbConfig{},
+		outboundGRPCConnection: new(grpc.CachedOutboundGRPClientConn),
 	}
 	for _, li := range listeners {
 		src.OnConfigChange(ctx, li)
@@ -182,7 +184,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	ctx := context.Background()
 	ctx, src.cancel = context.WithCancel(ctx)
 
-	cc, err := grpc.GetOutboundGRPCClientConn(ctx, connectionOptions)
+	cc, err := src.outboundGRPCConnection.Get(ctx, connectionOptions)
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("databroker: failed to create gRPC connection to data broker")
 		return

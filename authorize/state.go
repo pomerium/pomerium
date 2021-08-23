@@ -14,6 +14,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
+var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
+
 type authorizeState struct {
 	sharedKey        []byte
 	evaluator        *evaluator.Evaluator
@@ -51,7 +53,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 		return nil, err
 	}
 
-	cc, err := grpc.GetOutboundGRPCClientConn(context.Background(), &grpc.OutboundOptions{
+	cc, err := outboundGRPCConnection.Get(context.Background(), &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
