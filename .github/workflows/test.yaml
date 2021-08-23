@@ -133,7 +133,9 @@ jobs:
           docker-compose up -d
 
       - name: integration tests
-        run: go test -v ./integration/...
+        run: |
+          docker-compose logs -f &
+          go test -v ./integration/...
 
   build:
     strategy:
