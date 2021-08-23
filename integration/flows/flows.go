@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/integration/forms"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -204,7 +205,7 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 	}
 
 	if cfg.forwardAuth {
-		for {
+		for i := 0; ; i++ {
 			res, err = client.Do(req)
 			if err != nil {
 				return nil, err
@@ -213,10 +214,16 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 			if res.StatusCode != 302 {
 				break
 			}
+			originalURL := req.URL.String()
 			req, err = requestFromRedirectResponse(ctx, res, req)
 			if err != nil {
 				return nil, fmt.Errorf("expected redirect to %s: %w", originalHostname, err)
 			}
+			log.Info(ctx).
+				Int("count", i).
+				Str("from", originalURL).
+				Str("to", req.URL.String()).
+				Msg("forward-auth redirect")
 		}
 		return res, err
 	}
