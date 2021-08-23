@@ -71,15 +71,11 @@ func getClient() *http.Client {
 
 func waitForHealthy(ctx context.Context) error {
 	client := getClient()
-	check := func(subdomain string) error {
+	check := func(endpoint string) error {
 		reqCtx, clearTimeout := context.WithTimeout(ctx, time.Second)
 		defer clearTimeout()
 
-		req, err := http.NewRequestWithContext(reqCtx, "GET", (&url.URL{
-			Scheme: "https",
-			Host:   subdomain + ".localhost.pomerium.io",
-			Path:   "/",
-		}).String(), nil)
+		req, err := http.NewRequestWithContext(reqCtx, "GET", endpoint, nil)
 		if err != nil {
 			return err
 		}
@@ -90,11 +86,11 @@ func waitForHealthy(ctx context.Context) error {
 		}
 		defer res.Body.Close()
 
-		if res.StatusCode/100 == 5 {
-			return fmt.Errorf("%s unavailable: %s", subdomain, res.Status)
+		if res.StatusCode/100 != 2 {
+			return fmt.Errorf("%s unavailable: %s", endpoint, res.Status)
 		}
 
-		log.Info().Int("status", res.StatusCode).Msgf("%s healthy", subdomain)
+		log.Info().Int("status", res.StatusCode).Msgf("%s healthy", endpoint)
 
 		return nil
 	}
@@ -102,21 +98,15 @@ func waitForHealthy(ctx context.Context) error {
 	ticker := time.NewTicker(time.Second * 3)
 	defer ticker.Stop()
 
-	subdomains := []string{
-		"authenticate",
-		"httpdetails",
-		"enabled-ws-echo",
-		"verify",
-		"mock-idp",
-	}
-	if ClusterType == "nginx" {
-		subdomains = append(subdomains, "forward-authenticate")
+	endpoints := []string{
+		"https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json",
+		"https://mock-idp.localhost.pomerium.io/.well-known/jwks.json",
 	}
 
 	for {
 		var err error
-		for _, subdomain := range subdomains {
-			err = check(subdomain)
+		for _, endpoint := range endpoints {
+			err = check(endpoint)
 			if err != nil {
 				break
 			}
