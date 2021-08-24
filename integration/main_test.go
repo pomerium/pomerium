@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"flag"
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/publicsuffix"
 )
@@ -23,6 +25,15 @@ import (
 var IDP, ClusterType string
 
 func TestMain(m *testing.M) {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	flag.Parse()
+	if testing.Verbose() {
+		log.Logger = log.Logger.Level(zerolog.DebugLevel)
+	} else {
+		log.Logger = log.Logger.Level(zerolog.InfoLevel)
+	}
+
 	logger := log.With().Logger()
 	ctx := logger.WithContext(context.Background())
 

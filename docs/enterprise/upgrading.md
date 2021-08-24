@@ -19,6 +19,13 @@ When new version of Pomerium Enterprise are released, check back to this page be
 
 [signing key]: /reference/readme.md/#signing-key
 
+### Helm Installations
 
+- As of v0.15.0, All Helm charts have been consolidated to a single repository. Remove the `pomerium-enterprise` repo and upgrade from `pomerium`:
 
+   ```bash
+   helm repo remove pomerium-enterprise
+   helm upgrade --install pomerium-console pomerium/pomerium-console --values=./pomerium-console-values.yaml
+   ```
 
+- As noted above, `signing-key` must be shared between Pomerium and Enterprise. See the [Update Pomerium](/enterprise/install/helm.md#update-pomerium) section of [Install Pomerium Enterprise in Helm](/enterprise/install/helm.md) for more information.

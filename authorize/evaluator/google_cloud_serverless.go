@@ -48,6 +48,7 @@ var (
 
 		headers, err := getGoogleCloudServerlessHeaders(string(serviceAccount), string(audience))
 		if err != nil {
+			log.Error(context.Background()).Err(err).Msg("error retrieving google cloud serverless headers")
 			return nil, fmt.Errorf("failed to get google cloud serverless headers: %w", err)
 		}
 		var kvs [][2]*ast.Term
@@ -162,14 +163,12 @@ func getGoogleCloudServerlessTokenSource(serviceAccount, audience string) (oauth
 func getGoogleCloudServerlessHeaders(serviceAccount, audience string) (map[string]string, error) {
 	src, err := getGoogleCloudServerlessTokenSource(serviceAccount, audience)
 	if err != nil {
-		log.Error(context.Background()).Err(err).Msg("error retrieving google cloud serverless token source")
-		return nil, err
+		return nil, fmt.Errorf("error retrieving google cloud serverless token source: %w", err)
 	}
 
 	tok, err := src.Token()
 	if err != nil {
-		log.Error(context.Background()).Err(err).Msg("error retrieving google cloud serverless token")
-		return nil, err
+		return nil, fmt.Errorf("error retrieving google cloud serverless token: %w", err)
 	}
 
 	return map[string]string{
