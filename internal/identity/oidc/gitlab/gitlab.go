@@ -16,7 +16,7 @@ import (
 // Name identifies the GitLab identity provider.
 const Name = "gitlab"
 
-var defaultScopes = []string{oidc.ScopeOpenID, "profile", "email", "api"}
+var defaultScopes = []string{oidc.ScopeOpenID, "profile", "email", "openid"}
 
 const (
 	defaultProviderURL = "https://gitlab.com"
