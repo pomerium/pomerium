@@ -205,7 +205,7 @@ func setupDataBroker(ctx context.Context, src config.Source, controlPlane *contr
 }
 
 func setupRegistryReporter(ctx context.Context, src config.Source) error {
-	reporter := new(registry.Reporter)
+	reporter := registry.NewReporter()
 	src.OnConfigChange(ctx, reporter.OnConfigChange)
 	reporter.OnConfigChange(ctx, src.GetConfig())
 	return nil

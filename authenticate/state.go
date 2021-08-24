@@ -25,6 +25,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
+var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
+
 type authenticateState struct {
 	redirectURL *url.URL
 	// sharedEncoder is the encoder to use to serialize data to be consumed
@@ -146,7 +148,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		return nil, err
 	}
 
-	dataBrokerConn, err := grpc.GetOutboundGRPCClientConn(context.Background(), &grpc.OutboundOptions{
+	dataBrokerConn, err := outboundGRPCConnection.Get(context.Background(), &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,

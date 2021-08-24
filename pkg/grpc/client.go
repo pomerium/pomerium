@@ -70,49 +70,6 @@ func grpcTimeoutInterceptor(timeout time.Duration) grpc.UnaryClientInterceptor {
 	}
 }
 
-type grpcClientConnRecord struct {
-	conn *grpc.ClientConn
-	opts *Options
-}
-
-var grpcClientConns = struct {
-	sync.Mutex
-	m map[string]grpcClientConnRecord
-}{
-	m: make(map[string]grpcClientConnRecord),
-}
-
-// GetGRPCClientConn returns a gRPC client connection for the given name. If a connection for that name has already been
-// established the existing connection will be returned. If any options change for that connection, the existing
-// connection will be closed and a new one established.
-func GetGRPCClientConn(ctx context.Context, name string, opts *Options) (*grpc.ClientConn, error) {
-	grpcClientConns.Lock()
-	defer grpcClientConns.Unlock()
-
-	current, ok := grpcClientConns.m[name]
-	if ok {
-		if cmp.Equal(current.opts, opts) {
-			return current.conn, nil
-		}
-
-		err := current.conn.Close()
-		if err != nil {
-			log.Error(context.TODO()).Err(err).Msg("grpc: failed to close existing connection")
-		}
-	}
-
-	cc, err := NewGRPCClientConn(ctx, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	grpcClientConns.m[name] = grpcClientConnRecord{
-		conn: cc,
-		opts: opts,
-	}
-	return cc, nil
-}
-
 // OutboundOptions are the options for the outbound gRPC client.
 type OutboundOptions struct {
 	// OutboundPort is the port for the outbound gRPC listener.
@@ -128,12 +85,42 @@ type OutboundOptions struct {
 	SignedJWTKey []byte
 }
 
-// GetOutboundGRPCClientConn gets the outbound gRPC client.
-func GetOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions) (*grpc.ClientConn, error) {
-	return GetGRPCClientConn(ctx, "outbound", &Options{
+// newOutboundGRPCClientConn gets a new outbound gRPC client.
+func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions) (*grpc.ClientConn, error) {
+	return NewGRPCClientConn(ctx, &Options{
 		Address:        net.JoinHostPort("127.0.0.1", opts.OutboundPort),
 		InstallationID: opts.InstallationID,
 		ServiceName:    opts.ServiceName,
 		SignedJWTKey:   opts.SignedJWTKey,
 	})
+}
+
+// CachedOutboundGRPClientConn keeps a cached outbound gRPC client connection open based on options.
+type CachedOutboundGRPClientConn struct {
+	mu      sync.Mutex
+	opts    *OutboundOptions
+	current *grpc.ClientConn
+}
+
+// Get gets the cached outbound gRPC client, or creates a new one if the options have changed.
+func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *OutboundOptions) (*grpc.ClientConn, error) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	if cache.current != nil && cmp.Equal(cache.opts, opts) {
+		return cache.current, nil
+	}
+
+	if cache.current != nil {
+		_ = cache.current.Close()
+		cache.current = nil
+	}
+
+	var err error
+	cache.current, err = newOutboundGRPCClientConn(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	cache.opts = opts
+	return cache.current, nil
 }
