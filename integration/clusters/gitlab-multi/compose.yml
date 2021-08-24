@@ -110,7 +110,7 @@ services:
     - "8024"
     - --root-url
     - https://mock-idp.localhost.pomerium.io/
-    image: calebdoxsey/mock-idps:${MOCK_IDPS_TAG:-master}
+    image: pomerium/mock-idps:${MOCK_IDPS_TAG:-master}
     networks:
       main:
         aliases:

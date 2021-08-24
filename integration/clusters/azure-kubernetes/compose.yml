@@ -81,7 +81,7 @@ services:
                     "--root-url",
                     "https://mock-idp.localhost.pomerium.io/"
                   ],
-                  "image": "calebdoxsey/mock-idps:${MOCK_IDPS_TAG:-master}",
+                  "image": "pomerium/mock-idps:${MOCK_IDPS_TAG:-master}",
                   "name": "mock-idp",
                   "ports": [
                     {

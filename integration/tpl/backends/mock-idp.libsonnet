@@ -2,7 +2,7 @@ local utils = import '../utils.libsonnet';
 
 function(idp) {
   local name = 'mock-idp',
-  local image = 'calebdoxsey/mock-idps:${MOCK_IDPS_TAG:-master}',
+  local image = 'pomerium/mock-idps:${MOCK_IDPS_TAG:-master}',
   local command = [
     '--provider',
     idp,

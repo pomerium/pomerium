@@ -69,26 +69,6 @@ func TestAuthorization(t *testing.T) {
 			})
 		})
 	}
-
-	//
-	//		t.Run("users", func(t *testing.T) {
-	//			t.Run("allowed", func(t *testing.T) {
-	//				client := testcluster.NewHTTPClient()
-	//				res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-user"),
-	//					withAPI, flows.WithEmail("bob@dogs.test"), flows.WithGroups("user"))
-	//				if assert.NoError(t, err) {
-	//					assert.Equal(t, http.StatusOK, res.StatusCode, "expected OK for bob@dogs.test")
-	//				}
-	//			})
-	//			t.Run("not allowed", func(t *testing.T) {
-	//				client := testcluster.NewHTTPClient()
-	//				res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-user"),
-	//					withAPI, flows.WithEmail("joe@cats.test"), flows.WithGroups("user"))
-	//				if assert.NoError(t, err) {
-	//					assertDeniedAccess(t, res, "expected Forbidden for joe@cats.test")
-	//				}
-	//			})
-	//		})
 }
 
 func assertDeniedAccess(t *testing.T, res *http.Response, msgAndArgs ...interface{}) bool {
