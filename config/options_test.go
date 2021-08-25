@@ -117,18 +117,16 @@ func Test_bindEnvs(t *testing.T) {
 func Test_parseHeaders(t *testing.T) {
 	// t.Parallel()
 	tests := []struct {
-		name           string
-		want           map[string]string
-		envHeaders     string
-		viperHeaderKey string
-		viperHeaders   interface{}
-		wantErr        bool
+		name         string
+		want         map[string]string
+		envHeaders   string
+		viperHeaders interface{}
+		wantErr      bool
 	}{
 		{
 			"good env",
 			map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"},
 			`{"X-Custom-1":"foo", "X-Custom-2":"bar"}`,
-			"headers",
 			map[string]string{"X": "foo"},
 			false,
 		},
@@ -136,7 +134,6 @@ func Test_parseHeaders(t *testing.T) {
 			"good env not_json",
 			map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"},
 			`X-Custom-1:foo,X-Custom-2:bar`,
-			"headers",
 			map[string]string{"X": "foo"},
 			false,
 		},
@@ -144,7 +141,6 @@ func Test_parseHeaders(t *testing.T) {
 			"bad env",
 			map[string]string{},
 			"xyyyy",
-			"headers",
 			map[string]string{"X": "foo"},
 			true,
 		},
@@ -152,7 +148,6 @@ func Test_parseHeaders(t *testing.T) {
 			"bad env not_json",
 			map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"},
 			`X-Custom-1:foo,X-Custom-2bar`,
-			"headers",
 			map[string]string{"X": "foo"},
 			true,
 		},
@@ -160,7 +155,6 @@ func Test_parseHeaders(t *testing.T) {
 			"bad viper",
 			map[string]string{},
 			"",
-			"headers",
 			"notaheaderstruct",
 			true,
 		},
@@ -168,7 +162,6 @@ func Test_parseHeaders(t *testing.T) {
 			"good viper",
 			map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"},
 			"",
-			"headers",
 			map[string]string{"X-Custom-1": "foo", "X-Custom-2": "bar"},
 			false,
 		},
@@ -176,7 +169,6 @@ func Test_parseHeaders(t *testing.T) {
 			"new field name",
 			map[string]string{"X-Custom-1": "foo"},
 			"",
-			"set_response_headers",
 			map[string]string{"X-Custom-1": "foo"},
 			false,
 		},
@@ -191,7 +183,7 @@ func Test_parseHeaders(t *testing.T) {
 			mu.Lock()
 			defer mu.Unlock()
 			o = NewDefaultOptions()
-			o.viperSet("headers", tt.viperHeaders)
+			o.viperSet("set_response_headers", tt.viperHeaders)
 			o.viperSet("HeadersEnv", tt.envHeaders)
 			o.HeadersEnv = tt.envHeaders
 			err := o.parseHeaders(context.Background())
@@ -326,7 +318,7 @@ func TestOptionsFromViper(t *testing.T) {
 		},
 		{
 			"good disable header",
-			[]byte(`{"autocert_dir":"","insecure_server":true,"headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			[]byte(`{"autocert_dir":"","insecure_server":true,"set_response_headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
 			&Options{
 				Policies:                 []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:               "_pomerium",
