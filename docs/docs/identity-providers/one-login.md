@@ -2,6 +2,10 @@
 
 This doc describes how to create an OIDC app in [OneLogin] for Pomerium and connect to it. It assume you have already [installed Pomerium]
 
+::: warning
+While we do our best to keep our documentation up to date, changes to third-party systems are outside our control. Refer to [Connect an OIDC enabled app](https://developers.onelogin.com/openid-connect/connect-to-onelogin) from OneLogin's documentation as needed, or [let us know](https://github.com/pomerium/pomerium/issues/new?assignees=&labels=&template=bug_report.md) if we need to re-visit this page.
+:::
+
 ## Create OpenID Connect App
 
 1. Log in to your [OneLogin](https://www.onelogin.com/) account and click on **Administration** at the top.
