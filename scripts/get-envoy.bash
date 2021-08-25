@@ -5,7 +5,7 @@ PATH="$PATH:$(go env GOPATH)/bin"
 export PATH
 
 _project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/.."
-_envoy_version=1.19.0
+_envoy_version=1.19.1
 _dir="$_project_root/internal/envoy/files"
 _target="${TARGET:-"$(go env GOOS)-$(go env GOARCH)"}"
 
@@ -32,4 +32,4 @@ curl \
   --output "$_dir/envoy-$_target.sha256" \
   "$_url.sha256"
 
-echo "$_envoy_version" > "$_dir/envoy-$_target.version"
+echo "$_envoy_version" >"$_dir/envoy-$_target.version"
