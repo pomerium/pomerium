@@ -8,7 +8,7 @@ description: >-
 # Since 0.15.0
 
 ### Removed options
-The deprecated `headers` option has been removed. Use `set_response_headers` instead.
+The deprecated `headers` option has been removed. Use [`set_response_headers`](/reference/readme.md#set-response-headers) instead.
 
 # Since 0.14.0
 
