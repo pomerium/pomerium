@@ -241,7 +241,7 @@ nfpms:
       - src: ospkg/conf/config.yaml
         dst: /etc/pomerium/config.yaml
         type: config|noreplace
-        
+
       - src: ospkg/pomerium.service
         dst: /usr/lib/systemd/system/pomerium.service
 
