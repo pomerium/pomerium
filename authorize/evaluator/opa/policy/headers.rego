@@ -211,13 +211,14 @@ identity_headers := {key: values |
 	h2 := [[header_name, header_value] |
 		some header_name
 		k := data.jwt_claim_headers[header_name]
-		header_value := array.concat(
+		raw_header_value := array.concat(
 			[cv |
 				[ck, cv] := jwt_claims[_]
 				ck == k
 			],
 			[""]
 		)[0]
+		header_value := get_header_string_value(raw_header_value)
 	]
 
 	h3 := kubernetes_headers
