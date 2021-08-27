@@ -39,7 +39,7 @@ While we do our best to keep our documentation up to date, changes to third-part
 
 1. OIDC Attributes. **Save and Close**.
 
-1. From the **Configuration** tab of your new Application, note the values of the following keys to use in your Pomerium Configuration:
+1. From the **Configuration** tab of your new application, note the values of the following keys to use in your Pomerium Configuration:
 
    * **ISSUER**: used as the `idp_provider_url` (e.g. `https://auth.pingone.com/720dbe8a-83ed-48e1-9988-9928301ae668/as`)
    * **CLIENT ID**: used as the `idp_client_id`
@@ -47,7 +47,7 @@ While we do our best to keep our documentation up to date, changes to third-part
 
    ![Ping Configuration](./img/ping/ping-configuration.png)
 
-1. Toggle the green slider to enable your new Application.
+1. Toggle the green slider to enable your new application.
 
 ## Service Account
 
@@ -57,7 +57,7 @@ To use `allowed_groups` in a policy, an `idp_service_account` needs to be set in
 
    ![Ping Add Worker](./img/ping/ping-add-worker.png)
 
-1. Toggle the green slider to enable your new Application.
+1. Toggle the green slider to enable your new application.
 
 1. This application's **Client ID** and **Client Secret** will be used as the service account in Pomerium.
 
