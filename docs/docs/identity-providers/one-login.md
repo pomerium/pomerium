@@ -1,6 +1,6 @@
 # OneLogin
 
-This doc describes how to create an OIDC app in [OneLogin] for Pomerium and connect to it. It assume you have already [installed Pomerium]
+This doc describes how to create an OIDC app in [OneLogin] for Pomerium and connect to it. It assumes you have already [installed Pomerium].
 
 ::: warning
 While we do our best to keep our documentation up to date, changes to third-party systems are outside our control. Refer to [Connect an OIDC enabled app](https://developers.onelogin.com/openid-connect/connect-to-onelogin) from OneLogin's documentation as needed, or [let us know](https://github.com/pomerium/pomerium/issues/new?assignees=&labels=&template=bug_report.md) if we need to re-visit this page.
@@ -48,7 +48,7 @@ OneLogin will not make your new application accessible to members of your organi
 
 ## Service Account
 
-To use `allowed_groups` in a policy an `idp_service_account` needs to be set in the Pomerium configuration. The service account for OneLogin uses a *different* client ID and client secret from the one configured above.
+To use `allowed_groups` in a policy, an `idp_service_account` needs to be set in the Pomerium configuration. The service account for OneLogin uses a *different* client ID and client secret from the one configured above.
 
 1. From the **Administration** dashboard, navigate to **Developers → API Credentials** and select **New Credential**.
 
