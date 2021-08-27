@@ -14,7 +14,9 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 func TestHeadersEvaluator(t *testing.T) {
@@ -39,6 +41,25 @@ func TestHeadersEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		return e.Evaluate(context.Background(), input)
 	}
+
+	t.Run("groups", func(t *testing.T) {
+		output, err := eval(t,
+			[]proto.Message{
+				&session.Session{Id: "s1", UserId: "u1"},
+				&user.User{Id: "u1"},
+				&directory.User{Id: "u1", GroupIds: []string{"g1", "g2", "g3"}},
+			},
+			&HeadersRequest{
+				FromAudience: "from.example.com",
+				ToAudience:   "to.example.com",
+				Session: RequestSession{
+					ID: "s1",
+				},
+			})
+		require.NoError(t, err)
+
+		assert.Equal(t, "g1,g2,g3", output.Headers.Get("X-Pomerium-Claim-Groups"))
+	})
 
 	t.Run("jwt", func(t *testing.T) {
 		output, err := eval(t,
