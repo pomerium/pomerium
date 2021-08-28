@@ -12,7 +12,7 @@ sidebarDepth: 0
 - Tracing settings now persist correctly
 ### Updated
 
-- Support configuring multiple audiences
+- Support configuring multiple audiences for the console
 - Improved configuration validation
 - Various UI style improvements
 ## 0.15.0
