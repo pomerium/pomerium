@@ -5,6 +5,16 @@ sidebarDepth: 0
 
 #  Changelog
 
+## 0.15.1
+
+### Fixed
+
+- Tracing settings now persist correctly
+### Updated
+
+- Support configuring multiple audiences for the console
+- Improved configuration validation
+- Various UI style improvements
 ## 0.15.0
 
 ### New
