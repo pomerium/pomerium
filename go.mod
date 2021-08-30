@@ -8,7 +8,7 @@ require (
 	contrib.go.opencensus.io/exporter/zipkin v0.1.2
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
 	github.com/btcsuite/btcutil v1.0.2
-	github.com/caddyserver/certmagic v0.14.1
+	github.com/caddyserver/certmagic v0.14.3
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/client9/misspell v0.3.4
@@ -177,7 +177,7 @@ require (
 	github.com/mbilski/exhaustivestruct v1.2.0 // indirect
 	github.com/mgechev/dots v0.0.0-20190921121421-c36f7dcfbb81 // indirect
 	github.com/mgechev/revive v1.1.0 // indirect
-	github.com/mholt/acmez v0.1.3 // indirect
+	github.com/mholt/acmez v1.0.0 // indirect
 	github.com/miekg/dns v1.1.42 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
