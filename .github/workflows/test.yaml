@@ -100,7 +100,7 @@ jobs:
       matrix:
         go-version: [1.17.x]
         platform: [ubuntu-latest]
-        deployment: [multi, nginx, single, traefik]
+        deployment: [kubernetes, multi, nginx, single, traefik]
         idp: [auth0, azure, github, gitlab, google, oidc, okta, onelogin, ping]
     runs-on: ${{ matrix.platform }}
     steps:
