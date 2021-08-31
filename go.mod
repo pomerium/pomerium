@@ -16,7 +16,7 @@ require (
 	github.com/docker/docker v20.10.7+incompatible
 	github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0
 	github.com/envoyproxy/protoc-gen-validate v0.6.1
-	github.com/fsnotify/fsnotify v1.5.0
+	github.com/fsnotify/fsnotify v1.5.1
 	github.com/go-chi/chi v1.5.4
 	github.com/go-jose/go-jose/v3 v3.0.0
 	github.com/go-redis/redis/v8 v8.11.3
