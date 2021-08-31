@@ -230,7 +230,8 @@ module.exports = {
               ],
             },
             "upgrading",
-            "changelog"
+            "changelog",
+            "api"
           ],
         },
       ],
