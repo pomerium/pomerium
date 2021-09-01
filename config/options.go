@@ -173,8 +173,7 @@ type Options struct {
 
 	// SigningKey is the private key used to add a JWT-signature to upstream requests.
 	// https://www.pomerium.io/docs/topics/getting-users-identity.html
-	SigningKey          string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
-	SigningKeyAlgorithm string `mapstructure:"signing_key_algorithm" yaml:"signing_key_algorithm,omitempty"`
+	SigningKey string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
 
 	HeadersEnv string `yaml:",omitempty"`
 	// SetResponseHeaders to set on all proxied requests. Add a 'disable' key map to turn off.
@@ -1156,9 +1155,6 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	}
 	if settings.SigningKey != nil {
 		o.SigningKey = settings.GetSigningKey()
-	}
-	if settings.SigningKeyAlgorithm != nil {
-		o.SigningKeyAlgorithm = settings.GetSigningKeyAlgorithm()
 	}
 	if settings.SetResponseHeaders != nil && len(settings.SetResponseHeaders) > 0 {
 		o.SetResponseHeaders = settings.SetResponseHeaders

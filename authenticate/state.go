@@ -127,16 +127,13 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 
 	state.sessionStore = cookieStore
 	state.sessionLoaders = []sessions.SessionLoader{headerStore, cookieStore}
-	if cfg.Options.SigningKeyAlgorithm == "" {
-		cfg.Options.SigningKeyAlgorithm = string(jose.ES256)
-	}
 	state.jwk = new(jose.JSONWebKeySet)
 	if cfg.Options.SigningKey != "" {
 		decodedCert, err := base64.StdEncoding.DecodeString(cfg.Options.SigningKey)
 		if err != nil {
 			return nil, fmt.Errorf("authenticate: failed to decode signing key: %w", err)
 		}
-		jwk, err := cryptutil.PublicJWKFromBytes(decodedCert, jose.SignatureAlgorithm(cfg.Options.SigningKeyAlgorithm))
+		jwk, err := cryptutil.PublicJWKFromBytes(decodedCert)
 		if err != nil {
 			return nil, fmt.Errorf("authenticate: failed to convert jwks: %w", err)
 		}

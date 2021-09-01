@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-jose/go-jose/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -24,7 +23,7 @@ func TestPolicyEvaluator(t *testing.T) {
 	require.NoError(t, err)
 	encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
 	require.NoError(t, err)
-	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey, jose.ES256)
+	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey)
 	require.NoError(t, err)
 
 	eval := func(t *testing.T, policy *config.Policy, data []proto.Message, input *PolicyRequest) (*PolicyResponse, error) {

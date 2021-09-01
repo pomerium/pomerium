@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/go-jose/go-jose/v3"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +29,7 @@ func TestEvaluator(t *testing.T) {
 	require.NoError(t, err)
 	encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
 	require.NoError(t, err)
-	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey, jose.ES256)
+	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey)
 	require.NoError(t, err)
 
 	eval := func(t *testing.T, options []Option, data []proto.Message, req *Request) (*Result, error) {

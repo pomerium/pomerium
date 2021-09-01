@@ -14,16 +14,16 @@ import (
 )
 
 // PrivateJWKFromBytes returns a jose JSON Web _Private_ Key from bytes.
-func PrivateJWKFromBytes(data []byte, alg jose.SignatureAlgorithm) (*jose.JSONWebKey, error) {
-	return loadKey(data, alg, loadPrivateKey)
+func PrivateJWKFromBytes(data []byte) (*jose.JSONWebKey, error) {
+	return loadKey(data, loadPrivateKey)
 }
 
 // PublicJWKFromBytes returns a jose JSON Web _Public_ Key from bytes.
-func PublicJWKFromBytes(data []byte, alg jose.SignatureAlgorithm) (*jose.JSONWebKey, error) {
-	return loadKey(data, alg, loadPublicKey)
+func PublicJWKFromBytes(data []byte) (*jose.JSONWebKey, error) {
+	return loadKey(data, loadPublicKey)
 }
 
-func loadKey(data []byte, alg jose.SignatureAlgorithm, unmarshal func([]byte) (interface{}, error)) (*jose.JSONWebKey, error) {
+func loadKey(data []byte, unmarshal func([]byte) (interface{}, error)) (*jose.JSONWebKey, error) {
 	block, _ := pem.Decode(data)
 	if block == nil {
 		return nil, fmt.Errorf("file contained no PEM encoded data")
@@ -31,6 +31,10 @@ func loadKey(data []byte, alg jose.SignatureAlgorithm, unmarshal func([]byte) (i
 	priv, err := unmarshal(block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal key: %w", err)
+	}
+	alg, err := SignatureAlgorithmForKey(priv)
+	if err != nil {
+		return nil, err
 	}
 
 	key := &jose.JSONWebKey{Key: priv, Use: "sig", Algorithm: string(alg)}
@@ -92,4 +96,16 @@ func loadPublicKey(b []byte) (interface{}, error) {
 	wrappedErr = multierror.Append(wrappedErr, err)
 
 	return nil, fmt.Errorf("couldn't load public key: %w", wrappedErr)
+}
+
+// SignatureAlgorithmForKey returns the signature algorithm for the given key.
+func SignatureAlgorithmForKey(key interface{}) (jose.SignatureAlgorithm, error) {
+	switch key.(type) {
+	case *ecdsa.PrivateKey, *ecdsa.PublicKey:
+		return jose.ES256, nil
+	case *rsa.PrivateKey, *rsa.PublicKey:
+		return jose.RS256, nil
+	default:
+		return "", fmt.Errorf("crypto: unsupported key type for signing: %T", key)
+	}
 }
