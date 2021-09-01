@@ -689,8 +689,8 @@ func (o *Options) Validate() error {
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
 	if !o.InsecureServer && !hasCert && !o.AutocertOptions.Enable {
-		return fmt.Errorf("config: server must be run with `autocert`, " +
-			"`insecure_server` or manually provided certificates to start")
+		log.Warn(ctx).Msg("neither `autocert`, " +
+			"`insecure_server` or manually provided certificates were provided, server will be using a self-signed certificate")
 	}
 
 	switch o.Provider {
@@ -1020,8 +1020,9 @@ func (o Options) indexCerts(ctx context.Context) certsIndex {
 		cert, err := cryptutil.ParsePEMCertificateFromFile(c.CertFile)
 		if err != nil {
 			log.Error(ctx).Err(err).Str("file", c.CertFile).Msg("parsing local cert: skipped")
+		} else {
+			idx.addCert(cert)
 		}
-		idx.addCert(cert)
 	}
 	return idx
 }
