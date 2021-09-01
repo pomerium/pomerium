@@ -10,7 +10,7 @@ description: >-
 ### Removed options
 The deprecated `headers` option has been removed. Use [`set_response_headers`](/reference/readme.md#set-response-headers) instead.
 
-The `signature_key_algorithm` option has been removed and will now be inferred from `signature_key`.
+The `signing_key_algorithm` option has been removed and will now be inferred from `signing_key`.
 
 # Since 0.14.0
 
