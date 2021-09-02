@@ -1,11 +1,19 @@
 package cryptutil
 
 import (
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
 	"testing"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPrivateJWKFromBytes(t *testing.T) {
@@ -101,4 +109,35 @@ func TestPublicJWKFromBytes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSignatureAlgorithmForKey(t *testing.T) {
+	t.Run("ecdsa", func(t *testing.T) {
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+		alg, err := SignatureAlgorithmForKey(key)
+		assert.NoError(t, err)
+		assert.Equal(t, jose.ES256, alg)
+		alg, err = SignatureAlgorithmForKey(key.Public())
+		assert.NoError(t, err)
+		assert.Equal(t, jose.ES256, alg)
+	})
+	t.Run("rsa", func(t *testing.T) {
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		require.NoError(t, err)
+		alg, err := SignatureAlgorithmForKey(key)
+		assert.NoError(t, err)
+		assert.Equal(t, jose.RS256, alg)
+		alg, err = SignatureAlgorithmForKey(key.Public())
+		assert.NoError(t, err)
+		assert.Equal(t, jose.RS256, alg)
+	})
+	t.Run("ed25519", func(t *testing.T) {
+		pub, priv, err := ed25519.GenerateKey(rand.Reader)
+		require.NoError(t, err)
+		_, err = SignatureAlgorithmForKey(priv)
+		assert.Error(t, err)
+		_, err = SignatureAlgorithmForKey(pub)
+		assert.Error(t, err)
+	})
 }
