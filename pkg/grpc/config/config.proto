@@ -153,7 +153,6 @@ message Settings {
   optional string certificate_authority = 34;
   optional string certificate_authority_file = 35;
   optional string signing_key = 36;
-  optional string signing_key_algorithm = 62;
   map<string, string> set_response_headers = 69;
   // repeated string jwt_claims_headers = 37;
   map<string, string> jwt_claims_headers = 63;

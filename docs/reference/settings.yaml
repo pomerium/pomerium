@@ -1838,17 +1838,3 @@ settings:
           If no certificate is specified, one will be generated and the base64'd public key will be added to the logs. Note, however, that this key be unique to each service, ephemeral, and will not be accessible via the authenticate service's `jwks_uri` endpoint.
         shortdoc: |
           Signing Key is the key used to sign a user's attestation JWT which can be consumed by upstream applications to pass along identifying user information like username, id, and groups.
-      - name: "Signing Key Algorithm"
-        keys: ["signing_key_algorithm"]
-        attributes: |
-          - Environmental Variable: `SIGNING_KEY_ALGORITHM`
-          - Config File Key: `signing_key_algorithm`
-          - Type: `string`
-          - Options: `ES256` or `RS256`
-          - Default: `ES256`
-        doc: |
-          This setting specifies which signing algorithm to use when signing the upstream attestation JWT. Cryptographic algorithm choice is subtle, and beyond the scope of this document, but we suggest sticking to the default `ES256` unless you have a good reason to use something else.
-
-          Be aware that any RSA based signature method may be an order of magnitude lower than [elliptic curve] variants like ECDSA (`ES256`). For more information, checkout [this article](https://www.scottbrady91.com/JOSE/JWTs-Which-Signing-Algorithm-Should-I-Use).
-        shortdoc: |
-          Signing Key Algorithm is the algorithm used to sign a user's attestation JWT.

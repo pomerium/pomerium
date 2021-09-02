@@ -208,12 +208,8 @@ func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 			return nil, fmt.Errorf("bad signing key: %w", err)
 		}
 	}
-	signingKeyAlgorithm := cfg.signingKeyAlgorithm
-	if signingKeyAlgorithm == "" {
-		signingKeyAlgorithm = string(jose.ES256)
-	}
 
-	jwk, err := cryptutil.PrivateJWKFromBytes(decodedCert, jose.SignatureAlgorithm(signingKeyAlgorithm))
+	jwk, err := cryptutil.PrivateJWKFromBytes(decodedCert)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate signing key: %w", err)
 	}

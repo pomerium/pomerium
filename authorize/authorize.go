@@ -101,7 +101,7 @@ func newPolicyEvaluator(opts *config.Options, store *evaluator.Store) (*evaluato
 	return evaluator.New(ctx, store,
 		evaluator.WithPolicies(opts.GetAllPolicies()),
 		evaluator.WithClientCA(clientCA),
-		evaluator.WithSigningKey(opts.SigningKeyAlgorithm, opts.SigningKey),
+		evaluator.WithSigningKey(opts.SigningKey),
 		evaluator.WithAuthenticateURL(authenticateURL.String()),
 		evaluator.WithGoogleCloudServerlessAuthenticationServiceAccount(opts.GetGoogleCloudServerlessAuthenticationServiceAccount()),
 		evaluator.WithJWTClaimsHeaders(opts.JWTClaimsHeaders),
