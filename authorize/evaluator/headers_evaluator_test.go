@@ -19,6 +19,23 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
+func TestNewHeadersRequestFromPolicy(t *testing.T) {
+	req := NewHeadersRequestFromPolicy(&config.Policy{
+		EnableGoogleCloudServerlessAuthentication: true,
+		From: "https://from.example.com",
+		To: config.WeightedURLs{
+			{
+				URL: *mustParseURL("http://to.example.com"),
+			},
+		},
+	})
+	assert.Equal(t, &HeadersRequest{
+		EnableGoogleCloudServerlessAuthentication: true,
+		FromAudience: "from.example.com",
+		ToAudience:   "https://to.example.com",
+	}, req)
+}
+
 func TestHeadersEvaluator(t *testing.T) {
 	type A = []interface{}
 	type M = map[string]interface{}
