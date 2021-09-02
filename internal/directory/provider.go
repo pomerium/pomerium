@@ -116,7 +116,9 @@ func GetProvider(options Options) (provider Provider) {
 	case google.Name:
 		serviceAccount, err := google.ParseServiceAccount(options.ServiceAccount)
 		if err == nil {
-			return google.New(google.WithServiceAccount(serviceAccount))
+			return google.New(
+				google.WithServiceAccount(serviceAccount),
+				google.WithURL(options.ProviderURL))
 		}
 		log.Warn(ctx).
 			Str("service", "directory").

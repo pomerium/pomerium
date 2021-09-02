@@ -49,6 +49,10 @@ func WithServiceAccount(serviceAccount *ServiceAccount) Option {
 
 // WithURL sets the provider url to use.
 func WithURL(url string) Option {
+	// if the empty string is sent in, use the default provider URL.
+	if url == "" {
+		url = defaultProviderURL
+	}
 	return func(cfg *config) {
 		cfg.url = url
 	}
@@ -56,7 +60,7 @@ func WithURL(url string) Option {
 
 func getConfig(opts ...Option) *config {
 	cfg := new(config)
-	WithURL(defaultProviderURL)(cfg)
+	WithURL("")(cfg)
 	for _, opt := range opts {
 		opt(cfg)
 	}
