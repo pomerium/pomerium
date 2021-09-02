@@ -125,6 +125,7 @@ module.exports = {
             "identity-providers/ping",
           ],
         },
+        "client",
         {
           title: "Topics",
           collapsable: true,
