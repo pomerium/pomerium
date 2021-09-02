@@ -31,7 +31,7 @@ func NewHeadersRequestFromPolicy(policy *config.Policy) *HeadersRequest {
 	}
 	input.KubernetesServiceAccountToken = policy.KubernetesServiceAccountToken
 	for _, wu := range policy.To {
-		input.ToAudience = wu.URL.Hostname()
+		input.ToAudience = "https://" + wu.URL.Hostname()
 	}
 	return input
 }
