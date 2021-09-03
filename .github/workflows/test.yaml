@@ -183,10 +183,12 @@ jobs:
         uses: hadolint/hadolint-action@v1.5.0
         with:
           Dockerfile: Dockerfile
+          ignore: DL3059
       - name: Hadolint - Debug
         uses: hadolint/hadolint-action@v1.5.0
         with:
           Dockerfile: Dockerfile.debug
+          ignore: DL3059
       - name: build
         run: docker build .
 
