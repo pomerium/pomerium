@@ -81,8 +81,8 @@ func TestHeadersEvaluator(t *testing.T) {
 	t.Run("jwt", func(t *testing.T) {
 		output, err := eval(t,
 			[]proto.Message{
-				&session.Session{Id: "s1", ImpersonateSessionId: proto.String("s2")},
-				&session.Session{Id: "s2"},
+				&session.Session{Id: "s1", ImpersonateSessionId: proto.String("s2"), UserId: "u1"},
+				&session.Session{Id: "s2", UserId: "u2"},
 			},
 			&HeadersRequest{
 				FromAudience: "from.example.com",
@@ -104,5 +104,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.LessOrEqual(t, claims["exp"], float64(time.Now().Add(time.Minute*6).Unix()),
 			"JWT should expire within 5 minutes, but got: %v", claims["exp"])
 		assert.Equal(t, "s1", claims["sid"], "should set session id to input session id")
+		assert.Equal(t, "u2", claims["sub"], "should set subject to user id")
+		assert.Equal(t, "u2", claims["user"], "should set user to user id")
 	})
 }
