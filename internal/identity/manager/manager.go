@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
@@ -56,6 +57,7 @@ type Manager struct {
 	directoryUsers  map[string]*directory.User
 	directoryGroups map[string]*directory.Group
 
+	directoryBackoff     *backoff.ExponentialBackOff
 	directoryNextRefresh time.Time
 
 	dataBrokerSemaphore *semaphore.Weighted
@@ -73,6 +75,8 @@ func New(
 
 		dataBrokerSemaphore: semaphore.NewWeighted(dataBrokerParallelism),
 	}
+	mgr.directoryBackoff = backoff.NewExponentialBackOff()
+	mgr.directoryBackoff.MaxElapsedTime = 0
 	mgr.UpdateConfig(options...)
 	return mgr
 }
@@ -171,8 +175,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 
 		// refresh groups
 		if mgr.directoryNextRefresh.Before(now) {
-			mgr.refreshDirectoryUserGroups(ctx)
-			mgr.directoryNextRefresh = now.Add(mgr.cfg.Load().groupRefreshInterval)
+			mgr.directoryNextRefresh = now.Add(mgr.refreshDirectoryUserGroups(ctx))
 		}
 		if mgr.directoryNextRefresh.Before(nextTime) {
 			nextTime = mgr.directoryNextRefresh
@@ -211,7 +214,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 	}
 }
 
-func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) {
+func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) (nextRefreshDelay time.Duration) {
 	log.Info(ctx).Msg("refreshing directory users")
 
 	ctx, clearTimeout := context.WithTimeout(ctx, mgr.cfg.Load().groupRefreshTimeout)
@@ -225,13 +228,20 @@ func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) {
 			msg += "(https://www.pomerium.io/reference/#identity-provider-refresh-directory-settings)"
 		}
 		log.Warn(ctx).Err(err).Msg(msg)
-		return
+
+		return minDuration(
+			mgr.cfg.Load().groupRefreshInterval, // never wait more than the refresh interval
+			mgr.directoryBackoff.NextBackOff(),
+		)
 	}
+	mgr.directoryBackoff.Reset() // success so reset the backoff
 
 	mgr.mergeGroups(ctx, directoryGroups)
 	mgr.mergeUsers(ctx, directoryUsers)
 
 	metrics.RecordIdentityManagerLastRefresh()
+
+	return mgr.cfg.Load().groupRefreshInterval
 }
 
 func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*directory.Group) {
@@ -595,4 +605,14 @@ func isTemporaryError(err error) bool {
 		return true
 	}
 	return false
+}
+
+func minDuration(d1 time.Duration, ds ...time.Duration) time.Duration {
+	min := d1
+	for _, d := range ds {
+		if d < min {
+			min = d
+		}
+	}
+	return min
 }
