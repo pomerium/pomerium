@@ -13,10 +13,7 @@ var usersBody = ast.Body{
 		session := get_session(input.session.id)
 	`),
 	ast.MustParseExpr(`
-		user := get_user(session)
-	`),
-	ast.MustParseExpr(`
-		user_id := user.id
+		user_id := session.user_id
 	`),
 }
 
@@ -43,8 +40,6 @@ func (c usersCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []
 
 	return r, []*ast.Rule{
 		rules.GetSession(),
-		rules.GetUser(),
-		rules.GetUserEmail(),
 	}, nil
 }
 
