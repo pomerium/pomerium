@@ -12,7 +12,6 @@ RUN go mod download
 COPY . .
 
 # build
-# hadolint ignore=DL3059
 RUN make build-deps
 RUN make build-debug NAME=pomerium
 RUN make build-debug NAME=pomerium-cli
