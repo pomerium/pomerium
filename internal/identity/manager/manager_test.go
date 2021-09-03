@@ -45,6 +45,8 @@ func TestManager_refreshDirectoryUserGroups(t *testing.T) {
 			}),
 			WithGroupRefreshInterval(time.Hour),
 		)
+		mgr.directoryBackoff.RandomizationFactor = 0 // disable randomization for deterministic testing
+
 		dur1 := mgr.refreshDirectoryUserGroups(ctx)
 		dur2 := mgr.refreshDirectoryUserGroups(ctx)
 		dur3 := mgr.refreshDirectoryUserGroups(ctx)
