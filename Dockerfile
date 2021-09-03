@@ -12,7 +12,7 @@ RUN go mod download
 COPY . .
 
 # build
-# hadolint ignoreDL3059
+# hadolint ignore=DL3059
 RUN make build-deps
 RUN make build NAME=pomerium
 RUN make build NAME=pomerium-cli
