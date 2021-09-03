@@ -136,6 +136,7 @@ module.exports = {
             "topics/certificates",
             "topics/data-storage",
             "topics/getting-users-identity",
+            "topics/original-request-context",
             "topics/kubernetes-integration",
             "topics/production-deployment",
             "topics/programmatic-access",
