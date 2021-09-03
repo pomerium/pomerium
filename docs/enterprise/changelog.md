@@ -5,6 +5,12 @@ sidebarDepth: 0
 
 #  Changelog
 
+## 0.15.2
+
+### Fixed
+
+- A regression in the `Deployments` page loading has been corrected.
+
 ## 0.15.1
 
 ### Fixed
