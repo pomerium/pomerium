@@ -275,8 +275,7 @@ claims_3 {
 
 users_0 {
 	session := get_session(input.session.id)
-	user := get_user(session)
-	user_id := user.id
+	user_id := session.user_id
 	user_id == "user1"
 }
 
@@ -289,8 +288,7 @@ emails_0 {
 
 users_1 {
 	session := get_session(input.session.id)
-	user := get_user(session)
-	user_id := user.id
+	user_id := session.user_id
 	user_id == "user2"
 }
 
@@ -303,8 +301,7 @@ emails_1 {
 
 users_2 {
 	session := get_session(input.session.id)
-	user := get_user(session)
-	user_id := user.id
+	user_id := session.user_id
 	user_id == "user3"
 }
 
@@ -317,8 +314,7 @@ emails_2 {
 
 users_3 {
 	session := get_session(input.session.id)
-	user := get_user(session)
-	user_id := user.id
+	user_id := session.user_id
 	user_id == "user4"
 }
 
@@ -331,8 +327,7 @@ emails_3 {
 
 users_4 {
 	session := get_session(input.session.id)
-	user := get_user(session)
-	user_id := user.id
+	user_id := session.user_id
 	user_id == "user5"
 }
 
@@ -485,8 +480,7 @@ else = v28 {
 
 users_5 {
 	session := get_session(input.session.id)
-	user := get_user(session)
-	user_id := user.id
+	user_id := session.user_id
 	user_id == "user6"
 }
 
