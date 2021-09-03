@@ -13,7 +13,7 @@ In enterprise environments where multiple services protected by Pomerium communi
 
 ## Abstract
 
-In this example, let's look at two routes, App and API:
+Let's look at two example routes, App and API:
 
 ```yaml
 routes:
