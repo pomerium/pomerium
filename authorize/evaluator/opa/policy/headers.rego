@@ -110,13 +110,13 @@ jwt_payload_iat = v {
 }
 
 jwt_payload_sub = v {
-	v = user.id
+	v = session.user_id
 } else = "" {
 	true
 }
 
 jwt_payload_user = v {
-	v = user.id
+	v = session.user_id
 } else = "" {
 	true
 }
