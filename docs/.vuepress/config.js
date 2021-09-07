@@ -5,6 +5,7 @@ module.exports = {
     "Pomerium is a beyond-corp inspired, zero trust, open source identity-aware access proxy.",
   plugins: [
     "vuepress-plugin-element-tabs",
+    'vuepress-plugin-mermaidjs',
     [
       "check-md",
       {
@@ -217,6 +218,7 @@ module.exports = {
               ],
             },
             "prometheus",
+            "service-accounts",
             {
               title: "Reference",
               type: "group",
