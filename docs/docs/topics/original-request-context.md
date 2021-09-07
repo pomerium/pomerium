@@ -77,7 +77,8 @@ sequenceDiagram
             Note over Pomerium, API: Pomerium copies X-Pomerium-JWT-Assertion as X-Pomerium-JWT-Assertion-For
        %% end
         Note over API: The "API" service uses <br/>X-Pomerium-JWT-Assertion-For <br/>To identify context
-        API-->>App: Response
+        API-->>Pomerium: Response
+        Pomerium-->>App: Response
         App-->>Pomerium: Result Page
     end
     Pomerium->>Browser: Result Page
@@ -91,7 +92,7 @@ sequenceDiagram
 
 1. Pomerium, seeing that the incoming request already includes `X-Pomerium-JTW-Assertion` copies the value  to `X-Pomerium-Jwt-Assertion-For` and includes it in the request to **API**. `X-Pomerium-Jwt-Assertion` now contains the service account bearer token
 
-1. Now the **API** can service can read `X-Pomerium-Jwt-Assertion-For` as needed to determine the proper response to send to **App**, which can then construct the results page for the user.
+1. Now the **API** can service can read `X-Pomerium-Jwt-Assertion-For` as needed to determine the proper response to send to **App** (through Pomerium), which can then construct the results page for the user.
 
 
 ### Secondary Requests
