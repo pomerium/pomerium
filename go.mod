@@ -52,7 +52,7 @@ require (
 	github.com/rs/cors v1.8.0
 	github.com/rs/zerolog v1.24.0
 	github.com/scylladb/go-set v1.0.2
-	github.com/shirou/gopsutil/v3 v3.21.7
+	github.com/shirou/gopsutil/v3 v3.21.8
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
@@ -219,8 +219,8 @@ require (
 	github.com/tetafro/godot v1.4.9 // indirect
 	github.com/timakin/bodyclose v0.0.0-20200424151742-cb6215831a94 // indirect
 	github.com/tinylib/msgp v1.1.2 // indirect
-	github.com/tklauser/go-sysconf v0.3.7 // indirect
-	github.com/tklauser/numcpus v0.2.3 // indirect
+	github.com/tklauser/go-sysconf v0.3.9 // indirect
+	github.com/tklauser/numcpus v0.3.0 // indirect
 	github.com/tomarrell/wrapcheck/v2 v2.3.0 // indirect
 	github.com/tommy-muehle/go-mnd/v2 v2.4.0 // indirect
 	github.com/uber/jaeger-client-go v2.25.0+incompatible // indirect
