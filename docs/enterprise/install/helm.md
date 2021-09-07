@@ -162,3 +162,9 @@ kubectl delete svc pomerium-proxy
 
 [Pomerium using Helm]: /docs/install/helm.md
 [cert-manager]: https://cert-manager.io/docs/
+
+### Generate Recovery Token
+
+!!!include(generate-recovery-token.md)!!!
+
+Note that you will need to connect to a terminal environment for the same container running the Enterprise console you're connected to to run this command.
