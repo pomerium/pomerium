@@ -96,7 +96,7 @@ sequenceDiagram
 
 ### Secondary Requests
 
-Suppose the **API** service needed to connect to another machine interface, which we'll call **API2** for additional information, and this call also needs the original user context.
+Suppose the **API** service needed to connect to another machine interface (which we'll call **API2**) for additional information, and this call also needs the original user context.
 
 If **API** is configured to pass along the `X-Pomerium-JWT-Assertion-For` header, Pomerium will recognize and preserve this. All subsequent connections with this header forwarded will perpetuate the original user context.
 
