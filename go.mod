@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
-	contrib.go.opencensus.io/exporter/prometheus v0.3.0
+	contrib.go.opencensus.io/exporter/prometheus v0.4.0
 	contrib.go.opencensus.io/exporter/zipkin v0.1.2
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
 	github.com/btcsuite/btcutil v1.0.2
