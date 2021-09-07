@@ -14,15 +14,15 @@ In enterprise environments where multiple services protected by Pomerium communi
 
 ## Abstract
 
-When a User communicates with a service downstream of Pomerium, the service can identify that user by the `X-Pomerium-Assertion` header, added by Pomerium, which provides as a value a Java Web Token (**JWT**) identifying the user.
+When a User communicates with a service downstream of Pomerium, the service can identify that user by the `X-Pomerium-JWT-Assertion` header, added by Pomerium, which provides as a value a Java Web Token (**JWT**) identifying the user.
 
 Should that service need to communicate with another Pomerium-protected service to construct the response, that connection should be authorized through Pomerium with a [Service Account](/enterprise/concepts.md#service-accounts). Service accounts should be provided to Pomerium from the first service as a bearer token header, i.e. `Authorization: Bearer Pomerium-${service_acount_jwt}`. This header is how the secondary service authenticates the machine-to-machine interaction.
 
 Should that second service need to know the original user context to return the proper response, it would have no way of knowing, as the first service authenticated as the service account and not the original user.
 
-The solution is to have the first service forward the headers, including `X-Pomerium-Assertion`, in its request to the second service. When Pomerium receives a request that already includes this header, it passes the value to the second service in the `X-Pomerium-Assertion-For` header. This header can be read by the secondary service to identify the user context.
+The solution is to have the first service forward the headers, including `X-Pomerium-JWT-Assertion`, in its request to the second service. When Pomerium receives a request that already includes this header, it passes the value to the second service in the `X-Pomerium-JWT-Assertion-For` header. This header can be read by the secondary service to identify the user context.
 
-Should the second service need to communicate with a tertiary service (or more), it can also pass along the original headers it received. When Pomerium receives a request with the `X-Pomerium-Assertion-For` header, it preserves the value as provided to all additional upstream services.
+Should the second service need to communicate with a tertiary service (or more), it can also pass along the original headers it received. When Pomerium receives a request with the `X-Pomerium-JWT-Assertion-For` header, it preserves the value as provided to all additional upstream services.
 
 ## Example
 
@@ -68,15 +68,15 @@ sequenceDiagram
     participant API2
     Browser->>Pomerium: Authenticated Request
     rect rgba(197, 183, 221)
-        Pomerium-->>App: X-Pomerium-Assertion (User JWT)
+        Pomerium-->>App: X-Pomerium-JWT-Assertion (User JWT)
         %%rect rgba(0, 255, 255)
-            Note over App: "App" copies X-Pomerium-Assertion <br/>from the original request
-            App-->>Pomerium: X-Pomerium-Assertion (User JWT)<br/> Service Account Bearer Token
+            Note over App: "App" copies X-Pomerium-JWT-Assertion <br/>from the original request
+            App-->>Pomerium: X-Pomerium-JWT-Assertion (User JWT)<br/> Service Account Bearer Token
             Note over Pomerium, App: "App" calls "API" through Pomerium.
-            Pomerium-->>API: X-Pomerium-Assertion (Service Account) <br/>X-Pomerium-Assertion-For (User JWT)
-            Note over Pomerium, API: Pomerium copies X-Pomerium-Assertion as X-Pomerium-Assertion-For
+            Pomerium-->>API: X-Pomerium-JWT-Assertion (Service Account) <br/>X-Pomerium-JWT-Assertion-For (User JWT)
+            Note over Pomerium, API: Pomerium copies X-Pomerium-JWT-Assertion as X-Pomerium-JWT-Assertion-For
        %% end
-        Note over API: The "API" service uses <br/>X-Pomerium-Assertion-For <br/>To identify context
+        Note over API: The "API" service uses <br/>X-Pomerium-JWT-Assertion-For <br/>To identify context
         API-->>App: Response
         App-->>Pomerium: Result Page
     end
@@ -98,7 +98,7 @@ sequenceDiagram
 
 Suppose the **API** service needed to connect to another machine interface, which we'll call **API2** for additional information, and this call also needs the original user context.
 
-If **API** is configured to pass along the `X-Pomerium-Assertion-For` header, Pomerium will recognize and preserve this. All subsequent connections with this header forwarded will perpetuate the original user context.
+If **API** is configured to pass along the `X-Pomerium-JWT-Assertion-For` header, Pomerium will recognize and preserve this. All subsequent connections with this header forwarded will perpetuate the original user context.
 
 ```mermaid
 sequenceDiagram
@@ -111,10 +111,10 @@ sequenceDiagram
     rect rgba(197, 183, 221)
         opt Secondary Request
             Note over API, Pomerium: "API" is configured to pass all headers from the original request.
-            API-->>Pomerium: X-Pomerium-Assertion (Service Account Bearer Token) <br/>X-Pomerium-Assertion-For (User JWT)
-            Note over Pomerium, API2: Pomerium preserves X-Pomerium-Assertion-For as provided by "API"
-            Pomerium-->> API2: X-Pomerium-Assertion (Service Account) <br/>X-Pomerium-Assertion-For (User JWT)
-            Note over API2: "API2" reads X-Pomerium-Assertion-For <br/>for user context
+            API-->>Pomerium: X-Pomerium-JWT-Assertion (Service Account Bearer Token) <br/>X-Pomerium-JWT-Assertion-For (User JWT)
+            Note over Pomerium, API2: Pomerium preserves X-Pomerium-JWT-Assertion-For as provided by "API"
+            Pomerium-->> API2: X-Pomerium-JWT-Assertion (Service Account) <br/>X-Pomerium-JWT-Assertion-For (User JWT)
+            Note over API2: "API2" reads X-Pomerium-JWT-Assertion-For <br/>for user context
             API2-->>Pomerium: Response
             Pomerium-->>API: Response
         end
