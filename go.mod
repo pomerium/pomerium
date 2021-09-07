@@ -38,7 +38,7 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
-	github.com/open-policy-agent/opa v0.31.0
+	github.com/open-policy-agent/opa v0.32.0
 	github.com/openzipkin/zipkin-go v0.2.5
 	github.com/ory/dockertest/v3 v3.7.0
 	github.com/peterbourgon/ff/v3 v3.1.0
@@ -63,7 +63,7 @@ require (
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.19.0
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
-	golang.org/x/net v0.0.0-20210525063256-abc453219eb5
+	golang.org/x/net v0.0.0-20210825183410-e898025ed96a
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/api v0.56.0
@@ -96,7 +96,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bkielbasa/cyclop v1.2.0 // indirect
 	github.com/bombsimon/wsl/v3 v3.3.0 // indirect
-	github.com/bytecodealliance/wasmtime-go v0.28.0 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.2.1 // indirect
 	github.com/charithe/durationcheck v0.0.8 // indirect
 	github.com/chavacava/garif v0.0.0-20210405164556-e8a0a408d6af // indirect
