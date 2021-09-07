@@ -9,7 +9,7 @@ Pomerium is capable of creating secure connections to services like SSH, Redis, 
 
 ## Create a TCP Route
 
-1. Specify it as a TCP Route by prefixing `tcp+` in the **From** field, along with a port suffix.
+1. Specify this new Route as a TCP Route by prefixing `tcp+` in the **From** field, along with a port suffix.
 
    ::: tip
    The port is not used in the connection to the Pomerium gateway; this will always be port 443. Rather, the port defined in **From** is part of the mapping to the individual route. In this way, you can create multiple routes that share a DNS entry, differentiated by the port to determine which route they use.
