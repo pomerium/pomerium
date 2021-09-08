@@ -166,5 +166,3 @@ kubectl delete svc pomerium-proxy
 ### Generate Recovery Token
 
 !!!include(generate-recovery-token.md)!!!
-
-Note that you will need to connect to a terminal environment for the same container running the Enterprise console you're connected to to run this command.

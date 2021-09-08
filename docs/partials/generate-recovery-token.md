@@ -11,3 +11,7 @@ This page requires a recovery token. To generate a token, run the `pomerium-cons
 | `--namespace`               | The namespace to use (default "`9d8dbd2c-8cce-4e66-9c1f-c490b4a07243`" for Global). |
 | `--out`                     | Where to save the JWT. If not specified, it will be printed to stdout. |
 | `--ttl`                     | The amount of time before the recovery token expires. Requires a unit (example: `30s`, `5m`).|
+
+::: tip
+You can run the `pomerium-console` binary from any device with access to the database.
+:::
