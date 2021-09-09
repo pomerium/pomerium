@@ -162,3 +162,7 @@ kubectl delete svc pomerium-proxy
 
 [Pomerium using Helm]: /docs/install/helm.md
 [cert-manager]: https://cert-manager.io/docs/
+
+### Generate Recovery Token
+
+!!!include(generate-recovery-token.md)!!!
