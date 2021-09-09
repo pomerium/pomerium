@@ -65,7 +65,20 @@ func NewTemplates() (*template.Template, error) {
 		"dataURL": func(p string) template.URL {
 			return dataURLs[strings.TrimPrefix(p, "/.pomerium/assets/")]
 		},
-		"formatTime": func(tm time.Time) string {
+		"formatTime": func(arg interface{}) string {
+			var tm time.Time
+			switch t := arg.(type) {
+			case float64:
+				tm = time.Unix(int64(t), 0)
+			case int:
+				tm = time.Unix(int64(t), 0)
+			case int64:
+				tm = time.Unix(t, 0)
+			case time.Time:
+				tm = t
+			default:
+				return "<INVALID TIME>"
+			}
 			return tm.Format("2006-01-02 15:04:05 MST")
 		},
 	})
