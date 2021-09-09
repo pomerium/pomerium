@@ -27,7 +27,7 @@ The example below demonstrates a route to the SSH service on the host running th
     to: tcp://127.0.0.1:22
     policy:
     - allow:
-        or: 
+        or:
           - email:
               is: user@companydomain.com
 ```
@@ -59,7 +59,7 @@ TBD
 
 - **Local Address** (optional): The local address and port number from which to access the service locally. If left blank, the client will choose a random port to listen to on the loopback address. <!-- Only ever port? -->
 
-   In most cases, you only need to specify the port (ex: `:2222`), and the client will listen on all available local addresses. 
+   In most cases, you only need to specify the port (ex: `:2222`), and the client will listen on all available local addresses.
 
 - **Alternate Pomerium Url** (optional): The proxy address, needed if the Destination URL isn't publicly resolvable, either from DNS or a local `hosts` entry.
 
