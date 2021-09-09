@@ -25,6 +25,8 @@ Before you begin, confirm you are in the correct Namespace. A service account ca
    Give the user a unique ID. Consider referencing the Namespace you're creating it under, for easier reference later. Optionally set an expiration date:
 
    ![Adding a unique service account](./img/create-service-account.png)
+
+   The user ID set here corresponds to the `User` criteria when editing a policy.
    ::::
    :::: tab Impersonated
    You can find your User ID by going to the special endpoint `/.pomerium`, or selecting **Logout** under your user in the upper right hand corner (this will not immediately log you out):
@@ -43,4 +45,6 @@ Before you begin, confirm you are in the correct Namespace. A service account ca
 
    This JWT must be added to your application configuration to enable direct communication.
 
-1. Edit or create policies to give the service account access to the internal service.
+1. Edit or create policies to give the service account access to the internal service:
+
+   ![An example policy for a service account](./img/service-account-policy.png)
