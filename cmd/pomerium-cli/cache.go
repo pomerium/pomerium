@@ -11,23 +11,12 @@ import (
 	"time"
 )
 
-func configHome() string {
-	cfgDir, err := os.UserConfigDir()
-	if err != nil {
-		fatalf("error getting user config dir: %v", err)
-	}
-
-	ch := filepath.Join(cfgDir, "pomerium-cli")
-	err = os.MkdirAll(ch, 0o755)
-	if err != nil {
-		fatalf("error creating user config dir: %v", err)
-	}
-
-	return ch
-}
-
 func cachePath() string {
-	return filepath.Join(configHome(), "cache", "exec-credential")
+	root, err := os.UserCacheDir()
+	if err != nil {
+		fatalf("error getting user cache dir: %v", err)
+	}
+	return filepath.Join(root, "pomerium-cli", "exec-credential")
 }
 
 func cachedCredentialPath(serverURL string) string {
