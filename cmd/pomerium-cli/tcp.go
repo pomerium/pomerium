@@ -11,9 +11,11 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/tcptunnel"
@@ -69,6 +71,10 @@ var tcpCmd = &cobra.Command{
 
 		l := zerolog.New(zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
 			w.Out = os.Stderr
+			w.TimeFormat = time.RFC3339
+			if !term.IsTerminal(int(os.Stdin.Fd())) {
+				w.NoColor = !term.IsTerminal(int(os.Stdin.Fd()))
+			}
 		})).With().Timestamp().Logger()
 		log.SetLogger(&l)
 
