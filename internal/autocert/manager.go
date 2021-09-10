@@ -166,7 +166,7 @@ func (mgr *Manager) renewConfigCerts(ctx context.Context) error {
 	for _, domain := range sourceHostnames(cfg) {
 		cert, err := cm.CacheManagedCertificate(domain)
 		if err != nil {
-			log.Error(ctx).Err(err).Str("domain", domain).Msg("get cert")
+			// this happens for unmanaged certificates
 			continue
 		}
 		if cert.NeedsRenewal(cm) {
