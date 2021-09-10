@@ -236,6 +236,7 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
+	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/tools v0.1.5 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
