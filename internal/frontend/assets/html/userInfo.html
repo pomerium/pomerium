@@ -122,7 +122,11 @@
                   <td>{{$k}}</td>
                   <td>
                     {{range $v.AsSlice}}
+                      {{if eq $k "exp" "iat" "updated_at"}}
+                    <p>{{formatTime .}}</p>
+                      {{else}}
                     <p>{{.}}</p>
+                      {{end}}
                     {{end}}
                   </td>
                 </tr>
