@@ -55,5 +55,9 @@ func getTLSConfig() *tls.Config {
 			fatalf("%s", err)
 		}
 	}
+	cfg.GetConfigForClient = func(info *tls.ClientHelloInfo) (*tls.Config, error) {
+		info.SupportedProtos = []string{"http/1.1"}
+		return cfg, nil
+	}
 	return cfg
 }
