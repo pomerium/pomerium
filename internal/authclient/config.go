@@ -22,6 +22,6 @@ type Option func(*config)
 // WithTLSConfig returns an option to configure the tls config.
 func WithTLSConfig(tlsConfig *tls.Config) Option {
 	return func(cfg *config) {
-		cfg.tlsConfig = tlsConfig
+		cfg.tlsConfig = tlsConfig.Clone()
 	}
 }
