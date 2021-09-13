@@ -56,6 +56,10 @@ func WithProxyHost(proxyHost string) Option {
 // WithTLSConfig returns an option to configure the tls config.
 func WithTLSConfig(tlsConfig *tls.Config) Option {
 	return func(cfg *config) {
+		if tlsConfig != nil {
+			tlsConfig = tlsConfig.Clone()
+			tlsConfig.NextProtos = []string{"http/1.1"} // disable http/2 in ALPN
+		}
 		cfg.tlsConfig = tlsConfig
 	}
 }

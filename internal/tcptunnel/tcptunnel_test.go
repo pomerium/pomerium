@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
@@ -88,4 +89,24 @@ func TestTunnel(t *testing.T) {
 type readWriter struct {
 	io.Reader
 	io.Writer
+}
+
+func TestForceHTTP1(t *testing.T) {
+	tunnel := New(WithTLSConfig(&tls.Config{
+		InsecureSkipVerify: true,
+	}))
+
+	var protocol string
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		protocol = r.Proto
+	}))
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tunnel.cfg.tlsConfig,
+		},
+	}
+	_, _ = client.Get(srv.URL)
+
+	assert.Equal(t, "HTTP/1.1", protocol)
 }
