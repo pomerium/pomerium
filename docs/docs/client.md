@@ -47,7 +47,11 @@ You can connect to this route with either the Pomerium CLI or Pomerium Desktop c
 :::: tab Pomerium Desktop
 ### Install
 
-TBD
+Download the latest release from [GitHub](https://github.com/pomerium/desktop-client/releases).
+
+- **Windows**: The installer `exe` will install and open the Desktop Client. Right click on the system tray icon to interact with it.
+- **Linux**: We provide Linux binaries as `.AppImage` files, which can be executed in place or managed with a tool like [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher). Interact with the client from the system tray icon.
+- **macOS**: Open the `dmg` and move the binary to **Applications**. Interact with the client from the system tray icon.
 
 ### Add a Connection
 
