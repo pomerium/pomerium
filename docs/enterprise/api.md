@@ -18,7 +18,7 @@ This doc assumes:
 
 ## Configure a New Route
 
-We suggest configuring the route for API access in the open-source Pomerium, so that breaking changes made via the API can still be resolved from the API:
+We suggest configuring the route for API access in the open-source Pomerium. That way changes made through the API that might break access to the console GUI will not break access to the API route.
 
 ```yaml
   - from: https://console-api.pomerium.localhost.io
