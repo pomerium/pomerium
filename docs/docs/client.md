@@ -110,4 +110,10 @@ For more examples and detailed usage information, see [TCP Support](/docs/topics
 
 ## Advanced Configuration
 
-TODO: Document tcp routes with non-standard port binding.
+If Pomerium is listening on a port other than `443` (set with the [`address` key](/reference/readme.md#address)), the `pomerium-url` flag (CLI) or "Alternate Pomerium URL" field (GUI) is required. This specifies the address and port for the client to communicate over, while the standard URL defines the port assignment for the specific route. For example:
+
+```bash
+pomerium-cli tcp ssh.localhost:pomerium.io:2222 \
+   --pomerium-url https://ssh.localhost.pomerium.io:8443 \
+   --listen :2222
+```
