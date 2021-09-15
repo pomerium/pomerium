@@ -1,2 +1,3 @@
 * @pomerium/dev-backend
 /docs/  @pomerium/docs @pomerium/dev
+/docs/.vuepress/ @pomerium/docs @pomerium/dev
