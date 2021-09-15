@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "esm": "3.2.25",
-    "markdown-it-include": "^2.0.0"
+    "markdown-it-include": "^2.0.0",
+    "vuepress-plugin-code-copy": "^1.0.6"
   }
 }

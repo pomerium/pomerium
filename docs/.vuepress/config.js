@@ -6,6 +6,10 @@ module.exports = {
   plugins: [
     "vuepress-plugin-element-tabs",
     [
+      'vuepress-plugin-code-copy',
+      true
+    ],
+    [
       "check-md",
       {
         pattern: "**/*.md",
