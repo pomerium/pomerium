@@ -48,6 +48,7 @@ go get github.com:pomerium/enterprise-client-go.git
 ```
 :::
 ::::
+
 ## Test the API Connection
 
 The repositories for our [Python][client-py] and [Go][client-go] implementations include example scripts:
