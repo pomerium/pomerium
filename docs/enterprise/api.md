@@ -18,21 +18,32 @@ This doc assumes:
 
 ## Configure a New Route
 
-We suggest configuring the route for API access in the open-source Pomerium. That way changes made through the API that might break access to the console GUI will not break access to the API route.
+1. We suggest configuring the route for API access in the open-source Pomerium. That way changes made through the API that might break access to the console GUI will not break access to the API route.
 
-```yaml
-  - from: https://console-api.pomerium.localhost.io
-    to: https://pomerium-console-domain-name:8702
-    pass_identity_headers: true
-    allow_any_authenticated_user: true
-    tls_custom_ca_file: /path/to/rootCA.pem # See https://www.pomerium.com/reference/#tls-custom-certificate-authority
-```
+	```yaml
+	- from: https://console-api.pomerium.localhost.io
+		to: https://pomerium-console-domain-name:8702
+		pass_identity_headers: true
+		allow_any_authenticated_user: true
+		tls_custom_ca_file: /path/to/rootCA.pem # See https://www.pomerium.com/reference/#tls-custom-certificate-authority
+	```
+
+1. You must also update the `audience` key to include the new route's `from` value:
+
+	```yaml
+	audience: "console.pomerium.localhost.io,console-api.pomerium.localhost.io"
+	```
+
+	If you're running Pomerium Enterprise as a system service, restart the daemon.
+
 
 ## Create a Service Account
 
 1. In the enterprise Console under **Configure -> Service Accounts**, Click **+ Add Service Account**. You can choose an existing user for the service account to impersonate, or create a new user. Note that a new user will not be synced to your IdP.
 
 1. The Enterprise Console will display the service account token. Be sure to store it securely not, as you cannot view it again after this point.
+
+1. Add the service account to the Namespaces you want it to access, with the correct role based on the actions it will perform.
 
 ## Install The Library
 
