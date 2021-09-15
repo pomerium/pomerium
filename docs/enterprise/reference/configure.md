@@ -194,7 +194,7 @@ Each unit of work is called a Span in a trace. Spans include metadata about the 
 
 #### Tracing Sample Rate
 
-Percentage of requests to sample in decimal notation. Default is .01%.
+Percentage of requests to sample. Default is .01%.
 
 Unlike the decimal value notion used for the `tracing_sample_rate` [key](/reference/readme.md#shared-tracing-settings) in open-source Pomerium, this value is a percentage, e.g. a value of `1` equates to 1%
 

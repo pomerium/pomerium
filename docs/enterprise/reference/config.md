@@ -17,6 +17,12 @@ a list of user ids, names or emails to make administrators, useful for bootstrap
 
 **Default value:** `none`
 
+## audience
+
+audience for verifying signing key
+
+**Default value:** `[]`
+
 ## bind-addr
 
 the address to listen on
