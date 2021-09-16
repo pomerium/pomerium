@@ -26,7 +26,7 @@ download() {
   rm "$archive"
 }
 
-download $_protoc_3pp_path protoc-gen-validate https://github.com/envoyproxy/protoc-gen-validate/tarball/v0.4.1
+download $_protoc_3pp_path protoc-gen-validate https://github.com/envoyproxy/protoc-gen-validate/tarball/v0.6.1
 download $_protoc_3pp_path data-plane-api https://github.com/envoyproxy/data-plane-api/tarball/main
 download $_protoc_3pp_path udpa https://github.com/cncf/udpa/tarball/cc1b757b3eddccaaaf0743cbb107742bb7e3ee4f
 download $_protoc_3pp_path googleapis https://github.com/googleapis/googleapis/tarball/82944da21578a53b74e547774cf62ed31a05b841
