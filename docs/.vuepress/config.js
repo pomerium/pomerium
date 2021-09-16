@@ -7,6 +7,10 @@ module.exports = {
     "vuepress-plugin-element-tabs",
     'vuepress-plugin-mermaidjs',
     [
+      'vuepress-plugin-code-copy',
+      true
+    ],
+    [
       "check-md",
       {
         pattern: "**/*.md",
