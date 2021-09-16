@@ -45,6 +45,10 @@ This doc assumes:
 
 1. Add the service account to the Namespaces you want it to access, with the correct role based on the actions it will perform.
 
+::: tip
+Service accounts created in any Namespace other than **Global** will include a reference to that Namespace ID. You must specify the entire user ID (i.e. `design-api@bff1bea6-a3d6-232d-812c-b4fd8e26d72e.pomerium`) when using the service account.
+:::
+
 ## Install The Library
 
 :::: tabs
