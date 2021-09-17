@@ -41,7 +41,7 @@ This doc assumes:
 
 1. In the enterprise Console under **Configure -> Service Accounts**, Click **+ Add Service Account**. You can choose an existing user for the service account to impersonate, or create a new user. Note that a new user will not be synced to your IdP.
 
-1. The Enterprise Console will display the service account token. Be sure to store it securely not, as you cannot view it again after this point.
+1. The Enterprise Console will display the service account token. Be sure to store it securely now, as you cannot view it again after this point.
 
 1. Add the service account to the Namespaces you want it to access, with the correct role based on the actions it will perform.
 
