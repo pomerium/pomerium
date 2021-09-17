@@ -26,8 +26,9 @@ func (corsPreflightCriterion) Name() string {
 }
 
 func (c corsPreflightCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
-	rule := c.g.NewRule("cors_preflight")
-	rule.Body = corsPreflightBody
+	rule := NewCriterionRule(c.g, c.Name(),
+		ReasonCORSRequest, ReasonNonCORSRequest,
+		corsPreflightBody)
 	return rule, nil, nil
 }
 

@@ -8,6 +8,27 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
+var (
+	andBody = ast.Body{
+		ast.MustParseExpr(`normalized := [normalize_criterion_result(x)|x:=results[i]]`),
+		ast.MustParseExpr(`v := merge_with_and(normalized)`),
+	}
+	notBody = ast.Body{
+		ast.MustParseExpr(`normalized := [normalize_criterion_result(x)|x:=results[i]]`),
+		ast.MustParseExpr(`inverted := [invert_criterion_result(x)|x:=results[i]]`),
+		ast.MustParseExpr(`v := merge_with_and(inverted)`),
+	}
+	orBody = ast.Body{
+		ast.MustParseExpr(`normalized := [normalize_criterion_result(x)|x:=results[i]]`),
+		ast.MustParseExpr(`v := merge_with_or(normalized)`),
+	}
+	norBody = ast.Body{
+		ast.MustParseExpr(`normalized := [normalize_criterion_result(x)|x:=results[i]]`),
+		ast.MustParseExpr(`inverted := [invert_criterion_result(x)|x:=results[i]]`),
+		ast.MustParseExpr(`v := merge_with_or(inverted)`),
+	}
+)
+
 func (g *Generator) generateAndRule(dst *ast.RuleSet, policyCriteria []parser.Criterion) (*ast.Rule, error) {
 	rule := g.NewRule("and")
 
@@ -15,12 +36,16 @@ func (g *Generator) generateAndRule(dst *ast.RuleSet, policyCriteria []parser.Cr
 		return rule, nil
 	}
 
-	expressions, err := g.generateCriterionRules(dst, policyCriteria)
+	terms, err := g.generateCriterionRules(dst, policyCriteria)
 	if err != nil {
 		return nil, err
 	}
 
-	g.fillViaAnd(rule, expressions)
+	rule.Head.Value = ast.VarTerm("v")
+	rule.Body = append(ast.Body{
+		ast.Assign.Expr(ast.VarTerm("results"), ast.ArrayTerm(terms...)),
+	}, andBody...)
+
 	dst.Add(rule)
 
 	return rule, nil
@@ -40,7 +65,11 @@ func (g *Generator) generateNotRule(dst *ast.RuleSet, policyCriteria []parser.Cr
 		return nil, err
 	}
 
-	g.fillViaSetComprehension(rule, terms, true, true)
+	rule.Head.Value = ast.VarTerm("v")
+	rule.Body = append(ast.Body{
+		ast.Assign.Expr(ast.VarTerm("results"), ast.ArrayTerm(terms...)),
+	}, notBody...)
+
 	dst.Add(rule)
 
 	return rule, nil
@@ -58,7 +87,11 @@ func (g *Generator) generateOrRule(dst *ast.RuleSet, policyCriteria []parser.Cri
 		return nil, err
 	}
 
-	g.fillViaOr(rule, terms)
+	rule.Head.Value = ast.VarTerm("v")
+	rule.Body = append(ast.Body{
+		ast.Assign.Expr(ast.VarTerm("results"), ast.ArrayTerm(terms...)),
+	}, orBody...)
+
 	dst.Add(rule)
 
 	return rule, nil
@@ -78,7 +111,11 @@ func (g *Generator) generateNorRule(dst *ast.RuleSet, policyCriteria []parser.Cr
 		return nil, err
 	}
 
-	g.fillViaSetComprehension(rule, terms, false, true)
+	rule.Head.Value = ast.VarTerm("v")
+	rule.Body = append(ast.Body{
+		ast.Assign.Expr(ast.VarTerm("results"), ast.ArrayTerm(terms...)),
+	}, norBody...)
+
 	dst.Add(rule)
 
 	return rule, nil
@@ -101,74 +138,4 @@ func (g *Generator) generateCriterionRules(dst *ast.RuleSet, policyCriteria []pa
 		terms = append(terms, ast.VarTerm(string(mainRule.Head.Name)))
 	}
 	return terms, nil
-}
-
-func (g *Generator) fillViaAnd(rule *ast.Rule, terms []*ast.Term) {
-	currentRule := rule
-	currentRule.Head.Value = ast.VarTerm("v1")
-	for i, term := range terms {
-		nm := fmt.Sprintf("v%d", i+1)
-		currentRule.Body = append(currentRule.Body, ast.Assign.Expr(ast.VarTerm(nm), term))
-		expr := ast.NewExpr(ast.VarTerm(nm))
-		currentRule.Body = append(currentRule.Body, expr)
-	}
-}
-
-func (g *Generator) fillViaOr(rule *ast.Rule, terms []*ast.Term) {
-	currentRule := rule
-	for i, term := range terms {
-		if i > 0 {
-			currentRule.Else = &ast.Rule{Head: &ast.Head{}}
-			currentRule = currentRule.Else
-		}
-		nm := fmt.Sprintf("v%d", i+1)
-		currentRule.Head.Value = ast.VarTerm(nm)
-
-		currentRule.Body = append(currentRule.Body, ast.Assign.Expr(ast.VarTerm(nm), term))
-		expr := ast.NewExpr(ast.VarTerm(nm))
-		currentRule.Body = append(currentRule.Body, expr)
-	}
-}
-
-func (g *Generator) fillViaSetComprehension(rule *ast.Rule, terms []*ast.Term, useIntersection, negated bool) {
-	sets := make([]*ast.Term, len(terms))
-	for i, term := range terms {
-		e := ast.NewExpr(term)
-		e.Negated = negated
-		sets[i] = ast.SetComprehensionTerm(ast.NumberTerm("1"), ast.NewBody(e))
-	}
-
-	var builtIn *ast.Builtin
-	if useIntersection {
-		builtIn = ast.And
-	} else {
-		builtIn = ast.Or
-	}
-	rule.Head.Value = ast.VarTerm("v")
-	rule.Body = ast.NewBody(
-		ast.Assign.Expr(
-			ast.VarTerm("v"),
-			ast.Equal.Call(
-				ast.Count.Call(
-					mergeTerms(builtIn, sets...),
-				),
-				ast.NumberTerm("1"),
-			),
-		),
-	)
-}
-
-func mergeTerms(builtIn *ast.Builtin, terms ...*ast.Term) *ast.Term {
-	// mergeTerms(AND, A, B, C, D) => AND(AND(A, B), AND(C, D))
-	switch len(terms) {
-	case 0:
-		return ast.NullTerm()
-	case 1:
-		return terms[0]
-	default:
-		return builtIn.Call(
-			mergeTerms(builtIn, terms[:len(terms)/2]...),
-			mergeTerms(builtIn, terms[len(terms)/2:]...),
-		)
-	}
 }

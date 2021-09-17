@@ -23,11 +23,55 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
-func (a *Authorize) okResponse(reply *evaluator.Result) *envoy_service_auth_v3.CheckResponse {
+func (a *Authorize) handleResultAllowed(
+	ctx context.Context,
+	in *envoy_service_auth_v3.CheckRequest,
+	result *evaluator.Result,
+) (*envoy_service_auth_v3.CheckResponse, error) {
+	return a.okResponse(result.Headers), nil
+}
+
+func (a *Authorize) handleResultDenied(
+	ctx context.Context,
+	in *envoy_service_auth_v3.CheckRequest,
+	result *evaluator.Result,
+) (*envoy_service_auth_v3.CheckResponse, error) {
+	denyStatusCode := int32(http.StatusForbidden)
+	denyStatusText := http.StatusText(http.StatusForbidden)
+
+	switch {
+	case result.Deny.Reasons.Has(criteria.ReasonRouteNotFound):
+		denyStatusCode = http.StatusNotFound
+		denyStatusText = "route not found"
+	case result.Deny.Reasons.Has(criteria.ReasonInvalidClientCertificate):
+		denyStatusCode = 495
+		denyStatusText = "invalid client certificate"
+	}
+
+	return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, nil)
+}
+
+func (a *Authorize) handleResultNotAllowed(
+	ctx context.Context,
+	in *envoy_service_auth_v3.CheckRequest,
+	result *evaluator.Result,
+) (*envoy_service_auth_v3.CheckResponse, error) {
+	switch {
+	case result.Allow.Reasons.Has(criteria.ReasonUserUnauthenticated):
+		// when the user is unauthenticated it means they haven't
+		// logged in yet, so redirect to authenticate
+		return a.requireLoginResponse(ctx, in)
+	}
+
+	return a.deniedResponse(ctx, in, http.StatusForbidden, "Forbidden", nil)
+}
+
+func (a *Authorize) okResponse(headers http.Header) *envoy_service_auth_v3.CheckResponse {
 	var requestHeaders []*envoy_config_core_v3.HeaderValueOption
-	for k, vs := range reply.Headers {
+	for k, vs := range headers {
 		requestHeaders = append(requestHeaders, mkHeader(k, strings.Join(vs, ","), false))
 	}
 	// ensure request headers are sorted by key for deterministic output
@@ -113,7 +157,7 @@ func (a *Authorize) requireLoginResponse(ctx context.Context, in *envoy_service_
 		return nil, err
 	}
 
-	if !shouldRedirect(in) {
+	if !a.shouldRedirect(in) {
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
 	}
 
@@ -186,7 +230,11 @@ func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) 
 	return urlutil.NewSignedURL(a.state.Load().sharedKey, debugEndpoint).Sign(), nil
 }
 
-func shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool {
+func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool {
+	if a.isForwardAuth(in) && in.GetAttributes().GetRequest().GetHttp().GetPath() == "/verify" {
+		return false
+	}
+
 	requestHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
 	if requestHeaders == nil {
 		return true
@@ -196,12 +244,12 @@ func shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool {
 		return false
 	}
 
-	a, err := rfc7231.ParseAccept(requestHeaders["accept"])
+	accept, err := rfc7231.ParseAccept(requestHeaders["accept"])
 	if err != nil {
 		return true
 	}
 
-	mediaType, ok := a.MostAcceptable([]string{
+	mediaType, ok := accept.MostAcceptable([]string{
 		"text/html",
 		"application/json",
 		"text/plain",

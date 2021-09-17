@@ -63,28 +63,28 @@ func TestAuthorize_okResponse(t *testing.T) {
 	}{
 		{
 			"ok reply",
-			&evaluator.Result{Allow: true},
+			&evaluator.Result{Allow: evaluator.NewRuleResult(true)},
 			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "OK"},
 			},
 		},
 		{
 			"ok reply with k8s svc",
-			&evaluator.Result{Allow: true},
+			&evaluator.Result{Allow: evaluator.NewRuleResult(true)},
 			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "OK"},
 			},
 		},
 		{
 			"ok reply with k8s svc impersonate",
-			&evaluator.Result{Allow: true},
+			&evaluator.Result{Allow: evaluator.NewRuleResult(true)},
 			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "OK"},
 			},
 		},
 		{
 			"ok reply with jwt claims header",
-			&evaluator.Result{Allow: true},
+			&evaluator.Result{Allow: evaluator.NewRuleResult(true)},
 			&envoy_service_auth_v3.CheckResponse{
 				Status: &status.Status{Code: 0, Message: "OK"},
 			},
@@ -93,7 +93,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := a.okResponse(tc.reply)
+			got := a.okResponse(tc.reply.Headers)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
 			want, _ := protojson.Marshal(tc.want.GetOkResponse())

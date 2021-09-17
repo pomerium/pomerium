@@ -20,6 +20,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
+type A = []interface{}
+type M = map[string]interface{}
+
 var testingNow = time.Date(2021, 5, 11, 13, 43, 0, 0, time.Local)
 
 type (

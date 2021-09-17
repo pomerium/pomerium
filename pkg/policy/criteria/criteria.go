@@ -4,6 +4,8 @@ package criteria
 import (
 	"sync"
 
+	"github.com/open-policy-agent/opa/ast"
+
 	"github.com/pomerium/pomerium/pkg/policy/generator"
 )
 
@@ -48,3 +50,79 @@ const (
 	// CriterionDataTypeStringMatcher indicates the expected data type is a string matcher.
 	CriterionDataTypeStringMatcher CriterionDataType = "string_matcher"
 )
+
+// NewCriterionRule generates a new rule for a criterion.
+func NewCriterionRule(
+	g *generator.Generator,
+	name string,
+	passReason, failReason Reason,
+	body ast.Body,
+) *ast.Rule {
+	r1 := g.NewRule(name)
+	r1.Head.Value = NewCriterionTerm(true, passReason)
+	r1.Body = body
+
+	r2 := &ast.Rule{
+		Head: &ast.Head{
+			Value: NewCriterionTerm(false, failReason),
+		},
+		Body: ast.Body{
+			ast.NewExpr(ast.BooleanTerm(true)),
+		},
+	}
+	r1.Else = r2
+
+	return r1
+}
+
+// NewCriterionSessionRule generates a new rule for a criterion which
+// requires a session. If there is no session "user-unauthenticated"
+// is returned.
+func NewCriterionSessionRule(
+	g *generator.Generator,
+	name string,
+	passReason, failReason Reason,
+	body ast.Body,
+) *ast.Rule {
+	r1 := g.NewRule(name)
+	r1.Head.Value = NewCriterionTerm(true, passReason)
+	r1.Body = body
+
+	r2 := &ast.Rule{
+		Head: &ast.Head{
+			Value: NewCriterionTerm(false, failReason),
+		},
+		Body: ast.Body{
+			ast.MustParseExpr(`session := get_session(input.session.id)`),
+			ast.MustParseExpr(`session.id != ""`),
+		},
+	}
+	r1.Else = r2
+
+	r3 := &ast.Rule{
+		Head: &ast.Head{
+			Value: NewCriterionTerm(false, ReasonUserUnauthenticated),
+		},
+		Body: ast.Body{
+			ast.NewExpr(ast.BooleanTerm(true)),
+		},
+	}
+	r2.Else = r3
+
+	return r1
+}
+
+// NewCriterionTerm creates a new rego term for a criterion:
+//
+//    [true, {"reason"}]
+//
+func NewCriterionTerm(value bool, reasons ...Reason) *ast.Term {
+	var terms []*ast.Term
+	for _, r := range reasons {
+		terms = append(terms, ast.StringTerm(string(r)))
+	}
+	return ast.ArrayTerm(
+		ast.BooleanTerm(value),
+		ast.SetTerm(terms...),
+	)
+}

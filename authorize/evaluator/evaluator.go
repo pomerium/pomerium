@@ -16,15 +16,12 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
 // notFoundOutput is what's returned if a route isn't found for a policy.
 var notFoundOutput = &Result{
-	Allow: false,
-	Deny: &Denial{
-		Status:  http.StatusNotFound,
-		Message: "route not found",
-	},
+	Deny:    NewRuleResult(true, criteria.ReasonRouteNotFound),
 	Headers: make(http.Header),
 }
 
@@ -50,8 +47,8 @@ type RequestSession struct {
 
 // Result is the result of evaluation.
 type Result struct {
-	Allow   bool
-	Deny    *Denial
+	Allow   RuleResult
+	Deny    RuleResult
 	Headers http.Header
 
 	DataBrokerServerVersion, DataBrokerRecordVersion uint64

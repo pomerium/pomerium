@@ -85,6 +85,61 @@ get_group_ids(session, directory_user) = v {
 `)
 }
 
+// MergeWithAnd merges criterion results using `and`.
+func MergeWithAnd() *ast.Rule {
+	return ast.MustParseRule(`
+merge_with_and(results) = [true, reasons] {
+	true_results := [x|x:=results[i];x[0]]
+	count(true_results) == count(results)
+	reasons := union({x|x:=true_results[i][1]})
+} else = [false, reasons] {
+	false_results := [x|x:=results[i];not x[0]]
+	reasons := union({x|x:=false_results[i][1]})
+}
+`)
+}
+
+// MergeWithOr merges criterion results using `or`.
+func MergeWithOr() *ast.Rule {
+	return ast.MustParseRule(`
+merge_with_or(results) = [true, reasons] {
+	true_results := [x|x:=results[i];x[0]]
+	count(true_results) > 0
+	reasons := union({x|x:=true_results[i][1]})
+} else = [false, reasons] {
+	false_results := [x|x:=results[i];not x[0]]
+	reasons := union({x|x:=false_results[i][1]})
+}
+`)
+}
+
+// InvertCriterionResult changes the criterion result's value from false to
+// true, or vice-versa.
+func InvertCriterionResult() *ast.Rule {
+	return ast.MustParseRule(`
+invert_criterion_result(result) = [false, result[1]] {
+	result[0]
+} else = [true, result[1]] {
+	not result[0]
+}
+`)
+}
+
+// NormalizeCriterionResult converts a criterion result into a standard form.
+func NormalizeCriterionResult() *ast.Rule {
+	return ast.MustParseRule(`
+normalize_criterion_result(result) = v {
+	is_boolean(result)
+	v = [result, set()]
+} else = v {
+	is_array(result)
+	v = result
+} else = v {
+	v = [false, set()]
+}
+`)
+}
+
 // ObjectGet recursively gets a value from an object.
 func ObjectGet() *ast.Rule {
 	return ast.MustParseRule(`

@@ -72,25 +72,15 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		a.logAuthorizeCheck(ctx, in, out, res, s, u)
 	}()
 
-	denyStatusCode := int32(http.StatusForbidden)
-	denyStatusText := http.StatusText(http.StatusForbidden)
-	if res.Deny != nil {
-		denyStatusCode = int32(res.Deny.Status)
-		denyStatusText = res.Deny.Message
-	} else if res.Allow {
-		return a.okResponse(res), nil
+	if res.Deny.Value {
+		return a.handleResultDenied(ctx, in, res)
 	}
 
-	// if we're logged in, don't redirect, deny with forbidden
-	if req.Session.ID != "" {
-		return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, nil)
+	if res.Allow.Value {
+		return a.handleResultAllowed(ctx, in, res)
 	}
 
-	if isForwardAuth && hreq.URL.Path == "/verify" {
-		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
-	}
-
-	return a.requireLoginResponse(ctx, in)
+	return a.handleResultNotAllowed(ctx, in, res)
 }
 
 func getForwardAuthURL(r *http.Request) *url.URL {

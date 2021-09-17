@@ -13,6 +13,6 @@ allow:
     - reject: 1
 `, []dataBrokerRecord{}, Input{})
 	require.NoError(t, err)
-	require.Equal(t, false, res["allow"])
-	require.Equal(t, false, res["deny"])
+	require.Equal(t, A{false, A{ReasonReject}}, res["allow"])
+	require.Equal(t, A{false, A{}}, res["deny"])
 }

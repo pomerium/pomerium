@@ -27,8 +27,9 @@ func (authenticatedUserCriterion) Name() string {
 }
 
 func (c authenticatedUserCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
-	rule := c.g.NewRule("authenticated_user")
-	rule.Body = authenticatedUserBody
+	rule := NewCriterionSessionRule(c.g, c.Name(),
+		ReasonUserOK, ReasonUserUnauthorized,
+		authenticatedUserBody)
 	return rule, []*ast.Rule{rules.GetSession()}, nil
 }
 
