@@ -59,7 +59,7 @@ pip3 install git+ssh://git@github.com/pomerium/enterprise-client-python.git
 :::
 ::: tab Go
 ```bash
-go get github.com:pomerium/enterprise-client-go.git
+go get github.com/pomerium/enterprise-client-go
 ```
 :::
 ::::
