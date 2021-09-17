@@ -8,7 +8,7 @@ meta:
 
 # Enterprise Console API
 
-The Pantheon Enterprise Console supports programmatic interaction through an API. This page covers enabling and authenticating to the API.
+The Pomerium Enterprise Console supports programmatic interaction through an API. This page covers enabling and authenticating to the API.
 
 ## Before You Begin
 
