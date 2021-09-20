@@ -231,7 +231,8 @@ func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) 
 }
 
 func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool {
-	if a.isForwardAuth(in) && in.GetAttributes().GetRequest().GetHttp().GetPath() == "/verify" {
+	checkURL := getCheckRequestURL(in)
+	if a.isForwardAuth(in) && checkURL.Path == "/verify" {
 		return false
 	}
 
