@@ -607,7 +607,7 @@ invalid_client_certificate_0 = [true, {"invalid-client-certificate"}] {
 	not input.is_valid_client_certificate
 }
 
-else = [false, {"valid-client-certificate"}] {
+else = [false, {"valid-client-certificate-or-none-required"}] {
 	true
 }
 

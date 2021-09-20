@@ -26,7 +26,7 @@ func (invalidClientCertificateCriterion) Name() string {
 
 func (c invalidClientCertificateCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
 	rule := NewCriterionRule(c.g, c.Name(),
-		ReasonInvalidClientCertificate, ReasonValidClientCertificate,
+		ReasonInvalidClientCertificate, ReasonValidClientCertificateOrNoneRequired,
 		invalidClientCertificateBody)
 	return rule, nil, nil
 }

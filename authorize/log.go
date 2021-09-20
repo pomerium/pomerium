@@ -48,15 +48,15 @@ func (a *Authorize) logAuthorizeCheck(
 	if res != nil {
 		evt = evt.Bool("allow", res.Allow.Value)
 		if res.Allow.Value {
-			evt = evt.Strs("allowed-reasons", res.Allow.Reasons.Strings())
+			evt = evt.Strs("allow-why-true", res.Allow.Reasons.Strings())
 		} else {
-			evt = evt.Strs("not-allowed-reasons", res.Allow.Reasons.Strings())
+			evt = evt.Strs("allow-why-false", res.Allow.Reasons.Strings())
 		}
 		evt = evt.Bool("deny", res.Deny.Value)
 		if res.Deny.Value {
-			evt = evt.Strs("denied-reasons", res.Deny.Reasons.Strings())
+			evt = evt.Strs("deny-why-true", res.Deny.Reasons.Strings())
 		} else {
-			evt = evt.Strs("not-denied-reasons", res.Deny.Reasons.Strings())
+			evt = evt.Strs("deny-why-false", res.Deny.Reasons.Strings())
 		}
 		evt = evt.Str("user", u.GetId())
 		evt = evt.Str("email", u.GetEmail())

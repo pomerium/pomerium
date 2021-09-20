@@ -71,7 +71,7 @@ func TestPolicyEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
 			Allow: NewRuleResult(true, criteria.ReasonEmailOK),
-			Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificate),
+			Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
 		}, output)
 	})
 	t.Run("invalid cert", func(t *testing.T) {
@@ -103,7 +103,7 @@ func TestPolicyEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
 			Allow: NewRuleResult(false, criteria.ReasonEmailUnauthorized, criteria.ReasonNonPomeriumRoute, criteria.ReasonUserUnauthorized),
-			Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificate),
+			Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
 		}, output)
 	})
 	t.Run("ppl", func(t *testing.T) {
@@ -133,7 +133,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
 				Allow: NewRuleResult(true, criteria.ReasonAccept),
-				Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificate),
+				Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
 			}, output)
 		})
 		t.Run("deny", func(t *testing.T) {

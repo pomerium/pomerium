@@ -45,10 +45,10 @@ func (a *Authorize) handleResultDenied(
 	switch {
 	case result.Deny.Reasons.Has(criteria.ReasonRouteNotFound):
 		denyStatusCode = http.StatusNotFound
-		denyStatusText = "route not found"
+		denyStatusText = http.StatusText(http.StatusNotFound)
 	case result.Deny.Reasons.Has(criteria.ReasonInvalidClientCertificate):
-		denyStatusCode = 495
-		denyStatusText = "invalid client certificate"
+		denyStatusCode = httputil.StatusInvalidClientCertificate
+		denyStatusText = httputil.StatusText(httputil.StatusInvalidClientCertificate)
 	}
 
 	return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, nil)
@@ -67,7 +67,7 @@ func (a *Authorize) handleResultNotAllowed(
 		return a.requireLoginResponse(ctx, in, isForwardAuthVerify)
 	}
 
-	return a.deniedResponse(ctx, in, http.StatusForbidden, "Forbidden", nil)
+	return a.deniedResponse(ctx, in, http.StatusForbidden, http.StatusText(http.StatusForbidden), nil)
 }
 
 func (a *Authorize) okResponse(headers http.Header) *envoy_service_auth_v3.CheckResponse {

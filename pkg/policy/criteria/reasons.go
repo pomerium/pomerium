@@ -7,26 +7,26 @@ type Reason string
 
 // Well-known reasons.
 const (
-	ReasonAccept                   = "accept"
-	ReasonClaimOK                  = "claim-ok"
-	ReasonClaimUnauthorized        = "claim-unauthorized"
-	ReasonCORSRequest              = "cors-request"
-	ReasonDomainOK                 = "domain-ok"
-	ReasonDomainUnauthorized       = "domain-unauthorized"
-	ReasonEmailOK                  = "email-ok"
-	ReasonEmailUnauthorized        = "email-unauthorized"
-	ReasonGroupsOK                 = "groups-ok"
-	ReasonGroupsUnauthorized       = "groups-unauthorized"
-	ReasonInvalidClientCertificate = "invalid-client-certificate"
-	ReasonNonCORSRequest           = "non-cors-request"
-	ReasonNonPomeriumRoute         = "non-pomerium-route"
-	ReasonPomeriumRoute            = "pomerium-route"
-	ReasonReject                   = "reject"
-	ReasonRouteNotFound            = "route-not-found"
-	ReasonUserOK                   = "user-ok"
-	ReasonUserUnauthenticated      = "user-unauthenticated" // user needs to log in
-	ReasonUserUnauthorized         = "user-unauthorized"    // user does not have access
-	ReasonValidClientCertificate   = "valid-client-certificate"
+	ReasonAccept                               = "accept"
+	ReasonClaimOK                              = "claim-ok"
+	ReasonClaimUnauthorized                    = "claim-unauthorized"
+	ReasonCORSRequest                          = "cors-request"
+	ReasonDomainOK                             = "domain-ok"
+	ReasonDomainUnauthorized                   = "domain-unauthorized"
+	ReasonEmailOK                              = "email-ok"
+	ReasonEmailUnauthorized                    = "email-unauthorized"
+	ReasonGroupsOK                             = "groups-ok"
+	ReasonGroupsUnauthorized                   = "groups-unauthorized"
+	ReasonInvalidClientCertificate             = "invalid-client-certificate"
+	ReasonNonCORSRequest                       = "non-cors-request"
+	ReasonNonPomeriumRoute                     = "non-pomerium-route"
+	ReasonPomeriumRoute                        = "pomerium-route"
+	ReasonReject                               = "reject"
+	ReasonRouteNotFound                        = "route-not-found"
+	ReasonUserOK                               = "user-ok"
+	ReasonUserUnauthenticated                  = "user-unauthenticated" // user needs to log in
+	ReasonUserUnauthorized                     = "user-unauthorized"    // user does not have access
+	ReasonValidClientCertificateOrNoneRequired = "valid-client-certificate-or-none-required"
 )
 
 // Reasons is a collection of reasons.
