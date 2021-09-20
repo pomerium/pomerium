@@ -9,10 +9,11 @@ import (
 )
 
 type config struct {
-	jwtCache  cliutil.JWTCache
-	dstHost   string
-	proxyHost string
-	tlsConfig *tls.Config
+	jwtCache      cliutil.JWTCache
+	dstHost       string
+	proxyHost     string
+	tlsConfig     *tls.Config
+	browserConfig string
 }
 
 func getConfig(options ...Option) *config {
@@ -31,6 +32,13 @@ func getConfig(options ...Option) *config {
 
 // An Option modifies the config.
 type Option func(*config)
+
+// WithBrowserCommand returns an option to configure the browser command.
+func WithBrowserCommand(browserCommand string) Option {
+	return func(cfg *config) {
+		cfg.browserConfig = browserCommand
+	}
+}
 
 // WithDestinationHost returns an option to configure the destination host.
 func WithDestinationHost(dstHost string) Option {

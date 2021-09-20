@@ -16,6 +16,7 @@ import (
 )
 
 func init() {
+	addBrowserFlags(kubernetesExecCredentialCmd)
 	addTLSFlags(kubernetesExecCredentialCmd)
 	kubernetesCmd.AddCommand(kubernetesExecCredentialCmd)
 	kubernetesCmd.AddCommand(kubernetesFlushCredentialsCmd)
@@ -61,7 +62,9 @@ var kubernetesExecCredentialCmd = &cobra.Command{
 			tlsConfig = getTLSConfig()
 		}
 
-		ac := authclient.New(authclient.WithTLSConfig(tlsConfig))
+		ac := authclient.New(
+			authclient.WithBrowserCommand(browserOptions.command),
+			authclient.WithTLSConfig(tlsConfig))
 		rawJWT, err := ac.GetJWT(context.Background(), serverURL)
 		if err != nil {
 			fatalf("%s", err)

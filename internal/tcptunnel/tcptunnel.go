@@ -30,8 +30,10 @@ type Tunnel struct {
 func New(options ...Option) *Tunnel {
 	cfg := getConfig(options...)
 	return &Tunnel{
-		cfg:  cfg,
-		auth: authclient.New(authclient.WithTLSConfig(cfg.tlsConfig)),
+		cfg: cfg,
+		auth: authclient.New(
+			authclient.WithBrowserCommand(cfg.browserConfig),
+			authclient.WithTLSConfig(cfg.tlsConfig)),
 	}
 }
 

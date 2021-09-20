@@ -36,11 +36,8 @@ func TestAuthClient(t *testing.T) {
 		_ = srv.Serve(li)
 	}()
 
-	origOpenBrowser := openBrowser
-	defer func() {
-		openBrowser = origOpenBrowser
-	}()
-	openBrowser = func(input string) error {
+	ac := New()
+	ac.cfg.open = func(input string) error {
 		u, err := url.Parse(input)
 		if err != nil {
 			return err
@@ -64,7 +61,6 @@ func TestAuthClient(t *testing.T) {
 		return nil
 	}
 
-	ac := New()
 	rawJWT, err := ac.GetJWT(ctx, &url.URL{
 		Scheme: "http",
 		Host:   li.Addr().String(),

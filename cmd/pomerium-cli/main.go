@@ -57,3 +57,13 @@ func getTLSConfig() *tls.Config {
 	}
 	return cfg
 }
+
+var browserOptions struct {
+	command string
+}
+
+func addBrowserFlags(cmd *cobra.Command) {
+	flags := cmd.Flags()
+	flags.StringVar(&browserOptions.command, "browser-cmd", "",
+		"custom browser command to run when opening a URL")
+}
