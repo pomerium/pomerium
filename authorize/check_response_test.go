@@ -175,7 +175,7 @@ func TestRequireLogin(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("accept empty", func(t *testing.T) {
-		res, err := a.requireLoginResponse(context.Background(), &envoy_service_auth_v3.CheckRequest{})
+		res, err := a.requireLoginResponse(context.Background(), &envoy_service_auth_v3.CheckRequest{}, false)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
@@ -190,7 +190,7 @@ func TestRequireLogin(t *testing.T) {
 					},
 				},
 			},
-		})
+		}, false)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
@@ -205,7 +205,7 @@ func TestRequireLogin(t *testing.T) {
 					},
 				},
 			},
-		})
+		}, false)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})

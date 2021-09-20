@@ -58,12 +58,13 @@ func (a *Authorize) handleResultNotAllowed(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
 	result *evaluator.Result,
+	isForwardAuthVerify bool,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	switch {
 	case result.Allow.Reasons.Has(criteria.ReasonUserUnauthenticated):
 		// when the user is unauthenticated it means they haven't
 		// logged in yet, so redirect to authenticate
-		return a.requireLoginResponse(ctx, in)
+		return a.requireLoginResponse(ctx, in, isForwardAuthVerify)
 	}
 
 	return a.deniedResponse(ctx, in, http.StatusForbidden, "Forbidden", nil)
@@ -149,7 +150,11 @@ func (a *Authorize) deniedResponse(
 	}, nil
 }
 
-func (a *Authorize) requireLoginResponse(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
+func (a *Authorize) requireLoginResponse(
+	ctx context.Context,
+	in *envoy_service_auth_v3.CheckRequest,
+	isForwardAuthVerify bool,
+) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
 	state := a.state.Load()
 	authenticateURL, err := opts.GetAuthenticateURL()
@@ -157,7 +162,7 @@ func (a *Authorize) requireLoginResponse(ctx context.Context, in *envoy_service_
 		return nil, err
 	}
 
-	if !a.shouldRedirect(in) {
+	if !a.shouldRedirect(in) || isForwardAuthVerify {
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
 	}
 
@@ -231,11 +236,6 @@ func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) 
 }
 
 func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool {
-	checkURL := getCheckRequestURL(in)
-	if a.isForwardAuth(in) && checkURL.Path == "/verify" {
-		return false
-	}
-
 	requestHeaders := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
 	if requestHeaders == nil {
 		return true

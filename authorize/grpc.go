@@ -80,7 +80,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return a.handleResultAllowed(ctx, in, res)
 	}
 
-	return a.handleResultNotAllowed(ctx, in, res)
+	isForwardAuthVerify := isForwardAuth && hreq.URL.Path == "/verify"
+	return a.handleResultNotAllowed(ctx, in, res, isForwardAuthVerify)
 }
 
 func getForwardAuthURL(r *http.Request) *url.URL {
